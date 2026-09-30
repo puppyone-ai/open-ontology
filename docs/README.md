@@ -2,7 +2,7 @@
 
 > Status: Proposed — 目标设计，尚无实现代码
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 
 Open Ontology（OO）是一个开源项目：企业登记（或上传）自己的任何数据库，系统单向同步到一个只供 Agent 使用的 PostgreSQL，自动构建一个面向 Agent 的语义与访问层（本项目所说的 **ontology**，不是知识图谱），并一键接上 Agent harness 进行对话。Agent 在没有任何密钥的沙盒中工作，通过只读、按最终用户权限执行、可审计的 Gateway 访问数据。
 
@@ -12,7 +12,7 @@ Open Ontology（OO）是一个开源项目：企业登记（或上传）自己�
 |---|---|---|---|
 | 00 | [愿景、定义与范围](00-vision-and-scope.md) | 所有人 | 问题、ontology 的定义、产品形态、原则、范围与非目标、成功标准、与参考草案的差异 |
 | 01 | [总体架构](01-architecture.md) | 所有人 | 分层、三道单向边界、组件与状态归属、三条主数据流、网络分区、仓库结构 |
-| 02 | [技术栈与 ADR](02-technology-stack.md) | 工程 | 选型总表、10 条架构决策记录、许可证审计、版本基线 |
+| 02 | [技术栈与 ADR](02-technology-stack.md) | 工程 | 选型总表、ADR 与 Rust 选型、许可证审计、版本基线 |
 | 03 | [数据源、连接器与文件接入](03-sources-and-ingestion.md) | 工程、DBA | 注册机制、连接器接口、权限体检、DBA 清单、类型映射、文件上传与托管 |
 | 04 | [同步管线](04-pipeline.md) | 工程 | 变更批次、“CDC 优先、快照补空”算法、Loader、表结构变化、换表、批量路径、对账、hook、编排、监控 |
 | 05 | [Agent DB](05-agent-db.md) | 工程、DBA | 命名空间、角色与 RLS、claims 防伪、热备冲突、`_oo` schema、索引与分区、容量 |
@@ -27,6 +27,7 @@ Open Ontology（OO）是一个开源项目：企业登记（或上传）自己�
 | 14 | [路线图、风险与待决问题](14-roadmap-and-risks.md) | 所有人 | M0–M4、原型验证清单、风险登记、需与客户确认的问题 |
 | 15 | [术语表](15-glossary.md) | 所有人 | — |
 | 16 | [参考资料](16-references.md) | 工程 | 调研来源与待核实项 |
+| 17 | [Rust 实现契约与迁移验收](17-rust-implementation.md) | 工程、安全 | crate 关系、任务与取消、FFI/插件隔离、类型/托管、构建与验收 |
 
 ## 文档约定
 
@@ -35,3 +36,5 @@ Open Ontology（OO）是一个开源项目：企业登记（或上传）自己�
 - **ADR** 以 `ADR-<序号>` 编号，在 [02](02-technology-stack.md) 中维护；推翻一条 ADR 需要新增一条并标注被取代。
 - **数字**（阈值、规模、SLO）均为初始值，经性能测试或与客户确认后更新，并记录来源。
 - `references/` 目录中的早期草案是本设计的输入之一，不是权威；本目录与其不一致之处，以本目录为准，差异汇总见 [00 §8](00-vision-and-scope.md)。
+
+核心实现栈统一为 Rust（Cargo/Tokio/Axum）；控制台与 TS SDK 保留 TypeScript，Debezium 与 harness 保留上游运行时。本文档仍是设计，依赖候选、接口示例和一键启动命令不代表已实现制品；工程落地约束见 [17](17-rust-implementation.md)。

@@ -1,7 +1,7 @@
 # 16 参考资料
 
 > Status: Living document
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 说明：以下资料于 2026-09 检索整理，用于支撑本设计中的事实性陈述。标注“待核实”的条目在原型阶段需再次确认。参考资料不代表决策；决策与理由见各文档正文。
 
 ## 1. 语义层与“本体”
@@ -62,7 +62,7 @@
 | DuckDB Excel | 仅 `.xlsx` | https://duckdb.org/docs/lts/guides/file_formats/excel_import.html |
 | MinIO 社区版状态 | 2025-10 维护模式；2026-04 起仅源码分发 | https://www.infoq.com/news/2025/12/minio-s3-api-alternatives/ · https://github.com/minio/minio |
 | ARQ 维护状态 | 仅维护模式 | https://github.com/python-arq/arq |
-| Procrastinate | 基于 PG 的 Python 任务队列 | https://github.com/procrastinate-org/procrastinate |
+| 旧队列方案（历史参考） | Procrastinate / ARQ 不再是现行运行依赖；Rust oo-jobs 见 ADR-015 | https://github.com/procrastinate-org/procrastinate · https://github.com/python-arq/arq |
 | 同类工具许可证 | Airbyte ELv2、Estuary BSL、PeerDB AGPL、Redpanda Connect CDC 企业许可 | https://airbyte.com/blog/move-to-elv2 · https://github.com/estuary/flow · https://github.com/PeerDB-io/peerdb · https://github.com/redpanda-data/connect |
 | 列式扩展 | pg_duckdb、pg_mooncake；ParadeDB pg_analytics 已归档 | https://github.com/duckdb/pg_duckdb · https://github.com/paradedb/pg_analytics |
 | 对账 | data-diff 哈希分桶算法；上游已归档，reladiff 为维护中的分支 | https://github.com/datafold/data-diff/blob/master/docs/technical-explanation.md · https://github.com/erezsh/reladiff |
@@ -77,7 +77,7 @@
 | Supabase MCP 事件 | 工单数据中的注入 + `service_role` 绕过 RLS | https://generalanalysis.com/blog/supabase-mcp-blog · https://supabase.com/blog/defense-in-depth-mcp |
 | GitHub MCP 事件 | 恶意 issue 诱导泄露私有仓库 | https://invariantlabs.ai/blog/mcp-github-vulnerability |
 | 致命三要素 | 私有数据 + 不可信内容 + 对外通信 | https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/ |
-| pglast / libpg_query | PG 真实语法分析器的 Python 绑定 | https://github.com/lelit/pglast · https://pganalyze.com/blog/pg-query-2-0-postgres-query-parser |
+| pg_query / libpg_query | Rust 绑定直接使用 PG 源码解析，含 C FFI；MIT/BSD/PG 分部许可 | https://github.com/pganalyze/pg_query.rs · https://github.com/pganalyze/libpg_query |
 | 可写 CTE | `WITH` 中执行 INSERT/UPDATE/DELETE | https://www.postgresql.org/docs/current/queries-with.html |
 | RLS 与 LEAKPROOF、security_invoker 视图 | — | https://www.postgresql.org/docs/current/ddl-rowsecurity.html · https://pganalyze.com/blog/5mins-postgres-row-level-security-bypassrls-security-invoker-views-leakproof-functions |
 | `default_transaction_read_only` 可被会话修改 | 只读需要引擎层保证 | https://jkatz.github.io/post/postgres/postgres-read-only/ |
@@ -122,9 +122,39 @@
 
 ## 6. 待核实项
 
-- pglast 的确切许可证及其对 Apache-2.0 分发的影响（[02 §5](02-technology-stack.md)）。
+- Rust 锁定版本的传递依赖及原生源码 LICENSE/NOTICE、SBOM；pg_query 内嵌 PG 大版本配套与完整门禁回归（[02 §5](02-technology-stack.md)、[17](17-rust-implementation.md)）。
 - Debezium 事件中 PG 事务提交 LSN 的可获得性（[04 §5.1](04-pipeline.md)）。
 - Debezium Server 3.5 下 JDBC offset / schema history store 的可用性。
 - 托管 PG（RDS/Aurora、Cloud SQL）对 PG17 failover slot 的支持。
-- Procrastinate、Hatchet、DBOS、Sequin、Conduit、Supabase ETL、SeaweedFS、Garage、RustFS 的许可证（调研时部分未能核对 LICENSE 文件）。
+- 候选外部服务 Hatchet、DBOS、Sequin、Conduit、Supabase ETL、SeaweedFS、Garage、RustFS 的许可证（调研时部分未能核对 LICENSE 文件）。
 - 部分二手来源的事件（promptfoo 被收购、SDV 许可证变化）。
+
+
+## 7. Rust 迁移调研（2026-09-30 至 2026-10-01）
+
+检索使用 Anysearch `code.doc`（先发现子域，查询包含 library 参数），再查阅官方项目、docs.rs 与 crates.io API。只发送公开技术查询，未向搜索服务发送客户数据或凭证。检索结果是资料线索，选型以主来源为准；注册表“最新版本”不等于默认制品可以采用的已验证版本。
+
+| 主题 | 核对结论 / 设计影响 | 主来源 |
+|---|---|---|
+| Axum / Tower | Rust HTTP 服务与中间件；HTTP 超时不能替代数据侧清理 | [Axum](https://github.com/tokio-rs/axum) |
+| SQLx | 控制库和 PG/MySQL/SQLite 源驱动；0.9.0 注册表声明 MSRV 1.94.0；扩展数据库需另做连接器 | [SQLx](https://github.com/launchbadge/sqlx)、[注册表](https://crates.io/crates/sqlx/0.9.0) |
+| PG 驱动 / portal | prepare 后 bind；query_portal 正数分页；0 表示全部，不能当上限 | [Transaction](https://docs.rs/tokio-postgres/latest/tokio_postgres/struct.Transaction.html) |
+| PG CancelRequest | CancelToken 只请求取消，上游明确不确认取消成功且存在竞态；清理后才可复用连接 | [CancelToken](https://docs.rs/tokio-postgres/latest/tokio_postgres/struct.CancelToken.html) |
+| 连接池 | 必须配置连接健康/回收策略；类型所有权不证明池状态干净 | [deadpool-postgres](https://docs.rs/deadpool-postgres/latest/deadpool_postgres/) |
+| Tokio blocking 任务 | 开始后不能靠 abort 终止，解析/hook 需要隔离进程时限 | [spawn_blocking](https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html) |
+| SQL parser | pg_query 6.2.0 manifest 为 MIT，静态构建 libpg_query/PG 源码；需审核 vendored PG 版本与 native build 工具 | [仓库](https://github.com/pganalyze/pg_query.rs)、[manifest](https://github.com/pganalyze/pg_query.rs/blob/main/Cargo.toml) |
+| 多方言证据 | sqlparser 是 Rust SQL parser，不能替代 PG 源生门禁 | [sqlparser-rs](https://github.com/apache/datafusion-sqlparser-rs) |
+| Arrow / Parquet | 官方 Rust 实现；同系列锁定；值规范化与 IPC 是跨组件契约 | [arrow-rs](https://github.com/apache/arrow-rs) |
+| DuckDB Rust | bundled 原生引擎；crate 与 engine 版本分别核对；Arrow 依赖与扩展也需配套 | [duckdb-rs](https://github.com/duckdb/duckdb-rs)、[Rust Client](https://duckdb.org/docs/current/clients/rust/overview) |
+| DuckDB 不可信输入 | 扩展/文件/网络访问属于独立风险；不把 DuckDB 连接当沙盒 | [Securing DuckDB](https://duckdb.org/docs/stable/operations_manual/securing_duckdb/overview.html) |
+| Excel | calamine 读 xls/xlsx 等，公式读取不等于计算引擎；文件大小/展开内存另加硬限额 | [calamine](https://github.com/tafia/calamine) |
+| 编码 | chardetng 提供候选检测，encoding_rs 负责编码转换；错误与 GB18030 兼容需用 fixtures 验证 | [chardetng](https://docs.rs/chardetng/latest/chardetng/)、[encoding_rs](https://docs.rs/encoding_rs/latest/encoding_rs/) |
+| 文件托管 | object_store 是 Rust 的本地/S3 等统一接口；ACL/保留/加密仍是部署职责 | [object_store](https://docs.rs/object_store/latest/object_store/) |
+| YAML | serde-saphyr 支持 Serde 与配置预算；拒绝重复键，关闭 include/插值/未知标签，按版本复验 | [serde-saphyr](https://docs.rs/serde-saphyr/latest/serde_saphyr/) |
+| Schema / OpenAPI | Schemars 从 Rust 类型生成 JSON Schema；utoipa 生成 OpenAPI；两者还需 HTTP fixture 对照 | [Schemars](https://docs.rs/schemars/latest/schemars/)、[utoipa](https://docs.rs/utoipa/latest/utoipa/) |
+| MCP Rust | 官方 rmcp；注册表 3.5.0 是 Apache-2.0，2026-09-28 发布，未满 7 天不进入默认版本 | [官方 Rust SDK](https://github.com/modelcontextprotocol/rust-sdk)、[注册表](https://crates.io/crates/rmcp/3.5.0) |
+| MCP 版本 / 授权 | 目标 2026-07-28；版本支持需协商与 SDK 测试；禁止 token passthrough | [Versioning](https://modelcontextprotocol.io/docs/2026-07-28/learn/versioning)、[Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) |
+| Rust 压测 | Goose 为 Rust HTTP 负载工具；与 pgbench 和真实 Agent 评测分别使用 | [Goose](https://docs.rs/goose/latest/goose/) |
+| 供应链 | RustSec cargo audit 与 cargo deny；crate、镜像、JS、native 源码均需扫描 | [RustSec](https://github.com/rustsec/rustsec)、[cargo-deny](https://embarkstudios.github.io/cargo-deny/) |
+
+依赖注册表抽查还包括：Tokio 1.53.1、Axum 0.8.9、tokio-postgres 0.7.18、deadpool-postgres 0.14.2、Arrow/Parquet 60.0.0、calamine 0.36.1、object_store 0.14.2、reqwest 0.13.5。这里只记录检索结果，未创建产品 Cargo.lock、未验证它们组成完整可构建 workspace；按 [02 §6](02-technology-stack.md) 与 [17 §7](17-rust-implementation.md) 再筛选、锁定和测试。

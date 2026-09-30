@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[01 架构](01-architecture.md)、[02 技术栈](02-technology-stack.md)
 > 被依赖：[04 管线](04-pipeline.md)、[06 Ontology](06-ontology-layer.md)
 
@@ -15,7 +15,7 @@
 - **I-SRC-3** 能写业务表的凭证默认拒绝登记。
 - **I-SRC-4** 所有读取受限速，优先从只读从库读。
 
-“任何数据库”的承诺按以下方式兑现：**CDC 能力取决于 Debezium 连接器，批量能力只要求能执行 `SELECT`**，所以任何能用 SQL 读取的库都能以批量方式接入；文件和数据库导出文件（dump）作为第三条路径。
+“任何数据库”的承诺按以下方式兑现：**CDC 能力取决于已验证的 Debezium 连接器；批量接入需受支持的只读驱动/连接器与 `SELECT` 权限**，因此具有受支持 Rust 驱动或已审核外部连接器、且能执行 SELECT 的库可以批量接入；仅有 SQL 接口不等于首版已支持该数据库；文件和数据库导出文件（dump）作为第三条路径。
 
 ## 2. 源的类型
 
@@ -23,7 +23,7 @@
 |---|---|---|---|
 | 关系数据库（可 CDC） | MySQL / MariaDB、PostgreSQL（含 RDS、Aurora、Cloud SQL、AlloyDB、Azure） | CDC + 每日对账 | ✓ |
 | 关系数据库（不可 CDC） | 同上但无法开日志；以及任何有 SQL 接口的库 | 批量增量（`updated_at` 水位）+ 每日对账 | ✓ |
-| 数据仓库 | Snowflake、BigQuery、Databricks、Redshift、ClickHouse | 批量增量（ADBC 读取） | 第二批 |
+| 数据仓库 | Snowflake、BigQuery、Databricks、Redshift、ClickHouse | 批量增量（对应 Rust 驱动 / 可选 ADBC） | 第二批 |
 | 需要额外配置的 CDC 库 | SQL Server（CDC 表）、Oracle（LogMiner） | CDC | 第二、三批 |
 | 文档库 | MongoDB | CDC（Debezium）→ `jsonb` 列 + 展开视图 | 规划中 |
 | 文件 | CSV / TSV / Excel（xlsx、xls）/ Parquet / JSON Lines | 上传 → 解析 → 全量替换或按键合并 | ✓ |
@@ -33,7 +33,7 @@
 
 ### 3.1 插件与实例
 
-- **插件**通过 Python entry point（`oo.connectors`、`oo.triggers`、`oo.hooks`、`oo.secrets`、`oo.notifiers`、`oo.harnesses`、`oo.sandboxes`）或 `plugins/` 目录自动发现。
+- **插件**内置实现为 workspace crate，按 Cargo feature 显式注册为 `Arc<dyn Trait + Send + Sync>`；禁止自动扫描目录并加载本机动态库（Rust ABI 不稳定且没有隔离）。第三方实现使用管理员审核的独立进程/容器，通过版本化 JSON 控制协议 + Arrow IPC 数据流接入；清单锁定协议版本、镜像 digest、权限与资源限额。见 [17 §4](17-rust-implementation.md)。
 - **实例**写在配置 Git 仓库的 YAML 中，用 `oo validate → oo plan → oo apply` 生效。控制台的“添加数据源”向导生成同样的 YAML 并提交（审核后生效）。
 
 ```yaml
@@ -70,27 +70,37 @@ sources:
 
 ## 4. 连接器接口
 
-```python
-class Connector(Protocol):
-    name: ClassVar[str]
-    capabilities: ClassVar[set[Capability]]   # CDC, INCREMENTAL, FULL, READ_LOGIC, REPLICA_READ
+```rust
+// 接口契约：业务类型由 oo-core 定义，省略实现；不是独立程序。
+use std::{collections::BTreeSet, pin::Pin};
+use arrow_array::RecordBatch;
+use async_trait::async_trait;
+use futures_core::Stream;
+use tokio_util::sync::CancellationToken;
 
-    def check_access(self) -> AccessReport: ...
-    def list_tables(self) -> list[TableRef]: ...
-    def read_schema(self, tables: list[TableRef]) -> list[TableSchema]: ...   # 列、类型、主键、唯一键、外键、注释
-    def read_logic(self) -> list[LogicObject]: ...                            # 视图定义、存储过程正文（给 Ontology Builder）
-    def estimate(self, table: TableRef) -> TableStats: ...                    # 行数、体积（来自源库统计信息，不 COUNT(*)）
-    def plan_chunks(self, table: TableRef, target_rows: int) -> list[Chunk]: ...
-    def read_chunk(self, chunk: Chunk) -> Iterator[pa.RecordBatch]: ...
-    def read_incremental(self, table: TableRef, cursor: Cursor) -> Iterator[pa.RecordBatch]: ...
-    def read_keys(self, table: TableRef, key_range: KeyRange) -> Iterator[pa.RecordBatch]: ...  # 对账用
-    def type_map(self, col: SourceColumn, policy: TypePolicy) -> ColumnMapping: ...
-    def cdc_config(self) -> DebeziumConfig | None: ...
-    def position_codec(self) -> PositionCodec: ...                            # 源位点 ⇄ _oo_pos 的编码
+type BatchStream = Pin<Box<dyn Stream<Item = Result<RecordBatch, OoError>> + Send>>;
+
+#[async_trait]
+pub trait Connector: Send + Sync {
+    fn name(&self) -> &str;
+    fn capabilities(&self) -> BTreeSet<Capability>;
+    async fn check_access(&self) -> Result<AccessReport, OoError>;
+    async fn list_tables(&self) -> Result<Vec<TableRef>, OoError>;
+    async fn read_schema(&self, tables: &[TableRef]) -> Result<Vec<TableSchema>, OoError>;
+    async fn read_logic(&self) -> Result<Vec<LogicObject>, OoError>;
+    async fn estimate(&self, table: &TableRef) -> Result<TableStats, OoError>;
+    async fn plan_chunks(&self, table: &TableRef, target_rows: usize) -> Result<Vec<Chunk>, OoError>;
+    async fn read_chunk(&self, chunk: Chunk, cancel: CancellationToken) -> Result<BatchStream, OoError>;
+    async fn read_incremental(&self, table: TableRef, cursor: Cursor, cancel: CancellationToken) -> Result<BatchStream, OoError>;
+    async fn read_keys(&self, table: TableRef, range: KeyRange, cancel: CancellationToken) -> Result<BatchStream, OoError>;
+    fn type_map(&self, col: &SourceColumn, policy: &TypePolicy) -> Result<ColumnMapping, OoError>;
+    fn cdc_config(&self) -> Result<Option<DebeziumConfig>, OoError>;
+    fn position_codec(&self) -> Box<dyn PositionCodec + Send + Sync>;
+}
 ```
 
-- `read_chunk` 返回 Arrow RecordBatch，内部用 ADBC 或 ConnectorX 做列式读取，避免 Python 行对象。
-- `type_map` 是**连接器的职责**：批量路径与 CDC 路径必须产出同样的 Arrow 类型，否则对账会误报。每个连接器都要有“同一行经两条路径读取、结果逐字节一致”的一致性测试。
+- `read_chunk` 返回有界异步 Arrow RecordBatch 流。首版用 SQLx 的 PG/MySQL 驱动流式取行，再用 Arrow builders 按行数与字节预算组批；不是驱动天然零拷贝列式读取。ADBC / ConnectorX 的 Rust 路径作为可选优化，驱动覆盖、许可证、类型转换与取消语义验证后启用。
+- `type_map` 是**连接器的职责**：批量路径与 CDC 路径必须产出同样的 Arrow 类型，否则对账会误报。每个连接器都要有“同一行经两条路径读取、schema 与规范值一致”的一致性测试。
 - 分块按主键范围（`plan_chunks` 用主键的 min/max 与统计直方图切分；主键不均匀时用 `LIMIT` 游标式分块），每块默认 5 万行。
 
 ## 5. 权限体检（`check_access`）
@@ -189,8 +199,8 @@ CREATE PUBLICATION oo_pub FOR TABLE public.orders, public.customers;
 ### 7.1 上传
 
 - 控制台与 API 支持断点续传（分片上传，单文件默认上限 5 GB，可配置）。
-- 原件存入对象存储：`uploads/<upload_id>/<sha256>/<原文件名>`，保留期默认 180 天，可配置；同一内容（sha256 相同）不重复存储。
-- 安全处理：只按内容嗅探格式，不信任扩展名；压缩包检查解压比（防压缩炸弹）和路径穿越；`.xlsm` 等含宏文件只读数据、不执行宏；可选接入 ClamAV 扫描。
+- 原件存入对象存储：`uploads/<upload_id>/<sha256>/original`（原文件名只作为展示元数据），保留期默认 180 天，可配置；同一内容（sha256 相同）不重复存储。
+- 安全处理：使用隔离的有界解析 worker（[17 §4](17-rust-implementation.md)），只按内容嗅探格式，不信任扩展名；压缩包检查解压比（防压缩炸弹）和路径穿越；`.xlsm` 等含宏文件只读数据、不执行宏；可选接入 ClamAV 扫描。
 
 ### 7.2 解析
 
@@ -200,12 +210,12 @@ CREATE PUBLICATION oo_pub FOR TABLE public.orders, public.customers;
 
 | 格式 | 解析 | 要点 |
 |---|---|---|
-| CSV / TSV | DuckDB `read_csv`（嗅探分隔符、表头、类型） | 编码先用 charset-normalizer 识别；中文文件识别为 GBK 时按 **GB18030** 解码（GBK 的超集，减少乱码）；统一转 UTF-8 |
-| xlsx | DuckDB `excel` 扩展（简单表格）；复杂表头走 openpyxl | 每个 sheet 一张表；识别合并单元格与多行表头，给出候选表头行，由用户在预览中确认；空行/合计行识别 |
-| xls（旧格式） | xlrd 读取后转 Arrow | DuckDB 不支持 `.xls` |
-| Parquet | DuckDB `read_parquet` | 类型直接采用 |
+| CSV / TSV | DuckDB `read_csv`（嗅探分隔符、表头、类型） | 编码先用 Rust `chardetng` 提出候选，再按解析配置用 `encoding_rs` 严格解码；不允许静默替换非法字节；中文文件选择 GBK/GB18030 时需验证 `encoding_rs` 锁定版本对四字节序列的支持，并在预览中确认；统一转 UTF-8 |
+| xlsx | Rust `calamine`（统一 Excel 读取路径） | 每个 sheet 一张表；合并单元格与多行表头先预览确认；区分 Excel 1900/1904 日期系统；只读公式缓存，缺缓存则报告，不执行宏、公式或外部链接 |
+| xls（旧格式） | Rust `calamine` 后转 Arrow | 有界工作进程解析，限制工作簿展开大小、单元格数量；不承诺任意 5 GB Excel 均可导入 |
+| Parquet | Rust `parquet` / Arrow reader | 类型直接采用；限制单个 row group 解压内存与嵌套深度 |
 | JSON Lines | DuckDB `read_json` | 嵌套对象默认保留为 `jsonb`，可选展开 |
-| SQLite | DuckDB `sqlite` 扩展 | 每张表一张表 |
+| SQLite | SQLx SQLite 驱动，以只读模式打开上传副本 | 每张表一张表；不加载扩展、不附加外部数据库 |
 | SQL dump | 在一次性容器中启动对应版本的 MySQL/PG 恢复 dump，然后以 `full` 模式作为批量源读取，完成后销毁容器 | 不在 Agent DB 里直接执行 dump 中的 SQL（dump 可以包含任意语句） |
 
 文件类型推断后的转换也遵循 `type_policy`：解析失败的单元格不得静默置空或丢行，按源文件、行标识和列定位拒绝记录；结构无法解析时停止并报告错误。
@@ -241,4 +251,4 @@ files:
 | 第三批 | Oracle | CDC（LogMiner） | 归档日志 + 补充日志，权限较多 |
 | 规划中 | MongoDB | CDC | 副本集 / change streams |
 
-加一种 Debezium 支持的数据库，只需新写一个连接器和一份 DBA 清单模板；缓冲、Loader、Agent DB、Gateway 都不变。每个新连接器必须通过连接器一致性测试套件（类型映射双路径一致、分块覆盖无重叠、对账零差异）才能进入发布版本。
+接入一种 Debezium 支持的数据库，需要实现连接器、类型/位点/事务映射和 DBA 清单，并验证事件兼容性；可复用缓冲、Loader、Agent DB 与 Gateway 的公共契约。每个新连接器必须通过连接器一致性测试套件（类型映射双路径一致、分块覆盖无重叠、对账零差异）才能进入发布版本。

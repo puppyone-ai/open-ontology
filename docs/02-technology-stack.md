@@ -2,7 +2,7 @@
 
 > Status: Proposed（原型跑通后逐条改为 Accepted）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[01 架构](01-architecture.md)。事实与出处见 [16 参考资料](16-references.md)。
 
 ## 1. 选型原则
@@ -17,34 +17,35 @@
 
 | 领域 | 选择 | 许可证 | 主要备选与不选原因 |
 |---|---|---|---|
-| 核心语言 | Python 3.12（服务与 CLI），TypeScript（控制台、TS SDK） | — | Go：数据库驱动、Arrow、SQL 解析生态不如 Python；控制台用 TS 是前端事实标准 |
-| 包管理 | uv（workspace） | MIT/Apache | Poetry：多包 workspace 支持弱 |
-| Web 框架 | FastAPI + Pydantic v2 + uvicorn | MIT/BSD | — |
-| 配置 / 语义真相源 | Git 中的 YAML / SQL / Markdown，内置 Git 服务或接企业 Git | — | 存数据库：失去 diff、review、回滚 |
-| CDC | Debezium Server 3.x（每源库一个容器） | Apache-2.0 | Kafka Connect：需先有 Kafka；Flink CDC：需运维 Flink；Airbyte：连接器已转 ELv2；PeerDB：AGPL；Estuary：BSL；Redpanda Connect：CDC 输入为企业许可证；Sequin / Supabase ETL：仅 PG 源 |
-| 变更缓冲 | **Valkey** Streams（Redis 协议兼容，AOF） | BSD-3 | Redis 8：AGPL/RSAL/SSPL 三许可，不进默认镜像（用户可自行替换，协议兼容）；Kafka/Redpanda：见 §4 切换条件 |
-| Debezium 位点与 schema 历史 | 控制库（JDBC offset/history store）；不可用时退回 Valkey | — | 与缓冲同放一个 Valkey：缓冲实例丢失会同时丢位点（原型中验证 JDBC store 的可用性） |
-| 流式装载 | 自研常驻 Loader 服务（asyncio，默认按源分片；per_table 按表分片） | — | 用通用任务队列承载常驻消费：语义不匹配 |
-| 批量任务与定时 | **Procrastinate**（基于控制库 PostgreSQL 的任务队列） | MIT | ARQ：官方已进入仅维护模式；Celery：asyncio 支持弱；Temporal/Hatchet：多一套服务，第一版不需要持久化工作流；Dramatiq：LGPL 且需 broker |
-| 读取 / 交换格式 | Apache Arrow（pyarrow）；ADBC / ConnectorX 做批量读取 | Apache-2.0/MIT | 行式 Python 对象：内存与速度差一个数量级 |
-| 文件解析 | DuckDB（CSV/Parquet/JSON/xlsx 读取与类型嗅探）+ charset-normalizer | MIT | pandas 直接读：大文件内存不可控 |
-| Agent DB | PostgreSQL 17（主 + 流复制从），扩展 `pg_trgm`、`pg_stat_statements` | PostgreSQL | DuckDB：并发访问与权限能力不足；ClickHouse：RLS/超时/角色体系不如 PG 成熟，且 Agent 的 SQL 方言成本高 |
-| 控制库 | PostgreSQL（独立实例或同集群独立库） | PostgreSQL | — |
-| SQL 安全判定 | **pglast**（libpg_query，即 PG 自身的语法分析器） | GPL-3.0-or-later ⚠ / 见 §5 | sqlglot：自研解析器，与 PG 实际语法存在差异，只用于方言提示 |
-| 方言提示 | sqlglot | MIT | — |
-| 权限执行 | PG 角色 + 列级 GRANT + RLS（`security_invoker` 视图） | — | 纯应用层改写：不可能完备；OPA 部分求值 → SQL：多一套策略语言，第一版角色模型足够简单 |
-| 对象存储 | 抽象层（obstore / fsspec）：默认本地卷；可接任意 S3 兼容（客户 S3、SeaweedFS、Garage 等） | — | MinIO 社区版：2025 年起进入维护模式、2026 年起仅源码分发，不作为默认 |
-| Secret | 内置加密存储（信封加密，主密钥来自环境/KMS）；可插拔 OpenBao / Vault / 云 KMS / Infisical | — | 明文 env：禁止 |
-| 沙盒 | 默认 Docker + gVisor（runsc）；可插拔 E2B（自托管）、kubernetes-sigs/agent-sandbox（Kata/gVisor） | Apache-2.0 | 本机 OS 级沙盒（bubblewrap/seatbelt）：适合开发者本机，不适合多用户服务端 |
-| 出口代理 | 自研“固定上游的反向代理”（ASGI），不做通用 CONNECT 代理 | — | Envoy + 凭证注入过滤器：可行，作为 K8s 形态的备选；mitmproxy：需要 TLS 中间人 |
-| 默认 harness | Pi（RPC 模式，stdio JSON 协议） | MIT | 自研 agent loop：维护成本高；可替换为 Claude Agent SDK / Codex app-server / OpenCode（统一适配器接口） |
-| MCP | 官方 Python SDK，跟随 2026-07-28 规范（无状态核心，Streamable HTTP） | MIT | — |
-| 可观测 | OpenTelemetry（trace/metric/log）+ Prometheus + Grafana；可选 Langfuse（自托管） | Apache/AGPL(Grafana, 外部) | Arize Phoenix：Elastic-2.0，不进默认安装 |
-| 评测 | 自研 `oo-eval`（任务/求解器/评分器模型借鉴 Inspect AI），可导出到 Inspect / promptfoo | MIT | — |
-| 压测 | Locust（MIT）、pgbench | MIT/PG | k6：AGPL，可作为用户自选 |
-| 对账 | 自研哈希分桶对账（算法同 data-diff/reladiff） | — | datafold data-diff 已归档；reladiff 可作为参考实现与交叉校验 |
-| 控制台 | React + TypeScript + Vite + shadcn/ui | MIT | — |
-| 部署 | Docker Compose（默认）；Helm chart（M3） | — | 只提供 SaaS：企业数据通常不能出内网 |
+| 核心语言 | Rust（全部第一方服务、CLI、连接器、Builder、评测器），TypeScript（控制台、TS SDK） | — | 保留 Debezium JVM 与 Pi Node 上游运行时；不把协议接入误当成重写上游 |
+| 包管理 / 工具链 | Cargo workspace、Cargo.lock、rust-toolchain.toml、rustfmt、Clippy | MIT/Apache | 精确工具链 + 锁文件；安装用户无需本机 Rust 编译器 |
+| Web 框架 | Tokio + Axum + Tower / tower-http；reqwest 出站 HTTP，rustls TLS | MIT/Apache/ISC（按 crate） | HTTP 超时中间件不负责数据库取消，显式清理见 [17](17-rust-implementation.md) |
+| 配置 / 语义真相源 | Git 中的 YAML / SQL / Markdown；Serde + Schemars + serde-saphyr + jsonschema | MIT/Apache（按 crate） | 禁止配置标签执行、外部 include 与环境插值；Git 写入通过固定 argv，禁止 shell 拼接 |
+| API 规格 | utoipa（OpenAPI 3.1）+ 契约测试 | MIT/Apache | Axum 不自动生成 OpenAPI；不能只靠 Rust 编译证明 API 与 schema 一致 |
+| CDC | Debezium Server 3.x（每源库一个容器，JVM） | Apache-2.0 | Kafka Connect 需已有 Kafka；其他连接器的许可见 §5；不自研 Rust binlog/WAL 解码 |
+| 变更缓冲 | Valkey Streams（AOF）；Rust redis crate；Kafka 时用 rdkafka | BSD-3 / BSD-3 / MIT（含原生依赖另审计） | redis 是客户端 crate 名，不代表默认部署 Redis 服务；位点、确认、裁剪规则不变 |
+| Debezium 位点与 schema 历史 | 控制库 JDBC store；不可用时使用独立持久 Valkey 存储并修订部署计划 | — | Rust 读取事件与管理容器，不直接改写 Debezium offset 格式；缓冲丢失须检测位点缺口 |
+| 流式装载 | Tokio 常驻 Loader；tokio-postgres COPY / UPSERT | MIT/Apache | 默认按源分片，per_table 显式降级；Arrow 需要编码为 PG COPY，不能直接发送 IPC 当 COPY |
+| 批量任务与定时 | Rust oo-jobs + 控制库 PostgreSQL；SQLx 事务入队、SKIP LOCKED 短事务领取、租约与重试 | 项目 Apache-2.0 | 自研范围限于离散任务；持久工作流复杂时评估 Temporal，见 ADR-015 |
+| 数据库驱动 | SQLx：控制库、源 MySQL/PG/SQLite、迁移；tokio-postgres + deadpool-postgres：Gateway 与 Loader | MIT/Apache | 两类池按职责分开；Gateway 需要明确的 portal 和 CancelToken，不能随意换驱动 |
+| 读取 / 交换格式 | Apache Arrow Rust（arrow-array/schema/ipc、parquet 同版本）；SQLx 流式行读取转批次 | Apache-2.0（子组件许可按锁文件） | ADBC / ConnectorX 为可选 Rust 优化，不能假定已覆盖所有源、全部类型或零拷贝 |
+| 文件解析 | duckdb Rust 绑定（CSV/JSON 嗅探）、calamine（xlsx/xls）、parquet；chardetng + encoding_rs（文本编码） | MIT/Apache/BSD（按依赖） | 独立受限解析进程；DuckDB 为 C++ 原生依赖；Excel 不是无限内存流式接口 |
+| Agent DB | PostgreSQL 17（主 + 流复制从）；pg_trgm、pg_stat_statements | PostgreSQL | 角色、列级 GRANT、RLS、只读事务为权威；大版本须与解析器配套 |
+| 控制库 | PostgreSQL（独立实例） | PostgreSQL | 任务、会话释放进度、审计与实体 key 都是必须备份的运行状态 |
+| SQL 安全判定 | Rust pg_query，直接使用 libpg_query | MIT + BSD-3 + PostgreSQL（各部分） | 不经 Python/PyO3；C FFI 与内嵌 PG 大版本都进入发布审计 |
+| 方言提示 / 源 SQL 证据 | Rust sqlparser | Apache-2.0 | 只用于提示与候选提取，不参与 Gateway 放行，不自动执行翻译结果 |
+| 权限执行 | PG 角色 + 列级 GRANT + RLS（security_invoker 视图） | — | 不用 Rust 内存过滤替代数据库权限；日历受限例外见 [05](05-agent-db.md) |
+| 对象存储 | Rust object_store：默认 LocalFileSystem；S3 兼容后端 | MIT/Apache | 限制路径/前缀、分片、校验与清理；S3 兼容程度通过后端契约测试确认 |
+| Secret | Rust 信封加密实现使用审核过的 AEAD / KMS SDK；zeroize / secrecy 管理持有值 | 按实际依赖审计 | 主密钥仅密钥文件/KMS，禁止明文配置；不自行设计密码算法 |
+| 沙盒编排 | Docker + gVisor；Rust bollard 经受限 Docker API；K8s 后续用 kube | Apache-2.0（运行时/客户端分别审计） | 编排器持有宿主权限，只在控制区；沙盒中无 Docker socket |
+| 出口代理 | Axum / Hyper + reqwest 固定上游反向代理 | MIT/Apache | 禁止任意 CONNECT、关闭自动重定向，严格 URL/头过滤；SSE 有背压 |
+| 默认 harness | Pi（Node，RPC over stdio）；Rust 适配器 | MIT | 适配 Claude Code / Codex 等外部进程，不把其语言算作 OO 核心语言 |
+| MCP | 官方 Rust rmcp SDK；stdio 与 Streamable HTTP | Apache-2.0 | 按锁定 SDK 实际支持版本协商；OAuth、受众校验、token exchange 由 OO 实现，不假设 SDK 自动完成 |
+| SDK / CLI / 本地分析 | Rust oo-sdk（reqwest）、oo-cli（clap）、oo-analysis（Arrow / 图表）；DuckDB CLI | MIT/Apache（按 crate） | TS SDK 保留；本地分析工具也不携带数据库/模型凭证 |
+| 可观测 | tracing + tracing-subscriber + tracing-opentelemetry / opentelemetry-otlp；Prometheus | MIT/Apache（按 crate） | exporter 与 SDK 锁定兼容组合；正文/密钥不进入 span；Grafana 仅外部可选 |
+| 评测 / 压测 | Rust oo-eval、固定种子生成器；Goose（HTTP）+ pgbench；Criterion（微基准） | Apache-2.0 / PostgreSQL / MIT 或 Apache | Inspect AI / promptfoo 是导出目标，不成为平台运行依赖 |
+| 对账 | Rust 哈希分桶，规范化 Arrow 值 | 项目 Apache-2.0 | 使用相同类型策略；不复用不维护的实现 |
+| 控制台 / 部署 | React + TypeScript + Vite + shadcn/ui；Docker Compose，后续 Helm | MIT / 按组件 | Rust 运行镜像包含原生库/CA；不能宣称所有二进制均可放 scratch |
 
 ## 3. ADR 列表
 
@@ -64,12 +65,10 @@
 - **后果：** 不需要运维 Kafka；Valkey 内存成为背压点：Debezium Redis sink 在 `used_memory ≥ memory.threshold.percentage`（默认 85%）时停止消费，**连接器整体暂停而不丢数据**；Loader 跟不上时源库日志会积压，需监控（PG 复制槽 WAL、MySQL binlog 保留）。
 - **切换条件（任一）：** 客户已有 Kafka；源库达到几十个；变更流需要多个消费方；需要保留多天可重放；Valkey 内存持续告警。缓冲层做成接口，Loader 同时实现 Streams 与 Kafka 两种消费者，切换只改配置。
 
-### ADR-003 批量任务用 Procrastinate，流式装载用常驻服务
+### ADR-003 批量任务使用控制库队列（Superseded by ADR-015）
 
-- **背景：** 参考草案选择 ARQ。调研确认 ARQ 已进入仅维护模式。
-- **决定：** 定时增量、每日对账、重做快照、Ontology 构建、评测运行等**离散任务**用 Procrastinate（任务与状态都在控制库，支持事务内入队、`SKIP LOCKED` 领取、定时任务）；**常驻的流式消费**是独立的 Loader 服务，不走任务队列。
-- **后果：** 去掉“Redis 同时承担队列与缓冲”的耦合；任务状态与分块进度、水位在同一个库，可以在一个事务里“推进水位 + 标记任务完成”。
-- **切换条件：** 需要跨天的长工作流、复杂补偿逻辑时，评估 Temporal 或 DBOS。
+- **历史背景：** 修改前设计选择 Python Procrastinate，把任务与状态放入控制库、流式 Loader 单独部署。
+- **取代：** Rust 迁移保留“离散任务与流式消费分开”及“控制库事务内入队”原则；现行实现选择与恢复契约以 ADR-015 为准，不再引入旧运行时。
 
 ### ADR-004 语义真相源是 Git 中的结构化 Ontology Spec
 
@@ -92,9 +91,9 @@
 
 ### ADR-007 SQL 判定使用 PostgreSQL 真实语法分析器
 
-- **决定：** 放行/拒绝判定用 pglast（libpg_query）；sqlglot 只用于方言提示。
-- **理由：** 安全检查的解析器与执行数据库的解析器必须一致，否则“解析器认为是 SELECT、数据库实际执行了别的东西”的差异就是绕过点。
-- **后果：** 许可证需确认（见 §5）；pglast 与 PG 大版本绑定，升级 PG 时一起升级。
+- **决定：** 放行/拒绝判定用 Rust `pg_query`（libpg_query）；Rust `sqlparser` 只用于方言提示。实现约束补充见 ADR-014。
+- **理由：** 按 PG 大版本配套源生解析器，减少语法差异；原始 AST 不能判断函数重载、运算符或 cast 的实际执行权限，仍需目录校验与数据库兜底。
+- **后果：** 直接使用宽松许可 Rust 绑定；内嵌 C/PG 源码也要审计；升级 Agent DB 大版本必须升级解析器并通过攻击/差分测试。
 
 ### ADR-008 沙盒内零凭证，出口代理按沙盒身份注入
 
@@ -134,6 +133,25 @@
 - **后果：** 放宽了“平台不在 Agent DB 建 Agent 可见对象”的原则；实体键登记与管家决定成为需要备份的运营状态（控制库）。
 - **切换条件：** 无。
 
+### ADR-014 第一方实现改为 Rust，边界保持协议化
+
+- **背景：** 需要在持续 CDC、大结果流式处理和多会话回收下控制资源，统一后端工程栈。
+- **决定：** Cargo workspace；Tokio + Axum；Serde / Schemars；Rust SDK/CLI/MCP。SQL 安全判定直接调用 pg_query，方言证据用 sqlparser；Arrow Rust 负责统一批次。TypeScript 前端/SDK、Debezium JVM、Pi Node 通过现有协议保留。
+- **后果：** Rust 所有权有助于管理资源，但不能替代网络隔离、数据库权限、显式取消与持久回收；C/C++ FFI 需要原生构建与进程隔离。接口与依赖图见 [17](17-rust-implementation.md)。
+- **切换条件：** 个别源没有成熟 Rust 驱动时，新增审核过的外部连接器，而不是向 Gateway 引入其他语言或直连源库。
+
+### ADR-015 Rust 离散任务采用 oo-jobs（取代 ADR-003）
+
+- **决定：** 控制库 jobs schema 的持久任务表，SQLx 实现短事务 SKIP LOCKED 领取、带 fencing generation 的租约、心跳、到期重领、幂等重试、去重与死信；定时器只负责插入任务，数据库保存调度进度。
+- **后果：** 不新增 broker；领取后必须立即提交，不在长任务期间持行锁。任务执行至少一次，跨 Agent DB/控制库不能承诺恰好一次或同事务提交；详细恢复规则见 [17 §3](17-rust-implementation.md)。这是一项需要 M0 验证的自研组件，不是已有第三方队列的改名。
+- **切换条件：** 持久编排、补偿或队列吞吐超出上述有限功能时，评估 Temporal 等独立服务；先验证其 Rust 客户端与许可证，再新增 ADR。
+
+### ADR-016 插件以显式注册或隔离进程接入
+
+- **决定：** 内置 trait 实现编译进 crate；第三方程序经审核清单启动，用版本化 JSON + Arrow IPC；不加载不稳定的 Rust 动态 ABI，不在生产启动时 cargo install 或编译配置仓库代码。自定义 on_batch hook 无网络、无数据库/Secret 权限。
+- **后果：** hook 源码可为 Rust，但部署消费的是已审计的不可变制品；CPU/内存/时限由隔离进程监督，而非给同进程闭包加 timeout。
+- **切换条件：** 未来若引入 Wasmtime/WASI，需要另行验证 fuel、内存、IPC 与能力授权；首版不依赖 WASM。
+
 ## 4. 缓冲层切换到 Kafka 的条件（沿用参考草案）
 
 满足任一即切换到 Kafka / Redpanda（Debezium Server 同时支持两种 sink，Loader 实现两种消费者）：
@@ -146,37 +164,37 @@
 
 ## 5. 许可证审计（默认安装）
 
-| 组件 | 许可证 | 处理 |
-|---|---|---|
-| Debezium | Apache-2.0 | ✓ |
-| Valkey | BSD-3-Clause | ✓ |
-| PostgreSQL | PostgreSQL License | ✓ |
-| Procrastinate | MIT | ✓（发布前核对 LICENSE 文件） |
-| DuckDB | MIT | ✓ |
-| pyarrow / ADBC | Apache-2.0 | ✓ |
-| pglast | **需核对**：pglast 本身为 GPL-3.0-or-later（libpg_query 为 BSD-3） | ⚠ 若确认为 GPL，首选方案是基于 libpg_query 的宽松许可绑定（例如 Rust `pg_query` crate（MIT）+ PyO3 薄封装，作为 `oo-sqlparse` 子包维护）；次选是把判定逻辑做成独立进程/服务。M0 结束前定案 |
-| sqlglot | MIT | ✓ |
-| gVisor | Apache-2.0 | ✓ |
-| Pi | MIT | ✓ |
-| MCP Python SDK | MIT | ✓ |
-| Locust | MIT | ✓ |
-| Grafana | AGPL-3.0 | 作为可选外部组件（compose profile `observability`），不打包进 OO 镜像 |
-| Langfuse | MIT（`ee/` 除外） | 可选 |
-| Arize Phoenix | Elastic-2.0 | 不默认提供 |
-| MinIO | AGPL-3.0，维护模式 | 不默认提供 |
-| Redis 8 | AGPL/RSAL/SSPL | 不默认提供，协议兼容可自选 |
+以下是选型层的许可证边界，**不是已完成所有传递依赖审计的声明**。发布前对 Cargo.lock、JS 锁文件、镜像、原生源码与离线扩展逐一核对 LICENSE/NOTICE，生成 SPDX SBOM；选双许可中允许的一项，不能只按 crate 顶层字段放行。
 
-## 6. 版本基线（初始）
-
-| 组件 | 版本 |
+| 组件 | 许可证 / 处理 |
 |---|---|
-| PostgreSQL（Agent DB / 控制库） | 17.x（18.x 在原型中验证） |
-| Debezium Server | 3.5.x |
-| Valkey | 8.x |
-| Python | 3.12 |
-| DuckDB | 1.x 最新稳定版 |
-| gVisor | 最新稳定 release（按日期版本） |
-| Pi | 锁定具体版本号，随镜像发布 |
-| MCP 规范 | 2026-07-28（兼容 2025-11-25 客户端） |
+| OO 第一方 crates、oo-jobs | Apache-2.0 |
+| Tokio、Axum、Serde、Schemars、calamine、serde-saphyr | MIT（具体版本以锁文件 LICENSE 为准） |
+| SQLx、tokio-postgres、deadpool-postgres、reqwest、object_store | MIT 或 Apache-2.0 |
+| pg_query / libpg_query / 内嵌 PG 源码 | 分别 MIT / BSD-3-Clause / PostgreSQL；全部保留 NOTICE |
+| Arrow / Parquet、sqlparser、rmcp、Goose、bollard | Apache-2.0 为主；子组件/传递依赖仍需审计；**rmcp 不是旧 Python SDK 的 MIT 许可** |
+| DuckDB 与 duckdb-rs | MIT；随镜像链接 C++ 源码，扩展单独审计 |
+| encoding_rs / chardetng、rustls、加密与 TLS provider | 多许可组合；按实际启用 feature、原生库及传递依赖审计 |
+| Debezium、gVisor | Apache-2.0 |
+| Valkey / PostgreSQL / Pi | BSD-3-Clause / PostgreSQL / MIT |
+| Grafana、Loki、Langfuse 等观测服务 | 外部可选组件，分别核对 OSS/企业目录许可，不打进 OO 核心镜像 |
+| Redis 8、MinIO、Vault、Arize Phoenix | 不默认分发；用户自选外部服务时核对其版本与许可 |
 
-版本变更是发布事件：必须通过 [13](13-evaluation-and-benchmarks.md) 中的回归门禁，并写入会话记录与评测记录。
+## 6. 版本基线（候选，待 M0 锁定）
+
+下面记录 2026-10-01 的候选系列与兼容约束，不是已编译成功的依赖清单。真正可发布版本必须写入 Cargo.lock / rust-toolchain.toml / 镜像 digest，完成 [17 §7](17-rust-implementation.md) 的验证。新发布未满 7 天的依赖不进入默认制品。
+
+| 组件 | 候选 / 约束 |
+|---|---|
+| Rust | edition 2024，workspace resolver 3；首轮 MSRV 至少 1.94.0（SQLx 0.9 要求）；固定 stable patch，CI 同时测试 MSRV 与发布工具链 |
+| Tokio / Axum / SQLx | 1.x / 0.8.x / 0.9.x；不把 Cargo 默认 feature 当安全配置 |
+| tokio-postgres / deadpool-postgres | 0.7.x / 0.14.x；portal、TLS、取消与连接回收联合测试 |
+| pg_query | 6.2 系列为候选；必须检查 vendored libpg_query 的 PG_VERSION_NUM，Agent DB 17 仅配套 PG17 parser；不同版本未验证不得部署 |
+| Arrow / Parquet | 同一 workspace 锁定同一版本系列；DuckDB 对 Rust Arrow 的依赖可能不同，跨版本经 IPC 而非强转内存对象 |
+| DuckDB | 锁定 duckdb-rs 对应的 DuckDB engine patch、扩展与 CLI；不能把 crate 版本号当成 engine 版本号 |
+| rmcp | 锁定已发布至少 7 天且通过契约测试的版本；3.5.0 于 2026-09-28 发布，调研日尚不满足入库规则 |
+| PostgreSQL / Debezium / Valkey | Agent DB 默认 17.x（16/18 需各自配套 parser）；Debezium 3.5.x 与 JDBC store 待原型核实；Valkey 8.x；镜像锁 patch + digest |
+| gVisor / Pi | 固定 release / patch 与镜像 digest；运行时协议和平台能力见 [09](09-sandbox-and-agent-runtime.md) |
+| MCP 规范 | 目标 2026-07-28；按 rmcp 实际支持列表协商，上一版客户端兼容性必须有测试证据，不自行宣称自动兼容 |
+
+版本变更是发布事件：必须通过 [13](13-evaluation-and-benchmarks.md) 回归门禁，并写入会话与评测记录。出处与检索记录见 [16 §7](16-references.md)。

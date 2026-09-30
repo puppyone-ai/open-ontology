@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[03 数据源](03-sources-and-ingestion.md)、[05 Agent DB](05-agent-db.md)
 > 被依赖：[07 Gateway](07-gateway.md)、[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[13 评测](13-evaluation-and-benchmarks.md)
 
@@ -397,7 +397,7 @@ Agent 看到的名称（Dataset、列、指标、码表类别、实体、术语�
 
 ### 3.12 JSON Schema 与校验
 
-`packages/oo-core` 以 Pydantic 模型定义 OOS，并导出 JSON Schema（`schemas/oos-v1.json`），供控制台表单、编辑器补全与 CI 校验使用。`oo ontology lint` 执行 §6 中与数据库无关的静态检查。
+`crates/oo-core` 以 Rust Serde 类型与 Schemars 定义 OOS，并导出 JSON Schema（`schemas/oos-v1.json`），供控制台表单、编辑器补全与 CI 校验使用。用 `serde-saphyr` 解析 YAML、`jsonschema` 校验输入，再做跨对象引用和业务规则检查；schema 与序列化设置（枚举、默认值、未知字段）必须一致。`oo ontology lint` 执行 §6 中与数据库无关的静态检查。
 
 ## 4. 自动构建（Self-build）流水线
 
@@ -429,7 +429,7 @@ Agent 看到的名称（Dataset、列、指标、码表类别、实体、术语�
 |---|---|---|
 | Agent DB `pg_catalog` / `information_schema` | 列、类型（映射后）、主键、索引、`reltuples` | 以实际可查询的形态为准 |
 | 源库原生元数据（连接器 `read_schema` / `read_logic`） | MySQL `COLUMN_COMMENT`/`TABLE_COMMENT`、PG `COMMENT`、外键约束、源视图定义、存储过程/函数正文 | **源视图与存储过程常常编码了业务 JOIN 与口径**，是高价值证据 |
-| 可选：查询日志 | 客户提供的 BI SQL、源库慢日志、`pg_stat_statements` 导出 | 用 `sqlglot` 解析出 JOIN 对、过滤条件、聚合表达式 |
+| 可选：查询日志 | 客户提供的 BI SQL、源库慢日志、`pg_stat_statements` 导出 | 用 Rust `sqlparser` 按源方言提取 JOIN 对、过滤条件、聚合表达式；不支持的语法记录为待审核原文，不得据此执行源存储过程 |
 | 可选：已有数据目录 | dbt `manifest.json`、DataHub / OpenMetadata 导出、数据字典 Excel | 作为 `provenance: imported` 的证据导入 |
 
 ### 4.3 S1 数据画像
@@ -503,9 +503,9 @@ Agent 看到的名称（Dataset、列、指标、码表类别、实体、术语�
 
 工程约束：
 
-- **温度 0 + 输入哈希缓存**：同样的输入得到同样的草稿，便于 diff 审核，控制成本。
+- **温度 0 + 输入哈希缓存**：缓存命中时复用同一草稿；温度 0 不保证模型跨请求、跨版本逐字节确定，便于 diff 审核，控制成本。
 - **模型可配置且可私有化**：Builder 的模型端点与 Agent 使用的模型端点分开配置；企业可指定内网模型。
-- **样本值策略**（按数据源配置）：`none`（只发结构与统计）、`masked`（默认：PII 检测后掩码，例如 `138****1234`）、`raw`。PII 检测用规则 + 可插拔检测器（例如 Presidio）。
+- **样本值策略**（按数据源配置）：`none`（只发结构与统计）、`masked`（默认：PII 检测后掩码，例如 `138****1234`）、`raw`。PII 检测用规则 + 可插拔检测器（独立 HTTP 检测服务；默认内置 Rust 规则，不依赖特定语言运行时）。
 - **提示注入防护：** 数据库注释与样本值是不可信输入。它们被放进明确的数据字段，输出受 JSON Schema 约束，且 LLM 草稿只能写入 `generated/`，不能直接发布。
 
 ### 4.8 S6–S8 实体、候选指标与候选示例

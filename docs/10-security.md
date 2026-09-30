@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering（安全负责人需在 M0 指定）
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[01](01-architecture.md)、[05](05-agent-db.md)、[07](07-gateway.md)、[09](09-sandbox-and-agent-runtime.md)
 
 ## 1. 安全目标
@@ -52,7 +52,7 @@
 | TB2 | 沙盒逃逸（E）；沙盒间访问（I） | gVisor；非 root；只读根；无 capabilities；每会话一个沙盒；沙盒网络 `internal` | 逃逸探测、沙盒间连通性探测（每晚在 gVisor 上） |
 | TB3 | 伪造沙盒身份（S）；访问非白名单地址（I） | 源 IP 身份 + 无 `NET_RAW`；或专属 Unix socket；固定上游 | 网络探测矩阵 |
 | TB4 | token 窃取重放（S）；越权（E） | 会话 token 不在沙盒；只接受来自代理 mTLS 的会话 token；token 绑定 sandbox_id | 金丝雀凭证扫描；从非代理地址使用 token 被拒 |
-| TB5 | SQL 注入式越权（E）；DoS（D）；信息泄露（I） | pglast 判定；函数白名单；角色 + RLS；超时/资源上限；错误脱敏 | SQL 攻击用例集；兜底测试；压测 |
+| TB5 | SQL 注入式越权（E）；DoS（D）；信息泄露（I） | Rust `pg_query` 判定；函数白名单；角色 + RLS；超时/资源上限；错误脱敏 | SQL 攻击用例集；兜底测试；压测 |
 | TB6 | 数据发给模型服务（I，合规） | 模型端点白名单；可私有化模型；按角色的列级脱敏；数据驻留配置 | 代理日志审计 |
 | TB7 | 写源库（T）；拖垮源库（D） | 权限体检拒绝写权限账号；只读从库；限速 | 源库审计日志比对 |
 | TB8 | 非管线写入 Agent DB（T）；新列未经审核暴露（I） | 主库网络只对管线开放；`pipeline_rw` 凭证只在管线；新列分类并发布前隐藏，角色只获列级授权 | 兜底写入用例；新增敏感列不可见与授权巡检 |
@@ -152,10 +152,10 @@ OO 的 Agent 天然具备（a）和（b）——业务数据里的备注、上�
 
 ## 11. 供应链与构建
 
-- 依赖锁定（`uv.lock`、`package-lock.json`），CI 中做漏洞扫描（OSV）与许可证检查（拒绝 AGPL/BSL/ELv2/SSPL 进入默认镜像）；
-- 新依赖版本需发布超过 7 天才允许引入（与本仓库的工程规范一致）；
+- 依赖锁定（`Cargo.lock`、`rust-toolchain.toml`、`package-lock.json`），CI 中用 `cargo audit`（RustSec）、OSV 与 `cargo deny` 做漏洞/来源/许可证检查（拒绝 AGPL/BSL/ELv2/SSPL 进入默认镜像）；
+- 新依赖版本需发布超过 7 天才允许引入（本设计的供应链规则；安全修复例外须由负责人记录理由与回归证据）；
 - 镜像：最小基础镜像、非 root、签名（cosign）、SBOM（SPDX）随发布；
-- 插件：来自配置仓库的 hook 代码与 SQL 需经代码审核；第三方插件以 Python 包形式安装，控制台显示来源与版本；
+- 插件：来自配置仓库的 hook 代码与 SQL 需经代码审核；第三方插件以审核过的独立进程/容器制品接入，清单锁定协议、digest、权限与资源上限；内置 Rust 实现通过编译时注册，禁止自动加载本机动态库；控制台显示来源与版本；
 - 发布件可复现构建（M3 目标）。
 
 ## 12. 安全测试计划

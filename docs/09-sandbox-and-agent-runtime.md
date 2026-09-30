@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[06 Ontology](06-ontology-layer.md)、[07 Gateway](07-gateway.md)、[08 Agent 接口](08-agent-interface.md)
 > 被依赖：[10 安全](10-security.md)、[13 评测](13-evaluation-and-benchmarks.md) 轨道 C/E
 
@@ -91,8 +91,8 @@ Agent 入口（无状态，多实例）
 沙盒运行时无法安装软件包，所以镜像预装全部工具并固定版本：
 
 - harness：Pi（固定版本）及 Node 运行时；可选镜像变体内置 Claude Code / Codex CLI；
-- `oo` CLI 与 Python SDK；
-- Python 数据分析：pandas、pyarrow、duckdb、polars、matplotlib、openpyxl；
+- Rust `oo` CLI（clap/reqwest，与 oo-sdk 共用契约）；
+- 本地分析：DuckDB CLI + Rust `oo-analysis` 工具（Arrow/Parquet、聚合与图表导出）；按版本打包离线模板，不在会话中下载 crates 或扩展；
 - 命令行工具：`rg`、`jq`、`fd`；
 - 字体（CJK）：保证图表中文正常显示。
 
@@ -100,14 +100,21 @@ Agent 入口（无状态，多实例）
 
 ### 4.3 沙盒驱动接口
 
-```python
-class SandboxDriver(Protocol):
-    def create(self, spec: SandboxSpec) -> SandboxHandle: ...        # 预热池调用
-    def put_files(self, h: SandboxHandle, tar: bytes, dest: str, mode: int) -> None: ...
-    def exec_stdio(self, h: SandboxHandle, argv: list[str], env: dict[str, str]) -> StdioStream: ...
-    def get_files(self, h: SandboxHandle, src: str, limit_bytes: int) -> bytes: ...
-    def destroy(self, h: SandboxHandle) -> None: ...                 # 幂等
-    def list(self) -> list[SandboxHandle]: ...                        # 回收器对账用
+```rust
+// 接口契约：业务类型由 oo-core / oo-sandbox 定义，省略实现。
+use async_trait::async_trait;
+use bytes::Bytes;
+use tokio_util::sync::CancellationToken;
+
+#[async_trait]
+pub trait SandboxDriver: Send + Sync {
+    async fn create(&self, spec: SandboxSpec) -> Result<SandboxHandle, OoError>;
+    async fn put_files(&self, h: &SandboxHandle, tar: Bytes, dest: &str, mode: u32) -> Result<(), OoError>;
+    async fn exec_stdio(&self, h: &SandboxHandle, spec: ExecSpec, cancel: CancellationToken) -> Result<StdioStream, OoError>;
+    async fn get_files(&self, h: &SandboxHandle, src: &str, limit_bytes: u64) -> Result<Bytes, OoError>;
+    async fn destroy(&self, h: &SandboxHandle) -> Result<(), OoError>; // 幂等
+    async fn list(&self) -> Result<Vec<SandboxHandle>, OoError>;
+}
 ```
 
 | 驱动 | 适用 | 说明 |
@@ -148,15 +155,21 @@ class SandboxDriver(Protocol):
 
 ### 6.1 适配器接口
 
-```python
-class HarnessAdapter(Protocol):
-    name: ClassVar[str]
-    def launch(self, sbx: SandboxHandle, cfg: HarnessConfig) -> HarnessProcess: ...  # 模型 base URL 指向出口代理
-    def send(self, p: HarnessProcess, message: UserMessage) -> None: ...
-    def events(self, p: HarnessProcess) -> AsyncIterator[AgentEvent]: ...            # 统一事件
-    def abort(self, p: HarnessProcess) -> None: ...
-    def export_transcript(self, p: HarnessProcess) -> Transcript: ...
-    def restore(self, sbx: SandboxHandle, transcript: Transcript) -> None: ...         # 跨会话恢复
+```rust
+// 接口契约：AgentEventStream 是有界、Send 的 Result<AgentEvent, OoError> 异步流。
+use async_trait::async_trait;
+use tokio_util::sync::CancellationToken;
+
+#[async_trait]
+pub trait HarnessAdapter: Send + Sync {
+    fn name(&self) -> &str;
+    async fn launch(&self, sbx: &SandboxHandle, cfg: HarnessConfig) -> Result<HarnessProcess, OoError>;
+    async fn send(&self, p: &HarnessProcess, message: UserMessage) -> Result<(), OoError>;
+    async fn events(&self, p: &HarnessProcess, cancel: CancellationToken) -> Result<AgentEventStream, OoError>;
+    async fn abort(&self, p: &HarnessProcess) -> Result<(), OoError>;
+    async fn export_transcript(&self, p: &HarnessProcess) -> Result<Transcript, OoError>;
+    async fn restore(&self, sbx: &SandboxHandle, transcript: Transcript) -> Result<(), OoError>;
+}
 ```
 
 统一事件：`turn_started`、`assistant_delta`、`tool_call_started(name, args摘要)`、`tool_call_finished(status, 输出摘要)`、`clarification_request(question)`、`artifact_created(path)`、`turn_finished(answer, usage)`、`error(code)`。
@@ -164,7 +177,7 @@ class HarnessAdapter(Protocol):
 ### 6.2 默认：Pi（RPC 模式）
 
 - 以 RPC 模式启动，入口经 stdio 发送 JSON 命令、接收 JSON 事件，**沙盒内不需要开任何端口**；
-- 自带 `read`、`bash`、`edit`、`write` 等工具，正好覆盖“读 Knowledge 文件、调 `oo` CLI、跑 Python”；Agent 查数据走 `bash` 调 `oo`，不依赖 MCP；
+- 自带 `read`、`bash`、`edit`、`write` 等工具，正好覆盖“读 Knowledge 文件、调 `oo` CLI、运行 DuckDB CLI / Rust 分析工具”；Agent 查数据走 `bash` 调 `oo`，不依赖 MCP；
 - 工具不需要人工审批：沙盒本身是隔离边界，数据侧的约束全部由 Gateway 负责；
 - 版本锁定；RPC 协议以锁定版本的上游文档为准，适配器有契约测试。
 
@@ -190,7 +203,7 @@ class HarnessAdapter(Protocol):
 ## 你能用什么
 - /knowledge/：这个数据库的说明（版本 {knowledge_version}）。**先读 /knowledge/README.md。**
 - `oo` 命令：查询数据。`oo --help` 查看用法。只能执行只读 SQL。
-- Python（pandas、duckdb、matplotlib）：分析 `oo export` 导出的文件。
+- DuckDB CLI / Rust `oo-analysis` 工具：分析 `oo export` 导出的文件并生成图表，查看镜像内的帮助与模板。
 
 ## 工作方式
 1. 读 README.md，按领域找到候选表；用 `rg` 在 /knowledge 中搜索术语、指标与示例。
@@ -200,7 +213,7 @@ class HarnessAdapter(Protocol):
 5. 时间一律用 `oo_dict.calendar` 中的锚点（见 /knowledge/calendar.md），不要自己推算“上季度”“上个结账期”的日期。
 6. 按状态码、类型码筛选时，JOIN `oo_dict` 中的码表并按 `class` 选取，不要把码值抄进 SQL，也不要用 `<>` / `NOT IN` 排除码值。
 7. 写 SQL：表名带 schema；先小范围验证（加 LIMIT 或时间范围），再做完整计算。
-8. 结果被截断时，改为聚合查询，或 `oo export` 到 /workspace/results/ 后用 Python 分析。
+8. 结果被截断时，改为聚合查询，或 `oo export` 到 /workspace/results/ 后用 DuckDB CLI / Rust 分析工具处理。
 9. 被拒绝时，按 hint 修改 SQL。**不要尝试绕过限制**。
 10. 需要交给用户的图表、表格文件放进 /workspace/outputs/。
 

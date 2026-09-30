@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[03 数据源](03-sources-and-ingestion.md)、[05 Agent DB](05-agent-db.md)
 > 被依赖：[06 Ontology](06-ontology-layer.md)、[13 评测](13-evaluation-and-benchmarks.md) 轨道 A
 
@@ -25,7 +25,7 @@
             可 CDC 的源库                      不可 CDC 的源库              文件
                  │                                  │                        │
    Debezium Server（每源库一个，只做流式）      批量读取 worker          解析 worker
-   snapshot.mode = no_data                     （Procrastinate 任务）    （Procrastinate 任务）
+   snapshot.mode = no_data                     （oo-jobs 任务）    （oo-jobs 任务）
                  │ 事务模式：每源库一个 stream        │                        │
                  │ 分表模式：每表一个 stream          │                        │
                  ▼                                  │                        │
@@ -140,10 +140,10 @@ XREADGROUP（该源或该表的 stream，消费组 oo-loader，单一活跃消�
   → 解码 Debezium JSON（按 op 字段识别删除；Redis sink 没有 tombstone，null 以占位串表示）
   → 转为统一批次（类型映射与批量路径一致；转换失败写拒绝日志，§5.6）
   → on_batch hooks
-  → 按表分组，表内按主键折叠：同一主键只保留位点最大的事件
+  → 按表分组，表内按主键按顺序合成完整行：相同提交位点时用事务内序号比较，并累计 TOAST 不可用列的先前更新；不能只丢弃较早事件
   → BEGIN
       对每张涉及的表 t：
-        COPY 该表的事件 → 临时表 s（TEMP，不写 WAL，也无需复制到从库）
+        用 tokio-postgres COPY API 编码 Arrow 业务值 → 临时表 s（TEMP，不写 WAL，也无需复制到从库）
         DELETE FROM t USING s WHERE s.op = 2 AND t.pk = s.pk AND t._oo_pos < s.pos
         INSERT INTO t SELECT … FROM s WHERE s.op = 1
           ON CONFLICT (pk) DO UPDATE SET
@@ -158,7 +158,7 @@ XREADGROUP（该源或该表的 stream，消费组 oo-loader，单一活跃消�
 - 用 `INSERT ... ON CONFLICT` 而不是 `MERGE`：前者在并发插入下有更强的保证；单一写入者的前提下两者等价，选更稳妥的一个。
 - **Valkey 中的条目只在 Agent DB 提交成功后才确认与裁剪**；绝不使用 `XADD MAXLEN` 自动裁剪（会丢数据）。
 - 崩溃恢复：重启后先用 `XAUTOCLAIM` 收回挂起条目，重新应用——幂等；未完成的源事务缓冲直接丢弃，从 stream 中该事务的起点重放。
-- 分片：一个 Loader 进程负责一组源（或一组表）；每个分片一个租约（控制库行锁 + 心跳），保证单一写入者；水平扩展即增加进程并重新分配租约。`transactional` 模式下单源吞吐上限就是单个分片的吞吐（目标见 §12），不够时该源改为 `per_table`，由管理员显式确认一致性降级。
+- 分片：一个 Loader 进程负责一组源（或一组表）；每个分片一个控制库租约与 fencing generation，并在 Agent DB 专属连接持 advisory lock；控制库领取锁为短事务，心跳不能替代目标写入排他（见 [17 §3](17-rust-implementation.md)），保证单一写入者；水平扩展即增加进程并重新分配租约。`transactional` 模式下单源吞吐上限就是单个分片的吞吐（目标见 §12），不够时该源改为 `per_table`，由管理员显式确认一致性降级。
 - 拒绝记录写在控制库而不是 Agent DB：它们是运维数据，不需要被 Agent 查询；Agent DB 中只维护按表、按列的汇总（§5.6）。控制库写入与 Agent DB 提交不是同一事务：先写拒绝记录（幂等键 = 源位点 + 表 + 主键 + 列），再提交 Agent DB，重放时重复写入被去重。
 
 ### 5.4 PG 的 TOAST 未变化列
@@ -179,7 +179,7 @@ PG 默认 `REPLICA IDENTITY` 下，UPDATE 事件不携带未变化的 TOAST 列�
 
 陈旧库里的脏值是常态：零日期、非法日期、字符集不一致的字节、NUL 字节、`enum` 的空错误值、非法 JSON、夏令时切换时不存在的本地时间。原则是**显式转换、不静默改值、不丢行**：
 
-- 连接器对这类列读取原始值（字符串/字节），在 Python 中按 `type_policy` 的显式规则转换；**不依赖**源库会话的宽松 `sql_mode` 或驱动的隐式转换（它们会把脏值悄悄变成 0 或当前时间）。
+- 连接器对这类列读取原始值（字符串/字节），在 Rust 中按 `type_policy` 的显式规则转换；**不依赖**源库会话的宽松 `sql_mode` 或驱动的隐式转换（它们会把脏值悄悄变成 0 或当前时间）。
 - 转换失败时，该值写为 `NULL`（或 `type_policy` 指定的替换值），行照常写入；同时产生一条拒绝记录。
 - 文件接入的类型推断同样适用：推断为日期的列里解析失败的单元格按此处理（[03 §7.2](03-sources-and-ingestion.md)）。
 
@@ -268,19 +268,21 @@ COMMIT;
 
 | hook | 输入 | 能做什么 | 不能做什么 |
 |---|---|---|---|
-| `on_batch` | Arrow 批次 | 纯函数变换：脱敏、清洗、派生列、过滤行 | 访问数据库或网络（在 worker 进程内以受限方式调用，超时 5s） |
+| `on_batch` | Arrow 批次 | 纯函数变换：脱敏、清洗、派生列、过滤行 | 访问数据库或网络；内置审核过的 Rust 变换可在 worker 内调用，第三方 hook 必须隔离运行，超时 5s（见下文） |
 | `after_load` | 已更新的表集合 | 在 Agent DB 中以 `oo_scene_builder` 角色执行 SQL：建场景表/视图 | 写源表副本；访问 `_oo`；创建函数（除非在白名单中） |
 | `on_error` | 错误上下文 | 通知 | — |
 
 - 场景构建的三种方式：视图（`security_invoker`，实时）；物化表（影子表 + 换表，定时或防抖触发）；增量（hook 自己维护，高级用法）。
 - `after_load` 默认防抖：同一场景 schema 最多每 10 分钟重建一次。
-- hook 代码与 SQL 位于配置仓库，经过代码审核才能生效；`oo validate` 用 pglast 检查 `after_load` SQL 只包含允许的 DDL/DML 且目标都在场景 schema 中。
+- hook 代码与 SQL 位于配置仓库，经过代码审核、构建并锁定制品才能生效；`oo validate` 用 `pg_query` 检查 `after_load` SQL 只包含允许的 DDL/DML 且目标都在场景 schema 中。
+
+第三方 `on_batch` 在无网络、无数据库/Secret 的 gVisor 受限容器中通过 Arrow IPC 调用，超时后终止容器；不能在有凭证的 worker 进程内执行任意代码。内置变换保持主键、op、位点及系统列不变；显式过滤/派生配置需被验证并记录质量影响。
 
 内置 hook：`mask`（按列规则掩码：手机号、证件号、邮箱）、`hash`（加盐哈希，保留可 JOIN 性）、`drop_columns`、`normalize_text`（全角半角、首尾空白）。实体合并与别名不再用 hook 模板实现，而是由实体解析任务按 Ontology 中的规则与管家决定物化（[06 §3.10](06-ontology-layer.md)）。
 
 ## 10. 编排与状态
 
-- **离散任务**（Procrastinate，存于控制库）：快照块读取、批量增量、每日对账、块修复、重做快照、文件解析、after_load、码值巡检、实体解析、Ontology 构建触发。同一目标的任务用 queueing lock 合并；上一次未完成时跳过或排队；高频事件先防抖。
+- **离散任务**（Rust `oo-jobs`，存于控制库）：快照块读取、批量增量、每日对账、块修复、重做快照、文件解析、after_load、码值巡检、实体解析、Ontology 构建触发。同一目标的任务用唯一去重键与租约合并；上一次未完成时跳过或排队；高频事件先防抖。
 - **常驻服务**：流式 Loader（按源或按表租约）、Debezium Server（每源库一个容器，由 `oo apply` 通过 Docker API / K8s 管理）。
 - **表的状态机：**
 
@@ -291,7 +293,7 @@ registered → snapshotting → catching_up → awaiting_publish → live ⇄ pa
 
 `awaiting_publish`：数据已同步追平，但列尚未全部分类或 Ontology 尚未发布，对 Agent 不可见。控制台在这里提示“还差 N 列待分类”。
 
-- **控制库主要表：** `sources`、`tables`（状态、模式、配置指纹）、`sync.runs`、`sync.chunks`、`sync.watermarks`、`sync.freshness`（`_oo.table_freshness` 的镜像）、`sync.schema_changes`、`sync.unmapped_columns`、`sync.rejects`、`sync.reconcile_results`、`sync.quarantine`、`procrastinate_*`。
+- **控制库主要表：** `sources`、`tables`（状态、模式、配置指纹）、`sync.runs`、`sync.chunks`、`sync.watermarks`、`sync.freshness`（`_oo.table_freshness` 的镜像）、`sync.schema_changes`、`sync.unmapped_columns`、`sync.rejects`、`sync.reconcile_results`、`sync.quarantine`、`jobs.tasks`、`jobs.schedules`、`jobs.leases`。
 
 ## 11. 保护源库与监控
 
@@ -317,7 +319,7 @@ registered → snapshotting → catching_up → awaiting_publish → live ⇄ pa
 |---|---|---|
 | Loader 崩溃 | 延迟上升 | 重启后 `XAUTOCLAIM` 重放，幂等 |
 | Debezium 崩溃 | 延迟上升 | 从控制库中的位点继续 |
-| Valkey 重启 | 至多丢失未 fsync 的条目（`always` 下为 0） | 每日对账兜底 |
+| Valkey 重启 / 缓冲丢失 | `always` 降低丢失窗口，但不能保证磁盘故障、异步复制切换时零丢失；Debezium 位点可能已经前进 | 检测位点缺口，隐藏受影响表并重做快照；对账不能替代恢复完整 CDC 历史 |
 | Agent DB 主库不可用 | Loader 重试、stream 积压，最终 Debezium 暂停 | 主库恢复后自动追平 |
 | MySQL binlog 被清理 / PG 复制槽失效 | 流中断，无法续读 | 告警，对受影响的表自动重做快照（需管理员确认，因为会带来源库读取压力） |
 | 源库主从切换 | MySQL（GTID）：Debezium 继续，`_oo_pos` 进入新 epoch；PG：复制槽不随切换迁移（除非 PG17 failover slot 且托管库支持） | PG 需重建复制槽并重做快照 |

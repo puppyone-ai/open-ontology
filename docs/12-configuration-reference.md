@@ -2,7 +2,7 @@
 
 > Status: Proposed（字段在实现时以 `oo-core` 导出的 JSON Schema 为准）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 
 ## 1. 配置仓库结构
 
@@ -14,7 +14,9 @@ config/                         # 内置 Git 仓库或企业 Git 仓库
   roles.yaml                    # 角色、绑定、限额
   agent.yaml                    # harness、模型、预算、使用方
   hooks/                        # hook 代码与 SQL
-    on_batch/*.py
+    on_batch/<name>/Cargo.toml  # Rust hook 源码，仅 CI 审核构建，不由生产在线编译
+    on_batch/<name>/src/*.rs
+    plugins/*.yaml             # 不可变制品与能力清单
     after_load/<scene>/*.sql
   ontology/                     # 见 06 §3.1（含 calendar.yaml 与 entities/*.resolution.yaml）
   eval/
@@ -50,7 +52,7 @@ retention:
   uploads_days: 180
 llm_for_builder:                # Ontology Builder 使用的模型（与 Agent 使用的模型分开）
   provider: openai-compatible
-  base_url: http://llm.internal/v1
+  base_url: https://llm.internal/v1
   model: <model-id>
   credential: secret://builder_llm
 ```
@@ -140,9 +142,9 @@ bindings:                        # 自上而下，第一条匹配生效
 
 校验规则（`oo validate`）：
 
-- `row_filters` 的表必须在该角色的 `grants` 中；`oo_entity` 的表若包含该角色受行级过滤约束的实体，也必须声明过滤；过滤表达式用 pglast 解析，只允许引用该表的列、`_oo.oo_claim_array()` / `_oo.oo_claim()`、常量与白名单函数；
+- `row_filters` 的表必须在该角色的 `grants` 中；`oo_entity` 的表若包含该角色受行级过滤约束的实体，也必须声明过滤；过滤表达式用 Rust `pg_query` 解析，只允许引用该表的列、`_oo.oo_claim_array()` / `_oo.oo_claim()`、常量与白名单函数；
 - 源表有行级过滤时，所有从它派生的场景表必须声明过滤（否则报错）；
-- 场景视图必须 `security_invoker = true`；
+- 业务场景视图必须 `security_invoker = true`；平台日历仅允许 [05 §6.3](05-agent-db.md) 的受限所有者例外；
 - 每个角色编译出的 Knowledge Pack 不超过预算。
 
 ## 6. `agent.yaml`

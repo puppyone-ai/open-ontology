@@ -2,13 +2,13 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[05 Agent DB](05-agent-db.md)、[06 Ontology](06-ontology-layer.md)
 > 被依赖：[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[10 安全](10-security.md)
 
 ## 1. 职责与不变量
 
-Gateway 是 Agent 访问数据的**唯一出口**。无状态，可多实例，只连 Agent DB 只读从库。
+Gateway 是 Agent 访问数据的**唯一出口**。查询无状态，可多实例；每实例持久保留未确认的审计 WAL。数据连接只连 Agent DB 只读从库；单机 PoC 读主库的降级见 [11](11-deployment-and-operations.md)。
 
 - **I-GW-1** 没有写接口；没有到管线、源库、控制库写权限的网络路径。
 - **I-GW-2** 每个数据请求都绑定一个**最终用户主体**（principal），并以该主体的 `oo_r_<role>` 与 claims 执行。
@@ -22,18 +22,20 @@ Gateway 是 Agent 访问数据的**唯一出口**。无状态，可多实例，�
 HTTP 请求
  │ ① 认证：解析 token → principal{user, role, claims, session_id, sandbox_id, client_kind, limits}
  │ ② 准入：per-token 并发信号量 · per-project 令牌桶 · 全局熔断状态
- │ ③ 解析：pglast（libpg_query，即 PG 自身的语法分析器）→ AST
+ │ ③ 解析：Rust `pg_query`（libpg_query，内嵌 PG 语法分析器）→ AST
  │ ④ 静态检查：语句类型 · 可写 CTE · 锁定子句 · 函数白名单 · 系统目录 · 限定名
  │ ⑤ 权限预检：引用的关系与列 ⊆ 该角色可见集合（来自编译后的权限快照）
  │ ⑥ 代价预估：BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL ROLE; SET LOCAL oo.claims; EXPLAIN (FORMAT JSON) <sql>
  │ ⑦ 执行：同一事务内 SET LOCAL statement_timeout；预备语句；服务端游标按上限取行
  │ ⑧ 结果：类型化序列化 · 单元格截断 · 行/字节上限 · 截断标记 · 结果哈希
- │ ⑨ 审计：异步写入（失败时本地落盘重试，不丢）
+ │ ⑨ 审计：结果/拒绝/取消记录耐久写入；collector 失败则本地 fsync WAL 重放
  ▼
-响应（含 query_id、freshness、truncated、hint）
+响应（含 query_id、freshness、truncated、hint；导出完成契约见 08 §4.2）
 ```
 
-第 ⑥ 与 ⑦ 在同一个连接、同一个 REPEATABLE READ 只读事务中进行；结果、新鲜度、水位和质量状态共享同一快照，默认 READ COMMITTED 不能保证多条语句使用同一快照。质量元数据由 Gateway 在执行完 Agent SQL 后切换到 `oo_gateway_sys` 读取，再恢复用户角色；该阶段只执行平台固定 SQL。评测模式的 Gateway 实例额外 `SET LOCAL oo.as_of = '<题目的 as_of>'`，使 `oo_dict.calendar.today` 固定在题目的日期（[05 §6.3](05-agent-db.md)）。事务总是以 `ROLLBACK` 结束；连接归还连接池前执行 `RESET ALL`（`SET LOCAL` 已随事务失效，这是额外保险）。
+在第 ⑦ 对外返回任何数据之前，先将准入审计耐久写入 collector 或本地 WAL；审计无法持久化则拒绝准入。每个阶段的拒绝也记录脱敏审计。
+
+第 ⑥ 与 ⑦ 在同一个连接、同一个 REPEATABLE READ 只读事务中进行；结果、新鲜度、水位和质量状态共享同一快照，默认 READ COMMITTED 不能保证多条语句使用同一快照。质量元数据由 Gateway 在执行完 Agent SQL 后切换到 `oo_gateway_sys` 读取，再恢复用户角色；该阶段只执行平台固定 SQL。评测模式的 Gateway 实例额外 `SET LOCAL oo.as_of = '<题目的 as_of>'`，使 `oo_dict.calendar.today` 固定在题目的日期（[05 §6.3](05-agent-db.md)）。事务总是显式 `ROLLBACK().await` 结束；连接归还池前确认 RESET ROLE / RESET ALL 与健康探测完成。不能把 Transaction 的 Drop 视为已确认异步回滚；失败、panic、取消后未确认干净的连接直接移出池（见 [17 §2](17-rust-implementation.md)）。
 
 ## 3. 身份与 token
 
@@ -44,7 +46,7 @@ HTTP 请求
 | **会话 token** | 出口代理（沙盒内不可见） | Agent 入口在建会话时调用 Gateway 内部签发接口（mTLS） | 不透明随机串 `oost_…`，Gateway 只存其哈希 | 与会话相同，默认空闲 30 分钟、绝对上限 8 小时 | `session_id`、`sandbox_id`、最终用户、角色、claims；**只接受经出口代理（mTLS 客户端证书）发来的请求** |
 | **外部客户端 token** | 直接接 MCP/SDK/HTTP 的客户端 | MCP：OAuth 2.1 授权码 + PKCE（Control API 作为授权服务器或对接企业 IdP）；SDK/HTTP：管理员签发的服务账号 token | 不透明串 `ooct_…` | 默认 1 小时（OAuth，可刷新），服务账号最长 90 天 | 固定的用户或服务账号、角色；受众（audience）固定为该 Gateway 的规范 URL |
 
-选择**不透明 token + 服务端查找**而非自包含 JWT：Gateway 是唯一的验证方，不需要离线验证；吊销立即生效（会话结束即失效）；token 泄漏时无法被解码出 claims。查找结果在 Gateway 本地缓存 ≤ 5 秒，吊销时通过 Redis pub/sub 主动失效。
+选择**不透明 token + 服务端查找**而非自包含 JWT：Gateway 是唯一的验证方，不需要离线验证；吊销通过服务端状态生效（缓存窗口最长 5 秒，不承诺即时）；token 泄漏时无法被解码出 claims。查找结果在 Gateway 本地缓存 ≤ 5 秒，吊销时通过 Redis pub/sub 加速失效，但不能只依赖可能丢失的通知；缓存过期后必须重新验证，状态存储不可用时拒绝，不延长旧缓存。活跃查询由会话关闭流程另行取消。
 
 ### 3.2 主体解析与 claims
 
@@ -79,14 +81,14 @@ bindings:
 
 ## 4. SQL 静态检查
 
-### 4.1 解析器选择：pglast 为准，sqlglot 为辅
+### 4.1 解析器选择：pg_query 为准，sqlparser 为辅
 
 | 用途 | 工具 | 原因 |
 |---|---|---|
-| 安全判定（语句类型、引用关系、函数） | **pglast**（libpg_query） | 使用 PostgreSQL 自身的语法分析器，“解析器认为的语句”与“数据库将执行的语句”严格一致，消除解析差异导致的绕过 |
-| 友好提示（例如 Agent 写了 MySQL 方言） | sqlglot | 能识别多方言并给出改写建议；**不参与放行判定** |
+| 安全判定（语句类型、引用关系、函数） | **Rust `pg_query`**（libpg_query） | 使用来自 PG 源码的语法分析器，锁定其内嵌 PG 大版本并与 Agent DB 匹配；语法树不能替代目录中的函数/运算符绑定与数据库权限检查 |
+| 友好提示（例如 Agent 写了 MySQL 方言） | Rust `sqlparser` | 能识别多方言并给出改写建议；**不参与放行判定** |
 
-pglast 解析失败 = 数据库也不会接受 = 直接返回 `SQL_PARSE_ERROR`，并附 sqlglot 给出的方言提示（如“`LIMIT a, b` 是 MySQL 写法，PostgreSQL 请用 `LIMIT b OFFSET a`”）。
+`pg_query` 解析失败即拒绝并返回 `SQL_PARSE_ERROR`，可以附 `sqlparser` 给出的方言提示；提示不会自动变成可执行 SQL（如“`LIMIT a, b` 是 MySQL 写法，PostgreSQL 请用 `LIMIT b OFFSET a`”）。
 
 ### 4.2 规则
 
@@ -137,13 +139,13 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 - `SET LOCAL statement_timeout` 按请求类型：`query` 默认 30s，`export` 默认 120s，`search_values` 3s。
 - 用服务端游标取 `max_rows + 1` 行，以判断是否截断，**除 R7a 的星号展开外不改写 Agent 的 SQL**（不外包 `LIMIT`，避免改变语义，例如 `ORDER BY ... LIMIT` 已有时）。
 - 截断维度：行数（默认 200，按角色可配到 2,000）、总字节（默认 256 KB）、单元格（文本 > 500 字符截断并标注）。
-- 响应中包含：`truncated`、`returned_rows`、`limit`、以及 `estimated_total_rows`（来自 EXPLAIN，明确标为估计值）。
+- 响应中包含：`truncated`、`returned_rows`、`limit`；`estimated_total_rows` 默认为 null，不向有 RLS 的角色披露计划行数；只有无行级过滤且明确获准查看统计的角色可获得标为估计值的数值。
 
 ### 5.3 导出模式
 
 | 项 | `query` | `export` |
 |---|---|---|
-| 返回 | JSON 行（或 Markdown 由客户端渲染） | Arrow IPC 流（HTTP chunked），客户端写成 Parquet |
+| 返回 | JSON 行（或 Markdown 由客户端渲染） | Arrow IPC 流（HTTP chunked），客户端写成 Parquet，完成元数据见 [08 §4.2](08-agent-interface.md) |
 | 行上限 | 200–2,000 | 默认 50 万，按角色可配 |
 | 字节上限 | 256 KB | 默认 1 GB |
 | 超时 | 30s | 120s |
@@ -181,7 +183,7 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 
 - **排队：** 队列等待超过 5s 返回 `RATE_LIMITED`（HTTP 429，`retry_after`），属可重试错误，CLI/SDK 自动退避重试 ≤ 3 次。
 - **熔断：** 每 5s 采样从库：活跃连接数、`pg_stat_activity` 中运行 > 20s 的查询数、复制回放延迟、（可选）主机 CPU。超阈值进入半开状态，只放行 `list_tables` 等元数据操作与低代价查询，返回 `OVERLOADED`（503，可重试）。
-- **取消：** 客户端断开或会话被结束时，Gateway 对进行中的查询发送取消（`pg_cancel_backend` 语义，由驱动的 cancel 请求实现），释放从库资源。
+- **取消：** 客户端断开或会话被结束时，Gateway 通过该查询专属 `tokio-postgres::CancelToken` 发送 PG CancelRequest（沿用 TLS 配置）。取消消息送出不等于查询已结束：等待原请求退出，再显式 ROLLBACK/RESET 并确认连接可回收；5s 内未确认则销毁连接。禁止只 drop future 或 abort task 后直接归还连接。
 - **分布式计数：** 令牌桶与信号量计数在 Redis 兼容存储中（Lua 脚本原子操作，带 TTL 防止泄漏）；Redis 不可用时 Gateway 退化为本地限流（按实例数均分额度），不放开限制。
 
 ## 7. 错误契约
@@ -240,11 +242,11 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `result_sha256` | 结果的规范化哈希，可用于事后核验“Agent 引用的数字确实来自这次查询” |
 | `knowledge_version` / `gateway_version` / `replica_lag_ms` | — |
 
-**不存储结果数据本身**（只存哈希）；需要复现时，用审计中的 SQL 与数据版本重新执行。
+生产审计**不存储结果数据本身**（只存哈希）；只有保留了匹配冻结快照时才可重执行复现，CDC 位点本身不是历史快照。评测专用实例可按 [13](13-evaluation-and-benchmarks.md) 留存授权结果以验证引用。
 
 ### 8.2 存储与保留
 
-- 写入控制库的按日分区表 `audit.gateway_calls`，Gateway 以批量异步方式写入；写入失败时追加到本地 WAL 文件并重试，保证不丢（审计丢失是安全事件）。
+- 经 mTLS 受限审计 collector 写入控制库按日分区表 `audit.gateway_calls`，Gateway 不持控制库写凭证。对外返回数据前持久记录准入，再记录结束/结果/取消；collector 失败则本地持久卷 fsync WAL 并按 `(query_id, phase, sequence)` 去重重放，避免准入与结束事件互相覆盖。无法持久化时停止数据准入（见 [17 §6](17-rust-implementation.md)；审计丢失是安全事件）。
 - 默认保留 180 天，可配置；支持经 OTLP / syslog 同步输出到企业 SIEM。
 - 可选的防篡改：每日对当天记录做哈希链并把根哈希写入对象存储的 WORM 桶。
 
@@ -260,7 +262,7 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `GET /v1/knowledge/{path}` / `POST /v1/knowledge/search` | 读取/检索按角色编译的 Knowledge Pack | 认证 |
 | `POST /v1/sql/validate` | 只做 ③–⑥，不执行；返回是否可执行与提示 | 同 query（计入限流） |
 | `POST /v1/feedback/gap` | Agent 报告知识缺口，进入 Ontology 审核队列 | 认证；限频；内容作为不可信文本存储 |
-| `GET /v1/queries/{query_id}` | 调用方查询自己发起过的查询的元数据（不含结果） | 只能看自己的 |
+| `GET /v1/queries/{query_id}` | 调用方查询自己发起过的查询的元数据（不含结果） | 只能看自己的；导出最终状态含行数、字节、truncated、哈希、freshness 与 warnings |
 | `POST /internal/v1/session-tokens` | Agent 入口签发/吊销会话 token | mTLS，仅入口 |
 
 ### 9.1 实体解析的分层规则
@@ -282,7 +284,7 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 
 ## 10. 实现要点
 
-- **技术：** Python 3.12、FastAPI（ASGI，uvicorn）、asyncpg（预备语句、二进制协议、取消支持）、pglast（或 [02 §5](02-technology-stack.md) 中的宽松许可替代绑定，二者都基于 libpg_query）、pyarrow。
+- **技术：** Rust、Tokio、Axum/Tower、tokio-postgres（预备语句、portal 分页、COPY、CancelToken）+ deadpool-postgres（连接池，配置回收检查）、`pg_query`、Arrow Rust crates。TLS 显式使用 rustls 与 tokio-postgres TLS 适配器并验证证书，禁止生产 NoTls。实现契约见 [17](17-rust-implementation.md)。
 - **权限快照：** `oo apply` 后由 Control API 生成“角色 → 可见关系/列 → 行级过滤”的只读快照（JSON，带版本），Gateway 启动与收到变更通知时加载；与数据库中的实际 GRANT 定期比对，不一致告警（防手工改库）。
 - **性能目标：** 检查 ③–⑤ p99 < 10ms；Gateway 自身开销（不含 SQL 执行）p99 < 30ms。
 - **可观测：** OpenTelemetry trace（`session_id`、`query_id` 作为属性）、Prometheus 指标（按 code 的拒绝率、队列深度、熔断状态、从库延迟）。

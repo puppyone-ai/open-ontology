@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 
 里程碑按“依赖与验收”划分，不按日历。每个里程碑的退出条件都是可验证的评测结果（[13](13-evaluation-and-benchmarks.md)）。
 
@@ -18,7 +18,7 @@
 | P2 | PG 事务提交 LSN 的获取 | 能否从 Debezium 事件中可靠拿到提交 LSN；拿不到时事务边界关联是否可行 |
 | P3 | Debezium 位点/历史存到控制库（JDBC store） | 在 Debezium Server 3.5 中是否稳定可用 |
 | P4 | Valkey `appendfsync always` 的吞吐 | 峰值变更速率下是否够用；不够时的替代（副本 `WAIT`） |
-| P5 | SQL 解析器许可证与实现 | pglast 许可证结论；若需替代，Rust `pg_query` 绑定的可行性 |
+| P5 | SQL 解析器许可证与实现 | pg_query/libpg_query/内嵌 PG 的 LICENSE/NOTICE；parser 大版本配套、重写后再校验、FFI 构建与攻击差分测试 |
 | P6 | 角色 + RLS + `SET LOCAL` 方案在从库上的行为与性能 | RLS 对典型 Agent 查询的开销；热备冲突频率 |
 | P7 | EXPLAIN 代价阈值标定 | 在客户规格的从库上，代价与实际耗时的关系；阈值取值 |
 | P8 | gVisor + Docker 内部网络 + 源 IP 身份 | 身份识别可靠性；沙盒启动时延；预热池效果 |
@@ -27,8 +27,11 @@
 | P11 | Debezium Server + Redis/Valkey sink 事务路由 | SMT 是否覆盖数据与 BEGIN/END；过滤表后的计数如何对齐；重放后是否保持源提交顺序与跨表原子性；不可用则修订 ADR-011 |
 | P12 | 超大事务、暂停表与质量快照 | 分段及故障恢复时水位不推进、不一致标记不丢失；Gateway REPEATABLE READ 下结果与质量状态是否一致 |
 | P13 | 列级授权与派生对象 | 新增列默认隐藏；星号展开含 JOIN/CTE 且不改 count(*)；日历受限所有者权限、码表与实体 RLS 无越权 |
+| P14 | Rust 驱动、Arrow 与原生构建 | portal/TLS/cancel/连接回收；PG numeric 与 MySQL unsigned 双路径；pg_query/DuckDB 的 Linux x86_64/aarch64 构建及 Arrow 版本兼容 |
+| P15 | oo-jobs 与 Loader fencing | 领取/心跳/到期重领、旧 worker 隔离、目标提交后强杀、ACK/裁剪与控制库镜像恢复；无重复副作用 |
+| P16 | Rust FFI、插件与释放 | 文件/hook 超时真正终止；异步取消/SIGTERM/panic 后 S1–S11 释放；Compose/离线安装与 rmcp 协议契约 |
 
-**退出条件：** P1–P9、P11–P13 全部有结论；P10 给出首个客户的初始基线。
+**退出条件：** P1–P9、P11–P16 全部有结论；P10 给出首个客户的初始基线。
 
 ### M1 首个客户 MVP
 
@@ -37,9 +40,9 @@
 | 源 | MySQL、PostgreSQL（CDC + 批量）；CSV/Excel/Parquet 上传 |
 | 管线 | Debezium 流式 + OO 分块快照；按源事务 Loader（per_table 显式降级）；超大事务恢复；拒绝记录/质量汇总；每日轻量对账；表结构变化处理（加列自动同步但分类发布前隐藏、其余暂停 + 隔离区） |
 | Agent DB | 主从；列级授权 + RLS；`_oo` 水位/质量、`oo_dict` 码表/日历、`oo_entity` 实体结果 |
-| Ontology | S0–S5 + S10 列分类；有效期/等级、码值 owner 审核；规则与管家驱动的实体解析；业务日历；认证指标控制总数/语义差异；名称生命周期；发布门禁 G1–G12；按角色编译 |
+| Ontology | S0–S5 + S10 列分类；有效期/等级、码值 owner 审核；规则与管家驱动的实体解析；业务日历；认证指标控制总数/语义差异；名称生命周期；发布门禁 G1–G13；按角色编译 |
 | Gateway | 全部门禁；审计；`query`/`export`/`resolve`/`search_values`/`describe`/`freshness`；质量 warnings 与歧义澄清 |
-| 接入 | `oo` CLI、Python SDK、HTTP API |
+| 接入 | Rust `oo` CLI、Rust SDK、HTTP API（TS SDK 按 OpenAPI 契约提供） |
 | 运行时 | docker-gvisor 沙盒、出口代理、Pi、预热池、状态释放与回收器 |
 | 使用方 | 内置网页对话、飞书机器人 |
 | 部署 | Docker Compose（standard） |

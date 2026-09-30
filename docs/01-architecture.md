@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[00 愿景与范围](00-vision-and-scope.md)
 
 ## 1. 分层总览
@@ -22,7 +22,7 @@ OO 由一个**控制面**和七个**数据/访问层**组成。控制面负责�
 ② 管线（单向；Agent/Gateway 不可达）                             
    Extract：Debezium Server（CDC） | 批量 worker | 文件解析 worker
    Buffer：Valkey Streams（仅 CDC 流式变更；首次快照直写 Agent DB）→ 变更批次（Arrow，op + 源位点）
-   Transform hooks（脱敏/清洗）   →  Loader（COPY + MERGE，幂等）
+   Transform hooks（脱敏/清洗）   →  Loader（COPY + UPSERT，幂等）
    after_load hooks（场景 schema） →  画像/值索引刷新触发
                                                                 │ 仅 pipeline_rw 可写
                                                                 ▼
@@ -32,18 +32,18 @@ OO 由一个**控制面**和七个**数据/访问层**组成。控制面负责�
    角色：pipeline_rw（写） · oo_gateway（登录，只读）→ SET ROLE 到 oo_r_<role>（NOLOGIN） + RLS
                                                                 │ 只读从库
                                                                 ▼
-④ Gateway（唯一数据出口；无状态，多实例）
+④ Gateway（唯一数据出口；查询无状态，审计 WAL 耐久，多实例）
    认证 → 权限 → SQL 解析/检查/改写 → EXPLAIN 代价 → 执行（角色 + RLS + 超时）→ 截断/导出 → 审计
                                                                 │ HTTP API（即 Wrapper 的底座）
                                                                 ▼
-⑤ Wrapper：HTTP API · Python/TS SDK · oo CLI · MCP Server（远程 Streamable HTTP / 本地 stdio）
+⑤ Wrapper：HTTP API · Rust/TS SDK · oo CLI · MCP Server（远程 Streamable HTTP / 本地 stdio）
                                                                 │
           ┌─────────────────────────────────────────────────────┤ 自带 Agent 的客户端直连 ⑤
           │ 经出口代理（按沙盒身份注入会话 token 与模型 Key）      │
           ▼                                                     │
 ⑥ Knowledge 沙盒（每会话一个；gVisor / E2B 等可插拔）            │
    /knowledge（已发布 Ontology 的只读编译产物）/workspace（中间结果）
-   harness（默认 Pi，RPC over stdio）+ oo CLI + Python/DuckDB
+   harness（默认 Pi，RPC over stdio）+ oo CLI + Rust 工具/DuckDB CLI
    无任何密钥；网络只通出口代理
           ▲ stdio
 ⑦ Agent 入口（沙盒外，无状态）
@@ -68,7 +68,7 @@ OO 由一个**控制面**和七个**数据/访问层**组成。控制面负责�
 
 ## 3. 组件清单与状态归属
 
-明确“谁持有什么状态”是水平扩展和故障恢复的前提。**只有下表标注为有状态的组件需要备份。**
+明确“谁持有什么状态”是水平扩展和故障恢复的前提。下表的耐久状态须纳入备份或可靠重放策略；软状态可重建，临时沙盒由会话释放流程回收。
 
 | 组件 | 层 | 有状态？ | 持有的状态 | 持久化位置 | 多实例 |
 |---|---|---|---|---|---|
@@ -84,7 +84,8 @@ OO 由一个**控制面**和七个**数据/访问层**组成。控制面负责�
 | 对象存储 | ②⑦ | **是** | 上传文件原件、导出结果、会话产出物、会话记录 | S3 兼容 / 本地卷 | 取决于后端 |
 | Agent DB 主库 | ③ | **是** | 同步数据 | PG | 1 主 |
 | Agent DB 从库 | ③ | 派生 | 主库副本 | PG | N |
-| Gateway | ④ | 否 | 限流计数（软状态） | Redis 兼容 | 是 |
+| Gateway | ④ | **审计有状态** | 限流计数（软状态）、未确认审计 WAL | Redis 兼容 / 独立持久 WAL 卷 | 是（每实例独立 WAL） |
+| 审计 collector | ⓪④ | 否 | Gateway 审计接收、幂等入库确认 | 控制库 audit schema；重放 WAL 由 Gateway 持有 | 是 |
 | MCP Server | ⑤ | 否 | MCP 会话（可重建） | 内存 / Redis | 是 |
 | 出口代理 | ⑥ | 否 | 沙盒身份 → 凭证映射（软状态） | Redis 兼容，TTL 与会话同 | 是 |
 | 沙盒 | ⑥ | 临时 | `/workspace` | 沙盒本地，销毁即清除 | 池化 |
@@ -133,9 +134,9 @@ table_ready / schema_changed / 定时 / 手动
           → 启动 harness（Pi RPC over stdio），发送问题
  ──▶ harness 在沙盒内：读 /knowledge/README.md → 找表/口径 → `oo resolve`（实体歧义则澄清）/ `oo query` / `oo search-values`
           → 请求经出口代理（注入 token）→ Gateway 执行门禁 → 从库执行 → 返回（带 query_id、数据截至、水位和质量 warnings）
-          → 必要时 `oo export` 大结果 → Python/DuckDB 分析 → 生成图表到 /workspace/outputs
+          → 必要时 `oo export` 大结果 → Rust 工具/DuckDB CLI 分析 → 生成图表到 /workspace/outputs
  ──▶ 入口把事件流（思考摘要、工具调用、最终回答）转发给 IM；答案附“所用表/口径/数据截至/时间锚点及日期/质量警告/查询编号”
- ──▶ 会话空闲超时：取回产出物与会话记录 → 吊销 token → 注销代理映射 → 销毁沙盒（见 09 状态释放）
+ ──▶ 会话空闲超时：停止新请求与活跃查询 → 吊销 token / 注销代理映射 → 取回产出物与会话记录 → 销毁沙盒（完整 S1–S11 见 09 状态释放）
 ```
 
 ## 5. 网络分区与部署拓扑
@@ -179,29 +180,34 @@ table_ready / schema_changed / 定时 / 手动
 
 ## 7. 代码仓库结构（规划）
 
-单仓（monorepo），Python 为主，控制台与 TS SDK 为 TypeScript：
+单仓（monorepo），服务、连接器、Builder、评测器与 CLI 使用 Rust；控制台与 TS SDK 使用 TypeScript。Debezium 保留 JVM、Pi 保留 Node 运行时，经协议与 Rust 服务对接，不重写上游。crate 依赖方向与工程约束见 [17 Rust 实现契约](17-rust-implementation.md)。
 
 ```text
 open-ontology/
   oo                         # 启动脚本（包装 docker compose 与 oo CLI）
-  pyproject.toml             # uv workspace
-  packages/
-    oo-core/                 # 配置与 Ontology Spec 的 Pydantic 模型、JSON Schema、公共类型、错误码
+  Cargo.toml                 # Cargo workspace，edition 2024，resolver 3
+  Cargo.lock                 # 全 workspace 的依赖锁
+  rust-toolchain.toml        # 精确锁定 stable 工具链与 rustfmt/clippy
+  crates/
+    oo-core/                 # 配置与 Ontology Spec 的 Serde / Schemars 模型、JSON Schema、公共类型、错误码
     oo-connectors/           # 连接器插件：mysql、postgres、file（后续 mssql、oracle、snowflake…）
     oo-pipeline/             # worker、Loader、对账工具、hook 运行时
     oo-builder/              # Ontology Builder：画像、推断、LLM 起草、编译器、发布门禁
-    oo-gateway/              # Gateway 服务（FastAPI）+ SQL 检查/改写
+    oo-gateway/              # Gateway 服务（Axum / Tower）+ SQL 检查/改写
     oo-proxy/                # 出口代理
     oo-entry/                # Agent 入口 + harness 适配器（pi、claude-code、codex）+ IM 适配器
     oo-sandbox/              # 沙盒驱动：docker-gvisor、e2b、k8s-agent-sandbox
-    oo-control/              # Control API、oo validate/plan/apply 引擎
-    oo-sdk/                  # Python SDK + oo CLI
+    oo-control/              # Control API、oo validate/plan/apply 引擎；独立 audit-collector binary
+    oo-sdk/                  # Rust SDK（reqwest），无管理权限
+    oo-cli/                  # clap 原生 CLI，复用 oo-sdk
+    oo-jobs/                 # PostgreSQL 持久队列、定时与租约
     oo-mcp/                  # MCP Server
     oo-eval/                 # OO-Bench 运行器、评分器、报告
+    oo-analysis/             # 沙盒本地分析与图表 CLI（预编译，无凭证）
   sdk-ts/                    # TypeScript SDK
   console/                   # Web 控制台（React + TypeScript）
   images/
-    sandbox/                 # 沙盒镜像（Pi、oo CLI、Python 数据栈，固定版本）
+    sandbox/                 # 沙盒镜像（Pi、Rust oo CLI/分析工具、DuckDB CLI，固定版本）
     debezium/                # 固定版本的 Debezium Server 镜像
   deploy/
     compose/                 # docker-compose.yml 与 profile

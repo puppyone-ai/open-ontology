@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：无。本文是其余所有文档的前提。
 
 ## 1. 一句话
@@ -94,7 +94,7 @@ $ ./oo up                                   # docker compose 一键启动全部�
 - 同步：CDC（Debezium）+ 批量增量 + 每日对账；单表数千万行。
 - Agent DB：PostgreSQL 16/17 主从。
 - Ontology：自动构建草稿、Web 审核、Git 版本化发布、发布前一致性检查。
-- 访问：Gateway（只读 SQL、表级/列级/行级权限、代价控制、并发控制、审计）；MCP / Python SDK / HTTP / `oo` CLI。
+- 访问：Gateway（只读 SQL、表级/列级/行级权限、代价控制、并发控制、审计）；MCP / Rust SDK / TS SDK / HTTP / `oo` CLI。
 - Agent 运行：Docker + gVisor 沙盒、出口代理注入凭证、Pi harness、内置网页对话、一个 IM 机器人适配器（飞书）。
 - 部署：Docker Compose 一键启动。
 - 评测：OO-Bench 公开集（基于合成物流数据）+ 客户私有集的运行框架。
@@ -136,9 +136,9 @@ $ ./oo up                                   # docker compose 一键启动全部�
 |---|---|---|
 | 没有控制面 / 控制台 | 新增 ⓪ 控制面：Web 控制台、Control API、内置 Git、Ontology Builder、评测运行器 | [01](01-architecture.md) |
 | Knowledge 全部人工编写，表结构骨架自动生成 | Ontology Spec（结构化 YAML）为唯一真相，自动构建草稿 + 人工审核；Markdown 为编译产物 | [06](06-ontology-layer.md) |
-| 平台不在 Agent DB 建任何表 | 允许一个平台保留的派生 schema `_oo`（值索引、画像），可随时重建、不是真相源 | [05](05-agent-db.md) |
-| 行级过滤由 Gateway 套在查询外；SQL 检查用 `sqlglot` | 以 PostgreSQL 角色 + RLS 为权威执行；安全判定改用 PG 自身的语法分析器（libpg_query），`sqlglot` 只做方言提示 | [07](07-gateway.md) |
+| 平台不在 Agent DB 建任何表 | 允许平台保留的 `_oo` 水位/质量/RLS 辅助对象，以及受权限约束的 `oo_dict` / `oo_entity` 派生资产；不是源业务真相 | [05](05-agent-db.md) |
+| 行级过滤由 Gateway 套在查询外；SQL 检查用 `sqlglot` | 以 PostgreSQL 角色 + RLS 为权威执行；安全判定使用 Rust `pg_query`（libpg_query，按 PG 大版本配套）；`sqlparser` 只做方言提示与证据提取 | [07](07-gateway.md) |
 | 只支持数据库源 | 增加文件上传源（DuckDB 解析）与文件托管 | [03](03-sources-and-ingestion.md) |
-| ARQ + Redis；Debezium 增量快照经 Redis | ARQ 已进入仅维护模式 → 离散任务改用 Procrastinate（基于控制库），流式装载为常驻 Loader；Redis 8 为 AGPL 等三许可 → 缓冲默认 Valkey；首次快照改为 OO 分块读取直接写 Agent DB（“CDC 优先、快照补空”），不经缓冲、不写源库 | [02](02-technology-stack.md)、[04](04-pipeline.md) |
+| ARQ + Redis；Debezium 增量快照经 Redis | 离散任务改用 Rust `oo-jobs`（控制库持久队列、租约与重试），流式装载为 Tokio 常驻 Loader；Redis 8 为 AGPL 等三许可 → 缓冲默认 Valkey；首次快照改为 OO 分块读取直接写 Agent DB（“CDC 优先、快照补空”），不经缓冲、不写源库 | [02](02-technology-stack.md)、[04](04-pipeline.md) |
 | 会话结束销毁沙盒 | 完整的会话状态机与“状态释放”清单（token、连接、查询、文件、沙盒、池） | [09](09-sandbox-and-agent-runtime.md) |
 | 题库评测 | 六条评测轨道的 OO-Bench + 基于客户数据的迭代闭环 | [13](13-evaluation-and-benchmarks.md) |

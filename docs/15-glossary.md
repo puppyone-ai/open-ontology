@@ -1,7 +1,7 @@
 # 15 术语表
 
 > Status: Proposed
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 
 | 术语 | 含义 |
 |---|---|
@@ -61,3 +61,7 @@
 | **pass^k** | k 次独立运行全部正确的比例，衡量可靠性 |
 | **dev / holdout / live** | 客户题库的三个集合：日常迭代 / 发布门禁 / 上线后新增 |
 | **致命三要素（lethal trifecta）** | 私有数据 + 不可信内容 + 对外通信同时存在时，提示注入可外传数据 |
+| **Cargo workspace / crate** | Rust 单仓与编译单元；锁文件、工具链及 feature 组合随发布固定 |
+| **oo-jobs** | Rust 实现的控制库离散任务队列，租约、去重、重试；不是 CDC stream 消费者 |
+| **fencing generation** | 租约代次，用于拒绝旧 owner 的状态提交；目标写入仍需排他锁/幂等校验 |
+| **CancellationToken / CancelToken** | 前者为 Tokio 协作停止信号，后者为 PG 取消请求能力；均不等于外部资源已释放 |

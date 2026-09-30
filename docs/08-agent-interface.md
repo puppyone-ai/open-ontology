@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[07 Gateway](07-gateway.md)、[06 Ontology](06-ontology-layer.md)
 > 被依赖：[09 沙盒与运行时](09-sandbox-and-agent-runtime.md)
 
@@ -13,8 +13,8 @@ Wrapper 把 Gateway 的同一组能力包装成几种接入形式，**能力相�
 | 形式 | 运行位置 | 使用方 |
 |---|---|---|
 | HTTP API | Gateway 自身的接口（OpenAPI 3.1） | IM 机器人、企业系统、其他语言的客户端 |
-| Python SDK / TS SDK | 调用方进程内的客户端库 | 企业自研 Agent；沙盒里的 Python |
-| `oo` CLI | 调用方机器上的命令，基于 Python SDK | **沙盒内 harness 的主要接口** |
+| Rust SDK / TS SDK | 调用方进程内的客户端库 | 企业自研 Agent；Rust 客户端程序 |
+| `oo` CLI | 调用方机器上的命令，Rust 原生二进制，复用 oo-sdk | **沙盒内 harness 的主要接口** |
 | MCP Server | Gateway 旁的无状态服务（远程 Streamable HTTP），或本地 stdio 进程 | Claude Code、Codex、Cursor 等不在我们沙盒里的 Agent |
 
 面向 Agent 的接口设计原则：
@@ -80,8 +80,8 @@ ambiguous（4 个候选，请向用户确认，不要自行选择）:
 
 ```text
 …（200 行）
--- query_id: q_01JB3K9ZC1 | rows: 200 (已截断，上限 200；估计总行数约 48,210) | 1.2 s
--- hint: 结果过大。请聚合后再查，或用 `oo export "<同一 SQL>" -o /workspace/results/<名称>.parquet` 导出后用 Python/DuckDB 分析。
+-- query_id: q_01JB3K9ZC1 | rows: 200 (已截断，上限 200) | 1.2 s
+-- hint: 结果过大。请聚合后再查，或用 `oo export "<同一 SQL>" -o /workspace/results/<名称>.parquet` 导出后用 DuckDB CLI / Rust 分析工具 分析。
 ```
 
 ### 3.3 被拒绝
@@ -97,7 +97,7 @@ hint: 加上时间范围条件，例如 WHERE fhrq >= date '2026-09-01'；该表
 
 ### 3.4 其他约定
 
-- `--json` 输出机器可读 JSON（同 HTTP 响应），便于 Python 处理。
+- `--json` 输出机器可读 JSON（同 HTTP 响应），便于 Rust/TS 或其他客户端处理。
 - `oo export` 默认写入 `/workspace/results/`，输出文件路径、行数、列名与类型、`query_id`；文件旁写一个同名 `.meta.json`（SQL、query_id、freshness），便于之后引用。
 - 所有命令的帮助文本（`oo --help`、`oo query --help`）简短且含示例，因为 harness 会读它。
 - 可重试错误（`RATE_LIMITED`、`OVERLOADED`）CLI 自动指数退避重试最多 3 次，并在输出中注明。
@@ -144,27 +144,39 @@ hint: 加上时间范围条件，例如 WHERE fhrq >= date '2026-09-01'；该表
 
 ### 4.2 `POST /v1/export`
 
-响应为 `application/vnd.apache.arrow.stream`，HTTP 头携带 `OO-Query-Id`、`OO-Freshness`；流结束时的 trailer（或最后一个元数据批次）携带行数与是否达到上限。SDK 负责写 Parquet。
+响应为 `application/vnd.apache.arrow.stream`，HTTP 头携带 `OO-Query-Id`；freshness 和 warnings 在最终查询元数据中。只发送合法 Arrow IPC 流，不追加不同 schema 的 JSON 批次。SDK 流式写临时 Parquet，收到 IPC 结束标记后，再读取自己有权访问的 `GET /v1/queries/{query_id}` 完成记录（`status`、`rows`、`bytes`、`truncated`、`result_sha256`、`freshness`、`warnings`）。校验行数/规范化结果哈希后原子改名，并写 `.meta.json`；HTTP 中断、缺完成记录或不匹配时删除临时文件并报告失败。HTTP trailer 只能作可选提示，不能依赖代理或客户端一定支持它。
 
 ### 4.3 版本与兼容
 
 - 路径版本 `/v1`；只做向后兼容的新增，破坏性变更进入 `/v2` 并保留 `/v1` 至少两个发布周期。
-- OpenAPI 文档由 FastAPI 生成并发布；SDK 由 OpenAPI 生成基础层、手写易用层。
+- OpenAPI 3.1 文档由 Rust `utoipa` 显式声明生成并发布；SDK 由 OpenAPI 生成基础层、手写易用层。
 
 ## 5. SDK
 
-```python
-from oo import Client
+```rust
+// 目标 SDK 调用契约：oo_sdk 第一方 crate 尚待实现；不是现有可运行 API。
+use oo_sdk::Client;
 
-oo = Client()                      # 沙盒内：OO_GATEWAY_URL 指向出口代理，无 token
-                                   # 沙盒外：Client(base_url=..., token=os.environ["OO_TOKEN"])
-tables = oo.tables(domain="finance")
-info = oo.describe("logistics.receipt")
-who = oo.resolve("customer", "浣熊市警")   # who.status: resolved | ambiguous | not_found；who.entity_key / who.candidates
-hits = oo.search_values("logistics.route.code", "HB-0")
-res = oo.query("SELECT …")         # res.df（pandas）、res.arrow、res.query_id、res.truncated
-path = oo.export("SELECT …", "/workspace/results/receipts_2026.parquet")
-fresh = oo.freshness(["logistics.receipt"])
+async fn example() -> Result<(), oo_sdk::Error> {
+    // 沙盒内 OO_GATEWAY_URL 指向出口代理，不读取 OO_TOKEN。
+    // 外部客户端另用显式配置并从安全凭证存储取 token，禁止输出到日志。
+    let oo = Client::from_sandbox_env()?;
+    let _tables = oo.tables(Some("finance")).await?;
+    let _info = oo.describe("logistics.receipt").await?;
+    let who = oo.resolve("customer", "浣熊市警").await?;
+    // 只有 who.status == resolved 才能继续；ambiguous/not_found 需澄清。
+    let _ = who;
+    let _hits = oo.search_values("logistics.route.code", "HB-0").await?;
+    let result = oo.query("SELECT amount FROM logistics.receipt LIMIT 10").await?;
+    // result.rows 为带 PG 类型信息的值；numeric 为精确十进制字符串。
+    let _ = (result.query_id, result.truncated);
+    let _path = oo.export(
+        "SELECT amount FROM logistics.receipt",
+        "/workspace/results/receipts_2026.parquet",
+    ).await?;
+    let _fresh = oo.freshness(&["logistics.receipt"]).await?;
+    Ok(())
+}
 ```
 
 TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不缓存数据结果；认证失败不重试；可重试错误按服务端 `retry_after` 退避。
@@ -173,7 +185,7 @@ TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不
 
 ### 6.1 形态
 
-- **远程：** 与 Gateway 同区部署的无状态服务，Streamable HTTP，遵循 MCP 2026-07-28 规范（无状态核心，兼容 2025-11-25 客户端）。作为 OAuth 资源服务器：RFC 9728 元数据、RFC 8707 audience 绑定；调用 Gateway 时以 RFC 8693 换取内部 token，**不透传**客户端 token。
+- **远程：** 与 Gateway 同区部署的无状态服务，Streamable HTTP，由官方 Rust `rmcp` 实现，目标为 MCP 2026-07-28；实际支持版本由锁定 SDK 和协议契约测试确定，通过初始化协商；2025-11-25 客户端兼容需单独验证。作为 OAuth 资源服务器：RFC 9728 元数据、RFC 8707 audience 绑定；调用 Gateway 时以 RFC 8693 换取内部 token，**不透传**客户端 token。
 - **本地 stdio：** `oo mcp --stdio`，运行在用户机器上，使用用户本机配置的外部客户端 token；此模式额外提供 `export`（写到本地工作目录）。
 
 ### 6.2 工具定义要点
@@ -192,7 +204,7 @@ TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不
   annotations: { readOnlyHint: true, openWorldHint: false }
 ```
 
-- **Resources：** `oo://knowledge/README.md`、`oo://knowledge/tables/{schema}.{table}.md` 等，映射到按角色编译的 Knowledge Pack；列表结果可缓存（规范支持可缓存的 list 结果）。
+- **Resources：** `oo://knowledge/README.md`、`oo://knowledge/tables/{schema}.{table}.md` 等，映射到按角色编译的 Knowledge Pack；列表按 principal、角色、策略版本与 Knowledge 版本隔离缓存；不跨权限复用。
 - **Prompts：** 提供 `analyze_data` 提示模板，内容与沙盒中 `AGENTS.md` 的工作说明一致，让沙盒外的 Agent 遵循同样的工作方式。
 
 ### 6.3 沙盒外客户端的风险提示

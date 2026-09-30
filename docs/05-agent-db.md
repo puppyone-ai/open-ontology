@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-09-30
+> Last reviewed: 2026-10-01
 > 依赖：[01 架构](01-architecture.md)、[04 管线](04-pipeline.md)
 > 被依赖：[06 Ontology](06-ontology-layer.md)、[07 Gateway](07-gateway.md)
 
@@ -65,7 +65,7 @@ oo_owner          NOLOGIN   拥有全部 schema 与表；没有人以它登录
 pipeline_rw       LOGIN     可 SET ROLE oo_owner；仅管线与 oo apply 使用；只能连主库
 oo_builder_ro     LOGIN     只读画像；只在 Builder 中使用；受限速
 oo_gateway        LOGIN     NOINHERIT；自身无任何对象权限；是所有 oo_r_* 的成员，仅用于 SET ROLE
-oo_gateway_sys    LOGIN     只读 _oo schema（新鲜度）与 pg_catalog 元数据
+oo_gateway_sys    NOLOGIN     只读 _oo schema（新鲜度）与 pg_catalog 元数据；oo_gateway 可 SET ROLE 到它，仅平台固定 SQL 使用
 oo_r_<role>       NOLOGIN   由 roles.yaml 生成：schema USAGE、表/列 SELECT、RLS 策略的 TO 目标
 ```
 
@@ -76,7 +76,8 @@ oo_r_<role>       NOLOGIN   由 roles.yaml 生成：schema USAGE、表/列 SELEC
 ```sql
 -- 角色
 CREATE ROLE oo_r_dispatcher_eu NOLOGIN;
-GRANT oo_r_dispatcher_eu TO oo_gateway;
+GRANT oo_r_dispatcher_eu TO oo_gateway WITH INHERIT FALSE, SET TRUE;
+-- oo_gateway_sys 也按此方式授权给 oo_gateway，不授给任何 oo_r_*
 
 -- 只做列级授权（I-DB-5）：tables: ["*"] 在编译时展开为“已分类列”的显式列表
 GRANT USAGE ON SCHEMA logistics TO oo_r_dispatcher_eu;
@@ -88,10 +89,10 @@ GRANT SELECT (customer_id, name, region) ON logistics.customer TO oo_r_dispatche
 ALTER TABLE logistics.shipment ENABLE ROW LEVEL SECURITY;
 CREATE POLICY oo_p_dispatcher_eu_shipment ON logistics.shipment
   FOR SELECT TO oo_r_dispatcher_eu
-  USING (region = ANY (oo_claim_array('region')));
+  USING (region = ANY (_oo.oo_claim_array('region')));
 ```
 
-`oo_claim_array(key)` 是 `_oo` schema 中由平台创建的 `STABLE` SQL 函数，读取 Gateway 在事务内设置的 `oo.claims`（JSON）：
+`_oo.oo_claim_array(key)` 是 `_oo` schema 中由平台创建的 `STABLE` SQL 函数，读取 Gateway 在事务内设置的 `oo.claims`（JSON）：
 
 ```sql
 CREATE FUNCTION _oo.oo_claim_array(k text) RETURNS text[]
@@ -101,17 +102,19 @@ LANGUAGE sql STABLE PARALLEL SAFE AS $$
 $$;
 ```
 
+`oo apply` 对需要 RLS 的角色仅授予 `_oo` USAGE 与指定 claims helper 的 EXECUTE，不授底表 SELECT；创建函数后显式撤销 PUBLIC EXECUTE，再按策略授权（与 §6.5 一致）。
+
 未设置 `oo.claims` 时返回空数组，策略即“看不到任何行”——**失败即关闭（fail closed）**。
 
 ### 4.2 为什么 claims 不能被 Agent 伪造
 
-`SET` 自定义 GUC 对任何角色都是允许的，所以必须证明 Agent 的 SQL 改不了 `oo.claims`。防线分三层，任意一层单独成立即可：
+`SET` 自定义 GUC 对任何角色都是允许的，所以必须证明 Agent 的 SQL 改不了 `oo.claims`。防线分三层，需要共同成立；单语句本身挡不住 `SELECT set_config(...)`，事务回滚也挡不住同语句内先改 claims 再读数据：
 
-1. **单语句：** Gateway 用扩展查询协议（Parse/Bind/Execute）发送 Agent 的 SQL，PG 在协议层拒绝多语句字符串（`cannot insert multiple commands into a prepared statement`）。注意驱动行为：psycopg 3 在**不带参数**时走简单查询协议、允许多语句；asyncpg 的 `execute()` 不带参数时同样走简单协议。Gateway 必须显式使用预备语句（asyncpg `connection.prepare()` / psycopg `prepare=True`），并由测试断言“多语句被协议层拒绝”。
+1. **单语句：** Gateway 用扩展查询协议（Parse/Bind/Execute）发送 Agent 的 SQL，PG 在协议层拒绝多语句字符串（`cannot insert multiple commands into a prepared statement`）。Rust Gateway 使用 `tokio_postgres::Transaction::prepare()`，再 `bind()` / `query_portal()` 执行预备语句；禁止把 Agent SQL 交给 `simple_query()` / `batch_execute()`。由集成测试断言空参数、多语句与可写 CTE 都被拒绝。
 2. **每查询一个事务：** Gateway 的执行序列固定为
    `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL ROLE oo_r_x; SET LOCAL oo.claims = '<json>'; <agent_stmt>; ROLLBACK;`
-   即使 `<agent_stmt>` 是一条 `SET`，它也只能影响这个即将回滚的事务，且它和读数据不可能在同一条语句里完成。
-3. **函数级撤权：** 对 `PUBLIC` 撤销 `set_config(text,text,boolean)` 的 `EXECUTE`（`SELECT set_config(...)` 是唯一能在查询中途改 GUC 的方式）。`oo_r_*` 角色因此在 SQL 表达式里改不了 `oo.claims` 或 `role`。
+   即使 `<agent_stmt>` 是一条 `SET`，它也只能影响这个即将回滚的事务，且顶层 SET 不能和读取拼成单条预备语句；表达式内修改 GUC 还须由第 3 层阻止。
+3. **函数级撤权：** 对 `PUBLIC` 撤销 `set_config(text,text,boolean)` 的 `EXECUTE`（阻断内置的表达式级 GUC 修改入口；同时禁止角色执行可修改 GUC 的自定义函数/扩展）。`oo_r_*` 角色因此在 SQL 表达式里改不了 `oo.claims` 或 `role`。
 
 外加应用层：基于 PG 语法分析器的检查只放行单条 `SELECT`/`WITH`，并拒绝 `set_config`、`SET`、`RESET` 等（见 [07 §4](07-gateway.md)）。
 
@@ -277,7 +280,7 @@ FROM _oo.calendar_config c,
 | `_oo.schema_version` | 当前 apply 的配置版本、Ontology 发布版本 |
 | `_oo.calendar_config` | 业务时区、财年起始月、`last_closed_period_end` |
 
-`_oo` 只授予 `oo_gateway_sys`（读）和 `oo_owner`，另对日历视图所有者授予 §6.3 的最小权限；Agent 角色不可直接读取。数据画像、样本值等**不放**在这里，它们属于 Ontology，经权限过滤后编译进 Knowledge Pack（见 [06 §7](06-ontology-layer.md)）。
+`_oo` 数据对象只授予 `oo_gateway_sys`（读）和 `oo_owner`；Agent 角色仅获 §4.1 的 schema USAGE/指定 helper EXECUTE，无底表读取权限，另对日历视图所有者授予 §6.3 的最小权限；Agent 角色不可直接读取。数据画像、样本值等**不放**在这里，它们属于 Ontology，经权限过滤后编译进 Knowledge Pack（见 [06 §7](06-ontology-layer.md)）。
 
 ## 7. 索引、大表与分区
 
@@ -285,7 +288,7 @@ FROM _oo.calendar_config c,
 
 | 索引 | 何时建 | 说明 |
 |---|---|---|
-| 主键 / 源唯一键 B-tree | 总是 | `MERGE` 必需 |
+| 主键 / 源唯一键 B-tree | 总是 | UPSERT 必需 |
 | 外键列（声明的或 Ontology 中已确认的关系） | 默认 | 支撑 JOIN |
 | 时间列 BRIN | 表 > 1,000 万行且时间列与物理顺序相关（相关度由画像给出） | 占用极小；对范围过滤有效 |
 | 时间列 B-tree | 相关度低时 | — |
