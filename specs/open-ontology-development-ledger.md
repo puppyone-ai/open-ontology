@@ -63,8 +63,10 @@
   - [x] DG01–08修复切片：a035独立复审approve，192独立checks零失败；完整当前源码集成/平台门禁待补，父项仍未签收。
 - [ ] SP00-W05 xtask/Compose/CI/Evidence/激活门禁
   - [x] ENV bootstrap/日志/health拒绝修复切片：a038独立复审批准，34文件hash匹配a034；实际fixture证据有效，当前四构建和完整W05未签收。
+  - [ ] W05 early-setsid/父进程立即退出的执行归属与输出清理：a062固定f61复审request_changes，a070专用基础修复线；未知containment不能签required_satisfied。
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
+  - [ ] W06 ISC许可一致性切片：a067交付b14c782，a069固定提交复审；CDLA与实际许可证正文缺口独立保留，完整供应链未签。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -303,13 +305,15 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00I / DATAGEN-LINUX-MSRV | `eef831aa-dba4-4af2-a78b-541bc9e0a059` | standalone bench双架构/MSRV实跑 | bench/core只读；仅a059证据/自有UUID单builder | finalize CLI终态0，报告commit275d886；四recipe测试/Clippy/生成作者0，bytecompare0/cleanup0；outer1原因已读脚本1104–1106：0 or 1误记，旧143/limits1不重写；未签完整W04 |
 | V01-PG-01 / PRODUCT-SOURCE-CATALOG | `eef831aa-dba4-4af2-a78b-541bc9e0a060` | 真实PG只读体检与catalog生产组件 | 现有product-pg worktree，仅connectors/lock/新source契约测试；本地提交 | CLI终态0，feature b2d3cbc，baseline4213134；13unit+live PG17/Linux1.94测试Clippy作者0、REPORT已提交；in_review，不签完整SP03 |
 | V01-PG-01-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a061` | b2d3cbc固定SHA独立复审 | 现有productworktree只读；仅主目录a061证据/自有临时archive/UUID | CLI终态0 request_changes；完整review/findings已读：三HIGH为全局写能力漏判/PGOPTIONS角色替换/CA根混用；Linux/MSRV及原live测试0，audit0/deny4；owned资源已清，a066返工 |
-| 00H-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a062` | f61de8d固定SHA基础修复 | 只读git archive；仅a062证据/自有UUID资源 | 原handle58084终态0但缺review/findings、独立probe编译失败；精确resume handle37699补探针/报告/cleanup，不重跑已过xtask测试，不签完成 |
+| 00H-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a062` | f61de8d固定SHA基础修复 | 只读git archive；仅a062证据/自有UUID资源 | resume handle37699终态0 request_changes；Linux1.94 xtask41测试/Clippy0，但9个early-setsid后代存活仍required_satisfied，15/15复现；a070修复，原probe编译101保留 |
 | V01-OOS-01A / STRUCTURE-DRAFT | `eef831aa-dba4-4af2-a78b-541bc9e0a063` | 冻结core模型/PG catalog版本契约 | 主目录oo-builder/新draft契约fixture；root lock唯一writer | running handle70712；先Linux/MSRV冒烟，确定性结构草案/审核队列/版本绑定证据；交付即局部提交，不签完整SP07 |
 | SP02-W01-a / CONTROL-JOBS-SCHEMA | `eef831aa-dba4-4af2-a78b-541bc9e0a064` | 导入闭环所需耐久控制存储，docs17队列契约 | oo-jobs迁移/契约/对应fixture；不改manifest/root-lock，a063仍唯一writer | CLI终态0 commit70a4e72；REPORT已读，真实PG新迁移/重放/40 SQLSTATE负例/迁移锁/失败回滚作者0，Linux/MSRV contract1test0；migration两hash协调者重算匹配，a068复审，不签完整W01 |
 | P5-a / PG17-PARSER-RISK | `eef831aa-dba4-4af2-a78b-541bc9e0a065` | 受控查询的parser/PG17配套与可杀隔离风险；a056 SET utility反例 | 新独立Rust spike/lock、Proposed ADR/a065证据；不写主workspace依赖 | running handle52338；先Linux/MSRV/native smoke，合法control与Utility/CTE/失败/版本拒绝；不签完整P5/R1–R9 |
 | V01-PG-01-F / SOURCE-SECURITY-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a066` | a061三HIGH固定b2复现，完整review已终态 | 沿用现有product-pg，仅connectors/对应contract/自有lock和证据；主目录源只读 | running handle37636；全局effective权限、纯显式无env连接、private-CA-only三修复；focused Linux/MSRV/真实PG，修复commit后再固定复审与主目录串行集成 |
-| 00J / ISC-POLICY-CONSISTENCY | `eef831aa-dba4-4af2-a78b-541bc9e0a067` | a061固定图ISC3项许可门禁失败、spec宽松许可规则 | 仅ci/deny的明确ISC条目、新license契约/fixture/a067证据；不改root-lock或source | running handle38831；Linux/MSRV局部冒烟后比对b2许可错误4→1、保留CDLA/GPL-only负例与原失败，不签完整供应链门禁 |
+| 00J / ISC-POLICY-CONSISTENCY | `eef831aa-dba4-4af2-a78b-541bc9e0a067` | a061固定图ISC3项许可门禁失败、spec宽松许可规则 | 仅ci/deny的明确ISC条目、新license契约/fixture/a067证据；不改root-lock或source | handle38831终态0 commitb14c782；REPORT已读、policy hash协调者重算匹配，作者Linux1.94 core check0，b2许可错误4→1但deny仍4；a069复审，不签完整供应链 |
 | SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | running handle57161；独立真实LOGIN成员权限、迁移checksum/readiness/并发/回滚/状态约束与API-only差异，不签100worker或完整W01 |
+| 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | running handle41829；独立真实graph/ISC AND Apache/负例/正文义务核对，不签完整W06 |
+| 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
@@ -322,7 +326,9 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | queued |
 | FOUNDATION-LANE | a058两hang/六CLI失败、a059bench平台 | 基础问题单线收敛，按局部失败修复 | 不阻塞隔离产品公共功能；发行条件单独pending | active |
 
-当前基础线writer为a067，仅ISC policy；a062仍只读f61固定archive复审。main builder/root-lock独占仍是a063；a064只写jobs迁移，a065只写独立parser spike，a066只写现有PG checkout的源纠正，所有固定提交复审均不读取移动源作签收依据。
+当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。main builder/root-lock独占仍是a063；a064已交付70a4e72，a068只读复审；a065只写独立parser spike，a066只写现有PG checkout的源纠正。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建，不把host安装视为额外免费槽位。
+
+a062终态证据：协调者已读完整review/findings及seal-escape原始JSON。九个睡眠后代在父进程立即退出后仍存活，执行exit0/required_satisfied=true且无cleanup/deadline门禁；15/15重复复现，held inode在返回后继续增长。仅记录后代的轮询不能证明所有后代已停。a070须修复或在归属无法验证时明确失败，不能将16MiB内存前缀当磁盘配额；既有41测试通过、PATH固定kill/隔离Git/private ExecutedCommand修复保持，未复现的kill故障不伪称已证实。基础返工不计新产品功能，完整SP00仍未签。
 
 a066所发现的SQLx API限制已由协调者核查锁定0.9源码，最小纠正方向冻结于execution/decisions/sqlx-0.9-explicit-source-trust.md（commit1589c18）。方向保留SQLx，必要时仅对两上游crate作有来源/许可/补丁hash的无env构造器与显式CA独占补丁；当前a066仍运行，不能同时启动另一writer。其真实终态/交接后再以明确resume扩展允许文件范围，实施与独立复审未完成前不签修复。
 
