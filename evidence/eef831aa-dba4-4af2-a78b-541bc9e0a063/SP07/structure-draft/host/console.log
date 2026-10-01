@@ -1,0 +1,52 @@
+=== rustc -Vv ===
+rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)
+binary: rustc
+commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+commit-date: 2026-09-01
+host: aarch64-apple-darwin
+release: 1.98.1
+LLVM version: 22.1.8
+=== cargo test -p oo-builder --locked --offline --all-targets ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/oo_builder-5b6b85892c01aa9f)
+
+running 18 tests
+test draft::tests::empty_catalog_is_a_stable_unpublished_draft ... ok
+test draft::tests::fk_outside_the_selection_is_not_a_relationship ... ok
+test draft::tests::accept_does_not_classify_pii_or_publish ... ok
+test draft::tests::comment_only_change_moves_evidence_hash_not_schema_hash ... ok
+test draft::tests::curated_label_applies_and_pii_stays_in_the_echo ... ok
+test draft::tests::budgets_reject_long_names_wide_keys_depth_and_bytes ... ok
+test draft::tests::failures_use_static_codes_and_do_not_echo_payloads ... ok
+test ident::tests::safe_reserved_and_unicode_follow_pgident ... ok
+test nfc::tests::nfc_matches_unicode_vectors ... ok
+test pgsql::tests::empty_and_one_column_hashes_match_independent_vectors ... ok
+test pgsql::tests::wide_numeric_and_domain_are_not_coerced ... ok
+test draft::tests::selection_mismatch_and_identifier_collision_fail ... ok
+test draft::tests::underscore_schema_stays_physical_and_out_of_oos ... ok
+test draft::tests::simple_customer_matches_independent_schema_hash_and_hides_untrusted_text ... ok
+test draft::tests::fresh_rejection_does_not_resurrect_and_stale_rejection_stays_pending ... ok
+test draft::tests::shop_keeps_structure_tentative_and_types_explicit ... ok
+test draft::tests::reordered_lists_keep_the_same_bytes ... ok
+test draft::tests::checked_in_goldens_match_compiler_bytes ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/bin/oo-builder.rs (target/debug/deps/oo_builder-893c800521d9f8c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/structure_draft_cli.rs (target/debug/deps/structure_draft_cli-9b672515a877ac87)
+
+running 2 tests
+test skeleton_and_unknown_commands_exit_2 ... ok
+test structure_draft_writes_the_customer_golden_and_rejects_a_duplicate_key ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+test_exit=0
+=== cargo clippy -p oo-builder --all-targets --locked --offline -- -D warnings ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+clippy_exit=0

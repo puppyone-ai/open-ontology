@@ -1,0 +1,3 @@
+attempt=2
+change=cargo fetch --locked without -p; clippy component already installed in the image layer of attempt 1 is NOT reused because the container rootfs was removed
+note=clippy component was installed in attempt 1 container rootfs; attempt 2 may download it again if the image does not contain it

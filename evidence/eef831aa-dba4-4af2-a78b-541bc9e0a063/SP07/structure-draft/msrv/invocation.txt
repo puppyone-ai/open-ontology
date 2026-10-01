@@ -1,0 +1,18 @@
+run_id=136df3eb-c925-48f6-ab21-ab1c9bfe1a56
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a063-136df3eb-c925-48f6-ab21-ab1c9bfe1a56-net
+container=oo-a063-msrv-136df3eb-c925-48f6-ab21-ab1c9bfe1a56
+cargo_volume=oo-a063-136df3eb-c925-48f6-ab21-ab1c9bfe1a56-cargo
+target_volume=oo-a063-136df3eb-c925-48f6-ab21-ab1c9bfe1a56-target
+snapshot=/tmp/oo-a063-136df3eb-c925-48f6-ab21-ab1c9bfe1a56/snapshot
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+shared_cargo_cache=no
+pull=never
+command=cargo fetch --locked; cargo test --locked --offline -p oo-builder --all-targets; cargo clippy --locked --offline -p oo-builder --all-targets -- -D warnings
+removed_pre_smoke=oo-a063-smoke-ce854398-0ec1-4c91-bcdc-1c57421f7627

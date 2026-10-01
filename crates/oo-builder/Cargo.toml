@@ -1,6 +1,6 @@
 [package]
 name = "oo-builder"
-description = "Ontology builder. SP00-W01 skeleton; no build or publish behavior."
+description = "Ontology builder. Structure-draft compiles catalog evidence into a reviewable OOS draft. It does not connect, classify, certify, or publish."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -13,3 +13,5 @@ workspace = true
 [dependencies]
 oo-core = { path = "../oo-core" }
 oo-jobs = { path = "../oo-jobs" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }

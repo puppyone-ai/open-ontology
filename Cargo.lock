@@ -592,6 +592,8 @@ version = "0.1.0"
 dependencies = [
  "oo-core",
  "oo-jobs",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,0 +1,1 @@
+wrapper_note=zsh rejected assignment to readonly status after the container exited; inspect.exit is the container status

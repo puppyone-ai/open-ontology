@@ -1,0 +1,16 @@
+run_id=ce854398-0ec1-4c91-bcdc-1c57421f7627
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a063-ce854398-0ec1-4c91-bcdc-1c57421f7627-net
+container=oo-a063-smoke-ce854398-0ec1-4c91-bcdc-1c57421f7627
+cargo_volume=oo-a063-ce854398-0ec1-4c91-bcdc-1c57421f7627-cargo
+target_volume=oo-a063-ce854398-0ec1-4c91-bcdc-1c57421f7627-target
+snapshot=/tmp/oo-a063-ce854398-0ec1-4c91-bcdc-1c57421f7627/snapshot
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+shared_cargo_cache=no
+command=cargo fetch/test/clippy -p oo-builder -p oo-core --locked
