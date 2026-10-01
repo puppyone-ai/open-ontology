@@ -144,6 +144,7 @@
 
 - [ ] SP07-W01 OOS/overlay/stale
   - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a063执行中，真实导入集成待后续。
+  - [x] V01-OOS-01A开发预检：a063首次Linux/MSRV冒烟已核验attempt-2原始日志，rustc1.94.0、62个core测试、fetch/test/Clippy exit0；attempt-1的101保留。此项仅证明开发基线，不证明草案功能或SP07验收。
 - [ ] SP07-W02 catalog/profile/evidence
 - [ ] SP07-W03 规则/关系/码表/专家卡
 - [ ] SP07-W04 LLM候选/驻留/预算
