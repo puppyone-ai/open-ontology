@@ -1,0 +1,70 @@
+{
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a059",
+  "first_run_id": "f1da4b1b-14d9-44e1-acd5-5dadb9ffeac7",
+  "completion_run_id": "3c91753b-5703-4d60-b1ee-917714ec882c",
+  "scope": "sp00-datagen-platform",
+  "first_driver_process_exit": "absent",
+  "first_driver_shell_pid": 95312,
+  "terminated_recipe": {
+    "slug": "1.94.0-amd64",
+    "independent_inspect_exit": 143,
+    "cargo_build_phase_exit": "absent",
+    "pass": false
+  },
+  "completion_recipe": {
+    "slug": "1.94.0-amd64",
+    "started": "2026-10-01T22:31:39Z",
+    "finished": "2026-10-01T22:39:25Z",
+    "container_id": "00a1d97d9034759e48d75e464bd8c169672b797a5f80ca01a4c5e008fc85fd2b",
+    "container_exit": 0,
+    "inspect_exit": "0",
+    "wrapper_exit": 0,
+    "limits_exit": 0,
+    "recipe_exit": 0,
+    "offline_console": 0,
+    "offline_container": 0,
+    "image": "docker.io/library/rust@sha256:f747a9f2b58b8c5f9d6d0680fe8af2edba26ac258a7d6142bb4f65f9693711f4",
+    "outer_exit": 1,
+    "phase_problems": []
+  },
+  "byte_compare_exit": 0,
+  "byte_compare_problems": [],
+  "cleanup_exit": 0,
+  "outer_exit_recorded": 1,
+  "completion_process_exit_recorded": 1,
+  "outer_exit_cause": "scripts/complete-fourth.py:1105 evaluates int(recipe.get('recipe_exit') or 1). recipe_exit 0 is falsy, so the value becomes 1. Line 1111 stores it and line 1057 writes raw/outer.exit. Line 1164 returns int(recipe.get('outer_exit') or 1), which is raw/completion-process.exit 1. phase_problems is empty.",
+  "source_after_scope": "historical hashes at the end of completion run 3c91753b-5703-4d60-b1ee-917714ec882c; this finalization does not claim the current worktree root lock",
+  "source_after": {
+    "datagen_files": 32,
+    "datagen_tree": "0d2314de4a26fe93ad9d359790b9189c5a3f7c5c705828a98b55be204234c208",
+    "core_files": 37,
+    "core_tree": "585030119865bccc6ca29adbe8e644abc7dd8a99e2aec1b0626059fa9e37b1a8",
+    "files": {
+      "Cargo.toml": "b18a3b53f594945296a440ceecebaf702bc0fb26605f2c8d4509feafa4ed1a5c",
+      "Cargo.lock": "636e19b8761bd4f212381fd0abe6a3040ca6ee8024aed06dd350a1fd55ec32d1",
+      "rust-toolchain.toml": "7553618f800829444096beea3dce84c3d07585efda504c19adb6787369bbd9e8",
+      "bench/datagen/Cargo.toml": "fad63523cdf34234a0c21e8f7270c86e3b1ba103cdc3dfacac4dfb1f9d85dcf8",
+      "bench/datagen/Cargo.lock": "8fe0a83684a72239e116339349a44dada871ba3523f5ca718871c5690faa6df5"
+    },
+    "datagen_inventory_unchanged": true,
+    "core_inventory_unchanged": true
+  },
+  "snapshot_tree": "dfc4ba2ae7915369a7bf2075ddef36c3e10139c3cc2926fae98fedcdaf2030c4",
+  "pins": {
+    "1.98.1 linux/arm64": "sha256:218765d808d35e2e3fa1b12b2e1314e2bfdd427a3530de071398553a95743cba",
+    "1.98.1 linux/amd64": "sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065",
+    "1.94.0 linux/arm64": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "1.94.0 linux/amd64": "sha256:f747a9f2b58b8c5f9d6d0680fe8af2edba26ac258a7d6142bb4f65f9693711f4"
+  },
+  "expected": {
+    "datagen_tree": "0d2314de4a26fe93ad9d359790b9189c5a3f7c5c705828a98b55be204234c208",
+    "core_tree": "585030119865bccc6ca29adbe8e644abc7dd8a99e2aec1b0626059fa9e37b1a8",
+    "root_toml": "b18a3b53f594945296a440ceecebaf702bc0fb26605f2c8d4509feafa4ed1a5c",
+    "root_lock": "636e19b8761bd4f212381fd0abe6a3040ca6ee8024aed06dd350a1fd55ec32d1",
+    "bench_lock": "8fe0a83684a72239e116339349a44dada871ba3523f5ca718871c5690faa6df5",
+    "bench_toml": "fad63523cdf34234a0c21e8f7270c86e3b1ba103cdc3dfacac4dfb1f9d85dcf8",
+    "toolchain": "7553618f800829444096beea3dce84c3d07585efda504c19adb6787369bbd9e8",
+    "xs_tree": "f3be74e684ed988c153b20bbf9344dbecbe641ecf543f4fa6204e02d25c27190",
+    "s_tree": "943c7a6f59bc3b8a693a1815a73ff518125e158fd5795c8ebbefe53d942dfb35"
+  }
+}
