@@ -329,6 +329,8 @@ a059与a058并行：a058唯一rootwriter/最多1debugbuilder，a059仅读冻结b
 
 a061复审中间证据：真实probe已发现所选表外写权限仍registration_allowed；audit实际exit0，deny实际exit4（ISC/CDLA-Permissive-2.0未列允许策略）。结果来自a061自有冻结archive探针，不是作者声明；最终findings/最小复现尚未交付，暂不签源注册，后续收敛范围不能仅检查selected tables。此问题不阻塞纯builder或控制迁移，许可修正需逐许可证正文/义务与来源，不做通配豁免。
 
+执行命令纠正：a063首attempt101与a064首attempt1均含cargo fetch错误-p参数；后续任务引用execution/prompts/linux-msrv-focused-checks.md固定合法fetch/test/Clippy命令，保存原失败exit，局部重跑不重复全矩阵。a063第二attempt已过；a064仍执行中，不能沿用其他任务的成功声明。草案固定提交复审还必须比对pgident/v1 Unicode/NFC版本与PG契约，手工生成Unicode数据也需来源、许可证及独立一致性证据。
+
 a059证据收尾handle82531已终态0，提交275d886仅REPORT/manifest/HANDOFF，未重跑矩阵或修改原失败exit；a064迁移任务与a063按源码分区并行，所有CLI写同一Git index时必须明确暂存自有文件，提交前核对index无外来路径，否则等待协调者串行提交。
 
 最新状态：所有writer终态，root/infra/bench/core/spike冻结；a055/a056只读复审与a057当前四构建并行，资源UUID隔离。P6/P13修复仍in_review；完整87工作项/16Phase与父AT未提前勾选。
