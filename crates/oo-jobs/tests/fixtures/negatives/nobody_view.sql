@@ -1,0 +1,6 @@
+\set ON_ERROR_STOP on
+CREATE ROLE oo_jobs_nobody NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+GRANT USAGE ON SCHEMA jobs TO oo_jobs_nobody;
+GRANT SELECT ON jobs.dead_letters TO oo_jobs_nobody;
+SET ROLE oo_jobs_nobody;
+SELECT id FROM jobs.dead_letters;

@@ -1,0 +1,4 @@
+psql:/fixture/tests/fixtures/negatives/create_public_table.sql:3: ERROR:  42501: permission denied for schema public
+LINE 1: CREATE TABLE public.evil (id integer);
+                     ^
+LOCATION:  aclcheck_error, aclchk.c:2843

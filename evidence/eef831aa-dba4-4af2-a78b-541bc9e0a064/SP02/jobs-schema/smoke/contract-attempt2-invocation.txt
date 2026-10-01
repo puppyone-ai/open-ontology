@@ -1,0 +1,6 @@
+image=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+snapshot=snapshot-contract-sealed
+test=cargo test -p oo-jobs --locked --offline
+toolchain=RUSTUP_TOOLCHAIN=1.94.0
+lock=pre-edit sealed Cargo.lock

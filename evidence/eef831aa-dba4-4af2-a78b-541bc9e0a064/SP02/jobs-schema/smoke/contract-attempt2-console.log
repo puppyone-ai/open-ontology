@@ -1,0 +1,47 @@
+rustc_begin=rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo_begin=cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+RUSTUP_TOOLCHAIN=1.94.0
+sha256sum=/usr/bin/sha256sum
+fetch_note=deps already in owned cargo volume from pre-edit online fetch; this run does not fetch
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src/lib.rs (/target/debug/deps/oo_jobs-b8c786b4e77da41c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control_schema_contract.rs (/target/debug/deps/control_schema_contract-f9e155c85460b074)
+
+running 1 test
+test control_schema_files_match_the_published_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oo_jobs
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test_exit=0
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8

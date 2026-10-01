@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/negatives/owner_fence.sql:5: ERROR:  23514: immutable lease identity
+CONTEXT:  PL/pgSQL function enforce_lease_update() line 10 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

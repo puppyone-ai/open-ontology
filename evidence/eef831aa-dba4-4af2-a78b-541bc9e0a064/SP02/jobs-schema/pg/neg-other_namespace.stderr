@@ -1,0 +1,4 @@
+psql:/fixture/tests/fixtures/negatives/other_namespace.sql:3: ERROR:  42501: permission denied for schema other_ns
+LINE 1: SELECT id FROM other_ns.marker;
+                       ^
+LOCATION:  aclcheck_error, aclchk.c:2843

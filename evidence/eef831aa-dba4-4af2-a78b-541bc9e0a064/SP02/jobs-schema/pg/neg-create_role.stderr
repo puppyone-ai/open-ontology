@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/negatives/create_role.sql:3: ERROR:  42501: permission denied to create role
+DETAIL:  Only roles with the CREATEROLE attribute may create roles.
+LOCATION:  CreateRole, user.c:316

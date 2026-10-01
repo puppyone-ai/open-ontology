@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/negatives/set_owner.sql:5: ERROR:  42501: permission denied to set role "oo_jobs_owner"
+LOCATION:  call_string_check_hook, guc.c:6938

@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/negatives/lease_generation_down.sql:5: ERROR:  23514: lease generation decreased
+CONTEXT:  PL/pgSQL function enforce_lease_update() line 13 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

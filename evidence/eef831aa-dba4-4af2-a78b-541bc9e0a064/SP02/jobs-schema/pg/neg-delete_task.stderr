@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/negatives/delete_task.sql:3: ERROR:  42501: permission denied for table tasks
+LOCATION:  aclcheck_error, aclchk.c:2843

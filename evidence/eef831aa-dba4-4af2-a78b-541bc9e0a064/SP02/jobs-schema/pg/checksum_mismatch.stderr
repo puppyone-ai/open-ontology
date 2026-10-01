@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/protocol_repeat.psql:27: ERROR:  OO001: migration checksum mismatch
+CONTEXT:  PL/pgSQL function inline_code_block line 17 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,0 +1,6 @@
+psql:/fixture/tests/fixtures/negatives/dedupe_same.sql:16: ERROR:  23505: duplicate key value violates unique constraint "tasks_project_dedupe_unique"
+DETAIL:  Key (project_id, dedupe_key)=(11111111-1111-4111-8111-111111111111, shared-key) already exists.
+SCHEMA NAME:  jobs
+TABLE NAME:  tasks
+CONSTRAINT NAME:  tasks_project_dedupe_unique
+LOCATION:  _bt_check_unique, nbtinsert.c:666

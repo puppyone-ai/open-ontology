@@ -1,0 +1,261 @@
+rustc_begin=rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo_begin=cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+RUSTUP_TOOLCHAIN=1.94.0
+fetch_note=cargo-1.94-fetch-has-no-package-filter
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded crypto-common v0.1.6
+  Downloaded quote v1.0.47
+  Downloaded cpufeatures v0.2.17
+  Downloaded digest v0.10.7
+  Downloaded thiserror v2.0.21
+  Downloaded foldhash v0.2.0
+  Downloaded itoa v1.0.18
+  Downloaded nohash-hasher v0.2.0
+  Downloaded autocfg v1.5.1
+  Downloaded smallvec v1.16.1
+  Downloaded zmij v1.0.23
+  Downloaded thiserror-impl v2.0.21
+  Downloaded block-buffer v0.10.4
+  Downloaded version_check v0.9.5
+  Downloaded siphasher v1.0.3
+  Downloaded generic-array v0.14.9
+  Downloaded equivalent v1.0.2
+  Downloaded cfg-if v1.0.5
+  Downloaded num v0.4.3
+  Downloaded phf v0.12.1
+  Downloaded bit-set v0.8.0
+  Downloaded cargo_metadata v0.23.1
+  Downloaded bit-vec v0.8.0
+  Downloaded email_address v0.2.9
+  Downloaded cargo-platform v0.3.3
+  Downloaded semver v1.0.28
+  Downloaded data-encoding v2.11.1
+  Downloaded phf_shared v0.12.1
+  Downloaded sha2 v0.10.9
+  Downloaded windows-link v0.2.1
+  Downloaded anstyle v1.0.14
+  Downloaded annotate-snippets v0.12.16
+  Downloaded camino v1.2.6
+  Downloaded getrandom v0.3.4
+  Downloaded num-cmp v0.1.0
+  Downloaded ref-cast-impl v1.0.27
+  Downloaded redox_syscall v0.5.18
+  Downloaded wasm-bindgen-shared v0.2.128
+  Downloaded wasm-bindgen-macro v0.2.128
+  Downloaded borrow-or-share v0.2.4
+  Downloaded heck v0.5.0
+  Downloaded strum v0.28.0
+  Downloaded uuid-simd v0.8.0
+  Downloaded dyn-clone v1.0.20
+  Downloaded ref-cast v1.0.27
+  Downloaded simdutf8 v0.1.5
+  Downloaded strum_macros v0.28.0
+  Downloaded unicode-general-category v1.1.0
+  Downloaded outref v0.5.2
+  Downloaded core_detect v1.0.0
+  Downloaded multiversion-macros v0.9.0
+  Downloaded multiversion v0.9.0
+  Downloaded multiversion_no_op v1.0.0
+  Downloaded rustversion v1.0.23
+  Downloaded scopeguard v1.2.0
+  Downloaded encoding_rs_io v0.1.8
+  Downloaded arraydeque v0.5.1
+  Downloaded num-traits v0.2.19
+  Downloaded allocator-api2 v0.2.21
+  Downloaded serde_derive v1.0.229
+  Downloaded serde_core v1.0.229
+  Downloaded proc-macro2 v1.0.107
+  Downloaded unicode-ident v1.0.26
+  Downloaded num-integer v0.1.47
+  Downloaded vsimd v0.8.0
+  Downloaded percent-encoding v2.3.2
+  Downloaded parking_lot v0.12.5
+  Downloaded lock_api v0.4.14
+  Downloaded jsonschema-value v0.57.0
+  Downloaded num-iter v0.1.46
+  Downloaded num-rational v0.4.2
+  Downloaded fluent-uri v0.4.1
+  Downloaded r-efi v5.3.0
+  Downloaded jsonschema-regex v0.57.0
+  Downloaded hashbrown v0.17.1
+  Downloaded utoipa v6.0.0
+  Downloaded indexmap v2.14.2
+  Downloaded fancy-regex v0.19.2
+  Downloaded zerocopy-derive v0.8.57
+  Downloaded utoipa-gen v6.0.0
+  Downloaded serde_json v1.0.151
+  Downloaded memchr v2.8.3
+  Downloaded typenum v1.20.1
+  Downloaded serde v1.0.229
+  Downloaded bytecount v0.6.9
+  Downloaded num-complex v0.4.6
+  Downloaded ahash v0.8.12
+  Downloaded once_cell v1.21.4
+  Downloaded micromap v0.3.0
+  Downloaded bitflags v2.13.2
+  Downloaded parking_lot_core v0.9.12
+  Downloaded syn v2.0.119
+  Downloaded zerocopy v0.8.57
+  Downloaded syn v3.0.6
+  Downloaded serde-saphyr v1.3.0
+  Downloaded base64 v0.23.1
+  Downloaded libc v0.2.189
+  Downloaded chrono-tz v0.10.4
+  Downloaded unicode-width v0.2.2
+  Downloaded granit-parser v1.3.0
+  Downloaded referencing v0.57.0
+  Downloaded regex-automata v0.4.18
+  Downloaded bumpalo v3.20.3
+  Downloaded wasm-bindgen v0.2.128
+  Downloaded num-bigint v0.4.8
+  Downloaded schemars v1.2.2
+  Downloaded fraction v0.17.0
+  Downloaded chrono v0.4.45
+  Downloaded regex v1.13.1
+  Downloaded aho-corasick v1.1.5
+  Downloaded regex-syntax v0.8.11
+  Downloaded js-sys v0.3.105
+  Downloaded wasip2 v1.0.4+wasi-0.2.12
+  Downloaded wasm-bindgen-macro-support v0.2.128
+  Downloaded wit-bindgen v0.57.1
+  Downloaded jsonschema v0.57.0
+  Downloaded encoding_rs v0.8.41
+  Downloaded serde_derive_internals v0.30.0
+  Downloaded schemars_derive v1.2.2
+fetch_exit=0
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.6
+   Compiling version_check v0.9.5
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling memchr v2.8.3
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling zmij v1.0.23
+   Compiling num-integer v0.1.47
+   Compiling serde_json v1.0.151
+   Compiling rustversion v1.0.23
+   Compiling scopeguard v1.2.0
+   Compiling generic-array v0.14.9
+   Compiling ref-cast v1.0.27
+   Compiling itoa v1.0.18
+   Compiling zerocopy v0.8.57
+   Compiling getrandom v0.3.4
+   Compiling smallvec v1.16.1
+   Compiling num-bigint v0.4.8
+   Compiling ref-cast-impl v1.0.27
+   Compiling ahash v0.8.12
+   Compiling typenum v1.20.1
+   Compiling allocator-api2 v0.2.21
+   Compiling equivalent v1.0.2
+   Compiling foldhash v0.2.0
+   Compiling regex-syntax v0.8.11
+   Compiling parking_lot_core v0.9.12
+   Compiling hashbrown v0.17.1
+   Compiling num-rational v0.4.2
+   Compiling encoding_rs v0.8.41
+   Compiling num-iter v0.1.46
+   Compiling aho-corasick v1.1.5
+   Compiling num-complex v0.4.6
+   Compiling once_cell v1.21.4
+   Compiling num v0.4.3
+   Compiling regex-automata v0.4.18
+   Compiling lock_api v0.4.14
+   Compiling syn v2.0.119
+   Compiling bit-vec v0.8.0
+   Compiling heck v0.5.0
+   Compiling simdutf8 v0.1.5
+   Compiling unicode-general-category v1.1.0
+   Compiling multiversion_no_op v1.0.0
+   Compiling borrow-or-share v0.2.4
+   Compiling siphasher v1.0.3
+   Compiling phf_shared v0.12.1
+   Compiling fluent-uri v0.4.1
+   Compiling strum_macros v0.28.0
+   Compiling bit-set v0.8.0
+   Compiling parking_lot v0.12.5
+   Compiling fraction v0.17.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling serde_derive_internals v0.30.0
+   Compiling num-cmp v0.1.0
+   Compiling thiserror v2.0.21
+   Compiling vsimd v0.8.0
+   Compiling percent-encoding v2.3.2
+   Compiling bytecount v0.6.9
+   Compiling chrono-tz v0.10.4
+   Compiling arraydeque v0.5.1
+   Compiling outref v0.5.2
+   Compiling micromap v0.3.0
+   Compiling unicode-width v0.2.2
+   Compiling anstyle v1.0.14
+   Compiling referencing v0.57.0
+   Compiling annotate-snippets v0.12.16
+   Compiling uuid-simd v0.8.0
+   Compiling granit-parser v1.3.0
+   Compiling jsonschema-value v0.57.0
+   Compiling schemars_derive v1.2.2
+   Compiling digest v0.10.7
+   Compiling strum v0.28.0
+   Compiling fancy-regex v0.19.2
+   Compiling encoding_rs_io v0.1.8
+   Compiling phf v0.12.1
+   Compiling regex v1.13.1
+   Compiling jsonschema-regex v0.57.0
+   Compiling indexmap v2.14.2
+   Compiling email_address v0.2.9
+   Compiling cpufeatures v0.2.17
+   Compiling utoipa-gen v6.0.0
+   Compiling thiserror-impl v2.0.21
+   Compiling chrono v0.4.45
+   Compiling dyn-clone v1.0.20
+   Compiling data-encoding v2.11.1
+   Compiling nohash-hasher v0.2.0
+   Compiling base64 v0.23.1
+   Compiling serde-saphyr v1.3.0
+   Compiling utoipa v6.0.0
+   Compiling jsonschema v0.57.0
+   Compiling schemars v1.2.2
+   Compiling sha2 v0.10.9
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.97s
+     Running unittests src/lib.rs (/target/debug/deps/oo_jobs-b8c786b4e77da41c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oo_jobs
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test_exit=0
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8

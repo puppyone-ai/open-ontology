@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/negatives/event_update.sql:3: ERROR:  42501: permission denied for table task_events
+LOCATION:  aclcheck_error, aclchk.c:2843

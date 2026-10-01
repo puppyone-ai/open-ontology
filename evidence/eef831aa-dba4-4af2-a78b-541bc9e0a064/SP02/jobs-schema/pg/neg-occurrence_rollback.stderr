@@ -1,0 +1,6 @@
+psql:/fixture/tests/fixtures/negatives/occurrence_rollback.sql:24: ERROR:  23505: duplicate key value violates unique constraint "schedule_occurrences_pkey"
+DETAIL:  Key (schedule_id, scheduled_at)=(cccccccc-cccc-4ccc-8ccc-ccccccccccc1, 2026-10-03 00:00:00+00) already exists.
+SCHEMA NAME:  jobs
+TABLE NAME:  schedule_occurrences
+CONSTRAINT NAME:  schedule_occurrences_pkey
+LOCATION:  _bt_check_unique, nbtinsert.c:666

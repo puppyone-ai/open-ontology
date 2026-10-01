@@ -1,0 +1,88 @@
+{
+  "contract": "oo.jobs.control-schema/v1",
+  "schema_version": "jobs-control/1",
+  "bootstrap_version": "jobs-bootstrap/1",
+  "phase": "expand",
+  "database": "oo_control",
+  "schema": "jobs",
+  "migration_lock_key": 6401202601,
+  "clock": "clock_timestamp()",
+  "files": [
+    {
+      "version": "jobs-bootstrap/1",
+      "phase": "expand",
+      "filename": "0000_bootstrap_roles.sql",
+      "sha256": "445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df6a0f8eeb0b52"
+    },
+    {
+      "version": "jobs-control/1",
+      "phase": "expand",
+      "filename": "0001_jobs_control_expand.sql",
+      "sha256": "b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75"
+    }
+  ],
+  "task_columns": [
+    "id",
+    "project_id",
+    "kind",
+    "payload_version",
+    "payload",
+    "config_version",
+    "artifact_digest",
+    "dedupe_key",
+    "state",
+    "run_at",
+    "attempt",
+    "max_attempts",
+    "lease_owner",
+    "lease_until",
+    "generation",
+    "last_error",
+    "created_at",
+    "updated_at"
+  ],
+  "states": ["queued", "running", "succeeded", "failed", "cancelled"],
+  "active_states": ["queued", "running"],
+  "terminal_states": ["succeeded", "failed", "cancelled"],
+  "bounds": {
+    "payload_jsonb_text_octets": 16384,
+    "last_error_octets": 2048,
+    "event_note_octets": 512,
+    "max_attempts_min": 1,
+    "max_attempts_max": 32,
+    "artifact_digest": "lowercase hex sha256",
+    "dedupe_key_octets": 256
+  },
+  "roles": {
+    "owner": "oo_jobs_owner",
+    "runtime": "oo_jobs_runtime",
+    "runtime_is_agent_credential": false,
+    "owner_granted_to_runtime": false
+  },
+  "sqlstates": {
+    "check_violation": "23514",
+    "unique_violation": "23505",
+    "insufficient_privilege": "42501",
+    "lock_not_available": "55P03",
+    "checksum_mismatch": "OO001",
+    "bookkeeping_incomplete": "OO002",
+    "forced_migration_failure": "OO003"
+  },
+  "backup_tables": [
+    "jobs.schema_migrations",
+    "jobs.migration_lock",
+    "jobs.tasks",
+    "jobs.schedules",
+    "jobs.schedule_occurrences",
+    "jobs.leases",
+    "jobs.task_events"
+  ],
+  "not_installed": [
+    "claim function",
+    "heartbeat function",
+    "NOTIFY",
+    "target advisory lock",
+    "row level security",
+    "queue driver"
+  ]
+}

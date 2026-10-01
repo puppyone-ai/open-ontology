@@ -1,0 +1,5 @@
+image=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+snapshot=snapshot-contract from live tree
+failure=cargo fetch --locked --offline refused to rewrite Cargo.lock
+note=workspace Cargo.toml matched the sealed smoke snapshot; live Cargo.lock changed during the session and is not an a064 file

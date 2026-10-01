@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/negatives/delete_migration.sql:3: ERROR:  42501: permission denied for table schema_migrations
+LOCATION:  aclcheck_error, aclchk.c:2843

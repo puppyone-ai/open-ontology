@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/negatives/alter_table.sql:3: ERROR:  42501: must be owner of table tasks
+LOCATION:  aclcheck_error, aclchk.c:2981

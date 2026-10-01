@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/negatives/terminal_reopen.sql:6: ERROR:  23514: terminal task state is final
+CONTEXT:  PL/pgSQL function enforce_task_update() line 33 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

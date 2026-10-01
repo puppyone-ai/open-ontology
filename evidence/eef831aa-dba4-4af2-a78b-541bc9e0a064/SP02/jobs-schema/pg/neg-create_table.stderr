@@ -1,0 +1,4 @@
+psql:/fixture/tests/fixtures/negatives/create_table.sql:3: ERROR:  42501: permission denied for schema jobs
+LINE 1: CREATE TABLE jobs.evil (id integer);
+                     ^
+LOCATION:  aclcheck_error, aclchk.c:2843
