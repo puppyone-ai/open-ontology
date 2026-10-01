@@ -74,6 +74,7 @@
 - [ ] P3 Debezium offset/history恢复
 - [ ] P4 Valkey AOF/背压/gap
 - [ ] P5 parser/native/SQL差分
+  - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065执行中；完整R1–R9与DB绑定另验。
 - [ ] P6 PG claims/ROLE/RLS/pool
 - [ ] P7 真50m EXPLAIN/资源阈值
 - [ ] P8 真runsc网络/身份隔离
@@ -304,6 +305,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00H-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a062` | f61de8d固定SHA基础修复 | 只读git archive；仅a062证据/自有UUID资源 | running handle58084；Linux/MSRV局部与独立进程探针，不阻塞纯builder |
 | V01-OOS-01A / STRUCTURE-DRAFT | `eef831aa-dba4-4af2-a78b-541bc9e0a063` | 冻结core模型/PG catalog版本契约 | 主目录oo-builder/新draft契约fixture；root lock唯一writer | running handle70712；先Linux/MSRV冒烟，确定性结构草案/审核队列/版本绑定证据；交付即局部提交，不签完整SP07 |
 | SP02-W01-a / CONTROL-JOBS-SCHEMA | `eef831aa-dba4-4af2-a78b-541bc9e0a064` | 导入闭环所需耐久控制存储，docs17队列契约 | oo-jobs迁移/契约/对应fixture；不改manifest/root-lock，a063仍唯一writer | running handle89841；先Linux/MSRV局部冒烟，真实PG迁移/约束/角色负例；driver与完整W01验收留后续 |
+| P5-a / PG17-PARSER-RISK | `eef831aa-dba4-4af2-a78b-541bc9e0a065` | 受控查询的parser/PG17配套与可杀隔离风险；a056 SET utility反例 | 新独立Rust spike/lock、Proposed ADR/a065证据；不写主workspace依赖 | running handle52338；先Linux/MSRV/native smoke，合法control与Utility/CTE/失败/版本拒绝；不签完整P5/R1–R9 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
@@ -323,6 +325,8 @@ a059与a058并行：a058唯一rootwriter/最多1debugbuilder，a059仅读冻结b
 当前生效边界：a058已提交，a062只读固定archive复审；a061只读PG固定commit；a063唯一builder/root-lock writer；a059已终态，不再占用builder。总并发builder最多2，资源UUID隔离，完整双架构矩阵放在集成节点。下方旧“最新”段落是历史快照，不覆盖本段。a056权限切片已批准，但18licensegap/未执行MSRV和amd64/P14/完整P仍pending。
 
 当前产品速度：已交付可验收产品功能1项（PG源体检/catalog，固定b2d3cbc）；本批产品功能独立验收0项；返工率待首轮固定提交复审结果后记录，不能用基础修复次数或代码行数替代。完整87工作项及16Phase父项未提前完成。
+
+a061复审中间证据：真实probe已发现所选表外写权限仍registration_allowed；audit实际exit0，deny实际exit4（ISC/CDLA-Permissive-2.0未列允许策略）。结果来自a061自有冻结archive探针，不是作者声明；最终findings/最小复现尚未交付，暂不签源注册，后续收敛范围不能仅检查selected tables。此问题不阻塞纯builder或控制迁移，许可修正需逐许可证正文/义务与来源，不做通配豁免。
 
 a059证据收尾handle82531已终态0，提交275d886仅REPORT/manifest/HANDOFF，未重跑矩阵或修改原失败exit；a064迁移任务与a063按源码分区并行，所有CLI写同一Git index时必须明确暂存自有文件，提交前核对index无外来路径，否则等待协调者串行提交。
 
