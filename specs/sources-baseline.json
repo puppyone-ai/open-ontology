@@ -1,0 +1,124 @@
+{
+  "schema_version": "oo-source-baseline/v1",
+  "spec_id": "OO-SPEC-001",
+  "captured_date": "2026-10-01",
+  "timezone": "Asia/Shanghai",
+  "baseline_head": "e271542aa645aa181da7887d416de0698752a805",
+  "source_count": 19,
+  "sources": [
+    {
+      "path": "docs/00-vision-and-scope.md",
+      "sha256": "7ac8fbdfa406ac9752a344f2269192163ea0723083fa295fb7738a60169f19b2",
+      "bytes": 11049,
+      "lines": 144
+    },
+    {
+      "path": "docs/01-architecture.md",
+      "sha256": "190451741c75fec68cf0080a4f6deea743bcfecf2fc4007e8ec991a7f4911333",
+      "bytes": 17649,
+      "lines": 234
+    },
+    {
+      "path": "docs/02-technology-stack.md",
+      "sha256": "c7bc07ca5937b425a757200a11f1a51f8b44478b9da4d25c057907f826e675b9",
+      "bytes": 21893,
+      "lines": 200
+    },
+    {
+      "path": "docs/03-sources-and-ingestion.md",
+      "sha256": "91648eee551c4b89631a82e35da3e323aa4a75eb39f9289acdbc4a8e56bc4e2d",
+      "bytes": 17724,
+      "lines": 254
+    },
+    {
+      "path": "docs/04-pipeline.md",
+      "sha256": "d186f1743da9f24538fd5cf548383be772266c9fd5a5110f52ce7b95dfa052c3",
+      "bytes": 31252,
+      "lines": 335
+    },
+    {
+      "path": "docs/05-agent-db.md",
+      "sha256": "4b53a7ed08466a8a411f3df3838012362988c4cf35c76660bd60ab42a06cee7f",
+      "bytes": 23167,
+      "lines": 352
+    },
+    {
+      "path": "docs/06-ontology-layer.md",
+      "sha256": "d224101642de6d0b36820ce9edf647b338ce1a0594c9cd3ac91fb9c5e9bdb749",
+      "bytes": 46396,
+      "lines": 666
+    },
+    {
+      "path": "docs/07-gateway.md",
+      "sha256": "ea1f7af76ecd2db1c5610f4adfe39b38bdf8fa3793696a2c3af5b3aa4617dc17",
+      "bytes": 25304,
+      "lines": 290
+    },
+    {
+      "path": "docs/08-agent-interface.md",
+      "sha256": "4006c07959d1366798b1325cae4b7743205f14202a23c71ed4dd4dd131a5ac34",
+      "bytes": 13580,
+      "lines": 231
+    },
+    {
+      "path": "docs/09-sandbox-and-agent-runtime.md",
+      "sha256": "a5ffd54ef589c7468f9dd34a223eb4e2762e085e55c723ec2c84e3be3f2f1d8c",
+      "bytes": 19154,
+      "lines": 305
+    },
+    {
+      "path": "docs/10-security.md",
+      "sha256": "d1ba15810020f620a59806aa36f165c28caad2eb3d66d26be44b87695d3a0a8d",
+      "bytes": 14460,
+      "lines": 181
+    },
+    {
+      "path": "docs/11-deployment-and-operations.md",
+      "sha256": "1a60e23394e46db6e7dde4fff98022c331bb9a337f16c58e0ec588ef71a58f8f",
+      "bytes": 14272,
+      "lines": 205
+    },
+    {
+      "path": "docs/12-configuration-reference.md",
+      "sha256": "ce0fd4080f6e7ae4ae8d36a4cfd82d9873034ae8dda50fd728c50dd0f45db810",
+      "bytes": 9077,
+      "lines": 216
+    },
+    {
+      "path": "docs/13-evaluation-and-benchmarks.md",
+      "sha256": "ee235f87887af79892bc20082bfbef31760db6646cc7501983659b6daca38420",
+      "bytes": 26314,
+      "lines": 333
+    },
+    {
+      "path": "docs/14-roadmap-and-risks.md",
+      "sha256": "c430f086750125fafa783381d07e5edae6fbd866b02e8aa6e0af699b76224566",
+      "bytes": 10657,
+      "lines": 120
+    },
+    {
+      "path": "docs/15-glossary.md",
+      "sha256": "328e3efbcdf4fc2824ac68acc9620469015ef24b54952736fe641f539b769c06",
+      "bytes": 6442,
+      "lines": 67
+    },
+    {
+      "path": "docs/16-references.md",
+      "sha256": "fcc817a5c0a3a66ba8d17f135348dd02380d579fcf3aa391113f23cba210a9f2",
+      "bytes": 20567,
+      "lines": 160
+    },
+    {
+      "path": "docs/17-rust-implementation.md",
+      "sha256": "ae6eff09f20c1f399c5b0332668f5b0b7ab4f038b725f7377888052f0c649d14",
+      "bytes": 18246,
+      "lines": 122
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "49e86102e763ae90f8d0f4daeb4efea8877cc4ff00692831451a6c45c7f07208",
+      "bytes": 4519,
+      "lines": 40
+    }
+  ]
+}

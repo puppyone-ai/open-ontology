@@ -1,0 +1,361 @@
+# Open Ontology 开发任务清单与并行工程表
+
+| 属性 | 值 |
+|---|---|
+| 基线 | OO-SPEC-001 v1.0.0、OO-PLAN-001 v1.0.0、docs全部19份 |
+| 执行模型 | 所有编码、自动化、测试实现、E2E与外部审阅：Grok Build `grok-4.7` / `xhigh` |
+| 协调与终验 | 当前Codex：任务冻结、分区、进程管理、证据核验、最终review；不代写产品代码 |
+| 产品推进规则 | 用户于2026-10-02更新：基础修复单独工作线；优先PG→导入/catalog→可审核ontology草案→受控查询→CLI对话，随后扩库/文件/CDC/完整harness；小功能先Linux/MSRV局部冒烟，固定提交复审，集成节点全矩阵 |
+| 工作区规则 | 用户最新建议不开tree：不再新建worktree；现有product-pg用于完成已派任务固定提交复审，随后按明确源范围整合回主工作区，后续单工作区分区/串行共享依赖 |
+| 提交与验收 | 已获本地提交授权；交付后立即明确git add并commit，不push/发布；复审绑定固定SHA。开发检查与负责人/客户/保护CI/runsc等发行验收分开，不阻塞无关公共功能 |
+| 速度指标 | 记录真实已交付功能数、完成验收工作项数、返工任务/已交付任务；不以代码行数或review轮数计进度 |
+| 初始状态 | 只有docs/specs，无产品Cargo workspace；所有产品工作未完成 |
+| 等待策略 | 用户于2026-10-02更新：确认真实进程handle；收到退出结果后立即核对产物和证据、判断下一步；运行中按任务阶段与预计耗时安排等待，不固定30分钟，不持续或密集轮询，不因安静或观察超时重启 |
+| 完成定义 | 所有适用工作真实完成，AT/不变量/原型/构建/完整测试/E2E/审阅/客户门禁证据齐备；不缩小为骨架或小样通过 |
+
+## 1. 写入边界与冲突规约
+
+每个Grok执行者有独立提示词、CLI session UUID、stdout日志、任务范围与证据目录。禁止启动Codex原生子Agent或嵌套Codex；Grok也设置`--no-subagents`，并行由协调者直接调度多个独立Grok进程。
+
+初始波次在同一工作区执行，但写入范围严格分离。Cargo根manifest、lock、toolchain、共享oo-core和root CI一次只允许一个writer。消费者只读已冻结契约；要改共享接口先报协调者，串行Grok integration pass修改并回归，其他writer等待。
+
+任何执行者不得修改docs、Spec、Plan、来源哈希、其他执行者文件、用户`.DS_Store`/`.specstory/`，不得通过删要求、改gold、弱化门禁或mock代替实际安全验收。需变更设计只提交具体失败证据与ADR建议，由协调者冻结后再授权实施。
+
+禁止git reset/clean、删除用户文件、push/PR/部署/发布、读取认证存储或真实客户Secret、操作真实源数据库。本地commit已获用户授权，交付后明确文件范围提交并绑定独立审阅SHA，不能把commit当验收通过。网络查询限必要官方依赖/协议资料；公共开发使用合成fixture。独立reviewer只读，修正仍由Grok实现者完成。
+
+## 2. Phase工程表
+
+角色名称是可复用的执行槽，每次派工绑定新的明确session和文件范围；不是允许同角色无限修改全部仓库。所有Phase的退出门禁仍以Spec/Plan为准。
+
+| Phase | Grok执行槽 / 工作 | 前置 | 可并行范围 | 写入owner / 冻结接口 | 独立验收 |
+|---|---|---|---|---|---|
+| SP00 | FOUNDATION W01；GOVERNANCE W06；CORE W02/W03；DATAGEN W04；HARNESS W05；ENV测试基础子项 | 无；W02–W05依基础契约 | 第一波W01+W06；W01完成后CORE；CORE冻结后DATAGEN+HARNESS；ENV只做独立测试基础/冻结快照构建 | FOUNDATION独占root Cargo/lock；CORE独占oo-core；DATAGEN仅datagen/fixture；HARNESS仅xtask/tests/CI，经授权整合root；ENV仅testing/infra与自己的Docker测试资源 | Grok FOUNDATION-REVIEW+Codex实测 |
+| SP01 | PIPE-SPIKE P1–P4/P11/P12/P15；QUERY-SPIKE P5–P7/P13/P14；RUNTIME-SPIKE P8/P9/P16；SEMANTIC-SPIKE P10 | SP00薄原型 | 独立spike目录，资源run_id隔离 | 无人修改产品共享契约；原型结论冻结后integration | 独立Grok风险review+Codex原始证据 |
+| SP02 | CONTROL W01–W03；IDENTITY W04/W05；COLLECTOR W06 | SP00；对应P门禁 | 先共同模型，随后分模块 | CONTROL迁移/jobs；IDENTITY鉴权/Secret；COLLECTOR受限接收；共享types由integration写 | 真PG/并发/轮换/RBAC/恢复 |
+| SP03 | CONNECTOR-PG W01；CONNECTOR-MYSQL W02；SOURCE-CORE W03–W05 | SP02、P2/P14/DEC-17 | Connector/type/position冻结后两个driver独立 | SOURCE-CORE共享trait；driver不改trait/root | 双真实驱动、源审计零写 |
+| SP04 | PIPE-WRITER W02/W05；CDC W01/W04；SNAPSHOT W03/W06 | SP03、P1–P4/P11/P15 | receipt/fence/Batch冻结后不同子模块 | 单目标写者、跨库receipt/墓碑；共享迁移单writer | 完整A、强杀ledger、全量0差异 |
+| SP05 | FILE-STORE W01/W06；FILE-PARSE W02–W04；FILE-IMPORT W05 | SP02/03、Loader、P16 | 对象/IPC合同冻结后解析器独立 | 文件/对象生命周期单owner；import复用Loader | 全格式真fixture、local+S3、恶意文件 |
+| SP06 | DB-POLICY W01；SQL-GUARD W02；GATEWAY W03–W05；AUDIT W06 | SP02/03、P5–P7/P13/P14 | policy/catalog/审计契约后分模块 | 无Gateway写库/connector依赖；root变更integration | 完整B、真PG主从、取消/审计 |
+| SP07 | OOS W01/W05/W06；PROFILE W02/W03；BUILDER-LLM W04 | SP02–06真实数据 | OOS/证据/Pack合同后分模块 | generated/curated边界、角色Pack独立 | D组件、PII/Pack/审核负例 |
+| SP08 | ENUM-CALENDAR W01；METRIC W02；ENTITY W03；PUBLISH W04；REPAIR W05；CONSOLE W06 | SP04/06/07 | schema/鉴权/owner合同先冻结 | 发布fence单owner；派生资产/迁移integration | G1–G13、control_total、守恒、恢复 |
+| SP09 | SDK W01/W03；CLI W02/W05；TS-SDK W04 | SP06/08 | HTTP/export completion冻结后 | SDK/CLI/TS各独立；禁止驱动直连 | HTTP/Rust/TS/CLI差分、坏流 |
+| SP10 | SANDBOX W01/W02/W05；PROXY W03；PI W04 | SP02/06/09、P8/P9/P16 | 网络/身份/事件合同后 | 容器API与proxy身份分区 | 真Linux/runsc C与canary0 |
+| SP11 | SESSION W01/W02/W03；WEB W04/W06；FEISHU W05 | SP08/10 | session/events/S1–S11冻结后 | 释放状态与query reaper单owner；UI无DB权限 | 全旅程、5s撤销/60s销毁/重启 |
+| SP12 | BENCH W01–W03；CUSTOMER W04/W05；UAT W06 | SP04–11、客户授权输入 | 公开与私有runner隔离 | holdout独立管理员；不污染dev | 300题、A–F适用、私有gate、UAT |
+| SP13 | MCP W01/W02/W03；FEEDBACK W04；ADAPTER W05 | SP09/11/12、rmcp证据 | OAuth/resource合同后 | audience/token exchange专属owner | MCP真客户端、C/E k5 |
+| SP14 | PERF W01；OPS W02–W05；RELEASE W06 | SP12/13、安全全部 | 各run_id资源隔离，晋级串行 | digest/migration/升级锁单owner | 双架构/离线/恢复/完整A–F/渗透 |
+| SP15 | EXTENSION W01–W07 | SP14+逐项ADR | 每feature独立，默认关闭 | 每扩展独立支持矩阵，不变安全边界 | 真环境conformance；M4仅设计 |
+
+依赖波次：SP00→SP01/SP02→SP03→SP04/SP05/SP06→SP07→SP08→SP09→SP10→SP11→SP12→SP13→SP14→SP15。可以提前做不依赖后续能力的fixture/原型，但不能提前签收完整Phase。完整范围保持不变；客户资料、真实Linux/runsc、50m规模、外部客户端未提供时标具体blocked，不伪造完成。
+
+## 3. 全量To-Do
+
+勾选仅在Grok独立review与Codex核验证据后进行；代码存在或执行者自称通过不能勾选。子项拆分沿用父ID，未勾选部分继续推进。
+
+### SP00
+
+- [ ] SP00-W01 Cargo/toolchain/lock/features/架构规则
+  - [x] W01架构检查器两轮缺陷修复：a014独立复审批准切片，Codex当前workspace复验通过；完整W01未完成。
+- [ ] SP00-W02 配置/OOS/Batch/API/Error schema
+  - [x] CORE公开入口修复切片：a036独立复审approve，273探针零失败、62crate tests及Clippy通过；纯模型F0可消费，完整API/驱动/平台/AT仍未签收。
+- [ ] SP00-W03 类型/规范值/hash/脏值fixture
+- [ ] SP00-W04 Rust xs/s数据生成与攻击/角色fixture
+  - [x] DG01–08修复切片：a035独立复审approve，192独立checks零失败；完整当前源码集成/平台门禁待补，父项仍未签收。
+- [ ] SP00-W05 xtask/Compose/CI/Evidence/激活门禁
+  - [x] ENV bootstrap/日志/health拒绝修复切片：a038独立复审批准，34文件hash匹配a034；实际fixture证据有效，当前四构建和完整W05未签收。
+- [ ] SP00-W06 开源/安全/供应链规范
+  - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
+- [ ] SP00 Phase退出与独立审阅
+
+### SP01
+
+- [ ] P1 CDC-first快照/fill/delete/50m
+- [ ] P2 位点/事务/epoch/source零写
+- [ ] P3 Debezium offset/history恢复
+- [ ] P4 Valkey AOF/背压/gap
+- [ ] P5 parser/native/SQL差分
+- [ ] P6 PG claims/ROLE/RLS/pool
+- [ ] P7 真50m EXPLAIN/资源阈值
+- [ ] P8 真runsc网络/身份隔离
+- [ ] P9 Pi真实RPC/abort/restore
+- [ ] P10 客户初稿质量/驻留基线
+- [ ] P11 完整事务流/过滤计数/idle进度
+- [ ] P12 大事务分段/暂停/质量
+- [ ] P13 列授权/掩码/raw/实体绕过
+- [ ] P14 驱动/精度/取消/双架构native
+- [ ] P15 租约/目标fence/COMMIT/ACK/TRIM恢复
+- [ ] P16 native强杀/释放/部署/协议
+- [ ] SP01风险决策/ADR/Phase退出
+
+### SP02
+
+- [ ] SP02-W01 控制迁移/jobs/lease/schedule
+  - [ ] SP02-W01-a 真实控制库迁移/专用角色/约束：a064执行中，driver与完整并发验收另项。
+  - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：待迁移固定接口与依赖整合。
+- [ ] SP02-W02 config/Git/CAS
+- [ ] SP02-W03 validate/plan/apply恢复
+- [ ] SP02-W04 Secret/轮换/mTLS
+- [ ] SP02-W05 OIDC/bootstrap/RBAC
+- [ ] SP02-W06 Collector/反馈受限receiver
+- [ ] SP02真实集成/Phase退出
+
+### SP03
+
+- [ ] SP03-W01 PG connector/体检/DBA清单
+  - [ ] V01-PG-01 源连接/AccessReport/catalog：b2d3cbc已交付，a061独立复审中。
+- [ ] SP03-W02 MySQL connector/体检
+- [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+- [ ] SP03-W04 type/PositionCodec/精度
+- [ ] SP03-W05 catalog/名字映射/注册
+- [ ] SP03源审计/Phase退出
+
+### SP04
+
+- [ ] SP04-W01 Debezium/decoder/事务流
+- [ ] SP04-W02 COPY/merge/TOAST/墓碑
+- [ ] SP04-W03 L0/chunk/fill/shadow
+- [ ] SP04-W04 大事务spool/隔离/schema
+- [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
+- [ ] SP04-W06 full/incremental/快照失效恢复
+- [ ] SP04完整A/Phase退出
+
+### SP05
+
+- [ ] SP05-W01 multipart/checksum/local/S3/ACL
+- [ ] SP05-W02 CSV/TSV/JSONL/Parquet
+- [ ] SP05-W03 xls/xlsx/日期/公式
+- [ ] SP05-W04 SQLite/dump隔离恢复
+- [ ] SP05-W05 import策略/lineage/取消
+- [ ] SP05-W06 下载/保留/删除/reaper
+- [ ] SP05全格式/Phase退出
+
+### SP06
+
+- [ ] SP06-W01 ACL/RLS/helper/drift
+- [ ] SP06-W02 parser/R1–R9/star/OID
+- [ ] SP06-W03 token/mTLS/撤销/准入
+- [ ] SP06-W04 RR/portal/cancel/pool/reaper
+- [ ] SP06-W05 typed结果/质量/freshness
+- [ ] SP06-W06 audit WAL/completion/read-own
+- [ ] SP06完整B/Phase退出
+
+### SP07
+
+- [ ] SP07-W01 OOS/overlay/stale
+  - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a063执行中，真实导入集成待后续。
+- [ ] SP07-W02 catalog/profile/evidence
+- [ ] SP07-W03 规则/关系/码表/专家卡
+- [ ] SP07-W04 LLM候选/驻留/预算
+- [ ] SP07-W05 审核/owner/分类
+- [ ] SP07-W06 role Pack/缓存/manifest
+- [ ] SP07 D组件/Phase退出
+
+### SP08
+
+- [ ] SP08-W01 enums/calendar/结账
+- [ ] SP08-W02 metric/control_total/diff
+- [ ] SP08-W03 entity/key/alias/否定/守恒
+- [ ] SP08-W04 G1–G13/publish/fence/replay/CAS
+- [ ] SP08-W05 reconcile/hook/repair
+- [ ] SP08-W06 管理/审核/发布UI
+- [ ] SP08语义发布集成/Phase退出
+
+### SP09
+
+- [ ] SP09-W01 Rust SDK/统一HTTP
+- [ ] SP09-W02 CLI/认证/输出/退出码
+- [ ] SP09-W03 Arrow/EOS/Parquet/completion
+- [ ] SP09-W04 TS SDK/contracts
+- [ ] SP09-W05 oo-analysis/中文图表/安全文件
+- [ ] SP09完整契约差分/Phase退出
+
+### SP10
+
+- [ ] SP10-W01 SandboxDriver/受限Docker/runsc
+- [ ] SP10-W02 专属网络/UDS/IP generation
+- [ ] SP10-W03 proxy/路由/Secret/预算
+- [ ] SP10-W04 Pi/RPC/events/abort/restore
+- [ ] SP10-W05 镜像/Pack/工具/预热
+- [ ] SP10真实C/Phase退出
+
+### SP11
+
+- [ ] SP11-W01 session/turn/identity/CAS
+- [ ] SP11-W02 S1–S11/reaper/资源闭环
+- [ ] SP11-W03 outputs/transcript/restore
+- [ ] SP11-W04 网页chat/events/引用/安全渲染
+- [ ] SP11-W05 飞书签名/身份/私聊
+- [ ] SP11-W06 运维/停止UI/M1 Compose
+- [ ] SP11全旅程/Phase退出
+
+### SP12
+
+- [ ] SP12-W01 300题/dataset/gold
+- [ ] SP12-W02 snapshot/独立eval会话/as_of
+- [ ] SP12-W03 scorer/judge/统计/报告
+- [ ] SP12-W04 客户接入/驻留/DBA/部署
+- [ ] SP12-W05 dev/holdout/live/私有runner
+- [ ] SP12-W06 真实UAT/MVP签收
+- [ ] SP12客户G10/M1完整门禁
+
+### SP13
+
+- [ ] SP13-W01 MCP transport/resources/tools
+- [ ] SP13-W02 OAuth/PKCE/audience/exchange
+- [ ] SP13-W03 token UI/role约束
+- [ ] SP13-W04 S6–S8/feedback候选
+- [ ] SP13-W05 已选择harness/渠道独立适配
+- [ ] SP13真客户端/C/E k5/Phase退出
+
+### SP14
+
+- [ ] SP14-W01 完整F/50m/20session/soak
+- [ ] SP14-W02 Compose全profile/双架构
+- [ ] SP14-W03 离线bundle/验签/SBOM
+- [ ] SP14-W04 全状态backup/recovery/RPO/RTO
+- [ ] SP14-W05 migration/升级/回滚/停止
+- [ ] SP14-W06 观测/渗透/签名RC/release
+- [ ] SP14完整A–F/双架构/离线/恢复/客户门禁
+
+### SP15
+
+- [ ] SP15-W01 已选择K8s/沙盒驱动扩展
+- [ ] SP15-W02 已选择新库connector扩展
+- [ ] SP15-W03 Kafka buffer独立交付包
+- [ ] SP15-W04 metric/外部语义格式独立包
+- [ ] SP15-W05 列式/存储策略独立包
+- [ ] SP15-W06 可复现构建
+- [ ] SP15-W07 M4写回/多租户/Oracle/Mongo独立设计
+- [ ] SP15逐项ADR/默认关闭/conformance/Phase状态
+
+SP15扩展按Spec保持默认关闭和逐项独立ADR。本目标要求全计划推进：交付各工作项规范要求的独立包/设计及证据；未获得具体供应商或目标实例时明确记录依赖，不能把“不默认启用”偷换为“无需开发”。
+
+## 4. 派工记录
+
+| 波次 / 槽 | CLI session | 任务 | 写入范围 | 状态/证据 |
+|---|---|---|---|---|
+| 00A / FOUNDATION | `eef831aa-dba4-4af2-a78b-541bc9e0a001` | SP00-W01 | root Cargo/toolchain/lock/.gitignore、各crate最小骨架、dependency-baseline；不实现oo-core业务类型 | CLI退出0，in_review；Codex fmt/clippy/test及架构negative复验通过（11tests）；Linux双架构/native/audit未验；证据`evidence/eef831aa-dba4-4af2-a78b-541bc9e0a001/SP00/SP00-W01/` |
+| 00A / GOVERNANCE | `eef831aa-dba4-4af2-a78b-541bc9e0a002` | SP00-W06 | LICENSE/NOTICE/README/贡献与安全模板、CODEOWNERS、ADR模板、供应链政策；不写Cargo/代码/CI工作流 | CLI退出0，in_review未签收；handle `43537`；证据`evidence/eef831aa-dba4-4af2-a78b-541bc9e0a002/SP00/SP00-W06/`；真实负责人/联系渠道待输入 |
+| 00A-R / GOVERNANCE-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a003` | SP00-W06独立审阅 | 只读治理文件/证据，禁止修改 | CLI退出0；中等级许可证/年龄校验缺陷及低等级表单/skip/归属问题；原始review `/tmp/open-ontology-grok-00a-governance-review.log`；待修不签收 |
+| 00A-R / FOUNDATION-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a004` | SP00-W01独立审阅 | 只读架构检查器/已存证据；CORE同时添加模型，审阅区分基线和增量 | CLI退出0；required边未区分normal/dev/build/optional/target，测试存在盲区；review `/tmp/open-ontology-grok-00a-foundation-review.log`；待修 |
+| 00B / CORE | `eef831aa-dba4-4af2-a78b-541bc9e0a005` | SP00-W02/W03 | oo-core、契约/规范值fixture、schema/OpenAPI生成物、root依赖/lock单writer、增量依赖记录；不改oo-arch-check | CLI退出0，in_review；Codex当前workspace测试/格式/Clippy退出0：core27+arch43；其余业务crate仍骨架；已知字节上限/日期/时区/依赖许可待独立审阅 |
+| 00A-F / FOUNDATION-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a006` | SP00-W01审阅修复 | 仅oo-arch-check及新修复证据；不改root Cargo/lock/oo-core/既有证据 | CLI退出0，in_review；Codex复验27 tests及Clippy通过；完整W01未签收；提示词`execution/prompts/00a-foundation-fix.md` |
+| 00A-F / GOVERNANCE-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a007` | SP00-W06审阅修复 | 治理/模板/新治理校验器和新证据；不改Cargo/crates/旧证据 | CLI退出0，in_review；Codex复验109适用checks、49controls，2个明确skip；完整AT-SEC-05未签收；提示词`execution/prompts/00a-governance-fix.md` |
+| 00B / ENV | `eef831aa-dba4-4af2-a78b-541bc9e0a008` | SP00-W05测试基础子项、W01双架构补验 | 仅testing/infra、新证据、独立带run_id labels的Docker测试资源；不改Cargo/core/xtask/root CI | CLI退出0，in_review；冻结旧CORE快照4组build/test通过但Clippy退出101；fixture smoke退出0；Toxiproxy未接库、runsc未注册；完整W05未签收 |
+| 00A-R2 / CORRECTIONS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a009` | W01/W06修复独立复审 | 只读架构检查器与治理代码；仅可写本次review证据目录；不读移动CORE为冻结事实 | CLI退出0，request_changes；年龄calendar-day中等级缺陷、2架构与3治理低等级缺口；证据`evidence/eef831aa-dba4-4af2-a78b-541bc9e0a009/SP00/corrections-review/` |
+| 00A-F2 / ARCHITECTURE-HARDENING | `eef831aa-dba4-4af2-a78b-541bc9e0a010` | W01两个边界修复 | oo-arch-check源码、修复handoff、新a010证据；不改manifest/lock/CORE | CLI退出0，in_review；43tests，前修10个新失败已存证；Codexworkspace复验通过；待复审 |
+| 00A-F2 / GOVERNANCE-HARDENING | `eef831aa-dba4-4af2-a78b-541bc9e0a011` | W06真实168h年龄/许可证定位/否定修复 | 治理QA、policy、依赖form、空模板、新a011证据；不改crate/旧证据 | CLI退出0，in_review；真实UTC elapsed与120 controls；Codexself-test退出0；完整ATSEC05与独立复审待补 |
+| 00B-R / ENV-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a012` | 测试基础与快照审阅 | 只读infra/旧证据；仅新a012review证据；不运行资源修改脚本 | CLI退出0，request_changes；6项快照/凭证日志/脚本/误判/资源归属缺陷；review证据已存a012 |
+| 00B-R / CORE-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a013` | W02/W03契约审阅冻结 | 只读oo-core/contracts/examples/依赖增量；仅新a013证据 | CLI退出0，request_changes；F1–F15字节/日期/时区/规范值/精度/许可证等；接口不冻结，不启动消费者 |
+| 00A-R3 / HARDENING-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a014` | W01/W06第二次修复复审 | 只读架构/治理；仅新a014证据 | CLI退出0，approve修复切片；43tests+39架构探针、120QAcontrols+107治理探针；完整任务仍不签收 |
+| 00B-F / ENV-HARDENING | `eef831aa-dba4-4af2-a78b-541bc9e0a015` | W05测试基础6项修复及故障fixture | 仅testing/infra、新a015证据、自己的UUID Docker资源；root/core冻结 | CLI退出0，in_review；两独立fixture smoke、6代理故障恢复、隔离cleanup证据；4组构建快照含CORE修复红测试，实际test/Clippy全部101，未签收 |
+| 00B-F / CORE-HARDENING | `eef831aa-dba4-4af2-a78b-541bc9e0a016` | W02/W03契约修复F1–F15 | oo-core/contracts/config示例、root依赖/lock唯一writer、增量许可、新a016证据 | CLI退出0，in_review；Codex fmt/workspaceClippy/core47tests退出0；含19冻结回归；root/core再次冻结 |
+| 00B-R2 / ENV-HARDENING-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a017` | ENV 6项修复独立复审 | 只读infra/a015；仅a017证据；无真实资源操作 | CLI退出0，request_changes；4项剩余拒绝缺陷：冻结脚本symlink、隐藏secret、..extra清理、DNS无归属删除 |
+| 00B-R2 / CORE-CORRECTION-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a018` | CORE F1–F15复审/冻结 | 只读core/contracts/许可；仅a018review证据 | CLI退出0，request_changes；199独立checks通过1失败，另公开入口归一化/内存对象/Arrow验证缺口；DATAGEN可用已批准切片，完整W02/W03未签收 |
+| 00B-F2 / ENV-FINAL-CONTROLS | `eef831aa-dba4-4af2-a78b-541bc9e0a019` | ENV剩余4项修复/当前源码4构建 | 仅infra/a019证据/自己的UUID资源；root/core只读 | handle1323终态0但报告缺失，fixture driver退出1；需恢复明确session完成，退出0不证明完成 |
+| 00B-F3 / CORE-BOUNDARIES | `eef831aa-dba4-4af2-a78b-541bc9e0a020` | W02/W03剩余4个边界 | oo-core/contracts/a020证据；不改root/其他模块 | CLI终态0，in_review；DISPOSITION及红绿证据已存在；作者报告core55tests，待独立复验；完整W02/W03未签收 |
+| 00C / DATAGEN | `eef831aa-dba4-4af2-a78b-541bc9e0a021` | SP00-W04 | bench/datagen独立Rustworkspace/bench索引/a021证据；root依赖与core只读 | CLI终态0，in_review；report/32文件hash与xs/s实跑证据存在；作者14tests，待独立审阅；完整AT-EVAL-01未签收 |
+| 00B-F2-R / ENV-RESUME | `eef831aa-dba4-4af2-a78b-541bc9e0a019`（明确resume） | 完成未交付fixture/4构建/报告 | 原a019范围，已有证据不覆盖；补新attempt | CLI退出0，in_review；报告补齐，119文件快照4组build/test90/Clippy全0；首attempt隔离失败1保留，第二fixture driver0；runsc仍缺失 |
+| 00B-R3 / ENV-CONTROLS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a022` | ENV10项缺陷及匿名volume复审 | 只读infra/a019；仅a022证据；无真实资源修改 | CLI终态0，request_changes；相对冻结入口绕过、换行log误删、health吞psql错误3项；旧4构建仅对应封存快照 |
+| 00C / HARNESS | `eef831aa-dba4-4af2-a78b-541bc9e0a023` | SP00-W05 | crates/xtask、ci/workflows/evidenceSchema、根workspace/lock唯一writer、arch成员清单最小同步、新a023证据 | CLI终态0，in_review；manifest/commands存在；audit136依赖0漏洞、deny0errors有syn重复warning；W04/infra真实整合与独立审阅仍待补 |
+
+HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构成员门禁（不改安全逻辑）。CORE仅core/contracts，DATAGEN仅bench独立workspace，ENV复审只读。HARNESS不整合仍在写的datagen，也不将未实现suite或缺环境报告为通过；最终串行integration pass对W04与当前root/核心一起签收。
+
+| 波次 / 槽 | CLI session | 任务 | 写入范围 | 状态/证据 |
+|---|---|---|---|---|
+| 00B-R4 / CORE-BOUNDARIES-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a024` | 四个CORE边界修复独立审阅 | 只读core/contracts；仅新a024证据与独立临时探针 | CLI终态0，request_changes；API/Arrow切片approve，Unicode/version诊断泄漏及JSON零归一化未过；core55tests/Clippy复验0 |
+| 00B-F4 / ENV-RELATIVE-CLEANUP-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a025` | a022三项拒绝/清理/health修复 | 仅infra/a025证据/自己UUID资源；根只读 | CLI终态0，in_review；REPORT/dispositions/34文件hash与43红失败→0绿失败、一次真实fixture driver0；新Linux集成4构建待全写者冻结 |
+| 00C-R / DATAGEN-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a026` | SP00-W04独立审阅 | 只读bench/datagen/core；仅a026证据/独立临时探针 | CLI终态0，request_changes；DG01–08五假开关/四缺主键/DDL漂移/路径CLI及角色攻击fixture；独立xs/s重复字节一致，完整任务未签收 |
+| 00B-F5 / CORE-UNICODE-ZERO-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a027` | CB1–8修复 | 仅core/schema/a027证据，根与gold不改 | CLI终态0，in_review；DISPOSITION/61红失败→141绿PASS/60coretests与Clippy0；待独立复验 |
+| 00C-F / DATAGEN-CORRECTIONS | `eef831aa-dba4-4af2-a78b-541bc9e0a028` | DG01–08修复 | 仅bench/datagen与索引/a028证据 | CLI终态0，in_review；REPORT/32文件hash、20tests/Clippy0、32声明smell逐项及xs/s重复证据存在；待复审 |
+| 00C-R / HARNESS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a029` | W05/17成员独立审阅 | 只读xtask/CI/root/arch；仅a029证据/临时探针 | CLI终态0，request_changes；HN01–14能力激活/基线信任/永远pendingwrapper/Secret/deny/evidence及年轻lock等；11xtask/43archtests通过不替代门禁 |
+| 00B-R5 / ENV-RELATIVE-CLEANUP-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a030` | a025三修复独立审阅 | 只读infra/a025；仅a030证据与fake资源 | CLI终态0，request_changes；原三路径hold，复制/hardlink及OO_COMMON_SH信任绕过、builder路径误拒合法stage三新缺陷 |
+| 00C-F / HARNESS-CORRECTIONS | `eef831aa-dba4-4af2-a78b-541bc9e0a031` | HN01–14修复 | xtask/CI/evidence/supply记录/rootCargo及lock唯一writer；其他源只读 | CLI终态0，in_review；REPORT/dispositions/29源hash存在，19xtask/43archtests0，根119registry年龄全过且audit/deny0；真实wrapper与保护策略待集成 |
+| 00B-R6 / CORE-UNICODE-ZERO-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a032` | CB01–08复审 | 只读core/schema；仅a032证据/独立探针 | CLI终态0，request_changes；JSONzero/API/Arrow批准切片；encoded-colon诊断/BatchVersion回显/裸IPv6三剩余；60coretests及Clippy0 |
+| 00B-F6 / CORE-AUTHORITY-BATCH-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a033` | a032三诊断修复 | 仅core/schema/a033证据；根只读 | CLI终态0，in_review；DISPOSITION/43红失败→95绿PASS、62coretests/Clippy0；schema未改变，待复审 |
+| 00B-F6 / ENV-COPY-BOOTSTRAP-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a034` | A0301–3修复 | 仅infra/a034证据/自己UUID资源 | CLI终态0，in_review；REPORT/dispositions/76红失败→86绿PASS、freshfixture0；common指纹faee8f...，待独立复审与当前4构建 |
+| 00C-R2 / DATAGEN-CORRECTIONS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a035` | DG01–08复审 | 只读bench/datagen；仅a035证据/临时探针 | CLI终态0，approve修复切片；192checks/0failure、锁定测试Clippy release0，32源文件tree匹配a028；完整AT-EVAL01/SP00/SP12及最新核心平台集成未签收 |
+| 00B-R7 / CORE-AUTHORITY-BATCH-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a036` | a033三修复复审 | 只读core/schema；仅a036证据/临时探针 | CLI终态0，approve纯模型修复切片；273探针零失败/62tests与Clippy0/43文件hash匹配a033，F0入口可消费；完整服务/AT/最新平台未签收 |
+| 00C-R3 / HARNESS-CORRECTIONS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a037` | HN01–14复审 | 只读xtask/CI/root；仅a037证据/临时探针 | CLI终态0，request_changes；7剩余missing changed/bootstrap自批/HEADbase/Cargo cwd/workflowlog绑定/wrapper/deny/bench年轻lock与短URL密码；其余证据预算等持平批准切片 |
+| 00B-R8 / ENV-COPY-BOOTSTRAP-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a038` | A0301–3复审 | 只读infra；仅a038证据/fake资源 | CLI终态0，approve修复切片；34hash匹配、self-check0、13common指纹匹配；首失败是旧临时文件统计误判已单独复验；完整四构建仍待执行 |
+| 00D / CURRENT-LINUX-MATRIX | `eef831aa-dba4-4af2-a78b-541bc9e0a039` | 当前17成员源码Linux/MSRV四构建 | 仅a039证据/当前sealed快照/自己的UUID builder资源；源只读 | CLI终态0，验收失败；四fetch0但build/test/Clippy及各层exit101，snapshot漏contracts/evidence include_str，无测试执行；资源cleanup完成、旧11volumes保留 |
+| 00D-F / HARNESS-TRUST-INTEGRATION-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a040` | a037七剩余修复 | xtask/CI/evidence/rootCargo锁唯一writer/a040证据；不写bench/infra | CLI终态0，in_review；七项红绿作者证据、多lock audit/deny0及自包含evidence自检；仓库secrets实际1，真实wrapper/四平台/外部CI未签收 |
+| 00D-F / SNAPSHOT-BUILD-INPUTS-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a041` | a039snapshot输入完整性 | 仅infra/a041证据；根只读，不跑移动源四构建 | CLI终态0，in_review；153文件输入快照及192 self-check作者证据；仍有xtask历史证据self-test耦合，四构建未跑 |
+| 00D-F / DATAGEN-LOCK-ALIGNMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a042` | bench五年轻依赖修复 | 仅benchlock/依赖README/a042证据；核心及root只读 | CLI终态0，in_review；仅lock/README改动，115 registry年龄全过作者证据；test/Clippy/release0与xs/s字节匹配，audit/deny未跑 |
+| 00D-R / SNAPSHOT-INPUTS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a043` | a041独立复审 | infra只读；仅a043证据/自有临时探针 | resume终态0，approve快照修复切片；独立192 self-check与缺失/突变/hash/symlink拒绝和schema编译0；完整四构建未签收 |
+| 00D-R / DATAGEN-LOCK-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a044` | a042独立复审 | bench/core只读；仅a044证据/自有临时探针 | CLI终态0，approve lock修复切片；115 registry零问题、测试Clippy release实际exit0及xs/s全部文件匹配；完整W04/平台/audit未签收 |
+| 00D-R / HARNESS-TRUST-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a045` | a040七剩余及历史耦合独立复审 | 所有源只读；仅a045证据/自有临时探针 | CLI终态0 request_changes；12修复切片持平，HN11测试runner无log/echo伪证据、HN13缺yanked放行；350源hash稳定；门禁未签收 |
+| 00D-F / HARNESS-LOG-METADATA-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a046` | HN11/HN13窄修复 | xtask/CI/evidence contract及root唯一writer；仅a046证据 | CLI终态0 in_review；25xtasktests/Clippy作者0、23红绿探针与capture契约；execute-local未实跑，secrets仍1；根再次冻结 |
+| 01A / DB-PERMISSIONS-SPIKE | `eef831aa-dba4-4af2-a78b-541bc9e0a047` | SP01 P6/P13真实PG权限原型 | testing/spikes/p06-p13独立Rustworkspace/指定新ADR/a047证据/自己UUID资源 | CLI终态0 in_review；真实PG17主从73truth/11tests作者green、TLS/pool/40001证据；SETclaims可绕过/domaincast忽略/maskraw暴露如实记录，ADR Proposed；完整P未签 |
+| 00D-R / HARNESS-CAPTURE-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a048` | a046独立复审/本地真实capture路径 | 源只读；仅a048证据/自有临时仓库 | resume终态0 request_changes；HN13严格metadata批准，HN11公共binding自制capture仍required_satisfied、executor无deadline；真实本地spawn已观测，未签收 |
+| 00E / LINUX-MSRV-MATRIX | `eef831aa-dba4-4af2-a78b-541bc9e0a049` | 新快照四平台构建 | 源只读；仅a049证据/自有UUID最多2builder | resume终态0，REPORT完整；154文件冻结快照，四fetch/build/Clippy0但test101（122pass/1fail），缺benchlock；outer101/driver0，cleanup0，未签收 |
+| 01A-R / DB-PERMISSIONS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a050` | a047真实独立复审 | spike全部只读；仅a050证据/独立UUID2PG资源 | CLI终态0 approve仅host观察；独立73truth但softgold、inheritTRUEcustomer电话越权、硬编码UUID、Clippy101、license/TLS/BYPASS探针缺口；全部父项未签，须修复 |
+| 00F / HARNESS-EXECUTION-TRUST | `eef831aa-dba4-4af2-a78b-541bc9e0a051` | HN11真正执行信任/deadline | xtask/CI/contracts-evidence/root单writer/a051证据 | CLI终态0 in_review；34xtasktests/Clippy作者0，导入capturepending、私有执行值/timeout与真实9gate路径；secret1/外部CI未签 |
+| 00F / SNAPSHOT-BENCH-LOCK | `eef831aa-dba4-4af2-a78b-541bc9e0a052` | 四平台缺benchlock修复 | 仅infra/a052证据；不跑移动rootmatrix | CLI终态0 in_review；REPORT存在、200selfcheck作者0、缺失/突变benchlock拒绝；155输入但root两文件漂移，不签集成；待独立review |
+| 01B / DB-PERMISSIONS-CORRECTIONS | `eef831aa-dba4-4af2-a78b-541bc9e0a053` | a050权限/重跑/真值/许可证修复 | 仅spike/指定ADR/a053证据/独立UUID2PG | CLI终态0 in_review；REPORT存在，真实修复实验/许可证及兼容scanner作者证据；仅provenance最终hash变动；待独立复审 |
+| 00F-R / SNAPSHOT-BENCH-LOCK-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a054` | a052独立复审 | infra只读；仅a054证据/独立临时探针 | CLI终态0 approve快照修复切片；独立200selfcheck、双copy/missing/mutate/symlink拒绝；36infra稳定/旧a049不变；完整四平台未签 |
+| 00F-R2 / HARNESS-EXECUTION-TRUST-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a055` | a051独立复审 | 全源只读；仅a055证据/自有临时仓库 | CLI终态0 request_changes；导入capture/private类型修复hold，setsid继承pipe/PATHkillno-op两hang需outerSIGKILL；9gate真实8pass/secret1，24focus稳定 |
+| 01B-R / DB-PERMISSIONS-CORRECTIONS-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a056` | a053真实独立复审 | spike只读；仅a056证据/自有UUID2PG | CLI终态0 approve修复切片；独立107truth/14tests/Clippy0、错数据/授权probe exit1/8fail；许可证18gap及MSRV/amd64/P14/完整P未签 |
+| 00G / LINUX-MSRV-MATRIX | `eef831aa-dba4-4af2-a78b-541bc9e0a057` | 当前冻结快照四平台 | 源只读；仅a057证据/自有UUID2builder | CLI终态0 REPORT完整；四fetch/build/Clippy0但test101各133pass/6fail，CLIgitcommit/fixturechild失败；benchlock缺口已过，155快照a207de...稳定；cleanup完成 |
+| 00H / HARNESS-DEADLINE-LINUX-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a058` | a055两hang及a057六CLI平台失败 | xtask/root唯一writer/minimalCI/harnessdocs；仅a058证据/自有UUID单builder | finalize终态0；代码f61de8d、交接9c2ed1d；REPORT/HANDOFF齐备，host/Linux1.98/Linux1.94各41局部测试及Clippy作者0；a062固定SHA复审，完整SP00未签 |
+| 00I / DATAGEN-LINUX-MSRV | `eef831aa-dba4-4af2-a78b-541bc9e0a059` | standalone bench双架构/MSRV实跑 | bench/core只读；仅a059证据/自有UUID单builder | finalize CLI终态0，报告commit275d886；四recipe测试/Clippy/生成作者0，bytecompare0/cleanup0；outer1原因已读脚本1104–1106：0 or 1误记，旧143/limits1不重写；未签完整W04 |
+| V01-PG-01 / PRODUCT-SOURCE-CATALOG | `eef831aa-dba4-4af2-a78b-541bc9e0a060` | 真实PG只读体检与catalog生产组件 | 现有product-pg worktree，仅connectors/lock/新source契约测试；本地提交 | CLI终态0，feature b2d3cbc，baseline4213134；13unit+live PG17/Linux1.94测试Clippy作者0、REPORT已提交；in_review，不签完整SP03 |
+| V01-PG-01-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a061` | b2d3cbc固定SHA独立复审 | 现有productworktree只读；仅主目录a061证据/自有临时archive/UUID | dispatched execution/prompts/v01-pg-source-catalog-review.md；不新开tree、不改源 |
+| 00H-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a062` | f61de8d固定SHA基础修复 | 只读git archive；仅a062证据/自有UUID资源 | running handle58084；Linux/MSRV局部与独立进程探针，不阻塞纯builder |
+| V01-OOS-01A / STRUCTURE-DRAFT | `eef831aa-dba4-4af2-a78b-541bc9e0a063` | 冻结core模型/PG catalog版本契约 | 主目录oo-builder/新draft契约fixture；root lock唯一writer | running handle70712；先Linux/MSRV冒烟，确定性结构草案/审核队列/版本绑定证据；交付即局部提交，不签完整SP07 |
+| SP02-W01-a / CONTROL-JOBS-SCHEMA | `eef831aa-dba4-4af2-a78b-541bc9e0a064` | 导入闭环所需耐久控制存储，docs17队列契约 | oo-jobs迁移/契约/对应fixture；不改manifest/root-lock，a063仍唯一writer | running handle89841；先Linux/MSRV局部冒烟，真实PG迁移/约束/角色负例；driver与完整W01验收留后续 |
+
+## 5. 用户优先级调整后的产品功能台账
+
+| 功能任务 | 输入与前置 | 输出/接口 | 验收与下一步 | 当前状态 |
+|---|---|---|---|---|
+| V01-PG-01 | 已批准core模型、docs PG只读安全边界；现有隔离任务不等基础门禁 | PG AccessReport+CatalogSnapshot/F1版本契约，真实SQLx只读driver | Linux/MSRV局部+真实PG源审计零写/TLS/权限，交付commit后固定SHA复审 | 已交付commit b2d3cbc，a061复审中；未勾验收完成 |
+| V01-PG-02 | V01-PG-01固定接口、目标事务/质量/fence设计 | 有界PG读取→目标LOGGED未发布导入与持久catalog/lineage | 真实source/target比对、失败重启/取消、不提前授权 | waiting接口；按SP02/SP03/SP04拆可验收子项 |
+| V01-OOS-01 | catalog/安全profile证据、OOS纯模型 | 确定性可审核草案与证据/PII标记，不自动发布 | 真schema到draft、恶意comment/歧义/权限无扩张；固定SHA审阅 | 结构草案子任务a063执行中；真实导入集成与完整profile待后续，未勾完成 |
+| V01-QUERY-01 | 批准policy/P6/P13切片、P5 parser/P14驱动协议 | 审批后角色列权限/RLS、HTTP Gateway查询/取消/审计 | 实际隐藏行列拒绝、claims不伪造、parserfailclosed、取消已停 | queued |
+| V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | queued |
+| FOUNDATION-LANE | a058两hang/六CLI失败、a059bench平台 | 基础问题单线收敛，按局部失败修复 | 不阻塞隔离产品公共功能；发行条件单独pending | active |
+
+完整Spec/Plan/87ToDo/16Phase保持，功能台账是交付顺序，不是缩小目标。完成勾选只按功能真实证据和固定SHA独立验收；parentPhase/AT不得因子项commit提前勾。开始记录功能交付、验收工作项与返工率；既有基础修复切片不冒充完整产品功能。
+
+a059与a058并行：a058唯一rootwriter/最多1debugbuilder，a059仅读冻结bench/core/根manifest并构建其自己封存的独立生成器输入/最多1builder。生成器平台验证不读取移动xtask作为产品依赖，不签根快照。总并发builder最多2，资源UUID隔离。
+
+当前生效边界：a058已提交，a062只读固定archive复审；a061只读PG固定commit；a063唯一builder/root-lock writer；a059已终态，不再占用builder。总并发builder最多2，资源UUID隔离，完整双架构矩阵放在集成节点。下方旧“最新”段落是历史快照，不覆盖本段。a056权限切片已批准，但18licensegap/未执行MSRV和amd64/P14/完整P仍pending。
+
+当前产品速度：已交付可验收产品功能1项（PG源体检/catalog，固定b2d3cbc）；本批产品功能独立验收0项；返工率待首轮固定提交复审结果后记录，不能用基础修复次数或代码行数替代。完整87工作项及16Phase父项未提前完成。
+
+a059证据收尾handle82531已终态0，提交275d886仅REPORT/manifest/HANDOFF，未重跑矩阵或修改原失败exit；a064迁移任务与a063按源码分区并行，所有CLI写同一Git index时必须明确暂存自有文件，提交前核对index无外来路径，否则等待协调者串行提交。
+
+最新状态：所有writer终态，root/infra/bench/core/spike冻结；a055/a056只读复审与a057当前四构建并行，资源UUID隔离。P6/P13修复仍in_review；完整87工作项/16Phase与父AT未提前勾选。
+
+最新writer边界：a051唯一root/harness，a052仅infra有限输入清单，a053仅独立spike/ADR；三者可并行但全rootmatrix等待a051/a052终态及复审冻结。a050 host观察批准不免除实际发现的修复项，也不勾完整P/AT；a048 HN11真实绕过阻断门禁，公开hash只是integrity不能当authority。
+
+最新冻结：a046已终态，根/core/infra/bench源码冻结；a048只读复审与a049有限快照四构建并行，a047仅snapshot排除的spike路径写入。a049资源与a047各自UUID分离，负载过高串行builder。Linux矩阵证明实际快照编译测试，不替代harness信任复审或完整AT。
+
+最新工程界限：a046唯一根/harness writer，a047仅隔离权限spike和新ADR，两者无共享源写入。P6/P13依SP00薄原型和真实PG节点，可先小规模验证DEC03/DEC13以解除SP06风险；最终SP06仍依SP02/SP03、P5/P7/P14及独立审阅。root四Linux构建等待a046终态和冻结，不能以移动源码宣称当前验收。全部87工作项/16Phase父项仍未签收。
+
+新一波写入界限：a040仅根/工程门禁，a041仅测试基础snapshot清单，a042仅bench独立lock。三者不重叠；a040最终多lock扫描等待a042终态。a039四失败是真实失败证据，不能标为Linux/MSRV通过。修复和复审后再次冻结完整输入实跑四构建，bench平台另验。
+
+最新交接：a041/a042均已终态，infra/bench冻结，a043/a044只读独立复审；a040仍唯一根writer。a040须消费a042新benchlock SHA 8fe0a83684a72239e116339349a44dada871ba3523f5ca718871c5690faa6df5进行真实多lock扫描。a041发现xtask evidence self-test依赖a011历史manifest；须改为自包含合成fixture或最小公开契约fixture，不能将历史evidence整树加入构建快照来伪造通过。该跨模块补修归根writer串行处理，最终Linux矩阵等待修复冻结。
+
+a039开跑时产品源码冻结，a037只读review。CORE a036与DATAGEN a035、ENV a038各修复切片获独立批准；根17成员快照可验证当前Linux/MSRV构建，但bench独立workspace平台与HARNESS可信门禁仍另行验收。
+
+所有产品writer已终态，根Cargo/lock、core、bench、infra冻结；a036/a037/a038只读并行复审。DATAGEN a035仅批准DG修复切片。实际统一快照/四构建与W05真实wrapper集成按独立结论推进，外部保护策略和真实owner不虚构通过。
+
+当前并行writer：a031根/xtask/CI，a033仅core/schema诊断，a034仅infra；a035只读数据生成器。写入区互不重叠，根锁仅a031。实际集成与四构建必须等待各自复审和当前源码冻结，不能用切片批准替代完整AT。
+
+a031启用后根Cargo/lock再次只归HARNESS修复writer；a032只核对稳定core/schema与实际根快照，不把移动锁当冻结事实。DATAGEN a028仍写bench，ENV a030只读infra。实际W04/infra整合分支必须实现，但执行需等待独立review签收和协调者冻结输入；永久pending骨架不算W05完成。
+
+00C下一波：a023终态后根Cargo/lock冻结，无其他writer；a027 CORE和a028 DATAGEN各自独立目录并行，a025 ENV仍live。a029 HARNESS只读审阅冻结工程文件，不用移动CORE/infra签收完整集成。依赖顺序为三修复→各自独立复审→W04/infra串行接入HARNESS→冻结完整源码→实际4组Linux/MSRV构建及阶段门禁。禁止把pending wrapper当作已完成W05。
+
+当前顺序：a020已终态→a024独立审阅；a021/a022/a023实际handle仍live，可与只读CORE复审并行。根文件仍由a023单writer。CORE复审不得写核心或以移动根工作区声称完整快照通过。上一次目标回合完成Plan补充并取得文档验证证据，归类为progress；这不改变任何产品门禁状态。
+
+00C并行：CORE-BOUNDARIES仅共享模型4处修复，DATAGEN只消费a018已批准的规范值解析/日期/时区/版本切片并在bench/datagen独立workspace开发；root成员与lock保持不变。ENV恢复只写infra/自身资源，可构建实际稳定快照。HARNESS后续串行整合workspace/lock与架构成员清单，并等待W04fixture到位；所有完整Phase门禁不提前签收。
+
+CORE-HARDENING期间重新开放oo-core/root写入。ENV只可构建其实际冻结快照并记录hash，不能将并行复制/旧快照宣称当前接口验收；后续在CORE修复终态后补当前源双架构。DATAGEN/HARNESS仍等待协议复审冻结。
+
+CORE接收当前可用的macOS骨架和契约开发前置，不代表SP00-W01完整AT已签收。Linux双架构由ENV冻结源码快照实际构建补验。CORE是00B期间root依赖与lock唯一writer；只读review不得format/fix；ENV仅写独立基础设施，不与CORE冲突。
+
+协调者已修正Plan/README过时的“无workspace”说明，并重新通过Spec/Plan检查。该文档维护不改变任何产品要求；先前证据中的Plan hash保留其原运行快照，后续证据记录当前实际hash，不回写旧证据。
+
+初始日志位于`/tmp/open-ontology-grok-00a-foundation.log`和`/tmp/open-ontology-grok-00a-governance.log`。每次结果先核对实际进程终态/文件，再由新Grok只读审阅；缺陷修复必须指定失败证明，不用`--continue`误接另一并行会话，使用明确`--resume <UUID>`并再次指定模型/effort。
