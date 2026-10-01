@@ -1,0 +1,29 @@
+{
+  "driver": "none",
+  "note": "Synthetic raw cells. No PostgreSQL or MySQL driver was executed. Expected text is independent of the converter.",
+  "shanghai_2026_10_01_091203_unix_seconds": 1790817123,
+  "cases": [
+    {
+      "id": "mysql_bigint_unsigned_max",
+      "plain": "18446744073709551615",
+      "scale": 0,
+      "storage": "decimal128"
+    },
+    {
+      "id": "mysql_numeric_scale",
+      "plain": "123.4500",
+      "scale": 4,
+      "storage": "decimal128"
+    },
+    {
+      "id": "mysql_numeric_40_digits",
+      "digits": 40,
+      "storage": "decimal256"
+    },
+    {
+      "id": "mysql_numeric_80_digits",
+      "digits": 80,
+      "storage": "decimal_string"
+    }
+  ]
+}

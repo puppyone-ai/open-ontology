@@ -1,0 +1,2292 @@
+{
+  "$defs": {
+    "AnchorName": {
+      "enum": [
+        "today",
+        "month_start",
+        "prev_month_start",
+        "prev_month_end",
+        "quarter_start",
+        "prev_quarter_start",
+        "prev_quarter_end",
+        "fiscal_year_start",
+        "prev_fiscal_year_end",
+        "last_closed_period_end"
+      ],
+      "type": "string"
+    },
+    "AnchorRange": {
+      "additionalProperties": false,
+      "properties": {
+        "bounds": {
+          "const": "[)",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_+() ,-]{1,200}$",
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_+() ,-]{1,200}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "bounds"
+      ],
+      "type": "object"
+    },
+    "CalendarFile": {
+      "additionalProperties": false,
+      "properties": {
+        "anchors": {
+          "items": {
+            "$ref": "#/$defs/AnchorName"
+          },
+          "type": "array"
+        },
+        "business_tz": {
+          "maxLength": 98,
+          "minLength": 3,
+          "pattern": "^(?:UTC|Etc/UTC|[A-Za-z][A-Za-z0-9_+-]{0,31}(?:/[A-Za-z0-9_+-]{1,32}){1,2})$",
+          "type": "string"
+        },
+        "fiscal_year_start_month": {
+          "format": "uint8",
+          "maximum": 12,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "phrases": {
+          "$ref": "#/$defs/PatternMap_oo_core::oos::model::PhraseLabel_Phrase",
+          "default": {}
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "week_start": {
+          "$ref": "#/$defs/Weekday"
+        }
+      },
+      "required": [
+        "schema_version",
+        "business_tz",
+        "fiscal_year_start_month",
+        "week_start",
+        "anchors"
+      ],
+      "title": "CalendarFile",
+      "type": "object"
+    },
+    "Cardinality": {
+      "enum": [
+        "one_to_one",
+        "one_to_many",
+        "many_to_one",
+        "many_to_many"
+      ],
+      "type": "string"
+    },
+    "CheckStatus": {
+      "enum": [
+        "ok",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ClassState": {
+      "enum": [
+        "confirmed",
+        "pending"
+      ],
+      "type": "string"
+    },
+    "ClassificationPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_accept": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "auto_accept"
+      ],
+      "type": "object"
+    },
+    "ClassificationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "default": null,
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "by": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/ClassState"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "ColumnProvenance": {
+      "enum": [
+        "human",
+        "generated",
+        "declared"
+      ],
+      "type": "string"
+    },
+    "CompileBudgets": {
+      "additionalProperties": false,
+      "properties": {
+        "readme_tokens": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "table_file_tokens": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "readme_tokens",
+        "table_file_tokens"
+      ],
+      "type": "object"
+    },
+    "CompileOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/CompileBudgets"
+        },
+        "per_role": {
+          "type": "boolean"
+        },
+        "sample_values": {
+          "$ref": "#/$defs/SamplePolicy"
+        }
+      },
+      "required": [
+        "per_role",
+        "budgets",
+        "sample_values"
+      ],
+      "type": "object"
+    },
+    "ConflictPolicy": {
+      "enum": [
+        "list_all",
+        "prefer_first",
+        "error"
+      ],
+      "type": "string"
+    },
+    "ControlTotal": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "$ref": "#/$defs/AnchorName"
+        },
+        "source": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "sql": {
+          "maxLength": 16000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "tolerance": {
+          "$ref": "#/$defs/Tolerance"
+        }
+      },
+      "required": [
+        "as_of",
+        "source",
+        "sql",
+        "tolerance"
+      ],
+      "type": "object"
+    },
+    "DatasetColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClassificationRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "data_type": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated_at": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "default": null,
+          "maxLength": 4000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enum": {
+          "default": null,
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "pii": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PiiLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ColumnProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "replaced_by": {
+          "default": null,
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Review"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "searchable": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "semantic_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SemanticType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unit": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "DatasetFile": {
+      "additionalProperties": false,
+      "properties": {
+        "caveats": {
+          "default": [],
+          "items": {
+            "maxLength": 2000,
+            "pattern": "^[^\\u{0}]*$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "columns": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DatasetColumn"
+          },
+          "type": "array"
+        },
+        "dataset": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "description": {
+          "default": null,
+          "maxLength": 4000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entity": {
+          "default": null,
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grain": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "primary_key": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "recommended": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "row_count_estimate": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "source_name": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "superseded_by": {
+          "default": null,
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "time_columns": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TimeColumn"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "dataset",
+        "label",
+        "tier"
+      ],
+      "title": "DatasetFile",
+      "type": "object"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/DecisionKind"
+        },
+        "input_hash": {
+          "maxLength": 71,
+          "minLength": 64,
+          "pattern": "^(?:sha256:)?[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "item": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "operator": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "default": null,
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "item",
+        "input_hash",
+        "decision",
+        "at"
+      ],
+      "type": "object"
+    },
+    "DecisionKind": {
+      "enum": [
+        "approved",
+        "rejected",
+        "merge",
+        "split",
+        "not_same"
+      ],
+      "type": "string"
+    },
+    "DecisionsFile": {
+      "additionalProperties": false,
+      "properties": {
+        "decisions": {
+          "items": {
+            "$ref": "#/$defs/Decision"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "decisions"
+      ],
+      "title": "DecisionsFile",
+      "type": "object"
+    },
+    "EntityFile": {
+      "additionalProperties": false,
+      "properties": {
+        "datasets": {
+          "default": [],
+          "items": {
+            "maxLength": 192,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "default": null,
+          "maxLength": 4000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "entity": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "members": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EntityMember"
+          },
+          "type": "array"
+        },
+        "primary_dataset": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "resolution": {
+          "default": null,
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "synonyms": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "entity",
+        "label",
+        "primary_dataset",
+        "key",
+        "display"
+      ],
+      "title": "EntityFile",
+      "type": "object"
+    },
+    "EntityMember": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "key": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "default": null,
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "default": null,
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "strong_key": {
+          "default": null,
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dataset",
+        "key"
+      ],
+      "type": "object"
+    },
+    "EnumEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "signature": {
+          "default": null,
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "EnumFile": {
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "$ref": "#/$defs/PatternMap_oo_core::oos::model::ClassName_BoundedText500",
+          "default": {}
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+              "oneOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enum": {
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "owner": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "unexplained_values": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "values": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnumValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "enum"
+      ],
+      "title": "EnumFile",
+      "type": "object"
+    },
+    "EnumFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "column": {
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "enum": {
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "enum",
+        "classes"
+      ],
+      "type": "object"
+    },
+    "EnumSource": {
+      "enum": [
+        "dictionary_table",
+        "inferred",
+        "human"
+      ],
+      "type": "string"
+    },
+    "EnumValue": {
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "default": null,
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "code": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnumEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Review"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnumSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/EnumValueStatus"
+        },
+        "valid_from": {
+          "default": null,
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valid_to": {
+          "default": null,
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "status"
+      ],
+      "type": "object"
+    },
+    "EnumValueStatus": {
+      "enum": [
+        "approved",
+        "undetermined",
+        "unexplained",
+        "superseded",
+        "deprecated"
+      ],
+      "type": "string"
+    },
+    "ExampleCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "result_hash": {
+          "maxLength": 71,
+          "minLength": 64,
+          "pattern": "^(?:sha256:)?[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CheckStatus"
+        }
+      },
+      "required": [
+        "at",
+        "status",
+        "result_hash"
+      ],
+      "type": "object"
+    },
+    "ExamplesFile": {
+      "additionalProperties": false,
+      "properties": {
+        "examples": {
+          "items": {
+            "$ref": "#/$defs/VerifiedExample"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "examples"
+      ],
+      "title": "ExamplesFile",
+      "type": "object"
+    },
+    "GlossaryFile": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "terms": {
+          "items": {
+            "$ref": "#/$defs/Term"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "terms"
+      ],
+      "title": "GlossaryFile",
+      "type": "object"
+    },
+    "ItemStatus": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "rejected"
+      ],
+      "type": "string"
+    },
+    "JoinHint": {
+      "enum": [
+        "left",
+        "inner",
+        "right",
+        "full"
+      ],
+      "type": "string"
+    },
+    "KeyScheme": {
+      "additionalProperties": false,
+      "properties": {
+        "singleton": {
+          "maxLength": 200,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "strong": {
+          "maxLength": 200,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strong",
+        "singleton"
+      ],
+      "type": "object"
+    },
+    "LifecyclePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "deprecation_min_releases": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "deprecation_min_releases"
+      ],
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "caveats": {
+          "default": [],
+          "items": {
+            "maxLength": 2000,
+            "pattern": "^[^\\u{0}]*$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "certified": {
+          "default": false,
+          "type": "boolean"
+        },
+        "control_total": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ControlTotal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "default_anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnchorName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "default": null,
+          "maxLength": 4000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dimensions": {
+          "default": [],
+          "items": {
+            "maxLength": 63,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enum_filters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EnumFilter"
+          },
+          "type": "array"
+        },
+        "grain": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "metric": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "owner": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sql": {
+          "maxLength": 16000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "synonyms": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MetricTest"
+          },
+          "type": "array"
+        },
+        "time_dimension": {
+          "default": null,
+          "maxLength": 321,
+          "minLength": 5,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "metric",
+        "label",
+        "status",
+        "sql"
+      ],
+      "type": "object"
+    },
+    "MetricStatus": {
+      "enum": [
+        "draft",
+        "active",
+        "deprecated"
+      ],
+      "type": "string"
+    },
+    "MetricTest": {
+      "additionalProperties": false,
+      "properties": {
+        "expect": {
+          "$ref": "#/$defs/TestExpect"
+        },
+        "params": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::TableName_Label"
+        }
+      },
+      "required": [
+        "params",
+        "expect"
+      ],
+      "type": "object"
+    },
+    "MetricsFile": {
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "metrics"
+      ],
+      "title": "MetricsFile",
+      "type": "object"
+    },
+    "MinLength": {
+      "additionalProperties": false,
+      "properties": {
+        "han": {
+          "format": "uint32",
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "latin": {
+          "format": "uint32",
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "han",
+        "latin"
+      ],
+      "type": "object"
+    },
+    "NameMatch": {
+      "enum": [
+        "exact",
+        "partial",
+        "none"
+      ],
+      "type": "string"
+    },
+    "Normalization": {
+      "additionalProperties": false,
+      "properties": {
+        "casefold": {
+          "type": "boolean"
+        },
+        "collapse_whitespace": {
+          "type": "boolean"
+        },
+        "fullwidth_to_halfwidth": {
+          "type": "boolean"
+        },
+        "min_length": {
+          "$ref": "#/$defs/MinLength"
+        },
+        "strip_suffixes": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fullwidth_to_halfwidth",
+        "casefold",
+        "collapse_whitespace",
+        "min_length"
+      ],
+      "type": "object"
+    },
+    "OntologyFile": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/ClassificationPolicy"
+        },
+        "compile": {
+          "$ref": "#/$defs/CompileOptions"
+        },
+        "default_tier_preference": {
+          "items": {
+            "$ref": "#/$defs/Tier"
+          },
+          "type": "array"
+        },
+        "include_schemas": {
+          "items": {
+            "maxLength": 63,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/LifecyclePolicy"
+        },
+        "locale": {
+          "maxLength": 5,
+          "minLength": 2,
+          "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "publish": {
+          "$ref": "#/$defs/PublishPolicy"
+        },
+        "spec_version": {
+          "const": "oos/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spec_version",
+        "name",
+        "locale",
+        "include_schemas",
+        "default_tier_preference",
+        "publish",
+        "classification",
+        "lifecycle",
+        "compile"
+      ],
+      "title": "OntologyFile",
+      "type": "object"
+    },
+    "PatternMap_oo_core::oos::model::ClassName_BoundedText500": {
+      "additionalProperties": {
+        "maxLength": 500,
+        "pattern": "^[^\\u{0}]*$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::oos::model::PhraseLabel_Phrase": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Phrase"
+      },
+      "propertyNames": {
+        "pattern": "^[^\\u{0}-\\u{1F}\\u{7F}]{1,64}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::TableName_Label": {
+      "additionalProperties": {
+        "maxLength": 256,
+        "minLength": 1,
+        "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::TableName_Survivorship": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Survivorship"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "Phrase": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnchorRange"
+        },
+        {
+          "$ref": "#/$defs/PhraseComparison"
+        }
+      ]
+    },
+    "PhraseComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "current": {
+          "$ref": "#/$defs/AnchorRange"
+        },
+        "previous": {
+          "$ref": "#/$defs/AnchorRange"
+        }
+      },
+      "required": [
+        "current",
+        "previous"
+      ],
+      "type": "object"
+    },
+    "PiiLevel": {
+      "enum": [
+        "none",
+        "personal",
+        "sensitive",
+        "restricted"
+      ],
+      "type": "string"
+    },
+    "PublishPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "include_unreviewed": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "require_eval": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "RelationEnd": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dataset": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset",
+        "columns"
+      ],
+      "type": "object"
+    },
+    "RelationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "containment": {
+          "anyOf": [
+            {
+              "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+              "oneOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name_match": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NameMatch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seen_in_query_log": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "type_compatible": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RelationProvenance": {
+      "enum": [
+        "declared_fk",
+        "inferred",
+        "view_definition",
+        "query_log",
+        "human"
+      ],
+      "type": "string"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "properties": {
+        "cardinality": {
+          "$ref": "#/$defs/Cardinality"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+              "oneOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "from": {
+          "$ref": "#/$defs/RelationEnd"
+        },
+        "join_hint": {
+          "$ref": "#/$defs/JoinHint"
+        },
+        "name": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/RelationProvenance"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Review"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "to": {
+          "$ref": "#/$defs/RelationEnd"
+        }
+      },
+      "required": [
+        "name",
+        "from",
+        "to",
+        "cardinality",
+        "join_hint",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "RelationshipsFile": {
+      "additionalProperties": false,
+      "properties": {
+        "relationships": {
+          "items": {
+            "$ref": "#/$defs/Relationship"
+          },
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "relationships"
+      ],
+      "title": "RelationshipsFile",
+      "type": "object"
+    },
+    "ResolutionFile": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_merge": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "candidates": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "entity": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "key_scheme": {
+          "$ref": "#/$defs/KeyScheme"
+        },
+        "normalization": {
+          "$ref": "#/$defs/Normalization"
+        },
+        "resolution": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "oos/v1",
+          "type": "string"
+        },
+        "strong_key": {
+          "$ref": "#/$defs/StrongKey"
+        },
+        "survivorship": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::TableName_Survivorship",
+          "default": {}
+        }
+      },
+      "required": [
+        "schema_version",
+        "resolution",
+        "entity",
+        "key_scheme",
+        "strong_key",
+        "normalization"
+      ],
+      "title": "ResolutionFile",
+      "type": "object"
+    },
+    "Review": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "default": null,
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "by": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/ReviewState"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "ReviewState": {
+      "enum": [
+        "approved",
+        "rejected"
+      ],
+      "type": "string"
+    },
+    "SamplePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/SampleValues"
+        },
+        "max_per_column": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "default",
+        "max_per_column"
+      ],
+      "type": "object"
+    },
+    "SampleValues": {
+      "enum": [
+        "none",
+        "masked",
+        "raw"
+      ],
+      "type": "string"
+    },
+    "SemanticType": {
+      "enum": [
+        "identifier",
+        "foreign_key",
+        "entity_name",
+        "code",
+        "status_code",
+        "category",
+        "boolean_flag",
+        "money",
+        "quantity",
+        "ratio",
+        "event_time",
+        "date",
+        "audit_time",
+        "geo",
+        "address",
+        "phone",
+        "email",
+        "person_name",
+        "free_text",
+        "json",
+        "system"
+      ],
+      "type": "string"
+    },
+    "StrongKey": {
+      "additionalProperties": false,
+      "properties": {
+        "placeholders": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 0,
+            "pattern": "^[^\\u{0}-\\u{1F}\\u{7F}]{0,64}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "validator": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "validator",
+        "placeholders"
+      ],
+      "type": "object"
+    },
+    "Survivorship": {
+      "anyOf": [
+        {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/SurvivorshipPolicy"
+        }
+      ]
+    },
+    "SurvivorshipPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "on_conflict": {
+          "$ref": "#/$defs/ConflictPolicy"
+        },
+        "order": {
+          "items": {
+            "maxLength": 63,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "order",
+        "on_conflict"
+      ],
+      "type": "object"
+    },
+    "Term": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "maps_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TermMapping"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "owner": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TermStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "term": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "definition"
+      ],
+      "type": "object"
+    },
+    "TermMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "default": null,
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "filter": {
+          "default": null,
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metric": {
+          "default": null,
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "TermStatus": {
+      "enum": [
+        "draft",
+        "approved",
+        "deprecated"
+      ],
+      "type": "string"
+    },
+    "TestExpect": {
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Tier": {
+      "enum": [
+        "raw",
+        "scene",
+        "file"
+      ],
+      "type": "string"
+    },
+    "TimeColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/TimeRole"
+        }
+      },
+      "required": [
+        "name",
+        "role"
+      ],
+      "type": "object"
+    },
+    "TimeRole": {
+      "enum": [
+        "created_at",
+        "updated_at",
+        "event_time",
+        "deleted_at"
+      ],
+      "type": "string"
+    },
+    "Tolerance": {
+      "additionalProperties": false,
+      "properties": {
+        "abs": {
+          "anyOf": [
+            {
+              "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+              "oneOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rel": {
+          "anyOf": [
+            {
+              "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+              "oneOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "type": "object"
+    },
+    "VerifiedExample": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "minLength": 2,
+          "pattern": "^[a-z][a-z0-9-]{1,63}$",
+          "type": "string"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExampleCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "question": {
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "sql": {
+          "maxLength": 16000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "uses": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "verified_at": {
+          "description": "format date checks a Gregorian shape. Rust also rejects year 0000, including 0000-02-29, which a u16 leap-year check can accept.",
+          "format": "date",
+          "maxLength": 10,
+          "minLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "verified_by": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "question",
+        "sql",
+        "verified_by",
+        "verified_at"
+      ],
+      "type": "object"
+    },
+    "Weekday": {
+      "enum": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://openontology.dev/contracts/oos/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/OntologyFile"
+    },
+    {
+      "$ref": "#/$defs/DatasetFile"
+    },
+    {
+      "$ref": "#/$defs/EntityFile"
+    },
+    {
+      "$ref": "#/$defs/RelationshipsFile"
+    },
+    {
+      "$ref": "#/$defs/EnumFile"
+    },
+    {
+      "$ref": "#/$defs/MetricsFile"
+    },
+    {
+      "$ref": "#/$defs/GlossaryFile"
+    },
+    {
+      "$ref": "#/$defs/ExamplesFile"
+    },
+    {
+      "$ref": "#/$defs/CalendarFile"
+    },
+    {
+      "$ref": "#/$defs/ResolutionFile"
+    },
+    {
+      "$ref": "#/$defs/DecisionsFile"
+    }
+  ],
+  "title": "Ontology Spec fragments v1"
+}

@@ -1,0 +1,44 @@
+schema_version: config/v1
+defaults:
+  limits:
+    max_rows: 200
+    max_rows_cap: 2000
+    export_rows: 500000
+    export_bytes: 1GB
+    concurrency: 2
+    statement_timeout: 30s
+    export_timeout: 120s
+  allow_external_clients: false
+roles:
+  analyst_all:
+    label: "全局分析!"
+    grants:
+      - schema: logistics
+        tables: ["*"]
+      - schema: erp_mysql
+        tables: ["*"]
+        exclude: ["erp_mysql.sys_user*"]
+    column_masks:
+      logistics.customer.phone: mask_phone
+    pii_access: [personal]
+    allow_external_clients: true
+  dispatcher_eu:
+    label: 欧洲区调度
+    grants:
+      - schema: logistics
+        tables: ["shipment", "route", "customer"]
+      - table: logistics.customer
+        columns: { exclude: [phone, credit_limit] }
+    row_filters:
+      logistics.shipment: "region = ANY (_oo.oo_claim_array('region'))"
+      logistics.customer: "region = ANY (_oo.oo_claim_array('region'))"
+    limits: { max_rows: 500, concurrency: 1 }
+bindings:
+  - match: { idp_group: "data-team" }
+    role: analyst_all
+  - match: { idp_group: "eu-dispatch" }
+    role: dispatcher_eu
+    claims:
+      region: ["{{ user.attributes.region }}"]
+  - match: { any: true }
+    role: null

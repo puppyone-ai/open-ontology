@@ -1,0 +1,47 @@
+schema_version: config/v1
+sources:
+  erp_mysql:
+    connector: mysql
+    connection:
+      host: erp-mysql.internal
+      port: 3306
+      database: erp
+      tls: verify_full
+    credential: secret://erp_mysql
+    timezone: Asia/Shanghai
+    tables:
+      include: ["kh", "ydh"]
+      exclude: ["sys_*"]
+    sync: cdc
+    snapshot: oo_chunked
+    consistency: transactional
+    freshness_expectation: 10m
+    limits:
+      max_connections: 4
+      max_rows_per_sec: 50000
+      window: "20:00-08:00"
+    type_policy:
+      zero_date: "null"
+      tinyint1: boolean
+      strip_nul: true
+      charset_override:
+        kh.lxdh: utf8mb4
+    overrides:
+      kh:
+        sync: full
+        every: 6h
+    sample_values: masked
+    hooks: [mask_phone]
+    allow_write_capable_credential: false
+  tms_pg:
+    connector: postgres
+    connection:
+      host: tms-pg.internal
+      port: 5432
+      database: tms
+    credential: secret://tms_pg
+    read_from: replica
+    sync: incremental
+    consistency: per_table
+    consistency_acknowledged: true
+    incremental: { cursor: updated_at, every: 1h, overlap: 5m }

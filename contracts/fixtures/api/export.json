@@ -1,0 +1,9 @@
+{
+  "status": "completed",
+  "rows": "10",
+  "bytes": "1000",
+  "truncated": false,
+  "result_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "freshness": [],
+  "warnings": []
+}

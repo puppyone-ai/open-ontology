@@ -1,0 +1,37 @@
+schema_version: config/v1
+harness:
+  default: pi
+  versions: { pi: 0.0.0-synthetic }
+model:
+  provider: anthropic
+  model: synthetic-model
+  endpoint_alias: anthropic
+  credential: secret://agent_llm
+  fallback:
+    provider: openai-compatible
+    model: synthetic-model
+    endpoint_alias: internal
+budgets:
+  per_session_tokens: 2000000
+  per_turn_tool_calls: 60
+  per_turn_seconds: 600
+session:
+  idle_timeout: 30m
+  max_lifetime: 8h
+  workspace_snapshot: false
+sandbox:
+  driver: docker-gvisor
+  image: ghcr.io/example/oo-sandbox:0.0.0-synthetic
+  resources: { cpu: 2, memory: 4Gi, disk: 5Gi, pids: 512 }
+  pool: { min_idle: 2, max_pool: 20, max_idle_age: 1h }
+instructions_append: |
+  本公司财年从 4 月开始。金额默认单位为元。
+  watch!
+channels:
+  web: { enabled: true }
+  feishu:
+    enabled: true
+    app_id: cli_xxx
+    credential: secret://feishu_app
+    group_policy: dm_details
+  slack: { enabled: false }

@@ -1,0 +1,454 @@
+# Local synthetic fixtures. Not production ./oo up and not a gVisor run.
+# OO_RUN_ID is a full lowercase UUID. OO_SECRET_DIR is the canonical secret path.
+name: oo-${OO_RUN_ID}
+
+services:
+  pg-control:
+    image: docker.io/library/postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-pg-control
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    environment:
+      POSTGRES_USER: oo_fixture_admin
+      POSTGRES_DB: oo_control
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_control_password
+      POSTGRES_INITDB_ARGS: --data-checksums
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_error_statement=error
+      - -c
+      - log_connections=off
+    volumes:
+      - pg-control:/var/lib/postgresql/data
+      - ./postgres/control-init.sh:/docker-entrypoint-initdb.d/10-control-init.sh:ro
+      - ./postgres/control-health.sh:/opt/oo/control-health.sh:ro
+    secrets:
+      - pg_control_password
+    networks:
+      - control
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 256
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/control-health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+
+  pg-agent-primary:
+    image: docker.io/library/postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-pg-agent-primary
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    environment:
+      POSTGRES_USER: oo_fixture_admin
+      POSTGRES_DB: oo_agent
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_agent_password
+      POSTGRES_INITDB_ARGS: --data-checksums
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+      - -c
+      - wal_level=replica
+      - -c
+      - hot_standby=on
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby_feedback=on
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_error_statement=error
+      - -c
+      - log_connections=off
+    volumes:
+      - pg-agent-primary:/var/lib/postgresql/data
+      - ./postgres/agent-init.sh:/docker-entrypoint-initdb.d/10-agent-init.sh:ro
+      - ./postgres/primary-health.sh:/opt/oo/primary-health.sh:ro
+    secrets:
+      - pg_agent_password
+      - replication_password
+      - agent_ro_password
+    networks:
+      - agent
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 256
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/primary-health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+
+  pg-agent-replica:
+    image: docker.io/library/postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-pg-agent-replica
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    entrypoint:
+      - /bin/bash
+      - /opt/oo/replica-entrypoint.sh
+    environment:
+      POSTGRES_USER: oo_fixture_admin
+      POSTGRES_DB: oo_agent
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_agent_password
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pg-agent-replica:/var/lib/postgresql/data
+      - ./postgres/replica-entrypoint.sh:/opt/oo/replica-entrypoint.sh:ro
+      - ./postgres/replica-health.sh:/opt/oo/replica-health.sh:ro
+    secrets:
+      - pg_agent_password
+      - replication_password
+    networks:
+      - agent
+    depends_on:
+      pg-agent-primary:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 256
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/replica-health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 45s
+
+  mysql-source:
+    image: docker.io/library/mysql:8.4.10@sha256:8dbcf531a03aade657e181b9cf2f1d1803ce621a1d55610cb44cb531ab7d7db6
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-mysql-source
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    environment:
+      MYSQL_DATABASE: oo_local_test
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    volumes:
+      - mysql-source:/var/lib/mysql
+      - ./mysql/source-init.sh:/docker-entrypoint-initdb.d/10-source-init.sh:ro
+      - ./mysql/audit.cnf:/etc/mysql/conf.d/oo-audit.cnf:ro
+      - ./mysql/health.sh:/opt/oo/mysql-health.sh:ro
+    secrets:
+      - mysql_root_password
+      - mysql_reader_password
+    networks:
+      - source
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/mysql-health.sh"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 60s
+
+  valkey-buffer:
+    image: docker.io/valkey/valkey:8.1.10@sha256:640c5e62cea04b6d6f2084232651d0cc70362d31f4f805e7be94dbed6855e8f2
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-valkey-buffer
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - /opt/oo/valkey-entrypoint.sh
+    volumes:
+      - valkey-buffer:/data
+      - ./valkey/buffer.conf:/etc/oo/valkey.conf:ro
+      - ./valkey/entrypoint.sh:/opt/oo/valkey-entrypoint.sh:ro
+      - ./valkey/health.sh:/opt/oo/valkey-health.sh:ro
+    secrets:
+      - source: valkey_buffer_password
+        target: valkey_password
+    networks:
+      - buffer
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/valkey-health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  valkey-state:
+    image: docker.io/valkey/valkey:8.1.10@sha256:640c5e62cea04b6d6f2084232651d0cc70362d31f4f805e7be94dbed6855e8f2
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-valkey-state
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - /opt/oo/valkey-entrypoint.sh
+    volumes:
+      - valkey-state:/data
+      - ./valkey/state.conf:/etc/oo/valkey.conf:ro
+      - ./valkey/entrypoint.sh:/opt/oo/valkey-entrypoint.sh:ro
+      - ./valkey/health.sh:/opt/oo/valkey-health.sh:ro
+    secrets:
+      - source: valkey_state_password
+        target: valkey_password
+    networks:
+      - state
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/opt/oo/valkey-health.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  toxiproxy-control:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-toxiproxy-control
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    command: ["-host=0.0.0.0", "-port=8474"]
+    networks: [control]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+
+  toxiproxy-agent:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-toxiproxy-agent
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    command: ["-host=0.0.0.0", "-port=8474"]
+    networks: [agent]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+
+  toxiproxy-source:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-toxiproxy-source
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    command: ["-host=0.0.0.0", "-port=8474"]
+    networks: [source]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+
+  toxiproxy-buffer:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-toxiproxy-buffer
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    command: ["-host=0.0.0.0", "-port=8474"]
+    networks: [buffer]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+
+  toxiproxy-state:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    pull_policy: never
+    container_name: oo-${OO_RUN_ID}-toxiproxy-state
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+    command: ["-host=0.0.0.0", "-port=8474"]
+    networks: [state]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+
+networks:
+  control:
+    name: oo-${OO_RUN_ID}-net-control
+    internal: true
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  agent:
+    name: oo-${OO_RUN_ID}-net-agent
+    internal: true
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  source:
+    name: oo-${OO_RUN_ID}-net-source
+    internal: true
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  buffer:
+    name: oo-${OO_RUN_ID}-net-buffer
+    internal: true
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  state:
+    name: oo-${OO_RUN_ID}-net-state
+    internal: true
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+
+volumes:
+  pg-control:
+    name: oo-${OO_RUN_ID}-vol-pg-control
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  pg-agent-primary:
+    name: oo-${OO_RUN_ID}-vol-pg-agent-primary
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  pg-agent-replica:
+    name: oo-${OO_RUN_ID}-vol-pg-agent-replica
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  mysql-source:
+    name: oo-${OO_RUN_ID}-vol-mysql-source
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  valkey-buffer:
+    name: oo-${OO_RUN_ID}-vol-valkey-buffer
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+  valkey-state:
+    name: oo-${OO_RUN_ID}-vol-valkey-state
+    labels:
+      oo.project: open-ontology
+      oo.owner: env
+      oo.run_id: ${OO_RUN_ID}
+      oo.scope: sp00-infra-fixture
+
+secrets:
+  pg_control_password:
+    file: ${OO_SECRET_DIR}/pg_control_password
+  pg_agent_password:
+    file: ${OO_SECRET_DIR}/pg_agent_password
+  replication_password:
+    file: ${OO_SECRET_DIR}/replication_password
+  agent_ro_password:
+    file: ${OO_SECRET_DIR}/agent_ro_password
+  mysql_root_password:
+    file: ${OO_SECRET_DIR}/mysql_root_password
+  mysql_reader_password:
+    file: ${OO_SECRET_DIR}/mysql_reader_password
+  valkey_buffer_password:
+    file: ${OO_SECRET_DIR}/valkey_buffer_password
+  valkey_state_password:
+    file: ${OO_SECRET_DIR}/valkey_state_password

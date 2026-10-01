@@ -1,0 +1,7 @@
+# name listen_port upstream_host upstream_port network service
+pg-control 15432 pg-control 5432 control toxiproxy-control
+pg-agent-primary 15433 pg-agent-primary 5432 agent toxiproxy-agent
+pg-agent-replica 15434 pg-agent-replica 5432 agent toxiproxy-agent
+mysql-source 13306 mysql-source 3306 source toxiproxy-source
+valkey-buffer 16379 valkey-buffer 6379 buffer toxiproxy-buffer
+valkey-state 16380 valkey-state 6379 state toxiproxy-state

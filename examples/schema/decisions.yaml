@@ -1,0 +1,8 @@
+schema_version: oos/v1
+decisions:
+  - item: customer-merge-1
+    input_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    decision: approved
+    operator: steward.li
+    at: "2026-10-01"
+    reason: 强键相同且不是占位值

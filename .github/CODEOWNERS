@@ -1,0 +1,75 @@
+# Open Ontology CODEOWNERS — NOT ACTIVATED
+#
+# This file does not assign reviewers. It contains no @login and no @org/team.
+# GitHub required reviews are therefore not in effect from this file.
+# Branch protection is not configured in this repository.
+#
+# The human-readable map is governance/ownership-map.md.
+# Activation requires a real repository, real accounts, uncommented rules
+# whose OWNER_PENDING token was replaced with @login or @org/team, and
+# branch protection. Do all of that in one reviewed change. Do not invent
+# accounts to make this file look active.
+#
+# GitHub uses the last matching pattern. When this file is activated, keep
+# broader paths above and more specific paths below.
+#
+# OWNER_PENDING is a placeholder word. It is not a GitHub account.
+# Lines below stay commented so a mistaken uncomment still has no @owner.
+
+# * OWNER_PENDING
+# /LICENSE OWNER_PENDING
+# /NOTICE OWNER_PENDING
+# /README.md OWNER_PENDING
+# /CONTRIBUTING.md OWNER_PENDING
+# /CODE_OF_CONDUCT.md OWNER_PENDING
+# /SECURITY.md OWNER_PENDING
+# /SUPPORT.md OWNER_PENDING
+# /governance/ OWNER_PENDING
+# /governance/check_governance.py OWNER_PENDING
+# /governance/qa_license.py OWNER_PENDING
+# /governance/qa_record.py OWNER_PENDING
+# /governance/qa_docs.py OWNER_PENDING
+# /docs/ OWNER_PENDING
+# /specs/ OWNER_PENDING
+# /execution/ OWNER_PENDING
+# /.github/CODEOWNERS OWNER_PENDING
+# /.github/ISSUE_TEMPLATE/ OWNER_PENDING
+# /.github/pull_request_template.md OWNER_PENDING
+# /.github/workflows/ OWNER_PENDING
+# /supply-chain/policy.md OWNER_PENDING
+# /supply-chain/dependency-audit-record.template.json OWNER_PENDING
+# /supply-chain/dependency-baseline.json OWNER_PENDING
+# /Cargo.toml OWNER_PENDING
+# /Cargo.lock OWNER_PENDING
+# /rust-toolchain.toml OWNER_PENDING
+# /.cargo/ OWNER_PENDING
+# /ci/ OWNER_PENDING
+# /crates/oo-core/ OWNER_PENDING
+# /crates/oo-jobs/ OWNER_PENDING
+# /crates/oo-control/ OWNER_PENDING
+# /crates/oo-connectors/ OWNER_PENDING
+# /crates/oo-pipeline/ OWNER_PENDING
+# /crates/oo-builder/ OWNER_PENDING
+# /crates/oo-gateway/ OWNER_PENDING
+# /crates/oo-sdk/ OWNER_PENDING
+# /crates/oo-cli/ OWNER_PENDING
+# /crates/oo-mcp/ OWNER_PENDING
+# /crates/oo-proxy/ OWNER_PENDING
+# /crates/oo-sandbox/ OWNER_PENDING
+# /crates/oo-entry/ OWNER_PENDING
+# /crates/oo-eval/ OWNER_PENDING
+# /crates/oo-analysis/ OWNER_PENDING
+# /crates/oo-arch-check/ OWNER_PENDING
+# /xtask/ OWNER_PENDING
+# /crates/xtask/ OWNER_PENDING
+# /console/ OWNER_PENDING
+# /sdk-ts/ OWNER_PENDING
+# /images/ OWNER_PENDING
+# /deploy/ OWNER_PENDING
+# /bench/ OWNER_PENDING
+# /examples/ OWNER_PENDING
+# /examples/README.md OWNER_PENDING
+# /examples/governance/ OWNER_PENDING
+# /examples/config/ OWNER_PENDING
+# /examples/schema/ OWNER_PENDING
+# /evidence/ OWNER_PENDING

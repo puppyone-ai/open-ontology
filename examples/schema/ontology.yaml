@@ -1,0 +1,16 @@
+spec_version: oos/v1
+name: acme-logistics
+locale: zh-CN
+include_schemas: [logistics, erp_mysql, tms_pg, files_finance_2026]
+default_tier_preference: [scene, raw]
+publish:
+  include_unreviewed: [column_descriptions]
+  require_eval: [public-smoke, customer-core]
+classification:
+  auto_accept: rule_high_confidence
+lifecycle:
+  deprecation_min_releases: 1
+compile:
+  per_role: true
+  budgets: { readme_tokens: 2000, table_file_tokens: 3000 }
+  sample_values: { default: masked, max_per_column: 8 }

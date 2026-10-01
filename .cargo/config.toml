@@ -1,0 +1,4 @@
+# `cargo xtask` runs the workspace package `xtask` with `--locked`.
+# SP00-W05 owns that package. The alias does not drop the lock.
+[alias]
+xtask = "run --locked -p xtask --"

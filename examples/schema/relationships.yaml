@@ -1,0 +1,15 @@
+schema_version: oos/v1
+relationships:
+  - name: shipment_to_customer
+    from: { dataset: logistics.shipment, columns: [customer_id] }
+    to: { dataset: logistics.customer, columns: [customer_id] }
+    cardinality: many_to_one
+    join_hint: left
+    provenance: inferred
+    confidence: 0.97
+    evidence:
+      containment: 0.9993
+      name_match: exact
+      type_compatible: true
+      seen_in_query_log: 42
+    review: { state: approved, by: ops.wang, at: "2026-10-11" }

@@ -1,0 +1,161 @@
+---
+name: Dependency admission
+description: Propose a default dependency using the existing supply-chain record. Not an audit by itself.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read supply-chain/policy.md before opening this.
+        Admission follows supply-chain/policy.md sections 1 through 4, including OSI-approved permissive licenses, reviewed weak copyleft, prohibited tokens inside OR expressions, strong copyleft, unknown LicenseRef identifiers, the seven-day rule, and the advisory disposition.
+        Naming only AGPL, BSL, ELv2, and SSPL is not the whole rule.
+        The blank shape is supply-chain/dependency-audit-record.template.json.
+        Do not edit supply-chain/dependency-baseline.json in this issue.
+        That file belongs to the foundation owner.
+        A prohibited AGPL, BUSL, Elastic, or SSPL token does not enter the default artifact, including inside an OR expression and including a record that sets prohibited_license to false.
+        GPL and any other strong copyleft stay out. An unknown LicenseRef stays out.
+        Weak copyleft needs a named reviewer, obligations, evidence, and scope. A boolean is not that review.
+        An AND expression keeps every obligation, including a case such as MIT AND Unicode-3.0.
+        MIT OR Apache-2.0 needs an explicit dual_license_choice and LICENSE evidence for every declared license.
+        native_transitive entries are objects. A string license is not ignored.
+        A version younger than seven days needs a security-fix exception with an appointed named owner and regression evidence. OWNER_PENDING means nobody is appointed, so that exception is not valid.
+        Absence or a pending advisory does not clear an audited record.
+        A known exploitable high-severity issue cannot be waived.
+        This form is not cargo audit, cargo deny, or an image or native scan.
+        No customer data in this issue.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before you submit
+      options:
+        - label: This is not a vulnerability report. Those go through SECURITY.md.
+          required: true
+        - label: I did not include customer data, secrets, or internal domains.
+          required: true
+        - label: >-
+            I am not asking to mark a prohibited license, a strong-copyleft
+            license, an unknown LicenseRef, or a known exploitable
+            high-severity issue as accepted.
+          required: true
+        - label: >-
+            I will not edit supply-chain/dependency-baseline.json as part
+            of describing this proposal.
+          required: true
+
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Ecosystem
+      options:
+        - cargo
+        - npm
+        - image
+        - native
+        - os-package
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: name
+    attributes:
+      label: Package name and exact version
+      placeholder: example-crate 1.2.3
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Official source and repository
+      description: Registry or vendor URL, and the source repository.
+    validations:
+      required: true
+
+  - type: input
+    id: published
+    attributes:
+      label: Publication date and adoption date
+      description: >-
+        Full RFC3339 UTC timestamps with Z or +00:00. Not calendar dates.
+        Admission compares the exact elapsed time with 7*86400 seconds.
+        The stored age is floor(elapsed_seconds / 86400), not a calendar
+        subtraction and not a baseline float such as 7.142.
+      placeholder: "published 2026-01-15T00:00:00Z, adopted 2026-02-15T00:00:00Z"
+    validations:
+      required: true
+
+  - type: textarea
+    id: license
+    attributes:
+      label: SPDX expression, choice, and LICENSE evidence
+      description: >-
+        The expression from the package LICENSE and NOTICE files, not only
+        the manifest field. For OR, give dual_license_choice. For AND, list
+        every obligation. Name native and transitive objects you already
+        know. Unknown transitive licenses mean the record is unfinished.
+        Policy sections 2 and 3 are the admission rule.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: default_features
+    attributes:
+      label: Default features
+      description: Cargo default features are not a security configuration. The boolean still has to be stated.
+      options:
+        - default features disabled
+        - default features not disabled
+        - not a Cargo crate; stated explicitly
+    validations:
+      required: true
+
+  - type: textarea
+    id: features
+    attributes:
+      label: Features, MSRV, manifests, digest
+      description: >-
+        Enabled features, MSRV impact, manifest paths, and an immutable
+        digest or checksum. A floating tag is not a digest.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: seven_day
+    attributes:
+      label: Seven-day rule
+      options:
+        - elapsed time is at least 7*86400 seconds and the stored age is the completed-day floor
+        - security-fix exception, and a named owner is actually appointed
+        - elapsed time is under 7*86400 seconds and no valid exception (not admissible)
+    validations:
+      required: true
+
+  - type: textarea
+    id: exception
+    attributes:
+      label: Security-fix exception
+      description: >-
+        Leave empty when the age rule passes. Otherwise give the appointed
+        owner name, the role, the reason, and regression evidence with a
+        command, an exit code, and an artifact path. While OWNER_PENDING
+        is still the owner token, this exception is not valid. It cannot
+        waive a prohibited license, a known exploitable high-severity
+        issue, authorization, credential isolation, or sandbox isolation.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: advisory
+    attributes:
+      label: Advisory disposition
+      description: >-
+        Policy section 4.1. Pending, absent, or "not scanned" does not
+        clear the record. This dropdown does not run a scanner.
+      options:
+        - no-known-advisories, with evidence
+        - resolved-before-adoption, with evidence
+        - known exploitable high-severity issue (not admissible)
+        - not scanned or pending (not admissible)
+    validations:
+      required: true

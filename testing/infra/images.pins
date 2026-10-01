@@ -1,0 +1,17 @@
+# Platform image pins for the SP00 infra recipe.
+# Digests are manifest digests from `docker buildx imagetools inspect` on 2026-10-01.
+# Index digests and license notes live in images.lock.json. Do not float these tags.
+rust-1.98.1 linux/arm64 sha256:218765d808d35e2e3fa1b12b2e1314e2bfdd427a3530de071398553a95743cba
+rust-1.98.1 linux/amd64 sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065
+rust-1.94.0 linux/arm64 sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+rust-1.94.0 linux/amd64 sha256:f747a9f2b58b8c5f9d6d0680fe8af2edba26ac258a7d6142bb4f65f9693711f4
+postgres-17.10-bookworm linux/arm64 sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+postgres-17.10-bookworm linux/amd64 sha256:6e5a6518f9d2ff9e9f4cba2a5a87d8f41b0f067f6f92ac847c344351a6c8d923
+mysql-8.4.10 linux/arm64 sha256:3f616910ccd923d5089d7889d491cefa65e24fcfa79d74db4084729f48c9cab1
+mysql-8.4.10 linux/amd64 sha256:870634c634aae968ea1a93e5c094a14e00c692da2ee9bed956b3dfcc7bd08cb0
+valkey-8.1.10 linux/arm64 sha256:d2a1f2cbd6f69b933b82a930a44b7330b046bbd4c0d24bfc262967624c696dde
+valkey-8.1.10 linux/amd64 sha256:0f62bfecc0b713dc2111af3ee307d5cd53c6877b7a112c6143c4de20f1325e4c
+debezium-server-3.5.2.Final linux/arm64 sha256:842a0aa66dfab8a8cbe40634d53df5d1e5b4b5e9c7c8ea968d68f7cbc947c175
+debezium-server-3.5.2.Final linux/amd64 sha256:91b0fe6d803dbdc8bd08da8fc8d12041ab6e7e5b3b2a9ffe9582640f439ce4cf
+toxiproxy-2.12.0 linux/arm64 sha256:5ab4b4e8f476fd5452eb9584a608dd7cf8c11135878a8f7953722a9fcb9b3d87
+toxiproxy-2.12.0 linux/amd64 sha256:a3e244375123dad8849091bcc59775e188624d3f602db01901f9af855682fef8

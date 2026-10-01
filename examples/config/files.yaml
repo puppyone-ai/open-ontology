@@ -1,0 +1,13 @@
+schema_version: config/v1
+files:
+  finance_2026:
+    schema: files_finance_2026
+    mode: upsert
+    key: [invoice_id]
+    parse_profile:
+      header_row: 1
+      columns: ["invoice_id", "amount!"]
+      delimiter: ","
+      date_system: "1900"
+    sheets:
+      - { sheet: "2026", table: invoices }

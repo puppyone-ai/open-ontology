@@ -1,0 +1,6 @@
+[mysqld]
+# Stay off until source-init.sh finishes CREATE USER and GRANT.
+# The init script then persists TABLE logging. A password in this file
+# would be copied into mysql.general_log.
+general_log = OFF
+log_output = TABLE

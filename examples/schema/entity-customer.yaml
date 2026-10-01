@@ -1,0 +1,13 @@
+schema_version: oos/v1
+entity: customer
+label: 客户
+synonyms: [客户, 货主, 托运人, shipper, consignor]
+description: 与我司签约、下单的企业或个人。一个客户可有多个结算账户。
+primary_dataset: oo_entity.customer
+key: entity_key
+display: display_name
+members:
+  - { dataset: erp_mysql.kh, key: [khid], name: khmc, strong_key: nsrsbh, phone: lxdh }
+  - { dataset: tms_pg.shipper, key: [id], name: name, strong_key: tax_id }
+resolution: customer_resolution
+datasets: [logistics.shipment, logistics.receipt]

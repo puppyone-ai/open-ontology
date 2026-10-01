@@ -1,0 +1,7 @@
+schema_version: config/v1
+suite: customer-core
+visibility: private
+snapshot: eval_2026_10_01
+runs_per_item: 3
+scoring: { numeric_rel_tol: 0.001, pass_rule: pass^3 }
+items_file: eval/suites/customer-core.items.jsonl

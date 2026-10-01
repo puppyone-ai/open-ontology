@@ -1,0 +1,10 @@
+schema_version: oos/v1
+terms:
+  - term: 在途
+    definition: 已揽收、未签收的运单。
+    maps_to: { dataset: logistics.shipment, filter: "status IN ('picked','in_transit')" }
+  - term: 逾期
+    definition: 到期日早于锚点日、且在锚点日仍有余额的开放应收；当天到期不算。
+    maps_to: { metric: overdue_remaining }
+    owner: finance
+    status: approved

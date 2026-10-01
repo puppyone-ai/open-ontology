@@ -1,0 +1,20 @@
+[package]
+name = "xtask"
+description = "Engineering gate runner. Not a product service, driver, or gateway."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+oo-arch-check = { path = "../oo-arch-check" }
+oo-core = { path = "../oo-core" }
+jsonschema = { version = "=0.57.0", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+thiserror = "=2.0.21"
+
+[lints]
+workspace = true

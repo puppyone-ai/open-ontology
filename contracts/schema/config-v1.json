@@ -1,0 +1,2110 @@
+{
+  "$defs": {
+    "AgentConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/Budgets",
+          "default": {
+            "per_session_tokens": 2000000,
+            "per_turn_seconds": 600,
+            "per_turn_tool_calls": 60
+          }
+        },
+        "channels": {
+          "$ref": "#/$defs/Channels",
+          "default": {
+            "feishu": {
+              "app_id": null,
+              "credential": null,
+              "enabled": false,
+              "group_policy": "dm_details"
+            },
+            "slack": {
+              "credential": null,
+              "enabled": false
+            },
+            "web": {
+              "enabled": false
+            }
+          }
+        },
+        "harness": {
+          "$ref": "#/$defs/Harness"
+        },
+        "instructions_append": {
+          "default": null,
+          "description": "maxLength is a Unicode scalar ceiling. x-utf8-max-bytes is the UTF-8 byte budget enforced by the custom keyword and by Rust.",
+          "maxLength": 16384,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ],
+          "x-utf8-max-bytes": 16384
+        },
+        "model": {
+          "$ref": "#/$defs/ModelConfig"
+        },
+        "sandbox": {
+          "$ref": "#/$defs/Sandbox"
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        },
+        "session": {
+          "$ref": "#/$defs/Session",
+          "default": {
+            "idle_timeout": "30m",
+            "max_lifetime": "8h",
+            "workspace_snapshot": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "harness",
+        "model",
+        "sandbox"
+      ],
+      "title": "AgentConfig",
+      "type": "object"
+    },
+    "AgentDb": {
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "$ref": "#/$defs/DbEndpoint"
+        },
+        "replicas": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DbEndpoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "primary"
+      ],
+      "type": "object"
+    },
+    "Binding": {
+      "additionalProperties": false,
+      "properties": {
+        "claims": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::ClaimName_ClaimValue",
+          "default": {}
+        },
+        "match": {
+          "$ref": "#/$defs/BindingMatch"
+        },
+        "role": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "match"
+      ],
+      "type": "object"
+    },
+    "BindingMatch": {
+      "additionalProperties": false,
+      "properties": {
+        "any": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "idp_group": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "per_session_tokens": {
+          "default": 2000000,
+          "format": "uint32",
+          "maximum": 100000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "per_turn_seconds": {
+          "default": 600,
+          "format": "uint32",
+          "maximum": 86400,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "per_turn_tool_calls": {
+          "default": 60,
+          "format": "uint32",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "Buffer": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "$ref": "#/$defs/BufferBackend"
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "type": "object"
+    },
+    "BufferBackend": {
+      "enum": [
+        "valkey-streams",
+        "kafka"
+      ],
+      "type": "string"
+    },
+    "Channels": {
+      "additionalProperties": false,
+      "properties": {
+        "feishu": {
+          "$ref": "#/$defs/FeishuChannel",
+          "default": {
+            "app_id": null,
+            "credential": null,
+            "enabled": false,
+            "group_policy": "dm_details"
+          }
+        },
+        "slack": {
+          "$ref": "#/$defs/SlackChannel",
+          "default": {
+            "credential": null,
+            "enabled": false
+          }
+        },
+        "web": {
+          "$ref": "#/$defs/WebChannel",
+          "default": {
+            "enabled": false
+          }
+        }
+      },
+      "type": "object"
+    },
+    "ClaimValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "ColumnExclude": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Connection": {
+      "additionalProperties": false,
+      "properties": {
+        "application_name": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "connect_timeout": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "database": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[^\\p{Cc}\\s/]{1,64}$",
+          "type": "string"
+        },
+        "host": {
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$",
+          "type": "string"
+        },
+        "port": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tls": {
+          "$ref": "#/$defs/TlsMode",
+          "default": "verify_full"
+        },
+        "username": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "database"
+      ],
+      "type": "object"
+    },
+    "ConsistencyMode": {
+      "enum": [
+        "transactional",
+        "per_table"
+      ],
+      "type": "string"
+    },
+    "DateSystem": {
+      "enum": [
+        "1900",
+        "1904"
+      ],
+      "type": "string"
+    },
+    "DbEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$",
+          "type": "string"
+        },
+        "port": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "host",
+        "port"
+      ],
+      "type": "object"
+    },
+    "Deployment": {
+      "additionalProperties": false,
+      "properties": {
+        "locale": {
+          "maxLength": 5,
+          "minLength": 2,
+          "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
+          "type": "string"
+        },
+        "timezone": {
+          "maxLength": 98,
+          "minLength": 3,
+          "pattern": "^(?:UTC|Etc/UTC|[A-Za-z][A-Za-z0-9_+-]{0,31}(?:/[A-Za-z0-9_+-]{1,32}){1,2})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "timezone",
+        "locale"
+      ],
+      "type": "object"
+    },
+    "EvalSuite": {
+      "additionalProperties": false,
+      "properties": {
+        "items_file": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))(?:[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*)/?$",
+          "type": "string"
+        },
+        "runs_per_item": {
+          "default": 1,
+          "format": "uint32",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        },
+        "scoring": {
+          "$ref": "#/$defs/Scoring"
+        },
+        "snapshot": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "suite": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/Visibility"
+        }
+      },
+      "required": [
+        "schema_version",
+        "suite",
+        "visibility",
+        "snapshot",
+        "scoring",
+        "items_file"
+      ],
+      "title": "EvalSuite",
+      "type": "object"
+    },
+    "FeishuChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "app_id": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credential": {
+          "default": null,
+          "maxLength": 137,
+          "minLength": 10,
+          "pattern": "^secret://[A-Za-z][A-Za-z0-9._-]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "group_policy": {
+          "$ref": "#/$defs/GroupPolicy",
+          "default": "dm_details"
+        }
+      },
+      "type": "object"
+    },
+    "FileMode": {
+      "enum": [
+        "replace",
+        "append",
+        "upsert"
+      ],
+      "type": "string"
+    },
+    "FileSet": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "default": null,
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "mode": {
+          "$ref": "#/$defs/FileMode"
+        },
+        "parse_profile": {
+          "$ref": "#/$defs/ParseProfile"
+        },
+        "schema": {
+          "maxLength": 63,
+          "minLength": 7,
+          "pattern": "^files_[a-z0-9_]{1,57}$",
+          "type": "string"
+        },
+        "sheets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SheetMapping"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema",
+        "mode",
+        "parse_profile"
+      ],
+      "type": "object"
+    },
+    "FilesFile": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::SourceName_FileSet"
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "files"
+      ],
+      "title": "FilesFile",
+      "type": "object"
+    },
+    "Grant": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SchemaGrant"
+        },
+        {
+          "$ref": "#/$defs/TableGrant"
+        }
+      ]
+    },
+    "GroupPolicy": {
+      "enum": [
+        "dm_details",
+        "full_in_group"
+      ],
+      "type": "string"
+    },
+    "Harness": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "versions": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::PluginName_VersionToken",
+          "default": {}
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "type": "object"
+    },
+    "Hook": {
+      "additionalProperties": false,
+      "properties": {
+        "builtin": {
+          "default": null,
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "debounce": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "materialize": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HookParams"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sql_dir": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))(?:[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*)/?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "triggers": {
+          "default": [],
+          "items": {
+            "maxLength": 192,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/$defs/HookType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "HookParams": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[^\\u{0}/\\\\]{1,128}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pattern": {
+          "default": null,
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "HookType": {
+      "enum": [
+        "on_batch",
+        "after_load"
+      ],
+      "type": "string"
+    },
+    "HooksFile": {
+      "additionalProperties": false,
+      "properties": {
+        "hooks": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::PluginName_Hook"
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "hooks"
+      ],
+      "title": "HooksFile",
+      "type": "object"
+    },
+    "Incremental": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "default": "updated_at",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "every": {
+          "default": "1h",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "overlap": {
+          "default": "5m",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "LlmForBuilder": {
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "maxLength": 2048,
+          "minLength": 9,
+          "pattern": "^https://(?:\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)(?::[0-9]{1,5})?(?:/[^\\s?#@]*)?$",
+          "type": "string"
+        },
+        "credential": {
+          "maxLength": 137,
+          "minLength": 10,
+          "pattern": "^secret://[A-Za-z][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "base_url",
+        "model",
+        "credential"
+      ],
+      "type": "object"
+    },
+    "ModelConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "credential": {
+          "default": null,
+          "maxLength": 137,
+          "minLength": 10,
+          "pattern": "^secret://[A-Za-z][A-Za-z0-9._-]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint_alias": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "endpoint_alias"
+      ],
+      "type": "object"
+    },
+    "ObjectBackend": {
+      "enum": [
+        "local",
+        "s3"
+      ],
+      "type": "string"
+    },
+    "ObjectStore": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "$ref": "#/$defs/ObjectBackend"
+        },
+        "s3": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/S3Store"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "type": "object"
+    },
+    "OoConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "agentdb": {
+          "$ref": "#/$defs/AgentDb"
+        },
+        "buffer": {
+          "$ref": "#/$defs/Buffer"
+        },
+        "deployment": {
+          "$ref": "#/$defs/Deployment"
+        },
+        "llm_for_builder": {
+          "$ref": "#/$defs/LlmForBuilder"
+        },
+        "object_store": {
+          "$ref": "#/$defs/ObjectStore"
+        },
+        "quality": {
+          "$ref": "#/$defs/Quality",
+          "default": {
+            "reconcile_max_age": "3d",
+            "rejects_alert": {
+              "per_table_daily": 1000,
+              "ratio": "0.001"
+            }
+          }
+        },
+        "retention": {
+          "$ref": "#/$defs/Retention",
+          "default": {
+            "audit_days": 180,
+            "outputs_days": 30,
+            "transcripts_days": 180,
+            "uploads_days": 180
+          }
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        },
+        "secrets": {
+          "$ref": "#/$defs/Secrets"
+        }
+      },
+      "required": [
+        "schema_version",
+        "deployment",
+        "secrets",
+        "object_store",
+        "buffer",
+        "agentdb",
+        "llm_for_builder"
+      ],
+      "title": "OoConfig",
+      "type": "object"
+    },
+    "ParseProfile": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/ParseProfileInline"
+        }
+      ]
+    },
+    "ParseProfileInline": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "default": [],
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "date_system": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateSystem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "delimiter": {
+          "default": null,
+          "maxLength": 8,
+          "minLength": 1,
+          "pattern": "^[^\\s\\u{0}]{1,8}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "encoding": {
+          "default": null,
+          "maxLength": 32,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]{1,32}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "header_row": {
+          "default": 0,
+          "format": "uint32",
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ignore_rows": {
+          "default": [],
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::CharsetTarget_CharsetName": {
+      "additionalProperties": {
+        "maxLength": 32,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,32}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}(?:\\.[A-Za-z_][A-Za-z0-9_]{0,127}){0,2}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::ClaimName_ClaimValue": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ClaimValue"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::ColumnPath_PluginName": {
+      "additionalProperties": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::PluginName_Hook": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Hook"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::PluginName_VersionToken": {
+      "additionalProperties": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9._+-]{1,64}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::QualifiedTable_RowFilterExpr": {
+      "additionalProperties": {
+        "maxLength": 2000,
+        "minLength": 1,
+        "pattern": "^[^;\\u{0}`${}]{1,2000}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::SourceName_FileSet": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FileSet"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::SourceName_Role": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Role"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::SourceName_Source": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Source"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,62}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PatternMap_oo_core::text::TableName_TableOverride": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TableOverride"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "PiiLevel": {
+      "enum": [
+        "none",
+        "personal",
+        "sensitive",
+        "restricted"
+      ],
+      "type": "string"
+    },
+    "Quality": {
+      "additionalProperties": false,
+      "properties": {
+        "reconcile_max_age": {
+          "default": "3d",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "rejects_alert": {
+          "$ref": "#/$defs/RejectsAlert",
+          "default": {
+            "per_table_daily": 1000,
+            "ratio": "0.001"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "ReadFrom": {
+      "enum": [
+        "primary",
+        "replica"
+      ],
+      "type": "string"
+    },
+    "RejectsAlert": {
+      "additionalProperties": false,
+      "properties": {
+        "per_table_daily": {
+          "default": 1000,
+          "format": "uint32",
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ratio": {
+          "default": "0.001",
+          "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+          "oneOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Retention": {
+      "additionalProperties": false,
+      "properties": {
+        "audit_days": {
+          "default": 180,
+          "format": "uint32",
+          "maximum": 36500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "outputs_days": {
+          "default": 30,
+          "format": "uint32",
+          "maximum": 36500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "transcripts_days": {
+          "default": 180,
+          "format": "uint32",
+          "maximum": 36500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "uploads_days": {
+          "default": 180,
+          "format": "uint32",
+          "maximum": 36500,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_external_clients": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "column_masks": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::ColumnPath_PluginName",
+          "default": {}
+        },
+        "grants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Grant"
+          },
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "limits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleLimitOverride"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pii_access": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PiiLevel"
+          },
+          "type": "array"
+        },
+        "row_filters": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::QualifiedTable_RowFilterExpr",
+          "default": {}
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "type": "object"
+    },
+    "RoleDefaults": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_external_clients": {
+          "default": false,
+          "type": "boolean"
+        },
+        "limits": {
+          "$ref": "#/$defs/RoleLimits",
+          "default": {
+            "concurrency": 2,
+            "export_bytes": "1GB",
+            "export_rows": 500000,
+            "export_timeout": "120s",
+            "max_rows": 200,
+            "max_rows_cap": 2000,
+            "statement_timeout": "30s"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "RoleLimitOverride": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 256,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "export_bytes": {
+          "default": null,
+          "maxLength": 20,
+          "minLength": 1,
+          "pattern": "^(?:0|[1-9][0-9]{0,17})(?:B|KB|MB|GB|TB|KiB|MiB|GiB|TiB|Ki|Mi|Gi|Ti)?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_rows": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 100000000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "export_timeout": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max_rows": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_rows_cap": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "statement_timeout": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RoleLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "default": 2,
+          "format": "uint32",
+          "maximum": 256,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "export_bytes": {
+          "default": "1GB",
+          "maxLength": 20,
+          "minLength": 1,
+          "pattern": "^(?:0|[1-9][0-9]{0,17})(?:B|KB|MB|GB|TB|KiB|MiB|GiB|TiB|Ki|Mi|Gi|Ti)?$",
+          "type": "string"
+        },
+        "export_rows": {
+          "default": 500000,
+          "format": "uint32",
+          "maximum": 100000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "export_timeout": {
+          "default": "120s",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "max_rows": {
+          "default": 200,
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_rows_cap": {
+          "default": 2000,
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "statement_timeout": {
+          "default": "30s",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "RolesFile": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Binding"
+          },
+          "type": "array"
+        },
+        "defaults": {
+          "$ref": "#/$defs/RoleDefaults",
+          "default": {
+            "allow_external_clients": false,
+            "limits": {
+              "concurrency": 2,
+              "export_bytes": "1GB",
+              "export_rows": 500000,
+              "export_timeout": "120s",
+              "max_rows": 200,
+              "max_rows_cap": 2000,
+              "statement_timeout": "30s"
+            }
+          }
+        },
+        "roles": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::SourceName_Role"
+        },
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "roles"
+      ],
+      "title": "RolesFile",
+      "type": "object"
+    },
+    "S3Store": {
+      "additionalProperties": false,
+      "properties": {
+        "bucket": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "endpoint": {
+          "maxLength": 2048,
+          "minLength": 9,
+          "pattern": "^https://(?:\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)(?::[0-9]{1,5})?(?:/[^\\s?#@]*)?$",
+          "type": "string"
+        },
+        "region": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "endpoint",
+        "bucket",
+        "region"
+      ],
+      "type": "object"
+    },
+    "SampleValues": {
+      "enum": [
+        "none",
+        "masked",
+        "raw"
+      ],
+      "type": "string"
+    },
+    "Sandbox": {
+      "additionalProperties": false,
+      "properties": {
+        "driver": {
+          "$ref": "#/$defs/SandboxDriver"
+        },
+        "image": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "pool": {
+          "$ref": "#/$defs/SandboxPool",
+          "default": {
+            "max_idle_age": "1h",
+            "max_pool": 20,
+            "min_idle": 2
+          }
+        },
+        "resources": {
+          "$ref": "#/$defs/SandboxResources",
+          "default": {
+            "cpu": 2,
+            "disk": "5Gi",
+            "memory": "4Gi",
+            "pids": 512
+          }
+        }
+      },
+      "required": [
+        "driver",
+        "image"
+      ],
+      "type": "object"
+    },
+    "SandboxDriver": {
+      "enum": [
+        "docker-gvisor"
+      ],
+      "type": "string"
+    },
+    "SandboxPool": {
+      "additionalProperties": false,
+      "properties": {
+        "max_idle_age": {
+          "default": "1h",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "max_pool": {
+          "default": 20,
+          "format": "uint32",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_idle": {
+          "default": 2,
+          "format": "uint32",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SandboxResources": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "default": 2,
+          "format": "uint32",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "disk": {
+          "default": "5Gi",
+          "maxLength": 20,
+          "minLength": 1,
+          "pattern": "^(?:0|[1-9][0-9]{0,17})(?:B|KB|MB|GB|TB|KiB|MiB|GiB|TiB|Ki|Mi|Gi|Ti)?$",
+          "type": "string"
+        },
+        "memory": {
+          "default": "4Gi",
+          "maxLength": 20,
+          "minLength": 1,
+          "pattern": "^(?:0|[1-9][0-9]{0,17})(?:B|KB|MB|GB|TB|KiB|MiB|GiB|TiB|Ki|Mi|Gi|Ti)?$",
+          "type": "string"
+        },
+        "pids": {
+          "default": 512,
+          "format": "uint32",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SchemaGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[^\\u{0}/\\\\]{1,128}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schema": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "tables": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[^\\u{0}/\\\\]{1,128}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema",
+        "tables"
+      ],
+      "type": "object"
+    },
+    "Scoring": {
+      "additionalProperties": false,
+      "properties": {
+        "numeric_rel_tol": {
+          "description": "Ratio or confidence. A JSON number is the lexical decimal, not an f64. SQL amount fields stay strings. Exponents that expand past 8192 digits are rejected before any binary float conversion.",
+          "oneOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "pass_rule": {
+          "maxLength": 8,
+          "minLength": 4,
+          "pattern": "^pass(?:\\^[1-9][0-9]{0,2})?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "numeric_rel_tol",
+        "pass_rule"
+      ],
+      "type": "object"
+    },
+    "SecretBackend": {
+      "enum": [
+        "builtin",
+        "openbao",
+        "vault",
+        "aws-kms",
+        "gcp-kms",
+        "azure-kv",
+        "infisical"
+      ],
+      "type": "string"
+    },
+    "Secrets": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "$ref": "#/$defs/SecretBackend"
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "type": "object"
+    },
+    "Session": {
+      "additionalProperties": false,
+      "properties": {
+        "idle_timeout": {
+          "default": "30m",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "max_lifetime": {
+          "default": "8h",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "workspace_snapshot": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SheetMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "sheet": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "table": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sheet",
+        "table"
+      ],
+      "type": "object"
+    },
+    "SlackChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "credential": {
+          "default": null,
+          "maxLength": 137,
+          "minLength": 10,
+          "pattern": "^secret://[A-Za-z][A-Za-z0-9._-]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SnapshotMode": {
+      "enum": [
+        "oo_chunked",
+        "debezium_incremental"
+      ],
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_write_capable_credential": {
+          "default": false,
+          "type": "boolean"
+        },
+        "connection": {
+          "$ref": "#/$defs/Connection"
+        },
+        "connector": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": "string"
+        },
+        "consistency": {
+          "$ref": "#/$defs/ConsistencyMode",
+          "default": "transactional"
+        },
+        "consistency_acknowledged": {
+          "default": false,
+          "type": "boolean"
+        },
+        "credential": {
+          "maxLength": 137,
+          "minLength": 10,
+          "pattern": "^secret://[A-Za-z][A-Za-z0-9._-]{0,127}$",
+          "type": "string"
+        },
+        "freshness_expectation": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hooks": {
+          "default": [],
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "incremental": {
+          "$ref": "#/$defs/Incremental",
+          "default": {
+            "cursor": "updated_at",
+            "every": "1h",
+            "overlap": "5m"
+          }
+        },
+        "limits": {
+          "$ref": "#/$defs/SourceLimits",
+          "default": {
+            "max_connections": 4,
+            "max_rows_per_sec": 50000,
+            "window": null
+          }
+        },
+        "max_snapshot_txn_seconds": {
+          "default": "300s",
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": "string"
+        },
+        "max_txn_events": {
+          "default": 200000,
+          "format": "uint32",
+          "maximum": 10000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "overrides": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::TableName_TableOverride",
+          "default": {}
+        },
+        "read_from": {
+          "$ref": "#/$defs/ReadFrom",
+          "default": "replica"
+        },
+        "sample_values": {
+          "$ref": "#/$defs/SampleValues",
+          "default": "masked"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/SnapshotMode",
+          "default": "oo_chunked"
+        },
+        "sync": {
+          "$ref": "#/$defs/SyncMode",
+          "default": "auto"
+        },
+        "tables": {
+          "$ref": "#/$defs/TableSelect",
+          "default": {
+            "exclude": [],
+            "include": [
+              "*"
+            ]
+          }
+        },
+        "timezone": {
+          "default": null,
+          "maxLength": 98,
+          "minLength": 3,
+          "pattern": "^(?:UTC|Etc/UTC|[A-Za-z][A-Za-z0-9_+-]{0,31}(?:/[A-Za-z0-9_+-]{1,32}){1,2})$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type_policy": {
+          "$ref": "#/$defs/TypePolicy",
+          "default": {
+            "charset_override": {},
+            "strip_nul": true,
+            "tinyint1": "smallint",
+            "zero_date": "null"
+          }
+        }
+      },
+      "required": [
+        "connector",
+        "connection",
+        "credential"
+      ],
+      "type": "object"
+    },
+    "SourceLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_connections": {
+          "default": 4,
+          "format": "uint32",
+          "maximum": 128,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_rows_per_sec": {
+          "default": 50000,
+          "format": "uint32",
+          "maximum": 1000000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "window": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 11,
+          "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "SourcesFile": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "config/v1",
+          "type": "string"
+        },
+        "sources": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::SourceName_Source"
+        }
+      },
+      "required": [
+        "schema_version",
+        "sources"
+      ],
+      "title": "SourcesFile",
+      "type": "object"
+    },
+    "SyncMode": {
+      "enum": [
+        "auto",
+        "cdc",
+        "incremental",
+        "full"
+      ],
+      "type": "string"
+    },
+    "TableGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "$ref": "#/$defs/ColumnExclude"
+        },
+        "table": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "columns"
+      ],
+      "type": "object"
+    },
+    "TableOverride": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ColumnExclude"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "every": {
+          "default": null,
+          "maxLength": 11,
+          "minLength": 2,
+          "pattern": "^(?:0|[1-9][0-9]{0,9})[smhd]$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "key": {
+          "default": null,
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "partition": {
+          "default": null,
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sync": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SyncMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "type": "object"
+    },
+    "TableSelect": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[^\\u{0}/\\\\]{1,128}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "include": {
+          "default": [
+            "*"
+          ],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[^\\u{0}/\\\\]{1,128}$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Tinyint1Policy": {
+      "enum": [
+        "smallint",
+        "boolean"
+      ],
+      "type": "string"
+    },
+    "TlsMode": {
+      "enum": [
+        "require",
+        "verify_ca",
+        "verify_full"
+      ],
+      "type": "string"
+    },
+    "TypePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "charset_override": {
+          "$ref": "#/$defs/PatternMap_oo_core::text::CharsetTarget_CharsetName",
+          "default": {}
+        },
+        "strip_nul": {
+          "default": true,
+          "type": "boolean"
+        },
+        "tinyint1": {
+          "$ref": "#/$defs/Tinyint1Policy",
+          "default": "smallint"
+        },
+        "zero_date": {
+          "$ref": "#/$defs/ZeroDatePolicy",
+          "default": "null"
+        }
+      },
+      "type": "object"
+    },
+    "Visibility": {
+      "enum": [
+        "public",
+        "private"
+      ],
+      "type": "string"
+    },
+    "WebChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ZeroDatePolicy": {
+      "enum": [
+        "null",
+        "raw"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://openontology.dev/contracts/config/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/OoConfig"
+    },
+    {
+      "$ref": "#/$defs/SourcesFile"
+    },
+    {
+      "$ref": "#/$defs/FilesFile"
+    },
+    {
+      "$ref": "#/$defs/RolesFile"
+    },
+    {
+      "$ref": "#/$defs/AgentConfig"
+    },
+    {
+      "$ref": "#/$defs/HooksFile"
+    },
+    {
+      "$ref": "#/$defs/EvalSuite"
+    }
+  ],
+  "title": "Open Ontology configuration v1"
+}

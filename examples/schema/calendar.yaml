@@ -1,0 +1,25 @@
+schema_version: oos/v1
+business_tz: Asia/Shanghai
+fiscal_year_start_month: 4
+week_start: monday
+anchors:
+  - today
+  - month_start
+  - prev_month_start
+  - prev_month_end
+  - quarter_start
+  - prev_quarter_start
+  - prev_quarter_end
+  - fiscal_year_start
+  - prev_fiscal_year_end
+  - last_closed_period_end
+phrases:
+  上个月: { start: prev_month_start, end: month_start, bounds: "[)" }
+  上季度: { start: prev_quarter_start, end: quarter_start, bounds: "[)" }
+  近30天: { start: "today - 29", end: "today + 1", bounds: "[)" }
+  本月至今对比上月同期:
+    current: { start: month_start, end: "today + 1", bounds: "[)" }
+    previous:
+      start: prev_month_start
+      end: "min(month_start, prev_month_start + (today - month_start) + 1)"
+      bounds: "[)"

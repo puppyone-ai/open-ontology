@@ -1,0 +1,16 @@
+[package]
+name = "oo-pipeline"
+description = "Sync pipeline and loader. SP00-W01 skeleton; no write path."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oo-core = { path = "../oo-core" }
+oo-jobs = { path = "../oo-jobs" }
+oo-connectors = { path = "../oo-connectors" }

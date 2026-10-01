@@ -1,0 +1,13 @@
+schema_version: oos/v1
+examples:
+  - id: ex-fin-001
+    question: 上个月华东区回款最多的 10 个客户
+    sql: |
+      SELECT c.name, sum(r.amount) AS receipts FROM logistics.receipt r
+    uses: ["metric:monthly_receipts", "rel:receipt_to_customer"]
+    verified_by: finance.li
+    verified_at: "2026-10-12"
+    last_checked:
+      at: "2026-10-20"
+      status: ok
+      result_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"

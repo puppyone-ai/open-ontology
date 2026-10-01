@@ -1,0 +1,4660 @@
+{
+  "schema_version": 1,
+  "work_items": [
+    "SP00-W02",
+    "SP00-W03"
+  ],
+  "preserves": "supply-chain/dependency-baseline.json and supply-chain/dependency-baseline.md are unchanged. This file is the oo-core delta.",
+  "product": "Open Ontology agent-facing database and context entry. oo-core is types and pure rules. This delta is not a graph product and not a service.",
+  "adoption_date": "2026-09-30T23:48:21Z",
+  "seven_day_cutoff": "2026-09-23T23:48:21Z",
+  "seven_day_rule": "A crates.io version whose index pubtime is after the cutoff was not admitted. No security-fix exception was used. Index field read was pubtime.",
+  "prohibited_licenses": [
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "AGPL-3.0",
+    "BUSL-1.1",
+    "Elastic-2.0",
+    "SSPL-1.0"
+  ],
+  "prohibited_hits": [],
+  "toolchain": {
+    "pinned_channel": "1.98.1",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)",
+    "commit": "48a229ceaefd4985c50990b14116b6d856af0985",
+    "host": "aarch64-apple-darwin",
+    "workspace_rust_version": "1.94.0",
+    "highest_manifest_rust_version_in_lock": "1.91",
+    "highest_manifest_rust_version_among_crates_new_to_oo_core": "1.89",
+    "highest_new_crate": "serde-saphyr 1.3.0",
+    "msrv_recompile_of_this_lock": "not run. W01 compiled the skeleton workspace with rustc 1.94.1. This wave did not repeat that install.",
+    "linux_targets_built": false,
+    "rustup_installed": false
+  },
+  "lock": {
+    "registry_packages": 119,
+    "host_oo_core_registry_packages": 99,
+    "host_arch_check_only_registry_packages": 4,
+    "other_target_packages": 12,
+    "inactive_optional_packages": 4,
+    "platform_filter": "cargo metadata --format-version 1 --filter-platform aarch64-apple-darwin --locked --offline",
+    "tree": "cargo tree -p oo-core --locked --offline --edges normal,build",
+    "by_placement": {
+      "host_arch_check_only": 4,
+      "host_oo_core": 99,
+      "other_target": 12,
+      "inactive_optional": 4
+    },
+    "note": "host_oo_core and host_arch_check_only are in cargo metadata --filter-platform aarch64-apple-darwin. inactive_optional and other_target are in Cargo.lock and absent from that resolve. 2026-10-01 recount: 119 registry packages in Cargo.lock; cargo metadata --filter-platform aarch64-apple-darwin lists 119 packages of which 103 have a registry source (99 reachable from oo-core, 4 arch-check only). The five additions are chrono 0.4.45, chrono-tz 0.10.4, phf 0.12.1, phf_shared 0.12.1, and siphasher 1.0.3."
+  },
+  "direct_dependencies": [
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "features": [
+        "derive"
+      ],
+      "default_features": true,
+      "role": "model derive"
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "features": [
+        "arbitrary_precision"
+      ],
+      "default_features": true,
+      "role": "JSON number lexemes stay strings. arbitrary_precision is requested on this pin and is workspace-wide. float_roundtrip stays off on this edge; jsonschema still enables float_roundtrip on its own edge. Amounts still deserialize only from decimal strings."
+    },
+    {
+      "name": "schemars",
+      "version": "1.2.2",
+      "features": [
+        "derive"
+      ],
+      "default_features": true,
+      "role": "JSON Schema draft 2020-12 export"
+    },
+    {
+      "name": "serde-saphyr",
+      "version": "1.3.0",
+      "features": [
+        "serialize",
+        "deserialize"
+      ],
+      "default_features": false,
+      "role": "YAML. include and include_fs off."
+    },
+    {
+      "name": "jsonschema",
+      "version": "0.57.0",
+      "features": [],
+      "default_features": false,
+      "role": "offline draft 2020-12 validation. resolve-http, resolve-file, tls, idna off."
+    },
+    {
+      "name": "utoipa",
+      "version": "6.0.0",
+      "features": [
+        "macros"
+      ],
+      "default_features": false,
+      "role": "OpenAPI 3.1 component schemas"
+    },
+    {
+      "name": "utoipa-gen",
+      "version": "6.0.0",
+      "features": [],
+      "default_features": true,
+      "role": "proc-macro pin matching utoipa 6.0.0"
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "features": [
+        "std"
+      ],
+      "default_features": false,
+      "role": "SHA-256. sha2-asm off."
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.21",
+      "features": [],
+      "default_features": true,
+      "role": "error types. Same version as the W01 baseline."
+    },
+    {
+      "name": "chrono",
+      "version": "0.4.45",
+      "features": [
+        "std"
+      ],
+      "default_features": false,
+      "role": "IANA civil time. std only. clock, wasmbind, and oldtime off. No host zone lookup."
+    },
+    {
+      "name": "chrono-tz",
+      "version": "0.10.4",
+      "features": [
+        "std"
+      ],
+      "default_features": false,
+      "role": "Prebuilt IANA tzdb 2025b. case-insensitive and filter-by-regex off. build.rs does not call chrono-tz-build."
+    },
+    {
+      "name": "encoding_rs",
+      "version": "0.8.41",
+      "features": [],
+      "default_features": true,
+      "role": "Version pin so 0.8.42 is not selected. oo-core source does not call it. The pin is not a GB18030 decoder and is not an SP03 admission. Also reached via serde-saphyr -> encoding_rs_io."
+    },
+    {
+      "name": "siphasher",
+      "version": "1.0.3",
+      "features": [],
+      "default_features": true,
+      "role": "Pin so 1.0.4 (published 2026-09-25) is not selected. Pulled by phf_shared for the chrono-tz table. oo-core does not call it."
+    },
+    {
+      "name": "smallvec",
+      "version": "1.16.1",
+      "features": [],
+      "default_features": true,
+      "role": "pin. 1.16.2 was published 2026-09-25. Also a real transitive of serde-saphyr and parking_lot_core."
+    },
+    {
+      "name": "zerocopy",
+      "version": "0.8.57",
+      "features": [
+        "simd"
+      ],
+      "default_features": false,
+      "role": "pin matching ahash. 0.8.59 was younger than seven days. zerocopy-derive 0.8.57 is in the lock."
+    }
+  ],
+  "refused_for_age": [
+    {
+      "name": "encoding_rs",
+      "refused": "0.8.42",
+      "admitted": "0.8.41",
+      "note": "W01 refusal kept"
+    },
+    {
+      "name": "jsonschema",
+      "refused": "0.58.0 through 0.58.3",
+      "admitted": "0.57.0",
+      "note": "W01 refusal kept. default features off"
+    },
+    {
+      "name": "smallvec",
+      "refused": "1.16.2",
+      "published": "2026-09-25",
+      "admitted": "1.16.1"
+    },
+    {
+      "name": "zerocopy",
+      "refused": "0.8.59",
+      "admitted": "0.8.57"
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.106",
+      "published": "2026-09-25T07:13:42Z",
+      "disposition": "present in Cargo.lock as a getrandom other-target dependency. Absent from the aarch64-apple-darwin oo-core graph. A wasm32 build of this lock is blocked."
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.129",
+      "published": "2026-09-25T07:13:40Z",
+      "disposition": "same as js-sys, with wasm-bindgen-macro, wasm-bindgen-macro-support, and wasm-bindgen-shared"
+    },
+    {
+      "name": "siphasher",
+      "refused": "1.0.4",
+      "published": "2026-09-25T08:51:05Z",
+      "checksum": "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256",
+      "admitted": "1.0.3",
+      "note": "Inside the 168-hour window on 2026-10-01. Pinned to 1.0.3, pubtime 2026-05-03T20:58:08Z."
+    }
+  ],
+  "feature_notes": {
+    "jsonschema_enabled_features": [],
+    "serde_json_enabled_features": [
+      "alloc",
+      "arbitrary_precision",
+      "default",
+      "float_roundtrip",
+      "std",
+      "unbounded_depth"
+    ],
+    "serde_json_float_roundtrip": "Still enabled on the host resolve because jsonschema 0.57.0 depends on serde_json with feature float_roundtrip. The oo-core edge does not request float_roundtrip. Exact amounts stay decimal strings.",
+    "preserve_order_and_raw_value": "Not enabled. schemars preserve_order and raw_value were not turned on.",
+    "ahash_enabled_features": [
+      "default",
+      "getrandom",
+      "runtime-rng",
+      "serde",
+      "std"
+    ],
+    "getrandom_enabled_features_metadata": [
+      "wasm_js"
+    ],
+    "getrandom_host_edges": "cargo tree shows getrandom 0.3.4 -> cfg-if 1.0.5 and libc 0.2.189. wasm-bindgen and js-sys are not edges on this platform.",
+    "uuid_simd": "jsonschema 0.57.0 depends on uuid-simd 0.8.0 with default-features false and features std, detect. It is in the host graph. The published crate has no LICENSE file. Manifest license is MIT.",
+    "sha2_asm": "off",
+    "serde_saphyr_include": "off",
+    "jsonschema_network_and_file_resolvers": "off",
+    "reqwest_idna_tokio_in_lock": false,
+    "arrow_crate": "not admitted. Arrow series-60 display strings are produced by oo-core and are not an arrow-schema Display comparison.",
+    "serde_json_arbitrary_precision": "Enabled because oo-core depends on serde_json 1.0.151 with feature arbitrary_precision. The feature is workspace-wide for this pin. JSON numbers reach oo-core as lexical decimal strings. A predicate that rejects a large f64 after rounding is not the parser. YAML numbers use granit-parser events, not serde_json's f64.",
+    "chrono": "Host features alloc and std. clock, wasmbind, and oldtime are off. iana-time-zone, windows-link, wasm-bindgen, and js-sys are not reachable from oo-core.",
+    "chrono_tz": "Host feature std. case-insensitive and filter-by-regex off. IANA tzdb string in the prebuilt table is 2025b. chrono-tz-build is not in the lock.",
+    "phf": "Host feature list is empty. macros is off. phf_macros is not a dependency.",
+    "siphasher": "Host features default and std. Direct pin 1.0.3. 1.0.4 refused for age.",
+    "encoding_rs": "Version pin 0.8.41. oo-core source does not call it. Host features alloc and default, via the direct pin and via encoding_rs_io. This is not a GB18030 decoder."
+  },
+  "build_scripts": {
+    "host": "Build scripts reached on aarch64-apple-darwin are cfg or rustc version probes (println, autocfg, version_check, rustc_version), plus the chrono-tz 0.10.4 build.rs described in host_chrono_tz. No C compiler invocation was observed for the host closure.",
+    "other_target_wasm_bindgen_shared": "build.rs runs git rev-parse and emits cargo:rustc-env. The audit heuristic matched the substring bindgen. It does not compile C. The crate is not in the host graph.",
+    "other_target_wit_bindgen": "On a non-wasm target the build script returns immediately. On wasm32 it copies the shipped static archive src/rt/libwit_bindgen_cabi.a and emits cargo:rustc-link-lib=static. That path was not executed. The crate is not in the host graph. A wasm32 build is blocked by the age of wasm-bindgen 0.2.129 and js-sys 0.3.106.",
+    "host_chrono_tz": "chrono-tz 0.10.4 build.rs is 545 bytes and cargo runs it. chrono_tz_build::main is cfg-gated on filter-by-regex and case-insensitive. Both are off, so the call is not compiled. chrono-tz-build is not in Cargo.lock. No C compiler invocation."
+  },
+  "missing_license_files": [
+    {
+      "name": "jsonschema-regex",
+      "version": "0.57.0",
+      "manifest_license": "MIT",
+      "placement": "host_oo_core",
+      "note": "same commit 8a7870f1400e9dcddfe8cfb57e550fbe4013f79a path crates/jsonschema-regex, workspace.package.license MIT, root LICENSE",
+      "resolution": {
+        "tarball_has_license_file": false,
+        "cleared_by": "same commit 8a7870f1400e9dcddfe8cfb57e550fbe4013f79a path crates/jsonschema-regex, workspace.package.license MIT, root LICENSE",
+        "license_relied_on": "MIT",
+        "evidence": "supply-chain/licenses/core/jsonschema-regex-0.57.0",
+        "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+        "bytes": 1075
+      }
+    },
+    {
+      "name": "jsonschema-value",
+      "version": "0.57.0",
+      "manifest_license": "MIT",
+      "placement": "host_oo_core",
+      "note": "same commit 8a7870f1400e9dcddfe8cfb57e550fbe4013f79a path crates/jsonschema-value, same root LICENSE",
+      "resolution": {
+        "tarball_has_license_file": false,
+        "cleared_by": "same commit 8a7870f1400e9dcddfe8cfb57e550fbe4013f79a path crates/jsonschema-value, same root LICENSE",
+        "license_relied_on": "MIT",
+        "evidence": "supply-chain/licenses/core/jsonschema-value-0.57.0",
+        "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+        "bytes": 1075
+      }
+    },
+    {
+      "name": "uuid-simd",
+      "version": "0.8.0",
+      "manifest_license": "MIT",
+      "placement": "host_oo_core",
+      "note": "same commit d74c030d9dc4f3cae02146d1f497ff62726ef09a path crates/uuid-simd, README link ../../LICENSE, root LICENSE",
+      "resolution": {
+        "tarball_has_license_file": false,
+        "cleared_by": "same commit d74c030d9dc4f3cae02146d1f497ff62726ef09a path crates/uuid-simd, README link ../../LICENSE, root LICENSE",
+        "license_relied_on": "MIT",
+        "evidence": "supply-chain/licenses/core/uuid-simd-0.8.0",
+        "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+        "bytes": 1062
+      }
+    },
+    {
+      "name": "vsimd",
+      "version": "0.8.0",
+      "manifest_license": "MIT",
+      "placement": "host_oo_core",
+      "note": "same commit d74c030d9dc4f3cae02146d1f497ff62726ef09a path crates/vsimd, README link ../../LICENSE, root LICENSE",
+      "resolution": {
+        "tarball_has_license_file": false,
+        "cleared_by": "same commit d74c030d9dc4f3cae02146d1f497ff62726ef09a path crates/vsimd, README link ../../LICENSE, root LICENSE",
+        "license_relied_on": "MIT",
+        "evidence": "supply-chain/licenses/core/vsimd-0.8.0",
+        "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+        "bytes": 1062
+      }
+    },
+    {
+      "name": "r-efi",
+      "version": "5.3.0",
+      "manifest_license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "license_relied_on": "Apache-2.0",
+      "placement": "other_target",
+      "note": "AUTHORS in the published crate at commit 97b55bed1c2c91dcbf787674849f05337ff80b33 plus Apache-2.0 text fetched from the URL AUTHORS names. LGPL full text is absent and that alternative is not selected.",
+      "resolution": {
+        "tarball_has_license_file": false,
+        "tarball_has_authors": true,
+        "cleared_by": "AUTHORS in the published crate at commit 97b55bed1c2c91dcbf787674849f05337ff80b33 plus Apache-2.0 text fetched from the URL AUTHORS names. LGPL full text is absent and that alternative is not selected.",
+        "license_relied_on": "Apache-2.0",
+        "evidence": "supply-chain/licenses/core/r-efi-5.3.0",
+        "authors_sha256": "ff92bed461f50338dd703a9ba9aee496a425957873df1d91192776e4bdf5dda7",
+        "apache_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "apache_in_git_commit": false
+      }
+    }
+  ],
+  "advisories": {
+    "cargo_audit": "not installed and not run",
+    "cargo_deny": "not installed and not run"
+  },
+  "commands": [
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --locked --offline -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p oo-core --locked --offline",
+      "exit_code": 0,
+      "result": "lib 8, canonical_golden 7, fixtures_pg_mysql 5, schema_contract 7, doc-tests 0"
+    },
+    {
+      "command": "cargo test --workspace --locked --offline",
+      "exit_code": 0,
+      "result": "includes oo-arch-check 27 passed and the oo-core tests above"
+    },
+    {
+      "command": "cargo run -p oo-arch-check --locked --offline",
+      "exit_code": 0,
+      "result": "architecture check: pass"
+    },
+    {
+      "command": "cargo run -p oo-arch-check --locked --offline -- --demonstrate-negative",
+      "exit_code": 0,
+      "result": "mutated oo-gateway -> oo-pipeline failed with 4 violations; restored baseline passed; negative demonstration: pass"
+    },
+    {
+      "command": "cargo metadata --format-version 1 --filter-platform aarch64-apple-darwin --locked --offline",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo tree -p oo-core --locked --offline --edges normal,build",
+      "exit_code": 0
+    }
+  ],
+  "packages": [
+    {
+      "name": "camino",
+      "version": "1.2.6",
+      "checksum": "bbbad30e4b4c14a39e3cc8aed085a12a327257c316619c93581e017bc52be591",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-15T03:32:22Z",
+      "yanked": false,
+      "manifest_rust_version": "1.61.0",
+      "index_rust_version": "1.61.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_arch_check_only",
+      "enabled_features_on_host": null,
+      "build_script": {
+        "bytes": 3673,
+        "markers": [
+          "Command::",
+          "rustc_version",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_arch_check_only"
+    },
+    {
+      "name": "cargo-platform",
+      "version": "0.3.3",
+      "checksum": "dd0061da739915fae12ea00e16397555ed4371a6bb285431aab930f61b0aa4ba",
+      "checksum_matches_index": true,
+      "pubtime": "2026-04-18T14:37:47Z",
+      "yanked": false,
+      "manifest_rust_version": "1.91",
+      "index_rust_version": "1.91",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10860,
+          "sha256": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_arch_check_only",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "host_arch_check_only"
+    },
+    {
+      "name": "cargo_metadata",
+      "version": "0.23.1",
+      "checksum": "ef987d17b0a113becdd19d3d0022d04d7ef41f9efe4f3fb63ac44ba61df3ade9",
+      "checksum_matches_index": true,
+      "pubtime": "2025-11-12T16:08:46Z",
+      "yanked": false,
+      "manifest_rust_version": "1.86.0",
+      "index_rust_version": "1.86.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_arch_check_only",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "host_arch_check_only"
+    },
+    {
+      "checksum_matches_index": true,
+      "yanked": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "lock_role": "host_oo_core",
+      "license_file_missing": false,
+      "name": "chrono",
+      "version": "0.4.45",
+      "checksum": "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327",
+      "pubtime": "2026-06-04T12:16:42Z",
+      "manifest_rust_version": "1.62.0",
+      "index_rust_version": "1.62.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE.txt",
+          "bytes": 12307,
+          "sha256": "946c9835d8034d24404f8cfec5f4654cee5dad17e944afc3d06d742cf2882831",
+          "in_published_crate": true,
+          "git_commit": "170338250e836976a211e64728ec956e45e78a39",
+          "git_path": "LICENSE.txt"
+        }
+      ],
+      "enabled_features_on_host": [
+        "alloc",
+        "std"
+      ],
+      "build_script": null,
+      "upstream_license_evidence": "supply-chain/licenses/core/chrono-0.4.45",
+      "git_commit": "170338250e836976a211e64728ec956e45e78a39"
+    },
+    {
+      "checksum_matches_index": true,
+      "yanked": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "lock_role": "host_oo_core",
+      "license_file_missing": false,
+      "name": "chrono-tz",
+      "version": "0.10.4",
+      "checksum": "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3",
+      "pubtime": "2025-07-11T19:08:33Z",
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 12183,
+          "sha256": "4789210f4df8abc03fce1cddd9c2ba517f184840687f2815d741de282c1aa93a",
+          "in_published_crate": true,
+          "git_commit": "e15d1f308a1ac2fdf3f1bf19c325dc202d418081",
+          "git_path": "LICENSE",
+          "git_path_at_crate": "chrono-tz/LICENSE",
+          "git_mode_at_crate": "120000 symlink to ../LICENSE"
+        },
+        {
+          "file": "tz/LICENSE",
+          "bytes": 252,
+          "sha256": "0613408568889f5739e5ae252b722a2659c02002839ad970a63dc5e9174b27cf",
+          "in_published_crate": true,
+          "git_commit": "7e1145bfdb9630c127841dc8ce808a937a300938",
+          "git_repo": "https://github.com/eggert/tz",
+          "git_path": "LICENSE",
+          "notice": "public domain tzdb data; MIT and Apache-2.0 do not cover these files"
+        }
+      ],
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": {
+        "bytes": 545,
+        "markers": [
+          "cfg feature filter-by-regex",
+          "cfg feature case-insensitive"
+        ],
+        "native_compile_heuristic": false,
+        "note": "Runs. chrono_tz_build::main is not compiled when those features are off. chrono-tz-build is not in the lock."
+      },
+      "upstream_license_evidence": "supply-chain/licenses/core/chrono-tz-0.10.4",
+      "git_commit": "e15d1f308a1ac2fdf3f1bf19c325dc202d418081",
+      "iana_tzdb": "2025b"
+    },
+    {
+      "checksum_matches_index": true,
+      "yanked": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "lock_role": "host_oo_core",
+      "license_file_missing": false,
+      "name": "phf",
+      "version": "0.12.1",
+      "checksum": "913273894cec178f401a31ec4b656318d95473527be05c0752cc41cdc32be8b7",
+      "pubtime": "2025-06-19T11:38:02Z",
+      "manifest_rust_version": "1.61",
+      "index_rust_version": "1.61",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1099,
+          "sha256": "0ab4d106b6faac07fb6a051815fd1b4d862d730895e2d7d7358c2f13565e7a38",
+          "in_published_crate": true,
+          "git_commit": "03a930696231da01005e762425841f91587b3e04",
+          "git_path": "LICENSE",
+          "git_path_at_crate": "phf/LICENSE",
+          "git_mode_at_crate": "120000 symlink to ../LICENSE"
+        }
+      ],
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "upstream_license_evidence": "supply-chain/licenses/core/phf-0.12.1",
+      "git_commit": "03a930696231da01005e762425841f91587b3e04"
+    },
+    {
+      "checksum_matches_index": true,
+      "yanked": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "lock_role": "host_oo_core",
+      "license_file_missing": false,
+      "name": "phf_shared",
+      "version": "0.12.1",
+      "checksum": "06005508882fb681fd97892ecff4b7fd0fee13ef1aa569f8695dae7ab9099981",
+      "pubtime": "2025-06-19T11:37:21Z",
+      "manifest_rust_version": "1.61",
+      "index_rust_version": "1.61",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1099,
+          "sha256": "0ab4d106b6faac07fb6a051815fd1b4d862d730895e2d7d7358c2f13565e7a38",
+          "in_published_crate": true,
+          "git_commit": "03a930696231da01005e762425841f91587b3e04",
+          "git_path": "LICENSE",
+          "git_path_at_crate": "phf_shared/LICENSE",
+          "git_mode_at_crate": "120000 symlink to ../LICENSE"
+        }
+      ],
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "upstream_license_evidence": "supply-chain/licenses/core/phf_shared-0.12.1",
+      "git_commit": "03a930696231da01005e762425841f91587b3e04"
+    },
+    {
+      "name": "semver",
+      "version": "1.0.28",
+      "checksum": "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd",
+      "checksum_matches_index": true,
+      "pubtime": "2026-04-04T00:25:14Z",
+      "yanked": false,
+      "manifest_rust_version": "1.68",
+      "index_rust_version": "1.68",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_arch_check_only",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "host_arch_check_only"
+    },
+    {
+      "name": "ahash",
+      "version": "0.8.12",
+      "checksum": "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75",
+      "checksum_matches_index": true,
+      "pubtime": "2025-05-08T05:05:32Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60.0",
+      "index_rust_version": "1.60.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "getrandom",
+        "runtime-rng",
+        "serde",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 782,
+        "markers": [
+          "version_check",
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "aho-corasick",
+      "version": "1.1.5",
+      "checksum": "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-03T11:44:11Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60.0",
+      "index_rust_version": "1.60.0",
+      "manifest_license": "Unlicense OR MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "COPYING",
+          "bytes": 126,
+          "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1081,
+          "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+        },
+        {
+          "file": "UNLICENSE",
+          "bytes": 1211,
+          "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "perf-literal",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "allocator-api2",
+      "version": "0.2.21",
+      "checksum": "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923",
+      "checksum_matches_index": true,
+      "pubtime": "2024-12-01T14:49:16Z",
+      "yanked": false,
+      "manifest_rust_version": "1.63",
+      "index_rust_version": "1.63",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9899,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1046,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "annotate-snippets",
+      "version": "0.12.16",
+      "checksum": "f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1",
+      "checksum_matches_index": true,
+      "pubtime": "2026-05-06T19:58:20Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "anstyle",
+      "version": "1.0.14",
+      "checksum": "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000",
+      "checksum_matches_index": true,
+      "pubtime": "2026-03-13T18:59:28Z",
+      "yanked": false,
+      "manifest_rust_version": "1.66.0",
+      "index_rust_version": "1.66.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1062,
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "arraydeque",
+      "version": "0.5.1",
+      "checksum": "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236",
+      "checksum_matches_index": true,
+      "pubtime": "2023-02-05T09:45:24Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT/Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1101,
+          "sha256": "0aab2eeeaa27c8e946c235e5e605c6d52cb0a56d254c660bdcf618d6f7faf4af"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "autocfg",
+      "version": "1.5.1",
+      "checksum": "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53",
+      "checksum_matches_index": true,
+      "pubtime": "2026-05-22T11:03:04Z",
+      "yanked": false,
+      "manifest_rust_version": "1.0",
+      "index_rust_version": "1.0",
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1054,
+          "sha256": "27995d58ad5c1145c1a8cd86244ce844886958a35eb2b78c6b772748669999ac"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "base64",
+      "version": "0.23.1",
+      "checksum": "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-04T12:34:31Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71.0",
+      "index_rust_version": "1.71.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1093,
+          "sha256": "ab499c75a0f0da8e0fe83bf9ba3a27e5c39705310f07107c6c66b69958d2401c"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "simd-unsafe",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "bit-set",
+      "version": "0.8.0",
+      "checksum": "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3",
+      "checksum_matches_index": true,
+      "pubtime": "2024-07-16T17:18:45Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10850,
+          "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "f51ac2c59a222f7476ce507ca879960e2b64ea64bb2786eefdbeb7b0b538d1b7"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "bit-vec",
+      "version": "0.8.0",
+      "checksum": "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7",
+      "checksum_matches_index": true,
+      "pubtime": "2024-07-16T17:14:52Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10850,
+          "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "f51ac2c59a222f7476ce507ca879960e2b64ea64bb2786eefdbeb7b0b538d1b7"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "checksum": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+      "checksum_matches_index": true,
+      "pubtime": "2023-03-09T02:08:25Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1082,
+          "sha256": "d5c22aa3118d240e877ad41c5d9fa232f9c77d757d4aac0c2f943afc0a95e0ef"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "borrow-or-share",
+      "version": "0.2.4",
+      "checksum": "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c",
+      "checksum_matches_index": true,
+      "pubtime": "2025-11-02T17:53:51Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT-0",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 904,
+          "sha256": "010492e490b92ec85db01daad2a290ea5959f29314a1c4ff25e7a172e223abf9"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "bytecount",
+      "version": "0.6.9",
+      "checksum": "175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e",
+      "checksum_matches_index": true,
+      "pubtime": "2025-06-03T06:59:49Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "Apache-2.0/MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE.Apache2",
+          "bytes": 11357,
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+        },
+        {
+          "file": "LICENSE.MIT",
+          "bytes": 1068,
+          "sha256": "a5dea80c1f383cb5f80a6bb0da5e55a2beb9f24adb123ce6300af2cbaaa3bf65"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "runtime-dispatch-simd"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "checksum": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-16T17:36:11Z",
+      "yanked": false,
+      "manifest_rust_version": "1.32",
+      "index_rust_version": "1.32",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "checksum": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+      "checksum_matches_index": true,
+      "pubtime": "2025-01-25T01:35:46Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1082,
+          "sha256": "ae9baa7beea910273c2f384c2a6b721fb7bd02bda3436074a1072e4ee689f985"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.6",
+      "checksum": "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3",
+      "checksum_matches_index": true,
+      "pubtime": "2022-07-16T21:59:26Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1065,
+          "sha256": "3521672491a3479422d5fe1aca6645dd2984090f85da6e5205abfb18fb7a6897"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "data-encoding",
+      "version": "2.11.1",
+      "checksum": "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-03T10:39:52Z",
+      "yanked": false,
+      "manifest_rust_version": "1.48",
+      "index_rust_version": "1.48",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1121,
+          "sha256": "b68ad1a3367b825447089e1f8d6829b97f47a89eb78d2f4ebaef4672f5606186"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "checksum": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+      "checksum_matches_index": true,
+      "pubtime": "2023-05-19T17:11:30Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "block-buffer",
+        "core-api",
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "dyn-clone",
+      "version": "1.0.20",
+      "checksum": "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555",
+      "checksum_matches_index": true,
+      "pubtime": "2025-07-27T19:29:46Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "email_address",
+      "version": "0.2.9",
+      "checksum": "e079f19b08ca6239f47f8ba8509c11cf3ea30095831f7fed61441475edd8c449",
+      "checksum_matches_index": true,
+      "pubtime": "2024-07-31T22:44:11Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1071,
+          "sha256": "39712155836e5c10ef1b07037b606e4ad2d633e72205d162fdd7e2290aa54f15"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "serde",
+        "serde_support"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "encoding_rs",
+      "version": "0.8.41",
+      "checksum": "7b5ef0006ac9ab233c38522f5ae99cae3625151de8f706cacee1cba4b8e2832a",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-09T08:32:25Z",
+      "yanked": false,
+      "manifest_rust_version": "1.88",
+      "index_rust_version": "1.88",
+      "manifest_license": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+      "license_relied_on": "Apache-2.0 AND BSD-3-Clause",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1053,
+          "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+        },
+        {
+          "file": "LICENSE-WHATWG",
+          "bytes": 1501,
+          "sha256": "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default"
+      ],
+      "build_script": {
+        "bytes": 203,
+        "markers": [
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "encoding_rs_io",
+      "version": "0.1.8",
+      "checksum": "fba3fe847045ecff794b9c138293a80db914678c453ad63fbf0c6a9eb6e00b22",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-04T12:47:28Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "COPYING",
+          "bytes": 260,
+          "sha256": "13361f93b3db60ddb43f8fdc97ba469461019bbf7589f6bde833eb3d995d2497"
+        },
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1081,
+          "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "equivalent",
+      "version": "1.0.2",
+      "checksum": "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f",
+      "checksum_matches_index": true,
+      "pubtime": "2025-02-14T22:14:18Z",
+      "yanked": false,
+      "manifest_rust_version": "1.6",
+      "index_rust_version": "1.6",
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1049,
+          "sha256": "7365cc8878a1d7ce155a58c4ca09c3d7a6be413efa5334a80ea842912b669349"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "fancy-regex",
+      "version": "0.19.2",
+      "checksum": "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-13T02:28:32Z",
+      "yanked": false,
+      "manifest_rust_version": "1.66",
+      "index_rust_version": "1.66",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1081,
+          "sha256": "3bc70e239e91272782006c638fc0452a714d384224f11f0923036b7be07cf9b5"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "perf",
+        "std",
+        "unicode",
+        "variable-lookbehinds"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "fluent-uri",
+      "version": "0.4.1",
+      "checksum": "bc74ac4d8359ae70623506d512209619e5cf8f347124910440dbc221714b328e",
+      "checksum_matches_index": true,
+      "pubtime": "2025-11-04T16:55:20Z",
+      "yanked": false,
+      "manifest_rust_version": "1.68",
+      "index_rust_version": "1.68",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1066,
+          "sha256": "9fa38f610a00115dd1f612bdd3559e3b381ea579538b6ff25a5899da250a5fce"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "impl-error",
+        "serde",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "foldhash",
+      "version": "0.2.0",
+      "checksum": "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb",
+      "checksum_matches_index": true,
+      "pubtime": "2025-08-23T19:14:01Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "Zlib",
+      "license_relied_on": "Zlib",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 856,
+          "sha256": "b1181a40b2a7b25cf66fd01481713bc1005df082c53ef73e851e55071b102744"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "fraction",
+      "version": "0.17.0",
+      "checksum": "e246562084dde8ebbcc943b261c406ce4f68e5032ec28029a251a47d6a295500",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-22T19:46:13Z",
+      "yanked": false,
+      "manifest_rust_version": "1.70",
+      "index_rust_version": "1.70",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "num-bigint",
+        "with-bigint"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.9",
+      "checksum": "4bb6743198531e02858aeaea5398fcc883e71851fcbcb5a2f773e2fb6cb1edf2",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-13T14:01:34Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1107,
+          "sha256": "ad4fcfaf8d5b12b97409c137a03d4a4e4b21024c65c54f976cc3b609c1bd5b0f"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "more_lengths"
+      ],
+      "build_script": {
+        "bytes": 759,
+        "markers": [
+          "version_check",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "getrandom",
+      "version": "0.3.4",
+      "checksum": "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-14T17:47:36Z",
+      "yanked": false,
+      "manifest_rust_version": "1.63",
+      "index_rust_version": "1.63",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "aaff376532ea30a0cd5330b9502ad4a4c8bf769c539c87ffe78819d188a18ebf"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1130,
+          "sha256": "29e9fe5074bd27e0e5d5d110394fbbcd841baee2651a3c4b4560a632702cede4"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "wasm_js"
+      ],
+      "build_script": {
+        "bytes": 2173,
+        "markers": [
+          "Command::",
+          "rustc_version",
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "granit-parser",
+      "version": "1.3.0",
+      "checksum": "e20f99e46474f56bd905c56e817ebddcf377a611f94c53ac4649e4d3fa3c0cd0",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-16T15:29:32Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81.0",
+      "index_rust_version": "1.81.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 996,
+          "sha256": "1af262e6647807eecaec988ecf2b783fb8fdbdecba396d582c1aab90615f6845"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "error_messages",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "checksum": "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a",
+      "checksum_matches_index": true,
+      "pubtime": "2026-05-09T04:35:04Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1060,
+          "sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "allocator-api2",
+        "default",
+        "default-hasher",
+        "equivalent",
+        "inline-more",
+        "raw-entry"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "heck",
+      "version": "0.5.0",
+      "checksum": "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea",
+      "checksum_matches_index": true,
+      "pubtime": "2024-03-12T22:42:23Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56",
+      "index_rust_version": "1.56",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "indexmap",
+      "version": "2.14.2",
+      "checksum": "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-05T01:53:48Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85",
+      "index_rust_version": "1.85",
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1049,
+          "sha256": "ecc269ef87fd38a1d98e30bfac9ba964a9dbd9315c3770fed98d4d7cb5882055"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "serde",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "checksum": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+      "checksum_matches_index": true,
+      "pubtime": "2026-03-20T00:12:37Z",
+      "yanked": false,
+      "manifest_rust_version": "1.68",
+      "index_rust_version": "1.68",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "jsonschema",
+      "version": "0.57.0",
+      "checksum": "71160ed5f6dbe36a2d6be79f4ca03ee09a99d2866f340faed49458913449aefa",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-21T22:55:19Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1075,
+          "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "jsonschema-regex",
+      "version": "0.57.0",
+      "checksum": "48d2120d8466ffcdc1b3be4b88ff0e9191bf5b6b09b1b1af1eef9aff8f465ea3",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-21T22:54:07Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1075,
+          "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+          "in_published_crate": false,
+          "git_commit": "8a7870f1400e9dcddfe8cfb57e550fbe4013f79a",
+          "git_path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/Stranger6667/jsonschema/8a7870f1400e9dcddfe8cfb57e550fbe4013f79a/LICENSE"
+        }
+      ],
+      "license_file_missing": true,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core",
+      "upstream_license_evidence": "supply-chain/licenses/core/jsonschema-regex-0.57.0"
+    },
+    {
+      "name": "jsonschema-value",
+      "version": "0.57.0",
+      "checksum": "3fbfa40a42415369d940b3848f3ce08099f1f1ac04d73e8580f4d652617c4f44",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-21T22:54:03Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1075,
+          "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+          "in_published_crate": false,
+          "git_commit": "8a7870f1400e9dcddfe8cfb57e550fbe4013f79a",
+          "git_path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/Stranger6667/jsonschema/8a7870f1400e9dcddfe8cfb57e550fbe4013f79a/LICENSE"
+        }
+      ],
+      "license_file_missing": true,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "serde_json"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core",
+      "upstream_license_evidence": "supply-chain/licenses/core/jsonschema-value-0.57.0"
+    },
+    {
+      "name": "libc",
+      "version": "0.2.189",
+      "checksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-21T21:33:28Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1066,
+          "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 12792,
+        "markers": [
+          "std::process",
+          "Command::",
+          "rustc_version",
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "lock_api",
+      "version": "0.4.14",
+      "checksum": "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-03T23:33:12Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71.0",
+      "index_rust_version": "1.71.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "atomic_usize",
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "checksum": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-08T00:49:54Z",
+      "yanked": false,
+      "manifest_rust_version": "1.61",
+      "index_rust_version": "1.61",
+      "manifest_license": "Unlicense OR MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "COPYING",
+          "bytes": 126,
+          "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1081,
+          "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+        },
+        {
+          "file": "UNLICENSE",
+          "bytes": 1211,
+          "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "micromap",
+      "version": "0.3.0",
+      "checksum": "c2a86d3146ed3995b5913c414f6664344b9617457320782e64f0bb44afd49d74",
+      "checksum_matches_index": true,
+      "pubtime": "2026-03-11T12:04:41Z",
+      "yanked": false,
+      "manifest_rust_version": "1.79",
+      "index_rust_version": "1.79",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE.txt",
+          "bytes": 1065,
+          "sha256": "9387c2d197e2370a740ca457dae1662c56de56b811ee4862024343961307f9bf"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "multiversion_no_op",
+      "version": "1.0.0",
+      "checksum": "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-30T13:20:49Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56",
+      "index_rust_version": "1.56",
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1053,
+          "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "nohash-hasher",
+      "version": "0.2.0",
+      "checksum": "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451",
+      "checksum_matches_index": true,
+      "pubtime": "2020-02-17T11:38:13Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1069,
+          "sha256": "ec353d4fecf7963b4c054384557e5dbc3c7a717997eb4a3815b315721a6aa75a"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num",
+      "version": "0.4.3",
+      "checksum": "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23",
+      "checksum_matches_index": true,
+      "pubtime": "2024-05-08T16:40:50Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "num-bigint",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-bigint",
+      "version": "0.4.8",
+      "checksum": "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-05T01:20:47Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-cmp",
+      "version": "0.1.0",
+      "checksum": "63335b2e2c34fae2fb0aa2cecfd9f0832a1e24b3b32ecec612c3426d46dc8aaa",
+      "checksum_matches_index": true,
+      "pubtime": "2017-03-02T12:27:31Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT/Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE.txt",
+          "bytes": 20512,
+          "sha256": "3bb1e548250b3acc43febde65a5cdba9f2e0a3288018aa41f009a3c59ffab51a"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-complex",
+      "version": "0.4.6",
+      "checksum": "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495",
+      "checksum_matches_index": true,
+      "pubtime": "2024-05-07T23:51:24Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-integer",
+      "version": "0.1.47",
+      "checksum": "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-12T00:11:57Z",
+      "yanked": false,
+      "manifest_rust_version": "1.31",
+      "index_rust_version": "1.31",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "i128",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-iter",
+      "version": "0.1.46",
+      "checksum": "c92800bd69a1eac91786bcfe9da64a897eb72911b8dc3095decbd07429e8048b",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-07T19:51:46Z",
+      "yanked": false,
+      "manifest_rust_version": "1.31",
+      "index_rust_version": "1.31",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "i128",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-rational",
+      "version": "0.4.2",
+      "checksum": "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824",
+      "checksum_matches_index": true,
+      "pubtime": "2024-05-08T02:55:34Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "num-bigint",
+        "num-bigint-std",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "num-traits",
+      "version": "0.2.19",
+      "checksum": "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841",
+      "checksum_matches_index": true,
+      "pubtime": "2024-05-03T21:27:39Z",
+      "yanked": false,
+      "manifest_rust_version": "1.60",
+      "index_rust_version": "1.60",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "i128",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 160,
+        "markers": [
+          "autocfg"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "checksum": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+      "checksum_matches_index": true,
+      "pubtime": "2026-03-12T10:59:52Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "race"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "outref",
+      "version": "0.5.2",
+      "checksum": "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e",
+      "checksum_matches_index": true,
+      "pubtime": "2025-01-15T09:06:04Z",
+      "yanked": false,
+      "manifest_rust_version": "1.63.0",
+      "index_rust_version": "1.63.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1062,
+          "sha256": "a00511478c83ebb464ef19d840f061c7444adc4636bb561900e75c5808cfc6cc"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "parking_lot",
+      "version": "0.12.5",
+      "checksum": "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-03T23:34:14Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "parking_lot_core",
+      "version": "0.9.12",
+      "checksum": "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-03T23:33:43Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71.0",
+      "index_rust_version": "1.71.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": {
+        "bytes": 515,
+        "markers": [
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "checksum": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220",
+      "checksum_matches_index": true,
+      "pubtime": "2025-08-21T08:46:50Z",
+      "yanked": false,
+      "manifest_rust_version": "1.51",
+      "index_rust_version": "1.51",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1072,
+          "sha256": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "checksum": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-19T00:18:25Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "proc-macro"
+      ],
+      "build_script": {
+        "bytes": 10277,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "checksum": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-19T00:16:57Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "proc-macro"
+      ],
+      "build_script": {
+        "bytes": 882,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "ref-cast",
+      "version": "1.0.27",
+      "checksum": "7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-19T04:27:28Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": {
+        "bytes": 1288,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "ref-cast-impl",
+      "version": "1.0.27",
+      "checksum": "92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-19T04:27:24Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "referencing",
+      "version": "0.57.0",
+      "checksum": "b06f6798be4fed305e74df8b1fb90cf59c6b8cc17aa3febeb1830c0c6b627b3e",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-21T22:53:58Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1075,
+          "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "regex",
+      "version": "1.13.1",
+      "checksum": "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-15T20:19:35Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "perf",
+        "perf-backtrack",
+        "perf-cache",
+        "perf-dfa",
+        "perf-inline",
+        "perf-literal",
+        "perf-onepass",
+        "std",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "regex-automata",
+      "version": "0.4.18",
+      "checksum": "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2",
+      "checksum_matches_index": true,
+      "pubtime": "2026-08-04T13:10:37Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "dfa-onepass",
+        "dfa-search",
+        "hybrid",
+        "meta",
+        "nfa",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "regex-syntax",
+      "version": "0.8.11",
+      "checksum": "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4",
+      "checksum_matches_index": true,
+      "pubtime": "2026-06-09T15:00:25Z",
+      "yanked": false,
+      "manifest_rust_version": "1.65",
+      "index_rust_version": "1.65",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.23",
+      "checksum": "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-07T02:10:26Z",
+      "yanked": false,
+      "manifest_rust_version": "1.31",
+      "index_rust_version": "1.31",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "schemars",
+      "version": "1.2.2",
+      "checksum": "687274d293b6cdc6e73e0fee520bf2049650090d7164f87672d212a3c530cf4a",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-27T14:35:28Z",
+      "yanked": false,
+      "manifest_rust_version": "1.74",
+      "index_rust_version": "1.74",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1068,
+          "sha256": "1954992a2b32e8a2af24a4c11b726902e344c1934b947a77f04d404908f8db30"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "derive",
+        "schemars_derive",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "schemars_derive",
+      "version": "1.2.2",
+      "checksum": "d98c67716b46af2f0b8cf752abc930f6f9aecfbf671ecfb531db8a31dbe4e2ba",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-27T14:35:25Z",
+      "yanked": false,
+      "manifest_rust_version": "1.74",
+      "index_rust_version": "1.74",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1068,
+          "sha256": "1954992a2b32e8a2af24a4c11b726902e344c1934b947a77f04d404908f8db30"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "scopeguard",
+      "version": "1.2.0",
+      "checksum": "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49",
+      "checksum_matches_index": true,
+      "pubtime": "2023-07-17T13:47:53Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1097,
+          "sha256": "fb77f0a9c53e473abe5103c8632ef9f0f2874d4fb3f17cb2d8c661aab9cee9d7"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "checksum": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-18T23:05:13Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56",
+      "index_rust_version": "1.56",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "derive",
+        "serde_derive",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 2471,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde-saphyr",
+      "version": "1.3.0",
+      "checksum": "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-16T16:41:36Z",
+      "yanked": false,
+      "manifest_rust_version": "1.89",
+      "index_rust_version": "1.89",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "deserialize",
+        "serialize"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "checksum": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-18T23:05:10Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56",
+      "index_rust_version": "1.56",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "default",
+        "result",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 4252,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "checksum": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-18T23:05:07Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde_derive_internals",
+      "version": "0.30.0",
+      "checksum": "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-25T14:58:00Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-20T05:54:44Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "arbitrary_precision",
+        "default",
+        "float_roundtrip",
+        "std",
+        "unbounded_depth"
+      ],
+      "build_script": {
+        "bytes": 1206,
+        "markers": [
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+      "checksum_matches_index": true,
+      "pubtime": "2025-04-30T14:38:09Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10849,
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1138,
+          "sha256": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "simdutf8",
+      "version": "0.1.5",
+      "checksum": "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e",
+      "checksum_matches_index": true,
+      "pubtime": "2024-09-22T09:18:22Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-Apache",
+          "bytes": 10173,
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1035,
+          "sha256": "1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "aarch64_neon",
+        "public_imp"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "checksum_matches_index": true,
+      "yanked": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "lock_role": "host_oo_core",
+      "license_file_missing": false,
+      "name": "siphasher",
+      "version": "1.0.3",
+      "checksum": "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649",
+      "pubtime": "2026-05-03T20:58:08Z",
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT/Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "COPYING",
+          "bytes": 281,
+          "sha256": "c962ee4d1d05ddc138b202b2540219ebc57893fcf97b364852094a9a94ce1365",
+          "in_published_crate": true,
+          "git_commit": "451f67d73a772cba325728109bbfa247750ed076",
+          "git_path": "COPYING"
+        },
+        {
+          "file": "Apache-2.0.txt",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "in_published_crate": false,
+          "in_git_commit": false,
+          "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": null,
+      "upstream_license_evidence": "supply-chain/licenses/core/siphasher-1.0.3",
+      "git_commit": "451f67d73a772cba325728109bbfa247750ed076",
+      "license_file_note": "COPYING is in the crate and names Apache-2.0 and MIT by URL. LICENSE-APACHE and LICENSE-MIT are HTTP 404 at the pinned commit. Reliance is Apache-2.0 plus the fetched Apache body, which is not a blob in the commit."
+    },
+    {
+      "name": "smallvec",
+      "version": "1.16.1",
+      "checksum": "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-11T13:46:31Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1072,
+          "sha256": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "strum",
+      "version": "0.28.0",
+      "checksum": "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd",
+      "checksum_matches_index": true,
+      "pubtime": "2026-02-22T15:46:16Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1072,
+          "sha256": "8bce3b45e49ecd1461f223b46de133d8f62cd39f745cfdaf81bee554b908bd42"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "derive",
+        "std",
+        "strum_macros"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "strum_macros",
+      "version": "0.28.0",
+      "checksum": "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664",
+      "checksum_matches_index": true,
+      "pubtime": "2026-02-22T15:46:01Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1072,
+          "sha256": "8bce3b45e49ecd1461f223b46de133d8f62cd39f745cfdaf81bee554b908bd42"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "syn",
+      "version": "2.0.119",
+      "checksum": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-15T00:23:48Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "clone-impls",
+        "default",
+        "derive",
+        "extra-traits",
+        "full",
+        "parsing",
+        "printing",
+        "proc-macro",
+        "visit",
+        "visit-mut"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "syn",
+      "version": "3.0.6",
+      "checksum": "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-16T22:31:12Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "clone-impls",
+        "default",
+        "derive",
+        "extra-traits",
+        "full",
+        "parsing",
+        "printing",
+        "proc-macro",
+        "visit",
+        "visit-mut"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.21",
+      "checksum": "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-23T20:24:07Z",
+      "yanked": false,
+      "manifest_rust_version": "1.77",
+      "index_rust_version": "1.77",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "default",
+        "std"
+      ],
+      "build_script": {
+        "bytes": 6923,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "2.0.21",
+      "checksum": "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-23T20:24:05Z",
+      "yanked": false,
+      "manifest_rust_version": "1.77",
+      "index_rust_version": "1.77",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.1",
+      "checksum": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+      "checksum_matches_index": true,
+      "pubtime": "2026-05-29T16:00:41Z",
+      "yanked": false,
+      "manifest_rust_version": "1.41.0",
+      "index_rust_version": "1.41.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 17,
+          "sha256": "db11fec9946737df39ca3898d9cd8c10ec6f6c3a884a6802b0ad0b81b4e8f23a"
+        },
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10835,
+          "sha256": "516b24e051bf5630880ebbd55c40a25ce9552ebaf8970a53e8976eb70e522406"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1083,
+          "sha256": "a825bd853ab71619a4923d7b4311221427848070ff44d990da39b0b274c1683f"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "unicode-general-category",
+      "version": "1.1.0",
+      "checksum": "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f",
+      "checksum_matches_index": true,
+      "pubtime": "2025-09-16T00:44:45Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 11357,
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": {
+        "bytes": 5861,
+        "markers": [],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.26",
+      "checksum": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-17T06:18:03Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "license_relied_on": "Apache-2.0 AND Unicode-3.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        },
+        {
+          "file": "LICENSE-UNICODE",
+          "bytes": 1995,
+          "sha256": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "unicode-width",
+      "version": "0.2.2",
+      "checksum": "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-06T14:33:47Z",
+      "yanked": false,
+      "manifest_rust_version": "1.66",
+      "index_rust_version": "1.66",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "cjk",
+        "default"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "utoipa",
+      "version": "6.0.0",
+      "checksum": "8765fe27aeff71012a3f90fa474cf1df863a7d0dd81ed25de4e63fff2544994f",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-22T22:30:17Z",
+      "yanked": false,
+      "manifest_rust_version": "1.88",
+      "index_rust_version": "1.88",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11356,
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1074,
+          "sha256": "82b13fb25622b1950fecb9efa76d8b3cfd956ecc136893e4fe47fbaf74fba097"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "macros"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "utoipa-gen",
+      "version": "6.0.0",
+      "checksum": "6fa77c92cdc2442ce7b570a069dcb62263c07a870de839faa4f10235828f3c85",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-22T22:30:00Z",
+      "yanked": false,
+      "manifest_rust_version": "1.88",
+      "index_rust_version": "1.88",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11356,
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1074,
+          "sha256": "82b13fb25622b1950fecb9efa76d8b3cfd956ecc136893e4fe47fbaf74fba097"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "uuid-simd",
+      "version": "0.8.0",
+      "checksum": "23b082222b4f6619906941c17eb2297fff4c2fb96cb60164170522942a200bd8",
+      "checksum_matches_index": true,
+      "pubtime": "2022-12-28T03:07:07Z",
+      "yanked": false,
+      "manifest_rust_version": "1.63",
+      "index_rust_version": "1.63",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1062,
+          "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+          "in_published_crate": false,
+          "git_commit": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
+          "git_path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE"
+        }
+      ],
+      "license_file_missing": true,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "detect",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core",
+      "upstream_license_evidence": "supply-chain/licenses/core/uuid-simd-0.8.0"
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "checksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+      "checksum_matches_index": true,
+      "pubtime": "2024-07-25T23:38:14Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT/Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1085,
+          "sha256": "b7e650f3fce5c53249d1cdc608b54df156a97edd636cf9d23498d0cfe7aec63e"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": null,
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "vsimd",
+      "version": "0.8.0",
+      "checksum": "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64",
+      "checksum_matches_index": true,
+      "pubtime": "2022-12-28T03:06:21Z",
+      "yanked": false,
+      "manifest_rust_version": "1.63",
+      "index_rust_version": "1.63",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1062,
+          "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+          "in_published_crate": false,
+          "git_commit": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
+          "git_path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE"
+        }
+      ],
+      "license_file_missing": true,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "alloc",
+        "detect",
+        "std"
+      ],
+      "build_script": null,
+      "lock_role": "host_oo_core",
+      "upstream_license_evidence": "supply-chain/licenses/core/vsimd-0.8.0"
+    },
+    {
+      "name": "zerocopy",
+      "version": "0.8.57",
+      "checksum": "d35102a9f36d089ccae9e4c6802bc118be4487b80aaffc0ab4e0cf5ce92d2873",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-08T21:40:04Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56.0",
+      "index_rust_version": "1.56.0",
+      "manifest_license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11350,
+          "sha256": "9d185ac6703c4b0453974c0d85e9eee43e6941009296bb1f5eb0b54e2329e9f3"
+        },
+        {
+          "file": "LICENSE-BSD",
+          "bytes": 1275,
+          "sha256": "83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1060,
+          "sha256": "1a2f5c12ddc934d58956aa5dbdd3255fe55fd957633ab7d0d39e4f0daa73f7df"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [
+        "simd"
+      ],
+      "build_script": {
+        "bytes": 10524,
+        "markers": [
+          "Command::",
+          "rustc_version",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "checksum": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+      "checksum_matches_index": true,
+      "pubtime": "2026-07-13T12:58:53Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": true,
+      "placement": "host_oo_core",
+      "enabled_features_on_host": [],
+      "build_script": {
+        "bytes": 1362,
+        "markers": [
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "host_oo_core"
+    },
+    {
+      "name": "bitflags",
+      "version": "2.13.2",
+      "checksum": "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-10T01:11:38Z",
+      "yanked": false,
+      "manifest_rust_version": "1.56.0",
+      "index_rust_version": "1.56.0",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: parking_lot_core on redox, via redox_syscall"
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "checksum": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649",
+      "checksum_matches_index": true,
+      "pubtime": "2026-05-22T14:59:11Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71.1",
+      "index_rust_version": "1.71.1",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1059,
+          "sha256": "65f94e99ddaf4f5d1782a6dae23f35d4293a9a01444a13135a6887017d353cee"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: wasm-bindgen-macro-support, itself only on the wasm32 getrandom path"
+    },
+    {
+      "name": "core_detect",
+      "version": "1.0.0",
+      "checksum": "7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48",
+      "checksum_matches_index": true,
+      "pubtime": "2021-05-09T16:36:07Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT/Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10846,
+          "sha256": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1076,
+          "sha256": "8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "inactive_optional",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "inactive_optional: encoding_rs simd-accel is off on this resolve"
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.106",
+      "checksum": "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-25T07:13:42Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81",
+      "index_rust_version": "1.81",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": true,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: getrandom wasm32 / wasm_js. Published after the seven-day cutoff. A wasm32 build of this lock is blocked."
+    },
+    {
+      "name": "multiversion",
+      "version": "0.9.0",
+      "checksum": "b4ca4bea16ffc3f443cf7d866912118196bfef4c6a1556ca00f9f9b00bb43f7c",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-06T18:41:32Z",
+      "yanked": false,
+      "manifest_rust_version": "1.86",
+      "index_rust_version": "1.86",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1054,
+          "sha256": "3c92a19e541755a97e51b4c963aa4335bbf93b64574dfbc36a5636c2899f3ab9"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "inactive_optional",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "inactive_optional: encoding_rs simd-accel is off"
+    },
+    {
+      "name": "multiversion-macros",
+      "version": "0.9.0",
+      "checksum": "0d416831a7317ef4b08bee00b69cbbb9c8763da7959a7026244d6266869f9c83",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-06T18:41:13Z",
+      "yanked": false,
+      "manifest_rust_version": "1.86",
+      "index_rust_version": "1.86",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1054,
+          "sha256": "3c92a19e541755a97e51b4c963aa4335bbf93b64574dfbc36a5636c2899f3ab9"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "inactive_optional",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "inactive_optional: only used by multiversion"
+    },
+    {
+      "name": "r-efi",
+      "version": "5.3.0",
+      "checksum": "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f",
+      "checksum_matches_index": true,
+      "pubtime": "2025-06-17T09:12:38Z",
+      "yanked": false,
+      "manifest_rust_version": "1.68",
+      "index_rust_version": "1.68",
+      "manifest_license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "AUTHORS",
+          "bytes": 3693,
+          "sha256": "ff92bed461f50338dd703a9ba9aee496a425957873df1d91192776e4bdf5dda7",
+          "in_published_crate": true,
+          "git_commit": "97b55bed1c2c91dcbf787674849f05337ff80b33",
+          "git_path": "AUTHORS",
+          "url": "https://raw.githubusercontent.com/r-efi/r-efi/97b55bed1c2c91dcbf787674849f05337ff80b33/AUTHORS"
+        },
+        {
+          "file": "Apache-2.0.txt",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "in_published_crate": false,
+          "in_git_commit": false,
+          "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: getrandom UEFI EFI RNG backend",
+      "license_file_note": "No file named LICENSE. AUTHORS in the crate contains the grant. Apache-2.0 body is the URL named by AUTHORS and is not a blob in the commit. LGPL-2.1-or-later is not selected; its full text is absent.",
+      "upstream_license_evidence": "supply-chain/licenses/core/r-efi-5.3.0"
+    },
+    {
+      "name": "redox_syscall",
+      "version": "0.5.18",
+      "checksum": "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-04T14:57:04Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "MIT",
+      "license_relied_on": "MIT",
+      "license_files": [
+        {
+          "file": "LICENSE",
+          "bytes": 1076,
+          "sha256": "efcfee7981ff72431fffb06925cad00a23dce079ed4354f61030ad5abdb78829"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: parking_lot_core on Redox"
+    },
+    {
+      "name": "wasip2",
+      "version": "1.0.4+wasi-0.2.12",
+      "checksum": "b67efb37e106e55ce722a510d6b5f9c17f083e5fc79afc2badeb12cc313d9487",
+      "checksum_matches_index": true,
+      "pubtime": "2026-06-12T17:42:43Z",
+      "yanked": false,
+      "manifest_rust_version": "1.87.0",
+      "index_rust_version": "1.87.0",
+      "manifest_license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-Apache-2.0_WITH_LLVM-exception",
+          "bytes": 12243,
+          "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: getrandom on wasm32-wasip2"
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.129",
+      "checksum": "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-25T07:13:40Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81",
+      "index_rust_version": "1.81",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": true,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": {
+        "bytes": 1732,
+        "markers": [
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": false
+      },
+      "lock_role": "other_target: getrandom wasm32 / wasm_js. Published after the cutoff."
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.129",
+      "checksum": "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-25T07:13:38Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81",
+      "index_rust_version": "1.81",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": true,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: wasm-bindgen. Published after the cutoff."
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.129",
+      "checksum": "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-25T07:13:36Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81",
+      "index_rust_version": "1.81",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": true,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: wasm-bindgen-macro. Published after the cutoff."
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.129",
+      "checksum": "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-25T07:13:33Z",
+      "yanked": false,
+      "manifest_rust_version": "1.81",
+      "index_rust_version": "1.81",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1057,
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": true,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": {
+        "bytes": 2625,
+        "markers": [
+          "bindgen",
+          "std::process",
+          "Command::",
+          "println!"
+        ],
+        "native_compile_heuristic": true
+      },
+      "lock_role": "other_target: wasm-bindgen. Published after the cutoff."
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "checksum": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5",
+      "checksum_matches_index": true,
+      "pubtime": "2025-10-06T17:35:08Z",
+      "yanked": false,
+      "manifest_rust_version": "1.71",
+      "index_rust_version": "1.71",
+      "manifest_license": "MIT OR Apache-2.0",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "license-apache-2.0",
+          "bytes": 11351,
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "file": "license-mit",
+          "bytes": 1141,
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "other_target: parking_lot_core on Windows"
+    },
+    {
+      "name": "wit-bindgen",
+      "version": "0.57.1",
+      "checksum": "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e",
+      "checksum_matches_index": true,
+      "pubtime": "2026-04-17T17:49:55Z",
+      "yanked": false,
+      "manifest_rust_version": "1.85.0",
+      "index_rust_version": "1.85.0",
+      "manifest_license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "LICENSE-Apache-2.0_WITH_LLVM-exception",
+          "bytes": 12243,
+          "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "other_target",
+      "enabled_features_on_host": null,
+      "build_script": {
+        "bytes": 916,
+        "markers": [
+          "bindgen",
+          "CARGO_CFG",
+          "println!"
+        ],
+        "native_compile_heuristic": true
+      },
+      "lock_role": "other_target: wasip2. Not compiled for aarch64-apple-darwin."
+    },
+    {
+      "name": "zerocopy-derive",
+      "version": "0.8.57",
+      "checksum": "146c01f5ab44258da43cf276c74a2763db2ff3969c9c652c3f2de07041d0b2bc",
+      "checksum_matches_index": true,
+      "pubtime": "2026-09-08T21:38:57Z",
+      "yanked": false,
+      "manifest_rust_version": null,
+      "index_rust_version": null,
+      "manifest_license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "license_relied_on": "Apache-2.0",
+      "license_files": [
+        {
+          "file": "LICENSE-APACHE",
+          "bytes": 11350,
+          "sha256": "9d185ac6703c4b0453974c0d85e9eee43e6941009296bb1f5eb0b54e2329e9f3"
+        },
+        {
+          "file": "LICENSE-BSD",
+          "bytes": 1275,
+          "sha256": "83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32"
+        },
+        {
+          "file": "LICENSE-MIT",
+          "bytes": 1060,
+          "sha256": "1a2f5c12ddc934d58956aa5dbdd3255fe55fd957633ab7d0d39e4f0daa73f7df"
+        }
+      ],
+      "license_file_missing": false,
+      "too_young": false,
+      "prohibited_hits": [],
+      "in_w01_baseline_name": false,
+      "placement": "inactive_optional",
+      "enabled_features_on_host": null,
+      "build_script": null,
+      "lock_role": "inactive_optional: zerocopy derive feature is off. Direct pin is default-features false, features simd."
+    }
+  ],
+  "license_evidence": "supply-chain/licenses/core. Added 2026-10-01 for the frozen CORE corrections. dependency-baseline.json and dependency-baseline.md were not overwritten.",
+  "commands_cover": "The commands array is the pre-correction run. corrected_tree_commands are the 2026-10-01 frozen CORE correction exits. cargo audit and cargo deny were not run.",
+  "corrected_tree_commands": [
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "when": "2026-10-01",
+      "tree": "frozen CORE corrections including the Chicago 2026-10-01 test assertion"
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --locked --offline -- -D warnings",
+      "exit_code": 0,
+      "when": "2026-10-01"
+    },
+    {
+      "command": "cargo test --workspace --locked --offline",
+      "exit_code": 0,
+      "when": "2026-10-01",
+      "result": "oo-arch-check 43, oo-core lib 8, canonical_golden 8, fixtures_pg_mysql 5, frozen_corrections 19, schema_contract 7. Other crate tests 0."
+    },
+    {
+      "command": "cargo run --locked --offline -p oo-arch-check",
+      "exit_code": 0,
+      "result": "architecture check: pass",
+      "note": "Run before the final Chicago 2026-10-01 test assertion. Library sources and dependencies were unchanged by that assertion."
+    },
+    {
+      "command": "cargo run --locked --offline -p oo-arch-check -- --demonstrate-negative",
+      "exit_code": 0,
+      "result": "mutated oo-gateway -> oo-pipeline failed with 4 violations; restored baseline passed",
+      "note": "Same timing note as the architecture check."
+    },
+    {
+      "command": "cargo audit",
+      "exit_code": null,
+      "result": "not installed and not run"
+    },
+    {
+      "command": "cargo deny",
+      "exit_code": null,
+      "result": "not installed and not run"
+    }
+  ]
+}

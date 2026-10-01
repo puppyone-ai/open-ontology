@@ -1,0 +1,192 @@
+{
+  "schema_version": "harness-dependency-delta/v1",
+  "status": "in_review",
+  "phase_signoff": "in_review",
+  "author": "eef831aa-dba4-4af2-a78b-541bc9e0a031",
+  "prior_author": "eef831aa-dba4-4af2-a78b-541bc9e0a023",
+  "full_at_sec_05": false,
+  "security_owner_appointed": false,
+  "seven_day_exceptions_valid": false,
+  "registry_crates_added_by_xtask": [],
+  "workspace_features_added": [],
+  "direct": [
+    {
+      "name": "oo-arch-check",
+      "source": "path",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "oo-core",
+      "source": "path",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "jsonschema",
+      "version": "0.57.0",
+      "license": "MIT",
+      "default_features": false,
+      "note": "Reused pin. No new registry crate."
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "features": ["derive"],
+      "license": "MIT OR Apache-2.0",
+      "note": "Reused pin. No new registry crate."
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "features": ["arbitrary_precision"],
+      "license": "MIT OR Apache-2.0",
+      "note": "Reused pin. preserve_order is off. Map order is BTreeMap."
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "default_features": false,
+      "features": ["std"],
+      "license": "MIT OR Apache-2.0",
+      "note": "Reused pin. No new registry crate."
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.21",
+      "license": "MIT OR Apache-2.0",
+      "note": "Reused pin. Used by the tool install error type."
+    }
+  ],
+  "tools": {
+    "cargo_audit": {
+      "version": "0.22.2",
+      "cksum": "700c2b240f7fd330c24b675fe429f73a5b676531fcc6300400b2b67f155ba12a",
+      "published": "2026-06-05T12:33:04Z",
+      "age_floor_hours": 168,
+      "install": "temporary CARGO_HOME and CARGO_TARGET_DIR",
+      "global_install": false,
+      "license": "Apache-2.0 OR MIT",
+      "license_recorded": true,
+      "invocation": "cargo-audit audit --json",
+      "ran": true,
+      "exit": 0,
+      "advisory_database_commit": "3461c0d8f85d084552dd999c58d97c7123a9e0fd",
+      "advisory_database_updated": "2026-10-01T09:31:41+02:00",
+      "prior_advisory_database_commit": "9b3a3b73a7f42606494c943e95f8196e9994df46",
+      "advisory_count": 1277,
+      "lockfile_dependency_count": 136,
+      "vulnerabilities_found": false,
+      "vulnerability_count": 0
+    },
+    "cargo_deny": {
+      "version": "0.20.2",
+      "cksum": "e528dfcbe739af7ce37a77d3d6df1b29dd6887b1c701d888820c0f16b864f737",
+      "published": "2026-07-09T17:58:09Z",
+      "age_floor_hours": 168,
+      "install": "temporary CARGO_HOME and CARGO_TARGET_DIR",
+      "global_install": false,
+      "license": "Apache-2.0 OR MIT",
+      "license_recorded": true,
+      "invocation": "cargo-deny --format json --config ci/deny.toml --locked check",
+      "ran": true,
+      "exit": 0,
+      "deny_config_sha256": "ee87f177fbf221221c5f3a7f0020dc393a047da9af77ec797c2953fc25136559",
+      "summary": {
+        "advisories_errors": 0,
+        "bans_errors": 0,
+        "bans_warnings": 1,
+        "licenses_errors": 0,
+        "licenses_helps": 135,
+        "sources_errors": 0
+      }
+    }
+  },
+  "scans": {
+    "cargo_audit": "clean_vulnerabilities",
+    "cargo_deny": "errors_zero_bans_warning_one",
+    "advisory_findings": [],
+    "license_findings": [
+      {
+        "package": "borrow-or-share",
+        "version": "0.2.4",
+        "spdx": "MIT-0",
+        "via": "jsonschema 0.57.0 -> referencing 0.57.0 -> fluent-uri 0.4.1",
+        "decision": "specific allow of SPDX MIT-0 in ci/deny.toml",
+        "clarify": false,
+        "exception": false,
+        "note": "Existing transitive crate. OSI MIT No Attribution. Recorded for this package only. Not a 7-day exception."
+      }
+    ],
+    "ban_warnings": [
+      {
+        "code": "duplicate",
+        "crate": "syn",
+        "versions": ["2.0.119", "3.0.6"],
+        "severity": "warning",
+        "multiple_versions": "warn",
+        "note": "cargo-deny bans.multiple-versions is warn. This warning is not an AT-SEC-05 pass."
+      }
+    ],
+    "chrono_tz": {
+      "package": "chrono-tz",
+      "version": "0.10.4",
+      "rejected": false,
+      "note": "Existing core pin. cargo-deny 0.20.2 did not reject it under the allow list. No extra SPDX waiver was added."
+    },
+    "path_wildcards": {
+      "allow_wildcard_paths": true,
+      "wildcards": "deny",
+      "note": "Workspace path dependencies have no version. cargo-deny treats that as a wildcard. allow-wildcard-paths permits those private path edges. Registry star versions stay denied. No other crate manifest was edited to add a version."
+    },
+    "license_texts": [
+      {
+        "path": "supply-chain/licenses/harness/cargo-audit-0.22.2-LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "path": "supply-chain/licenses/harness/cargo-audit-0.22.2-LICENSE-MIT",
+        "sha256": "29662666b44dff84977b46e05642cdef910bc3a93a17b5fd86e632bafa59cf21"
+      },
+      {
+        "path": "supply-chain/licenses/harness/cargo-deny-0.20.2-LICENSE-APACHE",
+        "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+      },
+      {
+        "path": "supply-chain/licenses/harness/cargo-deny-0.20.2-LICENSE-MIT",
+        "sha256": "090a294a492ab2f41388252312a65cf2f0e423330b721a68c6665ac64766753b"
+      }
+    ],
+    "js": "console/ and sdk-ts/ are absent. No JavaScript scan ran.",
+    "native": "xtask has no build.rs. No native product scanner ran.",
+    "image_os": "testing/infra/images.lock.json and testing/infra/images.pins exist. No OS image scanner ran, and no scanner version is pinned for that scope."
+  },
+  "existing_core_notes": [
+    "chrono-tz 0.10.4 stays an existing core pin. cargo-deny 0.20.2 did not reject it. No broad waiver."
+  ],
+  "datagen": {
+    "root_workspace_member": false,
+    "generator_ready": false,
+    "manifest_path_owned_by_cargo": true,
+    "live_generator_spawned": false,
+    "w05_datagen_integration": false,
+    "w05_signoff_depends_on_w04": true
+  },
+  "lock_age": {
+    "floor_seconds": 604800,
+    "registry_packages": 119,
+    "registry_young": 0,
+    "registry_yanked": 0,
+    "registry_checksum_mismatch": 0,
+    "registry_index_missing": 0,
+    "wasm_matrix_supported": false,
+    "wasm_packages_age_checked": true,
+    "tool_age_substitutes_for_graph": false,
+    "normalized_pins": [
+      {"name": "js-sys", "version": "0.3.105", "checksum": "ce57d20d1ea864ce2ac172ab472d409214f4fd359f0b2a2775abdf522e2af99e"},
+      {"name": "wasm-bindgen", "version": "0.2.128", "checksum": "aecb87a33d3b0c5e3b7aa46336eaf486cffafbd281b195e4c8b80d50df2351bf"},
+      {"name": "wasm-bindgen-macro", "version": "0.2.128", "checksum": "a690d511e3c1a8b3a55e33511e3c2c00c78415cd23650f32b808627f5696b9ed"},
+      {"name": "wasm-bindgen-macro-support", "version": "0.2.128", "checksum": "411e4887f0071ef2d2164a9d5fdf2d20efbef78fccd3a78b0c10a1dc5295e48a"},
+      {"name": "wasm-bindgen-shared", "version": "0.2.128", "checksum": "81941cd78d0c92026c33e5e01312845a4cb1e9af3407f9134b100dd03144103e"}
+    ],
+    "young_finding_preserved": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a031/SP00/harness-corrections/red/hn13-lock-ages.txt"
+  }
+}

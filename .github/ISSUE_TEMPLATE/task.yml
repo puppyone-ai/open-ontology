@@ -1,0 +1,152 @@
+---
+name: Work item
+description: Implementation or design work that cites an existing Spec or Plan identifier.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Product work cites both an existing REQ- id and an existing AT- id.
+        It also names dependencies, the target crate, the expected files,
+        the failure behavior, an owner role, and a reviewer role.
+        Subtasks of a work item use the Plan's SPxx-Wyy-a / SPxx-Wyy-b suffix.
+        Do not create a parallel numbering scheme.
+        Governance text with no product behavior uses the governance-only phrases in the identifier fields.
+        Do not attach customer data, secrets, or holdout material.
+        A vulnerability is not a work item. Read SECURITY.md.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before you submit
+      options:
+        - label: This is not a vulnerability report.
+          required: true
+        - label: >-
+            The issue has no customer data, credentials, holdout items,
+            or private domains.
+          required: true
+        - label: >-
+            Product work cites both an existing REQ- id and an existing
+            AT- id, or this is governance text and the identifier fields
+            use the governance-only phrases.
+          required: true
+
+  - type: dropdown
+    id: work_class
+    attributes:
+      label: Work class
+      options:
+        - product work
+        - governance text only, no product behavior
+    validations:
+      required: true
+
+  - type: input
+    id: req_id
+    attributes:
+      label: Requirement id
+      description: >-
+        Existing REQ- id for product work. Governance text with no product
+        requirement uses exactly "governance-only: no product REQ".
+      placeholder: REQ-OPS-07
+    validations:
+      required: true
+
+  - type: input
+    id: at_id
+    attributes:
+      label: Acceptance id
+      description: >-
+        Existing AT- id for product work. Name the phase scope in the
+        contract when the case is only a slice. Governance text with no
+        product acceptance id uses exactly "governance-only: no product AT".
+      placeholder: AT-SEC-05
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: >-
+        Other tasks, crates, or external systems this work needs.
+        Write "none" when there are none.
+    validations:
+      required: true
+
+  - type: input
+    id: target_crate
+    attributes:
+      label: Target crate
+      description: >-
+        Crate or path the work changes. Governance text uses exactly
+        "none: governance text".
+      placeholder: oo-gateway
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_files
+    attributes:
+      label: Expected files
+      description: Paths the work is expected to add or edit.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Component boundary
+      description: Domains follow docs/01 and Spec section 4.2. Pick the closest.
+      options:
+        - governance, docs, or specs
+        - oo-core
+        - control, jobs, or secrets
+        - connectors or pipeline
+        - gateway, grants, or row-level security
+        - sdk, cli, or console
+        - sandbox, proxy, or entry
+        - eval or holdout (public synthetic only)
+        - supply chain
+        - deployment
+        - not in the tree yet
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract
+      description: >-
+        Inputs, outputs, identity, permissions, version, timeout,
+        cancellation, idempotency, and failure behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure
+    attributes:
+      label: Failure and stop condition
+      description: What stops the work, and what must not be left half-enabled.
+    validations:
+      required: true
+
+  - type: input
+    id: owner_role
+    attributes:
+      label: Owner role
+      description: >-
+        A role label from governance/ownership-map.md, such as rust-owner.
+        Do not invent a GitHub handle.
+      placeholder: rust-owner
+    validations:
+      required: true
+
+  - type: input
+    id: reviewer_role
+    attributes:
+      label: Reviewer role
+      description: A different role, or the same team with a different person. Not the author for a security change.
+      placeholder: security-owner
+    validations:
+      required: true

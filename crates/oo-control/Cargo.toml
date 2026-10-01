@@ -1,0 +1,15 @@
+[package]
+name = "oo-control"
+description = "Control API and audited apply. SP00-W01 skeleton; no control behavior."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oo-core = { path = "../oo-core" }
+oo-jobs = { path = "../oo-jobs" }

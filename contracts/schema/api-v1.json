@@ -1,0 +1,568 @@
+{
+  "$defs": {
+    "AcceptedOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "maxLength": 67,
+          "minLength": 11,
+          "pattern": "^op_[0-9A-Za-z]{8,64}$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/OperationStatus"
+        }
+      },
+      "required": [
+        "operation_id",
+        "status"
+      ],
+      "title": "AcceptedOperation",
+      "type": "object"
+    },
+    "ClientContext": {
+      "additionalProperties": false,
+      "properties": {
+        "purpose": {
+          "$ref": "#/$defs/ClientPurpose"
+        },
+        "turn": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "purpose",
+        "turn"
+      ],
+      "type": "object"
+    },
+    "ClientPurpose": {
+      "enum": [
+        "answer",
+        "export",
+        "resolve",
+        "search"
+      ],
+      "type": "string"
+    },
+    "ConsistencyMode": {
+      "enum": [
+        "transactional",
+        "per_table"
+      ],
+      "type": "string"
+    },
+    "ExportCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "description": "Exact decimal string. JSON numbers are rejected for this type.",
+          "maxLength": 8194,
+          "minLength": 1,
+          "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+          "type": "string"
+        },
+        "freshness": {
+          "items": {
+            "$ref": "#/$defs/Freshness"
+          },
+          "type": "array"
+        },
+        "result_sha256": {
+          "maxLength": 71,
+          "minLength": 64,
+          "pattern": "^(?:sha256:)?[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "rows": {
+          "description": "Exact decimal string. JSON numbers are rejected for this type.",
+          "maxLength": 8194,
+          "minLength": 1,
+          "pattern": "^[+-]?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ExportStatus"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/Warning"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "rows",
+        "bytes",
+        "truncated",
+        "result_sha256",
+        "freshness",
+        "warnings"
+      ],
+      "title": "ExportCompletion",
+      "type": "object"
+    },
+    "ExportStatus": {
+      "enum": [
+        "completed",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "Freshness": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "description": "RFC 3339 with offset. Z and zero offsets normalize to Z. Other offsets keep their spelling. Rust also enforces a real Gregorian date, microsecond precision, and the timestamptz second bounds. JSON Schema format date-time is not that whole check.",
+          "format": "date-time",
+          "maxLength": 35,
+          "minLength": 20,
+          "type": "string"
+        },
+        "lag_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/FreshnessState"
+        },
+        "table": {
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "as_of",
+        "lag_ms",
+        "state"
+      ],
+      "type": "object"
+    },
+    "FreshnessState": {
+      "enum": [
+        "live",
+        "stale",
+        "paused"
+      ],
+      "type": "string"
+    },
+    "OperationStatus": {
+      "enum": [
+        "accepted",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "PageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "format": "uint32",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "limit"
+      ],
+      "title": "PageRequest",
+      "type": "object"
+    },
+    "QueryColumn": {
+      "additionalProperties": false,
+      "description": "Column metadata. Parameters are private so a struct literal cannot bypass\n[`Self::new`]. Serialization runs the same check and returns an error\ninstead of emitting a type the JSON door rejects.",
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "precision": {
+          "default": null,
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scale": {
+          "default": null,
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "timezone": {
+          "default": null,
+          "maxLength": 98,
+          "minLength": 3,
+          "pattern": "^(?:UTC|Etc/UTC|[A-Za-z][A-Za-z0-9_+-]{0,31}(?:/[A-Za-z0-9_+-]{1,32}){1,2})$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "type": "object"
+    },
+    "QueryFormat": {
+      "enum": [
+        "json",
+        "markdown"
+      ],
+      "type": "string"
+    },
+    "QueryRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "client_context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClientContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "format": {
+          "$ref": "#/$defs/QueryFormat"
+        },
+        "max_rows": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 2000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sql": {
+          "description": "maxLength is a Unicode scalar ceiling. x-utf8-max-bytes is the UTF-8 byte budget enforced by the custom keyword and by Rust.",
+          "maxLength": 65536,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string",
+          "x-utf8-max-bytes": 65536
+        },
+        "timeout_ms": {
+          "default": null,
+          "format": "uint32",
+          "maximum": 120000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "sql",
+        "format"
+      ],
+      "title": "QueryRequest",
+      "type": "object"
+    },
+    "QueryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/QueryColumn"
+          },
+          "type": "array"
+        },
+        "duration_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "estimated_total_rows": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "freshness": {
+          "items": {
+            "$ref": "#/$defs/Freshness"
+          },
+          "type": "array"
+        },
+        "hints": {
+          "default": [],
+          "items": {
+            "maxLength": 2000,
+            "pattern": "^[^\\u{0}]*$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "knowledge_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "policy_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": "string"
+        },
+        "query_id": {
+          "maxLength": 42,
+          "minLength": 8,
+          "pattern": "^q_[0-9A-Za-z]{6,40}$",
+          "type": "string"
+        },
+        "returned_rows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceWatermark"
+          },
+          "type": "array"
+        },
+        "star_expanded": {
+          "default": null,
+          "items": {
+            "maxLength": 192,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncation_reasons": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TruncationReason"
+          },
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/Warning"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "query_id",
+        "columns",
+        "rows",
+        "returned_rows",
+        "truncated",
+        "duration_ms",
+        "freshness",
+        "sources",
+        "warnings",
+        "knowledge_version",
+        "policy_version"
+      ],
+      "title": "QueryResponse",
+      "type": "object"
+    },
+    "SourceWatermark": {
+      "additionalProperties": false,
+      "properties": {
+        "applied_pos": {
+          "description": "Source position: non-negative scale-0 decimal of at most 38 digits. JSON numbers are rejected.",
+          "maxLength": 39,
+          "minLength": 1,
+          "pattern": "^[+]?[0-9]{1,38}$",
+          "type": "string"
+        },
+        "consistency": {
+          "$ref": "#/$defs/ConsistencyMode"
+        },
+        "cross_table_consistent": {
+          "type": "boolean"
+        },
+        "source": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "consistency",
+        "cross_table_consistent",
+        "applied_pos"
+      ],
+      "type": "object"
+    },
+    "TruncationReason": {
+      "enum": [
+        "rows",
+        "bytes",
+        "cell"
+      ],
+      "type": "string"
+    },
+    "Warning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/WarningCode"
+        },
+        "column": {
+          "default": null,
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "impact": {
+          "default": null,
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "rows": {
+          "default": null,
+          "description": "Row count from the CLI example. It is not an amount.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "table": {
+          "default": null,
+          "maxLength": 192,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "WarningCode": {
+      "enum": [
+        "RECONCILE_MISMATCH",
+        "RECONCILE_STALE",
+        "VALUES_REJECTED",
+        "UNEXPLAINED_CODES",
+        "PARTIAL_TRANSACTION",
+        "CROSS_TABLE_SKEW",
+        "ENTITY_CHECK_FAILED",
+        "STALE_DATA"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://openontology.dev/contracts/api/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/QueryRequest"
+    },
+    {
+      "$ref": "#/$defs/QueryResponse"
+    },
+    {
+      "$ref": "#/$defs/AcceptedOperation"
+    },
+    {
+      "$ref": "#/$defs/PageRequest"
+    },
+    {
+      "$ref": "#/$defs/ExportCompletion"
+    }
+  ],
+  "title": "API JSON bodies v1"
+}

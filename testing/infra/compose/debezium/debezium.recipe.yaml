@@ -1,0 +1,19 @@
+# Not loaded by up.sh. Starting this file is outside the current fixture scope.
+# Image pin is the arm64 content digest from images.pins. No host ports.
+services:
+  debezium:
+    image: quay.io/debezium/server@sha256:842a0aa66dfab8a8cbe40634d53df5d1e5b4b5e9c7c8ea968d68f7cbc947c175
+    profiles: ["pending"]
+    environment:
+      DEBEZIUM_OPTS: "-Ddebezium.config.file=/debezium/conf/application.properties"
+    volumes:
+      - ./application.properties:/debezium/conf/application.properties:ro
+    networks:
+      - agent
+    mem_limit: 1g
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+networks:
+  agent:
+    internal: true

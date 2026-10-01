@@ -1,0 +1,72 @@
+# Manual release check. Exit 3 is the honest blocked result.
+# This workflow has no tag trigger, no promote, and no deploy.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# dtolnay/rust-toolchain @ 02cb101ec7c40f2c49e1d9714d64511d8e1b74de (2026-09-12)
+# rustc is pinned to 1.98.1. The cache action is unused.
+# Unused cache key: cargo-lock-1.98.1-${{ hashFiles('Cargo.lock') }}
+# Repository credentials stay unset.
+# A recorded digest is not signed and is not published.
+# This workflow stays pending. It does not import a gate capture as a pass.
+
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_digest:
+        description: "Existing RC digest, 64 hex characters. Empty leaves the check blocked."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release-check:
+    name: release-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: release check
+        env:
+          RC_DIGEST: ${{ inputs.rc_digest }}
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          set +e
+          if [ -n "${RC_DIGEST}" ]; then
+            cargo xtask release --check --digest "${RC_DIGEST}" --format json | tee "${RUNNER_TEMP}/release.log"
+          else
+            cargo xtask release --check --format json | tee "${RUNNER_TEMP}/release.log"
+          fi
+          code=$?
+          if [ "${code}" -eq 3 ]; then
+            echo "release remains blocked. No tag, promote, or deploy ran."
+            exit 3
+          fi
+          echo "release check exit ${code}; expected 3"
+          exit 1
+      - name: preserve failure log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-check-${{ github.run_id }}
+          path: ${{ runner.temp }}/release.log
+          retention-days: 14
+          if-no-files-found: ignore

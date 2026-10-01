@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "oo-datagen"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Standalone OO-Logistics xs/s generator. Not a product driver and not a root workspace member."
+
+[[bin]]
+name = "oo-datagen"
+path = "src/main.rs"
+
+[dependencies]
+# Path into the product crate. This package is its own workspace so the root
+# member list and root lock stay untouched until the HARNESS integration.
+oo-core = { path = "../../crates/oo-core" }
+# Same pin oo-core already reviews. Incremental SHA-256 of streamed files.
+# default features off keeps sha2-asm off. Published 2025-04-30.
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

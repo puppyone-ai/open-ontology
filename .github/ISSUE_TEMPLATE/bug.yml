@@ -1,0 +1,75 @@
+---
+name: Bug
+description: A defect in something this repository already does.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for a defect in existing behavior or existing text.
+        Vulnerability reports do not belong here. Read SECURITY.md and stop.
+        The private security channel is not configured yet.
+        Do not include customer data, holdout items, secrets, or internal domains.
+        Reproductions must be synthetic.
+        governance-only: no product id
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before you submit
+      options:
+        - label: This is not a vulnerability report.
+          required: true
+        - label: >-
+            The report has no customer data, credentials, holdout items,
+            or private domains.
+          required: true
+        - label: I did not invent a new requirement or acceptance identifier.
+          required: true
+        - label: >-
+            The identifiers field cites an existing REQ-, AT-, SP, P, G, I-,
+            DEC-, or ADR- id, or it is exactly "governance-only: no product id".
+          required: true
+
+  - type: input
+    id: ids
+    attributes:
+      label: Existing identifiers or governance-only exception
+      description: >-
+        Cite an existing REQ-, AT-, SP, P, G, I-, DEC-, or ADR- identifier.
+        When the defect is in governance text and no product id exists,
+        write exactly "governance-only: no product id".
+      placeholder: REQ-OPS-07, AT-SEC-05, SP00-W06
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What the spec, plan, or an existing command says should happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What you observed. Include the command and exit code when you have one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Synthetic reproduction
+      description: Steps on synthetic data. No customer brand, domain, or secret.
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Git commit. Write "no product version" when that is still true.
+    validations:
+      required: true

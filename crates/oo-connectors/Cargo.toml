@@ -1,0 +1,14 @@
+[package]
+name = "oo-connectors"
+description = "Read-only source connectors. SP00-W01 skeleton; no source access."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oo-core = { path = "../oo-core" }

@@ -1,0 +1,20 @@
+schema_version: oos/v1
+resolution: customer_resolution
+entity: customer
+key_scheme:
+  strong: "uscc:{strong_key}"
+  singleton: "src:{source}:{pk}"
+strong_key:
+  validator: cn_uscc
+  placeholders: ["", "无", "-", "000000000000000000", "N/A"]
+auto_merge: [same_valid_strong_key]
+candidates: [same_phone, normalized_name_equal, name_containment]
+normalization:
+  fullwidth_to_halfwidth: true
+  casefold: true
+  collapse_whitespace: true
+  strip_suffixes: [股份有限公司, 有限责任公司, 有限公司, 公司, "Co., Ltd.", Ltd., Inc.]
+  min_length: { han: 2, latin: 3 }
+survivorship:
+  display_name: [steward_canonical, longest_member_name]
+  phone: { order: [erp_mysql, tms_pg], on_conflict: list_all }

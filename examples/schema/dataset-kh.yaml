@@ -1,0 +1,50 @@
+schema_version: oos/v1
+dataset: erp_mysql.kh
+source_name: "ERP.KH"
+label: 客户主档（ERP 原始表）
+description: >
+  ERP 系统的客户主档，一行一个客户账号。已停用客户 zt='9' 仍保留。
+tier: raw
+recommended: false
+superseded_by: logistics.customer
+grain: 每个客户账号一行
+primary_key: [khid]
+entity: customer
+row_count_estimate: 184233
+time_columns:
+  - { name: cjsj, role: created_at }
+  - { name: xgsj, role: updated_at }
+columns:
+  - name: khid
+    label: 客户 ID
+    data_type: bigint
+    semantic_type: identifier
+  - name: khmc
+    label: 客户名称
+    data_type: text
+    semantic_type: entity_name
+    searchable: true
+    pii: none
+  - name: lxdh
+    label: 联系电话
+    semantic_type: phone
+    pii: personal
+    classification: { state: confirmed, by: ops.wang, at: "2026-10-11" }
+  - name: zt
+    label: 客户状态
+    semantic_type: status_code
+    enum: erp_mysql.kh.zt
+  - name: khlx
+    label: 客户类型（旧）
+    status: deprecated
+    replaced_by: erp_mysql.kh.khfl
+    deprecated_at: ontology/v14
+  - name: xyed
+    label: 信用额度
+    semantic_type: money
+    unit: CNY
+    description: 单位为元，含税。0 表示未授信而非无限额度。
+    provenance: human
+    review: { state: approved, by: finance.li, at: "2026-10-12" }
+caveats:
+  - 2019 年前的数据存在重复客户，已在 logistics.customer 中合并。

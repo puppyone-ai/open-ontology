@@ -1,0 +1,12 @@
+schema_version: config/v1
+hooks:
+  mask_phone:
+    type: on_batch
+    builtin: mask
+    params: { columns: ["*.lxdh", "*.phone"], pattern: keep_first3_last4 }
+  scene_logistics:
+    type: after_load
+    triggers: [erp_mysql.kh, erp_mysql.ydh, tms_pg.shipment]
+    debounce: 10m
+    sql_dir: hooks/after_load/logistics/
+    materialize: [customer, customer_alias]

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "slow down",
+    "hint": "retry later",
+    "retryable": true,
+    "query_id": "q_abc123"
+  }
+}

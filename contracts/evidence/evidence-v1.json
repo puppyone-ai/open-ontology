@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openontology.dev/contracts/evidence/v1",
+  "title": "Open Ontology evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_schema_version",
+    "spec_id",
+    "spec_version",
+    "plan_id",
+    "plan_version",
+    "run_id",
+    "phase",
+    "task_id",
+    "commit",
+    "source_hashes",
+    "scope",
+    "environment_manifest",
+    "environment",
+    "requirements",
+    "acceptance",
+    "version_tuple",
+    "commands",
+    "artifacts",
+    "privacy",
+    "reviewers",
+    "waivers",
+    "status",
+    "provenance"
+  ],
+  "properties": {
+    "evidence_schema_version": { "const": "evidence/v1" },
+    "spec_id": { "const": "OO-SPEC-001" },
+    "spec_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "plan_id": { "const": "OO-PLAN-001" },
+    "plan_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "run_id": { "type": "string", "minLength": 8, "maxLength": 80, "pattern": "^[A-Za-z0-9-]+$" },
+    "phase": { "type": "string", "pattern": "^SP(0[0-9]|1[0-5])$" },
+    "task_id": { "type": "string", "minLength": 4, "maxLength": 40, "pattern": "^[A-Za-z0-9-]+$" },
+    "commit": { "type": "string", "pattern": "^([0-9a-f]{40}|uncommitted)$" },
+    "source_hashes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceHash" }
+    },
+    "scope": { "$ref": "#/$defs/scope" },
+    "environment_manifest": { "$ref": "#/$defs/relPath" },
+    "environment": { "$ref": "#/$defs/environment" },
+    "requirements": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^REQ-[A-Z0-9-]+$" }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/acceptance" }
+    },
+    "version_tuple": { "$ref": "#/$defs/versionTuple" },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "privacy": { "$ref": "#/$defs/visibility" },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewer" }
+    },
+    "waivers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/waiver" }
+    },
+    "status": { "$ref": "#/$defs/overallStatus" },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "$defs": {
+    "relPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(\\.[A-Za-z0-9_./+-]*|[A-Za-z0-9][A-Za-z0-9_./+-]*)$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "visibility": { "enum": ["public-synthetic", "private", "customer"] },
+    "overallStatus": { "enum": ["passed", "in_review", "pending", "blocked", "failed"] },
+    "acceptanceStatus": {
+      "enum": ["passed", "in_review", "pending", "blocked", "failed", "not_applicable", "not_run"]
+    },
+    "sourceHash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relPath" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "suite", "claim", "inputs"],
+      "properties": {
+        "kind": { "enum": ["implementation", "fixture", "slice"] },
+        "suite": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "x-utf8-max-bytes": 1600
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["privacy", "secret_material", "os", "rustc"],
+      "properties": {
+        "privacy": { "$ref": "#/$defs/visibility" },
+        "secret_material": { "const": false },
+        "os": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "rustc": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 800 }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "exit_code", "full_case"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AT-[A-Z0-9-]+$" },
+        "status": { "$ref": "#/$defs/acceptanceStatus" },
+        "exit_code": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+        "full_case": { "type": "boolean" }
+      }
+    },
+    "versionTuple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "snapshot",
+        "suite",
+        "scorer",
+        "policy",
+        "knowledge",
+        "config",
+        "type_policy",
+        "hook",
+        "schema",
+        "model",
+        "harness",
+        "artifact_digest"
+      ],
+      "properties": {
+        "dataset": { "type": ["string", "null"] },
+        "snapshot": { "type": ["string", "null"] },
+        "suite": { "type": ["string", "null"] },
+        "scorer": { "type": ["string", "null"] },
+        "policy": { "type": ["string", "null"] },
+        "knowledge": { "type": ["string", "null"] },
+        "config": { "type": ["string", "null"] },
+        "type_policy": { "type": ["string", "null"] },
+        "hook": { "type": ["string", "null"] },
+        "schema": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "harness": { "type": ["string", "null"] },
+        "artifact_digest": { "type": ["string", "null"] }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argv", "started_at", "finished_at", "exit_code", "cwd"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+        },
+        "started_at": { "type": "string", "minLength": 20, "maxLength": 40 },
+        "finished_at": { "type": "string", "minLength": 20, "maxLength": 40 },
+        "exit_code": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "cwd": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^(\\.[A-Za-z0-9_./+-]*|[A-Za-z0-9][A-Za-z0-9_./+-]*)$"
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size", "visibility", "role"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relPath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "role": {
+          "enum": ["environment", "log", "report", "schema", "source", "fixture", "signature", "note"]
+        },
+        "binding": { "$ref": "#/$defs/artifactBinding" }
+      }
+    },
+    "artifactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "suite", "schema_version", "content_sha256"],
+      "properties": {
+        "commit": { "type": "string", "pattern": "^([0-9a-f]{40}|uncommitted)$" },
+        "suite": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "schema_version": { "const": "evidence/v1" },
+        "content_sha256": { "$ref": "#/$defs/sha256" },
+        "snapshot": { "type": ["string", "null"] },
+        "harness": { "type": ["string", "null"] }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "role", "context", "independent", "project_acceptance"],
+      "properties": {
+        "identity": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9_.:@/-]+$" },
+        "role": { "enum": ["reviewer", "author", "security-owner"] },
+        "context": { "enum": ["Fixture", "Appointed", "Author"] },
+        "independent": { "type": "boolean" },
+        "project_acceptance": { "type": "boolean" }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement", "reason", "expires_at", "owner", "kind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "requirement": { "type": "string", "pattern": "^REQ-[A-Z0-9-]+$" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "expires_at": { "type": "string", "minLength": 20, "maxLength": 40 },
+        "owner": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "kind": { "enum": ["documented", "security-exception"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "author", "signed_aggregate", "signature_artifact"],
+      "properties": {
+        "kind": { "enum": ["author", "fixture", "bootstrap"] },
+        "author": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9_.:@-]+$" },
+        "signed_aggregate": { "type": "boolean" },
+        "signature_artifact": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

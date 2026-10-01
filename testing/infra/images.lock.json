@@ -1,0 +1,152 @@
+{
+  "resolved_on": "2026-10-01",
+  "resolution": "docker buildx imagetools inspect, cross-checked with the Docker Hub or Quay tag digest where that registry exposes one. Platform rows below are the runnable manifests. unknown/unknown attestation manifests were ignored.",
+  "not_product_baseline": "These pins are test-fixture and builder images. They are not an admission that P14 driver behavior, Debezium protocol behavior, or gVisor is proven.",
+  "images": [
+    {
+      "id": "rust-1.98.1",
+      "ref": "docker.io/library/rust:1.98.1",
+      "index_digest": "sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-09-19T19:44:46Z",
+      "toolchain_channel_date": "2026-09-03",
+      "toolchain_version": "1.98.1 (48a229cea 2026-09-01)",
+      "toolchain_commit": "48a229ceaefd4985c50990b14116b6d856af0985",
+      "license": "MIT OR Apache-2.0",
+      "license_note": "Rust toolchain license. The image base is buildpack-deps:trixie, which is Debian and separately licensed. The official bookworm tag 1.98.1-bookworm has a different index digest (sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e) and is not the pin.",
+      "source": "https://github.com/rust-lang/docker-rust.git#4dc5209f5e720a3d6b5eb336cabb69a424a822c1:stable/trixie",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065",
+          "created": "2026-09-19T03:40:44Z",
+          "base": "buildpack-deps:trixie"
+        },
+        "linux/arm64": {
+          "digest": "sha256:218765d808d35e2e3fa1b12b2e1314e2bfdd427a3530de071398553a95743cba",
+          "created": "2026-09-19T03:44:01Z",
+          "base": "buildpack-deps:trixie"
+        }
+      }
+    },
+    {
+      "id": "rust-1.94.0",
+      "ref": "docker.io/library/rust:1.94.0",
+      "index_digest": "sha256:f17e723020f87c1b4ac4ff6d73c9dfbb7d5cb978754c76641e47337d65f61e12",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-03-22T19:44:44Z",
+      "toolchain_channel_date": "2026-03-05",
+      "toolchain_version": "1.94.0 (4a4ef493e 2026-03-02)",
+      "toolchain_commit": "4a4ef493e3a1488c6e321570238084b38948f6db",
+      "license": "MIT OR Apache-2.0",
+      "license_note": "Exact MSRV image. rust-toolchain.toml in the workspace pins 1.98.1, so the MSRV run sets RUSTUP_TOOLCHAIN=1.94.0. The bookworm tag index sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f is a different image and is not the pin.",
+      "source": "https://github.com/rust-lang/docker-rust.git#4132ed1e071f80134ef880bbac42ebc430e946ea:stable/trixie",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:f747a9f2b58b8c5f9d6d0680fe8af2edba26ac258a7d6142bb4f65f9693711f4",
+          "created": "2026-03-17T02:22:33Z",
+          "base": "buildpack-deps:trixie"
+        },
+        "linux/arm64": {
+          "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+          "created": "2026-03-17T02:28:36Z",
+          "base": "buildpack-deps:trixie"
+        }
+      }
+    },
+    {
+      "id": "postgres-17.10-bookworm",
+      "ref": "docker.io/library/postgres:17.10-bookworm",
+      "index_digest": "sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-08-05T04:12:01Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. 17.11 exists and its Hub tag was updated 2026-09-24, on the seven-day boundary for 2026-10-01, so it is not pinned.",
+      "source": "https://github.com/docker-library/postgres.git#4f9ced003ba58a854656ba150d146243d27ae3ac:17/bookworm",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:6e5a6518f9d2ff9e9f4cba2a5a87d8f41b0f067f6f92ac847c344351a6c8d923",
+          "created": "2026-08-05T00:36:18Z",
+          "base": "debian:bookworm-slim"
+        },
+        "linux/arm64": {
+          "digest": "sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb",
+          "created": "2026-08-05T00:38:27Z",
+          "base": "debian:bookworm-slim"
+        }
+      }
+    },
+    {
+      "id": "mysql-8.4.10",
+      "ref": "docker.io/library/mysql:8.4.10",
+      "index_digest": "sha256:8dbcf531a03aade657e181b9cf2f1d1803ce621a1d55610cb44cb531ab7d7db6",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-07-24T02:02:28Z",
+      "license": "GPL-2.0 with additional permissions",
+      "license_note": "The pulled linux/arm64 image package is mysql-community-server-minimal-8.4.10-1.el9.aarch64. Its /usr/share/doc/mysql-community-server-minimal/LICENSE header still says MySQL 8.4.9 Community, last updated February 2026, and states GPLv2 with additional permissions. This server image is a local test fixture, not an Open Ontology default artifact. 8.4.11 was tagged 2026-09-29 and is inside seven days, so it is not pinned.",
+      "source": "https://github.com/docker-library/mysql.git#99f090f89830dbd679771884e723c0f74bec0b29:8.4",
+      "base": "oraclelinux:9-slim",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:870634c634aae968ea1a93e5c094a14e00c692da2ee9bed956b3dfcc7bd08cb0",
+          "created": "2026-07-23T23:03:25Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:3f616910ccd923d5089d7889d491cefa65e24fcfa79d74db4084729f48c9cab1",
+          "created": "2026-07-23T23:03:54Z"
+        }
+      }
+    },
+    {
+      "id": "valkey-8.1.10",
+      "ref": "docker.io/valkey/valkey:8.1.10",
+      "index_digest": "sha256:640c5e62cea04b6d6f2084232651d0cc70362d31f4f805e7be94dbed6855e8f2",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-09-21T08:18:49Z",
+      "license": "BSD-3-Clause",
+      "license_note": "COPYING at git tag 8.1.10 is BSD-3-Clause. imagetools did not print an org.opencontainers.image.created annotation for this index.",
+      "source": "https://github.com/valkey-io/valkey",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:0f62bfecc0b713dc2111af3ee307d5cd53c6877b7a112c6143c4de20f1325e4c"
+        },
+        "linux/arm64": {
+          "digest": "sha256:d2a1f2cbd6f69b933b82a930a44b7330b046bbd4c0d24bfc262967624c696dde"
+        }
+      }
+    },
+    {
+      "id": "debezium-server-3.5.2.Final",
+      "ref": "quay.io/debezium/server:3.5.2.Final",
+      "index_digest": "sha256:29f26a01f1b2fbfeeb3d7d89b03f08ca2807fe834f6a4a7418a4bd4e1a3757a7",
+      "quay_tag_last_modified": "2026-07-28T04:21:16Z",
+      "license": "Apache-2.0",
+      "license_note": "LICENSE.txt at git tag v3.5.2.Final is Apache-2.0. The 3.5 line is the spec candidate. 3.6 and 3.7 tags exist and are not pinned; their protocol behavior is not claimed. The fixture does not start Debezium Server.",
+      "source": "https://github.com/debezium/debezium",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:91b0fe6d803dbdc8bd08da8fc8d12041ab6e7e5b3b2a9ffe9582640f439ce4cf"
+        },
+        "linux/arm64": {
+          "digest": "sha256:842a0aa66dfab8a8cbe40634d53df5d1e5b4b5e9c7c8ea968d68f7cbc947c175"
+        }
+      }
+    },
+    {
+      "id": "toxiproxy-2.12.0",
+      "ref": "ghcr.io/shopify/toxiproxy:2.12.0",
+      "index_digest": "sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e",
+      "github_release_published_at": "2025-03-18T13:12:45Z",
+      "license": "MIT",
+      "license_note": "LICENSE at git tag v2.12.0 is MIT. Docker Hub shopify/toxiproxy stops at 2.1.4 (2019-01-10) and is not the pin. The image is FROM scratch. It is started with no proxies in front of the databases; fault.sh returns unavailable.",
+      "source": "https://github.com/Shopify/toxiproxy/tree/v2.12.0",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:a3e244375123dad8849091bcc59775e188624d3f602db01901f9af855682fef8"
+        },
+        "linux/arm64": {
+          "digest": "sha256:5ab4b4e8f476fd5452eb9584a608dd7cf8c11135878a8f7953722a9fcb9b3d87"
+        }
+      }
+    }
+  ]
+}

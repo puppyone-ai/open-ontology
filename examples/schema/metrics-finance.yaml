@@ -1,0 +1,33 @@
+schema_version: oos/v1
+metrics:
+  - metric: monthly_receipts
+    label: 月收款额
+    synonyms: [回款, 月回款, 收款金额]
+    description: 按收款日期归属月份的已确认收款金额，不含退款。
+    owner: finance
+    certified: true
+    unit: CNY
+    status: active
+    grain: [month]
+    time_dimension: logistics.receipt.received_at
+    default_anchor: prev_month_start
+    enum_filters:
+      - { column: logistics.receipt.status, enum: tms_pg.receipt.status, classes: [confirmed] }
+    sql: |
+      SELECT date_trunc('month', r.received_at) AS month, sum(r.amount) AS receipts
+      FROM logistics.receipt r
+      WHERE r.received_at >= :start AND r.received_at < :end
+      GROUP BY 1
+    dimensions: [customer, region, business_line]
+    caveats:
+      - 按开票日期统计的口径是月开票额，不要混用。
+    tests:
+      - params: { start: "2026-01-01", end: "2026-02-01" }
+        expect: { rows: 1 }
+    control_total:
+      as_of: last_closed_period_end
+      source: tms_pg
+      sql: |
+        SELECT sum(amount) FROM public.receipt
+        WHERE received_at >= :period_start AND received_at < :period_end
+      tolerance: { abs: 0.01 }

@@ -1,0 +1,28 @@
+schema_version: config/v1
+deployment:
+  name: acme-prod
+  timezone: Asia/Shanghai
+  locale: zh-CN
+secrets:
+  backend: builtin
+object_store:
+  backend: local
+  s3: { endpoint: https://s3.internal, bucket: oo-prod, region: cn-north-1 }
+buffer:
+  backend: valkey-streams
+agentdb:
+  primary: { host: agentdb-primary, port: 5432 }
+  replicas: [{ host: agentdb-replica, port: 5432 }]
+quality:
+  reconcile_max_age: 3d
+  rejects_alert: { per_table_daily: 1000, ratio: 0.001 }
+retention:
+  audit_days: 180
+  transcripts_days: 180
+  outputs_days: 30
+  uploads_days: 180
+llm_for_builder:
+  provider: openai-compatible
+  base_url: https://llm.internal/v1
+  model: synthetic-model
+  credential: secret://builder_llm

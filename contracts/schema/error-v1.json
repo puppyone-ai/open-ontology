@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "ErrorBody": {
+      "additionalProperties": false,
+      "description": "`retryable` is fixed by [`ErrorCode::retryable`]. It is not an independent\nfield a caller can flip after a valid parse. Deserialization rejects a\nbody that disagrees. Serialization writes the code's value and refuses a\nstored flag that does not match. HTTP `Retry-After` is not a field of this\nobject; a later HTTP implementation may set that header and is not invented\nhere.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "hint": {
+          "default": null,
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "maxLength": 2000,
+          "pattern": "^[^\\u{0}]*$",
+          "type": "string"
+        },
+        "query_id": {
+          "default": null,
+          "maxLength": 42,
+          "minLength": 8,
+          "pattern": "^q_[0-9A-Za-z]{6,40}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "UNAUTHENTICATED",
+        "SQL_PARSE_ERROR",
+        "STATEMENT_NOT_ALLOWED",
+        "FUNCTION_NOT_ALLOWED",
+        "RELATION_NOT_FOUND",
+        "COLUMN_NOT_ALLOWED",
+        "UNQUALIFIED_RELATION",
+        "COST_TOO_HIGH",
+        "TIMEOUT",
+        "TABLE_PAUSED",
+        "QUERY_TOO_SHORT",
+        "ENUMERATION_REFUSED",
+        "RATE_LIMITED",
+        "OVERLOADED",
+        "INTERNAL",
+        "AUDIT_UNAVAILABLE",
+        "IDEMPOTENCY_CONFLICT",
+        "CONFLICT",
+        "VERSION_UNSUPPORTED",
+        "SCHEMA_INVALID"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://openontology.dev/contracts/error/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/ErrorBody"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "API error envelope v1",
+  "type": "object"
+}

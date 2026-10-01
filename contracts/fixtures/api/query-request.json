@@ -1,0 +1,7 @@
+{
+  "sql": "select 1",
+  "max_rows": 10,
+  "timeout_ms": 1000,
+  "format": "json",
+  "client_context": { "purpose": "answer", "turn": 1 }
+}

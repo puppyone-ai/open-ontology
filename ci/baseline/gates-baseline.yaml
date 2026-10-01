@@ -1,0 +1,362 @@
+schema_version: "gates/v1"
+document: baseline
+current_phase: SP00
+provenance:
+  kind: bootstrap
+  status: in_review
+  protected_github_policy: false
+  owner_appointed: false
+  base_sha: null
+  first_enabled_commit: null
+  note: "Bootstrap baseline. Distinct path from the PR manifest. No remote owner and no branch protection. This file is not a GitHub policy claim."
+gates:
+  - id: gate-docs
+    status: required
+    reason: "Spec, plan, and governance checkers run on every code change."
+    requirements: [REQ-OPS-07]
+    acceptance: [AT-CORE-04]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-docs
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-fmt
+    status: required
+    reason: "Rustfmt check. It does not close a product acceptance test."
+    requirements: [REQ-CORE-01]
+    acceptance: [AT-CORE-01]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-fmt
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-clippy
+    status: required
+    reason: "Clippy with warnings denied. It does not close a product acceptance test."
+    requirements: [REQ-CORE-01]
+    acceptance: [AT-CORE-01]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-clippy
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-unit
+    status: required
+    reason: "Workspace unit and property tests. A green job is not AT-CORE-01 sign-off while core review is open."
+    requirements: [REQ-CORE-01]
+    acceptance: [AT-CORE-01]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-unit
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-contracts
+    status: required
+    reason: "Checked-in schema, OpenAPI components, and fixtures. AT-CORE-03 at SP00 is this schema slice. The full HTTP and TypeScript chain is gate-http-sdk."
+    requirements: [REQ-CORE-02]
+    acceptance: [AT-CORE-02]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-contracts
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-architecture
+    status: required
+    reason: "oo-arch-check over cargo metadata --locked, including the xtask member."
+    requirements: [REQ-CORE-02]
+    acceptance: [AT-CORE-01]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-architecture
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-secrets
+    status: required
+    reason: "Repository secret scan only. It does not close AT-SEC-05."
+    requirements: [REQ-SEC-01]
+    acceptance: [AT-SEC-05]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-secrets
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-dependencies
+    status: required
+    reason: "cargo-audit and cargo-deny for the Rust graph. Cargo output does not close AT-SEC-05."
+    requirements: [REQ-CORE-01, REQ-OPS-07]
+    acceptance: [AT-SEC-05]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-dependencies
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-evidence
+    status: required
+    reason: "Evidence v1 self-test and historical-draft rejection. Historical manifests are not rewritten."
+    requirements: [REQ-OPS-07]
+    acceptance: [AT-CORE-04]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: gate-evidence
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-aggregate
+    status: required
+    reason: "Checker combines job results with the baseline. It is not an echo job."
+    requirements: [REQ-OPS-07]
+    acceptance: [AT-CORE-04]
+    effective_phase: null
+    latest_phase: null
+    capability: null
+    path_prefix: null
+    job: null
+    evaluated_by: checker
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-datagen-sp00
+    status: pending
+    reason: "SP00 generator is blocked on W04. Pending is not a pass and is not not_applicable."
+    requirements: [REQ-EVAL-01]
+    acceptance: [AT-EVAL-01]
+    effective_phase: null
+    latest_phase: null
+    capability: datagen
+    path_prefix: null
+    job: gate-datagen-sp00
+    evaluated_by: job
+    success_forbidden: true
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-customer
+    status: pending
+    reason: "Customer and holdout evidence stays out of the public runner. Absence is not a pass."
+    requirements: [REQ-EVAL-06]
+    acceptance: [AT-EVAL-05]
+    effective_phase: SP12
+    latest_phase: SP12
+    capability: customer
+    path_prefix: null
+    job: gate-customer
+    evaluated_by: job
+    success_forbidden: true
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-http-sdk
+    status: pending
+    reason: "Full AT-CORE-03 HTTP and TypeScript client is SP09. Schema fixtures do not pass it."
+    requirements: [REQ-CORE-02]
+    acceptance: [AT-CORE-03]
+    effective_phase: SP09
+    latest_phase: SP09
+    capability: http
+    path_prefix: null
+    job: gate-http-sdk
+    evaluated_by: job
+    success_forbidden: true
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-integration-a
+    status: not_applicable_until_phase
+    reason: "Pipeline capability is not in this phase. Due when the pipeline is introduced, and no later than SP04."
+    requirements: [REQ-PL-02]
+    acceptance: [AT-PL-01]
+    effective_phase: SP04
+    latest_phase: SP04
+    capability: pipeline
+    path_prefix: "crates/oo-pipeline/"
+    job: gate-integration-a
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-security-b
+    status: not_applicable_until_phase
+    reason: "Gateway and database security suite is due by SP06."
+    requirements: [REQ-DB-02]
+    acceptance: [AT-DB-01, AT-GW-01]
+    effective_phase: SP06
+    latest_phase: SP06
+    capability: gateway
+    path_prefix: "crates/oo-gateway/"
+    job: gate-security-b
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-runtime-c
+    status: not_applicable_until_phase
+    reason: "Sandbox runtime suite becomes applicable at SP10 and is due by SP11."
+    requirements: [REQ-SEC-02]
+    acceptance: [AT-RT-01]
+    effective_phase: SP10
+    latest_phase: SP11
+    capability: sandbox
+    path_prefix: "crates/oo-sandbox/"
+    job: gate-runtime-c
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-ontology-d
+    status: not_applicable_until_phase
+    reason: "Ontology builder suite becomes applicable at SP07 and is due by SP12."
+    requirements: [REQ-OOS-01]
+    acceptance: [AT-OOS-01]
+    effective_phase: SP07
+    latest_phase: SP12
+    capability: ontology
+    path_prefix: "crates/oo-builder/"
+    job: gate-ontology-d
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-public-e
+    status: not_applicable_until_phase
+    reason: "Full public benchmark E is due by SP12. The SP00 generator slice is gate-datagen-sp00, not this gate."
+    requirements: [REQ-EVAL-04]
+    acceptance: [AT-EVAL-04]
+    effective_phase: SP12
+    latest_phase: SP12
+    capability: benchmark
+    path_prefix: "crates/oo-eval/"
+    job: gate-public-e
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-performance-f
+    status: not_applicable_until_phase
+    reason: "Performance suite is due by SP14."
+    requirements: [REQ-OPS-04]
+    acceptance: [AT-PERF-01]
+    effective_phase: SP14
+    latest_phase: SP14
+    capability: performance
+    path_prefix: null
+    job: gate-performance-f
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-operational
+    status: not_applicable_until_phase
+    reason: "Install and health suite starts at SP11 and is due by SP14."
+    requirements: [REQ-OPS-02]
+    acceptance: [AT-OPS-01]
+    effective_phase: SP11
+    latest_phase: SP14
+    capability: operational
+    path_prefix: null
+    job: gate-operational
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-release-state
+    status: not_applicable_until_phase
+    reason: "Release-state suite becomes applicable at SP10 and is due by SP14. No publish runs from the current workflow."
+    requirements: [REQ-OPS-06]
+    acceptance: [AT-PL-05, AT-OPS-07]
+    effective_phase: SP10
+    latest_phase: SP14
+    capability: release
+    path_prefix: null
+    job: gate-release-state
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-sbom-sign
+    status: not_applicable_until_phase
+    reason: "First signed SBOM is the M1 artifact and is due at SP11. It is not deferred to SP14, and Cargo license output does not close it."
+    requirements: [REQ-OPS-03]
+    acceptance: [AT-SEC-05]
+    effective_phase: SP11
+    latest_phase: SP11
+    capability: sbom
+    path_prefix: null
+    job: gate-sbom-sign
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-nightly-a-m
+    status: not_applicable_until_phase
+    reason: "Nightly pipeline slice is due by SP04. The nightly workflow does not echo it."
+    requirements: [REQ-PL-02]
+    acceptance: [AT-PL-01]
+    effective_phase: SP04
+    latest_phase: SP04
+    capability: nightly-pipeline
+    path_prefix: "crates/oo-pipeline/"
+    job: gate-nightly-a-m
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-nightly-c
+    status: not_applicable_until_phase
+    reason: "Nightly sandbox slice is due by SP11. The nightly workflow does not echo it."
+    requirements: [REQ-SEC-02]
+    acceptance: [AT-RT-01]
+    effective_phase: SP11
+    latest_phase: SP11
+    capability: nightly-sandbox
+    path_prefix: "crates/oo-sandbox/"
+    job: gate-nightly-c
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+  - id: gate-nightly-e
+    status: not_applicable_until_phase
+    reason: "Nightly benchmark slice is due by SP12. The nightly workflow does not echo it."
+    requirements: [REQ-EVAL-04]
+    acceptance: [AT-EVAL-04]
+    effective_phase: SP12
+    latest_phase: SP12
+    capability: nightly-benchmark
+    path_prefix: "crates/oo-eval/"
+    job: gate-nightly-e
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false

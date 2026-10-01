@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "template": true,
+  "record_status": "blank-template",
+  "audited": false,
+  "do_not_treat_as_baseline": true,
+  "baseline_file": "supply-chain/dependency-baseline.json",
+  "baseline_note": "Owned by SP00-W01. This template does not update that file and is not an audit.",
+  "package": {
+    "ecosystem": null,
+    "name": null,
+    "version": null,
+    "official_source": null,
+    "repository": null,
+    "manifests": [],
+    "publication_date": null,
+    "adoption_date": null,
+    "age_days_at_adoption": null,
+    "seven_day_rule": null,
+    "msrv": null,
+    "features_enabled": [],
+    "default_features_disabled": null,
+    "license_spdx": null,
+    "license_evidence": [],
+    "license_obligations": [],
+    "dual_license_choice": null,
+    "weak_copyleft_review": null,
+    "native_transitive": [],
+    "digest": null,
+    "prohibited_license": null
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": null,
+    "scanner": null,
+    "evidence": null,
+    "disposition": null,
+    "known_exploitable_high_severity": null
+  },
+  "reviewer_roles": ["supply-chain-owner", "security-owner"],
+  "reviewers_assigned": []
+}

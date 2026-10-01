@@ -1,0 +1,810 @@
+# Pull request and manual engineering checks.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# dtolnay/rust-toolchain @ 02cb101ec7c40f2c49e1d9714d64511d8e1b74de (2026-09-12)
+# rustc is pinned to 1.98.1. The cache action is unused.
+# Unused cache key: cargo-lock-1.98.1-${{ hashFiles('Cargo.lock') }}
+# Repository credentials stay unset. Forks receive none.
+# A green job is not phase sign-off and is not branch protection.
+# Aggregate does not treat imported job outputs as required_satisfied.
+# Authenticated GitHub provenance stays pending. There is no signing key here.
+
+name: pr
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate-docs:
+    name: gate-docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: docs
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask docs --check --format json | tee "${RUNNER_TEMP}/gate-docs.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-docs.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask docs --check --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-docs-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-docs.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-fmt:
+    name: gate-fmt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: fmt
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo fmt --all -- --check | tee "${RUNNER_TEMP}/gate-fmt.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-fmt.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo fmt --all -- --check' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-fmt-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-fmt.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-clippy:
+    name: gate-clippy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: clippy
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo clippy --workspace --locked --all-targets -- -D warnings | tee "${RUNNER_TEMP}/gate-clippy.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-clippy.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo clippy --workspace --locked --all-targets -- -D warnings' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-clippy-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-clippy.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-unit:
+    name: gate-unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: unit
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo test --workspace --locked | tee "${RUNNER_TEMP}/gate-unit.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-unit.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo test --workspace --locked' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-unit-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-unit.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-contracts:
+    name: gate-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: contracts
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask contracts --check --format json | tee "${RUNNER_TEMP}/gate-contracts.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-contracts.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask contracts --check --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-contracts-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-contracts.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-architecture:
+    name: gate-architecture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: architecture
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask architecture --check --format json | tee "${RUNNER_TEMP}/gate-architecture.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-architecture.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask architecture --check --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-architecture-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-architecture.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: secret scan
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask secrets --check --format json | tee "${RUNNER_TEMP}/secret-scan.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/secret-scan.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask secrets --check --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: secret-scan-${{ github.run_id }}
+          path: ${{ runner.temp }}/secret-scan.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-dependencies:
+    name: gate-dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: dependencies
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask supply --run-tools --format json | tee "${RUNNER_TEMP}/gate-dependencies.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-dependencies.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask supply --run-tools --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-dependencies-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-dependencies.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  gate-evidence:
+    name: gate-evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: evidence
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask evidence --self-test --format json | tee "${RUNNER_TEMP}/gate-evidence.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-evidence.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask evidence --self-test --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/gate-evidence.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  aggregate:
+    name: aggregate
+    permissions:
+      contents: read
+      actions: read
+    needs:
+      - gate-docs
+      - gate-fmt
+      - gate-clippy
+      - gate-unit
+      - gate-contracts
+      - gate-architecture
+      - secret-scan
+      - gate-dependencies
+      - gate-evidence
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: gates
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          COMMIT: ${{ github.sha }}
+          DOCS_EXIT: ${{ needs.gate-docs.outputs.exit_code }}
+          DOCS_LOG: ${{ needs.gate-docs.outputs.log_sha256 }}
+          FMT_EXIT: ${{ needs.gate-fmt.outputs.exit_code }}
+          FMT_LOG: ${{ needs.gate-fmt.outputs.log_sha256 }}
+          CLIPPY_EXIT: ${{ needs.gate-clippy.outputs.exit_code }}
+          CLIPPY_LOG: ${{ needs.gate-clippy.outputs.log_sha256 }}
+          UNIT_EXIT: ${{ needs.gate-unit.outputs.exit_code }}
+          UNIT_LOG: ${{ needs.gate-unit.outputs.log_sha256 }}
+          CONTRACTS_EXIT: ${{ needs.gate-contracts.outputs.exit_code }}
+          CONTRACTS_LOG: ${{ needs.gate-contracts.outputs.log_sha256 }}
+          ARCHITECTURE_EXIT: ${{ needs.gate-architecture.outputs.exit_code }}
+          ARCHITECTURE_LOG: ${{ needs.gate-architecture.outputs.log_sha256 }}
+          SECRETS_EXIT: ${{ needs.secret-scan.outputs.exit_code }}
+          SECRETS_LOG: ${{ needs.secret-scan.outputs.log_sha256 }}
+          DEPENDENCIES_EXIT: ${{ needs.gate-dependencies.outputs.exit_code }}
+          DEPENDENCIES_LOG: ${{ needs.gate-dependencies.outputs.log_sha256 }}
+          EVIDENCE_EXIT: ${{ needs.gate-evidence.outputs.exit_code }}
+          EVIDENCE_LOG: ${{ needs.gate-evidence.outputs.log_sha256 }}
+          DOCS_RESULT: ${{ needs.gate-docs.result }}
+          FMT_RESULT: ${{ needs.gate-fmt.result }}
+          CLIPPY_RESULT: ${{ needs.gate-clippy.result }}
+          UNIT_RESULT: ${{ needs.gate-unit.result }}
+          CONTRACTS_RESULT: ${{ needs.gate-contracts.result }}
+          ARCHITECTURE_RESULT: ${{ needs.gate-architecture.result }}
+          SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
+          DEPENDENCIES_RESULT: ${{ needs.gate-dependencies.result }}
+          EVIDENCE_RESULT: ${{ needs.gate-evidence.result }}
+          DOCS_SCRIPT: ${{ needs.gate-docs.outputs.step_script_sha256 }}
+          DOCS_STARTED: ${{ needs.gate-docs.outputs.started_at }}
+          DOCS_FINISHED: ${{ needs.gate-docs.outputs.finished_at }}
+          DOCS_RUN: ${{ needs.gate-docs.outputs.run_id }}
+          FMT_SCRIPT: ${{ needs.gate-fmt.outputs.step_script_sha256 }}
+          FMT_STARTED: ${{ needs.gate-fmt.outputs.started_at }}
+          FMT_FINISHED: ${{ needs.gate-fmt.outputs.finished_at }}
+          FMT_RUN: ${{ needs.gate-fmt.outputs.run_id }}
+          CLIPPY_SCRIPT: ${{ needs.gate-clippy.outputs.step_script_sha256 }}
+          CLIPPY_STARTED: ${{ needs.gate-clippy.outputs.started_at }}
+          CLIPPY_FINISHED: ${{ needs.gate-clippy.outputs.finished_at }}
+          CLIPPY_RUN: ${{ needs.gate-clippy.outputs.run_id }}
+          UNIT_SCRIPT: ${{ needs.gate-unit.outputs.step_script_sha256 }}
+          UNIT_STARTED: ${{ needs.gate-unit.outputs.started_at }}
+          UNIT_FINISHED: ${{ needs.gate-unit.outputs.finished_at }}
+          UNIT_RUN: ${{ needs.gate-unit.outputs.run_id }}
+          CONTRACTS_SCRIPT: ${{ needs.gate-contracts.outputs.step_script_sha256 }}
+          CONTRACTS_STARTED: ${{ needs.gate-contracts.outputs.started_at }}
+          CONTRACTS_FINISHED: ${{ needs.gate-contracts.outputs.finished_at }}
+          CONTRACTS_RUN: ${{ needs.gate-contracts.outputs.run_id }}
+          ARCHITECTURE_SCRIPT: ${{ needs.gate-architecture.outputs.step_script_sha256 }}
+          ARCHITECTURE_STARTED: ${{ needs.gate-architecture.outputs.started_at }}
+          ARCHITECTURE_FINISHED: ${{ needs.gate-architecture.outputs.finished_at }}
+          ARCHITECTURE_RUN: ${{ needs.gate-architecture.outputs.run_id }}
+          SECRETS_SCRIPT: ${{ needs.secret-scan.outputs.step_script_sha256 }}
+          SECRETS_STARTED: ${{ needs.secret-scan.outputs.started_at }}
+          SECRETS_FINISHED: ${{ needs.secret-scan.outputs.finished_at }}
+          SECRETS_RUN: ${{ needs.secret-scan.outputs.run_id }}
+          DEPENDENCIES_SCRIPT: ${{ needs.gate-dependencies.outputs.step_script_sha256 }}
+          DEPENDENCIES_STARTED: ${{ needs.gate-dependencies.outputs.started_at }}
+          DEPENDENCIES_FINISHED: ${{ needs.gate-dependencies.outputs.finished_at }}
+          DEPENDENCIES_RUN: ${{ needs.gate-dependencies.outputs.run_id }}
+          EVIDENCE_SCRIPT: ${{ needs.gate-evidence.outputs.step_script_sha256 }}
+          EVIDENCE_STARTED: ${{ needs.gate-evidence.outputs.started_at }}
+          EVIDENCE_FINISHED: ${{ needs.gate-evidence.outputs.finished_at }}
+          EVIDENCE_RUN: ${{ needs.gate-evidence.outputs.run_id }}
+        run: |
+          set -eu
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          case "${COMMIT}" in
+            [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+            *) echo "commit is not 40 hex" >&2; exit 1 ;;
+          esac
+          accept() {
+            case "$1" in
+              success|failure|cancelled|skipped) ;;
+              *) echo "result token rejected" >&2; exit 1 ;;
+            esac
+          }
+          accept "${DOCS_RESULT}"
+          accept "${FMT_RESULT}"
+          accept "${CLIPPY_RESULT}"
+          accept "${UNIT_RESULT}"
+          accept "${CONTRACTS_RESULT}"
+          accept "${ARCHITECTURE_RESULT}"
+          accept "${SECRET_SCAN_RESULT}"
+          accept "${DEPENDENCIES_RESULT}"
+          accept "${EVIDENCE_RESULT}"
+          if [ "${EVENT}" = "pull_request" ]; then
+            BASE="${BASE_SHA}"
+          else
+            BASE="${HEAD_SHA}"
+          fi
+          if [ -z "${BASE}" ] || [ "${BASE}" = "0000000000000000000000000000000000000000" ]; then
+            echo "BASE is empty. Candidate checkout is not a baseline." >&2
+            exit 1
+          fi
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --no-tags --unshallow origin
+          fi
+          git fetch --no-tags origin "${BASE}"
+          git cat-file -e "${BASE}^{commit}"
+          if [ "${EVENT}" = "schedule" ] || [ "${EVENT}" = "workflow_dispatch" ]; then
+            if [ "${BASE}" != "$(git rev-parse HEAD)" ]; then
+              echo "BASE is not HEAD for ${EVENT}" >&2
+              exit 1
+            fi
+          else
+            if [ "${BASE}" = "$(git rev-parse HEAD)" ]; then
+              echo "pull_request and push require BASE to be a strict ancestor of HEAD" >&2
+              exit 1
+            fi
+            git merge-base --is-ancestor "${BASE}" HEAD
+          fi
+          git diff --name-only "${BASE}" HEAD > "${RUNNER_TEMP}/changed.txt"
+          bound() {
+            result="$1"
+            exit_code="$2"
+            log_sha="$3"
+            case "${result}" in
+              success) if [ "${exit_code}" != "0" ]; then result=failure; fi ;;
+              failure|cancelled|skipped) ;;
+              *) echo "result token rejected" >&2; exit 1 ;;
+            esac
+            case "${exit_code}" in
+              ''|*[!0-9-]*) exit_code=-1 ;;
+            esac
+            case "${log_sha}" in
+              [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+              *) log_sha=0000000000000000000000000000000000000000000000000000000000000000; exit_code=-1; result=failure ;;
+            esac
+            printf '%s %s %s\n' "${result}" "${exit_code}" "${log_sha}"
+          }
+          docs_bound=$(bound "${DOCS_RESULT}" "${DOCS_EXIT}" "${DOCS_LOG}")
+          fmt_bound=$(bound "${FMT_RESULT}" "${FMT_EXIT}" "${FMT_LOG}")
+          clippy_bound=$(bound "${CLIPPY_RESULT}" "${CLIPPY_EXIT}" "${CLIPPY_LOG}")
+          unit_bound=$(bound "${UNIT_RESULT}" "${UNIT_EXIT}" "${UNIT_LOG}")
+          contracts_bound=$(bound "${CONTRACTS_RESULT}" "${CONTRACTS_EXIT}" "${CONTRACTS_LOG}")
+          architecture_bound=$(bound "${ARCHITECTURE_RESULT}" "${ARCHITECTURE_EXIT}" "${ARCHITECTURE_LOG}")
+          secrets_bound=$(bound "${SECRET_SCAN_RESULT}" "${SECRETS_EXIT}" "${SECRETS_LOG}")
+          dependencies_bound=$(bound "${DEPENDENCIES_RESULT}" "${DEPENDENCIES_EXIT}" "${DEPENDENCIES_LOG}")
+          evidence_bound=$(bound "${EVIDENCE_RESULT}" "${EVIDENCE_EXIT}" "${EVIDENCE_LOG}")
+          field() { printf '%s\n' "$1" | awk -v n="$2" '{print $n}'; }
+          log_or_missing() {
+            gate="$1"
+            logname="$2"
+            dest="${RUNNER_TEMP}/logs/${gate}"
+            mkdir -p "${dest}"
+            missing="${RUNNER_TEMP}/logs/missing-${gate}.log"
+            if ! list=$(curl -sS \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100"); then
+              printf '%s\n' "${missing}"
+              return 0
+            fi
+            id=$(printf '%s\n' "${list}" | jq -r --arg name "${gate}-${GITHUB_RUN_ID}" '.artifacts[] | select(.name == $name) | .id' | head -n 1)
+            if [ -z "${id}" ] || [ "${id}" = "null" ]; then
+              printf '%s\n' "${missing}"
+              return 0
+            fi
+            if ! curl -sS -L \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" \
+              -o "${dest}.zip"; then
+              printf '%s\n' "${missing}"
+              return 0
+            fi
+            if ! unzip -qo "${dest}.zip" -d "${dest}"; then
+              printf '%s\n' "${missing}"
+              return 0
+            fi
+            if [ ! -f "${dest}/${logname}" ]; then
+              printf '%s\n' "${missing}"
+              return 0
+            fi
+            printf '%s\n' "${dest}/${logname}"
+          }
+          docs_log=$(log_or_missing gate-docs gate-docs.log)
+          fmt_log=$(log_or_missing gate-fmt gate-fmt.log)
+          clippy_log=$(log_or_missing gate-clippy gate-clippy.log)
+          unit_log=$(log_or_missing gate-unit gate-unit.log)
+          contracts_log=$(log_or_missing gate-contracts gate-contracts.log)
+          architecture_log=$(log_or_missing gate-architecture gate-architecture.log)
+          secrets_log=$(log_or_missing secret-scan secret-scan.log)
+          dependencies_log=$(log_or_missing gate-dependencies gate-dependencies.log)
+          evidence_log=$(log_or_missing gate-evidence gate-evidence.log)
+          cat > "${RUNNER_TEMP}/jobs.json" <<EOF
+          {
+            "commit": "${COMMIT}",
+            "jobs": [
+              {"id":"gate-docs","result":"$(field "${docs_bound}" 1)","command":["cargo","xtask","docs","--check","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${docs_bound}" 2),"log_sha256":"$(field "${docs_bound}" 3)","runner":"github-actions","log_path":"${docs_log}","step_script_sha256":"${DOCS_SCRIPT}","started_at":"${DOCS_STARTED}","finished_at":"${DOCS_FINISHED}","run_id":"${DOCS_RUN}"},
+              {"id":"gate-fmt","result":"$(field "${fmt_bound}" 1)","command":["cargo","fmt","--all","--","--check"],"commit":"${COMMIT}","exit_code":$(field "${fmt_bound}" 2),"log_sha256":"$(field "${fmt_bound}" 3)","runner":"github-actions","log_path":"${fmt_log}","step_script_sha256":"${FMT_SCRIPT}","started_at":"${FMT_STARTED}","finished_at":"${FMT_FINISHED}","run_id":"${FMT_RUN}"},
+              {"id":"gate-clippy","result":"$(field "${clippy_bound}" 1)","command":["cargo","clippy","--workspace","--locked","--all-targets","--","-D","warnings"],"commit":"${COMMIT}","exit_code":$(field "${clippy_bound}" 2),"log_sha256":"$(field "${clippy_bound}" 3)","runner":"github-actions","log_path":"${clippy_log}","step_script_sha256":"${CLIPPY_SCRIPT}","started_at":"${CLIPPY_STARTED}","finished_at":"${CLIPPY_FINISHED}","run_id":"${CLIPPY_RUN}"},
+              {"id":"gate-unit","result":"$(field "${unit_bound}" 1)","command":["cargo","test","--workspace","--locked"],"commit":"${COMMIT}","exit_code":$(field "${unit_bound}" 2),"log_sha256":"$(field "${unit_bound}" 3)","runner":"github-actions","log_path":"${unit_log}","step_script_sha256":"${UNIT_SCRIPT}","started_at":"${UNIT_STARTED}","finished_at":"${UNIT_FINISHED}","run_id":"${UNIT_RUN}"},
+              {"id":"gate-contracts","result":"$(field "${contracts_bound}" 1)","command":["cargo","xtask","contracts","--check","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${contracts_bound}" 2),"log_sha256":"$(field "${contracts_bound}" 3)","runner":"github-actions","log_path":"${contracts_log}","step_script_sha256":"${CONTRACTS_SCRIPT}","started_at":"${CONTRACTS_STARTED}","finished_at":"${CONTRACTS_FINISHED}","run_id":"${CONTRACTS_RUN}"},
+              {"id":"gate-architecture","result":"$(field "${architecture_bound}" 1)","command":["cargo","xtask","architecture","--check","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${architecture_bound}" 2),"log_sha256":"$(field "${architecture_bound}" 3)","runner":"github-actions","log_path":"${architecture_log}","step_script_sha256":"${ARCHITECTURE_SCRIPT}","started_at":"${ARCHITECTURE_STARTED}","finished_at":"${ARCHITECTURE_FINISHED}","run_id":"${ARCHITECTURE_RUN}"},
+              {"id":"gate-secrets","result":"$(field "${secrets_bound}" 1)","command":["cargo","xtask","secrets","--check","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${secrets_bound}" 2),"log_sha256":"$(field "${secrets_bound}" 3)","runner":"github-actions","log_path":"${secrets_log}","step_script_sha256":"${SECRETS_SCRIPT}","started_at":"${SECRETS_STARTED}","finished_at":"${SECRETS_FINISHED}","run_id":"${SECRETS_RUN}"},
+              {"id":"gate-dependencies","result":"$(field "${dependencies_bound}" 1)","command":["cargo","xtask","supply","--run-tools","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${dependencies_bound}" 2),"log_sha256":"$(field "${dependencies_bound}" 3)","runner":"github-actions","log_path":"${dependencies_log}","step_script_sha256":"${DEPENDENCIES_SCRIPT}","started_at":"${DEPENDENCIES_STARTED}","finished_at":"${DEPENDENCIES_FINISHED}","run_id":"${DEPENDENCIES_RUN}"},
+              {"id":"gate-evidence","result":"$(field "${evidence_bound}" 1)","command":["cargo","xtask","evidence","--self-test","--format","json"],"commit":"${COMMIT}","exit_code":$(field "${evidence_bound}" 2),"log_sha256":"$(field "${evidence_bound}" 3)","runner":"github-actions","log_path":"${evidence_log}","step_script_sha256":"${EVIDENCE_SCRIPT}","started_at":"${EVIDENCE_STARTED}","finished_at":"${EVIDENCE_FINISHED}","run_id":"${EVIDENCE_RUN}"}
+            ]
+          }
+          EOF
+          if ! git cat-file -e "${BASE}:ci/baseline/gates-baseline.yaml"; then
+            echo "BASE has no protected policy file. Working-tree baseline is not used." >&2
+            exit 1
+          fi
+          if ! git cat-file -e "${BASE}:crates/xtask/src/gates.rs"; then
+            echo "trusted_base_checker=pending_external" | tee "${RUNNER_TEMP}/aggregate.log"
+            echo "BASE does not contain the gate checker. GitHub branch protection is not configured. Candidate xtask is not the authority." >&2
+            exit 3
+          fi
+          archive="${RUNNER_TEMP}/base-checker"
+          rm -rf "${archive}"
+          mkdir -p "${archive}"
+          git archive "${BASE}" | tar -x -C "${archive}"
+          set -o pipefail
+          set +e
+          (
+            cd "${archive}"
+            env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u RUSTFLAGS -u CARGO_ENCODED_RUSTFLAGS -u CARGO_TARGET_DIR \
+              cargo run --locked \
+              --config 'build.rustc-wrapper=""' \
+              --config 'source.crates-io.replace-with="crates-io"' \
+              --manifest-path "${archive}/Cargo.toml" \
+              -p xtask -- gates --check \
+              --repo "${GITHUB_WORKSPACE}" \
+              --trusted-base-root "${archive}" \
+              --manifest "${GITHUB_WORKSPACE}/ci/gates.yaml" \
+              --baseline-source git-object \
+              --base-sha "${BASE}" \
+              --workflow-event "${EVENT}" \
+              --event-path "${GITHUB_EVENT_PATH}" \
+              --jobs "${RUNNER_TEMP}/jobs.json" \
+              --changed "${RUNNER_TEMP}/changed.txt" \
+              --phase SP00 \
+              --format json
+          ) | tee "${RUNNER_TEMP}/aggregate.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          # Imported needs outputs are not authenticated provenance.
+          # A checker exit 0 on that file is not a pass. Real failures stay failures.
+          if [ "${code}" -eq 0 ]; then
+            echo "authenticated_provenance=pending" | tee -a "${RUNNER_TEMP}/aggregate.log"
+            exit 3
+          fi
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: aggregate-${{ github.run_id }}
+          path: ${{ runner.temp }}/aggregate.log
+          retention-days: 14
+          if-no-files-found: ignore

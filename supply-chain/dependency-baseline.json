@@ -1,0 +1,1153 @@
+{
+  "schema_version": 1,
+  "work_item": "SP00-W01",
+  "product": "Open Ontology agent-facing database and context entry. This file is a dependency baseline, not a knowledge graph and not a product implementation.",
+  "adoption_date": "2026-09-30T23:48:21Z",
+  "seven_day_cutoff": "2026-09-23T23:48:21Z",
+  "seven_day_rule": "A version whose crates.io created_at is after adoption_date minus 7*24 hours is not admitted. No security-fix exception was used.",
+  "prohibited_licenses": [
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "AGPL-3.0",
+    "BUSL-1.1",
+    "Elastic-2.0",
+    "SSPL-1.0"
+  ],
+  "toolchain": {
+    "pinned_channel": "1.98.1",
+    "channel_manifest_url": "https://static.rust-lang.org/dist/channel-rust-1.98.1.toml",
+    "channel_manifest_date": "2026-09-03",
+    "channel_manifest_sha256": "a7c8774a5fd8441c997d94c029776cbc5eb111e9d72ab5d256fa69866644347e",
+    "rustc_commit": "48a229ceaefd4985c50990b14116b6d856af0985",
+    "compiler_used_for_primary_checks": "rustc 1.98.1 (48a229cea 2026-09-01) Homebrew, host aarch64-apple-darwin",
+    "rustup_installed": false,
+    "toolchain_file_effect": "rust-toolchain.toml records the channel. Homebrew cargo does not switch toolchains. The recorded channel matches the compiler that ran.",
+    "workspace_rust_version": "1.94.0",
+    "workspace_rust_version_reason": "Floor for the reviewed sqlx 0.9.0 candidate, which declares rust-version 1.94.0. The admitted lock's highest declared rust-version is cargo-platform 1.91.",
+    "msrv_compile": {
+      "rustc": "1.94.1",
+      "commit": "e408947bfd200af42db322daf0fadfe7e26d3bd1",
+      "channel_date": "2026-03-26",
+      "tarball": "https://static.rust-lang.org/dist/2026-03-26/rust-1.94.1-aarch64-apple-darwin.tar.xz",
+      "tarball_sha256": "8203128a1ae831593b2d2dc3f2c150ae5675a1b1f79ba9921577397778a6154b",
+      "install_prefix": "/tmp/oo-w01-rust/prefix",
+      "command": "CARGO_TARGET_DIR=/tmp/oo-w01-msrv-target cargo test --workspace --locked --offline",
+      "exit_code": 0,
+      "architecture_tests": "11 passed"
+    },
+    "host": "Darwin arm64, aarch64-apple-darwin",
+    "linux_targets_not_built": [
+      {
+        "target": "aarch64-unknown-linux-gnu",
+        "manifest": "channel-rust-1.98.1.toml",
+        "rust_std_url": "https://static.rust-lang.org/dist/2026-09-03/rust-std-1.98.1-aarch64-unknown-linux-gnu.tar.gz",
+        "rust_std_sha256": "779407b14507542581216d89eb9f3fbb232abbf3abcc15c365cb32fa0614e409",
+        "built": false
+      },
+      {
+        "target": "x86_64-unknown-linux-gnu",
+        "manifest": "channel-rust-1.98.1.toml",
+        "rust_std_url": "https://static.rust-lang.org/dist/2026-09-03/rust-std-1.98.1-x86_64-unknown-linux-gnu.tar.gz",
+        "rust_std_sha256": "eddab0358cbd12aeb897716aab00d1db7b59696e85b9ac4982e72259a9a976b1",
+        "built": false
+      }
+    ]
+  },
+  "workspace": {
+    "edition": "2024",
+    "resolver": "3",
+    "license": "Apache-2.0",
+    "publish": false,
+    "version": "0.1.0",
+    "product_features": [],
+    "members": [
+      "oo-core",
+      "oo-jobs",
+      "oo-control",
+      "oo-connectors",
+      "oo-pipeline",
+      "oo-builder",
+      "oo-gateway",
+      "oo-sdk",
+      "oo-cli",
+      "oo-mcp",
+      "oo-proxy",
+      "oo-sandbox",
+      "oo-entry",
+      "oo-eval",
+      "oo-analysis",
+      "oo-arch-check"
+    ],
+    "direct_workspace_edges": [
+      [
+        "oo-jobs",
+        "oo-core"
+      ],
+      [
+        "oo-connectors",
+        "oo-core"
+      ],
+      [
+        "oo-pipeline",
+        "oo-core"
+      ],
+      [
+        "oo-pipeline",
+        "oo-jobs"
+      ],
+      [
+        "oo-pipeline",
+        "oo-connectors"
+      ],
+      [
+        "oo-builder",
+        "oo-core"
+      ],
+      [
+        "oo-builder",
+        "oo-jobs"
+      ],
+      [
+        "oo-control",
+        "oo-core"
+      ],
+      [
+        "oo-control",
+        "oo-jobs"
+      ],
+      [
+        "oo-gateway",
+        "oo-core"
+      ],
+      [
+        "oo-sdk",
+        "oo-core"
+      ],
+      [
+        "oo-cli",
+        "oo-core"
+      ],
+      [
+        "oo-cli",
+        "oo-sdk"
+      ],
+      [
+        "oo-mcp",
+        "oo-core"
+      ],
+      [
+        "oo-proxy",
+        "oo-core"
+      ],
+      [
+        "oo-sandbox",
+        "oo-core"
+      ],
+      [
+        "oo-entry",
+        "oo-core"
+      ],
+      [
+        "oo-eval",
+        "oo-core"
+      ],
+      [
+        "oo-analysis",
+        "oo-core"
+      ]
+    ]
+  },
+  "admitted_crates": [
+    {
+      "ecosystem": "crates.io",
+      "name": "camino",
+      "version": "1.2.6",
+      "official_source": "https://crates.io/crates/camino/1.2.6",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-09-15T03:32:22.693003Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 15.844,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.61.0",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "bbbad30e4b4c14a39e3cc8aed085a12a327257c316619c93581e017bc52be591",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "cargo-platform",
+      "version": "0.3.3",
+      "official_source": "https://crates.io/crates/cargo-platform/0.3.3",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-04-18T14:37:47.459402Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 165.382,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.91",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "dd0061da739915fae12ea00e16397555ed4371a6bb285431aab930f61b0aa4ba",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "cargo_metadata",
+      "version": "0.23.1",
+      "official_source": "https://crates.io/crates/cargo_metadata/0.23.1",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "crates/oo-arch-check/Cargo.toml",
+      "direct": true,
+      "publication_date": "2025-11-12T16:08:46.727799Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 322.319,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.86.0",
+      "features_enabled": [
+        "(default-features = false; cargo_metadata 0.23.1 default is empty)"
+      ],
+      "default_features_disabled": true,
+      "license_spdx_manifest": "MIT",
+      "license_files_in_crate": [
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "MIT",
+      "notice_file": null,
+      "digest_sha256": "ef987d17b0a113becdd19d3d0022d04d7ef41f9efe4f3fb63ac44ba61df3ade9",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "itoa",
+      "version": "1.0.18",
+      "official_source": "https://crates.io/crates/itoa/1.0.18",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-03-20T00:12:37.043881Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 194.983,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.68",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "memchr",
+      "version": "2.8.3",
+      "official_source": "https://crates.io/crates/memchr/2.8.3",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-08T00:49:54.408285Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 84.957,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.61",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "Unlicense OR MIT",
+      "license_files_in_crate": [
+        "COPYING",
+        "LICENSE-MIT",
+        "UNLICENSE"
+      ],
+      "license_relied_on": "MIT",
+      "notice_file": null,
+      "digest_sha256": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "official_source": "https://crates.io/crates/proc-macro2/1.0.107",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-19T00:18:25.189787Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 73.979,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "quote",
+      "version": "1.0.47",
+      "official_source": "https://crates.io/crates/quote/1.0.47",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-19T00:16:57.083778Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 73.98,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "semver",
+      "version": "1.0.28",
+      "official_source": "https://crates.io/crates/semver/1.0.28",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-04-04T00:25:14.379075Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 179.974,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.68",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "serde",
+      "version": "1.0.229",
+      "official_source": "https://crates.io/crates/serde/1.0.229",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-18T23:05:13.266456Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 74.03,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.56",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "serde_core",
+      "version": "1.0.229",
+      "official_source": "https://crates.io/crates/serde_core/1.0.229",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-18T23:05:10.896830Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 74.03,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.56",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "official_source": "https://crates.io/crates/serde_derive/1.0.229",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-18T23:05:07.504375Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 74.03,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "serde_json",
+      "version": "1.0.151",
+      "official_source": "https://crates.io/crates/serde_json/1.0.151",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-20T05:54:44.078083Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 72.746,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "syn",
+      "version": "3.0.6",
+      "official_source": "https://crates.io/crates/syn/3.0.6",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-09-16T22:31:12.314477Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 14.054,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "thiserror",
+      "version": "2.0.21",
+      "official_source": "https://crates.io/crates/thiserror/2.0.21",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-09-23T20:24:07.771104Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 7.142,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.77",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "thiserror-impl",
+      "version": "2.0.21",
+      "official_source": "https://crates.io/crates/thiserror-impl/2.0.21",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-09-23T20:24:05.038819Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 7.142,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.77",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT OR Apache-2.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "Apache-2.0",
+      "notice_file": null,
+      "digest_sha256": "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "unicode-ident",
+      "version": "1.0.26",
+      "official_source": "https://crates.io/crates/unicode-ident/1.0.26",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-09-17T06:18:03.751388Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 13.729,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "license_files_in_crate": [
+        "LICENSE-APACHE",
+        "LICENSE-MIT",
+        "LICENSE-UNICODE"
+      ],
+      "license_relied_on": "Apache-2.0 AND Unicode-3.0",
+      "notice_file": null,
+      "digest_sha256": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+      "prohibited_license": false,
+      "native_build": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "zmij",
+      "version": "1.0.23",
+      "official_source": "https://crates.io/crates/zmij/1.0.23",
+      "registry": "https://github.com/rust-lang/crates.io-index",
+      "manifest": "Cargo.lock (transitive of cargo_metadata 0.23.1)",
+      "direct": false,
+      "publication_date": "2026-07-13T12:58:53.705886Z",
+      "adoption_date": "2026-09-30T23:48:21Z",
+      "age_days_at_adoption": 79.451,
+      "seven_day_rule": "pass",
+      "security_fix_exception": null,
+      "msrv": "1.71",
+      "features_enabled": [],
+      "default_features_disabled": false,
+      "license_spdx_manifest": "MIT",
+      "license_files_in_crate": [
+        "LICENSE-MIT"
+      ],
+      "license_relied_on": "MIT",
+      "notice_file": null,
+      "digest_sha256": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+      "prohibited_license": false,
+      "native_build": false
+    }
+  ],
+  "admitted_scope": "These crates are the Cargo.lock closure. They exist so oo-arch-check can read cargo metadata. They are not product drivers, HTTP servers, or model SDKs. oo-core has no dependencies.",
+  "feature_matrix": [
+    {
+      "id": "tokio",
+      "version": "1.53.1",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-07-20T17:06:09.996426Z",
+      "msrv": "1.71",
+      "license": "MIT",
+      "features": [
+        "rt-multi-thread",
+        "macros",
+        "net",
+        "time",
+        "sync",
+        "io-util",
+        "signal",
+        "fs"
+      ],
+      "default_features": false,
+      "notes": "Crate default feature set is empty. Resolve lists the empty 'default' feature because other crates enable tokio; it adds no extra APIs. Not the 'full' feature."
+    },
+    {
+      "id": "axum",
+      "version": "0.8.9",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-04-14T07:55:20.258398Z",
+      "msrv": "1.80",
+      "license": "MIT",
+      "features": [
+        "form",
+        "http1",
+        "json",
+        "matched-path",
+        "original-uri",
+        "query",
+        "tokio",
+        "tower-log",
+        "tracing"
+      ],
+      "default_features": true,
+      "notes": "Documented default HTTP JSON set. No HTTP/2 or websocket feature enabled on axum itself."
+    },
+    {
+      "id": "tower",
+      "version": "0.5.3",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-01-12T18:43:05.227461Z",
+      "msrv": "1.64.0",
+      "license": "MIT",
+      "features": [
+        "crate defaults"
+      ],
+      "default_features": true,
+      "notes": "Defaults used. 'full' not enabled."
+    },
+    {
+      "id": "tower-http",
+      "version": "0.7.1",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-08-31T14:49:25.697237Z",
+      "msrv": "1.65",
+      "license": "MIT",
+      "features": [
+        "timeout",
+        "limit",
+        "trace"
+      ],
+      "default_features": false,
+      "notes": "Not 'full'. reqwest 0.13.5 also pulls tower-http 0.6.11 for follow-redirect. Two major lines."
+    },
+    {
+      "id": "reqwest",
+      "version": "0.13.5",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-08T20:55:26.479356Z",
+      "msrv": "1.85.0",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "rustls",
+        "http2",
+        "json"
+      ],
+      "default_features": false,
+      "notes": "Resolved features: __rustls, __rustls-aws-lc-rs, __tls, http2, json, rustls. system-proxy and native-tls are off. TLS provider is aws-lc-rs. Production still forbids a NoTls build; this probe did not run a request."
+    },
+    {
+      "id": "hyper-util",
+      "version": "0.1.20",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-02-02T14:17:16.623245Z",
+      "msrv": "1.64",
+      "license": "MIT",
+      "features": [
+        "activated by axum and reqwest"
+      ],
+      "default_features": false,
+      "notes": "0.1.21 (2026-09-24) is younger than 7 days and was not selected. reqwest 0.13.5 accepts 0.1.20. Pinned in the probe lock with cargo update --precise."
+    },
+    {
+      "id": "tokio-rustls",
+      "version": "0.26.5",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-04T08:52:06.163215Z",
+      "msrv": "1.71",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "tls12 via reqwest"
+      ],
+      "default_features": false,
+      "notes": "0.26.6 (2026-09-28) rejected for age. Probe lock pinned 0.26.5."
+    },
+    {
+      "id": "rustls-platform-verifier",
+      "version": "0.7.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-04-12T09:27:15.687200Z",
+      "msrv": "1.85",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "pulled by reqwest rustls"
+      ],
+      "default_features": true,
+      "notes": "0.7.1 (2026-09-24) rejected. Pinning 0.7.0 also replaced rustls-platform-verifier-android 0.2.0, which had no age-compliant 0.2 release, with 0.1.1."
+    },
+    {
+      "id": "sqlx",
+      "version": "0.9.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-05-21T17:35:53.403466Z",
+      "msrv": "1.94.0",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "runtime-tokio",
+        "tls-rustls",
+        "postgres",
+        "mysql",
+        "sqlite-bundled",
+        "sqlite-deserialize",
+        "sqlite-unlock-notify"
+      ],
+      "default_features": false,
+      "notes": "Resolve did not enable sqlite, sqlite-load-extension, any, or tls-none. tls-rustls selected tls-rustls-ring-webpki (ring), not aws-lc. Compile used bundled libsqlite3-sys. No database was contacted. migrate is not in this set."
+    },
+    {
+      "id": "tokio-postgres",
+      "version": "0.7.18",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-06-12",
+      "msrv": "1.85",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "default",
+        "runtime"
+      ],
+      "default_features": true,
+      "notes": "Published source contains query_portal and CancelToken::cancel_query. Those paths were not executed. P14."
+    },
+    {
+      "id": "deadpool-postgres",
+      "version": "0.14.2",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-08-26",
+      "msrv": "1.85",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "default",
+        "rt_tokio_1"
+      ],
+      "default_features": true,
+      "notes": "Compile only. No pool was opened."
+    },
+    {
+      "id": "serde",
+      "version": "1.0.229",
+      "status": "compile-verified-and-in-lock",
+      "admitted_to_workspace": true,
+      "doc_candidate": true,
+      "created_at": "2026-07-18T23:05:13.266456Z",
+      "msrv": "1.56",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "default via cargo_metadata"
+      ],
+      "default_features": true,
+      "notes": "In the product lock only because cargo_metadata depends on it. oo-core does not depend on serde yet. SP00-W02 adds the models."
+    },
+    {
+      "id": "serde_json",
+      "version": "1.0.151",
+      "status": "compile-verified-and-in-lock",
+      "admitted_to_workspace": true,
+      "doc_candidate": true,
+      "created_at": "2026-07-20T05:54:44.078083Z",
+      "msrv": "1.71",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "default via cargo_metadata"
+      ],
+      "default_features": true,
+      "notes": "Transitive. Not an oo-core API."
+    },
+    {
+      "id": "schemars",
+      "version": "1.2.2",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-07-27T14:35:28.246709Z",
+      "msrv": "1.74",
+      "license": "MIT",
+      "features": [
+        "default",
+        "derive",
+        "std"
+      ],
+      "default_features": true,
+      "notes": "Probe only."
+    },
+    {
+      "id": "serde-saphyr",
+      "version": "1.3.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-16T16:41:36.112385Z",
+      "msrv": "1.89",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "serialize",
+        "deserialize"
+      ],
+      "default_features": false,
+      "notes": "include and include_fs were not enabled. Those features stay off: config include is banned."
+    },
+    {
+      "id": "jsonschema",
+      "version": "0.57.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-21T22:55:19.771822Z",
+      "msrv": "1.85.0",
+      "license": "MIT",
+      "features": [],
+      "default_features": false,
+      "notes": "0.58.0 through 0.58.3 are younger than 7 days. Defaults include resolve-http, resolve-file, and tls-aws-lc-rs. The probe disabled default features. Resolved feature list is empty."
+    },
+    {
+      "id": "utoipa",
+      "version": "6.0.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-22T22:30:17.822880Z",
+      "msrv": "1.88",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "default",
+        "macros"
+      ],
+      "default_features": true,
+      "notes": "Age at the probe audit was greater than 7 days. Not admitted."
+    },
+    {
+      "id": "sqlparser",
+      "version": "0.63.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-13",
+      "msrv": null,
+      "license": "Apache-2.0",
+      "features": [
+        "crate defaults"
+      ],
+      "default_features": true,
+      "notes": "Dialect evidence only. Not a SQL admission gate. pg_query remains the gate candidate."
+    },
+    {
+      "id": "arrow",
+      "version": "60.0.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-15",
+      "msrv": "1.88",
+      "license": "Apache-2.0",
+      "features": [
+        "default"
+      ],
+      "default_features": true,
+      "notes": "Same series as parquet 60.0.0. duckdb 1.10505.0 resolves arrow 58.4.0 in the same probe workspace. Do not force one Arrow series across both."
+    },
+    {
+      "id": "parquet",
+      "version": "60.0.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-15",
+      "msrv": "1.88",
+      "license": "Apache-2.0",
+      "features": [
+        "default including brotli, snap, lz4, zstd, flate2-zlib-rs"
+      ],
+      "default_features": true,
+      "notes": "brotli-decompressor 6.0.1 was younger than 7 days. Probe lock pinned 6.0.0 (2026-09-02). object_store feature of parquet was not enabled."
+    },
+    {
+      "id": "object_store",
+      "version": "0.14.2",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-09-15",
+      "msrv": "1.85",
+      "license": "MIT OR Apache-2.0",
+      "features": [
+        "fs"
+      ],
+      "default_features": false,
+      "notes": "Resolved fs, nix, tokio, walkdir, windows-sys. No aws, s3, azure, gcp, or http feature was requested."
+    },
+    {
+      "id": "calamine",
+      "version": "0.36.1",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-07-27",
+      "msrv": "1.88",
+      "license": "MIT",
+      "features": [
+        "default (empty)"
+      ],
+      "default_features": true,
+      "notes": "Default feature list is empty."
+    },
+    {
+      "id": "encoding_rs",
+      "version": "0.8.41",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-09T08:32:25.423945Z",
+      "msrv": "1.88",
+      "license": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+      "features": [
+        "alloc",
+        "default"
+      ],
+      "default_features": true,
+      "notes": "0.8.42 (2026-09-24) rejected for age."
+    },
+    {
+      "id": "chardetng",
+      "version": "1.0.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-03-30",
+      "msrv": "1.40",
+      "license": "Apache-2.0 OR MIT",
+      "features": [
+        "crate defaults"
+      ],
+      "default_features": true,
+      "notes": "Probe only."
+    },
+    {
+      "id": "pg_query",
+      "version": "6.2.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": true,
+      "created_at": "2026-08-03T15:35:05.906784Z",
+      "msrv": null,
+      "license": "MIT",
+      "features": [],
+      "default_features": true,
+      "notes": "6.2.1 (2026-09-30T19:27Z) rejected for age. Crate source libpg_query reports PG_VERSION 17.7 and PG_VERSION_NUM 170007. Native build via cc and bindgen 0.66 against libclang. Compile does not show that the SQL gate accepts or rejects statements."
+    },
+    {
+      "id": "duckdb",
+      "version": "1.10505.0",
+      "status": "compile-verified",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-07-22T13:42:37.863025Z",
+      "msrv": "1.85.1",
+      "license": "MIT",
+      "features": [
+        "bundled"
+      ],
+      "default_features": false,
+      "notes": "1.10506.0 (2026-09-30) rejected for age. cargo check -p probe-duckdb --locked exited 0 in 45.43s and compiled libduckdb-sys. No SQL was executed. The rust duckdb crate stays denied on oo-analysis and oo-core. Sandbox DuckDB is a later CLI, not this crate dependency. Arrow inside this crate resolved to 58.4.0."
+    },
+    {
+      "id": "rmcp",
+      "version": "3.4.1",
+      "status": "metadata-only",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-23T17:30:22.394262Z",
+      "msrv": "1.88",
+      "license": "Apache-2.0",
+      "features": [],
+      "default_features": null,
+      "notes": "3.5.0 (2026-09-28) rejected for age. 3.4.1 is older than the 7-day cutoff used for the probe audit. Not compiled and not admitted. MCP transport is SP13."
+    },
+    {
+      "id": "redis",
+      "version": "1.7.0",
+      "status": "metadata-only",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-09-05T18:24:47.428882Z",
+      "msrv": "1.88",
+      "license": "BSD-3-Clause",
+      "features": [],
+      "default_features": null,
+      "notes": "1.7.1 (2026-09-25) rejected for age. Not compiled. If probed later, tokio-rustls-comp rather than native-tls. The architecture gate treats redis and fred as client database drivers on oo-sdk, oo-cli, oo-mcp, oo-analysis, and oo-core. Gateway is not in that deny set."
+    },
+    {
+      "id": "bollard",
+      "version": "0.21.1",
+      "status": "metadata-only",
+      "admitted_to_workspace": false,
+      "doc_candidate": false,
+      "created_at": "2026-08-16T12:20:14.052517Z",
+      "msrv": null,
+      "license": "Apache-2.0",
+      "features": [],
+      "default_features": null,
+      "notes": "Sandbox orchestration is SP10. Denied on oo-core and on oo-gateway by R-GATEWAY-RUNTIME. Not compiled."
+    },
+    {
+      "id": "cargo_metadata",
+      "version": "0.23.1",
+      "status": "admitted",
+      "admitted_to_workspace": true,
+      "doc_candidate": false,
+      "created_at": "2025-11-12T16:08:46.727799Z",
+      "msrv": "1.86.0",
+      "license": "MIT",
+      "features": [],
+      "default_features": false,
+      "notes": "Only direct external dependency of the workspace. Used by oo-arch-check."
+    }
+  ],
+  "probe": {
+    "path": "/tmp/oo-w01-probes",
+    "not_in_product_workspace": true,
+    "command": "LIBCLANG_PATH=/Library/Developer/CommandLineTools/usr/lib cargo check --locked --workspace --exclude probe-duckdb",
+    "exit_code": 0,
+    "duckdb_command": "cargo check --locked -p probe-duckdb",
+    "duckdb_exit_code": 0,
+    "host_resolve_package_count_audited": 409,
+    "host_resolve_younger_than_seven_days": 0,
+    "host_resolve_prohibited_licenses": 0,
+    "host_resolve_msrv_above_1_94": 0,
+    "wasm32_lock_entries_younger_than_seven_days": [
+      {
+        "name": "js-sys",
+        "version": "0.3.106",
+        "created_at": "2026-09-25T07:13:42.260040Z"
+      },
+      {
+        "name": "wasm-bindgen",
+        "version": "0.2.129",
+        "created_at": "2026-09-25T07:13:40.367031Z"
+      },
+      {
+        "name": "wasm-bindgen-futures",
+        "version": "0.4.79",
+        "created_at": "2026-09-25T07:13:46.762707Z"
+      },
+      {
+        "name": "wasm-bindgen-macro",
+        "version": "0.2.129",
+        "created_at": "2026-09-25T07:13:38.603121Z"
+      },
+      {
+        "name": "wasm-bindgen-macro-support",
+        "version": "0.2.129",
+        "created_at": "2026-09-25T07:13:36.815330Z"
+      },
+      {
+        "name": "wasm-bindgen-shared",
+        "version": "0.2.129",
+        "created_at": "2026-09-25T07:13:33.159722Z"
+      },
+      {
+        "name": "web-sys",
+        "version": "0.3.106",
+        "created_at": "2026-09-25T07:13:44.661972Z"
+      }
+    ],
+    "wasm32_note": "reqwest 0.13.5 pins this wasm-bindgen set with exact version requirements under cfg(target_arch = wasm32). Those crates are in the probe lock and are not in the aarch64-apple-darwin resolve. A wasm32 build of this combination is blocked. No seven-day exception was recorded."
+  },
+  "not_claimed": [
+    "AT-CORE-01 dual architecture. Linux aarch64 and Linux x86_64 were not linked.",
+    "Native protocol runtime: PostgreSQL, MySQL, SQLite, portal queries, cancel, pg_query acceptance, or DuckDB SQL.",
+    "gVisor or sandbox isolation.",
+    "cargo audit and cargo deny. Neither binary is installed. They were not run.",
+    "Product behavior. Workspace crates are skeletons. Process binaries exit 2."
+  ]
+}
