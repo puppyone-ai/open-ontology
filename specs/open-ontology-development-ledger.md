@@ -325,6 +325,8 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 
 a066所发现的SQLx API限制已由协调者核查锁定0.9源码，最小纠正方向冻结于execution/decisions/sqlx-0.9-explicit-source-trust.md（commit1589c18）。方向保留SQLx，必要时仅对两上游crate作有来源/许可/补丁hash的无env构造器与显式CA独占补丁；当前a066仍运行，不能同时启动另一writer。其真实终态/交接后再以明确resume扩展允许文件范围，实施与独立复审未完成前不签修复。
 
+a066最新实际状态：仍live handle37636；两vendor crate已落在其现有checkout的crates/oo-connectors/vendor，协调者仅核对写入目录/许可证文件范围，尚未签补丁内容。最小方向的目录已与实际路径对齐；最终复审须检查精确upstream差异、构造器/根证书路径和origin manifest，而不能仅信“vendor patches on disk”。后续集成有限snapshot还须包含这两个crate的必要source/manifest/license/patch provenance，不复制整个registry/cache。
+
 导入集成待验边界：pgident/v1的q_加完整NFC字节hex映射可能超过PG63字节标识符上限；例如31字节大写名映射为64字节。两个仅末字节低nibble不同的名称可在目标PG隐式截断后碰撞。此为固定b2代码静态发现的目标集成风险，尚未做真实PG复现，需在SP03-W05/SP04目标命名持久映射阶段验证；logical catalog id不能未经长度/碰撞核验直接充当目标DDL标识符。不得在当前移动草案上直接修改契约或把静态推导当完整验收。
 
 完整Spec/Plan/87ToDo/16Phase保持，功能台账是交付顺序，不是缩小目标。完成勾选只按功能真实证据和固定SHA独立验收；parentPhase/AT不得因子项commit提前勾。开始记录功能交付、验收工作项与返工率；既有基础修复切片不冒充完整产品功能。
