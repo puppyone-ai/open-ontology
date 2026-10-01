@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-dual-mit-or-gpl"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "MIT OR GPL-3.0-only"
+description = "MIT text is present. GPL-3.0-only is an unselected alternative."
+
+[workspace]

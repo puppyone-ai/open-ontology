@@ -1,0 +1,5 @@
+bind /tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/snapshot -> /src rw=false
+bind /tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/smoke.sh -> /opt/oo-smoke.sh rw=false
+bind /tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/cargo-home -> /cargo-home rw=true
+bind /tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/target -> /target rw=true
+

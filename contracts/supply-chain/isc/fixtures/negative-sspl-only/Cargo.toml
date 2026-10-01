@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-sspl-only"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "SSPL-1.0"
+description = "Synthetic SSPL-1.0 negative control."
+
+[workspace]

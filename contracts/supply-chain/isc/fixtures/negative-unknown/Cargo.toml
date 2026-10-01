@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-unknown"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "LicenseRef-OO-Synthetic-Unknown"
+description = "Synthetic unknown license-ref negative control."
+
+[workspace]

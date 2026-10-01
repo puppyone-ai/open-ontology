@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-mit-or-gpl-missing-mit-text"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "MIT OR GPL-3.0-only"
+description = "Metadata names MIT. The MIT license text is intentionally absent."
+
+[workspace]

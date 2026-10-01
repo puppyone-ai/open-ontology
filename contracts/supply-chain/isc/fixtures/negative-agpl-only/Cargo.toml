@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-agpl-only"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "AGPL-3.0-only"
+description = "Synthetic AGPL-3.0-only negative control."
+
+[workspace]

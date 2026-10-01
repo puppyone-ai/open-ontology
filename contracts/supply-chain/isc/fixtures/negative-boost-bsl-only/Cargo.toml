@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-boost-bsl-only"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "BSL-1.0"
+description = "Synthetic Boost Software License 1.0 sole-license negative control."
+
+[workspace]

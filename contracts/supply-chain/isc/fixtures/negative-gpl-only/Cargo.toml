@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-gpl-only"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-only"
+description = "Synthetic GPL-3.0-only negative control."
+
+[workspace]

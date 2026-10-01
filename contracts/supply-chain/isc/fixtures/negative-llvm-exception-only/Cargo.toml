@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-negative-llvm-exception-only"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0 WITH LLVM-exception"
+description = "Exception-only expression. The exception id is not allowlisted."
+
+[workspace]

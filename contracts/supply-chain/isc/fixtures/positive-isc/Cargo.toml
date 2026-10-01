@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-positive-isc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "ISC"
+description = "Synthetic crate whose only license is ISC."
+
+[workspace]

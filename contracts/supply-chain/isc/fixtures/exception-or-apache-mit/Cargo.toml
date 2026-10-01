@@ -1,0 +1,9 @@
+[package]
+name = "oo-isc-fixture-exception-or-apache-mit"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+description = "WITH LLVM-exception is an alternative. Apache-2.0 and MIT texts are present."
+
+[workspace]

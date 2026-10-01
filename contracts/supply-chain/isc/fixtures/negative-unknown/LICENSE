@@ -1,0 +1,3 @@
+Declared SPDX: LicenseRef-OO-Synthetic-Unknown
+This file is not a substitute for that license text.
+The fixture exists so cargo-deny evaluates the expression.
