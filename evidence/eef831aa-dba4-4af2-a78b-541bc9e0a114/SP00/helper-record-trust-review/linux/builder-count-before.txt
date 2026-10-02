@@ -1,0 +1,5 @@
+host_rust_comm=0
+rust_image_containers=0
+total=0
+slot_a_reserved=eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-base
+counting=running-only

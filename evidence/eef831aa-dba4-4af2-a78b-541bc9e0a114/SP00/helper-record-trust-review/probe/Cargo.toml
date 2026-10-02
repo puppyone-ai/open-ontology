@@ -1,0 +1,9 @@
+[package]
+name = "helper-trust-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+description = "Independent std-only spawn probe for the helper evidence checker."
+
+[workspace]

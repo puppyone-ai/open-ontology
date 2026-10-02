@@ -1,0 +1,19 @@
+# Host preregistration, computed with Python datetime before the container started.
+# The probe recomputes these with its own civil-day calendar and must agree.
+# adoption=2026-10-02T11:10:37Z
+# forged_adoption=2026-09-24T17:36:11.278420Z
+# floor_hours=168
+# floor_seconds=604800
+# lock_sha256=14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1
+# lock_commit=f1a6005971e3dc3075094c87ed670fc9d25e9ae0
+# rustsec_commit=117edb3bed98e9be112f277b7615eea3252e7c43
+# rustsec_time=2026-10-02T10:58:33+02:00
+# audit_sha256=f64e43716f72c173879cb30130f73df0f1c802ac32960eb6c3955c15c2209f81
+# advisory_rev_sha256=ee376fcdd344d86d428ff4f80997e660fe2b2217fdf77139ddfcb5b6e3055cbd
+# as_of=2026-10-02T12:12:14Z
+# Columns: package, version.created_at, stored_age, completed_days, forged_days, at_least_168h
+bitflags	2026-09-10T01:11:38.500809Z	22	22	14	yes
+cfg-if	2026-09-16T17:36:11.278420Z	15	15	8	yes
+cfg_aliases	2026-07-16T14:57:16.699789Z	77	77	70	yes
+libc	2026-07-21T21:33:28.018110Z	72	72	64	yes
+nix	2026-05-11T07:01:18.650221Z	144	144	136	yes

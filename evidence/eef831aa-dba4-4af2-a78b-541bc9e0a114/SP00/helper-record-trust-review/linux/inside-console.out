@@ -1,0 +1,41 @@
+uname=Linux 6c5b279f1b4c 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+date=2026-10-02T21:38:17Z
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+RUSTUP_TOOLCHAIN=1.94.0
+/usr/local/cargo/bin/rustc
+/usr/local/cargo/bin/cargo
+9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792  /usr/local/cargo/bin/rustc
+9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792  /usr/local/cargo/bin/cargo
+/usr/bin/sha256sum
+7911a1f0aec4678c540bd78ff886f48d42790c8689a82ed0ae25ed79ed5dd512  /usr/bin/sha256sum
+14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1  /archive/testing/harness/containment-supervisor/Cargo.lock
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b  /archive/ci/deny.toml
+f64e43716f72c173879cb30130f73df0f1c802ac32960eb6c3955c15c2209f81  /archive/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out
+2293ae42758092a2590b0568692d3489780124a2250876fc087eefd8b0c84d78  /review/probe/src/main.rs
+ed55c26a136fd919c3ff6dbff39b72bf1ee7ff50d8ea21a97d84dcf42900b6d0  /review/expected-outcomes.tsv
+bf664d5b4f2a5e0a9825153948f933e456da9a5c73a37c5e48ca6aea1999afa1  /review/age-floor-preregistration.tsv
+PHASE cargo-test-offline start 2026-10-02T21:38:17Z
+PHASE cargo-test-offline exit 0
+PHASE clippy-component start 2026-10-02T21:38:19Z
+PHASE clippy-component exit 0
+PHASE clippy-offline start 2026-10-02T21:38:20Z
+PHASE clippy-offline exit 0
+PHASE clippy-tests-offline start 2026-10-02T21:38:20Z
+PHASE clippy-tests-offline exit 0
+2cb04ba6701778408a5c09839af053c89d50614510546dff7a9e4ae1ec6adad7  /target/checker/debug/helper-evidence-check
+PHASE probe-build start 2026-10-02T21:38:20Z
+PHASE probe-build exit 0
+7ab97c9e855c408fcbb95fa34e10f971c61d76f7cbec1a6a037bcaa48a10be78  /target/probe/debug/helper-trust-probe
+PHASE probe start 2026-10-02T21:38:20Z
+PHASE probe exit 0
+PHASE clippy-all-targets start 2026-10-02T21:38:21Z
+PHASE clippy-all-targets exit 101
+PHASE smoke exit 0
+PHASE clippy-all-targets exit 101 not-in-smoke
