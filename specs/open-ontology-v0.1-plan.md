@@ -253,6 +253,7 @@ P项关联Spec原型表的相关AT，不新造另一组验收。每份结论含�
 - [x] SP02-W01-a 控制schema：70a4e72，a068固定复审批准。
 - [x] SP02-W01-c 事件项目绑定：9224d31，a079固定复审批准；真实LOGIN跨项目拒绝、坏历史迁移回滚、合法历史不变。
 - [ ] SP02-W01-b Rust领取/续租/generation CAS/schedule/retry及100worker、重启与备份验收。
+  - [ ] SP02-W01-b1 受限DB lease原语：a102已派发，新增前向迁移/契约与Rust真实PG fixture，不改共享依赖。SQL会话并发不替代Rust驱动与完整100worker验收。
 - [ ] Applicator真实文件哈希/readiness合取、迁移有界超时与40P01重试；事件内容真实性与最小项目scope按后续接口验证。
 
 - 执行：先DDL约束/专用角色/migration锁，再短事务领取、30s lease/10s heartbeat、generation CAS与schedule去重；DB时间为权威，NOTIFY仅唤醒、轮询兜底。

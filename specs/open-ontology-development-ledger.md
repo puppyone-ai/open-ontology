@@ -98,7 +98,8 @@
 
 - [ ] SP02-W01 控制迁移/jobs/lease/schedule
   - [x] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72获a068固定复审approve；协调者核验完整报告、117探针全ok/0失败、Linux1.94测试/Clippy0和三个文件hash。仅schema切片，driver/100worker/备份与完整AT仍未签。
-  - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：待迁移固定接口与依赖整合。
+  - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：a102先实现独立DB lease primitives，Rust调度驱动/共享依赖随后整合。
+  - [ ] SP02-W01-b1 受限DB领取/续租/完成/retry/cancel原语：a102实际启动，新增0003/versioncontract与Rust真实PG fixture；旧0/1/2不变、无Cargo写权。
   - [x] SP02-W01-c event项目归属约束：9224d31获a079固定复审approve；真实LOGIN跨项目23503、坏历史及并发坏历史OO004回滚、合法历史不变、Linux1.94局部测试/Clippy0。仅项目绑定，不签事件内容真实性或完整驱动。
   - [ ] SP02后续适用验收：applicator哈希校验与readiness合取、未来函数必须以owner创建而非adopt未审definer、运行时CAS/TTL/最小项目scope；a068-F1/F3/F4/F5不得因schema子项approve而忽略。
 - [ ] SP02-W02 config/Git/CAS
@@ -632,3 +633,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 a101 Grok4.7xhigh原生会话实际启动handle3407，固定f1a6005971e3dc3075094c87ed670fc9d25e9ae0 standalonehelper锁14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1，只写自己的证据/工具root/归档。实际pinned cargo-audit0.22.2/cargo-deny0.20.2，必要安装占1own/global2Rustbuilder，不动hostcache或foreignmanifest；固定ci/deny不改、真实RustSecrevision/机器raw/exits/age/versiontimestamp/许可正文核验。不能把根workspace不含helper的扫描、HTTP404、manifestlicense或OR工具许可当完整policyadmission，不能弱化CDLA/OR/ignore/168h。工具安装失败或MSRV不符必须真实记录未验，不静默换版本/工具链。完整root/SDK/P5/native/OCI/CDLA与秘密历史及发行仍各自门槛。
 
 此任务无新产品交付或验收勾选；仍6交付组件/6产品验收子项/首次返工4比6，87完整父项/16Phase未完成。基础工具扫描与CLI/types/target/source/identity并行，但globalbuilder预算不增加；满额先读材料等待，不持续观测。CLI终态后显式根交接a098仍是下一共享依赖节点，未据baseline完成释放root。
+
+
+## a102队列lease原语独立开发
+
+前一回合为verified wait，CLI3387确认live；本轮再次核验仍live，读现有jobs schema/contract显示无claim/heartbeat驱动，70a4e72与9224d31 schema/event绑定已有固定批准。此模块独立于CLI/root与connector类型，且服务真实导入控制状态。a102原生Grok4.7xhigh实际启动handle91030，baselineaeb351cfb3b8c31e305568cd655ed057d4afdbf5，只写oo-jobs新0003/newcontract/newRusttests/自己证据，严禁manifest/lock/libstub/其他模块/旧SQL或contract修改；不增加根writer或global2builder额度。
+
+b1冻结实际ownercreated固定security-definer接口：enqueue精确dedupe/参数化输入、project/kind过滤SKIPLOCKED claim、DBclock30s lease、activeowner/gen/expiry CAS heartbeat/completion/retry/cancel、expiredrunning经queued新attempt/gen且cap失败、同control事务真实audit、runtime直接task/event写权收紧、非Agentcredential。projectfilter不冒充runtime跨project认证，callerhash/file readiness仍installer外部责任；不将控制lease当targetfence。真实PGLOGIN/100并发claim会话/rollback/restart/oldtoken/expiry/NULL/权限/迁移回滚与Linux1.94 Rustfixture核验；不把100SQLsessions称为完整100worker或fullAT。Rust主驱动/scheduler/NOTIFY/backup/configauth与目标Loader保持后续项。
+
+无新交付或验收勾选，产品仍6交付组件/6验收子项/首次返工4比6，完整87父项/16Phase未完成。roota095/connectora098单writer保持，jobs新增独立a102；a097/a099/a100/a101既有readonly会话保留，不按静默重启。基础扫描与产品队列并行，避免无关基础门槛阻塞独立功能。
