@@ -852,3 +852,14 @@ a117handle96717实际exit0，关闭不再轮询。交付341ece0ea25ae50ff054a458
 slotB移交a119 fixedSHA独立复审，只own evidence，无ci/root写权；slotA继续a116，a118无builder。指标与勾选不变，goal active。
 
 a119实际Grok4.7xhigh handle56789，slotB/own evidence权限生效；ci配置/root manifests/lock均无writer。下一新UUID a120。
+
+### a118 分析终态与 R2 拆分
+
+a118 handle61827 实际 exit0，关闭；325a6a0f 三报告完整分段阅读、三个 hashes 校验通过。接收为分析输入，不代表 reader 实现或独立验收。已写 a118-stream-analysis-receipt.md：修正页内未到 PortalSuspended 的同步矛盾，要求连接/速率预算前置、全生产读取路径接收上限及全扫描主键准入解耦。
+
+- [x] R2 分配路径分析、证据接收与协议/预算问题记录（设计准备，不计产品验收）。
+- [ ] R2-W 驱动接收上限及实际 allocation 测量：prepared 卡已写，尚未派发。
+- [ ] R2-P 命名 portal 协议状态机与真实暂停/继续测试。
+- [ ] R2-S 同 cut 多表全量 pull/Arrow 流与预算前置。
+
+a116 handle68913 与 a119 handle56789 本次有界观察仍 live，各独占原 builder 槽；不授予第三 builder。下一 UUID a120 保留。9 产品组件/9验收子项/首轮返工6比9保持，87父项与16phase均未完整完成，goal active。
