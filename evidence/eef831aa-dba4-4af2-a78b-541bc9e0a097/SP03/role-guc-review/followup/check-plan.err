@@ -1,0 +1,2 @@
+FAIL: Spec baseline: Source hash drift: docs/17-rust-implementation.md
+FAIL: Spec baseline: Source size/line drift: docs/17-rust-implementation.md

@@ -1,9 +1,13 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-10-01",
+  "captured_date": "2026-10-02",
   "timezone": "Asia/Shanghai",
-  "baseline_head": "e271542aa645aa181da7887d416de0698752a805",
+  "revision": 2,
+  "supersedes_baseline_head": "e271542aa645aa181da7887d416de0698752a805",
+  "supersedes_sha256": "a224a6526e8e223c00bb6157c8815e4ddfb5b14b125d1e4fdae9d206981bcbb5",
+  "review_record": "execution/decisions/source-baseline-revision-2.md",
+  "baseline_head": "34fae5ddd73ff250fde6f51aa681fb0f7fbd0362",
   "source_count": 19,
   "sources": [
     {
@@ -110,9 +114,9 @@
     },
     {
       "path": "docs/17-rust-implementation.md",
-      "sha256": "ae6eff09f20c1f399c5b0332668f5b0b7ab4f038b725f7377888052f0c649d14",
-      "bytes": 18246,
-      "lines": 122
+      "sha256": "f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534",
+      "bytes": 18962,
+      "lines": 124
     },
     {
       "path": "docs/README.md",

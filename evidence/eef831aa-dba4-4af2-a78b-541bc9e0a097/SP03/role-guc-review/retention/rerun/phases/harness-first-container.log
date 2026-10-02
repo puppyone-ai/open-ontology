@@ -1,0 +1,3 @@
+=== fetch ===
+phase_exit=0 phase=fetch
+cp: failed to preserve ownership for '/tmp/work/testing/product/pg-source/init.sql': Operation not permitted

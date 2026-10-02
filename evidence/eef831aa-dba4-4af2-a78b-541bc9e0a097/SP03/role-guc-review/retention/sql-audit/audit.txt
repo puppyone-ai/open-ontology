@@ -1,0 +1,12 @@
+bytes=56944
+sha256=09db04f5b9113aae7c587995bc5337ae8655cda5ef9c89e4ac2c15bebc578587
+password_file_hits=0
+canary_hits=0
+password_word_lines=0
+source_statement_lines=66
+SELECT=54
+WITH=6
+START=3
+ROLLBACK=3
+other=none
+verbs_only_select_with_start_rollback=True

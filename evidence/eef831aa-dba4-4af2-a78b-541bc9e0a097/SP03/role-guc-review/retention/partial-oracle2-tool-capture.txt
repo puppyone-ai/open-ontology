@@ -1,0 +1,10 @@
+status=exited oom=false
+=== comm ===
+Error response from daemon: container ae63949f843f074e467e61e8ba6ce0fa678bdd847717ba2951b20110bffd45cd is not running
+=== log markers ===
+   Compiling oo-connectors v0.1.0 (/tmp/work/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.23s
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.15s
+phase_exit=0 phase=oracle
+phase_exit=0 phase=lock

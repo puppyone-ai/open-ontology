@@ -3,10 +3,10 @@
 | 属性 | 值 |
 |---|---|
 | Spec ID | OO-SPEC-001 |
-| 版本 | 1.0.0 |
+| 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 全部 19 份文档；Git HEAD `e271542aa645aa181da7887d416de0698752a805` |
+| 输入基线 | `docs/` 全部 19 份文档；来源 revision 2，Git HEAD `34fae5ddd73ff250fde6f51aa681fb0f7fbd0362`；原 HEAD `e271542aa645aa181da7887d416de0698752a805` 保留在来源变更记录 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -1300,7 +1300,7 @@ fork PR无发布Secret/客户Secret/OIDC生产权限，不使用可执行PR代�
 ```json
 {
   "spec_id": "OO-SPEC-001",
-  "spec_version": "1.0.0",
+  "spec_version": "1.0.1",
   "run_id": "example-only",
   "phase": "SP04",
   "commit": "<implementation-commit>",
@@ -1541,6 +1541,8 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 ### 24.1 全量来源阅读记录
 
 本规范依据以下19份文档全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+1.0.1仅更新已独立审阅的来源revision 2：[变更审阅记录](../execution/decisions/source-baseline-revision-2.md)。docs/17新增源privateCA/verify-full、TLS统计unknown与role GUC封闭拒绝说明，落实REQ-SRC-02及零源写要求；不新增或删除REQ/AT/工作项/Phase，不把限定组件批准改为Phase签收。
 
 | 文档 | 已提取的要求 / 主要规范位置 |
 |---|---|

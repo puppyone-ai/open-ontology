@@ -2,11 +2,11 @@
 
 | 属性 | 值 |
 |---|---|
-| Plan ID / 版本 | OO-PLAN-001 / 1.0.0 |
+| Plan ID / 版本 | OO-PLAN-001 / 1.0.1 |
 | 状态 | Implementation in progress；实际任务状态以开发台账和固定提交证据为准 |
 | 日期 | 2026-10-02，Asia/Shanghai |
-| 规范基线 | [OO-SPEC-001 v1.0.0](open-ontology-v0.1-spec.md)；[19 份来源的哈希基线](sources-baseline.json) |
-| Spec SHA-256 | `95cd2cf1b429bd2281756ab02025a82a7fdca1f22ab0f93bff4e31ad1095e565` |
+| 规范基线 | [OO-SPEC-001 v1.0.1](open-ontology-v0.1-spec.md)；[19 份来源的哈希基线 revision 2](sources-baseline.json) |
+| Spec SHA-256 | `accac91210579da06387c94a28a6e71430a9c629cab9c6921c137d2e2f72fb91` |
 | 使用对象 | 工程师、编程 Agent、组件 reviewer、安全 reviewer、数据与客户业务 owner |
 | 覆盖 | SP00–SP15，保留全部 87 个工作项、P1–P16，以及原 REQ / AT / G / I 编号 |
 | 实现边界 | 第一方产品与工程运行器使用 Rust；控制台和 TS SDK 使用 TypeScript；不重新定义为知识图谱 |
@@ -64,7 +64,7 @@
 ```yaml
 task_id: SP04-W02
 status: planned
-spec: OO-SPEC-001@1.0.0
+spec: OO-SPEC-001@1.0.1
 requirements: [REQ-PL-01, REQ-PL-02]
 acceptance_scope: [AT-PL-02@SP04, AT-PL-07@SP04]
 depends_on: [SP04-W01, SP04-W05]
@@ -84,9 +84,9 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 ### 当前实施检查点（2026-10-02）
 
-具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime六项修正获a090批准；P5 IPC有限切片获a091批准、身份独立补证由a100执行；源role GUC复审有限approve但证据补存待验、基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a由a103固定复审，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。SDK runtime六项修正获a090批准；P5 IPC有限切片和独立身份补证分别获a091/a100限定验收；源role GUC/main准入修正经a097补证签收，来源revision2已审阅；基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a由a103固定复审，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
 
-- [ ] SP03-W01 main源身份安全整合：a097固定34fae5d有限approve，原始SQL日志hash已核验；独立oracle源码/最终完整输出留存缺口由原UUID补证，协调者暂不签收。继续保持源零写和privateCA-only。
+- [x] SP03-W01-M main源身份安全修正切片：a097固定34fae5d有限approve，原始SQL及新保留Rustoracle完整输出/hash已核验；旧完整stdout仍missing明确保留。仅role GUC/源准入修正，完整W01/catalog/reader/types另验。
 - [ ] SP04-W05-a 目标fence迁移：a092交付9a71efa，由a099核验最终committed路径、合法历史不变/非法历史原子拒绝；未签收。
 - [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。

@@ -1,0 +1,19 @@
+
+running 1 test
+test retention_role_guc_ca_host_admission ... a097_rerun child_reader_allowed=true tls=TLSv1.3 admission=tested
+a097_rerun child_env=isolated
+a097_rerun reader_allowed=true session=oo_src_reader current=oo_src_reader tls_mode=verify-full tls=TLSv1.3 obs=observed admission=tested write=read_only
+a097_rerun guc_allowed=false session=oo_src_guc_login current=oo_src_side blocks=role_mismatch/session_user,startup_option/startup_options tls=unknown obs=unknown admission=tested write=unknown inspect_delta=0
+a097_rerun guc_catalog_kind=Config fact=session_user_mismatch
+a097_rerun guc_catalog_delta=0
+a097_rerun guc_fresh_blocks=role_mismatch/session_user,startup_option/startup_options tls=unknown
+a097_rerun reader_fresh_allowed=true tls=TLSv1.3 write=read_only
+a097_rerun wrong_ca_kind=Tls fact=tls_handshake
+a097_rerun wrong_ca_delta=0
+a097_rerun wrong_host_kind=Tls fact=tls_handshake
+a097_rerun wrong_host_delta=0
+a097_rerun result=pass
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
+

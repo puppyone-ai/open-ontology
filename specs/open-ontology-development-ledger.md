@@ -112,7 +112,8 @@
 ### SP03
 
 - [ ] SP03-W01 PG connector/体检/DBA清单
-  - [ ] V01-PG-01 源连接/AccessReport/catalog：a093固定34fae5d已交付；a097终态有限approve，协调者发现独立oracle源码/最终完整输出未留存，原UUID补证中，暂不签收main准入；旧b2注册结果不得用于导入准入。
+  - [ ] V01-PG-01 完整源连接/AccessReport/catalog：main身份准入修正切片已验，完整connector/版本/类型/读取仍另验；旧b2注册结果不得用于导入准入。
+  - [x] V01-PG-01-M main身份准入修正：a097固定34fae5d与独立新保留Rustoracle/原始SQL审计核验通过；旧完整stdout缺失限制保留，不签完整SP03。
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
@@ -694,3 +695,13 @@ a100handle34511实际exit0但最后仅builder3exit0待读output，未review/find
 本回合a09715057/a09861045/a0995836/a10291030/a10393875单次实际核验均live，无终态或重启。a098已读取显式root交接并准备Linux1.94实际验证。协调者查看尚未交付的conversion-v1草稿：正文暂称实际Arrow仅isolatedprobe、productgraph无arrowcrate；自有pg/oracle.py为新测试automation。此为当前草稿限制，不能签最终生产RustSQLx→canonical→actualArrow任务；root交接允许必要真实依赖整合，不能以通过独立probe缩为buffer描述。已在a098-root-writer-handoff.md追加scopecheck，保留历史Python尝试/输出但要求交付Rust独立oracle，不删除过去失败或虚构语言一致。
 
 新增v01-pg-lossless-types-fixed-review-prepared.md，尚未派发/无UUID无写权，待a098真实terminal/fixedcommit/fullhandoff绑定。重点生产RecordBatch依赖与接口、canonical独立gold、类型OID/sendproc安全、signednumeric/temporal/JSON/arrayslowerbounds/domain、NULLvsunavailable/rowpreservation/rejectbudgets及真实零源写审计、Rustauthorautomation、依赖来源与MSRV。对应W04-a仍in_progress，reader/apply依赖未签。无新验收勾选或计数，仍7交付组件/6产品验收子项/首次返工4比6，完整87/16未完成。
+
+## a097源准入修正切片签收与来源revision2
+
+本回合a097handle15057有界wait实际exit0，完整原review/findings及retention supplement/HANDOFF已读。fixed34fae5d/treec35b95664d53dcef1497bbd224ecbeec65586cea核对一致。原oracle源码32,240bytes SHAfcdeaa943037efc827bf442e5dd1205aabe160f3bf56e7b3aae9cbec84337db8重算匹配；旧完整stdout/stderr仍missing，476bytesfilteredfragment不是原件。新的独立Rustoracle13,013bytes SHAd1a318b99d1a34f2c059f730d9aeb869872dd559907fdffbd89ceb0fbd79460e、fullstdout1056bytes SHAace46cabc98a7e3874a45b812c98320db6e40f11098fade74a4aa3e7a0534b8d、stderr6509bytes SHAc74441931c8a98694d61bc909ae7f0d5f1a3e75b651e82c9fdb2cd6d096f1af3重核匹配。Linux1.94一项测试0失败，rerun/lock0；readerpositivecontrol、role双block/catalogdelta0/unknown观测、freshsession、wrongCAhostdelta0有真实结果。原宽回归/serde/plaintext未重复，保留原笔记/源码/摘要及限制，不用新窄run假装重证所有族。
+
+新rawSQL56944bytes SHA09db04f5b9113aae7c587995bc5337ae8655cda5ef9c89e4ac2c15bebc578587重算一致，SELECT54/WITH6/START3/ROLLBACK3、othernone/secretcanary0；旧raw1139003bytesSHA3ce3e13600d662795ee081f9255be7994752caa44a9d78cd6607d5eb5ec20388再核未改。firstcopy-preserveownershipcontainer1/fetch0是harness失败保留；此轮自有container/network/volume/tmp清理0、后inspect1/noobjects。仅签SP03-W01-M角色GUC/main源准入修正；完整connector/PG13/14/types/reader/Loader/wholevertical等未签。TlsReport新增无default对strict旧payload兼容缺口保留，futurepersistedconsumer须version/migration，不能假称双向兼容。
+
+来源19文件逐个与fixed34fae5d比较全一致，旧baseline仅docs17变更；a097语义审阅后协调者做影响记录execution/decisions/source-baseline-revision-2.md，保留前HEAD e271542/旧JSONSHAa224a6526e8e223c00bb6157c8815e4ddfb5b14b125d1e4fdae9d206981bcbb5，revision2仅docs17 SHA f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534/18962bytes124lines。Spec/Plan版本1.0.1是reviewedsource/trace更新，无新删REQ/AT/tasks/phases。新SpecSHAaccac91210579da06387c94a28a6e71430a9c629cab9c6921c137d2e2f72fb91；check_spec/check_plan实际exit0，保留80REQ/96AT/87items/16Phase/19sources，仅文档一致性非产品全绿。过去docsdrift失败原件不改/不删除门禁。
+
+to-do/Plan只新增main源修正切片勾选，累计产品验收子项7，交付组件7，首次产品返工4比6仍保持（纠正复审不新增分母）；完整87父项/16Phase仍0完成。a097关闭不再轮询旧handle；a098root/connector、a102newjobsmigration、a099targetreadonly/a103CLIreadonly继续原会话。reader仍需types独立批准，apply仍需reader与target修正批准，不因源修正签收提前授予写权。
