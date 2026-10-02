@@ -84,13 +84,13 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 ### 当前实施检查点（2026-10-02）
 
-具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime/P5 IPC、源role GUC与基础Rust supervisor固定复审中；目标receipt NULL校验继续前向修正；结构closure和NFC修正切片已独立批准。CLI查询与PG无损类型解码正在开发，根依赖由CLI单writer持有。这些开发状态不代表父任务完成。
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime六项修正获a090批准；P5 IPC、源role GUC与基础Rust supervisor固定复审中；目标receipt NULL校验继续前向修正；结构closure和NFC修正切片已独立批准。CLI查询与PG无损类型解码正在开发，根依赖由CLI单writer持有。这些开发状态不代表父任务完成。
 
 - [ ] SP03-W01 main源身份安全整合：a093修正后固定复审，继续保持源零写和privateCA-only。
 - [ ] SP04-W05-a 目标fence迁移：a092前向修正、合法历史不变/非法历史原子拒绝、固定复审。
 - [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。
-- [ ] SP09-W01-a SDK JSON runtime：a090固定bde2e8c复审，供应链/真实Gateway另验。
+- [x] SP09-W01-a-R SDK六项runtime修正：a090固定bde2e8c批准；Linux1.94测试/Clippy0、独立55必验case通过。完整JSON SDK、供应链/真实Gateway另验。
 
 ### 2.3 每个工作项的开发步骤
 

@@ -174,7 +174,8 @@
 ### SP09
 
 - [ ] SP09-W01 Rust SDK/统一HTTP
-  - [ ] W01-a 有界JSON query Rust SDK：a084发现六项runtime问题；bde2e8c修正交付，a090固定复审中；供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
+  - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
+  - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
   - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a095实际启动；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
@@ -580,3 +581,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 仅勾Plan和to-do NFC子项。产品独立验收子项现在5（jobs schema、源三HIGH修正、event项目绑定、结构closure、NFC），交付组件仍6，首次返工仍4/6；87完整父项与16Phase仍0完成。a09061992/a091续接88565/a09296228/a0953387/a09675123/a09765278/a09861045本轮单次核验均live，无静默重启。root唯一writer为a095，connector为a098，pipeline为a092；a098等待CLI实际terminal/完整交接后显式根写权授权。docs17来源漂移仍待a097独立语义结论后版本化处理，不刷新旧baseline或声称check_plan通过。
 
 后续reader/apply准备卡已同步实际依赖：reader须a097源整合与a098类型接口独立批准；apply须a092前向NULL修正固定复审，不再把a085 request_changes误称approved。两卡仍PREPARED未派发，不能靠旧8370498授予写入准入。本轮对a092单次60s有界等待仍live，无退出结果，不据等待结束重启或验收。
+
+
+## a090 SDK runtime固定复审签收
+
+上一目标回合为progress（19d0910 NFC验收及82d4c85准备卡依赖修正）。本轮a090原handle61992实际exit0，review/findings/ERRATUM全文已读，只批准六项runtime修正，绑定bde2e8cc20a1ed951f4f7ea61ce4d9b5ab3665df/tree db0717173187604182b02d4fc8227b107bddb6d1；fc877c4仅证据stamp。协调者核验fixedtree、独立probe-report SHA17be939b801c6ccfcfe4882ccabd6c2d24441da2850137e5eb1772abf5157933、oracle/probe source hash一致；56实测case中55required/55contract_ok/required_failed空，另1 loopback transport仅观测。实际Linuxarm64/Rust1.94 fetch/test/Clippy/docker0（6lib18HTTP1proxy9redaction2TLS）；final独立unit/probe/docker0。前两探针harness101保留，不改写失败，不据socket transport做准入拒绝结论。
+
+短token1/6/7/8、短SQL/重叠/percent大小写/路径/敏感Header及9位Retry-After/overflow/4096边界/整体时间预算/最多3extra均获独立验证。脱敏一次%HH及JSON解析后值是本次范围：嵌套%25、字面反斜线u及plus方向观察保留；静态英语包含a/e并不证明原secret反射。预算耗尽/16KiB整field封闭直接unit覆盖；HTTP字段另有2000scalar上限。没有内存zeroization或client timeout=PGcancel证明。依赖未改，AUTHORS完整MIT事实由新erratum再次纠正，旧报告不改；basename/LGPL token策略、CDLA、dunce/aws-lc以及完整SDK/Gateway/PG/CLI/amd继续pending。自有UUID资源清理exit0且余量0，无prune。
+
+仅勾SDK-runtime六项子项，完整JSON SDK/W01仍未勾。产品验收子项现在6；交付组件仍6、首次返工4/6，87完整父项与16Phase仍0完成。a090关闭，不再轮询旧handle。其余a09188565/a09296228/a0953387/a09675123/a09765278/a09861045本轮单次核验live，保持原会话及roota095/connectora098/pipelinea092单writer。CLI使用固定SDK接口，无需重启；交付后的独立集成复审仍要绑定实际CLI提交。
