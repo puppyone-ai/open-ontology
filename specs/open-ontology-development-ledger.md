@@ -77,6 +77,8 @@
 - [ ] P4 Valkey AOF/背压/gap
 - [ ] P5 parser/native/SQL差分
   - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065交付efb61d6，a076固定复审；作者已记录R9 WHEREtrue/子查询绕过及未实现R4，完整R1–R9与DB绑定另验。
+  - [x] P5-IPC-C 矛盾输出封闭拒绝/有限等待修正切片：a091固定6831d6e批准；原始默认/hooks测试与Clippy0、deciding probe0/fails0。仅原型切片，不计产品验收子项。
+  - [ ] P5-IPC-I 独立nonce/pid/starttime绑定证据：a091仅作者测试；a100补充只读复审已启动，不以原approve消除缺证。
 - [ ] P6 PG claims/ROLE/RLS/pool
 - [ ] P7 真50m EXPLAIN/资源阈值
 - [ ] P8 真runsc网络/身份隔离
@@ -599,3 +601,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 重要限制：作者live使用hostRust1.98.1在最终3个test路径/Clippy改动前执行；最终1.94只编译live test并ignored，不是最终Linuxlive成功。a099原生Grok4.7xhigh独立固定review已实际启动handle5836，限定自己证据/immutable archive，必须对最终committed路径独立PG17.10验证NULLcrossproduct、合法/非法历史、forward/repeat/mismatch/回滚、v2外部hash-ready合取及原fence/replay权限回归。旧v1 schema_ready保留，storedchecksum仍callertruth，不替代真实applicator磁盘校验；任意DMLfence/Loader/CDC/ACK等F2/F3/F5继续pending。a092报告a088root/a093source仍writer是旧事实，实际roota095、connectora098，不改旧报告。
 
 只更新交付/复审状态，不勾target父/子项；原handle不再轮询。产品计数仍6交付组件/6验收子项/首次返工4比6，87完整父项与16Phase未完成。pipeline源码暂无writer，尚不能据作者声明为Loader授予准入；a099只读复审可与CLI/types并行，global2builders照旧。
+
+
+## a091有限切片批准与a100身份补证
+
+上一目标回合为progress（05aaaef SDK签收、9a71efa交付及8c73abb派发a099）。本轮a091续接handle88565实际exit0，完整review/findings已读，虽日志随后ResidentActorDeadFailed，任务终态与完整证据已核实，不重启旧会话。批准固定6831d6e862303a0ce1c883925068078cbcb78e23/tree2f7fc8e8bb8ea34551235190e8e200e750358af9的IPC有限切片；协调者重核tree和fetch/default/hooks/tests/Clippy原始0，deciding probe-keep0/fails0，SHAfb6984490f9b1fa89945e21665e6194475d239ebba4f7e86ead3953f4a651a46。最初harness101、secondprobe14SPAWN_FAILED/exit1均保留。false+ALLOW/DROP返回INVALID_OUTPUT/SQL空，consistent caller-pinned DROP仍ALLOW_SYNTAX不执行DB，是语法非授权与callerhash非外签的残余；不得冒充安全Gateway。
+
+监督器强杀留下setsid孤儿但reaped=false/allow=false；独立探针仅按实际starttime清理自己的child，foreignsleep存活。RLIMIT单文件262144/目录bytesum/1500空文件、同netns可开passwd/source/socket、outsidefile存活、ECHILD/EINTR未注入、forkrace只记录7/20等具体限制保留；不是普遍进程/IO隔离。默认worker allow-fault2；ProposedADR/native17.7vs17.10/R4/R5/R9/OIDACL/RLS/Gateway/runsc/amd/supply未签。
+
+原任务独立nonce/pid/starttime伪造要求尚缺，仅作者spoofed_identity_is_rejected通过；不能用有限approve把这项涂绿。a100新独立补证已实际启动handle34511，固定同一commit只读、新evidence、不重复全corpus矩阵，控制合法ready/frame必须实际到admit_in_worker，再逐字段伪造验证实际失败点、SQL清空和有界回收。旧a091报告冻结不重写；若生产API字段语义不同必须报告实际边界，不发明拒绝结果。仅勾P5矛盾输出切片，独立identity/P5总体未勾。产品计数不受原型批准影响，仍6组件/6验收子项/首次返工4比6，完整87/16未完成。a095仍rootwriter/a098connector，a099只读targetreview；基础与产品主线继续分开。
