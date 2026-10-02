@@ -728,3 +728,9 @@ a105 UUIDeef831aa-dba4-4af2-a78b-541bc9e0a105实际启动handle48999，execution
 只授予helper新增provenance/audit-records与canonical licensecopies、provenance README和新standalonechecker/own evidence；helper运行时源/manifest/lock/bin不改，root/connectora098、jobsa102、pipelinea104、CLIreadonlya103保持。全局max2builder含host/toolinstall不增加，a105无PGfixture。此项不增加产品交付/验收计量、不新增完成勾选。
 
 本轮四既有handle73022/91030/93875/88639实际单次有界核验仍live。a098已报告domain列wire描述为baseOID导致真实type_oid_mismatch，并明确补生产Arrow/Rustoracle；a103 Linuxsmoke通过，独立probe第一编译失败保留后修harness。这是中间证据非终态或验收，旧handle不重启。当前7产品组件/7验收子项/首次返工4比6、完整87父项/16Phase仍0完成，goal active。
+
+## a098集成验证第三终态续接
+
+本回合handle73022实际exit0；最后日志明确二次Linuxrun101因domain列on_flag的wire描述boolean与catalogdomainOID不同，失败保留attempts/2-live-oid。作者已加入productionArrow60 RecordBatch及Rust sendhex oracle，并已启动集成Rust1.94 verifier，但尚无REPORT/HANDOFF/source固定提交，不能签收或释放root写权。立即同UUID续接handle55265，a098-integrated-terminal-followup.md要求先接收已有verifier真实终态，完成实际rootlock/CLI依赖保持、官方依赖证据、原始SQL零写审计和完整Rustoracle输出保留、exactowncleanup、固定提交及交接；禁止只启动验证便结束或因quiet另起builder。生产范围未缩为孤立probe，历史Python/缺fixture101和编译失败保留。
+
+a10291030/a10393875/a10488639/a10548999本轮单次实际有界核验仍live，无quietrestart；关闭旧73022不再轮询。唯一root/connectorwriter仍a098，jobs102/pipeline104/helper新增provenance105；prepared reader/apply/fixedreviews待真实签收。产品7交付组件/7验收子项/首次返工4比6保持，87完整父项/16Phase未完成，goal active。
