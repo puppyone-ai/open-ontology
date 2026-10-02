@@ -1,0 +1,19 @@
+[
+  {"id": "server-version", "role": "postgres", "sql": "SELECT current_setting('server_version') AS version, current_setting('server_version_num') AS version_num, pg_is_in_recovery() AS in_recovery"},
+  {"id": "column-privileges", "role": "postgres", "sql": "SELECT attrelid::regclass::text AS rel, attname, has_column_privilege('agent_reader', attrelid, attnum, 'SELECT') AS can_select FROM pg_attribute WHERE attrelid IN ('analytics.orders'::regclass, 'analytics.customer'::regclass, 'analytics.big_fact'::regclass, 'analytics.empty_vis'::regclass) AND attnum > 0 AND NOT attisdropped ORDER BY 1, attnum"},
+  {"id": "legal-filter", "role": "agent_reader", "dump": true, "sql": "SELECT o.id, o.region, o.amount FROM analytics.orders o WHERE o.region = 'eu' ORDER BY o.id"},
+  {"id": "raw-star-orders", "role": "agent_reader", "dump": true, "sql": "SELECT * FROM analytics.orders o WHERE o.region = 'eu' ORDER BY o.id"},
+  {"id": "hidden-created-at", "role": "agent_reader", "dump": true, "sql": "SELECT o.created_at FROM analytics.orders o"},
+  {"id": "count-star", "role": "agent_reader", "dump": true, "sql": "SELECT count(*) FROM analytics.orders o WHERE o.region = 'eu'"},
+  {"id": "join-using-star", "role": "agent_reader", "dump": true, "sql": "SELECT * FROM analytics.orders JOIN analytics.customer USING (id) WHERE orders.region = 'eu' ORDER BY orders.id"},
+  {"id": "customer-email", "role": "agent_reader", "dump": true, "sql": "SELECT c.email FROM analytics.customer c"},
+  {"id": "customer-visible", "role": "agent_reader", "dump": true, "sql": "SELECT c.id, c.name FROM analytics.customer c ORDER BY c.id"},
+  {"id": "json-table", "role": "agent_reader", "dump": true, "sql": "SELECT jt.id FROM json_table('[{\"id\": 1}]', '$[*]' COLUMNS (id int PATH '$.id')) AS jt"},
+  {"id": "empty-star", "role": "agent_reader", "dump": true, "sql": "SELECT * FROM analytics.empty_vis e"},
+  {"id": "empty-column", "role": "agent_reader", "dump": true, "sql": "SELECT e.id FROM analytics.empty_vis e"},
+  {"id": "catalog", "role": "agent_reader", "dump": true, "sql": "SELECT relname FROM pg_catalog.pg_class"},
+  {"id": "unqualified", "role": "agent_reader", "dump": true, "sql": "SELECT id FROM orders"},
+  {"id": "where-true-large", "role": "agent_reader", "dump": true, "sql": "SELECT * FROM analytics.big_fact b WHERE true"},
+  {"id": "r9-wrap", "role": "agent_reader", "dump": true, "sql": "SELECT * FROM (SELECT b.id, b.ts FROM analytics.big_fact b) s"},
+  {"id": "big-visible", "role": "agent_reader", "dump": true, "sql": "SELECT b.id, b.ts FROM analytics.big_fact b"}
+]

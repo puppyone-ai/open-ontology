@@ -1,0 +1,24 @@
+{
+  "relations": {
+    "analytics.orders": {
+      "columns": ["id", "region", "amount", "created_at"],
+      "visible": ["id", "region", "amount"],
+      "large": false
+    },
+    "analytics.customer": {
+      "columns": ["id", "name", "email"],
+      "visible": ["id", "name"],
+      "large": false
+    },
+    "analytics.big_fact": {
+      "columns": ["id", "ts", "amount"],
+      "visible": ["id", "ts"],
+      "large": true
+    },
+    "analytics.empty_vis": {
+      "columns": ["id", "secret"],
+      "visible": [],
+      "large": false
+    }
+  }
+}
