@@ -1,0 +1,1 @@
+23514: new row for relation "apply_receipts" violates check constraint "apply_receipts_segment_check"

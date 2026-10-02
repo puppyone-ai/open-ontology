@@ -12,9 +12,10 @@ Reject-event durability stays in the control database. This schema has no reject
 |---|---|---|---|
 | `target-bootstrap/1` | expand | `0000_bootstrap_roles.sql` | Creates `oo_target_owner` and `oo_pipeline_runtime`. Revokes `pg_advisory%` and `pg_try_advisory%` execution, plus `set_config(text, text, boolean)`, from `PUBLIC`. |
 | `target-fence-receipts/1` | expand | `0001_target_fence_expand.sql` | Creates `_oo`, the fence tables, and the receipt functions. |
-| `target-fence-receipts/2` | expand | `0002_target_segment_null_expand.sql` | Replaces the segment CHECK and `commit_apply_receipt` so unknown index/count combinations are rejected. Does not rewrite receipt rows. |
+| `target-fence-receipts/2` | expand | `0002_target_segment_null_expand.sql` | Replaces the segment CHECK and `commit_apply_receipt` so unknown index/count combinations are rejected. Does not rewrite receipt rows. Historical. The reference v3 applicator does not execute it. |
+| `target-fence-receipts/3` | expand | `0003_target_segment_preflight_expand.sql` | Supersedes the v2 expansion when installing from v1, and upgrades a database that already has v2. Same closed segment rule. Absent relation or constraint raises static `OO002`. |
 
-Checksums are SHA-256 of those file bytes. `target-fence-receipts/1` is recorded in `contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json`. `target-fence-receipts/2` is recorded in `target-fence-receipts-v2.json` and repeats the v1 file hashes so a reader can see they did not change. The checksum is not inside the SQL file. A later edit of any of these files is a new version, not a silent rewrite.
+Checksums are SHA-256 of those file bytes. `target-fence-receipts/1` is recorded in `contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json`. `target-fence-receipts/2` is recorded in `target-fence-receipts-v2.json` and repeats the v1 file hashes so a reader can see they did not change. `target-fence-receipts/3` is recorded in `target-fence-receipts-v3.json` and repeats the v1 and v2 file hashes. The checksum is not inside the SQL file. A later edit of any of these files is a new version, not a silent rewrite.
 
 There is no migrate-phase or contract-phase file in this slice.
 
@@ -30,7 +31,21 @@ On an empty target database the applicator runs both files in one transaction. I
 
 `0002_target_segment_null_expand.sql` runs as `oo_target_owner` after `target-fence-receipts/1`. It locks `_oo.apply_receipts`, refuses with `OO021` when a stored receipt is not one of the two closed segment shapes, and does not delete or update receipt rows. The applicator inserts the `target-fence-receipts/2` row only after that file returns, in the same transaction. A repeat with the same checksum does not execute the file again. A different checksum raises `OO001` and leaves the row. A failure rolls back the function, the CHECK, and the readiness row together.
 
-`_oo.schema_ready` still means `target-fence-receipts/1` only. It does not authorize a driver that requires the closed segment contract. That driver computes the SHA-256 of `0002_target_segment_null_expand.sql` itself and calls `_oo.segment_contract_ready` with that digest. The function compares the argument to the stored row. It does not open the file. `_oo.segment_service_readiness.schema_version_present` is true when the v2 expand row exists and does not prove the file bytes.
+`_oo.schema_ready` still means `target-fence-receipts/1` only. It does not authorize a driver that requires the closed segment contract. A driver that requires `target-fence-receipts/2` computes the SHA-256 of `0002_target_segment_null_expand.sql` itself and calls `_oo.segment_contract_ready` with that digest. The function compares the argument to the stored row. It does not open the file. `_oo.segment_service_readiness.schema_version_present` is true when the v2 expand row exists and does not prove the file bytes.
+
+`0003_target_segment_preflight_expand.sql` is the reference install of that same closed rule for version 3. `tests/segment_preflight_correction.rs` is the executable applicator. Its route is chosen after `pg_advisory_xact_lock(6404202605)`, from catalog reads that use `to_regclass` and do not cast the receipt name to `regclass`.
+
+| Observed database | Reference files executed |
+|---|---|
+| Missing `_oo`, missing `_oo.apply_receipts`, or missing `apply_receipts_segment_check` | `0003` only. The file raises `OO002` with message `target-fence-receipts/1 segment relation is absent`. No version marker is inserted. |
+| `target-fence-receipts/1` present, `target-fence-receipts/2` absent, relation and constraint present | `0003` only. This supersedes `0002`. The applicator inserts `target-fence-receipts/3` after the file returns. It does not insert a v2 row. |
+| `target-fence-receipts/2` stored with the frozen `0002` checksum | `0003` only. v1 and v2 rows, checksums, and `applied_at` stay as they were. |
+| `target-fence-receipts/3` stored with this file's SHA-256 | No file. `applied_at` stays. |
+| `target-fence-receipts/3`, or a v2 row, stored with a different checksum | No file. The applicator raises `OO001` and does not update the row. |
+
+A chain that runs `0002` and then `0003` is not a reference route. On a missing relation, `0002` still raises `42P01` from its regclass cast and aborts the transaction. `0003` is not reached, so it cannot turn that failure into `OO002`. Rollback of the `42P01` transaction is not the contracted result.
+
+`_oo.segment_preflight_ready` is true only when the `target-fence-receipts/3` expand row stores the caller argument. It does not open `0003`. `_oo.schema_ready` and `_oo.segment_contract_ready` do not authorize a driver that requires version 3. That driver hashes this file itself and requires `segment_preflight_ready` of that digest. A stored lie makes the function true only for the lie.
 
 ## Roles
 
@@ -78,4 +93,4 @@ Backup consumers need `_oo.schema_migrations`, `_oo.migration_lock`, `_oo.target
 
 ## Tests
 
-`tests/target_fence_contract.rs` checks the v1 file text and the published v1 checksums. `tests/segment_null_correction.rs` checks the v2 checksums and, when run against one owned PostgreSQL 17 fixture, the segment cases. `tests/pg_fixture.sh` remains the v1 applicator. None of these is the 100-worker acceptance test, a dual-architecture matrix, a Loader, CDC, or a production deploy.
+`tests/target_fence_contract.rs` checks the v1 file text and the published v1 checksums. `tests/segment_null_correction.rs` checks the v2 checksums and, when run against one owned PostgreSQL 17 fixture, the segment cases. `tests/segment_preflight_correction.rs` is the v3 reference applicator and its focused fixture. `tests/pg_fixture.sh` remains the v1 applicator. None of these is the 100-worker acceptance test, a dual-architecture matrix, a Loader, CDC, or a production deploy.

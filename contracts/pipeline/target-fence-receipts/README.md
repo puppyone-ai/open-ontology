@@ -1,6 +1,6 @@
 # oo.pipeline.target-fence-receipts/v1
 
-Version `target-fence-receipts/1`, phase `expand`, remains the historical contract. Its JSON file and the `0000` and `0001` SQL bytes stay in place. Version `target-fence-receipts/2` in `target-fence-receipts-v2.json` is the forward segment correction. Checksums are SHA-256 of the migration files. Neither contract starts a Loader or accepts SP04-W05 or AT-PL-05.
+Version `target-fence-receipts/1`, phase `expand`, remains the historical contract. Its JSON file and the `0000` and `0001` SQL bytes stay in place. Version `target-fence-receipts/2` in `target-fence-receipts-v2.json` is the historical forward segment correction. Its JSON file and `0002` stay in place. Version `target-fence-receipts/3` in `target-fence-receipts-v3.json` supersedes that expansion when installing from v1 and upgrades a database that already has v2. Checksums are SHA-256 of the migration files. None of these contracts starts a Loader or accepts SP04-W05 or AT-PL-05.
 
 ## Inputs
 
@@ -47,6 +47,14 @@ An identical receipt retry returns `replay` and does not change the stored row o
 A database that already holds an illegal receipt aborts `0002` with `OO021` and a fixed message. The migration does not delete, update, or rewrite receipts. Lawful receipts, including `target_commit_at` and `fence_generation`, stay byte-for-byte.
 
 `_oo.schema_ready` remains the v1 checksum comparison. A true result does not authorize a driver that requires `target-fence-receipts/2`. That driver is authorized only by the external conjunction: it hashes `0002_target_segment_null_expand.sql` itself, and `_oo.segment_contract_ready` returns true for that digest. The function does not read the file. A checksum stored by the caller is not that hash. `_oo.segment_service_readiness` is the v2 version marker and does not open the file.
+
+## Preflight contract, target-fence-receipts/3
+
+`0002` raises `42P01` when `_oo.apply_receipts` is absent, because its presence test folds a regclass cast before it can raise `OO002`. The reference applicator in `crates/oo-pipeline/tests/segment_preflight_correction.rs` does not execute `0002` on the way to version 3. From v1 it runs `0003_target_segment_preflight_expand.sql` only. That file keeps the closed CHECK and `commit_apply_receipt` rule from `0002`, resolves the relation with `to_regclass`, and raises `OO002` with message `target-fence-receipts/1 segment relation is absent` when the schema, the relation, or `apply_receipts_segment_check` is missing. No marker is inserted on that failure. A transaction that only rolls back `42P01` is not this result.
+
+An existing v2 database is upgraded by the same file. The v1 and v2 rows, their checksums, and their `applied_at` values stay. `0003` does not replace `_oo.segment_contract_ready` or `_oo.segment_service_readiness`. It refuses, before any catalog change, if `commit_apply_receipt` or those v2 objects exist and are not owned by `oo_target_owner`.
+
+`_oo.segment_preflight_ready` is the v3 comparison. A true result for a digest authorizes a version-3 driver only together with that driver's own SHA-256 of `0003`. v1 `schema_ready` and v2 `segment_contract_ready` are not substitutes. The function does not open the file. A stored lie is true only for the lie.
 
 These functions do not fence arbitrary SQL. Another connection that knows the owner token and generation cannot commit. A role that is later granted ordinary table DML can still write user data without adopting a generation. That gap closes when the Loader driver is the only writer.
 
