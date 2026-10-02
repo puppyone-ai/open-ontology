@@ -1,0 +1,3 @@
+Attempt 2 compiled and then panicked in the harness before any child result was recorded.
+Panic: Cannot start a runtime from within a runtime at no_socket, Handle::block_on(spawn_server).
+docker exit 101. cargo test exit 101. This is not a product result.

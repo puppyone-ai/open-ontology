@@ -1,0 +1,10 @@
+oo — data CLI
+
+  oo query [options] "<sql>"
+  oo query [options] -f <file.sql>
+
+Only query is implemented. Other commands are refused.
+
+Examples:
+  oo query --auth external --token-file ./token --gateway https://gateway.example --transport production "SELECT 1"
+  oo query --json --auth external --token-stdin --gateway http://127.0.0.1:9 --transport local-development -f query.sql

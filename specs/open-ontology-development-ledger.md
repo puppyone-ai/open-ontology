@@ -69,7 +69,7 @@
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
   - [x] W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005，Linux1.94实际audit0/deny0；协调者核验全部HASHES及raw JSON/整数exits。仅工具切片，双许可选择/依赖政策准入、全workspace/CDLA/完整供应链仍未签。
-  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105专用基础线执行中；沿用a101真实固定扫描证据，MIT选择与原始双许可/第三方notice义务须核验，独立复审前audited=false，完整供应链与发行另验。
+  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105交付abd074a，a109固定复审准备待槽；沿用a101历史扫描、三MIT选择与双正文/cfg_aliases notice；audited=false，完整供应链与发行另验。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -98,6 +98,7 @@
 ### SP02
 
 - [ ] SP02-W01 控制迁移/jobs/lease/schedule
+  - [ ] SP02-W01-b1 DB租约函数：a102交付c312cae与dd5ecf3报告，Linux1.94冒烟0、host PG17.10 live通过；a107固定复审卡待槽，未验收，Rustdriver/100完整worker另验。
   - [x] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72获a068固定复审approve；协调者核验完整报告、117探针全ok/0失败、Linux1.94测试/Clippy0和三个文件hash。仅schema切片，driver/100worker/备份与完整AT仍未签。
   - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：a102先实现独立DB lease primitives，Rust调度驱动/共享依赖随后整合。
   - [ ] SP02-W01-b1 受限DB领取/续租/完成/retry/cancel原语：a102实际启动，新增0003/versioncontract与Rust真实PG fixture；旧0/1/2不变、无Cargo写权。
@@ -119,7 +120,7 @@
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
 - [ ] SP03-W04 type/PositionCodec/精度
-  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098执行中；a095实际terminal后通过a098-root-writer-handoff.md明确移交根依赖/connector manifest整合权，最终固定交付与独立复审待验。
+  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098交付3ca5357，a110固定复审已启动；实际Arrow60/Rustoracle已实现，但源SQL零写审计与真实依赖扫描待补证，未验收。
 - [ ] SP03-W05 catalog/名字映射/注册
 - [ ] SP03源审计/Phase退出
 
@@ -130,7 +131,7 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a099固定9a71efa复审request_changes；180 NULL组合通过，缺表42P01不符合OO002。a104版本化修复中，保留旧SQL/contract与合法历史。Loader driver、控制镜像和ACK/TRIM另验。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108固定复审已启动；旧SQL/contract保持，v1直接修正版与既有v2升级、OO002/合法历史待独立验收。Loader driver、控制镜像和ACK/TRIM另验。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
@@ -184,7 +185,7 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
-  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a095交付3347f5a，Linux1.94九集成测试/Clippy0，a103固定SHA独立复审中；沙盒proxy/管理命令/完整对话另验。
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；token/SQL/CA三种peerless FIFO卡open，a106定点修复卡已准备待builder槽；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -734,3 +735,13 @@ a105 UUIDeef831aa-dba4-4af2-a78b-541bc9e0a105实际启动handle48999，execution
 本回合handle73022实际exit0；最后日志明确二次Linuxrun101因domain列on_flag的wire描述boolean与catalogdomainOID不同，失败保留attempts/2-live-oid。作者已加入productionArrow60 RecordBatch及Rust sendhex oracle，并已启动集成Rust1.94 verifier，但尚无REPORT/HANDOFF/source固定提交，不能签收或释放root写权。立即同UUID续接handle55265，a098-integrated-terminal-followup.md要求先接收已有verifier真实终态，完成实际rootlock/CLI依赖保持、官方依赖证据、原始SQL零写审计和完整Rustoracle输出保留、exactowncleanup、固定提交及交接；禁止只启动验证便结束或因quiet另起builder。生产范围未缩为孤立probe，历史Python/缺fixture101和编译失败保留。
 
 a10291030/a10393875/a10488639/a10548999本轮单次实际有界核验仍live，无quietrestart；关闭旧73022不再轮询。唯一root/connectorwriter仍a098，jobs102/pipeline104/helper新增provenance105；prepared reader/apply/fixedreviews待真实签收。产品7交付组件/7验收子项/首次返工4比6保持，87完整父项/16Phase未完成，goal active。
+
+## 2026-10-03五任务实际终态签收；固定复审与FIFO返工
+
+55265/91030/93875/88639/48999本轮全部实际exit0，关闭旧handle不再轮询。已完整接收各REPORT/HANDOFF及CLIreview/findings，Git固定SHA/tree/parent与当前主要artifacthash重核。a098源码3ca5357/treeec11cd3/parentdd5ecf3：实际productionArrow60与Rustsendhexoracle，45lib/Clippy/liveLinux1.94通过，但package101missingfixture、原始SQL无readerSTATEMENT、真实audit/deny缺失与CC0-1.0锁optional边显式未签。a102源码c312cae/tree1931975/parent4477f23，handoffdd5ecf3：新SQL5cb2e903，真实hostPG17.10租约/100claim/restart通过，Linux1.94 live仍ignored，完整driver未实现。a104源码6cd955a/tree463bbf6/parent3ca5357：version3 d046d98b，Linux1.94实际PG17.10 live0，但首次Clippy/live失败console/summary被覆盖，仅叙述保留，不能冒称原始失败日志存在；两旧cargo卷残留。a105源码abd074a/treeb67278c/parent6cd955a：五许可记录/25Rust closuretests与Linux1.94，通过仍auditedfalse，待独立审阅。
+
+a103固定3347f5a独立request-changes，真实117cases/110proved/3failed/4unverified，probe-report SHA3b74534d71ab0c28069d3f360c5416721a001291944c575ec266c261bb35ef96已重算。peerless token/SQL/CA FIFO在open等peer，被1200ms deadline SIGKILL，非regular-file拒绝；root不改，a106精准修复完整准备卡待builder槽释放。零化/foreignUID/ACL/rendercap/backendcancel仍unsigned。
+
+已实际派a110固定类型复审handle32339（slotA）与a108固定version3复审handle87537（slotB），只读archive/own Rustprobe+PG17.10，globalmax2包括host/tools不增加。独立sourcezero-write日志与实际newdep扫描不能以空log/HTTP404通过；target旧2deadpath与新安装route、旧marker/history不变、NULL/ACL/readiness真实独立验收。jobs107与helper109固定准备卡绑定完成但未派，CLI106亦未启动；后续按实际slotrelease派，不以计划冒称运行。所有review无product/root写权，root当前clean保留待明确后续交接。
+
+新增PGtypes与DBleaseoperations两个交付组件，累计产品9组件；version3是原target功能返工非新功能，helper不计产品。产品验收仍7子项，无新勾选。CLI首轮requestchanges纳入首次产品review分母：7次首轮/5返工，5/7约71.4%；纠正复审不重复分母。87完整父项/16Phase仍0完成，reader/apply继续依类型/target/reader真正独立签收，goal active。

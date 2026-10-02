@@ -1,0 +1,344 @@
+[
+  {
+    "name": "android_system_properties",
+    "version": "0.1.6",
+    "created_at": "2026-08-05T13:44:27.717073Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "crates_io_checksum": "ae221649c9976a6f6c56ae1facf410f3ddb33cc661c4b7b61020a912d4237fbc",
+    "lock_checksum": "ae221649c9976a6f6c56ae1facf410f3ddb33cc661c4b7b61020a912d4237fbc",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "arrow-array",
+    "version": "60.0.0",
+    "created_at": "2026-09-15T15:30:02.038482Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "Apache-2.0 AND MIT",
+    "rust_version": "1.88",
+    "crates_io_checksum": "51dff6e4b9f158864a0aeb6a131ad53858ecbae7a2fc8989307b9b3c6b2f122e",
+    "lock_checksum": "51dff6e4b9f158864a0aeb6a131ad53858ecbae7a2fc8989307b9b3c6b2f122e",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "arrow-buffer",
+    "version": "60.0.0",
+    "created_at": "2026-09-15T15:29:47.736643Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "Apache-2.0",
+    "rust_version": "1.88",
+    "crates_io_checksum": "c7235b863533e9db3ab86905b4521251de11226275b436ff3cb2d0010558d1c5",
+    "lock_checksum": "c7235b863533e9db3ab86905b4521251de11226275b436ff3cb2d0010558d1c5",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "arrow-data",
+    "version": "60.0.0",
+    "created_at": "2026-09-15T15:29:55.114228Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "Apache-2.0",
+    "rust_version": "1.88",
+    "crates_io_checksum": "5aa06d5e22786c4966ffc4d2f171d0cb65d95f6bdea108a14e8c335e9faa437f",
+    "lock_checksum": "5aa06d5e22786c4966ffc4d2f171d0cb65d95f6bdea108a14e8c335e9faa437f",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "arrow-schema",
+    "version": "60.0.0",
+    "created_at": "2026-09-15T15:29:51.009401Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "Apache-2.0",
+    "rust_version": "1.88",
+    "crates_io_checksum": "f85a9a58cd03560526b0066487574aacb9008e413504fa0ee23d61141e96c338",
+    "lock_checksum": "f85a9a58cd03560526b0066487574aacb9008e413504fa0ee23d61141e96c338",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "const-random",
+    "version": "0.1.18",
+    "created_at": "2024-03-03T23:32:56.450219Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "crates_io_checksum": "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359",
+    "lock_checksum": "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "const-random-macro",
+    "version": "0.1.16",
+    "created_at": "2023-10-23T19:07:26.855710Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "crates_io_checksum": "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e",
+    "lock_checksum": "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "crunchy",
+    "version": "0.2.4",
+    "created_at": "2025-06-25T12:54:43.146786Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT",
+    "rust_version": null,
+    "crates_io_checksum": "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5",
+    "lock_checksum": "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "half",
+    "version": "2.7.1",
+    "created_at": "2025-10-14T03:59:26.575229Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.81",
+    "crates_io_checksum": "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b",
+    "lock_checksum": "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "iana-time-zone",
+    "version": "0.1.65",
+    "created_at": "2026-01-28T08:40:52.528531Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.62.0",
+    "crates_io_checksum": "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470",
+    "lock_checksum": "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "file": "RUSTSEC-2022-0049.md",
+        "text": "```toml\n[advisory]\nid = \"RUSTSEC-2022-0049\"\npackage = \"iana-time-zone\"\ndate = \"2022-08-15\"\nurl = \"https://github.com/strawlab/iana-time-zone/pull/54\"\nreferences = [\"https://github.com/strawlab/iana-time-zone/pull/50#discussion_r945353515\"]\ncategories = [\"memory-exposure\"]\ninformational = \"unsound\"\naliases = [\"GHSA-3fg9-hcq5-vxrc\"]\n\n[affected]\nos = [\"ios\", \"macos\"]\nfunctions = { \"iana_time_zone::get_timezone\" = [\"> 0.1.42, < 0.1.45\"] }\n\n[versions]\npatched = [\">= 0.1.45\"]\nunaffected = [\"< 0.1.43\"]\n```\n\n# Use after free in MacOS / iOS implementation\n\nIn iana-time-zone v0.1.43 a use-after-free bug in the MacOS / iOS implementation was introduced.\n\nThe copied system time zone was released before its name was copied.\nIf the system time zone was changed between the call of `CFRelease` and `str::to_owned()`,\nrandom memory would be copied.\n"
+      }
+    ]
+  },
+  {
+    "name": "iana-time-zone-haiku",
+    "version": "0.1.2",
+    "created_at": "2023-05-12T08:43:45.406909Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "crates_io_checksum": "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f",
+    "lock_checksum": "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "libm",
+    "version": "0.2.16",
+    "created_at": "2026-01-24T03:14:21.229132Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT",
+    "rust_version": "1.63",
+    "crates_io_checksum": "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981",
+    "lock_checksum": "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "num-bigint",
+    "version": "0.5.1",
+    "created_at": "2026-07-05T01:19:13.521917Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.60",
+    "crates_io_checksum": "93e7820bc0a80a0238e650327316f929ba18d5be054b647490a3a6a339f3e7c0",
+    "lock_checksum": "93e7820bc0a80a0238e650327316f929ba18d5be054b647490a3a6a339f3e7c0",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "tiny-keccak",
+    "version": "2.0.2",
+    "created_at": "2020-04-01T14:34:13.119797Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "CC0-1.0",
+    "rust_version": null,
+    "crates_io_checksum": "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237",
+    "lock_checksum": "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "windows-core",
+    "version": "0.62.2",
+    "created_at": "2025-10-06T19:15:14.207850Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.82",
+    "crates_io_checksum": "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb",
+    "lock_checksum": "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "windows-implement",
+    "version": "0.60.2",
+    "created_at": "2025-10-06T19:13:31.467507Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.74",
+    "crates_io_checksum": "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf",
+    "lock_checksum": "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "windows-interface",
+    "version": "0.59.3",
+    "created_at": "2025-10-06T19:14:18.053188Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.74",
+    "crates_io_checksum": "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358",
+    "lock_checksum": "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "windows-result",
+    "version": "0.4.1",
+    "created_at": "2025-10-06T19:14:39.441465Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.82",
+    "crates_io_checksum": "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5",
+    "lock_checksum": "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  },
+  {
+    "name": "windows-strings",
+    "version": "0.5.1",
+    "created_at": "2025-10-06T19:15:01.410695Z",
+    "age_ok_168h": true,
+    "yanked": false,
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.82",
+    "crates_io_checksum": "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091",
+    "lock_checksum": "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091",
+    "checksum_match": true,
+    "advisories": [
+      {
+        "error": "HTTPError",
+        "detail": "HTTP Error 404: Not Found"
+      }
+    ]
+  }
+]

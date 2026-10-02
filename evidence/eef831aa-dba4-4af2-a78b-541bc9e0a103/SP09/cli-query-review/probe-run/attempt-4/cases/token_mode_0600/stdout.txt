@@ -1,0 +1,1 @@
+{"columns":[],"duration_ms":0,"freshness":[],"hints":[],"knowledge_version":"oos/v1","policy_version":"type-policy/v1","query_id":"q_empty1","returned_rows":0,"rows":[],"sources":[],"truncated":false,"truncation_reasons":[],"warnings":[]}

@@ -1,0 +1,55 @@
+{
+  "bad_num_sign": 49152,
+  "bool_true_hex": "01",
+  "bytea_hex": "",
+  "date_hex": "00000000",
+  "fine_text": "0.001200",
+  "float8_neg_zero_hex": "8000000000000000",
+  "float8_pos_inf_hex": "7ff0000000000000",
+  "float8_pos_zero_hex": "0000000000000000",
+  "grid_lengths": [
+    2,
+    2
+  ],
+  "grid_lower": [
+    0,
+    2
+  ],
+  "grid_ndim": 2,
+  "huge_text": "1.5000",
+  "int8_min_hex": "8000000000000000",
+  "json_text": "{\"z\":1,\"a\":2,\"a\":3}",
+  "jsonb_send_hex": "017b2261223a20332c20227a223a20317d",
+  "jsonb_text": "{\"a\": 3, \"z\": 1}",
+  "label": "\u96ea",
+  "nums_lower0": 2,
+  "nums_null_at": [
+    1
+  ],
+  "open_text": "1.20",
+  "span_days": 4,
+  "span_micros": 5,
+  "span_months": 3,
+  "units_digits": [
+    1200
+  ],
+  "units_dscale": 0,
+  "units_sign": 0,
+  "units_weight": 0,
+  "uuid_hex": "00000000000000000000000000000001",
+  "wide_digits": [
+    9999,
+    9999,
+    9999,
+    9999,
+    9999,
+    9999,
+    9999,
+    9999,
+    9999,
+    9999
+  ],
+  "wide_dscale": 0,
+  "wide_sign": 16384,
+  "wide_weight": 9
+}

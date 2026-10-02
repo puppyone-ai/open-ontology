@@ -1,0 +1,4 @@
+error: auth token source is missing
+retryable: false
+retry_outcome: not_replayed
+retry_policy: max_extra_attempts=3 max_wait_ms=2000 nested_cli_retries=0 attempt_count=unknown

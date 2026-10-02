@@ -1,0 +1,6 @@
+lock_sha256=40664b41001d01db59d272e0d9fab3977842becc88998bd52eefaa0c1b7a7147
+cargo_toml_unchanged=yes
+archive_unchanged=yes
+added_file=crates/oo-cli/tests/a103_probe.rs
+fetch=not_run
+network=none

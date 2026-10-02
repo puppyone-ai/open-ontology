@@ -84,15 +84,15 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 ### 当前实施检查点（2026-10-02）
 
-具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。SDK runtime六项修正获a090批准；P5 IPC有限切片和独立身份补证分别获a091/a100限定验收；源role GUC/main准入修正经a097补证签收，来源revision2已审阅；基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa经a099复审request_changes，a104版本化修复中；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a由a103固定复审，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。SDK runtime六项修正获a090批准；P5 IPC有限切片和独立身份补证分别获a091/a100限定验收；源role GUC/main准入修正经a097补证签收，来源revision2已审阅；基础Rust supervisor有限切片获a096批准；目标receipt修正版6cd955a由a108固定复审，类型3ca5357由a110固定复审；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a经a103复审要求FIFO定点返工，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
 
 - [x] SP03-W01-M main源身份安全修正切片：a097固定34fae5d有限approve，原始SQL及新保留Rustoracle完整输出/hash已核验；旧完整stdout仍missing明确保留。仅role GUC/源准入修正，完整W01/catalog/reader/types另验。
-- [ ] SP04-W05-a 目标fence迁移：a099固定9a71efa复审request_changes，180 NULL组合通过但缺表返回42P01而非OO002；a104版本化修复中，旧SQL/contract保持，未签收。
+- [ ] SP04-W05-a 目标fence迁移：a104交付version3 6cd955a，a108固定复审已启动；旧SQL/contract保持，新路线OO002与合法历史/NULL规则待独立签收。
 - [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。
 - [x] SP09-W01-a-R SDK六项runtime修正：a090固定bde2e8c批准；Linux1.94测试/Clippy0、独立55必验case通过。完整JSON SDK、供应链/真实Gateway另验。
 - [x] SP00-W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005、Linux1.94、cargo-audit0.22.2与cargo-deny0.20.2实际退出0，原始输出和hash已核验。仅工具切片，双许可选择/依赖政策准入与完整供应链仍未签。
-- [ ] SP00-W06-H-L helper依赖许可证记录闭包：a105独立基础线执行五registry记录、MIT选择和原始双许可/第三方notice闭包；固定图Rust验证与独立复审待验，audited=false，完整供应链/发行未签。
+- [ ] SP00-W06-H-L helper依赖许可证记录闭包：a105交付abd074a五registry记录与Rust验证，a109独立固定复审卡已准备待槽；audited=false，完整供应链/发行未签。
 - [x] SP01/P5-IPC-I 独立身份绑定切片：a100固定6831d6e通过production admit_in_worker/--supervise执行十九case，Linux1.94 probe0/fails0；ready nonce/pid/starttime和decision nonce/pid拒绝有原始证据。完整P5/数据库授权/普遍隔离仍未签。
 
 ### 2.3 每个工作项的开发步骤

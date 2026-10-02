@@ -1,0 +1,10 @@
+commit=3347f5a280da52c70525879b4608170b6b92b523
+tree=0e9f38551ea6f88c78ff980efbf2eec40c0da4ab
+parent=1b9110265aae92bdd7eb02a71dcbeacf648375a5
+lock_blob=887cef930ba2fdadf3541aded755dc594e5bd1d7
+lock_sha256=40664b41001d01db59d272e0d9fab3977842becc88998bd52eefaa0c1b7a7147
+archive_method=git archive of bound commit only
+worktree_not_copied=yes
+cargo_toml_probe_matches_smoke=yes
+subject=cli: add the bounded Gateway query command
+author_date=2026-10-02T20:17:19+08:00

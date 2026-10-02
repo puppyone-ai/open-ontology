@@ -1,0 +1,5 @@
+Attempt 1 is a harness compile failure, not a product result.
+cargo test exit 101. docker run exit 101. The production oo-cli package was not executed.
+Errors: Spec shadowed the spec() helper, temporary token bytes in the mode table, and Value::deserialize without the serde trait linked into the integration test.
+Source at the time of this attempt is a103_probe.rs in this directory. sha256 688c0208f2837f67c30b8b9273dd787d5bcc75625cfd5686b6be8b0d274f7d6f.
+The smoke container had already exited 0. This attempt did not rerun fetch, test, or Clippy.

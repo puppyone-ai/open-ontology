@@ -1,0 +1,301 @@
+{
+  "columns": [
+    {
+      "arrow_type": "bool",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.bool"
+        ]
+      ],
+      "name": "flag",
+      "nullable": true,
+      "physical": {
+        "kind": "boolean"
+      },
+      "values": [
+        {
+          "t": "bool",
+          "v": true
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "int64",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.int8"
+        ]
+      ],
+      "name": "big",
+      "nullable": true,
+      "physical": {
+        "kind": "int64"
+      },
+      "values": [
+        {
+          "t": "i64",
+          "v": -9223372036854775808
+        },
+        {
+          "t": "i64",
+          "v": 9223372036854775807
+        }
+      ]
+    },
+    {
+      "arrow_type": "float64",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.float",
+          "canonical hash collapses signed zero; arrow bits keep the sign"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.float8"
+        ]
+      ],
+      "name": "ratio",
+      "nullable": true,
+      "physical": {
+        "kind": "float64"
+      },
+      "values": [
+        {
+          "bits": "8000000000000000",
+          "t": "f64"
+        },
+        {
+          "bits": "0000000000000000",
+          "t": "f64"
+        }
+      ]
+    },
+    {
+      "arrow_type": "decimal128(10,-2)",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.numeric"
+        ]
+      ],
+      "name": "units",
+      "nullable": true,
+      "physical": {
+        "kind": "decimal128",
+        "precision": 10,
+        "scale": -2
+      },
+      "values": [
+        {
+          "t": "d128",
+          "v": "12"
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "utf8",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.numeric"
+        ],
+        [
+          "oo.pg.decimal",
+          "exact"
+        ],
+        [
+          "oo.pg.precision",
+          "4"
+        ],
+        [
+          "oo.pg.scale",
+          "6"
+        ]
+      ],
+      "name": "fine",
+      "nullable": true,
+      "physical": {
+        "kind": "utf8"
+      },
+      "values": [
+        {
+          "t": "utf8",
+          "v": "0.001200"
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "decimal256(40,0)",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.numeric"
+        ]
+      ],
+      "name": "wide",
+      "nullable": true,
+      "physical": {
+        "kind": "decimal256",
+        "precision": 40,
+        "scale": 0
+      },
+      "values": [
+        {
+          "hex": "01000000009f0a4654405ba33c0ed69ce2ffffffffffffffffffffffffffffff",
+          "t": "d256"
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "timestamp[us,UTC]",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.timestamptz"
+        ]
+      ],
+      "name": "instant",
+      "nullable": true,
+      "physical": {
+        "kind": "timestamp_us_utc"
+      },
+      "values": [
+        {
+          "t": "ts_utc",
+          "v": 946684800000000
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "list<int64>",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.base_type",
+          "pg_catalog.interval"
+        ]
+      ],
+      "name": "span",
+      "nullable": true,
+      "physical": {
+        "item": {
+          "kind": "int64"
+        },
+        "kind": "list"
+      },
+      "values": [
+        {
+          "t": "list",
+          "v": [
+            {
+              "t": "i64",
+              "v": 3
+            },
+            {
+              "t": "i64",
+              "v": 4
+            },
+            {
+              "t": "i64",
+              "v": 5
+            }
+          ]
+        },
+        {
+          "t": "null"
+        }
+      ]
+    },
+    {
+      "arrow_type": "list<int32>",
+      "metadata": [
+        [
+          "oo.conversion",
+          "oo.source.pgsql.types/v1"
+        ],
+        [
+          "oo.pg.array",
+          "lower_bounds and lengths are canonical; arrow lists are storage order"
+        ]
+      ],
+      "name": "nums",
+      "nullable": true,
+      "physical": {
+        "item": {
+          "kind": "int32"
+        },
+        "kind": "list"
+      },
+      "values": [
+        {
+          "t": "list",
+          "v": [
+            {
+              "t": "i32",
+              "v": 7
+            },
+            {
+              "t": "null"
+            },
+            {
+              "t": "i32",
+              "v": 9
+            }
+          ]
+        },
+        {
+          "t": "null"
+        }
+      ]
+    }
+  ],
+  "protocol": "oo.source.pgsql.types/v1"
+}

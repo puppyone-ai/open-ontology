@@ -1,0 +1,50 @@
+   Compiling oo-cli v0.1.0 (/src/crates/oo-cli)
+warning: unused import: `File`
+ --> crates/oo-cli/tests/a103_probe.rs:4:21
+  |
+4 | use std::fs::{self, File, OpenOptions};
+  |                     ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> crates/oo-cli/tests/a103_probe.rs:1075:9
+     |
+1075 |     let mut args = os_args(&["query", "--auth", "external", "--token-stdin", "--gateway", &gateway, "--transport", "local-developm...
+     |         ----^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `CommandExt`
+ --> crates/oo-cli/tests/a103_probe.rs:8:30
+  |
+8 | use std::os::unix::process::{CommandExt, ExitStatusExt};
+  |                              ^^^^^^^^^^
+
+warning: unused import: `OpenOptionsExt`
+ --> crates/oo-cli/tests/a103_probe.rs:7:38
+  |
+7 | use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
+  |                                      ^^^^^^^^^^^^^^
+
+warning: `oo-cli` (test "a103_probe") generated 4 warnings (run `cargo fix --test "a103_probe" -p oo-cli` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running tests/a103_probe.rs (/target/debug/deps/a103_probe-5570dee48163e4af)
+
+running 1 test
+test a103_independent_query_review ... 
+thread 'a103_independent_query_review' (226) panicked at crates/oo-cli/tests/a103_probe.rs:754:21:
+Cannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    a103_independent_query_review
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p oo-cli --test a103_probe`

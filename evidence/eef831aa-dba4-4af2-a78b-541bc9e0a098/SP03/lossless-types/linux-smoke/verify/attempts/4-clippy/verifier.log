@@ -1,0 +1,275 @@
+uname=Linux f097ac88ddca 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+=== clippy component ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo fetch ===
+phase_exit=0 phase=fetch
+=== connectors lib ===
+   Compiling sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.35s
+     Running unittests src/lib.rs (/target/debug/deps/oo_connectors-80e4733d854b7ead)
+
+running 44 tests
+test config::tests::rejects_dsn_socket_empty_password_and_prints_no_secret ... ok
+test error::tests::connect_io_invalid_data_is_tls_and_drops_the_driver_text ... ok
+test error::tests::display_is_closed_static_text ... ok
+test ident::tests::safe_names_stay_verbatim ... ok
+test ident::tests::unicode_uses_nfc_hex_and_collides_on_equivalent_forms ... ok
+test ident::tests::reserved_uppercase_space_and_q_prefix_are_encoded ... ok
+test model::tests::empty_catalog_fixture_matches_the_frozen_hash ... ok
+test model::tests::evidence_debug_hides_the_body ... ok
+test session::tests::false_ssl_is_plaintext ... ok
+test model::tests::added_column_and_policy_change_the_hash ... ok
+test model::tests::wide_numeric_domain_and_enum_are_explicit ... ok
+test sql::tests::identity_reads_hidden_role_guc_without_changing_it ... ok
+test model::tests::empty_hash_is_frozen_and_ignores_comments_and_privileges ... ok
+test session::tests::missing_ssl_row_is_unknown ... ok
+test tests::driver_verify_full_options_link ... ok
+test session::tests::version_without_ssl_is_not_success ... ok
+test session::tests::true_ssl_keeps_only_a_tls_version ... ok
+test sql::tests::statements_are_read_only_and_carry_no_secret_marker ... ok
+test types::tests::arrays_keep_lower_bounds_and_null_elements ... ok
+test types::tests::domain_decodes_as_its_base_and_keeps_its_oid ... ok
+test types::tests::converted_flag_does_not_authorize_or_block_a_builtin ... ok
+test types::tests::enum_labels_are_an_allow_list ... ok
+test types::tests::dates_use_fixed_pg_epochs_and_reject_infinity ... ok
+test types::tests::bool_true_matches_the_published_flag_hash ... ok
+test types::tests::float_specials_keep_arrow_bits_and_collapse_canonical_zero ... ok
+test types::tests::interval_orders_months_days_then_microseconds ... ok
+test tests::explicit_options_ignore_libpq_env ... ok
+test types::tests::money_and_foreign_send_are_unsupported ... ok
+test types::tests::json_text_and_jsonb_do_not_share_a_hash ... ok
+test types::tests::multi_dimension_arrays_stay_flat_in_arrow_storage_order ... ok
+test types::tests::null_is_not_unavailable_and_a_key_failure_rejects_the_read ... ok
+test types::tests::numeric_negative_scale_rescales_without_touching_catalog_v1 ... ok
+test types::tests::numeric_scale_above_precision_uses_exact_text ... ok
+test types::tests::policies_fail_closed_on_keys_text_format_and_injection ... ok
+test types::tests::select_privilege_blocks_before_a_value_is_trusted ... ok
+test types::tests::omitted_column_keeps_the_row_and_records_a_masked_reject ... ok
+test types::tests::text_bytea_and_char_keep_bytes ... ok
+test types::tests::signed_integers_keep_extrema ... ok
+test types::tests::timestamps_keep_civil_time_and_distinct_instants ... ok
+test types::tests::export_arrow_fixture ... ok
+test types::typmod::tests::negative_scale_disagrees_with_catalog_v1 ... ok
+test types::tests::wide_numeric_chooses_decimal256_then_text ... ok
+test types::typmod::tests::positive_scale_above_precision_matches_catalog_v1 ... ok
+test types::typmod::tests::unconstrained_is_absent ... ok
+
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=test-lib
+=== connectors doc ===
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+   Doc-tests oo_connectors
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=test-doc
+=== connectors package test (OO_PG_FIXTURE absent) ===
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+warning: fields `float4_be`, `hi_be`, `nums_lengths`, and `nums_null_at` are never read
+  --> crates/oo-connectors/tests/pg_wire_oracle.rs:28:9
+   |
+23 | pub struct WireRow {
+   |            ------- fields in this struct
+...
+28 |     pub float4_be: [u8; 4],
+   |         ^^^^^^^^^
+29 |     pub hi_be: [u8; 8],
+   |         ^^^^^
+...
+43 |     pub nums_lengths: Vec<i32>,
+   |         ^^^^^^^^^^^^
+44 |     pub nums_null_at: Vec<usize>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `WireRow` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (test "lossless_live") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.81s
+     Running unittests src/lib.rs (/target/debug/deps/oo_connectors-80e4733d854b7ead)
+
+running 44 tests
+test config::tests::rejects_dsn_socket_empty_password_and_prints_no_secret ... ok
+test error::tests::connect_io_invalid_data_is_tls_and_drops_the_driver_text ... ok
+test error::tests::display_is_closed_static_text ... ok
+test ident::tests::reserved_uppercase_space_and_q_prefix_are_encoded ... ok
+test ident::tests::unicode_uses_nfc_hex_and_collides_on_equivalent_forms ... ok
+test ident::tests::safe_names_stay_verbatim ... ok
+test model::tests::empty_catalog_fixture_matches_the_frozen_hash ... ok
+test model::tests::evidence_debug_hides_the_body ... ok
+test session::tests::false_ssl_is_plaintext ... ok
+test model::tests::wide_numeric_domain_and_enum_are_explicit ... ok
+test session::tests::missing_ssl_row_is_unknown ... ok
+test model::tests::added_column_and_policy_change_the_hash ... ok
+test session::tests::true_ssl_keeps_only_a_tls_version ... ok
+test session::tests::version_without_ssl_is_not_success ... ok
+test sql::tests::identity_reads_hidden_role_guc_without_changing_it ... ok
+test model::tests::empty_hash_is_frozen_and_ignores_comments_and_privileges ... ok
+test tests::driver_verify_full_options_link ... ok
+test types::tests::arrays_keep_lower_bounds_and_null_elements ... ok
+test types::tests::converted_flag_does_not_authorize_or_block_a_builtin ... ok
+test types::tests::bool_true_matches_the_published_flag_hash ... ok
+test types::tests::domain_decodes_as_its_base_and_keeps_its_oid ... ok
+test types::tests::dates_use_fixed_pg_epochs_and_reject_infinity ... ok
+test types::tests::enum_labels_are_an_allow_list ... ok
+test sql::tests::statements_are_read_only_and_carry_no_secret_marker ... ok
+test types::tests::interval_orders_months_days_then_microseconds ... ok
+test types::tests::float_specials_keep_arrow_bits_and_collapse_canonical_zero ... ok
+test types::tests::money_and_foreign_send_are_unsupported ... ok
+test types::tests::json_text_and_jsonb_do_not_share_a_hash ... ok
+test types::tests::multi_dimension_arrays_stay_flat_in_arrow_storage_order ... ok
+test types::tests::null_is_not_unavailable_and_a_key_failure_rejects_the_read ... ok
+test types::tests::numeric_negative_scale_rescales_without_touching_catalog_v1 ... ok
+test types::tests::numeric_scale_above_precision_uses_exact_text ... ok
+test tests::explicit_options_ignore_libpq_env ... ok
+test types::tests::omitted_column_keeps_the_row_and_records_a_masked_reject ... ok
+test types::tests::policies_fail_closed_on_keys_text_format_and_injection ... ok
+test types::tests::select_privilege_blocks_before_a_value_is_trusted ... ok
+test types::tests::signed_integers_keep_extrema ... ok
+test types::tests::text_bytea_and_char_keep_bytes ... ok
+test types::tests::timestamps_keep_civil_time_and_distinct_instants ... ok
+test types::typmod::tests::negative_scale_disagrees_with_catalog_v1 ... ok
+test types::tests::wide_numeric_chooses_decimal256_then_text ... ok
+test types::typmod::tests::positive_scale_above_precision_matches_catalog_v1 ... ok
+test types::typmod::tests::unconstrained_is_absent ... ok
+test types::tests::export_arrow_fixture ... ok
+
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_pg.rs (/target/debug/deps/live_pg-720cf86517065e22)
+
+running 1 test
+test live_source_catalog ... FAILED
+
+failures:
+
+---- live_source_catalog stdout ----
+
+thread 'live_source_catalog' (1743) panicked at crates/oo-connectors/tests/live_pg.rs:58:47:
+OO_PG_FIXTURE is required: NotPresent
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    live_source_catalog
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p oo-connectors --test live_pg`
+phase_exit=101 phase=test
+=== connectors clippy ===
+    Checking libm v0.2.16
+    Checking zerocopy v0.8.57
+    Checking iana-time-zone v0.1.65
+    Checking sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+    Checking arrow-schema v60.0.0
+    Checking num-traits v0.2.19
+    Checking num-integer v0.1.47
+    Checking num-complex v0.4.6
+    Checking chrono v0.4.45
+    Checking atoi v2.0.0
+    Checking serde-saphyr v1.3.0
+    Checking sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+    Checking num-bigint v0.4.8
+    Checking num-iter v0.1.46
+    Checking num-bigint v0.5.1
+    Checking chrono-tz v0.10.4
+    Checking num-rational v0.4.2
+    Checking num v0.4.3
+    Checking fraction v0.17.0
+    Checking ahash v0.8.12
+    Checking half v2.7.1
+    Checking jsonschema-value v0.57.0
+    Checking referencing v0.57.0
+    Checking arrow-buffer v60.0.0
+    Checking jsonschema v0.57.0
+    Checking arrow-data v60.0.0
+    Checking sqlx v0.9.0
+    Checking arrow-array v60.0.0
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: this `repeat().take()` can be written more concisely
+   --> crates/oo-connectors/tests/pg_wire_oracle.rs:191:20
+    |
+191 |         out.extend(std::iter::repeat('0').take(pad));
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `repeat_n()` instead: `std::iter::repeat_n('0', pad)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_repeat_n
+    = note: `-D clippy::manual-repeat-n` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_repeat_n)]`
+
+error: could not compile `oo-connectors` (test "pg_wire_oracle") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: useless conversion to the same type: `i64`
+   --> crates/oo-connectors/src/types/tests.rs:524:37
+    |
+524 |     assert!(plan.accepts_result_oid(i64::from(OID_BOOL)));
+    |                                     ^^^^^^^^^^^^^^^^^^^ help: consider removing `i64::from()`: `OID_BOOL`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_conversion
+    = note: `-D clippy::useless-conversion` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_conversion)]`
+
+error: could not compile `oo-connectors` (lib test) due to 1 previous error
+error: fields `float4_be`, `hi_be`, `nums_lengths`, and `nums_null_at` are never read
+  --> crates/oo-connectors/tests/pg_wire_oracle.rs:28:9
+   |
+23 | pub struct WireRow {
+   |            ------- fields in this struct
+...
+28 |     pub float4_be: [u8; 4],
+   |         ^^^^^^^^^
+29 |     pub hi_be: [u8; 8],
+   |         ^^^^^
+...
+43 |     pub nums_lengths: Vec<i32>,
+   |         ^^^^^^^^^^^^
+44 |     pub nums_null_at: Vec<usize>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `WireRow` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `oo-connectors` (test "lossless_live") due to 2 previous errors
+phase_exit=101 phase=clippy

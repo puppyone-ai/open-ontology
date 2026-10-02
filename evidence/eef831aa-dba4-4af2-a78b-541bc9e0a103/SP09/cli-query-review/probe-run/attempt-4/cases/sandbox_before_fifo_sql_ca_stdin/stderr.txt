@@ -1,0 +1,4 @@
+error: sandbox sandbox proxy client is not implemented; from_sandbox_env is pending and this process did not read a token, OO_TOKEN, or a home credential
+retryable: false
+retry_outcome: not_applicable
+retry_policy: max_extra_attempts=3 max_wait_ms=2000 nested_cli_retries=0 attempt_count=unknown

@@ -1,0 +1,10 @@
+{
+  "host": "pg.a098.internal",
+  "port": 5432,
+  "database": "typedb",
+  "reader_user": "oo_type_reader",
+  "password_file": "/fixture/reader.pass",
+  "ca_file": "/fixture/ca.crt",
+  "oracle_file": "/fixture/oracle.json",
+  "raw_file": "/fixture/oracle-raw.json"
+}

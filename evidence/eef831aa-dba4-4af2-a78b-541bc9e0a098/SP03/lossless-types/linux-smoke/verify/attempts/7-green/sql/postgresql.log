@@ -1,0 +1,31 @@
+2026-10-02 12:26:56.931 UTC app= user= db= LOG:  starting PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-02 12:26:56.931 UTC app= user= db= LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-02 12:26:56.932 UTC app= user= db= LOG:  database system was shut down at 2026-10-02 12:26:56 UTC
+2026-10-02 12:26:56.934 UTC app= user= db= LOG:  database system is ready to accept connections
+2026-10-02 12:26:57.044 UTC app= user= db= LOG:  received fast shutdown request
+2026-10-02 12:26:57.045 UTC app= user= db= LOG:  aborting any active transactions
+2026-10-02 12:26:57.046 UTC app= user= db= LOG:  background worker "logical replication launcher" (PID 73) exited with exit code 1
+2026-10-02 12:26:57.046 UTC app= user= db= LOG:  shutting down
+2026-10-02 12:26:57.046 UTC app= user= db= LOG:  checkpoint starting: shutdown immediate
+2026-10-02 12:26:57.049 UTC app= user= db= LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.003 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/172D788, redo lsn=0/172D788
+2026-10-02 12:26:57.050 UTC app= user= db= LOG:  database system is shut down
+2026-10-02 12:26:57.163 UTC app= user= db= LOG:  starting PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-02 12:26:57.163 UTC app= user= db= LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-02 12:26:57.163 UTC app= user= db= LOG:  listening on IPv6 address "::", port 5432
+2026-10-02 12:26:57.164 UTC app= user= db= LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-02 12:26:57.166 UTC app= user= db= LOG:  database system was shut down at 2026-10-02 12:26:57 UTC
+2026-10-02 12:26:57.168 UTC app= user= db= LOG:  database system is ready to accept connections
+2026-10-02 12:27:01.942 UTC app= user= db= LOG:  received SIGHUP, reloading configuration files
+2026-10-02 12:27:01.942 UTC app= user= db= LOG:  parameter "max_connections" cannot be changed without restarting the server
+2026-10-02 12:27:01.942 UTC app= user= db= LOG:  parameter "shared_buffers" cannot be changed without restarting the server
+2026-10-02 12:27:01.942 UTC app= user= db= LOG:  configuration file "/var/lib/postgresql/data/postgresql.conf" contains errors; unaffected changes were applied
+2026-10-02 12:31:57.945 UTC app= user= db= LOG:  checkpoint starting: time
+2026-10-02 12:33:42.425 UTC app= user= db= LOG:  checkpoint complete: wrote 982 buffers (12.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=104.457 s, sync=0.021 s, total=104.480 s; sync files=321, longest=0.002 s, average=0.001 s; distance=4599 kB, estimate=4599 kB; lsn=0/1BAB490, redo lsn=0/1BAB400
+2026-10-02 12:35:43.200 UTC app=oo-pg-source user=oo_type_reader db=typedb LOG:  could not receive data from client: Connection reset by peer
+2026-10-02 12:36:57.536 UTC app= user= db= LOG:  checkpoint starting: time
+2026-10-02 12:36:58.081 UTC app= user= db= LOG:  checkpoint complete: wrote 5 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.538 s, sync=0.004 s, total=0.545 s; sync files=5, longest=0.003 s, average=0.001 s; distance=28 kB, estimate=4142 kB; lsn=0/1BB2470, redo lsn=0/1BB2418
+2026-10-02 12:47:20.115 UTC app=psql user=postgres db=typedb ERROR:  syntax error at or near "\" at character 71
+2026-10-02 12:47:20.115 UTC app=psql user=postgres db=typedb STATEMENT:  SELECT on_flag, hue, nums, padded, code, docb FROM lab.sample LIMIT 1 \gdesc
+2026-10-02 13:10:52.213 UTC app=oo-pg-source user=oo_type_reader db=typedb LOG:  could not receive data from client: Connection reset by peer
+2026-10-02 13:22:06.421 UTC app=oo-pg-source user=oo_type_reader db=typedb LOG:  could not receive data from client: Connection reset by peer
+2026-10-02 13:23:10.753 UTC app=oo-pg-source user=oo_type_reader db=typedb LOG:  could not receive data from client: Connection reset by peer

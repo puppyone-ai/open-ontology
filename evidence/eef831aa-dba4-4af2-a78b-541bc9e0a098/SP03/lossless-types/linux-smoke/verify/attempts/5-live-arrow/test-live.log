@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/lossless_live.rs (/target/debug/deps/lossless_live-2492147289de6b79)
+
+running 1 test
+test live_lossless_types ... FAILED
+
+failures:
+
+---- live_lossless_types stdout ----
+
+thread 'live_lossless_types' (1989) panicked at crates/oo-connectors/tests/lossless_live.rs:151:38:
+record batch: SourceError { kind: Protocol, fact: Some("arrow_batch"), sqlstate: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    live_lossless_types
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+error: test failed, to rerun pass `-p oo-connectors --test lossless_live`

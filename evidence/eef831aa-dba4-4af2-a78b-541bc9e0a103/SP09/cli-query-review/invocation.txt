@@ -1,0 +1,22 @@
+run_id=445980e9-64e0-402a-a0a1-d8a8d6bd6f6b
+commit=3347f5a280da52c70525879b4608170b6b92b523
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+memory=8g
+cpus=4
+pids_limit=4096
+home_mount=no
+socket_mount=no
+privileged=no
+smoke_network=bridge_not_host
+probe_network=none
+snapshot_method=git archive of bound commit only
+smoke_command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --manifest-path Cargo.toml --locked --offline -p oo-cli; cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-cli --all-targets -- -D warnings
+probe_command=cargo test --manifest-path Cargo.toml --locked --offline -p oo-cli --test a103_probe -- --test-threads=1 --nocapture

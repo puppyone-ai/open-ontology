@@ -1,0 +1,263 @@
+   Compiling oo-cli v0.1.0 (/src/crates/oo-cli)
+warning: unused import: `File`
+ --> crates/oo-cli/tests/a103_probe.rs:4:21
+  |
+4 | use std::fs::{self, File, OpenOptions};
+  |                     ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0618]: expected function, found `Spec`
+   --> crates/oo-cli/tests/a103_probe.rs:926:20
+    |
+500 | fn spec(args: Vec<std::ffi::OsString>, tmpdir: PathBuf) -> Spec {
+    | --------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+909 |     let mut spec = spec(args, tmp);
+    |         -------- `spec` has type `Spec`
+...
+926 |     let mut spec = spec(args, tmp);
+    |                    ^^^^-----------
+    |                    |
+    |                    call expression requires function
+
+error[E0618]: expected function, found `Spec`
+    --> crates/oo-cli/tests/a103_probe.rs:1035:20
+     |
+ 500 | fn spec(args: Vec<std::ffi::OsString>, tmpdir: PathBuf) -> Spec {
+     | --------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+1017 |     let mut spec = spec(args, tmp);
+     |         -------- `spec` has type `Spec`
+...
+1035 |     let mut spec = spec(args, tmp);
+     |                    ^^^^-----------
+     |                    |
+     |                    call expression requires function
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1109:23
+     |
+1109 |         ("mode_0000", format!("{TOKEN}\n").as_bytes(), 0o000, "permission_or_mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1108:25
+     |
+1108 |         ("mode_sticky", format!("{TOKEN}\n").as_bytes(), 0o1600, "mode"),
+     |                         ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1107:25
+     |
+1107 |         ("mode_setgid", format!("{TOKEN}\n").as_bytes(), 0o2600, "mode"),
+     |                         ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1106:25
+     |
+1106 |         ("mode_setuid", format!("{TOKEN}\n").as_bytes(), 0o4600, "mode"),
+     |                         ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1105:23
+     |
+1105 |         ("mode_0666", format!("{TOKEN}\n").as_bytes(), 0o666, "mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1104:23
+     |
+1104 |         ("mode_0601", format!("{TOKEN}\n").as_bytes(), 0o601, "mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1103:23
+     |
+1103 |         ("mode_0700", format!("{TOKEN}\n").as_bytes(), 0o700, "mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1102:23
+     |
+1102 |         ("mode_0400", format!("{TOKEN}\n").as_bytes(), 0o400, "mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1101:23
+     |
+1101 |         ("mode_0644", format!("{TOKEN}\n").as_bytes(), 0o644, "mode"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0716]: temporary value dropped while borrowed
+    --> crates/oo-cli/tests/a103_probe.rs:1100:23
+     |
+1100 |         ("mode_0600", format!("{TOKEN}\n").as_bytes(), 0o600, "ok"),
+     |                       ^^^^^^^^^^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+1125 |     ];
+     |      - temporary value is freed at the end of this statement
+1126 |     for (name, bytes, mode, expect) in samples {
+     |                                        ------- borrow later used here
+     |
+     = note: consider using a `let` binding to create a longer lived value
+     = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0618]: expected function, found `Spec`
+    --> crates/oo-cli/tests/a103_probe.rs:1903:20
+     |
+ 500 | fn spec(args: Vec<std::ffi::OsString>, tmpdir: PathBuf) -> Spec {
+     | --------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+1890 |     let mut spec = spec(query_args(&token, &gateway, "local-development", &["--timeout-ms", "800", "--json", SQL]), tmp);
+     |         -------- `spec` has type `Spec`
+...
+1903 |     let mut spec = spec(query_args(&token, &gateway, "local-development", &["--timeout-ms", "120000", "--json", SQL]), tmp);
+     |                    ^^^^----------------------------------------------------------------------------------------------------
+     |                    |
+     |                    call expression requires function
+
+error[E0618]: expected function, found `Spec`
+    --> crates/oo-cli/tests/a103_probe.rs:1933:26
+     |
+ 500 | fn spec(args: Vec<std::ffi::OsString>, tmpdir: PathBuf) -> Spec {
+     | --------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+1920 |     let mut spec = spec(query_args(&token, &gateway, "local-development", &["--json", SQL]), tmp);
+     |         -------- `spec` has type `Spec`
+...
+1933 |     let child = run_spec(spec(query_args(&token, &gateway, "production", &["--json", SQL]), tmp));
+     |                          ^^^^-------------------------------------------------------------------
+     |                          |
+     |                          call expression requires function
+
+error[E0618]: expected function, found `Spec`
+    --> crates/oo-cli/tests/a103_probe.rs:1944:26
+     |
+ 500 | fn spec(args: Vec<std::ffi::OsString>, tmpdir: PathBuf) -> Spec {
+     | --------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+1920 |     let mut spec = spec(query_args(&token, &gateway, "local-development", &["--json", SQL]), tmp);
+     |         -------- `spec` has type `Spec`
+...
+1944 |     let child = run_spec(spec(query_args(&token, "http://192.0.2.1:9/", "local-development", &["--json", SQL]), tmp));
+     |                          ^^^^---------------------------------------------------------------------------------------
+     |                          |
+     |                          call expression requires function
+
+error[E0599]: no variant or associated item named `deserialize` found for enum `Value` in the current scope
+   --> crates/oo-cli/tests/a103_probe.rs:167:24
+    |
+167 |     let value = Value::deserialize(&mut de).map_err(|error| error.to_string())?;
+    |                        ^^^^^^^^^^^ variant or associated item not found in `Value`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `Deserialize` which provides `deserialize` is implemented but not in scope; perhaps you want to import it
+    |
+  4 + use serde_core::de::Deserialize;
+    |
+help: there is a method `serialize` with a similar name
+    |
+167 -     let value = Value::deserialize(&mut de).map_err(|error| error.to_string())?;
+167 +     let value = Value::serialize(&mut de).map_err(|error| error.to_string())?;
+    |
+
+error[E0282]: type annotations needed
+   --> crates/oo-cli/tests/a103_probe.rs:167:54
+    |
+167 |     let value = Value::deserialize(&mut de).map_err(|error| error.to_string())?;
+    |                                                      ^^^^^  ----- type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type
+    |
+167 |     let value = Value::deserialize(&mut de).map_err(|error: /* Type */| error.to_string())?;
+    |                                                           ++++++++++++
+
+warning: unused import: `CommandExt`
+ --> crates/oo-cli/tests/a103_probe.rs:8:30
+  |
+8 | use std::os::unix::process::{CommandExt, ExitStatusExt};
+  |                              ^^^^^^^^^^
+
+warning: unused import: `OpenOptionsExt`
+ --> crates/oo-cli/tests/a103_probe.rs:7:38
+  |
+7 | use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
+  |                                      ^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0282, E0599, E0618, E0716.
+For more information about an error, try `rustc --explain E0282`.
+warning: `oo-cli` (test "a103_probe") generated 3 warnings
+error: could not compile `oo-cli` (test "a103_probe") due to 17 previous errors; 3 warnings emitted

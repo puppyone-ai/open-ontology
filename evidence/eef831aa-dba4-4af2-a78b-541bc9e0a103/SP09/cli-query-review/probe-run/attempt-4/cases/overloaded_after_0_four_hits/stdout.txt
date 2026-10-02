@@ -1,0 +1,1 @@
+{"class":"gateway","code":"OVERLOADED","exit":3,"hint":"later","message":"busy","query_id":"q_abc123","retry":{"attempt_count":"unknown","max_extra_attempts":3,"max_wait_ms":2000,"nested_cli_retries":0,"outcome":"admission_policy_finished"},"retryable":true}
