@@ -1,0 +1,8 @@
+container_rm=0
+network_rm=0
+volume_cargo_rm=0
+volume_target_rm=0
+work_removed=yes
+remaining_a111_containers:
+remaining_a111_volumes:
+remaining_a111_networks:

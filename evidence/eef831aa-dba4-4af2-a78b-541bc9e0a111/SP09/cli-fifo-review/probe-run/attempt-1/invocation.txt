@@ -1,0 +1,9 @@
+run_id=3150146e-bb95-44ff-b3fe-fb84826c1d34
+container=oo-a111-probe-3150146e-bb95-44ff-b3fe-fb84826c1d34
+network=none
+fetch=not_run
+clippy=not_run
+offline=yes
+airgap_claim=no
+cargo_volume=oo-a111-3150146e-bb95-44ff-b3fe-fb84826c1d34-cargo
+target_volume=oo-a111-3150146e-bb95-44ff-b3fe-fb84826c1d34-target

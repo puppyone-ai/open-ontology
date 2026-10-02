@@ -186,7 +186,8 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
-  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；a106已交付FIFO修正版7acca207，a111独占槽B固定复审中；沙盒proxy/管理命令/完整对话另验。
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；a106已交付FIFO修正版7acca207，a111固定复审已批准FIFO修复，完整query子项仍unsigned；沙盒proxy/管理命令/完整对话另验。
+  - [x] W02-a1 CLI-FIFO-OPEN-BLOCKS定点修复：a111固定7acca207独立批准；Linux1.94 11tests与24oracle cases通过，六FIFO无signal/zeroaccepts；不签完整query或SP09。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -778,3 +779,9 @@ slotA从实际终态a110释放并移交a107 jobs lease固定复审；执行完�
 ### a110原始证据接收与基础依赖修复准备
 
 已读取raw integer exits/gold stdout/logaudit报告/deny诊断/afterstats，接收说明execution/decisions/a110-types-review-receipt.md和1570文件SHA索引；raw失败attempt全部保留，snapshot重复9725文件保留本地未stage，独立Rustprobe3文件另接收。首次PEM扫描命中两已有源码marker后逐文件与fixedgit字节一致，secret-root为自有tmp路径，未读取或输出privatekey/密码。限定functionalapproved不冒称fullpackage/supply/boundedreader通过，类型整体request_changes不新增勾选。新v01-dependency-license-repair-prepared.md无UUID/无write或buildgrant，要求真实依赖/feature/官方支持目标与不放宽allowlist/ignore、不降低TLS，不以空扫描或缩目标造绿。当前9组件/8验收子项/首次返工6比8，goal active。
+
+### a111实际终态接收与a109调度
+
+a111 handle94170实际exit0，已关闭不再轮询。FULL review/findings/HANDOFF、raw 24case report、Linux test与全部exit文件核对，probe/report SHA匹配；134文件139437bytes证据接收并生成a111-evidence-sha256.txt。固定7acca207仅CLI-FIFO-OPEN-BLOCKS批准：六FIFO 10–13ms、token4/SQL与CA1、无signal、stdout空、zeroaccepts；11tests/Clippy0。TLS负例stderr_exact未注册期望，不冒称严格字符串比对。仅勾W02-a1修复切片，不计新增产品功能或产品验收父项；9组件/8产品验收子项/首次返工6比8保持。完整87父项/16Phase未完成，goal active。
+
+slotB从实际终态a111释放，移交a109 helper许可证记录固定复审；slotA仍a107 jobs复审独占，无product/rootwriter授权。许可证图修复卡仍prepared，不能自动许可放宽。
