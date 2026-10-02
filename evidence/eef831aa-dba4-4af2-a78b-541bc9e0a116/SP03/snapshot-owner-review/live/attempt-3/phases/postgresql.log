@@ -1,0 +1,63 @@
+2026-10-02 22:20:45.727 UTC app= user= db= LOG:  starting PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-02 22:20:45.728 UTC app= user= db= LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-02 22:20:45.729 UTC app= user= db= LOG:  database system was shut down at 2026-10-02 22:20:45 UTC
+2026-10-02 22:20:45.733 UTC app= user= db= LOG:  database system is ready to accept connections
+2026-10-02 22:20:45.866 UTC app= user= db= LOG:  received fast shutdown request
+2026-10-02 22:20:45.867 UTC app= user= db= LOG:  aborting any active transactions
+2026-10-02 22:20:45.868 UTC app= user= db= LOG:  background worker "logical replication launcher" (PID 68) exited with exit code 1
+2026-10-02 22:20:45.868 UTC app= user= db= LOG:  shutting down
+2026-10-02 22:20:45.869 UTC app= user= db= LOG:  checkpoint starting: shutdown immediate
+2026-10-02 22:20:45.888 UTC app= user= db= LOG:  checkpoint complete: wrote 921 buffers (11.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.005 s, sync=0.012 s, total=0.020 s; sync files=301, longest=0.003 s, average=0.001 s; distance=4238 kB, estimate=4238 kB; lsn=0/1908998, redo lsn=0/1908998
+2026-10-02 22:20:45.889 UTC app= user= db= LOG:  database system is shut down
+2026-10-02 22:20:45.990 UTC app= user= db= LOG:  starting PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-02 22:20:45.991 UTC app= user= db= LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-02 22:20:45.991 UTC app= user= db= LOG:  listening on IPv6 address "::", port 5432
+2026-10-02 22:20:45.992 UTC app= user= db= LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-02 22:20:45.993 UTC app= user= db= LOG:  database system was shut down at 2026-10-02 22:20:45 UTC
+2026-10-02 22:20:45.995 UTC app= user= db= LOG:  database system is ready to accept connections
+2026-10-02 22:20:47.713 UTC app= user= db= LOG:  received SIGHUP, reloading configuration files
+2026-10-02 22:20:47.714 UTC app= user= db= LOG:  parameter "max_connections" cannot be changed without restarting the server
+2026-10-02 22:20:47.714 UTC app= user= db= LOG:  parameter "shared_buffers" cannot be changed without restarting the server
+2026-10-02 22:20:47.714 UTC app= user= db= LOG:  parameter "log_statement" changed to "all"
+2026-10-02 22:20:47.714 UTC app= user= db= LOG:  configuration file "/var/lib/postgresql/data/postgresql.conf" contains errors; unaffected changes were applied
+2026-10-02 22:20:48.739 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attnum::text, a.attname, a.atttypid::text, a.atttypmod::text, CASE WHEN a.attnotnull THEN 'true' ELSE 'false' END FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'rev' AND c.relname = 'item' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-02 22:20:48.751 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attnum::text, a.attname, a.atttypid::text, a.atttypmod::text, CASE WHEN a.attnotnull THEN 'true' ELSE 'false' END FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'rev' AND c.relname = 'line item' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-02 22:20:48.762 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, label, CASE WHEN flag THEN 'true' ELSE 'false' END, code, COALESCE("odd""note", '<null>') FROM rev.item WHERE id = 7
+2026-10-02 22:20:48.773 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, item_id::text, qty::text, COALESCE(memo, '<null>') FROM rev."line item" WHERE id = 21
+2026-10-02 22:20:48.784 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, item_id::text, qty::text, COALESCE(memo, '<null>') FROM rev."line item" WHERE id = 22
+2026-10-02 22:20:48.795 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT count(*) FROM rev."line item" WHERE id = 99
+2026-10-02 22:20:48.806 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT count(*) FROM rev.twin WHERE id = 3
+2026-10-02 22:20:48.818 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT string_agg(label, ',' ORDER BY label) FROM rev.twin WHERE id = 3
+2026-10-02 22:20:48.829 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT n FROM rev.canary WHERE id = 1
+2026-10-02 22:22:09.899 UTC app=psql user=postgres db=revdb LOG:  statement: UPDATE rev.canary SET n = 0 WHERE id = 1
+2026-10-02 22:22:09.973 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT n FROM rev.canary WHERE id = 1
+2026-10-02 22:22:21.248 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'oo_rev_reader'
+2026-10-02 22:22:21.263 UTC app=psql user=postgres db=revdb LOG:  statement: ALTER SYSTEM SET log_statement = 'all'
+2026-10-02 22:22:21.278 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT pg_catalog.pg_reload_conf()
+2026-10-02 22:22:21.278 UTC app= user= db= LOG:  received SIGHUP, reloading configuration files
+2026-10-02 22:22:21.279 UTC app= user= db= LOG:  parameter "max_connections" cannot be changed without restarting the server
+2026-10-02 22:22:21.279 UTC app= user= db= LOG:  parameter "shared_buffers" cannot be changed without restarting the server
+2026-10-02 22:22:21.279 UTC app= user= db= LOG:  configuration file "/var/lib/postgresql/data/postgresql.conf" contains errors; unaffected changes were applied
+2026-10-02 22:22:22.313 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attnum::text, a.attname, a.atttypid::text, a.atttypmod::text, CASE WHEN a.attnotnull THEN 'true' ELSE 'false' END FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'rev' AND c.relname = 'item' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-02 22:22:22.329 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attnum::text, a.attname, a.atttypid::text, a.atttypmod::text, CASE WHEN a.attnotnull THEN 'true' ELSE 'false' END FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'rev' AND c.relname = 'line item' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-02 22:22:22.344 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, label, CASE WHEN flag THEN 'true' ELSE 'false' END, code, COALESCE("odd""note", '<null>') FROM rev.item WHERE id = 7
+2026-10-02 22:22:22.357 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, item_id::text, qty::text, COALESCE(memo, '<null>') FROM rev."line item" WHERE id = 21
+2026-10-02 22:22:22.369 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, item_id::text, qty::text, COALESCE(memo, '<null>') FROM rev."line item" WHERE id = 22
+2026-10-02 22:22:22.380 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT count(*) FROM rev."line item" WHERE id = 99
+2026-10-02 22:22:22.391 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT count(*) FROM rev.twin WHERE id = 3
+2026-10-02 22:22:22.410 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT string_agg(label, ',' ORDER BY label) FROM rev.twin WHERE id = 3
+2026-10-02 22:22:22.421 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT n FROM rev.canary WHERE id = 1
+2026-10-02 22:22:22.432 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT prosecdef FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'rev' AND p.proname = 'bump'
+2026-10-02 22:22:22.443 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT has_table_privilege('oo_rev_reader', 'rev.item', 'INSERT')
+2026-10-02 22:22:22.453 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT has_table_privilege('oo_rev_reader', 'rev.item', 'SELECT')
+2026-10-02 22:22:22.464 UTC app=psql user=postgres db=revdb LOG:  statement: SHOW server_version
+2026-10-02 22:22:22.474 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT pg_catalog.pg_is_in_recovery()
+2026-10-02 22:22:22.485 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT pg_catalog.pg_postmaster_start_time()::text
+2026-10-02 22:22:22.495 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT 'A116_AUDIT_WINDOW_START'
+2026-10-02 22:25:45.389 UTC app= user= db= LOG:  checkpoint starting: time
+2026-10-02 22:25:56.186 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT count(*) FROM rev.twin WHERE id = 3
+2026-10-02 22:25:56.251 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attnum::int4, a.attname, a.atttypid::int8, a.atttypmod::int4, CASE WHEN a.attnotnull THEN 1 ELSE 0 END::int4 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'rev' AND c.relname = 'twin' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-02 22:25:56.322 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT a.attname FROM pg_catalog.pg_constraint con JOIN pg_catalog.pg_class c ON c.oid = con.conrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = con.conkey[1] WHERE n.nspname = 'rev' AND c.relname = 'twin' AND con.contype = 'p'
+2026-10-02 22:25:56.388 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT id::text, label, CASE WHEN flag THEN 'true' ELSE 'false' END, code, CASE WHEN "odd""note" IS NULL THEN '<null>' ELSE "odd""note" END FROM rev.item WHERE id = 7
+2026-10-02 22:25:56.453 UTC app=psql user=postgres db=revdb LOG:  statement: SELECT n FROM rev.canary WHERE id = 1
+2026-10-02 22:26:00.227 UTC app= user= db= LOG:  checkpoint complete: wrote 142 buffers (1.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=14.824 s, sync=0.009 s, total=14.839 s; sync files=84, longest=0.003 s, average=0.001 s; distance=541 kB, estimate=541 kB; lsn=0/198FEA8, redo lsn=0/198FE18

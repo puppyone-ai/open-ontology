@@ -1,0 +1,65 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_exit=0
+cargo 1.94.0 (85eff7c80 2026-01-15)
+cargo_v_exit=0
+aarch64
+=== product sha256 ===
+crates/oo-connectors/src/snapshot.rs: OK
+crates/oo-connectors/src/session.rs: OK
+crates/oo-connectors/src/sql.rs: OK
+crates/oo-connectors/src/error.rs: OK
+crates/oo-connectors/src/lib.rs: OK
+crates/oo-connectors/src/types/mod.rs: OK
+crates/oo-connectors/tests/snapshot_live.rs: OK
+crates/oo-connectors/README.md: OK
+contracts/source/pgsql/snapshot-owner-v1.md: OK
+Cargo.toml: OK
+Cargo.lock: OK
+rust-toolchain.toml: OK
+product_sha_exit=0
+package_live_pg=not-run
+package_lossless_live=not-run
+snapshot_live=not-run
+lib_retest=not-run
+live_fixture_reason=package tests need OO_PG_FIXTURE; this oracle uses OO_A116_FIXTURE only
+=== rustup component add clippy ===
+info: downloading component clippy
+clippy_add_exit=0
+=== cargo test --no-run ===
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.11s
+  Executable tests/a116_oracle.rs (/target/debug/deps/a116_oracle-2f062cacd4ec3300)
+compile_exit=0
+=== cargo clippy --locked --offline -p oo-connectors --all-targets -- -D warnings ===
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+clippy_exit=0
+=== cargo test --locked --offline -p oo-connectors --test a116_oracle ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/a116_oracle.rs (/target/debug/deps/a116_oracle-2f062cacd4ec3300)
+
+running 1 test
+test a116_snapshot_oracle ... 
+thread 'a116_snapshot_oracle' (244) panicked at crates/oo-connectors/tests/a116_oracle.rs:331:13:
+oracle_failed same_item_tokens,same_line_21_tokens,same_side_absent_23,deadline_probe_finish,deadline_finish,inflight_column_probe,add_column_agreement,add_column_finish
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    a116_snapshot_oracle
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.83s
+
+error: test failed, to rerun pass `-p oo-connectors --test a116_oracle`
+oracle_exit=101
+log_copied=yes
+worst_phase_exit=101

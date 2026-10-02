@@ -1,0 +1,10 @@
+attempt=3
+result=clippy_failed
+compile_exit=0
+clippy_exit=101
+oracle_exit=86
+oracle_skipped=yes
+owner_opened=no
+cause=clippy::needless_borrow on &req() and &host where the value was already &str. Nine errors. Oracle did not run.
+container=eef831aa-dba4-4af2-a78b-541bc9e0a116-rust-review-2
+preserved=yes

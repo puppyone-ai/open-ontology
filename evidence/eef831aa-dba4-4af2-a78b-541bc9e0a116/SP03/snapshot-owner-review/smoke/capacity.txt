@@ -1,0 +1,11 @@
+captured_at=2026-10-02T22:02:22Z
+host_cargo=0
+rust_builders=0
+global=0
+own_take=1
+slot=A
+slot_b=a114_reserved
+a115_builder_grant=no
+a112_handle_50371=absent
+a114_handle_82080=absent
+a115_handle_82672=absent

@@ -1,0 +1,10 @@
+pg_container=eef831aa-dba4-4af2-a78b-541bc9e0a116-pg
+pg_volume=eef831aa-dba4-4af2-a78b-541bc9e0a116-pglog
+network=eef831aa-dba4-4af2-a78b-541bc9e0a116-net
+secret_dir=/tmp/oo-a116-eef831aa-dba4-4af2-a78b-541bc9e0a116/secrets
+image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+alias=oo-a116-pg
+wrong_alias=oo-a116-wrong
+database=revdb
+privileged=no
+host_port=none
