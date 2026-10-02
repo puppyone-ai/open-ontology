@@ -1,10 +1,12 @@
-//! Read-only PostgreSQL source inspection, catalog, and lossless decoding.
+//! Read-only PostgreSQL source inspection, catalog, lossless decoding, and a
+//! non-reusable snapshot owner.
 //!
 //! The catalog protocol stays [`PROTOCOL`] (`oo.source.pgsql/v1`).
 //! `type_conversion` and [`TypeSupport::converted`] stay unsupported and false.
 //! Binary decoding is the separate protocol [`types::TYPE_CONVERSION_PROTOCOL`].
-//! [`PgSession::read_typed`] is that decoder. Scan, CDC, and the registry API
-//! stay unsupported. Gateway crates do not depend on this crate.
+//! [`PgSession::read_typed`] is that decoder. The snapshot owner protocol is
+//! [`SNAPSHOT_PROTOCOL`]. It is not the bounded reader. Scan, CDC, bounded read,
+//! and the registry API stay unsupported. Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
 
@@ -15,6 +17,7 @@ mod error;
 mod ident;
 mod model;
 mod session;
+mod snapshot;
 mod sql;
 pub mod types;
 
@@ -33,6 +36,12 @@ pub use model::{
     connector_capabilities, numeric_parts, schema_hash,
 };
 pub use session::{PgConnector, PgSession};
+pub use snapshot::{
+    config_identity, snapshot_input_digest, type_policy_identity, AdmittedCatalog, AdmittedColumn,
+    AdmittedTable, BackendKey, CutProbe, ProbeValue, SnapshotAborted, SnapshotBinding,
+    SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess, CLEANUP_OBSERVATION_BOUND_MS,
+    SNAPSHOT_PROTOCOL,
+};
 pub use types::{
     type_capabilities, ColumnMapping, PgTypePolicy, RunBinding, TypedBatch, TYPE_CONVERSION_PROTOCOL,
 };

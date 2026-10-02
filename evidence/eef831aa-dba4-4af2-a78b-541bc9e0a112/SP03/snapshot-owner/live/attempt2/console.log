@@ -1,0 +1,524 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_exit=0
+cargo 1.94.0 (85eff7c80 2026-01-15)
+cargo_v_exit=0
+aarch64
+=== clippy component ===
+info: downloading component clippy
+clippy_component_exit=0
+=== cargo test --locked --offline -p oo-connectors --lib --test snapshot_live ===
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:282:13
+    |
+279 |         request = self.request(
+    |                   ---- ------- immutable borrow later used by call
+    |                   |
+    |                   immutable borrow occurs here
+...
+282 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:327:13
+    |
+324 |         let request = self.request(
+    |                       ---- ------- immutable borrow later used by call
+    |                       |
+    |                       immutable borrow occurs here
+...
+327 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:346:13
+    |
+343 |         let request = self.request(
+    |                       ---- ------- immutable borrow later used by call
+    |                       |
+    |                       immutable borrow occurs here
+...
+346 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:357:13
+    |
+354 |         let mut request = self.request(
+    |                           ---- ------- immutable borrow later used by call
+    |                           |
+    |                           immutable borrow occurs here
+...
+357 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:368:13
+    |
+365 |         request = self.request(
+    |                   ---- ------- immutable borrow later used by call
+    |                   |
+    |                   immutable borrow occurs here
+...
+368 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:379:13
+    |
+376 |         request = self.request(
+    |                   ---- ------- immutable borrow later used by call
+    |                   |
+    |                   immutable borrow occurs here
+...
+379 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+   --> crates/oo-connectors/tests/snapshot_live.rs:391:13
+    |
+388 |         request = self.request(
+    |                   ---- ------- immutable borrow later used by call
+    |                   |
+    |                   immutable borrow occurs here
+...
+391 |             self.next_gen(),
+    |             ^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:404:17
+    |
+402 |         let err = self
+    |                   ---- first mutable borrow occurs here
+403 |             .open_reader(
+    |              ----------- first borrow later used by call
+404 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:404:17
+    |
+404 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:402:19
+    |
+402 |           let err = self
+    |  ___________________^
+403 | |             .open_reader(
+404 | |                 self.next_gen(),
+405 | |                 wrong_shape,
+406 | |                 Instant::now() + Duration::from_secs(30),
+407 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:416:17
+    |
+414 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+415 |             .open_reader(
+    |              ----------- first borrow later used by call
+416 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:416:17
+    |
+416 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:414:25
+    |
+414 |           let mut owner = self
+    |  _________________________^
+415 | |             .open_reader(
+416 | |                 self.next_gen(),
+417 | |                 self.admitted.clone(),
+418 | |                 Instant::now() + Duration::from_secs(50),
+419 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:441:17
+    |
+439 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+440 |             .open_reader(
+    |              ----------- first borrow later used by call
+441 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:441:17
+    |
+441 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:439:25
+    |
+439 |           let mut owner = self
+    |  _________________________^
+440 | |             .open_reader(
+441 | |                 self.next_gen(),
+442 | |                 self.admitted.clone(),
+443 | |                 Instant::now() + Duration::from_secs(8),
+444 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:464:17
+    |
+462 |         let owner = self
+    |                     ---- first mutable borrow occurs here
+463 |             .open_reader(
+    |              ----------- first borrow later used by call
+464 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:464:17
+    |
+464 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:462:21
+    |
+462 |           let owner = self
+    |  _____________________^
+463 | |             .open_reader(
+464 | |                 self.next_gen(),
+465 | |                 self.admitted.clone(),
+466 | |                 Instant::now() + Duration::from_secs(50),
+467 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:489:17
+    |
+487 |         let owner = self
+    |                     ---- first mutable borrow occurs here
+488 |             .open_reader(
+    |              ----------- first borrow later used by call
+489 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:489:17
+    |
+489 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:487:21
+    |
+487 |           let owner = self
+    |  _____________________^
+488 | |             .open_reader(
+489 | |                 self.next_gen(),
+490 | |                 self.admitted.clone(),
+491 | |                 Instant::now() + Duration::from_secs(50),
+492 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:502:17
+    |
+500 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+501 |             .open_reader(
+    |              ----------- first borrow later used by call
+502 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:502:17
+    |
+502 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:500:25
+    |
+500 |           let mut owner = self
+    |  _________________________^
+501 | |             .open_reader(
+502 | |                 self.next_gen(),
+503 | |                 self.admitted.clone(),
+504 | |                 Instant::now() + Duration::from_secs(50),
+505 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:524:17
+    |
+522 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+523 |             .open_reader(
+    |              ----------- first borrow later used by call
+524 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:524:17
+    |
+524 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:522:25
+    |
+522 |           let mut owner = self
+    |  _________________________^
+523 | |             .open_reader(
+524 | |                 self.next_gen(),
+525 | |                 self.admitted.clone(),
+526 | |                 Instant::now() + Duration::from_secs(50),
+527 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:558:17
+    |
+556 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+557 |             .open_reader(
+    |              ----------- first borrow later used by call
+558 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:558:17
+    |
+558 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:556:25
+    |
+556 |           let mut owner = self
+    |  _________________________^
+557 | |             .open_reader(
+558 | |                 self.next_gen(),
+559 | |                 self.admitted.clone(),
+560 | |                 Instant::now() + Duration::from_secs(50),
+561 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:647:17
+    |
+645 |         let mut fresh = self
+    |                         ---- first mutable borrow occurs here
+646 |             .open_reader(
+    |              ----------- first borrow later used by call
+647 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:647:17
+    |
+647 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:645:25
+    |
+645 |           let mut fresh = self
+    |  _________________________^
+646 | |             .open_reader(
+647 | |                 self.next_gen(),
+648 | |                 self.admitted.clone(),
+649 | |                 Instant::now() + Duration::from_secs(50),
+650 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:678:17
+    |
+676 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+677 |             .open_reader(
+    |              ----------- first borrow later used by call
+678 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:678:17
+    |
+678 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:676:25
+    |
+676 |           let mut owner = self
+    |  _________________________^
+677 | |             .open_reader(
+678 | |                 self.next_gen(),
+679 | |                 old.clone(),
+680 | |                 Instant::now() + Duration::from_secs(50),
+681 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:710:17
+    |
+708 |         let err = self
+    |                   ---- first mutable borrow occurs here
+709 |             .open_reader(
+    |              ----------- first borrow later used by call
+710 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:710:17
+    |
+710 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:708:19
+    |
+708 |           let err = self
+    |  ___________________^
+709 | |             .open_reader(
+710 | |                 self.next_gen(),
+711 | |                 old,
+712 | |                 Instant::now() + Duration::from_secs(30),
+713 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:722:17
+    |
+720 |         let mut owner = self
+    |                         ---- first mutable borrow occurs here
+721 |             .open_reader(
+    |              ----------- first borrow later used by call
+722 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:722:17
+    |
+722 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:720:25
+    |
+720 |           let mut owner = self
+    |  _________________________^
+721 | |             .open_reader(
+722 | |                 self.next_gen(),
+723 | |                 self.admitted.clone(),
+724 | |                 Instant::now() + Duration::from_secs(50),
+725 | |             )
+    | |_____________^
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+   --> crates/oo-connectors/tests/snapshot_live.rs:755:17
+    |
+753 |         let err = self
+    |                   ---- first mutable borrow occurs here
+754 |             .open_reader(
+    |              ----------- first borrow later used by call
+755 |                 self.next_gen(),
+    |                 ^^^^ second mutable borrow occurs here
+    |
+help: try adding a local storing this argument...
+   --> crates/oo-connectors/tests/snapshot_live.rs:755:17
+    |
+755 |                 self.next_gen(),
+    |                 ^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+   --> crates/oo-connectors/tests/snapshot_live.rs:753:19
+    |
+753 |           let err = self
+    |  ___________________^
+754 | |             .open_reader(
+755 | |                 self.next_gen(),
+756 | |                 self.admitted.clone(),
+757 | |                 Instant::now() + Duration::from_secs(30),
+758 | |             )
+    | |_____________^
+
+error[E0277]: `()` is not a future
+  --> crates/oo-connectors/tests/snapshot_live.rs:88:19
+   |
+88 |     world.audit().await;
+   |                   ^^^^^ `()` is not a future
+   |
+   = help: the trait `Future` is not implemented for `()`
+   = note: () must be a future or must implement `IntoFuture` to be awaited
+   = note: required for `()` to implement `IntoFuture`
+help: remove the `.await`
+   |
+88 -     world.audit().await;
+88 +     world.audit();
+   |
+
+Some errors have detailed explanations: E0277, E0499, E0502.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `oo-connectors` (test "snapshot_live") due to 21 previous errors
+warning: build failed, waiting for other jobs to finish...
+test_exit=101
+=== cargo clippy --locked --offline -p oo-connectors --all-targets ===
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: this seems like a manual implementation of the non-exhaustive pattern
+   --> crates/oo-connectors/src/snapshot.rs:203:1
+    |
+203 | / pub struct SnapshotFinished {
+204 | |     /// Generation that was consumed.
+205 | |     pub generation: u64,
+206 | |     /// Source id.
+...   |
+210 | |     _sealed: (),
+211 | | }
+    | |_^
+    |
+help: remove this field
+   --> crates/oo-connectors/src/snapshot.rs:210:5
+    |
+210 |     _sealed: (),
+    |     ^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_non_exhaustive
+    = note: `-D clippy::manual-non-exhaustive` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_non_exhaustive)]`
+help: use the `#[non_exhaustive]` attribute instead
+    |
+203 + #[non_exhaustive]
+204 | pub struct SnapshotFinished {
+    |
+
+error: this seems like a manual implementation of the non-exhaustive pattern
+   --> crates/oo-connectors/src/snapshot.rs:216:1
+    |
+216 | / pub struct SnapshotAborted {
+217 | |     /// Generation that was consumed.
+218 | |     pub generation: u64,
+219 | |     /// Source id.
+...   |
+223 | |     _sealed: (),
+224 | | }
+    | |_^
+    |
+help: remove this field
+   --> crates/oo-connectors/src/snapshot.rs:223:5
+    |
+223 |     _sealed: (),
+    |     ^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_non_exhaustive
+help: use the `#[non_exhaustive]` attribute instead
+    |
+216 + #[non_exhaustive]
+217 | pub struct SnapshotAborted {
+    |
+
+error: could not compile `oo-connectors` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-connectors` (lib test) due to 2 previous errors
+clippy_exit=101
+package_live_pg=not-run
+package_lossless_live=not-run
+worst_phase_exit=101

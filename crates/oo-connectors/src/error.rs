@@ -114,6 +114,10 @@ impl SourceError {
         Self::new(SourceErrorKind::Protocol, Some(fact), None)
     }
 
+    pub(crate) fn privilege(fact: &'static str) -> Self {
+        Self::new(SourceErrorKind::Privilege, Some(fact), None)
+    }
+
     /// Error class.
     pub fn kind(&self) -> SourceErrorKind {
         self.kind
@@ -243,6 +247,12 @@ mod tests {
         assert!(!text.contains("password"));
         assert!(SqlState::parse("28P0").is_none());
         assert!(SqlState::parse("28P0!").is_none());
+        let privilege = SourceError::privilege("select_not_granted");
+        assert_eq!(privilege.kind(), SourceErrorKind::Privilege);
+        assert_eq!(
+            privilege.to_string(),
+            "source error: privilege fact=select_not_granted"
+        );
     }
 
     #[test]

@@ -276,6 +276,9 @@ impl PgSession {
 
     pub(crate) async fn begin(&mut self) -> Result<(), SourceError> {
         self.ensure_open()?;
+        if self.in_transaction {
+            return Err(SourceError::protocol("nested_transaction"));
+        }
         let budget = self.budget.statement_timeout();
         let result =
             tokio::time::timeout(budget, sqlx::query(sql::BEGIN).execute(&mut self.conn)).await;

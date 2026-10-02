@@ -1,0 +1,35 @@
+=== before ===
+name=eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-r1 status=Exited (0) 3 minutes ago id=d0dec4c423a3
+name=eef831aa-dba4-4af2-a78b-541bc9e0a112-pg status=Up 10 minutes id=4e85771679bb
+name=eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-base status=Exited (101) About an hour ago id=47a29b760358
+eef831aa-dba4-4af2-a78b-541bc9e0a112-cargo
+eef831aa-dba4-4af2-a78b-541bc9e0a112-pglog
+eef831aa-dba4-4af2-a78b-541bc9e0a112-src-r1
+eef831aa-dba4-4af2-a78b-541bc9e0a112-target-base
+eef831aa-dba4-4af2-a78b-541bc9e0a112-target-r1
+eef831aa-dba4-4af2-a78b-541bc9e0a112-net
+=== remove containers ===
+eef831aa-dba4-4af2-a78b-541bc9e0a112-pg
+removed container eef831aa-dba4-4af2-a78b-541bc9e0a112-pg
+eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-r1
+removed container eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-r1
+eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-base
+removed container eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-base
+=== remove volumes ===
+eef831aa-dba4-4af2-a78b-541bc9e0a112-cargo
+removed volume eef831aa-dba4-4af2-a78b-541bc9e0a112-cargo
+eef831aa-dba4-4af2-a78b-541bc9e0a112-target-base
+removed volume eef831aa-dba4-4af2-a78b-541bc9e0a112-target-base
+eef831aa-dba4-4af2-a78b-541bc9e0a112-target-r1
+removed volume eef831aa-dba4-4af2-a78b-541bc9e0a112-target-r1
+eef831aa-dba4-4af2-a78b-541bc9e0a112-src-r1
+removed volume eef831aa-dba4-4af2-a78b-541bc9e0a112-src-r1
+eef831aa-dba4-4af2-a78b-541bc9e0a112-pglog
+removed volume eef831aa-dba4-4af2-a78b-541bc9e0a112-pglog
+=== remove network ===
+eef831aa-dba4-4af2-a78b-541bc9e0a112-net
+removed network eef831aa-dba4-4af2-a78b-541bc9e0a112-net
+=== remove secrets ===
+removed secrets dir
+=== after ===
+secrets absent

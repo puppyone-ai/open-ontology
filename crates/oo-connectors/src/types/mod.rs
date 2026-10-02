@@ -26,6 +26,12 @@ pub use mapping::{map_column, ArrowPhysical, ColumnMapping, ColumnPlan, MapDecis
 pub use read::{compose_select, valid_quoted_ident};
 pub use typmod::{numeric_typmod_v1, NumericTypmodV1};
 
+// Crate-visible bridge so the snapshot owner can call the approved decoder
+// and plan guard. Mapping and decode semantics stay the ones in `binary` and
+// `read`. This is not a catalog or access collect API.
+pub(crate) use binary::decode_payload;
+pub(crate) use read::guard_plans;
+
 use crate::model::CapabilityStatus;
 
 /// Conversion protocol. Independent of `oo.source.pgsql/v1`.

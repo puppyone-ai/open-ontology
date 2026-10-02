@@ -306,6 +306,40 @@ pub(crate) const CAPTURED_AT: &str = "\
 SELECT pg_catalog.to_char(pg_catalog.transaction_timestamp() AT TIME ZONE 'UTC', \
 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')";
 
+/// Backend key for this session. `backend_start` is text so the cut is not a float.
+/// The row is this backend, so `state` is active while the statement runs.
+pub(crate) const SNAPSHOT_BACKEND: &str = "\
+SELECT a.pid::int8, a.backend_start::text, a.xact_start IS NOT NULL \
+FROM pg_catalog.pg_stat_activity a \
+WHERE a.pid = pg_catalog.pg_backend_pid()";
+
+/// Read-node and principal facts read inside the snapshot transaction.
+pub(crate) const SNAPSHOT_NODE: &str = "\
+SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::text, \
+pg_catalog.current_database()::text, SESSION_USER::text, CURRENT_USER::text";
+
+/// Relation identity and table privileges for one selected name. Names are bound.
+pub(crate) const SNAPSHOT_RELATION: &str = "\
+SELECT c.oid::int8, c.relkind::text, c.relrowsecurity, c.relforcerowsecurity, \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'SELECT'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'INSERT'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'UPDATE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'DELETE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'TRUNCATE') \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = $1 AND c.relname = $2";
+
+/// Attribute identity for one selected table. Names are bound.
+pub(crate) const SNAPSHOT_ATTRIBUTES: &str = "\
+SELECT a.attnum::int4, a.attname::text, a.atttypid::int8, a.atttypmod, a.attnotnull, \
+pg_catalog.has_column_privilege(CURRENT_USER, a.attrelid, a.attnum, 'SELECT') \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped \
+WHERE n.nspname = $1 AND c.relname = $2 \
+ORDER BY a.attnum";
+
 #[cfg(test)]
 const ALL: &[&str] = &[
     SESSION_GUARDS,
@@ -344,6 +378,10 @@ const ALL: &[&str] = &[
     QUOTE_IDENT,
     TYPE_FACTS,
     CAPTURED_AT,
+    SNAPSHOT_BACKEND,
+    SNAPSHOT_NODE,
+    SNAPSHOT_RELATION,
+    SNAPSHOT_ATTRIBUTES,
 ];
 
 #[cfg(test)]
