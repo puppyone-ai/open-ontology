@@ -883,3 +883,5 @@ a120 R2-W 激活：固定9fb04e75249dbb55a795dccaa6a3b17164d686cf，仅明确ven
 a120 实际 Grok4.7 xhigh handle7304 已启动，slot B 独占限定路径；旧a119两个句柄均关闭不再轮询。a116 handle68913保持slot A。
 
 a116实际handle68913 exit0，9dc6d4eb三报告完整读完/八fail raw核对，精确UUID容器列表为空。接收a116-snapshot-review-receipt.md但不勾R1：同cut两更新行actual tokens缺失、side首query太晚、column revoke fixture不充分。slot A移交a121聚焦固定2b6dd57补证，own evidence唯一写权；slot B仍a120 handle7304。原八fail保留，产品指标未增。下一新UUID a122。
+
+a121实际Grok4.7 xhigh handle72657启动，slot A独占补证；旧68913关闭不再轮询，a120 handle7304保持slot B。
