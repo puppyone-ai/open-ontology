@@ -112,6 +112,7 @@
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
 - [ ] SP03-W04 type/PositionCodec/精度
+  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098实际启动；仅connector代码/隔离快照，主依赖等待a095明确交接。
 - [ ] SP03-W05 catalog/名字映射/注册
 - [ ] SP03源审计/Phase退出
 
@@ -555,3 +556,11 @@ a082第三次resume handle2404本轮实际exit0，交付f1a6005971e3dc3075094c87
 34fae5ddd73ff250fde6f51aa681fb0f7fbd0362/treec35b95664d53dcef1497bbd224ecbeec65586cea/parent35320e9已存在，协调者已读完整a093REPORT/HANDOFF：缺pg_stat_ssl记unknown、sslfalse拒绝、实际verifyfull不降级；serverroleGUC产生role_mismatch/startup_option并拒catalog。作者最终green2 lib19/live1/Clippy0，baseline缺fixture101/REDtls_not_negotiated101/首次green缺Debug101保留，sourceSELECT843/WITH48/START36/ROLLBACK36声明。原rawSQLlogs作者hash后随TMP删除，因此2652658b...不能由保留raw重算，不当独立零写证据。新TLS字段v1兼容、unknown对alignedidentity准入、docs17安全表述须复审。
 
 a097固定34fae5d只读archive实际启动，scope原a087role问题+maininterface实际安全，不等a093终态才能read-onlyreview。a093handle62030本轮单次wait60仍live，connector目录仍其writer；未释放或启动冲突types。root依赖仍a095CLI独占。docs17修改已进固定sourcecommit但旧sourcebaseline保持，check_plan漂移失败待独立docs语义审查后版本化处理，不删门禁、不签通过、不阻塞无关CLI。a093handoff称a088rootwriter是过时记录，实际a095；新台账纠正而不重写历史。此同源组件返工不重复增加6交付/4验收/首轮返工4比6；完整87父项/16Phase仍0完成。
+
+## a093真实终态与a098类型解码并行启动
+
+本轮actualwrite_stdin a093handle62030 exit0，finalstamp5e3dffe仅evidence/交付身份；源码34fae5d不变，完整REPORT/HANDOFF已读，connector tracked diff为空。源目录writer释放，不代表a097复审批准。a098现已实际启动生产PG无损类型解码任务，baselineb3a8ed3/current固定source34fae5d，消费纯canonical/Arrowmetadata/sourceinspection，覆盖真实SQLx→canonical→actualArrow及signed11bitnumeric/精度/temporal/arrays/domain/enum/JSON/typedunsupported/rowpreservation等准备卡原要求，不缩成JSON演示。
+
+a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts，生产connector manifest也不得改，隔离快照可用自己manifest/lock验证依赖。最终主依赖整合必须协调者在a095实际terminal+交接后显式写a098-root-writer-handoff.md授权，不能凭出现commit或闲置推断。无此授权不签最终交付；两个writer不覆盖foreignmanifest。a097源review仍固定archive，只读可与类型开发并行；新发现接口问题需后续集成修正，不代表导入准入。a098需要保留自己的sanitized rawSQLaudit，不能重用a093删除raw后的hash声明。a092target/a095CLI/诸readonlyreviews保持独立，globalmax2builder和每task1PGfixture不变。
+
+类型任务从prepared升级in_progress，无新已交付/验收勾选，仍6组件/4子项/首次返工4比6；完整87父项/16phase未完成。root依赖a095、connectora098、pipelinea092，基础修复等待a096固定review；docs17漂移待a097语义审查，未刷新旧baseline。
