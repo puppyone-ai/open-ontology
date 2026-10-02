@@ -106,6 +106,12 @@ pub fn admit_native(sql: &str, policy: &Policy) -> Decision {
         reaped: false,
         workdir_removed: false,
         starttime_matched: false,
+        worker_identity: "in-process".to_string(),
+        ready_wait_ms: 0,
+        parse_wait_ms: 0,
+        cleanup_wait_ms: 0,
+        containment: "not-applicable".to_string(),
+        cleanup_proof: String::new(),
     }
 }
 
@@ -120,5 +126,7 @@ fn stamped(code: &str, version: i32, nodes: u32, depth: u32) -> Decision {
     decision.parser_version = version;
     decision.node_count = nodes;
     decision.max_depth = depth;
+    decision.worker_identity = "in-process".to_string();
+    decision.containment = "not-applicable".to_string();
     decision
 }

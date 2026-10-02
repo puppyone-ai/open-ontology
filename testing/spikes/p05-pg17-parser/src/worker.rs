@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use crate::admit::admit_native;
 use crate::decision::Decision;
 use crate::policy::Policy;
+use crate::procinfo::proc_starttime_self;
 use crate::protocol::{read_frame, write_frame, KIND_ADMIT, KIND_READY, KIND_RESPONSE};
 
 #[cfg(feature = "test-hooks")]
@@ -18,14 +19,21 @@ use std::time::Duration;
 pub fn run_worker() -> i32 {
     let mut args = std::env::args();
     let _argv0 = args.next();
-    let Some(nonce) = args.next() else {
+    let Some(first) = args.next() else {
         eprintln!("worker_missing_nonce");
         return 2;
     };
+    if first == "--supervise" {
+        return crate::supervise::run(args);
+    }
     if args.next().is_some() {
         eprintln!("worker_extra_args");
         return 2;
     }
+    run_session(&first)
+}
+
+fn run_session(nonce: &str) -> i32 {
     let ready = serde_json::json!({
         "nonce": nonce,
         "pid": std::process::id(),
@@ -47,7 +55,7 @@ pub fn run_worker() -> i32 {
         }
     };
     match frame.kind {
-        KIND_ADMIT => respond(&mut stdout, admit_body(&frame.body, &nonce)),
+        KIND_ADMIT => respond(&mut stdout, admit_body(&frame.body, nonce)),
         #[cfg(feature = "test-hooks")]
         KIND_SPIN => {
             loop {
@@ -66,8 +74,8 @@ pub fn run_worker() -> i32 {
             0
         }
         #[cfg(feature = "test-hooks")]
-        KIND_FAKE_ALLOW => respond(&mut stdout, fake_allow(&frame.body, &nonce)),
-        _ => respond(&mut stdout, deny_stamped("INVALID_OUTPUT", &nonce)),
+        KIND_FAKE_ALLOW => respond(&mut stdout, fake_allow(&frame.body, nonce)),
+        _ => respond(&mut stdout, deny_stamped("INVALID_OUTPUT", nonce)),
     }
 }
 
@@ -139,12 +147,4 @@ fn write_decision(stdout: &mut impl Write, decision: &Decision) -> Result<(), &'
     write_frame(stdout, KIND_RESPONSE, &body)
 }
 
-pub fn proc_starttime_self() -> Option<String> {
-    proc_starttime(std::process::id())
-}
 
-pub fn proc_starttime(pid: u32) -> Option<String> {
-    let text = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-    let rest = text.rsplit_once(')')?.1;
-    rest.split_whitespace().nth(19).map(str::to_string)
-}

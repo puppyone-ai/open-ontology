@@ -1,0 +1,47 @@
+   Compiling oo-p05-pg17-parser v0.1.0 (/src)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.65s
+     Running tests/ipc.rs (/target/debug/deps/ipc-9fb658dd861fa682)
+
+running 11 tests
+test contradictory_and_malicious_worker_output_is_cleared ... ok
+test deadlines_are_separate_and_measured ... 
+thread 'deadlines_are_separate_and_measured' (6665) panicked at tests/ipc.rs:168:5:
+wall 7793
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test extra_frame_and_stderr_flood_do_not_block ... FAILED
+test file_cap_network_and_inherited_fds_are_explicit ... 
+thread 'extra_frame_and_stderr_flood_do_not_block' (6668) panicked at tests/ipc.rs:259:5:
+extra wall
+ok
+test foreign_sleep_survives_cleanup ... ok
+test held_stdout_samegroup_and_setsid_are_reaped ... 
+thread 'held_stdout_samegroup_and_setsid_are_reaped' (6680) panicked at tests/ipc.rs:199:9:
+hold-setsid-after wall 2738
+FAILED
+test ipc_failures_never_allow ... ok
+test malformed_frames_finish_inside_the_cleanup_ceiling ... 
+thread 'malformed_frames_finish_inside_the_cleanup_ceiling' (6695) panicked at tests/ipc.rs:142:9:
+bad-magic wall 2853 ready 1 parse 0 cleanup 18
+FAILED
+test spoofed_identity_is_rejected ... ok
+test substituted_paths_are_not_silently_trusted ... 
+thread 'substituted_paths_are_not_silently_trusted' (6705) panicked at tests/ipc.rs:319:5:
+assertion `left == right` failed
+  left: "SPAWN_FAILED"
+ right: "UNTRUSTED_WORKER"
+FAILED
+test test_hook_cannot_turn_a_real_allow_into_syntax_allow ... ok
+
+failures:
+
+failures:
+    deadlines_are_separate_and_measured
+    extra_frame_and_stderr_flood_do_not_block
+    held_stdout_samegroup_and_setsid_are_reaped
+    malformed_frames_finish_inside_the_cleanup_ceiling
+    substituted_paths_are_not_silently_trusted
+
+test result: FAILED. 6 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.19s
+
+error: test failed, to rerun pass `--test ipc`

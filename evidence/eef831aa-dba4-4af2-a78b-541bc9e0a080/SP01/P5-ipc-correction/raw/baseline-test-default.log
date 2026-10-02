@@ -1,0 +1,118 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling either v1.18.0
+   Compiling libc v0.2.189
+   Compiling anyhow v1.0.104
+   Compiling bitflags v2.13.2
+   Compiling cfg-if v1.0.5
+   Compiling prettyplease v0.2.37
+   Compiling glob v0.3.4
+   Compiling memchr v2.8.3
+   Compiling rustix v0.38.44
+   Compiling regex-syntax v0.8.11
+   Compiling rustix v1.1.5
+   Compiling getrandom v0.4.3
+   Compiling bytes v1.12.1
+   Compiling minimal-lexical v0.2.1
+   Compiling linux-raw-sys v0.4.15
+   Compiling itertools v0.14.0
+   Compiling hashbrown v0.17.1
+   Compiling clang-sys v1.9.1
+   Compiling equivalent v1.0.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling nom v7.1.3
+   Compiling libloading v0.8.9
+   Compiling log v0.4.34
+   Compiling indexmap v2.14.2
+   Compiling home v0.5.12
+   Compiling once_cell v1.21.4
+   Compiling fastrand v2.5.0
+   Compiling serde_core v1.0.229
+   Compiling fixedbitset v0.5.7
+   Compiling bindgen v0.66.1
+   Compiling shlex v2.0.1
+   Compiling rustc-hash v1.1.0
+   Compiling heck v0.5.0
+   Compiling peeking_take_while v0.1.2
+   Compiling lazy_static v1.5.0
+   Compiling multimap v0.10.1
+   Compiling lazycell v1.3.0
+   Compiling find-msvc-tools v0.1.13
+   Compiling petgraph v0.7.1
+   Compiling shlex v1.3.0
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling fs_extra v1.3.0
+   Compiling thiserror v1.0.69
+   Compiling cc v1.4.7
+   Compiling regex-automata v0.4.18
+   Compiling serde v1.0.229
+   Compiling syn v2.0.119
+   Compiling cexpr v0.6.0
+   Compiling syn v3.0.6
+   Compiling itoa v1.0.18
+   Compiling tempfile v3.27.0
+   Compiling which v4.4.2
+   Compiling itertools v0.10.5
+   Compiling regex v1.13.1
+   Compiling serde_derive v1.0.229
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling pg_query v6.2.0
+   Compiling oo-p05-pg17-parser v0.1.0 (/src)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.51s
+     Running unittests src/lib.rs (/target/debug/deps/oo_p05_pg17_parser-587c022ef9d612ad)
+
+running 9 tests
+test classify::tests::count_star_is_not_a_projection_star ... ok
+test classify::tests::ival_is_not_a_node ... ok
+test classify::tests::unknown_pascal_key_fails_closed ... ok
+test protocol::tests::bad_magic_and_version_are_invalid ... ok
+test protocol::tests::length_above_cap_is_rejected_before_the_body ... ok
+test protocol::tests::roundtrip ... ok
+test classify::tests::depth_budget_is_one_past_128 ... ok
+test classify::tests::write_outranks_depth_budget ... ok
+test classify::tests::node_budget_is_one_past_10000 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/bin/worker.rs (/target/debug/deps/oo_p05_parser_worker-4fce2474da672c42)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/smoke.rs (/target/debug/deps/oo_p05_pg17_parser_smoke-69a7962408643df2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/corpus.rs (/target/debug/deps/corpus-f402654db50105a3)
+
+running 4 tests
+test policy_rejects_visible_columns_outside_the_declared_order ... ok
+test set_utility_is_denied_and_set_config_call_is_not_an_acl_proof ... ok
+test generated_limits_match_expected_codes ... ok
+test native_matches_expected_corpus ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/frame.rs (/target/debug/deps/frame-2fdd7b628bbf2625)
+
+running 2 tests
+test parent_keeps_allow_only_when_every_check_matches ... ok
+test parent_rejects_parser_mismatch_oid_claim_and_bad_nonce ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oo_p05_pg17_parser
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

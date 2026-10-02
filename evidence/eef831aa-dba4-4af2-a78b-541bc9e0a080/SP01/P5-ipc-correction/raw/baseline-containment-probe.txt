@@ -1,0 +1,12 @@
+pid 89
+sysctl_userns absent
+max_user_namespaces 385507
+cgroup_exists True
+cgroup_controllers cpuset cpu io memory hugetlb pids rdma
+cgroup_subtree 
+cgroup_kill_exists True
+cgroup_mkdir_errno 30 EROFS [Errno 30] Read-only file system: '/sys/fs/cgroup/oo-a080-probe-f669cc94'
+unshare_user rc=-1 errno=1 EPERM
+uid_map_errno 13 EACCES [Errno 13] Permission denied: '/proc/95/setgroups'
+supervisor_wait (95, 256)
+probe_done

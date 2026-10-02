@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use oo_p05_pg17_parser::{admit_in_worker, admit_native, Policy, PARSER_VERSION_NUM};
+use oo_p05_pg17_parser::{admit_in_worker, admit_native, sha256_file, Policy, PARSER_VERSION_NUM};
 
 #[derive(serde::Deserialize)]
 struct Corpus {
@@ -24,6 +24,12 @@ struct Generated {
     code: String,
 }
 
+fn worker_pin() -> (PathBuf, [u8; 32]) {
+    let path = PathBuf::from(env!("CARGO_BIN_EXE_oo-p05-parser-worker"));
+    let pin = sha256_file(&path).expect("worker image");
+    (path, pin)
+}
+
 fn load() -> (Policy, Corpus) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let policy = Policy::parse(&std::fs::read_to_string(root.join("fixtures/policy.json")).unwrap()).unwrap();
@@ -42,7 +48,7 @@ fn version_ok(code: &str, version: i32) {
 #[test]
 fn native_matches_expected_corpus() {
     let (policy, corpus) = load();
-    let worker = PathBuf::from(env!("CARGO_BIN_EXE_oo-p05-parser-worker"));
+    let (worker, pin) = worker_pin();
     for case in &corpus.cases {
         let native = admit_native(&case.sql, &policy);
         assert_eq!(native.code, case.code, "{} native sql={}", case.id, case.sql);
@@ -65,7 +71,7 @@ fn native_matches_expected_corpus() {
             assert!(native.executed_sql.is_empty(), "{}", case.id);
         }
 
-        let remote = admit_in_worker(&worker, &case.sql, &policy);
+        let remote = admit_in_worker(&worker, &pin, &case.sql, &policy);
         assert_eq!(remote.code, case.code, "{} worker", case.id);
         assert_eq!(remote.syntax_allow, native.syntax_allow, "{}", case.id);
         assert!(!remote.oid_acl_rls_proven, "{}", case.id);
@@ -73,9 +79,13 @@ fn native_matches_expected_corpus() {
         if matches!(case.code.as_str(), "EMPTY_SQL" | "OVERSIZE") {
             assert_eq!(remote.pid, 0, "{}", case.id);
             assert!(!remote.reaped, "{}", case.id);
+            assert_ne!(remote.containment, "proven", "{}", case.id);
         } else {
             assert!(remote.reaped, "{} not reaped", case.id);
             assert!(remote.workdir_removed, "{} workdir", case.id);
+            assert_eq!(remote.containment, "proven", "{}", case.id);
+            assert_eq!(remote.worker_identity, "pinned", "{}", case.id);
+            assert!(remote.cleanup_wait_ms < 700, "{} cleanup {}", case.id, remote.cleanup_wait_ms);
             if std::path::Path::new("/proc/self/stat").exists() {
                 assert!(remote.starttime_matched, "{}", case.id);
             }
@@ -86,7 +96,7 @@ fn native_matches_expected_corpus() {
 #[test]
 fn generated_limits_match_expected_codes() {
     let (policy, corpus) = load();
-    let worker = PathBuf::from(env!("CARGO_BIN_EXE_oo-p05-parser-worker"));
+    let (worker, pin) = worker_pin();
     let expected = |id: &str| -> String {
         corpus.generated.iter().find(|item| item.id == id).unwrap().code.clone()
     };
@@ -96,7 +106,7 @@ fn generated_limits_match_expected_codes() {
     oversize.push_str("*/");
     assert!(oversize.len() > 64 * 1024);
     let native = admit_native(&oversize, &policy);
-    let remote = admit_in_worker(&worker, &oversize, &policy);
+    let remote = admit_in_worker(&worker, &pin, &oversize, &policy);
     assert_eq!(native.code, expected("oversize"));
     assert_eq!(remote.code, expected("oversize"));
     assert_eq!(remote.pid, 0);
@@ -105,7 +115,7 @@ fn generated_limits_match_expected_codes() {
 
     let nul = "SELECT 1\0";
     assert_eq!(admit_native(nul, &policy).code, expected("nul"));
-    let remote = admit_in_worker(&worker, nul, &policy);
+    let remote = admit_in_worker(&worker, &pin, nul, &policy);
     assert_eq!(remote.code, expected("nul"));
     assert_eq!(remote.pid, 0);
 
@@ -118,7 +128,7 @@ fn generated_limits_match_expected_codes() {
     }
     let native = admit_native(&deep, &policy);
     assert_eq!(native.code, expected("depth"), "depth sql_len={}", deep.len());
-    let remote = admit_in_worker(&worker, &deep, &policy);
+    let remote = admit_in_worker(&worker, &pin, &deep, &policy);
     assert_eq!(remote.code, expected("depth"));
     assert!(remote.reaped);
     assert!(!remote.syntax_allow);
@@ -130,7 +140,7 @@ fn generated_limits_match_expected_codes() {
     assert!(wide.len() <= 64 * 1024, "wide sql {}", wide.len());
     let native = admit_native(&wide, &policy);
     assert_eq!(native.code, expected("nodes"), "nodes={} depth={}", native.node_count, native.max_depth);
-    let remote = admit_in_worker(&worker, &wide, &policy);
+    let remote = admit_in_worker(&worker, &pin, &wide, &policy);
     assert_eq!(remote.code, expected("nodes"));
     assert!(remote.reaped);
     assert!(!remote.syntax_allow);

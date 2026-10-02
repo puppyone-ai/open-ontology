@@ -1,0 +1,86 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling anyhow v1.0.104
+   Compiling prettyplease v0.2.37
+   Compiling rustix v1.1.5
+   Compiling getrandom v0.4.3
+   Compiling rustix v0.38.44
+   Compiling clang-sys v1.9.1
+   Compiling serde_core v1.0.229
+   Compiling bindgen v0.66.1
+   Compiling zmij v1.0.23
+   Compiling thiserror v1.0.69
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling syn v2.0.119
+   Compiling syn v3.0.6
+   Compiling tempfile v3.27.0
+   Compiling which v4.4.2
+   Compiling serde_derive v1.0.229
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling pg_query v6.2.0
+   Compiling oo-p05-pg17-parser v0.1.0 (/src)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.69s
+     Running unittests src/lib.rs (/target/debug/deps/oo_p05_pg17_parser-843ab5f5078095d4)
+
+running 9 tests
+test classify::tests::count_star_is_not_a_projection_star ... ok
+test classify::tests::ival_is_not_a_node ... ok
+test classify::tests::unknown_pascal_key_fails_closed ... ok
+test protocol::tests::bad_magic_and_version_are_invalid ... ok
+test protocol::tests::length_above_cap_is_rejected_before_the_body ... ok
+test protocol::tests::roundtrip ... ok
+test classify::tests::depth_budget_is_one_past_128 ... ok
+test classify::tests::write_outranks_depth_budget ... ok
+test classify::tests::node_budget_is_one_past_10000 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/bin/worker.rs (/target/debug/deps/oo_p05_parser_worker-5b14b3395e2085c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/smoke.rs (/target/debug/deps/oo_p05_pg17_parser_smoke-8ef73cc991ac89a3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/corpus.rs (/target/debug/deps/corpus-5b2ec3249a7e9c83)
+
+running 4 tests
+test policy_rejects_visible_columns_outside_the_declared_order ... ok
+test set_utility_is_denied_and_set_config_call_is_not_an_acl_proof ... ok
+test generated_limits_match_expected_codes ... ok
+test native_matches_expected_corpus ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/frame.rs (/target/debug/deps/frame-4d7e340b59f3ad89)
+
+running 2 tests
+test parent_keeps_allow_only_when_every_check_matches ... ok
+test parent_rejects_parser_mismatch_oid_claim_and_bad_nonce ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ipc.rs (/target/debug/deps/ipc-7d6c7d49ffad40c4)
+
+running 1 test
+test ipc_failures_never_allow ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+   Doc-tests oo_p05_pg17_parser
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

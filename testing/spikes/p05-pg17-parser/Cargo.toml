@@ -41,6 +41,11 @@ path = "src/bin/smoke.rs"
 name = "oo-p05-parser-worker"
 path = "src/bin/worker.rs"
 
+[[bin]]
+name = "oo-p05-fault-worker"
+path = "src/bin/fault.rs"
+required-features = ["test-hooks"]
+
 [[test]]
 name = "corpus"
 path = "tests/corpus.rs"

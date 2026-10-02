@@ -1,0 +1,5 @@
+/usr/bin/ar
+/usr/bin/tar
+/usr/bin/python3
+/usr/bin/curl
+/usr/bin/dpkg-deb

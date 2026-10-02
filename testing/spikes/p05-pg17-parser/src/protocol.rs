@@ -32,6 +32,38 @@ pub fn write_frame(mut w: impl Write, kind: u16, body: &[u8]) -> Result<(), &'st
     Ok(())
 }
 
+/// Parse one frame from a prefix. `Ok(None)` means more bytes are required.
+/// A bad magic is rejected as soon as four bytes are present. An advertised
+/// length above the cap is rejected from the header, before the body is required.
+pub fn parse_prefix(buf: &[u8]) -> Result<Option<(Frame, usize)>, &'static str> {
+    if buf.len() >= 4 && buf[0..4] != MAGIC {
+        return Err("INVALID_OUTPUT");
+    }
+    if buf.len() < 12 {
+        return Ok(None);
+    }
+    if buf[0..4] != MAGIC {
+        return Err("INVALID_OUTPUT");
+    }
+    let version = u16::from_le_bytes([buf[4], buf[5]]);
+    if version != PROTOCOL_VERSION {
+        return Err("INVALID_OUTPUT");
+    }
+    let kind = u16::from_le_bytes([buf[6], buf[7]]);
+    let len = u32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]) as usize;
+    if len > MAX_FRAME_BODY {
+        return Err("RESPONSE_CAP");
+    }
+    let total = 12 + len;
+    if buf.len() < total {
+        return Ok(None);
+    }
+    Ok(Some((
+        Frame { version, kind, body: buf[12..total].to_vec() },
+        total,
+    )))
+}
+
 pub fn read_frame(mut r: impl Read) -> Result<Frame, &'static str> {
     let mut magic = [0u8; 4];
     r.read_exact(&mut magic).map_err(|_| "INVALID_OUTPUT")?;
