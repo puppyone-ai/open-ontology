@@ -12,8 +12,9 @@ Reject-event durability stays in the control database. This schema has no reject
 |---|---|---|---|
 | `target-bootstrap/1` | expand | `0000_bootstrap_roles.sql` | Creates `oo_target_owner` and `oo_pipeline_runtime`. Revokes `pg_advisory%` and `pg_try_advisory%` execution, plus `set_config(text, text, boolean)`, from `PUBLIC`. |
 | `target-fence-receipts/1` | expand | `0001_target_fence_expand.sql` | Creates `_oo`, the fence tables, and the receipt functions. |
+| `target-fence-receipts/2` | expand | `0002_target_segment_null_expand.sql` | Replaces the segment CHECK and `commit_apply_receipt` so unknown index/count combinations are rejected. Does not rewrite receipt rows. |
 
-Checksums are SHA-256 of those file bytes and are recorded in `contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json`. The checksum is not inside the SQL file. A later edit of either file is a new version, not a silent rewrite of `target-fence-receipts/1`.
+Checksums are SHA-256 of those file bytes. `target-fence-receipts/1` is recorded in `contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json`. `target-fence-receipts/2` is recorded in `target-fence-receipts-v2.json` and repeats the v1 file hashes so a reader can see they did not change. The checksum is not inside the SQL file. A later edit of any of these files is a new version, not a silent rewrite.
 
 There is no migrate-phase or contract-phase file in this slice.
 
@@ -26,6 +27,10 @@ The applicator takes `pg_advisory_xact_lock(6404202605)` and then `_oo.migration
 On an empty target database the applicator runs both files in one transaction. It then inserts the two `_oo.schema_migrations` rows in a second transaction. A run with the same checksums locks, compares, and does not execute the files again. A missing bookkeeping row raises `OO002`. A different checksum raises `OO001` and does not change the row. A failed file rolls back with its transaction. `_oo.service_readiness.schema_version_present` is true only when the `target-fence-receipts/1` expand row exists. `_oo.schema_ready(checksum)` compares the stored checksum and returns false on a mismatch. Neither one opens the file.
 
 `_oo.schema_migrations` rejects update and delete.
+
+`0002_target_segment_null_expand.sql` runs as `oo_target_owner` after `target-fence-receipts/1`. It locks `_oo.apply_receipts`, refuses with `OO021` when a stored receipt is not one of the two closed segment shapes, and does not delete or update receipt rows. The applicator inserts the `target-fence-receipts/2` row only after that file returns, in the same transaction. A repeat with the same checksum does not execute the file again. A different checksum raises `OO001` and leaves the row. A failure rolls back the function, the CHECK, and the readiness row together.
+
+`_oo.schema_ready` still means `target-fence-receipts/1` only. It does not authorize a driver that requires the closed segment contract. That driver computes the SHA-256 of `0002_target_segment_null_expand.sql` itself and calls `_oo.segment_contract_ready` with that digest. The function compares the argument to the stored row. It does not open the file. `_oo.segment_service_readiness.schema_version_present` is true when the v2 expand row exists and does not prove the file bytes.
 
 ## Roles
 
@@ -73,4 +78,4 @@ Backup consumers need `_oo.schema_migrations`, `_oo.migration_lock`, `_oo.target
 
 ## Tests
 
-`tests/target_fence_contract.rs` checks the file text and the published checksums. `tests/pg_fixture.sh` applies the files to an owned PostgreSQL 17 fixture as real `LOGIN` roles. Neither one is the 100-worker acceptance test, a dual-architecture matrix, or a production deploy.
+`tests/target_fence_contract.rs` checks the v1 file text and the published v1 checksums. `tests/segment_null_correction.rs` checks the v2 checksums and, when run against one owned PostgreSQL 17 fixture, the segment cases. `tests/pg_fixture.sh` remains the v1 applicator. None of these is the 100-worker acceptance test, a dual-architecture matrix, a Loader, CDC, or a production deploy.

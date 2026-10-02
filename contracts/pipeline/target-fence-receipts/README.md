@@ -1,6 +1,6 @@
 # oo.pipeline.target-fence-receipts/v1
 
-Version `target-fence-receipts/1`, phase `expand`. The SQL lives in `crates/oo-pipeline/migrations`. Checksums in `target-fence-receipts-v1.json` are SHA-256 of those files. This contract does not start a Loader and does not accept SP04-W05 or AT-PL-05.
+Version `target-fence-receipts/1`, phase `expand`, remains the historical contract. Its JSON file and the `0000` and `0001` SQL bytes stay in place. Version `target-fence-receipts/2` in `target-fence-receipts-v2.json` is the forward segment correction. Checksums are SHA-256 of the migration files. Neither contract starts a Loader or accepts SP04-W05 or AT-PL-05.
 
 ## Inputs
 
@@ -39,6 +39,14 @@ An identical receipt retry returns `replay` and does not change the stored row o
 ## What a caller still has to do
 
 `commit_apply_receipt` does not write user data or quality rows. The Loader has to do that in the same target transaction. The fixture schema `fixture_synth` is the demonstration, and it is not part of this migration. A receipt can exist without those rows if the caller only invokes the receipt function.
+
+## Segment contract, target-fence-receipts/2
+
+`0001` accepts a segment when its boolean expression is true and also when that expression is unknown. A null index, a null count, or both, with a non-empty bitmap, was stored. `0002` keeps the v1 files and replaces the CHECK and the receipt function. The only stored shapes are both fields null with an empty bitmap, or both fields non-null, `count >= 1`, `0 <= index < count`, and a bitmap of 1 to 8192 bytes. The CHECK is `(expression) IS TRUE`. The function raises `23514` when the same expression `IS NOT TRUE`, and it does that before the fence check, so a stale generation is not reported as `OO013` for an unknown segment.
+
+A database that already holds an illegal receipt aborts `0002` with `OO021` and a fixed message. The migration does not delete, update, or rewrite receipts. Lawful receipts, including `target_commit_at` and `fence_generation`, stay byte-for-byte.
+
+`_oo.schema_ready` remains the v1 checksum comparison. A true result does not authorize a driver that requires `target-fence-receipts/2`. That driver is authorized only by the external conjunction: it hashes `0002_target_segment_null_expand.sql` itself, and `_oo.segment_contract_ready` returns true for that digest. The function does not read the file. A checksum stored by the caller is not that hash. `_oo.segment_service_readiness` is the v2 version marker and does not open the file.
 
 These functions do not fence arbitrary SQL. Another connection that knows the owner token and generation cannot commit. A role that is later granted ordinary table DML can still write user data without adopting a generation. That gap closes when the Loader driver is the only writer.
 

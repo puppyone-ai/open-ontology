@@ -1,0 +1,6 @@
+psql:<stdin>:4: ERROR:  23514: new row for relation "apply_receipts" violates check constraint "apply_receipts_segment_check"
+DETAIL:  Failing row contains (warehouse, orders_g1, direct-illegal, config/v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, type-policy/v1, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc, dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd, eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, batch/v1, pg-commit-lsn/v1, src_main, 1, 0, f, t, t, null, 1, \x01, owner_direct, 1, 2026-10-02 11:27:09.382302+00).
+SCHEMA NAME:  _oo
+TABLE NAME:  apply_receipts
+CONSTRAINT NAME:  apply_receipts_segment_check
+LOCATION:  ExecConstraints, execMain.c:2074

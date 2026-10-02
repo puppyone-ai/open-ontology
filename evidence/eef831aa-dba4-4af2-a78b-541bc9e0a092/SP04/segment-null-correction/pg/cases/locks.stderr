@@ -1,0 +1,2 @@
+psql:<stdin>:12: WARNING:  01000: you don't own a lock of type ExclusiveLock
+LOCATION:  LockRelease, lock.c:2004

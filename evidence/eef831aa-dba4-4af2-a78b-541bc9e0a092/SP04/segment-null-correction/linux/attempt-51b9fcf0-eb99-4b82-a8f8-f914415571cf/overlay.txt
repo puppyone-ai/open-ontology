@@ -1,0 +1,5 @@
+crates/oo-pipeline/migrations/0002_target_segment_null_expand.sql
+crates/oo-pipeline/migrations/README.md
+crates/oo-pipeline/tests/segment_null_correction.rs
+contracts/pipeline/target-fence-receipts/README.md
+contracts/pipeline/target-fence-receipts/target-fence-receipts-v2.json

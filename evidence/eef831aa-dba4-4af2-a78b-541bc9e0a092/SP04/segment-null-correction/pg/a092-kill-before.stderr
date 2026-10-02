@@ -1,0 +1,5 @@
+psql:<stdin>:5: FATAL:  terminating connection due to administrator command
+psql:<stdin>:5: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+psql:<stdin>:5: error: connection to server was lost

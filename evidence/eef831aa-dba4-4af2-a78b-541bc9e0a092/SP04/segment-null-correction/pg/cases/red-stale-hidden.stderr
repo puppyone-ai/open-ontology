@@ -1,0 +1,2 @@
+psql:<stdin>:3: NOTICE:  42P07: relation "oo_target_fence_session" already exists, skipping
+LOCATION:  transformCreateStmt, parse_utilcmd.c:207

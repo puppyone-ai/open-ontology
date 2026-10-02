@@ -1,0 +1,1 @@
+privileged=false capdrop=["ALL"] capadd=null ports={} net=oo-a092-51b9fcf0-eb99-4b82-a8f8-f914415571cf-net tmpfs={"/tmp":"rw,nosuid,nodev,size=1g"} security=["no-new-privileges"] readonly_root=false

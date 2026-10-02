@@ -1,0 +1,79 @@
+{
+  "contract": "oo.pipeline.target-fence-receipts/v2",
+  "schema_version": "target-fence-receipts/2",
+  "requires_schema_version": "target-fence-receipts/1",
+  "bootstrap_version": "target-bootstrap/1",
+  "phase": "expand",
+  "database": "oo_agent",
+  "schema": "_oo",
+  "migration_lock_key": 6404202605,
+  "clock": "clock_timestamp()",
+  "v1_schema_ready_authorizes_this_contract": false,
+  "segment_contract_ready_reads_migration_file": false,
+  "external_readiness_conjunction": "A driver that requires target-fence-receipts/2 is authorized only when it has computed the SHA-256 of 0002_target_segment_null_expand.sql and _oo.segment_contract_ready returns true for that digest. _oo.schema_ready for target-fence-receipts/1 is not that authorization. Neither function opens a migration file. A checksum stored by the caller is not the file hash.",
+  "segment_rule": {
+    "absent": "segment_index IS NULL AND segment_count IS NULL AND octet_length(segment_bitmap) = 0",
+    "present": "segment_index IS NOT NULL AND segment_count IS NOT NULL AND segment_count >= 1 AND segment_index >= 0 AND segment_index < segment_count AND octet_length(segment_bitmap) BETWEEN 1 AND 8192",
+    "unknown_rejected": true,
+    "check_form": "(expression) IS TRUE",
+    "function_form": "(expression) IS NOT TRUE raises 23514 before the fence check"
+  },
+  "files": [
+    {
+      "version": "target-bootstrap/1",
+      "phase": "expand",
+      "filename": "0000_bootstrap_roles.sql",
+      "sha256": "37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208",
+      "immutable": true
+    },
+    {
+      "version": "target-fence-receipts/1",
+      "phase": "expand",
+      "filename": "0001_target_fence_expand.sql",
+      "sha256": "97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9",
+      "immutable": true
+    },
+    {
+      "version": "target-fence-receipts/2",
+      "phase": "expand",
+      "filename": "0002_target_segment_null_expand.sql",
+      "sha256": "59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512",
+      "immutable": false
+    }
+  ],
+  "readiness": {
+    "v1_function": "_oo.schema_ready(text)",
+    "v2_function": "_oo.segment_contract_ready(text)",
+    "v2_view": "_oo.segment_service_readiness",
+    "marker_version": "target-fence-receipts/2",
+    "marker_inserted_by": "applicator, after 0002 returns, same transaction"
+  },
+  "sqlstates": {
+    "check_violation": "23514",
+    "insufficient_privilege": "42501",
+    "lock_not_available": "55P03",
+    "numeric_value_out_of_range": "22003",
+    "admin_shutdown": "57P01",
+    "checksum_mismatch": "OO001",
+    "bookkeeping_incomplete": "OO002",
+    "forced_migration_failure": "OO003",
+    "receipt_conflict": "OO010",
+    "fence_not_held": "OO011",
+    "stale_generation_or_owner": "OO013",
+    "direct_dml_closed": "OO014",
+    "closed_metadata": "OO015",
+    "illegal_segment_history": "OO021"
+  },
+  "history_policy": "OO021 and a fixed message. No delete, update, or rewrite of apply_receipts. Rollback leaves the v1 function, the v1 CHECK, and the receipt rows unchanged. The v2 readiness row is not inserted.",
+  "not_installed": [
+    "loader data-write API",
+    "CDC",
+    "control-database receipt mirror",
+    "reject-event durability",
+    "stream acknowledgement",
+    "publication",
+    "physical identifier mapping",
+    "100-worker acceptance",
+    "arbitrary SQL fencing"
+  ]
+}
