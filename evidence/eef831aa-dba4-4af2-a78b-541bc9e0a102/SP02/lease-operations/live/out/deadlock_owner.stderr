@@ -1,0 +1,5 @@
+psql:/fixture/tests/fixtures/lease_operations/deadlock_owner.sql:6: ERROR:  40P01: deadlock detected
+DETAIL:  Process 3766 waits for ShareRowExclusiveLock on relation 24489 of database 23082; blocked by process 3773.
+Process 3773 waits for RowExclusiveLock on relation 24581 of database 23082; blocked by process 3766.
+HINT:  See server log for query details.
+LOCATION:  DeadLockReport, deadlock.c:1130

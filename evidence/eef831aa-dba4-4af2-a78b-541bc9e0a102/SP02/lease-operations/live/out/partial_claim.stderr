@@ -1,0 +1,5 @@
+psql:/fixture/tests/fixtures/lease_operations/v1_claim.sql:6: ERROR:  OO015: lease operations are not ready
+CONTEXT:  PL/pgSQL function _require_lease_install() line 15 at RAISE
+SQL statement "SELECT jobs._require_lease_install()"
+PL/pgSQL function claim(uuid,text[],text) line 7 at PERFORM
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

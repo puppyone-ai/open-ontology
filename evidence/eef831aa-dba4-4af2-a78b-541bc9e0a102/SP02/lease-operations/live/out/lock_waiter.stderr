@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/lease_operations/protocol_repeat.psql:8: ERROR:  55P03: canceling statement due to lock timeout
+LOCATION:  ProcessInterrupts, postgres.c:3399

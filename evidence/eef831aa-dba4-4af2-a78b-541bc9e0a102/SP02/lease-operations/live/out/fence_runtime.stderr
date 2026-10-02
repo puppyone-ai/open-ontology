@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/lease_operations/fence_update_runtime.sql:4: ERROR:  42501: permission denied for table leases
+LOCATION:  aclcheck_error, aclchk.c:2843

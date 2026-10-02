@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/lease_operations/internal_exec.sql:8: ERROR:  42501: permission denied for function _lease_token
+LOCATION:  aclcheck_error, aclchk.c:2843

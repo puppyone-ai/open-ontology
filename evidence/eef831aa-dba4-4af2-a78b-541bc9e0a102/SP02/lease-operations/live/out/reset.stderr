@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/lease_operations/reset.sql:6: NOTICE:  database "oo_sqlprobe" does not exist, skipping
+psql:/fixture/tests/fixtures/lease_operations/reset.sql:18: NOTICE:  role "oo_a102_login" does not exist, skipping

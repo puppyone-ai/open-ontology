@@ -1,0 +1,146 @@
+{
+  "contract": "oo.jobs.lease-operations/v1",
+  "schema_version": "jobs-lease-operations/1",
+  "requires": ["jobs-bootstrap/1", "jobs-control/1", "jobs-event-project/1"],
+  "phase": "expand",
+  "database": "oo_control",
+  "schema": "jobs",
+  "migration_lock_key": 6401202601,
+  "clock": "clock_timestamp()",
+  "lease_seconds": 30,
+  "heartbeat_poll_seconds": 10,
+  "claim_cap_budget": 8,
+  "retry_base_seconds": 1,
+  "retry_cap_seconds": 60,
+  "files": [
+    {
+      "version": "jobs-bootstrap/1",
+      "phase": "expand",
+      "filename": "0000_bootstrap_roles.sql",
+      "sha256": "445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df6a0f8eeb0b52"
+    },
+    {
+      "version": "jobs-control/1",
+      "phase": "expand",
+      "filename": "0001_jobs_control_expand.sql",
+      "sha256": "b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75"
+    },
+    {
+      "version": "jobs-event-project/1",
+      "phase": "expand",
+      "filename": "0002_event_project_binding_expand.sql",
+      "sha256": "4ede04e8f848eff002da7e3a12628ac731c7bca02ba345daa6d036790e894fee"
+    },
+    {
+      "version": "jobs-lease-operations/1",
+      "phase": "expand",
+      "filename": "0003_job_lease_operations_expand.sql",
+      "sha256": "5cb2e9030a479903ecc57ce32fc3ee851f00d146e02ab3902fcbe7ab09501034"
+    }
+  ],
+  "immutable_v1": {
+    "contract": "oo.jobs.control-schema/v1",
+    "filename": "jobs-control-v1.json",
+    "contract_sha256": "d352c86dbf2836360e541a3511af23674ce9692e687a6ac7041d99118dc8c2ca"
+  },
+  "readiness_view": "jobs.lease_operations_readiness",
+  "readiness": "schema_version_present AND applicator file sha256 equals jobs.schema_migrations.checksum. The view and jobs._require_lease_install accept any 64-hex checksum. A caller-supplied checksum is not a file hash.",
+  "search_path": "pg_catalog, jobs",
+  "security": "SECURITY DEFINER owned by oo_jobs_owner. PUBLIC EXECUTE revoked. EXECUTE granted only to oo_jobs_runtime.",
+  "functions": [
+    {
+      "name": "jobs.enqueue",
+      "arguments": ["p_project_id uuid", "p_kind text", "p_payload_version integer", "p_payload text", "p_config_version text", "p_artifact_digest text", "p_dedupe_key text", "p_run_at timestamptz", "p_max_attempts integer"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.claim",
+      "arguments": ["p_project_id uuid", "p_allowed_kinds text[]", "p_worker_id text"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.heartbeat",
+      "arguments": ["p_project_id uuid", "p_task_id uuid", "p_worker_id text", "p_generation bigint"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.complete_success",
+      "arguments": ["p_project_id uuid", "p_task_id uuid", "p_worker_id text", "p_generation bigint"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.complete_failure",
+      "arguments": ["p_project_id uuid", "p_task_id uuid", "p_worker_id text", "p_generation bigint", "p_error_kind text"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.retry_failure",
+      "arguments": ["p_project_id uuid", "p_task_id uuid", "p_worker_id text", "p_generation bigint", "p_error_kind text"],
+      "returns": "jobs.lease_result"
+    },
+    {
+      "name": "jobs.cancel",
+      "arguments": ["p_project_id uuid", "p_task_id uuid", "p_worker_id text", "p_generation bigint"],
+      "returns": "jobs.lease_result"
+    }
+  ],
+  "statuses": ["enqueued", "replayed", "claimed", "none", "extended", "succeeded", "failed", "retried", "cancelled", "lost_lease", "terminal"],
+  "status_never_produced": ["already_applied"],
+  "error_kinds_caller": ["worker_failed", "payload_rejected", "dependency_unavailable", "external_timeout"],
+  "error_kinds_internal": ["lease_expired_attempt_cap", "attempt_exhausted"],
+  "sqlstates": {
+    "invalid_input": "OO010",
+    "dedupe_conflict": "OO011",
+    "generation_overflow": "OO012",
+    "migration_not_owner": "OO013",
+    "refuse_adopt_function": "OO014",
+    "lease_ops_not_ready": "OO015",
+    "masked_internal": "OO016",
+    "install_check_failed": "OO017",
+    "checksum_mismatch": "OO001",
+    "bookkeeping_incomplete": "OO002",
+    "forced_migration_failure": "OO003",
+    "bad_event_history": "OO004",
+    "insufficient_privilege": "42501",
+    "undefined_function": "42883",
+    "lock_not_available": "55P03",
+    "deadlock": "40P01",
+    "check_violation": "23514"
+  },
+  "revoked_from_runtime": [
+    "INSERT UPDATE DELETE on jobs.tasks",
+    "INSERT UPDATE DELETE on jobs.task_events",
+    "USAGE on jobs.task_events_event_id_seq"
+  ],
+  "grants_kept_from_jobs_control_v1": [
+    "SELECT on jobs.tasks",
+    "SELECT on jobs.task_events",
+    "column INSERT and UPDATE on jobs.schedules",
+    "column INSERT and UPDATE on jobs.leases except target_fence_certified",
+    "column INSERT on jobs.schedule_occurrences"
+  ],
+  "not_claimed": [
+    "Rust queue driver",
+    "NOTIFY or a watch loop",
+    "scheduler",
+    "retry jitter",
+    "caller-selected lease TTL",
+    "already_applied",
+    "terminal owner column",
+    "authenticated lease token",
+    "target fence certification",
+    "project RBAC",
+    "Agent credential",
+    "backup restore",
+    "100 worker end-to-end acceptance",
+    "AT-CTL-01",
+    "AT-CTL-02",
+    "SP02 complete",
+    "a079 40P01 lock cycle closed",
+    "A068-F3 checksum trust closed",
+    "A068-F4 runtime advisory lock closed",
+    "A068-F5 planted definer closed beyond refusing to adopt an existing name",
+    "nested payload secret scan",
+    "jobs.schedules and jobs.leases direct DML closed"
+  ]
+}

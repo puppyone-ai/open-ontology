@@ -1,0 +1,13 @@
+\ir prelude.sql
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_advisory_xact_lock(6401202601);
+\ir ../../../migrations/0000_bootstrap_roles.sql
+SET ROLE oo_jobs_owner;
+\ir ../../../migrations/0001_jobs_control_expand.sql
+INSERT INTO jobs.schema_migrations (version, checksum, phase, filename)
+VALUES
+  ('jobs-bootstrap/1', :'checksum_bootstrap', 'expand', '0000_bootstrap_roles.sql'),
+  ('jobs-control/1', :'checksum_expand', 'expand', '0001_jobs_control_expand.sql');
+RESET ROLE;
+COMMIT;

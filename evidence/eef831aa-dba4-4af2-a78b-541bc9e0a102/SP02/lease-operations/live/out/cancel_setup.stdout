@@ -1,0 +1,5 @@
+q|enqueued|0
+qc|cancelled|cancelled||
+qr|terminal
+enq|enqueued
+run|claimed|1|worker-c

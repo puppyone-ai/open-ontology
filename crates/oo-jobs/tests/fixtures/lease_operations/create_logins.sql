@@ -1,0 +1,17 @@
+\ir prelude.sql
+CREATE ROLE oo_a102_runtime_login
+  LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION INHERIT;
+GRANT oo_jobs_runtime TO oo_a102_runtime_login;
+CREATE ROLE oo_a102_owner_login
+  LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION INHERIT;
+GRANT oo_jobs_owner TO oo_a102_owner_login;
+CREATE ROLE oo_a102_public_login
+  LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION NOINHERIT;
+DO $$
+BEGIN
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO oo_a102_runtime_login', current_database());
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO oo_a102_owner_login', current_database());
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO oo_a102_public_login', current_database());
+END
+$$;
+GRANT USAGE ON SCHEMA jobs TO oo_a102_public_login;

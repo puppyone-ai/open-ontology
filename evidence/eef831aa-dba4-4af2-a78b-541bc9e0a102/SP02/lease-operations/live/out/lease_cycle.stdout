@@ -1,0 +1,9 @@
+enq|enqueued|queued|0|0
+claim|claimed|running|1|1|worker-a|30|jlt1.
+stale|lost_lease|1
+beat|extended|30|jlt1.
+events|2
+oldgen|lost_lease
+done|succeeded|succeeded|
+again|terminal
+anygen|terminal

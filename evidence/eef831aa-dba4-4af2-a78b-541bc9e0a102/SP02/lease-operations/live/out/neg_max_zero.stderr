@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/lease_operations/neg_max_zero.sql:2: ERROR:  OO010: invalid lease operation input
+CONTEXT:  PL/pgSQL function enqueue(uuid,text,integer,text,text,text,text,timestamp with time zone,integer) line 32 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,0 +1,5 @@
+psql:/fixture/migrations/0003_job_lease_operations_expand.sql:40: WARNING:  25P01: SET LOCAL can only be used in transaction blocks
+LOCATION:  CheckTransactionBlock, xact.c:3701
+psql:/fixture/migrations/0003_job_lease_operations_expand.sql:82: ERROR:  OO013: lease operations migration must run as the owner
+CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,0 +1,9 @@
+_lease_token|false|{"search_path=pg_catalog, jobs"}|p_task_id uuid, p_project_id uuid, p_owner text, p_generation bigint, p_until timestamp with time zone
+_require_lease_install|false|{"search_path=pg_catalog, jobs"}|
+cancel|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint
+claim|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_allowed_kinds text[], p_worker_id text
+complete_failure|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint, p_error_kind text
+complete_success|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint
+enqueue|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_kind text, p_payload_version integer, p_payload text, p_config_version text, p_artifact_digest text, p_dedupe_key text, p_run_at timestamp with time zone, p_max_attempts integer
+heartbeat|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint
+retry_failure|true|{"search_path=pg_catalog, jobs"}|p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint, p_error_kind text

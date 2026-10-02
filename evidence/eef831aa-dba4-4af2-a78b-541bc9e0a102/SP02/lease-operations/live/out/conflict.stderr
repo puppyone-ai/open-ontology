@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/lease_operations/conflict.sql:6: ERROR:  OO011: dedupe identity conflict
+CONTEXT:  PL/pgSQL function enqueue(uuid,text,integer,text,text,text,text,timestamp with time zone,integer) line 122 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

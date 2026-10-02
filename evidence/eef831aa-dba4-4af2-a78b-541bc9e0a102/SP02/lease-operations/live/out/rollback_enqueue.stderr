@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/lease_operations/rollback_enqueue.sql:8: ERROR:  22012: division by zero
+LOCATION:  int4div, int.c:870
