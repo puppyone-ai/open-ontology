@@ -4,4 +4,6 @@ Synthetic PostgreSQL 17.10 catalog for `oo-connectors`. `up.sh` starts the pinne
 
 The server certificate names `oo-source-pg` only. The same container also answers as `oo-source-wrong`. Logging starts as `log_statement=none` and is switched to `all` after the fixture loads, so role passwords are not statement-logged. Connector sessions use `application_name=oo-pg-source`.
 
+`oo_src_guc_login` is `LOGIN NOINHERIT`, has `SET` membership of `oo_src_side` without `INHERIT`, and has `ALTER ROLE ... SET role = 'oo_src_side'`. That server GUC is applied by PostgreSQL at login. The connector does not create the role and does not send `SET ROLE`.
+
 `down.sh` removes the container, network, log volume, and secret directory named in `/tmp/oo-a060-pg.state`.

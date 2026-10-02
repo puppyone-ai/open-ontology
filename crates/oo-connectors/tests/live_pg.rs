@@ -41,6 +41,7 @@ struct Pointer {
     createdb_user: String,
     oponly_user: String,
     castonly_user: String,
+    guc_user: String,
     password_dir: String,
     ca_file: String,
     wrong_ca_file: String,
@@ -114,6 +115,7 @@ async fn live_source_catalog() {
         "{}",
         report.tls.negotiated_version
     );
+    assert_eq!(report.tls.server_observation, "observed");
     assert!(report.capabilities.iter().all(|item| !item.supported));
     assert!(
         report
@@ -619,6 +621,58 @@ async fn live_source_catalog() {
             .any(|item| item.name == "boom_cast")
     );
 
+    let guc_pass = read_secret(&pointer.password_dir, "guc.pass");
+    let mut guc = Dial {
+        source_id: "pg_source_guc",
+        secret: "secret://pg/source-lab/guc",
+        user: &pointer.guc_user,
+        password: &guc_pass,
+        ..reader_dial
+    }
+    .open(selection.clone())
+    .await
+    .expect("guc connect");
+    let guc_report = guc.inspect_access().await.expect("guc inspect");
+    let guc_principal = guc_report.principal.value.expect("guc principal");
+    assert!(
+        !guc_report.registration_allowed,
+        "{:?}",
+        guc_report.block_reasons
+    );
+    assert_eq!(guc_principal.session_user, pointer.guc_user);
+    assert_eq!(guc_principal.current_user, pointer.side_user);
+    assert!(
+        guc_report
+            .block_reasons
+            .iter()
+            .any(|item| item.code == "role_mismatch" && item.fact == "session_user"),
+        "{:?}",
+        guc_report.block_reasons
+    );
+    assert!(
+        guc_report.block_reasons.iter().any(|item| {
+            item.code == "startup_option" && item.fact == "startup_options"
+        }),
+        "{:?}",
+        guc_report.block_reasons
+    );
+    assert_eq!(guc_report.tls.mode, "verify-full");
+    assert_eq!(guc_report.tls.trust, "caller-ca-only");
+    assert!(guc_report.tls.hostname_verification);
+    assert_eq!(guc_report.tls.negotiated_version, "unknown");
+    assert_eq!(guc_report.tls.server_observation, "unknown");
+    assert_eq!(guc_report.write.state, "unknown");
+    assert!(guc_report.security_definers.is_empty());
+    assert!(guc_report.memberships.is_empty());
+    match guc.catalog().await {
+        Ok(_) => panic!("guc catalog was admitted"),
+        Err(err) => {
+            assert_eq!(err.kind(), SourceErrorKind::Config);
+            assert_eq!(err.fact(), Some("session_user_mismatch"));
+        }
+    }
+    drop(guc);
+
     let parent_options = std::env::var_os("PGOPTIONS");
     spawn_env_probe("options", "-c role=oo_src_reader");
     spawn_env_probe("version", "-c server_version=13.14");
@@ -652,6 +706,7 @@ async fn live_source_catalog() {
         createdb_pass.as_str(),
         oponly_pass.as_str(),
         castonly_pass.as_str(),
+        guc_pass.as_str(),
         "forged-secret",
     ];
     audit_log(&pointer.log_file, &secrets);
@@ -998,6 +1053,7 @@ async fn run_env_probe(kind: &str) {
     assert_eq!(report.version.admission, "tested");
     assert_eq!(report.tls.trust, "caller-ca-only");
     assert!(report.tls.negotiated_version.starts_with("TLSv1."));
+    assert_eq!(report.tls.server_observation, "observed");
     session.catalog().await.expect("probe catalog");
 }
 

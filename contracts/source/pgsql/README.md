@@ -15,7 +15,9 @@ This slice freezes the read-only inspection API implemented by `oo-connectors`. 
 
 ## TLS
 
-The driver sets `sslmode=verify-full` and requires a caller CA PEM. Trust is `caller-ca-only`: the patched sqlx-core ring provider starts from an empty root store and adds only that PEM. Mozilla webpki roots and system roots are not installed. `negotiated_version` reports `pg_stat_ssl.version`. Hostname verification uses the endpoint host. Connection options come from the validated config via `PgConnectOptions::from_explicit`. Ambient `PGOPTIONS`, `PGSSLCERT`, `PGSSLKEY`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGAPPNAME`, `PGSSLMODE`, and `PGSSLROOTCERT` are not copied and the process environment is not modified. Paths that start with `/`, DSNs, and empty passwords are rejected before connect.
+The driver sets `sslmode=verify-full` and requires a caller CA PEM. Trust is `caller-ca-only`: the patched sqlx-core ring provider starts from an empty root store and adds only that PEM. Mozilla webpki roots and system roots are not installed. Hostname verification uses the endpoint host. Connection options come from the validated config via `PgConnectOptions::from_explicit`. Ambient `PGOPTIONS`, `PGSSLCERT`, `PGSSLKEY`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGAPPNAME`, `PGSSLMODE`, and `PGSSLROOTCERT` are not copied and the process environment is not modified. Paths that start with `/`, DSNs, and empty passwords are rejected before connect.
+
+`TlsReport.mode`, `trust`, and `hostname_verification` are that driver requirement. They do not change because `pg_stat_ssl` is nullable. `server_observation` is `observed` and `negotiated_version` is `pg_stat_ssl.version` only when the view returns a row for this backend with `ssl = true` and a `TLSv1.` version. A missing row sets both `server_observation` and `negotiated_version` to `unknown`. That is not plaintext and not proof of a negotiated version. `ssl = false` still fails connect as `tls_not_negotiated`. Wrong CA and wrong hostname still fail before SQL. The connector does not grant `pg_read_all_stats`, install a security definer, or alter roles to make the view visible.
 
 ## Access report
 
@@ -30,8 +32,8 @@ The driver sets `sslmode=verify-full` and requires a caller CA PEM. Trust is `ca
 | `write_capable` | Reachable business write: table or column `INSERT`/`UPDATE`/`DELETE`/`TRUNCATE` on any user table, ownership, schema `CREATE`, current-database `CREATE`, direct, inherited, or `SET ROLE` |
 | `privileged_role` | Assumable `rolsuper`, `rolbypassrls`, `rolcreaterole`, or `rolcreatedb` |
 | `security_definer` | A reachable non-catalog security-definer function, including operator and cast paths. Table read-only does not make this safe |
-| `role_mismatch` | `session_user` and `current_user` differ. `catalog` returns `session_user_mismatch` |
-| `startup_option` | A client, session, or startup parameter outside the driver allow-list was set. `catalog` returns `startup_options` |
+| `role_mismatch` | `session_user` and `current_user` differ. `catalog` returns `session_user_mismatch` and does not snapshot. `inspect_access` still returns this reason when a startup finding is also present |
+| `startup_option` | A client, session, startup, user, database, or database-user parameter outside the driver allow-list was set. `catalog` returns `startup_options` when identity matches. PostgreSQL does not show `role` in `pg_settings`. The connector reads `current_setting('role')` and treats any value other than the default `none` as this finding, including `ALTER ROLE ... SET role`. It does not `SET ROLE`, `RESET ROLE`, or `SET SESSION AUTHORIZATION` |
 | `selected_table_missing` | A selected table was not visible |
 
 `essential_fact_unknown` also covers `privilege_scan_truncated` and `inaccessible_role`. The scan counts user schemas, tables, security definers, and definer operators and casts. It stops before dumping privileges when a count or a count times the assumable-role width exceeds `max_rows`. It does not read table data or function bodies. An unrelated role that this login cannot see is not a finding. `TEMP` and `CONNECT` are not business writes. `rolcreatedb` is `privileged_role`. `CREATE` on the current database is `write_capable` with path `database`.

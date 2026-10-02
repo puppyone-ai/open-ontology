@@ -14,13 +14,21 @@ SELECT pg_catalog.current_setting('server_version_num')::int8, \
 pg_catalog.current_setting('server_version')";
 
 /// Session identity and TLS, read before the guard `set_config` calls.
-/// `$1` is the allow-list of startup parameters this driver sends.
+/// `$1` is the allow-list of parameter names this driver sends.
+///
+/// `role` is absent from `pg_settings` (it is not shown), so a server
+/// `ALTER ROLE ... SET role` is read with `current_setting('role')`. The
+/// default value `none` is not a finding. This statement does not `SET ROLE`.
 pub(crate) const IDENTITY: &str = "\
 SELECT SESSION_USER::text, CURRENT_USER::text, \
 (SELECT s.ssl FROM pg_catalog.pg_stat_ssl s WHERE s.pid = pg_catalog.pg_backend_pid()), \
 (SELECT s.version FROM pg_catalog.pg_stat_ssl s WHERE s.pid = pg_catalog.pg_backend_pid()), \
-COALESCE((SELECT pg_catalog.string_agg(s.name, ',' ORDER BY s.name) FROM pg_catalog.pg_settings s \
-WHERE s.source IN ('client', 'session', 'startup') AND s.name <> ALL($1::text[])), ''), \
+COALESCE((SELECT pg_catalog.string_agg(extra.name, ',' ORDER BY extra.name) FROM ( \
+SELECT s.name FROM pg_catalog.pg_settings s \
+WHERE s.source IN ('client', 'session', 'startup', 'user', 'database', 'database user') \
+AND s.name <> ALL($1::text[]) \
+UNION SELECT 'role'::text WHERE pg_catalog.current_setting('role') IS DISTINCT FROM 'none' \
+) AS extra), ''), \
 pg_catalog.current_database()::text";
 
 pub(crate) const SCAN_COUNTS: &str = "\
@@ -357,5 +365,15 @@ mod tests {
             assert!(!sql.contains("CANARY"));
             assert!(!sql.contains('\n'));
         }
+    }
+
+    #[test]
+    fn identity_reads_hidden_role_guc_without_changing_it() {
+        let upper = IDENTITY.to_ascii_uppercase();
+        assert!(upper.contains("CURRENT_SETTING('ROLE')"));
+        assert!(!upper.contains("SET ROLE"));
+        assert!(!upper.contains("RESET ROLE"));
+        assert!(!upper.contains("SET SESSION AUTHORIZATION"));
+        assert_eq!(first_verb(IDENTITY), "SELECT");
     }
 }

@@ -198,15 +198,10 @@ impl PgSession {
         let version = cell_opt_string(&row, 3)?;
         let extra = cell_string(&row, 4)?;
         let database = cell_string(&row, 5)?;
-        if !ssl.unwrap_or(false) {
-            return Err(SourceError::tls("tls_not_negotiated"));
-        }
-        let Some(version) = version else {
-            return Err(SourceError::tls("tls_version_unknown"));
+        let negotiated = match classify_server_tls(ssl, version)? {
+            ServerTls::Observed(version) => version,
+            ServerTls::Unknown => "unknown".to_string(),
         };
-        if !version.starts_with("TLSv1.") || version.len() > 32 || version.contains('\0') {
-            return Err(SourceError::tls("tls_version_unknown"));
-        }
         if session_user.is_empty()
             || current_user.is_empty()
             || session_user.len() > 256
@@ -217,7 +212,7 @@ impl PgSession {
         }
         self.identity_aligned = session_user == current_user;
         self.startup_clean = extra.is_empty();
-        self.negotiated_tls = version;
+        self.negotiated_tls = negotiated;
         self.session_user = session_user;
         self.current_user = current_user;
         self.database_name = database;
@@ -437,6 +432,41 @@ impl PgSession {
     }
 }
 
+/// Server `pg_stat_ssl` fact for this backend.
+#[derive(Debug)]
+enum ServerTls {
+    /// `ssl = true` and a `TLSv1.` version string.
+    Observed(String),
+    /// No row. Not plaintext, and not a negotiated version.
+    Unknown,
+}
+
+/// A null `pg_stat_ssl` row is unknown. `ssl = false` is plaintext.
+fn classify_server_tls(
+    ssl: Option<bool>,
+    version: Option<String>,
+) -> Result<ServerTls, SourceError> {
+    match ssl {
+        Some(false) => Err(SourceError::tls("tls_not_negotiated")),
+        None => {
+            if version.is_some() {
+                Err(SourceError::tls("tls_version_unknown"))
+            } else {
+                Ok(ServerTls::Unknown)
+            }
+        }
+        Some(true) => {
+            let Some(version) = version else {
+                return Err(SourceError::tls("tls_version_unknown"));
+            };
+            if !version.starts_with("TLSv1.") || version.len() > 32 || version.contains('\0') {
+                return Err(SourceError::tls("tls_version_unknown"));
+            }
+            Ok(ServerTls::Observed(version))
+        }
+    }
+}
+
 pub(crate) fn duration_ms(value: Duration) -> Result<String, SourceError> {
     let ms = value.as_millis();
     if ms == 0 || ms > 120_000 {
@@ -533,4 +563,43 @@ pub(crate) fn cell_opt_bool(
 ) -> Result<Option<bool>, SourceError> {
     row.try_get(index)
         .map_err(|_| SourceError::catalog("decode"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ServerTls, classify_server_tls};
+    use crate::error::SourceErrorKind;
+
+    #[test]
+    fn missing_ssl_row_is_unknown() {
+        assert!(matches!(
+            classify_server_tls(None, None).unwrap(),
+            ServerTls::Unknown
+        ));
+    }
+
+    #[test]
+    fn false_ssl_is_plaintext() {
+        let err = classify_server_tls(Some(false), None).unwrap_err();
+        assert_eq!(err.kind(), SourceErrorKind::Tls);
+        assert_eq!(err.fact(), Some("tls_not_negotiated"));
+    }
+
+    #[test]
+    fn true_ssl_keeps_only_a_tls_version() {
+        let err = classify_server_tls(Some(true), None).unwrap_err();
+        assert_eq!(err.fact(), Some("tls_version_unknown"));
+        match classify_server_tls(Some(true), Some("TLSv1.3".to_string())).unwrap() {
+            ServerTls::Observed(version) => assert_eq!(version, "TLSv1.3"),
+            ServerTls::Unknown => panic!("missing version was accepted"),
+        }
+        let bad = classify_server_tls(Some(true), Some("ssl".to_string())).unwrap_err();
+        assert_eq!(bad.fact(), Some("tls_version_unknown"));
+    }
+
+    #[test]
+    fn version_without_ssl_is_not_success() {
+        let err = classify_server_tls(None, Some("TLSv1.3".to_string())).unwrap_err();
+        assert_eq!(err.fact(), Some("tls_version_unknown"));
+    }
 }

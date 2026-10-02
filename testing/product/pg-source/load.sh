@@ -22,5 +22,6 @@ export OO_CREATEROLE_PASSWORD="$(cat /secrets/createrole.pass)"
 export OO_CREATEDB_PASSWORD="$(cat /secrets/createdb.pass)"
 export OO_OPONLY_PASSWORD="$(cat /secrets/oponly.pass)"
 export OO_CASTONLY_PASSWORD="$(cat /secrets/castonly.pass)"
+export OO_GUC_PASSWORD="$(cat /secrets/guc.pass)"
 gosu postgres psql -v ON_ERROR_STOP=1 -f /fixture/init.sql
 gosu postgres psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET log_statement = 'all'" -c "SELECT pg_catalog.pg_reload_conf()"

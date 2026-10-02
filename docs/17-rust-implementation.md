@@ -88,6 +88,8 @@ rmcp 只提供协议/transport 能力：OO 负责 Origin 检查、认证、RFC 9
 
 Secret 值使用 secrecy / zeroize 并避免 Debug/Clone；零化只能减少部分内存残留，无法保证库副本、core dump、swap 不泄露。生产禁止 core dump、限制调试权限，TLS 配置使用企业 CA/主机名验证。内置信封加密使用审核的 AEAD、唯一 nonce、带版本的密文与 KMS/密钥文件，禁止自创加密协议。
 
+PostgreSQL 源连接器只信任调用方 CA，并固定 `sslmode=verify-full`。`pg_stat_ssl` 没有本后端行时，服务端观测记为 `unknown`：这不是明文，也不是已协商版本，不能据此放宽校验或假装握手已由统计视图证明。`ssl = false` 仍以 `tls_not_negotiated` 拒绝。`ALTER ROLE ... SET role` 会使 `session_user` 与 `current_user` 不一致，并让该视图看不到本后端；连接器同时给出 `role_mismatch` 与 `startup_option`，不登记、不读取目录。它不发送 `SET ROLE`、`RESET ROLE` 或 `SET SESSION AUTHORIZATION`，也不改源上的角色或授权。字段说明见 [PostgreSQL 源目录契约](../contracts/source/pgsql/README.md)。
+
 审计写入必须经受限 collector：Gateway 在 [01](01-architecture.md) 的网络中不能直接写控制库。collector 用控制库 `audit_ingest` 最小权限账号接收，不提供其他业务写接口；Gateway 在对外返回数据前持久记录准入，结束再记录结果/拒绝/取消，collector 失败时本地 fsync WAL（独立持久卷），重放按 `(query_id, phase, sequence)` 去重，准入与结束是独立事件，不能按 query_id 丢掉后续结果。磁盘满或审计无法持久化时停止数据准入，不能靠无界异步队列宣称“不丢”。
 
 ## 7. 构建、部署与验收

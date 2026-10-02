@@ -707,8 +707,15 @@ pub struct TlsReport {
     pub trust: String,
     /// Hostname verification is on.
     pub hostname_verification: bool,
-    /// `pg_stat_ssl.version` for this backend, for example `TLSv1.3`.
+    /// `pg_stat_ssl.version` when `server_observation` is `observed`, for
+    /// example `TLSv1.3`. `unknown` when that view returns no row. `unknown`
+    /// is not a protocol version.
     pub negotiated_version: String,
+    /// `observed` when `pg_stat_ssl` returned `ssl = true` and a `TLSv1.`
+    /// version for this backend. `unknown` when the view returned no row.
+    /// Absence is not plaintext and is not proof that TLS was negotiated.
+    /// `mode` stays `verify-full` either way.
+    pub server_observation: String,
 }
 
 /// One capability this slice does not implement.
@@ -847,11 +854,17 @@ pub struct AccessReport {
 }
 
 pub(crate) fn tls_report(negotiated_version: &str) -> TlsReport {
+    let observed = negotiated_version.starts_with("TLSv1.");
     TlsReport {
         mode: "verify-full".to_string(),
         trust: "caller-ca-only".to_string(),
         hostname_verification: true,
         negotiated_version: negotiated_version.to_string(),
+        server_observation: if observed {
+            "observed".to_string()
+        } else {
+            "unknown".to_string()
+        },
     }
 }
 

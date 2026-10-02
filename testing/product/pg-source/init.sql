@@ -20,6 +20,7 @@
 \getenv createdb_pass OO_CREATEDB_PASSWORD
 \getenv oponly_pass OO_OPONLY_PASSWORD
 \getenv castonly_pass OO_CASTONLY_PASSWORD
+\getenv guc_pass OO_GUC_PASSWORD
 
 CREATE ROLE oo_src_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE oo_src_writer NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
@@ -216,3 +217,11 @@ GRANT USAGE, CREATE ON SCHEMA side TO oo_src_schemacreate;
 
 GRANT USAGE ON SCHEMA app TO oo_src_column;
 GRANT INSERT (display_name) ON app.customer TO oo_src_column;
+
+-- Server-side role GUC. The password stays in a psql variable.
+-- NOINHERIT plus SET membership lets ALTER ROLE SET role change current_user
+-- without granting the side role's privileges to the login.
+CREATE ROLE oo_src_guc_login LOGIN NOINHERIT PASSWORD :'guc_pass' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+GRANT oo_src_side TO oo_src_guc_login WITH INHERIT FALSE, SET TRUE;
+ALTER ROLE oo_src_guc_login SET role = 'oo_src_side';
+GRANT CONNECT ON DATABASE source_lab TO oo_src_guc_login;

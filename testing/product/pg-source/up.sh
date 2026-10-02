@@ -23,7 +23,7 @@ openssl rand -hex 24 > "$SEC/reader.pass"
 openssl rand -hex 24 > "$SEC/inherit.pass"
 openssl rand -hex 24 > "$SEC/setonly.pass"
 openssl rand -hex 24 > "$SEC/definer.pass"
-for role in side hiddenfn schemacreate dbcreate dual transitive noset column bypass createrole createdb oponly castonly; do
+for role in side hiddenfn schemacreate dbcreate dual transitive noset column bypass createrole createdb oponly castonly guc; do
   openssl rand -hex 24 > "$SEC/$role.pass"
 done
 openssl rand -hex 24 > "$SEC/inherit-only.pass"
@@ -126,6 +126,7 @@ body = {
     "createdb_user": "oo_src_createdb",
     "oponly_user": "oo_src_oponly",
     "castonly_user": "oo_src_castonly",
+    "guc_user": "oo_src_guc_login",
     "password_dir": "/secrets",
     "ca_file": "/secrets/ca.crt",
     "wrong_ca_file": "/secrets/wrong-ca.crt",
