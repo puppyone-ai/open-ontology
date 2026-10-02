@@ -80,7 +80,7 @@
 - [ ] P5 parser/native/SQL差分
   - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065交付efb61d6，a076固定复审；作者已记录R9 WHEREtrue/子查询绕过及未实现R4，完整R1–R9与DB绑定另验。
   - [x] P5-IPC-C 矛盾输出封闭拒绝/有限等待修正切片：a091固定6831d6e批准；原始默认/hooks测试与Clippy0、deciding probe0/fails0。仅原型切片，不计产品验收子项。
-  - [ ] P5-IPC-I 独立nonce/pid/starttime绑定证据：a100实际exit0但缺review/findings/HANDOFF，原UUID续接完成报告；不以builder0或原approve消除缺证。
+  - [x] P5-IPC-I 独立nonce/pid/starttime绑定切片：a100固定6831d6e独立production admit_in_worker/--supervise，Linux1.94十九case全ok；协调者重核raw/source/hash及拒绝阶段。decision无starttime字段、部分回收仅parent proof、完整P5/授权/隔离仍未签。
 - [ ] P6 PG claims/ROLE/RLS/pool
 - [ ] P7 真50m EXPLAIN/资源阈值
 - [ ] P8 真runsc网络/身份隔离
@@ -674,3 +674,11 @@ a103UUIDeef831aa-dba4-4af2-a78b-541bc9e0a103实际启动，handle93875，executi
 五registrychecksums/nonyanked/version对象168h年龄及upstreamlicense字节有记录。nix正确version时间2026-05-11T07:01:18.650221Z，旧a082第二created_at是publisher timestamp，保留原始错误而新记录纠正；crate-checksums中commentheader被误当package产生一条MISSING_CRATE # lock，不是五实际registrychecksum失败。libc/bitflags/cfg-if两许可正文均有但dual_license_choice记录缺，依赖政策准入/audited/fullAT-SEC-05仍false。cfg_aliases第三方NOTICES义务保留。仅勾W06-H实际工具执行证据，不签SP00/wholegraph/CDLA/SDK/P5/nativeOCI/签名/秘密轮换/客户/CI/runsc/发行。不增加产品7组件/6验收子项或首轮返工4比6；87父项/16Phase仍未完成。
 
 a100handle34511实际exit0但最后仅builder3exit0待读output，未review/findings/HANDOFF，不能签身份补证。立即原UUIDresume handle60366，execution/prompts/a100-terminal-report-followup.md要求读既有真实phase/probe形成限定报告，不按退出盲目重建或虚构approve；旧a091报告冻结。a09735038/a09861045/a0995836/a10291030/a10393875本回合单次核验仍live；root/connectora098、jobs新增迁移a102保持。a101关闭不再轮询。独立基础条件与产品开发继续分开。
+
+## a100独立IPC身份切片补证签收
+
+本回合原UUID续接handle60366有界wait实际exit0，完整review/findings/HANDOFF已读。fixed6831d6e862303a0ce1c883925068078cbcb78e23/tree2f7fc8e8bb8ea34551235190e8e200e750358af9/parent77d957750e18c7e811e845a7717d54372b41839e重核一致。rawprobe重算SHAc8f6a6ce3b45bef1aaeb744fce599da1abf5ce94a96150c4219b432e036e6024、Rustoracle4a8ed981cdebe489c8b7df36a641bec984e5208a2dd316c23b116aae6140037d、hashmatrix24aa25814a993abf1fc02c6e0b648b3c5b2b5b102dd132b0480c8d59ad664162一致；旧a091rawSHAfb6984490f9b1fa89945e21665e6194475d239ebba4f7e86ead3953f4a651a46未改。实际Linuxarm64/Rust1.94 lockedsourcefetch/finiteprobefetch/offlinebuild/probe/docker0，19case全ok/summaryfails0，无SQL送PG。默认features、testhooks关闭、probeunsafe禁止，productionadmit_in_worker经--supervise，callerhash仅pin不是签名。
+
+协调者逐行解析raw重新断言19case/9readyreject、wrongdecisionnonce/pid清SQL、distinctivecontrol与nativecomparison、foreignsurvived、ownkill后startgone。ready单字段nonce/pid/starttime/缺失/unknown/两种重复nonce顺序全部INVALID_OUTPUT，saw_admitfalse，命名PIDstarttime实际gone；decisionwrongnonce/pid在已admit后拒绝、detaila100-control/nodecount7保留，无native修补。decision无starttime字段，unknownstart仅serde拒绝；workerstarttime_matched被parent重算，oidclaim拒绝，不虚构decisionstarttime绑定。外国sleep1852/start548271全部存活，spoof99999实际不存在且不是foreign。control/decisionproof仅FINAL0的worker没有第二次独立/proc读，保留限制，不据proof_alive0推断全PID均独立观测。attempt1apt100/attempt2compile101+probe127保留，非产品失败；实际四cleanup整数0。
+
+仅勾P5-IPC-I身份切片，旧a091报告保持冻结；ADRProposed、完整P5/R4/R5/R9/OIDACL/RLS/Gateway/native17.7vs17.10/network/sourceIO/pidns/runsc/amd/supply/release仍unsigned。风险原型不计产品新组件/验收数，仍7交付组件/6产品验收子项/首次返工4比6；87完整父项/16Phase未完成。a100关闭不再轮询旧handles。其余a09735038/a09861045/a0995836/a10291030/a10393875本回合单次核验仍live，root/connectora098、jobs新增迁移a102不变，源补证/reader/types/apply依赖仍未签。

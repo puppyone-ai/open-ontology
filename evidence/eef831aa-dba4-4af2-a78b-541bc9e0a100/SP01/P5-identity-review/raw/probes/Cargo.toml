@@ -1,0 +1,12 @@
+[package]
+name = "p5-identity-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+rust-version = "1.94"
+description = "a100 independent IPC identity probe. Links the fixed spike with default features only."
+
+# No test-hooks. admit_in_worker is the production parent. exercise_untrusted is not linked.
+[dependencies]
+oo-p05-pg17-parser = { path = "/src", default-features = false }
+serde_json = "=1.0.151"
