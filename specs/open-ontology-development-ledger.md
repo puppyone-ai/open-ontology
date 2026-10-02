@@ -489,3 +489,11 @@ a086 handle15204已实际启动固定eebc0ea只读archive复审，先Linux1.94�
 上一目标回合为progress：结构修正eebc0ea已交付，e80b4f1派发a086固定复审。本回合一次实际句柄核验a080/a082/a083/a084/a085/a086全部live；对关键a083 handle30780进行单次60秒有界等待后仍live，不依据日志tool_output_error或等待超时重启。此为verified wait，不是停工或block。
 
 v01-builder-nfc-prepared.md已补齐findings1/2/5专用任务卡：根单writer串行接入与connector相同unicode-normalization0.1.25、官方U16/U17/全标量oracle、notice/erratum、旧hash/人工决策兼容和a081回归。尚未派发且没有写权；a083当前Cargo.toml/Cargo.lock/connector变更不被协调者或其他task覆盖。任务卡准备不计产品交付/验收，不新增勾选，速度指标仍6组件/3验收子项/首轮返工2/4。真正源整合终态后先收完整证据与固定SHA再推进root任务及类型/reader/apply；所有完整父项/Phase仍pending。
+
+## a083固定整合交付已出现，a087只读复审启动
+
+固定交付2980e85af22c3ade05272c66c7d2835b52730322（treec027c4599cdebf701b21e97e51ded45b9067ca8e，parent1868ffb）已存在。协调者已读完整a083 REPORT/HANDOFF，重算main lock9b8f7e50d3b20042bb2d606f47276b76dd68f3568136343040fbea1ecd622057、PG日志8985b98a354cc8913218c682ad1bb25e8072b99915aac7a518c56ef91bb05dc4、完整MIT/Apache正文与来源pin匹配。main源仅整合4ec功能及六vendor/provenance差异，不覆旧421基础；实际960源语句SELECT840/WITH48/START36/ROLLBACK36，flagged0；作者final live/SDK/Clippy0、旧baseline combined101/漏contractsSDK101/Clippy缺组件1与继承worst101保留。38依赖新增、deny未跑及SDK CDLA/slashlicense/ORtoken等供应链缺口不签。
+
+a087 handle41307实际启动固定2980e85只读复审，先Linux1.94局部冒烟，再独立mergedTLS feature guard/真实privateCA/env/权限/来源/SDK兼容与供应链范围核验。固定commit允许只读review并行，不等于a083 rootwriter终态；最后一次协调者核验handle30780仍live，root仍不交给NFC/type任务。原报告称交付即释放仅属作者声明，实际写权由协调者终态交接决定。a081临时覆foreign manifest的历史不确定性单列，复审确认最终源/graph字节与实际编译/fixture，不用当前hash证明过去未覆盖。
+
+本轮实际已有固定整合commit和新独立复审，分类progress。整合属于已交付PG组件的同一条工作线，不重复增加功能数；产品指标仍6交付组件/3验收子项/首次返工2/4，full87父项/16Phase0完成。V01-PG-01main整合、NFC纠正和所有适用全AT待验收，prepared后续任务尚未派发，不勾选完成。
