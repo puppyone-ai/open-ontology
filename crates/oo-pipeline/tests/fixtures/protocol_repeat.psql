@@ -1,0 +1,28 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '3s';
+SELECT pg_catalog.set_config('oo.checksum_bootstrap', :'checksum_bootstrap', true);
+SELECT pg_catalog.set_config('oo.checksum_expand', :'checksum_expand', true);
+SELECT pg_catalog.pg_advisory_xact_lock(6404202605);
+SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE;
+DO $check$
+DECLARE
+  recorded_bootstrap text;
+  recorded_expand text;
+BEGIN
+  SELECT checksum INTO recorded_bootstrap
+  FROM _oo.schema_migrations
+  WHERE version = 'target-bootstrap/1';
+  SELECT checksum INTO recorded_expand
+  FROM _oo.schema_migrations
+  WHERE version = 'target-fence-receipts/1';
+  IF recorded_bootstrap IS NULL OR recorded_expand IS NULL THEN
+    RAISE EXCEPTION 'migration bookkeeping incomplete' USING ERRCODE = 'OO002';
+  END IF;
+  IF recorded_bootstrap <> current_setting('oo.checksum_bootstrap')
+     OR recorded_expand <> current_setting('oo.checksum_expand') THEN
+    RAISE EXCEPTION 'migration checksum mismatch' USING ERRCODE = 'OO001';
+  END IF;
+END
+$check$;
+COMMIT;

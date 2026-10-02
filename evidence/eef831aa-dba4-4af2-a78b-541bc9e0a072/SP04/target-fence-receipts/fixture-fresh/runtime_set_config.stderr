@@ -1,0 +1,2 @@
+psql:/var/lib/oo-fixture/tests/fixtures/reject_set_config.sql:2: ERROR:  42501: permission denied for function set_config
+LOCATION:  aclcheck_error, aclchk.c:2843

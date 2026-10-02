@@ -1,0 +1,2 @@
+psql:/var/lib/oo-fixture/tests/fixtures/reject_advisory.sql:2: ERROR:  42501: permission denied for function pg_try_advisory_lock
+LOCATION:  aclcheck_error, aclchk.c:2843

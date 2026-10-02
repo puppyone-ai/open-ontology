@@ -1,0 +1,12 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_catalog.pg_advisory_xact_lock(6404202605);
+SET ROLE oo_target_owner;
+SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE;
+INSERT INTO _oo.schema_migrations (version, checksum, phase, filename)
+VALUES
+  ('target-bootstrap/1', :'checksum_bootstrap', 'expand', '0000_bootstrap_roles.sql'),
+  ('target-fence-receipts/1', :'checksum_expand', 'expand', '0001_target_fence_expand.sql');
+RESET ROLE;
+COMMIT;

@@ -1,0 +1,4 @@
+psql:/var/lib/oo-fixture/tests/fixtures/reject_lineage.sql:11: ERROR:  OO015: closed position lineage
+CONTEXT:  PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 28 at RAISE
+SQL function "put_receipt" statement 1
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

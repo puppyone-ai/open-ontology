@@ -1,0 +1,1 @@
+client stderr omitted SQLSTATE; server log later recorded FATAL 42501

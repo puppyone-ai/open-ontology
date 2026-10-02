@@ -1,0 +1,26 @@
+run_id=9ee5b5cc-643a-4949-ba7a-87471876b937
+source_head=78d106fcb3e7e1705b617ed6df58933d85297e7b
+source_parent=a45c13c0e231dcbf6c7b97050b9bfbe8a11bb571
+source_tree=66010b8c215df498afbc585b5461b6668ae58cd9
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-net
+container=oo-a072-msrv-post-9ee5b5cc-643a-4949-ba7a-87471876b937
+cargo_volume=oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-cargo
+target_volume=oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-target
+snapshot=/tmp/oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937/snapshot
+snapshot_method=git archive of HEAD plus owned oo-pipeline migrations tests and target-fence contract
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline; cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-pipeline --all-targets -- -D warnings

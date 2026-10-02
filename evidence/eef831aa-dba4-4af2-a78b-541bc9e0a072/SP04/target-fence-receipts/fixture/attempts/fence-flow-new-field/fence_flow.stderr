@@ -1,0 +1,62 @@
+psql:/var/lib/oo-fixture/tests/fixtures/fence_flow.sql:121: NOTICE:  42P07: relation "oo_target_fence_session" already exists, skipping
+LOCATION:  transformCreateStmt, parse_utilcmd.c:207
+psql:/var/lib/oo-fixture/tests/fixtures/fence_flow.sql:121: ERROR:  42703: record "new" has no field "generation"
+CONTEXT:  SQL expression "TG_OP = 'UPDATE'
+     AND TG_TABLE_NAME = 'target_generations'
+     AND NEW.generation < OLD.generation"
+PL/pgSQL function _oo.reject_direct_write() line 15 at IF
+SQL statement "INSERT INTO _oo.apply_receipts (
+    source,
+    table_generation,
+    txn_or_batch_id,
+    config_version,
+    config_digest,
+    type_policy_version,
+    type_digest,
+    hook_digest,
+    schema_digest,
+    payload_digest,
+    protocol_version,
+    position_codec,
+    position_lineage,
+    source_epoch,
+    applied_pos,
+    partial_txn,
+    cross_table_consistent,
+    txn_complete,
+    segment_index,
+    segment_count,
+    segment_bitmap,
+    fence_shard,
+    fence_generation,
+    target_commit_at
+  ) VALUES (
+    p_source,
+    p_table_generation,
+    p_txn_or_batch_id,
+    'config/v1',
+    p_config_digest,
+    'type-policy/v1',
+    p_type_digest,
+    p_hook_digest,
+    p_schema_digest,
+    p_payload_digest,
+    'batch/v1',
+    p_position_codec,
+    p_position_lineage,
+    p_source_epoch,
+    p_applied_pos,
+    p_partial_txn,
+    p_cross_table_consistent,
+    p_txn_complete,
+    p_segment_index,
+    p_segment_count,
+    p_segment_bitmap,
+    p_shard,
+    p_generation,
+    clock_timestamp()
+  )"
+PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 107 at SQL statement
+SQL function "put_receipt" statement 1
+PL/pgSQL function inline_code_block line 41 at assignment
+LOCATION:  plpgsql_exec_get_datum_type_info, pl_exec.c:5595

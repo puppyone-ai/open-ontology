@@ -1,0 +1,9 @@
+psql:/var/lib/oo-fixture/tests/fixtures/conflict_payload.sql:13: ERROR:  OO010: apply receipt identity conflict
+CONTEXT:  PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 105 at RAISE
+SQL function "put_receipt" statement 1
+SQL statement "SELECT fixture_synth.put_receipt(
+    'shard_alpha', v_owner, v_generation, 'batch-0001', repeat('f', 64),
+    'pg-commit-lsn/v1', 'src_main', 42
+  )"
+PL/pgSQL function inline_code_block line 7 at PERFORM
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

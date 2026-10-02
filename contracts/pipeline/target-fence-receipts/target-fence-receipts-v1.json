@@ -1,0 +1,95 @@
+{
+  "contract": "oo.pipeline.target-fence-receipts/v1",
+  "schema_version": "target-fence-receipts/1",
+  "bootstrap_version": "target-bootstrap/1",
+  "phase": "expand",
+  "database": "oo_agent",
+  "schema": "_oo",
+  "migration_lock_key": 6404202605,
+  "lock_key_algorithm": "lock-key/v1",
+  "clock": "clock_timestamp()",
+  "files": [
+    {
+      "version": "target-bootstrap/1",
+      "phase": "expand",
+      "filename": "0000_bootstrap_roles.sql",
+      "sha256": "37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208"
+    },
+    {
+      "version": "target-fence-receipts/1",
+      "phase": "expand",
+      "filename": "0001_target_fence_expand.sql",
+      "sha256": "97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9"
+    }
+  ],
+  "tables": [
+    "_oo.schema_migrations",
+    "_oo.migration_lock",
+    "_oo.target_generations",
+    "_oo.apply_receipts"
+  ],
+  "generation_states": ["adopted", "failed"],
+  "receipt_identity": ["source", "table_generation", "txn_or_batch_id"],
+  "versions": {
+    "config": "config/v1",
+    "type_policy": "type-policy/v1",
+    "batch": "batch/v1"
+  },
+  "position_codecs": [
+    "pg-commit-lsn/v1",
+    "mysql-binlog-pos/v1",
+    "batch-cursor-us/v1",
+    "snapshot-zero/v1"
+  ],
+  "roles": {
+    "owner": "oo_target_owner",
+    "runtime": "oo_pipeline_runtime",
+    "owner_granted_to_runtime": false,
+    "runtime_is_agent_credential": false,
+    "runtime_is_gateway_credential": false
+  },
+  "public_functions": [
+    "_oo.adopt_target_generation(text,uuid)",
+    "_oo.renew_target_generation(text,uuid,bigint)",
+    "_oo.fail_target_generation(text,uuid,bigint)",
+    "_oo.assert_target_fence(text,uuid,bigint)",
+    "_oo.commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea)",
+    "_oo.schema_ready(text)"
+  ],
+  "sqlstates": {
+    "check_violation": "23514",
+    "insufficient_privilege": "42501",
+    "lock_not_available": "55P03",
+    "numeric_value_out_of_range": "22003",
+    "invalid_byte_sequence": "22021",
+    "admin_shutdown": "57P01",
+    "checksum_mismatch": "OO001",
+    "bookkeeping_incomplete": "OO002",
+    "forced_migration_failure": "OO003",
+    "receipt_conflict": "OO010",
+    "fence_not_held": "OO011",
+    "stale_generation_or_owner": "OO013",
+    "direct_dml_closed": "OO014",
+    "closed_metadata": "OO015",
+    "same_backend_wrong_token": "OO017",
+    "generation_failed": "OO018",
+    "lock_key_mapping": "OO019",
+    "lock_key_collision": "OO020"
+  },
+  "backup_tables": [
+    "_oo.schema_migrations",
+    "_oo.migration_lock",
+    "_oo.target_generations",
+    "_oo.apply_receipts"
+  ],
+  "not_installed": [
+    "loader data-write API",
+    "CDC",
+    "control-database receipt mirror",
+    "reject-event durability",
+    "stream acknowledgement",
+    "Valkey",
+    "publication",
+    "arbitrary SQL fencing"
+  ]
+}

@@ -1,0 +1,6 @@
+psql:/var/lib/oo-fixture/tests/fixtures/reject_digest.sql:11: ERROR:  23514: closed digest payload_digest
+CONTEXT:  PL/pgSQL function _oo._require_digest(text,text) line 4 at RAISE
+SQL statement "SELECT _oo._require_digest(p_payload_digest, 'payload_digest')"
+PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 18 at PERFORM
+SQL function "put_receipt" statement 1
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

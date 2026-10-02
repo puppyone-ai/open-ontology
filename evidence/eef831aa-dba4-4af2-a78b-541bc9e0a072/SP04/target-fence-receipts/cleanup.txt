@@ -1,0 +1,29 @@
+Owned Docker resources removed after evidence was on the host. No docker prune. No foreign container, network, or volume was removed.
+
+Removed containers:
+oo-a072-msrv-997bbcb7-a0e9-4140-8505-e0500a317358
+oo-a072-pg1710-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01
+oo-a072-msrv-post-9ee5b5cc-643a-4949-ba7a-87471876b937
+oo-a072-pg1710-2c451bc0-b35f-4f27-beac-d8d2d3987a40
+
+Removed networks:
+oo-a072-997bbcb7-a0e9-4140-8505-e0500a317358-net
+oo-a072-pg-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01-net
+oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-net
+oo-a072-pg-2c451bc0-b35f-4f27-beac-d8d2d3987a40-net
+
+Removed volumes:
+oo-a072-997bbcb7-a0e9-4140-8505-e0500a317358-cargo
+oo-a072-997bbcb7-a0e9-4140-8505-e0500a317358-target
+oo-a072-pg-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01-data
+oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-cargo
+oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937-target
+oo-a072-pg-2c451bc0-b35f-4f27-beac-d8d2d3987a40-data
+
+Removed host directories:
+/tmp/oo-a072-997bbcb7-a0e9-4140-8505-e0500a317358
+/tmp/oo-a072-pg-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01
+/tmp/oo-a072-post-9ee5b5cc-643a-4949-ba7a-87471876b937
+/tmp/oo-a072-pg-2c451bc0-b35f-4f27-beac-d8d2d3987a40
+
+After removal, label oo.owner=a072 matched no container, network, or volume. oo-a079-pg1710 was still running. No rust-builder container was running.

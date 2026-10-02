@@ -1,0 +1,9 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_catalog.pg_advisory_xact_lock(6404202605);
+\ir ../../migrations/0000_bootstrap_roles.sql
+SET ROLE oo_target_owner;
+\ir ../../migrations/0001_target_fence_expand.sql
+RESET ROLE;
+COMMIT;

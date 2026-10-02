@@ -1,0 +1,3 @@
+psql: error: connection to server at "127.0.0.1", port 5432 failed: FATAL:  permission denied for database "oo_agent"
+DETAIL:  User does not have CONNECT privilege.
+2026-10-02 01:21:00.726 UTC [2168] oo_a072_agent@oo_agent FATAL:  42501: permission denied for database "oo_agent"

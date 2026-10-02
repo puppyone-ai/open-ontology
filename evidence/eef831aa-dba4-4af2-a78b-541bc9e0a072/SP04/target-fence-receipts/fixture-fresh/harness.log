@@ -1,0 +1,137 @@
+contract_checksums=match
+container=oo-a072-pg1710-2c451bc0-b35f-4f27-beac-d8d2d3987a40 boot=37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208 expand=97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9
+ok pg_version
+ok reset
+ok apply
+rejected bookkeeping_missing OO002
+ok ready_before
+ok rows_missing
+ok record
+ok protocol_repeat
+ok rows_ready
+ok protocol_repeat_again
+ok rows_repeat
+repeat_application=no_duplicate
+rejected checksum_mismatch OO001
+ok rows_mismatch
+ok ready_match
+ok ready_view
+ok ready_mismatch
+ok rows_after_ready
+readiness_mismatch=false
+ok logins
+ok synth
+ok privileges
+ok relations
+ok control_empty
+ok bare_empty
+ok whoami_runtime
+ok whoami_bootstrap
+ok runtime_ready
+rejected gateway_connect 42501
+rejected agent_connect 42501
+rejected runtime_set_config 42501
+rejected runtime_advisory 42501
+rejected runtime_insert 42501
+rejected runtime_truncate 42501
+rejected runtime_temp 42501
+rejected runtime_set_role 42501
+rejected runtime_create_function 42501
+rejected owner_insert OO014
+rejected owner_truncate OO014
+rejected owner_update_migration OO014
+rejected closed_codec OO015
+rejected closed_lineage OO015
+rejected closed_digest 23514
+rejected closed_long 23514
+rejected closed_fraction 22003
+rejected closed_huge 22003
+rejected closed_negative_pos 22003
+rejected closed_nul 22021
+rejected closed_partial 23514
+rejected closed_segment 23514
+rejected negative_generation 22003
+rejected zero_generation 22003
+ok receipts_before_flow
+closed_metadata_left_no_receipt
+ok clock_trap
+ok fence_flow
+ok drop_trap
+rejected owner_delete_generation OO014
+ok shard_clock_after_delete
+ok negative_key
+ok receipts_after_flow
+ok replay_takeover
+ok receipts_after_replay
+ok shard_after_replay
+rejected conflict_payload OO010
+rejected conflict_lineage OO010
+rejected conflict_codec OO010
+rejected conflict_side OO010
+ok receipts_after_conflict
+ok shard_after_conflict
+ok side_counts
+rejected owner_update_receipt OO014
+ok receipts_after_owner
+conflicts_left_receipt_unchanged
+rejected second_same_shard 55P03
+waited hold_excl exit=0
+same_shard_exclusive=55P03
+waited hold_left exit=0
+waited hold_right exit=0
+ok shard_left
+ok shard_right
+distinct_shards_parallel=1
+rejected other_connection OO011
+waited hold_known exit=0
+other_connection_rejected=OO011
+rejected same_backend_other_token OO017
+ok shard_oo017
+rejected stale_generation OO013
+ok counts_stale
+rejected wrong_owner OO013
+ok counts_wrong_owner
+rejected failed_commit OO018
+ok shard_failed
+ok fail_takeover
+rejected rolled_back_fail OO011
+ok shard_rb
+ok rb_takeover
+ok terminate_dead
+waited hold_dead exit=2
+ok takeover_dead
+ok counts_dead
+terminated_backend_generation_advanced
+ok crash_before_open
+ok terminate_before
+waited crash_before exit=2
+ok crash_before_after
+crash_before_commit_left_no_receipt
+ok terminate_after
+waited crash_after exit=2
+ok crash_after_durable
+crash_after_commit_receipt_remains
+ok prepare_overflow
+ok force_max
+rejected overflow_adopt 22003
+ok check_overflow
+ok prepare_down
+ok generations_before_key
+rejected decrease_generation 22003
+ok check_down
+rejected lock_key_change OO019
+ok generations_after_key
+lock_keys_unchanged
+rejected runtime_force 42501
+ok drop_force
+rejected migration_lock 55P03
+waited hold_migration exit=0
+ok protocol_after_lock
+migration_executor_lock=55P03
+rejected failed_fresh OO003
+ok failed_fresh_probe
+rejected failed_follow OO003
+ok failed_follow_probe
+failed_migration_rolled_back
+secret_scan=clear
+fixture_result=pass

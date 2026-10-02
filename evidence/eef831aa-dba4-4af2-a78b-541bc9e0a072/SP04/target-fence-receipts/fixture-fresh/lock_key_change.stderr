@@ -1,0 +1,7 @@
+psql:/var/lib/oo-fixture/tests/fixtures/lock_key_change.sql:2: ERROR:  OO019: target lock identity is immutable
+CONTEXT:  PL/pgSQL function _oo.reject_direct_write() line 24 at RAISE
+SQL statement "UPDATE _oo.target_generations
+  SET lock_key1 = p_key1, lock_key2 = p_key2
+  WHERE shard_id = p_shard"
+PL/pgSQL function fixture_synth.force_lock_key(text,integer,integer) line 4 at SQL statement
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

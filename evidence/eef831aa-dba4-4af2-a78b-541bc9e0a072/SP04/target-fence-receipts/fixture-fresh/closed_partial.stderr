@@ -1,0 +1,4 @@
+psql:/var/lib/oo-fixture/tests/fixtures/reject_partial.sql:14: ERROR:  23514: closed completion metadata
+CONTEXT:  PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 58 at RAISE
+SQL function "put_receipt" statement 1
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

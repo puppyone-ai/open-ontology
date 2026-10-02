@@ -1,0 +1,3 @@
+psql:/var/lib/oo-fixture/tests/fixtures/overflow_adopt.sql:5: ERROR:  22003: target generation overflow
+CONTEXT:  PL/pgSQL function adopt_target_generation(text,uuid) line 92 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,0 +1,7 @@
+psql:/var/lib/oo-fixture/tests/fixtures/decrease_generation.sql:3: ERROR:  22003: target generation decreased
+CONTEXT:  PL/pgSQL function _oo.reject_direct_write() line 18 at RAISE
+SQL statement "UPDATE _oo.target_generations
+  SET generation = p_generation
+  WHERE shard_id = p_shard"
+PL/pgSQL function fixture_synth.force_generation(text,bigint) line 4 at SQL statement
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
