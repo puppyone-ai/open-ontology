@@ -117,7 +117,7 @@
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
 - [ ] SP03-W04 type/PositionCodec/精度
-  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098实际启动；仅connector代码/隔离快照，主依赖等待a095明确交接。
+  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098执行中；a095实际terminal后通过a098-root-writer-handoff.md明确移交根依赖/connector manifest整合权，最终固定交付与独立复审待验。
 - [ ] SP03-W05 catalog/名字映射/注册
 - [ ] SP03源审计/Phase退出
 
@@ -182,7 +182,7 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
-  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a095实际启动；沙盒proxy/管理命令/完整对话另验。
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a095交付3347f5a，Linux1.94九集成测试/Clippy0，a103固定SHA独立复审中；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -656,3 +656,13 @@ CLI3387、types61045、targetreview5836、identity34511、helpertools3407、jobs
 本回合七个既有handle单次实际核验仍live，未发现终态或missing。a095作者报告owned overlay Linux run exit0，正在读phase，不能据作者中间说明释放root或验收CLI。新增execution/prompts/v01-cli-query-fixed-review-prepared.md，待a095实际terminal及完整固定身份后绑定UUID派发；准备卡无写权/无运行/不计交付。独立复审明确真实spawn/HTTP/TLS、不同于生产helper的JSON金标、凭证inode/临时owner探针、FIFO在fstat前open可能阻塞、Markdown与完整元数据、精度/重试/退出码/破管，以及源码和完整原始脱敏输出须在清理前留存。a097原UUID补证已找到oracle源码，仍待完整输出和补充报告；未提前签收或刷新docs来源baseline。
 
 roota095、connectora098、jobs新增迁移a102不变；reader/apply仍prepared。当前无新完成勾选，产品仍6交付组件/6验收子项/首次返工4比6，完整87父项/16Phase未完成。
+
+## a095实际交付、a098明确根交接、a103固定CLI复审
+
+本回合a095handle3387有界wait实际exit0，未按超时推断终态。完整REPORT/HANDOFF已读，source3347f5a280da52c70525879b4608170b6b92b523/tree0e9f38551ea6f88c78ff980efbf2eec40c0da4ab/parent1b9110265aae92bdd7eb02a71dcbeacf648375a5。交付真实oo→SDK HTTP/TLS query、显式token文件/stdin、JSON/Markdown与退出码；非对话或真实Gateway。Linux1.94 ownedoverlay24hash逐个重算全OK，rootlock40664b41001d01db59d272e0d9fab3977842becc88998bd52eefaa0c1b7a7147一致；fetch/test/Clippy/docker均0，九集成测试0失败。rootCargo.toml无改，lock仅六条既有CLI依赖边，无新registry版本。主机测试日志未留存不作为MSRV证据；独立复审仍须探针而非作者自签。
+
+a095关闭不再轮询，root/CLI diff和index均空后，显式写execution/decisions/a098-root-writer-handoff.md。a098UUID/handle61045现在唯一根依赖与productionconnector manifest writer，新baselineb13650e403a64498955daf93bc25003f7c857aaa，禁止用旧b3a8ed3 lock覆盖CLI边；connector类型范围及其他安全/资源约束保持。a097源oracle补证未签，不据此授予reader/Loader生产准入。
+
+a103UUIDeef831aa-dba4-4af2-a78b-541bc9e0a103实际启动，handle93875，execution/prompts/v01-cli-query-fixed-review.md绑定3347f5a immutablearchive/fullpreparedcard，readonly生产树，仅own evidence/Rust独立oracle。其资源预算共享globalmax2，不加builder容量。凭证FIFO/临时uid、数据NULL/metadata/精度、渲染/重试/退出码/实际TLS/破管及源码日志留存均需独立证明。
+
+新增CLIquery交付组件，累计7（PGentrycatalog、jobsschema、purestructdraft、eventprojectbinding、JSONSDK、targetfenceschema、CLIquery）；独立验收产品子项仍6。首轮产品复审既有6/返工4比6，CLI首轮结果尚未出，不先增加返工或完成计数。87完整父项/16Phase仍0完成。to-do/Plan同步为in_review，未新增完成勾选。reader/apply待源/types/target依赖独立批准；基础tools/identity与jobs独立推进。
