@@ -129,7 +129,7 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：8370498经a085 request_changes；a092前向NULL修正交付9a71efa，a099固定复审中。Loader driver、控制镜像和ACK/TRIM另验。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a099固定9a71efa复审request_changes；180 NULL组合通过，缺表42P01不符合OO002。a104版本化修复中，保留旧SQL/contract与合法历史。Loader driver、控制镜像和ACK/TRIM另验。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
