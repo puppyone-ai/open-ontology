@@ -1,0 +1,7 @@
+PHASE 7 restart
+CASE restart_version ok
+CASE restart_queued_durable ok
+CASE restart_running_durable ok
+CASE restart_open_tx_absent ok
+CASE restart_checksum_rows ok
+SUMMARY passed=5 failed=0 exit=0

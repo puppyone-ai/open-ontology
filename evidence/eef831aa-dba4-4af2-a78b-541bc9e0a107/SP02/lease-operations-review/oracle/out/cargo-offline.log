@@ -1,0 +1,25 @@
+   Compiling lease_oracle v0.0.0 (/tmp/oracle)
+warning: variable does not need to be mutable
+  --> src/pg.rs:47:13
+   |
+47 |         let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(10))
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `status` is never read
+  --> src/pg.rs:13:9
+   |
+ 8 | pub struct Outcome {
+   |            ------- field in this struct
+...
+13 |     pub status: u8,
+   |         ^^^^^^
+   |
+   = note: `Outcome` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lease_oracle` (bin "lease_oracle") generated 2 warnings (run `cargo fix --bin "lease_oracle" -p lease_oracle` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s

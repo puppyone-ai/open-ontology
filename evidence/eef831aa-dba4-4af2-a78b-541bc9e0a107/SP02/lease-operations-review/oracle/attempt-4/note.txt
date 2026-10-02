@@ -1,0 +1,1 @@
+134 passed, 3 failed, restart 5 passed. The three failures are the lock probe: a107_runtime has no UPDATE, so FOR UPDATE returned 42501. Claims themselves were 100 distinct. Retained before probing with the superuser.

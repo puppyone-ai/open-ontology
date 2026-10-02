@@ -1,0 +1,5 @@
+POSTGRES_HOST_AUTH_METHOD
+POSTGRES_USER
+POSTGRES_DB
+LANG
+password_on_argv=no auth=trust_fixture_only host_port=none

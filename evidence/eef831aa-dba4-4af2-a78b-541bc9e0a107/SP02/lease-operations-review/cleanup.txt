@@ -1,0 +1,5 @@
+after
+containers_left 0
+volumes_left 0
+networks_left 0
+foreign_running 0

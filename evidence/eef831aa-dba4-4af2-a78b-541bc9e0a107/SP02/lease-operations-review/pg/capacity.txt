@@ -1,0 +1,1 @@
+postgres_fixtures=0 own_take=1 rust_compilers_not_counted_here=1

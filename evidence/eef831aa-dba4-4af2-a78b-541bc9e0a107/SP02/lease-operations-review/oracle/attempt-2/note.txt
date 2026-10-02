@@ -1,0 +1,1 @@
+Harness expected the owner to DELETE a task_events row. The jobs-control trigger rejected it with 23514 task event is immutable. 0002 then correctly refused OO004 again, and 0003 reported OO002 because the 0002 foreign key was absent. Not a product failure. Retained before the fixture-cleanup fix.

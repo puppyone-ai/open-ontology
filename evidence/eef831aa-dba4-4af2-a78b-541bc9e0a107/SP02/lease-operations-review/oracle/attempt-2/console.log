@@ -1,0 +1,35 @@
+=== cargo build --offline ===
+PHASE 1 identity
+CASE driver_stub_unsigned ok
+CASE author_fixture_hardcoded ok
+CASE sql_source_has_no_jitter_word ok
+PHASE 2 lie
+CASE lie_install ok
+CASE lie_readiness_present ok
+CASE lie_is_not_file_proof ok
+CASE lie_enqueue_still_works ok
+CASE lie_repeat_real_hash_oo001 ok
+CASE lie_checksum_unchanged ok
+PHASE 3 upgrade-history
+CASE install_0000_0001 ok
+CASE v1_claim_absent ok
+CASE seed_legal ok
+CASE seed_bad_history ok
+CASE bad_history_oo004 ok
+CASE bad_history_not_rewritten ok
+CASE bad_history_no_fk ok
+CASE fixture_delete_bad_row fail
+CASE legal_hash_restored fail
+CASE install_0002 fail
+CASE hash_after_0002 fail
+CASE runtime_migration_oo013 ok
+CASE plant_stub ok
+CASE refuse_adopt_oo014 fail
+CASE stub_not_replaced ok
+CASE drop_stub ok
+CASE plant_other_definer ok
+CASE forced_oo003 fail
+CASE forced_no_function ok
+CASE planted_definer_survives_0003_guard ok
+CASE install_0003 fail
+SUMMARY passed=23 failed=7 exit=1

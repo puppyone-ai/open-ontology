@@ -1,0 +1,1 @@
+Full oracle reached restart. 130 passed, 6 failed, restart phase 5 passed. Failures were harness: replay changed max_attempts, api_key/secret JSON was not quoted, 16384 input canonicalizes to 16385 stored jsonb octets, complete_success generation 0 is OO010, and pg_locks does not list granted tuple locks. Retained before the harness correction.

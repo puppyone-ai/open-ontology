@@ -98,7 +98,7 @@
 ### SP02
 
 - [ ] SP02-W01 控制迁移/jobs/lease/schedule
-  - [ ] SP02-W01-b1 DB租约函数：a102交付c312cae与dd5ecf3报告，Linux1.94冒烟0、host PG17.10 live通过；a107固定复审卡待槽，未验收，Rustdriver/100完整worker另验。
+  - [x] SP02-W01-b1 DB租约SQL primitive：a107固定c312cae限定批准，Linux1.94局部0、真实PG17.10 LOGIN oracle137+restart5通过；Rustdriver/100完整worker及F1–F7另验。
   - [x] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72获a068固定复审approve；协调者核验完整报告、117探针全ok/0失败、Linux1.94测试/Clippy0和三个文件hash。仅schema切片，driver/100worker/备份与完整AT仍未签。
   - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：a102先实现独立DB lease primitives，Rust调度驱动/共享依赖随后整合。
   - [ ] SP02-W01-b1 受限DB领取/续租/完成/retry/cancel原语：a102实际启动，新增0003/versioncontract与Rust真实PG fixture；旧0/1/2不变、无Cargo写权。
@@ -795,3 +795,7 @@ a109实际派发handle44328，Grok4.7xhigh、fixedabd074a immutablearchive，仅
 ### reader拆分为固定提交验收序列
 
 prepared卡新增R1单snapshot owner/catalog绑定、R2真实有界Arrow stream/预算、R3键/取消/整轮失败、R4完整reader集成复审；明确每步输入/生产接口/真实PG测试/输出与未签范围。此拆分保留完整原卡要求，R4通过前不可签reader或放行target apply。拟定connector-only路径尚无授权，依赖/vendor改变须先明确handoff；未派发不计交付或勾选。当前a107/a109真实handles仍live，global两槽保持各自独占。
+
+### a107终态签收，槽A移交reader R1
+
+a107handle80154实际exit0，完整三报告及142真实rawcase/summary已核验，160文件SHA接收；仅SP02-W01-b1限定勾选，全部7residual保持。产品9交付组件/9验收子项，首轮9/返工6约66.7%，完整87父项/16Phase仍未完成。snapshot重复旧证据保留不stage。槽A明确释放给a112 reader R1；slotB仍a109原handle44328。a112仅connector指定路径与own evidence写权，无manifest/lock/vendor授权，root继续保留无writer。
