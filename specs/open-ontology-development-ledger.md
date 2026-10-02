@@ -483,3 +483,9 @@ a081运行日志称workspace解析被其他任务uncommitted oo-connectors manif
 a081 handle23764实际终态0，交付eebc0ea3b835655fdb3ab088e6f7351d0d316a43（treeeebbcb4a8ff44d50c4b541d5646796a82a234210，parent79587e4）。协调者已读完整REPORT/HANDOFF，核查baseline/fixed原始Linux1.94fetch/test/Clippy/docker均0，fixed27lib+4CLI通过，五个源码blob与93c6cc57测试树一致；两process metadata记录的凭据参数marker计数0只是有限检查，不证明历史秘密gate关闭。当前foreign connector manifest SHA b9d8c7bfda4c563994024190ab0ad73c9fffefe013625a760aa47bc1f483216d仅记录观测时状态，不证明此前恢复没有覆盖。报告仍写a073 root-owner，已明确现为a083。
 
 a086 handle15204已实际启动固定eebc0ea只读archive复审，先Linux1.94局部冒烟，再独立端点闭包/组合与自引用/重复key成员/合法复用/hash优先级/CLI脱敏负例；manifest越界操作按可见证据独立记录，不改livea083文件。a071 findings1/2/5及完整SP07继续pending；结构修复不计新功能交付，不增加已验收子项或首次复审分母，收到独立结论前不勾修正。a080/a082/a083/a084/a085上一观测仍live，不重启。Prepared三张导入任务卡尚未赋编码权。
+
+## NFC任务准备与验证等待
+
+上一目标回合为progress：结构修正eebc0ea已交付，e80b4f1派发a086固定复审。本回合一次实际句柄核验a080/a082/a083/a084/a085/a086全部live；对关键a083 handle30780进行单次60秒有界等待后仍live，不依据日志tool_output_error或等待超时重启。此为verified wait，不是停工或block。
+
+v01-builder-nfc-prepared.md已补齐findings1/2/5专用任务卡：根单writer串行接入与connector相同unicode-normalization0.1.25、官方U16/U17/全标量oracle、notice/erratum、旧hash/人工决策兼容和a081回归。尚未派发且没有写权；a083当前Cargo.toml/Cargo.lock/connector变更不被协调者或其他task覆盖。任务卡准备不计产品交付/验收，不新增勾选，速度指标仍6组件/3验收子项/首轮返工2/4。真正源整合终态后先收完整证据与固定SHA再推进root任务及类型/reader/apply；所有完整父项/Phase仍pending。
