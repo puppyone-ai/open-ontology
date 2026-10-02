@@ -688,3 +688,9 @@ a100handle34511实际exit0但最后仅builder3exit0待读output，未review/find
 本回合a097handle35038实际exit0。retention/rerun/phases/rerun.exit已实际为0，保留stdout显示1testpassed/0failed/2.38s、result=pass，roleGUCcatalogdelta0/双block/unknown观测、freshreaderread_only及wrongCA/hostdelta0可读。原sourcehash已恢复精确匹配，旧完整stdout仍missing；新run不能冒称旧run原件。尚无retention supplement/HANDOFF、该轮rawSQL审计和完成cleanup，ownPGfixture仍存在，故不签源准入、不刷新docsbaseline、不新增完成勾选。
 
 立即原UUID显式resume handle15057，execution/prompts/a097-retention-terminal-followup.md要求读取既有实际phase/stdout/stderr/lock而非重新构建，收集该轮脱敏rawSQL审计后形成限定补充与清理记录。firstcp-a在capdropALL不能preserveownership导致container1/fetch0保留，不作为产品失败。a09861045/a0995836/a10291030/a10393875本回合单次实际核验仍live，root/connectorwriter a098、jobs新增迁移a102保持，未按静默重启。产品仍7交付组件/6验收子项/首次返工4比6，完整87父项/16Phase未完成。
+
+## 类型生产接口范围核对与固定复审准备
+
+本回合a09715057/a09861045/a0995836/a10291030/a10393875单次实际核验均live，无终态或重启。a098已读取显式root交接并准备Linux1.94实际验证。协调者查看尚未交付的conversion-v1草稿：正文暂称实际Arrow仅isolatedprobe、productgraph无arrowcrate；自有pg/oracle.py为新测试automation。此为当前草稿限制，不能签最终生产RustSQLx→canonical→actualArrow任务；root交接允许必要真实依赖整合，不能以通过独立probe缩为buffer描述。已在a098-root-writer-handoff.md追加scopecheck，保留历史Python尝试/输出但要求交付Rust独立oracle，不删除过去失败或虚构语言一致。
+
+新增v01-pg-lossless-types-fixed-review-prepared.md，尚未派发/无UUID无写权，待a098真实terminal/fixedcommit/fullhandoff绑定。重点生产RecordBatch依赖与接口、canonical独立gold、类型OID/sendproc安全、signednumeric/temporal/JSON/arrayslowerbounds/domain、NULLvsunavailable/rowpreservation/rejectbudgets及真实零源写审计、Rustauthorautomation、依赖来源与MSRV。对应W04-a仍in_progress，reader/apply依赖未签。无新验收勾选或计数，仍7交付组件/6产品验收子项/首次返工4比6，完整87/16未完成。
