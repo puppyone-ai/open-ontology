@@ -1,0 +1,2 @@
+early {'u16-1e14': True, 'u17-1e14': True, 'u17-1acf': True, 'u16-1acf-unchanged': True, 'hangul': True, 'angstrom': True, 'py-1e14': True}
+ok rows 19965 20034 marks 34 py_mismatch 0

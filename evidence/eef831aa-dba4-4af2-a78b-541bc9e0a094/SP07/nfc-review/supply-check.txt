@@ -1,0 +1,187 @@
+=== oo-builder Cargo.toml deps ===
+13:[dependencies]
+14:oo-core = { path = "../oo-core" }
+15:oo-jobs = { path = "../oo-jobs" }
+16:serde = { version = "=1.0.229", features = ["derive"] }
+17:serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+18:unicode-normalization = "=0.1.25"
+19:
+20:[dev-dependencies]
+21:sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+22:unicode-normalization = "=0.1.25"
+=== lock package headers ===
+2053:name = "sha2"
+2054:version = "0.10.9"
+2054:version = "0.10.9"
+2056:checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+2057:dependencies = [
+2064:name = "sha2"
+2065:version = "0.11.0"
+2065:version = "0.11.0"
+2067:checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
+2068:dependencies = [
+2368:name = "tinyvec"
+2369:version = "1.13.3"
+2369:version = "1.13.3"
+2371:checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+2542:name = "unicode-normalization"
+2543:version = "0.1.25"
+2543:version = "0.1.25"
+2545:checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
+2546:dependencies = [
+=== cargo.toml diff ===
+diff --git a/crates/oo-builder/Cargo.toml b/crates/oo-builder/Cargo.toml
+index c8e7c7d..d3cf3f7 100644
+--- a/crates/oo-builder/Cargo.toml
++++ b/crates/oo-builder/Cargo.toml
+@@ -15,3 +15,8 @@ oo-core = { path = "../oo-core" }
+ oo-jobs = { path = "../oo-jobs" }
+ serde = { version = "=1.0.229", features = ["derive"] }
+ serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
++unicode-normalization = "=0.1.25"
++
++[dev-dependencies]
++sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
++unicode-normalization = "=0.1.25"
+
+=== PROVENANCE.md ===
+# Unicode data used by the builder NFC tests
+
+Retrieved 2026-10-02. The bytes below are the official files, unchanged. SHA-256 was computed locally and matches the digests recorded by review a071. The normalizer itself is not these files. It is `unicode-normalization` 0.1.25, whose generated tables are Unicode 17.0.0. That crate's `COPYRIGHT` is the Rust project MIT OR Apache-2.0 grant and does not include this notice.
+
+| File | URL | SHA-256 |
+|---|---|---|
+| `16.0.0/NormalizationTest.txt` | https://www.unicode.org/Public/16.0.0/ucd/NormalizationTest.txt | `d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1` |
+| `16.0.0/UnicodeData.txt` | https://www.unicode.org/Public/16.0.0/ucd/UnicodeData.txt | `ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f` |
+| `17.0.0/NormalizationTest.txt` | https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt | `5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db` |
+| `17.0.0/UnicodeData.txt` | https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt | `2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c` |
+| `LICENSE.txt` | https://www.unicode.org/license.txt | `e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96` |
+
+`LICENSE.txt` is Unicode License V3, copyright 1991-2026 Unicode, Inc., as published at that URL on the retrieval date. Each UCD file points at https://www.unicode.org/terms_of_use.html and carries its own header (`NormalizationTest-16.0.0.txt` dated 2024-04-30; `NormalizationTest-17.0.0.txt` dated 2025-06-30).
+
+Also retrieved and hashed, not copied into this tree, because the product no longer embeds generated tables:
+
+| File | URL | SHA-256 |
+|---|---|---|
+| Unicode 16 `CompositionExclusions.txt` | https://www.unicode.org/Public/16.0.0/ucd/CompositionExclusions.txt | `89e83cf9cc8bef6c1f8bf77e42cf6f0341dfa42e66261f4dbe9b492e7a23c8ee` |
+
+The license text in `LICENSE.txt` applies to these data files and to the Unicode data compiled into `unicode-normalization` 0.1.25. The crate's SPDX license `MIT OR Apache-2.0` does not replace it.
+
+=== head crates/oo-builder/tests/unicode/16.0.0/NormalizationTest.txt ===
+# NormalizationTest-16.0.0.txt
+# Date: 2024-04-30, 21:48:23 GMT
+# © 2024 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
+#
+# Unicode Character Database
+#   For documentation, see https://www.unicode.org/reports/tr44/
+#
+# Normalization Test Suite
+# Format:
+#
+=== head crates/oo-builder/tests/unicode/17.0.0/NormalizationTest.txt ===
+# NormalizationTest-17.0.0.txt
+# Date: 2025-06-30, 06:16:16 GMT
+# © 2025 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
+#
+# Unicode Character Database
+#   For documentation, see https://www.unicode.org/reports/tr44/
+#
+# Normalization Test Suite
+# Format:
+#
+=== head crates/oo-builder/tests/unicode/LICENSE.txt ===
+UNICODE LICENSE V3
+
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright © 1991-2026 Unicode, Inc.
+
+NOTICE TO USER: Carefully read the following legal agreement. BY
+DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
+SOFTWARE, YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+
+=== conformance mark region ===
+201:        assert_eq!(sha256_hex(&bytes), expect, "{rel}");
+204:    assert!(license.contains("UNICODE LICENSE V3"));
+205:    assert!(license.contains("Copyright © 1991-2026 Unicode, Inc."));
+206:    assert!(license.contains("this copyright and permission notice appear"));
+210:fn official_nfc_equations_and_connector_parity() {
+211:    assert_eq!(unicode_normalization::UNICODE_VERSION, (17, 0, 0));
+219:    assert_eq!(report16.rows, U16_ROWS);
+220:    assert_eq!(report17.rows, U17_ROWS);
+221:    assert_eq!(report16.assigned_failures, 0, "unicode 16 assigned NFC");
+222:    assert_eq!(
+226:    assert_eq!(report16.parity_failures, 0);
+227:    assert_eq!(report17.assigned_failures, 0, "unicode 17 NFC");
+228:    assert_eq!(report17.unassigned_deltas, 0);
+229:    assert_eq!(report17.parity_failures, 0);
+231:    assert_eq!(oo_builder::nfc("\u{1E14}"), "\u{1E14}");
+232:    assert_eq!(oo_builder::nfc("\u{0045}\u{0304}\u{0300}"), "\u{1E14}");
+233:    assert_eq!(
+234:        oo_builder::nfc("\u{0065}\u{1ACF}\u{0323}"),
+235:        "\u{1EB9}\u{1ACF}"
+237:    assert_eq!(
+238:        connector_oracle("\u{0065}\u{1ACF}\u{0323}"),
+239:        oo_builder::nfc("\u{0065}\u{1ACF}\u{0323}")
+244:fn unicode17_marks_missing_from_unicode16_follow_the_connector() {
+251:    let mut marks = Vec::new();
+253:        if u17.ccc[cp] != 0 && u16.ccc[cp] == 0 {
+254:            assert_eq!(u16.assigned[cp], 0, "U+{cp:04X} is assigned in unicode 16");
+255:            marks.push(cp as u32);
+258:    assert_eq!(marks.len(), 34);
+259:    assert!(marks.contains(&0x1ACF));
+260:    assert_eq!(u17.ccc[0x1ACF], 230);
+261:    for cp in marks {
+265:        assert_eq!(got, connector_oracle(&sequence), "U+{cp:04X}");
+266:        assert_eq!(oo_builder::nfc(&got), got);
+271:fn every_scalar_is_idempotent_and_u16_fixed_points_stay_fixed() {
+295:        assert_eq!(oo_builder::nfc(&got), got, "U+{cp:04X} not idempotent");
+311:    assert_eq!(seen, 1_112_064);
+312:    assert_eq!(parity_failures, 0);
+313:    assert_eq!(u16_assigned_failures, 0);
+314:    assert_eq!(u17_assigned_failures, 0);
+315:    assert_eq!(u16_unassigned_deltas, 0);
+=== tools ===
+cargo-deny=absent
+cargo-audit=absent
+cargo=/opt/homebrew/bin/cargo
+rustc=/opt/homebrew/bin/rustc
+cargo_bin=absent
+=== author fixed console result lines ===
+phase_exit=0 phase=rustup_component_add_clippy
+phase_exit=0 phase=cargo_fetch_locked
+phase_exit=0 phase=cargo_tree_unicode_normalization
+running 27 tests
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+phase_exit=0 phase=cargo_test_oo_builder
+phase_exit=0 phase=cargo_clippy_oo_builder
+=== crates.io ===
+{"age_hours_before_2026-10-02": 8071.9, "checksum": "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8", "crate_size": 128462, "created_at": "2025-10-30T16:06:38.929447Z", "license": "MIT OR Apache-2.0", "name": "unicode-normalization", "num": "0.1.25", "rust_version": "1.36", "yanked": false}
+{"age_hours_before_2026-10-02": 432.5, "checksum": "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee", "crate_size": 60306, "created_at": "2026-09-13T23:30:12.904680Z", "license": "Zlib OR Apache-2.0 OR MIT", "name": "tinyvec", "num": "1.13.3", "rust_version": null, "yanked": false}
+{"age_hours_before_2026-10-02": 12465.4, "checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283", "crate_size": 29271, "created_at": "2025-04-30T14:38:09.894118Z", "license": "MIT OR Apache-2.0", "name": "sha2", "num": "0.10.9", "rust_version": null, "yanked": false}
+{"age_hours_before_2026-10-02": 4568.9, "checksum": "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4", "crate_size": 33969, "created_at": "2026-03-25T15:05:27.949444Z", "license": "MIT OR Apache-2.0", "name": "sha2", "num": "0.11.0", "rust_version": "1.85", "yanked": false}
+downloaded_crate_sha256=5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8 bytes=128462
+crate_cargo_version_lines:
+rust-version = "1.36"
+name = "unicode-normalization"
+version = "0.1.25"
+license = "MIT OR Apache-2.0"
+name = "unicode_normalization"
+name = "bench"
+version = "1"
+tables.rs:18:pub const UNICODE_VERSION: (u8, u8, u8) = (17, 0, 0); file_bytes=625711
+crate_deps:

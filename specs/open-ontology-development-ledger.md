@@ -150,8 +150,9 @@
 ### SP07
 
 - [ ] SP07-W01 OOS/overlay/stale
-  - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a071五项返工；closure eebc0ea由a086原会话续审，NFC a088原会话续接，均未签收。
-  - [x] V01-OOS-01A-C findings3/4端点闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；仅此修复切片，NFC与完整草案另验。
+  - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a071五项修正中closure获a086批准、NFC获a094批准；真实catalog/import、审核全流程及完整W01另验。
+  - [x] V01-OOS-01A-C findings3/4端点闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；仅此修复切片，完整草案另验。
+  - [x] V01-OOS-01A-NFC findings1/2/5修正：a094固定3ed558a批准；Linux1.94测试/Clippy0、Unicode16 19965行/17 20034行及34新mark独立对照通过，旧hash不静默复用。供应链、physical63byte与完整SP07另验。
   - [x] V01-OOS-01A开发预检：a063首次Linux/MSRV冒烟已核验attempt-2原始日志，rustc1.94.0、62个core测试、fetch/test/Clippy exit0；attempt-1的101保留。此项仅证明开发基线，不证明草案功能或SP07验收。
 - [ ] SP07-W02 catalog/profile/evidence
 - [ ] SP07-W03 规则/关系/码表/专家卡
@@ -568,3 +569,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 ## a091终态不完整复审续接
 
 上一目标回合为progress：a093真实terminal已交接connector给a098。本回合a091handle97172实际exit0，末条仅ownbuilderexit1待读phase，未有review/findings/HANDOFF。立即同UUID显式resume，保留原archive/失败/evidence/fixture不重建；读真实phase后形成独立结论与限定清理。不勾P5、不据exit0或builder1推断批准/产品错误，不增加产品计数。其余a09061992/a09296228/a09424699/a0953387/a09675123/a09765278/a09861045本轮单次核验仍live，不重启。当前roota095、connectora098、pipelinea092，readonlyreviews各固定archive；完整87/16与相应门禁仍pending。
+
+
+## a094 NFC固定复审签收与下一步
+
+原a094 handle24699已实际exit0，独立review/findings全文已读。仅批准a071 findings1/2/5，绑定3ed558a9b62ab3f290ce9674b9afc10e693a5730/tree9aec399e081177330a92f886c4c9dafaa766b4e8；bc0a2ed是identity stamp。协调者重新核对固定tree及oracle-summary/oracle.log/cases.tsv/产品probe SHA均匹配，实际attempt1 fetch/test/Clippy/smoke/worst=0；初次privateident导入E0432 probe/docker101保持，attempt2公有NFC probe/docker=0。27lib、4NFC、4CLI；官方16的19965行/17的20034行0失败，34个新mark及目标组合0失败。独立host oracle不使用unicode-normalization作为预期值，1112064scalar扫描0幂等失败；同库connector parity仍不当独立证据。
+
+本记录细化a088旧snapshot核对：26个相关路径是对工作区的核对；review按固定commit核对为24匹配、2个.DS_Store仅在snapshot、0mismatch，不删除用户文件或重写旧报告。Unicode完整V3许可及notice/erratum核对通过；U17 CompositionExclusions缺产品PROVENANCE行作为note，review使用官方hash2f239196ef3b5b61db5cc476e9bd80f534d15aa1b74e1be1dea5d042a344c85f。a088首次清理空inventory仍是治理证据缺口；a094限定自有资源清理0且保留外国a091资源。cargo-audit/deny未运行不是通过，完整供应链/CDLA不签。physical63byte、signednumeric、import/profile/PII/publish/RBAC/受控查询、双架构/客户/runsc/CI/release均不据NFC批准完成。
+
+仅勾Plan和to-do NFC子项。产品独立验收子项现在5（jobs schema、源三HIGH修正、event项目绑定、结构closure、NFC），交付组件仍6，首次返工仍4/6；87完整父项与16Phase仍0完成。a09061992/a091续接88565/a09296228/a0953387/a09675123/a09765278/a09861045本轮单次核验均live，无静默重启。root唯一writer为a095，connector为a098，pipeline为a092；a098等待CLI实际terminal/完整交接后显式根写权授权。docs17来源漂移仍待a097独立语义结论后版本化处理，不刷新旧baseline或声称check_plan通过。

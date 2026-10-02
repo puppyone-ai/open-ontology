@@ -1,0 +1,240 @@
+{
+  "python_unicodedata": "16.0.0",
+  "hashes": {
+    "16/NormalizationTest.txt": {
+      "sha256": "d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1",
+      "bytes": 2798671,
+      "matches_expected": true,
+      "vendored_sha256": "d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1",
+      "vendored_equal": true
+    },
+    "16/UnicodeData.txt": {
+      "sha256": "ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f",
+      "bytes": 2175362,
+      "matches_expected": true,
+      "vendored_sha256": "ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f",
+      "vendored_equal": true
+    },
+    "16/CompositionExclusions.txt": {
+      "sha256": "89e83cf9cc8bef6c1f8bf77e42cf6f0341dfa42e66261f4dbe9b492e7a23c8ee",
+      "bytes": 9007,
+      "matches_expected": true
+    },
+    "17/NormalizationTest.txt": {
+      "sha256": "5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db",
+      "bytes": 2827429,
+      "matches_expected": true,
+      "vendored_sha256": "5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db",
+      "vendored_equal": true
+    },
+    "17/UnicodeData.txt": {
+      "sha256": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+      "bytes": 2198209,
+      "matches_expected": true,
+      "vendored_sha256": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+      "vendored_equal": true
+    },
+    "17/CompositionExclusions.txt": {
+      "sha256": "2f239196ef3b5b61db5cc476e9bd80f534d15aa1b74e1be1dea5d042a344c85f",
+      "bytes": 9007,
+      "matches_expected": true
+    },
+    "license.txt": {
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "bytes": 1995,
+      "matches_expected": true,
+      "vendored_sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "vendored_equal": true
+    }
+  },
+  "meta16": {
+    "assigned": 294579,
+    "compose_pairs": 961,
+    "singletons": 1035,
+    "nonstarter_skipped": 4,
+    "longer_decompositions": 0,
+    "exclusions": 81
+  },
+  "meta17": {
+    "assigned": 299382,
+    "compose_pairs": 961,
+    "singletons": 1035,
+    "nonstarter_skipped": 4,
+    "longer_decompositions": 0,
+    "exclusions": 81
+  },
+  "rows16": 19965,
+  "rows17": 20034,
+  "fail16": 0,
+  "fail17": 0,
+  "fail16_sample": [],
+  "fail17_sample": [],
+  "py_u16_rows": 19965,
+  "py_u16_row_mismatch": 0,
+  "py_u16_row_sample": [],
+  "scalars": 1112064,
+  "u16_py_scalar_mismatch": 0,
+  "u16_py_scalar_sample": [],
+  "u16_idempotence_failures": 0,
+  "u17_idempotence_failures": 0,
+  "new_marks": 34,
+  "new_marks_unassigned_in_u16": 34,
+  "mark_1acf_ccc17": 230,
+  "required_ok": true,
+  "specials": [
+    {
+      "name": "ascii",
+      "version": "17",
+      "input": "0063 0075 0073 0074 006F 006D 0065 0072",
+      "expect": "0063 0075 0073 0074 006F 006D 0065 0072",
+      "idempotent": true
+    },
+    {
+      "name": "already-nfc-acute",
+      "version": "17",
+      "input": "00E9",
+      "expect": "00E9",
+      "idempotent": true
+    },
+    {
+      "name": "decomposed-acute",
+      "version": "17",
+      "input": "0065 0301",
+      "expect": "00E9",
+      "idempotent": true
+    },
+    {
+      "name": "angstrom",
+      "version": "17",
+      "input": "212B",
+      "expect": "00C5",
+      "idempotent": true
+    },
+    {
+      "name": "A-ring-parts",
+      "version": "17",
+      "input": "0041 030A",
+      "expect": "00C5",
+      "idempotent": true
+    },
+    {
+      "name": "hangul-lv",
+      "version": "17",
+      "input": "1100 1161",
+      "expect": "AC00",
+      "idempotent": true
+    },
+    {
+      "name": "hangul-lvt",
+      "version": "17",
+      "input": "1100 1161 11A8",
+      "expect": "AC01",
+      "idempotent": true
+    },
+    {
+      "name": "hangul-syllable",
+      "version": "17",
+      "input": "AC01",
+      "expect": "AC01",
+      "idempotent": true
+    },
+    {
+      "name": "han",
+      "version": "17",
+      "input": "5BA2 6237",
+      "expect": "5BA2 6237",
+      "idempotent": true
+    },
+    {
+      "name": "multimark-dot-acute",
+      "version": "17",
+      "input": "0065 0323 0301",
+      "expect": "1EB9 0301",
+      "idempotent": true
+    },
+    {
+      "name": "multimark-acute-dot",
+      "version": "17",
+      "input": "0065 0301 0323",
+      "expect": "1EB9 0301",
+      "idempotent": true
+    },
+    {
+      "name": "equal-ccc-macron-grave",
+      "version": "17",
+      "input": "0045 0304 0300",
+      "expect": "1E14",
+      "idempotent": true
+    },
+    {
+      "name": "equal-ccc-grave-macron",
+      "version": "17",
+      "input": "0045 0300 0304",
+      "expect": "00C8 0304",
+      "idempotent": true
+    },
+    {
+      "name": "precomposed-1e14",
+      "version": "17",
+      "input": "1E14",
+      "expect": "1E14",
+      "idempotent": true
+    },
+    {
+      "name": "staged-0112-grave",
+      "version": "17",
+      "input": "0112 0300",
+      "expect": "1E14",
+      "idempotent": true
+    },
+    {
+      "name": "excluded-0344",
+      "version": "17",
+      "input": "0344",
+      "expect": "0308 0301",
+      "idempotent": true
+    },
+    {
+      "name": "ligature-fi",
+      "version": "17",
+      "input": "FB01",
+      "expect": "FB01",
+      "idempotent": true
+    },
+    {
+      "name": "superscript-two",
+      "version": "17",
+      "input": "00B2",
+      "expect": "00B2",
+      "idempotent": true
+    },
+    {
+      "name": "fullwidth-a",
+      "version": "17",
+      "input": "FF21",
+      "expect": "FF21",
+      "idempotent": true
+    },
+    {
+      "name": "sharp-s",
+      "version": "17",
+      "input": "00DF",
+      "expect": "00DF",
+      "idempotent": true
+    },
+    {
+      "name": "u17-1acf",
+      "version": "17",
+      "input": "0065 1ACF 0323",
+      "expect": "1EB9 1ACF",
+      "idempotent": true
+    },
+    {
+      "name": "u16-1acf-class-zero",
+      "version": "16",
+      "input": "0065 1ACF 0323",
+      "expect": "0065 1ACF 0323",
+      "idempotent": true
+    }
+  ]
+}

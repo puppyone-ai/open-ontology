@@ -1,0 +1,273 @@
+=== commit ===
+3ed558a9b62ab3f290ce9674b9afc10e693a5730
+9aec399e081177330a92f886c4c9dafaa766b4e8
+93867666747a46200ee5b34fe5a490d9038096d1
+Redux0223
+171701490+Redux0223@users.noreply.github.com
+builder: normalize names with unicode-normalization 0.1.25
+2026-10-02 18:55:17 +0800
+commit_ok=True tree_ok=True parent_ok=True
+=== stamp ===
+bc0a2ed1835020193042ebca1c48c3b2dca7ed67
+37190fa3070881ebdc7a3257971cfcbd06577b3b
+3ed558a9b62ab3f290ce9674b9afc10e693a5730
+evidence: record the a088 NFC correction commit
+stamp_parent_is_commit=True
+eebc0ea_ancestor_exit=0
+diff_files=66
+diff_outside_a088_evidence=Cargo.lock
+NOTICE
+contracts/builder/structure-draft/README.md
+crates/oo-builder/Cargo.toml
+crates/oo-builder/ERRATUM.md
+crates/oo-builder/NOTICE.md
+crates/oo-builder/src/ident.rs
+crates/oo-builder/src/lib.rs
+crates/oo-builder/src/nfc.rs
+crates/oo-builder/src/nfc_tables.rs
+crates/oo-builder/tests/nfc_conformance.rs
+crates/oo-builder/tests/unicode/16.0.0/NormalizationTest.txt
+crates/oo-builder/tests/unicode/16.0.0/UnicodeData.txt
+crates/oo-builder/tests/unicode/17.0.0/NormalizationTest.txt
+crates/oo-builder/tests/unicode/17.0.0/UnicodeData.txt
+crates/oo-builder/tests/unicode/LICENSE.txt
+crates/oo-builder/tests/unicode/PROVENANCE.md
+archive_entries=3456 tar_files=3456 missing=0 mismatch=0 mode_mismatch=0 extra=0
+=== hashes ===
+f64a2621fcc468cea5253efe3d974acc412449c475d30bd90e7cbb23aaa44c15 2077 crates/oo-builder/src/nfc.rs
+67d9604c6605e909ecdeaf509c01e93095b0cc69b38c0c6e191fba1ab13134b1 7046 crates/oo-builder/src/ident.rs
+38dd90c2e8d94ad4dc9f1c2d42c5af647b16355288ab6ca3d392100c1a1401d4 541 crates/oo-builder/src/lib.rs
+e59c17b1e90b4bf2848f8586585bb41616b3bbd780ac99eda4edb26a993357a3 3279 crates/oo-builder/NOTICE.md
+977e83e11d1569f5250d574f3ffd2a083e3beba647ed4159e6a3ffb012cd6a05 1804 crates/oo-builder/ERRATUM.md
+None 0 crates/oo-builder/PROVENANCE.md
+ac98bc497df78e8f599ed2d8f87822b53e5de4f0dab018564edc9b87a868830e 6350 NOTICE
+2b530fd334db74c992cd9238b4f71668ade554d4523c58782ca23c48ef0cd3e7 72114 Cargo.lock
+a277789df0b8c74febf113a2acc80a0a9f4b51bdeaa662e5d4f761be2489046b 1303 Cargo.toml
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b 564 ci/deny.toml
+c6a5c2fd53c6d985b84f56985172b2ea878e2b26964e18b9a6794024ba14600c 15995 contracts/builder/structure-draft/README.md
+e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96 1995 crates/oo-builder/tests/unicode/LICENSE.txt
+d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1 2798671 crates/oo-builder/tests/unicode/16.0.0/NormalizationTest.txt
+5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db 2827429 crates/oo-builder/tests/unicode/17.0.0/NormalizationTest.txt
+ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f 2175362 crates/oo-builder/tests/unicode/16.0.0/UnicodeData.txt
+2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c 2198209 crates/oo-builder/tests/unicode/17.0.0/UnicodeData.txt
+None 0 crates/oo-builder/tests/unicode/16.0.0/CompositionExclusions.txt
+b9d8c7bfda4c563994024190ab0ad73c9fffefe013625a760aa47bc1f483216d 1658 crates/oo-connectors/Cargo.toml
+3a5eb7c5d5b10e204755f27292f4154fc10620bd2d400f0cbd9635fa84276ec0 6139 crates/oo-connectors/src/ident.rs
+d0140c51fb8ce08dc84defd46090f2bb4f05aa4315441798195b935c42601f22 6494 crates/oo-connectors/src/lib.rs
+nfc_tables_at_commit_exit=128
+u17_exclusions_vendored_exit=128
+historical_nfc_tables 794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338 214143
+=== closure blobs equal parent vs commit ===
+True crates/oo-builder/src/draft.rs 1789ac8f1e235d655c9352bae09e2c4783d05273
+True crates/oo-builder/src/draft_tests.rs 5a2db165a8423a5c67a6229525bf028fedf8d9f0
+True crates/oo-builder/src/pgsql.rs 5374e5e85e610d87df5178f32437625e76c19757
+True crates/oo-builder/tests/structure_draft_cli.rs 79983a58b65f3bd2e72f2334ffbe4f62dcc8c5c5
+=== Cargo.lock diff ===
+diff --git a/Cargo.lock b/Cargo.lock
+index 4aea90f..c871502 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1344,2 +1344,4 @@ dependencies = [
+  "serde_json",
++ "sha2 0.10.9",
++ "unicode-normalization",
+ ]
+=== root manifest deny stat ===
+empty
+golden_or_examples_in_diff=none
+=== nfc.rs ===
+//! Canonical NFC for `pgident/v1`.
+//!
+//! Unicode 17.0.0, from `unicode-normalization` 0.1.25. That is the same
+//! crate and version the PostgreSQL connector applies before `pgident/v1`.
+//! This is not NFKC and it does not case-fold. Compatibility decompositions
+//! stay in the string.
+//!
+//! ASCII and strings that were already canonical NFC keep the same bytes.
+//! The removed hand-written composer did not: `U+0045 U+0304 U+0300` became
+//! `U+0112 U+0300` instead of `U+1E14`, and 34 Unicode 17 combining marks
+//! were treated as class 0. Digests that include those identifiers were
+//! computed from the wrong NFC. Recompile from the raw catalog. An old
+//! digest is not a fresh binding.
+
+use unicode_normalization::UnicodeNormalization;
+
+pub fn nfc(input: &str) -> String {
+    input.nfc().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::nfc;
+    use unicode_normalization::UNICODE_VERSION;
+
+    #[test]
+    fn nfc_is_unicode_17_canonical() {
+        assert_eq!(UNICODE_VERSION, (17, 0, 0));
+        assert_eq!(nfc("customer"), "customer");
+        assert_eq!(nfc("é"), "é");
+        assert_eq!(nfc("e\u{0301}"), "é");
+        assert_eq!(nfc("Å"), "Å");
+        assert_eq!(nfc("A\u{030A}"), "Å");
+        assert_eq!(nfc("\u{212B}"), "Å");
+        assert_eq!(nfc("가"), "가");
+        assert_eq!(nfc("\u{1100}\u{1161}"), "가");
+        assert_eq!(nfc("\u{1100}\u{1161}\u{11A8}"), "각");
+        assert_eq!(nfc("고객"), "고객");
+        assert_eq!(nfc("客户"), "客户");
+        assert_eq!(nfc("e\u{0301}\u{0323}"), "ẹ\u{0301}");
+        assert_eq!(nfc("e\u{0323}\u{0301}"), "ẹ\u{0301}");
+        assert_eq!(nfc("\u{1E14}"), "\u{1E14}");
+        assert_eq!(nfc("\u{0045}\u{0304}\u{0300}"), "\u{1E14}");
+        assert_eq!(nfc("\u{0112}\u{0300}"), "\u{1E14}");
+        assert_eq!(nfc("e\u{1ACF}\u{0323}"), "\u{1EB9}\u{1ACF}");
+        assert_eq!(nfc("ﬁ"), "ﬁ");
+        assert_ne!(nfc("ﬁ"), "fi");
+        assert_eq!(
+            nfc(&nfc("\u{0045}\u{0304}\u{0300}")),
+            nfc("\u{0045}\u{0304}\u{0300}")
+        );
+    }
+}
+
+nfc_collect=True
+nfc_tables_ref=False
+previous_ccc=False
+nfkc_call=False
+=== builder grep ===
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-builder/ERRATUM.md:3:This note corrects the provenance of `crates/oo-builder/src/nfc_tables.rs` as that file existed before it was removed from the product. The removal does not rewrite history. The file remains in git history. Review a071 (`evidence/eef831aa-dba4-4af2-a78b-541bc9e0a071/SP07/structure-draft-review/`) is unchanged, including `review.md` and `findings.json`.
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-builder/ERRATUM.md:9:No generator script was in the tree. That sentence is not a supported provenance claim. a071 reconstructed the tables from the Unicode 16.0.0 UCD and found decomposition, combining class, and composition pairs equal, with nothing missing and nothing extra. The bytes were a copy of Unicode data. Neither the file nor the repository `NOTICE` at that commit carried the Unicode copyright and permission notice. a071 records `nfc_tables.rs` SHA-256 `794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338` and `NOTICE` SHA-256 `463cbfaba4a8bc4e494e2daf307334b7cee314f10a137e06b6bbe43c502026fc`.
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-builder/src/nfc.rs:17:pub fn nfc(input: &str) -> String {
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-builder/src/nfc.rs:27:    fn nfc_is_unicode_17_canonical() {
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-builder/tests/nfc_conformance.rs:125:fn nfc_equations(text: &str, assigned: Option<&[u8]>) -> EquationReport {
+=== connector grep ===
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/Cargo.toml:34:unicode-normalization = "=0.1.25"
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/src/ident.rs:108:    let nfc: String = original.nfc().collect();
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/src/lib.rs:8:#![forbid(unsafe_code)]
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/vendor/sqlx-core/src/lib.rs:20:#![forbid(unsafe_code)]
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/vendor/sqlx-postgres/Cargo.lock:1378: "unicode-normalization",
+3ed558a9b62ab3f290ce9674b9afc10e693a5730:crates/oo-connectors/vendor/sqlx-postgres/Cargo.lock:1578:name = "unicode-normalization"
+=== builder lib head ===
+//! Structure-draft compiler.
+//!
+//! A bounded `oo.builder.catalog-evidence/v1` envelope becomes a reviewable
+//! `oo.builder.structure-draft/v1` document. This crate does not connect to a
+//! database, call a model, grant privileges, certify entities, or publish.
+
+#![forbid(unsafe_code)]
+
+mod canonical;
+mod draft;
+mod error;
+mod ident;
+mod limits;
+mod nfc;
+mod pgsql;
+
+pub use draft::{COMPILER, DRAFT_PROTOCOL, compile_structure_draft};
+pub use error::{DraftError, EVIDENCE_PROTOCOL};
+pub use nfc::nfc;
+pub use pgsql::EMPTY_SCHEMA_HASH;
+rows16=19965
+rows17=20034
+exact_1acf_0323_rows=0
+token_1ACF=2
+notice_has_unicode_license=True
+notice_has_copyright=True
+notice_has_permission=True
+=== ERRATUM head ===
+# Erratum — embedded Unicode 16 tables
+
+This note corrects the provenance of `crates/oo-builder/src/nfc_tables.rs` as that file existed before it was removed from the product. The removal does not rewrite history. The file remains in git history. Review a071 (`evidence/eef831aa-dba4-4af2-a78b-541bc9e0a071/SP07/structure-draft-review/`) is unchanged, including `review.md` and `findings.json`.
+
+The file header said:
+
+> Generated from Unicode 16.0.0. Hangul syllables U+AC00..=U+D7A3 are composed in code and are not in these tables.
+
+No generator script was in the tree. That sentence is not a supported provenance claim. a071 reconstructed the tables from the Unicode 16.0.0 UCD and found decomposition, combining class, and composition pairs equal, with nothing missing and nothing extra. The bytes were a copy of Unicode data. Neither the file nor the repository `NOTICE` at that commit carried the Unicode copyright and permission notice. a071 records `nfc_tables.rs` SHA-256 `794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338` and `NOTICE` SHA-256 `463cbfaba4a8bc4e494e2daf307334b7cee314f10a137e06b6bbe43c502026fc`.
+
+Deleting the module does not make that header accurate, and it does not make the old `NOTICE` a Unicode notice. Drafts compiled with `nfc.rs` from that history used the hand-written composer, which disagrees with Unicode NFC on equal-class marks and on 34 Unicode 17 combining classes. Those drafts are not rehashed here.
+
+The replacement is `unicode-normalization` 0.1.25 (Unicode 17.0.0), the same version the PostgreSQL connector pins. The crate `COPYRIGHT` grants MIT OR Apache-2.0 and does not include the Unicode data notice. That notice is `tests/unicode/LICENSE.txt`, `tests/unicode/PROVENANCE.md`, `NOTICE.md` in this crate, and the repository `NOTICE`.
+=== PROVENANCE ===
+
+=== rust-toolchain ===
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
+root rust-version = "1.94.0"
+root unsafe_code = "forbid"
+ident:7://! originals that share one mapping are a collision and the catalog is refused.
+ident:148:                    "ident.collision",
+ident:194:    fn safe_reserved_and_unicode_follow_pgident() {
+ident:205:        assert!(err.code.ends_with("/ident.collision"));
+ident:206:        let macron_grave = stable_ident("\u{1E14}", "/").unwrap();
+ident:209:        let collision = assign_idents(
+ident:211:                "\u{1E14}".to_string(),
+ident:217:        assert!(collision.code.ends_with("/ident.collision"));
+ident:218:        let mark = "e\u{1ACF}\u{0323}";
+ident:220:        assert_eq!(normalized, "\u{1EB9}\u{1ACF}");
+ident:225:        let ligature = stable_ident("ﬁ", "/").unwrap();
+ident:226:        assert_eq!(ligature, format!("q_{}", hex_bytes("ﬁ".as_bytes())));
+conformance_connector_oracle=True
+conformance_same_call=1
+conf:43:fn connector_oracle(input: &str) -> String {
+conf:149:        if connector_oracle(&fields[0]) != n1 {
+conf:211:    assert_eq!(unicode_normalization::UNICODE_VERSION, (17, 0, 0));
+conf:231:    assert_eq!(oo_builder::nfc("\u{1E14}"), "\u{1E14}");
+conf:232:    assert_eq!(oo_builder::nfc("\u{0045}\u{0304}\u{0300}"), "\u{1E14}");
+conf:234:        oo_builder::nfc("\u{0065}\u{1ACF}\u{0323}"),
+conf:235:        "\u{1EB9}\u{1ACF}"
+conf:238:        connector_oracle("\u{0065}\u{1ACF}\u{0323}"),
+conf:239:        oo_builder::nfc("\u{0065}\u{1ACF}\u{0323}")
+conf:259:    assert!(marks.contains(&0x1ACF));
+conf:260:    assert_eq!(u17.ccc[0x1ACF], 230);
+conf:265:        assert_eq!(got, connector_oracle(&sequence), "U+{cp:04X}");
+conf:296:        if connector_oracle(&text) != got {
+snapshot_relevant=26
+snapshot_missing_from_commit crates/oo-builder/.DS_Store 57bb8c7fd8d8b10c65dcbfdc1d44f4b6b1950391dddd88a8bdda4892e381d104
+snapshot_missing_from_commit crates/oo-builder/src/.DS_Store c32ee28c6158cfc9874dbc3d0a1c998ba446e16f83ea71f8de8802aef70fab98
+snapshot_compare relevant=26 missing=2 mismatch=0 extra_in_commit=0
+extra_in_commit=none
+snapshot_only=crates/oo-builder/.DS_Store,crates/oo-builder/src/.DS_Store
+=== a094 phase bytes ===
+attempt1/docker-run.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+attempt1/launch.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+attempt1/phases/clippy-component.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/clippy.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/fetch.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/probe.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+attempt1/phases/smoke.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/test.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/tree.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt1/phases/worst.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt2/docker-run.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt2/launch.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+attempt2/phases/probe.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+docker-run.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+launch.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+phases/clippy-component.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/clippy.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/fetch.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/probe.exit b'101\n' 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c
+phases/smoke.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/test.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/tree.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+phases/worst.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+=== a088 phase bytes ===
+baseline/attempt1/launch.exit b'3\n' 1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2
+baseline/docker-run.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+baseline/phases/clippy-component.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+baseline/phases/clippy.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+baseline/phases/fetch.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+baseline/phases/test.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+baseline/phases/worst.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/attempt1/launch.exit b'3\n' 1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2
+fixed/docker-run.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/clippy-component.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/clippy.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/fetch.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/test.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/tree.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
+fixed/phases/worst.exit b'0\n' 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa
