@@ -4,9 +4,13 @@ This is the executor record for the bounded `POST /v1/query` client in `oo-sdk`.
 
 ## Identity
 
-Parent at the delivery commit: `d2ea6351414303ad1926fbeb99010607db8d2833`
+Delivery commit: `8efeb230afc6734a2e50eaca3f09fd78300a9c7d`
 
-The delivery commit hash and tree are recorded in `HANDOFF.md` after `git rev-parse`. This file is updated in the following owned commit so the hash is in the tree a reviewer checks out.
+Delivery tree: `7d97299c1681f39db6aa5252d810a3bbb771ef41`
+
+Delivery parent: `d2ea6351414303ad1926fbeb99010607db8d2833`
+
+This paragraph is the only later edit. The child commit that records these three lines changes `REPORT.md` and `HANDOFF.md` and does not change `oo-sdk`, the contract, or `Cargo.lock`. Its own hash is `git rev-parse HEAD` after that commit.
 
 Workspace at authoring: `/Users/redux/puppy-one/open-ontology`
 

@@ -4,16 +4,13 @@ Root lock handoff for the coordinator. Source integration of `oo-sdk` stays queu
 
 ## Commit
 
+Delivery commit: `8efeb230afc6734a2e50eaca3f09fd78300a9c7d`
+
+Delivery tree: `7d97299c1681f39db6aa5252d810a3bbb771ef41`
+
 Delivery parent: `d2ea6351414303ad1926fbeb99010607db8d2833`
 
-Delivery commit: recorded below after `git rev-parse`, in the report update commit.
-
-```
-DELIVERY_COMMIT
-DELIVERY_TREE
-```
-
-The report update commit's parent is that delivery commit. Its own hash is whatever `git rev-parse HEAD` prints after the update commit. A commit cannot store its own hash.
+The report update commit's parent is that delivery commit. It changes only this file and `REPORT.md`. Its own hash is whatever `git rev-parse HEAD` prints after the update commit. A commit cannot store its own hash.
 
 ## Lock
 
