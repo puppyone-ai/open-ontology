@@ -1,0 +1,27 @@
+=== before ===
+oo-a102-rust194-impl Exited (0) About a minute ago
+oo-a102-pg1710-jobs Up 5 minutes
+oo-a102-rust194-baseline Exited (0) About an hour ago
+oo-a102-baseline-net
+oo-a102-impl-net
+oo-a102-pg-net
+oo-a102-baseline-cargo
+oo-a102-baseline-target
+oo-a102-impl-cargo
+oo-a102-impl-target
+oo-a102-pg-data
+=== remove ===
+oo-a102-rust194-impl
+oo-a102-rust194-baseline
+oo-a102-pg1710-jobs
+oo-a102-baseline-net
+oo-a102-impl-net
+oo-a102-pg-net
+oo-a102-baseline-cargo
+oo-a102-baseline-target
+oo-a102-impl-cargo
+oo-a102-impl-target
+oo-a102-pg-data
+=== after a102 ===
+=== foreign still present ===
+oo-a098-pg-b254bfa9-65d9-4209-9ac6-4aac2b2289b3 Up 49 minutes
