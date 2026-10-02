@@ -1,0 +1,7 @@
+# a114 helper trust correction evidence receipt
+
+Actual Grok handle82080 exit0, now closed. Evidence commit287cfe9f; fixed reviewed code6d2f7cdb935c7debad0dbb5292074f325d1948cb/tree dad005c861fca7fd906f49551169777a37b1c5d0/parentd67795e397657087495a32317938ecdd7a6cb028. Full REPORT/FINDINGS/HANDOFF read, actual22case TSV and summary confirm matched22/missing0/mismatch0, all signals none. Retained HASHES.sha256 verified against current evidence; no new source compilation by coordinator.
+
+Approve only F1 adoption/age anchor, F2 baseline MIT choice, F3 retained audit semantics/identity and F4 finite JSON depth. Actual depth64 succeeds,65/20000 object/array/mixed typedexit22. Canonical records5 audited=false. Literal adoption UTC and actual version.created_at independently checked by reviewer; aligned paired forgeries rejected. Historical a101 bytes and a109 RED retained, no fresh scan claimed.
+
+Linuxarm64Rust1.94 actual43tests pass, scoped lib/bin and trust/closure Clippy0, all-targets101 at pre-existing timeutil.rs112 assertions_on_constants. Smoke0 excludes that failure; full Clippy remains red. Unknownkeys/hardlinks/manifestbinding/prestatTOCTOU/hash child timeout/env remain unsigned. audited/admission/fresh_current_scan/release_signoff stayfalse; full W06-H-L/SP00/AT-SEC-05/release unaccepted. This foundation correction adds no product metric. SlotB released; slotA a116, a115 has no builder grant. No automatic rootwriter handoff.

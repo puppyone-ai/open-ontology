@@ -69,7 +69,8 @@
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
   - [x] W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005，Linux1.94实际audit0/deny0；协调者核验全部HASHES及raw JSON/整数exits。仅工具切片，双许可选择/依赖政策准入、全workspace/CDLA/完整供应链仍未签。
-  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105交付abd074a，a109固定复审request-changes，a113四项信任/深度修复已冻结；沿用a101历史扫描、三MIT选择与双正文/cfg_aliases notice；audited=false，完整供应链与发行另验。
+  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105交付abd074a，a109首次request-changes；a113修复6d2f7cdb经a114限定批准F1–F4，完整正文/供应链与发行仍另验；沿用a101历史扫描，audited=false。
+    - [x] W06-H-L1 adoption/age、baseline MIT、audit身份/状态和JSONdepth64四项修复：a114固定复审22独立用例全部匹配、无signal；全目标Clippy既有101和其他输入健壮性未签，不代表完整W06-H-L。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -829,3 +830,7 @@ a112恢复handle50371实际exit0，关闭不再轮询。交付2b6dd57a0dc3d36e09
 slotA明确移交a116独立固定提交复审，完整prepared+bound卡；slotB保持a114，a115仅只读分析无builder。产品指标及勾选不变，goal active。
 
 a116实际Grok4.7xhigh handle68913，slotA/own evidence权限生效；下一新UUID a117。a112旧handles均关闭，禁止继续轮询。
+
+### a114实际终态与限定接收
+
+a114handle82080实际exit0，关闭不再轮询。完整三报告、22原始case/summary、实际phase exits与all-target101日志已读，HASHES全部核对；接收a114-helper-trust-review-receipt.md。仅新增W06-H-L1纠错子项勾选，五records audited=false/完整W06-H-L不勾，其他输入健壮性和发行未签。slotB释放待依赖分析方案，slotA仍a116，a115无builder。产品指标9组件/9验收子项/首轮返工6比9不变，goal active。
