@@ -867,3 +867,5 @@ a116 handle68913 与 a119 handle56789 本次有界观察仍 live，各独占原 
 R2-W prepared 增补真实 recv_unchecked 的 cancel-safe 约束：分段字段读必须保留解析状态或取消后禁止复用，并逐 await 取消测试；公开类型重导出/error 路径待激活时精确冻结。a116/a119 当前句柄均实际仍 live，无终态、无新验收。
 
 a119 原 handle56789 实际 CLI exit0，但内部日志 DeadFailed，最终三报告/提交缺失；不签收、不重复轮询旧句柄。按同 UUID resume 卡恢复，仅接收已有 raw 和补齐交付，不扩大 slot B 权限。a116 handle68913 本次实际仍 live；产品指标与勾选保持，goal active。
+
+a119 同 UUID 实际恢复 handle63967，Grok4.7 xhigh；slot B 继续原权限，未新建 session 或扩大 builder 并发。旧56789关闭。
