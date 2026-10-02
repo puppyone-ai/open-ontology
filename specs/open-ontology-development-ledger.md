@@ -320,7 +320,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | handle41829终态0 request_changes仅attribution：r-efi AUTHORS含MIT正文，旧packet误称无正文；ISC规则/负例独立hold，a077修正不阻塞产品；不签完整W06 |
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | handle11184终态0 request_changes；五findings完整证据已读；a081先修结构closure，NFC依赖修正待a073 root交接，不签SP07 |
-| SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
+| SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | handle14146终态0但无REPORT/提交，交付不完整；同UUID明确resume补实际fixture验证/清理/固定提交，未签任何验收 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | handle29369终态0 approve仅纠正切片；完整review/raw已读，当前图root0、冲突图119，合并图约束/许可正文待整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | handle46905终态0，交付9224d31；REPORT/HANDOFF与原始SQLSTATE/局部Linux exits已读，a079固定复审，不签队列驱动 |
@@ -437,3 +437,7 @@ a074 handle29369实际终态0，批准4ecdbf714766baef3490a4f954701eaf19f245a0�
 a078 handle10405实际终态0，批准fb2d1d1归属文字切片。协调者已读review/findings及exposure-scan：8634 Git对象、6181文本blob相关凭据形态0；10 binary未扫描，历史副本/remote未查。当前提交清洁有限结论不关闭曾出现的Cursor密钥/session token暴露，用户轮换仍待确认，秘密gate未签。原smoke漏contracts101保留，补齐后62tests/Clippy0。ISC条目不撤、CDLA不添加、OR-token策略差异仍pending。已按限定切片勾选W06归属纠正及源三HIGH子项，父项和完整产品功能未提前勾选。
 
 产品累计交付4组件；已验收产品子项2（jobs schema、源三HIGH纠正），基础ISC归属另列不充当产品功能。源安全返工不重复计新交付；首次产品复审返工仍2/3，事件a079未终态。下一mainroot任务为源范围整合并守住TLS feature组合；NFC依赖修正紧随其后，a081结构修复可独立推进。
+
+## a072终态但不完整的续接
+
+协调者核验handle14146 exit0，尚无任务REPORT/HANDOFF和固定交付commit，末条文本仅称fixture运行。按实际终态判定可恢复同UUID eef831aa-dba4-4af2-a78b-541bc9e0a072，保留原源码和自有PG资源继续核查现有fixture，不重启其他live任务、不重复构建无关模块、不签实现或测试成功。续接提示v01-target-fence-receipts-resume.md要求完成原验收/局部Linux1.94/清理与本地提交；仍只有pipeline新迁移/契约/测试写权，mainroot归a073。该退出不计交付功能和验收工作项。
