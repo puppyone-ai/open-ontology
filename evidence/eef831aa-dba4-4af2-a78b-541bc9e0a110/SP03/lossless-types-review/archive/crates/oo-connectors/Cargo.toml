@@ -1,0 +1,47 @@
+[package]
+name = "oo-connectors"
+description = "Read-only PostgreSQL source inspection and catalog."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oo-core = { path = "../oo-core" }
+# Series 60, the same crates the workspace Arrow type names describe.
+# Default features stay off. `public-dependency` is unstable on Rust 1.94,
+# so these stay private. `TypedBatch::record_batch` returns `RecordBatch`.
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-buffer = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+# Source driver only. Default features stay off, so `any`, macros, and the
+# JSON type feature stay off. The sqlx 0.9.0 facade still depends on
+# sqlx-core with the `migrate` feature unconditionally. This crate does not
+# call migrate. TLS is the patched sqlx-core feature `_tls-rustls-ring-no-roots`:
+# rustls ring provider, empty root store, caller CA only. Do not enable
+# `tls-rustls-ring-webpki`, `tls-rustls-ring-native-roots`, or `tls-native-tls`.
+# No mysql, sqlite, or tls-none.
+sqlx = { version = "=0.9.0", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = [
+    "_rt-tokio",
+    "_tls-rustls-ring-no-roots",
+] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["time"] }
+unicode-normalization = "=0.1.25"
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "time"] }

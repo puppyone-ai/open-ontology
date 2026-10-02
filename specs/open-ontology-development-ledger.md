@@ -774,3 +774,7 @@ slotB从真实终态a106释放并移交a111，完整固定复审卡v01-cli-fifo-
 a110原handle32339实际exit0，关闭后不再轮询。完整review/HANDOFF/findings已读取，固定3ca5357 verdict request_changes；functional生产Arrow/type/livegold/非空SQLaudit有限范围approved，配置cargo-deny实际exit4：new tiny-keccak2.0.2 CC0从Arrow wasm compile-time-rng进入无targetfilter图；继承webpki-root-certs1.0.9 CDLA经未变SDK亦失败。audit0/无漏洞并不覆盖license失败；package101缺OO_PG_FIXTURE仍unsigned。fetch_all后的预算与未观察CancelRequest不能验收boundedreader。完整raw/hash接收尚未完成，不新增勾选；基础依赖修复需维持既有门禁，无ignore/自动许可放宽。
 
 slotA从实际终态a110释放并移交a107 jobs lease固定复审；执行完整prepared+bound卡，immutablec312cae/tree1931975/parent4477f23，authorhandoffdd5ecf3已读取。实际派Grok4.7xhigh handle80154，仅ownRustprobe/archive/evidence，max1builder/1ownPG、global2含host/toolinstall。slotB a111handle94170本轮核验仍live，jobs不依赖类型供给门禁，独立推进公共primitive；helper109仍prepared。类型首轮产品review纳入分母：8次首轮、6次返工＝75%小样本；9交付组件/8产品验收子项，完整87父项/16Phase仍0完成，goal active。
+
+### a110原始证据接收与基础依赖修复准备
+
+已读取raw integer exits/gold stdout/logaudit报告/deny诊断/afterstats，接收说明execution/decisions/a110-types-review-receipt.md和1570文件SHA索引；raw失败attempt全部保留，snapshot重复9725文件保留本地未stage，独立Rustprobe3文件另接收。首次PEM扫描命中两已有源码marker后逐文件与fixedgit字节一致，secret-root为自有tmp路径，未读取或输出privatekey/密码。限定functionalapproved不冒称fullpackage/supply/boundedreader通过，类型整体request_changes不新增勾选。新v01-dependency-license-repair-prepared.md无UUID/无write或buildgrant，要求真实依赖/feature/官方支持目标与不放宽allowlist/ignore、不降低TLS，不以空扫描或缩目标造绿。当前9组件/8验收子项/首次返工6比8，goal active。

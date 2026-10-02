@@ -1,0 +1,91 @@
+{
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a110",
+  "role": "independent reviewer",
+  "commit": "3ca5357930a2c44c42d3061db5fabe577881269a",
+  "tree": "ec11cd3ee7948c33e6d43cd2e984e01b948f94e6",
+  "parent": "dd5ecf39604b8467a0d1f91d56d2e90473fa2c48",
+  "verdict": "request_changes",
+  "reason": "cargo deny --config ci/deny.toml --locked check exits 4. licenses FAILED. The new edge tiny-keccak 2.0.2 is CC0-1.0, which ci/deny.toml does not allow. The same command also rejects inherited webpki-root-certs 1.0.9 CDLA-Permissive-2.0.",
+  "unsigned": [
+    "parent Reader",
+    "Loader",
+    "SP03-W04",
+    "AT-SRC-03",
+    "AT-SRC-05",
+    "vertical",
+    "release",
+    "amd64",
+    "supply release",
+    "cargo test -p oo-connectors (exit 101, OO_PG_FIXTURE missing)",
+    "byte budget before allocation",
+    "PostgreSQL CancelRequest"
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "gate": "source identity and lock delta",
+      "status": "approve",
+      "summary": "Reviewed archive of 3ca53579 only. Nineteen packages added, none removed. Parent lock sha256 40664b41001d01db59d272e0d9fab3977842becc88998bd52eefaa0c1b7a7147. Commit lock sha256 d3cf96bc32f829cc9a1e7818c064a4447b1bb5b06cffe4501e82d5617108b06f, blob 15ae1071c7236a956547e3f1d37d627b2cbebfce. Root Cargo.toml, ci/deny.toml, crates/oo-cli, and crates/oo-sdk have an empty diff against the parent. oo-cli and oo-sdk lock stanzas are unchanged."
+    },
+    {
+      "id": "F2",
+      "gate": "production Arrow RecordBatch",
+      "status": "approve",
+      "summary": "Linux arm64 rustc 1.94.0. cargo test -p oo-connectors --lib --locked --offline exits 0: 61 passed, of which 45 are the crate tests and 16 are review_wire. cargo clippy -p oo-connectors --all-targets --locked --offline -- -D warnings exits 0. Independent live test independent_live_gold exits 0 against PostgreSQL 17.10 with a caller CA. PgSession::read_typed builds an arrow_array 60 RecordBatch in the oo-connectors graph. Anchor numeric(10,-2) value 1200 is Decimal128(10,-2) coefficient 12. Live place wire digit 1 weight 1 is coefficient 10000. Catalog numeric(10,-2) scale stays 2046."
+    },
+    {
+      "id": "F3",
+      "gate": "package live_source_catalog",
+      "status": "unsigned",
+      "summary": "cargo test -p oo-connectors --locked --offline exits 101. live_source_catalog panics at crates/oo-connectors/tests/live_pg.rs:58 with OO_PG_FIXTURE is required: NotPresent. independent_live_gold is ignored in that command. This is not a package pass. The types fixture was not assigned to OO_PG_FIXTURE."
+    },
+    {
+      "id": "F4",
+      "gate": "reader SQL audit and source bytes",
+      "status": "approve",
+      "summary": "Logging was all before any oo-pg-source statement. Final log audit: reader_sql=782 select=738 start=22 rollback=22 forbidden=0 unknown=[] canary=0 touch_canary=0 password_hits=0 bytes=898064. gold md5 stays 9ddf6520d9c8e1f78b2dbbdd1c5242cc. canary_sink count stays 0. n_tup_ins/upd/del for gold, anchor, and canary_sink are unchanged. Author a098 raw log with four connection resets and empty reader_verbs was not used as this proof and was not deleted."
+    },
+    {
+      "id": "F5",
+      "gate": "supply licenses, new CC0 edge",
+      "status": "request_changes",
+      "summary": "cargo deny --config ci/deny.toml --locked check prints advisories ok, bans ok, licenses FAILED, sources ok, and exits 4. tiny-keccak 2.0.2 license CC0-1.0 is rejected. Path: arrow-array wasm32 ahash feature compile-time-rng, const-random, const-random-macro, tiny-keccak. Host aarch64 cargo tree -e normal and -e all do not contain tiny-keccak. cargo tree --target all does. No allow entry, feature removal, or target filter was added. ci/deny.toml has no [graph].targets, so the configured check includes that edge."
+    },
+    {
+      "id": "F6",
+      "gate": "supply licenses, inherited CDLA",
+      "status": "inherited",
+      "summary": "The same deny command rejects webpki-root-certs 1.0.9 CDLA-Permissive-2.0 through rustls-platform-verifier and oo-sdk. That package is in the parent lock. oo-sdk was not changed by 3ca53579. Removing only the new CC0 edge would leave this workspace command failing."
+    },
+    {
+      "id": "F7",
+      "gate": "duplicate num-bigint",
+      "status": "warn",
+      "summary": "cargo deny reports warning[duplicate] for num-bigint 0.4.8 and 0.5.1. Policy multiple-versions is warn. bans ok, so this warning is not the exit 4. Both versions are in the host normal graph: 0.5.1 through arrow-buffer, 0.4.8 through fraction, num, and num-rational. 0.5.1 is new. 0.4.8 was already in the parent lock."
+    },
+    {
+      "id": "F8",
+      "gate": "advisories",
+      "status": "approve",
+      "summary": "cargo audit --json exits 0. vulnerabilities found false, count 0. Database advisory-count 1280. cargo-audit 0.22.2 and cargo-deny 0.20.2 were installed with --locked inside the Linux 1.94 builder. Both tools are older than 604800 seconds at the adoption instant 2026-10-02T13:30:04Z."
+    },
+    {
+      "id": "F9",
+      "gate": "new crate provenance",
+      "status": "approve",
+      "summary": "Nineteen new crates plus the retained num-bigint 0.4.8 were downloaded from static.crates.io, checksum-matched to the lock, and not yanked. version.created_at is at least 604800 seconds before 2026-10-02T13:30:04Z. Youngest is arrow-array 60.0.0 at 1461601 seconds. Nested Cargo.toml rust-version values are all at or below 1.94. The earlier licenses/provenance.tsv used the first created_at in each API file and is not the version publish time. Use licenses/provenance-version.tsv."
+    },
+    {
+      "id": "F10",
+      "gate": "row budget, byte budget, cancellation",
+      "status": "unsigned",
+      "summary": "A one-table selection with max_rows 1 on lab.budget_rows returns fact max_rows. fetch_limit calls fetch_all and then compares the row count, so the extra row is allocated before the error. A client timeout sets session.poisoned and returns statement_timeout. This review did not observe a PostgreSQL CancelRequest. Byte-budget-before-allocation and streaming cancellation stay unsigned. A selection of three tables with max_rows 1 fails at try_new with fact selection_budget, before connect."
+    },
+    {
+      "id": "F11",
+      "gate": "time 24:00:00",
+      "status": "approve",
+      "summary": "Live TIME '24:00:00' is a masked reject time_out_of_range. The row is preserved and the Arrow field is nullable. This is the implemented bound. It is not, by itself, a request for changes."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+rustc 0
+clippy-component 0
+fetch 0
+test-lib 101
+test-package 101
+clippy 101
+test-independent-gold 101
+test-log-audit 101
+install-audit 0
+install-deny 0
+audit-version 0
+deny-version 0
+audit 0
+deny 2
+tree-edges 101
+tree-normal 0
+inside_done

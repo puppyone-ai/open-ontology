@@ -1,0 +1,52 @@
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0618]: expected function, found `model::SourceColumn`
+   --> crates/oo-connectors/src/model.rs:905:5
+    |
+905 |     fn column(name: &str) -> SourceColumn {
+    |     ------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+    |
+   ::: crates/oo-connectors/src/types/tests.rs:37:1
+    |
+ 37 | fn column(name: &str, oid: i64, type_name: &str, typmod: i32, not_null: bool) -> SourceColumn {
+    | --------------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+    |
+   ::: crates/oo-connectors/src/types/review_wire.rs:28:1
+    |
+ 28 | fn column(name: &str, oid: i64, type_name: &str, typmod: i32, not_null: bool) -> SourceColumn {
+    | --------------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+278 |     let mut column = column("outer_n", 10_002, "d_outer", -1, false);
+    |         ---------- `column` has type `model::SourceColumn`
+...
+291 |     let mut column = column("looped", 10_003, "looped", -1, false);
+    |                      ^^^^^^---------------------------------------
+    |                      |
+    |                      call expression requires function
+
+error[E0618]: expected function, found `model::SourceColumn`
+   --> crates/oo-connectors/src/model.rs:905:5
+    |
+905 |     fn column(name: &str) -> SourceColumn {
+    |     ------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+    |
+   ::: crates/oo-connectors/src/types/tests.rs:37:1
+    |
+ 37 | fn column(name: &str, oid: i64, type_name: &str, typmod: i32, not_null: bool) -> SourceColumn {
+    | --------------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+    |
+   ::: crates/oo-connectors/src/types/review_wire.rs:28:1
+    |
+ 28 | fn column(name: &str, oid: i64, type_name: &str, typmod: i32, not_null: bool) -> SourceColumn {
+    | --------------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+328 |     let mut column = column("notbool", 4242, "notbool", -1, false);
+    |         ---------- `column` has type `model::SourceColumn`
+...
+346 |     let column = column("paid", 790, "money", -1, false);
+    |                  ^^^^^^---------------------------------
+    |                  |
+    |                  call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-connectors` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

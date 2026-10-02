@@ -1,0 +1,4 @@
+error: There are multiple `num-bigint` packages in your project, and the specification `num-bigint` is ambiguous.
+Please re-run this command with one of the following specifications:
+  num-bigint@0.4.8
+  num-bigint@0.5.1

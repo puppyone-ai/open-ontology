@@ -1,0 +1,15 @@
+{
+  "host": "pg.a110.internal",
+  "port": 5432,
+  "database": "typedb",
+  "reader_user": "oo_a110_reader",
+  "guc_user": "oo_a110_guc",
+  "alias_user": "oo_a110_alias",
+  "password_file": "/fixture/reader.pass",
+  "guc_password_file": "/fixture/guc.pass",
+  "alias_password_file": "/fixture/alias.pass",
+  "ca_file": "/fixture/ca.crt",
+  "wrong_ca_file": "/fixture/wrong-ca.crt",
+  "wrong_host": "wrong.a110.internal",
+  "facts_file": "/fixture/facts.json"
+}

@@ -1,0 +1,2 @@
+     Ignored package `cargo-deny v0.20.2` is already installed, use --force to override
+warning: be sure to add `/cargo/tools/bin` to your PATH to be able to run the installed binaries

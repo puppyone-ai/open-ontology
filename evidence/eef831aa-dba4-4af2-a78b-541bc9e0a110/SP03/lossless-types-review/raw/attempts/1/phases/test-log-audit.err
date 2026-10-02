@@ -1,0 +1,19 @@
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests/log_audit.rs (/target/debug/deps/log_audit-36ea9f8652af4ce6)
+
+thread 'reader_statement_audit' (5023) panicked at crates/oo-connectors/tests/log_audit.rs:88:5:
+reader statement trace is empty
+reader_sql=0
+select=0
+start=0
+rollback=0
+forbidden=0
+unknown=[]
+canary=0
+touch_canary=0
+password_hits=0
+bytes=4888
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-connectors --test log_audit`

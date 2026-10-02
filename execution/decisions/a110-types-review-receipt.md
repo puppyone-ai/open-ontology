@@ -1,0 +1,15 @@
+# a110 类型复审证据接收：request_changes
+
+原handle32339已实际exit0并关闭。复审固定3ca5357930a2c44c42d3061db5fabe577881269a/treeec11cd3ee7948c33e6d43cd2e984e01b948f94e6/parentdd5ecf39604b8467a0d1f91d56d2e90473fa2c48。完整review/findings/HANDOFF已读取；终态成功仅表示复审交付，判定仍request_changes。
+
+实际raw/phases/exits.txt：library0、Clippy0、independent_gold0、log_audit0、audit0、deny4、package101。gold原stdout为1passed/0failed/0ignored、0.63秒；log_audit为1passed/0failed/0ignored。复审functional范围包括生产Arrow60 RecordBatch、独立wire/实际PG17.10 callerCA值校验与有限role/TLS准入回归，不等于bounded Reader/Loader。
+
+非空日志898064字节，实际报告reader_sql782/select738/start22/rollback22/forbidden0/unknown空，canary/touch/password均0；gold MD5和gold/anchor/sink tuple计数未变，sink0。日志是跨多个review尝试的累积记录，不冒称仅最后一次。审核器读取marker与reader标识并要求非空statement、非空SELECT/START/ROLLBACK；这不是任意SQL语义的通用安全证明，后续源路径改变须重新核验。
+
+实际deny.err明确new tiny-keccak2.0.2 CC0不在allowlist、路径Arrow wasm ahash compile-time-rng；继承webpki-root-certs1.0.9 CDLA经未变SDK也失败。未新增allow/ignore/targetfilter，audit0不能覆盖许可证失败。package缺OO_PG_FIXTURE为101，不能称全包通过；fetch_all后预算、CancelRequest、完整SP03/AT/vertical/发行保持未验收。错误的provenance.tsv已保留且不可用于版本年龄，版本created_at使用provenance-version.tsv。
+
+接收1570文件15063032字节，完整索引a110-evidence-sha256.txt。包括review、probe3份Rust源码、fixture/run、raw全部失败attempts及license/provenance资料；snapshot9725文件保留本地未stage，它重复固定源码与既有历史证据，独立probe另已接收。没有删除或改写作者证据。初次PEM marker检查失败记录并非秘密泄露：两处命中为archive已有config/vendor源码，逐文件与git show3ca5357 byte相同；其余接收文件无privatekeyPEM。secret-root.txt仅符合自有/tmp路径，不是password内容。此检查不等于完整secret gate。
+
+关键哈希：log-audit d16b1eac297e937fd34a42164aa6ef4aa17fe6b7a233dd043173577bcdde307c；deny.err6368b7928790e9465feac64746391b951f9d2cdccb04b7347ccaaa3f6ac87d25；independent_gold2e1b890d09d6a79c905269c41ba5a9dfaa829dafe94ebafd556c41956c398aa6；exitsd1aaceffff34efa0990f3618214e65da697a27ca5563087ddd9309334a4dbd37。
+
+供应链问题归入基础修复线，不阻塞无依赖jobs/CLI公共功能。slotA已交a107，slotB a111；无生产/root写权。累计9交付组件/8验收子项/首次返工6比8，完整87父项/16Phase仍0完成，goal active。未新增勾选。

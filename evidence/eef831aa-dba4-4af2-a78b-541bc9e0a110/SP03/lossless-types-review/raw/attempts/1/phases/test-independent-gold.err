@@ -1,0 +1,8 @@
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.64s
+     Running tests/independent_gold.rs (/target/debug/deps/independent_gold-e701e13934311e22)
+
+thread 'independent_live_gold' (4916) panicked at crates/oo-connectors/tests/independent_gold.rs:156:96:
+called `Result::unwrap()` on an `Err` value: Error("invalid type: string \"16392\", expected i64", line: 1, column: 245)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-connectors --test independent_gold`

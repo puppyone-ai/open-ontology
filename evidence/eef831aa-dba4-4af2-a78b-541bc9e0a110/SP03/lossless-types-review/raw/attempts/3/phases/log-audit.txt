@@ -1,0 +1,10 @@
+reader_sql=169
+select=161
+start=4
+rollback=4
+forbidden=0
+unknown=[]
+canary=0
+touch_canary=0
+password_hits=0
+bytes=194629

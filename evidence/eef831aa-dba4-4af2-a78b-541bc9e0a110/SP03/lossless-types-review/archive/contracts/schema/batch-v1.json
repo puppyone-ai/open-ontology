@@ -1,0 +1,2579 @@
+{
+  "$defs": {
+    "ArrowTypeName": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "int8",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "int16",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "int32",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "int64",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "float64",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "boolean",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "utf8",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "binary",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "date32",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "time64_micros",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "timestamp_micros_naive",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "timestamp_micros_utc",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 1
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 2
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 2
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 3
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 3
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 4
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 4
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 5
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 5
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 6
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 6
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 7
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 7
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 8
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 8
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 9
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 9
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 10
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 10
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 11
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 11
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 12
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 12
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 13
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 13
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 14
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 14
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 15
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 15
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 16
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 16
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 17
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 17
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 18
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 18
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 19
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 19
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 20
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 20
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 21
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 21
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 22
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 22
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 23
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 23
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 24
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 24
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 25
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 25
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 26
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 26
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 27
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 27
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 28
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 28
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 29
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 29
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 30
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 30
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 31
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 31
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 32
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 32
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 33
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 33
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 34
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 34
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 35
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 35
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 36
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 36
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 37
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 37
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 38
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 38
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 39
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": false
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "decimal128",
+              "type": "string"
+            },
+            "precision": {
+              "maximum": 38,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "scale": {
+              "maximum": 127,
+              "minimum": -128,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "precision",
+            "scale"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 1
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 2
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 2
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 3
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 3
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 4
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 4
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 5
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 5
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 6
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 6
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 7
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 7
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 8
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 8
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 9
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 9
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 10
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 10
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 11
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 11
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 12
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 12
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 13
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 13
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 14
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 14
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 15
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 15
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 16
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 16
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 17
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 17
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 18
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 18
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 19
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 19
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 20
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 20
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 21
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 21
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 22
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 22
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 23
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 23
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 24
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 24
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 25
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 25
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 26
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 26
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 27
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 27
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 28
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 28
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 29
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 29
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 30
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 30
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 31
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 31
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 32
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 32
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 33
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 33
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 34
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 34
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 35
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 35
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 36
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 36
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 37
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 37
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 38
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 38
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 39
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 39
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 40
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 40
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 41
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 41
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 42
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 42
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 43
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 43
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 44
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 44
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 45
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 45
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 46
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 46
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 47
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 47
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 48
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 48
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 49
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 49
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 50
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 50
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 51
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 51
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 52
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 52
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 53
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 53
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 54
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 54
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 55
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 55
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 56
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 56
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 57
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 57
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 58
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 58
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 59
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 59
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 60
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 60
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 61
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 61
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 62
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 62
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 63
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 63
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 64
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 64
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 65
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 65
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 66
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 66
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 67
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 67
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 68
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 68
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 69
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 69
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 70
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 70
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 71
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 71
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 72
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 72
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 73
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 73
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 74
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 74
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 75
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 75
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 76
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "precision": {
+                    "minimum": 76
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "scale": {
+                    "minimum": 77
+                  }
+                },
+                "required": [
+                  "scale"
+                ]
+              },
+              "then": false
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "decimal256",
+              "type": "string"
+            },
+            "precision": {
+              "maximum": 76,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "scale": {
+              "maximum": 127,
+              "minimum": -128,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "precision",
+            "scale"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Nested list item. Rust rejects list depth above 32. JSON Schema draft 2020-12 has no standard keyword for maximum depth, so this schema does not enforce that limit.",
+          "properties": {
+            "item": {
+              "$ref": "#/$defs/ArrowTypeName"
+            },
+            "kind": {
+              "const": "list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "item"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BatchColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "arrow": {
+          "$ref": "#/$defs/ArrowTypeName"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "nullable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "arrow",
+        "nullable"
+      ],
+      "type": "object"
+    },
+    "BatchPath": {
+      "enum": [
+        "cdc",
+        "incremental",
+        "full",
+        "snapshot",
+        "file"
+      ],
+      "type": "string"
+    },
+    "FileMode": {
+      "enum": [
+        "replace",
+        "append",
+        "upsert"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://openontology.dev/contracts/batch/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batch_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+      "type": "string"
+    },
+    "columns": {
+      "items": {
+        "$ref": "#/$defs/BatchColumn"
+      },
+      "type": "array"
+    },
+    "config_version": {
+      "const": "config/v1",
+      "type": "string"
+    },
+    "epoch": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "file_mode": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FileMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "hook_digest": {
+      "maxLength": 71,
+      "minLength": 64,
+      "pattern": "^(?:sha256:)?[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "path": {
+      "$ref": "#/$defs/BatchPath"
+    },
+    "primary_key": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "protocol_version": {
+      "const": "batch/v1",
+      "type": "string"
+    },
+    "schema_fingerprint": {
+      "maxLength": 71,
+      "minLength": 64,
+      "pattern": "^(?:sha256:)?[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]{0,62}$",
+      "type": "string"
+    },
+    "table": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+      "type": "string"
+    },
+    "txn_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\u{0}-\\u{8}\\u{B}\\u{C}\\u{E}-\\u{1F}\\u{7F}]+$",
+      "type": "string"
+    },
+    "txn_sequence": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "type_policy_version": {
+      "const": "type-policy/v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "protocol_version",
+    "source",
+    "table",
+    "schema_fingerprint",
+    "batch_id",
+    "path",
+    "config_version",
+    "type_policy_version",
+    "hook_digest",
+    "txn_id",
+    "txn_sequence",
+    "epoch",
+    "columns"
+  ],
+  "title": "Batch metadata v1",
+  "type": "object"
+}
