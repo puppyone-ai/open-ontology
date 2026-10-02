@@ -1,0 +1,12 @@
+{
+  "oo.kind": "rust-builder",
+  "oo.owner": "a077",
+  "oo.platform": "linux/arm64",
+  "oo.project": "open-ontology",
+  "oo.run_id": "e844e982-ba5c-462c-b01a-27d3c63bf811",
+  "oo.scope": "sp00-isc-attribution",
+  "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a077",
+  "oo.task": "isc-attribution-pre-smoke",
+  "oo.toolchain": "1.94.0",
+  "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+}

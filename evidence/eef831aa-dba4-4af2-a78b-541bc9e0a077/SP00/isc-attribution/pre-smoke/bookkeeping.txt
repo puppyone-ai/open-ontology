@@ -1,0 +1,4 @@
+The container exited 0. docker-run.exit is that exit and was written before inspect formatting.
+The launch shell then exited 1 because the format template asked for HostConfig.Tmpfs and this Docker API has no Tmpfs key.
+inspect.json was written by docker inspect of the exited container. inspect.txt records TmpfsKeyPresent=false.
+No second cargo check was started. Exit files fetch.exit, check.exit, toolchain.exit, snapshot.exit, and docker-run.exit were not rewritten.

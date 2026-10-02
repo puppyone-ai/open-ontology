@@ -1,0 +1,22 @@
+{
+  "6.0.0": {
+    "file_count": 69,
+    "exact_names_present": {
+      "LICENSE": false,
+      "COPYING": false,
+      "NOTICE": false
+    },
+    "has_AUTHORS": true,
+    "has_README": true
+  },
+  "5.3.0": {
+    "file_count": 69,
+    "exact_names_present": {
+      "LICENSE": false,
+      "COPYING": false,
+      "NOTICE": false
+    },
+    "has_AUTHORS": true,
+    "has_README": true
+  }
+}

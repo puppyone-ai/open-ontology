@@ -1,0 +1,46 @@
+[
+  {
+    "Type": "volume",
+    "Name": "oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811-cargo",
+    "Source": "/var/lib/docker/volumes/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811-cargo/_data",
+    "Destination": "/cargo-home",
+    "Driver": "local",
+    "Mode": "z",
+    "RW": true,
+    "Propagation": ""
+  },
+  {
+    "Type": "volume",
+    "Name": "oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811-target",
+    "Source": "/var/lib/docker/volumes/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811-target/_data",
+    "Destination": "/target",
+    "Driver": "local",
+    "Mode": "z",
+    "RW": true,
+    "Propagation": ""
+  },
+  {
+    "Type": "bind",
+    "Source": "/tmp/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811/snapshot",
+    "Destination": "/src",
+    "Mode": "",
+    "RW": false,
+    "Propagation": "rprivate"
+  },
+  {
+    "Type": "bind",
+    "Source": "/tmp/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811/inside.sh",
+    "Destination": "/inside.sh",
+    "Mode": "",
+    "RW": false,
+    "Propagation": "rprivate"
+  },
+  {
+    "Type": "bind",
+    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a077/SP00/isc-attribution/pre-smoke",
+    "Destination": "/evidence",
+    "Mode": "",
+    "RW": true,
+    "Propagation": "rprivate"
+  }
+]

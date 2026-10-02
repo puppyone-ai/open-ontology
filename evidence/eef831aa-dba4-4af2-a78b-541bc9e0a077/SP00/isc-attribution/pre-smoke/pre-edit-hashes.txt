@@ -1,0 +1,7 @@
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b  /Users/redux/puppy-one/open-ontology/ci/deny.toml
+b18a3b53f594945296a440ceecebaf702bc0fb26605f2c8d4509feafa4ed1a5c  /Users/redux/puppy-one/open-ontology/Cargo.toml
+f4dca64f6d2bf5115d7bc566a1c668088df4f9694a4d7054b65e928b9e77cee8  /Users/redux/puppy-one/open-ontology/Cargo.lock
+9558129de7aca22766889474a4dde83ebe82926e6f315a8fb2d81fb8185b3b4b  /Users/redux/puppy-one/open-ontology/supply-chain/policy.md
+348d3723469c935fff6f7e7d0eea5ac550942f63cebb6297da0cdc4dfe4ebbd3  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/NOTICE.md
+6a3a80cab4211ddc2b9a47f6009f40418c8064880495db46cf14f7321f691ad6  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/policy.md
+8f79409e3e3598161b8150a7008fb4cbd4e05837bdb1b95d9f44cb3b63d3856b  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/provenance.md

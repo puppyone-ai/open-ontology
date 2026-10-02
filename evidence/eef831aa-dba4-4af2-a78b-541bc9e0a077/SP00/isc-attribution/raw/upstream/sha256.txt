@@ -1,0 +1,6 @@
+f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf  /tmp/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811/crates/r-efi-6.0.0.crate
+69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f  /tmp/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811/crates/r-efi-5.3.0.crate
+0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634  /tmp/oo-a077-e844e982-ba5c-462c-b01a-27d3c63bf811/crates/rustls-0.23.45.crate
+d027e91dbc9cdbb2f1190068e498bd6b61cff022b6a032b191021ba658d96111  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/bodies/r-efi-6.0.0/AUTHORS
+ff92bed461f50338dd703a9ba9aee496a425957873df1d91192776e4bdf5dda7  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/bodies/r-efi-5.3.0/AUTHORS
+7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4  /Users/redux/puppy-one/open-ontology/contracts/supply-chain/isc/bodies/rustls-0.23.45/LICENSE-ISC

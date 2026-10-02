@@ -15,7 +15,7 @@ The source commit is `b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74`, parent `4213134
 | wasi | 0.11.1+wasi-snapshot-preview1 | `ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b` | not re-fetched as an API row for this table | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | r-efi | 6.0.0 | `f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf` | 2026-02-03T09:53:46.251122Z | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` |
 
-`whoami` and `wasi` publish times were not requested from the API in this run. Their checksums match the lock, and the license files below were read from the cargo-deny cache of that lock. `r-efi` 5.3.0 (`69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f`, published 2025-06-17T09:12:38.227277Z) is also in the lock with the same SPDX expression. Its files were not opened.
+`whoami` and `wasi` publish times were not requested from the API in the a067 run. Their checksums match the lock, and the license files below were read from the cargo-deny cache of that lock. `r-efi` 5.3.0 (`69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f`, published 2025-06-17T09:12:38.227277Z) is in that lock and in the current root `Cargo.lock`, with the same SPDX expression. a067 did not open its files. The correction in [ERRATUM.md](ERRATUM.md) downloaded `r-efi` 6.0.0, `r-efi` 5.3.0, and `rustls` 0.23.45 from `https://static.crates.io` and opened both r-efi `AUTHORS` files, both r-efi `README.md` files, and rustls `LICENSE-ISC`. The r-efi crate sha256 values match the crates.io API `checksum` and `b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74:Cargo.lock`. The rustls crate sha256 matches the row above. None of these three versions was yanked. Their API `created_at` values match the publish times in this table.
 
 ## License-file sha256
 
@@ -41,8 +41,10 @@ The source commit is `b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74`, parent `4213134
 | webpki-roots `LICENSE` | `e271993808fec50ab29350b39539cdec611a9103f827e0aa26d61da70e2d33f8` |
 | r-efi 6.0.0 `README.md` | `420f65fec3ba2e89d49da51b222d2881d26959037a7b7d3794143db4bd4627b1` |
 | r-efi 6.0.0 `AUTHORS` | `d027e91dbc9cdbb2f1190068e498bd6b61cff022b6a032b191021ba658d96111` |
+| r-efi 5.3.0 `README.md` | `420f65fec3ba2e89d49da51b222d2881d26959037a7b7d3794143db4bd4627b1` |
+| r-efi 5.3.0 `AUTHORS` | `ff92bed461f50338dd703a9ba9aee496a425957873df1d91192776e4bdf5dda7` |
 
-`ring` has no `NOTICE` file and no `AUTHORS` file. `third_party/fiat/LICENSE` names an AUTHORS file that is not in the crate. `rustls-webpki` 0.103.15 has no `third-party` directory. Its `LICENSE` still contains the sentence that points at `third-party/chromium/LICENSE`. `r-efi` 6.0.0 has no file whose name is `LICENSE`, `COPYING`, or `NOTICE`. The README states the SPDX expression and does not contain the MIT license text.
+`ring` has no `NOTICE` file and no `AUTHORS` file. `third_party/fiat/LICENSE` names an AUTHORS file that is not in the crate. `rustls-webpki` 0.103.15 has no `third-party` directory. Its `LICENSE` still contains the sentence that points at `third-party/chromium/LICENSE`. `r-efi` 6.0.0 and 5.3.0 have no file whose name is `LICENSE`, `COPYING`, or `NOTICE`. Each `README.md` states the SPDX expression as markdown and does not contain the MIT grant. Each `AUTHORS` file contains that grant under `AUTHORS-MIT`. Byte copies of `r-efi` 6.0.0 `AUTHORS`, `r-efi` 5.3.0 `AUTHORS`, and rustls 0.23.45 `LICENSE-ISC` are under [bodies/](bodies/). Their sha256 values are the rows above, including rustls `LICENSE-ISC` `7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4`. The second line of that ISC file is `Copyright (c) 2016, Joseph Birr-Pixton <jpixton@gmail.com>`.
 
 rustls `LICENSE-APACHE`, ring `once_cell/LICENSE-APACHE`, and wasi `LICENSE-APACHE` are the same sha256.
 
