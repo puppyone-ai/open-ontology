@@ -320,7 +320,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | handle41829终态0 request_changes仅attribution：r-efi AUTHORS含MIT正文，旧packet误称无正文；ISC规则/负例独立hold，a077修正不阻塞产品；不签完整W06 |
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | handle31198终态0，交付5ef3d6d/stamp0fcc2f9；C运行时编译不符合Rust要求，两旧ISC shape tests失败，a082基础纠正，未验收 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | handle11184终态0 request_changes；五findings完整证据已读；a081先修结构closure，NFC依赖修正待a073 root交接，不签SP07 |
-| SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | handle14146终态0但无REPORT/提交，交付不完整；同UUID明确resume补实际fixture验证/清理/固定提交，未签任何验收 |
+| SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | 原两次终态不完整后同UUID续接handle79046终态0，交付8370498；REPORT/原始局部0/fromemptyfixture已读，a085固定复审，未签完整Loader |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | handle23139终态0，交付8efeb23/stamp0b544cb；REPORT及原始Linux0已读；a084固定复审，root交接a083，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | handle29369终态0 approve仅纠正切片；完整review/raw已读，当前图root0、冲突图119，合并图约束/许可正文待整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | handle46905终态0，交付9224d31；REPORT/HANDOFF与原始SQLSTATE/局部Linux exits已读，a079固定复审，不签队列驱动 |
@@ -457,3 +457,9 @@ a083现在唯一mainroot manifest/lock writer，仅源范围整合冻结4ecdbf7�
 产品交付累计5组件＝PG入口/catalog、控制schema、纯结构草案、事件项目绑定、HTTP JSON SDK。产品子项验收仍2（schema及源三HIGH纠正），完整父项0；首次产品复审返工2/3，SDK/事件未复审不计分母。SDK验收待a084，不勾完整SP09-W01。
 
 a072第一次resume handle34479亦实际终态0，仍无REPORT/HANDOFF/交付commit；日志仅称复用fixture继续运行，并修正客户端错误码文本/空表delete触发器断言。第二次同UUID显式resume，保留原PG/job/evidence不重建。待真实局部测试/协议结论/清理/本地固定提交齐备才接收，产品交付计数不增加；其他live会话不重启。
+
+## a072交付 → a085固定复审
+
+a072第二次resume handle79046实际终态0，终于交付83704982a8d9459c51ed7c2020c51d21c91fb8cd（tree494a0f015c35e3eb75548e9d4dad71bb28d0acd7，parent78d106f）。协调者已读完整REPORT/HANDOFF及post-smoke原始fetch/test/Clippy0与从空库fixture_result=pass，重算bootstrap37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208/expand97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9。旧inplace修正及NEW.generation42703原失败保留，不能替代新空库证据。报告列两PGfixtures，资源同时性待复审查证，不默认符合max1规则。
+
+a085只读固定archive，先Linux1.94局部冒烟，再单PGfixture独立session/temp/SDfunction/lock/generation/receipt/rollback/role/checksum复审。schema交付不代表Loader，receipt-only0/0/1、未来任意DML未fenced和控制镜像/ACK仍明确未实现；SP04-W05-a在review结论前不勾选。a083根writer不变，a081/a080/a082继续独立模块。产品累计交付6组件（新增目标schema），验收产品子项仍2，首次复审返工2/3，完整父项0。
