@@ -1,0 +1,68 @@
+oo_owner=a076
+oo_scope=sp01-p5-review
+2026-10-02T00:35:07Z
+id=uid=0(root) gid=0(root) groups=0(root)
+uname=Linux 0a59e04a4dec 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+RUSTUP_TOOLCHAIN=1.94.0
+rustc_version=rustc 1.94.0 (4a4ef493e 2026-03-02)
+--- proc1 status caps ---
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	1
+--- self status caps ---
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	1
+protoc_present=no
+--- libclang before apt ---
+clang_absent
+libclang_absent
+E: setgroups 65534 failed - setgroups (1: Operation not permitted)
+E: setegid 65534 failed - setegid (1: Operation not permitted)
+E: seteuid 42 failed - seteuid (1: Operation not permitted)
+E: setgroups 0 failed - setgroups (1: Operation not permitted)
+Ign:1 http://deb.debian.org/debian trixie InRelease
+Ign:2 http://deb.debian.org/debian trixie-updates InRelease
+Ign:3 http://deb.debian.org/debian-security trixie-security InRelease
+Err:4 http://deb.debian.org/debian trixie Release
+  Could not open file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie_Release - open (13: Permission denied) [IP: 198.18.0.111 80]
+Err:5 http://deb.debian.org/debian trixie-updates Release
+  Could not open file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie-updates_Release - open (13: Permission denied) [IP: 198.18.0.111 80]
+Err:6 http://deb.debian.org/debian-security trixie-security Release
+  Could not open file /var/lib/apt/lists/partial/deb.debian.org_debian-security_dists_trixie-security_Release - open (13: Permission denied) [IP: 198.18.0.111 80]
+rm: cannot remove '/var/cache/apt/archives/partial/*.deb': Permission denied
+Reading package lists...
+W: chown to _apt:root of directory /var/lib/apt/lists/partial failed - SetupAPTPartialDirectory (1: Operation not permitted)
+W: chmod 0700 of directory /var/lib/apt/lists/partial failed - SetupAPTPartialDirectory (1: Operation not permitted)
+W: chown to _apt:root of directory /var/lib/apt/lists/auxfiles failed - SetupAPTPartialDirectory (1: Operation not permitted)
+W: chmod 0755 of directory /var/lib/apt/lists/auxfiles failed - SetupAPTPartialDirectory (1: Operation not permitted)
+E: setgroups 65534 failed - setgroups (1: Operation not permitted)
+E: setegid 65534 failed - setegid (1: Operation not permitted)
+E: seteuid 42 failed - seteuid (1: Operation not permitted)
+W: Download is performed unsandboxed as root as file '/var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie_InRelease' couldn't be accessed by user '_apt'. - pkgAcquire::Run (13: Permission denied)
+E: setgroups 0 failed - setgroups (1: Operation not permitted)
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie_InRelease - PrepareFiles (13: Permission denied)
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie-updates_InRelease - PrepareFiles (13: Permission denied)
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian-security_dists_trixie-security_InRelease - PrepareFiles (13: Permission denied)
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie_Release - PrepareFiles (13: Permission denied)
+E: The repository 'http://deb.debian.org/debian trixie Release' no longer has a Release file.
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian_dists_trixie-updates_Release - PrepareFiles (13: Permission denied)
+E: The repository 'http://deb.debian.org/debian trixie-updates Release' no longer has a Release file.
+W: Problem unlinking the file /var/lib/apt/lists/partial/deb.debian.org_debian-security_dists_trixie-security_Release - PrepareFiles (13: Permission denied)
+E: The repository 'http://deb.debian.org/debian-security trixie-security Release' no longer has a Release file.
+apt_update_exit=100
+apt_update_failed

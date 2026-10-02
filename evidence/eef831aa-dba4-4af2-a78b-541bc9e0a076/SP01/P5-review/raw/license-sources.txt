@@ -1,0 +1,118 @@
+=== vcs ===
+{
+  "git": {
+    "sha1": "0e382742b36ee9592438c6791b91ce14f32f6233"
+  },
+  "path_in_vcs": ""
+}
+=== copyright hits ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_mmgr_mcxt.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_activity_pgstat_database.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_error_elog.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_mmgr_aset.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_common_encnames.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_misc_guc_tables.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_nodes_value.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_utils_mmgr_alignedalloc.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_nodes_makefuncs.c
+=== lukas ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md
+=== paul mason ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/README.md
+=== xxhash header first 40 ===
+/*
+ * xxHash - Extremely Fast Hash algorithm
+ * Header File
+ * Copyright (C) 2012-2020 Yann Collet
+ *
+ * BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following disclaimer
+ *      in the documentation and/or other materials provided with the
+ *      distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You can contact the author at:
+ *   - xxHash homepage: https://www.xxhash.com
+ *   - xxHash source repository: https://github.com/Cyan4973/xxHash
+ */
+/*!
+ * @mainpage xxHash
+ *
+ * @file xxhash.h
+ * xxHash prototypes and implementation
+ */
+=== protobuf-c header first 40 ===
+/*
+ * Copyright (c) 2008-2018, Dave Benson and the protobuf-c authors.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*! \file
+ * \mainpage Introduction
+ *
+ * This is [protobuf-c], a C implementation of [Protocol Buffers].
+ *
+ * This file defines the public API for the `libprotobuf-c` support library.
+ * This API includes interfaces that can be used directly by client code as well
+ * as the interfaces used by the code generated by the `protoc-c` compiler.
+ *
+ * The `libprotobuf-c` support library performs the actual serialization and
+ * deserialization of Protocol Buffers messages. It interacts with structures,
+=== pl_gram exception ===
+72:/* As a special exception, you may create a larger work that contains
+78:   special exception, which will cause the skeleton and the resulting
+80:   License without this special exception.
+82:   This special exception was added by the Free Software Foundation in
+=== gram.h exception ===
+9:   it under the terms of the GNU General Public License as published by
+16:   GNU General Public License for more details.
+18:   You should have received a copy of the GNU General Public License
+23:/* As a special exception, you may create a larger work that contains
+29:   special exception, which will cause the skeleton and the resulting
+30:   Bison output files to be licensed under the GNU General Public
+31:   License without this special exception.
+33:   This special exception was added by the Free Software Foundation in

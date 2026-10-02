@@ -1,0 +1,7 @@
+  PID  PPID  PGID   SID STAT     ELAPSED COMMAND
+    1     0     1     1 Ss         17:39 /sbin/docker-init -- sleep infinity
+    7     1     7     1 S          17:39 sleep infinity
+ 6048     1  6048  5677 S          09:05 /probe/bin/bad-magic f21e963a35545519f35cfc0ec4ae9bdf
+ 6160     1  6160  5677 S          08:51 /probe/bin/stdout-junk 92194d544628a89de093adff3be3d3fa
+ 6174     1  6174  5677 S          08:43 /probe/bin/oversize-frame 15fcdbce2cfa81052b4dc0be0721287e
+ 6462     0  6462  6462 Rs         00:00 ps -o pid,ppid,pgid,sid,stat,etime,args

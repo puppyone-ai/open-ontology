@@ -323,7 +323,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | handle46905终态0，交付9224d31；REPORT/HANDOFF与原始SQLSTATE/局部Linux exits已读，a079固定复审，不签队列驱动 |
-| P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | running handle88198；独立native/MSRV/真实PG差分/earlyexit继承FD/IPC身份与预算/许可证；已知R4/R9不当完整通过 |
+| P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | handle88198终态0 request_changes；矛盾allow响应和IPC无限等待已复现，完整review/raw已读；a080仅独立spike修复，完整P5未签 |
 | 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | handle85459终态0，交付fb2d1d1；REPORT/HANDOFF已读，Linux1.94 core check作者0，外层inspect exit1保留；a078固定归属复审，未签完整W06 |
 
 ## 5. 用户优先级调整后的产品功能台账
@@ -414,3 +414,9 @@ a075实际终态0，固定交付9224d31e1c1d4a60d44b6984b8ad496a09e706a1（tree9
 a079仅只读该固定archive、独立证据和UUID资源，先Linux/MSRV局部冒烟再真实PG新装/升级/并发/身份/负例，复审前SP02-W01-c仍不勾选。旧已签SP02-W01-a不撤销；完整W01/SP02/驱动/CAS/备份/100worker/目标fence与纵向闭环仍待验。a073仍唯一root-lock writer，a070/a072仍各自源码writer；其余review只读。
 
 最新产品速度：累计交付4项＝PG入口/catalog、控制schema、纯结构草案、事件项目绑定；独立验收子项仍1项（SP02-W01-a），完整父工作项0。已完成首轮产品复审仍2项、返工1/2，小样本；a071/a079未终态不计入分母。a075修复既有发现但新增独立交付任务只计一次；基础许可证/harness修正不计产品功能。
+
+## 当前交接补充：a076 → a080
+
+a076实际终态0，对efb61d62803073b3f98f5fe1885877824f504f80提出request_changes。协调者已读完整review/findings、原始IPC矩阵、PG前后行数及cleanup；ipc-driver.log重算sha256为e54c3facc54c6c01e1bea95454103cba303cfa28e946773b558673a9ac8bb479。false syntax_allow配ALLOW_SYNTAX被转为true且保留DROP SQL（未发PG）；bad magic/junk/oversize及成功后pipe持有在外部8秒timeout后仍不返回，三个worker持续存活、setsid后代绕过进程组kill。已观测正常语义33oracle匹配不替代IPC安全；parser17.7/server17.10及R4/R5/R9缺口仍未签。
+
+a080仅独立P5 spike/standalone lock/ProposedADR及自身证据，先Linux/MSRV基线后Rust实现响应一致性拒绝和每分支有界生命周期/可验证进程归属，保留真实安全隔离与许可来源缺口。不得使用移动a070 C helper或写主root；a073仍独占主依赖。a076原始1/127/apt100失败与外部124保留，复审证据提交后不回写。风险原型修正不计新产品功能，SP01/P5/完整Gateway/AT均不勾选。

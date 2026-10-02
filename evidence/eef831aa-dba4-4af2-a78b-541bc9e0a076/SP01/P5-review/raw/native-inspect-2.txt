@@ -1,0 +1,38 @@
+=== version strings ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/test/sql/deparse-depesz/README.md:3:modified to match libpg_query deparser formatting logic.
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:1:# libpg_query
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:15:git clone -b 17-latest git://github.com/pganalyze/libpg_query
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:16:cd libpg_query
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:33:A [full example](https://github.com/pganalyze/libpg_query/blob/master/examples/simple.c) that parses a query looks like this:
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:55:cc -Ilibpg_query -Llibpg_query example.c -lpg_query
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:190:See https://github.com/pganalyze/libpg_query/wiki/Fingerprinting for the full fingerprinting rules.
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:194:A [full example](https://github.com/pganalyze/libpg_query/blob/master/examples/simple_plpgsql.c) that parses a [PL/pgSQL](https://www.postgresql.org/docs/current/static/plpgsql.html) method looks like this:
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:278:* [DuckDB](https://github.com/cwida/duckdb) ([details](https://github.com/cwida/duckdb/tree/master/third_party/libpg_query))
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/README.md:283:Please feel free to [open a PR](https://github.com/pganalyze/libpg_query/pull/new/master) to add yours! :)
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/pg_query.h:165:#define PG_MAJORVERSION "17"
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/pg_query_fingerprint.c:109:		// NB: We output `str` here intentionally, to match the output format from libpg_query 14
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/pg_query_fingerprint.c:130:		// NB: We output `str` here intentionally, to match the output format from libpg_query 14
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/pg_query_fingerprint.c:291:			// NB: We output `str` here intentionally, to match the output format from libpg_query
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/c.h:1215:#define PG_TEXTDOMAIN(domain) (domain CppAsString2(SO_MAJOR_VERSION) "-" PG_MAJORVERSION)
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/c.h:1217:#define PG_TEXTDOMAIN(domain) (domain "-" PG_MAJORVERSION)
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/common/relpath.h:33:#define TABLESPACE_VERSION_DIRECTORY	"PG_" PG_MAJORVERSION "_" \
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/pg_config.h:618:#define PG_MAJORVERSION "17"
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/pg_config.h:621:#define PG_MAJORVERSION_NUM 17
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/pg_config.h:639:#define PG_VERSION_STR "PostgreSQL 17.7 (libpg_query)"
+=== files named version ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/catalog/catversion.h
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/catalog/pg_conversion_d.h
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/catalog/pg_conversion.h
+=== bison location ===
+53848 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_parser_gram.c
+symbol_line=2
+94 /out/gram-from-symbols-94.txt
+=== GPL file list ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/pl_gram.h
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/gram.h
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_parser_gram.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_pl_plpgsql_src_pl_gram.c
+=== node enum file ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/src/node_mut.rs:4:pub enum NodeMut {
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/src/node_ref.rs:4:pub enum NodeRef<'a> {
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/src/protobuf.rs:31:    pub enum Node {

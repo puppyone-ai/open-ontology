@@ -1,0 +1,353 @@
+=== top license files ===
+=== submodule pointer ===
+=== protobuf variants ===
+Alias
+RangeVar
+TableFunc
+IntoClause
+Var
+Param
+Aggref
+GroupingFunc
+WindowFunc
+WindowFuncRunCondition
+MergeSupportFunc
+SubscriptingRef
+FuncExpr
+NamedArgExpr
+OpExpr
+DistinctExpr
+NullIfExpr
+ScalarArrayOpExpr
+BoolExpr
+SubLink
+SubPlan
+AlternativeSubPlan
+FieldSelect
+FieldStore
+RelabelType
+CoerceViaIo
+ArrayCoerceExpr
+ConvertRowtypeExpr
+CollateExpr
+CaseExpr
+CaseWhen
+CaseTestExpr
+ArrayExpr
+RowExpr
+RowCompareExpr
+CoalesceExpr
+MinMaxExpr
+SqlvalueFunction
+XmlExpr
+JsonFormat
+JsonReturning
+JsonValueExpr
+JsonConstructorExpr
+JsonIsPredicate
+JsonBehavior
+JsonExpr
+JsonTablePath
+JsonTablePathScan
+JsonTableSiblingJoin
+NullTest
+BooleanTest
+MergeAction
+CoerceToDomain
+CoerceToDomainValue
+SetToDefault
+CurrentOfExpr
+NextValueExpr
+InferenceElem
+TargetEntry
+RangeTblRef
+JoinExpr
+FromExpr
+OnConflictExpr
+Query
+TypeName
+ColumnRef
+ParamRef
+AExpr
+TypeCast
+CollateClause
+RoleSpec
+FuncCall
+AStar
+AIndices
+AIndirection
+AArrayExpr
+ResTarget
+MultiAssignRef
+SortBy
+WindowDef
+RangeSubselect
+RangeFunction
+RangeTableFunc
+RangeTableFuncCol
+RangeTableSample
+ColumnDef
+TableLikeClause
+IndexElem
+DefElem
+LockingClause
+XmlSerialize
+PartitionElem
+PartitionSpec
+PartitionBoundSpec
+PartitionRangeDatum
+SinglePartitionSpec
+PartitionCmd
+RangeTblEntry
+RtepermissionInfo
+RangeTblFunction
+TableSampleClause
+WithCheckOption
+SortGroupClause
+GroupingSet
+WindowClause
+RowMarkClause
+WithClause
+InferClause
+OnConflictClause
+CtesearchClause
+CtecycleClause
+CommonTableExpr
+MergeWhenClause
+TriggerTransition
+JsonOutput
+JsonArgument
+JsonFuncExpr
+JsonTablePathSpec
+JsonTable
+JsonTableColumn
+JsonKeyValue
+JsonParseExpr
+JsonScalarExpr
+JsonSerializeExpr
+JsonObjectConstructor
+JsonArrayConstructor
+JsonArrayQueryConstructor
+JsonAggConstructor
+JsonObjectAgg
+JsonArrayAgg
+RawStmt
+InsertStmt
+DeleteStmt
+UpdateStmt
+MergeStmt
+SelectStmt
+SetOperationStmt
+ReturnStmt
+PlassignStmt
+CreateSchemaStmt
+AlterTableStmt
+ReplicaIdentityStmt
+AlterTableCmd
+AlterCollationStmt
+AlterDomainStmt
+GrantStmt
+ObjectWithArgs
+AccessPriv
+GrantRoleStmt
+AlterDefaultPrivilegesStmt
+CopyStmt
+VariableSetStmt
+VariableShowStmt
+CreateStmt
+Constraint
+CreateTableSpaceStmt
+DropTableSpaceStmt
+AlterTableSpaceOptionsStmt
+AlterTableMoveAllStmt
+CreateExtensionStmt
+AlterExtensionStmt
+AlterExtensionContentsStmt
+CreateFdwStmt
+AlterFdwStmt
+CreateForeignServerStmt
+AlterForeignServerStmt
+CreateForeignTableStmt
+CreateUserMappingStmt
+AlterUserMappingStmt
+DropUserMappingStmt
+ImportForeignSchemaStmt
+CreatePolicyStmt
+AlterPolicyStmt
+CreateAmStmt
+CreateTrigStmt
+CreateEventTrigStmt
+AlterEventTrigStmt
+CreatePlangStmt
+CreateRoleStmt
+AlterRoleStmt
+AlterRoleSetStmt
+DropRoleStmt
+CreateSeqStmt
+AlterSeqStmt
+DefineStmt
+CreateDomainStmt
+CreateOpClassStmt
+CreateOpClassItem
+CreateOpFamilyStmt
+AlterOpFamilyStmt
+DropStmt
+TruncateStmt
+CommentStmt
+SecLabelStmt
+DeclareCursorStmt
+ClosePortalStmt
+FetchStmt
+IndexStmt
+CreateStatsStmt
+StatsElem
+AlterStatsStmt
+CreateFunctionStmt
+FunctionParameter
+AlterFunctionStmt
+DoStmt
+InlineCodeBlock
+CallStmt
+CallContext
+RenameStmt
+AlterObjectDependsStmt
+AlterObjectSchemaStmt
+AlterOwnerStmt
+AlterOperatorStmt
+AlterTypeStmt
+RuleStmt
+NotifyStmt
+ListenStmt
+UnlistenStmt
+TransactionStmt
+CompositeTypeStmt
+CreateEnumStmt
+CreateRangeStmt
+AlterEnumStmt
+ViewStmt
+LoadStmt
+CreatedbStmt
+AlterDatabaseStmt
+AlterDatabaseRefreshCollStmt
+AlterDatabaseSetStmt
+DropdbStmt
+AlterSystemStmt
+ClusterStmt
+VacuumStmt
+VacuumRelation
+ExplainStmt
+CreateTableAsStmt
+RefreshMatViewStmt
+CheckPointStmt
+DiscardStmt
+LockStmt
+ConstraintsSetStmt
+ReindexStmt
+CreateConversionStmt
+CreateCastStmt
+CreateTransformStmt
+PrepareStmt
+ExecuteStmt
+DeallocateStmt
+DropOwnedStmt
+ReassignOwnedStmt
+AlterTsdictionaryStmt
+AlterTsconfigurationStmt
+PublicationTable
+PublicationObjSpec
+CreatePublicationStmt
+AlterPublicationStmt
+CreateSubscriptionStmt
+AlterSubscriptionStmt
+DropSubscriptionStmt
+Integer
+Float
+Boolean
+String
+BitString
+List
+IntList
+OidList
+AConst
+Ival
+Fval
+Boolval
+Sval
+Bsval
+=== gram.h head ===
+/* A Bison parser, made by GNU Bison 2.3.  */
+
+/* Skeleton interface for Bison's Yacc-like parsers in C
+
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* As a special exception, you may create a larger work that contains
+   part or all of the Bison parser skeleton and distribute that work
+   under terms of your choice, so long as that work isn't itself a
+   parser generator using the skeleton or a modified version thereof
+   as a parser skeleton.  Alternatively, if you modify or redistribute
+   the parser skeleton itself, you may (at your option) remove this
+   special exception, which will cause the skeleton and the resulting
+   Bison output files to be licensed under the GNU General Public
+   License without this special exception.
+
+   This special exception was added by the Free Software Foundation in
+   version 2.2 of Bison.  */
+
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+=== pl_gram head ===
+/*--------------------------------------------------------------------
+ * Symbols referenced in this file:
+ * - plpgsql_yyparse
+ * - plpgsql_yynerrs
+ * - plpgsql_yychar
+ * - plpgsql_yylval
+ * - plpgsql_yylloc
+ * - yypact
+ * - yytranslate
+ * - yycheck
+ * - yytable
+ * - yydefact
+ * - yyr2
+ * - check_labels
+ * - read_sql_stmt
+ * - read_datatype
+ * - parse_datatype
+ * - read_sql_expression
+ * - read_sql_construct
+ * - check_sql_expr
+ * - plpgsql_sql_error_callback
+ * - check_assignable
+ * - tok_is_keyword
+ * - NameOfDatum
+ * - word_is_not_variable
+ * - cword_is_not_variable
+ * - make_case
+ * - read_sql_expression2
+ * - make_scalar_list1
+ * - read_cursor_args
+=== exception count ===
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_backend_parser_gram.c:4
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/src_pl_plpgsql_src_pl_gram.c:4
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/gram.h:4
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.0/libpg_query/src/postgres/include/pl_gram.h:4

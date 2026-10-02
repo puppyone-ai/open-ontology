@@ -1,0 +1,11 @@
+=== raw star ===
+ERROR:  permission denied for table orders
+star_rc=1
+=== hidden column ===
+ERROR:  permission denied for table orders
+hidden_rc=1
+=== counts ===
+big_fact|1
+customer|2
+empty_vis|1
+orders|3

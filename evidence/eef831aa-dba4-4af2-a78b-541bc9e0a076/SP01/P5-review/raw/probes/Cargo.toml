@@ -1,0 +1,13 @@
+[package]
+name = "oo-a076-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+oo-p05-pg17-parser = { path = "/src" }
+serde_json = "=1.0.151"
+libc = "=0.2.189"

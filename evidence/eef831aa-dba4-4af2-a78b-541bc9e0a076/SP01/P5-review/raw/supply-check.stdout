@@ -1,0 +1,13 @@
+{
+  "as_of": "2026-10-01T23:07:52+00:00",
+  "floor_s": 604800,
+  "registry_packages": 80,
+  "checked": 80,
+  "errors": 0,
+  "checksum_mismatches": 0,
+  "young": 0,
+  "yanked": 0,
+  "missing_lock_checksum": 0,
+  "osv_hits": 0,
+  "osv_hit_detail": []
+}

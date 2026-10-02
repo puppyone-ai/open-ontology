@@ -1,0 +1,295 @@
+oo_owner=a076 phase=ipc
+2026-10-02T00:41:26Z
+gcc_exit=0
+foreign_sleep=5712
+     Locking 81 packages to latest compatible versions
+   Compiling oo-p05-pg17-parser v0.1.0 (/src)
+   Compiling oo-a076-probe v0.0.0 (/probe)
+warning: unused import: `std::process::Command`
+ --> src/main.rs:4:5
+  |
+4 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> src/main.rs:75:9
+   |
+75 |     let mut line = serde_json::to_string(&snap(&decision)).unwrap();
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-a076-probe` (bin "oo-a076-probe") generated 2 warnings (run `cargo fix --bin "oo-a076-probe" -p oo-a076-probe` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.35s
+probe_build_exit=0
+=== case premature limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers= decision={"code":"INVALID_OUTPUT","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":false,"syntax_allow":false,"workdir_removed":true}
+case=premature shell_rc=0 elapsed_ms=5
+no_descendant
+foreign_alive=S
+workdirs=
+
+=== case quick-deny limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers= decision={"code":"INVALID_OUTPUT","detail":"a076-probe","executed_sql":"","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170007,"pid":5992,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=quick-deny shell_rc=0 elapsed_ms=3
+no_descendant
+foreign_alive=S
+workdirs=
+
+=== case spoof-pid limit=8 ===
+probe_enter
+elapsed_ms=0 alive_after=false leftovers= decision={"code":"INVALID_OUTPUT","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":false,"syntax_allow":false,"workdir_removed":true}
+case=spoof-pid shell_rc=0 elapsed_ms=2
+no_descendant
+foreign_alive=S
+workdirs=
+
+=== case spoof-start limit=8 ===
+probe_enter
+elapsed_ms=0 alive_after=false leftovers= decision={"code":"INVALID_OUTPUT","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":false,"syntax_allow":false,"workdir_removed":true}
+case=spoof-start shell_rc=0 elapsed_ms=3
+no_descendant
+foreign_alive=S
+workdirs=
+
+=== case spoof-nonce limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers= decision={"code":"INVALID_OUTPUT","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":false,"syntax_allow":false,"workdir_removed":true}
+case=spoof-nonce shell_rc=0 elapsed_ms=3
+no_descendant
+foreign_alive=S
+workdirs=
+
+=== case bad-magic limit=8 ===
+probe_enter
+case=bad-magic shell_rc=124 elapsed_ms=8010
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case extra-frame limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"INVALID_OUTPUT","detail":"a076-probe","executed_sql":"","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170007,"pid":6062,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=extra-frame shell_rc=0 elapsed_ms=4
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case contradict limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"ALLOW_SYNTAX","detail":"a076-probe","executed_sql":"DROP TABLE analytics.orders","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170007,"pid":6076,"reaped":true,"starttime_matched":true,"syntax_allow":true,"workdir_removed":true}
+case=contradict shell_rc=0 elapsed_ms=4
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case oid-true limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"INVALID_OUTPUT","detail":"a076-probe","executed_sql":"","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170007,"pid":6090,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=oid-true shell_rc=0 elapsed_ms=4
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case version-server limit=8 ===
+probe_enter
+elapsed_ms=1 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"PARSER_MISMATCH","detail":"a076-probe","executed_sql":"","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170010,"pid":6104,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=version-server shell_rc=0 elapsed_ms=4
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case stderr-flood limit=12 ===
+probe_enter
+elapsed_ms=3 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"INVALID_OUTPUT","detail":"a076-probe","executed_sql":"","max_depth":1,"node_count":1,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":170007,"pid":6118,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=stderr-flood shell_rc=0 elapsed_ms=6
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case partial limit=8 ===
+probe_enter
+elapsed_ms=512 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"DEADLINE","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+case=partial shell_rc=0 elapsed_ms=516
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case silent-sleep limit=8 ===
+probe_enter
+elapsed_ms=5007 alive_after=false leftovers=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf decision={"code":"SPAWN_FAILED","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":false,"syntax_allow":false,"workdir_removed":true}
+case=silent-sleep shell_rc=0 elapsed_ms=5012
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case stdout-junk limit=8 ===
+probe_enter
+case=stdout-junk shell_rc=124 elapsed_ms=8008
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-92194d544628a89de093adff3be3d3fa oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case oversize-frame limit=8 ===
+probe_enter
+case=oversize-frame shell_rc=124 elapsed_ms=8011
+no_descendant
+foreign_alive=S
+workdirs=oo-p05-15fcdbce2cfa81052b4dc0be0721287e oo-p05-92194d544628a89de093adff3be3d3fa oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case hold-setsid-noreply limit=8 ===
+probe_enter
+case=hold-setsid-noreply shell_rc=124 elapsed_ms=8012
+descendant_pid=6191
+  PID  PPID  PGID   SID STAT COMMAND
+ 6191     1  6191  6191 Ss   hold-setsid-nor
+foreign_alive=S
+  PID STAT COMMAND
+descendant_killed
+workdirs=oo-p05-15fcdbce2cfa81052b4dc0be0721287e oo-p05-35b133703eea0e70806785b778f7ab41 oo-p05-92194d544628a89de093adff3be3d3fa oo-p05-f21e963a35545519f35cfc0ec4ae9bdf 
+
+=== case hold-setsid-after limit=8 ===
+probe_enter
+case=hold-setsid-after shell_rc=124 elapsed_ms=8009
+descendant_pid=6211
+  PID  PPID  PGID   SID STAT COMMAND
+ 6211     1  6211  6211 Ss   hold-setsid-aft
+foreign_alive=S
+  PID STAT COMMAND
+descendant_killed
+workdirs=oo-p05-15fcdbce2cfa81052b4dc0be0721287e oo-p05-35b133703eea0e70806785b778f7ab41 oo-p05-92194d544628a89de093adff3be3d3fa oo-p05-f21e963a35545519f35cfc0ec4ae9bdf oo-p05-92246e54635cc605a064990c565f7f65 
+
+=== case hold-samegroup limit=8 ===
+probe_enter
+case=hold-samegroup shell_rc=124 elapsed_ms=8005
+descendant_pid=6231
+  PID  PPID  PGID   SID STAT COMMAND
+ 6231     1  6228  5677 S    hold-samegroup
+foreign_alive=S
+  PID STAT COMMAND
+descendant_killed
+workdirs=oo-p05-15fcdbce2cfa81052b4dc0be0721287e oo-p05-e073425dda2b4426cdd251cf9423701d oo-p05-35b133703eea0e70806785b778f7ab41 oo-p05-92194d544628a89de093adff3be3d3fa oo-p05-f21e963a35545519f35cfc0ec4ae9bdf oo-p05-92246e54635cc605a064990c565f7f65 
+
+=== inherit ===
+probe_enter
+elapsed_ms=506 alive_after=false leftovers=oo-p05-15fcdbce2cfa81052b4dc0be0721287e,oo-p05-e073425dda2b4426cdd251cf9423701d,oo-p05-35b133703eea0e70806785b778f7ab41,oo-p05-92194d544628a89de093adff3be3d3fa,oo-p05-f21e963a35545519f35cfc0ec4ae9bdf,oo-p05-92246e54635cc605a064990c565f7f65 decision={"code":"DEADLINE","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+inherit_rc=0
+--- inherit fds ---
+pid=6247 cwd_fd_count_start
+fd=0 pipe:[283650]
+fd=1 pipe:[283651]
+fd=2 pipe:[283652]
+fd=3 /run/host_virtiofs/private/tmp/oo-a076-81b3f22f-b143-4cf8-b2c8-19110890d30a/probes/inherit-fds.txt
+--- worker caps ---
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	1
+=== net touch ===
+probe_enter
+elapsed_ms=514 alive_after=false leftovers=oo-p05-15fcdbce2cfa81052b4dc0be0721287e,oo-p05-e073425dda2b4426cdd251cf9423701d,oo-p05-35b133703eea0e70806785b778f7ab41,oo-p05-92194d544628a89de093adff3be3d3fa,oo-p05-f21e963a35545519f35cfc0ec4ae9bdf,oo-p05-92246e54635cc605a064990c565f7f65 decision={"code":"DEADLINE","detail":"","executed_sql":"","max_depth":0,"node_count":0,"oid_acl_rls_proven":false,"original_projection_star":false,"parser_version":0,"pid":0,"reaped":true,"starttime_matched":true,"syntax_allow":false,"workdir_removed":true}
+net_rc=0
+--- outside touch ---
+passwd_readable=yes first=root:x:0:0:root:/root:/bin/bash
+src_cargo_readable=yes first=[package]
+tcp_1_1_1_1_443=connected
+=== path boundary ===
+missing elapsed_ms=1 code=SPAWN_FAILED allow=false oid=false sql_empty=true reaped=false workdir=true pid=0
+directory elapsed_ms=0 code=SPAWN_FAILED allow=false oid=false sql_empty=true reaped=false workdir=true pid=0
+symlink elapsed_ms=513 code=DEADLINE allow=false oid=false sql_empty=true reaped=true workdir=true pid=0
+relative elapsed_ms=0 code=SPAWN_FAILED allow=false oid=false sql_empty=true reaped=false workdir=true pid=0
+paths_rc=0
+=== published worker dump ===
+select-const native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+legal-filter native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+star-orders native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+qualified-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+star-then-extra native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+extra-then-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+count-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+count-star-group native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+count-filter native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+left-join-count native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+self-join-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+join-using-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+join-on-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+left-join-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+cte-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+cte-hides-created native=COLUMN_NOT_ALLOWED remote=COLUMN_NOT_ALLOWED reaped=true
+cte-shadow native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+cte-values-not-table native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+subquery-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+scalar-subquery native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+union-all native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+union-distinct native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+except native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+star-union native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+quoted-alias native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+quoted-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+json-table native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+json-table-star native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+window-count native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+unicode-eu native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+where-true-large native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+where-one-eq-one-large native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+r9-wrap native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+r9-bare native=R9_STAR_ON_LARGE remote=R9_STAR_ON_LARGE reaped=true
+hidden-created native=COLUMN_NOT_ALLOWED remote=COLUMN_NOT_ALLOWED reaped=true
+hidden-filter native=COLUMN_NOT_ALLOWED remote=COLUMN_NOT_ALLOWED reaped=true
+empty-star native=NO_VISIBLE_COLUMNS remote=NO_VISIBLE_COLUMNS reaped=true
+empty-column native=COLUMN_NOT_ALLOWED remote=COLUMN_NOT_ALLOWED reaped=true
+catalog native=FORBIDDEN_SCHEMA remote=FORBIDDEN_SCHEMA reaped=true
+quoted-catalog native=FORBIDDEN_SCHEMA remote=FORBIDDEN_SCHEMA reaped=true
+information-schema native=FORBIDDEN_SCHEMA remote=FORBIDDEN_SCHEMA reaped=true
+unqualified native=UNQUALIFIED_RELATION remote=UNQUALIFIED_RELATION reaped=true
+set native=UTILITY remote=UTILITY reaped=true
+set-local-claims native=UTILITY remote=UTILITY reaped=true
+select-into native=SELECT_INTO remote=SELECT_INTO reaped=true
+for-update native=ROW_LOCK remote=ROW_LOCK reaped=true
+for-key-share native=ROW_LOCK remote=ROW_LOCK reaped=true
+writable-cte native=WRITE_NODE remote=WRITE_NODE reaped=true
+nested-write native=WRITE_NODE remote=WRITE_NODE reaped=true
+multi native=MULTI_STATEMENT remote=MULTI_STATEMENT reaped=true
+multi-delete native=MULTI_STATEMENT remote=MULTI_STATEMENT reaped=true
+set-config native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+pg-read-file native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+current-setting native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+order-by-alias native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+malformed native=SQL_PARSE_ERROR remote=SQL_PARSE_ERROR reaped=true
+empty native=EMPTY_SQL remote=EMPTY_SQL reaped=false
+table-stmt native=ALLOW_SYNTAX remote=ALLOW_SYNTAX reaped=true
+natural-join native=NATURAL_JOIN_DEFERRED remote=NATURAL_JOIN_DEFERRED reaped=true
+lateral native=LATERAL_DEFERRED remote=LATERAL_DEFERRED reaped=true
+whole-row native=WHOLE_ROW_DEFERRED remote=WHOLE_ROW_DEFERRED reaped=true
+json-nested native=SCOPE_UNRESOLVED remote=SCOPE_UNRESOLVED reaped=true
+dump_rc=0
+=== leftovers before cleanup ===
+/tmp/oo-p05-15fcdbce2cfa81052b4dc0be0721287e
+/tmp/oo-p05-e073425dda2b4426cdd251cf9423701d
+/tmp/oo-p05-35b133703eea0e70806785b778f7ab41
+/tmp/oo-p05-92194d544628a89de093adff3be3d3fa
+/tmp/oo-p05-f21e963a35545519f35cfc0ec4ae9bdf
+/tmp/oo-p05-92246e54635cc605a064990c565f7f65
+  PID  PPID  PGID   SID STAT COMMAND
+    1     0     1     1 Ss   docker-init
+    7     1     7     1 S    sleep
+ 5677     0  5677  5677 Ss   bash
+ 5683  5677  5677  5677 S    tee
+ 5712  5677  5677  5677 S    sleep
+ 6048     1  6048  5677 S    bad-magic
+ 6160     1  6160  5677 S    stdout-junk
+ 6174     1  6174  5677 S    oversize-frame
+ 6451  5677  5677  5677 R    ps
+ 6452  5677  5677  5677 S    head
+/probe/ipc-driver.sh: line 108:  5712 Killed                  sleep 400
+foreign_after=dead
+helper_left=1
+ipc_driver_done

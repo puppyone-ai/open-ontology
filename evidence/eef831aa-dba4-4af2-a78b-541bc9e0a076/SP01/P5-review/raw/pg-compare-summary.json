@@ -1,0 +1,7 @@
+{
+  "before_rc": 0,
+  "before": "big_fact|1\ncustomer|2\nempty_vis|1\norders|3",
+  "after_rc": 0,
+  "after": "big_fact|1\ncustomer|2\nempty_vis|1\norders|3",
+  "rows_unchanged": true
+}

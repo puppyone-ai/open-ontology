@@ -1,0 +1,10 @@
+oo_owner=a076 phase=clippy-rerun
+2026-10-02T00:39:57Z
+first_clippy_exit_was_1_component_missing
+bash: line 5: rustup: command not found
+clippy_add_exit=127
+bash: line 7: rustup: command not found
+bash: line 13: cargo: command not found
+clippy_default_exit=127
+bash: line 15: cargo: command not found
+clippy_hooks_exit=127
