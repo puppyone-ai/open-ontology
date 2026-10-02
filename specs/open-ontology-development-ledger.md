@@ -186,7 +186,7 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
-  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；token/SQL/CA三种peerless FIFO卡open，a106定点修复已启动，独占释放的builder槽B；沙盒proxy/管理命令/完整对话另验。
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；a106已交付FIFO修正版7acca207，a111独占槽B固定复审中；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -762,3 +762,9 @@ a110handle32339本轮实际有界核验仍live，保留builder槽A。槽B明确�
 ### a108 preflight限定签收
 
 完整review/findings/HANDOFF与决定summary/rawSQLSTATE/console已读取；参考apply文件hash在事务前与固定SHA比较，错误SQLSTATE由真实PG返回，OO001为参考installer义务，生产src不调用test路线。10源码哈希与fixed6cd955逐个比较一致；实际154PASS/0FAIL，所有决定phase0，live4.64s。证据1575文件477172bytes无symlink/privatekeyPEM，逐文件SHA索引execution/decisions/a108-evidence-sha256.txt，限定接收说明a108-preflight-receipt.md。仅新增W05-a1勾选；完整W05-a/W05/AT-PL-05与F2/F3/F5仍开放，作者首轮raw丢失和旧2死路径RED均保留。9交付组件/8产品验收子项/首次返工5比7，完整87父项/16Phase仍0完成。CLI106已启动、types110原会话继续，goal active。
+
+### a106终态交付与a111独立复审
+
+a106handle39012实际exit0，关闭后不再轮询。交付7acca2073ad5f7d39d24a61a2e869a8d96fe1c6c/tree2f9f05a77ed5cd4f21fc9aed14b62dc691b074c4/parentdde0dff30e64c9f4c30a7b1371508de38efea553，完整REPORT/HANDOFF及4源路径diff已读取；同一open增加O_NONBLOCK|O_NOFOLLOW后fstat，无新依赖/lock变更。原archive三FIFO signal9在1218/1216/1222ms、zeroaccepts、product_pass=no；作者overlay Linux1.94 11tests/Clippy0仅交付证据，尚非独立签收。
+
+slotB从真实终态a106释放并移交a111，完整固定复审卡v01-cli-fifo-fixed-review.md已派Grok4.7xhigh，实际handle94170；仅own evidence+Rustprobe/read-onlyarchive，无product/root写权。独立真实spawn6FIFO cases、信号与code分开、deadline/zeroaccept/静态错误、regular文件与边界/TLS相关回归，先Linux/MSRV局部冒烟。slotA a110handle32339仍live；jobs107/helper109仍prepared；下一新UUID为a112。FIFO是原CLI返工非新增产品组件，累计9交付组件/8验收子项/首次返工5比7、完整87父项/16Phase仍0完成，goal active。
