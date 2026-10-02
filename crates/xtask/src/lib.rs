@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 pub mod architecture;
+pub mod containment;
 pub mod contracts;
 pub mod deny_toml;
 pub mod evidence;

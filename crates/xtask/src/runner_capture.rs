@@ -9,15 +9,11 @@
 //! digest-shape escape. Exact echo transcripts stay rejected. A longer forged
 //! transcript is still only an imported record.
 
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
-
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 
@@ -93,6 +89,10 @@ pub struct ExecutedCommand {
     started_at: String,
     finished_at: String,
     spawn_error: Option<String>,
+    containment: String,
+    spawned: bool,
+    containment_note: String,
+    direct_pid: u32,
 }
 
 impl ExecutedCommand {
@@ -144,6 +144,22 @@ impl ExecutedCommand {
         self.spawn_error.as_deref()
     }
 
+    pub fn containment(&self) -> &str {
+        &self.containment
+    }
+
+    pub fn spawned(&self) -> bool {
+        self.spawned
+    }
+
+    pub fn containment_note(&self) -> &str {
+        &self.containment_note
+    }
+
+    pub fn direct_pid(&self) -> u32 {
+        self.direct_pid
+    }
+
     pub fn step_script(&self) -> String {
         self.argv.join(" ")
     }
@@ -152,7 +168,6 @@ impl ExecutedCommand {
 pub const GATE_DEADLINE_MIN_SECS: u64 = 1;
 pub const GATE_DEADLINE_MAX_SECS: u64 = 2700;
 pub const OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
-const CLEANUP_BUDGET: Duration = Duration::from_millis(1500);
 static CAPTURE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 pub fn parse_gate_deadline(raw: Option<&str>) -> Result<Duration, String> {
@@ -250,6 +265,10 @@ pub fn execute_command(
         started_at: started_for_failure.clone(),
         finished_at: crate::util::now_rfc3339(),
         spawn_error: Some(spawn_error),
+        containment: crate::containment::UNAVAILABLE.to_owned(),
+        spawned: false,
+        containment_note: "not-started".to_owned(),
+        direct_pid: 0,
     };
     let Some(program) = argv.first().filter(|program| !program.is_empty()) else {
         return failure("coordinator has no command to execute".to_owned());
@@ -258,104 +277,39 @@ pub fn execute_command(
         Ok(capture) => capture,
         Err(error) => return failure(error),
     };
-    let stdout_file = match File::create(&capture.stdout) {
-        Ok(file) => file,
-        Err(error) => {
-            let _ = fs::remove_dir_all(&capture.dir);
-            return failure(format!(
-                "coordinator could not open stdout capture: {error}"
-            ));
-        }
-    };
-    let stderr_file = match File::create(&capture.stderr) {
-        Ok(file) => file,
-        Err(error) => {
-            let _ = fs::remove_dir_all(&capture.dir);
-            return failure(format!(
-                "coordinator could not open stderr capture: {error}"
-            ));
-        }
-    };
     let mut command = Command::new(program);
     command
         .args(&argv[1..])
         .current_dir(repo)
         .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout_file))
-        .stderr(Stdio::from(stderr_file));
-    #[cfg(unix)]
-    {
-        command.process_group(0);
-    }
-    let mut child = match command.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            let _ = fs::remove_dir_all(&capture.dir);
-            return failure(format!("coordinator could not spawn {program}: {error}"));
-        }
-    };
-    let mut tree = crate::owned_process::OwnedTree::capture(child.id());
-    let started = Instant::now();
-    let mut timed_out = false;
-    let mut output_limited = false;
-    let mut natural: Option<i32> = None;
-    loop {
-        tree.refresh();
-        if file_len(&capture.stdout) > OUTPUT_LIMIT_BYTES as u64
-            || file_len(&capture.stderr) > OUTPUT_LIMIT_BYTES as u64
-        {
-            output_limited = true;
-            break;
-        }
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                natural = Some(status.code().unwrap_or(-1));
-                break;
-            }
-            Ok(None) if started.elapsed() >= deadline => {
-                timed_out = true;
-                break;
-            }
-            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
-            Err(_) => break,
-        }
-    }
-    // Record descendants while the child is still alive, then reap it.
-    // A same-group signal does not cover a descendant that left the group.
-    if natural.is_none() {
-        let _ = tree.kill_recorded();
-        let _ = child.kill();
-        natural = Some(match child.wait() {
-            Ok(status) => status.code().unwrap_or(-1),
-            Err(_) => -1,
-        });
-    }
-    let cleanup = tree.confirm(CLEANUP_BUDGET);
-    let (stdout, stdout_over) = read_capped(&capture.stdout, OUTPUT_LIMIT_BYTES);
-    let (stderr, stderr_over) = read_capped(&capture.stderr, OUTPUT_LIMIT_BYTES);
-    if stdout_over || stderr_over {
-        output_limited = true;
-    }
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    let contained = crate::containment::supervise(
+        &command,
+        deadline,
+        &capture.stdout,
+        &capture.stderr,
+        &capture.dir.join("status"),
+        OUTPUT_LIMIT_BYTES as u64,
+    );
     let _ = fs::remove_dir_all(&capture.dir);
-    let waited = natural.unwrap_or(-1);
-    let cleanup_incomplete = cleanup.incomplete;
-    let mut exit_code = waited;
-    if (timed_out || output_limited || cleanup_incomplete) && exit_code == 0 {
-        exit_code = -1;
-    }
     ExecutedCommand {
         job: job.to_owned(),
         argv: argv.to_vec(),
         source_commit: source_commit.to_owned(),
-        exit_code,
-        stdout,
-        stderr,
-        timed_out,
-        cleanup_incomplete,
-        output_limited,
+        exit_code: contained.exit_code,
+        stdout: contained.stdout,
+        stderr: contained.stderr,
+        timed_out: contained.timed_out,
+        cleanup_incomplete: contained.cleanup_incomplete,
+        output_limited: contained.output_limited,
         started_at,
         finished_at: crate::util::now_rfc3339(),
-        spawn_error: None,
+        spawn_error: contained.spawn_error,
+        containment: contained.containment,
+        spawned: contained.spawned,
+        containment_note: contained.note,
+        direct_pid: contained.direct_pid,
     }
 }
 
@@ -395,39 +349,6 @@ fn sanitize_job(job: &str) -> String {
         out.push_str("job");
     }
     out
-}
-
-fn file_len(path: &Path) -> u64 {
-    fs::metadata(path)
-        .map(|metadata| metadata.len())
-        .unwrap_or(0)
-}
-
-fn read_capped(path: &Path, limit: usize) -> (Vec<u8>, bool) {
-    let mut file = match File::open(path) {
-        Ok(file) => file,
-        Err(_) => return (Vec::new(), false),
-    };
-    let mut kept = Vec::new();
-    let mut chunk = [0u8; 8192];
-    let mut limited = false;
-    loop {
-        match file.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(count) => {
-                let room = limit.saturating_sub(kept.len());
-                if count > room {
-                    kept.extend_from_slice(&chunk[..room]);
-                    limited = true;
-                    break;
-                }
-                kept.extend_from_slice(&chunk[..count]);
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(_) => break,
-        }
-    }
-    (kept, limited)
 }
 
 pub fn seal_executed(
@@ -789,6 +710,7 @@ fn trim_ascii(bytes: &[u8]) -> &[u8] {
 mod tests {
     use super::*;
     use std::process::Command;
+    use std::time::Instant;
 
     #[test]
     fn deadline_accepts_only_a_positive_bounded_range() {
@@ -822,23 +744,36 @@ mod tests {
             "gate-docs",
             "a".repeat(40).as_str(),
         );
-        assert!(executed.spawn_error().is_none());
-        assert!(!executed.timed_out());
-        assert!(!executed.cleanup_incomplete());
-        assert!(!executed.output_limited());
-        assert_eq!(executed.exit_code(), 7);
-        assert!(
-            executed
-                .stdout()
-                .windows(11)
-                .any(|window| window == b"shim-stdout")
-        );
-        assert!(
-            executed
-                .stderr()
-                .windows(11)
-                .any(|window| window == b"shim-stderr")
-        );
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(executed.spawn_error().is_none());
+            assert!(!executed.timed_out());
+            assert!(!executed.cleanup_incomplete());
+            assert!(!executed.output_limited());
+            assert_eq!(executed.exit_code(), 7);
+            assert!(executed.direct_pid() > 1);
+            assert!(
+                executed
+                    .stdout()
+                    .windows(11)
+                    .any(|window| window == b"shim-stdout")
+            );
+            assert!(
+                executed
+                    .stderr()
+                    .windows(11)
+                    .any(|window| window == b"shim-stderr")
+            );
+        } else {
+            assert_refused(&executed);
+            assert!(
+                !executed
+                    .stdout()
+                    .windows(11)
+                    .any(|window| window == b"shim-stdout")
+            );
+        }
     }
 
     #[test]
@@ -875,13 +810,19 @@ mod tests {
             "gate-docs",
             "b".repeat(40).as_str(),
         );
-        assert!(executed.timed_out(), "deadline did not fire");
-        assert!(
-            !executed.cleanup_incomplete(),
-            "same-group cleanup incomplete"
-        );
-        assert!(!executed.output_limited());
-        assert_ne!(executed.exit_code(), 0);
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(executed.timed_out(), "deadline did not fire");
+            assert!(
+                !executed.cleanup_incomplete(),
+                "same-group cleanup incomplete"
+            );
+            assert!(!executed.output_limited());
+            assert_ne!(executed.exit_code(), 0);
+        } else {
+            assert_refused(&executed);
+        }
         let descendant = fs::read_to_string(&pid_path).unwrap_or_default();
         let descendant_pid: u32 = descendant.trim().parse().unwrap_or(0);
         let descendant_gone = wait_until_gone(descendant_pid);
@@ -889,8 +830,15 @@ mod tests {
         let _ = foreign.kill();
         let _ = foreign.wait();
         let _ = fs::remove_dir_all(&root);
-        assert!(descendant_pid > 1, "descendant pid was not recorded");
-        assert!(descendant_gone, "owned descendant was still running");
+        if cfg!(target_os = "linux") {
+            assert!(descendant_pid > 1, "descendant pid was not recorded");
+            assert!(descendant_gone, "owned descendant was still running");
+        } else {
+            assert!(
+                descendant.trim().is_empty(),
+                "refused command still wrote a descendant pid: {descendant}"
+            );
+        }
         assert!(
             foreign_state
                 .as_deref()
@@ -960,19 +908,29 @@ wait\n",
             elapsed < Duration::from_secs(8),
             "setsid command did not return bounded: {elapsed:?}"
         );
-        assert!(!recorded.contains("NO_SETSID"), "{recorded}");
-        assert!(
-            descendant_pid > 1,
-            "setsid pid was not recorded: {recorded}"
-        );
-        assert!(executed.timed_out(), "deadline did not fire");
-        assert!(executed.spawn_error().is_none());
-        assert_ne!(executed.exit_code(), 0);
-        assert!(
-            !executed.cleanup_incomplete(),
-            "setsid descendant was not stopped"
-        );
-        assert!(descendant_gone, "setsid descendant still running");
+        if cfg!(target_os = "linux") {
+            assert!(!recorded.contains("NO_SETSID"), "{recorded}");
+            assert!(
+                descendant_pid > 1,
+                "setsid pid was not recorded: {recorded}"
+            );
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(executed.timed_out(), "deadline did not fire");
+            assert!(executed.spawn_error().is_none());
+            assert_ne!(executed.exit_code(), 0);
+            assert!(
+                !executed.cleanup_incomplete(),
+                "setsid descendant was not stopped"
+            );
+            assert!(descendant_gone, "setsid descendant still running");
+        } else {
+            assert_refused(&executed);
+            assert!(
+                recorded.trim().is_empty() || recorded.contains("NO_SETSID"),
+                "refused command still started a setsid child: {recorded}"
+            );
+        }
         assert!(
             foreign_state
                 .as_deref()
@@ -1001,13 +959,450 @@ wait\n",
             elapsed < Duration::from_secs(15),
             "output limit did not return bounded: {elapsed:?}"
         );
-        assert!(executed.spawn_error().is_none(), "{:?}", executed.stderr());
-        assert!(executed.output_limited(), "output limit was not reported");
-        assert!(!executed.timed_out());
-        assert!(!executed.cleanup_incomplete());
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(executed.spawn_error().is_none(), "{:?}", executed.stderr());
+            assert!(executed.output_limited(), "output limit was not reported");
+            assert!(!executed.timed_out());
+            assert!(!executed.cleanup_incomplete());
+            assert_ne!(executed.exit_code(), 0);
+            assert_eq!(executed.stdout().len(), OUTPUT_LIMIT_BYTES);
+            assert!(executed.stdout().iter().all(|byte| *byte == 0));
+        } else {
+            assert_refused(&executed);
+            assert!(executed.stdout().len() < OUTPUT_LIMIT_BYTES);
+        }
+    }
+
+    #[test]
+    fn early_setsid_double_fork_is_reaped_or_refused() {
+        let mut foreign = Command::new("/bin/sleep")
+            .arg("120")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("foreign sleep");
+        let foreign_pid = foreign.id();
+        let mut survivors = Vec::new();
+        for index in 0..15 {
+            let root = std::env::temp_dir().join(format!(
+                "oo-a070-early-{}-{}-{index}",
+                std::process::id(),
+                foreign_pid
+            ));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(&root).unwrap();
+            let pid_path = root.join("grandchild.pid");
+            let script = root.join("escape.sh");
+            fs::write(
+                &script,
+                "#!/bin/sh\n\
+pidfile=$1\n\
+if [ -x /usr/bin/setsid ]; then SETSID=/usr/bin/setsid;\n\
+elif [ -x /bin/setsid ]; then SETSID=/bin/setsid;\n\
+else echo NO_SETSID > \"$pidfile\"; exit 9; fi\n\
+\"$SETSID\" /bin/sh -c 'echo $$ > \"$1\"; exec /bin/sleep 120' _ \"$pidfile\" >/dev/null 2>&1 &\n\
+i=0\n\
+while [ ! -s \"$pidfile\" ] && [ \"$i\" -lt 100 ]; do i=$((i+1)); sleep 0.01; done\n\
+exit 0\n",
+            )
+            .unwrap();
+            let executed = execute_command(
+                &root,
+                &[
+                    "/bin/sh".to_owned(),
+                    script.display().to_string(),
+                    pid_path.display().to_string(),
+                ],
+                Duration::from_secs(5),
+                "gate-docs",
+                "e".repeat(40).as_str(),
+            );
+            let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+            let pid = recorded.trim().parse::<u32>().unwrap_or(0);
+            let state_at_return = process_state(pid);
+            let gone = wait_until_gone(pid);
+            let state_after = process_state(pid);
+            if cfg!(target_os = "linux") {
+                assert!(executed.spawned(), "{index}");
+                assert_eq!(executed.containment(), crate::containment::VERIFIED);
+                assert!(!executed.cleanup_incomplete(), "{index} {recorded}");
+                assert!(executed.spawn_error().is_none());
+                assert!(!recorded.contains("NO_SETSID"), "{recorded}");
+                assert!(pid > 1, "grandchild pid missing: {recorded}");
+                assert!(
+                    state_at_return.is_none(),
+                    "grandchild {pid} alive at return: {state_at_return:?} direct {}",
+                    executed.direct_pid()
+                );
+                assert!(gone && state_after.is_none(), "grandchild {pid} survived");
+                assert!(
+                    !crate::containment::blocks_pass(
+                        executed.containment(),
+                        executed.spawned(),
+                        executed.cleanup_incomplete(),
+                        executed.containment_note(),
+                    ),
+                    "reaped command was blocked"
+                );
+            } else {
+                assert_refused(&executed);
+                if pid > 1 {
+                    survivors.push((pid, state_at_return.clone()));
+                }
+            }
+            let _ = fs::remove_dir_all(&root);
+        }
+        let foreign_state = process_state(foreign_pid);
+        let _ = foreign.kill();
+        let _ = foreign.wait();
+        for (pid, _) in &survivors {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        assert!(
+            survivors.is_empty(),
+            "refused runs left descendants {survivors:?}"
+        );
+        assert!(
+            foreign_state
+                .as_deref()
+                .is_some_and(|state| !state.starts_with('Z')),
+            "foreign process was killed or zombied: {foreign_state:?}"
+        );
+    }
+
+    #[test]
+    fn early_setsid_exits_before_the_grandchild_is_recorded() {
+        let mut foreign = Command::new("/bin/sleep")
+            .arg("180")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("foreign sleep");
+        let foreign_pid = foreign.id();
+        let mut leaked = Vec::new();
+        for index in 0..15 {
+            let root = std::env::temp_dir().join(format!(
+                "oo-a070-immediate-{}-{}-{index}",
+                std::process::id(),
+                foreign_pid
+            ));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(&root).unwrap();
+            let pid_path = root.join("grandchild.pid");
+            let script = root.join("escape.sh");
+            fs::write(
+                &script,
+                "#!/bin/sh\n\
+pidfile=$1\n\
+if [ -x /usr/bin/setsid ]; then SETSID=/usr/bin/setsid;\n\
+elif [ -x /bin/setsid ]; then SETSID=/bin/setsid;\n\
+else echo NO_SETSID; exit 9; fi\n\
+\"$SETSID\" /bin/sh -c 'echo $$ > \"$1\"; exec /bin/sleep 121' _ \"$pidfile\" >/dev/null 2>&1 &\n\
+exit 0\n",
+            )
+            .unwrap();
+            let executed = execute_command(
+                &root,
+                &[
+                    "/bin/sh".to_owned(),
+                    script.display().to_string(),
+                    pid_path.display().to_string(),
+                ],
+                Duration::from_secs(5),
+                "gate-docs",
+                "d".repeat(40).as_str(),
+            );
+            let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+            let pid = recorded.trim().parse::<u32>().unwrap_or(0);
+            let state_at_return = process_state(pid);
+            let sleepers = command_lines_containing("sleep 121");
+            if cfg!(target_os = "linux") {
+                assert!(executed.spawned(), "{index}");
+                assert_eq!(
+                    executed.containment(),
+                    crate::containment::VERIFIED,
+                    "{index} note {}",
+                    executed.containment_note()
+                );
+                assert!(!executed.cleanup_incomplete(), "{index}");
+                assert!(executed.spawn_error().is_none());
+                assert!(
+                    !executed.stdout().windows(9).any(|bytes| bytes == b"NO_SETSID"),
+                    "setsid missing"
+                );
+                assert!(
+                    sleepers.is_empty(),
+                    "immediate {index} left sleep 121: {sleepers:?} direct {}",
+                    executed.direct_pid()
+                );
+                if pid > 1 {
+                    assert!(
+                        state_at_return.is_none(),
+                        "grandchild {pid} alive at return: {state_at_return:?}"
+                    );
+                }
+            } else {
+                assert_refused(&executed);
+                assert!(recorded.trim().is_empty(), "{recorded}");
+                assert!(sleepers.is_empty(), "{sleepers:?}");
+            }
+            leaked.extend(sleepers);
+            let _ = fs::remove_dir_all(&root);
+        }
+        let foreign_state = process_state(foreign_pid);
+        let _ = foreign.kill();
+        let _ = foreign.wait();
+        for line in &leaked {
+            if let Some(pid) = line.split_whitespace().next() {
+                let _ = Command::new("/bin/kill")
+                    .args(["-KILL", pid])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+            }
+        }
+        assert!(leaked.is_empty(), "immediate exits left {leaked:?}");
+        assert!(
+            foreign_state
+                .as_deref()
+                .is_some_and(|state| !state.starts_with('Z')),
+            "foreign process was killed or zombied: {foreign_state:?}"
+        );
+    }
+
+    #[test]
+    fn same_group_early_exit_is_reaped_or_refused() {
+        let root = std::env::temp_dir().join(format!("oo-a070-group-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let pid_path = root.join("child.pid");
+        let script = root.join("group.sh");
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nsleep 120 &\necho $! > {}\nexit 0\n",
+                pid_path.display()
+            ),
+        )
+        .unwrap();
+        let executed = execute_command(
+            &root,
+            &["/bin/sh".to_owned(), script.display().to_string()],
+            Duration::from_secs(5),
+            "gate-docs",
+            "f".repeat(40).as_str(),
+        );
+        let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+        let pid = recorded.trim().parse::<u32>().unwrap_or(0);
+        let state_at_return = process_state(pid);
+        let gone = wait_until_gone(pid);
+        if pid > 1 {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let _ = fs::remove_dir_all(&root);
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(!executed.cleanup_incomplete());
+            assert_eq!(executed.exit_code(), 0);
+            assert!(pid > 1, "{recorded}");
+            assert!(state_at_return.is_none(), "{state_at_return:?}");
+            assert!(gone, "same-group child survived");
+        } else {
+            assert_refused(&executed);
+            assert!(recorded.trim().is_empty(), "{recorded}");
+        }
+    }
+
+    #[test]
+    fn held_stdout_cannot_grow_after_return() {
+        let root = std::env::temp_dir().join(format!("oo-a070-hold-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let side = root.join("side.bin");
+        let pid_path = root.join("writer.pid");
+        let script = root.join("hold.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\n\
+side=$1\npidfile=$2\n\
+if [ -x /usr/bin/setsid ]; then SETSID=/usr/bin/setsid;\n\
+elif [ -x /bin/setsid ]; then SETSID=/bin/setsid;\n\
+else echo NO_SETSID > \"$pidfile\"; exit 9; fi\n\
+\"$SETSID\" /bin/sh -c 'echo $$ > \"$2\"; while true; do printf x >> \"$1\"; printf y; done' _ \"$side\" \"$pidfile\" >/dev/null 2>&1 &\n\
+i=0\n\
+while [ ! -s \"$pidfile\" ] && [ \"$i\" -lt 100 ]; do i=$((i+1)); sleep 0.01; done\n\
+exit 0\n",
+        )
+        .unwrap();
+        let executed = execute_command(
+            &root,
+            &[
+                "/bin/sh".to_owned(),
+                script.display().to_string(),
+                side.display().to_string(),
+                pid_path.display().to_string(),
+            ],
+            Duration::from_secs(5),
+            "gate-docs",
+            "g".repeat(40).as_str(),
+        );
+        let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+        let pid = recorded.trim().parse::<u32>().unwrap_or(0);
+        let state_at_return = process_state(pid);
+        let size_at = fs::metadata(&side).map(|meta| meta.len()).unwrap_or(0);
+        std::thread::sleep(Duration::from_millis(300));
+        let size_after = fs::metadata(&side).map(|meta| meta.len()).unwrap_or(0);
+        let gone = wait_until_gone(pid);
+        if pid > 1 {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let _ = fs::remove_dir_all(&root);
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(!executed.cleanup_incomplete());
+            assert!(pid > 1, "{recorded}");
+            assert!(state_at_return.is_none(), "{state_at_return:?}");
+            assert!(gone, "writer survived");
+            assert_eq!(size_at, size_after, "side file grew after return");
+            assert!(executed.stdout().len() <= OUTPUT_LIMIT_BYTES);
+        } else {
+            assert_refused(&executed);
+            assert!(recorded.trim().is_empty(), "{recorded}");
+            assert_eq!(size_at, 0);
+            assert_eq!(size_after, 0);
+        }
+    }
+
+    #[test]
+    fn output_limit_is_exact_and_stops_storage() {
+        if !cfg!(target_os = "linux") {
+            let executed = execute_command(
+                &std::env::temp_dir(),
+                &[
+                    "/bin/dd".to_owned(),
+                    "if=/dev/zero".to_owned(),
+                    "bs=1048576".to_owned(),
+                    "count=16".to_owned(),
+                ],
+                Duration::from_secs(10),
+                "gate-docs",
+                "h".repeat(40).as_str(),
+            );
+            assert_refused(&executed);
+            return;
+        }
+        let exact = execute_command(
+            &std::env::temp_dir(),
+            &[
+                "/bin/dd".to_owned(),
+                "if=/dev/zero".to_owned(),
+                "bs=1048576".to_owned(),
+                "count=16".to_owned(),
+            ],
+            Duration::from_secs(15),
+            "gate-docs",
+            "h".repeat(40).as_str(),
+        );
+        assert_eq!(exact.containment(), crate::containment::VERIFIED);
+        assert!(!exact.output_limited());
+        assert_eq!(exact.exit_code(), 0);
+        assert_eq!(exact.stdout().len(), OUTPUT_LIMIT_BYTES);
+        let plus = execute_command(
+            &std::env::temp_dir(),
+            &[
+                "/bin/sh".to_owned(),
+                "-c".to_owned(),
+                "/bin/dd if=/dev/zero bs=1048576 count=16; /bin/dd if=/dev/zero bs=1 count=1"
+                    .to_owned(),
+            ],
+            Duration::from_secs(15),
+            "gate-docs",
+            "i".repeat(40).as_str(),
+        );
+        assert!(plus.output_limited(), "one extra byte was not limited");
+        assert_ne!(plus.exit_code(), 0);
+        assert_eq!(plus.stdout().len(), OUTPUT_LIMIT_BYTES);
+        assert_eq!(plus.containment(), crate::containment::VERIFIED);
+        let dir = std::env::temp_dir().join(format!("oo-a070-overshoot-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let stdout = dir.join("stdout");
+        let stderr = dir.join("stderr");
+        let status = dir.join("status");
+        let mut command = Command::new("/bin/dd");
+        command.args(["if=/dev/zero", "bs=1048576", "count=32"]);
+        let run = crate::containment::supervise(
+            &command,
+            Duration::from_secs(15),
+            &stdout,
+            &stderr,
+            &status,
+            OUTPUT_LIMIT_BYTES as u64,
+        );
+        let file_len = fs::metadata(&stdout).map(|meta| meta.len()).unwrap_or(u64::MAX);
+        std::thread::sleep(Duration::from_millis(200));
+        let file_after = fs::metadata(&stdout).map(|meta| meta.len()).unwrap_or(u64::MAX);
+        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(run.containment, crate::containment::VERIFIED);
+        assert!(run.output_limited);
+        assert_ne!(run.exit_code, 0);
+        assert_eq!(run.stdout.len(), OUTPUT_LIMIT_BYTES);
+        assert_eq!(file_len, OUTPUT_LIMIT_BYTES as u64);
+        assert_eq!(file_after, file_len, "capture file grew after return");
+    }
+
+    fn assert_refused(executed: &ExecutedCommand) {
+        assert_eq!(executed.containment(), crate::containment::UNAVAILABLE);
+        assert!(!executed.spawned());
+        assert!(executed.cleanup_incomplete());
         assert_ne!(executed.exit_code(), 0);
-        assert_eq!(executed.stdout().len(), OUTPUT_LIMIT_BYTES);
-        assert!(executed.stdout().iter().all(|byte| *byte == 0));
+        assert!(
+            executed
+                .spawn_error()
+                .is_some_and(|error| error.contains("containment")),
+            "{:?}",
+            executed.spawn_error()
+        );
+        assert!(crate::containment::blocks_pass(
+            executed.containment(),
+            executed.spawned(),
+            executed.cleanup_incomplete(),
+            executed.containment_note(),
+        ));
+    }
+
+    fn command_lines_containing(needle: &str) -> Vec<String> {
+        let output = Command::new("ps")
+            .args(["-ax", "-o", "pid=,command="])
+            .output();
+        let Ok(output) = output else {
+            return vec!["ps-failed".to_owned()];
+        };
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|line| line.contains(needle))
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_owned)
+            .collect()
     }
 
     fn process_state(pid: u32) -> Option<String> {

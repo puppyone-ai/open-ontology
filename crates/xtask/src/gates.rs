@@ -2918,7 +2918,12 @@ fn command_binding_probe(
             "executed-true",
             format!("true exited {code}"),
         )),
-        Err(error) => issues.push(Issue::new("gate.self_test", "executed-true", error)),
+        Err(error) => {
+            let platform_limit = !cfg!(target_os = "linux") && error.contains("containment");
+            if !platform_limit {
+                issues.push(Issue::new("gate.self_test", "executed-true", error));
+            }
+        }
     }
 
     let mixed_root = root.join("mixed-runs");
@@ -3620,7 +3625,22 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
                 format!("integrity record was not written: {error}"),
             ));
         }
-        if let Some(error) = run.spawn_error() {
+        if crate::containment::blocks_pass(
+            run.containment(),
+            run.spawned(),
+            run.cleanup_incomplete(),
+            run.containment_note(),
+        ) {
+            issues.push(Issue::new(
+                "gate.containment",
+                id,
+                format!(
+                    "containment is {} (note: {}). A process listing, process group, or start token does not prove descendants are gone. This capture cannot seal a pass.",
+                    run.containment(),
+                    run.containment_note()
+                ),
+            ));
+        } else if let Some(error) = run.spawn_error() {
             issues.push(Issue::new("gate.runner", id, error));
         } else if run.timed_out() {
             issues.push(Issue::new(
@@ -3683,6 +3703,7 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
         ));
     }
     let satisfied = issues.is_empty();
+    let any_spawned = executed.iter().any(|run| run.spawned());
     let details = json!({
         "aggregate": if satisfied { "required_satisfied" } else { "failed" },
         "baseline_source": "local-execution",
@@ -3690,10 +3711,10 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
         "trusted_base_checker": "local_execution",
         "release_authority": false,
         "ci_passed": false,
-        "runner_authority": "local-engineering",
+        "runner_authority": if any_spawned { "local-engineering" } else { "absent" },
         "authenticated_provenance": "pending",
         "phase_signoff": "in_review",
-        "spawned": true,
+        "spawned": any_spawned,
         "worktree_matches_source": !drifted,
         "integrity_root": root.display().to_string(),
         "executed": executed.iter().map(|run| json!({
@@ -3702,6 +3723,10 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
             "timed_out": run.timed_out(),
             "cleanup_incomplete": run.cleanup_incomplete(),
             "output_limited": run.output_limited(),
+            "containment": run.containment(),
+            "spawned": run.spawned(),
+            "containment_note": run.containment_note(),
+            "direct_pid": run.direct_pid(),
             "stdout_sha256": sha256_hex(run.stdout()),
             "stderr_sha256": sha256_hex(run.stderr()),
             "spawn_error": run.spawn_error(),

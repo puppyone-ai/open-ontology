@@ -1,0 +1,3 @@
+test deny_toml::tests::reviewed_shape_rejects_unknown_keys_and_weakened_values ... FAILED
+test supply::tests::checked_in_deny_config_matches_the_reviewed_policy ... FAILED
+test result: FAILED. 32 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s

@@ -1,0 +1,30 @@
+run_id=aeda77c1-bace-43a7-8eb1-9788aaf83910
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+container=oo-a070-fixed-aeda77c1-bace-43a7-8eb1-9788aaf83910
+cargo_volume=oo-a070-aeda77c1-bace-43a7-8eb1-9788aaf83910-cargo
+target_volume=oo-a070-aeda77c1-bace-43a7-8eb1-9788aaf83910-target
+snapshot=/tmp/oo-a070-fixed-7b753993-c087-4c9b-9aa7-5ba409e11708/snapshot
+snapshot_tar_sha256=d2c0d36220db448e62d96ae6bc3242813f271fe5fc8ed3d6c83b756b1cda4aa1  /tmp/oo-a070-fixed-7b753993-c087-4c9b-9aa7-5ba409e11708/snapshot.tar
+archive_commit=304fcf9f116bbbabe0f91a2caca5df5949ef476c
+archive_tree=723cd717083509697b221a773cc8f3c61a0261a4
+archive_parent=fb2d1d19c21b510dfd6231c3b67d0efbf4285491
+privileged=no
+network_mode=bridge
+home_mount=no
+socket_mount=no
+shared_cargo_cache=no
+pull=never
+init=yes
+user=0:0
+cap_drop=ALL
+security_opt=no-new-privileges
+memory=8g
+memory_swap=8g
+cpus=4
+pids_limit=4096
+tmpfs=/tmp:rw,nosuid,nodev,noexec,size=2g
+src_readonly=yes
+command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --locked --offline -p xtask; cargo clippy --locked --offline -p xtask --all-targets -- -D warnings; independent escape probe

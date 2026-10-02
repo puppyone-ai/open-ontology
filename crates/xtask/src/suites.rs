@@ -1555,6 +1555,9 @@ fn child_failure_message(child: &ChildRun) -> String {
 }
 
 fn run_bounded(mut command: Command, deadline: Duration) -> ChildRun {
+    if let Some(contained) = supervise_fixture(&command, deadline) {
+        return contained;
+    }
     #[cfg(unix)]
     {
         command.process_group(0);
@@ -1594,6 +1597,7 @@ fn run_bounded(mut command: Command, deadline: Duration) -> ChildRun {
         let _ = child.kill();
         let _ = child.wait();
     }
+    tree.note_reaped_root();
     let cleanup = tree.confirm(Duration::from_millis(1500));
     if cleanup.incomplete && exit_code == 0 {
         exit_code = -1;
@@ -1611,6 +1615,50 @@ fn run_bounded(mut command: Command, deadline: Duration) -> ChildRun {
         timed_out,
         error,
     }
+}
+
+fn supervise_fixture(command: &Command, deadline: Duration) -> Option<ChildRun> {
+    let dir = std::env::temp_dir().join(format!(
+        "oo-xtask-bounded-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_nanos())
+            .unwrap_or(0)
+    ));
+    if fs::create_dir_all(&dir).is_err() {
+        return None;
+    }
+    let contained = crate::containment::supervise(
+        command,
+        deadline,
+        &dir.join("stdout"),
+        &dir.join("stderr"),
+        &dir.join("status"),
+        crate::runner_capture::OUTPUT_LIMIT_BYTES as u64,
+    );
+    let _ = fs::remove_dir_all(&dir);
+    if !contained.spawned && contained.containment == crate::containment::UNAVAILABLE {
+        return None;
+    }
+    let error = if contained.containment != crate::containment::VERIFIED
+        || contained.cleanup_incomplete
+        || !contained.spawned
+    {
+        Some(format!(
+            "containment {} ({})",
+            contained.containment, contained.note
+        ))
+    } else if contained.output_limited {
+        Some("command output exceeded the capture limit".to_owned())
+    } else {
+        None
+    };
+    Some(ChildRun {
+        exit_code: contained.exit_code,
+        timed_out: contained.timed_out,
+        error,
+    })
 }
 
 fn outside_path(repo: &Path, path: &Path, must_exist: bool) -> Result<PathBuf, Issue> {

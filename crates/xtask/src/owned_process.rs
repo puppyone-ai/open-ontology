@@ -1,10 +1,15 @@
-//! Identity-checked cleanup for a child this process spawned.
+//! Fallback identity check for a child this process spawned directly.
+//!
+//! This is not proof for `gates --execute-local`. A `setsid` descendant that
+//! exits its parent before the first sample is not in this set, and a start
+//! token cannot prove it is gone. Execute-local uses the per-command supervisor.
+//! Fixture commands use that supervisor when it can run the payload, and this
+//! tree only when the supervisor reports that it did not spawn.
 //!
 //! `kill` and `ps` are validated absolute programs. The caller `PATH` is never
-//! consulted. A same-group signal does not contain a descendant that called
-//! `setsid`. Those descendants are recorded by pid and start token and signaled
-//! individually. A survivor, or a tree that cannot be observed, is cleanup
-//! incomplete: the caller must fail and must not reuse the capture.
+//! consulted. A malformed listing, an uncertain identity, or a signal that
+//! leaves the same process alive is cleanup incomplete. Disappearance is not a
+//! kill failure. A reused pid is not signaled.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -33,7 +38,7 @@ pub struct OwnedTree {
     members: BTreeMap<u32, String>,
     kill: Result<PathBuf, String>,
     list_failed: bool,
-    ever_listed: bool,
+    identity_uncertain: bool,
 }
 
 impl OwnedTree {
@@ -45,7 +50,7 @@ impl OwnedTree {
             members: BTreeMap::new(),
             kill: trusted_tool("kill"),
             list_failed: false,
-            ever_listed: false,
+            identity_uncertain: false,
         };
         if root > 1 {
             tree.refresh();
@@ -57,7 +62,6 @@ impl OwnedTree {
         match list_processes() {
             Ok(procs) => {
                 self.list_failed = false;
-                self.ever_listed = true;
                 self.absorb(&procs);
             }
             Err(_) => self.list_failed = true,
@@ -90,11 +94,17 @@ impl OwnedTree {
                 continue;
             };
             if !start.is_empty() && proc.start != start {
+                self.identity_uncertain = true;
                 continue;
             }
-            signal_target(&kill, &pid.to_string())?;
+            signal_target(&kill, &pid.to_string(), Some(start.as_str()))?;
         }
         self.signal_group(&kill, &procs)
+    }
+
+    /// The direct child has been waited. Drop it so a reused pid is not a member.
+    pub fn note_reaped_root(&mut self) {
+        self.members.remove(&self.root);
     }
 
     /// Caller waits the direct child before this, so that zombie is not a survivor.
@@ -103,10 +113,9 @@ impl OwnedTree {
         loop {
             self.refresh();
             let alive = self.live_pids();
-            if self.list_failed {
-                let incomplete = !self.members.is_empty() || !self.ever_listed;
+            if self.list_failed || self.identity_uncertain {
                 return Cleanup {
-                    incomplete,
+                    incomplete: true,
                     survivors: alive,
                 };
             }
@@ -172,7 +181,6 @@ impl OwnedTree {
         let procs = match list_processes() {
             Ok(procs) => {
                 self.list_failed = false;
-                self.ever_listed = true;
                 procs
             }
             Err(_) => {
@@ -180,13 +188,20 @@ impl OwnedTree {
                 return self.members.keys().copied().collect();
             }
         };
+        let mut uncertain = false;
         self.members.retain(
             |pid, start| match procs.iter().find(|proc| proc.pid == *pid) {
                 None => false,
-                Some(proc) if !start.is_empty() && proc.start != *start => false,
+                Some(proc) if !start.is_empty() && proc.start != *start => {
+                    uncertain = true;
+                    true
+                }
                 Some(_) => true,
             },
         );
+        if uncertain {
+            self.identity_uncertain = true;
+        }
         self.members.keys().copied().collect()
     }
 
@@ -200,7 +215,7 @@ impl OwnedTree {
         if !same {
             return Ok(());
         }
-        signal_target(kill, &format!("-{}", self.root))
+        signal_target(kill, &format!("-{}", self.root), Some(self.root_start.as_str()))
     }
 }
 
@@ -273,11 +288,19 @@ fn list_linux() -> Result<Vec<Proc>, String> {
         let Ok(pid) = text.parse::<u32>() else {
             continue;
         };
-        let Ok(stat) = fs::read_to_string(entry.path().join("stat")) else {
-            continue;
+        let stat_path = entry.path().join("stat");
+        let stat = match fs::read_to_string(&stat_path) {
+            Ok(stat) => stat,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("read {}: {error}", stat_path.display())),
         };
-        if let Some(proc) = parse_linux_stat(pid, &stat) {
-            procs.push(proc);
+        match parse_linux_stat(pid, &stat) {
+            Some(proc) => procs.push(proc),
+            None => {
+                return Err(format!(
+                    "unparseable process stat for pid {pid}: listing is not proof"
+                ));
+            }
         }
     }
     if procs.is_empty() {
@@ -373,7 +396,7 @@ fn leaf_order(members: &BTreeMap<u32, String>, procs: &[Proc]) -> Vec<u32> {
     order
 }
 
-fn signal_target(kill: &Path, target: &str) -> Result<(), String> {
+fn signal_target(kill: &Path, target: &str, expected_start: Option<&str>) -> Result<(), String> {
     let negative = target.starts_with('-');
     let digits = if negative { &target[1..] } else { target };
     if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
@@ -385,14 +408,37 @@ fn signal_target(kill: &Path, target: &str) -> Result<(), String> {
     if number <= 1 {
         return Err(format!("refusing signal target {target}"));
     }
-    Command::new(kill)
+    let status = Command::new(kill)
         .args(["-KILL", target])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|_| ())
-        .map_err(|error| format!("kill {target}: {error}"))
+        .map_err(|error| format!("kill {target}: {error}"))?;
+    if status.success() {
+        return Ok(());
+    }
+    let code = status.code().unwrap_or(-1);
+    match same_identity_alive(number, expected_start) {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(format!(
+            "kill {target} exited {code} and pid {number} is still the same process"
+        )),
+        Err(error) => Err(format!(
+            "kill {target} exited {code} and identity could not be confirmed: {error}"
+        )),
+    }
+}
+
+fn same_identity_alive(pid: u32, expected_start: Option<&str>) -> Result<bool, String> {
+    let procs = list_processes()?;
+    match procs.iter().find(|proc| proc.pid == pid) {
+        None => Ok(false),
+        Some(proc) => match expected_start {
+            Some(start) if !start.is_empty() && proc.start != start => Ok(false),
+            _ => Ok(true),
+        },
+    }
 }
 
 #[cfg(test)]

@@ -657,15 +657,7 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         "printf 'positive-stdout\\n'\nprintf 'positive-stderr\\n' >&2\nexit 0\n",
     );
     let (code, text) = execute_local(&repo, &shim, "30");
-    assert_eq!(code, 0, "{text}");
-    assert!(
-        text.contains("\"status\": \"required_satisfied\""),
-        "{text}"
-    );
-    assert!(
-        text.contains("\"runner_authority\": \"local-engineering\""),
-        "{text}"
-    );
+    let invoked = std::fs::read_to_string(&shim.log).unwrap_or_default();
     assert!(text.contains("\"release_authority\": false"), "{text}");
     assert!(text.contains("\"ci_passed\": false"), "{text}");
     assert!(
@@ -676,36 +668,62 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         text.contains("\"authenticated_provenance\": \"pending\""),
         "{text}"
     );
-    assert!(text.contains("\"spawned\": true"), "{text}");
     assert!(text.contains("\"phase_signoff\": \"in_review\""), "{text}");
-    assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
-    assert_eq!(
-        text.matches("\"cleanup_incomplete\": false").count(),
-        9,
-        "{text}"
-    );
-    assert_eq!(
-        text.matches("\"output_limited\": false").count(),
-        9,
-        "{text}"
-    );
-    let stdout_hash = xtask::util::sha256_hex(b"positive-stdout\n");
-    let stderr_hash = xtask::util::sha256_hex(b"positive-stderr\n");
-    assert_eq!(
-        text.matches(&format!("\"stdout_sha256\": \"{stdout_hash}\""))
-            .count(),
-        9,
-        "{text}"
-    );
-    assert_eq!(
-        text.matches(&format!("\"stderr_sha256\": \"{stderr_hash}\""))
-            .count(),
-        9,
-        "{text}"
-    );
-    assert_eq!(text.matches("\"exit_code\": 0").count(), 10, "{text}");
-    let invoked = std::fs::read_to_string(&shim.log).unwrap_or_default();
-    assert_eq!(invoked.matches("INVOKED").count(), 9, "{invoked}");
+    if cfg!(target_os = "linux") {
+        assert_eq!(code, 0, "{text}");
+        assert!(
+            text.contains("\"status\": \"required_satisfied\""),
+            "{text}"
+        );
+        assert!(
+            text.contains("\"runner_authority\": \"local-engineering\""),
+            "{text}"
+        );
+        assert!(text.contains("\"spawned\": true"), "{text}");
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"cleanup_incomplete\": false").count(),
+            9,
+            "{text}"
+        );
+        assert_eq!(
+            text.matches("\"output_limited\": false").count(),
+            9,
+            "{text}"
+        );
+        let stdout_hash = xtask::util::sha256_hex(b"positive-stdout\n");
+        let stderr_hash = xtask::util::sha256_hex(b"positive-stderr\n");
+        assert_eq!(
+            text.matches(&format!("\"stdout_sha256\": \"{stdout_hash}\""))
+                .count(),
+            9,
+            "{text}"
+        );
+        assert_eq!(
+            text.matches(&format!("\"stderr_sha256\": \"{stderr_hash}\""))
+                .count(),
+            9,
+            "{text}"
+        );
+        assert_eq!(text.matches("\"exit_code\": 0").count(), 10, "{text}");
+        assert_eq!(invoked.matches("INVOKED").count(), 9, "{invoked}");
+    } else {
+        assert_ne!(code, 0, "{text}");
+        assert!(
+            !text.contains("\"status\": \"required_satisfied\""),
+            "{text}"
+        );
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(text.contains("\"spawned\": false"), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert!(
+            text.contains("\"runner_authority\": \"absent\""),
+            "{text}"
+        );
+        assert_eq!(invoked.matches("INVOKED").count(), 0, "{invoked}");
+    }
     let root = std::path::PathBuf::from(json_string(&text, "integrity_root"));
     let head = git_stdout(&repo, &["rev-parse", "HEAD"]);
     let mut ids = std::fs::read_dir(&root)
@@ -723,8 +741,19 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         let capture = root.join(id);
         let capture_text = capture.to_str().expect("capture path");
         assert!(!capture_text.contains(['\\', '"']));
+        let raw = std::fs::read_to_string(capture.join("capture.json")).unwrap();
+        let exit_code = raw
+            .split("\"exit_code\":")
+            .nth(1)
+            .and_then(|rest| rest.trim_start().split([',', '}']).next())
+            .expect("capture exit_code")
+            .trim();
+        assert!(
+            exit_code.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-'),
+            "{exit_code}"
+        );
         jobs.push_str(&format!(
-            "{{\"id\":\"{id}\",\"result\":\"success\",\"command\":{},\"commit\":\"{head}\",\"exit_code\":0,\"log_sha256\":\"{}\",\"runner\":\"coordinator\",\"capture_path\":\"{capture_text}\"}}",
+            "{{\"id\":\"{id}\",\"result\":\"success\",\"command\":{},\"commit\":\"{head}\",\"exit_code\":{exit_code},\"log_sha256\":\"{}\",\"runner\":\"coordinator\",\"capture_path\":\"{capture_text}\"}}",
             command_json(id),
             "ab".repeat(32),
         ));
@@ -767,7 +796,18 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         !replay.contains("\"status\": \"required_satisfied\""),
         "{replay}"
     );
-    assert!(replay.contains("\"code\": \"gate.unverified\""), "{replay}");
+    if cfg!(target_os = "linux") {
+        assert!(replay.contains("\"code\": \"gate.unverified\""), "{replay}");
+    } else {
+        // A refused capture records a nonzero exit. Import rejects that
+        // status before the nonauthority note, and still cannot seal.
+        assert_eq!(
+            replay.matches("\"code\": \"gate.job_failed\"").count(),
+            9,
+            "{replay}"
+        );
+        assert!(replay.contains("captured status is nonzero"), "{replay}");
+    }
     assert!(
         replay.contains("\"runner_authority\": \"absent\""),
         "{replay}"
@@ -790,21 +830,26 @@ fn execute_local_failed_child_cannot_seal_a_pass() {
         "printf 'shim-stdout\\n'\nprintf 'shim-stderr\\n' >&2\nexit 7\n",
     );
     let (code, text) = execute_local(&repo, &shim, "30");
+    let invoked = std::fs::read_to_string(&shim.log).unwrap_or_default();
     assert_ne!(code, 0, "{text}");
     assert!(
         !text.contains("\"status\": \"required_satisfied\""),
         "{text}"
     );
-    assert!(text.contains("\"code\": \"gate.job_failed\""), "{text}");
-    assert!(text.contains("\"spawned\": true"), "{text}");
-    assert_eq!(text.matches("\"exit_code\": 7").count(), 9, "{text}");
-    assert_eq!(
-        std::fs::read_to_string(&shim.log)
-            .unwrap_or_default()
-            .matches("INVOKED")
-            .count(),
-        9
-    );
+    if cfg!(target_os = "linux") {
+        assert!(text.contains("\"code\": \"gate.job_failed\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(text.contains("\"spawned\": true"), "{text}");
+        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(text.matches("\"exit_code\": 7").count(), 9, "{text}");
+        assert_eq!(invoked.matches("INVOKED").count(), 9, "{invoked}");
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.job_failed\""), "{text}");
+        assert!(text.contains("\"spawned\": false"), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert_eq!(invoked.matches("INVOKED").count(), 0, "{invoked}");
+    }
     let _ = std::fs::remove_dir_all(&repo);
     let _ = std::fs::remove_dir_all(&shim.dir);
     let _ = std::fs::remove_file(&shim.log);
@@ -822,14 +867,24 @@ fn execute_local_source_drift_keeps_results_and_fails_the_seal() {
         !text.contains("\"status\": \"required_satisfied\""),
         "{text}"
     );
-    assert!(text.contains("\"code\": \"gate.wrong_build\""), "{text}");
-    assert!(text.contains("source drifted after the run"), "{text}");
-    assert!(text.contains("\"spawned\": true"), "{text}");
-    assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
-    assert!(
-        marker.is_file(),
-        "drift marker was not written by the child"
-    );
+    if cfg!(target_os = "linux") {
+        assert!(text.contains("\"code\": \"gate.wrong_build\""), "{text}");
+        assert!(text.contains("source drifted after the run"), "{text}");
+        assert!(text.contains("\"spawned\": true"), "{text}");
+        assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
+        assert!(
+            marker.is_file(),
+            "drift marker was not written by the child"
+        );
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(text.contains("\"spawned\": false"), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert!(
+            !marker.exists(),
+            "refused command wrote the drift marker"
+        );
+    }
     let _ = std::fs::remove_dir_all(&repo);
     let _ = std::fs::remove_dir_all(&shim.dir);
     let _ = std::fs::remove_file(&shim.log);
@@ -910,27 +965,44 @@ fn execute_local_deadline_reaps_the_group_and_spares_a_foreign_process() {
         elapsed < std::time::Duration::from_secs(40),
         "deadline CLI did not return bounded: {elapsed:?}"
     );
-    assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
-    assert!(
-        text.contains("does not contain a descendant that left the group"),
-        "{text}"
-    );
-    assert!(
-        !text.contains("owned process group was killed and reaped"),
-        "{text}"
-    );
     assert!(!text.contains("\"code\": \"gate.cleanup\""), "{text}");
-    assert!(text.contains("\"spawned\": true"), "{text}");
-    assert_eq!(text.matches("\"timed_out\": true").count(), 9, "{text}");
-    assert_eq!(
-        descendant_pids.len(),
-        9,
-        "recorded={recorded}\ninvoked={invoked}\n{text}"
-    );
-    assert!(
-        descendants_gone.iter().all(|(_, gone)| *gone),
-        "owned descendants still running: {descendants_gone:?}"
-    );
+    if cfg!(target_os = "linux") {
+        assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
+        assert!(
+            text.contains("does not contain a descendant that left the group"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("owned process group was killed and reaped"),
+            "{text}"
+        );
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(text.contains("\"spawned\": true"), "{text}");
+        assert_eq!(text.matches("\"timed_out\": true").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
+        assert_eq!(
+            descendant_pids.len(),
+            9,
+            "recorded={recorded}\ninvoked={invoked}\n{text}"
+        );
+        assert!(
+            descendants_gone.iter().all(|(_, gone)| *gone),
+            "owned descendants still running: {descendants_gone:?}"
+        );
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.deadline\""), "{text}");
+        assert!(text.contains("\"spawned\": false"), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert!(
+            descendant_pids.is_empty(),
+            "refused command recorded descendants: {recorded}"
+        );
+    }
     assert!(
         foreign_state
             .as_deref()
@@ -1002,19 +1074,30 @@ wait\n",
         elapsed < std::time::Duration::from_secs(40),
         "setsid CLI did not return bounded: {elapsed:?}\n{text}"
     );
-    assert!(!recorded.contains("NO_SETSID"), "{recorded}");
     assert_ne!(code, 0, "{text}");
     assert!(
         !text.contains("\"status\": \"required_satisfied\""),
         "{text}"
     );
-    assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
     assert!(!text.contains("\"code\": \"gate.cleanup\""), "{text}");
-    assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
-    assert!(
-        descendants_gone.iter().all(|(_, gone)| *gone),
-        "setsid descendants still running: {descendants_gone:?}"
-    );
+    if cfg!(target_os = "linux") {
+        assert!(!recorded.contains("NO_SETSID"), "{recorded}");
+        assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
+        assert!(
+            descendants_gone.iter().all(|(_, gone)| *gone),
+            "setsid descendants still running: {descendants_gone:?}"
+        );
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert!(
+            descendant_pids.is_empty(),
+            "refused command recorded setsid pids: {recorded}"
+        );
+    }
     assert!(
         foreign_state
             .as_deref()
@@ -1096,13 +1179,23 @@ fn execute_local_path_kill_is_not_used() {
         !text.contains("\"status\": \"required_satisfied\""),
         "{text}"
     );
-    assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
     assert!(!text.contains("\"code\": \"gate.cleanup\""), "{text}");
-    assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
-    assert!(
-        descendants_gone.iter().all(|(_, gone)| *gone),
-        "descendants still running after a PATH noop kill: {descendants_gone:?}"
-    );
+    if cfg!(target_os = "linux") {
+        assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
+        assert!(
+            descendants_gone.iter().all(|(_, gone)| *gone),
+            "descendants still running after a PATH noop kill: {descendants_gone:?}"
+        );
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+        assert!(
+            descendant_pids.is_empty(),
+            "refused command recorded descendants: {recorded}"
+        );
+    }
 }
 
 #[test]
@@ -1127,18 +1220,25 @@ fn execute_local_output_limit_cannot_seal_a_pass() {
         !text.contains("\"status\": \"required_satisfied\""),
         "{text}"
     );
-    assert!(text.contains("\"code\": \"gate.output_limit\""), "{text}");
-    assert_eq!(
-        text.matches("\"output_limited\": true").count(),
-        9,
-        "{text}"
-    );
-    let prefix = vec![0u8; xtask::runner_capture::OUTPUT_LIMIT_BYTES];
-    let hash = xtask::util::sha256_hex(&prefix);
-    assert_eq!(
-        text.matches(&format!("\"stdout_sha256\": \"{hash}\""))
-            .count(),
-        9,
-        "{text}"
-    );
+    if cfg!(target_os = "linux") {
+        assert!(text.contains("\"code\": \"gate.output_limit\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert_eq!(
+            text.matches("\"output_limited\": true").count(),
+            9,
+            "{text}"
+        );
+        let prefix = vec![0u8; xtask::runner_capture::OUTPUT_LIMIT_BYTES];
+        let hash = xtask::util::sha256_hex(&prefix);
+        assert_eq!(
+            text.matches(&format!("\"stdout_sha256\": \"{hash}\""))
+                .count(),
+            9,
+            "{text}"
+        );
+    } else {
+        assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
+        assert!(!text.contains("\"code\": \"gate.output_limit\""), "{text}");
+        assert!(!text.contains("\"spawned\": true"), "{text}");
+    }
 }

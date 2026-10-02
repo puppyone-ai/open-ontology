@@ -1,0 +1,1 @@
+host lib exit 101 is the two pre-existing license tests only. 31 passed, 2 failed. cli 16 passed. clippy 0.
