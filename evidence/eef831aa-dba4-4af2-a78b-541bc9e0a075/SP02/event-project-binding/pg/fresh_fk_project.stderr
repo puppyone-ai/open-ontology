@@ -1,0 +1,6 @@
+psql:/fixture/tests/fixtures/event_project/fk_blocks_project_change.sql:6: ERROR:  23503: update or delete on table "tasks" violates foreign key constraint "task_events_task_project_fkey" on table "task_events"
+DETAIL:  Key (id, project_id)=(a0750001-0001-4000-8000-000000000012, 11111111-1111-4111-8111-111111111111) is still referenced from table "task_events".
+SCHEMA NAME:  jobs
+TABLE NAME:  task_events
+CONSTRAINT NAME:  task_events_task_project_fkey
+LOCATION:  ri_ReportViolation, ri_triggers.c:2612

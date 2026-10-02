@@ -1,0 +1,26 @@
+BEGIN
+SET
+ pg_advisory_xact_lock 
+-----------------------
+ 
+(1 row)
+
+ id 
+----
+  1
+(1 row)
+
+SET
+LOCK TABLE
+LOCK TABLE
+DO
+ALTER TABLE
+COMMENT
+ALTER TABLE
+COMMENT
+CREATE VIEW
+COMMENT
+REVOKE
+GRANT
+INSERT 0 1
+RESET

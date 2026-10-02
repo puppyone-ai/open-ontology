@@ -1,0 +1,6 @@
+Attempt 1 failed before the replacement baseline.
+The finite archive contained Cargo.toml, Cargo.lock, rust-toolchain.toml, crates, and .cargo.
+It did not contain contracts/. control_schema_contract.rs reads that file and panicked with os error 2.
+fetch.exit=0, clippy.exit=0, test.exit=101, docker-run.exit=101.
+The replacement snapshot is evidence/.../baseline and includes contracts from the same commit 70a4e72c3ea698038e0bdd38df29e38c01dfd24d.
+These exit files were not rewritten.

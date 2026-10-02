@@ -1,0 +1,2 @@
+psql:/fixture/tests/fixtures/event_project/set_replication_role.sql:2: ERROR:  42501: permission denied to set parameter "session_replication_role"
+LOCATION:  set_config_with_handle, guc.c:3601

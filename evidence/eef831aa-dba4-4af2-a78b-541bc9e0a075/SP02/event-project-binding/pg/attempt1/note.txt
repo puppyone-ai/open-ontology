@@ -1,0 +1,1 @@
+Attempt 1 reached OO004 and preserved rows. version_absent printed true|true|0|0|0 because boolean::text is true, not t. The harness expectation was corrected. Exit files from this attempt were copied here before the rerun.

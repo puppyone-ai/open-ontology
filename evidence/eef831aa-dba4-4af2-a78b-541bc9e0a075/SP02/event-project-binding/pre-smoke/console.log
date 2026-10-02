@@ -1,0 +1,380 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_exit=0
+cargo 1.94.0 (85eff7c80 2026-01-15)
+cargo_v_exit=0
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+Linux f11a1ae3324c 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+=== clippy component ===
+info: downloading component clippy
+clippy_component_exit=0
+=== cargo fetch --locked ===
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded thiserror v2.0.21
+  Downloaded sha2 v0.10.9
+  Downloaded quote v1.0.47
+  Downloaded crypto-common v0.1.6
+  Downloaded equivalent v1.0.2
+  Downloaded digest v0.10.7
+  Downloaded unicode-ident v1.0.26
+  Downloaded thiserror-impl v2.0.21
+  Downloaded num v0.4.3
+  Downloaded block-buffer v0.10.4
+  Downloaded itoa v1.0.18
+  Downloaded version_check v0.9.5
+  Downloaded strum_macros v0.28.0
+  Downloaded cfg-if v1.0.5
+  Downloaded proc-macro2 v1.0.107
+  Downloaded num-complex v0.4.6
+  Downloaded num-iter v0.1.46
+  Downloaded bytecount v0.6.9
+  Downloaded num-rational v0.4.2
+  Downloaded siphasher v1.0.3
+  Downloaded allocator-api2 v0.2.21
+  Downloaded cpufeatures v0.2.17
+  Downloaded outref v0.5.2
+  Downloaded borrow-or-share v0.2.4
+  Downloaded heck v0.5.0
+  Downloaded multiversion_no_op v1.0.0
+  Downloaded uuid-simd v0.8.0
+  Downloaded dyn-clone v1.0.20
+  Downloaded ref-cast-impl v1.0.27
+  Downloaded scopeguard v1.2.0
+  Downloaded nohash-hasher v0.2.0
+  Downloaded phf_shared v0.12.1
+  Downloaded bit-vec v0.8.0
+  Downloaded bit-set v0.8.0
+  Downloaded semver v1.0.28
+  Downloaded email_address v0.2.9
+  Downloaded windows-link v0.2.1
+  Downloaded num-cmp v0.1.0
+  Downloaded wasm-bindgen-shared v0.2.128
+  Downloaded percent-encoding v2.3.2
+  Downloaded strum v0.28.0
+  Downloaded ref-cast v1.0.27
+  Downloaded multiversion-macros v0.9.0
+  Downloaded encoding_rs_io v0.1.8
+  Downloaded num-integer v0.1.47
+  Downloaded schemars_derive v1.2.2
+  Downloaded core_detect v1.0.0
+  Downloaded cargo-platform v0.3.3
+  Downloaded camino v1.2.6
+  Downloaded phf v0.12.1
+  Downloaded data-encoding v2.11.1
+  Downloaded jsonschema-regex v0.57.0
+  Downloaded multiversion v0.9.0
+  Downloaded ahash v0.8.12
+  Downloaded once_cell v1.21.4
+  Downloaded parking_lot v0.12.5
+  Downloaded parking_lot_core v0.9.12
+  Downloaded unicode-general-category v1.1.0
+  Downloaded simdutf8 v0.1.5
+  Downloaded rustversion v1.0.23
+  Downloaded autocfg v1.5.1
+  Downloaded cargo_metadata v0.23.1
+  Downloaded wasm-bindgen-macro v0.2.128
+  Downloaded lock_api v0.4.14
+  Downloaded redox_syscall v0.5.18
+  Downloaded vsimd v0.8.0
+  Downloaded serde_derive_internals v0.30.0
+  Downloaded anstyle v1.0.14
+  Downloaded zmij v1.0.23
+  Downloaded generic-array v0.14.9
+  Downloaded arraydeque v0.5.1
+  Downloaded smallvec v1.16.1
+  Downloaded foldhash v0.2.0
+  Downloaded fancy-regex v0.19.2
+  Downloaded getrandom v0.3.4
+  Downloaded jsonschema-value v0.57.0
+  Downloaded num-traits v0.2.19
+  Downloaded fluent-uri v0.4.1
+  Downloaded r-efi v5.3.0
+  Downloaded bitflags v2.13.2
+  Downloaded micromap v0.3.0
+  Downloaded serde_core v1.0.229
+  Downloaded annotate-snippets v0.12.16
+  Downloaded syn v3.0.6
+  Downloaded utoipa v6.0.0
+  Downloaded memchr v2.8.3
+  Downloaded regex-syntax v0.8.11
+  Downloaded wit-bindgen v0.57.1
+  Downloaded base64 v0.23.1
+  Downloaded serde v1.0.229
+  Downloaded serde_json v1.0.151
+  Downloaded indexmap v2.14.2
+  Downloaded referencing v0.57.0
+  Downloaded serde_derive v1.0.229
+  Downloaded chrono v0.4.45
+  Downloaded wasm-bindgen v0.2.128
+  Downloaded schemars v1.2.2
+  Downloaded fraction v0.17.0
+  Downloaded num-bigint v0.4.8
+  Downloaded wasip2 v1.0.4+wasi-0.2.12
+  Downloaded regex v1.13.1
+  Downloaded aho-corasick v1.1.5
+  Downloaded granit-parser v1.3.0
+  Downloaded utoipa-gen v6.0.0
+  Downloaded hashbrown v0.17.1
+  Downloaded zerocopy v0.8.57
+  Downloaded js-sys v0.3.105
+  Downloaded unicode-width v0.2.2
+  Downloaded bumpalo v3.20.3
+  Downloaded wasm-bindgen-macro-support v0.2.128
+  Downloaded syn v2.0.119
+  Downloaded zerocopy-derive v0.8.57
+  Downloaded typenum v1.20.1
+  Downloaded encoding_rs v0.8.41
+  Downloaded regex-automata v0.4.18
+  Downloaded chrono-tz v0.10.4
+  Downloaded serde-saphyr v1.3.0
+  Downloaded jsonschema v0.57.0
+  Downloaded libc v0.2.189
+fetch_exit=0
+=== cargo test --locked --offline -p oo-jobs ===
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling autocfg v1.5.1
+   Compiling serde_core v1.0.229
+   Compiling version_check v0.9.5
+   Compiling num-traits v0.2.19
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling memchr v2.8.3
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling num-integer v0.1.47
+   Compiling scopeguard v1.2.0
+   Compiling rustversion v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling generic-array v0.14.9
+   Compiling ref-cast v1.0.27
+   Compiling zerocopy v0.8.57
+   Compiling smallvec v1.16.1
+   Compiling getrandom v0.3.4
+   Compiling itoa v1.0.18
+   Compiling num-bigint v0.4.8
+   Compiling ahash v0.8.12
+   Compiling equivalent v1.0.2
+   Compiling typenum v1.20.1
+   Compiling parking_lot_core v0.9.12
+   Compiling foldhash v0.2.0
+   Compiling regex-syntax v0.8.11
+   Compiling allocator-api2 v0.2.21
+   Compiling hashbrown v0.17.1
+   Compiling num-rational v0.4.2
+   Compiling encoding_rs v0.8.41
+   Compiling serde_derive v1.0.229
+   Compiling ref-cast-impl v1.0.27
+   Compiling num-iter v0.1.46
+   Compiling aho-corasick v1.1.5
+   Compiling num-complex v0.4.6
+   Compiling once_cell v1.21.4
+   Compiling num v0.4.3
+   Compiling regex-automata v0.4.18
+   Compiling lock_api v0.4.14
+   Compiling syn v2.0.119
+   Compiling borrow-or-share v0.2.4
+   Compiling unicode-general-category v1.1.0
+   Compiling heck v0.5.0
+   Compiling simdutf8 v0.1.5
+   Compiling bit-vec v0.8.0
+   Compiling siphasher v1.0.3
+   Compiling multiversion_no_op v1.0.0
+   Compiling bit-set v0.8.0
+   Compiling phf_shared v0.12.1
+   Compiling fluent-uri v0.4.1
+   Compiling strum_macros v0.28.0
+   Compiling parking_lot v0.12.5
+   Compiling fraction v0.17.0
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling serde_derive_internals v0.30.0
+   Compiling unicode-width v0.2.2
+   Compiling bytecount v0.6.9
+   Compiling arraydeque v0.5.1
+   Compiling outref v0.5.2
+   Compiling micromap v0.3.0
+   Compiling percent-encoding v2.3.2
+   Compiling vsimd v0.8.0
+   Compiling num-cmp v0.1.0
+   Compiling anstyle v1.0.14
+   Compiling thiserror v2.0.21
+   Compiling chrono-tz v0.10.4
+   Compiling jsonschema-value v0.57.0
+   Compiling uuid-simd v0.8.0
+   Compiling annotate-snippets v0.12.16
+   Compiling referencing v0.57.0
+   Compiling schemars_derive v1.2.2
+   Compiling strum v0.28.0
+   Compiling granit-parser v1.3.0
+   Compiling digest v0.10.7
+   Compiling encoding_rs_io v0.1.8
+   Compiling fancy-regex v0.19.2
+   Compiling regex v1.13.1
+   Compiling phf v0.12.1
+   Compiling email_address v0.2.9
+   Compiling jsonschema-regex v0.57.0
+   Compiling thiserror-impl v2.0.21
+   Compiling utoipa-gen v6.0.0
+   Compiling indexmap v2.14.2
+   Compiling cpufeatures v0.2.17
+   Compiling chrono v0.4.45
+   Compiling dyn-clone v1.0.20
+   Compiling base64 v0.23.1
+   Compiling nohash-hasher v0.2.0
+   Compiling data-encoding v2.11.1
+   Compiling jsonschema v0.57.0
+   Compiling serde-saphyr v1.3.0
+   Compiling utoipa v6.0.0
+   Compiling schemars v1.2.2
+   Compiling sha2 v0.10.9
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.09s
+     Running unittests src/lib.rs (/target/debug/deps/oo_jobs-b8c786b4e77da41c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control_schema_contract.rs (/target/debug/deps/control_schema_contract-f9e155c85460b074)
+
+running 1 test
+test control_schema_files_match_the_published_contract ... FAILED
+
+failures:
+
+---- control_schema_files_match_the_published_contract stdout ----
+
+thread 'control_schema_files_match_the_published_contract' (1882) panicked at crates/oo-jobs/tests/control_schema_contract.rs:9:58:
+read /src/contracts/jobs/control-schema/jobs-control-v1.json: No such file or directory (os error 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    control_schema_files_match_the_published_contract
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p oo-jobs --test control_schema_contract`
+test_exit=101
+=== cargo clippy --locked --offline -p oo-jobs --all-targets ===
+    Checking serde_core v1.0.229
+    Checking num-traits v0.2.19
+    Checking cfg-if v1.0.5
+    Checking memchr v2.8.3
+    Checking libc v0.2.189
+    Checking zmij v1.0.23
+    Checking num-integer v0.1.47
+    Checking scopeguard v1.2.0
+    Checking itoa v1.0.18
+    Checking smallvec v1.16.1
+    Checking num-bigint v0.4.8
+    Checking typenum v1.20.1
+    Checking foldhash v0.2.0
+    Checking allocator-api2 v0.2.21
+    Checking equivalent v1.0.2
+    Checking regex-syntax v0.8.11
+    Checking generic-array v0.14.9
+    Checking num-rational v0.4.2
+    Checking serde v1.0.229
+    Checking serde_json v1.0.151
+    Checking hashbrown v0.17.1
+    Checking getrandom v0.3.4
+    Checking ref-cast v1.0.27
+    Checking zerocopy v0.8.57
+    Checking num-iter v0.1.46
+    Checking num-complex v0.4.6
+    Checking aho-corasick v1.1.5
+    Checking once_cell v1.21.4
+    Checking parking_lot_core v0.9.12
+    Checking num v0.4.3
+    Checking lock_api v0.4.14
+    Checking borrow-or-share v0.2.4
+    Checking siphasher v1.0.3
+    Checking simdutf8 v0.1.5
+    Checking bit-vec v0.8.0
+    Checking encoding_rs v0.8.41
+    Checking bit-set v0.8.0
+    Checking phf_shared v0.12.1
+    Checking regex-automata v0.4.18
+    Checking parking_lot v0.12.5
+    Checking fluent-uri v0.4.1
+    Checking fraction v0.17.0
+    Checking crypto-common v0.1.6
+    Checking block-buffer v0.10.4
+    Checking percent-encoding v2.3.2
+    Checking anstyle v1.0.14
+    Checking micromap v0.3.0
+    Checking unicode-width v0.2.2
+    Checking outref v0.5.2
+    Checking num-cmp v0.1.0
+    Checking bytecount v0.6.9
+    Checking arraydeque v0.5.1
+    Checking vsimd v0.8.0
+    Checking granit-parser v1.3.0
+    Checking uuid-simd v0.8.0
+    Checking annotate-snippets v0.12.16
+    Checking fancy-regex v0.19.2
+    Checking regex v1.13.1
+    Checking digest v0.10.7
+    Checking ahash v0.8.12
+    Checking encoding_rs_io v0.1.8
+    Checking phf v0.12.1
+    Checking jsonschema-value v0.57.0
+    Checking referencing v0.57.0
+    Checking unicode-general-category v1.1.0
+    Checking strum v0.28.0
+    Checking jsonschema-regex v0.57.0
+    Checking indexmap v2.14.2
+    Checking email_address v0.2.9
+    Checking cpufeatures v0.2.17
+    Checking chrono v0.4.45
+    Checking dyn-clone v1.0.20
+    Checking data-encoding v2.11.1
+    Checking nohash-hasher v0.2.0
+    Checking base64 v0.23.1
+    Checking jsonschema v0.57.0
+    Checking serde-saphyr v1.3.0
+    Checking utoipa v6.0.0
+    Checking chrono-tz v0.10.4
+    Checking schemars v1.2.2
+    Checking thiserror v2.0.21
+    Checking sha2 v0.10.9
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.19s
+clippy_exit=0
+=== done ===
+worst_phase_exit=101

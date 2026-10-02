@@ -1,0 +1,1 @@
+name=/oo-a075-pg1710-jobs image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb privileged=false network=oo-a075-pg-net memory=2147483648 pids=512 oom=false

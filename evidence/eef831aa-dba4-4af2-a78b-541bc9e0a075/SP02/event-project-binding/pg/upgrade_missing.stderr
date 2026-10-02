@@ -1,0 +1,6 @@
+psql:/fixture/tests/fixtures/event_project/insert_missing_task.sql:11: ERROR:  23503: insert or update on table "task_events" violates foreign key constraint "task_events_task_id_fkey"
+DETAIL:  Key (task_id)=(ffffffff-ffff-4fff-8fff-ffffffffffff) is not present in table "tasks".
+SCHEMA NAME:  jobs
+TABLE NAME:  task_events
+CONSTRAINT NAME:  task_events_task_id_fkey
+LOCATION:  ri_ReportViolation, ri_triggers.c:2599

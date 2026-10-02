@@ -1,0 +1,3 @@
+psql:/fixture/tests/fixtures/event_project/seed_legal.sql:64: ERROR:  invalid input syntax for type uuid: "a0750001-0001-4000-8000-0000000000s1"
+LINE 4:   'a0750001-0001-4000-8000-0000000000s1',
+          ^

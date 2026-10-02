@@ -1,0 +1,7 @@
+\set ON_ERROR_STOP on
+-- The release file locks only inside the owner transaction. This wrapper
+-- puts a runtime member in that same shape. The lock must fail and the
+-- constraint must stay.
+BEGIN;
+\ir ../../../migrations/0002_event_project_binding_expand.sql
+COMMIT;

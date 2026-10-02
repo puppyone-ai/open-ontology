@@ -1,0 +1,21 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_advisory_xact_lock(6401202601);
+SELECT id FROM jobs.migration_lock WHERE id = 1 FOR UPDATE;
+SET ROLE oo_jobs_owner;
+\ir ../../../migrations/0002_event_project_binding_expand.sql
+INSERT INTO jobs.schema_migrations (version, checksum, phase, filename)
+VALUES (
+  'jobs-event-project/1',
+  :'checksum_event_project',
+  'expand',
+  '0002_event_project_binding_expand.sql'
+);
+RESET ROLE;
+DO $fail$
+BEGIN
+  RAISE EXCEPTION 'forced migration failure' USING ERRCODE = 'OO003';
+END
+$fail$;
+COMMIT;

@@ -1,0 +1,2 @@
+psql:/fixture/migrations/0002_event_project_binding_expand.sql:14: ERROR:  25P01: LOCK TABLE can only be used in transaction blocks
+LOCATION:  CheckTransactionBlock, xact.c:3701

@@ -1,0 +1,73 @@
+{
+  "contract": "oo.jobs.event-project-binding/v1",
+  "schema_version": "jobs-event-project/1",
+  "requires": ["jobs-bootstrap/1", "jobs-control/1"],
+  "phase": "expand",
+  "database": "oo_control",
+  "schema": "jobs",
+  "migration_lock_key": 6401202601,
+  "clock": "clock_timestamp()",
+  "files": [
+    {
+      "version": "jobs-bootstrap/1",
+      "phase": "expand",
+      "filename": "0000_bootstrap_roles.sql",
+      "sha256": "445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df6a0f8eeb0b52"
+    },
+    {
+      "version": "jobs-control/1",
+      "phase": "expand",
+      "filename": "0001_jobs_control_expand.sql",
+      "sha256": "b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75"
+    },
+    {
+      "version": "jobs-event-project/1",
+      "phase": "expand",
+      "filename": "0002_event_project_binding_expand.sql",
+      "sha256": "4ede04e8f848eff002da7e3a12628ac731c7bca02ba345daa6d036790e894fee"
+    }
+  ],
+  "immutable_v1": {
+    "contract": "oo.jobs.control-schema/v1",
+    "filename": "jobs-control-v1.json",
+    "contract_sha256": "d352c86dbf2836360e541a3511af23674ce9692e687a6ac7041d99118dc8c2ca"
+  },
+  "constraint": {
+    "unique": "tasks_id_project_unique",
+    "unique_columns": ["id", "project_id"],
+    "foreign_key": "task_events_task_project_fkey",
+    "foreign_key_columns": ["task_id", "project_id"],
+    "references": ["id", "project_id"],
+    "on_delete": "RESTRICT",
+    "on_update": "RESTRICT",
+    "deferrable": false
+  },
+  "readiness_view": "jobs.event_project_readiness",
+  "sqlstates": {
+    "cross_project_event": "23503",
+    "missing_task_event": "23503",
+    "preexisting_mismatch_refused": "OO004",
+    "checksum_mismatch": "OO001",
+    "bookkeeping_incomplete": "OO002",
+    "forced_migration_failure": "OO003",
+    "insufficient_privilege": "42501",
+    "immutable_event": "23514",
+    "immutable_task_project": "23514",
+    "lock_not_available": "55P03"
+  },
+  "not_claimed": [
+    "tamper-proof event contents",
+    "worker authentication",
+    "row level security",
+    "30 second lease",
+    "10 second heartbeat",
+    "claim CAS",
+    "bootstrap checksum trust",
+    "adopted security definer",
+    "target fence",
+    "backup restore",
+    "100 workers",
+    "queue driver",
+    "SP02 complete"
+  ]
+}

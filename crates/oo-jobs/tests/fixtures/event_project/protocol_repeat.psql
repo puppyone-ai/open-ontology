@@ -1,0 +1,34 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '1s';
+SELECT set_config('jobs.checksum_bootstrap', :'checksum_bootstrap', true);
+SELECT set_config('jobs.checksum_expand', :'checksum_expand', true);
+SELECT set_config('jobs.checksum_event_project', :'checksum_event_project', true);
+SELECT pg_advisory_xact_lock(6401202601);
+SELECT id FROM jobs.migration_lock WHERE id = 1 FOR UPDATE;
+DO $check$
+DECLARE
+  recorded_bootstrap text;
+  recorded_expand text;
+  recorded_event text;
+BEGIN
+  SELECT checksum INTO recorded_bootstrap
+  FROM jobs.schema_migrations
+  WHERE version = 'jobs-bootstrap/1';
+  SELECT checksum INTO recorded_expand
+  FROM jobs.schema_migrations
+  WHERE version = 'jobs-control/1';
+  SELECT checksum INTO recorded_event
+  FROM jobs.schema_migrations
+  WHERE version = 'jobs-event-project/1';
+  IF recorded_bootstrap IS NULL OR recorded_expand IS NULL OR recorded_event IS NULL THEN
+    RAISE EXCEPTION 'migration bookkeeping incomplete' USING ERRCODE = 'OO002';
+  END IF;
+  IF recorded_bootstrap <> current_setting('jobs.checksum_bootstrap')
+     OR recorded_expand <> current_setting('jobs.checksum_expand')
+     OR recorded_event <> current_setting('jobs.checksum_event_project') THEN
+    RAISE EXCEPTION 'migration checksum mismatch' USING ERRCODE = 'OO001';
+  END IF;
+END
+$check$;
+COMMIT;

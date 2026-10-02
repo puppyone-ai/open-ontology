@@ -1,0 +1,2 @@
+\set ON_ERROR_STOP on
+ALTER TABLE jobs.task_events DISABLE TRIGGER ALL;
