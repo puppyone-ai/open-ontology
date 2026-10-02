@@ -55,6 +55,7 @@ pub fn compile_structure_draft(input: &str) -> Result<String, DraftError> {
     }
     check_selection(&envelope.selection, &catalog)?;
     check_bindings(&envelope, &catalog)?;
+    pgsql::reject_repeated_key_members(&catalog)?;
     let curated = parse_curated(envelope.curated)?;
     let reviews = parse_reviews(envelope.reviews)?;
     let plans = plan_tables(&catalog)?;
@@ -63,6 +64,7 @@ pub fn compile_structure_draft(input: &str) -> Result<String, DraftError> {
     let (merge_curated, mut queue, states) = apply_reviews(&plans, &curated, &reviews, &catalog)?;
     let mut effective = merge_layers(&generated, &merge_curated, &catalog.schema_hash)?;
     strip_dangling_keys(&mut effective, &plans, &mut queue);
+    strip_dangling_relationships(&mut effective, &plans, &mut queue);
     normalize_effective(&mut effective)?;
     for item in &mut queue {
         if let Some(state) = states.get(&(item.item_id.clone(), item.kind)) {
@@ -2017,6 +2019,127 @@ fn strip_dangling_keys(effective: &mut Value, plans: &[TablePlan], queue: &mut V
                 "primary_key_column_not_effective",
             ));
         }
+    }
+}
+
+enum EndpointPresence {
+    Present,
+    MissingColumn,
+    MissingDataset,
+}
+
+fn effective_column_index(effective: &Value) -> BTreeMap<String, BTreeSet<String>> {
+    let mut index = BTreeMap::new();
+    let Some(datasets) = effective.get("datasets").and_then(Value::as_array) else {
+        return index;
+    };
+    for dataset in datasets {
+        let Some(name) = dataset.get("dataset").and_then(Value::as_str) else {
+            continue;
+        };
+        let mut columns = BTreeSet::new();
+        if let Some(items) = dataset.get("columns").and_then(Value::as_array) {
+            for column in items {
+                if let Some(column_name) = column.get("name").and_then(Value::as_str) {
+                    columns.insert(column_name.to_string());
+                }
+            }
+        }
+        index.insert(name.to_string(), columns);
+    }
+    index
+}
+
+fn endpoint_presence(
+    relationship: &Value,
+    side: &str,
+    index: &BTreeMap<String, BTreeSet<String>>,
+) -> EndpointPresence {
+    let Some(end) = relationship.get(side) else {
+        return EndpointPresence::MissingDataset;
+    };
+    let Some(dataset) = end.get("dataset").and_then(Value::as_str) else {
+        return EndpointPresence::MissingDataset;
+    };
+    let Some(present) = index.get(dataset) else {
+        return EndpointPresence::MissingDataset;
+    };
+    let Some(columns) = end.get("columns").and_then(Value::as_array) else {
+        return EndpointPresence::MissingColumn;
+    };
+    if columns.iter().any(|column| {
+        column
+            .as_str()
+            .is_none_or(|name| !present.contains(name))
+    }) {
+        EndpointPresence::MissingColumn
+    } else {
+        EndpointPresence::Present
+    }
+}
+
+fn relationship_gap(
+    relationship: &Value,
+    index: &BTreeMap<String, BTreeSet<String>>,
+) -> Option<&'static str> {
+    let from = endpoint_presence(relationship, "from", index);
+    let to = endpoint_presence(relationship, "to", index);
+    let dataset_missing = matches!(
+        (&from, &to),
+        (EndpointPresence::MissingDataset, _) | (_, EndpointPresence::MissingDataset)
+    );
+    if dataset_missing {
+        return Some("endpoint_dataset_not_effective");
+    }
+    match (from, to) {
+        (EndpointPresence::MissingColumn, EndpointPresence::MissingColumn) => {
+            Some("from_and_to_column_not_effective")
+        }
+        (EndpointPresence::MissingColumn, _) => Some("from_column_not_effective"),
+        (_, EndpointPresence::MissingColumn) => Some("to_column_not_effective"),
+        _ => None,
+    }
+}
+
+fn strip_dangling_relationships(
+    effective: &mut Value,
+    plans: &[TablePlan],
+    queue: &mut Vec<QueueItem>,
+) {
+    let index = effective_column_index(effective);
+    let Some(relationships) = effective
+        .get_mut("relationships")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    let mut closed = Vec::new();
+    relationships.retain(|relationship| {
+        match relationship_gap(relationship, &index) {
+            None => true,
+            Some(detail) => {
+                if let Some(name) = relationship.get("name").and_then(Value::as_str) {
+                    closed.push((name.to_string(), detail));
+                }
+                false
+            }
+        }
+    });
+    closed.sort_by(|left, right| left.0.cmp(&right.0));
+    for (name, detail) in closed {
+        let Some(fk) = plans.iter().find_map(|plan| {
+            plan.fks
+                .iter()
+                .find(|fk| fk.oos_name.as_deref() == Some(name.as_str()))
+        }) else {
+            continue;
+        };
+        queue.push(pending(
+            fk.item_id.clone(),
+            "relationship_endpoint_not_effective",
+            Some(fk.fingerprint.clone()),
+            detail,
+        ));
     }
 }
 

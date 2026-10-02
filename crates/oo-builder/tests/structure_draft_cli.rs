@@ -69,3 +69,60 @@ fn structure_draft_writes_the_customer_golden_and_rejects_a_duplicate_key() {
     assert!(stderr.contains("/json.duplicate_key"));
     assert!(rejected.stdout.is_empty());
 }
+
+fn contract_fixture(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../contracts/builder/structure-draft/fixtures")
+        .join(name)
+}
+
+#[test]
+fn repeated_key_member_exits_nonzero_without_echoing_the_name() {
+    let input = fs::File::open(contract_fixture("duplicate-pk-member.json")).unwrap();
+    let compiled = bin()
+        .arg("structure-draft")
+        .stdin(Stdio::from(input))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_eq!(
+        compiled.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    assert!(compiled.stdout.is_empty());
+    let stderr = String::from_utf8(compiled.stderr).unwrap();
+    assert!(stderr.contains("/duplicate.key_member"));
+    assert!(stderr.contains("repeated key member"));
+    assert!(!stderr.contains("leak_pk_9f3a"));
+    assert!(!stderr.contains("alias_pk_9f3a"));
+    assert!(!stderr.contains("DO_NOT_SURFACE_INSTRUCTION_9f3a"));
+}
+
+#[test]
+fn rejected_fk_endpoint_closes_the_relationship_on_the_cli() {
+    let input = fs::File::open(contract_fixture("fk-from-endpoint-rejected.json")).unwrap();
+    let compiled = bin()
+        .arg("structure-draft")
+        .stdin(Stdio::from(input))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_eq!(
+        compiled.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    assert!(!compiled.stdout.ends_with(b"\n"));
+    assert!(compiled.stderr.is_empty());
+    let stdout = String::from_utf8(compiled.stdout).unwrap();
+    assert!(stdout.contains("relationship_endpoint_not_effective"));
+    assert!(stdout.contains("from_column_not_effective"));
+    assert!(stdout.contains("ship_to_fkey"));
+    assert!(!stdout.contains("leak_pk_9f3a"));
+    assert!(!stdout.contains("USING (tenant"));
+}

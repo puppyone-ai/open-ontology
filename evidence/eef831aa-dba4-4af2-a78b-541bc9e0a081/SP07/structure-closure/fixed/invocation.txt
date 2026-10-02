@@ -1,0 +1,32 @@
+run_id=daa20988-8e6b-47b0-858d-0e29a7f7b6cc
+source_base_head=911f317cde6d87ec49c247afc35681c7c64d5c91
+source_base_tree=a8a642b13e40f084bc884b6ba656ec09e62f1d86
+fixed_tree=93c6cc57f1ad3dc6e7dcc67ba8761316405ced91
+snapshot_method=git archive of a private index: HEAD plus owned source and fixtures
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-net
+network_mode=bridge_not_host
+container=oo-a081-msrv-daa20988-8e6b-47b0-858d-0e29a7f7b6cc
+cargo_volume=oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-cargo
+target_volume=oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-target
+snapshot=/tmp/oo-a081-eef831aa-dba4-4af2-a78b-541bc9e0a081/fixed-snapshot
+privileged=no
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+memory=8g
+memory_swap=8g
+cpus=4
+pids_limit=4096
+user=0:0
+tmpfs=/tmp:rw,nosuid,nodev,size=1g
+command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --manifest-path Cargo.toml --locked --offline -p oo-builder; cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-builder --all-targets -- -D warnings

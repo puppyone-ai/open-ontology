@@ -767,6 +767,7 @@ fn validate_table(input: TableIn) -> Result<Table, DraftError> {
         let mut pairs = Vec::with_capacity(key.columns.len());
         let mut ref_schema = None;
         let mut ref_table = None;
+        let mut seen_local = MemberSeen::default();
         for column in key.columns {
             if ref_schema
                 .as_ref()
@@ -783,16 +784,14 @@ fn validate_table(input: TableIn) -> Result<Table, DraftError> {
             }
             ref_schema = Some(column.ref_schema.clone());
             ref_table = Some(column.ref_table.clone());
-            let local = columns
-                .iter()
-                .find(|item| item.attnum == column.attnum && item.name == column.name)
-                .ok_or_else(|| {
-                    DraftError::new(
-                        "key.unknown_column",
-                        "/catalog/tables/foreign_keys",
-                        "foreign key column is not in the table",
-                    )
-                })?;
+            let local = take_key_member(
+                column.attnum,
+                &column.name,
+                &columns,
+                &mut seen_local,
+                "/catalog/tables/foreign_keys",
+                "foreign key column is not in the table",
+            )?;
             check_pg_name(&column.ref_schema, "/catalog/tables/foreign_keys")?;
             check_pg_name(&column.ref_table, "/catalog/tables/foreign_keys")?;
             check_pg_name(&column.ref_name, "/catalog/tables/foreign_keys")?;
@@ -816,8 +815,6 @@ fn validate_table(input: TableIn) -> Result<Table, DraftError> {
                 ref_ident: stable_ident(&column.ref_name, "/catalog/tables/foreign_keys")?,
             });
         }
-        let ref_names: Vec<String> = pairs.iter().map(|pair| pair.ref_name.clone()).collect();
-        assign_idents(&ref_names, "/catalog/tables/foreign_keys")?;
         foreign_keys.push(ForeignKey {
             name: key.name,
             ident,
@@ -1059,10 +1056,54 @@ fn validate_column(input: ColumnIn) -> Result<Column, DraftError> {
     })
 }
 
+#[derive(Default)]
+struct MemberSeen {
+    attnums: Vec<i32>,
+    names: Vec<String>,
+    idents: Vec<String>,
+}
+
+fn take_key_member(
+    attnum: i32,
+    name: &str,
+    table_columns: &[Column],
+    seen: &mut MemberSeen,
+    path: &'static str,
+    missing: &'static str,
+) -> Result<KeyColumn, DraftError> {
+    let resolved = table_columns
+        .iter()
+        .find(|item| item.attnum == attnum && item.name == name);
+    let ident = if let Some(found) = resolved {
+        found.ident.clone()
+    } else {
+        let seen_raw = seen.attnums.contains(&attnum) || seen.names.iter().any(|item| item == name);
+        let candidate = match stable_ident(name, path) {
+            Ok(ident) => ident,
+            Err(_) if seen_raw => String::new(),
+            Err(_) => return Err(DraftError::new(path_code(path), path, missing)),
+        };
+        let repeated = seen_raw
+            || (!candidate.is_empty() && seen.idents.iter().any(|item| item == &candidate));
+        if !repeated {
+            return Err(DraftError::new(path_code(path), path, missing));
+        }
+        candidate
+    };
+    seen.attnums.push(attnum);
+    seen.names.push(name.to_string());
+    seen.idents.push(ident.clone());
+    Ok(KeyColumn {
+        attnum,
+        name: name.to_string(),
+        ident,
+    })
+}
+
 fn validate_key_columns(
     columns: &[KeyColumnIn],
     table_columns: &[Column],
-    path: &str,
+    path: &'static str,
 ) -> Result<Vec<KeyColumn>, DraftError> {
     if columns.len() > MAX_KEY_COLUMNS {
         return Err(DraftError::new(
@@ -1071,24 +1112,78 @@ fn validate_key_columns(
             "key column count exceeds the draft budget",
         ));
     }
+    let mut seen = MemberSeen::default();
     let mut out = Vec::with_capacity(columns.len());
     for column in columns {
-        let found = table_columns
-            .iter()
-            .find(|item| item.attnum == column.attnum && item.name == column.name)
-            .ok_or_else(|| {
-                DraftError::new(path_code(path), path, "key column is not in the table")
-            })?;
-        out.push(KeyColumn {
-            attnum: column.attnum,
-            name: column.name.clone(),
-            ident: found.ident.clone(),
-        });
+        out.push(take_key_member(
+            column.attnum,
+            &column.name,
+            table_columns,
+            &mut seen,
+            path,
+            "key column is not in the table",
+        )?);
     }
     if columns.is_empty() {
         return Err(DraftError::new("key.empty", path, "key has no columns"));
     }
     Ok(out)
+}
+
+pub(crate) fn reject_repeated_key_members(catalog: &Catalog) -> Result<(), DraftError> {
+    for table in &catalog.tables {
+        reject_repeated_members(&table.primary_key, "/catalog/tables/primary_key")?;
+        for key in &table.unique_keys {
+            reject_repeated_members(&key.columns, "/catalog/tables/unique_keys")?;
+        }
+        for key in &table.foreign_keys {
+            reject_repeated_members(
+                &key.columns
+                    .iter()
+                    .map(|column| KeyColumn {
+                        attnum: column.attnum,
+                        name: column.name.clone(),
+                        ident: column.ident.clone(),
+                    })
+                    .collect::<Vec<_>>(),
+                "/catalog/tables/foreign_keys",
+            )?;
+            reject_repeated_members(
+                &key.columns
+                    .iter()
+                    .map(|column| KeyColumn {
+                        attnum: column.ref_attnum,
+                        name: column.ref_name.clone(),
+                        ident: column.ref_ident.clone(),
+                    })
+                    .collect::<Vec<_>>(),
+                "/catalog/tables/foreign_keys",
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn reject_repeated_members(columns: &[KeyColumn], path: &'static str) -> Result<(), DraftError> {
+    let mut attnums = Vec::new();
+    let mut names: Vec<&str> = Vec::new();
+    let mut idents: Vec<&str> = Vec::new();
+    for column in columns {
+        if attnums.contains(&column.attnum)
+            || names.contains(&column.name.as_str())
+            || idents.contains(&column.ident.as_str())
+        {
+            return Err(DraftError::new(
+                "duplicate.key_member",
+                path,
+                "repeated key member",
+            ));
+        }
+        attnums.push(column.attnum);
+        names.push(column.name.as_str());
+        idents.push(column.ident.as_str());
+    }
+    Ok(())
 }
 
 fn path_code(path: &str) -> &'static str {

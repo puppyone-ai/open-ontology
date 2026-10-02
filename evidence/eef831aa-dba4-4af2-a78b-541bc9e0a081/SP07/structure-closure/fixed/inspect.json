@@ -1,0 +1,299 @@
+[
+    {
+        "Id": "0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2",
+        "Created": "2026-10-02T01:38:08.164889795Z",
+        "Path": "bash",
+        "Args": [
+            "/inside.sh"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-02T01:38:08.393664295Z",
+            "FinishedAt": "2026-10-02T01:38:38.922179462Z"
+        },
+        "Image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+        "ResolvConfPath": "/var/lib/docker/containers/0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2/hostname",
+        "HostsPath": "/var/lib/docker/containers/0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2/hosts",
+        "LogPath": "/var/lib/docker/containers/0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2/0180d31ec72555493715d98aee83aebf1b6d2b3b5ef9619bb9377906ba9938e2-json.log",
+        "Name": "/oo-a081-msrv-daa20988-8e6b-47b0-858d-0e29a7f7b6cc",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-net",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "no-new-privileges"
+            ],
+            "Tmpfs": {
+                "/tmp": "rw,nosuid,nodev,size=1g"
+            },
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 8589934592,
+            "NanoCpus": 4000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 8589934592,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 4096,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a081-eef831aa-dba4-4af2-a78b-541bc9e0a081/fixed-snapshot",
+                    "Target": "/src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a081-eef831aa-dba4-4af2-a78b-541bc9e0a081/fixed-inside.sh",
+                    "Target": "/inside.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a081/SP07/structure-closure/fixed",
+                    "Target": "/evidence"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-cargo",
+                    "Target": "/cargo-home"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-target",
+                    "Target": "/target"
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a081/SP07/structure-closure/fixed",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-cargo",
+                "Source": "/var/lib/docker/volumes/oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-cargo/_data",
+                "Destination": "/cargo-home",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-target",
+                "Source": "/var/lib/docker/volumes/oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-target/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a081-eef831aa-dba4-4af2-a78b-541bc9e0a081/fixed-snapshot",
+                "Destination": "/src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a081-eef831aa-dba4-4af2-a78b-541bc9e0a081/fixed-inside.sh",
+                "Destination": "/inside.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "0180d31ec725",
+            "Domainname": "",
+            "User": "0:0",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "CARGO_TARGET_DIR=/target",
+                "CARGO_BUILD_JOBS=4",
+                "RUSTUP_TOOLCHAIN=1.94.0",
+                "HOME=/tmp",
+                "CARGO_TERM_COLOR=never",
+                "CARGO_HOME=/cargo-home",
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "RUST_VERSION=1.94.0"
+            ],
+            "Cmd": [
+                "bash",
+                "/inside.sh"
+            ],
+            "Image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "Volumes": null,
+            "WorkingDir": "/src",
+            "Entrypoint": null,
+            "Labels": {
+                "oo.kind": "rust-builder",
+                "oo.owner": "a081",
+                "oo.platform": "linux/arm64",
+                "oo.project": "open-ontology",
+                "oo.run_id": "daa20988-8e6b-47b0-858d-0e29a7f7b6cc",
+                "oo.scope": "sp07-structure-closure",
+                "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a081",
+                "oo.task": "structure-closure-fixed",
+                "oo.toolchain": "1.94.0",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-net": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "d3df77d92c2a2841b7ad0c902b1048df4629917ef7fc8e81524b560f07d9339a",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "oo-a081-msrv-daa20988-8e6b-47b0-858d-0e29a7f7b6cc",
+                        "0180d31ec725"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "size": 1936,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            }
+        }
+    }
+]

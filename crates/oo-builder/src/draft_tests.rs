@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde_json::{Value, json};
 
 use oo_core::api::payload_sha256;
@@ -867,6 +869,901 @@ fn fk_outside_the_selection_is_not_a_relationship() {
             "fk_target_not_selected"
         )["state"],
         "pending"
+    );
+}
+
+const LEAK_NAME: &str = "leak_pk_9f3a";
+const LEAK_ALIAS: &str = "alias_pk_9f3a";
+const LEAK_COMMENT: &str = "DO_NOT_SURFACE_INSTRUCTION_9f3a";
+
+fn fk_one(
+    name: &str,
+    attnum: i32,
+    column: &str,
+    ref_table: &str,
+    ref_attnum: i32,
+    ref_name: &str,
+) -> Value {
+    json!({
+        "name": name,
+        "columns": [{
+            "attnum": attnum,
+            "name": column,
+            "ref_schema": "public",
+            "ref_table": ref_table,
+            "ref_attnum": ref_attnum,
+            "ref_name": ref_name
+        }]
+    })
+}
+
+fn orders_tables() -> Vec<Value> {
+    let customer = table(
+        "customer",
+        vec![int4(1, "id", true, None)],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        Vec::new(),
+    );
+    let warehouse = table(
+        "warehouse",
+        vec![int4(1, "id", true, None)],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        Vec::new(),
+    );
+    let orders = table(
+        "orders",
+        vec![
+            int4(1, "id", true, None),
+            int4(2, "bill_to", true, None),
+            int4(3, "ship_to", true, None),
+            int4(4, "warehouse_id", true, None),
+        ],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        vec![
+            fk_one("bill_to_fkey", 2, "bill_to", "customer", 1, "id"),
+            fk_one("ship_to_fkey", 3, "ship_to", "customer", 1, "id"),
+            fk_one("warehouse_fkey", 4, "warehouse_id", "warehouse", 1, "id"),
+        ],
+    );
+    vec![customer, warehouse, orders]
+}
+
+fn employee_tables() -> Vec<Value> {
+    vec![table(
+        "employee",
+        vec![int4(1, "id", true, None), int4(2, "manager_id", false, None)],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        vec![fk_one(
+            "employee_manager_fkey",
+            2,
+            "manager_id",
+            "employee",
+            1,
+            "id",
+        )],
+    )]
+}
+
+fn invoice_tables() -> Vec<Value> {
+    let account = table(
+        "account",
+        vec![int4(1, "tenant_id", true, None), int4(2, "id", true, None)],
+        vec![key_col(1, "tenant_id"), key_col(2, "id")],
+        Some(false),
+        Vec::new(),
+        Vec::new(),
+    );
+    let invoice = table(
+        "invoice",
+        vec![
+            int4(1, "id", true, None),
+            int4(2, "tenant_id", true, None),
+            int4(3, "account_id", true, None),
+        ],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        vec![json!({
+            "name": "invoice_account_fkey",
+            "columns": [
+                {"attnum": 2, "name": "tenant_id", "ref_schema": "public", "ref_table": "account", "ref_attnum": 1, "ref_name": "tenant_id"},
+                {"attnum": 3, "name": "account_id", "ref_schema": "public", "ref_table": "account", "ref_attnum": 2, "ref_name": "id"}
+            ]
+        })],
+    );
+    vec![account, invoice]
+}
+
+fn relationship_named<'a>(draft: &'a Value, layer: &str, name: &str) -> Option<&'a Value> {
+    draft[layer]["relationships"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == name)
+}
+
+fn queue_item_opt<'a>(draft: &'a Value, item_id: &str, kind: &str) -> Option<&'a Value> {
+    draft["review_queue"].as_array().unwrap().iter().find(|item| {
+        item["item_id"] == item_id && item["kind"] == kind
+    })
+}
+
+fn assert_queue_sorted(draft: &Value) {
+    let pairs: Vec<(String, String)> = draft["review_queue"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["item_id"].as_str().unwrap().to_string(),
+                item["kind"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    let mut sorted = pairs.clone();
+    sorted.sort();
+    assert_eq!(pairs, sorted);
+}
+
+fn assert_closed(draft: &Value, name: &str, item_id: &str, detail: &str) {
+    assert!(relationship_named(draft, "generated", name).is_some());
+    assert!(relationship_named(draft, "effective", name).is_none());
+    let item = queue_item(draft, item_id, "relationship_endpoint_not_effective");
+    assert_eq!(item["detail"], detail);
+    assert_eq!(item["state"], "pending");
+    assert_eq!(item["publishable"], false);
+    assert_eq!(
+        item["fact_fingerprint"],
+        queue_item(draft, item_id, "candidate_relationship")["fact_fingerprint"]
+    );
+    assert_eq!(draft["provenance"]["publication"], "unavailable");
+    assert_eq!(draft["provenance"]["llm"], "not_used");
+}
+
+fn assert_open(draft: &Value, name: &str, item_id: &str) {
+    let relationship = relationship_named(draft, "effective", name).unwrap();
+    assert_eq!(relationship["status"], "draft");
+    assert!(queue_item_opt(draft, item_id, "relationship_endpoint_not_effective").is_none());
+}
+
+fn end_columns(draft: &Value, layer: &str, name: &str, side: &str) -> Vec<String> {
+    relationship_named(draft, layer, name).unwrap()[side]["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|column| column.as_str().unwrap().to_string())
+        .collect()
+}
+
+fn fresh_reject(tables: Vec<Value>, rejects: &[(&str, &str, &str)]) -> Value {
+    let mut root = envelope(tables);
+    let first = compile(root.clone());
+    let schema_hash = first["provenance"]["schema_hash"].clone();
+    let mut reviews = Vec::new();
+    let mut grouped: BTreeMap<&str, Vec<Value>> = BTreeMap::new();
+    for (item_id, dataset, column) in rejects {
+        reviews.push(json!({
+            "item_id": item_id,
+            "action": "reject",
+            "schema_hash": schema_hash,
+            "fact_fingerprint": queue_item(&first, item_id, "structural_column")["fact_fingerprint"],
+        }));
+        grouped.entry(*dataset).or_default().push(json!({
+            "name": column,
+            "status": "rejected",
+            "label": "Kept label"
+        }));
+    }
+    root["reviews"] = Value::Array(reviews);
+    root["curated"] = json!({
+        "datasets": grouped
+            .into_iter()
+            .map(|(dataset, columns)| json!({"dataset": dataset, "columns": columns}))
+            .collect::<Vec<_>>(),
+        "relationships": []
+    });
+    root
+}
+
+fn curated_column<'a>(draft: &'a Value, dataset: &str, column: &str) -> &'a Value {
+    draft["curated"]["datasets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["dataset"] == dataset)
+        .unwrap()["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == column)
+        .unwrap()
+}
+
+#[test]
+fn fresh_from_endpoint_rejection_closes_only_that_relationship() {
+    let draft = compile(fresh_reject(
+        orders_tables(),
+        &[("column/public.orders/bill_to", "public.orders", "bill_to")],
+    ));
+    assert_closed(
+        &draft,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+        "from_column_not_effective",
+    );
+    assert_open(
+        &draft,
+        "ship_to_fkey",
+        "relationship/public.orders/ship_to_fkey",
+    );
+    assert_open(
+        &draft,
+        "warehouse_fkey",
+        "relationship/public.orders/warehouse_fkey",
+    );
+    assert!(column_of(dataset(&draft, "effective", "public.orders"), "bill_to").is_none());
+    assert!(column_of(dataset(&draft, "generated", "public.orders"), "bill_to").is_some());
+    assert_eq!(
+        end_columns(&draft, "generated", "bill_to_fkey", "from"),
+        vec!["bill_to".to_string()]
+    );
+    assert_eq!(
+        curated_column(&draft, "public.orders", "bill_to")["status"],
+        "rejected"
+    );
+    assert_eq!(
+        curated_column(&draft, "public.orders", "bill_to")["label"],
+        "Kept label"
+    );
+    assert_eq!(
+        queue_item(
+            &draft,
+            "column/public.orders/bill_to",
+            "structural_column"
+        )["state"],
+        "rejected"
+    );
+    assert_eq!(
+        queue_item(
+            &draft,
+            "relationship/public.orders/bill_to_fkey",
+            "fk_ambiguous"
+        )["state"],
+        "pending"
+    );
+    assert_eq!(
+        queue_item(
+            &draft,
+            "relationship/public.orders/bill_to_fkey",
+            "candidate_relationship"
+        )["state"],
+        "pending"
+    );
+    let text = serde_json::to_string(&draft).unwrap();
+    assert!(!text.contains(SECRET_SQL));
+    assert!(!text.contains(SECRET_ROLE));
+    assert_queue_sorted(&draft);
+}
+
+#[test]
+fn fresh_to_endpoint_rejection_closes_referencing_relationships() {
+    let draft = compile(fresh_reject(
+        orders_tables(),
+        &[("column/public.customer/id", "public.customer", "id")],
+    ));
+    assert_closed(
+        &draft,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+        "to_column_not_effective",
+    );
+    assert_closed(
+        &draft,
+        "ship_to_fkey",
+        "relationship/public.orders/ship_to_fkey",
+        "to_column_not_effective",
+    );
+    assert_open(
+        &draft,
+        "warehouse_fkey",
+        "relationship/public.orders/warehouse_fkey",
+    );
+    assert!(column_of(dataset(&draft, "effective", "public.customer"), "id").is_none());
+    assert!(column_of(dataset(&draft, "generated", "public.customer"), "id").is_some());
+    assert!(
+        dataset(&draft, "effective", "public.customer")["primary_key"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        queue_item(
+            &draft,
+            "primary_key/public.customer",
+            "primary_key_column_not_effective"
+        )["state"],
+        "pending"
+    );
+    assert_eq!(draft["provenance"]["publication"], "unavailable");
+    assert_queue_sorted(&draft);
+}
+
+#[test]
+fn fresh_rejection_of_both_ends_and_self_reference() {
+    let both = compile(fresh_reject(
+        orders_tables(),
+        &[
+            ("column/public.orders/bill_to", "public.orders", "bill_to"),
+            ("column/public.customer/id", "public.customer", "id"),
+        ],
+    ));
+    assert_closed(
+        &both,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+        "from_and_to_column_not_effective",
+    );
+    assert_closed(
+        &both,
+        "ship_to_fkey",
+        "relationship/public.orders/ship_to_fkey",
+        "to_column_not_effective",
+    );
+    assert_open(
+        &both,
+        "warehouse_fkey",
+        "relationship/public.orders/warehouse_fkey",
+    );
+    assert_eq!(both["reviews"].as_array().unwrap().len(), 2);
+    assert!(
+        both["reviews"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|review| review["action"] == "reject")
+    );
+
+    let from_self = compile(fresh_reject(
+        employee_tables(),
+        &[(
+            "column/public.employee/manager_id",
+            "public.employee",
+            "manager_id",
+        )],
+    ));
+    assert_closed(
+        &from_self,
+        "employee_manager_fkey",
+        "relationship/public.employee/employee_manager_fkey",
+        "from_column_not_effective",
+    );
+    assert_eq!(
+        dataset(&from_self, "effective", "public.employee")["primary_key"],
+        json!(["id"])
+    );
+
+    let to_self = compile(fresh_reject(
+        employee_tables(),
+        &[("column/public.employee/id", "public.employee", "id")],
+    ));
+    assert_closed(
+        &to_self,
+        "employee_manager_fkey",
+        "relationship/public.employee/employee_manager_fkey",
+        "to_column_not_effective",
+    );
+    assert!(
+        column_of(
+            dataset(&to_self, "effective", "public.employee"),
+            "manager_id"
+        )
+        .is_some()
+    );
+    assert!(
+        dataset(&to_self, "effective", "public.employee")["primary_key"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    let both_self = compile(fresh_reject(
+        employee_tables(),
+        &[
+            ("column/public.employee/id", "public.employee", "id"),
+            (
+                "column/public.employee/manager_id",
+                "public.employee",
+                "manager_id",
+            ),
+        ],
+    ));
+    assert_closed(
+        &both_self,
+        "employee_manager_fkey",
+        "relationship/public.employee/employee_manager_fkey",
+        "from_and_to_column_not_effective",
+    );
+    assert_queue_sorted(&both_self);
+}
+
+#[test]
+fn composite_member_rejection_closes_the_whole_relationship() {
+    let untouched = compile(envelope(invoice_tables()));
+    assert_eq!(
+        end_columns(&untouched, "generated", "invoice_account_fkey", "from"),
+        vec!["tenant_id".to_string(), "account_id".to_string()]
+    );
+    assert_eq!(
+        end_columns(&untouched, "effective", "invoice_account_fkey", "to"),
+        vec!["tenant_id".to_string(), "id".to_string()]
+    );
+
+    let local = compile(fresh_reject(
+        invoice_tables(),
+        &[(
+            "column/public.invoice/account_id",
+            "public.invoice",
+            "account_id",
+        )],
+    ));
+    assert_closed(
+        &local,
+        "invoice_account_fkey",
+        "relationship/public.invoice/invoice_account_fkey",
+        "from_column_not_effective",
+    );
+    assert!(
+        column_of(dataset(&local, "effective", "public.invoice"), "tenant_id").is_some()
+    );
+    assert_eq!(
+        end_columns(&local, "generated", "invoice_account_fkey", "from"),
+        vec!["tenant_id".to_string(), "account_id".to_string()]
+    );
+    assert!(relationship_named(&local, "effective", "invoice_account_fkey").is_none());
+
+    let referenced = compile(fresh_reject(
+        invoice_tables(),
+        &[(
+            "column/public.account/tenant_id",
+            "public.account",
+            "tenant_id",
+        )],
+    ));
+    assert_closed(
+        &referenced,
+        "invoice_account_fkey",
+        "relationship/public.invoice/invoice_account_fkey",
+        "to_column_not_effective",
+    );
+    assert_eq!(
+        dataset(&referenced, "effective", "public.account")["primary_key"],
+        json!(["id"])
+    );
+    assert_eq!(
+        end_columns(&referenced, "generated", "invoice_account_fkey", "to"),
+        vec!["tenant_id".to_string(), "id".to_string()]
+    );
+}
+
+#[test]
+fn accepted_relationship_closes_when_its_column_is_rejected() {
+    let mut root = envelope(orders_tables());
+    let first = compile(root.clone());
+    let schema_hash = first["provenance"]["schema_hash"].clone();
+    let relationship_id = "relationship/public.orders/bill_to_fkey";
+    let column_id = "column/public.orders/bill_to";
+    let relationship_fp =
+        queue_item(&first, relationship_id, "candidate_relationship")["fact_fingerprint"].clone();
+    let column_fp = queue_item(&first, column_id, "structural_column")["fact_fingerprint"].clone();
+    root["reviews"] = json!([
+        {
+            "item_id": relationship_id,
+            "action": "accept",
+            "schema_hash": schema_hash,
+            "fact_fingerprint": relationship_fp,
+        },
+        {
+            "item_id": column_id,
+            "action": "reject",
+            "schema_hash": schema_hash,
+            "fact_fingerprint": column_fp,
+        }
+    ]);
+    root["curated"] = json!({
+        "datasets": [{
+            "dataset": "public.orders",
+            "columns": [{"name": "bill_to", "status": "rejected", "label": "Kept label"}]
+        }],
+        "relationships": []
+    });
+    let draft = compile(root);
+    assert_closed(
+        &draft,
+        "bill_to_fkey",
+        relationship_id,
+        "from_column_not_effective",
+    );
+    assert_eq!(
+        queue_item(&draft, relationship_id, "candidate_relationship")["state"],
+        "accepted"
+    );
+    assert_open(
+        &draft,
+        "ship_to_fkey",
+        "relationship/public.orders/ship_to_fkey",
+    );
+    let reviews = draft["reviews"].as_array().unwrap();
+    assert_eq!(reviews.len(), 2);
+    let accepted = reviews
+        .iter()
+        .find(|review| review["item_id"] == relationship_id)
+        .unwrap();
+    assert_eq!(accepted["action"], "accept");
+    assert_eq!(accepted["fact_fingerprint"], relationship_fp);
+    let rejected = reviews
+        .iter()
+        .find(|review| review["item_id"] == column_id)
+        .unwrap();
+    assert_eq!(rejected["action"], "reject");
+    assert_eq!(rejected["fact_fingerprint"], column_fp);
+    assert_eq!(
+        curated_column(&draft, "public.orders", "bill_to")["label"],
+        "Kept label"
+    );
+    assert_eq!(draft["provenance"]["publication"], "unavailable");
+    assert_eq!(
+        queue_item(&draft, relationship_id, "relationship_endpoint_not_effective")["publishable"],
+        false
+    );
+}
+
+#[test]
+fn stale_column_rejection_keeps_the_relationship() {
+    let mut schema_root = fresh_reject(
+        orders_tables(),
+        &[("column/public.orders/bill_to", "public.orders", "bill_to")],
+    );
+    schema_root["reviews"][0]["schema_hash"] =
+        json!("1111111111111111111111111111111111111111111111111111111111111111");
+    let schema_stale = compile(schema_root);
+    assert_open(
+        &schema_stale,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+    );
+    assert!(column_of(dataset(&schema_stale, "effective", "public.orders"), "bill_to").is_some());
+    assert_eq!(
+        queue_item(
+            &schema_stale,
+            "column/public.orders/bill_to",
+            "structural_column"
+        )["state"],
+        "pending"
+    );
+    assert_eq!(
+        queue_item(
+            &schema_stale,
+            "column/public.orders/bill_to",
+            "stale_decision"
+        )["detail"],
+        "stale_schema_hash"
+    );
+    assert_eq!(
+        schema_stale["curated"]["datasets"][0]["columns"][0]["status"],
+        "rejected"
+    );
+
+    let mut fact_root = fresh_reject(
+        orders_tables(),
+        &[("column/public.orders/bill_to", "public.orders", "bill_to")],
+    );
+    fact_root["reviews"][0]["fact_fingerprint"] = json!(ZERO);
+    let fact_stale = compile(fact_root);
+    assert_open(
+        &fact_stale,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+    );
+    assert!(column_of(dataset(&fact_stale, "effective", "public.orders"), "bill_to").is_some());
+    assert_eq!(
+        queue_item(
+            &fact_stale,
+            "column/public.orders/bill_to",
+            "stale_decision"
+        )["detail"],
+        "stale_fact_fingerprint"
+    );
+    assert_eq!(fact_stale["reviews"][0]["action"], "reject");
+}
+
+#[test]
+fn human_relationship_rejection_is_not_rewritten() {
+    let mut root = envelope(orders_tables());
+    let first = compile(root.clone());
+    let item_id = "relationship/public.orders/warehouse_fkey";
+    let fingerprint =
+        queue_item(&first, item_id, "candidate_relationship")["fact_fingerprint"].clone();
+    root["reviews"] = json!([{
+        "item_id": item_id,
+        "action": "reject",
+        "schema_hash": first["provenance"]["schema_hash"],
+        "fact_fingerprint": fingerprint,
+    }]);
+    root["curated"] = json!({
+        "datasets": [],
+        "relationships": [{"name": "warehouse_fkey", "status": "rejected"}]
+    });
+    let draft = compile(root);
+    assert!(relationship_named(&draft, "generated", "warehouse_fkey").is_some());
+    assert!(relationship_named(&draft, "effective", "warehouse_fkey").is_none());
+    assert_eq!(
+        queue_item(&draft, item_id, "candidate_relationship")["state"],
+        "rejected"
+    );
+    assert!(queue_item_opt(&draft, item_id, "relationship_endpoint_not_effective").is_none());
+    assert_eq!(draft["reviews"][0]["action"], "reject");
+    assert_eq!(draft["reviews"][0]["fact_fingerprint"], fingerprint);
+    assert_open(
+        &draft,
+        "bill_to_fkey",
+        "relationship/public.orders/bill_to_fkey",
+    );
+    assert_eq!(draft["provenance"]["publication"], "unavailable");
+}
+
+fn leak_table(
+    columns: Vec<Value>,
+    primary_key: Vec<Value>,
+    unique_keys: Vec<Value>,
+    foreign_keys: Vec<Value>,
+) -> Value {
+    let nulls = if primary_key.is_empty() {
+        None
+    } else {
+        Some(false)
+    };
+    let mut item = table(
+        "customer",
+        columns,
+        primary_key,
+        nulls,
+        unique_keys,
+        foreign_keys,
+    );
+    item["owner"] = json!(LEAK_COMMENT);
+    item
+}
+
+fn assert_repeated(root: Value, path_suffix: &str, absent: &[&str]) {
+    let err = compile_structure_draft(&bind(root)).unwrap_err();
+    assert!(err.code.ends_with("/duplicate.key_member"), "{err}");
+    assert!(err.path.ends_with(path_suffix), "{}", err.path);
+    assert_eq!(err.message, "repeated key member");
+    let text = err.to_string();
+    for token in absent {
+        assert!(!text.contains(token), "{text}");
+    }
+}
+
+#[test]
+fn repeated_key_members_fail_after_valid_hash_lineage() {
+    let absent = [LEAK_NAME, LEAK_ALIAS, LEAK_COMMENT, SECRET_SQL];
+    let columns = vec![
+        int4(1, LEAK_NAME, true, None),
+        int4(2, "other", false, None),
+    ];
+    assert_repeated(
+        envelope(vec![leak_table(
+            columns.clone(),
+            vec![key_col(1, LEAK_NAME), key_col(1, LEAK_NAME)],
+            Vec::new(),
+            Vec::new(),
+        )]),
+        "/catalog/tables/primary_key",
+        &absent,
+    );
+    assert_repeated(
+        envelope(vec![leak_table(
+            columns.clone(),
+            vec![key_col(1, LEAK_NAME), key_col(1, LEAK_ALIAS)],
+            Vec::new(),
+            Vec::new(),
+        )]),
+        "/catalog/tables/primary_key",
+        &absent,
+    );
+    assert_repeated(
+        envelope(vec![leak_table(
+            columns.clone(),
+            vec![key_col(1, LEAK_NAME), key_col(9, LEAK_NAME)],
+            Vec::new(),
+            Vec::new(),
+        )]),
+        "/catalog/tables/primary_key",
+        &absent,
+    );
+
+    let mut accent = int4(1, "é", true, None);
+    accent["name"] = json!("é");
+    accent["name_ident"] = json!(ident("é"));
+    assert_repeated(
+        envelope(vec![leak_table(
+            vec![accent, int4(2, "other", false, None)],
+            vec![key_col(1, "é"), key_col(2, "e\u{0301}")],
+            Vec::new(),
+            Vec::new(),
+        )]),
+        "/catalog/tables/primary_key",
+        &["é", "\u{0301}", LEAK_COMMENT],
+    );
+
+    assert_repeated(
+        envelope(vec![leak_table(
+            columns.clone(),
+            vec![key_col(1, LEAK_NAME)],
+            vec![json!({
+                "name": "leak_unique",
+                "columns": [key_col(1, LEAK_NAME), key_col(1, LEAK_NAME)],
+                "nulls_not_distinct": false
+            })],
+            Vec::new(),
+        )]),
+        "/catalog/tables/unique_keys",
+        &absent,
+    );
+
+    let child = vec![
+        int4(1, "id", true, None),
+        int4(2, LEAK_NAME, true, None),
+        int4(3, "other", false, None),
+    ];
+    assert_repeated(
+        envelope(vec![leak_table(
+            child.clone(),
+            vec![key_col(1, "id")],
+            Vec::new(),
+            vec![json!({
+                "name": "orders_leak_fkey",
+                "columns": [
+                    {"attnum": 2, "name": LEAK_NAME, "ref_schema": "public", "ref_table": "customer", "ref_attnum": 1, "ref_name": "id"},
+                    {"attnum": 2, "name": LEAK_NAME, "ref_schema": "public", "ref_table": "customer", "ref_attnum": 2, "ref_name": "other"}
+                ]
+            })],
+        )]),
+        "/catalog/tables/foreign_keys",
+        &absent,
+    );
+    assert_repeated(
+        envelope(vec![leak_table(
+            child.clone(),
+            vec![key_col(1, "id")],
+            Vec::new(),
+            vec![json!({
+                "name": "orders_leak_fkey",
+                "columns": [
+                    {"attnum": 2, "name": LEAK_NAME, "ref_schema": "public", "ref_table": "customer", "ref_attnum": 1, "ref_name": "id"},
+                    {"attnum": 3, "name": "other", "ref_schema": "public", "ref_table": "customer", "ref_attnum": 1, "ref_name": LEAK_ALIAS}
+                ]
+            })],
+        )]),
+        "/catalog/tables/foreign_keys",
+        &absent,
+    );
+    assert_repeated(
+        envelope(vec![leak_table(
+            child.clone(),
+            vec![key_col(1, "id")],
+            Vec::new(),
+            vec![json!({
+                "name": "orders_leak_fkey",
+                "columns": [
+                    {"attnum": 2, "name": LEAK_NAME, "ref_schema": "public", "ref_table": "customer", "ref_attnum": 1, "ref_name": "id"},
+                    {"attnum": 3, "name": "other", "ref_schema": "public", "ref_table": "customer", "ref_attnum": 9, "ref_name": "id"}
+                ]
+            })],
+        )]),
+        "/catalog/tables/foreign_keys",
+        &absent,
+    );
+    assert_repeated(
+        envelope(vec![leak_table(
+            child,
+            vec![key_col(1, "id")],
+            Vec::new(),
+            vec![json!({
+                "name": "orders_leak_fkey",
+                "columns": [
+                    {"attnum": 2, "name": LEAK_NAME, "ref_schema": "public", "ref_table": "customer", "ref_attnum": 1, "ref_name": "é"},
+                    {"attnum": 3, "name": "other", "ref_schema": "public", "ref_table": "customer", "ref_attnum": 2, "ref_name": "e\u{0301}"}
+                ]
+            })],
+        )]),
+        "/catalog/tables/foreign_keys",
+        &["é", "\u{0301}", LEAK_NAME, LEAK_COMMENT],
+    );
+
+    let bound = bind(envelope(vec![leak_table(
+        columns,
+        vec![key_col(1, LEAK_NAME), key_col(1, LEAK_NAME)],
+        Vec::new(),
+        Vec::new(),
+    )]));
+    let mut wrong_catalog: Value = serde_json::from_str(&bound).unwrap();
+    wrong_catalog["catalog"]["schema_hash"] = json!(ZERO);
+    let err = compile_structure_draft(&serde_json::to_string(&wrong_catalog).unwrap()).unwrap_err();
+    assert!(err.code.ends_with("/hash.schema"), "{err}");
+    assert!(err.path.ends_with("/catalog/schema_hash"), "{}", err.path);
+    assert!(!err.to_string().contains(LEAK_NAME));
+
+    let mut wrong_binding: Value = serde_json::from_str(&bound).unwrap();
+    wrong_binding["bindings"]["evidence_hash"] = json!(ZERO);
+    let err = compile_structure_draft(&serde_json::to_string(&wrong_binding).unwrap()).unwrap_err();
+    assert!(err.code.ends_with("/hash.evidence"), "{err}");
+    assert!(!err.to_string().contains(LEAK_NAME));
+    assert!(!err.to_string().contains(LEAK_COMMENT));
+}
+
+#[test]
+fn legitimate_composite_order_and_shared_columns_stay() {
+    let forward = compile_structure_draft(&bind(envelope(invoice_tables()))).unwrap();
+    let mut reversed_tables = invoice_tables();
+    reversed_tables[1]["foreign_keys"][0]["columns"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    let reversed = compile_structure_draft(&bind(envelope(reversed_tables))).unwrap();
+    assert_ne!(forward, reversed);
+    let forward_draft: Value = serde_json::from_str(&forward).unwrap();
+    let reversed_draft: Value = serde_json::from_str(&reversed).unwrap();
+    assert_eq!(
+        end_columns(&forward_draft, "generated", "invoice_account_fkey", "from"),
+        vec!["tenant_id".to_string(), "account_id".to_string()]
+    );
+    assert_eq!(
+        end_columns(
+            &reversed_draft,
+            "generated",
+            "invoice_account_fkey",
+            "from"
+        ),
+        vec!["account_id".to_string(), "tenant_id".to_string()]
+    );
+
+    let customer = table(
+        "customer",
+        vec![int4(1, "id", true, None)],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        Vec::new(),
+    );
+    let orders = table(
+        "orders",
+        vec![int4(1, "id", true, None), int4(2, "customer_id", true, None)],
+        vec![key_col(1, "id")],
+        Some(false),
+        Vec::new(),
+        vec![
+            fk_one("orders_customer_a_fkey", 2, "customer_id", "customer", 1, "id"),
+            fk_one("orders_customer_b_fkey", 2, "customer_id", "customer", 1, "id"),
+        ],
+    );
+    let draft = compile(envelope(vec![customer, orders]));
+    assert_eq!(
+        end_columns(&draft, "effective", "orders_customer_a_fkey", "from"),
+        vec!["customer_id".to_string()]
+    );
+    assert_eq!(
+        end_columns(&draft, "effective", "orders_customer_b_fkey", "from"),
+        vec!["customer_id".to_string()]
     );
 }
 

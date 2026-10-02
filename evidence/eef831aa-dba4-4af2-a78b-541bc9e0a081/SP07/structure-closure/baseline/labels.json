@@ -1,0 +1,1 @@
+{"oo.kind":"rust-builder","oo.owner":"a081","oo.platform":"linux/arm64","oo.project":"open-ontology","oo.run_id":"3bf0c1b7-a66f-46ec-ac34-526cf13231f0","oo.scope":"sp07-structure-closure","oo.session":"eef831aa-dba4-4af2-a78b-541bc9e0a081","oo.task":"structure-closure-baseline","oo.toolchain":"1.94.0","org.opencontainers.image.source":"https://github.com/rust-lang/docker-rust"}
