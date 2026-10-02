@@ -1,0 +1,74 @@
+   Compiling oo-sdk v0.1.0 (/src/crates/oo-sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.61s
+     Running unittests src/lib.rs (/target/debug/deps/oo_sdk-046a94eab1359456)
+
+running 6 tests
+test token::tests::authorization_header_is_sensitive_and_debug_stays_masked ... ok
+test endpoint::tests::production_refuses_plaintext_loopback_and_userinfo ... ok
+test endpoint::tests::production_https_appends_query_path ... ok
+test endpoint::tests::local_development_allows_only_loopback_plaintext ... ok
+test wire::tests::over_cap_request_is_rejected_without_truncation ... ok
+test wire::tests::canonical_request_matches_the_wire_fixture_and_omits_null_fields ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/http_query.rs (/target/debug/deps/http_query-8f54e53a707121ef)
+
+running 18 tests
+test gateway_text_redacts_token_sql_and_url ... ok
+test incomplete_and_reset_connections_are_not_replayed ... ok
+test admission_retry_is_limited_to_rate_limit_and_overload ... ok
+test concurrent_clients_keep_independent_tokens ... ok
+test content_type_must_be_json_utf8 ... ok
+test oversized_request_does_not_connect_and_injection_is_rejected ... ok
+test post_uses_the_mount_path_and_exact_request_bytes ... ok
+test auth_internal_timeout_and_parse_errors_are_not_replayed ... ok
+test mismatched_status_and_wrong_success_shape_are_protocol_errors ... ok
+test retry_none_does_not_replay_a_retryable_status ... ok
+test unsupported_capabilities_are_explicit ... ok
+test http_date_retry_after_is_not_parsed_as_seconds ... ok
+test framing_limits_stop_before_a_success_parse ... ok
+test redirects_are_not_followed_and_do_not_carry_the_token ... ok
+test typed_response_keeps_warnings_freshness_and_truncation ... ok
+test missing_retry_after_uses_backoff_and_a_large_value_is_not_shortened ... ok
+test malformed_duplicate_and_cross_field_bodies_are_rejected ... ok
+test slow_stream_stops_the_client_without_claiming_cancellation ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running tests/proxy_env.rs (/target/debug/deps/proxy_env-fbb2ace970190da8)
+
+running 1 test
+test proxy_env_is_not_inherited ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/redaction_retry.rs (/target/debug/deps/redaction_retry-9121fa4b89f55034)
+
+running 9 tests
+test mount_path_and_locator_reflections_are_removed ... ok
+test field_is_omitted_when_redaction_cannot_keep_a_short_token ... ok
+test percent_and_escaped_secret_forms_are_removed_once ... ok
+test overflow_retry_after_does_not_fall_back_to_backoff ... ok
+test decimal_retry_after_at_or_above_max_does_not_retry ... ok
+test all_zero_retry_after_retries_immediately ... ok
+test short_accepted_tokens_are_removed_from_accessors ... ok
+test short_sql_reflections_are_removed_without_rewriting_the_request ... ok
+test declared_backoff_and_retry_bounds_stay ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+
+     Running tests/tls_query.rs (/target/debug/deps/tls_query-72802477ae94735a)
+
+running 2 tests
+test tls_short_token_is_omitted_from_the_error_accessors ... ok
+test custom_ca_accepts_localhost_and_rejects_the_wrong_root_or_name ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+   Doc-tests oo_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -12,7 +12,8 @@ use oo_core::api::{ErrorCode, QueryRequest, QueryResponse};
 use crate::config::{ClientConfig, RetryPolicy, RootTrust};
 use crate::endpoint::Endpoint;
 use crate::error::{
-    GatewayError, LocalError, ProtocolError, QueryError, TransportError, classify_transport,
+    AdmissionWait, GatewayError, LocalError, ProtocolError, QueryError, TransportError,
+    classify_transport,
 };
 use crate::token::BearerToken;
 use crate::wire::{decode_error, decode_response, encode_request, scrub_text};
@@ -137,7 +138,6 @@ impl std::fmt::Debug for Client {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("Client")
-            .field("url", &self.endpoint.as_str())
             .field("token", &self.token)
             .field("retry", &self.config.retry_policy())
             .finish()
@@ -185,28 +185,57 @@ fn admission_retry(error: &QueryError) -> bool {
 
 fn retry_delay(error: &QueryError, extra_used: u8, policy: RetryPolicy) -> Option<Duration> {
     let gateway = error.gateway()?;
-    if let Some(after) = gateway.retry_after() {
-        if after > policy.max_wait() {
-            return None;
+    match gateway.admission_wait() {
+        AdmissionWait::Overflow => None,
+        AdmissionWait::Decimal(after) => {
+            if after >= policy.max_wait() {
+                None
+            } else {
+                Some(after)
+            }
         }
-        return Some(after);
+        AdmissionWait::Backoff => {
+            let shift = u32::from(extra_used.min(4));
+            let backoff = BACKOFF_BASE.saturating_mul(1u32 << shift);
+            Some(backoff.min(policy.max_wait()))
+        }
     }
-    let shift = u32::from(extra_used.min(4));
-    let backoff = BACKOFF_BASE.saturating_mul(1u32 << shift);
-    Some(backoff.min(policy.max_wait()))
 }
 
-fn parse_retry_after(headers: &HeaderMap) -> Option<Duration> {
+const RETRY_AFTER_SCAN: usize = 4_096;
+
+fn parse_retry_after(headers: &HeaderMap) -> AdmissionWait {
     let values: Vec<_> = headers.get_all(RETRY_AFTER).iter().collect();
     if values.len() != 1 {
-        return None;
+        return AdmissionWait::Backoff;
     }
-    let text = values[0].to_str().ok()?;
-    if text.is_empty() || text.len() > 8 || !text.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
+    let Ok(text) = values[0].to_str() else {
+        return AdmissionWait::Backoff;
+    };
+    if text.is_empty() {
+        return AdmissionWait::Backoff;
     }
-    let seconds: u64 = text.parse().ok()?;
-    Some(Duration::from_secs(seconds))
+    let scanned = text.len().min(RETRY_AFTER_SCAN);
+    if !text.as_bytes()[..scanned]
+        .iter()
+        .all(|byte| byte.is_ascii_digit())
+    {
+        return AdmissionWait::Backoff;
+    }
+    if text.len() > RETRY_AFTER_SCAN {
+        return AdmissionWait::Overflow;
+    }
+    let significant = text.trim_start_matches('0');
+    if significant.is_empty() {
+        return AdmissionWait::Decimal(Duration::ZERO);
+    }
+    if significant.len() > 20 {
+        return AdmissionWait::Overflow;
+    }
+    match significant.parse::<u64>() {
+        Ok(seconds) => AdmissionWait::Decimal(Duration::from_secs(seconds)),
+        Err(_) => AdmissionWait::Overflow,
+    }
 }
 
 async fn read_capped(mut response: reqwest::Response, cap: usize) -> Result<Vec<u8>, QueryError> {
@@ -243,7 +272,7 @@ async fn read_capped(mut response: reqwest::Response, cap: usize) -> Result<Vec<
 fn interpret(
     status: StatusCode,
     headers: &HeaderMap,
-    retry_after: Option<Duration>,
+    admission: AdmissionWait,
     bytes: &[u8],
     token: &str,
     sql: &str,
@@ -273,7 +302,7 @@ fn interpret(
         envelope.error.code(),
         envelope.error.retryable(),
         query_id,
-        retry_after,
+        admission,
         scrub_text(envelope.error.message().as_str(), token, sql, endpoint),
         hint,
     )))

@@ -51,13 +51,25 @@ pub enum ProtocolError {
     Status { status: u16 },
 }
 
+/// How a single `Retry-After` header participates in admission retry.
+///
+/// `Decimal` is an integer number of seconds, including zero. `Overflow` is an
+/// all-digit value that does not fit the scan or the duration. Anything else
+/// is `Backoff`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AdmissionWait {
+    Backoff,
+    Decimal(Duration),
+    Overflow,
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct GatewayError {
     status: u16,
     code: ErrorCode,
     retryable: bool,
     query_id: Option<QueryId>,
-    retry_after: Option<Duration>,
+    admission: AdmissionWait,
     message: String,
     hint: Option<String>,
 }
@@ -68,7 +80,7 @@ impl GatewayError {
         code: ErrorCode,
         retryable: bool,
         query_id: Option<QueryId>,
-        retry_after: Option<Duration>,
+        admission: AdmissionWait,
         message: String,
         hint: Option<String>,
     ) -> Self {
@@ -77,7 +89,7 @@ impl GatewayError {
             code,
             retryable,
             query_id,
-            retry_after,
+            admission,
             message,
             hint,
         }
@@ -100,7 +112,14 @@ impl GatewayError {
     }
 
     pub fn retry_after(&self) -> Option<Duration> {
-        self.retry_after
+        match self.admission {
+            AdmissionWait::Decimal(duration) => Some(duration),
+            AdmissionWait::Backoff | AdmissionWait::Overflow => None,
+        }
+    }
+
+    pub(crate) fn admission_wait(&self) -> AdmissionWait {
+        self.admission
     }
 
     /// Agent-facing text after the request token and request SQL were removed.
@@ -160,7 +179,11 @@ impl fmt::Debug for QueryError {
     }
 }
 
-impl std::error::Error for QueryError {}
+impl std::error::Error for QueryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 impl fmt::Display for LocalError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -218,7 +241,7 @@ impl fmt::Display for GatewayError {
         if let Some(query_id) = &self.query_id {
             write!(formatter, " query_id {query_id}")?;
         }
-        if let Some(retry_after) = self.retry_after {
+        if let Some(retry_after) = self.retry_after() {
             write!(formatter, " retry_after_ms {}", retry_after.as_millis())?;
         }
         Ok(())

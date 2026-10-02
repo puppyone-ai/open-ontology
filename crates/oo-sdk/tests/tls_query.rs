@@ -100,6 +100,61 @@ async fn custom_ca_accepts_localhost_and_rejects_the_wrong_root_or_name() {
     );
 }
 
+#[tokio::test]
+async fn tls_short_token_is_omitted_from_the_error_accessors() {
+    let token = "Tok006";
+    let body = serde_json::json!({
+        "error": {
+            "code": "SQL_PARSE_ERROR",
+            "message": format!("seen {token}"),
+            "hint": format!("hint {token}"),
+            "retryable": false,
+            "query_id": "q_abc123"
+        }
+    })
+    .to_string();
+    let oracle = tls_oracle_body(
+        LOCALHOST_PEM,
+        LOCALHOST_KEY,
+        json_response(400, "Bad Request", &body, &[]),
+    )
+    .await;
+    let client = open(
+        &format!("https://localhost:{}/", oracle.port),
+        token,
+        trust(CA_PEM),
+    );
+    let error = client.query(sample_request()).await.expect_err("tls redact");
+    let gateway = error.gateway().expect("gateway");
+    assert!(
+        gateway.status() == 400 && gateway.code() == oo_sdk::ErrorCode::SqlParseError,
+        "status {}",
+        gateway.status()
+    );
+    assert!(
+        !gateway.message().contains(token) && !gateway.hint().unwrap_or("").contains(token),
+        "accessor text lengths {} {}",
+        gateway.message().len(),
+        gateway.hint().unwrap_or("").len()
+    );
+    let shown = format!("{error} {error:?} {client:?}");
+    assert!(
+        !shown.contains(token) && std::error::Error::source(&error).is_none(),
+        "shown length {}",
+        shown.len()
+    );
+    let hits = oracle.hits();
+    assert_eq!(hits.len(), 1, "hits {}", hits.len());
+    let mut expected = String::from("Bearer ");
+    expected.push_str(token);
+    let got = hits[0].one("authorization").unwrap_or("");
+    assert!(
+        got.len() == expected.len() && got.as_bytes() == expected.as_bytes(),
+        "authorization length {}",
+        got.len()
+    );
+}
+
 struct TlsOracle {
     port: u16,
     hits: Arc<Mutex<Vec<Hit>>>,
@@ -119,6 +174,15 @@ impl Drop for TlsOracle {
 }
 
 async fn tls_oracle(cert_pem: &'static str, key_pem: &'static str) -> TlsOracle {
+    tls_oracle_body(
+        cert_pem,
+        key_pem,
+        json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]),
+    )
+    .await
+}
+
+async fn tls_oracle_body(cert_pem: &'static str, key_pem: &'static str, body: Vec<u8>) -> TlsOracle {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let cert = CertificateDer::from(pem_block(cert_pem, "CERTIFICATE"));
     let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(pem_block(key_pem, "PRIVATE KEY")));
@@ -144,8 +208,7 @@ async fn tls_oracle(cert_pem: &'static str, key_pem: &'static str) -> TlsOracle 
                 continue;
             };
             stored.lock().expect("hits").push(hit);
-            let bytes = json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]);
-            let _ = tls.write_all(&bytes).await;
+            let _ = tls.write_all(&body).await;
             let _ = tls.flush().await;
         }
     });

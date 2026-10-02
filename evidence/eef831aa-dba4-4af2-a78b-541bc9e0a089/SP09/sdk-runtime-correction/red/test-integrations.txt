@@ -1,0 +1,129 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/lib.rs (/target/debug/deps/oo_sdk-046a94eab1359456)
+
+running 6 tests
+
+thread 'token::tests::authorization_header_is_sensitive_and_debug_stays_masked' (19) panicked at crates/oo-sdk/src/token.rs:70:13:
+sensitive 0 debug length 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test endpoint::tests::production_https_appends_query_path ... ok
+test endpoint::tests::local_development_allows_only_loopback_plaintext ... ok
+test endpoint::tests::production_refuses_plaintext_loopback_and_userinfo ... ok
+test token::tests::authorization_header_is_sensitive_and_debug_stays_masked ... FAILED
+test wire::tests::over_cap_request_is_rejected_without_truncation ... ok
+test wire::tests::canonical_request_matches_the_wire_fixture_and_omits_null_fields ... ok
+
+failures:
+
+failures:
+    token::tests::authorization_header_is_sensitive_and_debug_stays_masked
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p oo-sdk --lib`
+     Running tests/http_query.rs (/target/debug/deps/http_query-8f54e53a707121ef)
+
+running 18 tests
+test gateway_text_redacts_token_sql_and_url ... ok
+test incomplete_and_reset_connections_are_not_replayed ... ok
+test concurrent_clients_keep_independent_tokens ... ok
+test admission_retry_is_limited_to_rate_limit_and_overload ... ok
+test content_type_must_be_json_utf8 ... ok
+test auth_internal_timeout_and_parse_errors_are_not_replayed ... ok
+test post_uses_the_mount_path_and_exact_request_bytes ... ok
+test mismatched_status_and_wrong_success_shape_are_protocol_errors ... ok
+test oversized_request_does_not_connect_and_injection_is_rejected ... ok
+test http_date_retry_after_is_not_parsed_as_seconds ... ok
+test unsupported_capabilities_are_explicit ... ok
+test framing_limits_stop_before_a_success_parse ... ok
+test retry_none_does_not_replay_a_retryable_status ... ok
+test redirects_are_not_followed_and_do_not_carry_the_token ... ok
+test typed_response_keeps_warnings_freshness_and_truncation ... ok
+test missing_retry_after_uses_backoff_and_a_large_value_is_not_shortened ... ok
+test malformed_duplicate_and_cross_field_bodies_are_rejected ... ok
+test slow_stream_stops_the_client_without_claiming_cancellation ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+     Running tests/proxy_env.rs (/target/debug/deps/proxy_env-fbb2ace970190da8)
+
+running 1 test
+test proxy_env_is_not_inherited ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/redaction_retry.rs (/target/debug/deps/redaction_retry-9121fa4b89f55034)
+
+running 9 tests
+
+thread 'mount_path_and_locator_reflections_are_removed' (51) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained locator:secret_len=15:text_len=257 locator:secret_len=6:text_len=257 locator:secret_len=42:text_len=257 locator:secret_len=111:text_len=257 locator:secret_len=37:text_len=257 locator:secret_len=15:text_len=257 client_debug:secret_len=7:text_len=148 client_debug:secret_len=6:text_len=148 client_debug:secret_len=9:text_len=148
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test mount_path_and_locator_reflections_are_removed ... FAILED
+
+thread 'field_is_omitted_when_redaction_cannot_keep_a_short_token' (50) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained bang_run:secret_len=1:text_len=2000 bang_len=2000 letter_message:secret_len=1:text_len=1 letter_hint:secret_len=1:text_len=5
+test field_is_omitted_when_redaction_cannot_keep_a_short_token ... FAILED
+
+thread 'percent_and_escaped_secret_forms_are_removed_once' (53) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained encoded:secret_len=12:text_len=134 encoded:secret_len=24:text_len=134 encoded:secret_len=24:text_len=134 encoded:secret_len=33:text_len=134
+test percent_and_escaped_secret_forms_are_removed_once ... FAILED
+
+thread 'short_accepted_tokens_are_removed_from_accessors' (54) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained message:secret_len=1:text_len=15 hint:secret_len=1:text_len=6 bearer:secret_len=8:text_len=15 message:secret_len=6:text_len=25 hint:secret_len=6:text_len=11 bearer:secret_len=13:text_len=25 message:secret_len=7:text_len=27 hint:secret_len=7:text_len=12 bearer:secret_len=14:text_len=27
+test short_accepted_tokens_are_removed_from_accessors ... FAILED
+
+thread 'short_sql_reflections_are_removed_without_rewriting_the_request' (55) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained sql_message:secret_len=19:text_len=19 sql_message:secret_len=8:text_len=19 sql_message:secret_len=4:text_len=23 sql_message:secret_len=8:text_len=23 sql_message:secret_len=4:text_len=23 sql_message:secret_len=22:text_len=89 sql_message:secret_len=66:text_len=89 sql_message:secret_len=8:text_len=8
+test short_sql_reflections_are_removed_without_rewriting_the_request ... FAILED
+
+thread 'all_zero_retry_after_retries_immediately' (47) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained zeros_9:hits=2:ok=1:elapsed_ms=262:after_ms=none zeros_128:hits=2:ok=1:elapsed_ms=234:after_ms=none zeros_4096:hits=2:ok=1:elapsed_ms=243:after_ms=none
+test all_zero_retry_after_retries_immediately ... FAILED
+
+thread 'overflow_retry_after_does_not_fall_back_to_backoff' (52) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained nines_30:hits=2:ok=1:elapsed_ms=245:after_ms=none nines_21:hits=2:ok=1:elapsed_ms=243:after_ms=none u64_overflow:hits=2:ok=1:elapsed_ms=256:after_ms=none zeros_4097:hits=2:ok=1:elapsed_ms=264:after_ms=none
+test overflow_retry_after_does_not_fall_back_to_backoff ... FAILED
+test declared_backoff_and_retry_bounds_stay ... ok
+
+thread 'decimal_retry_after_at_or_above_max_does_not_retry' (48) panicked at crates/oo-sdk/tests/redaction_retry.rs:544:5:
+retained nine_digit:hits=2:ok=1:elapsed_ms=244:after_ms=none leading_zero_nine:hits=2:ok=1:elapsed_ms=243:after_ms=none equal_max:hits=2:ok=1:elapsed_ms=2057:after_ms=none overloaded_nine:hits=2:ok=1:elapsed_ms=252:after_ms=none
+test decimal_retry_after_at_or_above_max_does_not_retry ... FAILED
+
+failures:
+
+failures:
+    all_zero_retry_after_retries_immediately
+    decimal_retry_after_at_or_above_max_does_not_retry
+    field_is_omitted_when_redaction_cannot_keep_a_short_token
+    mount_path_and_locator_reflections_are_removed
+    overflow_retry_after_does_not_fall_back_to_backoff
+    percent_and_escaped_secret_forms_are_removed_once
+    short_accepted_tokens_are_removed_from_accessors
+    short_sql_reflections_are_removed_without_rewriting_the_request
+
+test result: FAILED. 1 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
+
+error: test failed, to rerun pass `-p oo-sdk --test redaction_retry`
+     Running tests/tls_query.rs (/target/debug/deps/tls_query-72802477ae94735a)
+
+running 2 tests
+
+thread 'tls_short_token_is_omitted_from_the_error_accessors' (58) panicked at crates/oo-sdk/tests/tls_query.rs:134:5:
+accessor text lengths 11 11
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tls_short_token_is_omitted_from_the_error_accessors ... FAILED
+test custom_ca_accepts_localhost_and_rejects_the_wrong_root_or_name ... ok
+
+failures:
+
+failures:
+    tls_short_token_is_omitted_from_the_error_accessors
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p oo-sdk --test tls_query`
+error: 3 targets failed:
+    `-p oo-sdk --lib`
+    `-p oo-sdk --test redaction_retry`
+    `-p oo-sdk --test tls_query`
