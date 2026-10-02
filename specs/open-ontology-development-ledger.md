@@ -881,3 +881,5 @@ all-target/wasm RED、types/SP00/发行与外部门槛继续未签。slot B释�
 a120 R2-W 激活：固定9fb04e75249dbb55a795dccaa6a3b17164d686cf，仅明确vendor接收/计量/typed error与新Rust wire测试路径；无snapshot、portal、manifest/lock写权，无PG，slot B/最多1builder。slot A a116实际仍live，两槽全球上限保持。先Linux1.94冒烟、后真实分片socket allocation/cancel测试与固定提交复审，尚不勾实现验收。下一新UUID a121。
 
 a120 实际 Grok4.7 xhigh handle7304 已启动，slot B 独占限定路径；旧a119两个句柄均关闭不再轮询。a116 handle68913保持slot A。
+
+a116实际handle68913 exit0，9dc6d4eb三报告完整读完/八fail raw核对，精确UUID容器列表为空。接收a116-snapshot-review-receipt.md但不勾R1：同cut两更新行actual tokens缺失、side首query太晚、column revoke fixture不充分。slot A移交a121聚焦固定2b6dd57补证，own evidence唯一写权；slot B仍a120 handle7304。原八fail保留，产品指标未增。下一新UUID a122。

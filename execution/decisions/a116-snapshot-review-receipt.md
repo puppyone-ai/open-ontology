@@ -1,0 +1,9 @@
+# a116 证据接收，R1 验收仍未签
+
+实际handle68913 CLI exit0，关闭。evidence9dc6d4eb513b5cdc3de62b7d39c4e7d779a16299/tree928cbc9237d5def1115fc42da2b2ad5021d4a409/parent3a06e6042de6dda92fd1c7e6b011fef002aeca56。三报告完整读完，实际oracle-outcome八fail与未执行分支已读；精确UUID docker ps -a 空，旧owner资源已移除。HANDOFF写于cleanup前，与最后实际清理时点区别保留。
+
+不签 R1 完成。复审虽写 APPROVE LIMITED，原始oracle101/8fail未通过，跨表同cut没有保存两条已更新行的owner tokens，旁路首次查询晚于writer提交；从BEGIN/查询时间或未插入行推断不能替代两表完整值比较。需要新fixture、先固定旁路快照、分别保存owner/side/expected，不重写旧失败。
+
+deadline遇idle timeout导致25P03而未Finished可能符合cleanup失败契约，不要求把真实cleanup错误强改deadline。列REVOKE仍有table SELECT不是有效列拒绝测试；必须先正确设置列级授权再撤一列，独立核对实际权限。ADD COLUMN旧RR catalog视图需结合docs/spec解释：若要求当前schema漂移而旧视图无法检测，标实现缺口；不能凭局部契约降低要求。identity_drift/nested_transaction仅源码审阅未执行，不认实测。
+
+接受已测生命周期/释放/非空零写SQL审计为证据输入，不增加产品验收或勾选。slot A释放给a121聚焦独立补证，slot B a120 handle7304仍live，仅vendor接收任务。两者都只构建不可变输入，无业务源码冲突。
