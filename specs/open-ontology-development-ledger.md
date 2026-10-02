@@ -787,3 +787,7 @@ a111 handle94170实际exit0，已关闭不再轮询。FULL review/findings/HANDO
 slotB从实际终态a111释放，移交a109 helper许可证记录固定复审；slotA仍a107 jobs复审独占，无product/rootwriter授权。许可证图修复卡仍prepared，不能自动许可放宽。
 
 a109实际派发handle44328，Grok4.7xhigh、fixedabd074a immutablearchive，仅own evidence/Rustprobe，无PG或product/root写权。a107仍live handle80154，slotA保留。接收commit2200f99的diff-check仅raw证据及独立probe尾部空行提示，原始证据不改写，非产品测试失败；check_plan exit0仅文档覆盖。
+
+### 有界reader开发前置澄清
+
+按用户基础修复独立工作线与开发/发行分开要求，a110-functional-development-gate.md冻结：类型固定3ca5357功能范围可作为reader开发输入，整体request_changes及W04-a/许可/默认制品/发行未签。reader prepared卡已同步，仍无UUID/写权/槽。新reader必须证明单RR快照、真正有界stream与前置wire/内存边界、backend取消释放，不沿用fetch_all伪装有界。许可修复仍独立rootwriter任务；未来connector-only授权不能改共享manifest/lock。无新增交付/验收勾选或计数。

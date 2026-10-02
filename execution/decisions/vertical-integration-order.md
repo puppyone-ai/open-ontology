@@ -70,3 +70,7 @@
 ## 计量与完成勾选
 
 每项真实交付立即本地明确路径提交，审阅绑定固定SHA；复审request_changes按同一功能返工，不重复增加功能交付数。To-do只有固定提交独立结果和协调者核验足够时勾选对应子项。组件通过不勾整个SP03/SP04/SP07/SP06/SP09，未覆盖的完整AT/原型与其余数据库/文件/CDC/harness持续推进。
+
+## 最新开发前置澄清（a110功能范围与许可证门禁）
+
+a110固定3ca5357功能类型/Arrow范围获限定批准，整体因实际deny exit4仍request_changes。按用户基础工作线与产品主线分开要求，reader可消费已批准功能接口继续开发，详见[a110-functional-development-gate.md](a110-functional-development-gate.md)；其生产流/快照/内存/取消必须另外完整验证，不能沿用fetch_all事后预算。供应链、完整类型验收、默认制品及发行未签。reader仍prepared，等待明确slot与connector写权交接；root依赖修复独立，不允许并发共享manifest/lock。

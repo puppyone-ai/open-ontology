@@ -1,0 +1,9 @@
+# a110：功能开发前置与供应链验收分开
+
+依据用户明确要求：基础修复独立成线、不要让无关门禁阻塞可独立开发模块；开发检查和发行审批分开。此决定调整调度依赖，不修改Spec/REQ/AT/许可allowlist，不把request_changes改成approve。
+
+a110固定3ca5357930a2c44c42d3061db5fabe577881269a的完整review/findings和协调签收明确：生产Arrow RecordBatch/type适配、独立live gold、非空零源写日志、私有CA和连接主体负例功能范围通过；实际cargo-deny exit4，tiny-keccak CC0及继承CDLA准入未通过。W04-a、完整SP03、供应链与发行保持未完成。
+
+有界reader开发可使用该固定功能接口及a097源准入批准切片，不必等待无关许可证图修复。必须真实实现流式读取、单RR快照、前置内存界限/背压、后端取消和终态释放；现有fetch_all及事后预算并不满足reader要求。功能输入许可只允许开发，不授权发布或真实客户数据接入。
+
+root/manifest/lock依赖修复与connector实现使用明确互斥写入授权；未经具体交接不能并改manifest。当前reader卡仍prepared，未派发、无写权、无builder槽。reader完整固定复审通过前不能据其放行目标apply；集成及默认制品必须再核验实际依赖图和所有适用门禁。
