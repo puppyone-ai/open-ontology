@@ -168,6 +168,7 @@
 ### SP09
 
 - [ ] SP09-W01 Rust SDK/统一HTTP
+  - [ ] W01-a 有界JSON query Rust SDK：a073执行中；复用core API、真实HTTP协议fixture/身份隔离/响应预算。该协议验收不替代生产Gateway/PG闭环。
 - [ ] SP09-W02 CLI/认证/输出/退出码
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
@@ -317,6 +318,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | running handle11184；独立hash/overlay/审核/Unicode-NFC来源与行为/预算负例，不签完整SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
+| SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
@@ -326,10 +328,10 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-PG-02 | V01-PG-01固定接口、目标事务/质量/fence设计 | 有界PG读取→目标LOGGED未发布导入与持久catalog/lineage | 真实source/target比对、失败重启/取消、不提前授权 | waiting接口；按SP02/SP03/SP04拆可验收子项 |
 | V01-OOS-01 | catalog/安全profile证据、OOS纯模型 | 确定性可审核草案与证据/PII标记，不自动发布 | 真schema到draft、恶意comment/歧义/权限无扩张；固定SHA审阅 | a063交付4c989bc、a071复审中；真实导入集成与完整profile待后续，未勾完成 |
 | V01-QUERY-01 | 批准policy/P6/P13切片、P5 parser/P14驱动协议 | 审批后角色列权限/RLS、HTTP Gateway查询/取消/审计 | 实际隐藏行列拒绝、claims不伪造、parserfailclosed、取消已停 | queued |
-| V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | queued |
+| V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | CLI queued；其独立HTTP query SDK前置a073已启动，不以协议fixture替代真实对话验收 |
 | FOUNDATION-LANE | a058两hang/六CLI失败、a059bench平台 | 基础问题单线收敛，按局部失败修复 | 不阻塞隔离产品公共功能；发行条件单独pending | active |
 
-当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。a063已交付4c989bc，main builder/root-lock冻结，a071只读复审；a064已交付70a4e72，a068只读复审；a065只写独立parser spike，a066只写现有PG checkout的源纠正；a072仅pipeline新迁移/契约/测试，不修改root依赖。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建，不把host安装视为额外免费槽位。
+当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。a063已交付4c989bc，a071只读复审；main root-lock已移交a073，只有其新增SDK依赖可写，源整合等待其终态再串行。a064已交付70a4e72，a068只读复审；a065只写独立parser spike，a066只写现有PG checkout的源纠正；a072仅pipeline新迁移/契约/测试，不修改root依赖。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建，不把host安装视为额外免费槽位。
 
 a062终态证据：协调者已读完整review/findings及seal-escape原始JSON。九个睡眠后代在父进程立即退出后仍存活，执行exit0/required_satisfied=true且无cleanup/deadline门禁；15/15重复复现，held inode在返回后继续增长。仅记录后代的轮询不能证明所有后代已停。a070须修复或在归属无法验证时明确失败，不能将16MiB内存前缀当磁盘配额；既有41测试通过、PATH固定kill/隔离Git/private ExecutedCommand修复保持，未复现的kill故障不伪称已证实。基础返工不计新产品功能，完整SP00仍未签。
 
