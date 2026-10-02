@@ -9,6 +9,8 @@ Local integration of the accepted PostgreSQL source correction onto current main
 | Frozen baseline (Linux 1.94 ran here) | `78d106fcb3e7e1705b617ed6df58933d85297e7b` |
 | Baseline tree | `66010b8c215df498afbc585b5461b6668ae58cd9` |
 | Baseline parent | `a45c13c0e231dcbf6c7b97050b9bfbe8a11bb571` |
+| Integration commit | `2980e85af22c3ade05272c66c7d2835b52730322` |
+| Integration tree | `c027c4599cdebf701b21e97e51ded45b9067ca8e` |
 | Commit parent at delivery | `1868ffbca151c64a21efd6d1a09cb4806b1e95f3` |
 | Commit-parent tree | `66a4e486b0e552766218f35eeee3fa69a271d928` |
 | SDK delivery | `8efeb230afc6734a2e50eaca3f09fd78300a9c7d` |
@@ -20,7 +22,7 @@ Local integration of the accepted PostgreSQL source correction onto current main
 | Product-pg checkout, left in place | `181df9b6ba030b68e3a48aa0f58e5c5f909bee55` |
 | Merged `Cargo.lock` | `9b8f7e50d3b20042bb2d606f47276b76dd68f3568136343040fbea1ecd622057` |
 
-`78d106fc..1868ffbca` does not change `Cargo.toml`, `Cargo.lock`, `crates/oo-connectors`, `crates/oo-sdk`, `crates/oo-cli`, `crates/oo-gateway`, or `ci/deny.toml`. The measured graph and the SDK test apply to the commit parent. The delivery commit SHA is the commit that adds this file.
+`78d106fc..1868ffbca` does not change `Cargo.toml`, `Cargo.lock`, `crates/oo-connectors`, `crates/oo-sdk`, `crates/oo-cli`, `crates/oo-gateway`, or `ci/deny.toml`. The measured graph and the SDK test apply to that parent. The integration commit is `2980e85af22c3ade05272c66c7d2835b52730322`.
 
 ## What was integrated
 

@@ -2,7 +2,7 @@
 
 Status: local commit ready for independent fixed-SHA review. Root Cargo.toml and Cargo.lock ownership is released at this terminal. The NFC dependency task is not started and is not assigned by this handoff.
 
-This file's commit parent is `1868ffbca151c64a21efd6d1a09cb4806b1e95f3` (tree `66a4e486b0e552766218f35eeee3fa69a271d928`). The delivery SHA is that commit. It is not rewritten back into this file.
+Integration commit: `2980e85af22c3ade05272c66c7d2835b52730322` (tree `c027c4599cdebf701b21e97e51ded45b9067ca8e`). Its parent is `1868ffbca151c64a21efd6d1a09cb4806b1e95f3` (tree `66a4e486b0e552766218f35eeee3fa69a271d928`).
 
 ## Frozen inputs
 
