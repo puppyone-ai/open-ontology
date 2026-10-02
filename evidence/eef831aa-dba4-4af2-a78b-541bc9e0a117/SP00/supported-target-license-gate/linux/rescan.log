@@ -1,0 +1,11 @@
+2026-10-02T22:14:50Z start rescan container
+2026-10-02T22:14:50Z compile and scan
+2026-10-02T22:14:51Z FAILED rescan exit=1
+2026-10-02T22:15:05Z start rescan container
+2026-10-02T22:15:05Z compile and scan
+2026-10-02T22:15:06Z scan exec done
+2026-10-02T22:15:06Z DONE rescan
+2026-10-02T22:20:08Z start rescan container
+2026-10-02T22:20:08Z compile and scan
+2026-10-02T22:20:09Z scan exec done
+2026-10-02T22:20:09Z DONE rescan

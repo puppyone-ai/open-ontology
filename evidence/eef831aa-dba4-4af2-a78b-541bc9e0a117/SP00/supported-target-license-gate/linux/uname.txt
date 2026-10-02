@@ -1,0 +1,3 @@
+uname_m=aarch64
+uname_s=Linux
+pwd_src=/src

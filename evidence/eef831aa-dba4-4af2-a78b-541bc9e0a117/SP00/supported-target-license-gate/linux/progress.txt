@@ -1,0 +1,170 @@
+2026-10-02T22:06:26Z smoke begin
+2026-10-02T22:06:26Z smoke ok host=aarch64-unknown-linux-gnu release=1.94.0
+2026-10-02T22:06:26Z probe compile
+2026-10-02T22:06:26Z probe rustc exit=0
+2026-10-02T22:06:26Z probe test exit=0
+2026-10-02T22:06:26Z fetch begin
+2026-10-02T22:06:31Z fetch exit=0
+2026-10-02T22:06:31Z upstream manifests
+2026-10-02T22:06:31Z install cargo-deny 0.20.2 begin
+2026-10-02T22:07:47Z install cargo-deny exit=0
+2026-10-02T22:07:47Z deny version cargo-deny 0.20.2
+2026-10-02T22:07:47Z metadata before aarch64-unknown-linux-gnu begin
+2026-10-02T22:07:47Z metadata before aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:47Z facts before aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:47Z metadata before x86_64-unknown-linux-gnu begin
+2026-10-02T22:07:47Z metadata before x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:47Z facts before x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:47Z metadata before wasm32-unknown-unknown begin
+2026-10-02T22:07:47Z metadata before wasm32-unknown-unknown exit=0
+2026-10-02T22:07:48Z facts before wasm32-unknown-unknown exit=0
+2026-10-02T22:07:48Z metadata before all-target begin
+2026-10-02T22:07:48Z metadata before all-target exit=0
+2026-10-02T22:07:48Z facts before all-target exit=0
+2026-10-02T22:07:48Z trees before aarch64-unknown-linux-gnu begin
+2026-10-02T22:07:48Z tree-features before aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:48Z tree-normal before aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:48Z tree-all-edges before aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:48Z tree tiny-normal exit=0
+2026-10-02T22:07:48Z tree tiny-features exit=0
+2026-10-02T22:07:48Z tree tiny-all exit=0
+2026-10-02T22:07:48Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:48Z tree webpki-normal exit=0
+2026-10-02T22:07:48Z tree webpki-features exit=0
+2026-10-02T22:07:49Z tree webpki-all exit=0
+2026-10-02T22:07:49Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:49Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:49Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:49Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:49Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:49Z trees before x86_64-unknown-linux-gnu begin
+2026-10-02T22:07:49Z tree-features before x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:49Z tree-normal before x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:49Z tree-all-edges before x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:49Z tree tiny-normal exit=0
+2026-10-02T22:07:49Z tree tiny-features exit=0
+2026-10-02T22:07:49Z tree tiny-all exit=0
+2026-10-02T22:07:49Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:50Z tree webpki-normal exit=0
+2026-10-02T22:07:50Z tree webpki-features exit=0
+2026-10-02T22:07:50Z tree webpki-all exit=0
+2026-10-02T22:07:50Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:50Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:50Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:50Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:50Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:50Z trees before wasm32-unknown-unknown begin
+2026-10-02T22:07:50Z tree-features before wasm32-unknown-unknown exit=0
+2026-10-02T22:07:50Z tree-normal before wasm32-unknown-unknown exit=0
+2026-10-02T22:07:50Z tree-all-edges before wasm32-unknown-unknown exit=0
+2026-10-02T22:07:50Z tree tiny-normal exit=0
+2026-10-02T22:07:50Z tree tiny-features exit=0
+2026-10-02T22:07:51Z tree tiny-all exit=0
+2026-10-02T22:07:51Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:51Z tree webpki-normal exit=0
+2026-10-02T22:07:51Z tree webpki-features exit=0
+2026-10-02T22:07:51Z tree webpki-all exit=0
+2026-10-02T22:07:51Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:51Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:51Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:51Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:51Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:51Z trees before all-target begin
+2026-10-02T22:07:51Z tree-features before all-target exit=0
+2026-10-02T22:07:51Z tree-normal before all-target exit=0
+2026-10-02T22:07:52Z tree-all-edges before all-target exit=0
+2026-10-02T22:07:52Z tree tiny-normal exit=0
+2026-10-02T22:07:52Z tree tiny-features exit=0
+2026-10-02T22:07:52Z tree tiny-all exit=0
+2026-10-02T22:07:52Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:52Z tree webpki-normal exit=0
+2026-10-02T22:07:52Z tree webpki-features exit=0
+2026-10-02T22:07:52Z tree webpki-all exit=0
+2026-10-02T22:07:52Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:52Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:52Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:53Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:53Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:53Z phase1 complete
+2026-10-02T22:07:53Z phase2 graphs
+2026-10-02T22:07:53Z metadata after aarch64-unknown-linux-gnu begin
+2026-10-02T22:07:53Z metadata after aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:53Z facts after aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:53Z metadata after x86_64-unknown-linux-gnu begin
+2026-10-02T22:07:53Z metadata after x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:53Z facts after x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:53Z metadata after wasm32-unknown-unknown begin
+2026-10-02T22:07:53Z metadata after wasm32-unknown-unknown exit=0
+2026-10-02T22:07:53Z facts after wasm32-unknown-unknown exit=0
+2026-10-02T22:07:53Z metadata after all-target begin
+2026-10-02T22:07:53Z metadata after all-target exit=0
+2026-10-02T22:07:53Z facts after all-target exit=0
+2026-10-02T22:07:53Z trees after aarch64-unknown-linux-gnu begin
+2026-10-02T22:07:53Z tree-features after aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:53Z tree-normal after aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:54Z tree-all-edges after aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:07:54Z tree tiny-normal exit=0
+2026-10-02T22:07:54Z tree tiny-features exit=0
+2026-10-02T22:07:54Z tree tiny-all exit=0
+2026-10-02T22:07:54Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:54Z tree webpki-normal exit=0
+2026-10-02T22:07:54Z tree webpki-features exit=0
+2026-10-02T22:07:54Z tree webpki-all exit=0
+2026-10-02T22:07:54Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:54Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:54Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:54Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:54Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:54Z trees after x86_64-unknown-linux-gnu begin
+2026-10-02T22:07:55Z tree-features after x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:55Z tree-normal after x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:55Z tree-all-edges after x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:07:55Z tree tiny-normal exit=0
+2026-10-02T22:07:55Z tree tiny-features exit=0
+2026-10-02T22:07:55Z tree tiny-all exit=0
+2026-10-02T22:07:55Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:55Z tree webpki-normal exit=0
+2026-10-02T22:07:55Z tree webpki-features exit=0
+2026-10-02T22:07:55Z tree webpki-all exit=0
+2026-10-02T22:07:55Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:55Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:56Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:56Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:56Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:56Z trees after wasm32-unknown-unknown begin
+2026-10-02T22:07:56Z tree-features after wasm32-unknown-unknown exit=0
+2026-10-02T22:07:56Z tree-normal after wasm32-unknown-unknown exit=0
+2026-10-02T22:07:56Z tree-all-edges after wasm32-unknown-unknown exit=0
+2026-10-02T22:07:56Z tree tiny-normal exit=0
+2026-10-02T22:07:56Z tree tiny-features exit=0
+2026-10-02T22:07:56Z tree tiny-all exit=0
+2026-10-02T22:07:56Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:56Z tree webpki-normal exit=0
+2026-10-02T22:07:56Z tree webpki-features exit=0
+2026-10-02T22:07:56Z tree webpki-all exit=0
+2026-10-02T22:07:57Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:57Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:57Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:57Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:57Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:57Z trees after all-target begin
+2026-10-02T22:07:57Z tree-features after all-target exit=0
+2026-10-02T22:07:57Z tree-normal after all-target exit=0
+2026-10-02T22:07:57Z tree-all-edges after all-target exit=0
+2026-10-02T22:07:57Z tree tiny-normal exit=0
+2026-10-02T22:07:57Z tree tiny-features exit=0
+2026-10-02T22:07:57Z tree tiny-all exit=0
+2026-10-02T22:07:58Z tree tiny-oo-connectors-features exit=0
+2026-10-02T22:07:58Z tree webpki-normal exit=0
+2026-10-02T22:07:58Z tree webpki-features exit=0
+2026-10-02T22:07:58Z tree webpki-all exit=0
+2026-10-02T22:07:58Z tree webpki-oo-sdk-features exit=0
+2026-10-02T22:07:58Z tree ahash-oo-connectors-features exit=0
+2026-10-02T22:07:58Z tree native-oo-sdk-features exit=0
+2026-10-02T22:07:58Z tree verifier-oo-sdk-features exit=0
+2026-10-02T22:07:58Z tree arrow-oo-connectors-features exit=0
+2026-10-02T22:07:58Z LINUX GRAPH MISMATCH
+2026-10-02T22:07:58Z deny check begin
+2026-10-02T22:08:00Z deny check exit=0
+2026-10-02T22:08:00Z advisory db locate
+2026-10-02T22:08:00Z phase2 complete

@@ -1,6 +1,10 @@
 [graph]
 all-features = false
 no-default-features = false
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
 
 [advisories]
 yanked = "deny"

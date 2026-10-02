@@ -1,0 +1,8 @@
+2026-10-02T22:06:25Z capacity recheck
+2026-10-02T22:06:25Z create network and volumes
+2026-10-02T22:06:25Z start container
+2026-10-02T22:06:26Z phase1
+2026-10-02T22:07:53Z edit deny.toml targets
+2026-10-02T22:07:53Z phase2
+2026-10-02T22:08:01Z validation commands finished
+DONE

@@ -1,0 +1,6 @@
+2026-10-02T22:04:27Z capacity recheck
+2026-10-02T22:04:27Z create network and volumes
+2026-10-02T22:04:27Z start container
+2026-10-02T22:04:27Z phase1
+2026-10-02T22:04:28Z FAILED phase1 exit=1
+FAILED exit=1

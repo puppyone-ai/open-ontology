@@ -1,0 +1,29 @@
+ahash v0.8.12
+|-- ahash feature "default"
+|   |-- jsonschema v0.57.0
+|   |   `-- oo-core v0.1.0 (/src/crates/oo-core)
+|   |       `-- oo-core feature "default"
+|   |           `-- oo-connectors v0.1.0 (/src/crates/oo-connectors)
+|   |               `-- oo-connectors feature "default" (command-line)
+|   |-- jsonschema-value v0.57.0
+|   |   |-- jsonschema-value feature "default"
+|   |   |   `-- jsonschema v0.57.0 (*)
+|   |   `-- jsonschema-value feature "serde_json"
+|   |       `-- jsonschema-value feature "default" (*)
+|   `-- referencing v0.57.0
+|       `-- referencing feature "default"
+|           `-- jsonschema v0.57.0 (*)
+|-- ahash feature "getrandom"
+|   `-- ahash feature "runtime-rng"
+|       `-- arrow-array v60.0.0
+|           `-- oo-connectors v0.1.0 (/src/crates/oo-connectors) (*)
+|           [dev-dependencies]
+|           `-- oo-connectors v0.1.0 (/src/crates/oo-connectors) (*)
+|       `-- ahash feature "default" (*)
+|-- ahash feature "runtime-rng" (*)
+|-- ahash feature "serde"
+|   |-- jsonschema v0.57.0 (*)
+|   |-- jsonschema-value v0.57.0 (*)
+|   `-- referencing v0.57.0 (*)
+`-- ahash feature "std"
+    `-- ahash feature "default" (*)

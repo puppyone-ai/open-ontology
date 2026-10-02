@@ -1,0 +1,5 @@
+arrow-array v60.0.0
+`-- oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    `-- oo-connectors feature "default" (command-line)
+[dev-dependencies]
+`-- oo-connectors v0.1.0 (/src/crates/oo-connectors) (*)

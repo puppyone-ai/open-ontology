@@ -1,0 +1,33 @@
+tiny-keccak v2.0.2
+`-- const-random-macro v0.1.16 (proc-macro)
+    `-- const-random v0.1.18
+        `-- ahash v0.8.12
+            |-- arrow-array v60.0.0
+            |   `-- oo-connectors v0.1.0 (/src/crates/oo-connectors)
+            |       `-- oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+            |-- jsonschema v0.57.0
+            |   |-- oo-core v0.1.0 (/src/crates/oo-core)
+            |   |   |-- oo-analysis v0.1.0 (/src/crates/oo-analysis)
+            |   |   |-- oo-builder v0.1.0 (/src/crates/oo-builder)
+            |   |   |-- oo-cli v0.1.0 (/src/crates/oo-cli)
+            |   |   |-- oo-connectors v0.1.0 (/src/crates/oo-connectors) (*)
+            |   |   |-- oo-control v0.1.0 (/src/crates/oo-control)
+            |   |   |-- oo-entry v0.1.0 (/src/crates/oo-entry)
+            |   |   |-- oo-eval v0.1.0 (/src/crates/oo-eval)
+            |   |   |-- oo-gateway v0.1.0 (/src/crates/oo-gateway)
+            |   |   |-- oo-jobs v0.1.0 (/src/crates/oo-jobs)
+            |   |   |   |-- oo-builder v0.1.0 (/src/crates/oo-builder)
+            |   |   |   |-- oo-control v0.1.0 (/src/crates/oo-control)
+            |   |   |   `-- oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+            |   |   |-- oo-mcp v0.1.0 (/src/crates/oo-mcp)
+            |   |   |-- oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+            |   |   |-- oo-proxy v0.1.0 (/src/crates/oo-proxy)
+            |   |   |-- oo-sandbox v0.1.0 (/src/crates/oo-sandbox)
+            |   |   |-- oo-sdk v0.1.0 (/src/crates/oo-sdk)
+            |   |   |   `-- oo-cli v0.1.0 (/src/crates/oo-cli)
+            |   |   `-- xtask v0.1.0 (/src/crates/xtask)
+            |   `-- xtask v0.1.0 (/src/crates/xtask)
+            |-- jsonschema-value v0.57.0
+            |   `-- jsonschema v0.57.0 (*)
+            `-- referencing v0.57.0
+                `-- jsonschema v0.57.0 (*)

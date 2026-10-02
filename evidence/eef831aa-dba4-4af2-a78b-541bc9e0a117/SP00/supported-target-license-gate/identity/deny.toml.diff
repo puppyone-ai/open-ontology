@@ -1,0 +1,13 @@
+--- /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a117/SP00/supported-target-license-gate/identity/deny.toml.before	2026-10-03 06:06:25
++++ /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a117/SP00/supported-target-license-gate/identity/deny.toml.after	2026-10-03 06:07:53
+@@ -1,6 +1,10 @@
+ [graph]
+ all-features = false
+ no-default-features = false
++targets = [
++    "aarch64-unknown-linux-gnu",
++    "x86_64-unknown-linux-gnu",
++]
+ 
+ [advisories]
+ yanked = "deny"
