@@ -318,7 +318,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00J / ISC-POLICY-CONSISTENCY | `eef831aa-dba4-4af2-a78b-541bc9e0a067` | a061固定图ISC3项许可门禁失败、spec宽松许可规则 | 仅ci/deny的明确ISC条目、新license契约/fixture/a067证据；不改root-lock或source | handle38831终态0 commitb14c782；REPORT已读、policy hash协调者重算匹配，作者Linux1.94 core check0，b2许可错误4→1但deny仍4；a069复审，不签完整供应链 |
 | SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | handle57161终态0 approve schema切片；独立真实LOGIN权限/并发/回滚等117case0fail，Linux1.94 test/clippy0；F1–F5残余归后续任务，不签完整W01 |
 | 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | handle41829终态0 request_changes仅attribution：r-efi AUTHORS含MIT正文，旧packet误称无正文；ISC规则/负例独立hold，a077修正不阻塞产品；不签完整W06 |
-| 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
+| 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | handle31198终态0，交付5ef3d6d/stamp0fcc2f9；C运行时编译不符合Rust要求，两旧ISC shape tests失败，a082基础纠正，未验收 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | handle11184终态0 request_changes；五findings完整证据已读；a081先修结构closure，NFC依赖修正待a073 root交接，不签SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | handle14146终态0但无REPORT/提交，交付不完整；同UUID明确resume补实际fixture验证/清理/固定提交，未签任何验收 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
@@ -441,3 +441,9 @@ a078 handle10405实际终态0，批准fb2d1d1归属文字切片。协调者已�
 ## a072终态但不完整的续接
 
 协调者核验handle14146 exit0，尚无任务REPORT/HANDOFF和固定交付commit，末条文本仅称fixture运行。按实际终态判定可恢复同UUID eef831aa-dba4-4af2-a78b-541bc9e0a072，保留原源码和自有PG资源继续核查现有fixture，不重启其他live任务、不重复构建无关模块、不签实现或测试成功。续接提示v01-target-fence-receipts-resume.md要求完成原验收/局部Linux1.94/清理与本地提交；仍只有pipeline新迁移/契约/测试写权，mainroot归a073。该退出不计交付功能和验收工作项。
+
+## a070交付与Rust实现纠正
+
+a070 handle31198终态0，交付5ef3d6d819fd72fdd5e86f79eb9e719910f7e6e0/stamp0fcc2f9。协调者已读完整REPORT/HANDOFF与containment.rs实现：第一方C源码在运行时通过可信compiler编译，不能作为用户要求Rust整体实现的最终结果。作者Linux1.94 probes称30doublefork/heldoutput/foreign保护通过，library仍32pass/2fail（旧ISC allow-shape），CLI16pass，未独立签收；CLI末尾DeadFailed warning原样保留不直接判artifact无效。
+
+a082基础线只写xtask及新独立Rust supervisor/harnessdocs，保持主workspace和xtask unsafe forbid及root-lock不变；使用实际安全syscall封装并预构建不可变helper，不运行时编译。新standalone依赖严格核验来源/MSRV/age/license，继续真实Linux正例/逃逸归属/有界输出/失败拒绝，并最小更新已批准ISC形状检查，不放宽其他规则。a073主root依赖writer不变，产品模块照常推进。修正后固定提交独立复审；不签SP00/秘密/runsc/CI/release，也不计新产品功能。
