@@ -322,7 +322,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
-| SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | running handle46905；先Linux1.94，再DB约束/好数据升级/坏历史拒绝与rollback，不签队列驱动 |
+| SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | handle46905终态0，交付9224d31；REPORT/HANDOFF与原始SQLSTATE/局部Linux exits已读，a079固定复审，不签队列驱动 |
 | P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | running handle88198；独立native/MSRV/真实PG差分/earlyexit继承FD/IPC身份与预算/许可证；已知R4/R9不当完整通过 |
 | 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | handle85459终态0，交付fb2d1d1；REPORT/HANDOFF已读，Linux1.94 core check作者0，外层inspect exit1保留；a078固定归属复审，未签完整W06 |
 
@@ -406,3 +406,11 @@ CORE接收当前可用的macOS骨架和契约开发前置，不代表SP00-W01完
 a077实际终态0，固定提交fb2d1d19c21b510dfd6231c3b67d0efbf4285491（tree79f19b818d3e14ad08ad5208ce2bd0a17b4c297e）。协调者已读完整REPORT/HANDOFF，当前已提交process evidence仅173字节、凭据参数标记计数0，git fsck connectivity exit0；此有限检查不证明所有历史副本清除。执行者报告最初进程命令行记录含Cursor API密钥及session token、未push，并已删除相关loose objects。已告知用户轮换Cursor密钥；独立a078须核验当前提交和可见对象的残余，但不得打印秘密、读取凭据存储或修改Git历史。秘密门禁与完整供应链仍未验收。
 
 a078仅只读固定archive、自己的证据与UUID资源；先Linux/MSRV局部冒烟，再归属正文/erratum/旧记录不改/现有策略不弱化复核。a073仍唯一main root-lock writer，a070仅xtask、a072仅pipeline新迁移、a075仅jobs新expand。基础线修正不改变产品交付/验收计数，不阻塞无关公共功能。ToDo归属修正仍待独立结论，完整W06/87父工作项/16Phase不提前勾选。
+
+## 当前交接补充：a075 → a079
+
+a075实际终态0，固定交付9224d31e1c1d4a60d44b6984b8ad496a09e706a1（tree9e4bd758216287ee78c162349950b988da25978b）。协调者已读完整REPORT/HANDOFF和0002 SQL，重算0000/0001/0002校验和；0002为4ede04e8f848eff002da7e3a12628ac731c7bca02ba345daa6d036790e894fee。原始Linux1.94 baseline与implementation tests/Clippy退出0；PG跨项目/并发跨项目23503、坏历史OO004、runtime重放42501已核查，坏历史/合法升级/强制rollback的前后数据snapshot逐字节相等。作者历史四轮fixture失败与最初漏contracts的101保持，不当最终成功。
+
+a079仅只读该固定archive、独立证据和UUID资源，先Linux/MSRV局部冒烟再真实PG新装/升级/并发/身份/负例，复审前SP02-W01-c仍不勾选。旧已签SP02-W01-a不撤销；完整W01/SP02/驱动/CAS/备份/100worker/目标fence与纵向闭环仍待验。a073仍唯一root-lock writer，a070/a072仍各自源码writer；其余review只读。
+
+最新产品速度：累计交付4项＝PG入口/catalog、控制schema、纯结构草案、事件项目绑定；独立验收子项仍1项（SP02-W01-a），完整父工作项0。已完成首轮产品复审仍2项、返工1/2，小样本；a071/a079未终态不计入分母。a075修复既有发现但新增独立交付任务只计一次；基础许可证/harness修正不计产品功能。
