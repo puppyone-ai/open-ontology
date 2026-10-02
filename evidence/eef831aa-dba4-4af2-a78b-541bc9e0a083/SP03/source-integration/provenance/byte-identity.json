@@ -1,0 +1,22 @@
+{
+  "correction": "4ecdbf714766baef3490a4f954701eaf19f245a0",
+  "correction_parent": "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74",
+  "method": "git archive of the correction from the product-pg worktree, without moving that checkout, then a byte compare against the main worktree",
+  "product_pg_head_left_at": "181df9b6ba030b68e3a48aa0f58e5c5f909bee55",
+  "paths": [
+    "crates/oo-connectors",
+    "contracts/source/pgsql",
+    "testing/product/pg-source"
+  ],
+  "same_files": 244,
+  "only_in_correction": [],
+  "only_in_worktree": [],
+  "differ": [
+    "crates/oo-connectors/vendor/PATCH.md",
+    "crates/oo-connectors/vendor/sqlx-core/LICENSE-APACHE",
+    "crates/oo-connectors/vendor/sqlx-core/LICENSE-MIT",
+    "crates/oo-connectors/vendor/sqlx-core/src/lib.rs",
+    "crates/oo-connectors/vendor/sqlx-postgres/LICENSE-APACHE",
+    "crates/oo-connectors/vendor/sqlx-postgres/LICENSE-MIT"
+  ]
+}

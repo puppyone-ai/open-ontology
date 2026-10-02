@@ -1,0 +1,112 @@
+diff --git a/official/sqlx-core-0.9.0/Cargo.toml b/vendor/sqlx-core/Cargo.toml
+index 3090e17..8274cb5 100644
+--- a/official/sqlx-core-0.9.0/Cargo.toml
++++ b/vendor/sqlx-core/Cargo.toml
+@@ -76,6 +76,12 @@ _tls-rustls-ring-webpki = [
+     "rustls/ring",
+     "webpki-roots",
+ ]
++# Ring provider with the empty root store already implemented below.
++# 0.9.0 ties every public ring feature to webpki-roots or native roots.
++_tls-rustls-ring-no-roots = [
++    "_tls-rustls",
++    "rustls/ring",
++]
+ _unstable-doc = ["sqlx-toml"]
+ any = []
+ default = []
+diff --git a/official/sqlx-core-0.9.0/Cargo.toml.orig b/vendor/sqlx-core/Cargo.toml.orig
+index 5c20bad..095a800 100755
+--- a/official/sqlx-core-0.9.0/Cargo.toml.orig
++++ b/vendor/sqlx-core/Cargo.toml.orig
+@@ -31,6 +31,7 @@ _tls-native-tls = ["native-tls"]
+ _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
+ _tls-rustls-ring-webpki = ["_tls-rustls", "rustls/ring", "webpki-roots"]
+ _tls-rustls-ring-native-roots = ["_tls-rustls", "rustls/ring", "rustls-native-certs"]
++_tls-rustls-ring-no-roots = ["_tls-rustls", "rustls/ring"]
+ _tls-rustls = ["rustls"]
+ _tls-none = []
+ 
+diff --git a/official/sqlx-core-0.9.0/src/net/tls/tls_rustls.rs b/vendor/sqlx-core/src/net/tls/tls_rustls.rs
+index 1ecbbad..a8dc745 100755
+--- a/official/sqlx-core-0.9.0/src/net/tls/tls_rustls.rs
++++ b/vendor/sqlx-core/src/net/tls/tls_rustls.rs
+@@ -94,12 +94,14 @@ where
+     #[cfg(all(
+         feature = "_tls-rustls-aws-lc-rs",
+         not(feature = "_tls-rustls-ring-webpki"),
+-        not(feature = "_tls-rustls-ring-native-roots")
++        not(feature = "_tls-rustls-ring-native-roots"),
++        not(feature = "_tls-rustls-ring-no-roots")
+     ))]
+     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
+     #[cfg(any(
+         feature = "_tls-rustls-ring-webpki",
+-        feature = "_tls-rustls-ring-native-roots"
++        feature = "_tls-rustls-ring-native-roots",
++        feature = "_tls-rustls-ring-no-roots"
+     ))]
+     let provider = Arc::new(rustls::crypto::ring::default_provider());
+ 
+@@ -230,12 +232,23 @@ fn import_root_certs() -> RootCertStore {
+     root_cert_store
+ }
+ 
+-// Not currently used but allows for a "tls-rustls-no-roots" feature.
++// Used by `_tls-rustls-ring-no-roots`. The caller PEM is added later.
+ #[cfg(not(any(feature = "rustls-native-certs", feature = "webpki-roots")))]
+ fn import_root_certs() -> RootCertStore {
+     RootCertStore::empty()
+ }
+ 
++#[cfg(all(
++    test,
++    feature = "_tls-rustls-ring-no-roots",
++    not(feature = "webpki-roots"),
++    not(feature = "rustls-native-certs")
++))]
++#[test]
++fn root_store_starts_empty() {
++    assert!(import_root_certs().is_empty());
++}
++
+ #[derive(Debug)]
+ struct DummyTlsVerifier {
+     provider: Arc<CryptoProvider>,
+diff --git a/official/sqlx-postgres-0.9.0/src/options/mod.rs b/vendor/sqlx-postgres/src/options/mod.rs
+index 21e6628..8a91689 100755
+--- a/official/sqlx-postgres-0.9.0/src/options/mod.rs
++++ b/vendor/sqlx-postgres/src/options/mod.rs
+@@ -48,6 +48,32 @@ impl PgConnectOptions {
+         Self::new_without_pgpass().apply_pgpass()
+     }
+ 
++    /// Create connection options without reading the process environment or `passfile`.
++    ///
++    /// `new` and `new_without_pgpass` copy libpq variables such as `PGOPTIONS`,
++    /// `PGSSLCERT`, and `PGSSLKEY`. This constructor leaves those fields empty
++    /// so a caller can set host, credentials, database, TLS, and application
++    /// name from its own config. It does not change the process environment.
++    pub fn from_explicit() -> Self {
++        Self {
++            port: 5432,
++            host: String::new(),
++            socket: None,
++            username: String::new(),
++            password: None,
++            database: None,
++            ssl_root_cert: None,
++            ssl_client_cert: None,
++            ssl_client_key: None,
++            ssl_mode: PgSslMode::Prefer,
++            statement_cache_capacity: 100,
++            application_name: None,
++            extra_float_digits: None,
++            log_settings: Default::default(),
++            options: None,
++        }
++    }
++
+     /// Create a default set of connection options _without_ reading from `passfile`.
+     ///
+     /// Equivalent to [`PgConnectOptions::new()`] but `passfile` is ignored.

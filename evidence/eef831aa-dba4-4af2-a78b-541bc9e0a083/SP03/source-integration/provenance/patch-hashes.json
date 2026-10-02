@@ -1,0 +1,81 @@
+{
+  "sqlx-core": {
+    "official_files": 110,
+    "before_files": 110,
+    "after_files": 110,
+    "only_official_vs_before": [],
+    "only_before_vs_official": [],
+    "changed_before": [
+      "Cargo.toml",
+      "Cargo.toml.orig",
+      "src/net/tls/tls_rustls.rs"
+    ],
+    "changed_after": [
+      "Cargo.toml",
+      "Cargo.toml.orig",
+      "LICENSE-APACHE",
+      "LICENSE-MIT",
+      "src/lib.rs",
+      "src/net/tls/tls_rustls.rs"
+    ],
+    "only_after_vs_official": [],
+    "only_official_vs_after": [],
+    "integration_changed_vs_before": [
+      "LICENSE-APACHE",
+      "LICENSE-MIT",
+      "src/lib.rs"
+    ],
+    "integration_added_vs_before": [],
+    "integration_removed_vs_before": [],
+    "tree_sha_official": "c130816abec44203e7e2816f72fde858e84d97fe69a74c15a15d5f2697dc25c8",
+    "tree_sha_original_patch": "365f8f4b4554a61585c6e781917850bb4627ad751267d503fb6ddccf2ee0451d",
+    "tree_sha_integrated": "aa8e4d6bfdd56979fcd5c024d40d2205cdea241c417232b2a740c0d30641df63"
+  },
+  "sqlx-postgres": {
+    "official_files": 119,
+    "before_files": 119,
+    "after_files": 119,
+    "only_official_vs_before": [],
+    "only_before_vs_official": [],
+    "changed_before": [
+      "src/options/mod.rs"
+    ],
+    "changed_after": [
+      "LICENSE-APACHE",
+      "LICENSE-MIT",
+      "src/options/mod.rs"
+    ],
+    "only_after_vs_official": [],
+    "only_official_vs_after": [],
+    "integration_changed_vs_before": [
+      "LICENSE-APACHE",
+      "LICENSE-MIT"
+    ],
+    "integration_added_vs_before": [],
+    "integration_removed_vs_before": [],
+    "tree_sha_official": "b6f4bccefb5fb0091bb91e315e2586e2bb06d01466178a023f73a5f601fba6d4",
+    "tree_sha_original_patch": "68419d6649a9b19a003d0eacead5d4e882125ccbec57db15fdcfafd461f5af7e",
+    "tree_sha_integrated": "6731a283c6e4d58602543579f35e0d568c8ee03e6240bdedd96cd275cc2307c4"
+  },
+  "unified_before": {
+    "command": "git diff --no-index -- official/<crate>-0.9.0 vendor/<crate>",
+    "bytes": 4311,
+    "lines": 112,
+    "sha256": "0129343a96be05b31dabc2824be8b2d587ac43d4eddde656c4dcad17f6c4948e"
+  },
+  "unified_after": {
+    "command": "git diff --no-index -- official/<crate>-0.9.0 vendor/<crate>",
+    "bytes": 29830,
+    "lines": 623,
+    "sha256": "20127ad930a8a96dbdbeac15309cb1404a5c58f15fedf70afe55726fa6562480"
+  },
+  "integration_vs_original_vendor": {
+    "bytes": 29831,
+    "lines": 568,
+    "sha256": "b5190be5f2dacc306982f47b278a7b652f9761702c22127546808cfa4c272e1d"
+  },
+  "accepted_original_patch_sha256": "f4b1aff1f2575a6b161a5cec37da26a4e097475aa1dcde3a9cec603766ac5f37",
+  "accepted_original_patch_bytes": 3664,
+  "accepted_original_patch_lines": 104,
+  "note": "The accepted hash is a074's unified patch identity. This directory also stores a path-stable git diff --no-index reproduction. The two serializations are not claimed to be byte-identical."
+}

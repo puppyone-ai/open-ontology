@@ -1,0 +1,214 @@
+{
+  "application_name": "oo-pg-source",
+  "apps": {
+    "[unknown]": 4,
+    "oo-pg-fixture": 1,
+    "oo-pg-source": 1628,
+    "psql": 2
+  },
+  "console_sha256": "0b131e1b107e5ce779fa3476746eea140313a990f8cb1e3c92468c64b0182f3c",
+  "databases": {
+    "source_empty": 36,
+    "source_lab": 1592
+  },
+  "disallowed_verbs": {},
+  "flagged_count": 0,
+  "flagged_writes": {},
+  "leaked": false,
+  "log_bytes": 556175,
+  "log_sha256": "8985b98a354cc8913218c682ad1bb25e8072b99915aac7a518c56ef91bb05dc4",
+  "method": "Assemble stderr records on timestamp boundaries. For app=oo-pg-source, take statement: or execute SQL, strip single-quoted literals, count the first keyword, and scan every alphanumeric token for write words. Secret scan is a raw byte count of each fixture password file, forged-secret, the comment canary, app=forged-app, and user=forged-user in the log and the live console. Counts only; secret bodies are not recorded.",
+  "other_record_kinds": {
+    "-:aborting": 2,
+    "-:background": 2,
+    "-:checkpoint": 6,
+    "-:configuration": 1,
+    "-:database": 6,
+    "-:listening": 4,
+    "-:parameter": 3,
+    "-:received": 3,
+    "-:shutting": 2,
+    "-:starting": 2,
+    "[unknown]:FATAL": 1,
+    "[unknown]:could": 2,
+    "[unknown]:other": 1,
+    "oo-pg-fixture:other": 1
+  },
+  "other_statement_verbs": {
+    "SHOW": 2
+  },
+  "secret_hits": [
+    {
+      "console": 0,
+      "log": 0,
+      "name": "bypass.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "castonly.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "column.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "createdb.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "createrole.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "dbcreate.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "definer.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "dual.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "hiddenfn.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "inherit-only.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "inherit.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "login-super.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "noset.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "oponly.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "reader.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "schemacreate.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "setonly.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "side.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "super.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "transitive.pass",
+      "nbytes": 48
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "forged-secret",
+      "nbytes": 13
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "CANARY-COMMENT-SECRET-a060",
+      "nbytes": 26
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "app=forged-app",
+      "nbytes": 14
+    },
+    {
+      "console": 0,
+      "log": 0,
+      "name": "user=forged-user",
+      "nbytes": 16
+    }
+  ],
+  "statements": 960,
+  "users": {
+    "oo_src_bypass": 53,
+    "oo_src_castonly": 64,
+    "oo_src_column": 64,
+    "oo_src_createdb": 53,
+    "oo_src_createrole": 53,
+    "oo_src_dbcreate": 64,
+    "oo_src_definer": 64,
+    "oo_src_dual": 238,
+    "oo_src_hiddenfn": 64,
+    "oo_src_inherit": 64,
+    "oo_src_inherit_only": 64,
+    "oo_src_noset": 100,
+    "oo_src_oponly": 64,
+    "oo_src_reader": 309,
+    "oo_src_schemacreate": 64,
+    "oo_src_setonly": 64,
+    "oo_src_side": 64,
+    "oo_src_super": 54,
+    "oo_src_transitive": 64
+  },
+  "verbs": {
+    "ROLLBACK": 36,
+    "SELECT": 840,
+    "START": 36,
+    "WITH": 48
+  }
+}

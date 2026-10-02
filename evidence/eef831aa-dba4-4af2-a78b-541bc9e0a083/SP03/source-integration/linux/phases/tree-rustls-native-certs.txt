@@ -1,0 +1,6 @@
+rustls-native-certs v0.8.4
+└── rustls-platform-verifier v0.7.0
+    ├── oo-sdk v0.1.0 (/src/crates/oo-sdk)
+    │   └── oo-cli v0.1.0 (/src/crates/oo-cli)
+    └── reqwest v0.13.5
+        └── oo-sdk v0.1.0 (/src/crates/oo-sdk) (*)
