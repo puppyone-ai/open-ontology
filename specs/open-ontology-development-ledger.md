@@ -521,3 +521,9 @@ a0872980e85 request_changes：服务端ALTER ROLE SET role使session_user/curren
 当前产品累计交付仍6组件，独立验收子项仍3；首次产品复审6项、返工4/6=66.7%（小样本，原草案/源/SDK/目标schema返工）。a087整合复审及a090修正复审不重复计新功能first-review；a080原型和基础修复单列。87完整父项/16Phase仍0完成。本轮无新充分批准证据，因此不新增完成勾选；旧已批准子项保留。后续类型→有界reader→真实targetapply任务卡继续prepared，优先等NFC root实际交接与源role修正固定接口，基础线不阻塞独立模块。
 
 基础a082续接handle61643再次实际exit0，无REPORT/HANDOFF/commit；attempt2 helperClippy101，builder可能仍在运行。协调者立即读终态日志后再次沿用原UUID恢复，禁止重复构建或掩盖101；其余a088/a086/a090/a091/a092/a093单次句柄核验仍live，不重启。3652115已提交最新plan/ledger/复审接收证据；文档check_plan/check_spec均0，只证完整性。原始psql stdout/cleanup格式空白保留与hash一致，格式检查限规范文档/JSON/exit不改原始输出。
+
+## a088 NFC真实交付与根写权释放
+
+上一轮为verified wait。a088原续接handle31015本轮实际exit0，交付3ed558a9b62ab3f290ce9674b9afc10e693a5730/tree9aec399e081177330a92f886c4c9dafaa766b4e8/parent9386766，stampbc0a2ed仅identity。协调者已读完整REPORT/HANDOFF和实际baseline/fixed各phase及docker均0，重算U16/U17 NormalizationTest/LICENSE hash匹配并检查fixedsnapshot26个builder/lock/NOTICE/contract文件0mismatch。作者27lib+4NFC+4CLI通过，Unicode16 19965rows/17 20034rows及1112064scalars断言通过；相同库调用parity不作为独立oracle批准。根manifest未改，lock仅builder两edge，手写NFCtables从当前产品移除，旧报告/生成器claim由新erratum纠正。作者audit/deny未跑仍pending。
+
+当前root/builder tracked diff及index均空，root写权已释放；NFC不能因交付就勾findings1/2/5。a094固定3ed558a只读复审已经启动，独立官方vectors/许可/标识兼容/hashbinding及closure回归；a086结构closure另待最终结论。a093仍独占connector identity/session/tests修正，类型任务与其共享connector目录/接口，待实际终态交接后串行派发；root空闲不授权并发覆盖代码。a082foundation、a090SDK/a091P5review、a092pipeline均保留原livehandles。本次纠正不重复增加6组件/3验收子项/4比6首次返工，完整87父项/16Phase仍0完成。

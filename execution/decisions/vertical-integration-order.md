@@ -5,7 +5,7 @@
 ## 最新调度（2026-10-02；覆盖下方旧状态）
 
 - main源2980e85复审发现role GUC/TLS统计可见性分类问题；a093修正代码/tests，不动依赖，源准入未签。
-- NFC a088原UUID续接，root仍独占；结构closure a086原UUID续审，未批准。
+- NFC3ed558a已真实交付且root释放，a094固定复审；结构closure a086原UUID续审，未批准。类型任务需与仍live的a093 connector writer串行交接。
 - 目标schema8370498发现NULL分段绕过；a092只追加前向迁移及新契约，旧迁移hash冻结。
 - SDK runtime bde2e8c、P5 IPC6831d6e已交付，a090/a091固定SHA只读复审。
 - 基础Rust supervisor a082原UUID续接，基础门禁不阻塞上述独立产品修正。
