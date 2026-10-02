@@ -840,3 +840,5 @@ a114handle82080实际exit0，关闭不再轮询。完整三报告、22原始case
 a115handle82672实际exit0，关闭不再轮询；完整分析三报告已读，提交a6e002aa只含own evidence。协调者核对docs11/17正式Linux双架构与wasm非支持声明，激活a117仅ci/deny.toml [graph]双GNU Linux目标列表写权；不得放宽allow/ignore或改lock/manifest/source。实际双Linux图、保留全target失败和源图一致性需实测/固定复审，不把分析当绿扫描。slotB移交a117，slotA仍a116；产品指标/勾选不变，goal active。
 
 a117实际Grok4.7xhigh handle96717，slotB/ci-deny配置限定writer生效；root manifests/lock仍无writer。下一新UUID a118。
+
+a118 reader R2 wire/内存只读分析激活：固定2b6dd57a，仅own evidence，无builder/PG/vendor或product写权。查明SQLx实际frame/DataRow预分配路径，输出有界Arrow流与必要最小driver补丁方案；R1仍待a116独立复审，R2实现未授权。两构建槽a116/a117保持，指标与验收勾选不变。
