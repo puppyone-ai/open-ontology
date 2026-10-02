@@ -86,7 +86,7 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime六项修正获a090批准；P5 IPC有限切片获a091批准、身份独立补证由a100执行；源role GUC固定复审中、基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI查询与PG无损类型解码正在开发，根依赖由CLI单writer持有。这些开发状态不代表父任务完成。
 
-- [ ] SP03-W01 main源身份安全整合：a093修正后固定复审，继续保持源零写和privateCA-only。
+- [ ] SP03-W01 main源身份安全整合：a097固定34fae5d有限approve，原始SQL日志hash已核验；独立oracle源码/最终完整输出留存缺口由原UUID补证，协调者暂不签收。继续保持源零写和privateCA-only。
 - [ ] SP04-W05-a 目标fence迁移：a092交付9a71efa，由a099核验最终committed路径、合法历史不变/非法历史原子拒绝；未签收。
 - [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。

@@ -4,7 +4,7 @@
 
 ## 最新调度（2026-10-02；覆盖下方旧状态）
 
-- main源2980e85复审发现role GUC/TLS统计可见性分类问题；a093修正代码/tests，不动依赖，源准入未签。
+- main源role GUC修正34fae5d获a097终态有限approve；协调者核验SQL日志hash后发现独立oracle源码/最终完整输出未留存，原UUID补证中，源准入暂未签。旧报告保留。
 - NFC3ed558a已真实交付且root释放，a094固定复审；结构closure eebc0ea获a086限定批准，完整草案未签。类型任务需与仍live的a093 connector writer串行交接。
 - 目标schema8370498发现NULL分段绕过；a092只追加前向迁移及新契约，旧迁移hash冻结。
 - SDK runtime bde2e8c、P5 IPC6831d6e已交付，a090/a091固定SHA只读复审。

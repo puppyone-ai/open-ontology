@@ -112,7 +112,7 @@
 ### SP03
 
 - [ ] SP03-W01 PG connector/体检/DBA清单
-  - [ ] V01-PG-01 源连接/AccessReport/catalog：4ecdbf7三HIGH修正获a074批准；main整合2980e85经a087复审发现服务端role GUC导致TLS元数据误判，a093修正中；旧b2注册结果不得用于导入准入。
+  - [ ] V01-PG-01 源连接/AccessReport/catalog：a093固定34fae5d已交付；a097终态有限approve，协调者发现独立oracle源码/最终完整输出未留存，原UUID补证中，暂不签收main准入；旧b2注册结果不得用于导入准入。
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
@@ -642,3 +642,11 @@ a101 Grok4.7xhigh原生会话实际启动handle3407，固定f1a6005971e3dc307509
 b1冻结实际ownercreated固定security-definer接口：enqueue精确dedupe/参数化输入、project/kind过滤SKIPLOCKED claim、DBclock30s lease、activeowner/gen/expiry CAS heartbeat/completion/retry/cancel、expiredrunning经queued新attempt/gen且cap失败、同control事务真实audit、runtime直接task/event写权收紧、非Agentcredential。projectfilter不冒充runtime跨project认证，callerhash/file readiness仍installer外部责任；不将控制lease当targetfence。真实PGLOGIN/100并发claim会话/rollback/restart/oldtoken/expiry/NULL/权限/迁移回滚与Linux1.94 Rustfixture核验；不把100SQLsessions称为完整100worker或fullAT。Rust主驱动/scheduler/NOTIFY/backup/configauth与目标Loader保持后续项。
 
 无新交付或验收勾选，产品仍6交付组件/6验收子项/首次返工4比6，完整87父项/16Phase未完成。roota095/connectora098单writer保持，jobs新增独立a102；a097/a099/a100/a101既有readonly会话保留，不按静默重启。基础扫描与产品队列并行，避免无关基础门槛阻塞独立功能。
+
+## a097真实终态与独立探针留存补证
+
+本回合a097handle65278实际exit0；完整review.md/findings.json已读。固定34fae5ddd73ff250fde6f51aa681fb0f7fbd0362/treec35b95664d53dcef1497bbd224ecbeec65586cea一致，独立SQL日志1139003bytes重算SHA3ce3e13600d662795ee081f9255be7994752caa44a9d78cd6607d5eb5ec20388匹配。1680条源语句仅SELECT1416/WITH118/START73/ROLLBACK73；最终oracle.exit/live.exit均0，初始package无fixture101、两个oracle harness101保留。作者被删raw日志hash不充当本次证明。服务端role GUC双block、catalog前拒绝、privateCA/verify-full及unknown统计观测获reviewer有限批准；TLS新增字段对strict旧消费者不兼容，未虚构兼容。docs17新增段落语义已review，但来源baseline尚未刷新。
+
+协调者发现独立a097_role_guc.rs未留存，仅cleanup记录SHAfcdeaa943037efc827bf442e5dd1205aabe160f3bf56e7b3aae9cbec84337db8；最终oracle完整stdout/stderr也缺，只有oracle-notes观察和exit。临时目录/volumes已删，不能把摘要/hash当源码与断言证据。暂不新增验收勾选/产品计数。原UUID显式resume，handle35038，指令execution/prompts/a097-evidence-retention-followup.md：先从自有安全材料恢复精确原件，不能读auth stores；无法恢复则透明新attempt，仅补受影响Linux1.94真实PG/privateCA探针，保存源码/完整脱敏输出/hash/exit再清理。旧report冻结，不静默重写过去证据。
+
+CLI3387、types61045、targetreview5836、identity34511、helpertools3407、jobs91030本回合单次有界核验仍live。CLI作者host tests/Clippy通过后正做固定overlay Linux1.94，尚非最终交付；root仍a095、connectora098、jobs新增迁移a102，未释放根写权。产品仍6交付组件/6验收子项/首次返工4比6，87完整父项/16Phase未完成。基础独立修复不阻塞这些模块；reader必须等待源补证签收及types独立批准。
