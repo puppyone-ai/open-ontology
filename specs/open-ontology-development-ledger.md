@@ -66,7 +66,7 @@
   - [ ] W05 early-setsid/父进程立即退出的执行归属与输出清理：a062固定f61复审request_changes，a070专用基础修复线；未知containment不能签required_satisfied。
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
-  - [ ] W06 ISC许可一致性切片：a067交付b14c782，a069固定提交复审；CDLA与实际许可证正文缺口独立保留，完整供应链未签。
+  - [ ] W06 ISC许可一致性切片：a069确认ISC规则行为，但r-efi AUTHORS-MIT记录错误request_changes；a077修正正文/erratum，不撤ISC、不改原始失败。完整供应链未签。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -76,7 +76,7 @@
 - [ ] P3 Debezium offset/history恢复
 - [ ] P4 Valkey AOF/背压/gap
 - [ ] P5 parser/native/SQL差分
-  - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065执行中；完整R1–R9与DB绑定另验。
+  - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065交付efb61d6，a076固定复审；作者已记录R9 WHEREtrue/子查询绕过及未实现R4，完整R1–R9与DB绑定另验。
 - [ ] P6 PG claims/ROLE/RLS/pool
 - [ ] P7 真50m EXPLAIN/资源阈值
 - [ ] P8 真runsc网络/身份隔离
@@ -312,17 +312,19 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | 00H-R / FIXED-COMMIT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a062` | f61de8d固定SHA基础修复 | 只读git archive；仅a062证据/自有UUID资源 | resume handle37699终态0 request_changes；Linux1.94 xtask41测试/Clippy0，但9个early-setsid后代存活仍required_satisfied，15/15复现；a070修复，原probe编译101保留 |
 | V01-OOS-01A / STRUCTURE-DRAFT | `eef831aa-dba4-4af2-a78b-541bc9e0a063` | 冻结core模型/PG catalog版本契约 | 主目录oo-builder/新draft契约fixture；交付后root lock冻结 | handle70712终态0 commit4c989bc；REPORT/HANDOFF已读、Linux1.94原始18lib+2CLI测试/Clippy0、shop黄金hash协调者重算匹配；a071复审，不签真实PG闭环或完整SP07 |
 | SP02-W01-a / CONTROL-JOBS-SCHEMA | `eef831aa-dba4-4af2-a78b-541bc9e0a064` | 导入闭环所需耐久控制存储，docs17队列契约 | oo-jobs迁移/契约/对应fixture；不改manifest/root-lock，a063仍唯一writer | CLI终态0 commit70a4e72；REPORT已读，真实PG新迁移/重放/40 SQLSTATE负例/迁移锁/失败回滚作者0，Linux/MSRV contract1test0；migration两hash协调者重算匹配，a068复审，不签完整W01 |
-| P5-a / PG17-PARSER-RISK | `eef831aa-dba4-4af2-a78b-541bc9e0a065` | 受控查询的parser/PG17配套与可杀隔离风险；a056 SET utility反例 | 新独立Rust spike/lock、Proposed ADR/a065证据；不写主workspace依赖 | running handle52338；先Linux/MSRV/native smoke，合法control与Utility/CTE/失败/版本拒绝；不签完整P5/R1–R9 |
+| P5-a / PG17-PARSER-RISK | `eef831aa-dba4-4af2-a78b-541bc9e0a065` | 受控查询的parser/PG17配套与可杀隔离风险；a056 SET utility反例 | 新独立Rust spike/lock、Proposed ADR/a065证据；不写主workspace依赖 | handle52338终态0、交付efb61d6；REPORT已读，原型PG17.7/真实17.10差分、Linux1.94 locked tests/Clippy作者0；R4/R9缺口保留，a076复审。CLI末尾actor异常warning保留，不当安全验收 |
 | V01-PG-01-F / SOURCE-SECURITY-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a066` | a061三HIGH固定b2复现，完整review已终态 | 沿用现有product-pg，交付后源冻结；主目录源未整合 | handle37636终态0 correction4ecdbf7/stamp181df9b；REPORT/patch已读，Linux1.94原始14lib+1live/Clippy0，lockhash重算匹配，webpki已移除但旧ISC策略deny4；a074固定复审，未签修正 |
 | 00J / ISC-POLICY-CONSISTENCY | `eef831aa-dba4-4af2-a78b-541bc9e0a067` | a061固定图ISC3项许可门禁失败、spec宽松许可规则 | 仅ci/deny的明确ISC条目、新license契约/fixture/a067证据；不改root-lock或source | handle38831终态0 commitb14c782；REPORT已读、policy hash协调者重算匹配，作者Linux1.94 core check0，b2许可错误4→1但deny仍4；a069复审，不签完整供应链 |
 | SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | handle57161终态0 approve schema切片；独立真实LOGIN权限/并发/回滚等117case0fail，Linux1.94 test/clippy0；F1–F5残余归后续任务，不签完整W01 |
-| 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | running handle41829；独立真实graph/ISC AND Apache/负例/正文义务核对，不签完整W06 |
+| 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | handle41829终态0 request_changes仅attribution：r-efi AUTHORS含MIT正文，旧packet误称无正文；ISC规则/负例独立hold，a077修正不阻塞产品；不签完整W06 |
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | running handle11184；独立hash/overlay/审核/Unicode-NFC来源与行为/预算负例，不签完整SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | running handle46905；先Linux1.94，再DB约束/好数据升级/坏历史拒绝与rollback，不签队列驱动 |
+| P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | running handle88198；独立native/MSRV/真实PG差分/earlyexit继承FD/IPC身份与预算/许可证；已知R4/R9不当完整通过 |
+| 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | running handle85459；真实官方tar/bodyhash、AUTHORS-MIT/作者列表/指针区分，保留ISC规则和旧错误记录，不重跑无关矩阵 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
