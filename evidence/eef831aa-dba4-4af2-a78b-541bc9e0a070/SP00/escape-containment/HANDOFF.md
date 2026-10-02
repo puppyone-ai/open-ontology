@@ -4,9 +4,11 @@ a070 escape-containment correction. One harness change. No push and no pull requ
 
 ## Identity
 
-Parent at commit time: `3c6977a70567ae3eeb300d0b4a202945f946355a`.
+Harness commit `5ef3d6d819fd72fdd5e86f79eb9e719910f7e6e0`.
+Tree `61350c8287dcaf1689f0181a92dfc68793959fe6`.
+Parent `9c7b98e4f7e92ab99a064ea4a839afe30319e4df` (`docs: resume incomplete target fence delivery`). That parent does not change xtask.
 
-The commit and tree are in `COMMIT.txt` in this directory, filled after `git rev-parse` of the owned-path commit. A follow-up commit may add only that file and the hash lines.
+`COMMIT.txt` has the same three hashes. This handoff update is a later evidence commit on top of the harness commit.
 
 Archive the Linux run actually executed: commit `304fcf9f116bbbabe0f91a2caca5df5949ef476c`, tree `723cd717083509697b221a773cc8f3c61a0261a4`, parent `fb2d1d19c21b510dfd6231c3b67d0efbf4285491`, plus the owned harness overlay. Snapshot tar sha256 `334d6b3f25b7d91b482135138c10f842dc789d6b6890013a77c2af2e4528f2fa`, 8109056 bytes.
 

@@ -2,7 +2,7 @@
 
 Foundation correction for the xtask harness. a062 `request_changes` stands: an early parent exit plus `setsid` double-fork could leave live children while `required_satisfied` was sealed, and a held stdout inode could grow after return. This change closes that seal.
 
-The delivering commit’s parent, at the time of the commit, is `3c6977a70567ae3eeb300d0b4a202945f946355a`. The commit and tree hashes are written in `COMMIT.txt` after `git rev-parse`.
+Harness commit `5ef3d6d819fd72fdd5e86f79eb9e719910f7e6e0`, tree `61350c8287dcaf1689f0181a92dfc68793959fe6`, parent `9c7b98e4f7e92ab99a064ea4a839afe30319e4df`. The parent is a docs commit that does not touch xtask. `COMMIT.txt` records the same three hashes.
 
 ## What changed
 
@@ -30,7 +30,7 @@ No root manifest, lock, toolchain, CI, other crate, spec, or ledger edit. `#![fo
 
 ## Source under test
 
-Fixed snapshot, `git archive` of `304fcf9f116bbbabe0f91a2caca5df5949ef476c` (tree `723cd717083509697b221a773cc8f3c61a0261a4`, parent `fb2d1d19c21b510dfd6231c3b67d0efbf4285491`) plus the owned harness files. xtask did not change between that archive commit and `3c6977a70567ae3eeb300d0b4a202945f946355a`.
+Fixed snapshot, `git archive` of `304fcf9f116bbbabe0f91a2caca5df5949ef476c` (tree `723cd717083509697b221a773cc8f3c61a0261a4`, parent `fb2d1d19c21b510dfd6231c3b67d0efbf4285491`) plus the owned harness files. xtask did not change between that archive commit and the harness parent `9c7b98e4f7e92ab99a064ea4a839afe30319e4df`.
 
 - snapshot tar sha256 `334d6b3f25b7d91b482135138c10f842dc789d6b6890013a77c2af2e4528f2fa`
 - snapshot tar bytes `8109056`
