@@ -1,0 +1,6 @@
+run=c68e02ce-53fd-4924-b766-eca8b482d1ac
+container=oo-a093-red-c68e02ce-53fd-4924-b766-eca8b482d1ac
+snapshot=baseline archive plus live_pg.rs overlay
+production_session=baseline
+fixture=workspace testing/product/pg-source
+command=bash /inside.sh

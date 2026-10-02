@@ -1,0 +1,16 @@
+phase_exit=0 phase=clippy-component
+phase_exit=0 phase=fetch
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+phase_exit=0 phase=test-lib
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+phase_exit=0 phase=test-doc
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test live_source_catalog ... FAILED
+thread 'live_source_catalog' (3940) panicked at crates/oo-connectors/tests/live_pg.rs:57:47:
+OO_PG_FIXTURE is required: NotPresent
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+phase_exit=101 phase=test
+phase_exit=0 phase=clippy
+phase_exit=101 phase=final
+container_exit=101
+oom=false

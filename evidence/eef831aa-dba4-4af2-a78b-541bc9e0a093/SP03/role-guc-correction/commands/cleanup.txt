@@ -1,0 +1,32 @@
+when=2026-10-02T11:16:27Z
+--- before ---
+oo-a093-green2-c68e02ce-53fd-4924-b766-eca8b482d1ac ea88ac9629e8 Exited (0) 3 minutes ago
+oo-a093-green-c68e02ce-53fd-4924-b766-eca8b482d1ac 7650e8542b8d Exited (101) 5 minutes ago
+oo-a093-red-c68e02ce-53fd-4924-b766-eca8b482d1ac de47e225e8a0 Exited (101) 13 minutes ago
+oo-a093-pg-c68e02ce-53fd-4924-b766-eca8b482d1ac 5c6df14ec633 Up 15 minutes
+oo-a093-msrv-c68e02ce-53fd-4924-b766-eca8b482d1ac e4a96cbf27d5 Exited (101) 19 minutes ago
+/oo-a093-msrv-c68e02ce-53fd-4924-b766-eca8b482d1ac id=e4a96cbf27d58f78ad41a42d4145ca37a4ff7cbe1cc786a9386ac6740bff7836 exit=101 oom=false status=exited
+/oo-a093-red-c68e02ce-53fd-4924-b766-eca8b482d1ac id=de47e225e8a0cb0e3cf2399c829ba3be77e7e3061bb87a35ae7f45b96f78c3cb exit=101 oom=false status=exited
+/oo-a093-green-c68e02ce-53fd-4924-b766-eca8b482d1ac id=7650e8542b8d1612fb56d3a5547b363f38e9b5743c178904a3f4b99c27410b38 exit=101 oom=false status=exited
+/oo-a093-green2-c68e02ce-53fd-4924-b766-eca8b482d1ac id=ea88ac9629e81a3d766358c209fb06c5a94798ef3b9a5604d8277da3523d285f exit=0 oom=false status=exited
+/oo-a093-pg-c68e02ce-53fd-4924-b766-eca8b482d1ac id=5c6df14ec633bcc4aa060d923523209f6126c247869f83a5a50874f02d59856f exit=0 oom=false status=running
+resume_after_msrv_rm
+rm_msrv exit=0
+rm_red exit=0
+rm_green exit=0
+rm_green2 exit=0
+rm_pg exit=0
+rm_net exit=0
+rm_cargo_vol exit=0
+rm_target_vol exit=0
+rm_pglog_vol exit=0
+rm_tmp exit=0
+scratch_launch_removed
+--- after ---
+networks:
+volumes:
+tmp_absent
+leftover_names:
+verify_missing_exit=1 means absent
+msrv_inspect=1 red_inspect=1 green_inspect=1 green2_inspect=1 pg_inspect=1 net_inspect=1 cargo_vol_inspect=1 target_vol_inspect=1 pglog_vol_inspect=1 tmp_present=0 name_hits=0
+note=first cleanup attempt removed the msrv container and then stopped because zsh status is read-only. The resume removed the remaining exact names. The second msrv rm printed No such container; a wrapper then recorded exit 0. Absence is the inspect=1 lines above.
