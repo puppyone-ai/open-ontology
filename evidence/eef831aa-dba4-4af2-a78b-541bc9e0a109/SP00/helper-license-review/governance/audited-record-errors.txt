@@ -1,0 +1,35 @@
+FILE bitflags-2.13.2.json
+disk_audited=False disk_error_count=1
+  disk: audited record flags
+memory_flip_audited_true_error_count=0
+template_errors_count=26 (blank-template checker; filled records are not blank templates)
+template_sample=template flag | record_status | blank package.name | blank package.version | blank package.license_spdx | blank package.official_source | blank package.digest | blank package.publication_date
+FILE cfg-if-1.0.5.json
+disk_audited=False disk_error_count=1
+  disk: audited record flags
+memory_flip_audited_true_error_count=0
+template_errors_count=26 (blank-template checker; filled records are not blank templates)
+template_sample=template flag | record_status | blank package.name | blank package.version | blank package.license_spdx | blank package.official_source | blank package.digest | blank package.publication_date
+FILE cfg_aliases-0.2.2.json
+disk_audited=False disk_error_count=1
+  disk: audited record flags
+memory_flip_audited_true_error_count=0
+template_errors_count=25 (blank-template checker; filled records are not blank templates)
+template_sample=template flag | record_status | blank package.name | blank package.version | blank package.license_spdx | blank package.official_source | blank package.digest | blank package.publication_date
+FILE libc-0.2.189.json
+disk_audited=False disk_error_count=1
+  disk: audited record flags
+memory_flip_audited_true_error_count=0
+template_errors_count=26 (blank-template checker; filled records are not blank templates)
+template_sample=template flag | record_status | blank package.name | blank package.version | blank package.license_spdx | blank package.official_source | blank package.digest | blank package.publication_date
+FILE nix-0.31.3.json
+disk_audited=False disk_error_count=1
+  disk: audited record flags
+memory_flip_audited_true_error_count=0
+template_errors_count=26 (blank-template checker; filled records are not blank templates)
+template_sample=template flag | record_status | blank package.name | blank package.version | blank package.license_spdx | blank package.official_source | blank package.digest | blank package.publication_date
+unchanged bitflags-2.13.2.json True d439576a82d931be681532afab928d3f08d884845982efe9ca8f80f03a20977f
+unchanged cfg-if-1.0.5.json True 183de8fc202fd80fc19ac3b7dbf82563406d91fed41b090be8eef97612255dc4
+unchanged cfg_aliases-0.2.2.json True 673847c4d429c2347db5c667bcbb0665549fe2b56fb15918f131712f8c57aabc
+unchanged libc-0.2.189.json True 3c27783c2e435a7c6c86a2a037dd8aba86161e7f54a24d1bcb9ad80210548218
+unchanged nix-0.31.3.json True 242bb25b83a77edb8535e29d027fe94d18119a076525ce8808ddf11bf5a24367

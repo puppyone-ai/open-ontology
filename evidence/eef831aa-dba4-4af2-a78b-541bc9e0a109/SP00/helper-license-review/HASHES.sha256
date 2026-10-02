@@ -1,0 +1,55 @@
+# Hash inventory for a109 helper-license-review.
+# Product paths were hashed from the working tree after the run.
+# git diff against abd074af5d59d413e12b8f615c50343e1655047f for those paths was empty.
+# Workspace HEAD 170dffba8375ca3631df0cc52fdbe65706b702a0 was not compiled.
+
+# Binding
+# commit abd074af5d59d413e12b8f615c50343e1655047f
+# tree   b67278ca59667699a876cd456ab1c1f7cc191847
+# parent 6cd955af38ce426bb1102a6e078e8580febed776
+# helper runtime f1a6005971e3dc3075094c87ed670fc9d25e9ae0
+# lock blob 2152785a3c9dc6713a62eb18052d7224bb5357eb at f1a6005, abd074af, and HEAD
+# deny blob 367598cb3768b8c8af698041cd0f84ce6f8fb7be at f1a6005, abd074af, and HEAD
+
+14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1  testing/harness/containment-supervisor/Cargo.lock
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b  ci/deny.toml
+fbd5146701bb52272eaae030d3874aef9fca6196468f09d65bd9493c84275844  testing/harness/helper-evidence-check/fixtures/inventory.json
+d439576a82d931be681532afab928d3f08d884845982efe9ca8f80f03a20977f  testing/harness/containment-supervisor/provenance/audit-records/bitflags-2.13.2.json
+183de8fc202fd80fc19ac3b7dbf82563406d91fed41b090be8eef97612255dc4  testing/harness/containment-supervisor/provenance/audit-records/cfg-if-1.0.5.json
+673847c4d429c2347db5c667bcbb0665549fe2b56fb15918f131712f8c57aabc  testing/harness/containment-supervisor/provenance/audit-records/cfg_aliases-0.2.2.json
+3c27783c2e435a7c6c86a2a037dd8aba86161e7f54a24d1bcb9ad80210548218  testing/harness/containment-supervisor/provenance/audit-records/libc-0.2.189.json
+242bb25b83a77edb8535e29d027fe94d18119a076525ce8808ddf11bf5a24367  testing/harness/containment-supervisor/provenance/audit-records/nix-0.31.3.json
+3df686a8085f765253441dcd7af095c0d1941371a12afbf35e6c0c9c7b67c3ef  testing/harness/helper-evidence-check/src/check.rs
+e6155f511a7ea922fedb04de1496af05b77079643071bbf6427ffc6061f96090  testing/harness/helper-evidence-check/src/fail.rs
+bef325c141952b92d584a9f99fadc357207f2972fe046ae2385e9ebab89d29ce  testing/harness/helper-evidence-check/src/json.rs
+b4440e301fd2f5f8faa361a1fcc8578ccb1a9a6cad5a996fc501680b8a002866  testing/harness/helper-evidence-check/src/lib.rs
+cef288c014d525c043db77cf2dc80e4e37bcdec747921f9d0ea84af0aa3cdc8d  testing/harness/helper-evidence-check/src/main.rs
+661e210119752de40b37bbf958a64e8bb5f84c37c2f3656aee899ebd3ac9b532  testing/harness/helper-evidence-check/src/sha.rs
+5423f8ea6e9786b6c54b458abdf6498de5d78d76c124e5c41ea4d86c54a9ec1a  testing/harness/helper-evidence-check/src/timeutil.rs
+2357326cdcde458bfe7219bbc930141d4bde15511968406a3e0e15c54aace4db  testing/harness/helper-evidence-check/tests/closure.rs
+
+# Retained a101 scan inputs. This review did not rerun cargo-audit or cargo-deny.
+f64e43716f72c173879cb30130f73df0f1c802ac32960eb6c3955c15c2209f81  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out
+02d186150402cda84d64b50da1dea4b586274b3afbd3fbaf078a7c4e389920c3  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-deny-advisories.err
+8ace2a347494e1767d9a9ac7d771f6e806aacba052fa2b55da920bef276d5160  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/age.txt
+6d1a3456f8781bc18989553ea9362109c39c97aff480636a7251bc28cab60186  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/helper-metadata.out
+ee376fcdd344d86d428ff4f80997e660fe2b2217fdf77139ddfcb5b6e3055cbd  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/advisory-rev.txt
+
+# Archive and container binaries
+bc398585818736a740b15243618aba12370889e05e44b166e4c81ae5eed2c2b1  snapshot.tar
+c2a7b9bae81198010c0cfa6b682a71087a2df3541c14c16fd7df7f17d4ca8694  helper-evidence-check
+24dd7af84ce0361d43017ebd392f5ba3d414cdb0c953af5cd58009056e8ebad7  helper-license-oracle
+
+# This review's oracle and logs
+c53da068d65c9fdccc7b6f64354035701d92a019f28fb4c7ff1d2bc2a336daf2  linux/probe/cases.tsv
+149448c153689668d1b9116ff087e99243016dbe34bdbb4cbcbd8f6a2d8cd55b  linux/probe/summary.txt
+4a9b07be370f4a251762ed7af609b9fb330e2da276dc9cbe49c45ec2a4f9530a  oracle/src/main.rs
+fc168c363fc195e71931d37cc9b22d11d5c408f889c2eecd2249bf24a19dd6e7  oracle/Cargo.toml
+1c430868b636f1f40d094474b88a1522afa1032d5788202cb92f7c4e94fe1394  oracle/Cargo.lock
+f7c4838cb69388485a6cc622f8a0ffe091dc3c4264f601dcb6ced0583a2b726d  linux/inside.sh
+b505c19ea156e5d4f348765854fdd93e424e832082ddc6e78761c1dbc0efd319  linux/host-launch.sh
+26b5d7b808fba3effcf3ec1059dd2cb2d8c2a791f26760e2384cc3c9ff4adf55  upstream/crate-compare.txt
+6bf4e0942c81dea898a4cd4348b8c41441f611d27effb87dfaf0970a67c9eaa7  governance/audited-record-errors.txt
+e34e515ac0bfe52fc27750821170ad7eaf04f2db76a82689aef834a77191146b  REPORT.md
+54c42f37c47aa747c9fc384ca64817c9b8bca7b03cb4ddb57fb2ce1de45e2d2e  FINDINGS.md
+30bf5c1c6e22ae28a83b64b2f2d47f465468a578ea980a970bec4ccee0fe55f7  HANDOFF.md

@@ -69,7 +69,7 @@
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
   - [x] W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005，Linux1.94实际audit0/deny0；协调者核验全部HASHES及raw JSON/整数exits。仅工具切片，双许可选择/依赖政策准入、全workspace/CDLA/完整供应链仍未签。
-  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105交付abd074a，a109固定复审准备待槽；沿用a101历史扫描、三MIT选择与双正文/cfg_aliases notice；audited=false，完整供应链与发行另验。
+  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105交付abd074a，a109固定复审request-changes，a113四项信任/深度修复已冻结；沿用a101历史扫描、三MIT选择与双正文/cfg_aliases notice；audited=false，完整供应链与发行另验。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -801,3 +801,7 @@ prepared卡新增R1单snapshot owner/catalog绑定、R2真实有界Arrow stream/
 a107handle80154实际exit0，完整三报告及142真实rawcase/summary已核验，160文件SHA接收；仅SP02-W01-b1限定勾选，全部7residual保持。产品9交付组件/9验收子项，首轮9/返工6约66.7%，完整87父项/16Phase仍未完成。snapshot重复旧证据保留不stage。槽A明确释放给a112 reader R1；slotB仍a109原handle44328。a112仅connector指定路径与own evidence写权，无manifest/lock/vendor授权，root继续保留无writer。
 
 a112实际派发Grok4.7xhigh handle5564（snapshot-owner R1），slotA/connector限定写权生效；root/manifest/lock/vendor无授权。固定开发基线170dffb，receipt调度commitd5aad63仅协调文档/证据差异不替代源码。a109原handle44328仍live；后续新UUID a113。未完成R1，不新增功能交付计数。
+
+### a109终态request-changes与a113基础修复
+
+a109handle44328实际exit0，关闭不再轮询。完整REPORT/FINDINGS/HANDOFF及raw46cases读取，三pairedforgery被错误接受、depth20000exit134；63文件284973bytes接收SHA。五records audited=false/W06-H-L仍未完成，历史scan非fresh。slotB明确移交a113有限四项修复，a112继续slotA/connectorwriter；无root/manifest/lock/vendor授权，产品指标9/9/首轮6比9保持。
