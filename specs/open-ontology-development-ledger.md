@@ -471,3 +471,9 @@ a079 handle17707实际终态0，固定9224d31e1c1d4a60d44b6984b8ad496a09e706a1/t
 迁移与触发审计事件的claim并发时events→tasks锁顺序会40P01；中止不遗留约束/view/marker，任务领取提交。后续applicator必须有界超时及40P01重试/停写策略；纯lease_until heartbeat只导致55P03。stored checksum仍依赖可信installer计算与外部readiness合取，runtime仍可持advisory key，event note/generation/owner仍caller-supplied；A068-F1/F3/F4/F5继续待验。不得将schema约束当已认证worker审计。
 
 产品累计交付仍6组件，独立验收产品子项增至3（jobs schema、源三HIGH纠正、event项目绑定）。已完成首次产品复审4项、返工2/4＝50%（小样本）；SDK及目标fence尚未终态不计分母，基础修复不计产品功能。87完整父项/16Phase仍0完成。a083继续唯一mainroot writer，a081结构closure/a080独立P5/a082基础Rusthelper、a084 SDK和a085目标schema复审各保持既定范围；下一纵向实现依源固定接口推进真实有界读取/类型转换/目标同事务写入，而非以receipt-only fixture充当导入。
+
+## 下一纵向任务卡与当前写入风险
+
+上一目标回合为progress：79587e4真实记录a079限定验收并勾子项。本回合一次核验a080/a081/a082/a083/a084/a085的现有执行handles均live；不因耗时或静默重启。三份prepared任务卡已按真实类型解码→同RR有界Arrow读取→目标数据/质量/receipt原子apply顺序写入execution/prompts，并链接vertical-integration-order；未派发、未赋写权，不增加产品计数或勾选。后续只读复审与独立开发并行，根依赖修改按a083→明确分配NFC/type任务串行。
+
+a081运行日志称workspace解析被其他任务uncommitted oo-connectors manifest阻断，并临时用committed manifest验证后恢复。该操作不在其builder目录写权内：即使称已恢复，也不能默认没有覆盖a083更新。协调者已记录风险；其终态交接须核查具体改动/恢复时间、实际冻结输入与root/connector差异，固定archive验证不能用移动workspace测试代替。下一任务卡明确禁止临时改foreign manifest；正确做法是独立归档固定输入并只overlay自己源码。live任务不因该日志单独重启；a083仍唯一root/connector integration writer。完整集成接受前必须消除覆盖疑点。

@@ -2,6 +2,22 @@
 
 状态：执行顺序冻结；所列未交付或未复审能力仍为 pending。该文件不替代完整 Spec/Plan/87 工作项。
 
+## 当前状态补充（2026-10-02；旧运行记录保留）
+
+- 源三HIGH修正4ecdbf7获a074限定批准，a083正在main源范围整合并独占root依赖；旧b2禁止准入，main最终固定提交仍待交接/复审。
+- 控制schema70a4e72获a068批准，event绑定9224d31获a079批准；Rust jobs驱动、真实installer及完整W01仍未完成。
+- 草案4c989bc经a071发现五项问题；a081只修结构closure，NFC依赖修正待root写权释放。
+- 目标schema8370498交付，a085固定复审进行中；receipt-only不等于Loader导入。
+- P5原型efb61d6经a076要求返工，a080独立Rust隔离纠正；SDK8efeb23由a084固定复审中。
+
+下列任务卡已准备，**尚未派发、没有编码写权**：
+
+1. [PG无损类型解码](../prompts/v01-pg-lossless-types-prepared.md)：源整合固定接口后，按root串行顺序与NFC任务协调。
+2. [有界快照读取](../prompts/v01-pg-bounded-reader-prepared.md)：消费类型结果，实际Arrow stream和源backend退出证据。
+3. [未发布目标apply](../prompts/v01-pg-target-apply-prepared.md)：消费reader及独立批准的target fence，实际数据/质量/receipt同事务。
+
+每次派发补上真实基线/输入SHA、唯一UUID/evidence及writer范围；“prepared”不计交付、验收或运行中。只读review可与后续无冲突开发并行，未经批准的输入不得用于放行。
+
 ## 当前可用输入
 
 | 输入 | 固定提交/状态 | 使用限制 |
