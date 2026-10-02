@@ -519,3 +519,5 @@ a0872980e85 request_changes：服务端ALTER ROLE SET role使session_user/curren
 勘误：a084/a089重复“r-efi AUTHORS不是MIT正文”是错误表述。a078已独立证明5.3/6.0 AUTHORS含完整MIT；新erratum记录实际bodyhash，不修改历史report、不放宽basename或LGPL-orlater OR规则/CDLA。
 
 当前产品累计交付仍6组件，独立验收子项仍3；首次产品复审6项、返工4/6=66.7%（小样本，原草案/源/SDK/目标schema返工）。a087整合复审及a090修正复审不重复计新功能first-review；a080原型和基础修复单列。87完整父项/16Phase仍0完成。本轮无新充分批准证据，因此不新增完成勾选；旧已批准子项保留。后续类型→有界reader→真实targetapply任务卡继续prepared，优先等NFC root实际交接与源role修正固定接口，基础线不阻塞独立模块。
+
+基础a082续接handle61643再次实际exit0，无REPORT/HANDOFF/commit；attempt2 helperClippy101，builder可能仍在运行。协调者立即读终态日志后再次沿用原UUID恢复，禁止重复构建或掩盖101；其余a088/a086/a090/a091/a092/a093单次句柄核验仍live，不重启。3652115已提交最新plan/ledger/复审接收证据；文档check_plan/check_spec均0，只证完整性。原始psql stdout/cleanup格式空白保留与hash一致，格式检查限规范文档/JSON/exit不改原始输出。
