@@ -291,6 +291,17 @@ ORDER BY con.contypid, con.oid";
 
 pub(crate) const QUOTE_IDENT: &str = "SELECT pg_catalog.quote_ident($1)";
 
+pub(crate) const TYPE_FACTS: &str = "\
+SELECT t.oid::int8, t.typname::text, n.nspname::text, t.typtype::text, t.typlen::int4, \
+COALESCE(t.typelem, 0)::int8, COALESCE(t.typbasetype, 0)::int8, t.typtypmod::int4, \
+COALESCE(t.typsend, 0)::int8, COALESCE(p.proname, '')::text, COALESCE(pn.nspname, '')::text \
+FROM unnest($1::int8[]) AS ids(oid) \
+JOIN pg_catalog.pg_type t ON t.oid = ids.oid \
+JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace \
+LEFT JOIN pg_catalog.pg_proc p ON p.oid = t.typsend \
+LEFT JOIN pg_catalog.pg_namespace pn ON pn.oid = p.pronamespace \
+ORDER BY t.oid";
+
 pub(crate) const CAPTURED_AT: &str = "\
 SELECT pg_catalog.to_char(pg_catalog.transaction_timestamp() AT TIME ZONE 'UTC', \
 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')";
@@ -331,6 +342,7 @@ const ALL: &[&str] = &[
     ENUM_LABELS,
     DOMAIN_CHECKS,
     QUOTE_IDENT,
+    TYPE_FACTS,
     CAPTURED_AT,
 ];
 

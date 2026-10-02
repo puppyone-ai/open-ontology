@@ -292,7 +292,7 @@ impl PgSession {
         }
     }
 
-    async fn finish<T>(&mut self, result: Result<T, SourceError>) -> Result<T, SourceError> {
+    pub(crate) async fn finish<T>(&mut self, result: Result<T, SourceError>) -> Result<T, SourceError> {
         let rolled = self.rollback().await;
         match (result, rolled) {
             (Ok(value), Ok(())) => Ok(value),

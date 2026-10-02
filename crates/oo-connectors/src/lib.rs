@@ -1,9 +1,10 @@
-//! Read-only PostgreSQL source inspection and catalog.
+//! Read-only PostgreSQL source inspection, catalog, and lossless decoding.
 //!
-//! The public methods of this slice are [`PgConnector::connect`],
-//! [`PgSession::inspect_access`], and [`PgSession::catalog`]. Scan, bounded
-//! read, CDC, type conversion, and the registry API are reported as
-//! unsupported. Gateway crates do not depend on this crate.
+//! The catalog protocol stays [`PROTOCOL`] (`oo.source.pgsql/v1`).
+//! `type_conversion` and [`TypeSupport::converted`] stay unsupported and false.
+//! Binary decoding is the separate protocol [`types::TYPE_CONVERSION_PROTOCOL`].
+//! [`PgSession::read_typed`] is that decoder. Scan, CDC, and the registry API
+//! stay unsupported. Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
 
@@ -15,6 +16,7 @@ mod ident;
 mod model;
 mod session;
 mod sql;
+pub mod types;
 
 pub use config::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
@@ -31,6 +33,9 @@ pub use model::{
     connector_capabilities, numeric_parts, schema_hash,
 };
 pub use session::{PgConnector, PgSession};
+pub use types::{
+    type_capabilities, ColumnMapping, PgTypePolicy, RunBinding, TypedBatch, TYPE_CONVERSION_PROTOCOL,
+};
 
 /// Frozen protocol name for this source slice.
 pub const PROTOCOL: &str = "oo.source.pgsql/v1";
