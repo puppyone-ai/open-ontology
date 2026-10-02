@@ -68,6 +68,7 @@
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
+  - [ ] W06-H helper固定依赖图实际audit/deny工具验收：a101独立执行，固定f1a6005 standalone lock；不替代全workspace/CDLA/完整供应链。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -622,3 +623,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 重建同工具链同size但SHAde3a29ff655ca86a1a295632f5fec0512a0afc76b311456958006b60b5590899不同，.text差930bytes/.rodata registry cargo-home路径不同，仅selectedtoolchain source关系，不声称byte reproducibility。两emptychildren+ECHILD再confirm的源码与实测支持有限回收；确认后fork/reparent窗口、同UID第二hash至exec替换、killpg同group旁及PIDreuse、cgroup EROFS未执行kill失败、DarwinELF126/amd未跑继续pending。选定依赖version.created_at/age168h/hash/yank/许可对照、nix advisory patched范围独立核验，不将4HTTP404/RustSec浅查当audit/deny工具通过。完整supply/CDLA/secretrotation/protectedCI/runsc/release未签。
 
 只勾基础W05-R切片，earlysetsid整体门禁/全平台与完整SP00父项保留。产品仍6交付组件/6验收子项/首次返工4比6，87完整父项/16Phase未完成。旧a096报告仍称a093/a092live是时点过时描述，实际两者已terminal，connectorwriter现在a098，pipeline无writer而a099只读；root仍a095。a096旧handle关闭不再轮询，其余原会话继续，不按等待超时重启。
+
+
+## a101基础专线补齐真实helper工具扫描
+
+上一目标回合为progress：4d59c8f签收Rust监督器有限切片。本回合a0953387/a09765278/a09861045/a0995836/a10034511单次实际核验均live，root/connector writer不变，无静默重启。基础runtime复审a096已terminal，下一项独立工作是其明确未执行的cargo-audit/cargo-deny工具门槛，不等待产品全依赖交付才补自身图。
+
+a101 Grok4.7xhigh原生会话实际启动handle3407，固定f1a6005971e3dc3075094c87ed670fc9d25e9ae0 standalonehelper锁14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1，只写自己的证据/工具root/归档。实际pinned cargo-audit0.22.2/cargo-deny0.20.2，必要安装占1own/global2Rustbuilder，不动hostcache或foreignmanifest；固定ci/deny不改、真实RustSecrevision/机器raw/exits/age/versiontimestamp/许可正文核验。不能把根workspace不含helper的扫描、HTTP404、manifestlicense或OR工具许可当完整policyadmission，不能弱化CDLA/OR/ignore/168h。工具安装失败或MSRV不符必须真实记录未验，不静默换版本/工具链。完整root/SDK/P5/native/OCI/CDLA与秘密历史及发行仍各自门槛。
+
+此任务无新产品交付或验收勾选；仍6交付组件/6产品验收子项/首次返工4比6，87完整父项/16Phase未完成。基础工具扫描与CLI/types/target/source/identity并行，但globalbuilder预算不增加；满额先读材料等待，不持续观测。CLI终态后显式根交接a098仍是下一共享依赖节点，未据baseline完成释放root。
