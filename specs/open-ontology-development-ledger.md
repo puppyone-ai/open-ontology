@@ -324,7 +324,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | running handle46905；先Linux1.94，再DB约束/好数据升级/坏历史拒绝与rollback，不签队列驱动 |
 | P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | running handle88198；独立native/MSRV/真实PG差分/earlyexit继承FD/IPC身份与预算/许可证；已知R4/R9不当完整通过 |
-| 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | running handle85459；真实官方tar/bodyhash、AUTHORS-MIT/作者列表/指针区分，保留ISC规则和旧错误记录，不重跑无关矩阵 |
+| 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | handle85459终态0，交付fb2d1d1；REPORT/HANDOFF已读，Linux1.94 core check作者0，外层inspect exit1保留；a078固定归属复审，未签完整W06 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
@@ -400,3 +400,9 @@ CORE接收当前可用的macOS骨架和契约开发前置，不代表SP00-W01完
 协调者已修正Plan/README过时的“无workspace”说明，并重新通过Spec/Plan检查。该文档维护不改变任何产品要求；先前证据中的Plan hash保留其原运行快照，后续证据记录当前实际hash，不回写旧证据。
 
 初始日志位于`/tmp/open-ontology-grok-00a-foundation.log`和`/tmp/open-ontology-grok-00a-governance.log`。每次结果先核对实际进程终态/文件，再由新Grok只读审阅；缺陷修复必须指定失败证明，不用`--continue`误接另一并行会话，使用明确`--resume <UUID>`并再次指定模型/effort。
+
+## 当前交接补充：a077 → a078
+
+a077实际终态0，固定提交fb2d1d19c21b510dfd6231c3b67d0efbf4285491（tree79f19b818d3e14ad08ad5208ce2bd0a17b4c297e）。协调者已读完整REPORT/HANDOFF，当前已提交process evidence仅173字节、凭据参数标记计数0，git fsck connectivity exit0；此有限检查不证明所有历史副本清除。执行者报告最初进程命令行记录含Cursor API密钥及session token、未push，并已删除相关loose objects。已告知用户轮换Cursor密钥；独立a078须核验当前提交和可见对象的残余，但不得打印秘密、读取凭据存储或修改Git历史。秘密门禁与完整供应链仍未验收。
+
+a078仅只读固定archive、自己的证据与UUID资源；先Linux/MSRV局部冒烟，再归属正文/erratum/旧记录不改/现有策略不弱化复核。a073仍唯一main root-lock writer，a070仅xtask、a072仅pipeline新迁移、a075仅jobs新expand。基础线修正不改变产品交付/验收计数，不阻塞无关公共功能。ToDo归属修正仍待独立结论，完整W06/87父工作项/16Phase不提前勾选。
