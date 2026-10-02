@@ -2,8 +2,9 @@
 //!
 //! Safe lowercase identifiers are kept. Reserved words, quoted text, and names
 //! that already start with `q_` become `q_` plus lowercase hex of the NFC
-//! UTF-8 bytes. A stable id is never an array index. Two different originals
-//! that share one mapping are a collision and the catalog is refused.
+//! UTF-8 bytes. NFC is canonical Unicode 17.0.0 from `unicode-normalization`
+//! 0.1.25, not NFKC. A stable id is never an array index. Two different
+//! originals that share one mapping are a collision and the catalog is refused.
 
 use crate::error::DraftError;
 use crate::limits::MAX_NAME_BYTES;
@@ -202,6 +203,36 @@ mod tests {
         assert_eq!(composed, decomposed);
         let err = assign_idents(&["é".to_string(), "e\u{0301}".to_string()], "/").unwrap_err();
         assert!(err.code.ends_with("/ident.collision"));
+        let macron_grave = stable_ident("\u{1E14}", "/").unwrap();
+        let parts = stable_ident("\u{0045}\u{0304}\u{0300}", "/").unwrap();
+        assert_eq!(macron_grave, parts);
+        let collision = assign_idents(
+            &[
+                "\u{1E14}".to_string(),
+                "\u{0045}\u{0304}\u{0300}".to_string(),
+            ],
+            "/",
+        )
+        .unwrap_err();
+        assert!(collision.code.ends_with("/ident.collision"));
+        let mark = "e\u{1ACF}\u{0323}";
+        let normalized = crate::nfc::nfc(mark);
+        assert_eq!(normalized, "\u{1EB9}\u{1ACF}");
+        assert_eq!(
+            stable_ident(mark, "/").unwrap(),
+            format!("q_{}", hex_bytes(normalized.as_bytes()))
+        );
+        let ligature = stable_ident("ﬁ", "/").unwrap();
+        assert_eq!(ligature, format!("q_{}", hex_bytes("ﬁ".as_bytes())));
+        assert_ne!(ligature, format!("q_{}", hex_bytes(b"fi")));
+        let han = "一".repeat(21);
+        assert_eq!(han.len(), 63);
+        assert_eq!(
+            stable_ident(&han, "/").unwrap(),
+            format!("q_{}", hex_bytes(han.as_bytes()))
+        );
+        let too_long = stable_ident(&"一".repeat(22), "/").unwrap_err();
+        assert!(too_long.code.ends_with("/budget.name_bytes"));
         assert!(PG17_RESERVED.windows(2).all(|pair| pair[0] < pair[1]));
         assert_ne!(stable_ident("user", "/").unwrap(), "user");
     }

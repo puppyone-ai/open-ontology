@@ -12,9 +12,9 @@ mod error;
 mod ident;
 mod limits;
 mod nfc;
-mod nfc_tables;
 mod pgsql;
 
 pub use draft::{COMPILER, DRAFT_PROTOCOL, compile_structure_draft};
 pub use error::{DraftError, EVIDENCE_PROTOCOL};
+pub use nfc::nfc;
 pub use pgsql::EMPTY_SCHEMA_HASH;

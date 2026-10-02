@@ -1,0 +1,7 @@
+Host cargo 1.98.1 was not used to rewrite Cargo.lock.
+
+`cargo fetch --manifest-path Cargo.toml --locked` on the host exited before download because Cargo wanted to update the lock. `cargo fetch --manifest-path Cargo.toml --offline` then failed with `failed to download etcetera v0.11.0` and did not rewrite the lock. The lock delta remains the two dependency names added under `oo-builder`: `sha2` and `unicode-normalization`.
+
+Authoritative resolve, tests, and Clippy are the Linux rustc 1.94.0 run.
+
+That run mounted the snapshot read-only. `cargo fetch --manifest-path Cargo.toml --locked` exited 0 and did not rewrite `Cargo.lock`. The two-name delta was accepted by cargo 1.94.0.

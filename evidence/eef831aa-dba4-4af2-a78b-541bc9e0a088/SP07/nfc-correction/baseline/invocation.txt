@@ -1,0 +1,27 @@
+run_id=eef831aa-dba4-4af2-a78b-541bc9e0a088
+commit=39376ac1e68c0ee066f1c46cd8c7144ea598ef52
+tree=b45b5a767eef0bab04d75b942ec22701946ba5ae
+parent=99e00edffd232cbeae95f374568c9ea537cfb478
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a088-rust-net-baseline
+container=oo-a088-rust194-baseline
+cargo_volume=oo-a088-cargo-baseline
+target_volume=oo-a088-target-baseline
+snapshot=/tmp/oo-a088-eef831aa-dba4-4af2-a78b-541bc9e0a088/snapshot
+snapshot_method=git archive COMMIT
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+airgap_claim=no
+command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --manifest-path Cargo.toml --locked --offline -p oo-builder; cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-builder --all-targets -- -D warnings
