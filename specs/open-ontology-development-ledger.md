@@ -93,8 +93,10 @@
 ### SP02
 
 - [ ] SP02-W01 控制迁移/jobs/lease/schedule
-  - [ ] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72已交付，a068固定提交复审中；driver与完整并发验收另项。
+  - [x] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72获a068固定复审approve；协调者核验完整报告、117探针全ok/0失败、Linux1.94测试/Clippy0和三个文件hash。仅schema切片，driver/100worker/备份与完整AT仍未签。
   - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：待迁移固定接口与依赖整合。
+  - [ ] SP02-W01-c event项目归属约束：a068-F2真实跨项目事件反例，a075新expand迁移执行中；不改已批准v1字节、不静默改历史事件。
+  - [ ] SP02后续适用验收：applicator哈希校验与readiness合取、未来函数必须以owner创建而非adopt未审definer、运行时CAS/TTL/最小项目scope；a068-F1/F3/F4/F5不得因schema子项approve而忽略。
 - [ ] SP02-W02 config/Git/CAS
 - [ ] SP02-W03 validate/plan/apply恢复
 - [ ] SP02-W04 Secret/轮换/mTLS
@@ -311,33 +313,35 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-OOS-01A / STRUCTURE-DRAFT | `eef831aa-dba4-4af2-a78b-541bc9e0a063` | 冻结core模型/PG catalog版本契约 | 主目录oo-builder/新draft契约fixture；交付后root lock冻结 | handle70712终态0 commit4c989bc；REPORT/HANDOFF已读、Linux1.94原始18lib+2CLI测试/Clippy0、shop黄金hash协调者重算匹配；a071复审，不签真实PG闭环或完整SP07 |
 | SP02-W01-a / CONTROL-JOBS-SCHEMA | `eef831aa-dba4-4af2-a78b-541bc9e0a064` | 导入闭环所需耐久控制存储，docs17队列契约 | oo-jobs迁移/契约/对应fixture；不改manifest/root-lock，a063仍唯一writer | CLI终态0 commit70a4e72；REPORT已读，真实PG新迁移/重放/40 SQLSTATE负例/迁移锁/失败回滚作者0，Linux/MSRV contract1test0；migration两hash协调者重算匹配，a068复审，不签完整W01 |
 | P5-a / PG17-PARSER-RISK | `eef831aa-dba4-4af2-a78b-541bc9e0a065` | 受控查询的parser/PG17配套与可杀隔离风险；a056 SET utility反例 | 新独立Rust spike/lock、Proposed ADR/a065证据；不写主workspace依赖 | running handle52338；先Linux/MSRV/native smoke，合法control与Utility/CTE/失败/版本拒绝；不签完整P5/R1–R9 |
-| V01-PG-01-F / SOURCE-SECURITY-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a066` | a061三HIGH固定b2复现，完整review已终态 | 沿用现有product-pg，仅connectors/对应contract/自有lock和证据；主目录源只读 | running handle37636；全局effective权限、纯显式无env连接、private-CA-only三修复；focused Linux/MSRV/真实PG，修复commit后再固定复审与主目录串行集成 |
+| V01-PG-01-F / SOURCE-SECURITY-FIX | `eef831aa-dba4-4af2-a78b-541bc9e0a066` | a061三HIGH固定b2复现，完整review已终态 | 沿用现有product-pg，交付后源冻结；主目录源未整合 | handle37636终态0 correction4ecdbf7/stamp181df9b；REPORT/patch已读，Linux1.94原始14lib+1live/Clippy0，lockhash重算匹配，webpki已移除但旧ISC策略deny4；a074固定复审，未签修正 |
 | 00J / ISC-POLICY-CONSISTENCY | `eef831aa-dba4-4af2-a78b-541bc9e0a067` | a061固定图ISC3项许可门禁失败、spec宽松许可规则 | 仅ci/deny的明确ISC条目、新license契约/fixture/a067证据；不改root-lock或source | handle38831终态0 commitb14c782；REPORT已读、policy hash协调者重算匹配，作者Linux1.94 core check0，b2许可错误4→1但deny仍4；a069复审，不签完整供应链 |
-| SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | running handle57161；独立真实LOGIN成员权限、迁移checksum/readiness/并发/回滚/状态约束与API-only差异，不签100worker或完整W01 |
+| SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | handle57161终态0 approve schema切片；独立真实LOGIN权限/并发/回滚等117case0fail，Linux1.94 test/clippy0；F1–F5残余归后续任务，不签完整W01 |
 | 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | running handle41829；独立真实graph/ISC AND Apache/负例/正文义务核对，不签完整W06 |
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | running handle11184；独立hash/overlay/审核/Unicode-NFC来源与行为/预算负例，不签完整SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
+| V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
+| SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | running handle46905；先Linux1.94，再DB约束/好数据升级/坏历史拒绝与rollback，不签队列驱动 |
 
 ## 5. 用户优先级调整后的产品功能台账
 
 | 功能任务 | 输入与前置 | 输出/接口 | 验收与下一步 | 当前状态 |
 |---|---|---|---|---|
-| V01-PG-01 | 已批准core模型、docs PG只读安全边界；现有隔离任务不等基础门禁 | PG AccessReport+CatalogSnapshot/F1版本契约，真实SQLx只读driver | Linux/MSRV局部+真实PG源审计零写/TLS/权限，交付commit后固定SHA复审 | b2d3cbc已交付但a061 request_changes，a066返工中；注册/导入不可据旧registration_allowed放行，未勾验收完成 |
+| V01-PG-01 | 已批准core模型、docs PG只读安全边界；现有隔离任务不等基础门禁 | PG AccessReport+CatalogSnapshot/F1版本契约，真实SQLx只读driver | Linux/MSRV局部+真实PG源审计零写/TLS/权限，交付commit后固定SHA复审 | b2初审request_changes，a066交付修正4ecdbf7，a074固定复审；旧registration_allowed不可放行，未勾源验收 |
 | V01-PG-02 | V01-PG-01固定接口、目标事务/质量/fence设计 | 有界PG读取→目标LOGGED未发布导入与持久catalog/lineage | 真实source/target比对、失败重启/取消、不提前授权 | waiting接口；按SP02/SP03/SP04拆可验收子项 |
 | V01-OOS-01 | catalog/安全profile证据、OOS纯模型 | 确定性可审核草案与证据/PII标记，不自动发布 | 真schema到draft、恶意comment/歧义/权限无扩张；固定SHA审阅 | a063交付4c989bc、a071复审中；真实导入集成与完整profile待后续，未勾完成 |
 | V01-QUERY-01 | 批准policy/P6/P13切片、P5 parser/P14驱动协议 | 审批后角色列权限/RLS、HTTP Gateway查询/取消/审计 | 实际隐藏行列拒绝、claims不伪造、parserfailclosed、取消已停 | queued |
 | V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | CLI queued；其独立HTTP query SDK前置a073已启动，不以协议fixture替代真实对话验收 |
 | FOUNDATION-LANE | a058两hang/六CLI失败、a059bench平台 | 基础问题单线收敛，按局部失败修复 | 不阻塞隔离产品公共功能；发行条件单独pending | active |
 
-当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。a063已交付4c989bc，a071只读复审；main root-lock已移交a073，只有其新增SDK依赖可写，源整合等待其终态再串行。a064已交付70a4e72，a068只读复审；a065只写独立parser spike，a066只写现有PG checkout的源纠正；a072仅pipeline新迁移/契约/测试，不修改root依赖。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建，不把host安装视为额外免费槽位。
+当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。a063已交付4c989bc，a071只读复审；main root-lock由a073独占，源整合等待其终态再串行。a064的schema切片已获a068批准，a075仅jobs新expand/测试；a065只写独立parser spike；a066已终态，现有PG源码冻结4ecdbf7，a074只读复审；a072仅pipeline新迁移/契约/测试。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建。
 
 a062终态证据：协调者已读完整review/findings及seal-escape原始JSON。九个睡眠后代在父进程立即退出后仍存活，执行exit0/required_satisfied=true且无cleanup/deadline门禁；15/15重复复现，held inode在返回后继续增长。仅记录后代的轮询不能证明所有后代已停。a070须修复或在归属无法验证时明确失败，不能将16MiB内存前缀当磁盘配额；既有41测试通过、PATH固定kill/隔离Git/private ExecutedCommand修复保持，未复现的kill故障不伪称已证实。基础返工不计新产品功能，完整SP00仍未签。
 
 a066所发现的SQLx API限制已由协调者核查锁定0.9源码，最小纠正方向冻结于execution/decisions/sqlx-0.9-explicit-source-trust.md（commit1589c18）。方向保留SQLx，必要时仅对两上游crate作有来源/许可/补丁hash的无env构造器与显式CA独占补丁；当前a066仍运行，不能同时启动另一writer。其真实终态/交接后再以明确resume扩展允许文件范围，实施与独立复审未完成前不签修复。
 
-a066最新实际状态：仍live handle37636；两vendor crate已落在其现有checkout的crates/oo-connectors/vendor，协调者仅核对写入目录/许可证文件范围，尚未签补丁内容。最小方向的目录已与实际路径对齐；最终复审须检查精确upstream差异、构造器/根证书路径和origin manifest，而不能仅信“vendor patches on disk”。后续集成有限snapshot还须包含这两个crate的必要source/manifest/license/patch provenance，不复制整个registry/cache。
+a066最新实际状态：终态0，代码4ecdbf7、stamp181df9b。两个vendor加入无env构造器及ring-no-roots feature；报告称247依赖/0新增registry、移除webpki/CDLA，作者audit0但旧ISC策略deny4。协调者已读REPORT/PATCH与raw live3，通过14lib+1live/Clippy0、lockhash重算匹配；未接受安全结论。a074须复核精确upstream差异、加性feature根混用风险、补丁SBOM身份/来源与完整license，后续有限snapshot包含vendor必要输入，不复制整个registry/cache。
 
 导入集成待验边界：pgident/v1的q_加完整NFC字节hex映射可能超过PG63字节标识符上限；例如31字节大写名映射为64字节。两个仅末字节低nibble不同的名称可在目标PG隐式截断后碰撞。此为固定b2代码静态发现的目标集成风险，尚未做真实PG复现，需在SP03-W05/SP04目标命名持久映射阶段验证；logical catalog id不能未经长度/碰撞核验直接充当目标DDL标识符。不得在当前移动草案上直接修改契约或把静态推导当完整验收。
 
@@ -351,7 +355,7 @@ a059与a058并行：a058唯一rootwriter/最多1debugbuilder，a059仅读冻结b
 
 新增交付：控制jobs schema子任务70a4e72（a064），交付任务累计2项＝PG入口功能1项＋控制schema组件1项；独立验收仍0项，schema尚在a068复审，不重复计为完整jobs服务。source首次复审需返工1/1；schema未出独立结论，不纳入已复审样本。完整87父工作项/16Phase仍未完成。
 
-最新产品速度：a063结构草案4c989bc交付后，累计交付3项＝PG入口/catalog＋控制schema＋纯结构草案。独立验收仍0项；已完成产品复审样本1项，需要返工1项（1/1，小样本），a068/a071未出结论不计入分母。ISC策略和harness修复是基础线，均不冒充新产品功能。真实源读取/目标导入、安全审核到查询CLI仍未闭环，下一步a066修正固定复审后按源功能范围整合，并消费a072目标fence/receipt，不能将三个组件提交当整体完成。
+最新产品速度：累计交付3项＝PG入口/catalog＋控制schema＋纯结构草案。独立验收子项1项＝SP02-W01-a；完整父工作项0项。已完成首轮产品复审2项，其中源需返工1项，返工率1/2（小样本）；a071未出结论不计入分母。a066修正不重复计新功能，a075事件绑定为新工作但未交付。ISC/harness是基础线，不冒充产品功能。真实源读取/目标导入、安全审核到查询CLI仍未闭环，a074安全复审及a073 root-lock交接后按源范围串行整合。
 
 a061复审中间证据：真实probe已发现所选表外写权限仍registration_allowed；audit实际exit0，deny实际exit4（ISC/CDLA-Permissive-2.0未列允许策略）。结果来自a061自有冻结archive探针，不是作者声明；最终findings/最小复现尚未交付，暂不签源注册，后续收敛范围不能仅检查selected tables。此问题不阻塞纯builder或控制迁移，许可修正需逐许可证正文/义务与来源，不做通配豁免。
 
