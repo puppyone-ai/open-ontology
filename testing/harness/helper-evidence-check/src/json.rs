@@ -1,4 +1,24 @@
-use crate::fail::{self, Fail, MALFORMED};
+//! Bounded JSON subset used by the helper evidence checker.
+//!
+//! Container depth counts objects and arrays only. [`parse`] starts at depth 0,
+//! before it reads a value.
+//!
+//! - A scalar root (`null`, boolean, number, or string) stays at depth 0.
+//! - An object or array root is depth 1. Each container directly inside another
+//!   container adds one. A scalar inside a container does not add a level.
+//! - [`MAX_DEPTH`] is 64. The next depth is checked before that container's
+//!   function is called, so a 65th container does not recurse.
+//! - Depth 64 is the deepest accepted value. Depth 65, and any greater depth
+//!   including 20000, returns [`Fail`] code `bound` (exit 22). Parsing does not
+//!   panic, abort, or raise a signal.
+//!
+//! Arrays still stop at 10_000 elements and objects at 4_000 keys. Those limits
+//! are separate from depth.
+
+use crate::fail::{self, Fail, BOUND, MALFORMED};
+
+/// Deepest accepted container nesting, counting the root container as 1.
+pub const MAX_DEPTH: usize = 64;
 
 #[derive(Clone, Debug)]
 pub enum Val {
@@ -61,12 +81,19 @@ impl Val {
 
 pub fn parse(input: &str) -> Result<Val, Fail> {
     let mut parser = Parser { input, index: 0 };
-    let value = parser.value()?;
+    let value = parser.value(0)?;
     parser.skip();
     if parser.index != input.len() {
         return Err(fail::fail("malformed-record", MALFORMED, "trailing json"));
     }
     Ok(value)
+}
+
+fn next_depth(depth: usize) -> Result<usize, Fail> {
+    match depth.checked_add(1) {
+        Some(next) if next <= MAX_DEPTH => Ok(next),
+        _ => Err(fail::fail("bound", BOUND, "json depth exceeds 64")),
+    }
 }
 
 struct Parser<'a> {
@@ -85,7 +112,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn value(&mut self) -> Result<Val, Fail> {
+    fn value(&mut self, depth: usize) -> Result<Val, Fail> {
         self.skip();
         let byte = self
             .input
@@ -98,8 +125,14 @@ impl<'a> Parser<'a> {
             b't' => self.literal("true", Val::Bool(true)),
             b'f' => self.literal("false", Val::Bool(false)),
             b'"' => Ok(Val::String(self.string()?)),
-            b'[' => self.array(),
-            b'{' => self.object(),
+            b'[' => {
+                let nested = next_depth(depth)?;
+                self.array(nested)
+            }
+            b'{' => {
+                let nested = next_depth(depth)?;
+                self.object(nested)
+            }
             b'-' | b'0'..=b'9' => self.number(),
             _ => Err(fail::fail("malformed-record", MALFORMED, "unsupported json value")),
         }
@@ -223,7 +256,7 @@ impl<'a> Parser<'a> {
         Err(fail::fail("malformed-record", MALFORMED, "unterminated string"))
     }
 
-    fn array(&mut self) -> Result<Val, Fail> {
+    fn array(&mut self, depth: usize) -> Result<Val, Fail> {
         self.index += 1;
         let mut items = Vec::new();
         loop {
@@ -238,14 +271,14 @@ impl<'a> Parser<'a> {
                 }
                 self.index += 1;
             }
-            items.push(self.value()?);
+            items.push(self.value(depth)?);
             if items.len() > 10_000 {
                 return Err(fail::fail("bound", fail::BOUND, "array too large"));
             }
         }
     }
 
-    fn object(&mut self) -> Result<Val, Fail> {
+    fn object(&mut self, depth: usize) -> Result<Val, Fail> {
         self.index += 1;
         let mut pairs = Vec::new();
         loop {
@@ -273,10 +306,84 @@ impl<'a> Parser<'a> {
                 return Err(fail::fail("malformed-record", MALFORMED, "expected colon"));
             }
             self.index += 1;
-            pairs.push((key, self.value()?));
+            pairs.push((key, self.value(depth)?));
             if pairs.len() > 4_000 {
                 return Err(fail::fail("bound", fail::BOUND, "object too large"));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    fn nested(depth: usize, kind: &str) -> String {
+        let mut text = String::new();
+        for index in 0..depth {
+            match kind {
+                "object" => text.push_str("{\"a\":"),
+                "array" => text.push('['),
+                "mixed" => {
+                    if index % 2 == 0 {
+                        text.push_str("{\"a\":");
+                    } else {
+                        text.push('[');
+                    }
+                }
+                _ => panic!("kind"),
+            }
+        }
+        text.push('0');
+        for index in (0..depth).rev() {
+            let close_object = match kind {
+                "object" => true,
+                "array" => false,
+                "mixed" => index % 2 == 0,
+                _ => panic!("kind"),
+            };
+            text.push(if close_object { '}' } else { ']' });
+        }
+        text
+    }
+
+    fn assert_bound(text: &str) {
+        let err = parse(text).expect_err(text);
+        assert_eq!(err.code, "bound", "{}", err.detail);
+        assert_eq!(err.exit_code, 22, "{}", err.detail);
+    }
+
+    #[test]
+    fn scalar_root_stays_at_depth_zero() {
+        for text in ["0", "\"x\"", "true", "false", "null"] {
+            assert!(parse(text).is_ok(), "{text}");
+        }
+        assert!(parse("{}").is_ok());
+        assert!(parse("[]").is_ok());
+        assert!(parse("{\"a\":0}").is_ok());
+    }
+
+    #[test]
+    fn depth_64_accepts_and_65_is_bound() {
+        for kind in ["object", "array", "mixed"] {
+            assert!(parse(&nested(64, kind)).is_ok(), "{kind} 64");
+            assert_bound(&nested(65, kind));
+        }
+    }
+
+    #[test]
+    fn malformed_escape_and_duplicate_key_fail_closed() {
+        let escape = parse("\"\\q\"").expect_err("escape");
+        assert_eq!(escape.code, "malformed-record");
+        assert_eq!(escape.exit_code, 21);
+        let truncated = parse("\"\\u12\"").expect_err("truncated");
+        assert_eq!(truncated.code, "malformed-record");
+        let surrogate = parse("\"\\uD800\"").expect_err("surrogate");
+        assert_eq!(surrogate.code, "malformed-record");
+        let duplicate = parse("{\"a\":1,\"a\":2}").expect_err("duplicate");
+        assert_eq!(duplicate.code, "duplicate");
+        assert_eq!(duplicate.exit_code, 14);
+        let unicode = parse("{\"a\":1,\"\\u0061\":2}").expect_err("unicode duplicate");
+        assert_eq!(unicode.code, "duplicate");
     }
 }

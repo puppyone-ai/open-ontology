@@ -1,0 +1,3 @@
+These nine files were left in linux/phases by earlier attempts. The green run (container 7e674b394cfa, 2026-10-02T20:48:46Z) did not execute the online retries, because each offline phase exited 0. They were moved here so the green phases directory is only that run.
+
+cargo-test-online.* and clippy-online.* match attempt-2 (and the copy of phases under attempt-3). clippy-online.err is the pre-existing timeutil.rs assertions_on_constants lint from attempt-2's cargo clippy --all-targets. clippy-tests-online.* match attempt-3 (needless_borrow, later fixed). Raw failed-attempt logs also remain under linux/attempt-1, linux/attempt-2, and linux/attempt-3.

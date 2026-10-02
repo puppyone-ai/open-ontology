@@ -6,6 +6,7 @@ use crate::fail::{self, Fail, BOUND, CHECKSUM_MISMATCH, DUPLICATE, FAKE_CLAIM, G
 use crate::json::{self, Val};
 use crate::sha;
 use crate::timeutil::{self, Stamp};
+use crate::trust::{self, AUDIT_ADVISORY_COUNT, AUDIT_DEPENDENCY_COUNT, ADOPTION_INSTANT, HELPER_LOCK_SHA256, RUSTSEC_COMMIT, RUSTSEC_COMMIT_TIME};
 use crate::Paths;
 
 const MAX_BYTES: u64 = 1_048_576;
@@ -85,9 +86,12 @@ pub fn run(paths: &Paths) -> Result<(), Fail> {
     reject_cli_traversal(paths)?;
     let as_of = timeutil::parse_rfc3339(&paths.as_of)?;
     let inventory = load_inventory(&paths.inventory)?;
+    if inventory.helper_lock_sha256 != HELPER_LOCK_SHA256 {
+        return Err(fail::fail("helper-lock-changed", HELPER_LOCK_CHANGED, "lock anchor"));
+    }
     expect_hash(
         &paths.helper_lock,
-        &inventory.helper_lock_sha256,
+        HELPER_LOCK_SHA256,
         "helper-lock-changed",
         HELPER_LOCK_CHANGED,
     )?;
@@ -128,7 +132,11 @@ pub fn run(paths: &Paths) -> Result<(), Fail> {
         let doc = records.get(&package.name).ok_or_else(|| {
             fail::fail("unknown-package", UNKNOWN_PACKAGE, format!("missing record {}", package.name))
         })?;
-        check_record(doc, package, &inventory, &records, paths, as_of)?;
+        let created_at = &versions
+            .get(&package.name)
+            .ok_or_else(|| fail::fail("wrong-source", WRONG_SOURCE, format!("version json missing {}", package.name)))?
+            .created_at;
+        check_record(doc, package, &inventory, &records, paths, as_of, created_at)?;
     }
     Ok(())
 }
@@ -222,10 +230,21 @@ fn check_inputs_agree(
     versions: &BTreeMap<String, VersionFact>,
     resolved: &BTreeMap<String, Resolved>,
 ) -> Result<(), Fail> {
+    if inventory.adoption != ADOPTION_INSTANT {
+        return Err(fail::fail("invalid-time", INVALID_TIME, "adoption anchor"));
+    }
+    if inventory.rustsec_commit != RUSTSEC_COMMIT || inventory.rustsec_commit_time != RUSTSEC_COMMIT_TIME {
+        return Err(fail::fail("fake-claim", FAKE_CLAIM, "audit database identity"));
+    }
+    let adopted = timeutil::parse_rfc3339(ADOPTION_INSTANT)?;
     if lock.len() != 5 {
         return Err(fail::fail("checksum-mismatch", CHECKSUM_MISMATCH, "lock registry package count"));
     }
     for package in &inventory.packages {
+        let pinned = trust::pinned_choice(&package.name)?;
+        if package.choice.as_deref() != pinned.as_str() {
+            return Err(fail::fail("wrong-dual-choice", WRONG_DUAL_CHOICE, package.name.clone()));
+        }
         let (version, checksum) = lock.get(&package.name).ok_or_else(|| {
             fail::fail("checksum-mismatch", CHECKSUM_MISMATCH, format!("lock missing {}", package.name))
         })?;
@@ -261,6 +280,14 @@ fn check_inputs_agree(
         if fact.rust_version.as_deref() != Some(package.msrv.as_str()) && !(fact.rust_version.is_none() && package.msrv == inventory.undeclared_msrv)
         {
             return Err(fail::fail("fake-claim", FAKE_CLAIM, format!("msrv pin for {}", package.name)));
+        }
+        let published = timeutil::parse_rfc3339(&fact.created_at)?;
+        if adopted.nanos < published.nanos {
+            return Err(fail::fail("invalid-time", INVALID_TIME, package.name.clone()));
+        }
+        let elapsed = adopted.nanos - published.nanos;
+        if elapsed < timeutil::SEVEN_NS || package.age != timeutil::completed_days(elapsed) {
+            return Err(fail::fail("age-floor", fail::AGE_FLOOR, package.name.clone()));
         }
         let edge = resolved.get(&package.name).ok_or_else(|| {
             fail::fail("graph-mismatch", GRAPH_MISMATCH, format!("metadata missing {}", package.name))
@@ -460,14 +487,24 @@ fn activate(map: &BTreeMap<String, Vec<String>>, uses_default: bool, requested: 
 
 fn check_audit_file(path: &Path, inventory: &Inventory) -> Result<(), Fail> {
     let root = read_json(path, "malformed-record")?;
+    // The retained a101 object has no status member. A present status cannot
+    // be made authoritative by updating the inventory digest. Absence is the
+    // retained shape. This does not write a status into the scan file.
+    reject_audit_status(root.get("status"))?;
+    if inventory.rustsec_commit != RUSTSEC_COMMIT || inventory.rustsec_commit_time != RUSTSEC_COMMIT_TIME {
+        return Err(fail::fail("fake-claim", FAKE_CLAIM, "audit database identity"));
+    }
     let database = need(&root, "database")?;
     let commit = need_string(database, "last-commit")?;
     let updated = need_string(database, "last-updated")?;
-    if commit != inventory.rustsec_commit || updated != inventory.rustsec_commit_time {
+    let advisory_count = need(database, "advisory-count")?.as_int()?;
+    if commit != RUSTSEC_COMMIT || updated != RUSTSEC_COMMIT_TIME || advisory_count != AUDIT_ADVISORY_COUNT {
         return Err(fail::fail("fake-claim", FAKE_CLAIM, "audit database identity"));
     }
+    need(&root, "settings")?.as_object()?;
+    need(&root, "warnings")?.as_object()?;
     let count = need(need(&root, "lockfile")?, "dependency-count")?.as_int()?;
-    if count != 6 {
+    if count != AUDIT_DEPENDENCY_COUNT {
         return Err(fail::fail("graph-mismatch", GRAPH_MISMATCH, "audit dependency count"));
     }
     let vulns = need(&root, "vulnerabilities")?;
@@ -475,6 +512,14 @@ fn check_audit_file(path: &Path, inventory: &Inventory) -> Result<(), Fail> {
         return Err(fail::fail("fake-claim", FAKE_CLAIM, "audit reported a vulnerability"));
     }
     Ok(())
+}
+
+fn reject_audit_status(status: Option<&Val>) -> Result<(), Fail> {
+    match status {
+        None => Ok(()),
+        Some(Val::String(text)) if !text.trim().is_empty() => Err(fail::fail("fake-claim", FAKE_CLAIM, "audit status")),
+        Some(_) => Err(fail::fail("malformed-record", MALFORMED, "audit status")),
+    }
 }
 
 fn check_deny_file(path: &Path) -> Result<(), Fail> {
@@ -544,6 +589,7 @@ fn check_record(
     records: &BTreeMap<String, Val>,
     paths: &Paths,
     as_of: Stamp,
+    created_at: &str,
 ) -> Result<(), Fail> {
     let body = need(doc, "package")?;
     scan_sources(body)?;
@@ -563,8 +609,8 @@ fn check_record(
         return Err(fail::fail("wrong-expression", WRONG_EXPRESSION, package.name.clone()));
     }
     let choice = optional_string(body, "dual_license_choice")?;
-    check_choice(&expression, choice.as_deref(), package.choice.as_deref(), &package.name)?;
-    check_time(body, package, inventory, as_of)?;
+    check_choice(&expression, choice.as_deref(), &package.name)?;
+    check_time(body, package, created_at, as_of)?;
     check_msrv(body, package, inventory)?;
     if need_bool(body, "yanked")? {
         return Err(fail::fail("fake-claim", FAKE_CLAIM, "yanked crate"));
@@ -669,9 +715,10 @@ fn check_flags(doc: &Val, inventory: &Inventory) -> Result<(), Fail> {
     Ok(())
 }
 
-fn check_choice(expression: &str, choice: Option<&str>, expected: Option<&str>, name: &str) -> Result<(), Fail> {
+fn check_choice(expression: &str, choice: Option<&str>, name: &str) -> Result<(), Fail> {
+    let pinned = trust::pinned_choice(name)?;
     let has_or = expression.contains(" OR ");
-    match (has_or, choice, expected) {
+    match (has_or, choice, pinned.as_str()) {
         (true, None, _) => Err(fail::fail("undeclared-choice", fail::UNDECLARED_CHOICE, name)),
         (true, Some(choice), Some(expected)) if choice == expected => Ok(()),
         (false, None, None) => Ok(()),
@@ -679,10 +726,13 @@ fn check_choice(expression: &str, choice: Option<&str>, expected: Option<&str>, 
     }
 }
 
-fn check_time(body: &Val, package: &PinPkg, inventory: &Inventory, as_of: Stamp) -> Result<(), Fail> {
-    let published = timeutil::parse_rfc3339(&need_string(body, "publication_date")?)?;
-    let adopted = timeutil::parse_rfc3339(&need_string(body, "adoption_date")?)?;
-    if need_string(body, "publication_date")? != package.publication || need_string(body, "adoption_date")? != inventory.adoption {
+fn check_time(body: &Val, package: &PinPkg, created_at: &str, as_of: Stamp) -> Result<(), Fail> {
+    let published = timeutil::parse_rfc3339(created_at)?;
+    let adopted = timeutil::parse_rfc3339(ADOPTION_INSTANT)?;
+    if need_string(body, "publication_date")? != created_at
+        || need_string(body, "adoption_date")? != ADOPTION_INSTANT
+        || package.publication != created_at
+    {
         return Err(fail::fail("invalid-time", INVALID_TIME, package.name.clone()));
     }
     if published.nanos > as_of.nanos || adopted.nanos > as_of.nanos || adopted.nanos < published.nanos {
@@ -864,13 +914,19 @@ fn check_native(body: &Val, package: &PinPkg, records: &BTreeMap<String, Val>) -
         names.push(name.clone());
         let child = records.get(&name).ok_or_else(|| fail::fail("graph-mismatch", GRAPH_MISMATCH, name.clone()))?;
         let child_body = need(child, "package")?;
+        let entry_choice = optional_string(entry, "dual_license_choice")?;
+        let child_choice = optional_string(child_body, "dual_license_choice")?;
+        let pinned = trust::pinned_choice(&name)?;
         if need_string(entry, "version")? != need_string(child_body, "version")?
             || need_string(entry, "license_spdx")? != need_string(child_body, "license_spdx")?
-            || optional_string(entry, "dual_license_choice")? != optional_string(child_body, "dual_license_choice")?
+            || entry_choice != child_choice
             || need_string(entry, "digest")? != need_string(child_body, "digest")?
             || need_string(entry, "dependency_kind")? != need_string(child_body, "dependency_kind")?
         {
             return Err(fail::fail("wrong-expression", WRONG_EXPRESSION, format!("native {name}")));
+        }
+        if entry_choice.as_deref() != pinned.as_str() {
+            return Err(fail::fail("wrong-dual-choice", WRONG_DUAL_CHOICE, format!("native {name}")));
         }
         if !need(entry, "weak_copyleft_review")?.is_null() {
             return Err(fail::fail("fake-claim", FAKE_CLAIM, "native weak copyleft"));

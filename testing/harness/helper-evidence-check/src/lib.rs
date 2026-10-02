@@ -11,10 +11,13 @@ mod fail;
 mod json;
 mod sha;
 mod timeutil;
+mod trust;
 
 pub use check::run;
 pub use fail::{Fail, USAGE};
+pub use json::MAX_DEPTH;
 pub use timeutil::{completed_days, parse_rfc3339};
+pub use trust::{ADOPTION_INSTANT, HELPER_LOCK_COMMIT, HELPER_LOCK_SHA256};
 
 #[derive(Debug)]
 pub struct Paths {

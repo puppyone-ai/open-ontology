@@ -1,0 +1,28 @@
+uname=Linux 808b4329e41d 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+date=2026-10-02T20:43:27Z
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+RUSTUP_TOOLCHAIN=1.94.0
+/usr/bin/sha256sum
+7911a1f0aec4678c540bd78ff886f48d42790c8689a82ed0ae25ed79ed5dd512  /usr/bin/sha256sum
+14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1  /archive/testing/harness/containment-supervisor/Cargo.lock
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b  /archive/ci/deny.toml
+f64e43716f72c173879cb30130f73df0f1c802ac32960eb6c3955c15c2209f81  /archive/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out
+PHASE cargo-test-offline start 2026-10-02T20:43:27Z
+PHASE cargo-test-offline exit 101
+PHASE cargo-test-online start 2026-10-02T20:43:28Z
+PHASE cargo-test-online exit 101
+PHASE clippy-component start 2026-10-02T20:43:28Z
+PHASE clippy-component exit 0
+PHASE clippy-offline start 2026-10-02T20:43:29Z
+PHASE clippy-offline exit 101
+PHASE clippy-online start 2026-10-02T20:43:29Z
+PHASE clippy-online exit 101
+2cb04ba6701778408a5c09839af053c89d50614510546dff7a9e4ae1ec6adad7  /target/checker/debug/helper-evidence-check
+PHASE smoke exit 101
