@@ -123,7 +123,7 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：8370498经a085 request_changes；NULL分段混合可入库，a092前向迁移修正中。Loader driver、控制镜像和ACK/TRIM另验。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：8370498经a085 request_changes；a092前向NULL修正交付9a71efa，a099固定复审中。Loader driver、控制镜像和ACK/TRIM另验。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
@@ -590,3 +590,12 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 短token1/6/7/8、短SQL/重叠/percent大小写/路径/敏感Header及9位Retry-After/overflow/4096边界/整体时间预算/最多3extra均获独立验证。脱敏一次%HH及JSON解析后值是本次范围：嵌套%25、字面反斜线u及plus方向观察保留；静态英语包含a/e并不证明原secret反射。预算耗尽/16KiB整field封闭直接unit覆盖；HTTP字段另有2000scalar上限。没有内存zeroization或client timeout=PGcancel证明。依赖未改，AUTHORS完整MIT事实由新erratum再次纠正，旧报告不改；basename/LGPL token策略、CDLA、dunce/aws-lc以及完整SDK/Gateway/PG/CLI/amd继续pending。自有UUID资源清理exit0且余量0，无prune。
 
 仅勾SDK-runtime六项子项，完整JSON SDK/W01仍未勾。产品验收子项现在6；交付组件仍6、首次返工4/6，87完整父项与16Phase仍0完成。a090关闭，不再轮询旧handle。其余a09188565/a09296228/a0953387/a09675123/a09765278/a09861045本轮单次核验live，保持原会话及roota095/connectora098/pipelinea092单writer。CLI使用固定SDK接口，无需重启；交付后的独立集成复审仍要绑定实际CLI提交。
+
+
+## a092前向迁移真实终态与a099固定复审
+
+本轮a092原handle96228实际exit0，交付9a71efaf9cb63a2d63061a241f6b8ee8b00426df/tree caa5b8eb9bb878cb310e11c0e0cc46d4e9bc5971/parent82d4c85492fc1b76fa1048bbd970de2909594295。REPORT/HANDOFF全文已读，pipeline tracked diff空；0000/0001原hash不变，新0002 SHA59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512协调者复算一致。作者fixed fetch/test/Clippy/worst/docker原始exit0，第一次fixed test/Clippy101保留。作者PGsummary含3harness失败及最终live=pass，旧3种NULL组合确实inserted，非法历史OO021不变，新组合23514，合法历史byteequal/replayimmutable/rollback/锁/强杀等作者通过。
+
+重要限制：作者live使用hostRust1.98.1在最终3个test路径/Clippy改动前执行；最终1.94只编译live test并ignored，不是最终Linuxlive成功。a099原生Grok4.7xhigh独立固定review已实际启动handle5836，限定自己证据/immutable archive，必须对最终committed路径独立PG17.10验证NULLcrossproduct、合法/非法历史、forward/repeat/mismatch/回滚、v2外部hash-ready合取及原fence/replay权限回归。旧v1 schema_ready保留，storedchecksum仍callertruth，不替代真实applicator磁盘校验；任意DMLfence/Loader/CDC/ACK等F2/F3/F5继续pending。a092报告a088root/a093source仍writer是旧事实，实际roota095、connectora098，不改旧报告。
+
+只更新交付/复审状态，不勾target父/子项；原handle不再轮询。产品计数仍6交付组件/6验收子项/首次返工4比6，87完整父项与16Phase未完成。pipeline源码暂无writer，尚不能据作者声明为Loader授予准入；a099只读复审可与CLI/types并行，global2builders照旧。
