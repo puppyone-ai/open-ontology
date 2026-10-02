@@ -95,7 +95,7 @@
 - [ ] SP02-W01 控制迁移/jobs/lease/schedule
   - [x] SP02-W01-a 真实控制库迁移/专用角色/约束：70a4e72获a068固定复审approve；协调者核验完整报告、117探针全ok/0失败、Linux1.94测试/Clippy0和三个文件hash。仅schema切片，driver/100worker/备份与完整AT仍未签。
   - [ ] SP02-W01-b Rust队列领取/续租/generation/schedule/retry：待迁移固定接口与依赖整合。
-  - [ ] SP02-W01-c event项目归属约束：a068-F2真实跨项目事件反例，a075新expand迁移执行中；不改已批准v1字节、不静默改历史事件。
+  - [x] SP02-W01-c event项目归属约束：9224d31获a079固定复审approve；真实LOGIN跨项目23503、坏历史及并发坏历史OO004回滚、合法历史不变、Linux1.94局部测试/Clippy0。仅项目绑定，不签事件内容真实性或完整驱动。
   - [ ] SP02后续适用验收：applicator哈希校验与readiness合取、未来函数必须以owner创建而非adopt未审definer、运行时CAS/TTL/最小项目scope；a068-F1/F3/F4/F5不得因schema子项approve而忽略。
 - [ ] SP02-W02 config/Git/CAS
 - [ ] SP02-W03 validate/plan/apply恢复
@@ -463,3 +463,11 @@ a072第一次resume handle34479亦实际终态0，仍无REPORT/HANDOFF/交付com
 a072第二次resume handle79046实际终态0，终于交付83704982a8d9459c51ed7c2020c51d21c91fb8cd（tree494a0f015c35e3eb75548e9d4dad71bb28d0acd7，parent78d106f）。协调者已读完整REPORT/HANDOFF及post-smoke原始fetch/test/Clippy0与从空库fixture_result=pass，重算bootstrap37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208/expand97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9。旧inplace修正及NEW.generation42703原失败保留，不能替代新空库证据。报告列两PGfixtures，资源同时性待复审查证，不默认符合max1规则。
 
 a085只读固定archive，先Linux1.94局部冒烟，再单PGfixture独立session/temp/SDfunction/lock/generation/receipt/rollback/role/checksum复审。schema交付不代表Loader，receipt-only0/0/1、未来任意DML未fenced和控制镜像/ACK仍明确未实现；SP04-W05-a在review结论前不勾选。a083根writer不变，a081/a080/a082继续独立模块。产品累计交付6组件（新增目标schema），验收产品子项仍2，首次复审返工2/3，完整父项0。
+
+## a079事件项目绑定限定验收
+
+a079 handle17707实际终态0，固定9224d31e1c1d4a60d44b6984b8ad496a09e706a1/tree9e4bd758216287ee78c162349950b988da25978b获SP02-W01-c限定approve。协调者已读完整review/findings及Linux原始fetch/test/Clippy0、PG23503/OO004/40P01与rollback输出，重算合法/坏历史/强制失败六组snapshot，前后均逐字节相等且非空。首次141cases/11失败为已保留的reviewer探针错误，13followups/0失败不改写原记录；空stdout比较不能当历史不变证据。已勾选事件项目绑定子项，父W01/AT-CTL-01/02仍未签。
+
+迁移与触发审计事件的claim并发时events→tasks锁顺序会40P01；中止不遗留约束/view/marker，任务领取提交。后续applicator必须有界超时及40P01重试/停写策略；纯lease_until heartbeat只导致55P03。stored checksum仍依赖可信installer计算与外部readiness合取，runtime仍可持advisory key，event note/generation/owner仍caller-supplied；A068-F1/F3/F4/F5继续待验。不得将schema约束当已认证worker审计。
+
+产品累计交付仍6组件，独立验收产品子项增至3（jobs schema、源三HIGH纠正、event项目绑定）。已完成首次产品复审4项、返工2/4＝50%（小样本）；SDK及目标fence尚未终态不计分母，基础修复不计产品功能。87完整父项/16Phase仍0完成。a083继续唯一mainroot writer，a081结构closure/a080独立P5/a082基础Rusthelper、a084 SDK和a085目标schema复审各保持既定范围；下一纵向实现依源固定接口推进真实有界读取/类型转换/目标同事务写入，而非以receipt-only fixture充当导入。

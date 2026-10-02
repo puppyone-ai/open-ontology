@@ -238,6 +238,13 @@ P项关联Spec原型表的相关AT，不新造另一组验收。每份结论含�
 
 #### SP02-W01 — 控制库与jobs
 
+开发完成记录（限定子项；完整W01待AT-CTL-01/02）：
+
+- [x] SP02-W01-a 控制schema：70a4e72，a068固定复审批准。
+- [x] SP02-W01-c 事件项目绑定：9224d31，a079固定复审批准；真实LOGIN跨项目拒绝、坏历史迁移回滚、合法历史不变。
+- [ ] SP02-W01-b Rust领取/续租/generation CAS/schedule/retry及100worker、重启与备份验收。
+- [ ] Applicator真实文件哈希/readiness合取、迁移有界超时与40P01重试；事件内容真实性与最小项目scope按后续接口验证。
+
 - 执行：先DDL约束/专用角色/migration锁，再短事务领取、30s lease/10s heartbeat、generation CAS与schedule去重；DB时间为权威，NOTIFY仅唤醒、轮询兜底。
 - 交付/PR：oo-jobs与控制迁移、100并发claim fixture、重启/旧owner/retry/cancel测试；业务变更和入队同控制事务。长任务不持领取锁。
 - 验收/停止：AT-CTL-01/02；重复计划仅一副作用、旧generation不完成。任务状态不能代替目标DB fencing，目标写者在SP04另验。

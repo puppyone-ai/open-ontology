@@ -1,0 +1,71 @@
+{
+  "cases": 13,
+  "failed": 0,
+  "results": [
+    {
+      "case": "follow_no_advisory_call",
+      "ok": true,
+      "detail": "comment mentions the applicator lock; executable text does not call it"
+    },
+    {
+      "case": "follow_no_migration_insert",
+      "ok": true,
+      "detail": "view reads schema_migrations; file does not insert a marker"
+    },
+    {
+      "case": "follow_catalog_rescore",
+      "ok": true,
+      "detail": "rescored saved fresh_catalog.stdout; first assertion required one physical line"
+    },
+    {
+      "case": "follow_identity_v1_matches_upgraded",
+      "ok": true,
+      "detail": "v1_exit=0 upgraded_exit=0 bytes 1039 vs 1039"
+    },
+    {
+      "case": "follow_triggers_v1_matches_upgraded",
+      "ok": true,
+      "detail": "v1_exit=0 upgraded_exit=0 bytes 510 vs 510"
+    },
+    {
+      "case": "follow_named_constraint_not_deferrable",
+      "ok": true,
+      "detail": "exit=3 states=['42809']"
+    },
+    {
+      "case": "follow_upgraded_cross_rejected",
+      "ok": true,
+      "detail": "exit=3 states=['23503']"
+    },
+    {
+      "case": "follow_upgraded_cross_absent",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "case": "follow_first_legal_cross_was_same_project",
+      "ok": true,
+      "detail": "22222222-2222-4222-8222-222222222222|22222222-2222-4222-8222-222222222222|true"
+    },
+    {
+      "case": "follow_lock_db_still_v1_queued",
+      "ok": true,
+      "detail": "queued|11111111-1111-4111-8111-111111111111 0"
+    },
+    {
+      "case": "follow_dead_mig_holds_events",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "case": "follow_audit_trigger_deadlock",
+      "ok": true,
+      "detail": "claim_exit=0 claim_states=[] mig_exit=3 mig_states=['40P01']"
+    },
+    {
+      "case": "follow_deadlock_no_leak",
+      "ok": true,
+      "detail": "true|0|0|0 "
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+=== before containers ===
+oo-a079-pg1710 Up 20 minutes
+oo-a079-rust194 Exited (0) 26 minutes ago
+=== before networks ===
+oo-a079-pg-net
+oo-a079-rust-net
+=== before volumes ===
+oo-a079-cargo
+oo-a079-pg-data
+oo-a079-target
+=== name check ===
+/oo-a079-rust194 false
+/oo-a079-pg1710 false
+=== after containers ===
+=== after networks ===
+=== after volumes ===
+=== tmp ===
+absent
+=== git ===
+?? evidence/eef831aa-dba4-4af2-a78b-541bc9e0a079/

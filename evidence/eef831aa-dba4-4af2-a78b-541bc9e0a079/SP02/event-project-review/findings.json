@@ -1,0 +1,198 @@
+{
+  "review_id": "a079",
+  "run_id": "eef831aa-dba4-4af2-a78b-541bc9e0a079",
+  "slice": "SP02-W01-c",
+  "decision": "approve",
+  "decision_scope": "SP02-W01-c event project binding only",
+  "source": {
+    "commit": "9224d31e1c1d4a60d44b6984b8ad496a09e706a1",
+    "tree": "9e4bd758216287ee78c162349950b988da25978b",
+    "parent": "304fcf9f116bbbabe0f91a2caca5df5949ef476c",
+    "subject": "jobs: bind task event project to its task",
+    "archive_files": 300,
+    "commit_path_count": 1426,
+    "archive_matches_git_ls_tree": true,
+    "archive_commit_id": "9224d31e1c1d4a60d44b6984b8ad496a09e706a1",
+    "workspace_head_at_archive": "dd3f6da74168f2d254b4fda0431cde2532f0a230",
+    "ancestor_70a4e72": true
+  },
+  "signs": {
+    "SP02-W01-c": true,
+    "SP02-W01-a": false,
+    "SP02-W01": false,
+    "AT-CTL-01": false,
+    "AT-CTL-02": false,
+    "target_fence": false,
+    "whole_vertical": false,
+    "backup_restore": false,
+    "workers_100": false,
+    "driver": false,
+    "lease_30s": false,
+    "heartbeat_10s": false,
+    "claim_cas": false,
+    "protected_ci": false,
+    "runsc": false,
+    "customer_gate": false,
+    "owner_release": false
+  },
+  "checksums": {
+    "bootstrap_sha256": "445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df6a0f8eeb0b52",
+    "bootstrap_blob": "cc24c2efe6d28518088a872807be379ae648079b",
+    "expand_sha256": "b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75",
+    "expand_blob": "82879c91bdd98ac65ecd07f284744e4a688b1d8e",
+    "event_project_sha256": "4ede04e8f848eff002da7e3a12628ac731c7bca02ba345daa6d036790e894fee",
+    "event_project_blob": "2d60527b11b5935bafe00f6b6fd7fced9016a5e7",
+    "control_contract_sha256": "d352c86dbf2836360e541a3511af23674ce9692e687a6ac7041d99118dc8c2ca",
+    "control_contract_blob": "5515c24df23dd69f504c64ab9c8035e3830084aa",
+    "event_contract_sha256": "c8bd60c5ba9dd284b9d125d889dd5cef3d97f97e4a046d3f6e57656b786f7b42",
+    "frozen_0000_0001_v1_diffstat_lines": 0,
+    "lie_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "linux": {
+    "image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "platform": "linux/arm64",
+    "rustc": "1.94.0",
+    "rustc_commit": "4a4ef493e3a1488c6e321570238084b38948f6db",
+    "host": "aarch64-unknown-linux-gnu",
+    "llvm": "21.1.8",
+    "os": "Debian GNU/Linux 13 (trixie)",
+    "toolchain_file_channel": "1.98.1",
+    "smoke_override": "RUSTUP_TOOLCHAIN=1.94.0",
+    "airgap_claim": false,
+    "fetch_exit": 0,
+    "test_exit": 0,
+    "clippy_exit": 0,
+    "worst_exit": 0,
+    "docker_run_exit": 0,
+    "container_exit": 0,
+    "oom_killed": false,
+    "tests_passed": [
+      "control_schema_files_match_the_published_contract",
+      "event_project_files_match_the_published_contract"
+    ],
+    "privileged": false,
+    "network": "oo-a079-rust-net",
+    "capacity_before": "host_cargo=0 rust_builders=0 global=0"
+  },
+  "postgres": {
+    "image": "sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb",
+    "version": "PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu",
+    "container": "oo-a079-pg1710",
+    "privileged": false,
+    "network": "oo-a079-pg-net",
+    "published_5432": null,
+    "first_run_cases": 141,
+    "first_run_failed": 11,
+    "first_run_exit": 1,
+    "followup_cases": 13,
+    "followup_failed": 0,
+    "followup_exit": 0,
+    "runtime_advisory_exit": 0,
+    "summary": "pg/out/summary.json",
+    "followup_summary": "pg/out/followup-summary.json"
+  },
+  "a068_f2": {
+    "status": "closed_for_runtime_insert_by_this_slice",
+    "prior_review": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a068/SP02/jobs-schema-review/findings.json"
+  },
+  "retained_open": ["A068-F1", "A068-F3", "A068-F4", "A068-F5"],
+  "findings": [
+    {
+      "id": "A079-R1",
+      "blocking_for_sp02_w01_c": false,
+      "class": "accepted_non_claim",
+      "title": "Same-project event note, generation, and lease owner stay caller-supplied",
+      "statement": "LOGIN oo_a079_login inserted a same-project event with generation 99, lease_owner spoofed-worker, and note caller-supplied. The task generation stayed 0 and the task lease owner stayed empty. Output was 0||99|spoofed-worker|caller-supplied|true. The composite foreign key checks project equality. It does not authenticate a worker or freeze event contents.",
+      "evidence": ["pg/out/direct_same.stdout"]
+    },
+    {
+      "id": "A079-R2",
+      "blocking_for_sp02_w01_c": false,
+      "class": "applicator",
+      "title": "Stored checksum is caller-supplied and does not hash the on-disk file",
+      "statement": "0002 selects from jobs.schema_migrations and does not insert a row or call pg_advisory_xact_lock. On oo_lie the owner stored 64 zero hex after the real DDL. schema_version_present was true, the external conjunction against the file hash was false, and jobs-control/1 readiness stayed true. Repeating the lie left the constraint OIDs unchanged. Repeating the real file hash returned OO001 and left the zero digest stored. Bootstrap checksum trust and the installer conjunction remain. A068-F3 stays open.",
+      "evidence": [
+        "pg/out/lie_view.stdout",
+        "pg/out/lie_repeat_real.stderr",
+        "pg/out/lie_still_zero.stdout",
+        "pg/followup-console.log"
+      ]
+    },
+    {
+      "id": "A079-R3",
+      "blocking_for_sp02_w01_c": false,
+      "class": "operational_residual",
+      "title": "Audit-trigger updates deadlock the events-then-tasks lock order",
+      "statement": "0002 locks task_events SHARE ROW EXCLUSIVE and then tasks SHARE ROW EXCLUSIVE. A direct event insert takes row locks in that order. tasks_audit_update takes the task row first and then inserts an event. A pure lease_until heartbeat does not insert an event: the real 0002 file returned 55P03 under lock_timeout 3s and left no constraint. A queued-to-running claim, which does insert an event, deadlocked the owner session that held the same two locks with a 5s sleep between them. The migrator received 40P01. The claim committed. Aftermath was true|0|0|0: no readiness view, no new constraint, no jobs-event-project/1 row, no cross-project event. 0002 sets neither lock_timeout nor deadlock_timeout. deadlock_timeout is not settable by these LOGIN roles (42501). Bounded timeouts and retry of 40P01 are applicator obligations. The advisory lock 6401202601 is also an applicator obligation; oo_a079_login still acquired it.",
+      "evidence": [
+        "pg/out/lock_mig.stderr",
+        "pg/out/stmt_mig.stderr",
+        "pg/out/follow_dead_mig.stderr",
+        "pg/out/follow_deadlock_no_leak.stdout",
+        "pg/out/dead_claim.stderr",
+        "pg/out/follow_runtime_advisory.stdout"
+      ]
+    },
+    {
+      "id": "A079-R4",
+      "blocking_for_sp02_w01_c": false,
+      "class": "owner_residual",
+      "title": "The table owner can drop the new constraint; the runtime member cannot",
+      "statement": "oo_a079_login received 42501 for SET ROLE oo_jobs_owner, ALTER DISABLE TRIGGER, session_replication_role, DROP CONSTRAINT, UPDATE of tasks.project_id, and replaying 0002 inside a transaction. A bare LOCK outside a transaction is 25P01 for the owner login and is a different error. Owner UPDATE of an event and of tasks.project_id returned 23514. Owner DROP CONSTRAINT inside BEGIN then ROLLBACK left the constraint OID. Owner DISABLE TRIGGER ALL returned 42501 because the internal RI trigger is a system trigger, and the cross-project note was absent afterward. The fixture superuser disabled only tasks_enforce_update and the project update still returned 23503 on task_events_task_project_fkey; the trigger and project were restored. A068-F5, an adopted SECURITY DEFINER planted by a superuser, was not re-executed. jobs contains 0 prosecdef functions after this migration.",
+      "evidence": [
+        "pg/out/runtime_reapply.stderr",
+        "pg/out/bare_lock.stderr",
+        "pg/out/owner_disable_probe.note.txt",
+        "pg/out/owner_bypass_absent.stdout",
+        "pg/out/superuser_fk_still.stderr",
+        "pg/out/fresh_catalog.stdout"
+      ]
+    }
+  ],
+  "reviewer_probe_failures_preserved": [
+    {
+      "case": "sql_no_advisory",
+      "cause": "Comment text mentions pg_advisory_xact_lock. Executable SQL does not call it. follow_no_advisory_call passed."
+    },
+    {
+      "case": "sql_no_migration_insert",
+      "cause": "The readiness view reads jobs.schema_migrations. The file does not INSERT a marker. follow_no_migration_insert passed."
+    },
+    {
+      "case": "constraint_not_deferrable",
+      "cause": "Unqualified SET CONSTRAINTS returned 42704. search_path does not include jobs. Schema-qualified name returned 42809."
+    },
+    {
+      "case": "fresh_catalog",
+      "cause": "Saved catalog text is the expected constraint, nullability, security_invoker, ACL, and view text. The assertion required jobs-control/1 and schema_migrations on one physical line. follow_catalog_rescore passed."
+    },
+    {
+      "case": "legal_identity_before",
+      "cause": "42725 text concatenated with \"char\". legal_identity_unchanged compared two empty stdout files and is not evidence."
+    },
+    {
+      "case": "legal_identity_after",
+      "cause": "Same 42725. follow_identity_v1_matches_upgraded compared oo_bad and oo_legal, 1039 bytes each."
+    },
+    {
+      "case": "legal_triggers_before",
+      "cause": "42725 on tgenabled. legal_triggers_unchanged compared empty files and is not evidence."
+    },
+    {
+      "case": "legal_triggers_after",
+      "cause": "Same 42725. follow_triggers_v1_matches_upgraded compared 510 bytes and found tasks_audit_update enabled."
+    },
+    {
+      "case": "legal_cross_after_upgrade",
+      "cause": "The insert used task a0790001-0001-4000-8000-000000000002, whose project_id is P2. follow_first_legal_cross_was_same_project is P2|P2|true. A later insert of P2 against the P1 task returned 23503."
+    },
+    {
+      "case": "dead_mig_holds_events",
+      "cause": "Both sessions aborted on SET deadlock_timeout before taking locks."
+    },
+    {
+      "case": "audit_trigger_deadlock",
+      "cause": "deadlock_timeout is not settable by these roles (42501). The retry without that setting returned 40P01 on the migrator and no leak."
+    }
+  ]
+}

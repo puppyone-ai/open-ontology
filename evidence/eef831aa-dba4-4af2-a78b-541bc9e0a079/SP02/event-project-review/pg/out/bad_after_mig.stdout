@@ -1,0 +1,3 @@
+SET
+jobs-bootstrap/1|445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df6a0f8eeb0b52|expand|0000_bootstrap_roles.sql|2026-10-02 01:24:29.180213+00|oo_jobs_owner|(0,1)|800
+jobs-control/1|b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75|expand|0001_jobs_control_expand.sql|2026-10-02 01:24:29.180366+00|oo_jobs_owner|(0,2)|800
