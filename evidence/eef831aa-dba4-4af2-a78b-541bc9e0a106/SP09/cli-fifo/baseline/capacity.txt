@@ -1,0 +1,10 @@
+host_uname=arm64
+running_containers_before:
+name=oo-a110-pg-8e78193a-5ffb-4d8a-9ba8-9f26e2732e6b status=Up 10 minutes owner=a110 kind=postgres
+host_toolchain_comms:
+note=capacity counted by running container label and comm only
+a108_volumes_not_used=oo-a108-eef831aa-dba4-4af2-a78b-541bc9e0a108-cargo oo-a108-eef831aa-dba4-4af2-a78b-541bc9e0a108-target
+labeled_rust_builders=0
+own_rust_builders=0
+host_toolchain_comms=0
+global=0

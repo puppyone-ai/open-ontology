@@ -1,11 +1,14 @@
 //! Credential and SQL reads.
 //!
-//! The token file is opened with `O_NOFOLLOW` and then `fstat` on that fd.
-//! That ties the mode and owner check to the inode that was opened. The owner
-//! is compared with a probe file this process creates in the temp directory,
-//! because `getuid` is unsafe. It does not reject a symlink in a parent
-//! directory, an ACL, or a later write by the same owner. The bytes are not
-//! wiped when the `String` is dropped.
+//! Token, SQL, and CA paths are opened with `O_NONBLOCK` and `O_NOFOLLOW`,
+//! then `fstat` on that fd. `O_NOFOLLOW` alone still waits for a FIFO writer.
+//! `O_NONBLOCK` makes that open return. A FIFO is rejected as not a regular
+//! file before any byte is read. This does not make every device `open` return.
+//!
+//! The owner is compared with a probe file this process creates in the temp
+//! directory, because `getuid` is unsafe. It does not reject a symlink in a
+//! parent directory, an ACL, or a later write by the same owner. The bytes
+//! are not wiped when the `String` is dropped.
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read};
@@ -99,7 +102,9 @@ fn token_bytes(bytes: &[u8]) -> Result<String, ReadError> {
 fn read_capped(path: &Path, cap: u64, token_policy: bool) -> Result<Vec<u8>, ReadError> {
     let mut options = OpenOptions::new();
     options.read(true);
-    options.custom_flags(libc::O_NOFOLLOW);
+    // Both flags are on this open. A path stat first would race, and
+    // `O_NOFOLLOW` alone still blocks on a peerless FIFO.
+    options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
     let file = options.open(path).map_err(map_open)?;
     inspect(&file, cap, token_policy)?;
     let mut buf = Vec::new();

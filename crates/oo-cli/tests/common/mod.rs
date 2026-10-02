@@ -6,6 +6,7 @@
 #![allow(dead_code)]
 
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -327,6 +328,8 @@ pub struct Outcome {
     pub code: i32,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
+    /// `Some` when the child died by signal. A harness kill is not an exit code.
+    pub signal: Option<i32>,
 }
 
 pub async fn run(spec: Spec) -> Outcome {
@@ -372,6 +375,7 @@ fn run_blocking(spec: Spec) -> Outcome {
             code: status.code().unwrap_or(1),
             stdout: Vec::new(),
             stderr: err,
+            signal: status.signal(),
         };
     }
     let out_thread = std::thread::spawn(move || {
@@ -390,6 +394,7 @@ fn run_blocking(spec: Spec) -> Outcome {
         code: status.code().unwrap_or(1),
         stdout: out_thread.join().unwrap_or_default(),
         stderr: err_thread.join().unwrap_or_default(),
+        signal: status.signal(),
     }
 }
 

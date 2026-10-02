@@ -50,7 +50,7 @@ The token is not accepted on the command line. `--token-file=...` is a usage err
 
 Unix only. Windows is not implemented.
 
-The file is opened with `O_NOFOLLOW`, then `fstat` on that same descriptor. The check requires a regular file, mode exactly `0600` (`mode & 07777`), and the same owner as a probe file this process creates. `getuid` is unsafe and this crate forbids unsafe code, so the probe is an empty regular file in the temp directory, opened with `O_NOFOLLOW` and `O_EXCL`, `fstat`ed, and unlinked before the token bytes are read. Its uid is the effective uid that created it. If that create fails, the token read fails. Size is at most 4097 bytes so one trailing newline can wrap a 4096-byte token. The token itself is non-empty, at most 4096 bytes, UTF-8, and each byte is in `0x21..=0x7e`. A second newline or a carriage return is rejected.
+The file is opened with `O_NONBLOCK` and `O_NOFOLLOW` on that same `open`, then `fstat` on that descriptor. There is no `stat` of the path before the open. `O_NONBLOCK` makes a FIFO open return without waiting for a writer. A FIFO, with or without a writer, is not a regular file, so it is rejected before any token byte is read and before a socket is opened. `O_NONBLOCK` does not make every device-node `open` return. A driver that blocks inside `open` can still block. The check requires a regular file, mode exactly `0600` (`mode & 07777`), and the same owner as a probe file this process creates. `getuid` is unsafe and this crate forbids unsafe code, so the probe is an empty regular file in the temp directory, opened with `O_NOFOLLOW` and `O_EXCL`, `fstat`ed, and unlinked before the token bytes are read. Its uid is the effective uid that created it. If that create fails, the token read fails. Size is at most 4097 bytes so one trailing newline can wrap a 4096-byte token. The token itself is non-empty, at most 4096 bytes, UTF-8, and each byte is in `0x21..=0x7e`. A second newline or a carriage return is rejected.
 
 What this does not prove:
 
@@ -64,7 +64,7 @@ What this does not prove:
 
 `--token-stdin` reads until EOF, with the same 4097-byte cap and the same token rules. SQL is never read from that stream.
 
-SQL files use `O_NOFOLLOW` and a 65536-byte cap. They are not required to be mode `0600`. The bytes are exact UTF-8: no BOM strip and no newline translation. `--ca-file` uses `O_NOFOLLOW` and a 1 MiB cap. It is not a token.
+SQL files and `--ca-file` use the same `O_NONBLOCK | O_NOFOLLOW` open. SQL has a 65536-byte cap and is not required to be mode `0600`. The bytes are exact UTF-8: no BOM strip and no newline translation. `--ca-file` has a 1 MiB cap. It is not a token. A FIFO on either path is rejected the same way, before a socket.
 
 ## Request bytes
 

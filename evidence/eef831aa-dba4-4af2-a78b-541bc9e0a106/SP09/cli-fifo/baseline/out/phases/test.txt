@@ -1,0 +1,220 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling smallvec v1.16.1
+   Compiling itoa v1.0.18
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling once_cell v1.21.4
+   Compiling find-msvc-tools v0.1.13
+   Compiling shlex v2.0.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling jobserver v0.1.35
+   Compiling version_check v0.9.5
+   Compiling cc v1.4.7
+   Compiling bytes v1.12.1
+   Compiling synstructure v0.13.2
+   Compiling pin-project-lite v0.2.17
+   Compiling yoke-derive v0.8.2
+   Compiling cmake v0.1.58
+   Compiling pkg-config v0.3.34
+   Compiling synstructure v0.14.0
+   Compiling fs_extra v1.3.0
+   Compiling futures-core v0.3.34
+   Compiling cfg-if v1.0.5
+   Compiling dunce v1.0.5
+   Compiling aws-lc-sys v0.45.0
+   Compiling equivalent v1.0.2
+   Compiling serde v1.0.229
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.2.0
+   Compiling memchr v2.8.3
+   Compiling hashbrown v0.17.1
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling zerofrom-derive v0.1.8
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling tokio-macros v2.7.2
+   Compiling zerovec v0.11.8
+   Compiling zmij v1.0.23
+   Compiling tinystr v0.8.4
+   Compiling tokio v1.53.1
+   Compiling zeroize v1.9.0
+   Compiling percent-encoding v2.3.2
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling aws-lc-rs v1.18.1
+   Compiling icu_locale_core v2.3.0
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling http v1.5.0
+   Compiling num-integer v0.1.47
+   Compiling icu_normalizer_data v2.3.0
+   Compiling rustversion v1.0.23
+   Compiling icu_properties_data v2.3.0
+   Compiling slab v0.4.12
+   Compiling scopeguard v1.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling serde_json v1.0.151
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling rustls-pki-types v1.15.1
+   Compiling indexmap v2.14.2
+   Compiling generic-array v0.14.9
+   Compiling zerocopy v0.8.57
+   Compiling getrandom v0.3.4
+   Compiling ref-cast v1.0.27
+   Compiling http-body v1.1.0
+   Compiling num-bigint v0.4.8
+   Compiling ref-cast-impl v1.0.27
+   Compiling ahash v0.8.12
+   Compiling tracing-core v0.1.36
+   Compiling typenum v1.20.1
+   Compiling futures-sink v0.3.34
+   Compiling untrusted v0.9.0
+   Compiling parking_lot_core v0.9.12
+   Compiling futures-task v0.3.34
+   Compiling rustls v0.23.45
+   Compiling regex-syntax v0.8.11
+   Compiling httparse v1.10.1
+   Compiling futures-util v0.3.34
+   Compiling tokio-util v0.7.19
+   Compiling tracing v0.1.44
+   Compiling num-rational v0.4.2
+   Compiling encoding_rs v0.8.41
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling num-iter v0.1.46
+   Compiling aho-corasick v1.1.5
+   Compiling num-complex v0.4.6
+   Compiling tower-service v0.3.3
+   Compiling try-lock v0.2.5
+   Compiling atomic-waker v1.1.2
+   Compiling fnv v1.0.7
+   Compiling subtle v2.6.1
+   Compiling h2 v0.4.19
+   Compiling regex-automata v0.4.18
+   Compiling want v0.3.1
+   Compiling num v0.4.3
+   Compiling idna_adapter v1.2.2
+   Compiling lock_api v0.4.14
+   Compiling futures-channel v0.3.34
+   Compiling siphasher v1.0.3
+   Compiling multiversion_no_op v1.0.0
+   Compiling simdutf8 v0.1.5
+   Compiling bit-vec v0.8.0
+   Compiling borrow-or-share v0.2.4
+   Compiling heck v0.5.0
+   Compiling unicode-general-category v1.1.0
+   Compiling strum_macros v0.28.0
+   Compiling bit-set v0.8.0
+   Compiling fluent-uri v0.4.1
+   Compiling phf_shared v0.12.1
+   Compiling hyper v1.11.1
+   Compiling parking_lot v0.12.5
+   Compiling idna v1.1.0
+   Compiling fraction v0.17.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling form_urlencoded v1.2.2
+   Compiling sync_wrapper v1.0.2
+   Compiling serde_derive_internals v0.30.0
+   Compiling thiserror v2.0.21
+   Compiling outref v0.5.2
+   Compiling micromap v0.3.0
+   Compiling openssl-probe v0.2.1
+   Compiling unicode-width v0.2.2
+   Compiling bytecount v0.6.9
+   Compiling base64 v0.22.1
+   Compiling num-cmp v0.1.0
+   Compiling arraydeque v0.5.1
+   Compiling base64 v0.23.1
+   Compiling chrono-tz v0.10.4
+   Compiling tower-layer v0.3.3
+   Compiling ipnet v2.12.2
+   Compiling vsimd v0.8.0
+   Compiling anstyle v1.0.14
+   Compiling uuid-simd v0.8.0
+   Compiling annotate-snippets v0.12.16
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling granit-parser v1.3.0
+   Compiling schemars_derive v1.2.2
+   Compiling jsonschema-value v0.57.0
+   Compiling rustls-native-certs v0.8.4
+   Compiling referencing v0.57.0
+   Compiling url v2.5.8
+   Compiling digest v0.10.7
+   Compiling encoding_rs_io v0.1.8
+   Compiling strum v0.28.0
+   Compiling phf v0.12.1
+   Compiling fancy-regex v0.19.2
+   Compiling regex v1.13.1
+   Compiling jsonschema-regex v0.57.0
+   Compiling email_address v0.2.9
+   Compiling thiserror-impl v2.0.21
+   Compiling utoipa-gen v6.0.0
+   Compiling chrono v0.4.45
+   Compiling cpufeatures v0.2.17
+   Compiling data-encoding v2.11.1
+   Compiling bitflags v2.13.2
+   Compiling nohash-hasher v0.2.0
+   Compiling dyn-clone v1.0.20
+   Compiling log v0.4.34
+   Compiling schemars v1.2.2
+   Compiling tower-http v0.6.11
+   Compiling serde-saphyr v1.3.0
+   Compiling utoipa v6.0.0
+   Compiling jsonschema v0.57.0
+   Compiling sha2 v0.10.9
+   Compiling http-body-util v0.1.5
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling rustls-webpki v0.103.15
+   Compiling tokio-rustls v0.26.5
+   Compiling rustls-platform-verifier v0.7.0
+   Compiling hyper-rustls v0.27.10
+   Compiling reqwest v0.13.5
+   Compiling oo-sdk v0.1.0 (/src/crates/oo-sdk)
+   Compiling oo-cli v0.1.0 (/src/crates/oo-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.68s
+     Running unittests src/lib.rs (/target/debug/deps/oo_cli-8764fa67da315643)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/oo.rs (/target/debug/deps/oo-759891b8762c4938)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/query.rs (/target/debug/deps/query-0ad558f8e2fa2e47)
+
+running 9 tests
+test invalid_bytes_and_stdin_sql_do_not_block ... ok
+test limits_file_stdin_and_dash_sql_match_the_wire ... ok
+test gateway_status_retry_and_privacy ... ok
+test renders_sdk_fixtures_and_independent_bytes ... ok
+test sandbox_and_missing_auth_do_not_read_or_connect ... ok
+test help_and_usage_open_no_socket ... ok
+test protocol_transport_proxy_redirect_and_tls ... ok
+test token_and_sql_files_fail_before_connect ... ok
+test broken_pipe_reports_delivery_failure_without_retry ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.09s
+
+   Doc-tests oo_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -11,7 +11,7 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::io::AsyncWriteExt;
 
@@ -1695,4 +1695,243 @@ async fn broken_pipe_reports_delivery_failure_without_retry() {
         assert_secret_free(&outcome.stderr, &[]);
         assert_eq!(oracle.hits().len(), 1, "json={json}");
     }
+}
+
+fn make_fifo(path: &Path) {
+    assert!(
+        Command::new("mkfifo")
+            .arg(path)
+            .status()
+            .expect("mkfifo")
+            .success()
+    );
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+}
+
+/// Holds a writer open before `oo` starts.
+///
+/// `O_RDWR` on Linux returns without a peer, so the FIFO already has a writer
+/// when the child opens it. A blocking write-only open started in parallel can
+/// miss a nonblocking read open and then wait forever.
+fn hold_writer(path: &Path) -> std::fs::File {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let owned = path.to_path_buf();
+    std::thread::spawn(move || {
+        let opened = std::fs::OpenOptions::new().read(true).write(true).open(owned);
+        let _ = tx.send(opened);
+    });
+    rx.recv_timeout(Duration::from_millis(500))
+        .expect("writer open waited")
+        .expect("writer fd")
+}
+
+fn write_mode(path: &Path, bytes: &[u8], mode: u32) {
+    std::fs::write(path, bytes).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+
+async fn reject_fast(scratch: &Scratch, door: &Door, argv: Vec<String>, code: i32, needle: &str) {
+    let started = Instant::now();
+    let mut spec = Spec::new(scratch, argv);
+    spec.timeout = Duration::from_millis(1200);
+    let outcome = finish(scratch, spec, Some(door)).await;
+    assert!(
+        outcome.signal.is_none(),
+        "killed child is not a pass, signal {:?}",
+        outcome.signal
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(1100),
+        "open waited on a peer or on --timeout-ms"
+    );
+    assert_eq!(
+        outcome.code,
+        code,
+        "{}",
+        String::from_utf8_lossy(&outcome.stderr)
+    );
+    assert!(outcome.stdout.is_empty());
+    let shown = String::from_utf8_lossy(&outcome.stderr);
+    assert!(shown.contains(needle), "{needle} in {shown}");
+    assert_eq!(door.hits(), 0);
+}
+
+fn fifo_argv(scratch: &Scratch, url: &str, flag: &str, path: &Path, sql_on_cli: bool) -> Vec<String> {
+    let mut argv = vec![
+        "query".to_owned(),
+        "--auth".to_owned(),
+        "external".to_owned(),
+        "--token-file".to_owned(),
+        scratch.token_path.display().to_string(),
+        "--gateway".to_owned(),
+        url.to_owned(),
+        "--transport".to_owned(),
+        "local-development".to_owned(),
+        "--timeout-ms".to_owned(),
+        "120000".to_owned(),
+    ];
+    if flag == "--token-file" {
+        let pos = argv.iter().position(|item| item == "--token-file").unwrap();
+        argv[pos + 1] = path.display().to_string();
+        argv.push("select 1".to_owned());
+    } else if sql_on_cli {
+        argv.push(flag.to_owned());
+        argv.push(path.display().to_string());
+        argv.push("select 1".to_owned());
+    } else {
+        argv.push(flag.to_owned());
+        argv.push(path.display().to_string());
+    }
+    argv
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn fifo_opens_do_not_wait_for_a_peer() {
+    let scratch = Scratch::new();
+    let door = Door::open();
+    let url = door.url();
+    let cases = [
+        ("token-peerless", "--token-file", true, 4, "token file rejected: not-file"),
+        ("sql-peerless", "-f", false, 1, "sql file rejected: not-file"),
+        ("ca-peerless", "--ca-file", true, 1, "ca file rejected: not-file"),
+    ];
+    for (name, flag, sql_on_cli, code, needle) in cases {
+        let fifo = scratch.dir.join(name);
+        make_fifo(&fifo);
+        reject_fast(
+            &scratch,
+            &door,
+            fifo_argv(&scratch, &url, flag, &fifo, sql_on_cli),
+            code,
+            needle,
+        )
+        .await;
+    }
+    for (name, flag, sql_on_cli, code, needle) in [
+        ("token-writer", "--token-file", true, 4, "token file rejected: not-file"),
+        ("sql-writer", "-f", false, 1, "sql file rejected: not-file"),
+        ("ca-writer", "--ca-file", true, 1, "ca file rejected: not-file"),
+    ] {
+        let fifo = scratch.dir.join(name);
+        make_fifo(&fifo);
+        let holder = hold_writer(&fifo);
+        reject_fast(
+            &scratch,
+            &door,
+            fifo_argv(&scratch, &url, flag, &fifo, sql_on_cli),
+            code,
+            needle,
+        )
+        .await;
+        drop(holder);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn file_bounds_and_links_stay() {
+    let scratch = Scratch::new();
+    let door = Door::open();
+    let url = door.url();
+
+    let dangling = scratch.dir.join("dangling-token");
+    symlink(scratch.dir.join("missing-token-target"), &dangling).unwrap();
+    reject_fast(
+        &scratch,
+        &door,
+        replace_token(&scratch, &url, &dangling),
+        4,
+        "token file rejected: symlink",
+    )
+    .await;
+
+    let over = scratch.dir.join("token-4098");
+    write_mode(&over, &[b'A'; 4098], 0o600);
+    reject_fast(
+        &scratch,
+        &door,
+        replace_token(&scratch, &url, &over),
+        4,
+        "token file rejected: budget",
+    )
+    .await;
+
+    let hard = scratch.dir.join("token-hard");
+    std::fs::hard_link(&scratch.token_path, &hard).unwrap();
+    let oracle = Oracle::spawn({
+        let payload = json_response(200, "OK", EMPTY, &[]);
+        move |_, _| Action::Raw(payload.clone())
+    })
+    .await;
+    let outcome = finish(
+        &scratch,
+        Spec::new(&scratch, replace_token(&scratch, &oracle.origin(), &hard)),
+        None,
+    )
+    .await;
+    assert_eq!(outcome.code, 0, "{}", String::from_utf8_lossy(&outcome.stderr));
+    assert!(outcome.signal.is_none());
+    assert_eq!(oracle.hits().len(), 1);
+    assert_query(&oracle.hits()[0], "select 1", None, None);
+
+    for (name, extra_nl) in [("token-4096", false), ("token-4096-nl", true)] {
+        let mut bytes = vec![b'A'; 4096];
+        if extra_nl {
+            bytes.push(b'\n');
+        }
+        let path = scratch.dir.join(name);
+        write_mode(&path, &bytes, 0o600);
+        let oracle = Oracle::spawn({
+            let payload = json_response(200, "OK", EMPTY, &[]);
+            move |_, _| Action::Raw(payload.clone())
+        })
+        .await;
+        let outcome = finish(
+            &scratch,
+            Spec::new(&scratch, replace_token(&scratch, &oracle.origin(), &path)),
+            None,
+        )
+        .await;
+        assert_eq!(
+            outcome.code,
+            0,
+            "{name} {}",
+            String::from_utf8_lossy(&outcome.stderr)
+        );
+        assert!(outcome.signal.is_none());
+        let bearer = format!("Bearer {}", "A".repeat(4096));
+        assert_eq!(oracle.hits().len(), 1, "{name}");
+        assert_eq!(
+            oracle.hits()[0].one("authorization"),
+            Some(bearer.as_str()),
+            "{name}"
+        );
+    }
+
+    let sql_path = scratch.dir.join("sql-65536");
+    let sql = vec![b'a'; 65_536];
+    std::fs::write(&sql_path, &sql).unwrap();
+    let oracle = Oracle::spawn({
+        let payload = json_response(200, "OK", EMPTY, &[]);
+        move |_, _| Action::Raw(payload.clone())
+    })
+    .await;
+    let outcome = finish(
+        &scratch,
+        Spec::new(
+            &scratch,
+            args(
+                &scratch,
+                &oracle.origin(),
+                "local-development",
+                &["-f", sql_path.to_str().unwrap()],
+            ),
+        ),
+        None,
+    )
+    .await;
+    assert_eq!(outcome.code, 0, "{}", String::from_utf8_lossy(&outcome.stderr));
+    assert!(outcome.signal.is_none());
+    assert_eq!(oracle.hits().len(), 1);
+    let text = std::str::from_utf8(&sql).unwrap();
+    assert_eq!(oracle.hits()[0].body, canonical_request(text, None, None));
 }
