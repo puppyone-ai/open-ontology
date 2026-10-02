@@ -715,3 +715,7 @@ a104新UUID实际启动handle88639，v01-target-segment-preflight-version.md。�
 a098handle61045实际exit0但未REPORT/HANDOFF/fixedcommit，立即原UUIDresume handle73022。续接卡明确先读取已启动verifier终态，禁止盲目增加builder；生产实际Arrow RecordBatch及Rust决定oracle是原任务范围，不以isolatedprobe/Python草稿缩小验收。root/connector写权继续a098。a102jobs91030与a103CLI固定复审93875本轮单次有界核验仍live，不按超时重启。reader/apply继续待真实依赖签收。
 
 指标保持7交付组件/7产品验收子项/首次复审返工4比6；a099是同功能返工不新增分母。完整87父项/16Phase仍0完成，goal active。To-do与Plan目标子项更新为request_changes并明确下一工作，不新增完成勾选。
+
+## 租约与版本化迁移固定复审准备卡
+
+新增v01-jobs-lease-fixed-review-prepared.md与v01-target-segment-preflight-fixed-review-prepared.md，仅准备未派发、无UUID/写权/完成计数。前者独立LOGIN/DBclock/CAS/真实100claim并发/事件原子性/重启/旧历史与旧grant限制；后者验证不可变旧SQL、从v1直接安装与既有v2升级的真实路线、缺表OO002、NULL/rollback/receipt不变及外部hash就绪。只在各作者实际终态和完整固定交付后激活，避免对变化工作区复审或让作者自签。
