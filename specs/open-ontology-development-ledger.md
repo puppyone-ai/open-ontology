@@ -131,7 +131,7 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108固定复审已启动；旧SQL/contract保持，v1直接修正版与既有v2升级、OO002/合法历史待独立验收。Loader driver、控制镜像和ACK/TRIM另验。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108已实际exit0并提交preflight限定approve，协调者正在接收原始证据；完整fence与Loader driver、控制镜像和ACK/TRIM仍未验收。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
@@ -185,7 +185,7 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
-  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；token/SQL/CA三种peerless FIFO卡open，a106定点修复卡已准备待builder槽；沙盒proxy/管理命令/完整对话另验。
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；token/SQL/CA三种peerless FIFO卡open，a106定点修复已启动，独占释放的builder槽B；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -751,3 +751,9 @@ a103固定3347f5a独立request-changes，真实117cases/110proved/3failed/4unver
 本轮a11032339与a10887537实际有界核验仍live，不重启/不释放builder槽，CLI106/jobs107/helper109仍prepared。独立协调动作：逐个核验a098 e45基线exited101容器、空network和两volume的owner/run/scope标签，以及a104两缓存卷的完整UUID/run标签。a098基线console已tracked，SHA702132e9cd2be4a0105ac8ae8b4d9cb5f32dfd711ee606d54f551ee6343d3d76核验，原101/phase文件保留。只按具体ID/name删除这六Docker对象，rm/network/volume实际exit0，后exactinspect均不存在（预期合并exit1）。记录execution/decisions/a098-a104-retained-docker-cleanup.md，不删除作者旧报告、baseline tmp或用户文件，不prune/动镜像/外来资源。
 
 仅收敛已结束任务的资源残留，不补造a104被覆盖首轮stdout，不签类型零源写/扫描，也不新增功能或勾选。9产品组件/7验收子项/首次返工5比7、87完整父项/16Phase仍0完成，goal active。
+
+### a108终态接收与a106构建槽交接
+
+a108原handle87537实际exit0，关闭后不再轮询。固定6cd955a/tree463bbf6/parent3ca5357的review/HANDOFF已读；报告限定approve version3 preflight，决定run06f2ff6d的summary154PASS/fails0、worst/docker0已读。生产src不调用test route，旧0002缺relation死路径42P01仍RED，作者首轮失败stdout缺失仍明确，F2/F3/F5及完整SP04/AT/Loader/发行未签。完整findings与逐项raw/hashes接收尚未完成，本条不新增验收计数或勾选。两保留a108卷仍属a108，不授予其他任务清理或复用。
+
+a110handle32339本轮实际有界核验仍live，保留builder槽A。槽B明确从已终态a108释放并移交a106 CLI FIFO修复，完整prepared卡加activation绑定HEAD647387/tree3f374c1/parentfcb59dd。实际派发Grok4.7xhigh，handle39012；仅CLI指定文件与自身证据写权，无manifest/rootlock授权，无PGfixture，globalmax2包括host/tool安装。即刻原固定CLI RED到修正版真实spawn/Linux1.94局部验证，完成后独立复审。jobs107/helper109仍prepared。产品9交付组件/7验收子项/首次返工5比7、完整87父项/16Phase仍0完成，goal active。
