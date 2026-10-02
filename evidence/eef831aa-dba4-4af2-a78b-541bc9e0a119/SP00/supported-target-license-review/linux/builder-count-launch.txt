@@ -1,0 +1,2 @@
+host_rust_comm=0
+running_rust_containers=0

@@ -1,0 +1,27 @@
+2026-10-02T22:48:47Z register expected and probe bytes
+2026-10-02T22:48:47Z capacity before
+2026-10-02T22:48:47Z extract archive
+2026-10-02T22:48:48Z create network and volumes
+2026-10-02T22:48:48Z capacity launch
+2026-10-02T22:48:48Z start container
+2026-10-02T22:48:49Z exec inside
+2026-10-02T22:48:49Z FAILED inside exit=1
+FAILED exit=1
+2026-10-02T22:50:21Z register expected and probe bytes
+2026-10-02T22:50:21Z capacity before
+2026-10-02T22:50:21Z extract archive
+2026-10-02T22:50:23Z create network and volumes
+2026-10-02T22:50:23Z capacity launch
+2026-10-02T22:50:23Z start container
+2026-10-02T22:50:23Z exec inside
+2026-10-02T22:50:23Z FAILED inside exit=1
+FAILED exit=1
+2026-10-02T22:51:29Z register expected and probe bytes
+2026-10-02T22:51:29Z capacity before
+2026-10-02T22:51:29Z extract archive
+2026-10-02T22:51:30Z create network and volumes
+2026-10-02T22:51:30Z capacity launch
+2026-10-02T22:51:31Z start container
+2026-10-02T22:51:31Z exec inside
+2026-10-02T22:53:14Z inside finished
+DONE

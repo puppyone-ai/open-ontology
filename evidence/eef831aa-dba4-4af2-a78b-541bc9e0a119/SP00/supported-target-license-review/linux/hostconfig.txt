@@ -1,0 +1,1 @@
+Privileged=false CapDrop=["ALL"] SecurityOpt=["no-new-privileges"] NetworkMode=oo-a119-deabd858-3636-4039-9416-55f9510ef2d8-net Memory=8589934592 MemorySwap=8589934592 NanoCpus=4000000000 PidsLimit=4096

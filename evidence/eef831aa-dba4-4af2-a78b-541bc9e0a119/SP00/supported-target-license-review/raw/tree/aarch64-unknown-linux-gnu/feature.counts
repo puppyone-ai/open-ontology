@@ -1,0 +1,12 @@
+compile-time-rng	0
+runtime-rng	2
+tiny-keccak	0
+webpki-root-certs	0
+rustls-native-certs	2
+const-random	0
+const-random-macro	0
+arrow-array	2
+core_detect	0
+multiversion	2
+multiversion-macros	0
+rustversion	2

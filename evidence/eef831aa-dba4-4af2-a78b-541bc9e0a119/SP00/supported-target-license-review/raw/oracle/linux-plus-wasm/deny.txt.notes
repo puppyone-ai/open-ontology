@@ -1,0 +1,14 @@
+filtered_count=52
+kept_count=272
+gathered=272
+count_match=true
+marker	tiny-keccak	kept
+marker	webpki-root-certs	kept
+marker	const-random	kept
+marker	const-random-macro	kept
+marker	core_detect	kept
+marker	multiversion	kept
+marker	multiversion-macros	kept
+marker	rustversion	kept
+marker	arrow-array	kept
+marker	rustls-native-certs	kept

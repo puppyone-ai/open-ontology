@@ -1,0 +1,1 @@
+cargo deny --log-level debug --config /src/ci/deny.toml --locked check

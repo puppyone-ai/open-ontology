@@ -1,0 +1,1 @@
+cargo deny --log-level debug --config /evidence/controls/unfiltered.toml --locked check

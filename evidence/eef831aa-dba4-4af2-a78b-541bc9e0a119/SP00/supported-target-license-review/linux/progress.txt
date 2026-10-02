@@ -1,0 +1,68 @@
+2026-10-02T22:51:31Z smoke begin
+2026-10-02T22:51:31Z probe rustc exit=0
+2026-10-02T22:51:31Z probe self-test exit=0
+2026-10-02T22:51:31Z smoke ok host=aarch64-unknown-linux-gnu release=1.94.0
+2026-10-02T22:51:31Z install cargo-deny 0.20.2
+2026-10-02T22:52:45Z install exit=0
+2026-10-02T22:52:45Z cargo deny version exit=0
+2026-10-02T22:52:45Z fetch locked
+2026-10-02T22:52:49Z fetch exit=0
+2026-10-02T22:52:49Z deny canonical exact begin
+2026-10-02T22:52:50Z deny canonical exit=0
+2026-10-02T22:52:50Z deny canonical-debug debug begin
+2026-10-02T22:52:55Z deny canonical-debug exit=0
+2026-10-02T22:52:55Z deny aarch64-only debug begin
+2026-10-02T22:52:59Z deny aarch64-only exit=0
+2026-10-02T22:52:59Z deny x86_64-only debug begin
+2026-10-02T22:53:02Z deny x86_64-only exit=0
+2026-10-02T22:53:02Z deny linux-plus-wasm debug begin
+2026-10-02T22:53:06Z deny linux-plus-wasm exit=4
+2026-10-02T22:53:06Z deny unfiltered debug begin
+2026-10-02T22:53:12Z deny unfiltered exit=4
+2026-10-02T22:53:12Z advisory identity
+2026-10-02T22:53:12Z advisory found=1
+2026-10-02T22:53:12Z metadata unfiltered begin
+2026-10-02T22:53:12Z metadata unfiltered exit=0
+2026-10-02T22:53:12Z metadata aarch64-unknown-linux-gnu begin
+2026-10-02T22:53:12Z metadata aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:53:12Z metadata x86_64-unknown-linux-gnu begin
+2026-10-02T22:53:12Z metadata x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:53:12Z metadata wasm32-unknown-unknown begin
+2026-10-02T22:53:12Z metadata wasm32-unknown-unknown exit=0
+2026-10-02T22:53:12Z tree aarch64-unknown-linux-gnu begin
+2026-10-02T22:53:12Z tree normal aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:53:12Z tree features aarch64-unknown-linux-gnu exit=0
+2026-10-02T22:53:12Z tree x86_64-unknown-linux-gnu begin
+2026-10-02T22:53:12Z tree normal x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:53:13Z tree features x86_64-unknown-linux-gnu exit=0
+2026-10-02T22:53:13Z tree wasm32-unknown-unknown begin
+2026-10-02T22:53:13Z tree normal wasm32-unknown-unknown exit=0
+2026-10-02T22:53:13Z tree features wasm32-unknown-unknown exit=0
+2026-10-02T22:53:13Z tree all-target begin
+2026-10-02T22:53:13Z tree normal all-target exit=0
+2026-10-02T22:53:13Z tree features all-target exit=0
+2026-10-02T22:53:14Z oracle canonical begin
+2026-10-02T22:53:14Z oracle eval canonical exit=0
+2026-10-02T22:53:14Z oracle subtract canonical exit=0
+2026-10-02T22:53:14Z oracle diff canonical exit=1
+2026-10-02T22:53:14Z oracle aarch64-only begin
+2026-10-02T22:53:14Z oracle eval aarch64-only exit=0
+2026-10-02T22:53:14Z oracle subtract aarch64-only exit=0
+2026-10-02T22:53:14Z oracle diff aarch64-only exit=1
+2026-10-02T22:53:14Z oracle aarch64-from-unfiltered begin
+2026-10-02T22:53:14Z oracle eval aarch64-from-unfiltered exit=0
+2026-10-02T22:53:14Z oracle x86_64-only begin
+2026-10-02T22:53:14Z oracle eval x86_64-only exit=0
+2026-10-02T22:53:14Z oracle subtract x86_64-only exit=0
+2026-10-02T22:53:14Z oracle diff x86_64-only exit=1
+2026-10-02T22:53:14Z oracle linux-plus-wasm begin
+2026-10-02T22:53:14Z oracle eval linux-plus-wasm exit=0
+2026-10-02T22:53:14Z oracle subtract linux-plus-wasm exit=0
+2026-10-02T22:53:14Z oracle diff linux-plus-wasm exit=1
+2026-10-02T22:53:14Z oracle unfiltered begin
+2026-10-02T22:53:14Z oracle eval unfiltered exit=0
+2026-10-02T22:53:14Z oracle subtract unfiltered exit=0
+2026-10-02T22:53:14Z oracle diff unfiltered exit=1
+2026-10-02T22:53:14Z oracle wasm-metadata begin
+2026-10-02T22:53:14Z oracle eval wasm-metadata exit=0
+2026-10-02T22:53:14Z inside done
