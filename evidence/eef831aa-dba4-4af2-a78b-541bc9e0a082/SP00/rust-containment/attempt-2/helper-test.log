@@ -1,0 +1,54 @@
+   Compiling cfg_aliases v0.2.2
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.5
+   Compiling bitflags v2.13.2
+   Compiling nix v0.31.3
+   Compiling containment-supervisor v0.1.0 (/src/testing/harness/containment-supervisor)
+warning: field `dir` is never read
+  --> tests/branches.rs:28:9
+   |
+25 |     struct Outcome {
+   |            ------- field in this struct
+...
+28 |         dir: PathBuf,
+   |         ^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `containment-supervisor` (test "branches") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.09s
+     Running unittests src/lib.rs (/target/debug/deps/containment_supervisor-abc624b92fd3307b)
+
+running 3 tests
+test tests::notes_reject_newlines_and_spaces ... ok
+test tests::one_echild_does_not_settle_and_a_child_resets ... ok
+test tests::stat_parser_uses_the_last_paren_and_rejects_a_short_line ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/containment_supervisor-3b968e084bae0677)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/branches.rs (/target/debug/deps/branches-7a763df6d0b3d10b)
+
+running 8 tests
+test linux::fork_chain_is_gone ... ok
+test linux::immediate_setsid_double_fork_is_gone ... ok
+test linux::exact_output_seals_and_one_extra_byte_stops_the_file ... ok
+test linux::protocol_malformed_does_not_spawn ... ok
+test linux::held_stdout_does_not_grow_after_return ... ok
+test linux::held_stderr_does_not_grow_after_return ... ok
+test linux::recorded_setsid_double_fork_is_gone ... ok
+test linux::timeout_reaps_the_payload_and_returns_bounded ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+   Doc-tests containment_supervisor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

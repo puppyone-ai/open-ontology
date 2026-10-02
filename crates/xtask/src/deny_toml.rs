@@ -449,6 +449,7 @@ impl<'a> Parser<'a> {
 pub const REVIEWED_LICENSES: &[&str] = &[
     "Apache-2.0",
     "BSD-3-Clause",
+    "ISC",
     "MIT",
     "MIT-0",
     "Unicode-3.0",
@@ -768,7 +769,7 @@ mod tests {
 
     #[test]
     fn exception_and_low_confidence_fail() {
-        let text = "[licenses]\nconfidence-threshold = 0.0\nallow = [\"Apache-2.0\", \"MIT\", \"BSD-3-Clause\", \"Unicode-3.0\", \"Zlib\", \"Unlicense\", \"MIT-0\"]\nexceptions = [{ allow = [\"Unlicense\"] }]\n[advisories]\nignore = [\"RUSTSEC-0000-0000\"]\n";
+        let text = "[licenses]\nconfidence-threshold = 0.0\nallow = [\"Apache-2.0\", \"MIT\", \"ISC\", \"BSD-3-Clause\", \"Unicode-3.0\", \"Zlib\", \"Unlicense\", \"MIT-0\"]\nexceptions = [{ allow = [\"Unlicense\"] }]\n[advisories]\nignore = [\"RUSTSEC-0000-0000\"]\n";
         let issues = deny_policy_issues(text);
         assert!(issues.iter().any(|issue| issue.code == "supply.exception"));
         assert!(issues.iter().any(|issue| issue.code == "supply.confidence"));

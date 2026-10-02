@@ -1,0 +1,7 @@
+   Compiling libc v0.2.189
+   Compiling cfg_aliases v0.2.2
+   Compiling bitflags v2.13.2
+   Compiling cfg-if v1.0.5
+   Compiling nix v0.31.3
+   Compiling containment-supervisor v0.1.0 (/src/testing/harness/containment-supervisor)
+    Finished `release` profile [optimized] target(s) in 1.12s

@@ -1,0 +1,6 @@
+    Checking libc v0.2.189
+    Checking cfg-if v1.0.5
+    Checking bitflags v2.13.2
+    Checking nix v0.31.3
+    Checking containment-supervisor v0.1.0 (/src/testing/harness/containment-supervisor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s

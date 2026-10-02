@@ -709,6 +709,7 @@ fn trim_ascii(bytes: &[u8]) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::fs::MetadataExt;
     use std::process::Command;
     use std::time::Instant;
 
@@ -1262,9 +1263,13 @@ exit 0\n",
         let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
         let pid = recorded.trim().parse::<u32>().unwrap_or(0);
         let state_at_return = process_state(pid);
-        let size_at = fs::metadata(&side).map(|meta| meta.len()).unwrap_or(0);
+        let before = fs::metadata(&side).ok();
+        let size_at = before.as_ref().map(|meta| meta.len()).unwrap_or(0);
+        let inode_at = before.as_ref().map(|meta| meta.ino());
         std::thread::sleep(Duration::from_millis(300));
-        let size_after = fs::metadata(&side).map(|meta| meta.len()).unwrap_or(0);
+        let after = fs::metadata(&side).ok();
+        let size_after = after.as_ref().map(|meta| meta.len()).unwrap_or(0);
+        let inode_after = after.as_ref().map(|meta| meta.ino());
         let gone = wait_until_gone(pid);
         if pid > 1 {
             let _ = Command::new("/bin/kill")
@@ -1282,6 +1287,7 @@ exit 0\n",
             assert!(state_at_return.is_none(), "{state_at_return:?}");
             assert!(gone, "writer survived");
             assert_eq!(size_at, size_after, "side file grew after return");
+            assert_eq!(inode_at, inode_after, "side file inode changed after return");
             assert!(executed.stdout().len() <= OUTPUT_LIMIT_BYTES);
         } else {
             assert_refused(&executed);
@@ -1433,5 +1439,258 @@ exit 0\n",
             std::thread::sleep(Duration::from_millis(40));
         }
         process_state(pid).is_none()
+    }
+
+    fn linux_starttime(pid: u32) -> Option<u64> {
+        if pid <= 1 {
+            return None;
+        }
+        let text = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        let close = text.rfind(')')?;
+        text[close + 1..]
+            .split_whitespace()
+            .nth(19)
+            .and_then(|field| field.parse().ok())
+    }
+
+    fn assert_foreign_identity(pid: u32, start: Option<u64>) {
+        if !cfg!(target_os = "linux") {
+            return;
+        }
+        assert!(start.is_some(), "foreign pid {pid} had no starttime");
+        assert_eq!(
+            linux_starttime(pid),
+            start,
+            "foreign pid {pid} changed starttime"
+        );
+    }
+
+    fn recorded_pid_and_start(text: &str) -> (u32, Option<u64>) {
+        let mut lines = text.lines();
+        let pid = lines.next().unwrap_or("").trim().parse().unwrap_or(0);
+        let stat = lines.next().unwrap_or("");
+        let start = stat.rfind(')').and_then(|close| {
+            stat[close + 1..]
+                .split_whitespace()
+                .nth(19)
+                .and_then(|field| field.parse().ok())
+        });
+        (pid, start)
+    }
+
+    fn descendant_is_gone(pid: u32, start: Option<u64>) {
+        if !cfg!(target_os = "linux") || pid <= 1 {
+            return;
+        }
+        match (linux_starttime(pid), start) {
+            (None, _) => {}
+            (Some(now), Some(then)) => assert_ne!(now, then, "pid {pid} kept starttime {then}"),
+            (Some(now), None) => panic!("pid {pid} is alive at starttime {now}"),
+        }
+    }
+
+    #[test]
+    fn fork_chain_is_reaped_and_a_foreign_sleep_keeps_its_starttime() {
+        let mut foreign = Command::new("/bin/sleep")
+            .arg("30")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("foreign sleep");
+        let foreign_pid = foreign.id();
+        let foreign_start = linux_starttime(foreign_pid);
+        let root = std::env::temp_dir().join(format!(
+            "oo-a082-chain-{}-{}",
+            std::process::id(),
+            foreign_pid
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let pid_path = root.join("leaf.pid");
+        let script = root.join("chain.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\n\
+pidfile=$1\n\
+depth=$2\n\
+if [ \"$depth\" -eq 0 ]; then\n\
+  /bin/sleep 121 >/dev/null 2>&1 &\n\
+  echo $! > \"$pidfile\"\n\
+  cat /proc/$!/stat >> \"$pidfile\"\n\
+  exit 0\n\
+fi\n\
+/bin/sh \"$0\" \"$pidfile\" $((depth - 1)) >/dev/null 2>&1 &\n\
+if [ \"$depth\" -eq 3 ]; then\n\
+  i=0\n\
+  while [ ! -s \"$pidfile\" ] && [ \"$i\" -lt 200 ]; do i=$((i+1)); sleep 0.01; done\n\
+fi\n\
+exit 0\n",
+        )
+        .unwrap();
+        let started = Instant::now();
+        let executed = execute_command(
+            &root,
+            &[
+                "/bin/sh".to_owned(),
+                script.display().to_string(),
+                pid_path.display().to_string(),
+                "3".to_owned(),
+            ],
+            Duration::from_secs(5),
+            "gate-docs",
+            "j".repeat(40).as_str(),
+        );
+        let elapsed = started.elapsed();
+        let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+        let (pid, start) = recorded_pid_and_start(&recorded);
+        if cfg!(target_os = "linux") {
+            assert!(elapsed < Duration::from_secs(8), "{elapsed:?}");
+            assert_eq!(executed.containment(), crate::containment::VERIFIED);
+            assert!(executed.spawned());
+            assert!(!executed.cleanup_incomplete(), "{recorded}");
+            assert!(pid > 1 && start.is_some(), "{recorded}");
+            descendant_is_gone(pid, start);
+        } else {
+            assert_refused(&executed);
+            assert!(recorded.trim().is_empty(), "{recorded}");
+        }
+        assert_foreign_identity(foreign_pid, foreign_start);
+        let _ = foreign.kill();
+        let _ = foreign.wait();
+        if pid > 1 {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn held_stderr_cannot_grow_after_return() {
+        let mut foreign = Command::new("/bin/sleep")
+            .arg("30")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("foreign sleep");
+        let foreign_pid = foreign.id();
+        let foreign_start = linux_starttime(foreign_pid);
+        let root = std::env::temp_dir().join(format!("oo-a082-holderr-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let side = root.join("side.bin");
+        let pid_path = root.join("writer.pid");
+        let script = root.join("hold.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\n\
+side=$1\npidfile=$2\n\
+if [ -x /usr/bin/setsid ]; then SETSID=/usr/bin/setsid;\n\
+elif [ -x /bin/setsid ]; then SETSID=/bin/setsid;\n\
+else echo NO_SETSID > \"$pidfile\"; exit 9; fi\n\
+\"$SETSID\" /bin/sh -c 'printf x > \"$1\"; echo $$ > \"$2\"; cat /proc/$$/stat >> \"$2\"; while true; do printf x >> \"$1\"; printf y >&2; done' _ \"$side\" \"$pidfile\" >/dev/null 2>&1 &\n\
+i=0\n\
+while [ ! -s \"$pidfile\" ] && [ \"$i\" -lt 200 ]; do i=$((i+1)); sleep 0.01; done\n\
+exit 0\n",
+        )
+        .unwrap();
+        let executed = execute_command(
+            &root,
+            &[
+                "/bin/sh".to_owned(),
+                script.display().to_string(),
+                side.display().to_string(),
+                pid_path.display().to_string(),
+            ],
+            Duration::from_secs(5),
+            "gate-docs",
+            "k".repeat(40).as_str(),
+        );
+        let recorded = fs::read_to_string(&pid_path).unwrap_or_default();
+        let (pid, start) = recorded_pid_and_start(&recorded);
+        let capture_note = executed.containment_note().to_owned();
+        if cfg!(target_os = "linux") {
+            assert_eq!(executed.containment(), crate::containment::VERIFIED, "{capture_note}");
+            assert!(executed.spawned());
+            assert!(!executed.cleanup_incomplete(), "{capture_note} {recorded}");
+            assert!(!recorded.contains("NO_SETSID"), "{recorded}");
+            assert!(pid > 1 && start.is_some(), "{recorded}");
+            descendant_is_gone(pid, start);
+            assert!(executed.stderr().len() <= OUTPUT_LIMIT_BYTES);
+        } else {
+            assert_refused(&executed);
+            assert!(recorded.trim().is_empty(), "{recorded}");
+        }
+        let side_before = fs::metadata(&side).ok();
+        std::thread::sleep(Duration::from_millis(300));
+        let side_after = fs::metadata(&side).ok();
+        if cfg!(target_os = "linux") {
+            assert!(
+                side_before.as_ref().is_some_and(|meta| meta.len() > 0),
+                "stderr side file was not written"
+            );
+        }
+        assert_eq!(
+            side_before.as_ref().map(|meta| (meta.len(), meta.ino())),
+            side_after.as_ref().map(|meta| (meta.len(), meta.ino())),
+            "stderr side file changed after return"
+        );
+        assert_foreign_identity(foreign_pid, foreign_start);
+        let _ = foreign.kill();
+        let _ = foreign.wait();
+        if pid > 1 {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn malformed_helper_protocol_does_not_spawn_or_touch_a_foreign_sleep() {
+        if !cfg!(target_os = "linux") {
+            return;
+        }
+        let mut foreign = Command::new("/bin/sleep")
+            .arg("30")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("foreign sleep");
+        let foreign_pid = foreign.id();
+        let foreign_start = linux_starttime(foreign_pid);
+        let helper = crate::containment::artifact_path();
+        let root = std::env::temp_dir().join(format!("oo-a082-proto-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let started = Instant::now();
+        let output = Command::new(&helper)
+            .arg(root.join("status"))
+            .arg(root.join("stdout"))
+            .arg(root.join("stderr"))
+            .arg("0")
+            .arg("--")
+            .arg("/bin/sleep")
+            .arg("30")
+            .stdin(Stdio::null())
+            .output()
+            .expect("pinned helper");
+        assert!(started.elapsed() < Duration::from_secs(3));
+        assert_eq!(output.status.code(), Some(82), "{output:?}");
+        let status = fs::read_to_string(root.join("status")).unwrap_or_default();
+        assert!(status.contains("note=protocol-malformed\n"), "{status}");
+        assert!(status.contains("spawned=0\n"), "{status}");
+        assert!(status.contains("containment=unavailable\n"), "{status}");
+        assert_foreign_identity(foreign_pid, foreign_start);
+        let _ = foreign.kill();
+        let _ = foreign.wait();
+        let _ = fs::remove_dir_all(&root);
     }
 }

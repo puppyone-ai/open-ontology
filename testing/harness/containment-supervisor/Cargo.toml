@@ -1,0 +1,25 @@
+[package]
+name = "containment-supervisor"
+description = "Prebuilt per-command Linux subreaper for the xtask harness. Not a product service."
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.94.0"
+
+# Own workspace root so this crate is not pulled into the product workspace
+# and the root manifest stays untouched.
+[workspace]
+resolver = "3"
+
+[dependencies]
+nix = { version = "=0.31.3", default-features = false, features = ["signal"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

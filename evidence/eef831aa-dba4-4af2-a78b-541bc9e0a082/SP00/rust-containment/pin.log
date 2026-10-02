@@ -1,0 +1,20 @@
+digest=9b1634250ba601a24eb8b72fa4af947e9504b4e92d20257993e98dab6338d2ce
+bytes=716792
+ 7f 45 4c 46
+placeholder_hits=1
+pin-written
+[master c198b6e] pin containment supervisor in the archived snapshot
+ 15 files changed, 1040 insertions(+), 2 deletions(-)
+ create mode 100644 testing/harness/containment-supervisor/Cargo.lock
+ create mode 100755 testing/harness/containment-supervisor/bin/containment-supervisor
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/bitflags-2.13.2-LICENSE-APACHE
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/bitflags-2.13.2-LICENSE-MIT
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/cfg-if-1.0.5-LICENSE-APACHE
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/cfg-if-1.0.5-LICENSE-MIT
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/cfg_aliases-0.2.2-LICENSE
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/cfg_aliases-0.2.2-NOTICES.md
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/containment-supervisor-NOTICE-APACHE.txt
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/containment-supervisor-NOTICE.txt
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/libc-0.2.189-LICENSE-APACHE
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/libc-0.2.189-LICENSE-MIT
+ create mode 100644 testing/harness/containment-supervisor/provenance/licenses/nix-0.31.3-LICENSE

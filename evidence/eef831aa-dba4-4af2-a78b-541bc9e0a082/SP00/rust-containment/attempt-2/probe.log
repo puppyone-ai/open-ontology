@@ -1,0 +1,389 @@
+supervisor=/src/testing/harness/containment-supervisor/bin/containment-supervisor
+3569f4e45f88cdedef55c6eb5b23e2c4eb9e9dc1c14690085ddf72681a95628e  /src/testing/harness/containment-supervisor/bin/containment-supervisor
+probe_compiler=none
+foreign_pid=5043 foreign_start=35419
+setsid=/usr/bin/setsid
+dd=/bin/dd
+case=immediate-1 supervisor_exit=0 elapsed_ns=97579500
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5056
+output_limited=0
+note=ok
+cgroup=0
+immediate-1 pid=5059 recorded_start=35431 now=gone
+case=immediate-2 supervisor_exit=0 elapsed_ns=120274334
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5078
+output_limited=0
+note=ok
+cgroup=0
+immediate-2 pid=5081 recorded_start=35442 now=gone
+case=immediate-3 supervisor_exit=0 elapsed_ns=94294625
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5100
+output_limited=0
+note=ok
+cgroup=0
+immediate-3 pid=5103 recorded_start=35454 now=gone
+case=immediate-4 supervisor_exit=0 elapsed_ns=89368709
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5122
+output_limited=0
+note=ok
+cgroup=0
+immediate-4 pid=5125 recorded_start=35464 now=gone
+case=immediate-5 supervisor_exit=0 elapsed_ns=97050209
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5144
+output_limited=0
+note=ok
+cgroup=0
+immediate-5 pid=5147 recorded_start=35474 now=gone
+case=immediate-6 supervisor_exit=0 elapsed_ns=100487666
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5166
+output_limited=0
+note=ok
+cgroup=0
+immediate-6 pid=5169 recorded_start=35484 now=gone
+case=immediate-7 supervisor_exit=0 elapsed_ns=99928917
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5188
+output_limited=0
+note=ok
+cgroup=0
+immediate-7 pid=5191 recorded_start=35495 now=gone
+case=immediate-8 supervisor_exit=0 elapsed_ns=104853750
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5210
+output_limited=0
+note=ok
+cgroup=0
+immediate-8 pid=5213 recorded_start=35506 now=gone
+case=immediate-9 supervisor_exit=0 elapsed_ns=104522917
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5232
+output_limited=0
+note=ok
+cgroup=0
+immediate-9 pid=5235 recorded_start=35517 now=gone
+case=immediate-10 supervisor_exit=0 elapsed_ns=96403833
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5254
+output_limited=0
+note=ok
+cgroup=0
+immediate-10 pid=5257 recorded_start=35529 now=gone
+case=immediate-11 supervisor_exit=0 elapsed_ns=106645583
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5276
+output_limited=0
+note=ok
+cgroup=0
+immediate-11 pid=5279 recorded_start=35540 now=gone
+case=immediate-12 supervisor_exit=0 elapsed_ns=104266541
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5298
+output_limited=0
+note=ok
+cgroup=0
+immediate-12 pid=5301 recorded_start=35551 now=gone
+case=immediate-13 supervisor_exit=0 elapsed_ns=109328541
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5320
+output_limited=0
+note=ok
+cgroup=0
+immediate-13 pid=5323 recorded_start=35562 now=gone
+case=immediate-14 supervisor_exit=0 elapsed_ns=94506959
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5342
+output_limited=0
+note=ok
+cgroup=0
+immediate-14 pid=5345 recorded_start=35575 now=gone
+case=immediate-15 supervisor_exit=0 elapsed_ns=118475667
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5364
+output_limited=0
+note=ok
+cgroup=0
+immediate-15 pid=5367 recorded_start=35586 now=gone
+case=recorded-1 supervisor_exit=0 elapsed_ns=94559416
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5387
+output_limited=0
+note=ok
+cgroup=0
+recorded-1 pid=5390 recorded_start=35598 now=gone
+case=recorded-2 supervisor_exit=0 elapsed_ns=94031667
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5410
+output_limited=0
+note=ok
+cgroup=0
+recorded-2 pid=5413 recorded_start=35608 now=gone
+case=recorded-3 supervisor_exit=0 elapsed_ns=121050375
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5433
+output_limited=0
+note=ok
+cgroup=0
+recorded-3 pid=5436 recorded_start=35618 now=gone
+case=recorded-4 supervisor_exit=0 elapsed_ns=99105334
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5456
+output_limited=0
+note=ok
+cgroup=0
+recorded-4 pid=5459 recorded_start=35631 now=gone
+case=recorded-5 supervisor_exit=0 elapsed_ns=107193000
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5479
+output_limited=0
+note=ok
+cgroup=0
+recorded-5 pid=5482 recorded_start=35642 now=gone
+case=recorded-6 supervisor_exit=0 elapsed_ns=97312667
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5502
+output_limited=0
+note=ok
+cgroup=0
+recorded-6 pid=5505 recorded_start=35653 now=gone
+case=recorded-7 supervisor_exit=0 elapsed_ns=106363083
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5525
+output_limited=0
+note=ok
+cgroup=0
+recorded-7 pid=5528 recorded_start=35665 now=gone
+case=recorded-8 supervisor_exit=0 elapsed_ns=103612292
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5548
+output_limited=0
+note=ok
+cgroup=0
+recorded-8 pid=5551 recorded_start=35676 now=gone
+case=recorded-9 supervisor_exit=0 elapsed_ns=112582042
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5571
+output_limited=0
+note=ok
+cgroup=0
+recorded-9 pid=5574 recorded_start=35687 now=gone
+case=recorded-10 supervisor_exit=0 elapsed_ns=101097750
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5594
+output_limited=0
+note=ok
+cgroup=0
+recorded-10 pid=5597 recorded_start=35700 now=gone
+case=recorded-11 supervisor_exit=0 elapsed_ns=104857583
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5617
+output_limited=0
+note=ok
+cgroup=0
+recorded-11 pid=5620 recorded_start=35710 now=gone
+case=recorded-12 supervisor_exit=0 elapsed_ns=115666625
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5640
+output_limited=0
+note=ok
+cgroup=0
+recorded-12 pid=5643 recorded_start=35722 now=gone
+case=recorded-13 supervisor_exit=0 elapsed_ns=97228084
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5663
+output_limited=0
+note=ok
+cgroup=0
+recorded-13 pid=5666 recorded_start=35734 now=gone
+case=recorded-14 supervisor_exit=0 elapsed_ns=102810250
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5686
+output_limited=0
+note=ok
+cgroup=0
+recorded-14 pid=5689 recorded_start=35745 now=gone
+case=recorded-15 supervisor_exit=0 elapsed_ns=116686458
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5709
+output_limited=0
+note=ok
+cgroup=0
+recorded-15 pid=5712 recorded_start=35756 now=gone
+case=chain supervisor_exit=0 elapsed_ns=109149333
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5732
+output_limited=0
+note=ok
+cgroup=0
+chain pid=5739 recorded_start=35769 now=gone
+case=hold-out supervisor_exit=0 elapsed_ns=111947584
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5758
+output_limited=0
+note=ok
+cgroup=0
+case=hold-err supervisor_exit=0 elapsed_ns=109592000
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5773
+output_limited=0
+note=ok
+cgroup=0
+hold-out pid=5761 recorded_start=35780 now=gone
+hold-out side before=5701 48777 after=5701 48777
+hold-err pid=5776 recorded_start=35792 now=gone
+hold-err side before=4105 48785 after=4105 48785
+case=badproto supervisor_exit=82
+containment=unavailable
+spawned=0
+exit_code=-1
+cleanup_incomplete=1
+direct_pid=0
+output_limited=0
+note=protocol-malformed
+cgroup=0
+case=term supervisor_exit=0 elapsed_ns=286014958
+containment=verified
+spawned=1
+exit_code=-1
+cleanup_incomplete=0
+direct_pid=5818
+output_limited=0
+note=stopped
+cgroup=0
+case=exact supervisor_exit=0 elapsed_ns=60828125
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5831
+output_limited=0
+note=ok
+cgroup=0
+exact_size=16777216 limited=0 exit=0
+case=plus supervisor_exit=0 elapsed_ns=76434500
+containment=verified
+spawned=1
+exit_code=0
+cleanup_incomplete=0
+direct_pid=5850
+output_limited=1
+note=output-limit
+cgroup=0
+plus_size=16777216 limited=1
+plus_after=16777216 48807
+case=overshoot supervisor_exit=0 elapsed_ns=108508791
+containment=verified
+spawned=1
+exit_code=-1
+cleanup_incomplete=0
+direct_pid=5871
+output_limited=1
+note=output-limit
+cgroup=0
+overshoot_size=16777216 limited=1
+foreign_after=35419
+probe_result=pass

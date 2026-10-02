@@ -1,0 +1,24 @@
+   Compiling xtask v0.1.0 (/src/crates/xtask)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.83s
+     Running tests/cli.rs (/target/debug/deps/cli-671ec668988bb798)
+
+running 16 tests
+test datagen_and_infra_stay_pending ... ok
+test execute_local_dirty_worktree_refuses_before_spawn ... ok
+test contracts_library_does_not_ignore_usage ... ok
+test evidence_and_gates_self_test ... ok
+test execute_local_failed_child_cannot_seal_a_pass ... ok
+test execute_local_deadline_reaps_the_group_and_spares_a_foreign_process ... ok
+test execute_local_path_kill_is_not_used ... ok
+test execute_local_setsid_descendant_returns_bounded_and_spares_a_foreign_process ... ok
+test execute_local_shim_is_required_satisfied_and_replay_is_not ... ok
+test gate_deadline_rejects_out_of_range_without_spawning ... ok
+test help_version_and_unknown_exit ... ok
+test spec_suite_flags_return_pending_not_usage ... ok
+test unimplemented_suites_are_not_success ... ok
+test fixture_receipt_executes_outside_repo_only ... ok
+test execute_local_source_drift_keeps_results_and_fails_the_seal ... ok
+test execute_local_output_limit_cannot_seal_a_pass ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.79s
+

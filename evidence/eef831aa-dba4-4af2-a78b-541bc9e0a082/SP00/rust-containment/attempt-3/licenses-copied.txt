@@ -1,0 +1,11 @@
+bitflags-2.13.2-LICENSE-MIT
+bitflags-2.13.2-LICENSE-APACHE
+cfg-if-1.0.5-LICENSE-MIT
+cfg-if-1.0.5-LICENSE-APACHE
+cfg_aliases-0.2.2-NOTICES.md
+cfg_aliases-0.2.2-LICENSE
+libc-0.2.189-LICENSE-MIT
+libc-0.2.189-LICENSE-APACHE
+nix-0.31.3-LICENSE
+containment-supervisor-NOTICE-APACHE.txt
+containment-supervisor-NOTICE.txt

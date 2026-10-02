@@ -1,0 +1,12 @@
+fetch-start 2026-10-02T10:48:48Z
+clippy-component exit 0
+helper-lock exit 0
+helper-fetch exit 0
+workspace-fetch exit 0
+supply-check exit 0
+advisory-nix exit 0
+advisory-libc exit 22
+advisory-bitflags exit 22
+advisory-cfg-if exit 22
+advisory-cfg_aliases exit 22
+fetch-end 2026-10-02T10:49:07Z

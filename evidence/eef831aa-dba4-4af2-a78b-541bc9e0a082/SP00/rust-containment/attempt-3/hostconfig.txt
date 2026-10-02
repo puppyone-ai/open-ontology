@@ -1,0 +1,1 @@
+Privileged=false NetworkMode=bridge ReadonlyRootfs=false

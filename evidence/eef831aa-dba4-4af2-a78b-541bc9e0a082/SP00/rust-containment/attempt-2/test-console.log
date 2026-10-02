@@ -1,0 +1,10 @@
+test-start 2026-10-02T10:49:07Z
+helper-test exit 0
+helper-clippy exit 101
+helper-build exit 0
+pin exit 0
+xtask-lib exit 101
+xtask-cli exit 0
+xtask-clippy exit 0
+probe exit 0
+test-end 2026-10-02T10:50:05Z

@@ -981,7 +981,12 @@ fn byte_scan(repo: &Path) -> (Vec<Issue>, Vec<String>) {
         if relative.starts_with("target/")
             || relative.starts_with("bench/datagen/target/")
             || relative.contains("/.git/")
+            || relative == "testing/harness/containment-supervisor/bin/containment-supervisor"
+            || relative
+                .starts_with("testing/harness/containment-supervisor/provenance/licenses/")
         {
+            // The supervisor is a pinned ELF. License files are upstream
+            // redistribution text, not harness prose.
             continue;
         }
         let owned = owned_prefixes
@@ -1638,7 +1643,12 @@ fn supervise_fixture(command: &Command, deadline: Duration) -> Option<ChildRun> 
         crate::runner_capture::OUTPUT_LIMIT_BYTES as u64,
     );
     let _ = fs::remove_dir_all(&dir);
-    if !contained.spawned && contained.containment == crate::containment::UNAVAILABLE {
+    // Only a platform with no ownership primitive falls through. A missing or
+    // untrusted helper on Linux must not become an ordinary process-group run.
+    if !contained.spawned
+        && contained.containment == crate::containment::UNAVAILABLE
+        && contained.note == "platform"
+    {
         return None;
     }
     let error = if contained.containment != crate::containment::VERIFIED
