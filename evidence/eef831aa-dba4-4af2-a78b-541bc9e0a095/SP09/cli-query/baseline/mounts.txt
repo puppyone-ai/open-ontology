@@ -1,0 +1,6 @@
+bind dst=/src rw=false name=
+bind dst=/inside.sh rw=false name=
+bind dst=/out rw=true name=
+volume dst=/cargo rw=true name=oo-a095-008b065a-2b3f-4809-b679-d019e5de766c-cargo
+volume dst=/target rw=true name=oo-a095-008b065a-2b3f-4809-b679-d019e5de766c-target
+

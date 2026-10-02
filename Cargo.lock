@@ -1350,8 +1350,14 @@ dependencies = [
 name = "oo-cli"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "oo-core",
  "oo-sdk",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
 ]
 
 [[package]]
