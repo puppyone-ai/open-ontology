@@ -869,3 +869,11 @@ R2-W prepared 增补真实 recv_unchecked 的 cancel-safe 约束：分段字段�
 a119 原 handle56789 实际 CLI exit0，但内部日志 DeadFailed，最终三报告/提交缺失；不签收、不重复轮询旧句柄。按同 UUID resume 卡恢复，仅接收已有 raw 和补齐交付，不扩大 slot B 权限。a116 handle68913 本次实际仍 live；产品指标与勾选保持，goal active。
 
 a119 同 UUID 实际恢复 handle63967，Grok4.7 xhigh；slot B 继续原权限，未新建 session 或扩大 builder 并发。旧56789关闭。
+
+### a119 限定接收与构建槽释放
+
+a119恢复handle63967实际exit0，交付e2730033；三报告完整读完，canonical真实四section/exit、debug259/65与markers、控制exit4、oracle漏mio差异、Linux1.94和cleanup原始证据已核对。限定签收a119-target-license-review-receipt.md。
+
+- [x] 正式支持的Linux GNU双目标 ci/deny graph 配置固定提交复审（限定门禁；不计产品新验收）。
+
+all-target/wasm RED、types/SP00/发行与外部门槛继续未签。slot B释放，a116 handle68913实际仍live占slot A，a120尚未派发。9产品组件/9验收子项/首轮返工6比9保持，goal active。
