@@ -9,7 +9,7 @@
 - 目标schema8370498发现NULL分段绕过；a092只追加前向迁移及新契约，旧迁移hash冻结。
 - SDK runtime bde2e8c、P5 IPC6831d6e已交付，a090/a091固定SHA只读复审。
 - 基础Rust supervisor a082原UUID续接，基础门禁不阻塞上述独立产品修正。
-- 类型、reader、真实apply三张卡仍prepared，未派发。所有任务max2全局Rust builders，容量不足灵活等待；CLI退出即核验，不定30分钟、不持续轮巡。
+- a095独立CLI query/JSON/Markdown/退出码实际启动，root唯一writer；类型、reader、真实apply三张卡仍prepared，待connector和root各自终态交接后派发。所有任务max2全局Rust builders，容量不足灵活等待；CLI退出即核验，不定30分钟、不持续轮巡。
 
 ## 当前状态补充（2026-10-02；旧运行记录保留）
 

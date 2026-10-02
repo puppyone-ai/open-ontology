@@ -174,6 +174,7 @@
 - [ ] SP09-W01 Rust SDK/统一HTTP
   - [ ] W01-a 有界JSON query Rust SDK：a084发现六项runtime问题；bde2e8c修正交付，a090固定复审中；供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
 - [ ] SP09-W02 CLI/认证/输出/退出码
+  - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a095实际启动；沙盒proxy/管理命令/完整对话另验。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
 - [ ] SP09-W05 oo-analysis/中文图表/安全文件
@@ -536,3 +537,15 @@ a086原续接handle91151实际exit0，协调者已读完整review/findings/HANDO
 已仅勾选closure/repeatedkey子项，whole-dataset review.not_in_scope、未验证FK语义、physical63byte、signednumeric、NFC/完整SP07/真实import/profile/PII/publish/RBAC/CLI仍pending；a094正复审NFC3ed558a，旧eebcNFC缺陷不能当当前实现仍未修或已经批准。治理记录a081曾覆盖root和connector manifest，无savedtemp hash/恢复bytecompare，当前hash不能消除历史时序缺证；a087已经独立重建main最终graph但仍roleGUC request_changes，a093修正中。a086报告a083仍liveowner说法是旧范围叙述，实际root已在a088终态后释放，connector writer为a093，旧证据不改。
 
 独立验收产品子项现在4（jobs schema、源三HIGH纠正、eventproject绑定、structureclosure纠正）；交付组件仍6、首轮返工仍4/6，复审纠正不重复计首次分母。87完整父项/16Phase仍0完成。a082第二续接28952实际exit0却无REPORT/HANDOFF/commit，只称attempt3launcher0待phase检查；立即原UUID第三次续接handle2404，核验原phase而非重复构建。基础线不阻塞a092/a093产品模块。其他a09061992/a09197172/a09296228/a09362030/a09424699本回合单次核验live，保留原会话。
+
+## a095独立CLI产品线启动
+
+前两回合为verified wait，原a082/a090/a091/a092/a093/a094当前仍live，未按静默或时长重启。本轮核查oo-cli仅占位但已依赖oo-sdk，SDKquery接口固定，CLI代码与a093connector及a092pipeline无冲突，可推进真实闭环的查询输出端。a095原生Grok4.7xhigh会话已实际启动，baseline7143b2d，onlyCLI/新contract/tests/evidence；root依赖写权由已退出a088释放后明确分配a095，优先复用已有locked依赖。禁止SDK/core/connector/其他task写入及foreignmanifest覆盖，max2全局Rustbuilder不变。
+
+任务契约含实际oo→SDK→HTTP/TLS、SQL/-f/JSON/Markdown精度与anti-footer、错误stdout/stderr/0-2-3-4-1退出码/真实有限retry、安全显式外部credential来源，不读OO_TOKEN/home，未实现sandboxproxy提前明确拒绝；不能以独立token client或假Bearer绕过SDK。sandboxfrom_env、管理commands/config/sqlvalidate/export/discover与真正PG权限/对话/harness仍后续验收。a090SDKreview和a094NFCreview均只读archive，不阻止CLI独立开发；依赖界面发现变化须后续集成重验。此派发不算新已交付组件或完成子项，仍6交付/4验收/首轮返工4比6，full87/16仍0完成。types/reader任务等待a093实际connector目录交接，root现在CLI独占，不双writer。
+
+## a082 Rust交付与文档漂移记录
+
+a082第三次resume handle2404本轮实际exit0，交付f1a6005971e3dc3075094c87ed670fc9d25e9ae0/tree86c64f512d67da47ae379a53e34342de8e317f25/parent7143b2d。完整REPORT/HANDOFF已读；attempt3实际helpertests3+8、xtask39lib/16CLI、helper/xtaskClippy/probe/launch0，四advisorycurl22保留，不是auditgreen。协调者重算ELF3569f4e45f88cdedef55c6eb5b23e2c4eb9e9dc1c14690085ddf72681a95628e/716792bytes、helperlock14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1匹配。报告诚实保留forksettle/supervisorSIGKILL/sameuidcopy-exec/跨pidnamespace/cgroup0/macOSunavailable边界，不直接批准required_satisfied。a096固定f1a6005只读复审已实际启动；不签SP00/秘密/runsc/CI/release，不计产品组件和验收数。a082再次写a073rootowner是过时文字，实际rootwriter a095CLI。
+
+本轮check_plan FAIL，原因仅docs/17-rust-implementation.md源码hash/size-lines漂移。只读diff表明是a093源roleGUC/TLSunknown说明增补，与其必要源contract/docs范围有关，sourcewriter仍live。未刷新sources-baseline、未删检查/改旧Spec hash；待a093固定交接及独立审查后协调规范文档版本/来源基线。该完整性失败继续记录为失败，不阻塞无关CLI模块，不当产品失败或验收通过。365/714时代通过结论只针对当时文档；当前没有新增文档pass声明。a095新CLI实际handle3387、a096review与其余live任务保留，global2builder不变。
