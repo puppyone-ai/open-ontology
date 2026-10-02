@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "INTERNAL",
+    "message": "internal",
+    "hint": "none",
+    "retryable": true,
+    "query_id": "q_abc123"
+  }
+}

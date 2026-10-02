@@ -1,0 +1,29 @@
+{
+  "query_id": "q_abc123",
+  "columns": [
+    { "name": "amount", "type": "numeric", "precision": 38, "scale": 2 }
+  ],
+  "rows": [["12.50"], [null], [true]],
+  "returned_rows": 3,
+  "truncated": false,
+  "duration_ms": 12,
+  "freshness": [
+    {
+      "table": "logistics.receipt",
+      "as_of": "2026-10-01T01:12:03Z",
+      "lag_ms": 0,
+      "state": "live"
+    }
+  ],
+  "sources": [
+    {
+      "source": "tms_pg",
+      "consistency": "transactional",
+      "cross_table_consistent": true,
+      "applied_pos": "18446744073709551615"
+    }
+  ],
+  "warnings": [{ "code": "STALE_DATA", "message": "lag", "rows": 2 }],
+  "knowledge_version": "oos/v1",
+  "policy_version": "type-policy/v1"
+}

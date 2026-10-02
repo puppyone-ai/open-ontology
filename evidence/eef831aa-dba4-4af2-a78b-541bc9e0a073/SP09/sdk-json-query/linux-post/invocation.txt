@@ -1,0 +1,27 @@
+run_id=4ddb03eb-78b6-42ee-b66d-1cc7ea761226
+baseline_head=9c7b98e4f7e92ab99a064ea4a839afe30319e4df
+baseline_parent=dd299747fce74fe5917de261cc19ba02f96569d4
+baseline_tree=10eeffcf81d0a12d8385da3848031a1c759f256e
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a073-4ddb03eb-78b6-42ee-b66d-1cc7ea761226-net
+container=oo-a073-msrv-4ddb03eb-78b6-42ee-b66d-1cc7ea761226
+cargo_volume=oo-a073-4ddb03eb-78b6-42ee-b66d-1cc7ea761226-cargo
+target_volume=oo-a073-4ddb03eb-78b6-42ee-b66d-1cc7ea761226-target
+snapshot=/tmp/oo-a073-4ddb03eb-78b6-42ee-b66d-1cc7ea761226/snapshot
+snapshot_method=git archive of HEAD workspace inputs, then overlay working Cargo.lock, crates/oo-sdk, and contracts/sdk/json-query
+snapshot_note=contracts/sdk/json-query is included because oo-sdk tests compile those fixtures with include_str/include_bytes. Sibling dirty trees are not overlaid. The pinned image has gcc and no cmake; aws-lc-sys 0.45.0 is expected to use its cc builder and pregenerated bindings for aarch64-unknown-linux-gnu.
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+command=cargo fetch --manifest-path Cargo.toml --locked; cargo test --manifest-path Cargo.toml --locked --offline -p oo-sdk; cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-sdk --all-targets -- -D warnings

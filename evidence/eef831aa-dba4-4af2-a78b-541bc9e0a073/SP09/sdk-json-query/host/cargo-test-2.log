@@ -1,0 +1,51 @@
+   Compiling oo-sdk v0.1.0 (/Users/redux/puppy-one/open-ontology/crates/oo-sdk)
+    Building [=======================> ] 237/243: oo_sdk(test), oo-sdk            Building [=======================> ] 239/243: oo_sdk(test), tls_query(tes…    Building [=======================> ] 240/243: tls_query(test), proxy_env(…    Building [=======================> ] 241/243: tls_query(test), http_query…    Building [=======================> ] 242/243: http_query(test)                Finished `test` profile [unoptimized + debuginfo] target(s) in 1.00s
+     Running unittests src/lib.rs (target/debug/deps/oo_sdk-d9afc24da6702d33)
+
+running 5 tests
+test endpoint::tests::production_https_appends_query_path ... ok
+test endpoint::tests::production_refuses_plaintext_loopback_and_userinfo ... ok
+test endpoint::tests::local_development_allows_only_loopback_plaintext ... ok
+test wire::tests::over_cap_request_is_rejected_without_truncation ... ok
+test wire::tests::canonical_request_matches_the_wire_fixture_and_omits_null_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/http_query.rs (target/debug/deps/http_query-d01f588c03f254b8)
+
+running 18 tests
+test gateway_text_redacts_token_sql_and_url ... FAILED
+test incomplete_and_reset_connections_are_not_replayed ... ok
+test concurrent_clients_keep_independent_tokens ... ok
+test content_type_must_be_json_utf8 ... ok
+test auth_internal_timeout_and_parse_errors_are_not_replayed ... ok
+test mismatched_status_and_wrong_success_shape_are_protocol_errors ... ok
+test admission_retry_is_limited_to_rate_limit_and_overload ... ok
+test retry_none_does_not_replay_a_retryable_status ... ok
+test redirects_are_not_followed_and_do_not_carry_the_token ... ok
+test framing_limits_stop_before_a_success_parse ... ok
+test unsupported_capabilities_are_explicit ... ok
+test post_uses_the_mount_path_and_exact_request_bytes ... ok
+test typed_response_keeps_warnings_freshness_and_truncation ... ok
+test malformed_duplicate_and_cross_field_bodies_are_rejected ... ok
+test oversized_request_does_not_connect_and_injection_is_rejected ... ok
+test http_date_retry_after_is_not_parsed_as_seconds ... ok
+test missing_retry_after_uses_backoff_and_a_large_value_is_not_shortened ... ok
+test slow_stream_stops_the_client_without_claiming_cancellation ... ok
+
+failures:
+
+---- gateway_text_redacts_token_sql_and_url stdout ----
+
+thread 'gateway_text_redacts_token_sql_and_url' (13067867) panicked at crates/oo-sdk/tests/http_query.rs:739:5:
+message origin
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    gateway_text_redacts_token_sql_and_url
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p oo-sdk --test http_query`
+EXIT:101

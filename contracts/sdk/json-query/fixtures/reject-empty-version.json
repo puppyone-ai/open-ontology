@@ -1,0 +1,13 @@
+{
+  "query_id": "q_abc123",
+  "columns": [],
+  "rows": [],
+  "returned_rows": 0,
+  "truncated": false,
+  "duration_ms": 0,
+  "freshness": [],
+  "sources": [],
+  "warnings": [],
+  "knowledge_version": "",
+  "policy_version": "type-policy/v1"
+}

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "SQL_PARSE_ERROR",
+    "message": "parse",
+    "hint": "fix",
+    "retryable": false,
+    "query_id": "q_abc123"
+  }
+}

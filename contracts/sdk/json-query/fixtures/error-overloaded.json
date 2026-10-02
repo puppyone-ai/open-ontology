@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "OVERLOADED",
+    "message": "busy",
+    "hint": "later",
+    "retryable": true,
+    "query_id": "q_abc123"
+  }
+}

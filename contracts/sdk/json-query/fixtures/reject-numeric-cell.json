@@ -1,0 +1,13 @@
+{
+  "query_id": "q_abc123",
+  "columns": [{ "name": "amount", "type": "numeric", "precision": 38, "scale": 2 }],
+  "rows": [[12.5]],
+  "returned_rows": 1,
+  "truncated": false,
+  "duration_ms": 1,
+  "freshness": [],
+  "sources": [],
+  "warnings": [],
+  "knowledge_version": "oos/v1",
+  "policy_version": "type-policy/v1"
+}

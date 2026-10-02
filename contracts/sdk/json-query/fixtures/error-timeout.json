@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "TIMEOUT",
+    "message": "too slow",
+    "hint": "narrow it",
+    "retryable": false,
+    "query_id": "q_abc123"
+  }
+}

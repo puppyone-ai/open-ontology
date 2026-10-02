@@ -1,0 +1,21 @@
+{
+  "query_id": "q_trunc1",
+  "columns": [{ "name": "amount", "type": "text" }],
+  "rows": [["12.50"]],
+  "returned_rows": 1,
+  "truncated": true,
+  "truncation_reasons": ["rows"],
+  "duration_ms": 4,
+  "freshness": [
+    {
+      "table": "logistics.receipt",
+      "as_of": "2026-10-01T01:12:03Z",
+      "lag_ms": 5,
+      "state": "stale"
+    }
+  ],
+  "sources": [],
+  "warnings": [{ "code": "STALE_DATA", "message": "lag" }],
+  "knowledge_version": "oos/v1",
+  "policy_version": "type-policy/v1"
+}

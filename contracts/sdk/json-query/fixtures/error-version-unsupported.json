@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "VERSION_UNSUPPORTED",
+    "message": "version",
+    "hint": "upgrade",
+    "retryable": false,
+    "query_id": "q_abc123"
+  }
+}

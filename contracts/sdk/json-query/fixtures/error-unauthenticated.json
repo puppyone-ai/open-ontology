@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "no",
+    "hint": "login",
+    "retryable": false,
+    "query_id": "q_abc123"
+  }
+}
