@@ -494,6 +494,12 @@ v01-builder-nfc-prepared.md已补齐findings1/2/5专用任务卡：根单writer�
 
 固定交付2980e85af22c3ade05272c66c7d2835b52730322（treec027c4599cdebf701b21e97e51ded45b9067ca8e，parent1868ffb）已存在。协调者已读完整a083 REPORT/HANDOFF，重算main lock9b8f7e50d3b20042bb2d606f47276b76dd68f3568136343040fbea1ecd622057、PG日志8985b98a354cc8913218c682ad1bb25e8072b99915aac7a518c56ef91bb05dc4、完整MIT/Apache正文与来源pin匹配。main源仅整合4ec功能及六vendor/provenance差异，不覆旧421基础；实际960源语句SELECT840/WITH48/START36/ROLLBACK36，flagged0；作者final live/SDK/Clippy0、旧baseline combined101/漏contractsSDK101/Clippy缺组件1与继承worst101保留。38依赖新增、deny未跑及SDK CDLA/slashlicense/ORtoken等供应链缺口不签。
 
-a087 handle41307实际启动固定2980e85只读复审，先Linux1.94局部冒烟，再独立mergedTLS feature guard/真实privateCA/env/权限/来源/SDK兼容与供应链范围核验。固定commit允许只读review并行，不等于a083 rootwriter终态；最后一次协调者核验handle30780仍live，root仍不交给NFC/type任务。原报告称交付即释放仅属作者声明，实际写权由协调者终态交接决定。a081临时覆foreign manifest的历史不确定性单列，复审确认最终源/graph字节与实际编译/fixture，不用当前hash证明过去未覆盖。
+a087 handle41307实际启动固定2980e85只读复审，先Linux1.94局部冒烟，再独立mergedTLS feature guard/真实privateCA/env/权限/来源/SDK兼容与供应链范围核验。固定commit允许只读review并行，不等于a083 rootwriter终态；a087派发时handle30780仍live；随后39376ac交接核验已收到exit0，最终stamp99e00ed，root按下节转交a088。原报告称交付即释放仅属作者声明，实际写权由协调者终态交接决定。a081临时覆foreign manifest的历史不确定性单列，复审确认最终源/graph字节与实际编译/fixture，不用当前hash证明过去未覆盖。
 
 本轮实际已有固定整合commit和新独立复审，分类progress。整合属于已交付PG组件的同一条工作线，不重复增加功能数；产品指标仍6交付组件/3验收子项/首次返工2/4，full87父项/16Phase0完成。V01-PG-01main整合、NFC纠正和所有适用全AT待验收，prepared后续任务尚未派发，不勾选完成。
+
+## a083真实终态 → a088根依赖串行接手
+
+39376ac交接同轮实际write_stdin返回a083 handle30780 exit0；此前日志静默不作终态，现在证据充分。最终stamp99e00ed仅交付身份记录，源2980e85不变；main Cargo.toml/lock/connector/builder tracked diff为空，其他xtask/P5未提交改动保持各自writer。完整REPORT/HANDOFF已读，源整合复审a087 handle41307持续读取固定archive，尚不勾V01-PG-01完整接收。
+
+a088 handle98627实际启动，session eef831aa-dba4-4af2-a78b-541bc9e0a088；baseline39376ac。只接手root必要NFC依赖及builderNFC/source/tests/notices/新erratum，优先Linux1.94smoke，替换手写Unicode16实现并验证官方U16/U17及旧/新标识兼容。不写connector/vendor/SDK、a080 standaloneP5或a082 xtask/helper/harness。a086仅eebc0ea固定复审，允许与NFC实现并行；type/reader/apply仍prepared，root直到a088真实终态才再次释放。a071 findings1/2/5修复与独立复审未完成前不勾；修正既有功能不重复增交付计数。整个目标继续active，完整产品与发行门槛仍未签。
