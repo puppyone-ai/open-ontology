@@ -1,0 +1,22 @@
+label=after-audit
+repo=/cargo-home/advisory-db
+time=2026-10-02T12:12:14Z
+117edb3bed98e9be112f277b7615eea3252e7c43
+117edb3bed98e9be112f277b7615eea3252e7c43
+2026-10-02T10:58:33+02:00
+Assigned RUSTSEC-2026-0319 to anymap2
+porcelain_count=0
+origin	https://github.com/RustSec/advisory-db.git (fetch)
+origin	https://github.com/RustSec/advisory-db.git (push)
+b88110013c261da320d45368672e74edd40b6430ca338c244b6f43a454beb5b6  /work/RUSTSEC-2021-0119.after-audit.md
+label=after-deny
+repo=/cargo-home/advisory-db
+time=2026-10-02T12:12:17Z
+117edb3bed98e9be112f277b7615eea3252e7c43
+117edb3bed98e9be112f277b7615eea3252e7c43
+2026-10-02T10:58:33+02:00
+Assigned RUSTSEC-2026-0319 to anymap2
+porcelain_count=0
+origin	https://github.com/RustSec/advisory-db.git (fetch)
+origin	https://github.com/RustSec/advisory-db.git (push)
+b88110013c261da320d45368672e74edd40b6430ca338c244b6f43a454beb5b6  /work/RUSTSEC-2021-0119.after-deny.md

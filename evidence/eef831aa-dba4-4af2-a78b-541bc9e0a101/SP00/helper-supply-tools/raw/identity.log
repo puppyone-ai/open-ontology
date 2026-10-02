@@ -1,0 +1,63 @@
+date=2026-10-02T12:08:04Z
+airgap=false
+network=bridge_nat official crates.io and github.com/rustsec/advisory-db
+Linux 915a3ebd8ac1 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+=== id ===
+uid=0(root) gid=0(root) groups=0(root)
+=== rustc -vV ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+=== cargo -V ===
+cargo 1.94.0 (85eff7c80 2026-01-15)
+=== rustup show ===
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+=== rust-toolchain.toml ===
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
+=== caps ===
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+=== lock ===
+14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1  /src/testing/harness/containment-supervisor/Cargo.lock
+=== deny ===
+4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b  /src/ci/deny.toml
+=== image cargo config ===
+image_cargo_config_absent
+=== git ===
+/usr/bin/git
+git version 2.47.3
+=== curl ===
+/usr/bin/curl
+curl 8.14.1 (aarch64-unknown-linux-gnu) libcurl/8.14.1 OpenSSL/3.5.5 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nghttp3/1.8.0 librtmp/2.3 OpenLDAP/2.6.10

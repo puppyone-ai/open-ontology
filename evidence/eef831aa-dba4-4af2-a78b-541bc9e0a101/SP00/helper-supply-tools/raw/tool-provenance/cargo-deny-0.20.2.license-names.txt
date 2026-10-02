@@ -1,0 +1,4 @@
+cargo-deny-0.20.2/LICENSE-APACHE
+cargo-deny-0.20.2/LICENSE-MIT
+cargo-deny-0.20.2/benches/license_data.rs
+cargo-deny-0.20.2/src/licenses.rs

@@ -1,0 +1,2 @@
+cargo-audit-0.22.2/LICENSE-APACHE
+cargo-audit-0.22.2/LICENSE-MIT

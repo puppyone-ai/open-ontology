@@ -68,7 +68,7 @@
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
-  - [ ] W06-H helper固定依赖图实际audit/deny工具验收：a101独立执行，固定f1a6005 standalone lock；不替代全workspace/CDLA/完整供应链。
+  - [x] W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005，Linux1.94实际audit0/deny0；协调者核验全部HASHES及raw JSON/整数exits。仅工具切片，双许可选择/依赖政策准入、全workspace/CDLA/完整供应链仍未签。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -80,7 +80,7 @@
 - [ ] P5 parser/native/SQL差分
   - [ ] P5-a PG17 parser匹配/受限IPC/语句拒绝与star差分：a065交付efb61d6，a076固定复审；作者已记录R9 WHEREtrue/子查询绕过及未实现R4，完整R1–R9与DB绑定另验。
   - [x] P5-IPC-C 矛盾输出封闭拒绝/有限等待修正切片：a091固定6831d6e批准；原始默认/hooks测试与Clippy0、deciding probe0/fails0。仅原型切片，不计产品验收子项。
-  - [ ] P5-IPC-I 独立nonce/pid/starttime绑定证据：a091仅作者测试；a100补充只读复审已启动，不以原approve消除缺证。
+  - [ ] P5-IPC-I 独立nonce/pid/starttime绑定证据：a100实际exit0但缺review/findings/HANDOFF，原UUID续接完成报告；不以builder0或原approve消除缺证。
 - [ ] P6 PG claims/ROLE/RLS/pool
 - [ ] P7 真50m EXPLAIN/资源阈值
 - [ ] P8 真runsc网络/身份隔离
@@ -666,3 +666,11 @@ a095关闭不再轮询，root/CLI diff和index均空后，显式写execution/dec
 a103UUIDeef831aa-dba4-4af2-a78b-541bc9e0a103实际启动，handle93875，execution/prompts/v01-cli-query-fixed-review.md绑定3347f5a immutablearchive/fullpreparedcard，readonly生产树，仅own evidence/Rust独立oracle。其资源预算共享globalmax2，不加builder容量。凭证FIFO/临时uid、数据NULL/metadata/精度、渲染/重试/退出码/实际TLS/破管及源码日志留存均需独立证明。
 
 新增CLIquery交付组件，累计7（PGentrycatalog、jobsschema、purestructdraft、eventprojectbinding、JSONSDK、targetfenceschema、CLIquery）；独立验收产品子项仍6。首轮产品复审既有6/返工4比6，CLI首轮结果尚未出，不先增加返工或完成计数。87完整父项/16Phase仍0完成。to-do/Plan同步为in_review，未新增完成勾选。reader/apply待源/types/target依赖独立批准；基础tools/identity与jobs独立推进。
+
+## a101真实工具证据签收、a100终态未完成报告续接
+
+本回合a101handle3407实际exit0，完整REPORT/findings已读，169文件目录HASHES逐项检查exit0；fixedf1a6005971e3dc3075094c87ed670fc9d25e9ae0/tree86c64f512d67da47ae379a53e34342de8e317f25，committedhelperlock14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1与deny4320807bfe747fe339ce7bf539a1cff5604e8e0c7677760e2cbc7abc1868624b重算匹配。Linuxarm64/Rust1.94，工具audit0.22.2/deny0.20.2在私有volume locked安装、identity/fetch/metadata/tree/install/scans均0，无抬MSRV/政策变更。actualaudit raw JSON6packages/0vulnerabilities/emptywarnings/noignore；deny actualsummary advisory/bans/sources0error0warning，licenses0error6unusedallowwarnings，warnings未通过删allow消除。六项scan整数exit0，RustSec实际clone117edb3bed98e9be112f277b7615eea3252e7c43/1280条/2026-10-02T12:12:14Z，RUSTSEC-2021-0119原文hashb88110013c261da320d45368672e74edd40b6430ca338c244b6f43a454beb5b6匹配。不是404或旧API代工具证明，不是airgap。
+
+五registrychecksums/nonyanked/version对象168h年龄及upstreamlicense字节有记录。nix正确version时间2026-05-11T07:01:18.650221Z，旧a082第二created_at是publisher timestamp，保留原始错误而新记录纠正；crate-checksums中commentheader被误当package产生一条MISSING_CRATE # lock，不是五实际registrychecksum失败。libc/bitflags/cfg-if两许可正文均有但dual_license_choice记录缺，依赖政策准入/audited/fullAT-SEC-05仍false。cfg_aliases第三方NOTICES义务保留。仅勾W06-H实际工具执行证据，不签SP00/wholegraph/CDLA/SDK/P5/nativeOCI/签名/秘密轮换/客户/CI/runsc/发行。不增加产品7组件/6验收子项或首轮返工4比6；87父项/16Phase仍未完成。
+
+a100handle34511实际exit0但最后仅builder3exit0待读output，未review/findings/HANDOFF，不能签身份补证。立即原UUIDresume handle60366，execution/prompts/a100-terminal-report-followup.md要求读既有真实phase/probe形成限定报告，不按退出盲目重建或虚构approve；旧a091报告冻结。a09735038/a09861045/a0995836/a10291030/a10393875本回合单次核验仍live；root/connectora098、jobs新增迁移a102保持。a101关闭不再轮询。独立基础条件与产品开发继续分开。

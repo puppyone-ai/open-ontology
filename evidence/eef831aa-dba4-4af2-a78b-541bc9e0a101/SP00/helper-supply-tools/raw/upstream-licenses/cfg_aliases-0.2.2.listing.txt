@@ -1,0 +1,10 @@
+cfg_aliases-0.2.2/.cargo_vcs_info.json
+cfg_aliases-0.2.2/.gitignore
+cfg_aliases-0.2.2/Cargo.lock
+cfg_aliases-0.2.2/Cargo.toml
+cfg_aliases-0.2.2/Cargo.toml.orig
+cfg_aliases-0.2.2/LICENSE
+cfg_aliases-0.2.2/NOTICES.md
+cfg_aliases-0.2.2/README.md
+cfg_aliases-0.2.2/src/lib.rs
+cfg_aliases-0.2.2/tests/test.rs

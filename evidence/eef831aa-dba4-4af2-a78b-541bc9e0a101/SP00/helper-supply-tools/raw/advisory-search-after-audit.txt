@@ -1,0 +1,4 @@
+label=after-audit
+time=2026-10-02T12:12:14Z
+/cargo-home/advisory-db/crates/nix/RUSTSEC-2021-0119.md
+/cargo-home/advisory-db/.git
