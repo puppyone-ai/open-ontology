@@ -1,0 +1,6 @@
+status=in_review
+applicable_passed=120
+skipped=0
+failed=0
+deferred=AT-SEC-05 full case (lock, JavaScript, native, image, signature tamper, secret scan, SBOM); security owner, private vulnerability channel, conduct contact, and release contact; CODEOWNERS activation and branch protection; independent follow-up review
+Exit 0 means no applicable governance-document check failed. It does not mean AT-SEC-05 passed.

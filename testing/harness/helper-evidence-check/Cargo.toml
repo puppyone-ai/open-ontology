@@ -1,0 +1,15 @@
+[package]
+name = "helper-evidence-check"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Standalone check of the containment-supervisor dependency license records."
+
+# Own workspace root so this crate is not a member of the product workspace.
+[workspace]
+
+[[bin]]
+name = "helper-evidence-check"
+path = "src/main.rs"

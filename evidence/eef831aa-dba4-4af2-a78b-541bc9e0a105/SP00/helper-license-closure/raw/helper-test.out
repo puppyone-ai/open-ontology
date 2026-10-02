@@ -1,0 +1,31 @@
+
+running 3 tests
+test tests::notes_reject_newlines_and_spaces ... ok
+test tests::one_echild_does_not_settle_and_a_child_resets ... ok
+test tests::stat_parser_uses_the_last_paren_and_rejects_a_short_line ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test linux::fork_chain_is_gone ... ok
+test linux::immediate_setsid_double_fork_is_gone ... ok
+test linux::exact_output_seals_and_one_extra_byte_stops_the_file ... ok
+test linux::protocol_malformed_does_not_spawn ... ok
+test linux::held_stderr_does_not_grow_after_return ... ok
+test linux::held_stdout_does_not_grow_after_return ... ok
+test linux::recorded_setsid_double_fork_is_gone ... ok
+test linux::timeout_reaps_the_payload_and_returns_bounded ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

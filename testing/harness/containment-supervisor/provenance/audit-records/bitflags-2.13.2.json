@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "record_status": "pending-independent-review",
+  "audited": false,
+  "do_not_treat_as_baseline": true,
+  "license_record_status": "complete-for-review",
+  "admission": false,
+  "full_at_sec_05": false,
+  "release_signoff": false,
+  "baseline_file": "supply-chain/dependency-baseline.json",
+  "baseline_note": "Owned by SP00-W01. This record does not update that file and is not an audit.",
+  "open_gates": {
+    "named_owner": "open",
+    "security_exception": "open",
+    "protected_ci": "open",
+    "runsc": "open",
+    "image": "open",
+    "whole_graph": "open",
+    "secret_rotation": "open",
+    "release": "open",
+    "full_at_sec_05": "open",
+    "platform_c_library": "open"
+  },
+  "historical_scan": {
+    "fresh_current_scan": false,
+    "rustsec_commit": "117edb3bed98e9be112f277b7615eea3252e7c43",
+    "rustsec_commit_time": "2026-10-02T10:58:33+02:00",
+    "recorded_at": "2026-10-02T12:12:14Z",
+    "cargo_audit": "0.22.2",
+    "cargo_deny": "0.20.2",
+    "audit_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out",
+    "deny_advisories_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-deny-advisories.err",
+    "note": "Retained a101 tool output. This is not a fresh current scan."
+  },
+  "package": {
+    "ecosystem": "cargo",
+    "name": "bitflags",
+    "version": "2.13.2",
+    "official_source": "registry+https://github.com/rust-lang/crates.io-index",
+    "repository": "https://github.com/bitflags/bitflags",
+    "manifests": [
+      "testing/harness/containment-supervisor/Cargo.toml",
+      "testing/harness/containment-supervisor/Cargo.lock"
+    ],
+    "publication_date": "2026-09-10T01:11:38.500809Z",
+    "adoption_date": "2026-10-02T11:10:37Z",
+    "age_days_at_adoption": 22,
+    "seven_day_rule": "pass",
+    "msrv": "1.56.0",
+    "features_enabled": [
+      "default"
+    ],
+    "selecting_features": [],
+    "default_features_disabled": false,
+    "graph_role": "transitive",
+    "dependency_kind": "normal",
+    "selected_by": "nix",
+    "license_spdx": "MIT OR Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "testing/harness/containment-supervisor/provenance/licenses/bitflags-2.13.2/LICENSE-MIT",
+        "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+      },
+      {
+        "spdx": "Apache-2.0",
+        "source": "testing/harness/containment-supervisor/provenance/licenses/bitflags-2.13.2/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      }
+    ],
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Include the copyright notice and this permission notice in all copies or substantial portions of the Software."
+        ]
+      },
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "Give any other recipients of the Work or Derivative Works a copy of this License.",
+          "Cause any modified files to carry prominent notices stating that You changed the files.",
+          "Retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work.",
+          "If the Work includes a NOTICE text file, include a readable copy of its attribution notices. This crate ships no NOTICE file. The Apache appendix line is the standard placeholder Copyright [yyyy] [name of copyright owner] and is not a named copyright owner."
+        ]
+      }
+    ],
+    "dual_license_choice": "MIT",
+    "weak_copyleft_review": null,
+    "copyright_notice": "Copyright (c) 2014 The Rust Project Developers",
+    "apache_appendix_copyright": "standard-placeholder-not-a-named-owner",
+    "native_link": "none",
+    "c_compiler_crate_in_graph": false,
+    "yanked": false,
+    "native_transitive": [],
+    "digest": "sha256:3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+    "prohibited_license": false
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2",
+    "evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out",
+    "deny_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-deny-advisories.err",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

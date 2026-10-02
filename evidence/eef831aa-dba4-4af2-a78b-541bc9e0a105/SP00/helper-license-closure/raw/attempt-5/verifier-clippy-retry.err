@@ -1,0 +1,47 @@
+    Checking helper-evidence-check v0.1.0 (/repo/testing/harness/helper-evidence-check)
+error: this boolean expression can be simplified
+   --> src/check.rs:270:16
+    |
+270 |             || edge.uses_default != !package.default_off
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `edge.uses_default == package.default_off`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#nonminimal_bool
+    = note: `-D clippy::nonminimal-bool` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::nonminimal_bool)]`
+
+error: this loop could be written as a `for` loop
+   --> src/check.rs:513:5
+    |
+513 |     while let Some(entry) = entries.next() {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `for entry in entries`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#while_let_on_iterator
+    = note: `-D clippy::while-let-on-iterator` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::while_let_on_iterator)]`
+
+error: this `if` statement can be collapsed
+   --> src/check.rs:787:5
+    |
+787 | /     if file.basename.contains("APACHE") {
+788 | |         if !text.contains("Apache License")
+789 | |             || !text.contains("Version 2.0")
+790 | |             || !text.contains("END OF TERMS AND CONDITIONS")
+...   |
+794 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+787 ~     if file.basename.contains("APACHE")
+788 ~         && (!text.contains("Apache License")
+789 |             || !text.contains("Version 2.0")
+790 ~             || !text.contains("END OF TERMS AND CONDITIONS"))
+791 |         {
+792 |             return Err(fail::fail("omitted-apache-body", OMITTED_APACHE_BODY, package.name.clone()));
+793 ~         }
+    |
+
+error: could not compile `helper-evidence-check` (lib) due to 3 previous errors

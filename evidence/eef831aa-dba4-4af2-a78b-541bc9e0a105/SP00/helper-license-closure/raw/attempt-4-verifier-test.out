@@ -1,0 +1,121 @@
+
+running 3 tests
+test check::tests::placeholders_are_not_duties ... ok
+test timeutil::tests::rejects_date_only_and_nonzero_offset ... ok
+test timeutil::tests::unix_epoch_and_cfg_if_floor ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 25 tests
+test cli_path_traversal ... ok
+test changed_helper_lock ... ok
+test deny_config_hash_wrong ... ok
+test graph_mismatch ... ok
+test duplicate_record ... ok
+test fresh_scan_claim_is_fake ... ok
+test fake_claim_audited_true ... FAILED
+test hash_mutation_of_license_bytes ... FAILED
+test invalid_publisher_time_is_rejected ... FAILED
+test missing_cfg_aliases_third_party_notice ... ok
+test omitted_apache_body ... ok
+test missing_license_body ... FAILED
+test placeholder_obligation ... ok
+test scanner_output_missing ... ok
+test path_traversal_in_license_source ... FAILED
+test positive_five_records ... FAILED
+test record_digest_hash_wrong ... FAILED
+test usage_requires_flags ... ok
+test symlink_license_is_not_followed ... FAILED
+test unknown_package ... ok
+test undeclared_choice ... ok
+test wrong_dual_choice ... ok
+test wrong_source ... ok
+test wrong_age_floor ... ok
+test wrong_expression ... ok
+
+failures:
+
+---- fake_claim_audited_true stdout ----
+
+thread 'fake_claim_audited_true' (935) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 19
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- hash_mutation_of_license_bytes stdout ----
+
+thread 'hash_mutation_of_license_bytes' (975) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 3
+
+---- invalid_publisher_time_is_rejected stdout ----
+
+thread 'invalid_publisher_time_is_rejected' (976) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 8
+
+---- missing_license_body stdout ----
+
+thread 'missing_license_body' (1077) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 2
+
+---- path_traversal_in_license_source stdout ----
+
+thread 'path_traversal_in_license_source' (1112) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 12
+
+---- positive_five_records stdout ----
+
+thread 'positive_five_records' (1170) panicked at tests/closure.rs:207:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 0
+
+---- record_digest_hash_wrong stdout ----
+
+thread 'record_digest_hash_wrong' (1206) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 18
+
+---- symlink_license_is_not_followed stdout ----
+
+thread 'symlink_license_is_not_followed' (1231) panicked at tests/closure.rs:189:5:
+assertion `left == right` failed: stdout= stderr=helper-evidence-check: FAIL code=omitted-apache-body detail=libc
+
+  left: 6
+ right: 12
+
+
+failures:
+    fake_claim_audited_true
+    hash_mutation_of_license_bytes
+    invalid_publisher_time_is_rejected
+    missing_license_body
+    path_traversal_in_license_source
+    positive_five_records
+    record_digest_hash_wrong
+    symlink_license_is_not_followed
+
+test result: FAILED. 17 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+

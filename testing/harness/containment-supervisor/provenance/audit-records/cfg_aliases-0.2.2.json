@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "record_status": "pending-independent-review",
+  "audited": false,
+  "do_not_treat_as_baseline": true,
+  "license_record_status": "complete-for-review",
+  "admission": false,
+  "full_at_sec_05": false,
+  "release_signoff": false,
+  "baseline_file": "supply-chain/dependency-baseline.json",
+  "baseline_note": "Owned by SP00-W01. This record does not update that file and is not an audit.",
+  "open_gates": {
+    "named_owner": "open",
+    "security_exception": "open",
+    "protected_ci": "open",
+    "runsc": "open",
+    "image": "open",
+    "whole_graph": "open",
+    "secret_rotation": "open",
+    "release": "open",
+    "full_at_sec_05": "open",
+    "platform_c_library": "open"
+  },
+  "historical_scan": {
+    "fresh_current_scan": false,
+    "rustsec_commit": "117edb3bed98e9be112f277b7615eea3252e7c43",
+    "rustsec_commit_time": "2026-10-02T10:58:33+02:00",
+    "recorded_at": "2026-10-02T12:12:14Z",
+    "cargo_audit": "0.22.2",
+    "cargo_deny": "0.20.2",
+    "audit_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out",
+    "deny_advisories_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-deny-advisories.err",
+    "note": "Retained a101 tool output. This is not a fresh current scan."
+  },
+  "package": {
+    "ecosystem": "cargo",
+    "name": "cfg_aliases",
+    "version": "0.2.2",
+    "official_source": "registry+https://github.com/rust-lang/crates.io-index",
+    "repository": "https://github.com/katharostech/cfg_aliases",
+    "manifests": [
+      "testing/harness/containment-supervisor/Cargo.toml",
+      "testing/harness/containment-supervisor/Cargo.lock"
+    ],
+    "publication_date": "2026-07-16T14:57:16.699789Z",
+    "adoption_date": "2026-10-02T11:10:37Z",
+    "age_days_at_adoption": 77,
+    "seven_day_rule": "pass",
+    "msrv": "not declared in the published manifest or the crates.io version object; edition 2018",
+    "features_enabled": [
+      "default"
+    ],
+    "selecting_features": [],
+    "default_features_disabled": false,
+    "graph_role": "build",
+    "dependency_kind": "build",
+    "selected_by": "nix",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "testing/harness/containment-supervisor/provenance/licenses/cfg_aliases-0.2.2/LICENSE",
+        "sha256": "31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812"
+      },
+      {
+        "spdx": "MIT",
+        "source": "testing/harness/containment-supervisor/provenance/licenses/cfg_aliases-0.2.2/NOTICE",
+        "sha256": "1e2b7ade3fb228130408b9990cae6a7618eb314c75aa0b164bfe485d9d9756ee",
+        "third_party_notice": true,
+        "byte_identical_to": "testing/harness/containment-supervisor/provenance/licenses/cfg_aliases-0.2.2/NOTICES.md"
+      }
+    ],
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Include the copyright notice and this permission notice in all copies or substantial portions of the Software.",
+          "Retain the Katharos Technology copyright notice with the permission notice.",
+          "Retain the third-party MIT permission notice for tectonic_cfg_support::target_cfg shipped as NOTICES.md. The canonical NOTICE file is a byte-identical copy of that upstream file and does not change its terms."
+        ]
+      }
+    ],
+    "dual_license_choice": null,
+    "weak_copyleft_review": null,
+    "copyright_notice": "Copyright (c) 2020 Katharos Technology",
+    "apache_appendix_copyright": null,
+    "native_link": "none",
+    "c_compiler_crate_in_graph": false,
+    "yanked": false,
+    "native_transitive": [],
+    "digest": "sha256:f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527",
+    "prohibited_license": false
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2",
+    "evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-audit.out",
+    "deny_evidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a101/SP00/helper-supply-tools/raw/scan-deny-advisories.err",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

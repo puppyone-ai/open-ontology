@@ -1,0 +1,85 @@
+   Compiling helper-evidence-check v0.1.0 (/repo/testing/harness/helper-evidence-check)
+error[E0308]: mismatched types
+   --> src/check.rs:605:36
+    |
+605 |             if source_is_traversal(source) {
+    |                ------------------- ^^^^^^ expected `&str`, found `String`
+    |                |
+    |                arguments to this function are incorrect
+    |
+note: function defined here
+   --> src/check.rs:613:4
+    |
+613 | fn source_is_traversal(source: &str) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^ ------------
+help: consider borrowing here
+    |
+605 |             if source_is_traversal(&source) {
+    |                                    +
+
+error[E0308]: mismatched types
+   --> src/check.rs:716:56
+    |
+716 |         let base = source.rsplit('/').next().unwrap_or(source).to_string();
+    |                                              --------- ^^^^^^ expected `&str`, found `String`
+    |                                              |
+    |                                              arguments to this method are incorrect
+    |
+help: the return type of this call is `String` due to the type of the argument passed
+   --> src/check.rs:716:20
+    |
+716 |         let base = source.rsplit('/').next().unwrap_or(source).to_string();
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------^
+    |                                                        |
+    |                                                        this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/option.rs:1038:17
+help: consider borrowing here
+    |
+716 |         let base = source.rsplit('/').next().unwrap_or(&source).to_string();
+    |                                                        +
+
+error[E0308]: `?` operator has incompatible types
+   --> src/check.rs:742:72
+    |
+742 |             let joined = join_under(&paths.repo_root, &paths.licenses, need_string(item, "source")?)?;
+    |                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&str`, found `String`
+    |
+    = note: `?` operator cannot convert from `String` to `&str`
+help: consider borrowing here
+    |
+742 |             let joined = join_under(&paths.repo_root, &paths.licenses, &need_string(item, "source")?)?;
+    |                                                                        +
+
+error[E0277]: the trait bound `String: Borrow<&str>` is not satisfied
+   --> src/check.rs:827:30
+    |
+827 |         if !covered.contains(&id) {
+    |                     -------- ^^^ the trait `Borrow<&str>` is not implemented for `String`
+    |                     |
+    |                     required by a bound introduced by this call
+    |
+help: the trait `Borrow<&_>` is not implemented for `String`
+      but trait `Borrow<_>` is implemented for it
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/str.rs:189:0
+    = help: for that trait implementation, expected `str`, found `&str`
+note: required by a bound in `BTreeSet::<T, A>::contains`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/collections/btree/set.rs:604:4
+
+warning: variable does not need to be mutable
+   --> src/check.rs:937:9
+    |
+937 |     let mut finish = |name: &mut Option<String>, version: &mut Option<String>, checksum: &mut Option<String>, source: &mut Option<S...
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+warning: `helper-evidence-check` (lib) generated 1 warning
+error: could not compile `helper-evidence-check` (lib) due to 4 previous errors; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `helper-evidence-check` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `helper-evidence-check` (lib test) due to 4 previous errors; 1 warning emitted
