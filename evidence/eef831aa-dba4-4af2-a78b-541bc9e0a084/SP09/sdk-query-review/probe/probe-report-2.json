@@ -1,0 +1,914 @@
+[
+  {
+    "contract_ok": true,
+    "detail": {
+      "bound_127_0_0_1_9": true,
+      "note": "process proxy env is injected by the launcher; this listener only counts"
+    },
+    "id": "proxy_env_bind"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "full": true,
+      "min": true
+    },
+    "id": "door_accepts_handwritten_request"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accept_encoding": "",
+      "advertises_gzip": false,
+      "authorization_exact": true,
+      "body_equals_handwritten": true,
+      "body_len": 113,
+      "header_names": [
+        "content-type",
+        "accept",
+        "authorization",
+        "user-agent",
+        "host",
+        "content-length"
+      ],
+      "hits": 1,
+      "path": "/v1/query",
+      "result": "ok"
+    },
+    "id": "canonical_full_wire"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "body_equals_handwritten": true,
+      "hits": 1,
+      "path": "/mount/v1/query",
+      "result": "ok"
+    },
+    "id": "canonical_omit_defaults_and_mount"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_not_called": true,
+      "door_rejected": true,
+      "max_rows_is_none": false
+    },
+    "id": "door_duplicate_key"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_not_called": true,
+      "door_rejected": true,
+      "max_rows_is_none": false
+    },
+    "id": "door_unknown_field"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_not_called": true,
+      "door_rejected": true,
+      "max_rows_is_none": false
+    },
+    "id": "door_high_precision"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_not_called": true,
+      "door_rejected": false,
+      "max_rows_is_none": true
+    },
+    "id": "door_null_max_rows"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_not_called": true,
+      "door_rejected": true,
+      "max_rows_is_none": false
+    },
+    "id": "door_nul_sql"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "local.request_rejected"
+    },
+    "id": "typed_max_rows_zero"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "local.request_rejected"
+    },
+    "id": "typed_timeout_zero"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "local.request_rejected"
+    },
+    "id": "typed_max_rows_above_ceiling"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "local.request_rejected"
+    },
+    "id": "typed_timeout_above_ceiling"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "port": 42635
+    },
+    "id": "typed_rejection_opened_no_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "AmbiguousPath",
+      "kind": "AmbiguousPath"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "AmbiguousPath",
+      "kind": "AmbiguousPath"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "AmbiguousPath",
+      "kind": "AmbiguousPath"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "AmbiguousPath",
+      "kind": "AmbiguousPath"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Characters",
+      "kind": "Characters"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Characters",
+      "kind": "Characters"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Query",
+      "kind": "Query"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Fragment",
+      "kind": "Fragment"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Characters",
+      "kind": "Characters"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "NotLoopback",
+      "kind": "NotLoopback"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "NotLoopback",
+      "kind": "NotLoopback"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "NotLoopback",
+      "kind": "NotLoopback"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "NotLoopback",
+      "kind": "NotLoopback"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Characters",
+      "kind": "Characters"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "AmbiguousPath",
+      "kind": "AmbiguousPath"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Query",
+      "kind": "Query"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Fragment",
+      "kind": "Fragment"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 0,
+      "expect": "Scheme",
+      "kind": "Scheme"
+    },
+    "id": "endpoint_before_socket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "ok"
+    },
+    "id": "loopback_127_0_0_2"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "hits": 0,
+      "result": "transport.connect"
+    },
+    "id": "loopback_127_255_255_255"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits_so_far": 1,
+      "result": "ok"
+    },
+    "id": "ipv6_loopback_bracket"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits_so_far": 2,
+      "result": "ok"
+    },
+    "id": "ipv6_loopback_expanded"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "ok"
+    },
+    "id": "nullable_cell"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "numeric_cell_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "row_width_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "row_count_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "row_budget_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "duplicate_response_key"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "ok"
+    },
+    "id": "warning_2000_accepted"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "warning_2001_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.content_type",
+      "hits": 1,
+      "result": "protocol.content_type"
+    },
+    "id": "charset_utf16_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.content_type",
+      "hits": 1,
+      "result": "protocol.content_type"
+    },
+    "id": "extra_content_type_param_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.content_type",
+      "hits": 1,
+      "result": "protocol.content_type"
+    },
+    "id": "html_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.rejected",
+      "hits": 1,
+      "result": "protocol.rejected"
+    },
+    "id": "success_envelope_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.status",
+      "hits": 1,
+      "result": "protocol.status"
+    },
+    "id": "status_code_mismatch"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": true,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": false,
+      "message_has_token": true,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 8,
+      "token_len": 6
+    },
+    "id": "short_token_reflected"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": true,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": false,
+      "message_has_token": true,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 8,
+      "token_len": 7
+    },
+    "id": "token_len_7"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": false,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": false,
+      "message_has_token": false,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 8,
+      "token_len": 8
+    },
+    "id": "token_len_8"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": false,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": true,
+      "message_has_token": false,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 14,
+      "token_len": 14
+    },
+    "id": "short_sql_reflected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": false,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": false,
+      "message_has_token": false,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 25,
+      "token_len": 14
+    },
+    "id": "long_sql_reflected"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": false,
+      "inputs_printed": false,
+      "message_has_percent_form": true,
+      "message_has_sql": false,
+      "message_has_token": false,
+      "origin_left": false,
+      "path_left": false,
+      "result": "gateway",
+      "sql_len": 8,
+      "token_len": 8
+    },
+    "id": "percent_encoded_token"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "display_has_sql": false,
+      "display_has_token": false,
+      "hint_has_sql": false,
+      "hint_has_token": false,
+      "inputs_printed": false,
+      "message_has_percent_form": false,
+      "message_has_sql": false,
+      "message_has_token": false,
+      "origin_left": false,
+      "path_left": true,
+      "result": "gateway",
+      "sql_len": 8,
+      "token_len": 14
+    },
+    "id": "base_url_path_remainder"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "client_debug_contains_token": false,
+      "client_debug_contains_url": true,
+      "token_debug": "BearerToken([redacted])"
+    },
+    "id": "debug_redacts_token"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accept_encoding": "",
+      "advertises_gzip": false,
+      "result": "protocol.rejected"
+    },
+    "id": "gzip_body_not_success"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "origin_hits": 1,
+      "result": "protocol.redirect",
+      "target_accepts": 0
+    },
+    "id": "redirect_not_followed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 1043,
+      "hits": 2,
+      "result": "ok"
+    },
+    "id": "retry_after_1s_within_max"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 32,
+      "hits": 1,
+      "result": "gateway"
+    },
+    "id": "retry_after_3s_not_shortened"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 26,
+      "hits": 1,
+      "result": "gateway"
+    },
+    "id": "retry_after_8_digits_not_shortened"
+  },
+  {
+    "contract_ok": false,
+    "detail": {
+      "elapsed_ms": 238,
+      "hits": 2,
+      "result": "ok"
+    },
+    "id": "retry_after_9_digits_not_retried"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 263,
+      "hits": 2,
+      "result": "ok"
+    },
+    "id": "retry_after_fraction_1_5_backoff"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 250,
+      "hits": 2,
+      "result": "ok"
+    },
+    "id": "retry_after_http_date_backoff"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 248,
+      "hits": 2,
+      "result": "ok"
+    },
+    "id": "duplicate_retry_after_uses_backoff"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "authorization_stable": true,
+      "bodies_equal": true,
+      "body_has_query_id": false,
+      "elapsed_ms": 30,
+      "hits": 4,
+      "result": "gateway"
+    },
+    "id": "retry_cap_3_extra_after_0"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "gateway"
+    },
+    "id": "retry_none_disables"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "elapsed_ms": 1036,
+      "hits": 2,
+      "result": "gateway"
+    },
+    "id": "retry_deadline_bounds_wait"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "gateway",
+      "retryable": false
+    },
+    "id": "unauthenticated_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "protocol.status",
+      "retryable": false
+    },
+    "id": "wrong_429_code_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "protocol.rejected",
+      "retryable": false
+    },
+    "id": "retryable_false_not_a_gateway_retry"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "gateway",
+      "retryable": true
+    },
+    "id": "audit_unavailable_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "gateway",
+      "retryable": true
+    },
+    "id": "internal_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "gateway",
+      "retryable": false
+    },
+    "id": "timeout_code_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "hits": 1,
+      "result": "transport.incomplete"
+    },
+    "id": "partial_429_not_replayed"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "crossed": false,
+      "first_exact": true,
+      "second_exact": true
+    },
+    "id": "fresh_token_per_client"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.declared_too_large",
+      "hits": 1,
+      "result": "protocol.declared_too_large"
+    },
+    "id": "declared_length_over_cap"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "transport",
+      "hits": 1,
+      "result": "transport.incomplete"
+    },
+    "id": "dishonest_length_not_success"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.conflicting_framing",
+      "hits": 1,
+      "result": "protocol.conflicting_framing"
+    },
+    "id": "duplicate_content_length"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "expect": "protocol.conflicting_framing",
+      "hits": 1,
+      "result": "protocol.conflicting_framing"
+    },
+    "id": "content_length_and_chunked"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "result": "protocol.body_too_large"
+    },
+    "id": "chunked_over_cap"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "backend_cancel": "pending_real_gateway_pg",
+      "display_contains_cancel": false,
+      "display_contains_client_stopped": true,
+      "hits": 1,
+      "result": "transport.timeout"
+    },
+    "id": "slow_headers_client_timeout"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "backend_cancel": "pending_real_gateway_pg",
+      "request_observed": true,
+      "server_read_after_abort": "eof"
+    },
+    "id": "future_drop_not_backend_cancel"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "accepts": 2,
+      "first": "ok",
+      "second": "ok"
+    },
+    "id": "trailing_bytes_next_request"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 1,
+      "result": "ok",
+      "ssl_cert_file_is_other_root": true
+    },
+    "id": "onlypem_matching_root"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 0,
+      "result": "transport.connect"
+    },
+    "id": "onlypem_rejects_other_root"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 0,
+      "result": "transport.connect"
+    },
+    "id": "onlypem_rejects_wrong_hostname"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 0,
+      "result": "transport.connect"
+    },
+    "id": "onlypem_rejects_expired"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 0,
+      "result": "transport.connect"
+    },
+    "id": "platform_roots_reject_private_ca"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "http_hits": 1,
+      "result": "ok"
+    },
+    "id": "onlypem_bundle_is_the_whole_set"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "rejected": true
+    },
+    "id": "empty_pem_rejected"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "proxy_accepts": 0
+    },
+    "id": "proxy_env_unused"
+  },
+  {
+    "contract_ok": true,
+    "detail": {
+      "unsupported": [
+        "export",
+        "arrow",
+        "discover",
+        "describe",
+        "resolve",
+        "search_values",
+        "freshness",
+        "from_sandbox_env",
+        "query_cancellation",
+        "openapi_client"
+      ]
+    },
+    "id": "unsupported_surface"
+  }
+]

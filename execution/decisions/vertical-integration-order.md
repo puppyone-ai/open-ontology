@@ -2,6 +2,15 @@
 
 状态：执行顺序冻结；所列未交付或未复审能力仍为 pending。该文件不替代完整 Spec/Plan/87 工作项。
 
+## 最新调度（2026-10-02；覆盖下方旧状态）
+
+- main源2980e85复审发现role GUC/TLS统计可见性分类问题；a093修正代码/tests，不动依赖，源准入未签。
+- NFC a088原UUID续接，root仍独占；结构closure a086原UUID续审，未批准。
+- 目标schema8370498发现NULL分段绕过；a092只追加前向迁移及新契约，旧迁移hash冻结。
+- SDK runtime bde2e8c、P5 IPC6831d6e已交付，a090/a091固定SHA只读复审。
+- 基础Rust supervisor a082原UUID续接，基础门禁不阻塞上述独立产品修正。
+- 类型、reader、真实apply三张卡仍prepared，未派发。所有任务max2全局Rust builders，容量不足灵活等待；CLI退出即核验，不定30分钟、不持续轮巡。
+
 ## 当前状态补充（2026-10-02；旧运行记录保留）
 
 - 源三HIGH修正4ecdbf7获a074限定批准，a083正在main源范围整合并独占root依赖；旧b2禁止准入，main最终固定提交仍待交接/复审。

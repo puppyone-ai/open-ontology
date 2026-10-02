@@ -107,7 +107,7 @@
 ### SP03
 
 - [ ] SP03-W01 PG connector/体检/DBA清单
-  - [ ] V01-PG-01 源连接/AccessReport/catalog：4ecdbf7三HIGH修正获a074批准；main源整合/合并feature约束/许可正文仍待验，旧b2注册结果不得用于导入准入。
+  - [ ] V01-PG-01 源连接/AccessReport/catalog：4ecdbf7三HIGH修正获a074批准；main整合2980e85经a087复审发现服务端role GUC导致TLS元数据误判，a093修正中；旧b2注册结果不得用于导入准入。
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
@@ -122,7 +122,7 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a072执行中；同连接真实排他/旧owner拒绝/数据质量receipt原子回滚。Loader driver、控制镜像和ACK/TRIM另验。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：8370498经a085 request_changes；NULL分段混合可入库，a092前向迁移修正中。Loader driver、控制镜像和ACK/TRIM另验。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
@@ -149,7 +149,7 @@
 ### SP07
 
 - [ ] SP07-W01 OOS/overlay/stale
-  - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a063交付4c989bc，a071固定提交复审；真实导入集成待后续，不提前勾验收完成。
+  - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a071五项返工；closure eebc0ea由a086原会话续审，NFC a088原会话续接，均未签收。
   - [x] V01-OOS-01A开发预检：a063首次Linux/MSRV冒烟已核验attempt-2原始日志，rustc1.94.0、62个core测试、fetch/test/Clippy exit0；attempt-1的101保留。此项仅证明开发基线，不证明草案功能或SP07验收。
 - [ ] SP07-W02 catalog/profile/evidence
 - [ ] SP07-W03 规则/关系/码表/专家卡
@@ -171,7 +171,7 @@
 ### SP09
 
 - [ ] SP09-W01 Rust SDK/统一HTTP
-  - [ ] W01-a 有界JSON query Rust SDK：a073执行中；复用core API、真实HTTP协议fixture/身份隔离/响应预算。该协议验收不替代生产Gateway/PG闭环。
+  - [ ] W01-a 有界JSON query Rust SDK：a084发现六项runtime问题；bde2e8c修正交付，a090固定复审中；供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
 - [ ] SP09-W02 CLI/认证/输出/退出码
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
 - [ ] SP09-W04 TS SDK/contracts
@@ -503,3 +503,19 @@ a087 handle41307实际启动固定2980e85只读复审，先Linux1.94局部冒烟
 39376ac交接同轮实际write_stdin返回a083 handle30780 exit0；此前日志静默不作终态，现在证据充分。最终stamp99e00ed仅交付身份记录，源2980e85不变；main Cargo.toml/lock/connector/builder tracked diff为空，其他xtask/P5未提交改动保持各自writer。完整REPORT/HANDOFF已读，源整合复审a087 handle41307持续读取固定archive，尚不勾V01-PG-01完整接收。
 
 a088 handle98627实际启动，session eef831aa-dba4-4af2-a78b-541bc9e0a088；baseline39376ac。只接手root必要NFC依赖及builderNFC/source/tests/notices/新erratum，优先Linux1.94smoke，替换手写Unicode16实现并验证官方U16/U17及旧/新标识兼容。不写connector/vendor/SDK、a080 standaloneP5或a082 xtask/helper/harness。a086仅eebc0ea固定复审，允许与NFC实现并行；type/reader/apply仍prepared，root直到a088真实终态才再次释放。a071 findings1/2/5修复与独立复审未完成前不勾；修正既有功能不重复增交付计数。整个目标继续active，完整产品与发行门槛仍未签。
+
+## a080/a082/a085–a089真实终态接收与下一批派发
+
+本回合实际工具返回a08042614/a08212964/a08517385/a08615204/a08741307/a08898627/a0896967全部exit0，关闭旧handles，不再轮询。a082/a086/a088没有完整交接：分别helper编译101、独立closure探针未跑、NFC correction验证待容量；原UUID显式resume61643/91151/31015，保留未提交own overlay和原失败，不计交付或完成。NFC root写权仍只归a088，基础xtask/helper归a082；只读a086不改源码。
+
+a084 SDK原固定复审request_changes：六项runtime为短token/短SQL/混合percent反射/长十进制Retry-After/baseURL路径/header敏感标记。原probe2 94cases中7个diagnostic false不是7个runtime漏洞，127.255 transport单列；probe2 SHA f780a4f1871266c1824290ed6eaafd785317c5ec0e6d9198d15b29dafb84fb6e已重算。smoke0、audit0、deny4仅CDLA失败，不当供应链通过。a089实际交付bde2e8cc20a1ed951f4f7ea61ce4d9b5ab3665df/tree db0717173187604182b02d4fc8227b107bddb6d1/parent6831d6e，stampfc877c4；完整REPORT/HANDOFF及RED101/finalfetch-test-Clippy0已读，6lib/18HTTP/1proxy/9redaction-retry/2TLS作者通过。a09061992只读此固定提交独立六项runtime复审；nestedpercent/zeroization/生产后端cancel仍不能默认保证。
+
+a080交付6831d6e862303a0ce1c883925068078cbcb78e23/tree2f7fc8e8bb8ea34551235190e8e200e750358af9/parent77d9577；完整REPORT/HANDOFF已读，default/hooks tests和最终Clippy0，原IPC/Clippy101保留。a09197172固定archive复审contradictoryIPC/workeridentity/所有分支时钟/真实PID-starttime清理/foreign保护及许可来源。作者proven不等最终验收；同netns/source文件可读、supervisor死亡孤儿、R4/R5/R9/OID/Gateway/runsc/amd仍pending。旧报告a073rootowner已过时，由新记录纠正，不改旧证据。
+
+a0858370498 request_changes：真实freshgeneration上NULLindex/count1/一字节、index0/NULLcount/一字节、bothNULL/一字节均inserted；SQL CHECK和IF均接受unknown。已读完整review/findings、原始row输出并重算hash。a09296228只写pipeline前向迁移/新版本契约/tests；冻结0000/0001及v1 JSON不改，合法旧receipt不变、非法历史升级原子拒绝且无ready。schema-only receipt0/0/1、任意futureDML未fenced、installer checksum信任、owner/superuser边界继续另验。
+
+a0872980e85 request_changes：服务端ALTER ROLE SET role使session_user/current_user不一致，pg_stat_ssl隐藏导致误报tls_not_negotiated；failclosed无注册/catalog，但未产生预期role_mismatch/session_user结构拒绝。a09362030仅connector代码/tests及fixture纠正，不改root/vendor/依赖、不发源SET/RESET或写SQL。固定merged graph/vendor/featureguard/私有CA和其余live回归通过；原缺mount/unsafe set_var/探针101保留。复审PG日志hash4fe7311b5e8c9c1fcf935d62db9d4306c639bff25e8cf7951b01519f8d685ea1已重算；源SQL仅SELECT1748/WITH102/START77/ROLLBACK77。deny4/CDLA和target-all供应链仍未签。
+
+勘误：a084/a089重复“r-efi AUTHORS不是MIT正文”是错误表述。a078已独立证明5.3/6.0 AUTHORS含完整MIT；新erratum记录实际bodyhash，不修改历史report、不放宽basename或LGPL-orlater OR规则/CDLA。
+
+当前产品累计交付仍6组件，独立验收子项仍3；首次产品复审6项、返工4/6=66.7%（小样本，原草案/源/SDK/目标schema返工）。a087整合复审及a090修正复审不重复计新功能first-review；a080原型和基础修复单列。87完整父项/16Phase仍0完成。本轮无新充分批准证据，因此不新增完成勾选；旧已批准子项保留。后续类型→有界reader→真实targetapply任务卡继续prepared，优先等NFC root实际交接与源role修正固定接口，基础线不阻塞独立模块。

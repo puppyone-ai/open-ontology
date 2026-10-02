@@ -1,0 +1,199 @@
+{
+  "review_id": "a085",
+  "run_id": "eef831aa-dba4-4af2-a78b-541bc9e0a085",
+  "slice": "SP04-W05-a",
+  "decision": "request_changes",
+  "decision_scope": "SP04-W05-a database foundation only",
+  "source": {
+    "commit": "83704982a8d9459c51ed7c2020c51d21c91fb8cd",
+    "tree": "494a0f015c35e3eb75548e9d4dad71bb28d0acd7",
+    "parent": "78d106fcb3e7e1705b617ed6df58933d85297e7b",
+    "subject": "pipeline: add the target fence and apply-receipt schema",
+    "archive_files": 325,
+    "archive_tar_sha256": "df0a6de227b29333d60ccc0c39a73297b42eafe25d5afbb52b86aa25e3d29824",
+    "workspace_head_at_archive": "911f317cde6d87ec49c247afc35681c7c64d5c91",
+    "acceptance_tree": "git archive of 83704982, not the working tree"
+  },
+  "signs": {
+    "SP04-W05-a": false,
+    "SP04-W05": false,
+    "AT-PL-05": false,
+    "loader": false,
+    "cdc": false,
+    "control_mirror": false,
+    "ack": false,
+    "workers_100": false,
+    "physical_name_mapping": false,
+    "real_vertical": false,
+    "dual_arch": false,
+    "runsc": false,
+    "customer_gate": false,
+    "protected_ci": false,
+    "release": false
+  },
+  "checksums": {
+    "bootstrap_sha256": "37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208",
+    "expand_sha256": "97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9",
+    "contract_json_sha256": "429faa9d32e4b42960e805e0883a2f67c8783d936e9094f0747e9c5e21a23521",
+    "contract_binds_file_hashes": true,
+    "lie_digest": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"
+  },
+  "linux": {
+    "image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "platform": "linux/arm64",
+    "container": "oo-a085-msrv-c4e1a085-7b21-4d55-9c10-a085fence01",
+    "rustc": "1.94.0",
+    "rustc_commit": "4a4ef493e3a1488c6e321570238084b38948f6db",
+    "host": "aarch64-unknown-linux-gnu",
+    "llvm": "21.1.8",
+    "os": "Debian GNU/Linux 13 (trixie)",
+    "airgap_claim": false,
+    "clippy_component_exit": 0,
+    "fetch_exit": 0,
+    "test_exit": 0,
+    "clippy_exit": 0,
+    "container_exit": 0,
+    "tests_passed": 1,
+    "test_name": "target_fence_files_match_the_published_contract",
+    "privileged": false,
+    "network": "bridge",
+    "other_rust_builder_at_launch": "oo-a084-tools2-7402787d-72a5-4328-ad9f-269f55dddb4c",
+    "a080_comm": "sleep"
+  },
+  "postgres": {
+    "image": "sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb",
+    "container": "oo-a085-pg1710-b7d2a085-6c18-4a31-8e44-a085pg0001",
+    "version": "PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu",
+    "data_checksums": "on",
+    "privileged": false,
+    "network": "bridge",
+    "published_ports": {},
+    "fixture_count": 1,
+    "probe_cases": 144,
+    "probe_failed": 16,
+    "supplement_cases": 28,
+    "supplement_harness_failed": 0,
+    "summary": "pg/out/summary.json",
+    "supplement_summary": "pg/out/supplement-summary.json"
+  },
+  "findings": [
+    {
+      "id": "A085-F1",
+      "blocking_for_sp04_w05_a": true,
+      "class": "schema_defect",
+      "title": "NULL segment mixtures are stored",
+      "statement": "commit_apply_receipt returned inserted for three receipts on fresh shards at generation 1: null index with count 1 and a 1-byte bitmap, index 0 with null count and a 1-byte bitmap, and both fields null with a 1-byte bitmap. The function raises 23514 only when the segment OR-expression is true. A NULL comparison makes that expression unknown, IF NOT unknown does not raise, and the matching CHECK constraint accepts unknown. A NULL bitmap and an 8193-byte bitmap still raise 23514. The main-suite rej_segment call on an already-incremented shard then raised OO013 because generation 1 was stale.",
+      "evidence": [
+        "pg/out/sup_seg_null_index.stdout",
+        "pg/out/sup_seg_null_index_row.stdout",
+        "pg/out/sup_seg_null_count.stdout",
+        "pg/out/sup_seg_null_count_row.stdout",
+        "pg/out/sup_seg_null_both.stdout",
+        "pg/out/sup_seg_null_both_row.stdout",
+        "pg/out/rej_segment.stderr"
+      ]
+    },
+    {
+      "id": "A085-F2",
+      "blocking_for_sp04_w05_a": false,
+      "class": "accepted_boundary",
+      "title": "Owner and superuser writes are not stopped by the triggers",
+      "statement": "Runtime direct INSERT, TRUNCATE, and SELECT on the fence tables raise 42501. Owner INSERT into apply_receipts and owner DELETE of schema_migrations raise OO014 when the writer GUC is unset. In one transaction, owner _allow_write() plus a generation decrease raises 22003 and the transaction rolls back. Owner _allow_write() plus an INSERT, and owner DELETE of migration_lock, succeed inside rolled-back transactions. migration_lock has no immutability trigger. Superuser DISABLE TRIGGER USER inserted a receipt inside a rolled-back transaction. Runtime SET _oo.writer succeeds even though set_config(text, text, boolean) is revoked from runtime. Table grants still deny the runtime INSERT.",
+      "evidence": [
+        "pg/out/oracle.stdout",
+        "pg/out/runtime_insert.stderr",
+        "pg/out/runtime_set_guc.stdout",
+        "pg/out/owner_insert.stderr",
+        "pg/out/owner_delete_migration.stderr",
+        "pg/out/owner_delete_lock_row_rollback.stdout",
+        "pg/out/sup_owner_decrease.stderr",
+        "pg/out/superuser_disable_trigger_rollback.stdout",
+        "pg/out/superuser_bypass_absent.stdout"
+      ]
+    },
+    {
+      "id": "A085-F3",
+      "blocking_for_sp04_w05_a": false,
+      "class": "residual",
+      "title": "Receipt-only install does not fence later table DML",
+      "statement": "batch-receipt-only is 0 data rows, 0 quality rows, and 1 receipt. A second LOGIN member then inserted into fixture_future.note with no adopt and no receipt. Loader, CDC, reject storage, control mirror, and ACK are absent. Function source in _oo has no jobs lease, watermark, or 6401202601 reference. Publication count is 0. The four ordinary tables are LOGGED.",
+      "evidence": [
+        "pg/out/receipt_only_counts.stdout",
+        "pg/out/future_dml_without_fence.stdout",
+        "pg/out/relations_logged.stdout",
+        "pg/out/oracle.stdout"
+      ]
+    },
+    {
+      "id": "A085-F4",
+      "blocking_for_sp04_w05_a": false,
+      "class": "applicator",
+      "title": "Stored checksum is the caller value",
+      "statement": "schema_ready is false before bookkeeping. After the real file hashes are stored, schema_ready of the expand hash is true and schema_ready of 64 zeroes is false. protocol_repeat with a zero expand hash raises OO001 and leaves the stored hashes unchanged. On oo_agent_lie the owner stored ef repeated 32 times. schema_ready of that lie is true and schema_ready of the real expand hash is false. The view's schema_version_present does not read the file.",
+      "evidence": [
+        "pg/out/ready_before_book.stdout",
+        "pg/out/ready_conjunction.stdout",
+        "pg/out/protocol_lie.stderr",
+        "pg/out/rows_after_lie_repeat.stdout",
+        "pg/out/lie_insert.stdout"
+      ]
+    },
+    {
+      "id": "A085-F5",
+      "blocking_for_sp04_w05_a": false,
+      "class": "identity",
+      "title": "owner_token is not an external worker identity",
+      "statement": "oo_a085_worker adopted a free shard with the token first used by oo_a085_runtime. The stored owner_token is that uuid. Gateway and Agent logins, which are not members, fail CONNECT with 42501. A committed assert does not authorize a later transaction: after a rolled-back fail the receipt raises OO011 while the session nonce remains and the advisory count is 0. Same-backend wrong token raises OO017 and does not increment. Renewal on the same backend stays at generation 1. Takeover after the holder session ended moved a085_dead from pid 7020 generation 1 to pid 7409 generation 2. There is no backend_start column. A temp BEFORE trigger rewrote the session nonce and the same-session receipt raised OO011. A known nonce copied into another session still raised OO011. A planted lock-key row raised OO020.",
+      "evidence": [
+        "pg/out/worker_token_stored.stdout",
+        "pg/out/gateway_connect.stderr",
+        "pg/out/agent_connect.stderr",
+        "pg/out/assert_then_later_without_lock.stderr",
+        "pg/out/released_lock_session_row.stdout",
+        "pg/out/renew_generation_stays.stdout",
+        "pg/out/wrong_token_same_backend.stderr",
+        "pg/out/dead_pid_before.stdout",
+        "pg/out/takeover_generation.stdout",
+        "pg/out/temp_name_poison.stdout",
+        "pg/out/temp_poison_stored_nonce.stdout",
+        "pg/out/forged_nonce_other_connection.stderr",
+        "pg/out/adopt_key_collision.stderr"
+      ]
+    },
+    {
+      "id": "A085-F6",
+      "blocking_for_sp04_w05_a": false,
+      "class": "concurrency",
+      "title": "Same-shard exclusion and cross-connection row lock hold, with finite lock_timeout",
+      "statement": "While one runtime backend slept with the shard lock, a second login's adopt raised 55P03 and a different shard's adopt committed. A second pg_advisory_xact_lock(6404202605) raised 55P03 in 2.047s while the first session held that bigint key. Killing the backend before COMMIT left the receipt absent (57P01). Killing it after COMMIT left the receipt present (57P01). Two shards and one receipt identity: the waiter raised 55P03 in 2.086s and the stored payload stayed the winner's digest. The first suite's SQL comments were invisible to pg_stat_activity, so its overlap cases are not the acceptance record. Replay after takeover left payload, fence_generation 1, and target_commit_at unchanged. A conflicting payload rolled back the side inserts. Replay of an unchanged receipt lets earlier DML in the same transaction commit.",
+      "evidence": [
+        "pg/out/sup_same_shard.stderr",
+        "pg/out/sup_other_shard.stdout",
+        "pg/out/sup_mig_waiter.stderr",
+        "pg/out/sup_prekill.stderr",
+        "pg/out/sup_pre_absent.stdout",
+        "pg/out/sup_postkill.stderr",
+        "pg/out/sup_post_present.stdout",
+        "pg/out/sup_race_waiter.stderr",
+        "pg/out/sup_race_row.stdout",
+        "pg/out/replay_row_unchanged.stdout",
+        "pg/out/conflict_side_absent.stdout",
+        "pg/out/replay_does_not_roll_back_prior_dml.stdout",
+        "pg/out/poll-a085left.stdout"
+      ]
+    },
+    {
+      "id": "A085-F7",
+      "blocking_for_sp04_w05_a": false,
+      "class": "provenance",
+      "title": "Author baseline pin, in-place replace, and two fixtures",
+      "statement": "Pre-smoke invocation pins 0bba2a7993e6b53b1bb7c587e6e978bc6f8133dc tree 93aedfb3a6b126cbf0c9e7bb6833e41bb7d14f3e. baseline-head.txt is 2b68c89934d4ac1a73467ef563b14a895d6c3778 and baseline-tree.txt is that commit's tree 97574ee62ac09d98e0512bae8bfecc31f1f0d879. 0bba2a79 is an ancestor of 2b68c899. The report discloses the HEAD move. Post-smoke snapshot-files.sha256 is the empty-stdin hash 0bd518b93e23115ba12c428721531294808fc5dca8cbd40d094f31ab53684de0. The 42703 artifact fence_flow.exit remains 3. The first container's later pass used resume=connect_without_reset. fixture-fresh is the from-empty pass of the published hashes. Receipt clocks are 2026-10-02 01:21:02+00 and 01:26:10+00. No StartedAt survived, so overlap of the two author fixtures is missing proof. This review used one PostgreSQL container. Governance files are on disk and are not in commit 83704982.",
+      "evidence": [
+        "raw/commit.txt",
+        "raw/commit-tree.txt",
+        "raw/parent.txt",
+        "pg/attempts/driver-auth/prepare-auth.stderr"
+      ]
+    }
+  ]
+}

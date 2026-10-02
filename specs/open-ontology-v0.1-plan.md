@@ -82,6 +82,15 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 该示例是计划，不是真实成功记录；运行时填入实现 commit、依赖版本、精确命令和 artifact hash。每卡通过原工作项关联 Spec 的 REQ / AT，不建立另一套产品编号。
 
+### 当前实施检查点（2026-10-02）
+
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime/P5 IPC修正已交付待复审；源role GUC、目标receipt NULL校验、NFC及基础Rust supervisor继续修正，结构closure仍待独立结论。这些开发状态不代表父任务完成。
+
+- [ ] SP03-W01 main源身份安全整合：a093修正后固定复审，继续保持源零写和privateCA-only。
+- [ ] SP04-W05-a 目标fence迁移：a092前向修正、合法历史不变/非法历史原子拒绝、固定复审。
+- [ ] SP07-W01结构closure/NFC：a086续审、a088交付与独立复审，旧错误hash不静默复用。
+- [ ] SP09-W01-a SDK JSON runtime：a090固定bde2e8c复审，供应链/真实Gateway另验。
+
 ### 2.3 每个工作项的开发步骤
 
 1. **契约 PR：** 固定类型、接口、迁移约束、状态机、合法与负例 fixture、验收范围。没有变更时直接引用已批准契约，不重复造空 PR。
