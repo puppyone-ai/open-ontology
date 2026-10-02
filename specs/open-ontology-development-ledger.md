@@ -877,3 +877,5 @@ a119恢复handle63967实际exit0，交付e2730033；三报告完整读完，cano
 - [x] 正式支持的Linux GNU双目标 ci/deny graph 配置固定提交复审（限定门禁；不计产品新验收）。
 
 all-target/wasm RED、types/SP00/发行与外部门槛继续未签。slot B释放，a116 handle68913实际仍live占slot A，a120尚未派发。9产品组件/9验收子项/首轮返工6比9保持，goal active。
+
+a120 R2-W 激活：固定9fb04e75249dbb55a795dccaa6a3b17164d686cf，仅明确vendor接收/计量/typed error与新Rust wire测试路径；无snapshot、portal、manifest/lock写权，无PG，slot B/最多1builder。slot A a116实际仍live，两槽全球上限保持。先Linux1.94冒烟、后真实分片socket allocation/cancel测试与固定提交复审，尚不勾实现验收。下一新UUID a121。
