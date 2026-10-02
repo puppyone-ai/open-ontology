@@ -1,0 +1,52 @@
+{
+  "canary_in_debug": false,
+  "canary_in_json": false,
+  "database": "source_lab",
+  "hash_algorithm": "pg-catalog-hash/v1",
+  "ident_algorithm": "pgident/v1",
+  "label": "catalog-one",
+  "protocol": "oo.source.pgsql/v1",
+  "schema_hash": "56ac4e04e096d57cede37a53e004c01430fe4b760478307ff499a4b8c406cbf4",
+  "static_word_in_json": false,
+  "table_count": 1,
+  "tables": [
+    {
+      "columns": [
+        {
+          "attnum": 1,
+          "converted": false,
+          "default_len": null,
+          "default_sha256": null,
+          "insert": true,
+          "name": "id",
+          "name_ident": "id",
+          "reason": "KnownBuiltinNotConverted",
+          "select": true,
+          "type_oid": 23,
+          "typmod": -1
+        },
+        {
+          "attnum": 2,
+          "converted": false,
+          "default_len": null,
+          "default_sha256": null,
+          "insert": true,
+          "name": "name",
+          "name_ident": "name",
+          "reason": "KnownBuiltinNotConverted",
+          "select": true,
+          "type_oid": 25,
+          "typmod": -1
+        }
+      ],
+      "comment_len": 20,
+      "comment_sha256": "ea414a94776266a88d0d8c53e1d6474517256baf3a54ab9f643ffd56c42c5c20",
+      "name": "hashprobe",
+      "name_ident": "hashprobe",
+      "relkind": "r",
+      "schema": "app",
+      "schema_ident": "app"
+    }
+  ],
+  "type_conversion": "unsupported"
+}

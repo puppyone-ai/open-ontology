@@ -1,0 +1,10 @@
+rm_container_a2=0
+rm_cargo_a2=0
+rm_target_a2=0
+rm_net_a2=0
+rm_tmp=0
+own_after=0
+a078_containers_after=0
+a078_volumes_after=0
+a078_networks_after=0
+tmp_exists=no

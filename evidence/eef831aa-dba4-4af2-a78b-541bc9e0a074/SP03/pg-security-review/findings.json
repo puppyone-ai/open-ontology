@@ -1,0 +1,211 @@
+{
+  "review_id": "a074",
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a074",
+  "slice": "postgresql-source-security-correction",
+  "decision": "approve",
+  "decision_scope": "correction slice only",
+  "signs_sp03_w01": false,
+  "signs_pg13": false,
+  "signs_pg14": false,
+  "signs_bounded_read": false,
+  "signs_type_conversion": false,
+  "signs_cdc": false,
+  "integration_authorized_by_this_review": false,
+  "integration_note": "Permitted after a073 releases the SDK root lock and the merged graph passes the feature check in required_integration_check.",
+  "commit": {
+    "sha": "4ecdbf714766baef3490a4f954701eaf19f245a0",
+    "tree": "da8b5d2cb5f4b2548bd1066c2b707bbaedf0d07d",
+    "parent": "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74"
+  },
+  "stamp": {
+    "sha": "181df9b6ba030b68e3a48aa0f58e5c5f909bee55",
+    "tree": "41aecc32fcacb47f141fef8dda4e3810a92bc3fd",
+    "files": [
+      "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a066/SP03/pg-source-fix/REPORT.md",
+      "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a066/SP03/pg-source-fix/handoff.json"
+    ]
+  },
+  "source_frozen": {
+    "worktree": "/Users/redux/.codex/worktrees/product-pg/open-ontology",
+    "head_after_review": "181df9b6ba030b68e3a48aa0f58e5c5f909bee55",
+    "porcelain_empty": true
+  },
+  "closed_high": [
+    {
+      "id": "PG-ADMIT-UNSELECTED",
+      "status": "fixed",
+      "evidence": "side, hiddenfn, schemacreate, and dbcreate registration_allowed false with direct INSERT, hidden definer, schema CREATE, and database CREATE findings"
+    },
+    {
+      "id": "PG-OPTIONS-ROLE",
+      "status": "fixed",
+      "evidence": "from_explicit left options null under PGOPTIONS=-c role=oo_src_reader; live dual session stayed oo_src_dual on 17.10 and stayed blocked"
+    },
+    {
+      "id": "PG-TLS-WEBPKI",
+      "status": "fixed_for_selected_graph",
+      "evidence": "selected graph has no webpki-roots package; temporary harness a074_root_count=0; wrong CA and wrong hostname rejected; private CA negotiated TLSv1.3"
+    }
+  ],
+  "residuals": [
+    {
+      "id": "PG-FEATURE-UNION",
+      "severity": "integration",
+      "summary": "Enabling _tls-rustls-ring-webpki beside _tls-rustls-ring-no-roots produced 119 root certificates. Official sqlx default features do not enable TLS. The merged workspace must reject webpki-roots and rustls-native-certs."
+    },
+    {
+      "id": "PG-SBOM-WORDING",
+      "severity": "low",
+      "summary": "Workspace Cargo.toml says the path patches are not a driver fork. PATCH.md correctly says they are crates.io 0.9.0 plus the hunks. SBOM identity must say modified upstream artifacts."
+    },
+    {
+      "id": "PG-LICENSE-BODY",
+      "severity": "medium",
+      "summary": "Vendor LICENSE-MIT and LICENSE-APACHE are dangling relative pointers, the same as the published crate tarballs. Full MIT and Apache-2.0 texts are not in the tree. ISC remains on ring, rustls-webpki, and untrusted."
+    },
+    {
+      "id": "PG-ISC-POLICY",
+      "severity": "separate_commit",
+      "summary": "Source ci/deny.toml still rejects ISC (cargo-deny exit 4). Candidate b14c782 allows ISC and exits 0. That policy change is not the TLS fix."
+    },
+    {
+      "id": "PG-ADMIN-GRANT",
+      "severity": "info",
+      "summary": "ADMIN true with INHERIT false and SET false can GRANT the role and cannot SET ROLE or INSERT. The connector blocks registration. Not an admitted hole."
+    }
+  ],
+  "required_integration_check": {
+    "command": "cargo tree -e features -i sqlx-core",
+    "forbid_features": ["webpki-roots", "rustls-native-certs"],
+    "forbid_sqlx_features": [
+      "tls-rustls",
+      "tls-rustls-ring",
+      "tls-rustls-ring-webpki",
+      "tls-rustls-ring-native-roots",
+      "tls-native-tls"
+    ],
+    "measured_conflict": {
+      "features": ["_tls-rustls-ring-no-roots", "_tls-rustls-ring-webpki"],
+      "a074_root_count": 119,
+      "webpki_roots_resolved": "1.0.7",
+      "exit": 0
+    },
+    "measured_selected": {
+      "a074_root_count": 0,
+      "author_root_store_starts_empty_exit": 0,
+      "webpki_tree_exit": 101
+    }
+  },
+  "privilege_oracle": {
+    "server": "17.10 (Debian 17.10-1.pgdg12+1)",
+    "server_version_num": 170010,
+    "reader_column_select_id": true,
+    "reader_column_select_hidden_pii": false,
+    "reader_column_insert": false,
+    "reader_table_select": false,
+    "reader_registration_allowed": true,
+    "reader_schema_hash": "b0dbcffe78f8818af5c72f37c2db048c7058ccfaf8eb1eef4b17b83ac37d9692",
+    "hashprobe_before": "56ac4e04e096d57cede37a53e004c01430fe4b760478307ff499a4b8c406cbf4",
+    "hashprobe_after_comment_and_insert_grant": "56ac4e04e096d57cede37a53e004c01430fe4b760478307ff499a4b8c406cbf4",
+    "hashprobe_after_add_column": "0237f5f27dac17b1d21724ee296b24041d95a69d67696f52f20b1254b7aef074",
+    "empty_hash": "cb2b03b89678ec1fb9db96f116e8e8ad81a81f6b9bbc2594bcb7d941e5234ecc",
+    "nfc": "identifier_collision",
+    "admin_set_role": "42501",
+    "admin_direct_insert": "42501",
+    "admin_grant": "ok_then_rolled_back",
+    "admin_membership_after": {"inherit": false, "set": false, "admin": true},
+    "admin_registration_allowed": false,
+    "view_trap": "42501 permission denied for function invoker_insert",
+    "side_write_count_after_rollback": 0,
+    "view_registration_allowed": true,
+    "truncated": {"kind": "Budget", "fact": "max_rows"},
+    "membership_depth": "essential_fact_unknown"
+  },
+  "tls": {
+    "private_ca": "connected",
+    "negotiated_version": "TLSv1.3",
+    "sampler": "true|TLSv1.3|oo_src_reader|source_lab|oo-pg-source",
+    "wrong_ca": "tls_handshake",
+    "wrong_hostname": "tls_handshake",
+    "bogus_pem": "tls_handshake",
+    "missing_ca": "config ca_pem",
+    "private_key_pem": "config ca_pem",
+    "mozilla_signed_adversarial_cert": "not_tested",
+    "pgoptions_role_override": "ignored",
+    "pgsslmode_disable": "ignored",
+    "server_version_override": "ignored"
+  },
+  "sql_audit": {
+    "source_statements": 957,
+    "flagged": 0,
+    "first_keywords": {"SELECT": 815, "WITH": 58, "START": 42, "ROLLBACK": 42}
+  },
+  "patch": {
+    "sqlx_core_files_differ": ["Cargo.toml", "Cargo.toml.orig", "src/net/tls/tls_rustls.rs"],
+    "sqlx_postgres_files_differ": ["src/options/mod.rs"],
+    "extra_or_missing_files": 0,
+    "unified_bytes": 3664,
+    "unified_lines": 104,
+    "unified_sha256": "f4b1aff1f2575a6b161a5cec37da26a4e097475aa1dcde3a9cec603766ac5f37"
+  },
+  "crates": {
+    "sqlx-core": {
+      "version": "0.9.0",
+      "yanked": false,
+      "license": "MIT OR Apache-2.0",
+      "created_at": "2026-05-21T17:33:20.890999Z",
+      "checksum": "05b44e85bf579a8eeb4ceaa77a3a523baf2bf0e9bac7e40f405d537b5d2d5ccb"
+    },
+    "sqlx-postgres": {
+      "version": "0.9.0",
+      "yanked": false,
+      "license": "MIT OR Apache-2.0",
+      "created_at": "2026-05-21T17:34:06.907340Z",
+      "checksum": "87a2bdd6e83f6b3ea525ca9fee568030508b58355a43d0b2c1674d5f79dcd65e"
+    },
+    "sqlx": {
+      "version": "0.9.0",
+      "yanked": false,
+      "license": "MIT OR Apache-2.0",
+      "created_at": "2026-05-21T17:35:53.403466Z",
+      "checksum": "378620ccc25c62c89d8be1c819e76a88d59bdcc3304733330788948e619bfd71"
+    }
+  },
+  "license_bodies": {
+    "vendor_files": "dangling relative pointers",
+    "mit_sha256": "5abbdd842310c8f1650fcde3a5a51a3e09412b9e5a6eea87519e0db9e32b339d",
+    "mit_bytes": 1109,
+    "apache_sha256": "c8f5453612253e8ea8bad241617fe74c4a6d5d592ba64ff881668c211b50ac99",
+    "apache_bytes": 10297,
+    "vcs": "003b698e99e024f3621b8043a2426fde5b741171"
+  },
+  "supply": {
+    "cargo_lock_sha256": "ee9c4ad02b69686b9132dba3cc8bcedb809d42787ce770441fdaa045e44fc8a7",
+    "webpki_roots_in_lock": false,
+    "deny_tool": "cargo-deny 0.20.2",
+    "deny_tarball_sha256": "995c82be0defc7a025cae49a2aa2644ce8245c9a3318fc4103907c6a285e8c7d",
+    "deny_source_exit": 4,
+    "deny_source_summary": "advisories ok, bans ok, licenses FAILED, sources ok",
+    "deny_isc_candidate": "b14c7821031990aafd713f23068658d41042ee2d",
+    "deny_isc_exit": 0,
+    "deny_isc_summary": "advisories ok, bans ok, licenses ok, sources ok",
+    "audit_tool": "cargo-audit 0.22.2",
+    "audit_exit": 0,
+    "audit_advisories_loaded": 1279,
+    "audit_dependencies": 247,
+    "audit_db_local_head": "6de4455103aced2cba86e3b86e5c090b22827cf1",
+    "audit_readonly_attempt_exit": 1
+  },
+  "commands": [
+    {"name": "msrv-smoke", "exit": 0, "lib_passed": 14, "doc_passed": 0, "live_norun_exit": 0, "webpki_tree_exit": 101},
+    {"name": "probe-all", "exit": 0},
+    {"name": "root-store-empty", "exit": 0, "a074_root_count": 0},
+    {"name": "root-store-conflict", "exit": 0, "a074_root_count": 119},
+    {"name": "cargo-deny-source", "exit": 4},
+    {"name": "cargo-deny-b14c782", "exit": 0},
+    {"name": "cargo-audit-readonly-mount", "exit": 1},
+    {"name": "cargo-audit", "exit": 0},
+    {"name": "oracle", "exit": 0},
+    {"name": "sql-audit", "flagged": 0}
+  ]
+}

@@ -1,0 +1,778 @@
+warning[duplicate]: found 2 duplicate entries for crate 'base64'
+   ┌─ /src-ro/Cargo.lock:9:1
+   │  
+ 9 │ ╭ base64 0.22.1 registry+https://github.com/rust-lang/crates.io-index
+10 │ │ base64 0.23.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ base64 v0.22.1
+     ├── sqlx-core v0.9.0
+     │   ├── oo-connectors v0.1.0
+     │   │   └── oo-pipeline v0.1.0
+     │   ├── sqlx v0.9.0
+     │   │   └── (dev) oo-connectors v0.1.0 (*)
+     │   └── sqlx-postgres v0.9.0
+     │       └── sqlx v0.9.0 (*)
+     └── sqlx-postgres v0.9.0 (*)
+   ├ base64 v0.23.1
+     └── serde-saphyr v1.3.0
+         └── oo-core v0.1.0
+             ├── oo-analysis v0.1.0
+             ├── oo-builder v0.1.0
+             ├── oo-cli v0.1.0
+             ├── oo-connectors v0.1.0
+             │   └── oo-pipeline v0.1.0
+             ├── oo-control v0.1.0
+             ├── oo-entry v0.1.0
+             ├── oo-eval v0.1.0
+             ├── oo-gateway v0.1.0
+             ├── oo-jobs v0.1.0
+             │   ├── oo-builder v0.1.0 (*)
+             │   ├── oo-control v0.1.0 (*)
+             │   └── oo-pipeline v0.1.0 (*)
+             ├── oo-mcp v0.1.0
+             ├── oo-pipeline v0.1.0 (*)
+             ├── oo-proxy v0.1.0
+             ├── oo-sandbox v0.1.0
+             ├── oo-sdk v0.1.0
+             │   └── oo-cli v0.1.0 (*)
+             └── xtask v0.1.0
+
+warning[duplicate]: found 2 duplicate entries for crate 'block-buffer'
+   ┌─ /src-ro/Cargo.lock:14:1
+   │  
+14 │ ╭ block-buffer 0.10.4 registry+https://github.com/rust-lang/crates.io-index
+15 │ │ block-buffer 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ block-buffer v0.10.4
+     └── digest v0.10.7
+         └── sha2 v0.10.9
+             ├── oo-connectors v0.1.0
+             │   └── oo-pipeline v0.1.0
+             ├── oo-core v0.1.0
+             │   ├── oo-analysis v0.1.0
+             │   ├── oo-builder v0.1.0
+             │   ├── oo-cli v0.1.0
+             │   ├── oo-connectors v0.1.0 (*)
+             │   ├── oo-control v0.1.0
+             │   ├── oo-entry v0.1.0
+             │   ├── oo-eval v0.1.0
+             │   ├── oo-gateway v0.1.0
+             │   ├── oo-jobs v0.1.0
+             │   │   ├── oo-builder v0.1.0 (*)
+             │   │   ├── oo-control v0.1.0 (*)
+             │   │   └── oo-pipeline v0.1.0 (*)
+             │   ├── oo-mcp v0.1.0
+             │   ├── oo-pipeline v0.1.0 (*)
+             │   ├── oo-proxy v0.1.0
+             │   ├── oo-sandbox v0.1.0
+             │   ├── oo-sdk v0.1.0
+             │   │   └── oo-cli v0.1.0 (*)
+             │   └── xtask v0.1.0
+             ├── sqlx-core v0.9.0
+             │   ├── oo-connectors v0.1.0 (*)
+             │   ├── sqlx v0.9.0
+             │   │   └── (dev) oo-connectors v0.1.0 (*)
+             │   └── sqlx-postgres v0.9.0
+             │       └── sqlx v0.9.0 (*)
+             └── xtask v0.1.0 (*)
+   ├ block-buffer v0.12.1
+     └── digest v0.11.3
+         ├── hmac v0.13.0
+         │   ├── hkdf v0.13.0
+         │   │   └── sqlx-postgres v0.9.0
+         │   │       └── sqlx v0.9.0
+         │   │           └── (dev) oo-connectors v0.1.0
+         │   │               └── oo-pipeline v0.1.0
+         │   └── sqlx-postgres v0.9.0 (*)
+         ├── md-5 v0.11.0
+         │   └── sqlx-postgres v0.9.0 (*)
+         └── sha2 v0.11.0
+             └── sqlx-postgres v0.9.0 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'cpufeatures'
+   ┌─ /src-ro/Cargo.lock:31:1
+   │  
+31 │ ╭ cpufeatures 0.2.17 registry+https://github.com/rust-lang/crates.io-index
+32 │ │ cpufeatures 0.3.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ cpufeatures v0.2.17
+     └── sha2 v0.10.9
+         ├── oo-connectors v0.1.0
+         │   └── oo-pipeline v0.1.0
+         ├── oo-core v0.1.0
+         │   ├── oo-analysis v0.1.0
+         │   ├── oo-builder v0.1.0
+         │   ├── oo-cli v0.1.0
+         │   ├── oo-connectors v0.1.0 (*)
+         │   ├── oo-control v0.1.0
+         │   ├── oo-entry v0.1.0
+         │   ├── oo-eval v0.1.0
+         │   ├── oo-gateway v0.1.0
+         │   ├── oo-jobs v0.1.0
+         │   │   ├── oo-builder v0.1.0 (*)
+         │   │   ├── oo-control v0.1.0 (*)
+         │   │   └── oo-pipeline v0.1.0 (*)
+         │   ├── oo-mcp v0.1.0
+         │   ├── oo-pipeline v0.1.0 (*)
+         │   ├── oo-proxy v0.1.0
+         │   ├── oo-sandbox v0.1.0
+         │   ├── oo-sdk v0.1.0
+         │   │   └── oo-cli v0.1.0 (*)
+         │   └── xtask v0.1.0
+         ├── sqlx-core v0.9.0
+         │   ├── oo-connectors v0.1.0 (*)
+         │   ├── sqlx v0.9.0
+         │   │   └── (dev) oo-connectors v0.1.0 (*)
+         │   └── sqlx-postgres v0.9.0
+         │       └── sqlx v0.9.0 (*)
+         └── xtask v0.1.0 (*)
+   ├ cpufeatures v0.3.1
+     ├── chacha20 v0.10.2
+     │   └── rand v0.10.3
+     │       └── sqlx-postgres v0.9.0
+     │           └── sqlx v0.9.0
+     │               └── (dev) oo-connectors v0.1.0
+     │                   └── oo-pipeline v0.1.0
+     └── sha2 v0.11.0
+         └── sqlx-postgres v0.9.0 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'crypto-common'
+   ┌─ /src-ro/Cargo.lock:37:1
+   │  
+37 │ ╭ crypto-common 0.1.6 registry+https://github.com/rust-lang/crates.io-index
+38 │ │ crypto-common 0.2.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ crypto-common v0.1.6
+     └── digest v0.10.7
+         └── sha2 v0.10.9
+             ├── oo-connectors v0.1.0
+             │   └── oo-pipeline v0.1.0
+             ├── oo-core v0.1.0
+             │   ├── oo-analysis v0.1.0
+             │   ├── oo-builder v0.1.0
+             │   ├── oo-cli v0.1.0
+             │   ├── oo-connectors v0.1.0 (*)
+             │   ├── oo-control v0.1.0
+             │   ├── oo-entry v0.1.0
+             │   ├── oo-eval v0.1.0
+             │   ├── oo-gateway v0.1.0
+             │   ├── oo-jobs v0.1.0
+             │   │   ├── oo-builder v0.1.0 (*)
+             │   │   ├── oo-control v0.1.0 (*)
+             │   │   └── oo-pipeline v0.1.0 (*)
+             │   ├── oo-mcp v0.1.0
+             │   ├── oo-pipeline v0.1.0 (*)
+             │   ├── oo-proxy v0.1.0
+             │   ├── oo-sandbox v0.1.0
+             │   ├── oo-sdk v0.1.0
+             │   │   └── oo-cli v0.1.0 (*)
+             │   └── xtask v0.1.0
+             ├── sqlx-core v0.9.0
+             │   ├── oo-connectors v0.1.0 (*)
+             │   ├── sqlx v0.9.0
+             │   │   └── (dev) oo-connectors v0.1.0 (*)
+             │   └── sqlx-postgres v0.9.0
+             │       └── sqlx v0.9.0 (*)
+             └── xtask v0.1.0 (*)
+   ├ crypto-common v0.2.2
+     └── digest v0.11.3
+         ├── hmac v0.13.0
+         │   ├── hkdf v0.13.0
+         │   │   └── sqlx-postgres v0.9.0
+         │   │       └── sqlx v0.9.0
+         │   │           └── (dev) oo-connectors v0.1.0
+         │   │               └── oo-pipeline v0.1.0
+         │   └── sqlx-postgres v0.9.0 (*)
+         ├── md-5 v0.11.0
+         │   └── sqlx-postgres v0.9.0 (*)
+         └── sha2 v0.11.0
+             └── sqlx-postgres v0.9.0 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'digest'
+   ┌─ /src-ro/Cargo.lock:41:1
+   │  
+41 │ ╭ digest 0.10.7 registry+https://github.com/rust-lang/crates.io-index
+42 │ │ digest 0.11.3 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ digest v0.10.7
+     └── sha2 v0.10.9
+         ├── oo-connectors v0.1.0
+         │   └── oo-pipeline v0.1.0
+         ├── oo-core v0.1.0
+         │   ├── oo-analysis v0.1.0
+         │   ├── oo-builder v0.1.0
+         │   ├── oo-cli v0.1.0
+         │   ├── oo-connectors v0.1.0 (*)
+         │   ├── oo-control v0.1.0
+         │   ├── oo-entry v0.1.0
+         │   ├── oo-eval v0.1.0
+         │   ├── oo-gateway v0.1.0
+         │   ├── oo-jobs v0.1.0
+         │   │   ├── oo-builder v0.1.0 (*)
+         │   │   ├── oo-control v0.1.0 (*)
+         │   │   └── oo-pipeline v0.1.0 (*)
+         │   ├── oo-mcp v0.1.0
+         │   ├── oo-pipeline v0.1.0 (*)
+         │   ├── oo-proxy v0.1.0
+         │   ├── oo-sandbox v0.1.0
+         │   ├── oo-sdk v0.1.0
+         │   │   └── oo-cli v0.1.0 (*)
+         │   └── xtask v0.1.0
+         ├── sqlx-core v0.9.0
+         │   ├── oo-connectors v0.1.0 (*)
+         │   ├── sqlx v0.9.0
+         │   │   └── (dev) oo-connectors v0.1.0 (*)
+         │   └── sqlx-postgres v0.9.0
+         │       └── sqlx v0.9.0 (*)
+         └── xtask v0.1.0 (*)
+   ├ digest v0.11.3
+     ├── hmac v0.13.0
+     │   ├── hkdf v0.13.0
+     │   │   └── sqlx-postgres v0.9.0
+     │   │       └── sqlx v0.9.0
+     │   │           └── (dev) oo-connectors v0.1.0
+     │   │               └── oo-pipeline v0.1.0
+     │   └── sqlx-postgres v0.9.0 (*)
+     ├── md-5 v0.11.0
+     │   └── sqlx-postgres v0.9.0 (*)
+     └── sha2 v0.11.0
+         └── sqlx-postgres v0.9.0 (*)
+
+warning[duplicate]: found 3 duplicate entries for crate 'getrandom'
+   ┌─ /src-ro/Cargo.lock:67:1
+   │  
+67 │ ╭ getrandom 0.2.17 registry+https://github.com/rust-lang/crates.io-index
+68 │ │ getrandom 0.3.4 registry+https://github.com/rust-lang/crates.io-index
+69 │ │ getrandom 0.4.3 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ getrandom v0.2.17
+     └── ring v0.17.14
+         ├── rustls v0.23.45
+         │   └── sqlx-core v0.9.0
+         │       ├── oo-connectors v0.1.0
+         │       │   └── oo-pipeline v0.1.0
+         │       ├── sqlx v0.9.0
+         │       │   └── (dev) oo-connectors v0.1.0 (*)
+         │       └── sqlx-postgres v0.9.0
+         │           └── sqlx v0.9.0 (*)
+         └── rustls-webpki v0.103.15
+             └── rustls v0.23.45 (*)
+   ├ getrandom v0.3.4
+     ├── ahash v0.8.12
+     │   ├── jsonschema v0.57.0
+     │   │   ├── oo-core v0.1.0
+     │   │   │   ├── oo-analysis v0.1.0
+     │   │   │   ├── oo-builder v0.1.0
+     │   │   │   ├── oo-cli v0.1.0
+     │   │   │   ├── oo-connectors v0.1.0
+     │   │   │   │   └── oo-pipeline v0.1.0
+     │   │   │   ├── oo-control v0.1.0
+     │   │   │   ├── oo-entry v0.1.0
+     │   │   │   ├── oo-eval v0.1.0
+     │   │   │   ├── oo-gateway v0.1.0
+     │   │   │   ├── oo-jobs v0.1.0
+     │   │   │   │   ├── oo-builder v0.1.0 (*)
+     │   │   │   │   ├── oo-control v0.1.0 (*)
+     │   │   │   │   └── oo-pipeline v0.1.0 (*)
+     │   │   │   ├── oo-mcp v0.1.0
+     │   │   │   ├── oo-pipeline v0.1.0 (*)
+     │   │   │   ├── oo-proxy v0.1.0
+     │   │   │   ├── oo-sandbox v0.1.0
+     │   │   │   ├── oo-sdk v0.1.0
+     │   │   │   │   └── oo-cli v0.1.0 (*)
+     │   │   │   └── xtask v0.1.0
+     │   │   └── xtask v0.1.0 (*)
+     │   ├── jsonschema-value v0.57.0
+     │   │   └── jsonschema v0.57.0 (*)
+     │   └── referencing v0.57.0
+     │       └── jsonschema v0.57.0 (*)
+     ├── jsonschema v0.57.0 (*)
+     ├── jsonschema-value v0.57.0 (*)
+     └── referencing v0.57.0 (*)
+   ├ getrandom v0.4.3
+     └── rand v0.10.3
+         └── sqlx-postgres v0.9.0
+             └── sqlx v0.9.0
+                 └── (dev) oo-connectors v0.1.0
+                     └── oo-pipeline v0.1.0
+
+warning[duplicate]: found 2 duplicate entries for crate 'hashbrown'
+   ┌─ /src-ro/Cargo.lock:71:1
+   │  
+71 │ ╭ hashbrown 0.16.1 registry+https://github.com/rust-lang/crates.io-index
+72 │ │ hashbrown 0.17.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ hashbrown v0.16.1
+     ├── hashlink v0.11.1
+     │   └── sqlx-core v0.9.0
+     │       ├── oo-connectors v0.1.0
+     │       │   └── oo-pipeline v0.1.0
+     │       ├── sqlx v0.9.0
+     │       │   └── (dev) oo-connectors v0.1.0 (*)
+     │       └── sqlx-postgres v0.9.0
+     │           └── sqlx v0.9.0 (*)
+     └── sqlx-core v0.9.0 (*)
+   ├ hashbrown v0.17.1
+     ├── indexmap v2.14.2
+     │   ├── sqlx-core v0.9.0
+     │   │   ├── oo-connectors v0.1.0
+     │   │   │   └── oo-pipeline v0.1.0
+     │   │   ├── sqlx v0.9.0
+     │   │   │   └── (dev) oo-connectors v0.1.0 (*)
+     │   │   └── sqlx-postgres v0.9.0
+     │   │       └── sqlx v0.9.0 (*)
+     │   └── utoipa v6.0.0
+     │       └── oo-core v0.1.0
+     │           ├── oo-analysis v0.1.0
+     │           ├── oo-builder v0.1.0
+     │           ├── oo-cli v0.1.0
+     │           ├── oo-connectors v0.1.0 (*)
+     │           ├── oo-control v0.1.0
+     │           ├── oo-entry v0.1.0
+     │           ├── oo-eval v0.1.0
+     │           ├── oo-gateway v0.1.0
+     │           ├── oo-jobs v0.1.0
+     │           │   ├── oo-builder v0.1.0 (*)
+     │           │   ├── oo-control v0.1.0 (*)
+     │           │   └── oo-pipeline v0.1.0 (*)
+     │           ├── oo-mcp v0.1.0
+     │           ├── oo-pipeline v0.1.0 (*)
+     │           ├── oo-proxy v0.1.0
+     │           ├── oo-sandbox v0.1.0
+     │           ├── oo-sdk v0.1.0
+     │           │   └── oo-cli v0.1.0 (*)
+     │           └── xtask v0.1.0
+     └── referencing v0.57.0
+         └── jsonschema v0.57.0
+             ├── oo-core v0.1.0 (*)
+             └── xtask v0.1.0 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'r-efi'
+    ┌─ /src-ro/Cargo.lock:142:1
+    │  
+142 │ ╭ r-efi 5.3.0 registry+https://github.com/rust-lang/crates.io-index
+143 │ │ r-efi 6.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ r-efi v5.3.0
+      └── getrandom v0.3.4
+          ├── ahash v0.8.12
+          │   ├── jsonschema v0.57.0
+          │   │   ├── oo-core v0.1.0
+          │   │   │   ├── oo-analysis v0.1.0
+          │   │   │   ├── oo-builder v0.1.0
+          │   │   │   ├── oo-cli v0.1.0
+          │   │   │   ├── oo-connectors v0.1.0
+          │   │   │   │   └── oo-pipeline v0.1.0
+          │   │   │   ├── oo-control v0.1.0
+          │   │   │   ├── oo-entry v0.1.0
+          │   │   │   ├── oo-eval v0.1.0
+          │   │   │   ├── oo-gateway v0.1.0
+          │   │   │   ├── oo-jobs v0.1.0
+          │   │   │   │   ├── oo-builder v0.1.0 (*)
+          │   │   │   │   ├── oo-control v0.1.0 (*)
+          │   │   │   │   └── oo-pipeline v0.1.0 (*)
+          │   │   │   ├── oo-mcp v0.1.0
+          │   │   │   ├── oo-pipeline v0.1.0 (*)
+          │   │   │   ├── oo-proxy v0.1.0
+          │   │   │   ├── oo-sandbox v0.1.0
+          │   │   │   ├── oo-sdk v0.1.0
+          │   │   │   │   └── oo-cli v0.1.0 (*)
+          │   │   │   └── xtask v0.1.0
+          │   │   └── xtask v0.1.0 (*)
+          │   ├── jsonschema-value v0.57.0
+          │   │   └── jsonschema v0.57.0 (*)
+          │   └── referencing v0.57.0
+          │       └── jsonschema v0.57.0 (*)
+          ├── jsonschema v0.57.0 (*)
+          ├── jsonschema-value v0.57.0 (*)
+          └── referencing v0.57.0 (*)
+    ├ r-efi v6.0.0
+      └── getrandom v0.4.3
+          └── rand v0.10.3
+              └── sqlx-postgres v0.9.0
+                  └── sqlx v0.9.0
+                      └── (dev) oo-connectors v0.1.0
+                          └── oo-pipeline v0.1.0
+
+warning[duplicate]: found 2 duplicate entries for crate 'sha2'
+    ┌─ /src-ro/Cargo.lock:168:1
+    │  
+168 │ ╭ sha2 0.10.9 registry+https://github.com/rust-lang/crates.io-index
+169 │ │ sha2 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ sha2 v0.10.9
+      ├── oo-connectors v0.1.0
+      │   └── oo-pipeline v0.1.0
+      ├── oo-core v0.1.0
+      │   ├── oo-analysis v0.1.0
+      │   ├── oo-builder v0.1.0
+      │   ├── oo-cli v0.1.0
+      │   ├── oo-connectors v0.1.0 (*)
+      │   ├── oo-control v0.1.0
+      │   ├── oo-entry v0.1.0
+      │   ├── oo-eval v0.1.0
+      │   ├── oo-gateway v0.1.0
+      │   ├── oo-jobs v0.1.0
+      │   │   ├── oo-builder v0.1.0 (*)
+      │   │   ├── oo-control v0.1.0 (*)
+      │   │   └── oo-pipeline v0.1.0 (*)
+      │   ├── oo-mcp v0.1.0
+      │   ├── oo-pipeline v0.1.0 (*)
+      │   ├── oo-proxy v0.1.0
+      │   ├── oo-sandbox v0.1.0
+      │   ├── oo-sdk v0.1.0
+      │   │   └── oo-cli v0.1.0 (*)
+      │   └── xtask v0.1.0
+      ├── sqlx-core v0.9.0
+      │   ├── oo-connectors v0.1.0 (*)
+      │   ├── sqlx v0.9.0
+      │   │   └── (dev) oo-connectors v0.1.0 (*)
+      │   └── sqlx-postgres v0.9.0
+      │       └── sqlx v0.9.0 (*)
+      └── xtask v0.1.0 (*)
+    ├ sha2 v0.11.0
+      └── sqlx-postgres v0.9.0
+          └── sqlx v0.9.0
+              └── (dev) oo-connectors v0.1.0
+                  └── oo-pipeline v0.1.0
+
+warning[duplicate]: found 2 duplicate entries for crate 'syn'
+    ┌─ /src-ro/Cargo.lock:184:1
+    │  
+184 │ ╭ syn 2.0.119 registry+https://github.com/rust-lang/crates.io-index
+185 │ │ syn 3.0.6 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ syn v2.0.119
+      ├── strum_macros v0.28.0
+      │   └── strum v0.28.0
+      │       └── jsonschema v0.57.0
+      │           ├── oo-core v0.1.0
+      │           │   ├── oo-analysis v0.1.0
+      │           │   ├── oo-builder v0.1.0
+      │           │   ├── oo-cli v0.1.0
+      │           │   ├── oo-connectors v0.1.0
+      │           │   │   └── oo-pipeline v0.1.0
+      │           │   ├── oo-control v0.1.0
+      │           │   ├── oo-entry v0.1.0
+      │           │   ├── oo-eval v0.1.0
+      │           │   ├── oo-gateway v0.1.0
+      │           │   ├── oo-jobs v0.1.0
+      │           │   │   ├── oo-builder v0.1.0 (*)
+      │           │   │   ├── oo-control v0.1.0 (*)
+      │           │   │   └── oo-pipeline v0.1.0 (*)
+      │           │   ├── oo-mcp v0.1.0
+      │           │   ├── oo-pipeline v0.1.0 (*)
+      │           │   ├── oo-proxy v0.1.0
+      │           │   ├── oo-sandbox v0.1.0
+      │           │   ├── oo-sdk v0.1.0
+      │           │   │   └── oo-cli v0.1.0 (*)
+      │           │   └── xtask v0.1.0
+      │           └── xtask v0.1.0 (*)
+      ├── synstructure v0.13.2
+      │   └── yoke-derive v0.8.2
+      │       └── yoke v0.8.3
+      │           ├── icu_collections v2.3.0
+      │           │   ├── icu_normalizer v2.3.0
+      │           │   │   └── idna_adapter v1.2.2
+      │           │   │       └── idna v1.1.0
+      │           │   │           └── url v2.5.8
+      │           │   │               └── sqlx-core v0.9.0
+      │           │   │                   ├── oo-connectors v0.1.0 (*)
+      │           │   │                   ├── sqlx v0.9.0
+      │           │   │                   │   └── (dev) oo-connectors v0.1.0 (*)
+      │           │   │                   └── sqlx-postgres v0.9.0
+      │           │   │                       └── sqlx v0.9.0 (*)
+      │           │   └── icu_properties v2.3.0
+      │           │       └── idna_adapter v1.2.2 (*)
+      │           ├── icu_provider v2.3.1
+      │           │   ├── icu_normalizer v2.3.0 (*)
+      │           │   └── icu_properties v2.3.0 (*)
+      │           ├── zerotrie v0.2.5
+      │           │   ├── icu_properties v2.3.0 (*)
+      │           │   └── icu_provider v2.3.1 (*)
+      │           └── zerovec v0.11.8
+      │               ├── icu_collections v2.3.0 (*)
+      │               ├── icu_locale_core v2.3.0
+      │               │   ├── icu_properties v2.3.0 (*)
+      │               │   └── icu_provider v2.3.1 (*)
+      │               ├── icu_normalizer v2.3.0 (*)
+      │               ├── icu_properties v2.3.0 (*)
+      │               ├── icu_provider v2.3.1 (*)
+      │               ├── potential_utf v0.1.6
+      │               │   └── icu_collections v2.3.0 (*)
+      │               └── tinystr v0.8.4
+      │                   └── icu_locale_core v2.3.0 (*)
+      ├── tracing-attributes v0.1.31
+      │   └── tracing v0.1.44
+      │       ├── sqlx-core v0.9.0 (*)
+      │       └── sqlx-postgres v0.9.0 (*)
+      └── yoke-derive v0.8.2 (*)
+    ├ syn v3.0.6
+      ├── displaydoc v0.2.7
+      │   ├── icu_collections v2.3.0
+      │   │   ├── icu_normalizer v2.3.0
+      │   │   │   └── idna_adapter v1.2.2
+      │   │   │       └── idna v1.1.0
+      │   │   │           └── url v2.5.8
+      │   │   │               └── sqlx-core v0.9.0
+      │   │   │                   ├── oo-connectors v0.1.0
+      │   │   │                   │   └── oo-pipeline v0.1.0
+      │   │   │                   ├── sqlx v0.9.0
+      │   │   │                   │   └── (dev) oo-connectors v0.1.0 (*)
+      │   │   │                   └── sqlx-postgres v0.9.0
+      │   │   │                       └── sqlx v0.9.0 (*)
+      │   │   └── icu_properties v2.3.0
+      │   │       └── idna_adapter v1.2.2 (*)
+      │   ├── icu_locale_core v2.3.0
+      │   │   ├── icu_properties v2.3.0 (*)
+      │   │   └── icu_provider v2.3.1
+      │   │       ├── icu_normalizer v2.3.0 (*)
+      │   │       └── icu_properties v2.3.0 (*)
+      │   ├── icu_properties v2.3.0 (*)
+      │   ├── icu_provider v2.3.1 (*)
+      │   ├── tinystr v0.8.4
+      │   │   └── icu_locale_core v2.3.0 (*)
+      │   └── zerotrie v0.2.5
+      │       ├── icu_properties v2.3.0 (*)
+      │       └── icu_provider v2.3.1 (*)
+      ├── multiversion-macros v0.9.0
+      │   └── multiversion v0.9.0
+      │       └── encoding_rs v0.8.41
+      │           ├── encoding_rs_io v0.1.8
+      │           │   └── serde-saphyr v1.3.0
+      │           │       └── oo-core v0.1.0
+      │           │           ├── oo-analysis v0.1.0
+      │           │           ├── oo-builder v0.1.0
+      │           │           ├── oo-cli v0.1.0
+      │           │           ├── oo-connectors v0.1.0 (*)
+      │           │           ├── oo-control v0.1.0
+      │           │           ├── oo-entry v0.1.0
+      │           │           ├── oo-eval v0.1.0
+      │           │           ├── oo-gateway v0.1.0
+      │           │           ├── oo-jobs v0.1.0
+      │           │           │   ├── oo-builder v0.1.0 (*)
+      │           │           │   ├── oo-control v0.1.0 (*)
+      │           │           │   └── oo-pipeline v0.1.0 (*)
+      │           │           ├── oo-mcp v0.1.0
+      │           │           ├── oo-pipeline v0.1.0 (*)
+      │           │           ├── oo-proxy v0.1.0
+      │           │           ├── oo-sandbox v0.1.0
+      │           │           ├── oo-sdk v0.1.0
+      │           │           │   └── oo-cli v0.1.0 (*)
+      │           │           └── xtask v0.1.0
+      │           └── oo-core v0.1.0 (*)
+      ├── ref-cast-impl v1.0.27
+      │   └── ref-cast v1.0.27
+      │       ├── fluent-uri v0.4.1
+      │       │   └── referencing v0.57.0
+      │       │       └── jsonschema v0.57.0
+      │       │           ├── oo-core v0.1.0 (*)
+      │       │           └── xtask v0.1.0 (*)
+      │       └── schemars v1.2.2
+      │           └── oo-core v0.1.0 (*)
+      ├── schemars_derive v1.2.2
+      │   └── schemars v1.2.2 (*)
+      ├── serde_derive v1.0.229
+      │   └── serde v1.0.229
+      │       ├── ahash v0.8.12
+      │       │   ├── jsonschema v0.57.0 (*)
+      │       │   ├── jsonschema-value v0.57.0
+      │       │   │   └── jsonschema v0.57.0 (*)
+      │       │   └── referencing v0.57.0 (*)
+      │       ├── cargo_metadata v0.23.1
+      │       │   └── oo-arch-check v0.1.0
+      │       │       └── xtask v0.1.0 (*)
+      │       ├── email_address v0.2.9
+      │       │   └── jsonschema v0.57.0 (*)
+      │       ├── fluent-uri v0.4.1 (*)
+      │       ├── jsonschema v0.57.0 (*)
+      │       ├── oo-connectors v0.1.0 (*)
+      │       ├── oo-core v0.1.0 (*)
+      │       ├── schemars v1.2.2 (*)
+      │       ├── utoipa v6.0.0
+      │       │   └── oo-core v0.1.0 (*)
+      │       └── xtask v0.1.0 (*)
+      ├── serde_derive_internals v0.30.0
+      │   └── schemars_derive v1.2.2 (*)
+      ├── synstructure v0.14.0
+      │   └── zerofrom-derive v0.1.8
+      │       └── zerofrom v0.1.8
+      │           ├── icu_collections v2.3.0 (*)
+      │           ├── icu_provider v2.3.1 (*)
+      │           ├── yoke v0.8.3
+      │           │   ├── icu_collections v2.3.0 (*)
+      │           │   ├── icu_provider v2.3.1 (*)
+      │           │   ├── zerotrie v0.2.5 (*)
+      │           │   └── zerovec v0.11.8
+      │           │       ├── icu_collections v2.3.0 (*)
+      │           │       ├── icu_locale_core v2.3.0 (*)
+      │           │       ├── icu_normalizer v2.3.0 (*)
+      │           │       ├── icu_properties v2.3.0 (*)
+      │           │       ├── icu_provider v2.3.1 (*)
+      │           │       ├── potential_utf v0.1.6
+      │           │       │   └── icu_collections v2.3.0 (*)
+      │           │       └── tinystr v0.8.4 (*)
+      │           ├── zerotrie v0.2.5 (*)
+      │           └── zerovec v0.11.8 (*)
+      ├── thiserror-impl v2.0.21
+      │   └── thiserror v2.0.21
+      │       ├── cargo_metadata v0.23.1 (*)
+      │       ├── oo-core v0.1.0 (*)
+      │       ├── sqlx-core v0.9.0 (*)
+      │       ├── sqlx-postgres v0.9.0 (*)
+      │       └── xtask v0.1.0 (*)
+      ├── tokio-macros v2.7.2
+      │   └── tokio v1.53.1
+      │       ├── (dev) oo-connectors v0.1.0 (*)
+      │       ├── sqlx-core v0.9.0 (*)
+      │       └── tokio-stream v0.1.19
+      │           └── sqlx-core v0.9.0 (*)
+      ├── utoipa-gen v6.0.0
+      │   ├── oo-core v0.1.0 (*)
+      │   └── utoipa v6.0.0 (*)
+      ├── wasm-bindgen-macro-support v0.2.128
+      │   └── wasm-bindgen-macro v0.2.128
+      │       └── wasm-bindgen v0.2.128
+      │           ├── getrandom v0.3.4
+      │           │   ├── ahash v0.8.12 (*)
+      │           │   ├── jsonschema v0.57.0 (*)
+      │           │   ├── jsonschema-value v0.57.0 (*)
+      │           │   └── referencing v0.57.0 (*)
+      │           └── js-sys v0.3.105
+      │               └── getrandom v0.3.4 (*)
+      ├── zerofrom-derive v0.1.8 (*)
+      └── zerovec-derive v0.11.6
+          └── zerovec v0.11.8 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'synstructure'
+    ┌─ /src-ro/Cargo.lock:186:1
+    │  
+186 │ ╭ synstructure 0.13.2 registry+https://github.com/rust-lang/crates.io-index
+187 │ │ synstructure 0.14.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ synstructure v0.13.2
+      └── yoke-derive v0.8.2
+          └── yoke v0.8.3
+              ├── icu_collections v2.3.0
+              │   ├── icu_normalizer v2.3.0
+              │   │   └── idna_adapter v1.2.2
+              │   │       └── idna v1.1.0
+              │   │           └── url v2.5.8
+              │   │               └── sqlx-core v0.9.0
+              │   │                   ├── oo-connectors v0.1.0
+              │   │                   │   └── oo-pipeline v0.1.0
+              │   │                   ├── sqlx v0.9.0
+              │   │                   │   └── (dev) oo-connectors v0.1.0 (*)
+              │   │                   └── sqlx-postgres v0.9.0
+              │   │                       └── sqlx v0.9.0 (*)
+              │   └── icu_properties v2.3.0
+              │       └── idna_adapter v1.2.2 (*)
+              ├── icu_provider v2.3.1
+              │   ├── icu_normalizer v2.3.0 (*)
+              │   └── icu_properties v2.3.0 (*)
+              ├── zerotrie v0.2.5
+              │   ├── icu_properties v2.3.0 (*)
+              │   └── icu_provider v2.3.1 (*)
+              └── zerovec v0.11.8
+                  ├── icu_collections v2.3.0 (*)
+                  ├── icu_locale_core v2.3.0
+                  │   ├── icu_properties v2.3.0 (*)
+                  │   └── icu_provider v2.3.1 (*)
+                  ├── icu_normalizer v2.3.0 (*)
+                  ├── icu_properties v2.3.0 (*)
+                  ├── icu_provider v2.3.1 (*)
+                  ├── potential_utf v0.1.6
+                  │   └── icu_collections v2.3.0 (*)
+                  └── tinystr v0.8.4
+                      └── icu_locale_core v2.3.0 (*)
+    ├ synstructure v0.14.0
+      └── zerofrom-derive v0.1.8
+          └── zerofrom v0.1.8
+              ├── icu_collections v2.3.0
+              │   ├── icu_normalizer v2.3.0
+              │   │   └── idna_adapter v1.2.2
+              │   │       └── idna v1.1.0
+              │   │           └── url v2.5.8
+              │   │               └── sqlx-core v0.9.0
+              │   │                   ├── oo-connectors v0.1.0
+              │   │                   │   └── oo-pipeline v0.1.0
+              │   │                   ├── sqlx v0.9.0
+              │   │                   │   └── (dev) oo-connectors v0.1.0 (*)
+              │   │                   └── sqlx-postgres v0.9.0
+              │   │                       └── sqlx v0.9.0 (*)
+              │   └── icu_properties v2.3.0
+              │       └── idna_adapter v1.2.2 (*)
+              ├── icu_provider v2.3.1
+              │   ├── icu_normalizer v2.3.0 (*)
+              │   └── icu_properties v2.3.0 (*)
+              ├── yoke v0.8.3
+              │   ├── icu_collections v2.3.0 (*)
+              │   ├── icu_provider v2.3.1 (*)
+              │   ├── zerotrie v0.2.5
+              │   │   ├── icu_properties v2.3.0 (*)
+              │   │   └── icu_provider v2.3.1 (*)
+              │   └── zerovec v0.11.8
+              │       ├── icu_collections v2.3.0 (*)
+              │       ├── icu_locale_core v2.3.0
+              │       │   ├── icu_properties v2.3.0 (*)
+              │       │   └── icu_provider v2.3.1 (*)
+              │       ├── icu_normalizer v2.3.0 (*)
+              │       ├── icu_properties v2.3.0 (*)
+              │       ├── icu_provider v2.3.1 (*)
+              │       ├── potential_utf v0.1.6
+              │       │   └── icu_collections v2.3.0 (*)
+              │       └── tinystr v0.8.4
+              │           └── icu_locale_core v2.3.0 (*)
+              ├── zerotrie v0.2.5 (*)
+              └── zerovec v0.11.8 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'windows-sys'
+    ┌─ /src-ro/Cargo.lock:221:1
+    │  
+221 │ ╭ windows-sys 0.52.0 registry+https://github.com/rust-lang/crates.io-index
+222 │ │ windows-sys 0.61.2 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰────────────────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ windows-sys v0.52.0
+      └── ring v0.17.14
+          ├── rustls v0.23.45
+          │   └── sqlx-core v0.9.0
+          │       ├── oo-connectors v0.1.0
+          │       │   └── oo-pipeline v0.1.0
+          │       ├── sqlx v0.9.0
+          │       │   └── (dev) oo-connectors v0.1.0 (*)
+          │       └── sqlx-postgres v0.9.0
+          │           └── sqlx v0.9.0 (*)
+          └── rustls-webpki v0.103.15
+              └── rustls v0.23.45 (*)
+    ├ windows-sys v0.61.2
+      ├── etcetera v0.11.0
+      │   └── sqlx-postgres v0.9.0
+      │       └── sqlx v0.9.0
+      │           └── (dev) oo-connectors v0.1.0
+      │               └── oo-pipeline v0.1.0
+      ├── mio v1.2.3
+      │   └── tokio v1.53.1
+      │       ├── (dev) oo-connectors v0.1.0 (*)
+      │       ├── sqlx-core v0.9.0
+      │       │   ├── oo-connectors v0.1.0 (*)
+      │       │   ├── sqlx v0.9.0 (*)
+      │       │   └── sqlx-postgres v0.9.0 (*)
+      │       └── tokio-stream v0.1.19
+      │           └── sqlx-core v0.9.0 (*)
+      ├── socket2 v0.6.5
+      │   └── tokio v1.53.1 (*)
+      └── tokio v1.53.1 (*)
+
+advisories ok, bans ok, licenses ok, sources ok

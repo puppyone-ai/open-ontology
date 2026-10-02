@@ -1,0 +1,111 @@
+Pager usage is off.
+Timing is off.
+SET
+ section 
+---------
+ matrix
+(1 row)
+
+       rolname       | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolbypassrls | customer_select | customer_insert | side_insert | app_create | side_create | db_create 
+---------------------+----------+------------+---------------+-------------+--------------+-----------------+-----------------+-------------+------------+-------------+-----------
+ oo_src_adminmem     | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_bypass       | f        | t          | f             | f           | t            | f               | f               | f           | f          | f           | f
+ oo_src_castonly     | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_column       | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_createdb     | f        | t          | f             | t           | f            | f               | f               | f           | f          | f           | f
+ oo_src_createrole   | f        | t          | t             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d01          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d02          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d03          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d04          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d05          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d06          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d07          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d08          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d09          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d10          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d11          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d12          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d13          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d14          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d15          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_d16          | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_dbcreate     | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | t
+ oo_src_definer      | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_depth        | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_dual         | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+ oo_src_hiddenfn     | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_inherit      | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+ oo_src_inherit_only | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+ oo_src_mid          | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+ oo_src_noset        | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_oponly       | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_owner        | f        | t          | f             | f           | f            | t               | t               | t           | t          | t           | f
+ oo_src_reader       | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_schemacreate | f        | t          | f             | f           | f            | f               | f               | f           | f          | t           | f
+ oo_src_setonly      | f        | f          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_side         | f        | t          | f             | f           | f            | f               | f               | t           | f          | f           | f
+ oo_src_super        | t        | t          | f             | f           | f            | t               | t               | t           | t          | t           | t
+ oo_src_tableowner   | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_transitive   | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+ oo_src_viewtrap     | f        | t          | f             | f           | f            | f               | f               | f           | f          | f           | f
+ oo_src_writer       | f        | t          | f             | f           | f            | f               | t               | f           | t          | f           | f
+(42 rows)
+
+      section       
+--------------------
+ column_and_definer
+(1 row)
+
+ reader_id_select | reader_pii_select | reader_id_insert | column_display_insert | column_id_insert | column_table_insert | hidden_exec | hidden_usage | op_exec | op_schema_usage | op_hidden_usage | cast_exec | cast_app_usage | cast_hidden_usage | definer_exec | public_definer_exec 
+------------------+-------------------+------------------+-----------------------+------------------+---------------------+-------------+--------------+---------+-----------------+-----------------+-----------+----------------+-------------------+--------------+---------------------
+ t                | f                 | f                | t                     | f                | f                   | t           | t            | t       | t               | f               | t         | t              | f                 | t            | t
+(1 row)
+
+         section         
+-------------------------
+ admin_membership_before
+(1 row)
+
+    parent     | inherit_option | set_option | admin_option 
+---------------+----------------+------------+--------------
+ oo_src_writer | f              | f          | t
+(1 row)
+
+BEGIN
+SET
+DO
+ROLLBACK
+        section         
+------------------------
+ admin_membership_after
+(1 row)
+
+    parent     | inherit_option | set_option | admin_option 
+---------------+----------------+------------+--------------
+ oo_src_writer | f              | f          | t
+(1 row)
+
+        section         
+------------------------
+ side_write_before_view
+(1 row)
+
+ side_write_count 
+------------------
+                0
+(1 row)
+
+BEGIN
+DO
+ROLLBACK
+            section             
+--------------------------------
+ side_write_after_view_rollback
+(1 row)
+
+ side_write_count 
+------------------
+                0
+(1 row)
+

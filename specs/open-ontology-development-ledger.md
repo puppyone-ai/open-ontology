@@ -66,7 +66,7 @@
   - [ ] W05 early-setsid/父进程立即退出的执行归属与输出清理：a062固定f61复审request_changes，a070专用基础修复线；未知containment不能签required_satisfied。
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
-  - [ ] W06 ISC许可一致性切片：a069确认ISC规则行为，但r-efi AUTHORS-MIT记录错误request_changes；a077修正正文/erratum，不撤ISC、不改原始失败。完整供应链未签。
+  - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -107,7 +107,8 @@
 ### SP03
 
 - [ ] SP03-W01 PG connector/体检/DBA清单
-  - [ ] V01-PG-01 源连接/AccessReport/catalog：b2d3cbc已交付但a061 request_changes，a066三项安全返工中；旧注册结果不得用于导入准入。
+  - [ ] V01-PG-01 源连接/AccessReport/catalog：4ecdbf7三HIGH修正获a074批准；main源整合/合并feature约束/许可正文仍待验，旧b2注册结果不得用于导入准入。
+  - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
 - [ ] SP03-W04 type/PositionCodec/精度
@@ -321,7 +322,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | handle11184终态0 request_changes；五findings完整证据已读；a081先修结构closure，NFC依赖修正待a073 root交接，不签SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
-| V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
+| V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | handle29369终态0 approve仅纠正切片；完整review/raw已读，当前图root0、冲突图119，合并图约束/许可正文待整合 |
 | SP02-W01-c / EVENT-PROJECT-BINDING | `eef831aa-dba4-4af2-a78b-541bc9e0a075` | a068-F2已复现事件跨项目，v1 schema已签子项 | 仅jobs新expand/contract/tests与自有fixture证据，不改root/v1 | handle46905终态0，交付9224d31；REPORT/HANDOFF与原始SQLSTATE/局部Linux exits已读，a079固定复审，不签队列驱动 |
 | P5-a-R / FIXED-PARSER-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a076` | 固定efb61d6语法/IPC/star原型 | 只读standalone archive；仅a076证据/自有UUID资源 | handle88198终态0 request_changes；矛盾allow响应和IPC无限等待已复现，完整review/raw已读；a080仅独立spike修复，完整P5未签 |
 | 00J-F / ISC-ATTRIBUTION | `eef831aa-dba4-4af2-a78b-541bc9e0a077` | a069 r-efi MIT正文记录错误 | 仅ISC当前notice/policy/provenance及新erratum/a077证据；ci/old证据/root不写 | handle85459终态0，交付fb2d1d1；REPORT/HANDOFF已读，Linux1.94 core check作者0，外层inspect exit1保留；a078固定归属复审，未签完整W06 |
@@ -428,3 +429,11 @@ a071实际终态0，对4c989bce58407cf19d3d93dc600162d7322d92f8提出request_cha
 a081只修结构一致性findings3/4，写builder draft/pgsql/测试及契约，不写NFC/manifest/root/core；前置局部Linux/MSRV后提交并复审。NFC findings1/2/5需改用与PG connector一致的unicode-normalization0.1.25并验证官方U16/U17 vectors、全标量及增补序列，交付许可正文/来源/历史erratum；根依赖变更待a073真实终态释放唯一写权后单独派发。不能为并行绕过而维持不一致的手写规范化，也不让该依赖锁阻塞独立结构修复。
 
 最新产品复审指标：交付4组件，独立验收子项1，完整父工作项0；完成首次产品复审3项，其中PG源与结构草案返工2项，返工率2/3（小样本）。风险P5、ISC和harness复审不计产品分母；事件绑定a079尚未终态不计分母。所有待返工项仍未勾选。
+
+## 当前交接补充：a074/a078终态限定批准
+
+a074 handle29369实际终态0，批准4ecdbf714766baef3490a4f954701eaf19f245a0安全纠正切片，三a061 HIGH关闭。协调者已读完整review/findings及root-store/live/SQL-audit原始证据：选定SQLx root0，额外webpki特性root119；source957语句为SELECT815/WITH58/START42/ROLLBACK42，flagged0。main整合须在a073根写权释放后串行进行，禁止覆盖旧421基础文件；合并图强制拒绝SQLx系统根/公开根及native TLS特性，vendor按modified upstream身份、补全MIT/Apache正文并重算补丁来源。当前Docker owner=a074容器/卷/network列表均空；原始audit只读mount1与后续audit0、旧deny4与ISC候选deny0保留。完整SP03-W01/13/14/读取/转换/CDC/纵向闭环仍未签。
+
+a078 handle10405实际终态0，批准fb2d1d1归属文字切片。协调者已读review/findings及exposure-scan：8634 Git对象、6181文本blob相关凭据形态0；10 binary未扫描，历史副本/remote未查。当前提交清洁有限结论不关闭曾出现的Cursor密钥/session token暴露，用户轮换仍待确认，秘密gate未签。原smoke漏contracts101保留，补齐后62tests/Clippy0。ISC条目不撤、CDLA不添加、OR-token策略差异仍pending。已按限定切片勾选W06归属纠正及源三HIGH子项，父项和完整产品功能未提前勾选。
+
+产品累计交付4组件；已验收产品子项2（jobs schema、源三HIGH纠正），基础ISC归属另列不充当产品功能。源安全返工不重复计新交付；首次产品复审返工仍2/3，事件a079未终态。下一mainroot任务为源范围整合并守住TLS feature组合；NFC依赖修正紧随其后，a081结构修复可独立推进。

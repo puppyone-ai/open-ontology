@@ -1,0 +1,10 @@
+rustls-webpki v0.103.15
+└── rustls v0.23.45
+    └── sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+        ├── oo-connectors v0.1.0 (/src/crates/oo-connectors)
+        ├── sqlx v0.9.0
+        │   └── oo-connectors v0.1.0 (/src/crates/oo-connectors)
+        │   [dev-dependencies]
+        │   └── oo-connectors v0.1.0 (/src/crates/oo-connectors)
+        └── sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+            └── sqlx v0.9.0 (*)

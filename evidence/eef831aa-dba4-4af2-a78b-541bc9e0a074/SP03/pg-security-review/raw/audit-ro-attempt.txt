@@ -1,0 +1,7 @@
+    Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+error: couldn't fetch advisory database: git operation failed: failed to fetch
+Caused by:
+  -> Failed to update references to their new position to match their remote locations
+  -> The lock for the packed-ref file could not be obtained
+  -> Another IO error occurred while obtaining the lock
+  -> Read-only file system (os error 30) at path "/advisory-db/.git/packed-refs.lock"
