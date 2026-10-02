@@ -69,6 +69,7 @@
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
   - [x] W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005，Linux1.94实际audit0/deny0；协调者核验全部HASHES及raw JSON/整数exits。仅工具切片，双许可选择/依赖政策准入、全workspace/CDLA/完整供应链仍未签。
+  - [ ] W06-H-L helper五registry依赖完整记录/许可证选择/正文闭包：a105专用基础线执行中；沿用a101真实固定扫描证据，MIT选择与原始双许可/第三方notice义务须核验，独立复审前audited=false，完整供应链与发行另验。
 - [ ] SP00 Phase退出与独立审阅
 
 ### SP01
@@ -719,3 +720,11 @@ a098handle61045实际exit0但未REPORT/HANDOFF/fixedcommit，立即原UUIDresume
 ## 租约与版本化迁移固定复审准备卡
 
 新增v01-jobs-lease-fixed-review-prepared.md与v01-target-segment-preflight-fixed-review-prepared.md，仅准备未派发、无UUID/写权/完成计数。前者独立LOGIN/DBclock/CAS/真实100claim并发/事件原子性/重启/旧历史与旧grant限制；后者验证不可变旧SQL、从v1直接安装与既有v2升级的真实路线、缺表OO002、NULL/rollback/receipt不变及外部hash就绪。只在各作者实际终态和完整固定交付后激活，避免对变化工作区复审或让作者自签。
+
+## a105独立基础线：helper许可证记录闭包
+
+a105 UUIDeef831aa-dba4-4af2-a78b-541bc9e0a105实际启动handle48999，execution/prompts/00o-helper-license-closure.md。输入是固定f1a6005 helper六包图、a101完整官方许可证/版本年龄/checksum/实际audit和deny保留输出；三OR依赖按既有许可政策选择MIT，同时保留声明的两正文与义务，cfg_aliases第三方MIT notice不能漏。输出五完整audit-record与新std-only Rust evidence checker、真实正负例、Linux1.94证据和固定提交；独立复审前audited保持false。既有scanner结果明确历史snapshot非新扫描，不重复无变化工具/全矩阵。真实负责人/全图/制品签名/秘密轮换/客户/CI/runsc/发行仍另验。
+
+只授予helper新增provenance/audit-records与canonical licensecopies、provenance README和新standalonechecker/own evidence；helper运行时源/manifest/lock/bin不改，root/connectora098、jobsa102、pipelinea104、CLIreadonlya103保持。全局max2builder含host/toolinstall不增加，a105无PGfixture。此项不增加产品交付/验收计量、不新增完成勾选。
+
+本轮四既有handle73022/91030/93875/88639实际单次有界核验仍live。a098已报告domain列wire描述为baseOID导致真实type_oid_mismatch，并明确补生产Arrow/Rustoracle；a103 Linuxsmoke通过，独立probe第一编译失败保留后修harness。这是中间证据非终态或验收，旧handle不重启。当前7产品组件/7验收子项/首次返工4比6、完整87父项/16Phase仍0完成，goal active。

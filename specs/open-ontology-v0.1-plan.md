@@ -92,6 +92,7 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。
 - [x] SP09-W01-a-R SDK六项runtime修正：a090固定bde2e8c批准；Linux1.94测试/Clippy0、独立55必验case通过。完整JSON SDK、供应链/真实Gateway另验。
 - [x] SP00-W06-H helper固定依赖图实际audit/deny工具执行证据：a101固定f1a6005、Linux1.94、cargo-audit0.22.2与cargo-deny0.20.2实际退出0，原始输出和hash已核验。仅工具切片，双许可选择/依赖政策准入与完整供应链仍未签。
+- [ ] SP00-W06-H-L helper依赖许可证记录闭包：a105独立基础线执行五registry记录、MIT选择和原始双许可/第三方notice闭包；固定图Rust验证与独立复审待验，audited=false，完整供应链/发行未签。
 - [x] SP01/P5-IPC-I 独立身份绑定切片：a100固定6831d6e通过production admit_in_worker/--supervise执行十九case，Linux1.94 probe0/fails0；ready nonce/pid/starttime和decision nonce/pid拒绝有原始证据。完整P5/数据库授权/普遍隔离仍未签。
 
 ### 2.3 每个工作项的开发步骤
