@@ -120,7 +120,7 @@
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
 - [ ] SP03-W04 type/PositionCodec/精度
-  - [ ] W04-a PG无损真实SQLx解码/Arrow：a098交付3ca5357，a110固定复审已启动；实际Arrow60/Rustoracle已实现，但源SQL零写审计与真实依赖扫描待补证，未验收。
+  - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
 - [ ] SP03-W05 catalog/名字映射/注册
 - [ ] SP03源审计/Phase退出
 
@@ -768,3 +768,9 @@ a110handle32339本轮实际有界核验仍live，保留builder槽A。槽B明确�
 a106handle39012实际exit0，关闭后不再轮询。交付7acca2073ad5f7d39d24a61a2e869a8d96fe1c6c/tree2f9f05a77ed5cd4f21fc9aed14b62dc691b074c4/parentdde0dff30e64c9f4c30a7b1371508de38efea553，完整REPORT/HANDOFF及4源路径diff已读取；同一open增加O_NONBLOCK|O_NOFOLLOW后fstat，无新依赖/lock变更。原archive三FIFO signal9在1218/1216/1222ms、zeroaccepts、product_pass=no；作者overlay Linux1.94 11tests/Clippy0仅交付证据，尚非独立签收。
 
 slotB从真实终态a106释放并移交a111，完整固定复审卡v01-cli-fifo-fixed-review.md已派Grok4.7xhigh，实际handle94170；仅own evidence+Rustprobe/read-onlyarchive，无product/root写权。独立真实spawn6FIFO cases、信号与code分开、deadline/zeroaccept/静态错误、regular文件与边界/TLS相关回归，先Linux/MSRV局部冒烟。slotA a110handle32339仍live；jobs107/helper109仍prepared；下一新UUID为a112。FIFO是原CLI返工非新增产品组件，累计9交付组件/8验收子项/首次返工5比7、完整87父项/16Phase仍0完成，goal active。
+
+### a110终态与a107独立复审调度
+
+a110原handle32339实际exit0，关闭后不再轮询。完整review/HANDOFF/findings已读取，固定3ca5357 verdict request_changes；functional生产Arrow/type/livegold/非空SQLaudit有限范围approved，配置cargo-deny实际exit4：new tiny-keccak2.0.2 CC0从Arrow wasm compile-time-rng进入无targetfilter图；继承webpki-root-certs1.0.9 CDLA经未变SDK亦失败。audit0/无漏洞并不覆盖license失败；package101缺OO_PG_FIXTURE仍unsigned。fetch_all后的预算与未观察CancelRequest不能验收boundedreader。完整raw/hash接收尚未完成，不新增勾选；基础依赖修复需维持既有门禁，无ignore/自动许可放宽。
+
+slotA从实际终态a110释放并移交a107 jobs lease固定复审；执行完整prepared+bound卡，immutablec312cae/tree1931975/parent4477f23，authorhandoffdd5ecf3已读取。实际派Grok4.7xhigh handle80154，仅ownRustprobe/archive/evidence，max1builder/1ownPG、global2含host/toolinstall。slotB a111handle94170本轮核验仍live，jobs不依赖类型供给门禁，独立推进公共primitive；helper109仍prepared。类型首轮产品review纳入分母：8次首轮、6次返工＝75%小样本；9交付组件/8产品验收子项，完整87父项/16Phase仍0完成，goal active。
