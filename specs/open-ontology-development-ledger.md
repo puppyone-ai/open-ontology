@@ -844,3 +844,9 @@ a117实际Grok4.7xhigh handle96717，slotB/ci-deny配置限定writer生效；roo
 a118 reader R2 wire/内存只读分析激活：固定2b6dd57a，仅own evidence，无builder/PG/vendor或product写权。查明SQLx实际frame/DataRow预分配路径，输出有界Arrow流与必要最小driver补丁方案；R1仍待a116独立复审，R2实现未授权。两构建槽a116/a117保持，指标与验收勾选不变。
 
 a118实际Grok4.7xhigh handle61827，仅分析无构建槽。下一新UUID a119。
+
+### a117实际交付与独立配置复审
+
+a117handle96717实际exit0，关闭不再轮询。交付341ece0ea25ae50ff054a4581e8a3389ccb2dd66/treeb9b8d6119ab167aeba4d6feafe031c491ae3f727/parent3963fc2b0ece54cabe62071153918b2df815b1c7。完整三报告已读；实际config四行diff、deny.exit0/four sectionsok和sidecar误报说明已核对。作者证据不代表独立许可准入；tiny-keccak仍在Linux统一metadata，必须核对实际pruned union含x86_64特有四包。all-lock/wasm失败保留、未新跑产品runtime或双架构。
+
+slotB移交a119 fixedSHA独立复审，只own evidence，无ci/root写权；slotA继续a116，a118无builder。指标与勾选不变，goal active。
