@@ -29,3 +29,14 @@ Explicitly kill the owned source connection after some chunks, then change sourc
 ## Development gate and dispatch boundary
 
 Prepared only, no UUID/writer/builder authority yet. Source34fae5d functional admission with a097 receipt and types3ca5357 functional a110 receipt are fixed development inputs. Existing read_typed fetch_all is NOT the bounded streaming implementation and a110 did NOT prove backend cancellation or preallocation bounds. This task must replace that unbounded path for the new production stream, prove the original full reader requirements above, and preserve approved decoding gold/zero-source-write/private-CA/role-GUC behavior. Do not claim full types/supply approval or invent a license exception. Dependency repair has an independent root-writer lane; grant connector-only writer with unchanged manifests/lock unless coordinator first freezes a specific dependency handoff. If new dependencies are required, stop that dependent change with concrete proposal while continuing authorized independent work. Target apply admission requires independently accepted reader and appropriate dependency gate at integration; release remains blocked until all applicable supply gates pass.
+
+## 可固定提交的交付顺序（不缩减上方完整要求）
+
+以下为同一reader功能的实施顺序，每步有完整报告、实际局部证据和独立固定SHA审阅；未通过后续步骤不得签完整reader。未来派发只激活一个明确子任务，不能由prepared文件自行领取资源。
+
+1. **R1 snapshot owner与catalog绑定。** 输入已批准source/type接口、选表和run generation；输出生产专属连接的单RR只读snapshot owner与不可重用run身份，catalog/type/权限事实在同一事务内取得。公开API不得暴露任意SQL或裸连接，不以旧独立catalog事务作为绑定。真实PG两个关联表加并发fixture writer验证catalog与行数据同cut；完成/异常显式rollback或close，失败不可伪装完成。此步只签生命周期和绑定接口，尚不承诺完整有界读。
+2. **R2有界实际Arrow流与预算。** 依赖R1固定接口，输出full-mode生产BatchStream，无key可单stream，rows/bytes/单值/队列/连接与source速率预算。保留原类型gold；慢consumer证明背压，实测大值wire路径及内存上限；不能只在fetch_all后检查，不能先collect全部表或keys。真实无key/NULL/大值/多表完整数据对照独立oracle。尚不签所有键与故障恢复。
+3. **R3键计划、取消和整轮失败语义。** 依赖R2固定接口，完成原卡要求的typed composite/text/negative/sparse键、PG比较/collation、bounded read_keys/chunk半开区间coverage，无OFFSET；实际后台PID/start/session关联取消、queue阻塞/consumer drop/300s等价缩短fixture时限/外部shutdown/断连接后新generation整轮重读。必须完整验证零源写与无混合snapshot，不以future timeout代替backend退出。
+4. **R4完整reader集成验收。** 冻结前三步全部固定代码/依赖，必要局部Linux1.94回归与真实PG生产入口执行完整原卡矩阵，独立fixed review核验各步覆盖和实际组合行为。只有这一节点才可签reader full-mode子项并成为target apply前置；其余数据库/CDC/增量模式/发行仍未签。双架构完整矩阵留纵向集成节点。
+
+拟定文件边界（尚无写权）：crates/oo-connectors/src/session.rs、config.rs、error.rs、lib.rs、sql.rs，新增snapshot/stream模块；types/read.rs仅抽取已批准类型计划/逐行解码供真实流复用，types映射和canonical语义不随意改；新增reader专用tests及contracts/source/pgsql下版本化契约。不得改root/子crate manifest/lock、vendor、jobs、pipeline、SDK、CLI或其他任务证据。任何确需新增依赖或vendor wire边界补丁先提交具体方案并等协调者明确交接，不能通过当前拟定路径自行扩大权限。每次子任务派发进一步冻结确切paths及输入SHA，作者只提交自己实际更改的指定路径。

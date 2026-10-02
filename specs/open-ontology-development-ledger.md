@@ -791,3 +791,7 @@ a109实际派发handle44328，Grok4.7xhigh、fixedabd074a immutablearchive，仅
 ### 有界reader开发前置澄清
 
 按用户基础修复独立工作线与开发/发行分开要求，a110-functional-development-gate.md冻结：类型固定3ca5357功能范围可作为reader开发输入，整体request_changes及W04-a/许可/默认制品/发行未签。reader prepared卡已同步，仍无UUID/写权/槽。新reader必须证明单RR快照、真正有界stream与前置wire/内存边界、backend取消释放，不沿用fetch_all伪装有界。许可修复仍独立rootwriter任务；未来connector-only授权不能改共享manifest/lock。无新增交付/验收勾选或计数。
+
+### reader拆分为固定提交验收序列
+
+prepared卡新增R1单snapshot owner/catalog绑定、R2真实有界Arrow stream/预算、R3键/取消/整轮失败、R4完整reader集成复审；明确每步输入/生产接口/真实PG测试/输出与未签范围。此拆分保留完整原卡要求，R4通过前不可签reader或放行target apply。拟定connector-only路径尚无授权，依赖/vendor改变须先明确handoff；未派发不计交付或勾选。当前a107/a109真实handles仍live，global两槽保持各自独占。
