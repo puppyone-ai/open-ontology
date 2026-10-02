@@ -1,0 +1,343 @@
+{
+  "cases": [
+    {
+      "name": "positive-echo",
+      "containment": "verified",
+      "note": "ok",
+      "exit_code": "0",
+      "cleanup_incomplete": "0",
+      "output_limited": "0",
+      "cgroup": "0",
+      "code": 0,
+      "elapsed": 0.0773,
+      "stdout": "hello-a096\n",
+      "foreign": {
+        "pid": 5203,
+        "start": 288990,
+        "now": 288990,
+        "same": true,
+        "comm": "sleep"
+      }
+    }
+  ],
+  "foreign_initial": {
+    "pid": 5203,
+    "start": 288990,
+    "now": 288990,
+    "same": true,
+    "comm": "sleep"
+  },
+  "cgroup_probe": {
+    "cgroup_self": "0::/",
+    "mkdir": "errno=30 Read-only file system"
+  },
+  "needed": [
+    "libgcc_s.so.1",
+    "libc.so.6"
+  ],
+  "live_comms": {
+    "helper_comm": "containment-sup",
+    "children": [
+      {
+        "pid": 5213,
+        "comm": "sleep",
+        "ppid": 5211
+      }
+    ],
+    "status": "containment=verified\nspawned=1\nexit_code=0\ncleanup_incomplete=0\ndirect_pid=5213\noutput_limited=0\nnote=ok\ncgroup=0\n"
+  },
+  "escape_30": {
+    "name": "setsid-wait",
+    "count": 30,
+    "verified": 30,
+    "gone": 30,
+    "alive": 0,
+    "inconclusive": 0,
+    "max_elapsed": 0.1311,
+    "foreign_all_same": true,
+    "sample": [
+      {
+        "i": 0,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5224,
+        "start": 289208,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.1286,
+        "foreign_same": true,
+        "no_setsid": false
+      },
+      {
+        "i": 1,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5234,
+        "start": 289221,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.1306,
+        "foreign_same": true,
+        "no_setsid": false
+      },
+      {
+        "i": 29,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5516,
+        "start": 289547,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.1196,
+        "foreign_same": true,
+        "no_setsid": false
+      }
+    ]
+  },
+  "escape_immediate_5": {
+    "name": "setsid-now",
+    "count": 5,
+    "verified": 5,
+    "gone": 5,
+    "alive": 0,
+    "inconclusive": 0,
+    "max_elapsed": 0.1275,
+    "foreign_all_same": true,
+    "sample": [
+      {
+        "i": 0,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5526,
+        "start": 289559,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.1109,
+        "foreign_same": true,
+        "no_setsid": false
+      },
+      {
+        "i": 1,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5535,
+        "start": 289571,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.1181,
+        "foreign_same": true,
+        "no_setsid": false
+      },
+      {
+        "i": 4,
+        "containment": "verified",
+        "note": "ok",
+        "cleanup": "0",
+        "pid": 5562,
+        "start": 289607,
+        "now": null,
+        "gone": true,
+        "elapsed": 0.112,
+        "foreign_same": true,
+        "no_setsid": false
+      }
+    ]
+  },
+  "held_inherit": [
+    {
+      "name": "hold-stdout",
+      "containment": "verified",
+      "note": "output-limit",
+      "cleanup": "0",
+      "output_limited": "1",
+      "pid": 5571,
+      "gone": true,
+      "now": null,
+      "size": 4096,
+      "size_after": 4096,
+      "ino": 95921,
+      "ino_after": 95921,
+      "sha_same": true,
+      "elapsed": 0.1018,
+      "foreign": {
+        "pid": 5203,
+        "start": 288990,
+        "now": 288990,
+        "same": true,
+        "comm": "sleep"
+      }
+    }
+  ],
+  "malformed": {
+    "code": 82,
+    "containment": "unavailable",
+    "spawned": "0",
+    "note": "protocol-malformed",
+    "cleanup": "1",
+    "stdout_exists": false,
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    },
+    "elapsed": 0.0242
+  },
+  "sigterm": {
+    "containment": "verified",
+    "note": "stopped",
+    "cleanup": "0",
+    "elapsed": 0.2989,
+    "direct_pid": 5579,
+    "direct_gone": true,
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    }
+  },
+  "exact_16mib": {
+    "containment": "verified",
+    "note": "ok",
+    "output_limited": "0",
+    "exit_code": "0",
+    "cleanup": "0",
+    "size": 16777216,
+    "size_after": 16777216,
+    "ino_same": true,
+    "sha_same": true,
+    "elapsed": 0.0628,
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    }
+  },
+  "plus_one": {
+    "containment": "verified",
+    "note": "output-limit",
+    "output_limited": "1",
+    "exit_code": "0",
+    "cleanup": "0",
+    "size": 16777216,
+    "size_after": 16777216,
+    "ino_same": true,
+    "sha_same": true,
+    "elapsed": 0.0933,
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    }
+  },
+  "fast_32mib": {
+    "containment": "verified",
+    "note": "output-limit",
+    "output_limited": "1",
+    "exit_code": "0",
+    "cleanup": "0",
+    "size": 16777216,
+    "size_after": 16777216,
+    "ino_same": true,
+    "sha_same": true,
+    "elapsed": 0.0882,
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    }
+  },
+  "sigkill_supervisor": {
+    "helper_pid": 5608,
+    "helper_return": -9,
+    "grandchild_pid": 5613,
+    "grandchild_start": 289828,
+    "grandchild_alive_same_start": true,
+    "status_present": false,
+    "status": "",
+    "containment": "",
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    },
+    "cleanup_of_grandchild": "killed"
+  },
+  "fork_storm": {
+    "containment": "verified",
+    "note": "ok",
+    "cleanup": "0",
+    "elapsed": 0.0852,
+    "survivor_sleeps": [],
+    "cleaned": [],
+    "foreign": {
+      "pid": 5203,
+      "start": 288990,
+      "now": 288990,
+      "same": true,
+      "comm": "sleep"
+    }
+  },
+  "rebuild_sections": {
+    "same": [
+      "",
+      ".bss",
+      ".comment",
+      ".data",
+      ".dynamic",
+      ".dynstr",
+      ".dynsym",
+      ".fini",
+      ".fini_array",
+      ".gcc_except_table",
+      ".gnu.hash",
+      ".gnu.version",
+      ".gnu.version_r",
+      ".init",
+      ".init_array",
+      ".interp",
+      ".note.ABI-tag",
+      ".plt",
+      ".rela.plt",
+      ".shstrtab",
+      ".strtab",
+      ".tbss",
+      ".tdata"
+    ],
+    "differ": [
+      ".data.rel.ro",
+      ".eh_frame",
+      ".eh_frame_hdr",
+      ".got",
+      ".note.gnu.build-id",
+      ".rela.dyn",
+      ".rodata",
+      ".symtab",
+      ".text"
+    ]
+  },
+  "foreign_final": {
+    "pid": 5203,
+    "start": 288990,
+    "now": 288990,
+    "same": true,
+    "comm": "sleep"
+  },
+  "foreign_cleanup": "still-alive"
+}

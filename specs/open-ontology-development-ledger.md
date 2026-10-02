@@ -64,6 +64,7 @@
 - [ ] SP00-W05 xtask/Compose/CI/Evidence/激活门禁
   - [x] ENV bootstrap/日志/health拒绝修复切片：a038独立复审批准，34文件hash匹配a034；实际fixture证据有效，当前四构建和完整W05未签收。
   - [ ] W05 early-setsid/父进程立即退出的执行归属与输出清理：a062固定f61复审request_changes，a070专用基础修复线；未知containment不能签required_satisfied。
+  - [x] W05-R Rust监督器与ISC单规则修正切片：a096固定f1a6005批准，Linux1.94 xtask/helper测试与Clippy0、pinned ELF30+5setsid及精确输出探针通过。全平台/普遍隔离/审计工具/完整W05仍未签。
 - [ ] SP00-W06 开源/安全/供应链规范
   - [x] W06治理record-shape QA修复：a014独立复审批准切片；完整制品审计和真实负责人仍待完成。
   - [x] W06 ISC规则/归属记录修正切片：a069规则独立复核、a078批准fb2d1d1正文/erratum；OR策略差异、秘密历史暴露与完整供应链仍未签。
@@ -610,3 +611,14 @@ a095仍唯一mainmanifest/lockwriter；a098仅connector typecode/tests/contracts
 监督器强杀留下setsid孤儿但reaped=false/allow=false；独立探针仅按实际starttime清理自己的child，foreignsleep存活。RLIMIT单文件262144/目录bytesum/1500空文件、同netns可开passwd/source/socket、outsidefile存活、ECHILD/EINTR未注入、forkrace只记录7/20等具体限制保留；不是普遍进程/IO隔离。默认worker allow-fault2；ProposedADR/native17.7vs17.10/R4/R5/R9/OIDACL/RLS/Gateway/runsc/amd/supply未签。
 
 原任务独立nonce/pid/starttime伪造要求尚缺，仅作者spoofed_identity_is_rejected通过；不能用有限approve把这项涂绿。a100新独立补证已实际启动handle34511，固定同一commit只读、新evidence、不重复全corpus矩阵，控制合法ready/frame必须实际到admit_in_worker，再逐字段伪造验证实际失败点、SQL清空和有界回收。旧a091报告冻结不重写；若生产API字段语义不同必须报告实际边界，不发明拒绝结果。仅勾P5矛盾输出切片，独立identity/P5总体未勾。产品计数不受原型批准影响，仍6组件/6验收子项/首次返工4比6，完整87/16未完成。a095仍rootwriter/a098connector，a099只读targetreview；基础与产品主线继续分开。
+
+
+## a096 Rust监督器与ISC有限切片签收
+
+本轮a096原handle75123实际exit0，review/findings全文已读。限定批准f1a6005971e3dc3075094c87ed670fc9d25e9ae0/tree86c64f512d67da47ae379a53e34342de8e317f25/parent7143b2d9a7888d242983e5b9c10ef597246d5848的Rust监督器与单ISC规则；协调者重核tree、committed ELF SHA3569f4e45f88cdedef55c6eb5b23e2c4eb9e9dc1c14690085ddf72681a95628e/716792bytes和helper lock14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1。9个phase文件均整数0；docker文件实际格式docker_run_exit:0，与纯整数文件区分记录，不改原件。Linuxarm64/Rust1.94 xtask39lib16CLI/helper3lib8integration/Clippy通过，正向真实命令可seal，不是全部unavailable。
+
+独立rawprobe SHA2711618c23f38513d7e0778fe94a652038953371e1882e3dccbb6eab964c50aa重核：30setsidwait和5立即setsid全部实际PID/starttimegone，foreignsleep初末start288990不变，heldpipe4096及exact/plus1/fast32MiB最终16777216/inodehash稳定；超限helperexit0由xtask output_limited阻断，不能据helperexit0单独签通过。强杀监督器留下grandchild且status缺失，主验收阻断；probe按ownPID/starttime清理。review观察脚本为独立Python非产品实现，生产xtask/helper仍Rust且forbidunsafe，没有第一方runtimeC或运行时compiler；不把该观察脚本作为已交付Rust测试组件。
+
+重建同工具链同size但SHAde3a29ff655ca86a1a295632f5fec0512a0afc76b311456958006b60b5590899不同，.text差930bytes/.rodata registry cargo-home路径不同，仅selectedtoolchain source关系，不声称byte reproducibility。两emptychildren+ECHILD再confirm的源码与实测支持有限回收；确认后fork/reparent窗口、同UID第二hash至exec替换、killpg同group旁及PIDreuse、cgroup EROFS未执行kill失败、DarwinELF126/amd未跑继续pending。选定依赖version.created_at/age168h/hash/yank/许可对照、nix advisory patched范围独立核验，不将4HTTP404/RustSec浅查当audit/deny工具通过。完整supply/CDLA/secretrotation/protectedCI/runsc/release未签。
+
+只勾基础W05-R切片，earlysetsid整体门禁/全平台与完整SP00父项保留。产品仍6交付组件/6验收子项/首次返工4比6，87完整父项/16Phase未完成。旧a096报告仍称a093/a092live是时点过时描述，实际两者已terminal，connectorwriter现在a098，pipeline无writer而a099只读；root仍a095。a096旧handle关闭不再轮询，其余原会话继续，不按等待超时重启。

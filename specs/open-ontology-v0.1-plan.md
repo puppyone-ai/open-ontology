@@ -84,7 +84,7 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 ### 当前实施检查点（2026-10-02）
 
-具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime六项修正获a090批准；P5 IPC有限切片获a091批准、身份独立补证由a100执行；源role GUC与基础Rust supervisor固定复审中；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI查询与PG无损类型解码正在开发，根依赖由CLI单writer持有。这些开发状态不代表父任务完成。
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。当前SDK runtime六项修正获a090批准；P5 IPC有限切片获a091批准、身份独立补证由a100执行；源role GUC固定复审中、基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI查询与PG无损类型解码正在开发，根依赖由CLI单writer持有。这些开发状态不代表父任务完成。
 
 - [ ] SP03-W01 main源身份安全整合：a093修正后固定复审，继续保持源零写和privateCA-only。
 - [ ] SP04-W05-a 目标fence迁移：a092交付9a71efa，由a099核验最终committed路径、合法历史不变/非法历史原子拒绝；未签收。
