@@ -805,3 +805,5 @@ a112实际派发Grok4.7xhigh handle5564（snapshot-owner R1），slotA/connector
 ### a109终态request-changes与a113基础修复
 
 a109handle44328实际exit0，关闭不再轮询。完整REPORT/FINDINGS/HANDOFF及raw46cases读取，三pairedforgery被错误接受、depth20000exit134；63文件284973bytes接收SHA。五records audited=false/W06-H-L仍未完成，历史scan非fresh。slotB明确移交a113有限四项修复，a112继续slotA/connectorwriter；无root/manifest/lock/vendor授权，产品指标9/9/首轮6比9保持。
+
+a113实际启动handle76259/Grok4.7xhigh，slotB checker限定写权生效；a112原handle5564仍live，下一新UUID a114。新修复尚未交付，未新增完成勾选。
