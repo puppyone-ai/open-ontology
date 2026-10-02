@@ -1,0 +1,37 @@
+nfc_tables /tmp/oo-a071-eef831aa-dba4-4af2-a78b-541bc9e0a071/archive/crates/oo-builder/src/nfc_tables.rs
+sha256 794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338
+bytes 214143
+header:
+//! Canonical decomposition and composition tables for `pgident/v1`.
+//!
+//! Generated from Unicode 16.0.0. Hangul syllables U+AC00..=U+D7A3 are
+//! composed in code and are not in these tables. Compatibility
+//! decompositions are excluded. A pair is stored only when NFC recomposes it.
+//! This is not a claim that the PostgreSQL driver was linked.
+
+#[derive(Clone, Copy)]
+counts decomp=2081 ccc=934 compose=961
+hangul_in_decomp [] count 0
+u0344_decomp [776, 769]
+u0344_in_compose False
+u212b_decomp [197]
+u212b_in_compose False
+== unicode 16.0.0
+  UnicodeData.txt sha256=ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f bytes=2175362
+  CompositionExclusions.txt sha256=89e83cf9cc8bef6c1f8bf77e42cf6f0341dfa42e66261f4dbe9b492e7a23c8ee bytes=9007
+  DerivedNormalizationProps.txt sha256=4d4c03892dea9146d674b686e495df2d55a28d071ac474041d73518f887abddc bytes=1372269
+  NormalizationTest.txt sha256=d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1 bytes=2798671
+  decomp_equal True decomp missing_from_builder=0 extra_in_builder=0 sample_missing=[] sample_extra=[]
+  ccc_equal True ccc missing_from_builder=0 extra_in_builder=0 sample_missing=[] sample_extra=[]
+  compose_equal True compose missing_from_builder=0 extra_in_builder=0 sample_missing=[] sample_extra=[]
+  full_composition_exclusion 1120
+== unicode 17.0.0
+  UnicodeData.txt sha256=2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c bytes=2198209
+  CompositionExclusions.txt sha256=2f239196ef3b5b61db5cc476e9bd80f534d15aa1b74e1be1dea5d042a344c85f bytes=9007
+  DerivedNormalizationProps.txt sha256=71fd6a206a2c0cdd41feb6b7f656aa31091db45e9cedc926985d718397f9e488 bytes=1377582
+  NormalizationTest.txt sha256=5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db bytes=2827429
+  decomp_equal True decomp missing_from_builder=0 extra_in_builder=0 sample_missing=[] sample_extra=[]
+  ccc_equal False ccc missing_from_builder=34 extra_in_builder=0 sample_missing=[6863, 6864, 6865, 6866, 6867, 6868, 6869, 6870] sample_extra=[]
+  ccc_value_diff 0 []
+  compose_equal True compose missing_from_builder=0 extra_in_builder=0 sample_missing=[] sample_extra=[]
+  full_composition_exclusion 1120

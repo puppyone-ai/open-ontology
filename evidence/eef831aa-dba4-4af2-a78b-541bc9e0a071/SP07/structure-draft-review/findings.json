@@ -1,0 +1,201 @@
+{
+  "review": "a071",
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a071",
+  "subject": "pure structural compiler",
+  "decision": "request_changes",
+  "commit": "4c989bce58407cf19d3d93dc600162d7322d92f8",
+  "tree": "691a56de066b08585ab7ef2f192caca8879e41f1",
+  "parent": "b14c7821031990aafd713f23068658d41042ee2d",
+  "archive_verified": "entries=817 missing=0 mismatch=0 extra=0 mode_mismatch=0",
+  "product_source_edited": false,
+  "reviewer_commits": false,
+  "signs_sp07": false,
+  "signs_at_oos_01": false,
+  "pg_import": false,
+  "pg_catalog_integration": "not_accepted",
+  "pg_catalog_contract_commit": "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74",
+  "semantic_classification": "unsigned",
+  "profile": "unsigned",
+  "owner_rbac": "unsigned",
+  "publication": "unsigned",
+  "role_pack": "unsigned",
+  "query": "unsigned",
+  "linux_msrv": {
+    "image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "platform": "linux/arm64",
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "host": "aarch64-unknown-linux-gnu",
+    "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
+    "rustup_toolchain": "1.94.0",
+    "run_id": "4ea98272-980a-44a2-8c89-8a90af4740df",
+    "container_exit": 0,
+    "oom_killed": false,
+    "fetch_exit": 0,
+    "test_exit": 0,
+    "test_counts": "lib 18 passed, bin 0, integration 2 passed",
+    "clippy_exit": 0,
+    "privileged": false,
+    "cap_drop": ["ALL"],
+    "network": "own bridge",
+    "rejected_fetch_with_package_flag_exit": 101
+  },
+  "probe": {
+    "run_id": "bbc4cb3e-b57c-4002-ac34-83783490f6a0",
+    "container_exit": 0,
+    "oom_killed": false,
+    "independent_exit": 0,
+    "nfc_exit": 1,
+    "envelopes": 69,
+    "results": 73,
+    "analyzer_failures": 1,
+    "analyzer_failure": "44-depth-32.json expected schema.invalid; product returned field.unknown because depth 32 was legal and the root key was unknown",
+    "cli_equal_failures": 0,
+    "library_repeat_failures": 0,
+    "token_DO_NOT_SURFACE_INSTRUCTION_9f3a": "absent",
+    "phase1_sha256": "ea306a65eb3e73f7ac73656aa7e9fafcc7e7acdebee1e40876b26773ed521429",
+    "analyze_sha256": "5ef029960157f854f4103f9da7b0ce350d7301540da59fdccdceb4b024a954ee",
+    "nfc_run_sha256": "792db41d070a383aa82f5d468cde73bb54476757c38918201a9370b0fce57b5d",
+    "nfc_tables_report_sha256": "146938d1c6031ea02241faa21b8ce37cdaaf4719fc95c75a2530c14dfe3df639"
+  },
+  "golden": {
+    "write_gate": "std::env::var_os(\"OO_WRITE_DRAFT_GOLDENS\").is_some() at draft_tests.rs:883",
+    "only_caller": "draft::tests::checked_in_goldens_match_compiler_bytes",
+    "clean_archive_suite": "passed during msrv test_exit 0",
+    "unset_exact_run_id": "d8431bf6-f1bb-4fb1-8377-763d8ad410d7",
+    "unset_exact_exit": 101,
+    "panic": "draft_tests.rs:896 goldens/empty.draft.json drifted from the compiler",
+    "corrupted_sha256": "0838f791b4dab730ba77fe8d21a355a51cff43799ba4049ada29d44d7a16b623",
+    "file_rewritten": false,
+    "restored_sha256": "47e31be7ac19a1fa2cdd862be4dfa21de3520de23e7693ad779ccd175f69add1",
+    "restored_matches_archive": true,
+    "filtered_runs_did_not_execute_the_test": [
+      {
+        "where": "probe inside script without --lib",
+        "exit": 0,
+        "result": "0 passed, tests filtered out"
+      },
+      {
+        "run_id": "4b2c4789-4456-49c9-8ebb-19dad8a7002f",
+        "exit": 0,
+        "result": "--lib short name --exact filtered 18 tests"
+      },
+      {
+        "run_id": "a17546f5-2432-4ce5-aff4-6d7538bbc4e1",
+        "exit": 127,
+        "result": "login shell had no cargo on PATH"
+      }
+    ]
+  },
+  "hashes": {
+    "empty_schema": "cb2b03b89678ec1fb9db96f116e8e8ad81a81f6b9bbc2594bcb7d941e5234ecc",
+    "empty_manifest": "afccf1a27d3a55d4c3e33a4c35be811c69903e78cbb0a9b3afd0d9c3eb8dd892",
+    "customer_schema": "60f7939195cc539644d11132ae4a604c3b025167f1fe657d121167feb8463499",
+    "customer_manifest": "3ce302dde9df01663e4de5a77708789ce02c0002d02a1f96be2c73750a219920",
+    "customer_config": "fcaf671132ab4dd63d56d0ea590d755b72a9010d946c40905caf632cfa31e2f2",
+    "customer_evidence": "d555fd4f24cb3c59ff33181c9703629b68c4daa88570af667456c28795ef91ff",
+    "customer_type": "00599f24a5a34e6e93725a14c5847a4460c0ec6cc8ac8d80266390c0e7f861ca",
+    "shop_schema": "2871541a741986d678281238d59a5cadac3a3fb0f34536df65821fc69681c603",
+    "shop_manifest": "e98269fc9fcd0c45af52f93e5a986bdc2fce75eff7e733e0c7e3256a7dd8d1cc",
+    "nfc_rs": "7527bd98b33ad4776c5a11d8619d9074fad88091d079b6cf828a1f530458d6a2",
+    "nfc_tables_rs": "794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338",
+    "license_apache_2_0": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "notice": "463cbfaba4a8bc4e494e2daf307334b7cee314f10a137e06b6bbe43c502026fc",
+    "unicode_normalization_0_1_25_crate": "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8",
+    "tinyvec_1_13_3_crate": "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee",
+    "unicode_16_unicode_data": "ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f",
+    "unicode_16_composition_exclusions": "89e83cf9cc8bef6c1f8bf77e42cf6f0341dfa42e66261f4dbe9b492e7a23c8ee",
+    "unicode_16_derived_normalization_props": "4d4c03892dea9146d674b686e495df2d55a28d071ac474041d73518f887abddc",
+    "unicode_16_normalization_test": "d811971453e7075e1ad56fb1b301eece5aa80757b81f6156e74a1bfb3ae5ceb1",
+    "unicode_17_unicode_data": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+    "unicode_17_normalization_test": "5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db"
+  },
+  "findings": [
+    {
+      "id": "nfc-composition-equal-class",
+      "severity": "blocking",
+      "decision": "request_changes",
+      "location": "crates/oo-builder/src/nfc.rs:80-103",
+      "summary": "compose sets previous_ccc after a consumed mark, so a second mark of the same combining class is not recomposed.",
+      "counterexample": "NFC(U+1E14) and NFC(U+0045 U+0304 U+0300) return U+0112 U+0300. Unicode 16 NormalizationTest.txt line 60 and unicode-normalization 0.1.25 return U+1E14. Compose pair (274, 768, 7700) is present at nfc_tables.rs:12005.",
+      "observed": "U16_TEST rows=19965 bad_slots=3830; scalar_scan seen=1112064 mismatches=191; nfc_exit=1",
+      "repair": "Leave previous_ccc unchanged when a mark is consumed. Re-run the Unicode 16 normalization test and the 0.1.25 crate."
+    },
+    {
+      "id": "unicode-data-notice-missing",
+      "severity": "high",
+      "decision": "request_changes",
+      "location": "crates/oo-builder/src/nfc_tables.rs:1-6; NOTICE third-party notices",
+      "summary": "The embedded tables match Unicode 16.0.0 UCD decomposition, combining class, and composition data, and neither the file nor NOTICE carries the Unicode copyright and permission notice.",
+      "counterexample": "Independent UCD reconstruction: decomp_equal true, ccc_equal true, compose_equal true, missing 0, extra 0. nfc_tables.rs sha256 794de9ec4ad9048a188b6174d467b044ac71d50a9e8f099c66ecd41bf272b338.",
+      "repair": "Ship the Unicode copyright and permission notice with the copied tables or in accompanying documentation. Record the notice in NOTICE."
+    },
+    {
+      "id": "effective-fk-names-rejected-column",
+      "severity": "high",
+      "decision": "request_changes",
+      "location": "crates/oo-builder/src/draft.rs:1979-2020; crates/oo-core/src/oos/model.rs:1057-1067; contracts/builder/structure-draft/README.md paragraph on dangling primary keys",
+      "summary": "Rejecting column public.orders/bill_to removes it from the effective dataset and leaves effective relationship bill_to_fkey in draft status with from.columns [bill_to].",
+      "probe": "27-fk-endpoint-rejected.json",
+      "library_exit": 0,
+      "effective_columns": ["id", "ship_to", "amount", "zip", "mood"],
+      "relationship": {"name": "bill_to_fkey", "status": "draft", "from": ["bill_to"], "to": ["id"]},
+      "queue_column_state": "rejected",
+      "repair": "Remove or reject relationship ends that name a column the effective dataset does not contain, and state that rule next to the primary-key dangling rule."
+    },
+    {
+      "id": "duplicate-key-member-accepted",
+      "severity": "medium",
+      "decision": "request_changes",
+      "location": "crates/oo-builder/src/pgsql.rs:1062-1091",
+      "summary": "A primary key that repeats one column is compiled into generated and effective output.",
+      "probe": "55-duplicate-pk-member.json",
+      "library_exit": 0,
+      "emitted_primary_key": ["id", "id"],
+      "repair": "Reject a repeated member inside one key with a static error."
+    },
+    {
+      "id": "nfc-unicode-17-combining-classes",
+      "severity": "high",
+      "decision": "request_changes",
+      "location": "crates/oo-builder/src/nfc.rs combining(); crates/oo-builder/src/nfc_tables.rs CCC",
+      "summary": "Thirty-four Unicode 17 combining classes are absent. The builder treats those marks as class 0. unicode-normalization 0.1.25 is Unicode 17.0.0.",
+      "counterexample": "src U+0065 U+1ACF U+0323. Builder stays 0065 1ACF 0323. Reference is U+1EB9 U+1ACF. extra_sequences mismatches=36.",
+      "tables_vs_unicode_16": "equal",
+      "repair": "Match the 0.1.25 normalizer, including these classes, or the composition fix in finding 1 still leaves this compatibility gap."
+    }
+  ],
+  "residuals": [
+    {
+      "id": "unsigned-numeric-scale",
+      "summary": "typmod 657410 with claimed scale 2046 is accepted as numeric precision 10 scale 2046. Claimed scale -2 is rejected. This matches the contract and b2 numeric_parts. PostgreSQL's signed 11-bit scale is outside not_accepted integration."
+    },
+    {
+      "id": "ident-length-vs-pg-63",
+      "summary": "A 63-byte non-safe column becomes a 128-byte q_ ident and fits TableName. A 31-byte uppercase table becomes 64 bytes. A 31-byte uppercase schema does not fit SourceName and is queued identifier_not_in_oos. Names are not truncated. This slice emits no DDL."
+    },
+    {
+      "id": "unverified-fk-emitted",
+      "summary": "A referenced column list that is not a known key of a selected parent is emitted and queued fk_target_key_unverified, as the contract states."
+    },
+    {
+      "id": "no-in-tree-ucd-generator",
+      "summary": "No generator script is in the tree. The Unicode 16 reconstruction matched the checked-in tables, so the bytes are reproducible from that UCD."
+    },
+    {
+      "id": "unused-oo-jobs-dependency",
+      "summary": "oo-builder depends on oo-jobs and does not reference it. oo-jobs is an unimplemented skeleton over oo-core."
+    }
+  ],
+  "direct_dependencies": ["oo-core", "oo-jobs", "serde 1.0.229", "serde_json 1.0.151"],
+  "builder_source_names_database_or_model_client": false,
+  "cleanup": {
+    "scope": "oo.owner=a071 and oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a071 and name prefix oo-a071-",
+    "containers_removed": 5,
+    "networks_removed": 5,
+    "volumes_removed": 2,
+    "command_exits": 0,
+    "prune": false,
+    "owned_remaining": 0,
+    "log": "cleanup.txt"
+  }
+}

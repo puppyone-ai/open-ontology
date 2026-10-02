@@ -318,7 +318,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | SP02-W01-a-R / FIXED-SCHEMA-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a068` | 固定70a4e72 schema交付/原始PG证据 | 源只读git archive；仅a068证据/自有UUID资源 | handle57161终态0 approve schema切片；独立真实LOGIN权限/并发/回滚等117case0fail，Linux1.94 test/clippy0；F1–F5残余归后续任务，不签完整W01 |
 | 00J-R / FIXED-ISC-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a069` | 固定b14c782许可切片 | 源只读archive；仅a069证据/自有UUID资源 | handle41829终态0 request_changes仅attribution：r-efi AUTHORS含MIT正文，旧packet误称无正文；ISC规则/负例独立hold，a077修正不阻塞产品；不签完整W06 |
 | 00K / HARNESS-ESCAPE-CONTAINMENT | `eef831aa-dba4-4af2-a78b-541bc9e0a070` | a062终态early-setsid假成功复现 | 仅xtask src/tests/minimal harness契约及a070证据；不写rootmanifest/lock | running handle31198；有界返回/可靠归属/未知cleanup拒绝pass/foreign保护，必要依赖变更先报告；不阻塞产品模块 |
-| V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | running handle11184；独立hash/overlay/审核/Unicode-NFC来源与行为/预算负例，不签完整SP07 |
+| V01-OOS-01A-R / FIXED-DRAFT-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a071` | 固定4c989bc纯结构草案 | 源只读archive；仅a071证据/自有UUID资源 | handle11184终态0 request_changes；五findings完整证据已读；a081先修结构closure，NFC依赖修正待a073 root交接，不签SP07 |
 | SP04-W05-a / TARGET-FENCE-RECEIPTS | `eef831aa-dba4-4af2-a78b-541bc9e0a072` | docs17目标同连接锁与receipt、已冻结Batch/position契约 | 仅oo-pipeline新迁移/contract/tests/自身fixture证据；不改root依赖 | running handle14146；先Linux1.94局部冒烟，再真实PG并发/失锁接管/幂等与冲突/原子rollback，不签完整Loader/ACK/AT-PL05 |
 | SP09-W01-a / SDK-JSON-QUERY | `eef831aa-dba4-4af2-a78b-541bc9e0a073` | frozen core HTTP API/docs08查询契约 | 仅oo-sdk/新SDK contract/fixture/a073证据；main root-lock唯一writer | running handle23139；先Linux1.94基线，再reqwest/rustls真实HTTP受控query与预算/错误/身份隔离检查；固定交付后释放root，不签真实PG闭环 |
 | V01-PG-01-F-R / FIXED-SECURITY-REVIEW | `eef831aa-dba4-4af2-a78b-541bc9e0a074` | 固定4ecdbf7安全纠正与原a061三HIGH | 现有PG树只读archive；仅main a074证据/自有UUID资源 | running handle29369；独立权限/env/TLS/官方vendor差异与来源、加性feature根混用、实际源零写，复审后才安排源整合 |
@@ -420,3 +420,11 @@ a079仅只读该固定archive、独立证据和UUID资源，先Linux/MSRV局部�
 a076实际终态0，对efb61d62803073b3f98f5fe1885877824f504f80提出request_changes。协调者已读完整review/findings、原始IPC矩阵、PG前后行数及cleanup；ipc-driver.log重算sha256为e54c3facc54c6c01e1bea95454103cba303cfa28e946773b558673a9ac8bb479。false syntax_allow配ALLOW_SYNTAX被转为true且保留DROP SQL（未发PG）；bad magic/junk/oversize及成功后pipe持有在外部8秒timeout后仍不返回，三个worker持续存活、setsid后代绕过进程组kill。已观测正常语义33oracle匹配不替代IPC安全；parser17.7/server17.10及R4/R5/R9缺口仍未签。
 
 a080仅独立P5 spike/standalone lock/ProposedADR及自身证据，先Linux/MSRV基线后Rust实现响应一致性拒绝和每分支有界生命周期/可验证进程归属，保留真实安全隔离与许可来源缺口。不得使用移动a070 C helper或写主root；a073仍独占主依赖。a076原始1/127/apt100失败与外部124保留，复审证据提交后不回写。风险原型修正不计新产品功能，SP01/P5/完整Gateway/AT均不勾选。
+
+## 当前交接补充：a071 → a081及NFC依赖修正
+
+a071实际终态0，对4c989bce58407cf19d3d93dc600162d7322d92f8提出request_changes。协调者已读完整review/findings并重算phase1/nfc-run/nfc-tables三hash，与报告相符；73probe记录含拒绝bill_to后仍保留引用该列的有效FK，以及[id,id]主键。Unicode16官方vectors出现3830 bad slots，全标量191 mismatch；Unicode17新增34 combining classes不在旧表，且UCD复制缺许可notice。五项均待纠正，原MSRV18lib+2CLI通过不替代这些负例。独立golden扰动真正执行的test exit101与误过滤0test两次保留，不称作产品失败。
+
+a081只修结构一致性findings3/4，写builder draft/pgsql/测试及契约，不写NFC/manifest/root/core；前置局部Linux/MSRV后提交并复审。NFC findings1/2/5需改用与PG connector一致的unicode-normalization0.1.25并验证官方U16/U17 vectors、全标量及增补序列，交付许可正文/来源/历史erratum；根依赖变更待a073真实终态释放唯一写权后单独派发。不能为并行绕过而维持不一致的手写规范化，也不让该依赖锁阻塞独立结构修复。
+
+最新产品复审指标：交付4组件，独立验收子项1，完整父工作项0；完成首次产品复审3项，其中PG源与结构草案返工2项，返工率2/3（小样本）。风险P5、ISC和harness复审不计产品分母；事件绑定a079尚未终态不计分母。所有待返工项仍未勾选。

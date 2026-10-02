@@ -1,0 +1,57 @@
+=== before ===
+-- containers --
+cd769a15bdd8 oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7 Exited (101) 4 minutes ago structure-draft-review-golden-exact d8431bf6-f1bb-4fb1-8377-763d8ad410d7
+68ca7791fc8f oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f Exited (0) 4 minutes ago structure-draft-review-golden-lib 4b2c4789-4456-49c9-8ebb-19dad8a7002f
+9df4b05560aa oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1 Exited (127) 5 minutes ago structure-draft-review-golden a17546f5-2432-4ce5-aff4-6d7538bbc4e1
+edf4ab7841ca oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0 Exited (0) 16 minutes ago structure-draft-review-probe bbc4cb3e-b57c-4002-ac34-83783490f6a0
+7c4280227527 oo-a071-msrv-4ea98272-980a-44a2-8c89-8a90af4740df Exited (0) 52 minutes ago structure-draft-review-msrv 4ea98272-980a-44a2-8c89-8a90af4740df
+-- networks --
+dfcc781733ea oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-net
+4d01eb8d106d oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f-net
+47c88795ee98 oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1-net
+fdecd08515c2 oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7-net
+13c55f7ea025 oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0-net
+-- volumes --
+oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-cargo
+oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-target
+=== remove ===
+CONSIDER /oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+cd769a15bdd8
+container_rm_exit=0 name=/oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER /oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+68ca7791fc8f
+container_rm_exit=0 name=/oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER /oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+9df4b05560aa
+container_rm_exit=0 name=/oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER /oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+edf4ab7841ca
+container_rm_exit=0 name=/oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER /oo-a071-msrv-4ea98272-980a-44a2-8c89-8a90af4740df|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+7c4280227527
+container_rm_exit=0 name=/oo-a071-msrv-4ea98272-980a-44a2-8c89-8a90af4740df|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_NET oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+dfcc781733ea
+network_rm_exit=0 name=oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_NET oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+4d01eb8d106d
+network_rm_exit=0 name=oo-a071-golden-4b2c4789-4456-49c9-8ebb-19dad8a7002f-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_NET oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+47c88795ee98
+network_rm_exit=0 name=oo-a071-golden-a17546f5-2432-4ce5-aff4-6d7538bbc4e1-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_NET oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+fdecd08515c2
+network_rm_exit=0 name=oo-a071-golden-d8431bf6-f1bb-4fb1-8377-763d8ad410d7-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_NET oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+13c55f7ea025
+network_rm_exit=0 name=oo-a071-probe-bbc4cb3e-b57c-4002-ac34-83783490f6a0-net|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_VOL oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-cargo|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-cargo
+volume_rm_exit=0 name=oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-cargo|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+CONSIDER_VOL oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-target|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-target
+volume_rm_exit=0 name=oo-a071-4ea98272-980a-44a2-8c89-8a90af4740df-target|a071|eef831aa-dba4-4af2-a78b-541bc9e0a071
+=== after own ===
+=== still running (foreign expected) ===
+oo-a074-pg-54714c6c a074 Up 10 minutes
+oo-a072-pg1710-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01 a072 Up 45 minutes
