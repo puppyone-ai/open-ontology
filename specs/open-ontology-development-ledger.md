@@ -650,3 +650,9 @@ b1冻结实际ownercreated固定security-definer接口：enqueue精确dedupe/参
 协调者发现独立a097_role_guc.rs未留存，仅cleanup记录SHAfcdeaa943037efc827bf442e5dd1205aabe160f3bf56e7b3aae9cbec84337db8；最终oracle完整stdout/stderr也缺，只有oracle-notes观察和exit。临时目录/volumes已删，不能把摘要/hash当源码与断言证据。暂不新增验收勾选/产品计数。原UUID显式resume，handle35038，指令execution/prompts/a097-evidence-retention-followup.md：先从自有安全材料恢复精确原件，不能读auth stores；无法恢复则透明新attempt，仅补受影响Linux1.94真实PG/privateCA探针，保存源码/完整脱敏输出/hash/exit再清理。旧report冻结，不静默重写过去证据。
 
 CLI3387、types61045、targetreview5836、identity34511、helpertools3407、jobs91030本回合单次有界核验仍live。CLI作者host tests/Clippy通过后正做固定overlay Linux1.94，尚非最终交付；root仍a095、connectora098、jobs新增迁移a102，未释放根写权。产品仍6交付组件/6验收子项/首次返工4比6，87完整父项/16Phase未完成。基础独立修复不阻塞这些模块；reader必须等待源补证签收及types独立批准。
+
+## CLI query固定复审准备卡（未派发）
+
+本回合七个既有handle单次实际核验仍live，未发现终态或missing。a095作者报告owned overlay Linux run exit0，正在读phase，不能据作者中间说明释放root或验收CLI。新增execution/prompts/v01-cli-query-fixed-review-prepared.md，待a095实际terminal及完整固定身份后绑定UUID派发；准备卡无写权/无运行/不计交付。独立复审明确真实spawn/HTTP/TLS、不同于生产helper的JSON金标、凭证inode/临时owner探针、FIFO在fstat前open可能阻塞、Markdown与完整元数据、精度/重试/退出码/破管，以及源码和完整原始脱敏输出须在清理前留存。a097原UUID补证已找到oracle源码，仍待完整输出和补充报告；未提前签收或刷新docs来源baseline。
+
+roota095、connectora098、jobs新增迁移a102不变；reader/apply仍prepared。当前无新完成勾选，产品仍6交付组件/6验收子项/首次返工4比6，完整87父项/16Phase未完成。
