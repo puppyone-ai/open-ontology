@@ -834,3 +834,7 @@ a116实际Grok4.7xhigh handle68913，slotA/own evidence权限生效；下一新U
 ### a114实际终态与限定接收
 
 a114handle82080实际exit0，关闭不再轮询。完整三报告、22原始case/summary、实际phase exits与all-target101日志已读，HASHES全部核对；接收a114-helper-trust-review-receipt.md。仅新增W06-H-L1纠错子项勾选，五records audited=false/完整W06-H-L不勾，其他输入健壮性和发行未签。slotB释放待依赖分析方案，slotA仍a116，a115无builder。产品指标9组件/9验收子项/首轮返工6比9不变，goal active。
+
+### a115终态与配置限定修复
+
+a115handle82672实际exit0，关闭不再轮询；完整分析三报告已读，提交a6e002aa只含own evidence。协调者核对docs11/17正式Linux双架构与wasm非支持声明，激活a117仅ci/deny.toml [graph]双GNU Linux目标列表写权；不得放宽allow/ignore或改lock/manifest/source。实际双Linux图、保留全target失败和源图一致性需实测/固定复审，不把分析当绿扫描。slotB移交a117，slotA仍a116；产品指标/勾选不变，goal active。
