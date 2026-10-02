@@ -88,7 +88,8 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 - [ ] SP03-W01 main源身份安全整合：a093修正后固定复审，继续保持源零写和privateCA-only。
 - [ ] SP04-W05-a 目标fence迁移：a092前向修正、合法历史不变/非法历史原子拒绝、固定复审。
-- [ ] SP07-W01结构closure/NFC：a086续审、a088交付与独立复审，旧错误hash不静默复用。
+- [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
+- [ ] SP07-W01-NFC：3ed558a交付、a094固定复审，旧错误hash不静默复用。
 - [ ] SP09-W01-a SDK JSON runtime：a090固定bde2e8c复审，供应链/真实Gateway另验。
 
 ### 2.3 每个工作项的开发步骤

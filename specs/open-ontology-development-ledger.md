@@ -150,6 +150,7 @@
 
 - [ ] SP07-W01 OOS/overlay/stale
   - [ ] V01-OOS-01A 确定性catalog结构草案/审核队列/版本绑定：a071五项返工；closure eebc0ea由a086原会话续审，NFC a088原会话续接，均未签收。
+  - [x] V01-OOS-01A-C findings3/4端点闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；仅此修复切片，NFC与完整草案另验。
   - [x] V01-OOS-01A开发预检：a063首次Linux/MSRV冒烟已核验attempt-2原始日志，rustc1.94.0、62个core测试、fetch/test/Clippy exit0；attempt-1的101保留。此项仅证明开发基线，不证明草案功能或SP07验收。
 - [ ] SP07-W02 catalog/profile/evidence
 - [ ] SP07-W03 规则/关系/码表/专家卡
@@ -527,3 +528,11 @@ a0872980e85 request_changes：服务端ALTER ROLE SET role使session_user/curren
 上一轮为verified wait。a088原续接handle31015本轮实际exit0，交付3ed558a9b62ab3f290ce9674b9afc10e693a5730/tree9aec399e081177330a92f886c4c9dafaa766b4e8/parent9386766，stampbc0a2ed仅identity。协调者已读完整REPORT/HANDOFF和实际baseline/fixed各phase及docker均0，重算U16/U17 NormalizationTest/LICENSE hash匹配并检查fixedsnapshot26个builder/lock/NOTICE/contract文件0mismatch。作者27lib+4NFC+4CLI通过，Unicode16 19965rows/17 20034rows及1112064scalars断言通过；相同库调用parity不作为独立oracle批准。根manifest未改，lock仅builder两edge，手写NFCtables从当前产品移除，旧报告/生成器claim由新erratum纠正。作者audit/deny未跑仍pending。
 
 当前root/builder tracked diff及index均空，root写权已释放；NFC不能因交付就勾findings1/2/5。a094固定3ed558a只读复审已经启动，独立官方vectors/许可/标识兼容/hashbinding及closure回归；a086结构closure另待最终结论。a093仍独占connector identity/session/tests修正，类型任务与其共享connector目录/接口，待实际终态交接后串行派发；root空闲不授权并发覆盖代码。a082foundation、a090SDK/a091P5review、a092pipeline均保留原livehandles。本次纠正不重复增加6组件/3验收子项/4比6首次返工，完整87父项/16Phase仍0完成。
+
+## a086结构closure限定验收与基础续接
+
+a086原续接handle91151实际exit0，协调者已读完整review/findings/HANDOFF/治理和cleanup，固定eebc0ea3b835655fdb3ab088e6f7351d0d316a43/treeeebbcb4a8ff44d50c4b541d5646796a82a234210/parent79587e4获仅findings3/4 approve。attempt1 fetch/test/Clippy0；CLI1前缀checker错误及probe101、attempt2deferred、3/4/5探针输入失败原样保留。决定性attempt6 CLI/probe/docker0，独立cases118/false0，协调者重算caseshash db5579de10fcc004bedfce83d1bbbd7c10e165932d15fd75eff6f361cd5c7250、probehash2df541e2103d91b45a3743062a4d630837dad256bf427a94356ea2a0bf2b2d16。
+
+已仅勾选closure/repeatedkey子项，whole-dataset review.not_in_scope、未验证FK语义、physical63byte、signednumeric、NFC/完整SP07/真实import/profile/PII/publish/RBAC/CLI仍pending；a094正复审NFC3ed558a，旧eebcNFC缺陷不能当当前实现仍未修或已经批准。治理记录a081曾覆盖root和connector manifest，无savedtemp hash/恢复bytecompare，当前hash不能消除历史时序缺证；a087已经独立重建main最终graph但仍roleGUC request_changes，a093修正中。a086报告a083仍liveowner说法是旧范围叙述，实际root已在a088终态后释放，connector writer为a093，旧证据不改。
+
+独立验收产品子项现在4（jobs schema、源三HIGH纠正、eventproject绑定、structureclosure纠正）；交付组件仍6、首轮返工仍4/6，复审纠正不重复计首次分母。87完整父项/16Phase仍0完成。a082第二续接28952实际exit0却无REPORT/HANDOFF/commit，只称attempt3launcher0待phase检查；立即原UUID第三次续接handle2404，核验原phase而非重复构建。基础线不阻塞a092/a093产品模块。其他a09061992/a09197172/a09296228/a09362030/a09424699本回合单次核验live，保留原会话。

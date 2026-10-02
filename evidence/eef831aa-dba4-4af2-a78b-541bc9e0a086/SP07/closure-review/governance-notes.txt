@@ -1,0 +1,21 @@
+Governance inspection for the a081 live-tree manifest swap. No live a083 file was modified. Current hashes are not treated as the bytes present during the swap.
+
+What the a081 session record shows
+- 2026-10-02T01:30:36Z call-2741e0c6 saved crates/oo-connectors/Cargo.toml with cp -p to /tmp/oo-a081-connectors-cargo.toml, replaced it with git show HEAD:crates/oo-connectors/Cargo.toml, ran filtered oo-builder tests, and restored through an EXIT trap. No hash of the saved file was stored.
+- 2026-10-02T01:30:48Z call-69da0bbc checked git diff --quiet against HEAD, printed "connectors manifest still dirty (expected, foreign work preserved)", refreshed the same temp path from the file then on disk, swapped again, and recorded TEST_EXIT=0. The check is dirty-versus-HEAD, not a compare against the saved snapshot. Refreshing the temp file discarded the first snapshot before any hash existed.
+- 2026-10-02T01:33:20Z call-ee336cde and 2026-10-02T01:33:29Z call-c4194dfb also swapped the root Cargo.toml and the connectors manifest the same way, then restored both with cp -p. The second of those calls recorded fixture_count=8.
+- The session reasoning said the original would be overwritten only if its content still matched HEAD. The executed commands did not perform that compare before the replacement.
+- A trap restore writes the saved bytes back when the command exits. A concurrent writer during the cargo run would be overwritten and would not be visible in a later dirty-versus-HEAD check.
+
+Immutable git blobs
+- crates/oo-connectors/Cargo.toml blob d10c596f2183f0305341afde191fc7561ad4750d is identical at 8370498, 911f317, parent 79587e4b, and eebc0ea3. git show HEAD of that path during the observed window wrote this blob if HEAD was one of those commits. a081 observed HEAD 8370498 immediately before the first swap. A later a081 log lists 911f317. The blob does not change between them.
+- Root Cargo.toml blob 1dd71ee45257f548346d1a221dee280466546558 is identical at 8370498, 911f317, and eebc0ea3.
+
+What is absent
+- No stored pre-swap SHA-256 of either manifest.
+- No byte compare of the temp snapshot to the restored file.
+- /tmp/oo-a081-connectors-cargo.toml, /tmp/oo-a081-workspace-cargo.toml, and /tmp/oo-a081-fixtures are absent now.
+- The current connectors file SHA-256 is b9d8c7bfda4c563994024190ab0ad73c9fffefe013625a760aa47bc1f483216d, matching the coordinator dispatch record, git blob 29edec242ba4efc94ada78a6d1c3fb69c086b3e1, size 1658, mtime 1790899881 (2026-10-02T00:11:21Z). That mtime is before the swap and is what cp -p restore would preserve. It does not identify the bytes at 01:30Z.
+- Root Cargo.toml size 1303, mtime 1790904757 (2026-10-02T01:32:37Z), which is after the connectors-only swaps and before the root swap. cp -p restore would put this mtime back. It does not identify the bytes.
+
+The archived compiler slice does not include these live manifests. Accepting the connectors interface still requires an independent a083 rebuild and review. a081's report names a073 as the dependency owner; the live owner is a083.

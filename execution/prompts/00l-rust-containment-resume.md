@@ -1,5 +1,7 @@
 # Resume exact a082
 
+Third actual terminal: handle28952 returned exit0, no REPORT/HANDOFF or fixedcommit. Last text says attempt3 launcher0 and phase inspection pending. Inspect existing actual phase integers before any rebuild; complete functional/adversarial acceptance, exact own cleanup and immediately scopedcommit/report. Launcher0 alone is not completion. Currentroot released after a0883ed558a; a093 connector writer and a092pipeline/a090/a091/a094 readonlyreviews remain live. No foreign source/index changes.
+
 Second actual terminal: resumed handle61643 returned exit0 with no REPORT/HANDOFF/commit. Attempt2 builder may still be running; last log says helperClippy101, followed by Resident actor DeadFailed. Resume sameUUID again, inspect actual phase files/log first; do not launch duplicate builder or call this passed. Preserve attempt1/2 failures, finish only owned Rust/helper paths and complete handoff.
 
 Original CLI handle ACTUALLY returned exit0; this was incomplete, not approval. Resume EXACT eef831aa-dba4-4af2-a78b-541bc9e0a082. Read and continue all constraints in execution/prompts/00l-rust-containment-supervisor.md and existing evidence/session. Do not discard work or rewrite historical failure evidence. No new worktree/subagents/push/release.

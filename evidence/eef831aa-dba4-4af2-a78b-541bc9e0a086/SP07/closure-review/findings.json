@@ -1,0 +1,208 @@
+{
+  "review": "a086",
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a086",
+  "subject": "structure closure correction, findings 3 and 4",
+  "decision": "approve",
+  "decision_scope": "findings 3 and 4 only",
+  "commit": "eebc0ea3b835655fdb3ab088e6f7351d0d316a43",
+  "tree": "eebbcb4a8ff44d50c4b541d5646796a82a234210",
+  "parent": "79587e4bcc168b1cb2bfeee2690f62225ddb7dcd",
+  "prior_review_commit": "4c989bce58407cf19d3d93dc600162d7322d92f8",
+  "author_linux_tree": "93c6cc57f1ad3dc6e7dcc67ba8761316405ced91",
+  "archive_verified": "files=2903 missing=0 mismatch=0",
+  "archive_inventory_lines": 2903,
+  "product_source_edited": false,
+  "reviewer_commits": false,
+  "signs_sp07_w01": false,
+  "signs_sp07": false,
+  "signs_vertical": false,
+  "signs_security": false,
+  "signs_runsc": false,
+  "signs_customer": false,
+  "signs_protected_ci": false,
+  "signs_release": false,
+  "author_claim_is_acceptance": false,
+  "dependency_owner": "a083",
+  "stale_owner_named_by_a081": "a073",
+  "connectors_interface": "not_accepted",
+  "linux_msrv": {
+    "image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "platform": "linux/arm64",
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "host": "aarch64-unknown-linux-gnu",
+    "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
+    "rustup_toolchain": "1.94.0",
+    "toolchain_file_channel": "1.98.1",
+    "run_id": "e2364472-4959-4f54-b815-2ac993ff51ff",
+    "container": "d7cc3af039190529ccb6fd6b58f5f4fd1b157dc2064137a1b15672f988ef4377",
+    "fetch_exit": 0,
+    "test_exit": 0,
+    "test_counts": "lib 27 passed, bin 0, integration 4 passed",
+    "clippy_exit": 0,
+    "clippy_component_exit": 0,
+    "docker_run_exit": 101,
+    "cli_exit": 1,
+    "cli_exit_preserved": "checker omitted the oo-builder prefix; product stderr is the static duplicate.key_member line",
+    "probe_exit": 101,
+    "probe_exit_preserved": "E0382 moved column in the appended probe; library sources unchanged",
+    "smoke_binary_sha256": "de688f114cb7c8819eb51e040d6f392d8168ae20cd5d1279468bbc18b67456f0",
+    "duplicate_stderr_sha256": "fb0b971f68b7ad218a210a9595229a684b8d825de961ce967b78e906d57fa700",
+    "privileged": false,
+    "cap_drop": ["ALL"],
+    "network": "own bridge",
+    "oom_killed": false
+  },
+  "probe": {
+    "deciding_run_id": "e3577d45-8eca-430b-a12d-2863a12db668",
+    "container": "24c28a1a0b35d559c8662599c9f18490d102a3d6889611211e56d0ebbfc40740",
+    "docker_run_exit": 0,
+    "cli_exit": 0,
+    "probe_exit": 0,
+    "oom_killed": false,
+    "cases": 118,
+    "failures": 0,
+    "summary": "msrv/attempt-6/probe-run/summary.json",
+    "probe_source_sha256": "2df541e2103d91b45a3743062a4d630837dad256bf427a94356ea2a0bf2b2d16",
+    "library_unchanged": {
+      "draft_rs": "9633935006260fb34346558fe24beece3d8b74986b361817d63dc9178b34c324",
+      "pgsql_rs": "9ebaf44c9e77facf091463b5068b24edd582418c59a7da429353c087a1ca18eb"
+    },
+    "preserved_attempts": [
+      {
+        "attempt": 2,
+        "run_id": "7c2e9a10-4b61-4e0a-9c3d-a086probe02",
+        "result": "deferred before docker run, builders at capacity, no container created"
+      },
+      {
+        "attempt": 3,
+        "run_id": "3de65218-d87b-428c-98f2-ab8cc17bc51d",
+        "docker_run_exit": 101,
+        "result": "probe input schema.invalid on curated label"
+      },
+      {
+        "attempt": 4,
+        "run_id": "44c7e9cc-d2a8-4f0a-bd61-a272b209a792",
+        "docker_run_exit": 101,
+        "result": "bind panicked on key.empty for an empty unique"
+      },
+      {
+        "attempt": 5,
+        "run_id": "07078496-6a84-4a98-bf74-f9e141007877",
+        "docker_run_exit": 101,
+        "result": "bind panicked on ident.collision for the U+1E14 column pair"
+      }
+    ]
+  },
+  "source_blobs": {
+    "draft_rs": "1789ac8f1e235d655c9352bae09e2c4783d05273",
+    "pgsql_rs": "5374e5e85e610d87df5178f32437625e76c19757",
+    "draft_tests_rs": "5a2db165a8423a5c67a6229525bf028fedf8d9f0",
+    "structure_draft_cli_rs": "79983a58b65f3bd2e72f2334ffbe4f62dcc8c5c5",
+    "structure_draft_readme": "8a8e1c8cc0c42cd343a0faff1f8ff527c1a946bf",
+    "nfc_rs": "957c4dc5fa5d1b846df694821eb3e33df985b6ef",
+    "nfc_tables_rs": "f98496d861b725389f8c1d771ef78f7cc5fa4762",
+    "blobs_match_author_linux_tree": true,
+    "nfc_unchanged_from_a071": true
+  },
+  "findings": [
+    {
+      "id": "effective-fk-names-rejected-column",
+      "a071_severity": "high",
+      "decision": "approve",
+      "location": "crates/oo-builder/src/draft.rs strip_dangling_relationships after strip_dangling_keys",
+      "summary": "A fresh rejection of a source column, a referenced column, any member of a composite foreign key, or either side of a self-reference removes that relationship from effective and queues relationship_endpoint_not_effective. The detail is from_column_not_effective, to_column_not_effective, or from_and_to_column_not_effective. The item is pending and publishable false. Generated evidence, the curated echo, and the historical decision stay. An accept does not restore the column. A stale decision removes nothing. A human rejection of the relationship adds no endpoint item. Every effective foreign key in the probe names an effective dataset and effective columns.",
+      "evidence": "msrv/attempt-6/probe-run/cases.jsonl shared-source, both-ends, all-customer-columns, accept-dataset, accept-sibling, override-label, restored-version, stale-relationship, human-reject, human-reject-plus-other-column, dataset-not-emitted, composite-order, partial-composite, self-from, self-to, nfc-endpoint, and the five fk fixtures",
+      "cases": 118,
+      "failures": 0
+    },
+    {
+      "id": "duplicate-key-member-accepted",
+      "a071_severity": "medium",
+      "decision": "approve",
+      "location": "crates/oo-builder/src/pgsql.rs reject_repeated_key_members, after pgsql::load and check_bindings",
+      "summary": "A repeated attnum, name, or NFC ident inside one primary key, unique key, or foreign-key source or referenced list is rejected with duplicate.key_member on a recomputed hash. Empty unique and empty foreign-key lists are key.empty during catalog load. Illegal attnums 0 and 1601 are key.unknown_column during load. An empty primary key and distinct keys stay legal. Hash mismatches return hash.schema, hash.config, hash.type, or hash.evidence before the duplicate check. Static diagnostics do not contain the probe canaries.",
+      "evidence": "msrv/attempt-6/probe-run/cases.jsonl duplicate/*, empty-pk-legal-unique, distinct-keys, nfc-u1e14/*, and msrv/attempt-1/cli duplicate fixture stderr",
+      "cases": 118,
+      "failures": 0
+    }
+  ],
+  "residuals": [
+    {
+      "id": "nfc-composition-equal-class",
+      "a071_finding": 1,
+      "decision": "unchanged",
+      "summary": "U+1E14 and U+0045 U+0304 U+0300 share ident q_c492cc80. Two columns with those originals are rejected at load with ident.collision. A key listing both spellings is rejected with duplicate.key_member. The catalog is not accepted. nfc.rs is unchanged from a071."
+    },
+    {
+      "id": "unicode-data-notice-missing",
+      "a071_finding": 2,
+      "decision": "unchanged",
+      "summary": "nfc_tables.rs is byte-identical to a071. The notice finding stays open."
+    },
+    {
+      "id": "nfc-unicode-17-combining-classes",
+      "a071_finding": 5,
+      "decision": "unchanged",
+      "summary": "The Unicode 17 combining-class gap was not retested. The tables blob is unchanged from a071."
+    },
+    {
+      "id": "unsigned-numeric-scale",
+      "decision": "unchanged",
+      "summary": "Signed numeric scale remains outside this slice."
+    },
+    {
+      "id": "ident-length-vs-pg-63",
+      "decision": "unchanged",
+      "summary": "A 31-byte uppercase schema is queued identifier_not_in_oos and is not emitted. Names are not truncated. This slice emits no DDL. Physical 63-byte mapping stays unverified."
+    },
+    {
+      "id": "unverified-fk-emitted",
+      "decision": "unchanged",
+      "summary": "A referenced list that is not a known parent key stays effective and is queued fk_target_key_unverified, pending, publishable false. That semantic stays unsigned."
+    },
+    {
+      "id": "dataset-reject-not-in-scope",
+      "decision": "preexisting",
+      "summary": "A review action on dataset/public.customer returns review.not_in_scope and emits no draft. Finding 3 does not require a dataset-level reject. The 31-byte schema case emits no dangling effective foreign key."
+    },
+    {
+      "id": "connectors-manifest-swap",
+      "decision": "governance",
+      "summary": "a081 swapped the live connectors manifest and later the root Cargo.toml with cp -p and restored them. No pre-swap SHA-256 and no saved-versus-restored byte compare exist. Commit blob d10c596f2183f0305341afde191fc7561ad4750d and root blob 1dd71ee45257f548346d1a221dee280466546558 identify the committed bytes, not the restored bytes. The connectors interface stays unaccepted until an independent a083 rebuild and review."
+    }
+  ],
+  "governance": {
+    "notes": "governance-notes.txt",
+    "live_files_modified_by_this_review": false,
+    "current_connectors_sha256_at_dispatch": "b9d8c7bfda4c563994024190ab0ad73c9fffefe013625a760aa47bc1f483216d",
+    "current_hash_proves_swap_time_bytes": false,
+    "proven": "committed connectors and root Cargo.toml blobs are stable across 8370498, 911f317, parent 79587e4b, and eebc0ea3",
+    "missing": "pre-swap SHA-256, byte compare of the temp snapshot to the restored file, and the temp files"
+  },
+  "cleanup": {
+    "scope": "oo.owner=a086 and oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a086 and name prefix oo-a086-",
+    "status": "removed",
+    "log": "cleanup.txt",
+    "started": "2026-10-02T10:55:43Z",
+    "ended": "2026-10-02T10:55:45Z",
+    "command_exits": 0,
+    "containers_removed": 5,
+    "networks_removed": 1,
+    "volumes_removed": 2,
+    "owned_remaining": 0,
+    "prune": false,
+    "image_removed": false,
+    "containers": [
+      "24c28a1a0b35d559c8662599c9f18490d102a3d6889611211e56d0ebbfc40740",
+      "4d8ba35ed8172379f94cb630304112e039f7e5dff0bdf65c82e3fe02a4f3f2ff",
+      "a38ca50b998a395a2511a77054e05543d15cd44e89f1f505e5f823d5061112c9",
+      "30dc32d5087a768d83ee54bbafdb9b87a8d169f60c39951e9dd4dfc586d0c3b8",
+      "d7cc3af039190529ccb6fd6b58f5f4fd1b157dc2064137a1b15672f988ef4377"
+    ],
+    "network": "15111804e05b9d49c40bebe3cf2c94f32a4a51fb9553ee376b0d7f35dcf31e48",
+    "volumes": [
+      "oo-a086-e2364472-4959-4f54-b815-2ac993ff51ff-cargo",
+      "oo-a086-e2364472-4959-4f54-b815-2ac993ff51ff-target"
+    ]
+  }
+}
