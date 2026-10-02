@@ -1,0 +1,6 @@
+BEGIN
+SET
+apply-receipt
+INSERT 0 1
+RESULT|owner-legal
+ROLLBACK

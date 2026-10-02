@@ -1,0 +1,2 @@
+ERROR:  42P06: schema "_oo" already exists
+LOCATION:  NamespaceCreate, pg_namespace.c:62

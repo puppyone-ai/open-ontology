@@ -2,7 +2,7 @@
 
 | 属性 | 值 |
 |---|---|
-| 基线 | OO-SPEC-001 v1.0.0、OO-PLAN-001 v1.0.0、docs全部19份 |
+| 基线 | OO-SPEC-001 v1.0.1、OO-PLAN-001 v1.0.1、docs全部19份（来源revision2） |
 | 执行模型 | 所有编码、自动化、测试实现、E2E与外部审阅：Grok Build `grok-4.7` / `xhigh` |
 | 协调与终验 | 当前Codex：任务冻结、分区、进程管理、证据核验、最终review；不代写产品代码 |
 | 产品推进规则 | 用户于2026-10-02更新：基础修复单独工作线；优先PG→导入/catalog→可审核ontology草案→受控查询→CLI对话，随后扩库/文件/CDC/完整harness；小功能先Linux/MSRV局部冒烟，固定提交复审，集成节点全矩阵 |
@@ -705,3 +705,13 @@ a100handle34511实际exit0但最后仅builder3exit0待读output，未review/find
 来源19文件逐个与fixed34fae5d比较全一致，旧baseline仅docs17变更；a097语义审阅后协调者做影响记录execution/decisions/source-baseline-revision-2.md，保留前HEAD e271542/旧JSONSHAa224a6526e8e223c00bb6157c8815e4ddfb5b14b125d1e4fdae9d206981bcbb5，revision2仅docs17 SHA f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534/18962bytes124lines。Spec/Plan版本1.0.1是reviewedsource/trace更新，无新删REQ/AT/tasks/phases。新SpecSHAaccac91210579da06387c94a28a6e71430a9c629cab9c6921c137d2e2f72fb91；check_spec/check_plan实际exit0，保留80REQ/96AT/87items/16Phase/19sources，仅文档一致性非产品全绿。过去docsdrift失败原件不改/不删除门禁。
 
 to-do/Plan只新增main源修正切片勾选，累计产品验收子项7，交付组件7，首次产品返工4比6仍保持（纠正复审不新增分母）；完整87父项/16Phase仍0完成。a097关闭不再轮询旧handle；a098root/connector、a102newjobsmigration、a099targetreadonly/a103CLIreadonly继续原会话。reader仍需types独立批准，apply仍需reader与target修正批准，不因源修正签收提前授予写权。
+
+## a099终态接收与a104版本化修复；a098按实际终态续接
+
+a099 handle5836实际exit0，完整review/findings读完并对照原始missing-v1.stderr/counts。固定9a71efa/treecaa5b8e/parent82d4c85：真实PG17.10决定attempt3 probe1，320cases/require_fail1/harness_fail0，唯一必验失败missing-v1-OO002实际42P01。NULL180组合0失败、合法历史与replay字节不变、非法历史OO021原子拒绝成立，仍不能签该子项。Linuxarm64/Rust1.94 package测试/Clippy0但live ignored；PG探针host1.98.1独立编译的区别保留。first/second harness失败及残留F2/F3/F5/存储callerhash假值观察全部保留；review/源码/raw case/SQL/hash/清理4304文件约3.25MB接收，不勾父项。已结束不再轮询。
+
+a104新UUID实际启动handle88639，v01-target-segment-preflight-version.md。仅pipeline新migration/versioncontract/测试/README及own evidence；不改root/jobs/connector/旧SQL/contract。README要求后续修改为新版本，因此不能静默改已记录0002；新安装须明确可从v1直接走修正版，既有v2须升级且历史marker/receipt不改。缺表OO002/合法和非法历史/rollback/checksum/replay/ACL实际局部PG17.10验收后立即固定提交，另派独立复审，不重复无关320矩阵。
+
+a098handle61045实际exit0但未REPORT/HANDOFF/fixedcommit，立即原UUIDresume handle73022。续接卡明确先读取已启动verifier终态，禁止盲目增加builder；生产实际Arrow RecordBatch及Rust决定oracle是原任务范围，不以isolatedprobe/Python草稿缩小验收。root/connector写权继续a098。a102jobs91030与a103CLI固定复审93875本轮单次有界核验仍live，不按超时重启。reader/apply继续待真实依赖签收。
+
+指标保持7交付组件/7产品验收子项/首次复审返工4比6；a099是同功能返工不新增分母。完整87父项/16Phase仍0完成，goal active。To-do与Plan目标子项更新为request_changes并明确下一工作，不新增完成勾选。

@@ -1,0 +1,6 @@
+run_id=79f07ac9-3b03-470f-94ce-877f2595ea00
+container=oo-a099-pg1710-79f07ac9-3b03-470f-94ce-877f2595ea00
+network=oo-a099-pg-79f07ac9-3b03-470f-94ce-877f2595ea00-net
+volume=oo-a099-pg-79f07ac9-3b03-470f-94ce-877f2595ea00-data
+image=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+commit=9a71efaf9cb63a2d63061a241f6b8ee8b00426df

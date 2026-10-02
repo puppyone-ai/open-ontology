@@ -1,0 +1,3 @@
+ERROR:  OO002: target-fence-receipts/1 segment relation is absent
+CONTEXT:  PL/pgSQL function inline_code_block line 11 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

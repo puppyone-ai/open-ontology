@@ -1,0 +1,2 @@
+ERROR:  42723: function "segment_contract_ready" already exists with same argument types
+LOCATION:  ProcedureCreate, pg_proc.c:372

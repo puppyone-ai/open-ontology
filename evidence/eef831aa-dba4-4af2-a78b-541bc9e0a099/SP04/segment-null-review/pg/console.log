@@ -1,0 +1,325 @@
+require version pass=true PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit on 
+require checksums pass=true PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit on 
+harness create-db_red pass=true 
+harness install-db_red pass=true exit=0 state= 
+harness create-logins pass=true 
+harness grant-db_red pass=true 
+require red-null-index pass=true v1 stored the historical NULL mixture exit=0 ADOPT|1 RESULT|inserted 
+require red-null-count pass=true v1 stored the historical NULL mixture exit=0 ADOPT|1 RESULT|inserted 
+require red-null-both pass=true v1 stored the historical NULL mixture exit=0 ADOPT|1 RESULT|inserted 
+require red-stale-hide pass=true v1 still reports stale fence for the illegal segment state=OO013
+require red-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require red-history-equal pass=true snapshot bytes including target_commit_at stayed equal and OO021 aborted
+require red-no-v2-marker pass=true no target-fence-receipts/2 row
+require red-function-unchanged pass=true v1 function body has no IS NOT TRUE
+require red-check-unchanged pass=true v1 check has no IS TRUE
+harness create-db_idx pass=true 
+harness install-db_idx pass=true exit=0 state= 
+require null-index-stored pass=true ADOPT|1 RESULT|inserted 
+require null-index-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require null-index-isolated pass=true one illegal shape cannot be skipped by an earlier failure
+harness create-db_count pass=true 
+harness install-db_count pass=true exit=0 state= 
+require null-count-stored pass=true ADOPT|1 RESULT|inserted 
+require null-count-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require null-count-isolated pass=true one illegal shape cannot be skipped by an earlier failure
+harness create-db_both pass=true 
+harness install-db_both pass=true exit=0 state= 
+require null-both-stored pass=true ADOPT|1 RESULT|inserted 
+require null-both-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require null-both-isolated pass=true one illegal shape cannot be skipped by an earlier failure
+harness create-db_hist pass=true 
+harness install-db_hist pass=true exit=0 state= 
+require hist-plant-h-null-index pass=true ADOPT|1 RESULT|inserted 
+require hist-plant-h-null-count pass=true ADOPT|1 RESULT|inserted 
+require hist-plant-h-null-both pass=true ADOPT|1 RESULT|inserted 
+require hist-plant-h-null-count-2 pass=true ADOPT|1 RESULT|inserted 
+require hist-plant-h-both-8192 pass=true ADOPT|1 RESULT|inserted 
+require hist-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require hist-all-equal pass=true every planted illegal row stayed; OO021 message is the fixed text
+require hist-no-delete pass=true migration rolled back
+harness create-db_bypass pass=true 
+harness install-db_bypass pass=true exit=0 state= 
+harness bypass-plant pass=true 
+require bypass-forward pass=true ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
+require bypass-all-fields pass=true false and unknown planted rows all survived OO021; check stayed the v1 NOT VALID form
+harness create-db_lawful pass=true 
+harness install-db_lawful pass=true exit=0 state= 
+require law-plant-law-absent pass=true ADOPT|1 RESULT|inserted 
+require law-plant-law-one pass=true ADOPT|1 RESULT|inserted 
+require law-plant-law-8192 pass=true ADOPT|1 RESULT|inserted 
+require law-plant-law-partial pass=true ADOPT|1 RESULT|inserted 
+harness install-db_lawful pass=true exit=0 state= 
+require ready-before-db_lawful pass=true BEGIN SET  SET 1 DO LOCK TABLE DO ALTER TABLE ALTER TABLE COMMENT CREATE FUNCTION 
+require ready-after-db_lawful pass=true BEGIN SET  SET 1 DO LOCK TABLE DO ALTER TABLE ALTER TABLE COMMENT CREATE FUNCTION 
+require v1-ready-db_lawful pass=true BEGIN SET  SET 1 DO LOCK TABLE DO ALTER TABLE ALTER TABLE COMMENT CREATE FUNCTION 
+require law-byte-equal pass=true generation, payload, and target_commit_at stayed byte-equal
+require law-replay-same-bytes pass=true RESULT|replay 
+harness create-db_fresh pass=true 
+harness install-db_fresh pass=true exit=0 state= 
+require ready-before-db_fresh pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require ready-after-db_fresh pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require v1-ready-db_fresh pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require three-value-old-accepts-unknown pass=true CREATE TABLE ALTER TABLE CREATE TABLE ALTER TABLE CREATE TABLE INSERT 0 1 OLD|mix-index|1 DELETE 1 INSERT 0 1 OLD|mix-count|1 DELETE 1 INSERT 0 1 
+require three-value-is-true-rejects pass=true CREATE TABLE ALTER TABLE CREATE TABLE ALTER TABLE CREATE TABLE INSERT 0 1 OLD|mix-index|1 DELETE 1 INSERT 0 1 OLD|mix-count|1 DELETE 1 INSERT 0 1 
+require three-value-unknown-is-not-true pass=true true|false 
+require fresh-null-index pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-null-count pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-null-both pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-absent pass=true legal=true state= 
+require fresh-one pass=true legal=true state= 
+require fresh-8192 pass=true legal=true state= 
+require fresh-8193 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-neg-index pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-neg-count pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-count0 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-index-eq pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-empty-present pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require fresh-null-bitmap pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-001 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-002 pass=true legal=true state= 
+require grid-003 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-004 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-005 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-006 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-007 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-008 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-009 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-010 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-011 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-012 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-013 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-014 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-015 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-016 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-017 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-018 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-019 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-020 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-021 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-022 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-023 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-024 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-025 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-026 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-027 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-028 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-029 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-030 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-031 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-032 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-033 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-034 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-035 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-036 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-037 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-038 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-039 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-040 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-041 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-042 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-043 pass=true legal=true state= 
+require grid-044 pass=true legal=true state= 
+require grid-045 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-046 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-047 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-048 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-049 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-050 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-051 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-052 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-053 pass=true legal=true state= 
+require grid-054 pass=true legal=true state= 
+require grid-055 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-056 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-057 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-058 pass=true legal=true state= 
+require grid-059 pass=true legal=true state= 
+require grid-060 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-061 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-062 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-063 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-064 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-065 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-066 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-067 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-068 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-069 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-070 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-071 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-072 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-073 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-074 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-075 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-076 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-077 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-078 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-079 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-080 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-081 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-082 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-083 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-084 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-085 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-086 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-087 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-088 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-089 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-090 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-091 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-092 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-093 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-094 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-095 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-096 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-097 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-098 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-099 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-100 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-101 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-102 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-103 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-104 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-105 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-106 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-107 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-108 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-109 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-110 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-111 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-112 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-113 pass=true legal=true state= 
+require grid-114 pass=true legal=true state= 
+require grid-115 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-116 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-117 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-118 pass=true legal=true state= 
+require grid-119 pass=true legal=true state= 
+require grid-120 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-121 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-122 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-123 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-124 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-125 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-126 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-127 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-128 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-129 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-130 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-131 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-132 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-133 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-134 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-135 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-136 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-137 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-138 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-139 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-140 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-141 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-142 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-143 pass=true legal=true state= 
+require grid-144 pass=true legal=true state= 
+require grid-145 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-146 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-147 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-148 pass=true legal=true state= 
+require grid-149 pass=true legal=true state= 
+require grid-150 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-151 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-152 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-153 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-154 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-155 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-156 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-157 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-158 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-159 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-160 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-161 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-162 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-163 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-164 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-165 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-166 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-167 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-168 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-169 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-170 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-171 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-172 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-173 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-174 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-175 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-176 pass=true legal=false state=23514 ERROR:  23514: closed completion metadata
+require grid-177 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-178 pass=true legal=true state= 
+require grid-179 pass=true legal=true state= 
+require grid-180 pass=true legal=false state=23514 ERROR:  23514: closed segment metadata
+require grid-complete pass=true cases=180 failed=0
+require stale-illegal-23514 pass=true state=23514
+require stale-legal-OO013 pass=true state=OO013
+require stale-not-stored pass=true neither stale call left a receipt
+require catalog-owner-definer pass=true proc|commit_apply_receipt|oo_target_owner|true|{"search_path=pg_catalog, _oo"} proc|segment_contract_ready|oo_target_owner|false|{"search_path=pg_catalog, _oo"} check|CHECK (((((segment_count IS NULL) AND (segment_index IS NULL) AND (octet_length(segment_bitmap) = 0)) OR ((segment_count IS NOT NULL) AND (segment_index IS NOT NULL) AND (segment_count >= 1) AND (segment_index >= 0) AND (segment_index < segment_count) AND ((octet_length(segment_bitmap) >= 1) AND (octet_length(segment_bitmap) <= 8192)))) IS TRUE)) 
+require runtime-not-owner-member pass=true proc|commit_apply_receipt|oo_target_owner|true|{"search_path=pg_catalog, _oo"} proc|segment_contract_ready|oo_target_owner|false|{"search_path=pg_catalog, _oo"} check|CHECK (((((segment_count IS NULL) AND (segment_index IS NULL) AND (octet_length(segment_bitmap) = 0)) OR ((segment_count IS NOT NULL) AND (segment_index IS NOT NULL) AND (segment_count >= 1) AND (segment_index >= 0) AND (segment_index < segment_count) AND ((octet_length(segment_bitmap) >= 1) AND (octet_length(segment_bitmap) <= 8192)))) IS TRUE)) 
+require direct-check-23514 pass=true ERROR:  23514: new row for relation "apply_receipts" violates check constraint "apply_receipts_segment_check"
+require column-null-bitmap-23502 pass=true real column is NOT NULL so a NULL bitmap is not a stored history row; state=23502
+residual owner-guc-insert-still-possible pass=true A085-F2 remains: owner plus writer GUC can insert; this probe rolled it back
+require runtime-insert-42501 pass=true state=42501
+harness poison-setup pass=true 
+require search-path-poison pass=true 2026-10-02 12:25:44.754763+00 
+require nobody-connect-refused pass=true state= psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  permission denied for database "db_fresh"
+require runtime-readiness-conjunction pass=true true|false|true|true 
+require bad-codec-OO015 pass=true state=OO015
+residual arbitrary-dml-gap pass=true A085-F3 remains: a runtime member inserted a user row with no adopt and no receipt
+residual no-publication pass=true receipt schema is not CDC
+harness create-db_repeat pass=true 
+harness install-db_repeat pass=true exit=0 state= 
+require ready-before-db_repeat pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require ready-after-db_repeat pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require v1-ready-db_repeat pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require repeat-same-checksum pass=true applied_at stable 2026-10-02 12:25:45.479291+00
+require mismatch-OO001 pass=true applicator protocol raised OO001 and did not execute 0002 again
+require checksum-update-OO014 pass=true state=OO014
+require file-not-idempotent pass=true state=42723 ERROR:  42723: function "segment_contract_ready" already exists with same argument types
+harness create-db_roll pass=true 
+harness install-db_roll pass=true exit=0 state= 
+require roll-plant pass=true ADOPT|1 RESULT|inserted 
+require install-db_roll pass=true exit=3 state=OO003 ERROR:  OO003: forced migration failure CONTEXT:  PL/pgSQL function inline_code_block line 1 at RAISE LOCATION:  exec_stmt_raise, pl_exec.c:3897 
+require forced-OO003-restores pass=true constraint, function, marker, and history restored
+harness create-db_lie pass=true 
+harness install-db_lie pass=true exit=0 state= 
+require lie-flags pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require lie-view-does-not-read-file pass=true eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|true 
+residual external-conjunction-open pass=true segment_contract_ready compared the stored lie and returned true; the file hash is not read; the installer must hash 0002 outside the database
+harness create-db_miss pass=true 
+harness install-db_miss pass=true exit=0 state= 
+require missing-v1-OO002 pass=false state=42P01
+harness create-db_shape pass=true 
+harness install-db_shape pass=true exit=0 state= 
+harness shape-drop pass=true 
+require invalid-shape-OO002 pass=true state=OO002
+harness create-db_regress pass=true 
+harness install-db_regress pass=true exit=0 state= 
+require ready-before-db_regress pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require ready-after-db_regress pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+require v1-ready-db_regress pass=true BEGIN SET  ALTER ROLE ALTER ROLE DO REVOKE REVOKE GRANT SET CREATE SCHEMA REVOKE 
+harness side-setup pass=true 
+require replay-immutable pass=true mid=STAMP|2026-10-02 12:25:47.958888+00|1|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee end=STAMP|2026-10-02 12:25:47.958888+00|1|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee sleeping=true
+require replay-new-generation pass=true new-backend stamp=STAMP|2026-10-02 12:25:47.958888+00|1|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee held=STAMP|2026-10-02 12:25:47.958888+00|1|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee state=
+require conflict-rolls-back-together pass=true state=OO010 side=0
+require same-shard-55P03 pass=true visible=true state=55P03
+require different-shard-admitted pass=true ADOPT|1 RESULT|inserted 
+require old-writer-blocked pass=true state=55P03
+require takeover-generation pass=true 2|22222222-2222-4222-8222-222222222222 ADOPT|1 RESULT|inserted 
+require old-generation-OO013 pass=true state=OO013
+require takeover-replay-keeps-original pass=true RESULT|replay 1|2026-10-02 12:25:56.731362+00|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee 
+require migration-lock-timeout pass=true visible=true state=55P03 elapsed_ms=2088
+require kill-before-commit pass=true seen=true absent=true term=true  retry=RESULT|inserted 
+require kill-after-commit pass=true seen=true present=true kept=["STAMP|2026-10-02 12:26:02.352937+00|1|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"]
+require disconnect-before-commit pass=true seen=true leaked_backends=1 
+require_fail=1
+harness_fail=0
+residual=4
+cases=320
+

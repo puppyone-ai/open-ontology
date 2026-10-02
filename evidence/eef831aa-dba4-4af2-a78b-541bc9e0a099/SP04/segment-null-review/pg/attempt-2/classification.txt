@@ -1,0 +1,5 @@
+attempt=2 probe_exit=1 require_fail=3 harness_fail=0
+harness:
+- V2Upgrade committed 0002 and inserted the v2 marker, then omitted the READY_AFTER and schema_ready selects. install-db_lawful.stdout shows READY_BEFORE|false and INSERT 0 1. A follow-up on the same database returned READY|true|true|false (segment_contract_ready of the file hash, schema_ready of v1, schema_ready of the v2 hash).
+product, oracle unchanged:
+- missing-v1 state=42P01 from ::regclass on an absent relation. Expected OO002.

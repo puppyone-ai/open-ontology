@@ -84,10 +84,10 @@ stop_if: "TOAST缺失不可辨、source lineage不成立或目标fence失效"
 
 ### 当前实施检查点（2026-10-02）
 
-具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。SDK runtime六项修正获a090批准；P5 IPC有限切片和独立身份补证分别获a091/a100限定验收；源role GUC/main准入修正经a097补证签收，来源revision2已审阅；基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa由a099固定复审；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a由a103固定复审，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
+具体固定SHA、证据和writer状态以[开发台账](open-ontology-development-ledger.md)及[纵向集成顺序](../execution/decisions/vertical-integration-order.md)最新记录为准。SDK runtime六项修正获a090批准；P5 IPC有限切片和独立身份补证分别获a091/a100限定验收；源role GUC/main准入修正经a097补证签收，来源revision2已审阅；基础Rust supervisor有限切片获a096批准；目标receipt NULL前向修正9a71efa经a099复审request_changes，a104版本化修复中；结构closure和NFC修正切片已独立批准。CLI query交付3347f5a由a103固定复审，根依赖经实际终态和明确交接移交a098 PG无损类型任务。这些开发状态不代表父任务完成。
 
 - [x] SP03-W01-M main源身份安全修正切片：a097固定34fae5d有限approve，原始SQL及新保留Rustoracle完整输出/hash已核验；旧完整stdout仍missing明确保留。仅role GUC/源准入修正，完整W01/catalog/reader/types另验。
-- [ ] SP04-W05-a 目标fence迁移：a092交付9a71efa，由a099核验最终committed路径、合法历史不变/非法历史原子拒绝；未签收。
+- [ ] SP04-W05-a 目标fence迁移：a099固定9a71efa复审request_changes，180 NULL组合通过但缺表返回42P01而非OO002；a104版本化修复中，旧SQL/contract保持，未签收。
 - [x] SP07-W01-C findings3/4闭包与重复key修正：a086固定eebc0ea独立118cases/0failure批准；完整W01未签。
 - [x] SP07-W01-NFC findings1/2/5修正：a094固定3ed558a批准，Linux1.94测试/Clippy0、独立官方Unicode16/17 oracle与产品探针0失败；旧错误hash不静默复用。仅NFC切片，完整W01与供应链另验。
 - [x] SP09-W01-a-R SDK六项runtime修正：a090固定bde2e8c批准；Linux1.94测试/Clippy0、独立55必验case通过。完整JSON SDK、供应链/真实Gateway另验。

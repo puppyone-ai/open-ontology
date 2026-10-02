@@ -1,0 +1,3 @@
+ERROR:  OO015: closed position codec
+CONTEXT:  PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 25 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,0 +1,4 @@
+rm_exit=0
+network_exit=0
+volume_exit=0
+tmp_removed=true exists=false

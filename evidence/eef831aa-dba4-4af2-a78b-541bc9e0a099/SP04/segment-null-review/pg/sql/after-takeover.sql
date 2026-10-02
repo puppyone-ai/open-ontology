@@ -1,0 +1,2 @@
+SELECT 'ADOPT|' || _oo.adopt_target_generation('a099dead', '22222222-2222-4222-8222-222222222222'::uuid)::text;
+SELECT 'RESULT|' || _oo.commit_apply_receipt('a099dead', '22222222-2222-4222-8222-222222222222'::uuid, 1, 'warehouse', 'orders_g1', 'after-old', repeat('a', 64), repeat('b', 64), repeat('c', 64), repeat('d', 64), repeat('e', 64), 'pg-commit-lsn/v1', 'src_main', 1, 0, false, true, true, NULL, NULL, ''::bytea);
