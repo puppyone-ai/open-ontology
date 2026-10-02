@@ -131,7 +131,8 @@
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
-  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108已实际exit0并提交preflight限定approve，协调者正在接收原始证据；完整fence与Loader driver、控制镜像和ACK/TRIM仍未验收。
+  - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108 preflight有限切片已签收；完整fence与Loader driver、控制镜像和ACK/TRIM仍未验收。
+    - [x] W05-a1 version3 preflight修正：固定6cd955a经a108独立Linux1.94/PG17.10实测与协调者原始记录签收；缺schema/relation/constraint精确OO002、不写marker，旧SQL不变、v1 supersede/v2 forward与有限NULL/ACL/replay回归通过。test参考路线不等于生产installer；F2/F3/F5仍开放。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
 
@@ -757,3 +758,7 @@ a103固定3347f5a独立request-changes，真实117cases/110proved/3failed/4unver
 a108原handle87537实际exit0，关闭后不再轮询。固定6cd955a/tree463bbf6/parent3ca5357的review/HANDOFF已读；报告限定approve version3 preflight，决定run06f2ff6d的summary154PASS/fails0、worst/docker0已读。生产src不调用test route，旧0002缺relation死路径42P01仍RED，作者首轮失败stdout缺失仍明确，F2/F3/F5及完整SP04/AT/Loader/发行未签。完整findings与逐项raw/hashes接收尚未完成，本条不新增验收计数或勾选。两保留a108卷仍属a108，不授予其他任务清理或复用。
 
 a110handle32339本轮实际有界核验仍live，保留builder槽A。槽B明确从已终态a108释放并移交a106 CLI FIFO修复，完整prepared卡加activation绑定HEAD647387/tree3f374c1/parentfcb59dd。实际派发Grok4.7xhigh，handle39012；仅CLI指定文件与自身证据写权，无manifest/rootlock授权，无PGfixture，globalmax2包括host/tool安装。即刻原固定CLI RED到修正版真实spawn/Linux1.94局部验证，完成后独立复审。jobs107/helper109仍prepared。产品9交付组件/7验收子项/首次返工5比7、完整87父项/16Phase仍0完成，goal active。
+
+### a108 preflight限定签收
+
+完整review/findings/HANDOFF与决定summary/rawSQLSTATE/console已读取；参考apply文件hash在事务前与固定SHA比较，错误SQLSTATE由真实PG返回，OO001为参考installer义务，生产src不调用test路线。10源码哈希与fixed6cd955逐个比较一致；实际154PASS/0FAIL，所有决定phase0，live4.64s。证据1575文件477172bytes无symlink/privatekeyPEM，逐文件SHA索引execution/decisions/a108-evidence-sha256.txt，限定接收说明a108-preflight-receipt.md。仅新增W05-a1勾选；完整W05-a/W05/AT-PL-05与F2/F3/F5仍开放，作者首轮raw丢失和旧2死路径RED均保留。9交付组件/8产品验收子项/首次返工5比7，完整87父项/16Phase仍0完成。CLI106已启动、types110原会话继续，goal active。

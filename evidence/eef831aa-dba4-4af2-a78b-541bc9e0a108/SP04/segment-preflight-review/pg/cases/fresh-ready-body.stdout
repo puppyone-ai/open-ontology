@@ -1,0 +1,10 @@
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM _oo.schema_migrations AS recorded
+    WHERE recorded.version = 'target-fence-receipts/3'
+      AND recorded.phase = 'expand'
+      AND recorded.checksum = p_checksum
+      AND p_checksum ~ '^[0-9a-f]{64}$'
+  );
+

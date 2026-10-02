@@ -1,0 +1,41 @@
+server=PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+rustc=rustc 1.94.0 (4a4ef493e 2026-03-02)
+empty route=AbsentPreflight sqlstate=OO002 files=0003_target_segment_preflight_expand.sql
+empty OO002 no_schema=true
+dead_path=42P01 reference_does_not_use_this_order
+schema route=AbsentPreflight sqlstate=OO002 files=0003_target_segment_preflight_expand.sql
+schema OO002 no_marker=true
+missing-relation route=AbsentPreflight sqlstate=OO002 files=0003_target_segment_preflight_expand.sql
+absent-constraint route=AbsentPreflight sqlstate=OO002 files=0003_target_segment_preflight_expand.sql
+fresh route=SupersedeFromV1 sqlstate=ok files=0003_target_segment_preflight_expand.sql
+shape null-index=23514
+shape null-count=23514
+shape null-both-byte=23514
+shape absent-valid=inserted
+shape present-valid=inserted
+shape bound-8192=inserted
+shape bound-8193=23514
+direct_unknown=23514
+stale_illegal=23514 stale_legal=OO013
+replay_immutable=true conflict=OO010 side_rollback=true
+search_path poison_rejected=true year=2026
+acl runtime_insert=42501 owner_not_granted=true
+share_lock_survives_do=55P03 elapsed_ms=2006
+law route=SupersedeFromV1 sqlstate=ok files=0003_target_segment_preflight_expand.sql
+lawful byte_equal=true v2_marker=absent
+v2-upgrade route=UpgradeFromV2 sqlstate=ok files=0003_target_segment_preflight_expand.sql
+v2_upgrade historical_markers_unchanged=true
+bad route=SupersedeFromV1 sqlstate=OO021 files=0003_target_segment_preflight_expand.sql
+illegal_history=OO021 receipts_unchanged=true
+redo-first route=SupersedeFromV1 sqlstate=ok files=0003_target_segment_preflight_expand.sql
+redo-second route=Skip sqlstate=ok files=
+redo skip stamp_stable=true constraint_oid_stable=true
+mismatch route=MismatchV3 sqlstate=OO001 files=
+mismatch=OO001 row_unchanged=true file_not_executed=true
+rollback route=SupersedeFromV1 sqlstate=OO003 files=0003_target_segment_preflight_expand.sql
+forced_failure=OO003 rollback=true
+concurrent_lock=55P03 elapsed_ms=2005
+stored_lie conjunction=false v1_checksum_unchanged=true
+owner route=SupersedeFromV1 sqlstate=42501 files=0003_target_segment_preflight_expand.sql
+foreign_owner=42501 not_adopted=true
+live=pass
