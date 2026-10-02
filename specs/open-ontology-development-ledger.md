@@ -337,7 +337,7 @@ HARNESS启动后根workspace/lock归其单writer，新增xtask成员同步架构
 | V01-CLI-01 | SDK/查询+受审draft/apply接口、runtime模型出站安全 | CLI自然语言交互→受控查询，真实PG闭环 | 端到端同主体/审核/权限/输出，未配模型明确错误不假答 | CLI queued；其独立HTTP query SDK前置a073已启动，不以协议fixture替代真实对话验收 |
 | FOUNDATION-LANE | a058两hang/六CLI失败、a059bench平台 | 基础问题单线收敛，按局部失败修复 | 不阻塞隔离产品公共功能；发行条件单独pending | active |
 
-当前生效边界：a067已交付b14c782，a069只读固定archive复审；a062已终态request_changes，基础线writer为a070，仅xtask源/测试和必要harness契约。a063已交付4c989bc，a071只读复审；main root-lock由a073独占，源整合等待其终态再串行。a064的schema切片已获a068批准，a075仅jobs新expand/测试；a065只写独立parser spike；a066已终态，现有PG源码冻结4ecdbf7，a074只读复审；a072仅pipeline新迁移/契约/测试。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建。
+当前生效边界：a069已终态，ISC记录纠正a077仅notice/policy/provenance/新erratum；基础harness a070仅xtask源/测试和必要契约，两者不共享root写入。a063已交付4c989bc，a071只读复审；main root-lock由a073独占，源整合等待其终态再串行。a064的schema切片已获a068批准，a075仅jobs新expand/测试；a065已交付efb61d6，a076只读standalone原型；a066已终态，现有PG源码冻结4ecdbf7，a074只读复审；a072仅pipeline新迁移/契约/测试。所有固定提交复审不读取移动源作签收依据；最多2个Rust构建者计入host cargo构建。
 
 a062终态证据：协调者已读完整review/findings及seal-escape原始JSON。九个睡眠后代在父进程立即退出后仍存活，执行exit0/required_satisfied=true且无cleanup/deadline门禁；15/15重复复现，held inode在返回后继续增长。仅记录后代的轮询不能证明所有后代已停。a070须修复或在归属无法验证时明确失败，不能将16MiB内存前缀当磁盘配额；既有41测试通过、PATH固定kill/隔离Git/private ExecutedCommand修复保持，未复现的kill故障不伪称已证实。基础返工不计新产品功能，完整SP00仍未签。
 
