@@ -745,3 +745,9 @@ a103固定3347f5a独立request-changes，真实117cases/110proved/3failed/4unver
 已实际派a110固定类型复审handle32339（slotA）与a108固定version3复审handle87537（slotB），只读archive/own Rustprobe+PG17.10，globalmax2包括host/tools不增加。独立sourcezero-write日志与实际newdep扫描不能以空log/HTTP404通过；target旧2deadpath与新安装route、旧marker/history不变、NULL/ACL/readiness真实独立验收。jobs107与helper109固定准备卡绑定完成但未派，CLI106亦未启动；后续按实际slotrelease派，不以计划冒称运行。所有review无product/root写权，root当前clean保留待明确后续交接。
 
 新增PGtypes与DBleaseoperations两个交付组件，累计产品9组件；version3是原target功能返工非新功能，helper不计产品。产品验收仍7子项，无新勾选。CLI首轮requestchanges纳入首次产品review分母：7次首轮/5返工，5/7约71.4%；纠正复审不重复分母。87完整父项/16Phase仍0完成，reader/apply继续依类型/target/reader真正独立签收，goal active。
+
+## 2026-10-03停止作者Docker残留收敛
+
+本轮a11032339与a10887537实际有界核验仍live，不重启/不释放builder槽，CLI106/jobs107/helper109仍prepared。独立协调动作：逐个核验a098 e45基线exited101容器、空network和两volume的owner/run/scope标签，以及a104两缓存卷的完整UUID/run标签。a098基线console已tracked，SHA702132e9cd2be4a0105ac8ae8b4d9cb5f32dfd711ee606d54f551ee6343d3d76核验，原101/phase文件保留。只按具体ID/name删除这六Docker对象，rm/network/volume实际exit0，后exactinspect均不存在（预期合并exit1）。记录execution/decisions/a098-a104-retained-docker-cleanup.md，不删除作者旧报告、baseline tmp或用户文件，不prune/动镜像/外来资源。
+
+仅收敛已结束任务的资源残留，不补造a104被覆盖首轮stdout，不签类型零源写/扫描，也不新增功能或勾选。9产品组件/7验收子项/首次返工5比7、87完整父项/16Phase仍0完成，goal active。
