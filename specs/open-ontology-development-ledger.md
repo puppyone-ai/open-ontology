@@ -785,3 +785,5 @@ slotA从实际终态a110释放并移交a107 jobs lease固定复审；执行完�
 a111 handle94170实际exit0，已关闭不再轮询。FULL review/findings/HANDOFF、raw 24case report、Linux test与全部exit文件核对，probe/report SHA匹配；134文件139437bytes证据接收并生成a111-evidence-sha256.txt。固定7acca207仅CLI-FIFO-OPEN-BLOCKS批准：六FIFO 10–13ms、token4/SQL与CA1、无signal、stdout空、zeroaccepts；11tests/Clippy0。TLS负例stderr_exact未注册期望，不冒称严格字符串比对。仅勾W02-a1修复切片，不计新增产品功能或产品验收父项；9组件/8产品验收子项/首次返工6比8保持。完整87父项/16Phase未完成，goal active。
 
 slotB从实际终态a111释放，移交a109 helper许可证记录固定复审；slotA仍a107 jobs复审独占，无product/rootwriter授权。许可证图修复卡仍prepared，不能自动许可放宽。
+
+a109实际派发handle44328，Grok4.7xhigh、fixedabd074a immutablearchive，仅own evidence/Rustprobe，无PG或product/root写权。a107仍live handle80154，slotA保留。接收commit2200f99的diff-check仅raw证据及独立probe尾部空行提示，原始证据不改写，非产品测试失败；check_plan exit0仅文档覆盖。
