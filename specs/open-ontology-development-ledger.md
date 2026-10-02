@@ -863,3 +863,5 @@ a118 handle61827 实际 exit0，关闭；325a6a0f 三报告完整分段阅读、
 - [ ] R2-S 同 cut 多表全量 pull/Arrow 流与预算前置。
 
 a116 handle68913 与 a119 handle56789 本次有界观察仍 live，各独占原 builder 槽；不授予第三 builder。下一 UUID a120 保留。9 产品组件/9验收子项/首轮返工6比9保持，87父项与16phase均未完整完成，goal active。
+
+R2-W prepared 增补真实 recv_unchecked 的 cancel-safe 约束：分段字段读必须保留解析状态或取消后禁止复用，并逐 await 取消测试；公开类型重导出/error 路径待激活时精确冻结。a116/a119 当前句柄均实际仍 live，无终态、无新验收。
