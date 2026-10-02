@@ -1,5 +1,7 @@
 # a089 SDK error redaction and retry correction
 
+Delivery commit `bde2e8cc20a1ed951f4f7ea61ce4d9b5ab3665df`, tree `db0717173187604182b02d4fc8227b107bddb6d1`, parent `6831d6e862303a0ce1c883925068078cbcb78e23`.
+
 Linux arm64, Rust 1.94.0, image `docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5`, `--pull never`, bridge network, `--cap-drop ALL`, `no-new-privileges`, `--init`, no socket, no HOME mount, `HOME=/tmp`, memory 8g, cpus 4, pids-limit 4096. One owned builder at a time. Host `cargo` and `rustc` were not running. Fetch used the network. This is not an air-gap build.
 
 Compiler on the final run: rustc 1.94.0 (`4a4ef493e` 2026-03-02), host `aarch64-unknown-linux-gnu`, cargo 1.94.0 (`85eff7c80` 2026-01-15).

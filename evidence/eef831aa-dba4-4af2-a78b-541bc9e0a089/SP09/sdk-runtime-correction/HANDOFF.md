@@ -2,9 +2,9 @@
 
 Fixed local commit for independent review. No push, no pull request, no release.
 
-Delivery commit: `DELIVERY_COMMIT`
-Delivery tree: `DELIVERY_TREE`
-Delivery parent: `DELIVERY_PARENT`
+Delivery commit: `bde2e8cc20a1ed951f4f7ea61ce4d9b5ab3665df`
+Delivery tree: `db0717173187604182b02d4fc8227b107bddb6d1`
+Delivery parent: `6831d6e862303a0ce1c883925068078cbcb78e23`
 
 The evidence update commit's parent is that delivery commit. It changes only this file and `REPORT.md`. A commit cannot store its own hash.
 
@@ -22,4 +22,4 @@ Probe 2 sha `f780a4f1871266c1824290ed6eaafd785317c5ec0e6d9198d15b29dafb84fb6e` i
 
 Still pending: SP09-W01-a, full AT-API, real Gateway and PostgreSQL, exports, OpenAPI, discover, CLI, amd64, supply admission, and release.
 
-Owned cleanup after the evidence commit: remove only `oo-a089` containers, network `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-net`, volumes `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-cargo` and `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-target`, and `/tmp/oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9`. Foreign containers stay.
+Owned cleanup completed before this evidence commit. Removed containers `oo-a089-msrv-223ee9e2-70e3-4284-9b9f-6d6b961c07b9`, `oo-a089-msrv-red-223ee9e2`, `oo-a089-msrv-green-223ee9e2`, and `oo-a089-msrv-final-223ee9e2`; network `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-net`; volumes `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-cargo` and `oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9-target`; and `/tmp/oo-a089-223ee9e2-70e3-4284-9b9f-6d6b961c07b9`. No `oo.owner=a089` container remained. Foreign a086, a088, and a064 containers were left in place.
