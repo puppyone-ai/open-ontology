@@ -1,0 +1,57 @@
+2026-10-03 09:30:34.504 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_1: SELECT pg_catalog.set_config('statement_timeout', '15000', false)
+2026-10-03 09:30:34.504 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_2: SELECT pg_catalog.set_config('lock_timeout', '5000', false)
+2026-10-03 09:30:34.504 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_3: SELECT pg_catalog.set_config('TimeZone', 'UTC', false)
+2026-10-03 09:30:34.504 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_1: SELECT pg_catalog.set_config('statement_timeout', '15000', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_2: SELECT pg_catalog.set_config('lock_timeout', '5000', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_3: SELECT pg_catalog.set_config('TimeZone', 'UTC', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_4: SELECT pg_catalog.set_config('default_transaction_read_only', 'on', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_1: SELECT pg_catalog.set_config('statement_timeout', '15000', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_2: SELECT pg_catalog.set_config('lock_timeout', '5000', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_3: SELECT pg_catalog.set_config('TimeZone', 'UTC', false)
+2026-10-03 09:30:34.505 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_4: SELECT current_setting('server_version')::text, current_setting('server_version_num')::text
+2026-10-03 09:30:34.506 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_5: SELECT pg_catalog.pg_is_in_recovery()
+2026-10-03 09:30:34.506 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_6: SELECT hits::int8 FROM lot.tick WHERE n = 1
+2026-10-03 09:30:34.506 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_7: SELECT c.oid::int8 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'drift' AND c.relname = 'item'
+2026-10-03 09:30:34.506 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_5: START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY
+2026-10-03 09:30:34.507 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_6: SELECT 1
+2026-10-03 09:30:34.507 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_7: SELECT current_setting('transaction_isolation'), current_setting('transaction_read_only')
+2026-10-03 09:30:34.507 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_8: SELECT pg_catalog.pg_current_snapshot()::text
+2026-10-03 09:30:34.508 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_9: SELECT pid::int4, backend_start::text, COALESCE(xact_start::text, ''), COALESCE(state, ''), usename::text, application_name::text FROM pg_catalog.pg_stat_activity WHERE pid = pg_catalog.pg_backend_pid()
+2026-10-03 09:30:34.508 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_4: SELECT pid::int4, backend_start::text, COALESCE(xact_start::text, ''), COALESCE(state, ''), usename::text, application_name::text FROM pg_catalog.pg_stat_activity WHERE pid = pg_catalog.pg_backend_pid()
+2026-10-03 09:30:34.509 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_10: SAVEPOINT oo_probe_lock
+2026-10-03 09:30:34.509 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_11: SELECT title::text FROM lot.batch WHERE id = 11
+2026-10-03 09:30:34.509 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_12: SELECT qty::int4 FROM lot."child row" WHERE id = 31
+2026-10-03 09:30:34.509 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_13: SELECT label::text FROM drift.item WHERE id = 5
+2026-10-03 09:30:34.510 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_8: SELECT n.nspname::text, c.relname::text, l.mode::text, l.granted FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_class c ON c.oid = l.relation JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE l.pid = $1 AND l.locktype = 'relation' AND n.nspname = ANY($2::text[]) ORDER BY 1, 2, 3
+2026-10-03 09:30:34.510 UTC app=oo-prereq-admin user=postgres db=snapdb DETAIL:  Parameters: $1 = '123', $2 = '{lot,drift}'
+2026-10-03 09:30:34.510 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_14: ROLLBACK TO SAVEPOINT oo_probe_lock
+2026-10-03 09:30:34.510 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_15: RELEASE SAVEPOINT oo_probe_lock
+2026-10-03 09:30:34.510 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_8: SELECT n.nspname::text, c.relname::text, l.mode::text, l.granted FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_class c ON c.oid = l.relation JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE l.pid = $1 AND l.locktype = 'relation' AND n.nspname = ANY($2::text[]) ORDER BY 1, 2, 3
+2026-10-03 09:30:34.510 UTC app=oo-prereq-admin user=postgres db=snapdb DETAIL:  Parameters: $1 = '123', $2 = '{lot,drift}'
+2026-10-03 09:30:34.511 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_5: START TRANSACTION
+2026-10-03 09:30:34.511 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_6: UPDATE lot.batch SET title = 'oak' WHERE id = 11
+2026-10-03 09:30:34.512 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_7: UPDATE lot."child row" SET qty = 9 WHERE id = 31
+2026-10-03 09:30:34.512 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_8: COMMIT
+2026-10-03 09:30:34.513 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_5: START TRANSACTION
+2026-10-03 09:30:34.513 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_9: ALTER TABLE drift.item ADD COLUMN extra text
+2026-10-03 09:30:34.513 UTC app=oo-prereq-writer user=lot_writer db=snapdb LOG:  execute sqlx_s_8: COMMIT
+2026-10-03 09:30:34.513 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_11: SELECT title::text FROM lot.batch WHERE id = 11
+2026-10-03 09:30:34.514 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_12: SELECT qty::int4 FROM lot."child row" WHERE id = 31
+2026-10-03 09:30:34.514 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_13: SELECT label::text FROM drift.item WHERE id = 5
+2026-10-03 09:30:34.514 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_8: SELECT pg_catalog.pg_current_snapshot()::text
+2026-10-03 09:30:34.514 UTC app=oo-prereq-rr user=lot_reader db=snapdb LOG:  execute sqlx_s_16: SELECT a.attnum::int4, a.attname::text, a.atttypid::int8, a.atttypmod::int4, a.attnotnull FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-03 09:30:34.514 UTC app=oo-prereq-rr user=lot_reader db=snapdb DETAIL:  Parameters: $1 = 'drift', $2 = 'item'
+2026-10-03 09:30:34.621 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_1: SELECT pg_catalog.set_config('statement_timeout', '15000', false)
+2026-10-03 09:30:34.622 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_2: SELECT pg_catalog.set_config('lock_timeout', '5000', false)
+2026-10-03 09:30:34.622 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_3: SELECT pg_catalog.set_config('TimeZone', 'UTC', false)
+2026-10-03 09:30:34.622 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_4: SELECT pg_catalog.set_config('default_transaction_read_only', 'on', false)
+2026-10-03 09:30:34.622 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_5: START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY
+2026-10-03 09:30:34.623 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_6: SELECT pid::int4, backend_start::text, COALESCE(xact_start::text, ''), COALESCE(state, ''), usename::text, application_name::text FROM pg_catalog.pg_stat_activity WHERE pid = pg_catalog.pg_backend_pid()
+2026-10-03 09:30:34.623 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_7: SELECT current_setting('transaction_isolation'), current_setting('transaction_read_only')
+2026-10-03 09:30:34.623 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_8: SELECT title::text FROM lot.batch WHERE id = 11
+2026-10-03 09:30:34.624 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_9: SELECT qty::int4 FROM lot."child row" WHERE id = 31
+2026-10-03 09:30:34.624 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_10: SELECT label::text FROM drift.item WHERE id = 5
+2026-10-03 09:30:34.624 UTC app=oo-prereq-rc user=lot_reader db=snapdb LOG:  execute sqlx_s_11: SELECT a.attnum::int4, a.attname::text, a.atttypid::int8, a.atttypmod::int4, a.attnotnull FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+2026-10-03 09:30:34.624 UTC app=oo-prereq-rc user=lot_reader db=snapdb DETAIL:  Parameters: $1 = 'drift', $2 = 'item'
+2026-10-03 09:30:34.625 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_7: SELECT c.oid::int8 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'drift' AND c.relname = 'item'
+2026-10-03 09:30:34.625 UTC app=oo-prereq-admin user=postgres db=snapdb LOG:  execute sqlx_s_6: SELECT hits::int8 FROM lot.tick WHERE n = 1

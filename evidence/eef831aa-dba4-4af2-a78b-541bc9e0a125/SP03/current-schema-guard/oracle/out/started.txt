@@ -1,0 +1,2 @@
+oracle_start=2026-10-03T10:41:30Z
+oracle_end=2026-10-03T10:42:16Z

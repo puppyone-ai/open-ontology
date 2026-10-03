@@ -1,0 +1,9 @@
+preserved_at=2026-10-03T10:41:23Z
+container=rust-oracle-2
+compile_exit=0
+test_exit=101
+panic=catalog capture did not start before the rate refusal
+measured=max_rows_per_sec after both BEGIN and read_node, before pg_get_keywords and before transaction_timestamp
+sockets_closed=wait_count returned before the assertion
+fix=oracle assertion now records that boundary
+

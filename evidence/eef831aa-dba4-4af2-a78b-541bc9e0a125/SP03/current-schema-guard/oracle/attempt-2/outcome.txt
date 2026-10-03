@@ -1,0 +1,2 @@
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+in_recovery=false

@@ -1,0 +1,2 @@
+2026-10-03 10:32:01.040 UTC app=psql user=postgres db=snapdb LOG:  statement: SELECT pg_catalog.pg_rotate_logfile()
+2026-10-03 10:32:01.113 UTC app=psql user=postgres db=snapdb LOG:  statement: SELECT 1

@@ -1,0 +1,18 @@
+head=57f6003239ceb375722c5b67aa36647a0a2a1e7f
+head_tree=ed9363157c7061db8d419af588a4a2e0abb2e6c8
+fixed=ae8f9bb371997445da3b1110c8baec31c250f383
+fixed_tree=eda7f9afe9a3cf9616bac40f84ac6468b5b5013a
+parent=3479e440f0e4858983e55014e5f01a4fe733b40e
+parent_tree=52a2884e837a6c4b326f64a78ad9f4282b69ac9b
+product=2b6dd57a0dc3d36e098268638c0364af247d07fb
+product_tree=9c75b25cf7e539cc043c7c90ee750aad9a2c3ccc
+crates/oo-connectors/src/snapshot.rs head 53aa65f239497d5cad451a2c518669a4e6ec770c
+crates/oo-connectors/src/snapshot.rs product 53aa65f239497d5cad451a2c518669a4e6ec770c
+crates/oo-connectors/src/session.rs head 5211832e3f9b6b297e6db21cfcd0e72d920d4704
+crates/oo-connectors/src/session.rs product 5211832e3f9b6b297e6db21cfcd0e72d920d4704
+crates/oo-connectors/src/sql.rs head 07febf17b415abcb785644f60690c47939e0e50f
+crates/oo-connectors/src/sql.rs product 07febf17b415abcb785644f60690c47939e0e50f
+crates/oo-connectors/src/error.rs head 16143c3f809af5f73810d49fa2051a92bef14472
+crates/oo-connectors/src/error.rs product 16143c3f809af5f73810d49fa2051a92bef14472
+contracts/source/pgsql/snapshot-owner-v1.md head 6306ae1cc3c5ff84809c9150212a66844986ba9a
+contracts/source/pgsql/snapshot-owner-v1.md product 6306ae1cc3c5ff84809c9150212a66844986ba9a

@@ -1,0 +1,54 @@
+# hash manifest
+commit=2254eab39c14a1902e65e72eb3674debc1c54f03
+tree=69fad83bf3c5b030f3a6eda9a05be04239de812b
+parent=9e515695d3c7e8b94936365a5f97fbc98124c345
+generated=2026-10-03T10:46:34Z
+
+## git blobs
+100644 blob 47af1b41f2e0a8b83295029f5230644abcbb9d75	contracts/source/pgsql/snapshot-owner-v1.md
+100644 blob b79d5a8fc7ec31094b26cca94a2238c221320b8d	crates/oo-connectors/README.md
+100644 blob 081e1b3f0690475c36c416290cd2cb60a5822850	crates/oo-connectors/src/session.rs
+100644 blob 39b10dbcb7170852c07bd24b760fc85184e89825	crates/oo-connectors/src/snapshot.rs
+100644 blob 14a936b3966e8b65663faeb61a4fb53afa923b3f	crates/oo-connectors/src/sql.rs
+100644 blob 6f077b712a626eb0082547dad77c975d9d928872	crates/oo-connectors/tests/snapshot_live.rs
+
+## worktree sha256
+dfc78ae54aa11845ad854169bf5f1e924664b5952ded9e60f5b6611c62887dac  crates/oo-connectors/src/session.rs
+41ee78fa56d2c5489c3c9bb170eeb3f19946437c59ebdf8a03592d881dc89153  crates/oo-connectors/src/sql.rs
+d34f1e52c1f1e3fb0bf4795624b93709167310a08994bdfc3a2186aaa05c301f  crates/oo-connectors/src/snapshot.rs
+7c5d2a0b20933e80cbaa283f40e4e82ebc0bd8dd989b4eef43cd571466722694  contracts/source/pgsql/snapshot-owner-v1.md
+ac58685200c0b767022c38796eec06b5e7051e6a76c2e942fd894f6925bdc73f  crates/oo-connectors/README.md
+7e8136e02623da23f29d949552bbe11a258a67b79d15f654b9ad01500bb8aec1  crates/oo-connectors/tests/snapshot_live.rs
+
+## evidence sha256
+9e49684408bbb26adc25452e4c6c6d4fa794ae9cad7cda44d10d99bf6799eece  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/REPORT.md
+ac36334683c1ac14a456f8f90f97763539a58a7ca41866d12d1912136fd5bcda  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/FINDINGS.md
+637e732613eda5c493e18a97a77484ef8670780033d2e1e6567e5003ef3e4884  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/HANDOFF.md
+26f97424ba5139ebcbf27230b2ebd8d2badcec24ef4acd3a2e3229e3cd795d4f  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/catalog-rate-proposal.md
+d0e4c1f612dbc07aaa796dbbd4824301ffbffbc2ab584d54cd17635e30e5e424  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/outcome.txt
+9616a43d2e601f8a7085dceefd444456a3d16cf24ad5a0d6655fd6f126dd439b  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/sql-by-actor.txt
+3246c236ca2266174a4f5d6bbd17e7bdbd970f3b63252213cec00bc0bd886643  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/console.log
+17b8034b013f5ae7d6ed14c231859c31aac3c20446c79340c37cee7376f64522  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/postgresql.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/docker-run.exit
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/log-secret-hits.txt
+31190681981e39464120766cda7f236bc2633bf1f950d0a81a54a780e73cd2f5  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/inspect-safe.txt
+b5c4cbae7dc0176d7ace2ce301825b2aeaaaecea4389f7607e688dde6da22944  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/attempt-1/console.log
+ef56c2b504f9b381525acee7341bb3038ed5077350d86d1b3a7f33e8c8704ef5  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/attempt-2/console.log
+d9df955cb94030ad138c1ba0dfd337fe24abde64733e6b60499a54a6283a932e  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/live/out/rate-measurement.txt
+39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/live/out/docker-run.exit
+fa6ef86d0163be83af5e8ec64210b87ced6e0a16185f7b7c74c97309ccf57236  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/live/out/console.log
+11264aad5b3fe0755a467098be8161182aa49ade14266ce8a698a3351d1d4dc6  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/lib/console.log
+4ee4f0701e4e0e1636d6f2f5e10895a888a86171ad9c69a2edcc52cb614d00b1  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/prereq/out/outcome.txt
+876a68b3318b60ab770acbd7631eef3820b8ca2d7a92b02e4add0ce03b0986a1  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/prereq/out-locks/outcome.txt
+
+## exit files
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/smoke/docker-run.exit
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/lib/docker-run.exit
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/prereq/out/docker-run.exit
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/prereq/out-locks/docker-run.exit
+39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/live/out/docker-run.exit
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/oracle/out/docker-run.exit
+
+## revised after handoff cleanup note
+637e732613eda5c493e18a97a77484ef8670780033d2e1e6567e5003ef3e4884  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/HANDOFF.md
+6b32444f9fa92a92c55d2009980e2bb48804c44bcafda45d67a91a148e047158  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a125/SP03/current-schema-guard/cleanup.txt
