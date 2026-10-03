@@ -1,0 +1,57 @@
+oo_task=finish-semantics-probe-2
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=6b95d6f2_archive_plus_pg_reader_finish_live
+Linux de09f6fbc4ac 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+archive_hashes_match=1
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.31s
+     Running tests/pg_reader_finish_live.rs (/target/debug/deps/pg_reader_finish_live-5c98c167182332ae)
+
+running 1 test
+test finish_does_not_report_a_failed_read ... outcome seeded r3f.rows r3f.wide log_mark=1210
+outcome normal_first_sample_ms=1 still=0
+outcome normal_absent_ms=1
+outcome normal_finish=SnapshotFinished generation=1 ids=1,2,3 data_pid=150 data_start=2026-10-03 23:27:18.349133+00
+outcome fresh_first_sample_ms=1 still=0
+outcome fresh_absent_ms=1
+outcome same_cut_ids=1,2,3 fresh_generation=2 snapshot_finished=1
+outcome cancel_first_sample_ms=0 still=0
+outcome cancel_absent_ms=0
+outcome cancel_finish_fact=cancelled snapshot_finished=0
+outcome bound_first_sample_ms=0 still=0
+outcome bound_absent_ms=0
+outcome bound_next_fact=max_value bound_finish_fact=max_value snapshot_finished=0 data_pid=156 data_start=2026-10-03 23:27:19.222045+00 reader_rollback_lines=0 reader_reset_lines=1
+outcome sql_audit oo_statements=161 dml_ddl_commit_terminate=0 verbs=RELEASE=2,ROLLBACK=9,SAVEPOINT=3,SELECT=139,START=8
+outcome finish_live_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+phase_exit=0 phase=pg_reader_finish_live
+slice_exit=0
+container_fail=0

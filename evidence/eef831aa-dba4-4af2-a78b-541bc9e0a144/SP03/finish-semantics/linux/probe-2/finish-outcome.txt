@@ -1,0 +1,16 @@
+log_mark=1210
+seeded r3f.rows r3f.wide log_mark=1210
+normal_first_sample_ms=1 still=0
+normal_absent_ms=1
+normal_finish=SnapshotFinished generation=1 ids=1,2,3 data_pid=150 data_start=2026-10-03 23:27:18.349133+00
+fresh_first_sample_ms=1 still=0
+fresh_absent_ms=1
+same_cut_ids=1,2,3 fresh_generation=2 snapshot_finished=1
+cancel_first_sample_ms=0 still=0
+cancel_absent_ms=0
+cancel_finish_fact=cancelled snapshot_finished=0
+bound_first_sample_ms=0 still=0
+bound_absent_ms=0
+bound_next_fact=max_value bound_finish_fact=max_value snapshot_finished=0 data_pid=156 data_start=2026-10-03 23:27:19.222045+00 reader_rollback_lines=0 reader_reset_lines=1
+sql_audit oo_statements=161 dml_ddl_commit_terminate=0 verbs=RELEASE=2,ROLLBACK=9,SAVEPOINT=3,SELECT=139,START=8
+finish_live_complete
