@@ -1,0 +1,6 @@
+ExitCode=101
+Status=exited
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a129-eef831aa-net
+Memory=8589934592
