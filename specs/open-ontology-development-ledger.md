@@ -981,3 +981,5 @@ a133同UUID恢复实际handle11924 slotA原任务；a1319860 slotB继续。旧25
 a1319860实际exit0完成作者交付75b993d0/evidenceb2bb0215；完整报告与80hash实际核对，原始Linux57/live1/bounds1/Clippy0，ownDocker为空。types/mod.rs单行越界重导出明确记录并限于本次固定复审输入接受；未签R2-S。产品交付13组件/验收13子项/返工8比12。a134固定Arrow复审slotB，a13311924本次检查仍live，goal active。
 
 a134实际Grok4.7xhighhandle96828 slotB固定Arrow复审max1builder1PG；a13311924 slotA继续TLS修复。旧a1319860关闭不再观察，下一UUIDa135，goal active。
+
+a13311924实际exit0完整交付bd77b252/evidence3a5478ac三限定源路径；三报告全读，root-relative18hash实际校验通过（首轮错误cwd缺路径exit1不算内容不符，manifest另有3metadata且非全库存）。原始smoke55/Clippy、bounds13/accounting12/portal6/tail8/TLS60000退出0核对，ownDocker为空。作者512短读liveview8192、TLS60000view8192；尚未独立签驱动集成。a135固定复审slotA，a13496828本次集中检查仍live，产品13/13/8比12不变，goal active。
