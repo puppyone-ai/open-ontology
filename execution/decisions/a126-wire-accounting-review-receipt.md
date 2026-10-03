@@ -1,0 +1,9 @@
+# a126 limited driver acceptance
+
+Actual Grok handle13008 exit0, closed and no further polling. Evidence578a55231e4b4373db014ff1450f8e1bb17ba639/tree5d5d17b5e2d247e48b53f212ce62365d317985d9/parentfd6841f7abf77f0696d7385ced0acebdcbe879ad. All three reports fully read. Actual shasum -c manifest92 entries exit0, final raw library49/bounds13/accounting12/independent12 passed, review2 exits0 and smokeClippy0/reviewClippy0 checked. Exact own Docker listing empty. Source fixedff783ac933b86e0ff068181afe0258764c5d2e5d, not moving workspace. No product edits by reviewer.
+
+Accept LIMITED R2-W opt-in driver bounds and truthful live-view accounting. EOF-after-reserve, parked cancellation/retry, post64-event-cap counters, explicit disjoint copy and default-unset large frame independently measured. Initial independent spare>0 assertion failure101 retained and corrected without product change. Positive no-op and available.len!=0 arms shown unreachable by current source invariant, not invented test coverage. Pointer movement counts relocated live prefix, not physical allocator memcpy; view sums exclude allocation offset and caller-retained frames. No RSS/backend heap cap accepted, no full-stream memory claim.
+
+Original a122 request_changes and author baseline timing exception retained. Catalog/probe production opt-in, typed fact mapping, portal, Arrow stream, R1, complete reader/SP03/integration/release remain open. Optional wording enhancement is nonblocking and no new repair lane is opened for it under product-delivery-priority.md.
+
+Count driver as one newly delivered/accepted product component slice: total10 delivered components/10 accepted child items; first-review sample10, rework7/10 (70%). a120/a124 are one component, not two. Whole87parent items/16phases still0 complete. Slot B released to next product task, slot A a12536253 remains live. Goal active.

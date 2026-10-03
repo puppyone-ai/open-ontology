@@ -120,6 +120,7 @@
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+  - [x] R2-W opt-in PG驱动接收上限与live-view计量：固定ff783ac9经a126独立复审限定批准，Linux1.94库49/bounds13/accounting12/独立12与Clippy0；非RSS/保留frame总量/backend heap，生产opt-in、portal/Arrow/full reader另验。
 - [ ] SP03-W04 type/PositionCodec/精度
   - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
 - [ ] SP03-W05 catalog/名字映射/注册
@@ -915,3 +916,7 @@ R2-P命名portal任务卡已细化为execution/prompts/v01-pg-named-portal-prepa
 ### 用户更新：产品交付优先
 
 采用execution/decisions/product-delivery-priority.md：按plan推进生产功能，局部必要验收优先，取消默认边界穷举/无关门禁/重复矩阵；保留真实失败和未验证状态。a12536253与a12613008本轮实际仍live，不重启。终态后优先衔接R2-P/R2-S与真实PG纵向闭环，新增派发不把prepared额外用例自动当阻塞门槛。产品指标不靠行数冒称完成，goal active。
+
+### a126限定签收与下一产品工作线
+
+a126handle13008实际exit0关闭，578a5523三报告完整读取/hashmanifest92项actualexit0，原始49/13/12/12测试结果与Clippy0/ownDocker为空核对。接收a126-wire-accounting-review-receipt.md，仅勾§3 R2-W限定驱动子项，保留review1断言假设失败101、live-view非RSS及完整reader未完成。累计产品10组件/10验收子项，首次复审返工7/10；87父项16phase仍0。slot B释放转命名portal生产实现，a12536253继续slot A，goal active。
