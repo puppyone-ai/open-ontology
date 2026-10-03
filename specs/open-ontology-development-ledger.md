@@ -911,3 +911,7 @@ a124恢复83036实际exit0关闭，ff783ac9六源路径提交已核对；完整�
 a126实际Grok4.7xhigh handle13008启动，固定ff783ac9 immutable archive独立计量复审，slot B最多1builder无PG；a125handle36253继续slot A。旧a124句柄关闭不再观察，下一新UUID a127。无新增完成勾选，goal active。
 
 R2-P命名portal任务卡已细化为execution/prompts/v01-pg-named-portal-prepared.md：正数Execute逐页、真实PortalSuspended/CommandComplete边界、错误同步/取消、慢消费者与同cut oracle、零源写、固定提交复审。仅prepared，无UUID/路径写权/builder授权，待R2-W结果及共享路径冻结后派发，不签完整reader。a12536253/a12613008本次实际有界等待仍live，未观察到终态；goal active。
+
+### 用户更新：产品交付优先
+
+采用execution/decisions/product-delivery-priority.md：按plan推进生产功能，局部必要验收优先，取消默认边界穷举/无关门禁/重复矩阵；保留真实失败和未验证状态。a12536253与a12613008本轮实际仍live，不重启。终态后优先衔接R2-P/R2-S与真实PG纵向闭环，新增派发不把prepared额外用例自动当阻塞门槛。产品指标不靠行数冒称完成，goal active。
