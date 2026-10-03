@@ -1,0 +1,2 @@
+catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+oracle_before_writer parent=4 child=3 empty=0 zero=2 payload=59

@@ -1,0 +1,10 @@
+catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+refuse_released table=bounds_wide pid=375
+refuse_value fact=max_value display=source error: budget fact=max_value
+refuse_released table=bounds_row pid=377
+refuse_row fact=max_row display=source error: budget fact=max_row
+slow_wait state=active wait_event=ClientRead
+slow_consumer executes_before=1 executes_after=2 log_lines_during_sleep=1051 log_lines_after_demand=1052 log_delta_after_demand=1
+slow_released pid=379
+sql_audit oo_statements=1057 dml_ddl_commit=0
+bounds_complete

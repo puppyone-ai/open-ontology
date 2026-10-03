@@ -1,0 +1,295 @@
+oo_task=arrow-stream-functional
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+Linux bf507abd335e 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo test --lib ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.41s
+     Running unittests src/lib.rs (/target/debug/deps/oo_connectors-80e4733d854b7ead)
+
+running 57 tests
+test error::tests::connect_io_invalid_data_is_tls_and_drops_the_driver_text ... ok
+test error::tests::display_is_closed_static_text ... ok
+test config::tests::rejects_dsn_socket_empty_password_and_prints_no_secret ... ok
+test ident::tests::safe_names_stay_verbatim ... ok
+test ident::tests::reserved_uppercase_space_and_q_prefix_are_encoded ... ok
+test ident::tests::unicode_uses_nfc_hex_and_collides_on_equivalent_forms ... ok
+test model::tests::added_column_and_policy_change_the_hash ... ok
+test model::tests::empty_catalog_fixture_matches_the_frozen_hash ... ok
+test model::tests::evidence_debug_hides_the_body ... ok
+test model::tests::wide_numeric_domain_and_enum_are_explicit ... ok
+test session::tests::false_ssl_is_plaintext ... ok
+test session::tests::missing_ssl_row_is_unknown ... ok
+test model::tests::empty_hash_is_frozen_and_ignores_comments_and_privileges ... ok
+test session::tests::ledger_cap_is_four_and_a_live_window_keeps_its_debit ... ok
+test session::tests::reservation_abandon_keeps_the_debit ... ok
+test session::tests::reservation_does_not_refund_after_the_window ... ok
+test session::tests::true_ssl_keeps_only_a_tls_version ... ok
+test session::tests::version_without_ssl_is_not_success ... ok
+test snapshot::tests::input_digest_uses_schema_hash_bytes_and_generation ... ok
+test snapshot::tests::config_identity_omits_password_and_ca ... ok
+test snapshot::tests::no_key_and_wide_key_selection_does_not_connect ... ok
+test snapshot::tests::type_policy_identity_tracks_the_unsupported_policy ... ok
+test session::tests::reservation_settles_the_unused_allowance ... ok
+test snapshot::tests::local_refusals_do_not_connect ... ok
+test sql::tests::identity_reads_hidden_role_guc_without_changing_it ... ok
+test sql::tests::probe_lock_drop_is_rollback_to_before_release ... ok
+test snapshot::tests::cap_refusal_does_not_consume_generation ... ok
+test stream::tests::budget_bounds_are_closed ... ok
+test tests::driver_verify_full_options_link ... ok
+test sql::tests::statements_are_read_only_and_carry_no_secret_marker ... ok
+test types::tests::bool_true_matches_the_published_flag_hash ... ok
+test types::tests::arrays_keep_lower_bounds_and_null_elements ... ok
+test types::tests::converted_flag_does_not_authorize_or_block_a_builtin ... ok
+test types::tests::dates_use_fixed_pg_epochs_and_reject_infinity ... ok
+test types::tests::domain_decodes_as_its_base_and_keeps_its_oid ... ok
+test types::tests::enum_labels_are_an_allow_list ... ok
+test types::tests::interval_orders_months_days_then_microseconds ... ok
+test types::tests::float_specials_keep_arrow_bits_and_collapse_canonical_zero ... ok
+test types::tests::money_and_foreign_send_are_unsupported ... ok
+test types::tests::json_text_and_jsonb_do_not_share_a_hash ... ok
+test tests::explicit_options_ignore_libpq_env ... ok
+test types::tests::multi_dimension_arrays_stay_flat_in_arrow_storage_order ... ok
+test types::tests::null_is_not_unavailable_and_a_key_failure_rejects_the_read ... ok
+test types::tests::numeric_negative_scale_rescales_without_touching_catalog_v1 ... ok
+test types::tests::numeric_scale_above_precision_uses_exact_text ... ok
+test types::tests::omitted_column_keeps_the_row_and_records_a_masked_reject ... ok
+test types::tests::export_arrow_fixture ... ok
+test types::tests::policies_fail_closed_on_keys_text_format_and_injection ... ok
+test types::tests::record_batch_keeps_a_masked_reject_in_a_not_null_column ... ok
+test types::tests::select_privilege_blocks_before_a_value_is_trusted ... ok
+test types::tests::signed_integers_keep_extrema ... ok
+test types::tests::text_bytea_and_char_keep_bytes ... ok
+test types::tests::timestamps_keep_civil_time_and_distinct_instants ... ok
+test types::typmod::tests::negative_scale_disagrees_with_catalog_v1 ... ok
+test types::tests::wide_numeric_chooses_decimal256_then_text ... ok
+test types::typmod::tests::positive_scale_above_precision_matches_catalog_v1 ... ok
+test types::typmod::tests::unconstrained_is_absent ... ok
+
+test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=lib
+=== cargo test --test pg_stream_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.53s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+
+running 1 test
+test bounded_arrow_stream_live ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+
+phase_exit=0 phase=pg_stream_live
+=== cargo test --test pg_stream_bounds ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+warning: unused import: `Connection`
+  --> crates/oo-connectors/tests/pg_stream_bounds.rs:16:28
+   |
+16 | use sqlx::{ConnectOptions, Connection, Row};
+   |                            ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `user` is never read
+  --> crates/oo-connectors/tests/pg_stream_bounds.rs:38:5
+   |
+33 | struct Activity {
+   |        -------- field in this struct
+...
+38 |     user: String,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (test "pg_stream_bounds") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.58s
+     Running tests/pg_stream_bounds.rs (/target/debug/deps/pg_stream_bounds-422ab3014c583d44)
+
+running 1 test
+test bounded_arrow_stream_bounds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+phase_exit=0 phase=pg_stream_bounds
+=== cargo clippy -p oo-connectors --all-targets -- -D warnings ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: large size difference between variants
+   --> crates/oo-connectors/src/stream.rs:135:1
+    |
+135 | / pub enum StreamItem {
+136 | |     Batch(StreamBatch),
+    | |     ------------------ the largest variant contains at least 400 bytes
+137 | |     TableEof(TableEof),
+    | |     ------------------ the second-largest variant contains at least 152 bytes
+138 | |     /// Every selected table has reached [`TableEof`]. The owner is still open.
+139 | |     Exhausted(StreamAccounting),
+140 | | }
+    | |_^ the entire enum is at least 400 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#large_enum_variant
+    = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+136 -     Batch(StreamBatch),
+136 +     Batch(Box<StreamBatch>),
+    |
+
+error: large size difference between variants
+   --> crates/oo-connectors/src/stream.rs:219:1
+    |
+219 | / enum GateState {
+220 | |     Idle,
+221 | |     Demand(u64),
+    | |     ----------- the second-largest variant contains at least 8 bytes
+222 | |     Ready { id: u64, item: StreamItem },
+    | |     ----------------------------------- the largest variant contains at least 408 bytes
+223 | |     Stop,
+224 | | }
+    | |_^ the entire enum is at least 408 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#large_enum_variant
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+222 -     Ready { id: u64, item: StreamItem },
+222 +     Ready { id: u64, item: Box<StreamItem> },
+    |
+
+error: this `if` statement can be collapsed
+   --> crates/oo-connectors/src/stream.rs:328:9
+    |
+328 | /         if let GateState::Ready { id: ready, .. } = &guard.state {
+329 | |             if *ready == id {
+330 | |                 guard.drive_waker = Some(cx.waker().clone());
+331 | |                 return Poll::Pending;
+332 | |             }
+333 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+328 ~         if let GateState::Ready { id: ready, .. } = &guard.state
+329 ~             && *ready == id {
+330 |                 guard.drive_waker = Some(cx.waker().clone());
+331 |                 return Poll::Pending;
+332 ~             }
+    |
+
+error: large size difference between variants
+   --> crates/oo-connectors/src/stream.rs:345:1
+    |
+345 | / pub(crate) enum Next {
+346 | |     Item(StreamItem),
+    | |     ---------------- the second-largest variant contains at least 400 bytes
+347 | |     Ended(Option<DriveEnd>),
+    | |     ----------------------- the largest variant contains at least 712 bytes
+348 | | }
+    | |_^ the entire enum is at least 712 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#large_enum_variant
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+347 -     Ended(Option<DriveEnd>),
+347 +     Ended(Box<Option<DriveEnd>>),
+    |
+
+error: large size difference between variants
+   --> crates/oo-connectors/src/stream.rs:350:1
+    |
+350 | / enum Outcome {
+351 | |     Item(StreamItem),
+    | |     ---------------- the second-largest variant contains at least 400 bytes
+352 | |     End(DriveEnd),
+    | |     ------------- the largest variant contains at least 712 bytes
+353 | | }
+    | |_^ the entire enum is at least 712 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#large_enum_variant
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+352 -     End(DriveEnd),
+352 +     End(Box<DriveEnd>),
+    |
+
+error: could not compile `oo-connectors` (lib) due to 5 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-connectors` (lib test) due to 5 previous errors
+phase_exit=101 phase=clippy
+elapsed_seconds=13
