@@ -1,0 +1,8 @@
+reader_statements=1397
+reader_dml_ddl_commit=0
+writer_statements=8
+admin_statements=241
+source=linux/functional/postgresql.log
+filter=app=oo-pg-source user=oo_a131_reader
+words=INSERT UPDATE DELETE TRUNCATE MERGE COPY CREATE ALTER DROP GRANT REVOKE COMMENT VACUUM CLUSTER REINDEX CALL DO COMMIT
+note=overlay portal_order_bad is a parser miss on STATEMENT: error lines and on budget paths that use transaction ROLLBACK. See FINDINGS.md section 3.

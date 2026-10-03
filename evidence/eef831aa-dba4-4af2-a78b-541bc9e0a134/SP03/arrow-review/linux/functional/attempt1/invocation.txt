@@ -1,0 +1,15 @@
+source_commit=75b993d0b578fa863a32c64abc0073ed92d51a5d
+composition=fixed commit plus review test overlay only
+author_build=not this run
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a134-msrv-review
+network=oo-a134-eef831aa-net
+pg_container=oo-a134-pg
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no

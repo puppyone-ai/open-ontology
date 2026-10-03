@@ -1,0 +1,7 @@
+ExitCode=0
+Status=exited
+OOMKilled=false
+Privileged=false
+NetworkMode=bridge
+Memory=8589934592
+CapDrop=[ALL]

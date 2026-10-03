@@ -1,0 +1,151 @@
+oo_task=arrow-review-functional
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+composition=fixed_commit_75b993d0_plus_review_test_only
+Linux 0a5c174ba5fb 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+=== cargo test pg_stream_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+
+running 1 test
+test bounded_arrow_stream_live ... outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome oracle_before_writer parent=4 child=3 empty=0 zero=2 payload=59
+outcome held_state=active wait_event=ClientRead
+outcome measured executes=13 reserved_rows=13 consumed_rows=9 decoded_payload_bytes=59 oracle_payload=59 arrow_preimage_bytes=132 arrow_assembly_bytes=5528 wire_view_capacity_peak=8192 wire_accepted_logical_payload=12522 wire_assembly_bytes=951060 parent_batches=2 child_batches=2 zero_batches=1
+outcome admin_sees_late_parent=1
+outcome finish_released pid=202
+outcome abort_released pid=205
+outcome drop_released pid=207
+outcome sql_audit oo_statements=882 writer_writes=6 dml_ddl_commit=0
+outcome live_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+phase_exit=0 phase=pg_stream_live
+=== cargo test pg_stream_bounds ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pg_stream_bounds.rs (/target/debug/deps/pg_stream_bounds-422ab3014c583d44)
+
+running 1 test
+test bounded_arrow_stream_bounds ... outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome refuse_released table=bounds_wide pid=210
+outcome refuse_value fact=max_value display=source error: budget fact=max_value
+outcome refuse_released table=bounds_row pid=213
+outcome refuse_row fact=max_row display=source error: budget fact=max_row
+outcome slow_wait state=active wait_event=ClientRead
+outcome slow_consumer executes_before=1 executes_after=2 log_lines_during_sleep=993 log_lines_after_demand=994 log_delta_after_demand=1
+outcome slow_released pid=215
+outcome sql_audit oo_statements=999 dml_ddl_commit=0
+outcome bounds_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+
+phase_exit=0 phase=pg_stream_bounds
+=== cargo test pg_stream_review ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.73s
+     Running tests/pg_stream_review.rs (/target/debug/deps/pg_stream_review-023f716298011daa)
+
+running 1 test
+test independent_r2s_review ... review oracle_before_writer parent=3 child=3 empty=0 zero=2 null_label=1 null_child_id=1 null_child_note=1 payload=45
+review held_state=active wait_event=ClientRead xact_start=2026-10-03 16:07:41.487819+00 xmin=804 query=SELECT id,flag,label FROM rev.parent
+review after_parent_eof state=idle in transaction in_xact=true xact_start=2026-10-03 16:07:41.487819+00 query=RELEASE SAVEPOINT oo_stream_lock
+review child_xact_start=2026-10-03 16:07:41.487819+00 child_xmin=804 same_pid_query=SELECT parent_id,note FROM rev.child
+review child_xact_start=2026-10-03 16:07:41.487819+00 child_xmin=804 same_pid_query=SELECT parent_id,note FROM rev.child
+review child_xact_start=2026-10-03 16:07:41.487819+00 child_xmin=804 same_pid_query=SELECT parent_id,note FROM rev.child
+review measured executes=12 reserved_rows=12 consumed_rows=8 decoded_payload_bytes=45 oracle_payload=45 arrow_preimage_bytes=143 arrow_assembly_bytes=8160 retained_rows=0 wire_view_capacity_peak=8192 wire_accepted_logical_payload=12461 wire_assembly_bytes=942939 queue_batches=1 kinds=batch:parent,batch:parent,batch:parent,eof:parent,batch:child,batch:child,batch:child,eof:child,eof:empty,batch:zerocol,batch:zerocol,eof:zerocol,exhausted
+review admin_sees_late_parent=1
+review finish_released pid=219
+review generation_reused
+review split values=["aa", "bbbb"] retained=[1, 0] executes=[2, 3] eof=Some(2)
+review oversize kind=Budget fact=Some("max_bytes") display=source error: budget fact=max_bytes
+review oversize_finish fact=Some("max_bytes")
+review oversize_released pid=224
+review numkey payload=Some(42) plan_key=false digest_some=false
+review probe_key_on_numeric
+review probe_abort_released pid=228
+review schema_guard kind=Catalog fact=Some("schema_drift")
+review schema_finish fact=Some("schema_drift")
+review acl_guard kind=Privilege fact=Some("insufficient_privilege")
+problem acl guard kind=Privilege fact=Some("insufficient_privilege")
+review acl_finish fact=Some("insufficient_privilege")
+review drop_released pid=234
+review sql_audit reader_sql=1396 select=1196 start=52 savepoint=38 rollback_to=32 release=32 reader_writes=0 portal_order_bad=true
+problem sql audit reader_sql=1396 starts=52 writes=0 portal_order_bad=true
+review problem_count=2
+review review_problems=acl guard kind=Privilege fact=Some("insufficient_privilege") | sql audit reader_sql=1396 starts=52 writes=0 portal_order_bad=true
+
+thread 'independent_r2s_review' (264) panicked at crates/oo-connectors/tests/pg_stream_review.rs:90:5:
+acl guard kind=Privilege fact=Some("insufficient_privilege")
+sql audit reader_sql=1396 starts=52 writes=0 portal_order_bad=true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    independent_r2s_review
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s
+
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_review`
+phase_exit=101 phase=pg_stream_review
+elapsed_seconds=8

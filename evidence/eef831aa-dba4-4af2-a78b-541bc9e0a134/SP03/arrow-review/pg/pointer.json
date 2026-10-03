@@ -1,0 +1,11 @@
+{
+  "host": "oo-a134-pg",
+  "port": 5432,
+  "database": "oo_a134",
+  "reader_user": "oo_a131_reader",
+  "writer_user": "oo_a131_writer",
+  "super_user": "postgres",
+  "password_dir": "/secrets",
+  "ca_file": "/secrets/ca.crt",
+  "log_file": "/pglog/postgresql.log"
+}
