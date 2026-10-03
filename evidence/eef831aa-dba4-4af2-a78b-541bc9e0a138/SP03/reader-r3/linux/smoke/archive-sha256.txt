@@ -1,0 +1,9 @@
+77df7fccfee68007513fefd991c03020bccf93709919c02d36663458fa980b27  crates/oo-connectors/src/snapshot.rs
+6f559105eeaad3982d53e2aba8c17f234f44967b3ddb5bb98b36c1e37c73b702  crates/oo-connectors/src/sql.rs
+47c8262a4a40f303c430435005d246a3f9531b504f8f6a579b83f0ceb89c0898  crates/oo-connectors/src/stream.rs
+9beafb3195a305db394271cc8a11939a15aef5da9871f95ff3eb68791c340931  crates/oo-connectors/src/error.rs
+4048cd65144c484c25f111fd021ee51094331ebb77fdad1475822269ff3fccf0  crates/oo-connectors/src/session.rs
+ad3a169c81bb5eb1b9d47715dd4f4f54e64382578f1f80ca231603454a9cfea9  crates/oo-connectors/src/config.rs
+681d466a67a81fe8d2127c8876da36555815937b118dff1600d2438180607774  crates/oo-connectors/src/lib.rs
+06aa07ee1671d1bbd133d947ab7569ff9cea29175fbc2fe336a97c3b57453041  crates/oo-connectors/src/types/mod.rs
+72cae46cac692d83364a7281d749f1cdac4b7ec81185ab2cc87588f8e899fd54  crates/oo-connectors/src/types/read.rs

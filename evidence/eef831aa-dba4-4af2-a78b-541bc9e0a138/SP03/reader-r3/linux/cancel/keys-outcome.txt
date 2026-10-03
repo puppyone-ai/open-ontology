@@ -1,0 +1,8 @@
+seeded collation=af-NA-x-icu
+collation=af-NA-x-icu pg_order=a,A,ä,b,B,z c_order=A,B,a,b,z,ä
+sparse_chunk0_matches_cut
+writer_committed_late_keys
+old_cut_finished_without_late_rows
+nokey_generation=3
+sql_audit oo_statements=4502 writer_writes=10 dml_ddl_commit_offset=0
+keys_live_complete

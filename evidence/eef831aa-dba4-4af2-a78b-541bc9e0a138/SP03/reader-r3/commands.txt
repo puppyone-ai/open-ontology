@@ -1,0 +1,49 @@
+# Commands for a138 reader R3
+
+Host shell. Docker only. No host cargo, rustc, or rustup. `--pull never`.
+
+Smoke, before source edits, retained under linux/smoke/:
+
+```
+bash evidence/eef831aa-dba4-4af2-a78b-541bc9e0a138/SP03/reader-r3/linux/smoke/launch.sh
+```
+
+PostgreSQL 17.10, retained under pg/:
+
+```
+bash evidence/eef831aa-dba4-4af2-a78b-541bc9e0a138/SP03/reader-r3/pg/up.sh
+```
+
+Keys run, retained under linux/keys/:
+
+```
+bash evidence/eef831aa-dba4-4af2-a78b-541bc9e0a138/SP03/reader-r3/linux/keys/launch.sh
+```
+
+Cancel runs. Each invocation archives dd5bf441 and overlays the working tree, then `docker run --name oo-a138-msrv-cancel`. The script removes an exited container of that name before starting. `linux/cancel/console.log` keeps only the last run.
+
+```
+bash evidence/eef831aa-dba4-4af2-a78b-541bc9e0a138/SP03/reader-r3/linux/cancel/launch.sh
+```
+
+Inside the container, `linux/cancel/inside.sh` runs, in order, `cargo test --lib`, `cargo test --test pg_reader_keys_live --test-threads=1`, `cargo test --test pg_reader_cancel_live --test-threads=1`, `rustup component add clippy --toolchain 1.94.0` when clippy is missing, and `cargo clippy -p oo-connectors --all-targets -- -D warnings`. Cargo is `--locked --offline`. `CARGO_HOME=/cargo-home`, `CARGO_TARGET_DIR=/target`, `HOME=/tmp`. A lib, keys, or cancel failure skips Clippy.
+
+Source commits, path-limited:
+
+```
+git commit -F /tmp/oo-a138-keys-commit.txt
+git commit -F /tmp/oo-a138-cancel-commit.txt
+```
+
+Cancel commit `58afa97ded85a7dd89c72532bfc8973c45255d7c` adds `reader-lifecycle-v1.md` and `tests/pg_reader_cancel_live.rs` and updates `bounded-stream-v1.md`, `reader-keys-v1.md`, `lib.rs`, `session.rs`, `snapshot.rs`, `sql.rs`, and `stream.rs`.
+
+Final observed exits in linux/cancel/: docker-run 0, lib 0, keys 0, cancel 0, clippy 0, clippy-component 0, toolchain 0, overlay 0.
+
+Owned cleanup after both source commits. No prune. The command and the second tmp pass are recorded in cleanup.txt. PostgreSQL id while it was still running is in pg/pg-inspect-safe.txt.
+
+Hash manifest, from this directory, after cleanup.txt, excluding hashes.sha256:
+
+```
+find . -type f ! -name hashes.sha256 -print | LC_ALL=C sort | while IFS= read -r f; do shasum -a 256 "$f"; done > hashes.sha256
+shasum -a 256 -c hashes.sha256
+```
