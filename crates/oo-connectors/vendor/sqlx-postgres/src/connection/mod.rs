@@ -8,7 +8,7 @@ use crate::HashMap;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
-use crate::io::StatementId;
+use crate::io::{PortalId, StatementId};
 use crate::message::{
     BackendMessageFormat, Close, Query, ReadyForQuery, ReceivedMessage, Terminate,
     TransactionStatus,
@@ -21,6 +21,10 @@ use crate::{PgConnectOptions, PgTypeInfo, Postgres};
 pub(crate) use sqlx_core::connection::*;
 use sqlx_core::sql_str::SqlSafeStr;
 
+pub use self::portal::{
+    PgNamedPortal, PgPortalAccounting, PgPortalAllowance, PgPortalClose, PgPortalCommandTag,
+    PgPortalOutcome, PgPortalStep, EXECUTE_LIMIT,
+};
 pub use self::stream::{
     PgIncomingAllocEvent, PgIncomingAllocation, PgIncomingBounds, PgStream,
 };
@@ -30,6 +34,7 @@ use sqlx_core::bytes::Bytes;
 mod describe;
 mod establish;
 mod executor;
+mod portal;
 mod resolve;
 mod sasl;
 mod stream;
@@ -85,6 +90,14 @@ pub struct PgConnection {
     pub(crate) inner: Box<PgConnectionInner>,
 }
 
+/// Exclusive named-portal state. Ordinary queries require [`PortalLease::Clear`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PortalLease {
+    Clear,
+    Busy,
+    Poisoned,
+}
+
 pub struct PgConnectionInner {
     // underlying TCP or UDS stream,
     // wrapped in a potentially TLS stream,
@@ -104,6 +117,13 @@ pub struct PgConnectionInner {
     // sequence of statement IDs for use in preparing statements
     // in PostgreSQL, the statement is prepared to a user-supplied identifier
     next_statement_id: StatementId,
+
+    // separate from statement ids; named portals do not reuse the statement counter
+    next_portal_id: PortalId,
+
+    // Clear: ordinary executor. Busy: a named portal holds the connection.
+    // Poisoned: the connection must not be reused.
+    pub(crate) portal_lease: PortalLease,
 
     // cache statement by query string to the id and columns
     cache_statement: StatementCache<(StatementId, Arc<PgStatementMetadata>)>,
@@ -168,6 +188,12 @@ impl PgConnection {
 
     // will return when the connection is ready for another query
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if self.inner.portal_lease == PortalLease::Poisoned {
+            return Err(Error::Protocol(
+                "connection is unsynchronized after a named portal".into(),
+            ));
+        }
+
         if let Some(fault) = self.inner.stream.fault() {
             return Err(Error::IncomingWire(fault));
         }
@@ -214,10 +240,30 @@ impl PgConnection {
     /// Used for rolling back transactions and releasing advisory locks.
     #[inline(always)]
     pub(crate) fn queue_simple_query(&mut self, query: &str) -> Result<(), Error> {
-        self.inner.stream.write_msg(Query(query))?;
-        self.inner.pending_ready_for_query_count += 1;
+        match self.inner.portal_lease {
+            // Drop of a transaction must not panic or write on an unsynchronized socket.
+            PortalLease::Poisoned => Ok(()),
+            PortalLease::Busy => Err(Error::Protocol(
+                "named portal holds this connection".into(),
+            )),
+            PortalLease::Clear => {
+                self.inner.stream.write_msg(Query(query))?;
+                self.inner.pending_ready_for_query_count += 1;
+                Ok(())
+            }
+        }
+    }
 
-        Ok(())
+    pub(crate) fn refuse_portal_lease(&self) -> Result<(), Error> {
+        match self.inner.portal_lease {
+            PortalLease::Clear => Ok(()),
+            PortalLease::Busy => Err(Error::Protocol(
+                "named portal holds this connection".into(),
+            )),
+            PortalLease::Poisoned => Err(Error::Protocol(
+                "connection is unsynchronized after a named portal".into(),
+            )),
+        }
     }
 
     pub(crate) fn in_transaction(&self) -> bool {
@@ -263,6 +309,7 @@ impl Connection for PgConnection {
         // self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
 
         // The simplest call-and-response that's possible.
+        self.refuse_portal_lease()?;
         self.write_sync();
         self.wait_until_ready().await
     }

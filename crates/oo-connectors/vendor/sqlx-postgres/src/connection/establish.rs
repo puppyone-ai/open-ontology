@@ -3,13 +3,13 @@ use crate::HashMap;
 use crate::common::StatementCache;
 use crate::connection::{sasl, stream::PgStream};
 use crate::error::Error;
-use crate::io::StatementId;
+use crate::io::{PortalId, StatementId};
 use crate::message::{
     Authentication, BackendKeyData, BackendMessageFormat, Password, ReadyForQuery, Startup,
 };
 use crate::{PgConnectOptions, PgConnection};
 
-use super::PgConnectionInner;
+use super::{PgConnectionInner, PortalLease};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
@@ -144,6 +144,8 @@ impl PgConnection {
                 transaction_depth: 0,
                 pending_ready_for_query_count: 0,
                 next_statement_id: StatementId::NAMED_START,
+                next_portal_id: PortalId::NAMED_START,
+                portal_lease: PortalLease::Clear,
                 cache_statement: StatementCache::new(options.statement_cache_capacity),
                 cache_type_oid: HashMap::new(),
                 cache_type_info: HashMap::new(),

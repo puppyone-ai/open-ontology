@@ -154,3 +154,30 @@ or a product catalog cap.
 
 No crates.io version is claimed for this hunk. `Cargo.toml` and `Cargo.lock`
 are unchanged.
+
+## Hunk 4: named portal on an open transaction
+
+`PgConnection::open_named_portal` borrows an already open transaction
+(`transaction_depth >= 1` and ready-for-query status `T`). Each `pull` reserves
+one row from a caller-supplied positive allowance and writes `Execute` with
+limit 1, then `Flush`. The driver reads that response until `PortalSuspended`,
+`CommandComplete`, `EmptyQueryResponse`, or an error before it writes another
+`Execute`. A returned row or a byte cap is not suspension and is not end of
+results.
+
+`Sync` and `Close` run when the portal completes or the caller closes it, and
+when an extended-query error is followed by status `E`. That status leaves the
+caller's transaction aborted so `ROLLBACK` can run. Any other failure, or a
+cancelled `pull`, poisons the connection. A poisoned connection refuses ordinary
+queries. Rollback of a poisoned connection does not write and does not panic.
+This is not a claim that the backend process has exited.
+
+Portal names use a separate counter from statement names. The portal path
+refuses either counter when the next id would wrap. It does not insert the
+statement into the statement cache. The connection is marked busy only after
+`BindComplete`, so type resolution during prepare can still use the ordinary
+executor. `run` is unchanged: unnamed portal, `Execute` limit 0, unnamed
+`Close`, then `Sync`.
+
+No crates.io version is claimed for this hunk. `Cargo.toml` and `Cargo.lock`
+are unchanged.

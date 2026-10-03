@@ -52,6 +52,8 @@ pub use bind_iter::PgBindIterExt;
 pub use column::PgColumn;
 pub use connection::{
     PgBackendFrame, PgConnection, PgIncomingAllocEvent, PgIncomingAllocation, PgIncomingBounds,
+    PgNamedPortal, PgPortalAccounting, PgPortalAllowance, PgPortalClose, PgPortalCommandTag,
+    PgPortalOutcome, PgPortalStep, EXECUTE_LIMIT,
 };
 pub use sqlx_core::error::IncomingWireError;
 pub use sqlx_core::error::ReceiveLimitKind;

@@ -37,6 +37,11 @@ impl StatementId {
         Self(self.0.next())
     }
 
+    /// Next named id, or `None` when this id is unnamed or the counter is exhausted.
+    pub fn checked_next(&self) -> Option<Self> {
+        self.0.checked_next().map(Self)
+    }
+
     pub fn name_len(&self) -> Saturating<usize> {
         self.0.name_len(Self::NAME_PREFIX)
     }
@@ -80,6 +85,11 @@ impl PortalId {
         Self(self.0.next())
     }
 
+    /// Next named id, or `None` when this id is unnamed or the counter is exhausted.
+    pub fn checked_next(&self) -> Option<Self> {
+        self.0.checked_next().map(Self)
+    }
+
     /// Calculate the number of bytes that will be written by [`Self::put_name_with_nul()`].
     pub fn name_len(&self) -> Saturating<usize> {
         self.0.name_len(Self::NAME_PREFIX)
@@ -104,6 +114,11 @@ impl IdInner {
             self.0
                 .map(|id| id.checked_add(1).unwrap_or(NonZeroU32::MIN)),
         )
+    }
+
+    fn checked_next(&self) -> Option<Self> {
+        let id = self.0?;
+        Some(Self(Some(id.checked_add(1)?)))
     }
 
     #[allow(unused)]

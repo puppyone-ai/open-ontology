@@ -20,7 +20,7 @@ use sqlx_core::sql_str::SqlStr;
 use sqlx_core::Either;
 use std::{pin::pin, sync::Arc};
 
-async fn prepare(
+pub(super) async fn prepare(
     conn: &mut PgConnection,
     sql: &str,
     arg_types: &[PgTypeInfo],
@@ -203,6 +203,7 @@ impl PgConnection {
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
+        self.refuse_portal_lease()?;
         let mut logger = QueryLogger::new(query, self.inner.log_settings.clone());
         let sql = logger.sql().as_str();
 
@@ -450,6 +451,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
     {
         Box::pin(async move {
+            self.refuse_portal_lease()?;
             self.wait_until_ready().await?;
 
             let (_, metadata) = self
@@ -469,6 +471,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
     {
         Box::pin(async move {
+            self.refuse_portal_lease()?;
             self.wait_until_ready().await?;
 
             let (stmt_id, metadata) = self
