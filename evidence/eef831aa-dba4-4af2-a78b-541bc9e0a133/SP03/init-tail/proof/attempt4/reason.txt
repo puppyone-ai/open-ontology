@@ -1,0 +1,1 @@
+rest exit 101: cargo test -p sqlx-core refused because the package has dev-dependencies and is not a workspace member. That command is not repeated.

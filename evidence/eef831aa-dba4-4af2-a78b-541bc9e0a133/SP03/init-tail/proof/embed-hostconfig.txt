@@ -1,0 +1,17 @@
+ExitCode=1
+Status=exited
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a133-eef831aa-net
+Memory=8589934592
+MemorySwap=8589934592
+NanoCpus=4000000000
+PidsLimit=4096
+CapDrop=["ALL"]
+CapAdd=null
+SecurityOpt=["no-new-privileges"]
+mount dest=/src type=bind rw=false
+mount dest=/evidence type=bind rw=true
+mount dest=/cargo-home type=volume rw=true
+mount dest=/target type=volume rw=true
+

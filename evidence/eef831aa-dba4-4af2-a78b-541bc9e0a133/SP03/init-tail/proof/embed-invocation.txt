@@ -1,0 +1,15 @@
+continuation_of=rest exit 101 on the third-run snapshot
+phases=isolated-sqlx-core-lib-tests,scoped-clippy
+not_repeated=smoke,lib,bounds,accounting,portal,view,tail
+sqlx_invocation=cargo test --manifest-path /tmp/sqlx-core-iso/Cargo.toml --offline --locked --lib
+bytes_pin==1.12.1
+vendored_lock=discarded (bytes 1.11.1)
+workspace_member=not added
+smoke=not repeated
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+network=oo-a133-eef831aa-net
+container=oo-a133-init-tail-embed
+privileged=no
+cap_drop=ALL
+postgres=no
+stream_rs=absent

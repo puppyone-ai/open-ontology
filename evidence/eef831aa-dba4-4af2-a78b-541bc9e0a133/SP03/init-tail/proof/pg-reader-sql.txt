@@ -1,0 +1,4 @@
+2026-10-03 15:37:54.930 UTC app=oo-a133-reader user=oo_a133_reader db=proof ERROR:  permission denied to set parameter "log_statement"
+2026-10-03 15:37:54.930 UTC app=oo-a133-reader user=oo_a133_reader db=proof STATEMENT:  SET log_statement = 'all'
+2026-10-03 15:40:07.298 UTC app=oo-a133-reader user=oo_a133_reader db=proof LOG:  execute sqlx_s_1: SELECT id FROM oo_a133.small ORDER BY id
+2026-10-03 15:40:07.421 UTC app=oo-a133-reader user=oo_a133_reader db=proof LOG:  execute sqlx_s_2: SELECT count(*)::int8, coalesce(sum(id)::int8, 0), coalesce(bit_xor(id::int8), 0) FROM oo_a133.small

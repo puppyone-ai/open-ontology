@@ -1,0 +1,56 @@
+=== identity ===
+aarch64
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+=== tail ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pg_wire_tls_tail.rs (/target/debug/deps/pg_wire_tls_tail-713dded117dbd77e)
+
+running 8 tests
+test append_frames_keep_their_bytes ... a133_view_peak_append=8192
+ok
+test bytes_workspace_contract_and_product_blob ... a133_product_sha256=b56fe942de40260bfaf39e83f32af8630ded0d739bc758480940099124cfe7d5
+a133_bytes_version=1.12.1
+a133_bytes_sha256=fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04
+ok
+test cancel_after_init_mut_then_frames_plateau ... a133_view_peak_cancel_init=16384
+ok
+test capped_oversize_header_does_not_reserve_the_body ... a133_view_peak_oversize=8192
+ok
+test init_mut_eof_then_frames_stay_inside_the_plateau ... a133_view_peak_eof=8192
+ok
+test init_mut_frames_plateau_when_caller_drops_them ... a133_view_peak_drop=8192
+ok
+test init_mut_frames_plateau_when_caller_retains_them ... a133_view_peak_retain=8192
+ok
+test no_data_cancel_keeps_the_reserve_charge ... a133_view_peak_cancel_bare=16384
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s
+
+tail_exit=0
+=== sqlx-core ===
+error: package `sqlx-core` cannot be tested because it requires dev-dependencies and is not a member of the workspace
+sqlx-core_exit=101
+worst_phase=sqlx-core

@@ -1,0 +1,9 @@
+phase=tls_pg_sixty_thousand_small_rows
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+network=oo-a133-eef831aa-net
+container=oo-a133-init-tail-pgread
+postgres=oo-a133-init-tail-pg
+privileged=no
+cap_drop=ALL
+secrets_in_evidence=no
+stream_rs=absent

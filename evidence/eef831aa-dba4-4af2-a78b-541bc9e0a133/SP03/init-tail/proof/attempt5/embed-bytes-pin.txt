@@ -1,0 +1,3 @@
+150:[dependencies.bytes]
+151-version = "=1.12.1"
+152-

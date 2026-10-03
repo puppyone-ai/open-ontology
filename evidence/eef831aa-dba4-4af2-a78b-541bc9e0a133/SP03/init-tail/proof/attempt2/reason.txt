@@ -1,0 +1,1 @@
+tail compile E0521: sqlx::query requires static SQL; exec used a runtime string

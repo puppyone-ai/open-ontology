@@ -1,0 +1,17 @@
+=== identity ===
+aarch64
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+=== sqlx-lock ===
+error: no matching package named `async-fs` found
+location searched: crates.io index
+required by package `sqlx-core v0.9.0 (/tmp/sqlx-core-iso)`
+As a reminder, you're using offline mode (--offline) which can sometimes cause surprising resolution failures, if this error is too confusing you may wish to retry without `--offline`.
+sqlx-lock_exit=101
+worst_phase=sqlx-lock

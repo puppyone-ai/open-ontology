@@ -1,0 +1,30 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running tests/pg_wire_tls_tail.rs (/target/debug/deps/pg_wire_tls_tail-713dded117dbd77e)
+
+running 1 test
+test tls_pg_sixty_thousand_small_rows ... a133_pg_rows=60000
+a133_pg_view_peak=8192
+a133_pg_rss_kib=14384
+a133_pg_hash=b504c603796248be6f29c923aae8e57b6f8c01b235cea61b161b00ac834a5b60
+a133_pg_reader_sql_lines=2
+a133_pg_reader_write_lines=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.41s
+

@@ -1,0 +1,9 @@
+rows=60000
+order=id ascending from 1
+sum=1800030000
+bit_xor=60000
+row_sha256=954a76695912c8cb349b45dee86d4fccf0e278ffd20545a3e5beaf0c4b0b9533
+row_sha256_input=big-endian i32 id for 1..=60000
+logged_a133_pg_hash=b504c603796248be6f29c923aae8e57b6f8c01b235cea61b161b00ac834a5b60
+logged_a133_pg_hash_meaning=sha256 of the 32-byte row digest (sha256_hex hashes its argument)
+match=logged hash equals sha256(row_sha256)
