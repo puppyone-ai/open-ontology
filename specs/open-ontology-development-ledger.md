@@ -932,3 +932,5 @@ a12536253实际exit0关闭，2254eab3六源路径提交；完整三报告/propos
 a128实际Grok4.7xhighhandle81453启动slot A目录读取回归修复，a12735475仍slot B，a12536253已关闭不再观察。下一新UUID a129，goal active。
 
 用户改为一次15分钟等待、期间零观测；已实际执行900秒等待，结束后一次核验a12881453/a12735475均仍live。此后不反复追加相同等待记录，保留当前句柄/边界，goal active。
+
+a12735475实际CLIexit0但无最终报告/源码提交；一次15分钟等待后核验ownfinalDockerExited101，编译E0106/E0308，ownPG仍Up。原baseline缺fixture101与完整baseline49/Clippy0保留，slotB按同UUID恢复完成已有overlay；不签R2-P，不重启仍live a12881453。新UUIDa129保持，goal active。
