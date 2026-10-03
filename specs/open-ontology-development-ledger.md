@@ -903,3 +903,7 @@ a123handle39100实际exit0关闭，ae8f9bb3六文档完整读取/HASHES6项实�
 a125当前schema guard实现实际Grok4.7xhighhandle36253，slot A最多1builder1PG；先Linux1.94冒烟及savepoint/DDL/同cut前提实测再业务编辑，精确6路径写权，manifest/lock/vendor禁写。a124handle97117保持slot B计量修复，两槽上限不变。产品metrics9/9/6比9保持，下一新UUID a126，goal active。
 
 a124原handle97117实际exit0但交付不完整：无代码提交/最终三报告，exactDockerfinal实际Exited0/baselineExited0、rawphase存在。恢复同UUID实际新handle83036，仅补核验/精确提交/证据清理，原任务写权slotB不变，旧句柄关闭不再轮询。实际先启动冻结baseline后在其未终态时改工作区的时序须如实记载。a125handle36253仍live/ownPG夹具已启动，下一新UUIDa126保持；无新增验收勾选，goal active。
+
+### a124 修复交付与独立复审准备
+
+a124恢复83036实际exit0关闭，ff783ac9六源路径提交已核对；完整三报告/raw final五exit0/hashmanifest55项OK/exactDocker为空。作者49库+13bounds+12accounting+Clippy通过，证据56文件由协调者精确提交294e3a12，尚非独立验收。baseline未终态时已编辑的时序保留，live-view非RSS、EOF/eventdrop/部分unsplit分支未执行须独立核验。R2-W不勾。a126固定ff783ac9复审卡已绑定slot B，最多1builder无PG；a125handle36253保持slot A。产品9/9/6比9、87父项16phase未完成与goal active保持。
