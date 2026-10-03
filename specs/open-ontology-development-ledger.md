@@ -1018,3 +1018,5 @@ a14058575/a14117278实际exit0完成作者交付，两组三报告全读。mappi
 a142实际Grok4.7xhighhandle77286 slotA mappingreview；a143实际handle2408 slotB ownerDrop/cancelreview，各max1builder1PG并行。旧a140/a141终态不再观察，下一UUIDa144，单次25分钟等待，goal active。
 
 a1432408实际exit0，423a738d完整三报告100hash实际0，rawLinux63/Clippy/drop/cancel/keys/docker0、ownDocker为空。仅签R3-C，验收15→16；原旧blob当前observer也58ms消失，a139缓存stats与a141RED不得当绝对proof，保留记录。异常finish潜在falseSnapshotFinished未签，a144专用修正slotB。a14277286实际exit0缺报告，原UUID恢复读取第二失败结果并完成原复审slotA。产品14交付/16验收子项，goal active。
+
+a142同UUID恢复实际handle92492 slotA fixedmappingreview；a144实际Grok4.7xhighhandle14072 slotB finish修正，各max1builder1PG并行。旧77286/2408关闭不再观察，下一UUIDa145，单次25分钟等待，goal active。
