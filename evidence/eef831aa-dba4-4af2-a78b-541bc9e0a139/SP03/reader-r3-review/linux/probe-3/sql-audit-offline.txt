@@ -1,0 +1,21 @@
+probe3_log_window=2026-10-03 21:01:4 and 21:01:5 UTC
+reader_app=oo-pg-source
+reader_user=oo_a139_reader
+reader_statements=430
+verbs=RELEASE=15,ROLLBACK=23,SAVEPOINT=15,SELECT=369,START=8
+verbs_outside_allowlist=0
+write_tokens=0
+offset_tokens=0
+collate_tokens=0
+pg_terminate_backend=0
+pg_cancel_backend_selects=1
+planning_count_star_over=10
+planning_count_star_over_with_limit=10
+unkeyed_bare_payload_selects=4
+unkeyed_soft_payload_selects=4
+unkeyed_onlyu_payload_selects=3
+writer_app=oo-fixture-writer
+writer_write_statements=1
+secret_hits_in_postgres_log=0
+secret_hits_in_evidence_tree=0
+note=The in-test audit() did not run. This count is the same postgres log, probe-3 window only. pg_cancel_backend is a SELECT and is not counted as DML.
