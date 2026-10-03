@@ -1,0 +1,3 @@
+subject=CN=oo-a143-pg
+X509v3 Subject Alternative Name: 
+    DNS:oo-a143-pg

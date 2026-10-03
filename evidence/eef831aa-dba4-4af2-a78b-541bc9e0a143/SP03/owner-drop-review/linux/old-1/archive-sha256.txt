@@ -1,0 +1,4 @@
+c00cf3871af9a86788e80e78c8895742cd232045a72f509783b56f551d49c9b9  crates/oo-connectors/src/snapshot.rs
+f969c8f0bf2e068ac3ba10560d15215adf69460227e559fee717a352324e14d0  crates/oo-connectors/src/session.rs
+fe11aca7f711c97787c7420ce98e64a1fcd9c32fec6e07eb3bd65736f1013847  crates/oo-connectors/src/stream.rs
+cc2d397232ce9c26fd05610b5a9d61478783830a58fe56b001e38a99de115ca9  crates/oo-connectors/tests/pg_reader_drop_live.rs

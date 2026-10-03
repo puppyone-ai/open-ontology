@@ -1,0 +1,3 @@
+fixed_drop_blob=cbfbcd26f6a223e148b18fc56302af1a76c9dbfb
+snap_drop_blob=cbfbcd26f6a223e148b18fc56302af1a76c9dbfb
+base_had_drop_blob=58afa97ded85a7dd89c72532bfc8973c45255d7c:crates/oo-connectors/tests/pg_reader_drop_live.rs
