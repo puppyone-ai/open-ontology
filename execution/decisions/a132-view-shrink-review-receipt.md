@@ -1,0 +1,5 @@
+# a132 limited review receipt
+
+Actual handle35826 exit0 closed. Fixed source79515fcf/treeb78f8449, evidence5282bc1c. All three reports fully read;60 manifest entries actual shasum exit0. Raw rerun lib55/Clippy0, bounds13/accounting12/portal6/probe0 verified; own containers absent. First missing-fixture101 and login PATH127 remain recorded.
+
+APPROVE LIMITED panic/net-step meter correction only, not a new product component or whole reader acceptance. Four real-contract init_mut reads252bytes grew live view8192→32643 even with message cap32; retained frames40706; append contract8192. Author512frame actual8GiBOOM not repeated. Production rustls uses this init_mut contract, so integration gate remains open. a133 must discard unused committed tail after read includingEOF, preserve append behavior, and prove bounded repeated reads. a131 continues fixed-baseline Arrow implementation. Counters12 delivered/13 accepted product children/8 rework of12 first reviews unchanged; repairs not duplicate components. Whole87 parent items/16phases remain incomplete.
