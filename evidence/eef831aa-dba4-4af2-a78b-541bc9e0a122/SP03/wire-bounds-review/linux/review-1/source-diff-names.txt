@@ -1,0 +1,7 @@
+A	crates/oo-connectors/tests/pg_wire_bounds.rs
+M	crates/oo-connectors/vendor/PATCH.md
+M	crates/oo-connectors/vendor/sqlx-core/src/error.rs
+M	crates/oo-connectors/vendor/sqlx-core/src/net/socket/buffered.rs
+M	crates/oo-connectors/vendor/sqlx-postgres/src/connection/mod.rs
+M	crates/oo-connectors/vendor/sqlx-postgres/src/connection/stream.rs
+M	crates/oo-connectors/vendor/sqlx-postgres/src/lib.rs

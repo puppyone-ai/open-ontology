@@ -1,0 +1,15 @@
+before_container=oo-a122-msrv-review Exited (101) 8 hours ago
+before_net=oo-a122-eef831aa-net
+before_volumes=oo-a122-eef831aa-cargo oo-a122-eef831aa-target 
+oo-a122-msrv-review
+rm_container=0
+oo-a122-eef831aa-net
+rm_network=0
+oo-a122-eef831aa-cargo
+oo-a122-eef831aa-target
+rm_volumes=0
+rm_tmp=0
+after_container=
+after_net=
+after_volumes=
+tmp_left=absent

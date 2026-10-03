@@ -1,0 +1,20 @@
+ExitCode=101
+Status=exited
+OOMKilled=False
+Privileged=False
+NetworkMode=oo-a122-eef831aa-net
+Memory=8589934592
+MemorySwap=8589934592
+NanoCpus=4000000000
+PidsLimit=4096
+ReadonlyRootfs=False
+CapDrop=['ALL']
+CapAdd=None
+SecurityOpt=['no-new-privileges']
+Tmpfs=None
+mount dest=/inside.sh mode= type=bind rw=False
+mount dest=/probe mode= type=bind rw=False
+mount dest=/evidence mode= type=bind rw=True
+mount dest=/cargo-home mode=z type=volume rw=True
+mount dest=/target mode=z type=volume rw=True
+mount dest=/src mode= type=bind rw=True
