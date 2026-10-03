@@ -1,0 +1,19 @@
+when=2026-10-03T17:53:45Z
+removed_containers:
+f15406bc226a9124a4f747c6969c8efee0abbc099612f6d8650818537e58aa98 oo-a137-msrv-colg exited 0 rust-builder
+49ec4215d413ec5761a9265caf2e156373633859f985bf517bb40cb1d776c90e oo-a137-msrv-review exited 101 rust-builder
+ba1b06486b152a0b76d22a89b8b7eb94b71de12d98d562c0286fb61bbbd28a4c oo-a137-pg postgres
+a588e35c072e03c7b41c92127d630f996429d07f57f8109cc1db8545a52441e0 oo-a137-msrv-smoke exited 0 rust-builder
+removed_volumes:
+oo-a137-eef831aa-cargo
+oo-a137-eef831aa-target
+oo-a137-eef831aa-pglog
+oo-a137-eef831aa-pgdata
+removed_network:
+02954cc617071885a4510e031bf2ae3b8dfc5e9870a71aaba8d0e6c61fcb642a oo-a137-eef831aa-net
+removed_tmp:
+/tmp/oo-a137-eef831aa
+/tmp/oo-a137-eef831aa-dba4-4af2-a78b-541bc9e0a137
+after: containers_left=0 volumes_left=0 network_left=0 tmp_overlay=gone tmp_secrets=gone
+finished=2026-10-03T17:53:49Z
+no prune and no other task containers

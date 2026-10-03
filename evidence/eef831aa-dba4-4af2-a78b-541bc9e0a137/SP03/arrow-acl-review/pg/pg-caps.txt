@@ -1,0 +1,1 @@
+CapAdd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] CapDrop=["ALL"] Privileged=false Publish=false

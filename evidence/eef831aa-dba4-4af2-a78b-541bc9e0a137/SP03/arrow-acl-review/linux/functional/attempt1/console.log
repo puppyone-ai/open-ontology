@@ -1,0 +1,149 @@
+oo_task=arrow-acl-review
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=dd5bf441_plus_column_grant_overlay
+Linux 49ec4215d413 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+=== pg_stream_acl_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.37s
+     Running tests/pg_stream_acl_live.rs (/target/debug/deps/pg_stream_acl_live-c45a6da62660d96b)
+
+running 1 test
+outcome acl_a_id=7 acl_a_eof=1 generation=1 data_pid=145 data_start=2026-10-03 17:41:21.107706+00 guard=select_not_granted finish=select_not_granted reader_after=6 reader_writes=0 second_savepoint=0 second_scan=0 backends_gone=2
+
+test revoke_after_first_eof_is_select_not_granted_before_scan ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+phase_exit=0 phase=acl
+=== pg_stream_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.76s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+
+running 1 test
+outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome oracle_before_writer parent=4 child=3 empty=0 zero=2 payload=59
+outcome held_state=active wait_event=ClientRead
+outcome measured executes=13 reserved_rows=13 consumed_rows=9 decoded_payload_bytes=59 oracle_payload=59 arrow_preimage_bytes=132 arrow_assembly_bytes=5528 wire_view_capacity_peak=8192 wire_accepted_logical_payload=12534 wire_assembly_bytes=23 parent_batches=2 child_batches=2 zero_batches=1
+outcome admin_sees_late_parent=1
+outcome finish_released pid=149
+outcome abort_released pid=152
+outcome drop_released pid=154
+outcome sql_audit oo_statements=268 writer_writes=2 dml_ddl_commit=0
+outcome live_complete
+test bounded_arrow_stream_live ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+
+phase_exit=0 phase=live
+=== pg_stream_bounds ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.74s
+     Running tests/pg_stream_bounds.rs (/target/debug/deps/pg_stream_bounds-422ab3014c583d44)
+
+running 1 test
+outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome refuse_released table=bounds_wide pid=157
+outcome refuse_value fact=max_value display=source error: budget fact=max_value
+outcome refuse_released table=bounds_row pid=159
+outcome refuse_row fact=max_row display=source error: budget fact=max_row
+outcome slow_wait state=active wait_event=ClientRead
+outcome slow_consumer executes_before=1 executes_after=2 log_lines_during_sleep=379 log_lines_after_demand=380 log_delta_after_demand=1
+outcome slow_released pid=161
+outcome sql_audit oo_statements=385 dml_ddl_commit=0
+outcome bounds_complete
+test bounded_arrow_stream_bounds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+
+phase_exit=0 phase=bounds
+=== pg_stream_acl_review ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.67s
+     Running tests/pg_stream_acl_review.rs (/target/debug/deps/pg_stream_acl_review-c2f911db3b3ec5a7)
+
+running 1 test
+
+thread 'column_grant_without_table_select_streams_the_arrow_value' (1017) panicked at crates/oo-connectors/tests/pg_stream_acl_review.rs:167:6:
+open: SourceError { kind: Privilege, fact: Some("select_not_granted"), sqlstate: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test column_grant_without_table_select_streams_the_arrow_value ... FAILED
+
+failures:
+
+failures:
+    column_grant_without_table_select_streams_the_arrow_value
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_acl_review`
+phase_exit=101 phase=review
+elapsed_seconds=17

@@ -1,0 +1,15 @@
+source_commit=dd5bf44160f949c0ac21a0ce3ddf5ee5e90b4200
+composition=exact dd5bf441 archive plus tests/pg_stream_acl_review.rs only
+stream.rs=e7b5a6cc1714c67e818899788a09e0315b93b3ed
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a137-msrv-review
+network=oo-a137-eef831aa-net
+pg_container=oo-a137-pg
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no

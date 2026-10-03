@@ -1,0 +1,10 @@
+source_commit=dd5bf44160f949c0ac21a0ce3ddf5ee5e90b4200
+composition=exact dd5bf441 archive plus the column-grant overlay only
+container=oo-a137-msrv-colg
+network=oo-a137-eef831aa-net
+pg_container=oo-a137-pg
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
