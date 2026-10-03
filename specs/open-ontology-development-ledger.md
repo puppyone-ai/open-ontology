@@ -136,6 +136,7 @@
 
 - [ ] SP04-W01 Debezium/decoder/事务流
 - [ ] SP04-W02 COPY/merge/TOAST/墓碑
+  - [x] W02-PM persisted physical-mapping/v1原语：b5415544经a142限定批准，runtime注册/lookup/replay/restart；完整Loader/fencedCOPY未验。
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
@@ -1020,3 +1021,5 @@ a142实际Grok4.7xhighhandle77286 slotA mappingreview；a143实际handle2408 slo
 a1432408实际exit0，423a738d完整三报告100hash实际0，rawLinux63/Clippy/drop/cancel/keys/docker0、ownDocker为空。仅签R3-C，验收15→16；原旧blob当前observer也58ms消失，a139缓存stats与a141RED不得当绝对proof，保留记录。异常finish潜在falseSnapshotFinished未签，a144专用修正slotB。a14277286实际exit0缺报告，原UUID恢复读取第二失败结果并完成原复审slotA。产品14交付/16验收子项，goal active。
 
 a142同UUID恢复实际handle92492 slotA fixedmappingreview；a144实际Grok4.7xhighhandle14072 slotB finish修正，各max1builder1PG并行。旧77286/2408关闭不再观察，下一UUIDa145，单次25分钟等待，goal active。
+
+a142恢复92492实际exit0，e94d70a4完整三报告/raw pipelinepackage7/Clippy/live/probe/restart/docker0核对，ownDocker空；无完整hashmanifest不声称库存校验。runtime mapping限定批准，tableowner+GUC直接insert不作runtime入口验收，FullLoader未签。验收16→17，新组件首审approved分母13→14返工9/14(64.3%)，交付14保持。a145独立boundedCOPY编码生产组件slotA，a14414072集中检查仍live，goal active。
