@@ -1,0 +1,11 @@
+host
+port
+database
+ca_file
+reader_user
+reader_password_file
+writer_user
+writer_password_file
+admin_user
+admin_password_file
+log_file

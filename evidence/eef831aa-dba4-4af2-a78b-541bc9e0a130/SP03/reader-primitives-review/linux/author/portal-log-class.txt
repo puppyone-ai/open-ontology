@@ -1,0 +1,6 @@
+reader_statements=21
+reader_verbs=BEGIN,ROLLBACK,SELECT,SHOW
+writer_verbs=BEGIN,COMMIT,INSERT,UPDATE
+admin_verbs=DELETE,SELECT,UPDATE
+oracle_verbs=BEGIN,ROLLBACK,SELECT,SET
+reader_forbidden=0

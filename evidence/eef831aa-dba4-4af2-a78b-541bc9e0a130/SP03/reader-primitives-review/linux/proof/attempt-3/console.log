@@ -1,0 +1,72 @@
+oo_task=reader-primitives-review-proof
+airgap_claim=no
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+crates/oo-connectors/vendor/sqlx-core/src/net/socket/buffered.rs: OK
+crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs: OK
+crates/oo-connectors/tests/pg_portal_live.rs: OK
+crates/oo-connectors/tests/pg_portal_bounds.rs: OK
+crates/oo-connectors/tests/snapshot_live.rs: OK
+crates/oo-connectors/tests/catalog_rate_live.rs: OK
+crates/oo-connectors/src/snapshot.rs: OK
+crates/oo-connectors/src/session.rs: OK
+crates/oo-connectors/src/catalog.rs: OK
+contracts/source/pgsql/empty-catalog.json: OK
+=== cargo test a130_review ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.05s
+     Running tests/a130_review.rs (/target/debug/deps/a130_review-7a47190b7d842dca)
+
+running 4 tests
+test t1_schema_guard ... 
+thread 't1_schema_guard' (254) panicked at crates/oo-connectors/tests/a130_review.rs:414:5:
+assertion `left == right` failed
+  left: "spruce"
+ right: "oak"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test t2_catalog_rate ... small_elapsed=171.0045ms
+big_elapsed=175.326ms
+sql_limits_match_reservation=ok keyword_limit=80
+failed_query_keeps_charge=ok burn_elapsed=687.772792ms
+ok
+test t3_named_portal ... 
+thread 't3_named_portal' (262) panicked at crates/oo-connectors/tests/a130_review.rs:1089:10:
+import snapshot: Database(PgDatabaseError { severity: Error, code: "42704", message: "snapshot \"00000024-0000000B-1\" does not exist", detail: None, hint: None, position: None, where: None, schema: None, table: None, column: None, data_type: None, constraint: None, file: Some("snapmgr.c"), line: Some(1424), routine: Some("ImportSnapshot") })
+FAILED
+test t4_sql_audit ... reader_statements=1072
+reader_verbs=BEGIN:1,RELEASE:17,ROLLBACK:66,SAVEPOINT:17,SELECT:912,SHOW:2,START:53,WITH:4
+reader_forbidden=0
+writer_statements=7
+writer_write_hits=6
+admin_statements=39
+admin_write_hits=20
+
+ok
+
+failures:
+
+failures:
+    t1_schema_guard
+    t3_named_portal
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+
+error: test failed, to rerun pass `-p oo-connectors --test a130_review`
+phase_exit=101 phase=a130_review
+elapsed_seconds=6

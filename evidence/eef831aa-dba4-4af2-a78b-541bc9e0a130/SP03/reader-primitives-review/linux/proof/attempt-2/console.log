@@ -1,0 +1,102 @@
+oo_task=reader-primitives-review-proof
+airgap_claim=no
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+crates/oo-connectors/vendor/sqlx-core/src/net/socket/buffered.rs: OK
+crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs: OK
+crates/oo-connectors/tests/pg_portal_live.rs: OK
+crates/oo-connectors/tests/pg_portal_bounds.rs: OK
+crates/oo-connectors/tests/snapshot_live.rs: OK
+crates/oo-connectors/tests/catalog_rate_live.rs: OK
+crates/oo-connectors/src/snapshot.rs: OK
+crates/oo-connectors/src/session.rs: OK
+crates/oo-connectors/src/catalog.rs: OK
+contracts/source/pgsql/empty-catalog.json: OK
+=== cargo test a130_review ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0502]: cannot borrow `portal` as immutable because it is also borrowed as mutable
+    --> crates/oo-connectors/tests/a130_review.rs:1182:16
+     |
+1144 |     let pull = portal.pull(PgPortalAllowance::positive(1).expect("allowance"));
+     |                ------ mutable borrow occurs here
+...
+1182 |     assert_eq!(portal.last_pull().expect("reserved").consumed_rows, 0);
+     |                ^^^^^^ immutable borrow occurs here
+...
+1188 | }
+     | - mutable borrow might be used here, when `pull` is dropped and runs the destructor for type `impl Future<Output = Result<PgPortalStep, sqlx::Error>>`
+
+error[E0502]: cannot borrow `portal` as immutable because it is also borrowed as mutable
+    --> crates/oo-connectors/tests/a130_review.rs:1183:14
+     |
+1144 |     let pull = portal.pull(PgPortalAllowance::positive(1).expect("allowance"));
+     |                ------ mutable borrow occurs here
+...
+1183 |     assert!(!portal.connection_poisoned());
+     |              ^^^^^^ immutable borrow occurs here
+...
+1188 | }
+     | - mutable borrow might be used here, when `pull` is dropped and runs the destructor for type `impl Future<Output = Result<PgPortalStep, sqlx::Error>>`
+
+error[E0505]: cannot move out of `portal` because it is borrowed
+    --> crates/oo-connectors/tests/a130_review.rs:1184:10
+     |
+1140 |     let mut portal = tx
+     |         ---------- binding `portal` declared here
+...
+1144 |     let pull = portal.pull(PgPortalAllowance::positive(1).expect("allowance"));
+     |                ------ borrow of `portal` occurs here
+...
+1184 |     drop(portal);
+     |          ^^^^^^ move out of `portal` occurs here
+...
+1188 | }
+     | - borrow might be used here, when `pull` is dropped and runs the destructor for type `impl Future<Output = Result<PgPortalStep, sqlx::Error>>`
+
+error[E0505]: cannot move out of `tx` because it is borrowed
+    --> crates/oo-connectors/tests/a130_review.rs:1185:5
+     |
+1133 |     let mut tx = reader.begin().await.expect("sleep begin");
+     |         ------ binding `tx` declared here
+...
+1140 |     let mut portal = tx
+     |                      -- borrow of `tx` occurs here
+...
+1185 |     tx.rollback().await.expect("rollback after cancel");
+     |     ^^ move out of `tx` occurs here
+...
+1188 | }
+     | - borrow might be used here, when `pull` is dropped and runs the destructor for type `impl Future<Output = Result<PgPortalStep, sqlx::Error>>`
+
+error[E0502]: cannot borrow `*reader` as immutable because it is also borrowed as mutable
+    --> crates/oo-connectors/tests/a130_review.rs:1186:14
+     |
+1133 |     let mut tx = reader.begin().await.expect("sleep begin");
+     |                  ------ mutable borrow occurs here
+...
+1186 |     assert!(!reader.named_portal_poisoned());
+     |              ^^^^^^ immutable borrow occurs here
+1187 |     println!("portal_cancel=57014 consumed_rows=0");
+1188 | }
+     | - mutable borrow might be used here, when `pull` is dropped and runs the destructor for type `impl Future<Output = Result<PgPortalStep, sqlx::Error>>`
+
+Some errors have detailed explanations: E0502, E0505.
+For more information about an error, try `rustc --explain E0502`.
+error: could not compile `oo-connectors` (test "a130_review") due to 5 previous errors
+phase_exit=101 phase=a130_review
+elapsed_seconds=0
