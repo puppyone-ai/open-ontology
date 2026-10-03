@@ -131,10 +131,21 @@ lengths. The configured caps are not copied into those fields. `BytesMut::reserv
 is given the additional length beyond the buffer's current `len`. That argument
 is `reserve_argument_bytes`. `reserved_additional` is the increase in the sum of
 the two live view capacities and does not include an argument that left capacity
-unchanged. Those no-op arguments are `noop_reserve_arguments`.
+unchanged. Those no-op arguments are `noop_reserve_arguments`. A fall in that
+sum is not added. A reserve whose view fell is still a reserve call and is not
+a no-op. On a completed read the step contributes the net increase of the sum,
+or nothing when the sum did not grow.
 
 The two view capacities are not a physical resident total. They can share one
-allocation, or not, and a caller-retained frame is not added in.
+allocation, or not, and a caller-retained frame is not added in. The sum can
+shrink after shared-buffer assembly while the buffered bytes stay valid.
+Assembly can abandon a split prefix, and `BytesMut` can hide spare capacity.
+That shrink is not resident-set size. `reserved_growth` on a completed read is
+the net increase of the sum, or zero when the sum did not grow. Summing the
+stored rows equals `reserved_additional` when no row was dropped and no step's
+sum shrank. A read dropped before it returns keeps the growth recorded at the
+reserve.
+
 `accepted_backing_peak` is the same view sum sampled when a frame is accepted.
 `rounding_peak` is spare above the reserve argument after a call that grew,
 including the bytes 1.12.1 original-capacity floor when that floor is what the

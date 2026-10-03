@@ -16,6 +16,7 @@ use crate::io::{AsyncRead, AsyncReadExt, ProtocolDecode, ProtocolEncode};
 /// That sum is the two live windows. It is not a physical resident total: the windows may
 /// share one allocation, or they may not, and a retained frame is a separate view that is
 /// not added in. An offset kept outside both windows is missing from the sum as well.
+/// The sum can shrink after shared-buffer assembly while the bytes already read stay valid.
 #[derive(Copy, Clone, Debug)]
 pub struct IncomingAllocEvent {
     /// Absolute buffer length the parser asked to have present.
@@ -26,8 +27,9 @@ pub struct IncomingAllocEvent {
     /// what `BytesMut::reserve` requires. It is not the number of bytes of capacity
     /// that were added.
     pub reserve_argument: u64,
-    /// View-capacity increase for this step: the sum of the two windows after the
-    /// step, minus the sum before it. Zero when the call did not grow a window.
+    /// Net increase in the sum of the two live windows for this step. Zero when
+    /// that sum did not grow. A completed read stores the post-advance sum minus
+    /// the pre-step sum, floored at zero. A fall is not reserved capacity.
     pub reserved_growth: u64,
     /// `read` view capacity before the reserve.
     pub read_capacity_before: u64,
@@ -67,12 +69,15 @@ pub struct IncomingAllocEvent {
 pub struct IncomingHighWater {
     pub logical_requested_peak: u64,
     /// Sum of view-capacity increases. A `BytesMut::reserve` argument that does not
-    /// change capacity is not included.
+    /// change capacity is not included. A fall in the live view sum is not included.
+    /// A completed read contributes the net increase of that sum, or nothing when
+    /// the sum did not grow.
     pub reserved_additional: u64,
     /// Number of `BytesMut::reserve` calls, including calls whose argument was already
     /// covered by spare capacity.
     pub reserve_calls: u64,
-    /// Calls included in `reserve_calls` whose capacity did not change.
+    /// Calls included in `reserve_calls` whose view sum did not change.
+    /// A reserve whose view sum fell is not one of these calls.
     pub noop_reserve_calls: u64,
     /// Sum of the arguments of those no-op calls. Not capacity growth.
     pub noop_reserve_arguments: u64,
@@ -531,10 +536,9 @@ impl ReadBuffer {
             let view_before = self.view_capacity();
             let (reserve_argument, mut assembly) = self.prepare_window(deficit);
             let view_prepared = self.view_capacity();
-            let growth = view_prepared
-                .checked_sub(view_before)
-                .expect("incoming view shrank during reserve");
-            self.note_reserve(reserve_argument, growth);
+            // Shared-buffer assembly can lower this sum while the bytes stay valid.
+            let growth = view_prepared.saturating_sub(view_before);
+            self.note_reserve(reserve_argument, view_before, view_prepared);
             self.note_rounding(reserve_argument, growth);
             if assembly > 0 {
                 self.meter.assembly_bytes += assembly;
@@ -585,13 +589,18 @@ impl ReadBuffer {
             }
             self.sample_peaks();
             let view_done = self.view_capacity();
-            let extra = view_done
-                .checked_sub(view_prepared)
-                .expect("incoming view shrank during advance");
+            let extra = view_done.saturating_sub(view_prepared);
             if extra > 0 {
                 self.meter.reserved_additional += extra;
             }
-            self.finish_event(pushed, read as u64, assembly, view_done, growth + extra);
+            // Same completed step only. The counter keeps the net view increase,
+            // floored at zero, including when the trace row was already dropped.
+            // EOF and a parked cancel do not reach this adjustment.
+            let phase = growth.saturating_add(extra);
+            let net = view_done.saturating_sub(view_before);
+            let excess = phase.saturating_sub(net);
+            self.meter.reserved_additional = self.meter.reserved_additional.saturating_sub(excess);
+            self.finish_event(pushed, read as u64, assembly, view_done, net);
         }
 
         Ok(())
@@ -660,13 +669,21 @@ impl ReadBuffer {
         (deficit, assembly)
     }
 
-    fn note_reserve(&mut self, argument: usize, growth: u64) {
-        if argument == 0 && growth == 0 {
+    fn note_reserve(&mut self, argument: usize, view_before: u64, view_prepared: u64) {
+        let shrank = view_prepared < view_before;
+        let growth = view_prepared.saturating_sub(view_before);
+        // No reserve and no view change: same as a step that never called reserve.
+        if argument == 0 && growth == 0 && !shrank {
             return;
         }
         if argument > 0 {
             self.meter.reserve_calls += 1;
             self.meter.reserve_argument_bytes += argument as u64;
+        }
+        // A shrink still consumed a reserve call. It is not a no-op and it is
+        // not capacity that was added.
+        if shrank {
+            return;
         }
         if growth == 0 {
             self.meter.noop_reserve_calls += 1;
@@ -763,5 +780,159 @@ impl ReadBuffer {
             // We should be warning the user not to call this often.
             self.available = BytesMut::with_capacity(DEFAULT_BUF_SIZE);
         }
+    }
+}
+
+#[cfg(test)]
+mod view_shrink {
+    use std::future::Future;
+    use std::io;
+    use std::ops::ControlFlow;
+    use std::task::{Context, Poll, Waker};
+
+    use bytes::Buf;
+    use bytes::Bytes;
+
+    use crate::io::ReadBuf;
+    use crate::net::Socket;
+
+    use super::BufferedSocket;
+
+    /// Socket whose reads use `ReadBuf::init_mut`, the same contract as the rustls
+    /// and async-io adapters. Each chunk is one plaintext read.
+    struct InitMutChunks {
+        chunks: Vec<Vec<u8>>,
+        at: usize,
+    }
+
+    impl Socket for InitMutChunks {
+        fn try_read(&mut self, buf: &mut dyn ReadBuf) -> io::Result<usize> {
+            let Some(src) = self.chunks.get(self.at) else {
+                return Err(io::ErrorKind::WouldBlock.into());
+            };
+            let dst = buf.init_mut();
+            if dst.is_empty() || src.is_empty() {
+                return Err(io::ErrorKind::WouldBlock.into());
+            }
+            let n = src.len().min(dst.len());
+            dst[..n].copy_from_slice(&src[..n]);
+            self.at += 1;
+            Ok(n)
+        }
+
+        fn try_write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn poll_read_ready(&mut self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            if self.at < self.chunks.len() {
+                Poll::Ready(Ok(()))
+            } else {
+                Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "init_mut chunks exhausted",
+                )))
+            }
+        }
+
+        fn poll_write_ready(&mut self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(&mut self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn drive<T>(future: impl Future<Output = T>) -> T {
+        let mut future = std::pin::pin!(future);
+        let mut context = Context::from_waker(Waker::noop());
+        for _ in 0..64 {
+            if let Poll::Ready(value) = future.as_mut().poll(&mut context) {
+                return value;
+            }
+        }
+        panic!("receive stalled");
+    }
+
+    fn frame(body: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(5 + body.len());
+        out.push(b'D');
+        let message_len = u32::try_from(body.len() + 4).expect("len");
+        out.extend_from_slice(&message_len.to_be_bytes());
+        out.extend_from_slice(body);
+        out
+    }
+
+    #[test]
+    fn init_mut_small_frames_shrink_the_receive_view() {
+        // Each frame is 7 bytes, so a 64-byte read ends one byte into the next frame
+        // and the following read copies onto a live prefix. `init_mut` then commits
+        // the spare, and each later read doubles the live view. 512 frames (the
+        // shape that panicked) was killed at the 8 GiB cgroup limit once the expect
+        // was gone. 128 frames is 14 such reads: enough to shrink, and bounded.
+        const FRAMES: usize = 128;
+        let mut payloads = Vec::with_capacity(FRAMES);
+        let mut wire = Vec::new();
+        for id in 0..FRAMES {
+            let body = (id as u16).to_be_bytes();
+            payloads.push(body);
+            wire.extend(frame(&body));
+        }
+        let chunks: Vec<Vec<u8>> = wire.chunks(64).map(|chunk| chunk.to_vec()).collect();
+
+        let mut socket = BufferedSocket::new(InitMutChunks { chunks, at: 0 });
+        let mut held: Vec<Bytes> = Vec::with_capacity(payloads.len());
+        for expected in &payloads {
+            let got = drive(socket.try_read(|buf| {
+                if buf.len() < 5 {
+                    return Ok(ControlFlow::Continue(5));
+                }
+                let message_len = u32::from_be_bytes(buf[1..5].try_into().expect("len")) as usize;
+                let expected_len = message_len + 1;
+                if buf.len() < expected_len {
+                    return Ok(ControlFlow::Continue(expected_len));
+                }
+                buf.advance(1);
+                let mut contents = buf.split_to(message_len).freeze();
+                contents.advance(4);
+                Ok(ControlFlow::Break(contents))
+            }))
+            .expect("frame");
+            socket.note_message_accepted(got.len());
+            assert_eq!(got.as_ref(), expected.as_slice(), "frame {}", held.len());
+            held.push(got);
+        }
+        assert_eq!(held.len(), payloads.len());
+
+        let parts = socket.incoming_meter_parts();
+        let events = socket.incoming_meter_events();
+        let reserved_additional = parts[1];
+        let assembly_bytes = parts[13];
+        let events_dropped = parts[19];
+        assert!(assembly_bytes > 0, "init_mut path did not copy");
+        assert!(events.len() <= 64, "{}", events.len());
+        assert_eq!(events.len() == 64, events_dropped > 0);
+        let mut stored = 0u64;
+        for event in &events {
+            let growth = event[2];
+            let before = event[7];
+            let after = event[8];
+            let completed = event[12];
+            assert!(completed == 0 || completed == 1);
+            if after >= before {
+                assert_eq!(growth, after - before, "{event:?}");
+            } else {
+                assert_eq!(growth, 0, "{event:?}");
+            }
+            stored += growth;
+        }
+        if events_dropped == 0 {
+            assert_eq!(reserved_additional, stored);
+        } else {
+            assert!(reserved_additional >= stored);
+        }
+        // Retained pieces stay alive through the meter check.
+        assert_eq!(held.len(), payloads.len());
     }
 }
