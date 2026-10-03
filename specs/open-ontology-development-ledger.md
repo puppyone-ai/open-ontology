@@ -975,3 +975,5 @@ a13312580/a13158594实际CLIexit0但均缺完整报告/源提交；日志显示�
 a133同UUID恢复实际handle25205 slotA；a131同UUID恢复实际handle9860 slotB，各最多1builder/1PG，原固定输入/写域不变。旧12580/58594已关闭不再观察，下一UUIDa134，goal active。
 
 a13325205实际CLIexit0但无报告/commit，日志第三验证builder仍待收尾；原UUID恢复接续该结果，不重复构建或冒烟。a1319860本次集中检查仍live，未增加验收或功能计数，goal active。
+
+a133同UUID恢复实际handle11924 slotA原任务；a1319860 slotB继续。旧25205关闭不再观察，全球max2builder/各1PG不变，下一UUIDa134，goal active。
