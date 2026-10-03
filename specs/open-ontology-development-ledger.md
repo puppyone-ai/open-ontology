@@ -969,3 +969,5 @@ a133实际Grok4.7xhighhandle12580启动，slotA tail修复max1builder/1PG；a131
 a13192054实际exit0但交付不完整：报告缺失、无固定源提交，日志确认草稿与tests写入但尚未编译。同UUID恢复完成原任务，冻结ccd93及原写域不变，不签子项、不计功能。a13312580本次集中检查仍live。
 
 a131同UUID恢复实际handle58594，slotB max1builder/1PG，仅完成原Arrow交付；旧92054关闭不再观察。a13312580继续slotA，下一UUIDa134，goal active。
+
+a13312580/a13158594实际CLIexit0但均缺完整报告/源提交；日志显示各自后台验证已启动，尚无可签交付。原UUID恢复并先接续自有构建结果，严禁重复builder/PG；原写域和固定输入不变，未新增完成勾选，goal active。
