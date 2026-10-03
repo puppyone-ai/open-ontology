@@ -1,0 +1,8 @@
+docker_run_exit=101
+lib_exit=0
+focused_exit=101
+clippy_exit=0
+bounds_tests=6 passed
+live_panic=insert id 4 duplicate key 23505
+cause=previous live attempt committed the writer row before a later assertion failed
+fixture_reset=admin restores id 3 note and deletes id >= 4 before the reader transaction

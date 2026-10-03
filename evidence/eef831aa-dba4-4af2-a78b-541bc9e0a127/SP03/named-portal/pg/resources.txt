@@ -1,0 +1,11 @@
+pg_container=oo-a127-pg
+pg_log_volume=oo-a127-eef831aa-pglog
+pg_data_volume=oo-a127-eef831aa-pgdata
+network=oo-a127-eef831aa-net
+secret_dir=/tmp/oo-a127-eef831aa-dba4-4af2-a78b-541bc9e0a127/secrets
+image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+alias=oo-a127-pg
+database=oo_a127
+privileged=no
+host_port=none
+log_statement_during_role_create=off

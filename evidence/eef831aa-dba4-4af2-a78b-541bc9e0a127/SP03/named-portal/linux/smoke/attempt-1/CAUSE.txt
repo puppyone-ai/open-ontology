@@ -1,0 +1,8 @@
+attempt=1
+docker_run_exit=101
+lib_exit=101
+clippy_exit=101
+fetch_exit=0
+toolchain_exit=0
+cause=git archive included Cargo.toml Cargo.lock rust-toolchain.toml .cargo and crates only. oo-connectors lib tests include_str contracts/source/pgsql/empty-catalog.json, which was absent. This is an incomplete frozen snapshot, not a product assertion change.
+portal_rs_in_snapshot=no

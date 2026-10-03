@@ -1,0 +1,9 @@
+docker_run_exit=101
+lib_exit=0
+focused_exit=101
+clippy_exit=0
+bounds_tests=6 passed
+live_reached=server_error open
+live_panic=SELECT (1/0)::int4 returned 22012 from open_named_portal, before Execute
+note=same-cut pages had already passed in this run
+assertions_changed=query now binds 0 so the division is not a parse-time constant

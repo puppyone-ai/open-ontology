@@ -1,0 +1,202 @@
+oo_task=named-portal-final
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=cargo_offline
+Linux 3e0e48138a60 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo fetch --locked --offline ===
+phase_exit=0 phase=fetch
+=== cargo test -p oo-connectors --lib ===
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+error[E0106]: missing lifetime specifier
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:78:28
+   |
+78 |     pub fn prefix(self) -> &[u8] {
+   |                            ^ expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but there is no value for it to be borrowed from
+help: consider using the `'static` lifetime, but this is uncommon unless you're returning a borrowed value from a `const` or a `static`
+   |
+78 |     pub fn prefix(self) -> &'static [u8] {
+   |                             +++++++
+help: instead, you are more likely to want to change the argument to be borrowed...
+   |
+78 |     pub fn prefix(&self) -> &[u8] {
+   |                   +
+help: ...or alternatively, you might want to return an owned value
+   |
+78 -     pub fn prefix(self) -> &[u8] {
+78 +     pub fn prefix(self) -> Vec<u8> {
+   |
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:24
+    |
+256 |             return Err(err);
+    |                    --- ^^^ expected `sqlx_core::Error`, found `std::io::Error`
+    |                    |
+    |                    arguments to this enum variant are incorrect
+    |
+    = note: `std::io::Error` and `sqlx_core::Error` have similar names, but are actually distinct types
+note: `std::io::Error` is defined in crate `std`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/io/error.rs:72:0
+note: `sqlx_core::Error` is defined in crate `sqlx_core`
+   --> crates/oo-connectors/vendor/sqlx-core/src/error.rs:93:1
+    |
+ 93 | pub enum Error {
+    | ^^^^^^^^^^^^^^
+help: the type constructed contains `std::io::Error` due to the type of the argument passed
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:20
+    |
+256 |             return Err(err);
+    |                    ^^^^---^
+    |                        |
+    |                        this argument influences the type of `Err`
+note: tuple variant defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:566:4
+help: try wrapping the expression in `sqlx_core::Error::Io`
+    |
+256 |             return Err(sqlx_core::Error::Io(err));
+    |                        +++++++++++++++++++++   +
+
+Some errors have detailed explanations: E0106, E0308.
+For more information about an error, try `rustc --explain E0106`.
+error: could not compile `sqlx-postgres` (lib) due to 2 previous errors
+phase_exit=101 phase=lib
+=== cargo test focused wire and portal ===
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+error[E0106]: missing lifetime specifier
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:78:28
+   |
+78 |     pub fn prefix(self) -> &[u8] {
+   |                            ^ expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but there is no value for it to be borrowed from
+help: consider using the `'static` lifetime, but this is uncommon unless you're returning a borrowed value from a `const` or a `static`
+   |
+78 |     pub fn prefix(self) -> &'static [u8] {
+   |                             +++++++
+help: instead, you are more likely to want to change the argument to be borrowed...
+   |
+78 |     pub fn prefix(&self) -> &[u8] {
+   |                   +
+help: ...or alternatively, you might want to return an owned value
+   |
+78 -     pub fn prefix(self) -> &[u8] {
+78 +     pub fn prefix(self) -> Vec<u8> {
+   |
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:24
+    |
+256 |             return Err(err);
+    |                    --- ^^^ expected `sqlx_core::Error`, found `std::io::Error`
+    |                    |
+    |                    arguments to this enum variant are incorrect
+    |
+    = note: `std::io::Error` and `sqlx_core::Error` have similar names, but are actually distinct types
+note: `std::io::Error` is defined in crate `std`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/io/error.rs:72:0
+note: `sqlx_core::Error` is defined in crate `sqlx_core`
+   --> crates/oo-connectors/vendor/sqlx-core/src/error.rs:93:1
+    |
+ 93 | pub enum Error {
+    | ^^^^^^^^^^^^^^
+help: the type constructed contains `std::io::Error` due to the type of the argument passed
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:20
+    |
+256 |             return Err(err);
+    |                    ^^^^---^
+    |                        |
+    |                        this argument influences the type of `Err`
+note: tuple variant defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:566:4
+help: try wrapping the expression in `sqlx_core::Error::Io`
+    |
+256 |             return Err(sqlx_core::Error::Io(err));
+    |                        +++++++++++++++++++++   +
+
+Some errors have detailed explanations: E0106, E0308.
+For more information about an error, try `rustc --explain E0106`.
+error: could not compile `sqlx-postgres` (lib) due to 2 previous errors
+phase_exit=101 phase=focused
+=== cargo clippy -p oo-connectors --all-targets -- -D warnings ===
+    Checking sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+error[E0106]: missing lifetime specifier
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:78:28
+   |
+78 |     pub fn prefix(self) -> &[u8] {
+   |                            ^ expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but there is no value for it to be borrowed from
+help: consider using the `'static` lifetime, but this is uncommon unless you're returning a borrowed value from a `const` or a `static`
+   |
+78 |     pub fn prefix(self) -> &'static [u8] {
+   |                             +++++++
+help: instead, you are more likely to want to change the argument to be borrowed...
+   |
+78 |     pub fn prefix(&self) -> &[u8] {
+   |                   +
+help: ...or alternatively, you might want to return an owned value
+   |
+78 -     pub fn prefix(self) -> &[u8] {
+78 +     pub fn prefix(self) -> Vec<u8> {
+   |
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:24
+    |
+256 |             return Err(err);
+    |                    --- ^^^ expected `sqlx_core::Error`, found `std::io::Error`
+    |                    |
+    |                    arguments to this enum variant are incorrect
+    |
+    = note: `std::io::Error` and `sqlx_core::Error` have similar names, but are actually distinct types
+note: `std::io::Error` is defined in crate `std`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/io/error.rs:72:0
+note: `sqlx_core::Error` is defined in crate `sqlx_core`
+   --> crates/oo-connectors/vendor/sqlx-core/src/error.rs:93:1
+    |
+ 93 | pub enum Error {
+    | ^^^^^^^^^^^^^^
+help: the type constructed contains `std::io::Error` due to the type of the argument passed
+   --> crates/oo-connectors/vendor/sqlx-postgres/src/connection/portal.rs:256:20
+    |
+256 |             return Err(err);
+    |                    ^^^^---^
+    |                        |
+    |                        this argument influences the type of `Err`
+note: tuple variant defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:566:4
+help: try wrapping the expression in `sqlx_core::Error::Io`
+    |
+256 |             return Err(sqlx_core::Error::Io(err));
+    |                        +++++++++++++++++++++   +
+
+Some errors have detailed explanations: E0106, E0308.
+For more information about an error, try `rustc --explain E0106`.
+error: could not compile `sqlx-postgres` (lib) due to 2 previous errors
+phase_exit=101 phase=clippy
+elapsed_seconds=5

@@ -1,0 +1,9 @@
+docker_run_exit=101
+lib_exit=0
+focused_exit=101
+clippy_exit=0
+live_panic=error portal expect on open
+observed=22012 division by zero during open of SELECT (1 / $1)::int4
+protocol_fact=PostgreSQL 17 custom-plans the parameter at Bind, so the error is before Execute
+finite_peer=still checks Execute-time 22012
+live_test=now accepts the Bind error, requires SQLSTATE 22012, and requires rollback without poison

@@ -1,0 +1,49 @@
+before_own
+oo-a127-msrv-final Exited (0) 7 minutes ago
+oo-a127-pg Up 34 minutes
+oo-a127-msrv-smoke Exited (0) About an hour ago
+before_a128
+eef831aa-dba4-4af2-a78b-541bc9e0a128-rust-verify Exited (0) About a minute ago
+eef831aa-dba4-4af2-a78b-541bc9e0a128-pg Up 20 minutes
+eef831aa-dba4-4af2-a78b-541bc9e0a128-rust-smoke Exited (0) 44 minutes ago
+before_a125
+before_a064
+oo-a064-rust194-contract2 Exited (0) 36 hours ago
+oo-a064-rust194-contract Exited (101) 37 hours ago
+oo-a064-pg1710-jobs Exited (0) 36 hours ago
+oo-a064-rust194-smoke Exited (0) 37 hours ago
+remove_containers
+oo-a127-msrv-final
+oo-a127-msrv-smoke
+oo-a127-pg
+remove_network
+oo-a127-eef831aa-net
+remove_volumes
+oo-a127-eef831aa-cargo
+oo-a127-eef831aa-target
+oo-a127-eef831aa-pglog
+oo-a127-eef831aa-pgdata
+after_own
+after_own_count=0
+after_a128
+eef831aa-dba4-4af2-a78b-541bc9e0a128-rust-verify Exited (0) About a minute ago
+eef831aa-dba4-4af2-a78b-541bc9e0a128-pg Up 20 minutes
+eef831aa-dba4-4af2-a78b-541bc9e0a128-rust-smoke Exited (0) 44 minutes ago
+after_a125
+after_a064
+oo-a064-rust194-contract2 Exited (0) 36 hours ago
+oo-a064-rust194-contract Exited (101) 37 hours ago
+oo-a064-pg1710-jobs Exited (0) 36 hours ago
+oo-a064-rust194-smoke Exited (0) 37 hours ago
+after_volumes
+after_network
+remove_temp
+temp_left
+/tmp/oo-a127-cleanup-capture.txt
+a128_temp_still
+[1m[36m/tmp/oo-a128-eef831aa-dba4-4af2-a78b-541bc9e0a128[39;49m[0m
+/tmp/oo-a128-reinit-3.log
+/tmp/oo-a128-verify-watch.log
+[31m/tmp/oo-a128-verify-watch.sh[39;49m[0m
+capture_file_removed_after_copy
+temp_left_after_copy=none
