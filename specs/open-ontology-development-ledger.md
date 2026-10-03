@@ -897,3 +897,7 @@ a122原handle16255实际exit0但无最终三报告/证据提交；own Docker rev
 a122恢复handle14299实际exit0关闭，8c8e24a0三报告完整读取、hashmanifest43项实际全部OK、exactDockera122为空。REQUEST_CHANGES：no-op reserve参数计为分配，unsplit复制未计量；原两失败断言本身错误不掩盖独立观测。R2-W不勾，metrics9/9/6比9保持。接收a122-wire-review-receipt.md。
 
 a124专用wire计量返工已启动，Grok4.7xhigh实际handle97117，slot B最多1builder无PG，明确vendor计量与Rust测试有限路径，固定8c8e24a0，不改schema业务源码/manifest/lock。a123handle39100继续analysis-only；下一新UUID a125。87父项16phase仍未完整验收，goal active。
+
+a123handle39100实际exit0关闭，ae8f9bb3六文档完整读取/HASHES6项实际全部OK。设计未验收运行；接收a123-current-schema-design-receipt.md并明确rate预扣、savepoint有限生命周期、coherent目录观测、双连接释放修正。R1保持未勾。
+
+a125当前schema guard实现实际Grok4.7xhighhandle36253，slot A最多1builder1PG；先Linux1.94冒烟及savepoint/DDL/同cut前提实测再业务编辑，精确6路径写权，manifest/lock/vendor禁写。a124handle97117保持slot B计量修复，两槽上限不变。产品metrics9/9/6比9保持，下一新UUID a126，goal active。
