@@ -959,3 +959,5 @@ Metrics reconcile unique components: snapshot owner and named portal bring deliv
 a131 Grok4.7xhigh实际handle92054已启动，slotB最多1builder/1PG，固定ccd93生产Arrow流；a129handle72420专用driver修复slotA保持。a13064083已关闭不再观察。下一UUIDa132。一次15分钟等待后统一检查，goal active。
 
 a12972420实际exit0关闭；source79515fcf/treeb78f8449，evidence2b68ab30完整三报告已读，109hash实际校验0，raw Linux55/bounds13/accounting12/portal6/Clippy0，RED shrink101保留。fixed512frame actualOOM8GiB未解决，128frame通过不签有界集成；a132固定复审slotA无PG，检查opt-in上限与真实init_mut语义，不重跑OOM。a13192054一次集中检查仍live，goal active。
+
+a132 Grok4.7xhigh实际handle35826已启动，slotA独立固定driver复审max1builder无PG；a13192054 slotB生产Arrow流保持。a12972420终态不再观察。下一UUIDa133，goal active。
