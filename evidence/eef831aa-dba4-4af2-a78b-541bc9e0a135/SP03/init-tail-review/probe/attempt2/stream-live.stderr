@@ -1,0 +1,31 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.52s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome oracle_before_writer parent=4 child=3 empty=0 zero=2 payload=59
+outcome held_state=active wait_event=ClientRead
+outcome measured executes=13 reserved_rows=13 consumed_rows=9 decoded_payload_bytes=59 oracle_payload=59 arrow_preimage_bytes=132 arrow_assembly_bytes=5528 wire_view_capacity_peak=8192 wire_accepted_logical_payload=12566 wire_assembly_bytes=37 parent_batches=2 child_batches=2 zero_batches=1
+outcome admin_sees_late_parent=1
+outcome finish_released pid=145
+outcome abort_released pid=148
+outcome drop_released pid=150
+
+thread 'bounded_arrow_stream_live' (656) panicked at crates/oo-connectors/tests/pg_stream_live.rs:520:62:
+postgres log: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_live`

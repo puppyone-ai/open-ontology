@@ -1,0 +1,32 @@
+started=2026-10-03T16:29:03Z
+scope=own a135 containers volumes network and /tmp/oo-a135-eef831aa
+prune=no
+foreign=untouched
+--- before ---
+oo-a135-init-tail-measure Exited (0) 4 minutes ago
+oo-a135-init-tail-probe Exited (0) 6 minutes ago
+oo-a135-init-tail-pg Up 15 minutes
+oo-a135-init-tail-smoke Exited (0) 21 minutes ago
+oo-a135-eef831aa-cargo
+oo-a135-eef831aa-pgdata
+oo-a135-eef831aa-pglog
+oo-a135-eef831aa-target
+oo-a135-eef831aa-net
+oo-a135-init-tail-measure
+oo-a135-init-tail-probe
+oo-a135-init-tail-smoke
+oo-a135-init-tail-pg
+oo-a135-eef831aa-cargo
+oo-a135-eef831aa-target
+oo-a135-eef831aa-pglog
+oo-a135-eef831aa-pgdata
+oo-a135-eef831aa-net
+removed /tmp/oo-a135-eef831aa
+removed scratch watch
+--- after ---
+a135_containers=0
+a135_volumes=0
+network=absent
+tmp=absent
+other_running:
+finished=2026-10-03T16:29:04Z

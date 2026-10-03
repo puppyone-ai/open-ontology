@@ -1,0 +1,29 @@
+=== probe console ===
+oo_task=init-tail-review-probe
+=== probe ===
+probe_exit=101
+
+running 9 tests
+test append_matches_init_mut_bytes_and_stays_flat ... ok
+test cap_set_512_dropped_and_retained_plateau ... ok
+test capped_oversize_header_does_not_read_a_body ... ok
+test eof_keeps_the_reserve_and_later_frames_plateau ... ok
+test no_data_cancel_leaves_an_open_reserve_row ... ok
+test parked_cancel_charges_once_then_frames_plateau ... FAILED
+test product_blob_and_bytes_1_12_1 ... ok
+test reset_after_init_mut_does_not_resume_doubling ... ok
+test three_byte_chunks_keep_split_frame_order ... ok
+
+failures:
+
+---- parked_cancel_charges_once_then_frames_plateau stdout ----
+
+thread 'parked_cancel_charges_once_then_frames_plateau' (468) panicked at crates/oo-connectors/tests/a135_tail_probe.rs:151:5:
+cancel dropped the reserve charge
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+=== docker ===
+source=session terminal capture call-e3d214b7-6a27-4f1a-a1d1-55e894c4a975-107.log
+note=excerpt only; the full first console.log was not still on disk

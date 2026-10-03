@@ -1,0 +1,13 @@
+
+running 8 tests
+test append_frames_keep_their_bytes ... ok
+test bytes_workspace_contract_and_product_blob ... ok
+test cancel_after_init_mut_then_frames_plateau ... ok
+test capped_oversize_header_does_not_reserve_the_body ... ok
+test init_mut_eof_then_frames_stay_inside_the_plateau ... ok
+test init_mut_frames_plateau_when_caller_drops_them ... ok
+test init_mut_frames_plateau_when_caller_retains_them ... ok
+test no_data_cancel_keeps_the_reserve_charge ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

@@ -1,0 +1,213 @@
+oo_task=init-tail-review-probe
+=== probe ===
+probe_exit=0
+
+running 9 tests
+test append_matches_init_mut_bytes_and_stays_flat ... ok
+test cap_set_512_dropped_and_retained_plateau ... ok
+test capped_oversize_header_does_not_read_a_body ... ok
+test eof_keeps_the_reserve_and_later_frames_plateau ... ok
+test no_data_cancel_leaves_an_open_reserve_row ... ok
+test parked_cancel_charges_once_then_frames_plateau ... ok
+test product_blob_and_bytes_1_12_1 ... ok
+test reset_after_init_mut_does_not_resume_doubling ... ok
+test three_byte_chunks_keep_split_frame_order ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+warning: unused import: `BufMut`
+  --> crates/oo-connectors/tests/a135_tail_probe.rs:19:29
+   |
+19 | use sqlx_core::bytes::{Buf, BufMut, Bytes, BytesMut};
+   |                             ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (test "a135_tail_probe") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.08s
+     Running tests/a135_tail_probe.rs (/target/debug/deps/a135_tail_probe-56aa49b40acae7a0)
+=== author-tail ===
+author-tail_exit=0
+
+running 8 tests
+test append_frames_keep_their_bytes ... ok
+test bytes_workspace_contract_and_product_blob ... ok
+test cancel_after_init_mut_then_frames_plateau ... ok
+test capped_oversize_header_does_not_reserve_the_body ... ok
+test init_mut_eof_then_frames_stay_inside_the_plateau ... ok
+test init_mut_frames_plateau_when_caller_drops_them ... ok
+test init_mut_frames_plateau_when_caller_retains_them ... ok
+test no_data_cancel_keeps_the_reserve_charge ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.16s
+     Running tests/pg_wire_tls_tail.rs (/target/debug/deps/pg_wire_tls_tail-713dded117dbd77e)
+=== tls ===
+tls_exit=101
+
+running 1 test
+test tls_verify_full_moderate_rows ... FAILED
+
+failures:
+
+---- tls_verify_full_moderate_rows stdout ----
+
+thread 'tls_verify_full_moderate_rows' (458) panicked at crates/oo-connectors/tests/a135_tail_probe.rs:338:5:
+assertion `left == right` failed
+  left: "aa227293fe2ff66f49ad425a04fa28a003a61e44b1bbe49183620e6db744560a"
+ right: "ec867603e6dd3cbddf278bc24c3b97d2ef1ddfe82509661190acec0804352d89"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tls_verify_full_moderate_rows
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.28s
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+warning: unused import: `BufMut`
+  --> crates/oo-connectors/tests/a135_tail_probe.rs:19:29
+   |
+19 | use sqlx_core::bytes::{Buf, BufMut, Bytes, BytesMut};
+   |                             ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (test "a135_tail_probe") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/a135_tail_probe.rs (/target/debug/deps/a135_tail_probe-56aa49b40acae7a0)
+error: test failed, to rerun pass `-p oo-connectors --test a135_tail_probe`
+=== stream-live ===
+stream-live_exit=101
+
+running 1 test
+test bounded_arrow_stream_live ... FAILED
+
+failures:
+
+failures:
+    bounded_arrow_stream_live
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.52s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome oracle_before_writer parent=4 child=3 empty=0 zero=2 payload=59
+outcome held_state=active wait_event=ClientRead
+outcome measured executes=13 reserved_rows=13 consumed_rows=9 decoded_payload_bytes=59 oracle_payload=59 arrow_preimage_bytes=132 arrow_assembly_bytes=5528 wire_view_capacity_peak=8192 wire_accepted_logical_payload=12566 wire_assembly_bytes=37 parent_batches=2 child_batches=2 zero_batches=1
+outcome admin_sees_late_parent=1
+outcome finish_released pid=145
+outcome abort_released pid=148
+outcome drop_released pid=150
+
+thread 'bounded_arrow_stream_live' (656) panicked at crates/oo-connectors/tests/pg_stream_live.rs:520:62:
+postgres log: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_live`
+=== stream-bounds ===
+stream-bounds_exit=101
+
+running 1 test
+test bounded_arrow_stream_bounds ... FAILED
+
+failures:
+
+failures:
+    bounded_arrow_stream_bounds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.61s
+     Running tests/pg_stream_bounds.rs (/target/debug/deps/pg_stream_bounds-422ab3014c583d44)
+outcome catalog_max_rows=128 reason=keyword_catalog_returns_about_78_rows_so_open_cannot_use_8
+outcome refuse_released table=bounds_wide pid=154
+outcome refuse_value fact=max_value display=source error: budget fact=max_value
+outcome refuse_released table=bounds_row pid=156
+outcome refuse_row fact=max_row display=source error: budget fact=max_row
+
+thread 'bounded_arrow_stream_bounds' (843) panicked at crates/oo-connectors/tests/pg_stream_bounds.rs:191:80:
+log: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_bounds`
+worst_phase_exit=101
+elapsed_seconds=10

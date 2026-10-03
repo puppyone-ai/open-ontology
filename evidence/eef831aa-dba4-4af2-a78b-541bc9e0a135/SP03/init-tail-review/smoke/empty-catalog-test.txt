@@ -1,0 +1,1 @@
+empty_catalog_fixture=ok
