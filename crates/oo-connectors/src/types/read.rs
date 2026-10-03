@@ -260,6 +260,12 @@ impl PgSession {
             if pending.is_empty() {
                 break;
             }
+            let wanted = u32::try_from(pending.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+            let admitted = self.admit_rows(session::Admit::Exact {
+                wanted,
+                natural: true,
+            })?;
+            self.arm_rows(admitted.limit);
             let rows = session::fetch_all(self, sqlx::query(sql::TYPE_FACTS).bind(&pending)).await?;
             if rows.len() != pending.len() {
                 return Err(SourceError::catalog("type_facts_missing"));
@@ -285,8 +291,18 @@ impl PgSession {
             .map(|facts| facts.oid)
             .collect();
         if !enum_oids.is_empty() {
-            let rows =
-                session::fetch_all(self, sqlx::query(sql::ENUM_LABELS).bind(&enum_oids)).await?;
+            let admitted = self.admit_rows(session::Admit::Ceiling {
+                wanted: session::ENUM_LABEL_SENTINEL,
+                natural_when_full: false,
+            })?;
+            let limit = session::limit_arg(admitted.limit);
+            let rows = self
+                .fetch_limited(
+                    admitted,
+                    sqlx::query(sql::ENUM_LABELS_BOUNDED).bind(&enum_oids).bind(limit),
+                    "catalog_truncated",
+                )
+                .await?;
             let mut grouped: Vec<(i64, Vec<String>)> = Vec::new();
             for row in &rows {
                 let oid = session::cell_i64(row, 0)?;
@@ -335,26 +351,31 @@ async fn fetch_limit(
     sql: &str,
     limit: i64,
 ) -> Result<Vec<sqlx::postgres::PgRow>, SourceError> {
-    let budget = session.budget.statement_timeout();
+    if limit <= 0 {
+        return Err(SourceError::budget("max_rows"));
+    }
+    let wanted_full = u32::try_from(limit).unwrap_or(u32::MAX);
+    let wanted = wanted_full.min(session::MAX_ROWS_PER_SEC);
+    let ambiguous = wanted_full > session::MAX_ROWS_PER_SEC;
+    let admitted = session::admit_limit(
+        &session.source_id,
+        session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        },
+    )?;
+    let shrunk = admitted.limit < wanted;
     // `sql` is the fixed template plus identifiers already checked by
     // `valid_quoted_ident`. The limit is a bound parameter, not text.
-    let query = sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql.to_string())).bind(limit);
-    let result = tokio::time::timeout(budget, query.fetch_all(&mut session.conn)).await;
-    match result {
-        Ok(Ok(rows)) => {
-            let max = usize::try_from(session.budget.max_rows()).unwrap_or(usize::MAX);
-            if rows.len() > max {
-                Err(SourceError::budget("max_rows"))
-            } else {
-                Ok(rows)
-            }
-        }
-        Ok(Err(err)) => Err(crate::error::map_sqlx(err)),
-        Err(_) => {
-            session.poisoned = true;
-            Err(SourceError::budget("statement_timeout"))
-        }
+    session.arm_rows(admitted.limit);
+    let query = sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql.to_string()))
+        .bind(i64::from(admitted.limit));
+    let rows = session::fetch_all(session, query).await?;
+    let filled = rows.len() == usize::try_from(admitted.limit).unwrap_or(usize::MAX);
+    if (ambiguous || shrunk) && filled {
+        return Err(SourceError::budget("max_rows"));
     }
+    Ok(rows)
 }
 
 fn charge_bytes(used: &mut u64, max: u64, extra: u64) -> Result<(), SourceError> {

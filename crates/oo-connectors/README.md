@@ -12,6 +12,8 @@ The frozen method and field contract is [contracts/source/pgsql/README.md](../..
 
 `inspect_access` returns an `AccessReport`. `registration_allowed` is false when block reasons are present. `catalog` returns the selected tables, or a `SourceError` when the server version is untested, a selected table is missing, or an essential catalog fact is unreadable. A write-capable source can still produce a catalog snapshot. The next import step has to read `registration_allowed` itself.
 
+Each catalog, access, and typed read reserves that statement's row bound before the round trip and puts the same bound in a static `LIMIT`. The reservation settles to the rows actually returned, in the same one-second window. Unused allowance is released only in that window. A failed or timed-out read keeps the reservation. An exact natural bound, such as the selected-table count, the 1600-column ceiling, or a primary key of at most 32 columns, may come back full. A result that fills a non-natural limit is `catalog_truncated`. Keyword admission reserves the embedded reserved-word count plus one. `max_rows` still rejects a result larger than the configured budget. `max_rows_per_sec` remains 50000 for the source, and the connection cap remains 4 across 64 tracked sources.
+
 Capabilities `scan`, `bounded_read`, `cdc`, `type_conversion`, and `registry_api` are unsupported. `source_ddl` and `source_write` are forbidden. This crate does not create publications, replication slots, signaling tables, heartbeats, or other source objects, and it does not write source data. The DBA checklist is text.
 
 ## TLS and versions

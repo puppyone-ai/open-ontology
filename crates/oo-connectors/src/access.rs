@@ -77,6 +77,11 @@ impl PgSession {
             bypass_rls: session::cell_bool(&role_row, 7)?,
         };
 
+        let admitted = self.admit_rows(session::Admit::Exact {
+            wanted: session::ASSUMABLE_LIMIT,
+            natural: false,
+        })?;
+        self.arm_rows(admitted.limit);
         let assumable_rows = session::fetch_all(self, sqlx::query(sql::ASSUMABLE)).await?;
         let mut assumable = Vec::<String>::new();
         for row in &assumable_rows {
@@ -90,7 +95,20 @@ impl PgSession {
             push_block(&mut blocks, "essential_fact_unknown", "membership_depth");
         }
 
-        let member_rows = session::fetch_all(self, sqlx::query(sql::DIRECT_MEMBERS)).await?;
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted: session::DIRECT_MEMBER_SENTINEL,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        self.arm_rows(admitted.limit);
+        let member_rows = session::fetch_all(
+            self,
+            sqlx::query(sql::DIRECT_MEMBERS).bind(limit),
+        )
+        .await?;
+        if session::filled_sentinel(&admitted, member_rows.len()) {
+            push_block(&mut blocks, "essential_fact_unknown", "membership_width");
+        }
         let mut memberships = Vec::new();
         for row in &member_rows {
             memberships.push(RoleMembership {
@@ -101,8 +119,16 @@ impl PgSession {
             });
         }
 
-        let attr_rows =
-            session::fetch_all(self, sqlx::query(sql::ROLE_ATTRS).bind(assumable.clone())).await?;
+        let role_limit = i64::try_from(assumable.len()).unwrap_or(i64::MAX);
+        let admitted = session::admit_cardinality(&self.source_id, role_limit)?;
+        let limit = session::limit_arg(admitted.limit);
+        let attr_rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::ROLE_ATTRS).bind(assumable.clone()).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut any_replication = false;
         let mut privileged = false;
         for row in &attr_rows {
@@ -157,8 +183,16 @@ impl PgSession {
         let mut rls = Vec::new();
         if !tables.is_empty() {
             let oids: Vec<i64> = tables.iter().map(|table| table.oid).collect();
-            let counts =
-                session::fetch_all(self, sqlx::query(sql::POLICY_COUNTS).bind(&oids)).await?;
+            let natural = i64::try_from(oids.len()).unwrap_or(i64::MAX);
+            let admitted = session::admit_cardinality(&self.source_id, natural)?;
+            let limit = session::limit_arg(admitted.limit);
+            let counts = self
+                .fetch_limited(
+                    admitted,
+                    sqlx::query(sql::POLICY_COUNTS).bind(&oids).bind(limit),
+                    "policy_count",
+                )
+                .await?;
             let mut count_by_oid = BTreeMap::new();
             for row in &counts {
                 let count = session::cell_i64(row, 1)?;
@@ -298,7 +332,16 @@ impl PgSession {
             ])
             .map(str::to_string)
             .collect();
-        let rows = session::fetch_all(self, sqlx::query(sql::PREFLIGHT).bind(&names)).await?;
+        let natural = i64::try_from(names.len()).unwrap_or(i64::MAX);
+        let admitted = session::admit_cardinality(&self.source_id, natural)?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::PREFLIGHT).bind(&names).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut out = BTreeMap::new();
         for row in &rows {
             out.insert(
@@ -325,8 +368,19 @@ impl PgSession {
         if schemas.is_empty() {
             return Ok((Vec::new(), false));
         }
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::TABLES).bind(&schemas).bind(&names)).await?;
+        let wanted = u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+        let admitted = self.admit_rows(session::Admit::Exact {
+            wanted,
+            natural: true,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::TABLES).bind(&schemas).bind(&names).bind(limit),
+                "selected_table_missing",
+            )
+            .await?;
         let mut tables = Vec::new();
         let mut missing = false;
         for row in &rows {
@@ -389,15 +443,34 @@ impl PgSession {
             scan.unknown = true;
             return Ok(scan);
         }
-        self.collect_database_create(assumable, current_user, used, &mut scan)
+        self.collect_database_create(assumable, current_user, used, &mut scan, roles)
             .await?;
-        self.collect_schema_create(assumable, current_user, used, &mut scan)
+        self.collect_schema_create(
+            assumable,
+            current_user,
+            used,
+            &mut scan,
+            row_product(schemas, roles),
+        )
+        .await?;
+        self.collect_global_tables(
+            assumable,
+            current_user,
+            used,
+            &mut scan,
+            row_product(tables, roles),
+        )
+        .await?;
+        self.collect_global_columns(
+            assumable,
+            current_user,
+            used,
+            &mut scan,
+            row_product(tables, roles),
+        )
+        .await?;
+        self.collect_definers(assumable, used, &mut scan, definers)
             .await?;
-        self.collect_global_tables(assumable, current_user, used, &mut scan)
-            .await?;
-        self.collect_global_columns(assumable, current_user, used, &mut scan)
-            .await?;
-        self.collect_definers(assumable, used, &mut scan).await?;
         Ok(scan)
     }
 
@@ -407,9 +480,14 @@ impl PgSession {
         current_user: &str,
         used: &mut u64,
         scan: &mut PrivilegeScan,
+        natural_max: i64,
     ) -> Result<(), SourceError> {
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::DATABASE_CREATE).bind(assumable)).await?;
+        let Some(rows) = self
+            .fetch_scan(sql::DATABASE_CREATE, assumable, natural_max, scan)
+            .await?
+        else {
+            return Ok(());
+        };
         for row in &rows {
             let role = session::cell_string(row, 0)?;
             match session::cell_opt_bool(row, 1)? {
@@ -444,9 +522,14 @@ impl PgSession {
         current_user: &str,
         used: &mut u64,
         scan: &mut PrivilegeScan,
+        natural_max: i64,
     ) -> Result<(), SourceError> {
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::SCHEMA_CREATE).bind(assumable)).await?;
+        let Some(rows) = self
+            .fetch_scan(sql::SCHEMA_CREATE, assumable, natural_max, scan)
+            .await?
+        else {
+            return Ok(());
+        };
         for row in &rows {
             let role = session::cell_string(row, 0)?;
             let schema = session::cell_string(row, 1)?;
@@ -482,9 +565,14 @@ impl PgSession {
         current_user: &str,
         used: &mut u64,
         scan: &mut PrivilegeScan,
+        natural_max: i64,
     ) -> Result<(), SourceError> {
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::GLOBAL_TABLE_WRITE).bind(assumable)).await?;
+        let Some(rows) = self
+            .fetch_scan(sql::GLOBAL_TABLE_WRITE, assumable, natural_max, scan)
+            .await?
+        else {
+            return Ok(());
+        };
         for row in &rows {
             let role = session::cell_string(row, 0)?;
             let schema = session::cell_string(row, 1)?;
@@ -544,9 +632,14 @@ impl PgSession {
         current_user: &str,
         used: &mut u64,
         scan: &mut PrivilegeScan,
+        natural_max: i64,
     ) -> Result<(), SourceError> {
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::GLOBAL_COLUMN_WRITE).bind(assumable)).await?;
+        let Some(rows) = self
+            .fetch_scan(sql::GLOBAL_COLUMN_WRITE, assumable, natural_max, scan)
+            .await?
+        else {
+            return Ok(());
+        };
         for row in &rows {
             let role = session::cell_string(row, 0)?;
             let schema = session::cell_string(row, 1)?;
@@ -588,9 +681,14 @@ impl PgSession {
         assumable: &[String],
         used: &mut u64,
         scan: &mut PrivilegeScan,
+        natural_max: i64,
     ) -> Result<(), SourceError> {
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::DEFINER_REACH).bind(assumable)).await?;
+        let Some(rows) = self
+            .fetch_scan(sql::DEFINER_REACH, assumable, natural_max, scan)
+            .await?
+        else {
+            return Ok(());
+        };
         for row in &rows {
             let schema = session::cell_string(row, 0)?;
             let name = session::cell_string(row, 1)?;
@@ -642,7 +740,18 @@ impl PgSession {
         if visible.get("pg_publication") != Some(&Some(true)) {
             return Ok(Fact::unknown("privilege"));
         }
-        let rows = session::fetch_all(self, sqlx::query(sql::PUBLICATIONS)).await?;
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted: session::CATALOG_LIST_SENTINEL,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::PUBLICATIONS).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut names = Vec::new();
         for row in &rows {
             names.push(session::cell_string(row, 0)?);
@@ -662,7 +771,18 @@ impl PgSession {
         if tables.is_empty() {
             return Ok(false);
         }
-        let rows = session::fetch_all(self, sqlx::query(sql::PUBLICATION_TABLES)).await?;
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted: session::CATALOG_LIST_SENTINEL,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::PUBLICATION_TABLES).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut covered = BTreeMap::<(String, String), bool>::new();
         for row in &rows {
             covered.insert(
@@ -687,7 +807,18 @@ impl PgSession {
                 "privilege_limited"
             }));
         }
-        let rows = session::fetch_all(self, sqlx::query(sql::SLOTS)).await?;
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted: session::CATALOG_LIST_SENTINEL,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::SLOTS).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut names = Vec::new();
         for row in &rows {
             names.push(session::cell_string(row, 0)?);
@@ -724,6 +855,35 @@ struct PrivilegeScan {
     unknown: bool,
     truncated: bool,
     inaccessible_role: bool,
+}
+
+fn row_product(left: i64, right: i64) -> i64 {
+    if left <= 0 || right <= 0 {
+        return 0;
+    }
+    left.saturating_mul(right)
+}
+
+impl PgSession {
+    /// `None` means the non-natural cap filled. Findings from that read are omitted.
+    async fn fetch_scan(
+        &mut self,
+        sql: &'static str,
+        assumable: &[String],
+        natural_max: i64,
+        scan: &mut PrivilegeScan,
+    ) -> Result<Option<Vec<sqlx::postgres::PgRow>>, SourceError> {
+        let admitted = session::admit_cardinality(&self.source_id, natural_max)?;
+        let limit = session::limit_arg(admitted.limit);
+        self.arm_rows(admitted.limit);
+        let rows = session::fetch_all(self, sqlx::query(sql).bind(assumable).bind(limit)).await?;
+        if session::filled_sentinel(&admitted, rows.len()) {
+            scan.truncated = true;
+            scan.unknown = true;
+            return Ok(None);
+        }
+        Ok(Some(rows))
+    }
 }
 
 fn count_exceeds(count: i64, max: i64) -> bool {

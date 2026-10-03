@@ -7,11 +7,11 @@ pub(crate) const SESSION_GUARDS: &str = "\
 SELECT pg_catalog.set_config('statement_timeout', $1, false), \
 pg_catalog.set_config('lock_timeout', $2, false), \
 pg_catalog.set_config('idle_in_transaction_session_timeout', $1, false), \
-pg_catalog.set_config('default_transaction_read_only', 'on', false)";
+pg_catalog.set_config('default_transaction_read_only', 'on', false) LIMIT 1";
 
 pub(crate) const VERSION: &str = "\
 SELECT pg_catalog.current_setting('server_version_num')::int8, \
-pg_catalog.current_setting('server_version')";
+pg_catalog.current_setting('server_version') LIMIT 1";
 
 /// Session identity and TLS, read before the guard `set_config` calls.
 /// `$1` is the allow-list of parameter names this driver sends.
@@ -29,24 +29,25 @@ WHERE s.source IN ('client', 'session', 'startup', 'user', 'database', 'database
 AND s.name <> ALL($1::text[]) \
 UNION SELECT 'role'::text WHERE pg_catalog.current_setting('role') IS DISTINCT FROM 'none' \
 ) AS extra), ''), \
-pg_catalog.current_database()::text";
+pg_catalog.current_database()::text LIMIT 1";
 
 pub(crate) const SCAN_COUNTS: &str = "\
 SELECT (SELECT count(*)::int8 FROM pg_catalog.pg_namespace n WHERE n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%'), \
 (SELECT count(*)::int8 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%' AND c.relkind IN ('r', 'p', 'v', 'f')), \
 (SELECT count(*)::int8 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%'), \
 (SELECT count(*)::int8 FROM pg_catalog.pg_operator o JOIN pg_catalog.pg_proc p ON p.oid = o.oprcode JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%'), \
-(SELECT count(*)::int8 FROM pg_catalog.pg_cast ca JOIN pg_catalog.pg_proc p ON p.oid = ca.castfunc JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%')";
+(SELECT count(*)::int8 FROM pg_catalog.pg_cast ca JOIN pg_catalog.pg_proc p ON p.oid = ca.castfunc JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%') LIMIT 1";
 
 pub(crate) const ROLE_VISIBLE: &str = "\
 SELECT count(*)::int8 FROM unnest($1::text[]) AS wanted(rolname) \
-JOIN pg_catalog.pg_roles r ON r.rolname = wanted.rolname";
+JOIN pg_catalog.pg_roles r ON r.rolname = wanted.rolname LIMIT 1";
 
 pub(crate) const DATABASE_CREATE: &str = "\
 SELECT r.rolname::text, pg_catalog.has_database_privilege(r.rolname, pg_catalog.current_database(), 'CREATE') \
 FROM unnest($1::text[]) AS wanted(rolname) \
 JOIN pg_catalog.pg_roles r ON r.rolname = wanted.rolname \
-WHERE pg_catalog.has_database_privilege(r.rolname, pg_catalog.current_database(), 'CREATE') IS DISTINCT FROM FALSE";
+WHERE pg_catalog.has_database_privilege(r.rolname, pg_catalog.current_database(), 'CREATE') IS DISTINCT FROM FALSE \
+LIMIT $2::int8";
 
 pub(crate) const SCHEMA_CREATE: &str = "\
 SELECT r.rolname::text, n.nspname::text, pg_catalog.has_schema_privilege(r.rolname, n.oid, 'CREATE') \
@@ -54,7 +55,8 @@ FROM unnest($1::text[]) AS wanted(rolname) \
 JOIN pg_catalog.pg_roles r ON r.rolname = wanted.rolname \
 JOIN pg_catalog.pg_namespace n ON true \
 WHERE n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%' \
-AND pg_catalog.has_schema_privilege(r.rolname, n.oid, 'CREATE') IS DISTINCT FROM FALSE";
+AND pg_catalog.has_schema_privilege(r.rolname, n.oid, 'CREATE') IS DISTINCT FROM FALSE \
+LIMIT $2::int8";
 
 pub(crate) const GLOBAL_TABLE_WRITE: &str = "\
 SELECT r.rolname::text, n.nspname::text, c.relname::text, c.oid::int8, (r.oid = c.relowner), \
@@ -72,7 +74,8 @@ JOIN pg_catalog.pg_class c ON true \
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
 WHERE n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%' \
 AND c.relkind IN ('r', 'p', 'v', 'f') \
-AND ((r.oid = c.relowner) OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'INSERT') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'UPDATE') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'TRUNCATE') IS DISTINCT FROM FALSE)";
+AND ((r.oid = c.relowner) OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'INSERT') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'UPDATE') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE') IS DISTINCT FROM FALSE OR pg_catalog.has_table_privilege(r.rolname, c.oid, 'TRUNCATE') IS DISTINCT FROM FALSE) \
+LIMIT $2::int8";
 
 pub(crate) const GLOBAL_COLUMN_WRITE: &str = "\
 SELECT r.rolname::text, n.nspname::text, c.relname::text, \
@@ -88,7 +91,8 @@ JOIN pg_catalog.pg_attribute att ON att.attrelid = c.oid AND att.attnum > 0 AND 
 WHERE n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%' \
 AND c.relkind IN ('r', 'p', 'v', 'f') \
 GROUP BY r.rolname, n.nspname, c.relname \
-HAVING bool_or(pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'INSERT') IS NULL OR pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'UPDATE') IS NULL) OR bool_or(pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'INSERT') IS TRUE OR pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'UPDATE') IS TRUE)";
+HAVING bool_or(pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'INSERT') IS NULL OR pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'UPDATE') IS NULL) OR bool_or(pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'INSERT') IS TRUE OR pg_catalog.has_column_privilege(r.rolname, att.attrelid, att.attnum, 'UPDATE') IS TRUE) \
+LIMIT $2::int8";
 
 pub(crate) const DEFINER_REACH: &str = "\
 SELECT n.nspname::text, p.proname::text, pg_catalog.pg_get_userbyid(p.proowner)::text, \
@@ -96,7 +100,8 @@ SELECT n.nspname::text, p.proname::text, pg_catalog.pg_get_userbyid(p.proowner):
 (EXISTS (SELECT 1 FROM unnest($1::text[]) AS wanted(rolname) WHERE pg_catalog.has_schema_privilege(wanted.rolname, n.oid, 'USAGE') IS NULL OR pg_catalog.has_function_privilege(wanted.rolname, p.oid, 'EXECUTE') IS NULL) OR pg_catalog.has_schema_privilege('public', n.oid, 'USAGE') IS NULL OR pg_catalog.has_function_privilege('public', p.oid, 'EXECUTE') IS NULL OR EXISTS (SELECT 1 FROM pg_catalog.pg_operator o JOIN pg_catalog.pg_namespace ons ON ons.oid = o.oprnamespace WHERE o.oprcode = p.oid AND (EXISTS (SELECT 1 FROM unnest($1::text[]) AS wanted(rolname) WHERE pg_catalog.has_schema_privilege(wanted.rolname, ons.oid, 'USAGE') IS NULL OR pg_catalog.has_function_privilege(wanted.rolname, p.oid, 'EXECUTE') IS NULL) OR pg_catalog.has_schema_privilege('public', ons.oid, 'USAGE') IS NULL OR pg_catalog.has_function_privilege('public', p.oid, 'EXECUTE') IS NULL)) OR EXISTS (SELECT 1 FROM pg_catalog.pg_cast ca JOIN pg_catalog.pg_type src ON src.oid = ca.castsource JOIN pg_catalog.pg_type dst ON dst.oid = ca.casttarget JOIN pg_catalog.pg_namespace sn ON sn.oid = src.typnamespace JOIN pg_catalog.pg_namespace dn ON dn.oid = dst.typnamespace WHERE ca.castfunc = p.oid AND (EXISTS (SELECT 1 FROM unnest($1::text[]) AS wanted(rolname) WHERE pg_catalog.has_function_privilege(wanted.rolname, p.oid, 'EXECUTE') IS NULL OR pg_catalog.has_schema_privilege(wanted.rolname, sn.oid, 'USAGE') IS NULL OR pg_catalog.has_schema_privilege(wanted.rolname, dn.oid, 'USAGE') IS NULL) OR pg_catalog.has_function_privilege('public', p.oid, 'EXECUTE') IS NULL OR pg_catalog.has_schema_privilege('public', sn.oid, 'USAGE') IS NULL OR pg_catalog.has_schema_privilege('public', dn.oid, 'USAGE') IS NULL))) \
 FROM pg_catalog.pg_proc p \
 JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
-WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%'";
+WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_schema' AND n.nspname <> 'pg_toast' AND n.nspname NOT LIKE 'pg_temp_%' AND n.nspname NOT LIKE 'pg_toast_temp_%' \
+LIMIT $2::int8";
 
 pub(crate) const BEGIN: &str = "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY";
 
@@ -139,12 +144,12 @@ pub(crate) const FACTS: &str = "\
 SELECT CURRENT_USER::text, SESSION_USER::text, \
 pg_catalog.current_database()::text, pg_catalog.pg_is_in_recovery(), \
 pg_catalog.current_setting('wal_level'), \
-pg_catalog.current_setting('max_slot_wal_keep_size')";
+pg_catalog.current_setting('max_slot_wal_keep_size') LIMIT 1";
 
 pub(crate) const ROLE: &str = "\
 SELECT rolname::text, rolsuper, rolinherit, rolcreaterole, rolcreatedb, \
 rolcanlogin, rolreplication, rolbypassrls \
-FROM pg_catalog.pg_roles WHERE rolname = CURRENT_USER";
+FROM pg_catalog.pg_roles WHERE rolname = CURRENT_USER LIMIT 1";
 
 pub(crate) const ASSUMABLE: &str = "\
 WITH RECURSIVE assumable AS ( \
@@ -159,7 +164,8 @@ WHERE a.depth < 16 AND (m.set_option OR m.admin_option) \
 AND NOT (parent.oid = ANY (a.path)) \
 ) \
 SELECT roleid::int8, rolname, max(depth)::int8 FROM assumable \
-GROUP BY roleid, rolname ORDER BY rolname";
+GROUP BY roleid, rolname ORDER BY rolname \
+LIMIT 65";
 
 pub(crate) const MEMBERSHIP_TRUNCATED: &str = "\
 WITH RECURSIVE assumable AS ( \
@@ -177,26 +183,26 @@ SELECT EXISTS ( \
 SELECT 1 FROM assumable a \
 JOIN pg_catalog.pg_auth_members m ON m.member = a.roleid \
 WHERE a.depth >= 16 AND (m.set_option OR m.admin_option) \
-)";
+) LIMIT 1";
 
 pub(crate) const DIRECT_MEMBERS: &str = "\
 SELECT parent.rolname::text, m.inherit_option, m.set_option, m.admin_option \
 FROM pg_catalog.pg_auth_members m \
 JOIN pg_catalog.pg_roles parent ON parent.oid = m.roleid \
 JOIN pg_catalog.pg_roles mem ON mem.oid = m.member \
-WHERE mem.rolname = CURRENT_USER ORDER BY 1";
+WHERE mem.rolname = CURRENT_USER ORDER BY 1 LIMIT $1::int8";
 
 pub(crate) const ROLE_ATTRS: &str = "\
 SELECT rolname::text, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb, \
 rolreplication, rolinherit FROM pg_catalog.pg_roles \
-WHERE rolname = ANY($1::text[]) ORDER BY 1";
+WHERE rolname = ANY($1::text[]) ORDER BY 1 LIMIT $2::int8";
 
 pub(crate) const PREFLIGHT: &str = "\
 SELECT c.relname::text, \
 pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'SELECT') \
 FROM pg_catalog.pg_class c \
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
-WHERE n.nspname = 'pg_catalog' AND c.relname = ANY($1::text[])";
+WHERE n.nspname = 'pg_catalog' AND c.relname = ANY($1::text[]) LIMIT $2::int8";
 
 pub(crate) const TABLES: &str = "\
 SELECT w.ord::int8, w.schema_name, w.table_name, n.oid::int8, c.oid::int8, \
@@ -213,7 +219,7 @@ pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'TRUNCATE') \
 FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS w(schema_name, table_name, ord) \
 LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = w.schema_name \
 LEFT JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid AND c.relname = w.table_name \
-AND c.relkind IN ('r', 'p') ORDER BY w.ord";
+AND c.relkind IN ('r', 'p') ORDER BY w.ord LIMIT $3::int8";
 
 pub(crate) const ACL: &str = "\
 SELECT c.oid::int8, priv.privilege_type, \
@@ -222,10 +228,10 @@ priv.is_grantable \
 FROM unnest($1::int8[]) AS ids(oid) \
 JOIN pg_catalog.pg_class c ON c.oid = ids.oid \
 CROSS JOIN LATERAL pg_catalog.aclexplode(COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))) AS priv \
-ORDER BY 1, 3, 2";
+ORDER BY 1, 3, 2 LIMIT $2::int8";
 
 pub(crate) const PUBLICATIONS: &str =
-    "SELECT pubname::text FROM pg_catalog.pg_publication ORDER BY 1";
+    "SELECT pubname::text FROM pg_catalog.pg_publication ORDER BY 1 LIMIT $1::int8";
 
 pub(crate) const PUBLICATION_TABLES: &str = "\
 SELECT p.pubname::text, n.nspname::text, c.relname::text \
@@ -233,14 +239,14 @@ FROM pg_catalog.pg_publication_rel pr \
 JOIN pg_catalog.pg_publication p ON p.oid = pr.prpubid \
 JOIN pg_catalog.pg_class c ON c.oid = pr.prrelid \
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
-ORDER BY 1, 2, 3";
+ORDER BY 1, 2, 3 LIMIT $1::int8";
 
 pub(crate) const SLOTS: &str = "\
 SELECT slot_name::text, slot_type::text, database::text \
-FROM pg_catalog.pg_replication_slots ORDER BY 1";
+FROM pg_catalog.pg_replication_slots ORDER BY 1 LIMIT $1::int8";
 
 pub(crate) const KEYWORDS: &str = "\
-SELECT word::text FROM pg_catalog.pg_get_keywords() WHERE catcode = 'R' ORDER BY 1";
+SELECT word::text FROM pg_catalog.pg_get_keywords() WHERE catcode = 'R' ORDER BY 1 LIMIT $1::int8";
 
 pub(crate) const COLUMNS: &str = "\
 SELECT c.oid::int8, a.attnum::int4, a.attname::text, a.atttypid::int8, a.atttypmod, \
@@ -258,7 +264,7 @@ JOIN pg_catalog.pg_type t ON t.oid = a.atttypid \
 JOIN pg_catalog.pg_namespace tn ON tn.oid = t.typnamespace \
 LEFT JOIN pg_catalog.pg_collation coll ON coll.oid = a.attcollation AND a.attcollation <> 0 \
 LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum \
-ORDER BY c.oid, a.attnum";
+ORDER BY c.oid, a.attnum LIMIT $2::int8";
 
 pub(crate) const PRIMARY_KEYS: &str = "\
 SELECT c.oid::int8, ic.relname::text, i.indisunique, i.indnullsnotdistinct, \
@@ -269,7 +275,7 @@ JOIN pg_catalog.pg_index i ON i.indrelid = c.oid AND i.indisprimary \
 JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid \
 JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS u(attnum, ord) ON true \
 LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = u.attnum \
-ORDER BY c.oid, u.ord";
+ORDER BY c.oid, u.ord LIMIT $2::int8";
 
 pub(crate) const UNIQUE_KEYS: &str = "\
 SELECT c.oid::int8, ic.relname::text, i.indnullsnotdistinct, \
@@ -280,7 +286,7 @@ JOIN pg_catalog.pg_index i ON i.indrelid = c.oid AND i.indisunique AND NOT i.ind
 JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid \
 JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS u(attnum, ord) ON true \
 LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = u.attnum \
-ORDER BY c.oid, ic.relname, u.ord";
+ORDER BY c.oid, ic.relname, u.ord LIMIT $2::int8";
 
 pub(crate) const FOREIGN_KEYS: &str = "\
 SELECT src.oid::int8, con.conname::text, fn.nspname::text, fc.relname::text, \
@@ -293,14 +299,14 @@ JOIN pg_catalog.pg_namespace fn ON fn.oid = fc.relnamespace \
 JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS u(src_att, dst_att, ord) ON true \
 JOIN pg_catalog.pg_attribute sa ON sa.attrelid = src.oid AND sa.attnum = u.src_att \
 JOIN pg_catalog.pg_attribute da ON da.attrelid = fc.oid AND da.attnum = u.dst_att \
-ORDER BY src.oid, con.conname, u.ord";
+ORDER BY src.oid, con.conname, u.ord LIMIT $2::int8";
 
 pub(crate) const POLICY_COUNTS: &str = "\
 SELECT c.oid::int8, count(pol.oid)::int8 \
 FROM unnest($1::int8[]) AS ids(oid) \
 JOIN pg_catalog.pg_class c ON c.oid = ids.oid \
 LEFT JOIN pg_catalog.pg_policy pol ON pol.polrelid = c.oid \
-GROUP BY c.oid";
+GROUP BY c.oid LIMIT $2::int8";
 
 pub(crate) const POLICIES: &str = "\
 SELECT c.oid::int8, pol.polname::text, pol.polcmd::text, pol.polpermissive, \
@@ -309,20 +315,28 @@ pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) \
 FROM unnest($1::int8[]) AS ids(oid) \
 JOIN pg_catalog.pg_class c ON c.oid = ids.oid \
 JOIN pg_catalog.pg_policy pol ON pol.polrelid = c.oid \
-ORDER BY c.oid, pol.polname";
+ORDER BY c.oid, pol.polname LIMIT $2::int8";
 
 pub(crate) const ENUM_LABELS: &str = "\
 SELECT e.enumtypid::int8, e.enumlabel::text \
 FROM pg_catalog.pg_enum e WHERE e.enumtypid = ANY($1::int8[]) \
 ORDER BY e.enumtypid, e.enumsortorder";
 
+/// Catalog and typed reads. The shared `ENUM_LABELS` statement stays unbounded
+/// for the snapshot owner, which cannot pass another parameter.
+pub(crate) const ENUM_LABELS_BOUNDED: &str = "\
+SELECT e.enumtypid::int8, e.enumlabel::text \
+FROM pg_catalog.pg_enum e WHERE e.enumtypid = ANY($1::int8[]) \
+ORDER BY e.enumtypid, e.enumsortorder \
+LIMIT $2::int8";
+
 pub(crate) const DOMAIN_CHECKS: &str = "\
 SELECT con.contypid::int8, pg_catalog.pg_get_constraintdef(con.oid) \
 FROM pg_catalog.pg_constraint con \
 WHERE con.contype = 'c' AND con.contypid = ANY($1::int8[]) \
-ORDER BY con.contypid, con.oid";
+ORDER BY con.contypid, con.oid LIMIT $2::int8";
 
-pub(crate) const QUOTE_IDENT: &str = "SELECT pg_catalog.quote_ident($1)";
+pub(crate) const QUOTE_IDENT: &str = "SELECT pg_catalog.quote_ident($1) LIMIT 1";
 
 pub(crate) const TYPE_FACTS: &str = "\
 SELECT t.oid::int8, t.typname::text, n.nspname::text, t.typtype::text, t.typlen::int4, \
@@ -333,23 +347,23 @@ JOIN pg_catalog.pg_type t ON t.oid = ids.oid \
 JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace \
 LEFT JOIN pg_catalog.pg_proc p ON p.oid = t.typsend \
 LEFT JOIN pg_catalog.pg_namespace pn ON pn.oid = p.pronamespace \
-ORDER BY t.oid";
+ORDER BY t.oid LIMIT (SELECT cardinality($1::int8[]))";
 
 pub(crate) const CAPTURED_AT: &str = "\
 SELECT pg_catalog.to_char(pg_catalog.transaction_timestamp() AT TIME ZONE 'UTC', \
-'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')";
+'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') LIMIT 1";
 
 /// Backend key for this session. `backend_start` is text so the cut is not a float.
 /// The row is this backend, so `state` is active while the statement runs.
 pub(crate) const SNAPSHOT_BACKEND: &str = "\
 SELECT a.pid::int8, a.backend_start::text, a.xact_start IS NOT NULL \
 FROM pg_catalog.pg_stat_activity a \
-WHERE a.pid = pg_catalog.pg_backend_pid()";
+WHERE a.pid = pg_catalog.pg_backend_pid() LIMIT 1";
 
 /// Read-node and principal facts read inside the snapshot transaction.
 pub(crate) const SNAPSHOT_NODE: &str = "\
 SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::text, \
-pg_catalog.current_database()::text, SESSION_USER::text, CURRENT_USER::text";
+pg_catalog.current_database()::text, SESSION_USER::text, CURRENT_USER::text LIMIT 1";
 
 /// Relation identity and table privileges for one selected name. Names are bound.
 pub(crate) const SNAPSHOT_RELATION: &str = "\
@@ -361,7 +375,7 @@ pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'DELETE'), \
 pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'TRUNCATE') \
 FROM pg_catalog.pg_class c \
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
-WHERE n.nspname = $1 AND c.relname = $2";
+WHERE n.nspname = $1 AND c.relname = $2 LIMIT 2";
 
 /// Attribute identity for one selected table. Names are bound.
 pub(crate) const SNAPSHOT_ATTRIBUTES: &str = "\
@@ -371,7 +385,7 @@ FROM pg_catalog.pg_class c \
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
 JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped \
 WHERE n.nspname = $1 AND c.relname = $2 \
-ORDER BY a.attnum";
+ORDER BY a.attnum LIMIT 1600";
 
 #[cfg(test)]
 const ALL: &[&str] = &[
@@ -412,6 +426,7 @@ const ALL: &[&str] = &[
     POLICY_COUNTS,
     POLICIES,
     ENUM_LABELS,
+    ENUM_LABELS_BOUNDED,
     DOMAIN_CHECKS,
     QUOTE_IDENT,
     TYPE_FACTS,

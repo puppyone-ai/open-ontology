@@ -18,9 +18,26 @@ use crate::model::{
 use crate::sql;
 
 const MAX_CONNECTIONS: u8 = 4;
-const MAX_ROWS_PER_SEC: u32 = 50_000;
+pub(crate) const MAX_ROWS_PER_SEC: u32 = 50_000;
 const ROW_WINDOW: Duration = Duration::from_secs(1);
 const MAX_TRACKED_SOURCES: usize = 64;
+/// PostgreSQL `MaxHeapAttributeNumber`.
+pub(crate) const MAX_HEAP_ATTRIBUTES: u32 = 1_600;
+/// PostgreSQL `INDEX_MAX_KEYS`.
+pub(crate) const INDEX_MAX_KEYS: u32 = 32;
+/// Unarmed `fetch_all` (snapshot relation reads) reserves the attribute ceiling.
+pub(crate) const UNARMED_FETCH_LIMIT: u32 = MAX_HEAP_ATTRIBUTES;
+/// Sentinel index count for unique and foreign-key rows. Not a server maximum.
+pub(crate) const KEY_INDEX_SENTINEL: u32 = 64;
+pub(crate) const KEY_ROW_SENTINEL: u32 = KEY_INDEX_SENTINEL * INDEX_MAX_KEYS;
+pub(crate) const POLICY_SENTINEL: u32 = 128;
+pub(crate) const ACL_SENTINEL: u32 = 256;
+pub(crate) const ENUM_LABEL_SENTINEL: u32 = 4_096;
+pub(crate) const DOMAIN_CHECK_SENTINEL: u32 = 32;
+/// One past the membership width that still registers as incomplete.
+pub(crate) const ASSUMABLE_LIMIT: u32 = 65;
+pub(crate) const DIRECT_MEMBER_SENTINEL: u32 = 256;
+pub(crate) const CATALOG_LIST_SENTINEL: u32 = 1_024;
 
 struct SourceEntry {
     in_use: u8,
@@ -94,6 +111,10 @@ pub(crate) fn try_charge_rows(source_id: &str, rows: u32) -> Result<(), SourceEr
     if rows == 0 {
         return Ok(());
     }
+    debit_rows(source_id, rows).map(|_| ())
+}
+
+fn debit_rows(source_id: &str, rows: u32) -> Result<Instant, SourceError> {
     let mut entries = LEDGER.lock().map_err(|_| SourceError::budget("max_rows_per_sec"))?;
     let now = Instant::now();
     prepare(&mut entries, now);
@@ -109,7 +130,186 @@ pub(crate) fn try_charge_rows(source_id: &str, rows: u32) -> Result<(), SourceEr
         return Err(SourceError::budget("max_rows_per_sec"));
     }
     entry.rows_left -= rows;
-    Ok(())
+    Ok(entry.window_started)
+}
+
+/// Debit held until `settle`. Dropping the hold keeps the full debit.
+pub(crate) struct RowHold {
+    source_id: String,
+    reserved: u32,
+    window_started: Instant,
+}
+
+impl RowHold {
+    /// Release `reserved - observed` only while this window is still the active one.
+    pub(crate) fn settle(self, observed: usize) {
+        let observed = u32::try_from(observed).unwrap_or(self.reserved);
+        if observed >= self.reserved {
+            return;
+        }
+        settle_rows(&self.source_id, self.reserved - observed, self.window_started);
+    }
+}
+
+pub(crate) fn try_reserve_rows(source_id: &str, rows: u32) -> Result<RowHold, SourceError> {
+    if rows == 0 || rows > MAX_ROWS_PER_SEC {
+        return Err(SourceError::budget("max_rows_per_sec"));
+    }
+    let window_started = debit_rows(source_id, rows)?;
+    Ok(RowHold {
+        source_id: source_id.to_string(),
+        reserved: rows,
+        window_started,
+    })
+}
+
+/// Refund unused allowance only into the same open window. An expired, refilled,
+/// evicted, or poisoned entry keeps the debit. A later window is not credited.
+fn settle_rows(source_id: &str, refund: u32, window_started: Instant) {
+    if refund == 0 {
+        return;
+    }
+    let Ok(mut entries) = LEDGER.lock() else {
+        return;
+    };
+    let Some(entry) = entries.get_mut(source_id) else {
+        return;
+    };
+    if entry.window_started != window_started {
+        return;
+    }
+    if Instant::now().duration_since(entry.window_started) >= ROW_WINDOW {
+        return;
+    }
+    let room = MAX_ROWS_PER_SEC.saturating_sub(entry.rows_left);
+    entry.rows_left = entry.rows_left.saturating_add(refund.min(room));
+}
+
+/// Row bound chosen before SQL is sent.
+#[derive(Clone, Copy)]
+pub(crate) struct AdmittedLimit {
+    pub limit: u32,
+    pub natural: bool,
+}
+
+pub(crate) enum Admit {
+    /// Reserve `wanted` in full or refuse before SQL.
+    Exact { wanted: u32, natural: bool },
+    /// Reserve `min(wanted, window, available)`. Natural only when `wanted` itself is reserved.
+    Ceiling { wanted: u32, natural_when_full: bool },
+}
+
+pub(crate) fn admit_limit(source_id: &str, admit: Admit) -> Result<AdmittedLimit, SourceError> {
+    let available = rows_available(source_id)?;
+    match admit {
+        Admit::Exact { wanted, natural } => {
+            if wanted == 0 || wanted > MAX_ROWS_PER_SEC || available < wanted {
+                return Err(SourceError::budget("max_rows_per_sec"));
+            }
+            Ok(AdmittedLimit {
+                limit: wanted,
+                natural,
+            })
+        }
+        Admit::Ceiling {
+            wanted,
+            natural_when_full,
+        } => {
+            let capped = wanted.min(MAX_ROWS_PER_SEC);
+            if capped == 0 || available == 0 {
+                return Err(SourceError::budget("max_rows_per_sec"));
+            }
+            let limit = capped.min(available);
+            Ok(AdmittedLimit {
+                limit,
+                natural: natural_when_full && limit == wanted,
+            })
+        }
+    }
+}
+
+fn rows_available(source_id: &str) -> Result<u32, SourceError> {
+    let mut entries = LEDGER.lock().map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+    let now = Instant::now();
+    prepare(&mut entries, now);
+    if let Some(entry) = entries.get(source_id) {
+        Ok(entry.rows_left)
+    } else if entries.len() >= MAX_TRACKED_SOURCES {
+        Err(SourceError::budget("max_connections"))
+    } else {
+        Ok(MAX_ROWS_PER_SEC)
+    }
+}
+
+/// `count * per` when that product fits in `u32`. The bool is true when the
+/// product also fits in one rate window, so equality can be a complete result.
+pub(crate) fn scale_rows(count: usize, per: u32) -> (u32, bool) {
+    let Some(count) = u32::try_from(count).ok() else {
+        return (u32::MAX, false);
+    };
+    match count.checked_mul(per) {
+        Some(0) => (1, true),
+        Some(product) if product <= MAX_ROWS_PER_SEC => (product, true),
+        Some(product) => (product, false),
+        None => (u32::MAX, false),
+    }
+}
+
+/// Natural cardinality of a count or a scan product. Zero reserves one row.
+/// A product that does not fit the window reserves the window and is not natural.
+pub(crate) fn admit_cardinality(source_id: &str, natural_max: i64) -> Result<AdmittedLimit, SourceError> {
+    if natural_max < 0 {
+        return Err(SourceError::budget("max_rows_per_sec"));
+    }
+    if natural_max == 0 {
+        return admit_limit(source_id, Admit::Exact { wanted: 1, natural: true });
+    }
+    match u32::try_from(natural_max) {
+        Ok(wanted) if wanted <= MAX_ROWS_PER_SEC => {
+            admit_limit(source_id, Admit::Exact { wanted, natural: true })
+        }
+        _ => admit_limit(
+            source_id,
+            Admit::Ceiling {
+                wanted: MAX_ROWS_PER_SEC,
+                natural_when_full: false,
+            },
+        ),
+    }
+}
+
+pub(crate) fn limit_arg(limit: u32) -> i64 {
+    i64::from(limit)
+}
+
+/// Embedded reserved keywords plus one, so a longer server list cannot look complete.
+pub(crate) fn reserved_keyword_limit() -> u32 {
+    u32::try_from(crate::ident::PG17_RESERVED.len())
+        .unwrap_or(u32::MAX)
+        .saturating_add(1)
+}
+
+pub(crate) fn filled_sentinel(admitted: &AdmittedLimit, len: usize) -> bool {
+    let limit = usize::try_from(admitted.limit).unwrap_or(usize::MAX);
+    len > limit || (!admitted.natural && len == limit)
+}
+
+pub(crate) fn reject_if_truncated(
+    len: usize,
+    admitted: &AdmittedLimit,
+    fact: &'static str,
+) -> Result<(), SourceError> {
+    if filled_sentinel(admitted, len) {
+        Err(SourceError::catalog(fact))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+fn raw_rows_left(source_id: &str) -> Option<u32> {
+    let entries = LEDGER.lock().ok()?;
+    entries.get(source_id).map(|entry| entry.rows_left)
 }
 
 fn release_slot(source_id: &str) {
@@ -680,17 +880,22 @@ pub(crate) async fn fetch_all(
     session: &mut PgSession,
     query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
 ) -> Result<Vec<sqlx::postgres::PgRow>, SourceError> {
-    let bound = session
-        .row_bound
-        .take()
-        .unwrap_or_else(|| session.budget.max_rows().min(MAX_ROWS_PER_SEC));
-    try_charge_rows(&session.source_id, bound)?;
+    let bound = session.row_bound.take().unwrap_or(UNARMED_FETCH_LIMIT);
+    if bound == 0 || bound > MAX_ROWS_PER_SEC {
+        return Err(SourceError::budget("max_rows_per_sec"));
+    }
+    let hold = try_reserve_rows(&session.source_id, bound)?;
     let budget = session.budget.statement_timeout();
     let result = tokio::time::timeout(budget, query.fetch_all(&mut session.conn)).await;
     match result {
         Ok(Ok(rows)) => {
-            within_rows(rows.len(), bound)?;
-            within_rows(rows.len(), session.budget.max_rows())?;
+            let observed = rows.len();
+            if observed > usize::try_from(bound).unwrap_or(usize::MAX) {
+                drop(hold);
+                return Err(SourceError::budget("max_rows"));
+            }
+            hold.settle(observed);
+            within_rows(observed, session.budget.max_rows())?;
             Ok(rows)
         }
         Ok(Err(err)) => Err(map_sqlx(err)),
@@ -855,5 +1060,63 @@ mod tests {
         assert_eq!(blocked.fact(), Some("max_connections"));
         let kept = super::try_charge_rows("a125_rows", 1).unwrap_err();
         assert_eq!(kept.fact(), Some("max_rows_per_sec"));
+    }
+
+    #[test]
+    fn reservation_settles_the_unused_allowance() {
+        let _lock = super::lock_ledger();
+        super::try_reserve_rows("a128_settle", 100).unwrap().settle(25);
+        assert_eq!(super::raw_rows_left("a128_settle"), Some(49_975));
+        let over = match super::try_reserve_rows("a128_settle", 49_976) {
+            Err(err) => err,
+            Ok(hold) => {
+                drop(hold);
+                panic!("reserve above the remaining allowance succeeded");
+            }
+        };
+        assert_eq!(over.fact(), Some("max_rows_per_sec"));
+        super::try_reserve_rows("a128_settle", 49_975).unwrap().settle(49_975);
+        assert_eq!(super::raw_rows_left("a128_settle"), Some(0));
+        for index in 0..63 {
+            let permit = super::try_reserve(&format!("a128_pad_{index}"), 1).unwrap();
+            drop(permit);
+        }
+        let kept = match super::try_reserve_rows("a128_settle", 1) {
+            Err(err) => err,
+            Ok(hold) => {
+                drop(hold);
+                panic!("eviction reset an exhausted debit");
+            }
+        };
+        assert_eq!(kept.fact(), Some("max_rows_per_sec"));
+    }
+
+    #[test]
+    fn reservation_abandon_keeps_the_debit() {
+        let _lock = super::lock_ledger();
+        let hold = super::try_reserve_rows("a128_abandon", 80).unwrap();
+        drop(hold);
+        assert_eq!(super::raw_rows_left("a128_abandon"), Some(49_920));
+        let over = match super::try_reserve_rows("a128_abandon", 49_921) {
+            Err(err) => err,
+            Ok(extra) => {
+                drop(extra);
+                panic!("reserve above the abandoned debit succeeded");
+            }
+        };
+        assert_eq!(over.fact(), Some("max_rows_per_sec"));
+        super::try_reserve_rows("a128_abandon", 49_920).unwrap().settle(0);
+        assert_eq!(super::raw_rows_left("a128_abandon"), Some(49_920));
+    }
+
+    #[test]
+    fn reservation_does_not_refund_after_the_window() {
+        let _lock = super::lock_ledger();
+        let hold = super::try_reserve_rows("a128_roll", 100).unwrap();
+        super::age_ledger_window("a128_roll", std::time::Duration::from_secs(2));
+        hold.settle(10);
+        assert_eq!(super::raw_rows_left("a128_roll"), Some(49_900));
+        assert_eq!(super::ASSUMABLE_LIMIT, 65);
+        assert!(crate::sql::ASSUMABLE.contains("LIMIT 65"));
     }
 }

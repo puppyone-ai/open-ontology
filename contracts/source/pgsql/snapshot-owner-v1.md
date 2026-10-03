@@ -2,7 +2,7 @@
 
 R1 only. R2, R3, and R4 are unsigned. This is not the bounded reader. `scan`, `bounded_read`, `cdc`, `type_conversion` on the catalog protocol, and `registry_api` stay unsupported. Catalog `type_support.converted` stays false.
 
-The owner reuses `map_column`, `guard_plans`, `decode_payload`, and `assemble_batch` from `oo.source.pgsql.types/v1`. `decode_payload` and `guard_plans` are re-exported crate-visible from `types/mod.rs` so the owner can call them. That re-export does not change mapping or decode semantics. `collect_catalog` and `collect_access` are unchanged.
+The owner reuses `map_column`, `guard_plans`, `decode_payload`, and `assemble_batch` from `oo.source.pgsql.types/v1`. `decode_payload` and `guard_plans` are re-exported crate-visible from `types/mod.rs` so the owner can call them. That re-export does not change mapping or decode semantics. `collect_catalog` and `collect_access` keep their result shape. Their reads admit a row bound before SQL.
 
 ## What the caller passes
 
@@ -21,6 +21,8 @@ After that, the generation is reserved for the process. A later open of the same
 Connect uses the existing `PgConnector` path: `verify-full`, caller CA only, `application_name=oo-pg-source`, no startup options, tested version `17.10`, and `session_user = current_user`. `session_user_mismatch`, `startup_options`, TLS failure, and an untested version stop the open. The owner then checks the connected principal and database against the request.
 
 The owner calls `BEGIN` once: `START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`. A second `begin` on that session returns `nested_transaction`. `PgSession::catalog` and `PgSession::read_typed` are not used to create this transaction. `collect_catalog` runs inside it.
+
+Catalog and access statements reserve their own row bound before the round trip and bind that same bound as a static `LIMIT`. Settlement returns unused allowance in the same one-second window. A failed or timed-out read keeps the reservation. A refund does not cross into a later window. An exact natural bound may be full. A result that fills a non-natural limit is `catalog_truncated`. Keyword admission reserves the embedded reserved-word count plus one.
 
 Inside the transaction the owner reads `pg_is_in_recovery()`, `pg_postmaster_start_time()::text`, `current_database()`, `session_user`, and `current_user`. A recovery or postmaster mismatch is `read_node`. It then checks each selected relation: ordinary table (`relkind = r`), RLS off, `SELECT` granted, and `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE` all false. `NULL` is `privilege_unknown`. A true write privilege is `write_capable`. Missing `SELECT` is `select_not_granted`. The attribute set must match the admitted shape or the open returns `catalog_identity`. The attribute set and primary key are compared with the admitted shape inside this transaction. A mismatch is `catalog_identity`. A drift between that captured shape and a later current-catalog observation is `schema_drift`. The current observation is a second session in `READ COMMITTED READ ONLY`. It is not a second read of `pg_attribute` inside this repeatable-read transaction. The data connection remains the one repeatable-read read-only transaction. The second session is reserved against the source cap of 4 before either socket is opened.
 

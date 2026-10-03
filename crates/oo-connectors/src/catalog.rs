@@ -146,8 +146,33 @@ impl PgSession {
         })
     }
 
+    pub(crate) fn admit_rows(&self, admit: session::Admit) -> Result<session::AdmittedLimit, SourceError> {
+        session::admit_limit(&self.source_id, admit)
+    }
+
+    pub(crate) async fn fetch_limited(
+        &mut self,
+        admitted: session::AdmittedLimit,
+        query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
+        fact: &'static str,
+    ) -> Result<Vec<sqlx::postgres::PgRow>, SourceError> {
+        self.arm_rows(admitted.limit);
+        let rows = session::fetch_all(self, query).await?;
+        session::reject_if_truncated(rows.len(), &admitted, fact)?;
+        Ok(rows)
+    }
+
     async fn keyword_rows(&mut self) -> Result<Vec<String>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::KEYWORDS)).await?;
+        let admitted = self.admit_rows(session::Admit::Exact {
+            wanted: session::reserved_keyword_limit(),
+            natural: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        self.arm_rows(admitted.limit);
+        let rows = session::fetch_all(self, sqlx::query(sql::KEYWORDS).bind(limit)).await?;
+        if rows.len() >= usize::try_from(admitted.limit).unwrap_or(usize::MAX) {
+            return Err(SourceError::identifier("keyword_list"));
+        }
         let mut words = Vec::new();
         for row in &rows {
             words.push(session::cell_string(row, 0)?);
@@ -180,8 +205,19 @@ impl PgSession {
         if schemas.is_empty() {
             return Ok(Vec::new());
         }
-        let rows =
-            session::fetch_all(self, sqlx::query(sql::TABLES).bind(&schemas).bind(&names)).await?;
+        let wanted = u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+        let admitted = self.admit_rows(session::Admit::Exact {
+            wanted,
+            natural: true,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::TABLES).bind(&schemas).bind(&names).bind(limit),
+                "selected_table_missing",
+            )
+            .await?;
         let mut seeds = Vec::new();
         for row in &rows {
             let Some(oid) = session::cell_opt_i64(row, 4)? else {
@@ -230,7 +266,19 @@ impl PgSession {
         used: &mut u64,
         max_bytes: u64,
     ) -> Result<BTreeMap<i64, Vec<SourceColumn>>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::COLUMNS).bind(oids)).await?;
+        let (wanted, fits) = session::scale_rows(oids.len(), session::MAX_HEAP_ATTRIBUTES);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: fits,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::COLUMNS).bind(oids).bind(limit),
+                "column_list",
+            )
+            .await?;
         let mut type_ids = Vec::new();
         for row in &rows {
             type_ids.push(session::cell_i64(row, 3)?);
@@ -313,7 +361,18 @@ impl PgSession {
         if type_ids.is_empty() {
             return Ok(BTreeMap::new());
         }
-        let rows = session::fetch_all(self, sqlx::query(sql::ENUM_LABELS).bind(type_ids)).await?;
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted: session::ENUM_LABEL_SENTINEL,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::ENUM_LABELS_BOUNDED).bind(type_ids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut out: BTreeMap<i64, Vec<String>> = BTreeMap::new();
         for row in &rows {
             out.entry(session::cell_i64(row, 0)?)
@@ -332,7 +391,19 @@ impl PgSession {
         if type_ids.is_empty() {
             return Ok(BTreeMap::new());
         }
-        let rows = session::fetch_all(self, sqlx::query(sql::DOMAIN_CHECKS).bind(type_ids)).await?;
+        let (wanted, _) = session::scale_rows(type_ids.len(), session::DOMAIN_CHECK_SENTINEL);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::DOMAIN_CHECKS).bind(type_ids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut out: BTreeMap<i64, Vec<UntrustedEvidence>> = BTreeMap::new();
         for row in &rows {
             let text = session::cell_string(row, 1)?;
@@ -348,7 +419,19 @@ impl PgSession {
         &mut self,
         oids: &[i64],
     ) -> Result<BTreeMap<i64, (Vec<KeyColumn>, bool)>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::PRIMARY_KEYS).bind(oids)).await?;
+        let (wanted, fits) = session::scale_rows(oids.len(), session::INDEX_MAX_KEYS);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: fits,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::PRIMARY_KEYS).bind(oids).bind(limit),
+                "primary_key",
+            )
+            .await?;
         let mut out: BTreeMap<i64, (Vec<KeyColumn>, bool)> = BTreeMap::new();
         for row in &rows {
             let attnum = row.cell_opt_i32_required(4)?;
@@ -368,7 +451,19 @@ impl PgSession {
         &mut self,
         oids: &[i64],
     ) -> Result<BTreeMap<i64, Vec<UniqueKey>>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::UNIQUE_KEYS).bind(oids)).await?;
+        let (wanted, _) = session::scale_rows(oids.len(), session::KEY_ROW_SENTINEL);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::UNIQUE_KEYS).bind(oids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut grouped: BTreeMap<(i64, String), UniqueKey> = BTreeMap::new();
         for row in &rows {
             let table = session::cell_i64(row, 0)?;
@@ -400,7 +495,19 @@ impl PgSession {
         used: &mut u64,
         max_bytes: u64,
     ) -> Result<BTreeMap<i64, Vec<ForeignKey>>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::FOREIGN_KEYS).bind(oids)).await?;
+        let (wanted, _) = session::scale_rows(oids.len(), session::KEY_ROW_SENTINEL);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::FOREIGN_KEYS).bind(oids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut grouped: BTreeMap<(i64, String), ForeignKey> = BTreeMap::new();
         for row in &rows {
             let table = session::cell_i64(row, 0)?;
@@ -436,7 +543,19 @@ impl PgSession {
         used: &mut u64,
         max_bytes: u64,
     ) -> Result<BTreeMap<i64, Vec<PolicyRecord>>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::POLICIES).bind(oids)).await?;
+        let (wanted, _) = session::scale_rows(oids.len(), session::POLICY_SENTINEL);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::POLICIES).bind(oids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut out: BTreeMap<i64, Vec<PolicyRecord>> = BTreeMap::new();
         for row in &rows {
             let using_expr = match session::cell_opt_string(row, 4)? {
@@ -472,7 +591,19 @@ impl PgSession {
         used: &mut u64,
         max_bytes: u64,
     ) -> Result<BTreeMap<i64, Vec<PrivilegeGrant>>, SourceError> {
-        let rows = session::fetch_all(self, sqlx::query(sql::ACL).bind(oids)).await?;
+        let (wanted, _) = session::scale_rows(oids.len(), session::ACL_SENTINEL);
+        let admitted = self.admit_rows(session::Admit::Ceiling {
+            wanted,
+            natural_when_full: false,
+        })?;
+        let limit = session::limit_arg(admitted.limit);
+        let rows = self
+            .fetch_limited(
+                admitted,
+                sqlx::query(sql::ACL).bind(oids).bind(limit),
+                "catalog_truncated",
+            )
+            .await?;
         let mut out: BTreeMap<i64, Vec<PrivilegeGrant>> = BTreeMap::new();
         for row in &rows {
             let grantee = session::cell_string(row, 2)?;
