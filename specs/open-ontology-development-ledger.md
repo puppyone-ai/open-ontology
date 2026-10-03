@@ -120,6 +120,7 @@
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+  - [x] R2-S 生产Arrow pull流限定子项：dd5bf441经a137批准，同cut/背压/预算/currentACL已验；完整R2/reader/R3/R4另验。
   - [x] R1-P current-schema/same-cut snapshot owner 原语：固定ccd93经a130限定批准；完整R1/reader驱动集成仍开放。
   - [x] R2-C catalog SQL边界与速率预留结算：a130限定批准，不计为新增产品组件。
   - [x] R2-P 正数Execute命名portal原语：a130限定批准；实际Arrow流与完整取消/键计划另验。
@@ -993,3 +994,5 @@ a136实际Grok4.7xhighhandle3907 slotB currentACL修正max1builder1PG；slotA空
 a1363907实际exit0交付dd5bf441/evidence173e6eb0，三报告完整读取；原始Linuxlib57/acl/live/bounds/Clippy/docker0核对，ownDocker为空。无完整作者hashmanifest，不宣称整体hash验完；snapshot green后仅doccomment差异待复审核对。a137固定Arrow+currentACL复审slotB启动，未签R2-S、指标13/13/9比13不变，goal active。
 
 a137实际Grok4.7xhighhandle48682 slotB固定Arrow/currentACL复审max1builder1PG；旧a1363907关闭不再观察。下一UUIDa138，单次25分钟等待保持，goal active。
+
+a13748682实际exit0，067b5441完整三报告/raw Linux57与Clippy/original三tests/independentinheritedgrant0核对，ownDocker为空；无完整manifest不声称hash验完。接收a137-arrow-review-receipt，仅勾R2-S。产品13交付/14验收子项/返工9比13，goal active。
