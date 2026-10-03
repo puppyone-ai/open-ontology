@@ -1,0 +1,48 @@
+# PostgreSQL run cancel and unpublished-run failure
+
+This is the active-pull cancel and the failure close on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` and `bounded_reader` stay unchanged. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`.
+
+## Caller
+
+`SnapshotOwner::run_cancel` returns a `RunCancel` that shares the owner's flag. `RunCancel::request` only sets that flag. It does not roll back, close, or prove the backend has exited.
+
+`SnapshotOwner::cancel` sets the flag, stops the pull, then rolls back and closes both sessions. `RunCancelled` is returned only when neither session skipped `ROLLBACK` and the pull did not end `cleanup_unconfirmed`. `RunCancelled` is not `SnapshotFinished`. The generation stays consumed. Its output is incomplete. The loader discards it.
+
+`finish` after the flag is set releases both sessions and returns `protocol` fact `cancelled`. It does not return `SnapshotFinished`.
+
+`abort` is unchanged: it releases and returns `SnapshotAborted` when cleanup succeeds, including when the owner was already poisoned.
+
+Dropping the `next_batch` future puts the drive back. The in-flight portal open or Execute keeps running. That drop is not backend exit. `cancel`, `finish`, `abort`, or `Drop` of the owner is what stops it.
+
+`Drop` of the owner sets the flag and schedules stop, rollback, and close on the current Tokio runtime. `Drop` does not return `SnapshotFinished`. There is no third connection and no `pg_terminate_backend` on the reader path.
+
+## In-flight portal
+
+The data session opens the named scan portal (Parse and Bind) and then writes Execute. A lock wait can sit in that Parse before any Execute. The guard session runs one statement:
+
+```sql
+SELECT pg_catalog.pg_cancel_backend(a.pid)
+FROM pg_catalog.pg_stat_activity a
+WHERE a.pid = $1::int4 AND a.backend_start::text = $2
+LIMIT 1
+```
+
+The parameters are the data backend pid and `backend_start::text` captured at open. No row means that backend is already gone. A reused pid is not cancelled. The pull polls that same portal open or Execute first. A 50ms sleep rechecks the flag, the client deadline, and the statement timeout. That future is not dropped when one of those fires.
+
+The guard then runs the cancel statement. The pull keeps polling that same future until it returns, or until `CLEANUP_OBSERVATION_BOUND_MS` (5000) passes. `SQLSTATE 57014` is classified by the reason that was set: the flag is `protocol` fact `cancelled`, the client deadline is `budget` fact `deadline`, and the statement timeout is `budget` fact `statement_timeout`. Any other driver error keeps its existing mapping.
+
+If the drain exceeds 5000ms, or the guard cancel fails (including `SQLSTATE 25006` from the read-only guard transaction), the data connection is marked to skip `ROLLBACK`, the fact is `protocol` `cleanup_unconfirmed`, and the socket is closed. The owner does not open another session to finish the cancel.
+
+A dropped client timeout on catalog `fetch_all` / `fetch_one` is unchanged. It still does not cancel the backend. Only the scan portal open and Execute path above does.
+
+## Unpublished run
+
+`SnapshotFinished` is the only successful close. A cut that lost its source, hit a deadline, was cancelled, or failed a statement does not finish and does not reconnect under the same generation. Later chunks are not appended to that output.
+
+A new `SnapshotOwner` generation after a committed writer mutation reads that new cut completely. It does not mix rows from the old generation. The old output stays incomplete.
+
+`SNAPSHOT_DEADLINE_DEFAULT` is 300 seconds. The caller passes the `Instant`. This owner does not start that clock and does not raise the `PgBudget` statement or lock cap. Those stay at most 120 seconds. A fixture may pass a shorter deadline. A deadline longer than the statement cap does not extend the server `statement_timeout`.
+
+## Release observation
+
+After `cancel`, `finish`, `abort`, or `Drop` returns, an admin poll of `pg_stat_activity` for that `(pid, backend_start::text)` should find no row within `CLEANUP_OBSERVATION_BOUND_MS`. The row must not remain `active` or `idle in transaction`. The product connection cannot observe its own idle state. A confirmation query on that backend would be `active`.

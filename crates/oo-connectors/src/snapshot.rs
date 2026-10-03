@@ -11,11 +11,14 @@
 //! owner and transaction (`oo.source.pgsql.stream/v1`). `plan_keys`, `open_chunk`,
 //! and `read_keys` plan and read typed half-open ranges on that same transaction.
 //! That pull is not a second snapshot and not the whole reader. Resume cursors
-//! and cancel stay unimplemented. Dropping a client timeout is not backend cancellation.
+//! stay unimplemented. `cancel` asks the guard session to cancel the data backend
+//! and then rolls back both sessions. Dropping `next_batch` restores the drive
+//! and does not by itself end the backend.
 
 use std::collections::BTreeSet;
 use std::fmt;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use sha2::{Digest, Sha256};
@@ -36,9 +39,11 @@ use crate::types::{
 /// Snapshot owner protocol. This is not `oo.source.pgsql/v1` and not the whole reader.
 pub const SNAPSHOT_PROTOCOL: &str = "oo.source.pgsql.snapshot/v1";
 
-/// How long a caller may poll `pg_stat_activity` after finish, abort, drop, or failure.
+/// How long a caller may poll `pg_stat_activity` after finish, abort, cancel, drop, or failure.
 /// Absence of the `(pid, backend_start)` row is the release observation.
-/// This is not an in-flight statement-cancel proof.
+/// The same bound is how long an in-flight Execute may take to leave the backend
+/// after the guard runs `pg_cancel_backend`. Past that bound the pull is
+/// `cleanup_unconfirmed` and the socket is closed without a confirmed `ROLLBACK`.
 pub const CLEANUP_OBSERVATION_BOUND_MS: u64 = 5_000;
 
 pub(crate) const OID_BOOL: i64 = 16;
@@ -227,6 +232,35 @@ pub struct SnapshotAborted {
     pub backend: BackendKey,
 }
 
+/// Caller handle for the active pull. [`RunCancel::request`] only sets the flag.
+/// It does not roll back and it does not prove the backend has exited.
+#[derive(Clone, Debug)]
+pub struct RunCancel {
+    flag: Arc<AtomicBool>,
+}
+
+impl RunCancel {
+    /// Ask the in-flight Execute to stop. The owner still has to be cancelled,
+    /// finished, aborted, or dropped before the backends are released.
+    pub fn request(&self) {
+        self.flag.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Returned after `cancel` when both sessions rolled back or closed and the
+/// pull did not end `cleanup_unconfirmed`. This is not [`SnapshotFinished`].
+/// The generation's output stays incomplete. Callers outside this crate cannot construct it.
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunCancelled {
+    /// Generation that was consumed.
+    pub generation: u64,
+    /// Source id.
+    pub source_id: String,
+    /// Data backend that was closed.
+    pub backend: BackendKey,
+}
+
 struct OpenPlan {
     admitted: AdmittedCatalog,
     config_identity: [u8; 32],
@@ -372,6 +406,7 @@ pub struct SnapshotOwner {
     poison: Option<SourceError>,
     released: bool,
     stream: Option<crate::stream::StreamSlot>,
+    cancel: Arc<AtomicBool>,
 }
 
 impl SnapshotOwner {
@@ -484,7 +519,30 @@ impl SnapshotOwner {
             poison: None,
             released: false,
             stream: None,
+            cancel: Arc::new(AtomicBool::new(false)),
         })
+    }
+
+    /// Flag shared with the active pull. Requesting cancel does not release the owner.
+    pub fn run_cancel(&self) -> RunCancel {
+        RunCancel {
+            flag: Arc::clone(&self.cancel),
+        }
+    }
+
+    /// Stop the pull, roll back, and close both sessions.
+    /// [`RunCancelled`] is returned only when neither session skipped `ROLLBACK`
+    /// and the pull did not end `cleanup_unconfirmed`. A dropped `next_batch`
+    /// future is not this method and does not end the backend.
+    pub async fn cancel(mut self) -> Result<RunCancelled, SourceError> {
+        self.cancel.store(true, Ordering::Relaxed);
+        let stream_err = self.take_stream().await.err();
+        let cancelled = RunCancelled {
+            generation: self.binding.generation,
+            source_id: self.binding.source_id.clone(),
+            backend: self.binding.backend.clone(),
+        };
+        self.finish_cancel(stream_err, cancelled).await
     }
 
     /// Catalog, privileges, and backend identity captured in this transaction.
@@ -510,9 +568,19 @@ impl SnapshotOwner {
     /// both rollbacks and closes succeed, the owner is not poisoned, and the
     /// deadline has not passed.
     pub async fn finish(mut self) -> Result<SnapshotFinished, SourceError> {
+        let requested = self.cancel.load(Ordering::Relaxed);
         let stream_err = self.take_stream().await.err();
         if let Some(err) = stream_err.clone() {
             let _ = self.poison(err);
+        }
+        if requested {
+            let cancelled = RunCancelled {
+                generation: self.binding.generation,
+                source_id: self.binding.source_id.clone(),
+                backend: self.binding.backend.clone(),
+            };
+            self.finish_cancel(stream_err, cancelled).await?;
+            return Err(SourceError::protocol("cancelled"));
         }
         let finished = SnapshotFinished {
             generation: self.binding.generation,
@@ -654,6 +722,37 @@ impl SnapshotOwner {
             .as_mut()
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
         observe_current(guard, &node, &catalog, &access).await
+    }
+
+    async fn finish_cancel(
+        &mut self,
+        stream_err: Option<SourceError>,
+        cancelled: RunCancelled,
+    ) -> Result<RunCancelled, SourceError> {
+        let uncertain = self.rollback_uncertain()
+            || stream_err
+                .as_ref()
+                .is_some_and(|err| err.fact() == Some("cleanup_unconfirmed"))
+            || self
+                .poison
+                .as_ref()
+                .is_some_and(|err| err.fact() == Some("cleanup_unconfirmed"));
+        let released = self.release_both().await;
+        if uncertain {
+            return Err(SourceError::protocol("cleanup_unconfirmed"));
+        }
+        released?;
+        Ok(cancelled)
+    }
+
+    fn rollback_uncertain(&self) -> bool {
+        self.session
+            .as_ref()
+            .is_some_and(PgSession::rollback_skipped)
+            || self
+                .guard
+                .as_ref()
+                .is_some_and(PgSession::rollback_skipped)
     }
 
     async fn release_both(&mut self) -> Result<(), SourceError> {
@@ -1081,6 +1180,9 @@ impl SnapshotOwner {
                 access: self.binding.access.clone(),
             },
             tables,
+            cancel: Arc::clone(&self.cancel),
+            backend_pid: self.binding.backend.pid,
+            backend_start: self.binding.backend.backend_start.clone(),
         })
     }
 
@@ -1104,6 +1206,7 @@ impl Drop for SnapshotOwner {
             return;
         }
         self.released = true;
+        self.cancel.store(true, Ordering::Relaxed);
         if let Some(slot) = self.stream.take() {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 handle.spawn(async move {

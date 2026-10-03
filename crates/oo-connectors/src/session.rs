@@ -707,6 +707,11 @@ impl PgSession {
         self.in_transaction = false;
     }
 
+    /// `ROLLBACK` will be skipped. The socket close is not a confirmed transaction end.
+    pub(crate) fn rollback_skipped(&self) -> bool {
+        self.skip_rollback
+    }
+
     pub(crate) async fn shutdown(mut self) -> Result<(), SourceError> {
         if self.skip_rollback {
             self.in_transaction = false;

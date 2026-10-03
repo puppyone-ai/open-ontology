@@ -7,8 +7,9 @@
 //! [`PgSession::read_typed`] is that decoder. The snapshot owner protocol is
 //! [`SNAPSHOT_PROTOCOL`]. [`STREAM_PROTOCOL`] is the bounded full-snapshot Arrow
 //! pull on that same owner. [`KEY_PLAN_PROTOCOL`] plans typed half-open chunks
-//! on that same owner. It is not the whole reader. Resume cursors, cancel,
-//! CDC, and the registry API stay unsupported. Gateway crates do not depend on this crate.
+//! on that same owner. It is not the whole reader. [`SnapshotOwner::cancel`]
+//! stops an active pull and releases both backends. Resume cursors, CDC, and
+//! the registry API stay unsupported. Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
 
@@ -47,8 +48,8 @@ pub use session::{PgConnector, PgSession};
 pub use snapshot::{
     config_identity, snapshot_input_digest, type_policy_identity, AdmittedCatalog, AdmittedColumn,
     AdmittedTable, BackendKey, CutProbe, ProbeValue, SnapshotAborted, SnapshotBinding,
-    SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess, CLEANUP_OBSERVATION_BOUND_MS,
-    SNAPSHOT_PROTOCOL,
+    RunCancel, RunCancelled, SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess,
+    CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
 };
 pub use stream::{
     StreamAccounting, StreamBatch, StreamBudget, StreamItem, TableEof, STREAM_PROTOCOL,

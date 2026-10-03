@@ -6,6 +6,7 @@
 
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Poll, Waker};
 use std::time::{Duration, Instant};
@@ -171,6 +172,13 @@ pub(crate) struct StreamPlan {
     pub max_row_bytes: u32,
     pub guard: StreamGuard,
     pub tables: Vec<StreamTablePlan>,
+    /// Set by owner cancel, `RunCancel::request`, or owner drop.
+    /// The pull watches this without dropping an in-flight Execute.
+    pub cancel: Arc<AtomicBool>,
+    /// Data backend pid captured at open. The guard cancel is scoped to this pid.
+    pub backend_pid: i64,
+    /// `backend_start::text` captured at open. A reused pid does not match.
+    pub backend_start: String,
 }
 
 struct Acc {
@@ -364,6 +372,24 @@ pub(crate) struct StreamSlot {
     next_id: u64,
 }
 
+/// Puts the drive back if the demand future is dropped before it completes.
+/// Dropping that future must not drop an in-flight Execute.
+struct Restore<'a> {
+    slot: &'a mut Option<Pin<Box<dyn Future<Output = DriveEnd> + Send>>>,
+    drive: Option<Pin<Box<dyn Future<Output = DriveEnd> + Send>>>,
+    restore: bool,
+}
+
+impl Drop for Restore<'_> {
+    fn drop(&mut self) {
+        if self.restore
+            && let Some(drive) = self.drive.take()
+        {
+            *self.slot = Some(drive);
+        }
+    }
+}
+
 impl StreamSlot {
     pub(crate) fn start(data: PgSession, guard: PgSession, plan: StreamPlan) -> Self {
         let gate = Arc::new(Gate::new());
@@ -379,17 +405,27 @@ impl StreamSlot {
         let id = self.next_id;
         self.next_id = self.next_id.saturating_add(1);
         self.gate.demand(id);
-        let Some(mut drive) = self.drive.take() else {
+        let Some(drive) = self.drive.take() else {
             return Next::Ended(None);
         };
         let gate = Arc::clone(&self.gate);
+        let mut held = Restore {
+            slot: &mut self.drive,
+            drive: Some(drive),
+            restore: true,
+        };
         let outcome = std::future::poll_fn(|cx| {
             gate.register_waiter(cx.waker().clone());
             if let Some(item) = gate.take_ready(id) {
                 return Poll::Ready(Outcome::Item(item));
             }
-            match Pin::new(&mut drive).poll(cx) {
-                Poll::Ready(end) => Poll::Ready(Outcome::End(Box::new(end))),
+            let drive = held.drive.as_mut().expect("held drive");
+            match drive.as_mut().poll(cx) {
+                Poll::Ready(end) => {
+                    held.restore = false;
+                    held.drive.take();
+                    Poll::Ready(Outcome::End(Box::new(end)))
+                }
                 Poll::Pending => {
                     if let Some(item) = gate.take_ready(id) {
                         Poll::Ready(Outcome::Item(item))
@@ -400,21 +436,25 @@ impl StreamSlot {
             }
         })
         .await;
-        match outcome {
-            Outcome::Item(item) => {
-                self.drive = Some(drive);
-                Next::Item(item)
+        match &outcome {
+            Outcome::Item(_) => held.restore = true,
+            Outcome::End(_) => {
+                held.restore = false;
+                held.drive.take();
             }
+        }
+        drop(held);
+        match outcome {
+            Outcome::Item(item) => Next::Item(item),
             Outcome::End(end) => Next::Ended(Some(end)),
         }
     }
 
     pub(crate) async fn stop(mut self) -> DriveEnd {
         self.gate.stop();
-        self.drive
-            .take()
-            .expect("stream drive")
-            .await
+        // A dropped demand future restores the drive, so this take is present
+        // on the consumer-drop path. The expect fires only if that restore was skipped.
+        self.drive.take().expect("stream drive").await
     }
 }
 
@@ -455,6 +495,14 @@ enum Hold {
         rows: Option<Vec<Vec<DecodedCell>>>,
         pending: Option<Held>,
     },
+}
+
+/// Portal open outcome after the open future has been dropped.
+/// `Ready` is boxed so the error variants do not carry the held rows.
+enum OpenedExit {
+    Interrupt(SourceError),
+    Failed(SourceError),
+    Ready(Box<Hold>),
 }
 
 enum Tail {
@@ -522,40 +570,54 @@ async fn scan(
                         Ok(arguments) => arguments,
                         Err(err) => return prefer(err, rollback_only(data).await),
                     };
-                    let mut open_err: Option<SourceError> = None;
-                    let mut exit_slot = None;
-                    {
-                        match data.conn.open_named_portal(&table.sql, arguments).await {
-                            Ok(portal) => {
-                                exit_slot = Some(
-                                    hold_portal(
-                                        portal,
-                                        id,
-                                        Drive {
-                                            table,
-                                            plan,
-                                            gate,
-                                            acc,
-                                            held: &mut held,
-                                            rows_emitted: &mut rows_emitted,
-                                        },
-                                    )
-                                    .await,
-                                );
+                    // A lock wait can sit in Parse/Bind, before any Execute. Watch that
+                    // open on the same future the caller is already polling. The portal
+                    // borrow ends inside this block, before rollback uses `data` again.
+                    let opened_exit = {
+                        let opened = await_cancellable(
+                            guard,
+                            plan,
+                            Box::pin(data.conn.open_named_portal(&table.sql, arguments)),
+                        )
+                        .await;
+                        match opened {
+                            Err(err) => OpenedExit::Interrupt(err),
+                            Ok(Err(err)) => {
+                                OpenedExit::Failed(classify_pull(error::map_sqlx(err), plan))
                             }
-                            Err(err) => open_err = Some(error::map_sqlx(err)),
+                            Ok(Ok(portal)) => OpenedExit::Ready(Box::new(
+                                hold_portal(
+                                    portal,
+                                    id,
+                                    Drive {
+                                        table,
+                                        plan,
+                                        gate,
+                                        acc,
+                                        held: &mut held,
+                                        rows_emitted: &mut rows_emitted,
+                                    },
+                                    guard,
+                                )
+                                .await,
+                            )),
                         }
-                    }
-                    if let Some(mapped) = open_err {
-                        if data.conn.named_portal_poisoned()
-                            || !data.conn.incoming_synchronized()
-                        {
-                            data.mark_skip_rollback();
-                            return Err(mapped);
+                    };
+                    let exit = match opened_exit {
+                        OpenedExit::Interrupt(err) => {
+                            return prefer(err, rollback_only(data).await);
                         }
-                        return prefer(mapped, rollback_only(data).await);
-                    }
-                    let exit = exit_slot.ok_or_else(|| SourceError::protocol("stream_ended"))?;
+                        OpenedExit::Failed(mapped) => {
+                            if data.conn.named_portal_poisoned()
+                                || !data.conn.incoming_synchronized()
+                            {
+                                data.mark_skip_rollback();
+                                return Err(mapped);
+                            }
+                            return prefer(mapped, rollback_only(data).await);
+                        }
+                        OpenedExit::Ready(exit) => *exit,
+                    };
                     match exit {
                         Hold::Stop { closed } => {
                             settle_after(data, closed, true, acc).await?;
@@ -612,6 +674,7 @@ async fn hold_portal(
     mut portal: PgNamedPortal<'_>,
     first_id: u64,
     mut drive: Drive<'_>,
+    guard: &mut PgSession,
 ) -> Hold {
     let mut queued = Some(first_id);
     loop {
@@ -627,7 +690,7 @@ async fn hold_portal(
                 Signal::Delivered => continue,
             }
         };
-        let filled = fill_batch(&mut portal, &mut drive).await;
+        let filled = fill_batch(&mut portal, &mut drive, guard).await;
         match filled {
             Err(err) => {
                 let closed = close_owned(portal).await;
@@ -680,6 +743,7 @@ enum Filled {
 async fn fill_batch(
     portal: &mut PgNamedPortal<'_>,
     drive: &mut Drive<'_>,
+    guard: &mut PgSession,
 ) -> Result<Filled, SourceError> {
     let mut rows: Vec<Vec<DecodedCell>> = Vec::new();
     let mut wire = 0_u64;
@@ -698,7 +762,7 @@ async fn fill_batch(
         }
         let plan = drive.plan;
         let table = drive.table;
-        match pull_one(portal, plan, drive.acc).await? {
+        match pull_one(portal, guard, plan, drive.acc).await? {
             Pulled::Row(row) => {
                 let (cells, payload) = decode_scanned(table, plan, &row)?;
                 if matches!(
@@ -763,18 +827,103 @@ enum Pulled {
     Eof(Option<sqlx::postgres::PgRow>),
 }
 
+const WATCH_SLICE: Duration = Duration::from_millis(50);
+
 async fn pull_one(
     portal: &mut PgNamedPortal<'_>,
+    guard: &mut PgSession,
     plan: &StreamPlan,
     acc: &mut Acc,
 ) -> Result<Pulled, SourceError> {
+    if plan.cancel.load(Ordering::Relaxed) {
+        return Err(SourceError::protocol("cancelled"));
+    }
+    if Instant::now() >= plan.deadline {
+        return Err(SourceError::budget("deadline"));
+    }
     let hold = session::try_reserve_rows(&plan.source_id, 1)?;
     acc.reserved_rows += 1;
     acc.executes += 1;
     let allowance = PgPortalAllowance::positive(1)
         .map_err(|_| SourceError::protocol("portal_allowance"))?;
-    match tokio::time::timeout(plan.statement_timeout, portal.pull(allowance)).await {
-        Ok(Ok(step)) => {
+    let step = await_cancellable(guard, plan, Box::pin(portal.pull(allowance))).await?;
+    accept_step(step, plan, hold, acc)
+}
+
+/// Poll `op` until it returns. On cancel, deadline, or statement timeout, ask the
+/// guard to cancel the data backend and keep polling the same `op`.
+async fn await_cancellable<T>(
+    guard: &mut PgSession,
+    plan: &StreamPlan,
+    mut op: Pin<Box<dyn Future<Output = T> + Send + '_>>,
+) -> Result<T, SourceError> {
+    if plan.cancel.load(Ordering::Relaxed) {
+        return Err(SourceError::protocol("cancelled"));
+    }
+    if Instant::now() >= plan.deadline {
+        return Err(SourceError::budget("deadline"));
+    }
+    let started = Instant::now();
+    let mut drain_until: Option<Instant> = None;
+    loop {
+        let mut tick = Box::pin(tokio::time::sleep(WATCH_SLICE));
+        let watched = std::future::poll_fn(|cx| {
+            if let Poll::Ready(value) = op.as_mut().poll(cx) {
+                return Poll::Ready(Some(value));
+            }
+            match tick.as_mut().poll(cx) {
+                Poll::Ready(()) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            }
+        })
+        .await;
+        if let Some(value) = watched {
+            return Ok(value);
+        }
+        if drain_until.is_some_and(|until| Instant::now() >= until) {
+            return Err(SourceError::protocol("cleanup_unconfirmed"));
+        }
+        if drain_until.is_none() && pull_interrupted(plan, started) {
+            signal_cancel(guard, plan).await?;
+            drain_until = Some(
+                Instant::now() + Duration::from_millis(snapshot::CLEANUP_OBSERVATION_BOUND_MS),
+            );
+        }
+    }
+}
+
+fn pull_interrupted(plan: &StreamPlan, started: Instant) -> bool {
+    plan.cancel.load(Ordering::Relaxed)
+        || Instant::now() >= plan.deadline
+        || started.elapsed() >= plan.statement_timeout
+}
+
+async fn signal_cancel(guard: &mut PgSession, plan: &StreamPlan) -> Result<(), SourceError> {
+    let Ok(pid) = i32::try_from(plan.backend_pid) else {
+        guard.mark_skip_rollback();
+        return Err(SourceError::protocol("cleanup_unconfirmed"));
+    };
+    let query = sqlx::query(sql::CANCEL_BACKEND)
+        .bind(pid)
+        .bind(plan.backend_start.as_str());
+    match session::fetch_one(guard, query).await {
+        Ok(_) => Ok(()),
+        Err(err) if err.fact() == Some("row_not_found") => Ok(()),
+        Err(_) => {
+            guard.mark_skip_rollback();
+            Err(SourceError::protocol("cleanup_unconfirmed"))
+        }
+    }
+}
+
+fn accept_step(
+    step: Result<sqlx::postgres::PgPortalStep, sqlx::Error>,
+    plan: &StreamPlan,
+    hold: session::RowHold,
+    acc: &mut Acc,
+) -> Result<Pulled, SourceError> {
+    match step {
+        Ok(step) => {
             let consumed = step.accounting.consumed_rows;
             hold.settle(usize::try_from(consumed).unwrap_or(0));
             acc.consumed_rows += u64::from(consumed);
@@ -783,9 +932,21 @@ async fn pull_one(
                 PgPortalOutcome::Complete { row, .. } => Ok(Pulled::Eof(row)),
             }
         }
-        Ok(Err(err)) => Err(error::map_sqlx(err)),
-        Err(_elapsed) => Err(SourceError::budget("statement_timeout")),
+        Err(err) => Err(classify_pull(error::map_sqlx(err), plan)),
     }
+}
+
+fn classify_pull(mapped: SourceError, plan: &StreamPlan) -> SourceError {
+    if mapped.sqlstate() != Some("57014") {
+        return mapped;
+    }
+    if plan.cancel.load(Ordering::Relaxed) {
+        return SourceError::protocol("cancelled");
+    }
+    if Instant::now() >= plan.deadline {
+        return SourceError::budget("deadline");
+    }
+    SourceError::budget("statement_timeout")
 }
 
 fn decode_scanned(
@@ -945,13 +1106,17 @@ async fn rollback_only(data: &mut PgSession) -> Result<(), SourceError> {
 }
 
 fn prefer(primary: SourceError, settled: Result<(), SourceError>) -> Result<(), SourceError> {
-    if primary.kind() == error::SourceErrorKind::Budget {
+    if primary.kind() == error::SourceErrorKind::Budget || keeps_fact(&primary) {
         return Err(primary);
     }
     match settled {
         Ok(()) => Err(primary),
         Err(err) => Err(err),
     }
+}
+
+fn keeps_fact(err: &SourceError) -> bool {
+    matches!(err.fact(), Some("cancelled" | "cleanup_unconfirmed"))
 }
 
 fn portal_arguments(table: &StreamTablePlan) -> Result<PgArguments, SourceError> {

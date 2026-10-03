@@ -1,6 +1,6 @@
 # PostgreSQL bounded full-snapshot stream `oo.source.pgsql.stream/v1`
 
-R2-S only. This is the pull on one already-open snapshot owner. It is not whole-reader acceptance. R3 key and cancel, R4, resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` is unchanged.
+This is the pull on one already-open snapshot owner. It is not whole-reader acceptance. Typed key chunks are `reader-keys-v1`. Active-pull cancellation is `reader-lifecycle-v1`. R4, resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` is unchanged.
 
 The stream reuses admitted columns, `decode_payload`, and `assemble_batch`. It does not change type mapping or canonical cell semantics.
 
@@ -26,7 +26,7 @@ A shape or primary-key difference remains `schema_drift`. A committed change tha
 
 A table with no primary key, a primary key the probe cannot use, or a primary key of 9 to 32 columns still opens. `read_probe` is unchanged: those keys still return `probe_key` and poison the owner. A primary key wider than PostgreSQL `INDEX_MAX_KEYS` (32) is `config` fact `selection` and does not open. An empty column list with a non-empty primary key is `probe_key`. `plan.key` is set only for a probe-supported key. The stream does not invent a resume key. `StreamBatch.resumable` and `TableEof.resumable_key` are false. A key digest on a supported key is the existing canonical digest, not a cursor.
 
-`open_stream` still scans every selected table with the full-snapshot statement: no `WHERE`, no `ORDER BY`, and no `OFFSET`. A keyed chunk and `read_keys` use a different statement on that same owner and the same repeatable-read transaction. The statement orders by the declared key and binds half-open bounds. It is not a resume cursor. See `reader-keys-v1`. The client deadline still does not cancel an Execute already sent. That remains the cancellation slice.
+`open_stream` still scans every selected table with the full-snapshot statement: no `WHERE`, no `ORDER BY`, and no `OFFSET`. A keyed chunk and `read_keys` use a different statement on that same owner and the same repeatable-read transaction. The statement orders by the declared key and binds half-open bounds. It is not a resume cursor. See `reader-keys-v1`. The portal Parse/Bind and an Execute already sent are cancelled on the guard session with `pg_cancel_backend`, scoped by the data backend's pid and `backend_start`. The pull keeps that future pinned until it returns or `CLEANUP_OBSERVATION_BOUND_MS` passes. See `reader-lifecycle-v1`.
 
 ## Empty and zero-column tables
 
@@ -42,7 +42,7 @@ The driver refuses an oversize frame before the body is reserved. `IncomingWire`
 
 A wire fault or a statement-timeout drop leaves the connection unsynchronized. The pull does not `ROLLBACK` that connection. Shutdown closes the socket without `ROLLBACK`. A synchronized portal is closed, bounds are cleared, then `ROLLBACK TO SAVEPOINT oo_stream_lock` and `RELEASE SAVEPOINT oo_stream_lock` run. The portal is closed before that savepoint is released. An active portal is not rolled back.
 
-The client deadline is checked before a table opens and between Executes. It does not cancel an Execute already sent. That remains R3. A deadline with rows already buffered emits that batch; the next demand returns `budget` fact `deadline`. A deadline with an empty batch returns that fact immediately. `statement_timeout` around one `Execute` is `budget` fact `statement_timeout`.
+The client deadline is checked before a table opens, between Executes, and while a portal open or Execute is in flight. A deadline during that in-flight work cancels that backend and returns `budget` fact `deadline`. A deadline with rows already buffered still emits that batch; the next demand returns `deadline` when no row is waiting. `statement_timeout` around one portal open or Execute cancels that backend and returns `budget` fact `statement_timeout`. Caller cancel returns `protocol` fact `cancelled`. The `PgBudget` statement and lock caps stay at most 120 seconds. The run-deadline default constant is 300 seconds and does not raise those caps.
 
 ## Accounting
 
@@ -61,4 +61,4 @@ Those wire fields are sums of live `BytesMut` view capacities and copy counts. T
 
 ## Release
 
-`finish`, `abort`, and `Drop` stop the pull, close a still-open portal, and release both backends through the existing cleanup path. `Drop` schedules that work on the current Tokio runtime. The known driver panic on a shrinking receive view is an a129 dependency. This stream does not modify the driver and does not claim that gate.
+`finish`, `abort`, `cancel`, and `Drop` stop the pull, close a still-open portal, and release both backends through the existing cleanup path. `Drop` sets the cancel flag and schedules that work on the current Tokio runtime. Dropping `next_batch` puts the drive back and does not by itself end the backend. The known driver panic on a shrinking receive view is an a129 dependency. This stream does not modify the driver and does not claim that gate.

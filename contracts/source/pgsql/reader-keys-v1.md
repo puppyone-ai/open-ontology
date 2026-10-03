@@ -1,6 +1,6 @@
 # PostgreSQL typed key plan `oo.source.pgsql.keys/v1`
 
-This plans and reads typed half-open chunks on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, cancellation of an in-flight Execute, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` and `bounded_reader` stay unchanged.
+This plans and reads typed half-open chunks on one already-open snapshot owner. It is not whole-reader acceptance. Cancellation of an in-flight Execute is `reader-lifecycle-v1`. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` and `bounded_reader` stay unchanged.
 
 ## Caller
 
@@ -34,4 +34,4 @@ Chunks are half-open. The first lower bound is the first key. Each later lower b
 
 `open_stream` is not this plan. It still reads every selected table with no key predicate and no `ORDER BY`. `StreamBatch.resumable` and `TableEof.resumable_key` stay false. A key digest on a declared key is the existing canonical digest, not a cursor.
 
-The same repeatable-read transaction covers planning and every chunk. A commit from another session after the owner opened is absent from later chunks. `SnapshotFinished` is still the only successful close. Output from a cut that did not finish is incomplete. A later generation is a new cut and reads the committed rows again. This slice does not cancel an Execute that has already been sent.
+The same repeatable-read transaction covers planning and every chunk. A commit from another session after the owner opened is absent from later chunks. `SnapshotFinished` is still the only successful close. Output from a cut that did not finish is incomplete. A later generation is a new cut and reads the committed rows again. Cancelling an Execute that has already been sent is `reader-lifecycle-v1`, on this same owner.

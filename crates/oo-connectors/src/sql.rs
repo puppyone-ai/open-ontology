@@ -441,6 +441,14 @@ JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.
 WHERE n.nspname = $1 AND c.relname = $2 \
 ORDER BY a.attnum LIMIT 1600";
 
+/// Cancel the data backend only when both pid and `backend_start` still match.
+/// No row means that backend is already gone. This does not terminate a backend.
+pub(crate) const CANCEL_BACKEND: &str = "\
+SELECT pg_catalog.pg_cancel_backend(a.pid) \
+FROM pg_catalog.pg_stat_activity a \
+WHERE a.pid = $1::int4 AND a.backend_start::text = $2 \
+LIMIT 1";
+
 #[cfg(test)]
 const ALL: &[&str] = &[
     SESSION_GUARDS,
@@ -495,6 +503,7 @@ const ALL: &[&str] = &[
     SNAPSHOT_NODE,
     SNAPSHOT_RELATION,
     SNAPSHOT_ATTRIBUTES,
+    CANCEL_BACKEND,
 ];
 
 #[cfg(test)]
