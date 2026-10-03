@@ -936,3 +936,7 @@ a128实际Grok4.7xhighhandle81453启动slot A目录读取回归修复，a1273547
 a12735475实际CLIexit0但无最终报告/源码提交；一次15分钟等待后核验ownfinalDockerExited101，编译E0106/E0308，ownPG仍Up。原baseline缺fixture101与完整baseline49/Clippy0保留，slotB按同UUID恢复完成已有overlay；不签R2-P，不重启仍live a12881453。新UUIDa129保持，goal active。
 
 a127同UUID实际恢复handle17463，原35475关闭不再观测；slotB原写权不扩展，a12881453继续slotA。下一观测采用一次15分钟等待，goal active。
+
+### a127/a128交付与产品原语复审
+
+一次15分钟等待后a12881453/a12717463实际exit0关闭。两组完整三报告已读，portal300项/hashcatalog135项实际校验0，最终rawphase/tests及source10/8paths核对，owncontainer列表空。原snapshot_live回归通过；portal实际生产primitive已交付，均待独立验收不勾。保留a12860000行读取actualbuffered590panic，最终timeout拒绝case不算修复panic。a129专用driver修复slotA与a130固定ccd组合业务原语复审slotB已激活，两任务精确不同写域；catalog为原组件修复不重复计新功能，现有10验收子项不变。a128三卷残留如实保留，goal active。
