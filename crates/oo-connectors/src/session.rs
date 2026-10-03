@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode, PgTransactionManager};
-use sqlx::{ConnectOptions, Connection, Row};
+use sqlx::{ConnectOptions, Row};
 use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::transaction::TransactionManager;
 
@@ -38,6 +38,9 @@ pub(crate) const ENUM_LABEL_SENTINEL: u32 = 4_096;
 pub(crate) const DOMAIN_CHECK_SENTINEL: u32 = 32;
 /// One past the membership width that still registers as incomplete.
 pub(crate) const ASSUMABLE_LIMIT: u32 = 65;
+/// `ROLLBACK` may take this long. After it, shutdown drops the socket.
+/// The absence deadline stays 5000ms. This bound is not a second deadline.
+pub(crate) const SOCKET_ABORT_AFTER: Duration = Duration::from_millis(1_000);
 pub(crate) const DIRECT_MEMBER_SENTINEL: u32 = 256;
 pub(crate) const CATALOG_LIST_SENTINEL: u32 = 1_024;
 
@@ -712,19 +715,29 @@ impl PgSession {
         self.skip_rollback
     }
 
+    /// Roll back when the protocol can take a command, then drop the socket.
+    /// A graceful `Terminate` plus TLS close_notify can sit past the absence
+    /// deadline while the backend is still in `pg_stat_activity`. Dropping the
+    /// file descriptor is the bounded close. It is not `pg_terminate_backend`.
     pub(crate) async fn shutdown(mut self) -> Result<(), SourceError> {
         if self.skip_rollback {
             self.in_transaction = false;
+            drop(self.permit.take());
+            drop(self);
+            return Ok(());
         }
-        let rolled = self.finish(Ok(())).await.map(|_| ());
-        let permit = self.permit.take();
-        let PgSession { conn, .. } = self;
-        let closed = Connection::close(conn).await.map_err(map_sqlx);
-        drop(permit);
-        match (rolled, closed) {
-            (Ok(()), Ok(())) => Ok(()),
-            (Err(err), _) => Err(err),
-            (Ok(()), Err(_)) => Err(SourceError::protocol("cleanup_failed")),
+        if !self.conn.incoming_synchronized() || self.conn.named_portal_poisoned() {
+            drop(self.permit.take());
+            drop(self);
+            return Err(SourceError::protocol("cleanup_unconfirmed"));
+        }
+        let rolled = tokio::time::timeout(SOCKET_ABORT_AFTER, self.finish(Ok(()))).await;
+        drop(self.permit.take());
+        drop(self);
+        match rolled {
+            Ok(Ok(_)) => Ok(()),
+            Ok(Err(err)) => Err(err),
+            Err(_) => Err(SourceError::protocol("cleanup_unconfirmed")),
         }
     }
 

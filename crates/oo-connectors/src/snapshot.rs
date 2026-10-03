@@ -1207,12 +1207,19 @@ impl Drop for SnapshotOwner {
         }
         self.released = true;
         self.cancel.store(true, Ordering::Relaxed);
+        // Stop plus rollback can sit in a portal drain or a TLS close.
+        // Bound the spawned work so dropping it closes the sockets inside
+        // the absence deadline. This spawn does not block `Drop`.
+        let budget = crate::session::SOCKET_ABORT_AFTER;
         if let Some(slot) = self.stream.take() {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 handle.spawn(async move {
-                    let end = slot.stop().await;
-                    let _ = release_session(end.data).await;
-                    let _ = release_session(end.guard).await;
+                    let cleanup = async move {
+                        let end = slot.stop().await;
+                        let _ = release_session(end.data).await;
+                        let _ = release_session(end.guard).await;
+                    };
+                    let _ = tokio::time::timeout(budget, cleanup).await;
                 });
             }
             return;
@@ -1220,16 +1227,17 @@ impl Drop for SnapshotOwner {
         let data = self.session.take();
         let guard = self.guard.take();
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            if let Some(session) = data {
-                handle.spawn(async move {
-                    let _ = release_session(session).await;
-                });
-            }
-            if let Some(session) = guard {
-                handle.spawn(async move {
-                    let _ = release_session(session).await;
-                });
-            }
+            handle.spawn(async move {
+                let cleanup = async move {
+                    if let Some(session) = data {
+                        let _ = release_session(session).await;
+                    }
+                    if let Some(session) = guard {
+                        let _ = release_session(session).await;
+                    }
+                };
+                let _ = tokio::time::timeout(budget, cleanup).await;
+            });
             return;
         }
         drop(data);

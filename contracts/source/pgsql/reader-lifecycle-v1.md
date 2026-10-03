@@ -46,3 +46,7 @@ A new `SnapshotOwner` generation after a committed writer mutation reads that ne
 ## Release observation
 
 After `cancel`, `finish`, `abort`, or `Drop` returns, an admin poll of `pg_stat_activity` for that `(pid, backend_start::text)` should find no row within `CLEANUP_OBSERVATION_BOUND_MS`. The row must not remain `active` or `idle in transaction`. The product connection cannot observe its own idle state. A confirmation query on that backend would be `active`.
+
+`Drop` returns when that cleanup is scheduled. It does not wait for the backends to exit, and it does not return `SnapshotFinished`. The 5000ms bound is the absence deadline measured from that return. It is not added to the statement timeout or to a TLS close. `ROLLBACK` is attempted when the connection can take a command. If that attempt does not finish, or the protocol is uncertain (`cleanup_unconfirmed`, a poisoned portal, or a failed guard cancel), the owner drops the TCP socket instead of waiting for a graceful `Terminate` or a TLS close_notify. Dropping the socket is not `pg_terminate_backend` and does not open another session. A `ROLLBACK` that completed stays confirmed. An aborted socket is not `SnapshotFinished`.
+
+The poll is a current read of backend status. PostgreSQL's default `stats_fetch_consistency=cache` keeps the first `pg_stat_activity` copy for the rest of the observer transaction, so a copy taken while the backends are still alive stays visible after they exit. `pg_stat_clear_snapshot()` discards that copy. The 5000ms bound applies to the current read.
