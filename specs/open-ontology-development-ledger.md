@@ -930,3 +930,5 @@ a127实际Grok4.7xhighhandle35475已启动，slot B生产portal写权生效，a1
 a12536253实际exit0关闭，2254eab3六源路径提交；完整三报告/proposal与rawoutcome已读，lib52/Clippy0、作者oracle0，但原snapshot_live101为真实未解决回归，R1不勾。协调者精确保存198证据文件81a0f8f，未交hashmanifest不冒称hash核验；残留三个UUID卷清理未完，非无关开发阻塞。a128目录/access/type读取有界预约与有效结算修复卡激活slot A，固定81a0f8f，只改明确业务paths，不升50k cap、不加假sleep、不改原snapshot_live。a12735475保持slot B生产portal，metrics10/10/7比10及goal active保持。
 
 a128实际Grok4.7xhighhandle81453启动slot A目录读取回归修复，a12735475仍slot B，a12536253已关闭不再观察。下一新UUID a129，goal active。
+
+用户改为一次15分钟等待、期间零观测；已实际执行900秒等待，结束后一次核验a12881453/a12735475均仍live。此后不反复追加相同等待记录，保留当前句柄/边界，goal active。
