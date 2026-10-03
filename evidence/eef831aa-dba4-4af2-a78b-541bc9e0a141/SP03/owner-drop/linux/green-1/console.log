@@ -1,0 +1,89 @@
+oo_task=owner-drop-green-1
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=58afa97_archive_plus_shutdown_overlay_and_drop_regression
+Linux 74c233a8adf2 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+overlay_hashes_match=1
+log_mark_before=64409
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+warning: field `permit` is never read
+   --> crates/oo-connectors/src/session.rs:457:5
+    |
+455 | pub struct PgSession {
+    |            --------- field in this struct
+456 |     pub(crate) conn: PgConnection,
+457 |     permit: Option<ConnPermit>,
+    |     ^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (lib) generated 1 warning
+warning: unused import: `Connection`
+  --> crates/oo-connectors/tests/pg_reader_drop_live.rs:19:28
+   |
+19 | use sqlx::{ConnectOptions, Connection, Row};
+   |                            ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `writer_user` is never read
+  --> crates/oo-connectors/tests/pg_reader_drop_live.rs:32:5
+   |
+27 | struct Pointer {
+   |        ------- field in this struct
+...
+32 |     writer_user: String,
+   |     ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-connectors` (test "pg_reader_drop_live") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.71s
+     Running tests/pg_reader_drop_live.rs (/target/debug/deps/pg_reader_drop_live-a6d11abacf19fb39)
+
+running 1 test
+test owner_drop_while_blocked ... outcome seeded r3d.held log_mark=64598
+outcome next_batch_drop_state=active data_pid=241 reader_backends=2
+outcome owner_drop_first_sample_ms=0 still=[(241, "2026-10-03 22:05:22.210108+00", "active"), (242, "2026-10-03 22:05:22.326791+00", "idle in transaction")] busy=[(241, "2026-10-03 22:05:22.210108+00", "active"), (242, "2026-10-03 22:05:22.326791+00", "idle in transaction")] detail=["pid=241 state=active wait=Lock/relation xact=true query=SELECT id,note FROM r3d.held", "pid=242 state=idle in transaction wait=Client/ClientRead xact=true query=SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::te"]
+
+thread 'owner_drop_while_blocked' (483) panicked at crates/oo-connectors/tests/pg_reader_drop_live.rs:319:17:
+reader backends remained after 5000ms still=[(241, "2026-10-03 22:05:22.210108+00", "active"), (242, "2026-10-03 22:05:22.326791+00", "idle in transaction")] busy=[(241, "2026-10-03 22:05:22.210108+00", "active"), (242, "2026-10-03 22:05:22.326791+00", "idle in transaction")] left=[(241, "2026-10-03 22:05:22.210108+00", "active"), (242, "2026-10-03 22:05:22.326791+00", "idle in transaction")] detail=["pid=241 state=active wait=/ xact=true query=SELECT id,note FROM r3d.held", "pid=242 state=idle in transaction wait=/ xact=true query=SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::te"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    owner_drop_while_blocked
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.44s
+
+error: test failed, to rerun pass `-p oo-connectors --test pg_reader_drop_live`
+phase_exit=101 phase=pg_reader_drop_live
+slice_exit=0
+container_fail=101

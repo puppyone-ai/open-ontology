@@ -1,0 +1,355 @@
+--- 22:10:20 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/293/cmdline: No such file or directory
+
+--- 22:10:21 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+315|idle|Client/ClientRead|xact=false|qstart=2026-10-03 22:10:21.109223+00|schg=2026-10-03 22:10:21.109234+00|q=SELECT pg_catalog.current_setting('server_version_num')::int8, pg_cata
+STACK
+STACK 315 postgres: oo_a141_reader oo_a141 172.20.0.3(52778) idle                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+no-stack
+WCHAN 0
+/tmp/oo-a141-sample.sh: line 11: /proc/327/cmdline: No such file or directory
+
+--- 22:10:21 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/367/cmdline: No such file or directory
+
+--- 22:10:21 ---
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+PS
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/400/cmdline: No such file or directory
+
+--- 22:10:22 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/433/cmdline: No such file or directory
+
+--- 22:10:22 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/466/cmdline: No such file or directory
+
+--- 22:10:22 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/499/cmdline: No such file or directory
+
+--- 22:10:23 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/533/cmdline: No such file or directory
+
+--- 22:10:23 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/566/cmdline: No such file or directory
+
+--- 22:10:23 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/599/cmdline: No such file or directory
+
+--- 22:10:23 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/633/cmdline: No such file or directory
+
+--- 22:10:24 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/666/cmdline: No such file or directory
+
+--- 22:10:24 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/699/cmdline: No such file or directory
+
+--- 22:10:24 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/732/cmdline: No such file or directory
+
+--- 22:10:25 ---
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+PS
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/765/cmdline: No such file or directory
+
+--- 22:10:25 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/798/cmdline: No such file or directory
+
+--- 22:10:25 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/831/cmdline: No such file or directory
+
+--- 22:10:26 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/864/cmdline: No such file or directory
+
+--- 22:10:26 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/897/cmdline: No such file or directory
+
+--- 22:10:26 ---
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+PS
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/928/cmdline: No such file or directory
+
+--- 22:10:27 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/959/cmdline: No such file or directory
+
+--- 22:10:27 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/990/cmdline: No such file or directory
+
+--- 22:10:27 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1021/cmdline: No such file or directory
+
+--- 22:10:28 ---
+PS
+SQL
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1052/cmdline: No such file or directory
+
+--- 22:10:28 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1083/cmdline: No such file or directory
+
+--- 22:10:28 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1114/cmdline: No such file or directory
+
+--- 22:10:29 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1145/cmdline: No such file or directory
+
+--- 22:10:29 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1176/cmdline: No such file or directory
+
+--- 22:10:29 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1207/cmdline: No such file or directory
+
+--- 22:10:30 ---
+PS
+SQL
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1238/cmdline: No such file or directory
+
+--- 22:10:30 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1269/cmdline: No such file or directory
+
+--- 22:10:30 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1300/cmdline: No such file or directory
+
+--- 22:10:30 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1331/cmdline: No such file or directory
+
+--- 22:10:31 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1362/cmdline: No such file or directory
+
+--- 22:10:31 ---
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+PS
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1393/cmdline: No such file or directory
+
+--- 22:10:31 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1424/cmdline: No such file or directory
+
+--- 22:10:32 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1455/cmdline: No such file or directory
+
+--- 22:10:32 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1486/cmdline: No such file or directory
+
+--- 22:10:32 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1517/cmdline: No such file or directory
+
+--- 22:10:33 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1548/cmdline: No such file or directory
+
+--- 22:10:33 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1579/cmdline: No such file or directory
+
+--- 22:10:33 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1610/cmdline: No such file or directory
+
+--- 22:10:34 ---
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+PS
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1641/cmdline: No such file or directory
+
+--- 22:10:34 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1672/cmdline: No such file or directory
+
+--- 22:10:34 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1703/cmdline: No such file or directory
+
+--- 22:10:35 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1734/cmdline: No such file or directory
+
+--- 22:10:35 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1765/cmdline: No such file or directory
+
+--- 22:10:35 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1796/cmdline: No such file or directory
+
+--- 22:10:36 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1827/cmdline: No such file or directory
+
+--- 22:10:36 ---
+PS
+/tmp/oo-a141-sample.sh: line 4: ps: command not found
+SQL
+STACK
+/tmp/oo-a141-sample.sh: line 11: /proc/1858/cmdline: No such file or directory
+
+DONE

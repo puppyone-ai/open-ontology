@@ -1,0 +1,147 @@
+stack-self:
+cat: /proc/self/stack: Permission denied
+exit-stack:1
+T 22:12:47.665
+psql:0
+T 22:12:47.792
+psql:0
+T 22:12:47.927
+psql:0
+T 22:12:48.068
+psql:0
+T 22:12:48.211
+psql:0
+T 22:12:48.355
+psql:0
+T 22:12:48.480
+psql:0
+T 22:12:48.609
+psql:0
+T 22:12:48.740
+psql:0
+T 22:12:48.872
+psql:0
+T 22:12:49.015
+psql:0
+T 22:12:49.156
+psql:0
+T 22:12:49.300
+psql:0
+T 22:12:49.441
+psql:0
+T 22:12:49.583
+psql:0
+T 22:12:49.724
+psql:0
+T 22:12:49.868
+psql:0
+T 22:12:50.009
+psql:0
+T 22:12:50.152
+psql:0
+T 22:12:50.294
+psql:0
+T 22:12:50.439
+psql:0
+T 22:12:50.584
+psql:0
+T 22:12:50.728
+psql:0
+T 22:12:50.872
+psql:0
+T 22:12:51.018
+psql:0
+T 22:12:51.161
+psql:0
+T 22:12:51.302
+psql:0
+T 22:12:51.441
+psql:0
+T 22:12:51.575
+psql:0
+T 22:12:51.714
+psql:0
+T 22:12:51.857
+psql:0
+T 22:12:51.999
+psql:0
+T 22:12:52.138
+psql:0
+T 22:12:52.283
+psql:0
+T 22:12:52.428
+psql:0
+T 22:12:52.574
+psql:0
+T 22:12:52.716
+psql:0
+T 22:12:52.880
+psql:0
+T 22:12:53.017
+psql:0
+T 22:12:53.153
+psql:0
+T 22:12:53.287
+psql:0
+T 22:12:53.432
+psql:0
+T 22:12:53.578
+psql:0
+T 22:12:53.717
+psql:0
+T 22:12:53.854
+psql:0
+T 22:12:53.996
+psql:0
+T 22:12:54.141
+psql:0
+T 22:12:54.285
+psql:0
+T 22:12:54.429
+psql:0
+T 22:12:54.574
+psql:0
+T 22:12:54.717
+psql:0
+T 22:12:54.860
+psql:0
+T 22:12:54.991
+psql:0
+T 22:12:55.123
+psql:0
+T 22:12:55.258
+psql:0
+T 22:12:55.386
+psql:0
+T 22:12:55.519
+psql:0
+T 22:12:55.644
+2252|idle|Client/ClientRead|xact=false|SELECT pg_catalog.current_setting('server_version_
+psql:0
+STACK 2252 wchan=0
+cat: /proc/2252/stack: Permission denied
+T 22:12:55.774
+2252|idle in transaction|Client/ClientRead|xact=true|SELECT pg_catalog.quote_ident($1) LIMIT 1
+2255|idle in transaction|Client/ClientRead|xact=true|START TRANSACTION ISOLATION LEVEL READ COMMITTED, 
+psql:0
+STACK 2252 wchan=0
+cat: /proc/2252/stack: Permission denied
+STACK 2255 wchan=0
+cat: /proc/2255/stack: Permission denied
+T 22:12:55.906
+psql:0
+T 22:12:56.037
+psql:0
+T 22:12:56.177
+psql:0
+T 22:12:56.308
+psql:0
+T 22:12:56.444
+psql:0
+T 22:12:56.580
+psql:0
+T 22:12:56.714
+psql:0
+T 22:12:56.863
+psql:0
+DONE

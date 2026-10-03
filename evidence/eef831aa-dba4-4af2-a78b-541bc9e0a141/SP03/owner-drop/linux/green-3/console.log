@@ -1,0 +1,127 @@
+oo_task=owner-drop-green-3
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=58afa97_archive_plus_shutdown_overlay_and_drop_regression
+Linux f34ef6983828 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+overlay_hashes_match=1
+log_mark_before=315140
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.53s
+     Running tests/pg_reader_drop_live.rs (/target/debug/deps/pg_reader_drop_live-a6d11abacf19fb39)
+
+running 1 test
+test owner_drop_while_blocked ... outcome seeded r3d.held log_mark=315330
+outcome next_batch_drop_state=active data_pid=2386 reader_backends=2
+outcome owner_drop_first_sample_ms=1 still=[(2386, "2026-10-03 22:22:46.121704+00", "active"), (2387, "2026-10-03 22:22:46.241161+00", "idle in transaction")] busy=[(2386, "2026-10-03 22:22:46.121704+00", "active"), (2387, "2026-10-03 22:22:46.241161+00", "idle in transaction")] detail=["pid=2386 state=active wait=Lock/relation xact=true query=SELECT id,note FROM r3d.held", "pid=2387 state=idle in transaction wait=Client/ClientRead xact=true query=SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::te"]
+outcome owner_drop_absent_ms=54
+outcome owner_drop_finish_called=0 snapshot_finished=0
+outcome sql_audit oo_statements=41 cancel_selects=1 dml_ddl_commit_terminate=0 verbs=RELEASE=1,ROLLBACK=3,SAVEPOINT=1,SELECT=34,START=2
+outcome owner_drop_live_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+phase_exit=0 phase=pg_reader_drop_live
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.27s
+     Running tests/pg_reader_cancel_live.rs (/target/debug/deps/pg_reader_cancel_live-e29ee7335c9a9d8d)
+
+running 1 test
+test run_cancel_live ... outcome seeded r3c.gate
+outcome before_start_generation=1
+outcome demand_blocked_generation=2
+outcome receiving_fact=cancelled generation=3
+outcome dropped_future_backend_still_active
+outcome drop_then_cancel_generation=4
+outcome after_complete_generation=5
+outcome deadline_fact=deadline elapsed_ms=19771 generation=6
+outcome finish_after_request_fact=cancelled
+outcome killed_next_fact=Some("database") sqlstate=Some("57P01")
+outcome old_run_not_finished
+outcome writer_inserted id=4
+outcome old_partial=[1] fresh=[1, 2, 3, 4] fresh_generation=9
+outcome sql_audit oo_statements=555 cancels=8 writer_writes=1 dml_ddl_commit_offset=0
+outcome cancel_live_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.49s
+
+phase_exit=0 phase=pg_reader_cancel_live
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.38s
+     Running tests/pg_reader_keys_live.rs (/target/debug/deps/pg_reader_keys_live-ed0e1f9de2cc4183)
+
+running 1 test
+test typed_key_plan_live ... outcome seeded collation=af-NA-x-icu
+outcome collation=af-NA-x-icu pg_order=a,A,ä,b,B,z c_order=A,B,a,b,z,ä
+outcome sparse_chunk0_matches_cut
+outcome writer_committed_late_keys
+outcome old_cut_finished_without_late_rows
+outcome nokey_generation=3
+outcome sql_audit oo_statements=995 writer_writes=2 dml_ddl_commit_offset=0
+outcome keys_live_complete
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+
+phase_exit=0 phase=pg_reader_keys_live
+error: 'cargo-clippy' is not installed for the toolchain '1.94.0-aarch64-unknown-linux-gnu'.
+help: run `rustup component add clippy` to install it
+phase_exit=1 phase=clippy
+slice_exit=0
+container_fail=1
