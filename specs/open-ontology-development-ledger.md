@@ -120,6 +120,7 @@
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+  - [x] R3-K typed键计划/半开chunk限定子项：58afa97经a139批准；取消/ownerDrop与R4仍未验收。
   - [x] R2-S 生产Arrow pull流限定子项：dd5bf441经a137批准，同cut/背压/预算/currentACL已验；完整R2/reader/R3/R4另验。
   - [x] R1-P current-schema/same-cut snapshot owner 原语：固定ccd93经a130限定批准；完整R1/reader驱动集成仍开放。
   - [x] R2-C catalog SQL边界与速率预留结算：a130限定批准，不计为新增产品组件。
@@ -1006,3 +1007,5 @@ a139实际Grok4.7xhighhandle28762 slotB fixedR3reviewmax1builder1PG；旧a138847
 用户授权增加实际Grok并行量：当前从1任务增加到2任务，保持globalmax2Rustbuilder/每任务1PG及全部原约束。a13928762固定R3复审继续slotB；a140目标物理标识持久化组件slotA写域oo-pipeline限定新路径，独立于reader，完整targetapply仍待R4。等待被消息中断不作终态证据，不重复查看a139。goal active。
 
 a140实际Grok4.7xhighhandle58575 slotA targetphysicalmapping max1builder1PG；a13928762 slotB R3review继续，实际并行2任务。下一UUIDa141，单次25分钟等待保持，goal active。
+
+a13928762实际exit0，2ae9f09f三报告全读，136hash实际0，raw Linux63/Clippy/author keys/cancel0、独立drop101核对，ownDocker空。仅签R3-K；blockedownerDrop5秒两个backend仍事务中须a141返工，不签R3-C。验收子项14→15；已有reader组件不重复计交付，首次review组件口径13/返工9保持，R3子任务返工单列1项。a14058575集中检查仍live并行slotA，goal active。
