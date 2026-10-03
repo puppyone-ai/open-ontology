@@ -1,0 +1,14 @@
+source_commit=bd77b2520bcc3d63517bc49309002f25b58544b1
+tree=2460c60cf290e9696084ddea0ea2f170a5c1af0d
+composition=fixed commit archive only, no overlay
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a136-msrv-smoke
+network=oo-a136-eef831aa-net
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no

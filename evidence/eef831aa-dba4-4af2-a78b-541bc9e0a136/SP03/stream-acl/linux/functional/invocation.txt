@@ -1,0 +1,15 @@
+source_commit=bd77b2520bcc3d63517bc49309002f25b58544b1
+composition=fixed archive plus snapshot.rs sql.rs pg_stream_acl_live.rs bounded-stream-v1.md
+stream.rs=e7b5a6cc1714c67e818899788a09e0315b93b3ed
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a136-msrv-acl
+network=oo-a136-eef831aa-net
+pg_container=oo-a136-pg
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
