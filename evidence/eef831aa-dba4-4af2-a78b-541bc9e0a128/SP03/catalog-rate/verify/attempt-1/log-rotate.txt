@@ -1,0 +1,5 @@
+log_rotate_start=2026-10-03T11:40:47Z
+t
+t
+1
+log_first_byte=32
