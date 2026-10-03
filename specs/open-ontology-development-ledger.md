@@ -120,6 +120,9 @@
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+  - [x] R1-P current-schema/same-cut snapshot owner 原语：固定ccd93经a130限定批准；完整R1/reader驱动集成仍开放。
+  - [x] R2-C catalog SQL边界与速率预留结算：a130限定批准，不计为新增产品组件。
+  - [x] R2-P 正数Execute命名portal原语：a130限定批准；实际Arrow流与完整取消/键计划另验。
   - [x] R2-W opt-in PG驱动接收上限与live-view计量：固定ff783ac9经a126独立复审限定批准，Linux1.94库49/bounds13/accounting12/独立12与Clippy0；非RSS/保留frame总量/backend heap，生产opt-in、portal/Arrow/full reader另验。
 - [ ] SP03-W04 type/PositionCodec/精度
   - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
@@ -942,3 +945,13 @@ a127同UUID实际恢复handle17463，原35475关闭不再观测；slotB原写权
 一次15分钟等待后a12881453/a12717463实际exit0关闭。两组完整三报告已读，portal300项/hashcatalog135项实际校验0，最终rawphase/tests及source10/8paths核对，owncontainer列表空。原snapshot_live回归通过；portal实际生产primitive已交付，均待独立验收不勾。保留a12860000行读取actualbuffered590panic，最终timeout拒绝case不算修复panic。a129专用driver修复slotA与a130固定ccd组合业务原语复审slotB已激活，两任务精确不同写域；catalog为原组件修复不重复计新功能，现有10验收子项不变。a128三卷残留如实保留，goal active。
 
 a129实际Grok4.7xhighhandle72420 slotA驱动panic修复max1builder无PG；a130实际handle64083 slotB固定ccd业务原语复审max1builder1PG。旧a127/a128句柄均关闭不再观察，下一新UUIDa131。一次15分钟等待规则保持，goal active。
+
+
+Fixed product ccd93e1adc34b24ab998d90972549f8cffb59f0d, tree ef43877346afadcdccaf26fe6982c6b4e8b65902. Independent evidence 1bbee2798d4c2b496af680ae6977715ae83cd051. Actual CLI exit0, handle64083 closed; complete REPORT/FINDINGS/HANDOFF read. Coordinator verified all134 MANIFEST entries with actual shasum exit0 from evidence directory. Raw Linux1.94 lib/Clippy, catalog_rate_live, snapshot_live, portal bounds/live and independent four-test proof exits0; own Docker resources absent.
+
+Accept three limited children: current-schema/same-cut snapshot ownership primitive; catalog SQL bounds/reservation settlement; positive Execute named portal primitive. Independent proof covers old/fresh cross-table cut, committed schema drift and zero-probe finish, two connection permits and cleanup, tiny catalog rate success/conservative failure charge, demanded portal completion and caller transaction recovery. Independent nonempty reader SQL log classified686 statements, zero source writes/COMMIT. Preserve all three failed probe attempts and corrected oracle assumptions.
+
+Do not accept whole R1/reader: known buffered receive-view shrink panic remains assigned a129; this review froze old driver and did not clear that integration gate. Arrow/R3/R4/import/CLI full conversation and remaining87 parent items remain open. a131 may develop Arrow on this fixed primitive baseline, with corrected driver integration reviewed separately.
+
+Metrics reconcile unique components: snapshot owner and named portal bring delivered product components to12; three accepted child items bring accepted children to13. Catalog-rate repair is not a new component. First reviews12, rework8 (66.7%); snapshot owner's earlier request-changes counts once, portal first review approved. Full87 parent items/16 phases completed0. Prior counters omitted the delivered snapshot/portal components pending review; this receipt registers them without counting repair commits twice.
+
