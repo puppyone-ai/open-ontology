@@ -523,6 +523,22 @@ impl ReadBuffer {
         (self.read.capacity() + self.available.capacity()) as u64
     }
 
+    /// Length to keep after `socket.read` returns `n`.
+    ///
+    /// An append stores exactly `n` new bytes, so `len_now == pre_len + n`
+    /// and this returns `len_now`. `init_mut` zero-fills the spare first.
+    /// `Read` then writes `n` bytes at the front of that whole slice, and the
+    /// length stays at the capacity. The default tail starts at
+    /// `max(pre_len, n)`: the write when it covers the prefix, otherwise the
+    /// prefix the write did not reach. An empty prefix or a zero read makes
+    /// that the same as `pre_len + n`. The sum is not computed.
+    fn committed_init_len(pre_len: usize, n: usize, len_now: usize) -> usize {
+        if pre_len >= len_now || len_now - pre_len <= n {
+            return len_now;
+        }
+        n.max(pre_len)
+    }
+
     async fn read(&mut self, len: usize, socket: &mut impl Socket) -> io::Result<()> {
         // Because of how `BytesMut` works, we should only be shifting capacity back and forth
         // between `read` and `available` unless we have to read an oversize message.
@@ -563,7 +579,17 @@ impl ReadBuffer {
                 read_completed: 0,
             });
 
+            // After prepare, immediately before the await. A cancel that
+            // drops this future never reaches the truncation below.
+            let pre_len = self.available.len();
             let read = socket.read(&mut self.available).await?;
+            // `init_mut` may have committed the spare. Discard that tail
+            // before EOF handling and before `advance`, so a short read does
+            // not leave a full window that the next `reserve` doubles.
+            let keep = Self::committed_init_len(pre_len, read, self.available.len());
+            if keep < self.available.len() {
+                self.available.truncate(keep);
+            }
 
             if read == 0 {
                 self.finish_event(pushed, 0, assembly, view_prepared, growth);
@@ -799,24 +825,30 @@ mod view_shrink {
     use super::BufferedSocket;
 
     /// Socket whose reads use `ReadBuf::init_mut`, the same contract as the rustls
-    /// and async-io adapters. Each chunk is one plaintext read.
+    /// and async-io adapters. Each chunk is one plaintext read. A short
+    /// destination keeps the unsent tail instead of dropping it.
     struct InitMutChunks {
         chunks: Vec<Vec<u8>>,
         at: usize,
+        rest: Vec<u8>,
     }
 
     impl Socket for InitMutChunks {
         fn try_read(&mut self, buf: &mut dyn ReadBuf) -> io::Result<usize> {
-            let Some(src) = self.chunks.get(self.at) else {
-                return Err(io::ErrorKind::WouldBlock.into());
-            };
+            if self.rest.is_empty() {
+                let Some(src) = self.chunks.get(self.at) else {
+                    return Err(io::ErrorKind::WouldBlock.into());
+                };
+                self.rest.extend_from_slice(src);
+                self.at += 1;
+            }
             let dst = buf.init_mut();
-            if dst.is_empty() || src.is_empty() {
+            if dst.is_empty() || self.rest.is_empty() {
                 return Err(io::ErrorKind::WouldBlock.into());
             }
-            let n = src.len().min(dst.len());
-            dst[..n].copy_from_slice(&src[..n]);
-            self.at += 1;
+            let n = self.rest.len().min(dst.len());
+            dst[..n].copy_from_slice(&self.rest[..n]);
+            self.rest.drain(..n);
             Ok(n)
         }
 
@@ -825,7 +857,7 @@ mod view_shrink {
         }
 
         fn poll_read_ready(&mut self, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-            if self.at < self.chunks.len() {
+            if !self.rest.is_empty() || self.at < self.chunks.len() {
                 Poll::Ready(Ok(()))
             } else {
                 Poll::Ready(Err(io::Error::new(
@@ -865,13 +897,33 @@ mod view_shrink {
     }
 
     #[test]
+    fn committed_init_len_matches_the_read_contract() {
+        let keep = super::ReadBuffer::committed_init_len;
+        // Append, including a prefix the writer did not overlap.
+        assert_eq!(keep(0, 64, 64), 64);
+        assert_eq!(keep(10, 4, 14), 14);
+        // Fresh `init_mut`: the tail past `n` is the default fill. `0 + n`.
+        assert_eq!(keep(0, 64, 8192), 64);
+        // EOF `init_mut` restores the prefix and drops the fill. `pre + 0`.
+        assert_eq!(keep(0, 0, 8192), 0);
+        assert_eq!(keep(100, 0, 8192), 100);
+        // Front write overlaps a prefix. The default tail starts at max(pre, n).
+        assert_eq!(keep(100, 40, 8192), 100);
+        assert_eq!(keep(100, 200, 8192), 200);
+        // Spare exactly `n` is not an extra tail.
+        assert_eq!(keep(8128, 64, 8192), 8192);
+        assert_eq!(keep(64, 64, 64), 64);
+    }
+
+    #[test]
     fn init_mut_small_frames_shrink_the_receive_view() {
-        // Each frame is 7 bytes, so a 64-byte read ends one byte into the next frame
-        // and the following read copies onto a live prefix. `init_mut` then commits
-        // the spare, and each later read doubles the live view. 512 frames (the
-        // shape that panicked) was killed at the 8 GiB cgroup limit once the expect
-        // was gone. 128 frames is 14 such reads: enough to shrink, and bounded.
-        const FRAMES: usize = 128;
+        // 512 frames is the count that exhausted an 8 GiB cgroup when each
+        // short `init_mut` read left a zero tail and the next reserve doubled.
+        // The loop refuses a view above 24 KiB, under that fourth-read peak,
+        // so a returning doubling stops here.
+        const FRAMES: usize = 512;
+        const PLATEAU: u64 = 24 * 1024;
+        const WARMUP: usize = 64;
         let mut payloads = Vec::with_capacity(FRAMES);
         let mut wire = Vec::new();
         for id in 0..FRAMES {
@@ -881,8 +933,13 @@ mod view_shrink {
         }
         let chunks: Vec<Vec<u8>> = wire.chunks(64).map(|chunk| chunk.to_vec()).collect();
 
-        let mut socket = BufferedSocket::new(InitMutChunks { chunks, at: 0 });
+        let mut socket = BufferedSocket::new(InitMutChunks {
+            chunks,
+            at: 0,
+            rest: Vec::new(),
+        });
         let mut held: Vec<Bytes> = Vec::with_capacity(payloads.len());
+        let mut warmup = None;
         for expected in &payloads {
             let got = drive(socket.try_read(|buf| {
                 if buf.len() < 5 {
@@ -901,6 +958,21 @@ mod view_shrink {
             .expect("frame");
             socket.note_message_accepted(got.len());
             assert_eq!(got.as_ref(), expected.as_slice(), "frame {}", held.len());
+            let peak = socket.incoming_meter_parts()[5];
+            assert!(
+                peak <= PLATEAU,
+                "frame {} view {peak} above {PLATEAU}",
+                held.len()
+            );
+            if held.len() + 1 == WARMUP {
+                warmup = Some(peak);
+            } else if let Some(mark) = warmup {
+                assert!(
+                    peak <= mark,
+                    "frame {} grew past warmup {mark} to {peak}",
+                    held.len()
+                );
+            }
             held.push(got);
         }
         assert_eq!(held.len(), payloads.len());
@@ -908,9 +980,8 @@ mod view_shrink {
         let parts = socket.incoming_meter_parts();
         let events = socket.incoming_meter_events();
         let reserved_additional = parts[1];
-        let assembly_bytes = parts[13];
         let events_dropped = parts[19];
-        assert!(assembly_bytes > 0, "init_mut path did not copy");
+        assert!(parts[5] <= PLATEAU, "view {}", parts[5]);
         assert!(events.len() <= 64, "{}", events.len());
         assert_eq!(events.len() == 64, events_dropped > 0);
         let mut stored = 0u64;
@@ -934,5 +1005,7 @@ mod view_shrink {
         }
         // Retained pieces stay alive through the meter check.
         assert_eq!(held.len(), payloads.len());
+        assert_eq!(held[0].as_ref(), payloads[0].as_slice());
+        assert_eq!(held[FRAMES - 1].as_ref(), payloads[FRAMES - 1].as_slice());
     }
 }

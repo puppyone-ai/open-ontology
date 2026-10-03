@@ -163,6 +163,21 @@ row. `executor` portal execution is unchanged: `run` still sends no row limit
 and an unnamed `Close`. This hunk does not add named portals, a stream reader,
 or a product catalog cap.
 
+`ReadBuffer::read` saves the available length after `prepare_window` and,
+once `socket.read` returns `n`, truncates an `init_mut` tail before
+`advance` and before the EOF return. `init_mut` zero-fills the spare and a
+`Read` writes `n` bytes at the front of that whole slice, so a longer buffer
+ends in a default tail. The length kept is `max(pre_len, n)` when
+`len - pre_len > n`. That equals `pre_len + n` when either value is zero:
+a fresh read keeps `n`, and EOF keeps the prefix. When both are nonzero the
+front write already covered the overlapping prefix, so bytes past
+`max(pre_len, n)` are the default tail. An append leaves
+`len == pre_len + n` and is not truncated. The sum is not computed. Truncate
+does not change capacity, so the view meter stays the measured sum. Reserve
+growth is still charged. EOF and a cancelled read do not roll it back. Short
+`init_mut` reads no longer leave a zero tail that makes the next `reserve`
+double the live view.
+
 No crates.io version is claimed for this hunk. `Cargo.toml` and `Cargo.lock`
 are unchanged.
 
