@@ -1025,3 +1025,5 @@ a142同UUID恢复实际handle92492 slotA fixedmappingreview；a144实际Grok4.7x
 a142恢复92492实际exit0，e94d70a4完整三报告/raw pipelinepackage7/Clippy/live/probe/restart/docker0核对，ownDocker空；无完整hashmanifest不声称库存校验。runtime mapping限定批准，tableowner+GUC直接insert不作runtime入口验收，FullLoader未签。验收16→17，新组件首审approved分母13→14返工9/14(64.3%)，交付14保持。a145独立boundedCOPY编码生产组件slotA，a14414072集中检查仍live，goal active。
 
 a145实际Grok4.7xhighhandle56326 slotA COPYencoder1builder1PG；a14414072 slotB finish修正继续。旧a14292492关闭不再观察，下一UUIDa146，单次25分钟等待，goal active。
+
+a14414072实际exit0交付f5f0a73b/evidencedc5196b2完整三报告读取，rawLinux63/Clippy/finishlive/docker0、manifest实际校验0、ownDocker空。仅test+contract，无生产源码变动；reachable max_value失效finish保留error，整体完整EOF与earlyfinish语义待a146 R4组合独立审阅，不提前签reader。a14556326一次集中检查仍live，goal active。
