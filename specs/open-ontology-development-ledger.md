@@ -901,3 +901,5 @@ a124专用wire计量返工已启动，Grok4.7xhigh实际handle97117，slot B最�
 a123handle39100实际exit0关闭，ae8f9bb3六文档完整读取/HASHES6项实际全部OK。设计未验收运行；接收a123-current-schema-design-receipt.md并明确rate预扣、savepoint有限生命周期、coherent目录观测、双连接释放修正。R1保持未勾。
 
 a125当前schema guard实现实际Grok4.7xhighhandle36253，slot A最多1builder1PG；先Linux1.94冒烟及savepoint/DDL/同cut前提实测再业务编辑，精确6路径写权，manifest/lock/vendor禁写。a124handle97117保持slot B计量修复，两槽上限不变。产品metrics9/9/6比9保持，下一新UUID a126，goal active。
+
+a124原handle97117实际exit0但交付不完整：无代码提交/最终三报告，exactDockerfinal实际Exited0/baselineExited0、rawphase存在。恢复同UUID实际新handle83036，仅补核验/精确提交/证据清理，原任务写权slotB不变，旧句柄关闭不再轮询。实际先启动冻结baseline后在其未终态时改工作区的时序须如实记载。a125handle36253仍live/ownPG夹具已启动，下一新UUIDa126保持；无新增验收勾选，goal active。
