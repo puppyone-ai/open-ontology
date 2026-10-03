@@ -1,0 +1,10 @@
+pg_container=eef831aa-dba4-4af2-a78b-541bc9e0a121-pg
+pg_volume=eef831aa-dba4-4af2-a78b-541bc9e0a121-pglog
+network=eef831aa-dba4-4af2-a78b-541bc9e0a121-net
+secret_dir=/tmp/oo-a121-eef831aa-dba4-4af2-a78b-541bc9e0a121/secrets
+image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+alias=a121pg
+database=lotdb
+privileged=no
+host_port=none
+verify_full=yes
