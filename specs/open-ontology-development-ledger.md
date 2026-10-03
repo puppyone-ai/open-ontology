@@ -934,3 +934,5 @@ a128实际Grok4.7xhighhandle81453启动slot A目录读取回归修复，a1273547
 用户改为一次15分钟等待、期间零观测；已实际执行900秒等待，结束后一次核验a12881453/a12735475均仍live。此后不反复追加相同等待记录，保留当前句柄/边界，goal active。
 
 a12735475实际CLIexit0但无最终报告/源码提交；一次15分钟等待后核验ownfinalDockerExited101，编译E0106/E0308，ownPG仍Up。原baseline缺fixture101与完整baseline49/Clippy0保留，slotB按同UUID恢复完成已有overlay；不签R2-P，不重启仍live a12881453。新UUIDa129保持，goal active。
+
+a127同UUID实际恢复handle17463，原35475关闭不再观测；slotB原写权不扩展，a12881453继续slotA。下一观测采用一次15分钟等待，goal active。
