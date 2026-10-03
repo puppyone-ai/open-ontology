@@ -50,7 +50,12 @@ pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use bind_iter::PgBindIterExt;
 pub use column::PgColumn;
-pub use connection::PgConnection;
+pub use connection::{
+    PgBackendFrame, PgConnection, PgIncomingAllocEvent, PgIncomingAllocation, PgIncomingBounds,
+};
+pub use sqlx_core::error::IncomingWireError;
+pub use sqlx_core::error::ReceiveLimitKind;
+pub use sqlx_core::error::ReceiveLimitKind as PgIncomingLimit;
 pub use copy::{PgCopyIn, PgPoolCopyExt};
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};

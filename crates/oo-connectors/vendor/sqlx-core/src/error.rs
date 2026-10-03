@@ -18,6 +18,67 @@ pub type Result<T, E = Error> = ::std::result::Result<T, E>;
 // Do not make this type public.
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
+/// Which opt-in PostgreSQL receive bound rejected a frame.
+///
+/// The label is static. It is not server text and it does not include a length.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ReceiveLimitKind {
+    /// Backend message length, including its own Int32, exceeded the cap.
+    Message,
+    /// One DataRow field payload exceeded the cap.
+    Value,
+    /// The DataRow prefix plus field payloads exceeded the cap.
+    Row,
+    /// The DataRow column count exceeded the cap.
+    Columns,
+}
+
+impl Display for ReceiveLimitKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            ReceiveLimitKind::Message => "message",
+            ReceiveLimitKind::Value => "value",
+            ReceiveLimitKind::Row => "row",
+            ReceiveLimitKind::Columns => "columns",
+        })
+    }
+}
+
+/// Static classification of a PostgreSQL frame the driver refused to buffer.
+///
+/// Display and debug text never include bytes from the server.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum IncomingWireError {
+    /// An opt-in [`ReceiveLimitKind`] rejected the frame.
+    Limit(ReceiveLimitKind),
+    /// The Int32 length was below 4.
+    ShortLength,
+    /// A length addition overflowed before a buffer was reserved.
+    Overflow,
+    /// The declared frame ended inside a required prefix or payload.
+    Truncated,
+    /// Field payloads ended before the declared frame end.
+    Remaining,
+    /// A DataRow field length was below -1.
+    NegativeLength,
+    /// The type byte is not a known backend format. The byte is not echoed.
+    BadType,
+}
+
+impl Display for IncomingWireError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IncomingWireError::Limit(kind) => write!(f, "incoming receive limit: {kind}"),
+            IncomingWireError::ShortLength => f.write_str("incoming wire short length"),
+            IncomingWireError::Overflow => f.write_str("incoming wire overflow"),
+            IncomingWireError::Truncated => f.write_str("incoming wire truncated"),
+            IncomingWireError::Remaining => f.write_str("incoming wire remaining"),
+            IncomingWireError::NegativeLength => f.write_str("incoming wire negative length"),
+            IncomingWireError::BadType => f.write_str("incoming wire type"),
+        }
+    }
+}
+
 /// An unexpected `NULL` was encountered during decoding.
 ///
 /// Returned from [`Row::get`](crate::row::Row::get) if the value from the database is `NULL`,
@@ -114,6 +175,12 @@ pub enum Error {
     #[error("attempted to communicate with a crashed background worker")]
     WorkerCrashed,
 
+    /// PostgreSQL receive bound or length check rejected a frame before its body was reserved.
+    ///
+    /// The payload is a static [`IncomingWireError`]. It does not contain server bytes.
+    #[error("{0}")]
+    IncomingWire(IncomingWireError),
+
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
@@ -144,6 +211,14 @@ impl Error {
     pub fn as_database_error(&self) -> Option<&(dyn DatabaseError + 'static)> {
         match self {
             Error::Database(err) => Some(&**err),
+            _ => None,
+        }
+    }
+
+    /// Static receive-bound or length classification, when this error is one.
+    pub fn as_incoming_wire(&self) -> Option<IncomingWireError> {
+        match self {
+            Error::IncomingWire(err) => Some(*err),
             _ => None,
         }
     }

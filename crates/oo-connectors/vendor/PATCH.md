@@ -88,3 +88,49 @@ admitted feature remains `_tls-rustls-ring-no-roots`. A build that enables
 the admitted feature together with `_tls-rustls-ring-webpki` fails this
 guard. `rustls-platform-verifier` in another crate is not one of these
 features.
+
+## Hunk 3: opt-in incoming receive bounds
+
+`sqlx-core` `src/error.rs` adds `ReceiveLimitKind`, `IncomingWireError`, and
+`Error::IncomingWire`. The display text is a fixed label (`message`, `value`,
+`row`, `columns`, or a short length class). It does not include server bytes,
+a file path, or a length. `Error::as_incoming_wire` reads that payload.
+`Error::Protocol` is unchanged and is not the carrier for these rejects.
+
+`sqlx-postgres` `PgConnection` exposes `set_incoming_bounds`,
+`incoming_bounds`, `incoming_allocation`, `incoming_synchronized`, and
+`recv_backend`. `PgIncomingBounds::try_new` rejects a message cap below 4 or
+a value cap above the row cap. The default is unset.
+
+Unset keeps the previous path: buffer a whole backend frame, then decode it.
+Two corrections apply in both modes. A length below 4 returns
+`IncomingWireError::ShortLength` instead of panicking in `split_to`. A length
+whose type-byte-inclusive end does not fit in `u32` returns `Overflow`.
+`usize` overflow of that add is not hit on 64-bit targets.
+
+When bounds are set, every backend format is checked against the message cap
+before its body is reserved. DataRow lengths, NULL (`-1`), empty fields,
+negative lengths below `-1`, column counts, row sums, truncation, and a body
+that ends before the declared frame are checked from the bytes already
+buffered. A reject does not ask the buffer to reserve the offending body.
+Unknown type bytes become `BadType` and are not copied into the error.
+Without bounds, an unknown type still returns the historical protocol error.
+
+A receive-bound or length fault is stored on the stream. Later receives
+return that fault and do not read. `wait_until_ready` checks the fault before
+it flushes or receives, so `ping` cannot drain the socket. `set_incoming_bounds`
+does not clear the fault. `close_hard` still shuts the socket down.
+`recv_unchecked` keeps its signature. The retained buffer is the parser
+state: it is consumed only after a full frame is accepted, with no await
+between that decision and the split. Dropping the read future leaves the
+bytes in place.
+
+`incoming_allocation` reports `BytesMut` capacities, reserve arguments, read
+counts, overread, and accepted payload lengths. The configured caps are not
+copied into those fields. The receive path does not allocate a second copy of
+the frame. `executor` portal execution is unchanged: `run` still sends no row
+limit and an unnamed `Close`. This hunk does not add named portals, a stream
+reader, or a product catalog cap.
+
+No crates.io version is claimed for this hunk. `Cargo.toml` and `Cargo.lock`
+are unchanged.

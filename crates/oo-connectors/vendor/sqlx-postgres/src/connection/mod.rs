@@ -21,7 +21,10 @@ use crate::{PgConnectOptions, PgTypeInfo, Postgres};
 pub(crate) use sqlx_core::connection::*;
 use sqlx_core::sql_str::SqlSafeStr;
 
-pub use self::stream::PgStream;
+pub use self::stream::{
+    PgIncomingAllocEvent, PgIncomingAllocation, PgIncomingBounds, PgStream,
+};
+use sqlx_core::bytes::Bytes;
 
 #[cfg(feature = "offline")]
 mod describe;
@@ -31,6 +34,49 @@ mod resolve;
 mod sasl;
 mod stream;
 mod tls;
+
+/// One backend frame, with the original type byte and the body after the length word.
+#[derive(Debug)]
+pub struct PgBackendFrame {
+    format_byte: u8,
+    contents: Bytes,
+}
+
+impl PgBackendFrame {
+    pub fn format_byte(&self) -> u8 {
+        self.format_byte
+    }
+
+    pub fn contents(&self) -> &Bytes {
+        &self.contents
+    }
+}
+
+fn format_wire_byte(format: &BackendMessageFormat) -> u8 {
+    match format {
+        BackendMessageFormat::Authentication => b'R',
+        BackendMessageFormat::BackendKeyData => b'K',
+        BackendMessageFormat::BindComplete => b'2',
+        BackendMessageFormat::CloseComplete => b'3',
+        BackendMessageFormat::CommandComplete => b'C',
+        BackendMessageFormat::CopyData => b'd',
+        BackendMessageFormat::CopyDone => b'c',
+        BackendMessageFormat::CopyInResponse => b'G',
+        BackendMessageFormat::CopyOutResponse => b'H',
+        BackendMessageFormat::DataRow => b'D',
+        BackendMessageFormat::EmptyQueryResponse => b'I',
+        BackendMessageFormat::ErrorResponse => b'E',
+        BackendMessageFormat::NoData => b'n',
+        BackendMessageFormat::NoticeResponse => b'N',
+        BackendMessageFormat::NotificationResponse => b'A',
+        BackendMessageFormat::ParameterDescription => b't',
+        BackendMessageFormat::ParameterStatus => b'S',
+        BackendMessageFormat::ParseComplete => b'1',
+        BackendMessageFormat::PortalSuspended => b's',
+        BackendMessageFormat::ReadyForQuery => b'Z',
+        BackendMessageFormat::RowDescription => b'T',
+    }
+}
 
 /// A connection to a PostgreSQL database.
 ///
@@ -90,8 +136,41 @@ impl PgConnection {
         self.inner.stream.server_version_num
     }
 
+    /// Replace the opt-in receive bounds. A poisoned connection stays poisoned.
+    pub fn set_incoming_bounds(&mut self, bounds: Option<PgIncomingBounds>) -> Result<(), Error> {
+        self.inner.stream.set_bounds(bounds);
+        Ok(())
+    }
+
+    pub fn incoming_bounds(&self) -> Option<PgIncomingBounds> {
+        self.inner.stream.bounds()
+    }
+
+    /// Bytes and capacities measured on the socket buffer. This is not the configured cap.
+    pub fn incoming_allocation(&self) -> PgIncomingAllocation {
+        self.inner.stream.allocation()
+    }
+
+    /// False after a receive-bound or length fault. Hard close is still available.
+    pub fn incoming_synchronized(&self) -> bool {
+        self.inner.stream.fault().is_none()
+    }
+
+    /// Read one backend frame without decoding it or swallowing notices.
+    pub async fn recv_backend(&mut self) -> Result<PgBackendFrame, Error> {
+        let message = self.inner.stream.recv_unchecked().await?;
+        Ok(PgBackendFrame {
+            format_byte: format_wire_byte(&message.format),
+            contents: message.contents,
+        })
+    }
+
     // will return when the connection is ready for another query
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if let Some(fault) = self.inner.stream.fault() {
+            return Err(Error::IncomingWire(fault));
+        }
+
         if !self.inner.stream.write_buffer_mut().is_empty() {
             self.inner.stream.flush().await?;
         }
