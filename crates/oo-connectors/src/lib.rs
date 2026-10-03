@@ -5,8 +5,9 @@
 //! `type_conversion` and [`TypeSupport::converted`] stay unsupported and false.
 //! Binary decoding is the separate protocol [`types::TYPE_CONVERSION_PROTOCOL`].
 //! [`PgSession::read_typed`] is that decoder. The snapshot owner protocol is
-//! [`SNAPSHOT_PROTOCOL`]. It is not the bounded reader. Scan, CDC, bounded read,
-//! and the registry API stay unsupported. Gateway crates do not depend on this crate.
+//! [`SNAPSHOT_PROTOCOL`]. [`STREAM_PROTOCOL`] is the bounded full-snapshot Arrow
+//! pull on that same owner. It is not the whole reader. Resume cursors, cancel,
+//! CDC, and the registry API stay unsupported. Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
 
@@ -19,6 +20,7 @@ mod model;
 mod session;
 mod snapshot;
 mod sql;
+mod stream;
 pub mod types;
 
 pub use config::{
@@ -41,6 +43,9 @@ pub use snapshot::{
     AdmittedTable, BackendKey, CutProbe, ProbeValue, SnapshotAborted, SnapshotBinding,
     SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess, CLEANUP_OBSERVATION_BOUND_MS,
     SNAPSHOT_PROTOCOL,
+};
+pub use stream::{
+    StreamAccounting, StreamBatch, StreamBudget, StreamItem, TableEof, STREAM_PROTOCOL,
 };
 pub use types::{
     type_capabilities, ColumnMapping, PgTypePolicy, RunBinding, TypedBatch, TYPE_CONVERSION_PROTOCOL,

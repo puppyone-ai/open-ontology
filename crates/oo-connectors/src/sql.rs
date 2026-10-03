@@ -116,6 +116,12 @@ pub(crate) const ROLLBACK_PROBE: &str = "ROLLBACK TO SAVEPOINT oo_probe_lock";
 
 pub(crate) const RELEASE_PROBE: &str = "RELEASE SAVEPOINT oo_probe_lock";
 
+pub(crate) const SAVEPOINT_STREAM: &str = "SAVEPOINT oo_stream_lock";
+
+pub(crate) const ROLLBACK_STREAM: &str = "ROLLBACK TO SAVEPOINT oo_stream_lock";
+
+pub(crate) const RELEASE_STREAM: &str = "RELEASE SAVEPOINT oo_stream_lock";
+
 /// One current-catalog snapshot. `$1` and `$2` are the selected names.
 /// `$3` is the row ceiling. A full ceiling is treated as drift.
 pub(crate) const CURRENT_CATALOG: &str = "\
@@ -405,6 +411,9 @@ const ALL: &[&str] = &[
     SAVEPOINT_PROBE,
     ROLLBACK_PROBE,
     RELEASE_PROBE,
+    SAVEPOINT_STREAM,
+    ROLLBACK_STREAM,
+    RELEASE_STREAM,
     CURRENT_CATALOG,
     FACTS,
     ROLE,
@@ -476,6 +485,11 @@ mod tests {
         assert_eq!(SAVEPOINT_PROBE, "SAVEPOINT oo_probe_lock");
         assert_eq!(ROLLBACK_PROBE, "ROLLBACK TO SAVEPOINT oo_probe_lock");
         assert_eq!(RELEASE_PROBE, "RELEASE SAVEPOINT oo_probe_lock");
+        assert_eq!(SAVEPOINT_STREAM, "SAVEPOINT oo_stream_lock");
+        assert_eq!(ROLLBACK_STREAM, "ROLLBACK TO SAVEPOINT oo_stream_lock");
+        assert_eq!(RELEASE_STREAM, "RELEASE SAVEPOINT oo_stream_lock");
+        assert!(ALL.contains(&ROLLBACK_STREAM));
+        assert!(ALL.contains(&RELEASE_STREAM));
         assert!(ALL.contains(&ROLLBACK_PROBE));
         assert!(ALL.contains(&RELEASE_PROBE));
         assert_ne!(ROLLBACK_PROBE, RELEASE_PROBE);

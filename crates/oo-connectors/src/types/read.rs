@@ -89,6 +89,42 @@ pub fn compose_select(schema: &str, table: &str, columns: &[String]) -> Result<S
     Ok(sql)
 }
 
+/// Full-snapshot scan. No `LIMIT`, `OFFSET`, or `ORDER BY`.
+pub(crate) fn compose_scan(
+    schema: &str,
+    table: &str,
+    columns: &[String],
+) -> Result<String, SourceError> {
+    if columns.is_empty() || !valid_quoted_ident(schema) || !valid_quoted_ident(table) {
+        return Err(SourceError::catalog("quote_ident"));
+    }
+    for column in columns {
+        if !valid_quoted_ident(column) {
+            return Err(SourceError::catalog("quote_ident"));
+        }
+    }
+    let mut sql = String::from("SELECT ");
+    for (index, column) in columns.iter().enumerate() {
+        if index > 0 {
+            sql.push(',');
+        }
+        sql.push_str(column);
+    }
+    sql.push_str(" FROM ");
+    sql.push_str(schema);
+    sql.push('.');
+    sql.push_str(table);
+    Ok(sql)
+}
+
+/// Presence scan for a table with no lossless output column. The `1` is not an Arrow column.
+pub(crate) fn compose_presence_scan(schema: &str, table: &str) -> Result<String, SourceError> {
+    if !valid_quoted_ident(schema) || !valid_quoted_ident(table) {
+        return Err(SourceError::catalog("quote_ident"));
+    }
+    Ok(format!("SELECT 1 FROM {schema}.{table}"))
+}
+
 /// Row count when every column is omitted. The constant is not part of the frame.
 pub fn compose_presence(schema: &str, table: &str) -> Result<String, SourceError> {
     if !valid_quoted_ident(schema) || !valid_quoted_ident(table) {

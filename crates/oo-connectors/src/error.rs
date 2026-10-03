@@ -209,7 +209,26 @@ fn map_driver(err: sqlx::Error, connect: bool) -> SourceError {
         sqlx::Error::RowNotFound => SourceError::catalog("row_not_found"),
         sqlx::Error::Configuration(_) => SourceError::config("driver_configuration"),
         sqlx::Error::Protocol(_) => SourceError::protocol("protocol"),
+        sqlx::Error::IncomingWire(err) => map_incoming(err),
         _ => SourceError::protocol("driver"),
+    }
+}
+
+fn map_incoming(err: sqlx::postgres::IncomingWireError) -> SourceError {
+    match err {
+        sqlx::postgres::IncomingWireError::Limit(sqlx::postgres::ReceiveLimitKind::Message) => {
+            SourceError::budget("max_message")
+        }
+        sqlx::postgres::IncomingWireError::Limit(sqlx::postgres::ReceiveLimitKind::Value) => {
+            SourceError::budget("max_value")
+        }
+        sqlx::postgres::IncomingWireError::Limit(sqlx::postgres::ReceiveLimitKind::Row) => {
+            SourceError::budget("max_row")
+        }
+        sqlx::postgres::IncomingWireError::Limit(sqlx::postgres::ReceiveLimitKind::Columns) => {
+            SourceError::budget("max_columns")
+        }
+        _ => SourceError::protocol("incoming_wire"),
     }
 }
 

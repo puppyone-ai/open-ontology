@@ -140,6 +140,16 @@ impl TypedBatch {
     /// private dependencies and this return type is explicitly allowed.
     #[allow(exported_private_dependencies)]
     pub fn record_batch(&self) -> Result<arrow_array::RecordBatch, SourceError> {
+        if self.arrow.is_empty() {
+            let options =
+                arrow_array::RecordBatchOptions::new().with_row_count(Some(self.rows.len()));
+            return arrow_array::RecordBatch::try_new_with_options(
+                std::sync::Arc::new(arrow_schema::Schema::empty()),
+                Vec::new(),
+                &options,
+            )
+            .map_err(|_| SourceError::protocol("arrow_batch_schema"));
+        }
         super::arrow_batch::record_batch(&self.arrow)
     }
 }

@@ -6,8 +6,10 @@ use std::fmt;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode, PgTransactionManager};
 use sqlx::{ConnectOptions, Connection, Row};
+use sqlx_core::sql_str::SqlSafeStr;
+use sqlx_core::transaction::TransactionManager;
 
 use crate::config::{PgSourceConfig, TableSelection};
 use crate::error::{SourceError, map_connect, map_sqlx};
@@ -428,6 +430,7 @@ impl PgConnector {
             current_user: String::new(),
             database_name: String::new(),
             row_bound: None,
+            skip_rollback: false,
         };
         session.read_identity().await?;
         session.apply_guards().await?;
@@ -467,6 +470,7 @@ pub struct PgSession {
     pub(crate) current_user: String,
     pub(crate) database_name: String,
     row_bound: Option<u32>,
+    skip_rollback: bool,
 }
 
 impl fmt::Debug for PgSession {
@@ -637,23 +641,39 @@ impl PgSession {
     }
 
     pub(crate) async fn begin(&mut self) -> Result<(), SourceError> {
-        self.ensure_open()?;
-        if self.in_transaction {
-            return Err(SourceError::protocol("nested_transaction"));
-        }
-        self.execute_charged(sql::BEGIN).await?;
-        self.in_transaction = true;
-        Ok(())
+        self.begin_tracked(sql::BEGIN).await
     }
 
     pub(crate) async fn begin_read_committed(&mut self) -> Result<(), SourceError> {
+        self.begin_tracked(sql::BEGIN_CURRENT).await
+    }
+
+    /// Send the snapshot `START TRANSACTION` through the driver transaction
+    /// manager so `transaction_depth` is 1. A named portal refuses depth 0.
+    /// The SQL text stays the caller statement. This does not `COMMIT`.
+    async fn begin_tracked(&mut self, sql: &'static str) -> Result<(), SourceError> {
         self.ensure_open()?;
         if self.in_transaction {
             return Err(SourceError::protocol("nested_transaction"));
         }
-        self.execute_charged(sql::BEGIN_CURRENT).await?;
-        self.in_transaction = true;
-        Ok(())
+        try_charge_rows(&self.source_id, 1)?;
+        let budget = self.budget.statement_timeout();
+        let started = tokio::time::timeout(
+            budget,
+            PgTransactionManager::begin(&mut self.conn, Some(sql.into_sql_str())),
+        )
+        .await;
+        match started {
+            Ok(Ok(())) => {
+                self.in_transaction = true;
+                Ok(())
+            }
+            Ok(Err(err)) => Err(map_sqlx(err)),
+            Err(_) => {
+                self.poisoned = true;
+                Err(SourceError::budget("statement_timeout"))
+            }
+        }
     }
 
     pub(crate) fn arm_rows(&mut self, bound: u32) {
@@ -679,7 +699,18 @@ impl PgSession {
         self.execute_charged(sql).await
     }
 
+    /// The socket is closed without `ROLLBACK`. Used when the portal or the
+    /// receive path has already left the connection unable to take a command.
+    pub(crate) fn mark_skip_rollback(&mut self) {
+        self.skip_rollback = true;
+        self.poisoned = true;
+        self.in_transaction = false;
+    }
+
     pub(crate) async fn shutdown(mut self) -> Result<(), SourceError> {
+        if self.skip_rollback {
+            self.in_transaction = false;
+        }
         let rolled = self.finish(Ok(())).await.map(|_| ());
         let permit = self.permit.take();
         let PgSession { conn, .. } = self;

@@ -6,12 +6,11 @@
 //! [`PgSession::catalog`] is not this snapshot: that method begins and rolls back
 //! on its own. This owner calls `collect_catalog` inside the data transaction.
 //!
-//! `read_probe` is one primary-key lookup with `LIMIT 2`. It is not a table scan
-//! and not the bounded reader. A later `read_stream` would borrow this same owner
-//! and transaction, page with a server cursor, and decode each row with
-//! `decode_payload`. Dropping that stream would not finish the owner. This slice
-//! does not implement that stream. Dropping a client timeout is not backend
-//! cancellation.
+//! `read_probe` is one primary-key lookup with `LIMIT 2`. It is not a table scan.
+//! `open_stream` / `next_batch` pull a full-snapshot Arrow stream on this same
+//! owner and transaction (`oo.source.pgsql.stream/v1`). That pull is not a second
+//! snapshot and not the whole reader. Resume cursors and cancel stay unimplemented.
+//! Dropping a client timeout is not backend cancellation.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -33,7 +32,7 @@ use crate::types::{
     TypedBatch, UnsupportedColumnPolicy,
 };
 
-/// Snapshot owner protocol. This is not `oo.source.pgsql/v1` and not the bounded reader.
+/// Snapshot owner protocol. This is not `oo.source.pgsql/v1` and not the whole reader.
 pub const SNAPSHOT_PROTOCOL: &str = "oo.source.pgsql.snapshot/v1";
 
 /// How long a caller may poll `pg_stat_activity` after finish, abort, drop, or failure.
@@ -49,6 +48,7 @@ const OID_TEXT: i64 = 25;
 const OID_BPCHAR: i64 = 1042;
 const OID_VARCHAR: i64 = 1043;
 const MAX_KEY_COLUMNS: usize = 8;
+const INDEX_MAX_KEYS: usize = 32;
 
 static GENERATIONS: Mutex<BTreeSet<(String, u64)>> = Mutex::new(BTreeSet::new());
 
@@ -370,6 +370,7 @@ pub struct SnapshotOwner {
     deadline: Instant,
     poison: Option<SourceError>,
     released: bool,
+    stream: Option<crate::stream::StreamSlot>,
 }
 
 impl SnapshotOwner {
@@ -481,6 +482,7 @@ impl SnapshotOwner {
             deadline: plan.deadline,
             poison: None,
             released: false,
+            stream: None,
         })
     }
 
@@ -492,6 +494,9 @@ impl SnapshotOwner {
     /// Read at most one row by primary key. Zero rows is an empty batch.
     /// Two rows is `probe_key`. A failure poisons the owner.
     pub async fn read_probe(&mut self, probe: CutProbe) -> Result<TypedBatch, SourceError> {
+        if self.stream.is_some() {
+            return Err(SourceError::protocol("stream_active"));
+        }
         let result = self.probe_inner(probe).await;
         match result {
             Ok(batch) => Ok(batch),
@@ -504,6 +509,10 @@ impl SnapshotOwner {
     /// both rollbacks and closes succeed, the owner is not poisoned, and the
     /// deadline has not passed.
     pub async fn finish(mut self) -> Result<SnapshotFinished, SourceError> {
+        let stream_err = self.take_stream().await.err();
+        if let Some(err) = stream_err.clone() {
+            let _ = self.poison(err);
+        }
         let finished = SnapshotFinished {
             generation: self.binding.generation,
             source_id: self.binding.source_id.clone(),
@@ -517,7 +526,12 @@ impl SnapshotOwner {
                 early = Some(err);
             }
         }
-        self.release_both().await?;
+        let released = self.release_both().await;
+        if let Some(err) = stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
+        {
+            return Err(err);
+        }
+        released?;
         if let Some(err) = early {
             return Err(err);
         }
@@ -528,6 +542,7 @@ impl SnapshotOwner {
     /// Roll back and close both sessions. Success is [`SnapshotAborted`], including
     /// when the owner was already poisoned. Cleanup failure is an error.
     pub async fn abort(mut self) -> Result<SnapshotAborted, SourceError> {
+        let _ = self.take_stream().await;
         let aborted = SnapshotAborted {
             generation: self.binding.generation,
             source_id: self.binding.source_id.clone(),
@@ -683,6 +698,155 @@ impl SnapshotOwner {
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))
     }
 
+    /// Move both sessions into one pull. `next_batch` is the only Execute driver.
+    pub async fn open_stream(
+        &mut self,
+        budget: crate::stream::StreamBudget,
+    ) -> Result<(), SourceError> {
+        if self.stream.is_some() {
+            return Err(SourceError::protocol("stream_active"));
+        }
+        self.ensure_usable()?;
+        let plan = self.stream_plan(&budget)?;
+        let data = self
+            .session
+            .take()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        let guard = self
+            .guard
+            .take()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        self.stream = Some(crate::stream::StreamSlot::start(data, guard, plan));
+        Ok(())
+    }
+
+    /// One demanded batch, one table end, or run exhaustion. This polls the pull.
+    /// It does not finish the owner.
+    pub async fn next_batch(&mut self) -> Result<crate::stream::StreamItem, SourceError> {
+        if self.released {
+            return Err(SourceError::protocol("snapshot_incomplete"));
+        }
+        let Some(slot) = self.stream.as_mut() else {
+            return Err(SourceError::protocol("stream_idle"));
+        };
+        match slot.next_item().await {
+            crate::stream::Next::Item(item) => Ok(item),
+            crate::stream::Next::Ended(end) => {
+                self.stream = None;
+                let err = match end {
+                    Some(end) => {
+                        let err = end
+                            .error
+                            .unwrap_or_else(|| SourceError::protocol("stream_ended"));
+                        self.session = Some(end.data);
+                        self.guard = Some(end.guard);
+                        err
+                    }
+                    None => SourceError::protocol("stream_ended"),
+                };
+                Err(self.poison(err))
+            }
+        }
+    }
+
+    /// Stop the pull, restore both sessions, and re-read the current catalog.
+    /// This does not roll back the snapshot transaction.
+    pub async fn close_stream(&mut self) -> Result<(), SourceError> {
+        if let Err(err) = self.take_stream().await {
+            return Err(self.poison(err));
+        }
+        if let Some(err) = &self.poison {
+            return Err(err.clone());
+        }
+        self.ensure_usable()?;
+        self.observe_guard().await
+    }
+
+    async fn take_stream(&mut self) -> Result<(), SourceError> {
+        let Some(slot) = self.stream.take() else {
+            return Ok(());
+        };
+        let end = slot.stop().await;
+        self.session = Some(end.data);
+        self.guard = Some(end.guard);
+        match end.error {
+            Some(err) => Err(err),
+            None => Ok(()),
+        }
+    }
+
+    fn stream_plan(
+        &self,
+        budget: &crate::stream::StreamBudget,
+    ) -> Result<crate::stream::StreamPlan, SourceError> {
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        let mut tables = Vec::with_capacity(self.tables.len());
+        for index in 0..self.tables.len() {
+            let table = &self.tables[index];
+            let presence = table.select_sql.is_empty();
+            let sql = if presence {
+                crate::types::compose_presence_scan(&table.schema_sql, &table.table_sql)?
+            } else {
+                crate::types::compose_scan(
+                    &table.schema_sql,
+                    &table.table_sql,
+                    &table.select_sql,
+                )?
+            };
+            let cut = self.recheck_cut(index)?;
+            let zero_column = cut.source.columns.is_empty();
+            let arrow_columns = u32::try_from(
+                table
+                    .plans
+                    .iter()
+                    .filter(|plan| plan.mapping.decision == MapDecision::Lossless)
+                    .count(),
+            )
+            .unwrap_or(u32::MAX);
+            tables.push(crate::stream::StreamTablePlan {
+                schema: table.schema.clone(),
+                name: table.name.clone(),
+                sql,
+                plans: table.plans.clone(),
+                key_attnums: table.key_attnums.clone(),
+                zero_column,
+                presence,
+                result_columns: if presence {
+                    1
+                } else {
+                    table.select_sql.len()
+                },
+                arrow_columns,
+                cut,
+            });
+        }
+        Ok(crate::stream::StreamPlan {
+            source_id: self.binding.source_id.clone(),
+            generation: self.binding.generation,
+            input_digest: self.binding.input_digest,
+            deadline: self.deadline,
+            statement_timeout: session.budget.statement_timeout(),
+            max_bytes: session.budget.max_bytes(),
+            batch_rows: budget.batch_rows(),
+            batch_bytes: budget.batch_bytes(),
+            max_value_bytes: budget.max_value_bytes(),
+            max_row_bytes: budget.max_row_bytes(),
+            guard: StreamGuard {
+                in_recovery: self.binding.in_recovery,
+                postmaster_start: self.binding.postmaster_start.clone(),
+                database: self.binding.database.clone(),
+                session_user: self.binding.principal.clone(),
+                current_user: self.binding.principal.clone(),
+                catalog: self.binding.catalog.clone(),
+                access: self.binding.access.clone(),
+            },
+            tables,
+        })
+    }
+
 }
 
 impl fmt::Debug for SnapshotOwner {
@@ -703,6 +867,16 @@ impl Drop for SnapshotOwner {
             return;
         }
         self.released = true;
+        if let Some(slot) = self.stream.take() {
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                handle.spawn(async move {
+                    let end = slot.stop().await;
+                    let _ = release_session(end.data).await;
+                    let _ = release_session(end.guard).await;
+                });
+            }
+            return;
+        }
         let data = self.session.take();
         let guard = self.guard.take();
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
@@ -800,10 +974,10 @@ fn selection_matches(config: &PgSourceConfig, admitted: &AdmittedCatalog) -> Res
         if !seen.insert((table.schema.clone(), table.name.clone())) {
             return Err(SourceError::config("selection"));
         }
-        if table.columns.is_empty()
-            || table.primary_key.is_empty()
-            || table.primary_key.len() > MAX_KEY_COLUMNS
-        {
+        if table.primary_key.len() > INDEX_MAX_KEYS {
+            return Err(SourceError::config("selection"));
+        }
+        if table.columns.is_empty() && !table.primary_key.is_empty() {
             return Err(SourceError::protocol("probe_key"));
         }
         let mut attnums = BTreeSet::new();
@@ -970,8 +1144,13 @@ async fn bind_table(
         }
     }
     let plans = plan_columns(session, source, policy).await?;
-    let key_attnums: Vec<i32> = source.primary_key.iter().map(|key| key.attnum).collect();
-    let key_oids = key_oids(source, &key_attnums)?;
+    let probe = probe_keys(source);
+    let key_attnums = if probe.supported {
+        source.primary_key.iter().map(|key| key.attnum).collect()
+    } else {
+        Vec::new()
+    };
+    let key_oids = probe.oids;
     let quoted = quote_table(session, source, &plans).await?;
     Ok((
         TableAccess {
@@ -1046,7 +1225,12 @@ async fn plan_columns(
     policy: PgTypePolicy,
 ) -> Result<Vec<ColumnPlan>, SourceError> {
     let graph = load_type_graph(session, &source.columns).await?;
-    let key_attnums: Vec<i32> = source.primary_key.iter().map(|key| key.attnum).collect();
+    let probe = probe_keys(source);
+    let key_attnums: Vec<i32> = if probe.supported {
+        source.primary_key.iter().map(|key| key.attnum).collect()
+    } else {
+        Vec::new()
+    };
     let mut plans = Vec::with_capacity(source.columns.len());
     for column in &source.columns {
         plans.push(map_column(
@@ -1059,21 +1243,41 @@ async fn plan_columns(
     Ok(plans)
 }
 
-fn key_oids(source: &SourceTable, key_attnums: &[i32]) -> Result<Vec<i64>, SourceError> {
-    let mut oids = Vec::with_capacity(key_attnums.len());
-    for attnum in key_attnums {
-        let Some(column) = source.columns.iter().find(|column| column.attnum == *attnum) else {
-            return Err(SourceError::protocol("probe_key"));
+struct ProbeKeys {
+    supported: bool,
+    oids: Vec<i64>,
+}
+
+/// Empty, wider than the probe, or a non-probe oid is not an open failure.
+/// `read_probe` still returns `probe_key` for those tables.
+fn probe_keys(source: &SourceTable) -> ProbeKeys {
+    let attnums: Vec<i32> = source.primary_key.iter().map(|key| key.attnum).collect();
+    if attnums.is_empty() || attnums.len() > MAX_KEY_COLUMNS {
+        return ProbeKeys {
+            supported: false,
+            oids: Vec::new(),
+        };
+    }
+    let mut oids = Vec::with_capacity(attnums.len());
+    for attnum in attnums {
+        let Some(column) = source.columns.iter().find(|column| column.attnum == attnum) else {
+            return ProbeKeys {
+                supported: false,
+                oids: Vec::new(),
+            };
         };
         if !probe_oid(column.type_oid) {
-            return Err(SourceError::protocol("probe_key"));
+            return ProbeKeys {
+                supported: false,
+                oids: Vec::new(),
+            };
         }
         oids.push(column.type_oid);
     }
-    if oids.is_empty() || oids.len() > MAX_KEY_COLUMNS {
-        return Err(SourceError::protocol("probe_key"));
+    ProbeKeys {
+        supported: true,
+        oids,
     }
-    Ok(oids)
 }
 
 fn probe_oid(oid: i64) -> bool {
@@ -1103,18 +1307,17 @@ async fn quote_table(
             select_sql.push(quote_one(session, &plan.name).await?);
         }
     }
-    if select_sql.is_empty() {
-        return Err(SourceError::protocol("probe_key"));
-    }
     let mut key_sql = Vec::new();
-    for key in &source.primary_key {
-        let Some(plan) = plans.iter().find(|plan| plan.attnum == key.attnum) else {
-            return Err(SourceError::protocol("probe_key"));
-        };
-        if plan.mapping.decision != MapDecision::Lossless {
-            return Err(SourceError::protocol("probe_key"));
+    if probe_keys(source).supported {
+        for key in &source.primary_key {
+            let Some(plan) = plans.iter().find(|plan| plan.attnum == key.attnum) else {
+                return Err(SourceError::protocol("probe_key"));
+            };
+            if plan.mapping.decision != MapDecision::Lossless {
+                return Err(SourceError::protocol("probe_key"));
+            }
+            key_sql.push(quote_one(session, &key.name).await?);
         }
-        key_sql.push(quote_one(session, &key.name).await?);
     }
     Ok(QuotedTable {
         schema_sql,
@@ -1124,7 +1327,7 @@ async fn quote_table(
     })
 }
 
-struct RecheckCut {
+pub(crate) struct RecheckCut {
     principal: String,
     database: String,
     in_recovery: bool,
@@ -1133,6 +1336,16 @@ struct RecheckCut {
     source: SourceTable,
     schema: String,
     name: String,
+}
+
+pub(crate) struct StreamGuard {
+    in_recovery: bool,
+    postmaster_start: String,
+    database: String,
+    session_user: String,
+    current_user: String,
+    catalog: SourceCatalog,
+    access: Vec<TableAccess>,
 }
 
 impl SnapshotOwner {
@@ -1165,6 +1378,27 @@ impl SnapshotOwner {
             name,
         })
     }
+}
+
+pub(crate) async fn recheck_stream(
+    session: &mut PgSession,
+    cut: &RecheckCut,
+) -> Result<(), SourceError> {
+    recheck(session, cut).await
+}
+
+pub(crate) async fn guard_still_current(
+    guard: &mut PgSession,
+    view: &StreamGuard,
+) -> Result<(), SourceError> {
+    let node = NodeFact {
+        in_recovery: view.in_recovery,
+        postmaster_start: view.postmaster_start.clone(),
+        database: view.database.clone(),
+        session_user: view.session_user.clone(),
+        current_user: view.current_user.clone(),
+    };
+    observe_current(guard, &node, &view.catalog, &view.access).await
 }
 
 async fn recheck(session: &mut PgSession, cut: &RecheckCut) -> Result<(), SourceError> {
@@ -1539,7 +1773,7 @@ fn observation_limit(catalog: &SourceCatalog) -> Result<i32, SourceError> {
     }
     let mut sum = 0_i64;
     for table in &catalog.tables {
-        let width = i64::try_from(table.columns.len())
+        let width = i64::try_from(table.columns.len().max(1))
             .map_err(|_| SourceError::catalog("schema_drift"))?;
         sum = sum
             .checked_add(width)
@@ -1983,6 +2217,83 @@ mod tests {
         assert!(!generations.contains(&("cap_src".to_string(), 41)));
         drop(generations);
         drop(held);
+    }
+
+    #[test]
+    fn no_key_and_wide_key_selection_does_not_connect() {
+        let source = PgSourceConfig::try_new(
+            SourceId::new("snap_src").unwrap(),
+            PgEndpoint::new("oo-snap-pg", 5432, "snapdb").unwrap(),
+            PgCredentials::new("oo_snap_reader", "one-secret").unwrap(),
+            SecretRef::new("secret://pg/snap/reader").unwrap(),
+            PgTlsConfig::from_ca_pem(pem()).unwrap(),
+            PgBudget::new(
+                Duration::from_secs(30),
+                Duration::from_secs(30),
+                Duration::from_secs(5),
+                1000,
+                1024 * 1024,
+            )
+            .unwrap(),
+            TableSelection::new(vec![
+                SelectedTable::new("snap", "nokey").unwrap(),
+                SelectedTable::new("snap", "wide").unwrap(),
+                SelectedTable::new("snap", "zero").unwrap(),
+            ])
+            .unwrap(),
+        )
+        .unwrap();
+        let mut wide_columns = Vec::new();
+        let mut wide_key = Vec::new();
+        for index in 1..=9 {
+            let name = format!("c{index}");
+            wide_columns.push(AdmittedColumn {
+                attnum: index,
+                name: name.clone(),
+                type_oid: OID_INT4,
+                typmod: -1,
+                not_null: true,
+            });
+            wide_key.push(name);
+        }
+        let admitted = AdmittedCatalog {
+            tables: vec![
+                AdmittedTable {
+                    schema: "snap".to_string(),
+                    name: "nokey".to_string(),
+                    columns: vec![AdmittedColumn {
+                        attnum: 1,
+                        name: "note".to_string(),
+                        type_oid: OID_TEXT,
+                        typmod: -1,
+                        not_null: false,
+                    }],
+                    primary_key: Vec::new(),
+                },
+                AdmittedTable {
+                    schema: "snap".to_string(),
+                    name: "wide".to_string(),
+                    columns: wide_columns,
+                    primary_key: wide_key,
+                },
+                AdmittedTable {
+                    schema: "snap".to_string(),
+                    name: "zero".to_string(),
+                    columns: Vec::new(),
+                    primary_key: Vec::new(),
+                },
+            ],
+        };
+        selection_matches(&source, &admitted).expect("no-key and wide key stay selectable");
+        let mut missing = admitted.clone();
+        missing.tables[0].primary_key.push("absent".to_string());
+        let err = selection_matches(&source, &missing).expect_err("missing key column");
+        assert_eq!(err.fact(), Some("probe_key"));
+        let mut too_wide = admitted;
+        let extra: Vec<String> = (10..=33).map(|index| format!("c{index}")).collect();
+        too_wide.tables[1].primary_key.extend(extra);
+        let err = selection_matches(&source, &too_wide).expect_err("past index max");
+        assert_eq!(err.fact(), Some("selection"));
     }
 
     fn single_config(source_id: &str) -> PgSourceConfig {
