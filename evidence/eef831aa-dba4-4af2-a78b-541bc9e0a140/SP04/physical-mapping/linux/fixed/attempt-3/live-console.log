@@ -1,0 +1,22 @@
+
+running 1 test
+test physical_mapping_live ... FAILED
+
+failures:
+
+---- physical_mapping_live stdout ----
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+
+thread 'physical_mapping_live' (692) panicked at crates/oo-pipeline/tests/physical_mapping_live.rs:671:5:
+assertion `left == right` failed
+  left: "UTF8|b|en_US.utf8"
+ right: "UTF8|b|C.UTF-8"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    physical_mapping_live
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.03s
+

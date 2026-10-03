@@ -1,0 +1,22 @@
+physical_mappings_algorithm_check CHECK ((algorithm = 'physical-mapping/v1'::text))
+physical_mappings_column_name_check CHECK ((((level = ANY (ARRAY['n'::text, 't'::text])) AND (logical_column = ''::text)) OR ((level = 'c'::text) AND _oo.pm_logical_ok(logical_column))))
+physical_mappings_column_scope_unique UNIQUE NULLS NOT DISTINCT (scope_namespace_physical, scope_table_physical, physical_name)
+physical_mappings_config_check CHECK (_oo.pm_config_ok(config_digest))
+physical_mappings_digest_len_check CHECK ((octet_length(identity_digest) = 32))
+physical_mappings_generation_check CHECK ((run_generation >= 1))
+physical_mappings_identity_digest_unique UNIQUE (identity_digest)
+physical_mappings_level_check CHECK ((level = ANY (ARRAY['n'::text, 't'::text, 'c'::text])))
+physical_mappings_namespace_check CHECK (_oo.pm_logical_ok(logical_namespace))
+physical_mappings_physical_check CHECK (((octet_length(physical_name) = 63) AND (physical_name = (
+CASE level
+    WHEN 'n'::text THEN 'pn_'::text
+    WHEN 't'::text THEN 'pt_'::text
+    WHEN 'c'::text THEN 'pc_'::text
+    ELSE NULL::text
+END || SUBSTRING(encode(identity_digest, 'hex'::text) FROM 1 FOR 60)))))
+physical_mappings_physical_name_unique UNIQUE (physical_name)
+physical_mappings_pkey PRIMARY KEY (source, config_digest, run_generation, level, logical_namespace, logical_table, logical_column)
+physical_mappings_scope_check CHECK ((((level = 'n'::text) AND (logical_table = ''::text) AND (logical_column = ''::text) AND (scope_namespace_physical = physical_name) AND (scope_table_physical IS NULL)) OR ((level = 't'::text) AND (logical_column = ''::text) AND (scope_table_physical IS NOT NULL) AND (scope_table_physical = physical_name) AND (octet_length(scope_namespace_physical) = 63) AND (SUBSTRING(scope_namespace_physical FROM 1 FOR 3) = 'pn_'::text) AND COALESCE(_oo.pm_lower_hex(SUBSTRING(scope_namespace_physical FROM 4), 60), false)) OR ((level = 'c'::text) AND (scope_table_physical IS NOT NULL) AND (octet_length(scope_namespace_physical) = 63) AND (SUBSTRING(scope_namespace_physical FROM 1 FOR 3) = 'pn_'::text) AND COALESCE(_oo.pm_lower_hex(SUBSTRING(scope_namespace_physical FROM 4), 60), false) AND (octet_length(scope_table_physical) = 63) AND (SUBSTRING(scope_table_physical FROM 1 FOR 3) = 'pt_'::text) AND COALESCE(_oo.pm_lower_hex(SUBSTRING(scope_table_physical FROM 4), 60), false))))
+physical_mappings_source_check CHECK (_oo.pm_source_ok(source))
+physical_mappings_table_name_check CHECK ((((level = 'n'::text) AND (logical_table = ''::text)) OR ((level = ANY (ARRAY['t'::text, 'c'::text])) AND _oo.pm_logical_ok(logical_table))))
+physical_mappings_table_scope_unique UNIQUE (scope_namespace_physical, physical_name)

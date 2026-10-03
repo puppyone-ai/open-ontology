@@ -1,0 +1,166 @@
+oo_task=sp04-physical-mapping-fixed
+oo_source=02b9847159a68ced1443615cbb47bcb5872724b0
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+fetch_argv=cargo fetch --manifest-path Cargo.toml --locked
+test_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline
+clippy_argv=cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-pipeline --all-targets -- -D warnings
+live_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test physical_mapping_live physical_mapping_live -- --ignored --exact
+Linux 84cd47303c20 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+RUSTUP_TOOLCHAIN=1.94.0
+CARGO_HOME=/cargo-home
+OO_PHYSICAL_MAPPING_HOST=oo-a140-pg-0fcbbb3b-f39f-4e2a-85f7-9e1f86ef643a
+OO_PHYSICAL_MAPPING_PORT=5432
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+sha256 crates/oo-pipeline/migrations/0000_bootstrap_roles.sql 37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208
+sha256 crates/oo-pipeline/migrations/0001_target_fence_expand.sql 97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9
+sha256 crates/oo-pipeline/migrations/0002_target_segment_null_expand.sql 59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512
+sha256 crates/oo-pipeline/migrations/0003_target_segment_preflight_expand.sql d046d98b825dbf45aa5a60c886fc47e7dd1fcbce074a5dace5a75bd0693e15a3
+sha256 crates/oo-pipeline/migrations/0004_physical_mapping.sql 255ac664187eb5f70ab6e679878ee63492063c88dabf4cb73182e5caf183a618
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== cargo fetch --manifest-path Cargo.toml --locked ===
+phase_exit=0 phase=cargo_fetch_locked
+=== cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-pipeline/src/physical_mapping.rs:188:13
+    |
+184 |     let physical_name = physical_name(request.level, &digest);
+    |         ------------- `physical_name` has type `std::string::String`
+...
+188 |             physical_name(Level::Namespace, &identity_digest(&with_level(request, Level::Namespace)))
+    |             ^^^^^^^^^^^^^----------------------------------------------------------------------------
+    |             |
+    |             call expression requires function
+...
+265 | fn physical_name(level: Level, digest: &[u8; 32]) -> String {
+    | ----------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-pipeline/src/physical_mapping.rs:194:31
+    |
+184 |       let physical_name = physical_name(request.level, &digest);
+    |           ------------- `physical_name` has type `std::string::String`
+...
+194 |           Level::Column => Some(physical_name(
+    |                                 -^^^^^^^^^^^^- help: consider using a semicolon here to finish the statement: `;`
+    |  _______________________________|
+    | |
+195 | |             Level::Table,
+196 | |             &identity_digest(&with_level(request, Level::Table)),
+197 | |         )),
+    | |_________- call expression requires function
+...
+265 |   fn physical_name(level: Level, digest: &[u8; 32]) -> String {
+    |   ----------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-pipeline` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-pipeline` (lib test) due to 2 previous errors
+phase_exit=101 phase=cargo_test_oo_pipeline
+=== cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-pipeline --all-targets -- -D warnings ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-pipeline/src/physical_mapping.rs:188:13
+    |
+184 |     let physical_name = physical_name(request.level, &digest);
+    |         ------------- `physical_name` has type `std::string::String`
+...
+188 |             physical_name(Level::Namespace, &identity_digest(&with_level(request, Level::Namespace)))
+    |             ^^^^^^^^^^^^^----------------------------------------------------------------------------
+    |             |
+    |             call expression requires function
+...
+265 | fn physical_name(level: Level, digest: &[u8; 32]) -> String {
+    | ----------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-pipeline/src/physical_mapping.rs:194:31
+    |
+184 |       let physical_name = physical_name(request.level, &digest);
+    |           ------------- `physical_name` has type `std::string::String`
+...
+194 |           Level::Column => Some(physical_name(
+    |                                 -^^^^^^^^^^^^- help: consider using a semicolon here to finish the statement: `;`
+    |  _______________________________|
+    | |
+195 | |             Level::Table,
+196 | |             &identity_digest(&with_level(request, Level::Table)),
+197 | |         )),
+    | |_________- call expression requires function
+...
+265 |   fn physical_name(level: Level, digest: &[u8; 32]) -> String {
+    |   ----------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-pipeline` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-pipeline` (lib test) due to 2 previous errors
+phase_exit=101 phase=cargo_clippy_oo_pipeline
+phase_exit=skipped phase=cargo_test_physical_mapping_live
+elapsed_seconds=2

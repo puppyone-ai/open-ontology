@@ -1,0 +1,41 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+locale=UTF8|b|C.UTF-8
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+locale=UTF8|b|C.UTF-8
+marker=844de6f645f8f1ebf29d05118ae25d4669d8dc870eed1fa7697d4b98456eaf95 applied_at=2026-10-03 22:02:55.170618+00
+sha_oracles=match
+golden=pn_d528fe7ee77dde914147ad1edc2b2d6f2f42b25106ccfe6f39d5f8996f1f replay_stamp=2026-10-03 22:02:55.180699+00
+long_pair pn_f5cb921527f810b82edcb1508ad40c4338be0e3b819b87f3e329c8d03743 pn_dac559f034005c71ce1d7919f73a140f58adfa8e9d38294e0be8d5c4dea4
+unicode physical=pn_9c04d074b2fac97abc41299f73ab737147cf343c5862e5ff587367ff6363 logical_bytes=482
+normalization_reserved_quote=distinct
+closed_payloads=23514 wide=4096
+scope_isolation=3 absent_generation=OO024
+column=pc_48f7de829df96644ef7e4fe0ae0f8e9b5a56fadd98e261cc6b2bf524f7bd
+conflict=OO022 original_kept
+rollback=OO024
+concurrent=inserted+replay rows=1
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+locale=UTF8|b|C.UTF-8
+marker=844de6f645f8f1ebf29d05118ae25d4669d8dc870eed1fa7697d4b98456eaf95 applied_at=2026-10-03 22:04:56.0113+00
+sha_oracles=match
+golden=pn_d528fe7ee77dde914147ad1edc2b2d6f2f42b25106ccfe6f39d5f8996f1f replay_stamp=2026-10-03 22:04:56.021393+00
+long_pair pn_f5cb921527f810b82edcb1508ad40c4338be0e3b819b87f3e329c8d03743 pn_dac559f034005c71ce1d7919f73a140f58adfa8e9d38294e0be8d5c4dea4
+unicode physical=pn_9c04d074b2fac97abc41299f73ab737147cf343c5862e5ff587367ff6363 logical_bytes=482
+normalization_reserved_quote=distinct
+closed_payloads=23514 wide=4096
+scope_isolation=3 absent_generation=OO024
+column=pc_48f7de829df96644ef7e4fe0ae0f8e9b5a56fadd98e261cc6b2bf524f7bd
+conflict=OO022 original_kept
+rollback=OO024
+concurrent=inserted+replay rows=1
+catalog=owner_logged_agent_denied
+agent_runtime_deny=42501
+direct_write=OO014
+fence=OO011 receipts=0 public_tables=0
+second_apply=skip mismatch=OO001
+live=ok
