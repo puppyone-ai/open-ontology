@@ -120,6 +120,7 @@
   - [x] V01-PG-01-F 三HIGH安全纠正切片：a074固定4ecdbf7独立权限/env/TLS及零写验证批准；仅当前图，不签完整connector或main集成。
 - [ ] SP03-W02 MySQL connector/体检
 - [ ] SP03-W03 chunk/cursor/bounded stream/cancel
+  - [x] R3-C cancel/未发布轮次限定子项：6b95d6f2经a143批准，当前stats ownerDrop55ms；异常finish语义与R4仍开放。
   - [x] R3-K typed键计划/半开chunk限定子项：58afa97经a139批准；取消/ownerDrop与R4仍未验收。
   - [x] R2-S 生产Arrow pull流限定子项：dd5bf441经a137批准，同cut/背压/预算/currentACL已验；完整R2/reader/R3/R4另验。
   - [x] R1-P current-schema/same-cut snapshot owner 原语：固定ccd93经a130限定批准；完整R1/reader驱动集成仍开放。
@@ -1015,3 +1016,5 @@ a141实际Grok4.7xhighhandle17278 slotB ownerDrop修复max1builder1PG；a1405857
 a14058575/a14117278实际exit0完成作者交付，两组三报告全读。mappingb5415544/evidence6cdb559b rawpipeline tests/Clippy/live/restart0，无完整manifest不声称库存hash验完；ownermod6b95d6f2/evidence78464dd6 184hash实际0，drop/cancel/keys0与单独Clippy0，原greencontainer1保留。ownDocker空。a142mapping与a143owner固定复审两槽并行，未签新增功能/取消；新mapping交付组件13→14，验收15保持，原组件首轮返工9比13待mapping首审。goal active。
 
 a142实际Grok4.7xhighhandle77286 slotA mappingreview；a143实际handle2408 slotB ownerDrop/cancelreview，各max1builder1PG并行。旧a140/a141终态不再观察，下一UUIDa144，单次25分钟等待，goal active。
+
+a1432408实际exit0，423a738d完整三报告100hash实际0，rawLinux63/Clippy/drop/cancel/keys/docker0、ownDocker为空。仅签R3-C，验收15→16；原旧blob当前observer也58ms消失，a139缓存stats与a141RED不得当绝对proof，保留记录。异常finish潜在falseSnapshotFinished未签，a144专用修正slotB。a14277286实际exit0缺报告，原UUID恢复读取第二失败结果并完成原复审slotA。产品14交付/16验收子项，goal active。
