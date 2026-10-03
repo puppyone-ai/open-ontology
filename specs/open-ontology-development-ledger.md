@@ -909,3 +909,5 @@ a124原handle97117实际exit0但交付不完整：无代码提交/最终三报�
 a124恢复83036实际exit0关闭，ff783ac9六源路径提交已核对；完整三报告/raw final五exit0/hashmanifest55项OK/exactDocker为空。作者49库+13bounds+12accounting+Clippy通过，证据56文件由协调者精确提交294e3a12，尚非独立验收。baseline未终态时已编辑的时序保留，live-view非RSS、EOF/eventdrop/部分unsplit分支未执行须独立核验。R2-W不勾。a126固定ff783ac9复审卡已绑定slot B，最多1builder无PG；a125handle36253保持slot A。产品9/9/6比9、87父项16phase未完成与goal active保持。
 
 a126实际Grok4.7xhigh handle13008启动，固定ff783ac9 immutable archive独立计量复审，slot B最多1builder无PG；a125handle36253继续slot A。旧a124句柄关闭不再观察，下一新UUID a127。无新增完成勾选，goal active。
+
+R2-P命名portal任务卡已细化为execution/prompts/v01-pg-named-portal-prepared.md：正数Execute逐页、真实PortalSuspended/CommandComplete边界、错误同步/取消、慢消费者与同cut oracle、零源写、固定提交复审。仅prepared，无UUID/路径写权/builder授权，待R2-W结果及共享路径冻结后派发，不签完整reader。a12536253/a12613008本次实际有界等待仍live，未观察到终态；goal active。
