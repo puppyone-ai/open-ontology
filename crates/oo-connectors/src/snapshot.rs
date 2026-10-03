@@ -1756,6 +1756,8 @@ struct ObservedAttr {
     type_oid: i64,
     typmod: i32,
     not_null: bool,
+    /// Selected-column `SELECT` from this row's table ACL and column ACL.
+    select: Option<bool>,
 }
 
 struct ObservedTable {
@@ -1876,6 +1878,11 @@ async fn observe_current(
         if want_pk != got_pk {
             return Err(SourceError::catalog("schema_drift"));
         }
+        // Same row as the required role. The cell is the row's ACL, not
+        // has_column_privilege. A later scan 42501 stays the race backstop.
+        if got.attrs.iter().any(|attr| attr.select != Some(true)) {
+            return Err(SourceError::privilege("select_not_granted"));
+        }
     }
     drop(grouped);
     Ok(())
@@ -1946,6 +1953,7 @@ fn read_observed_attr(
     let type_oid = session::cell_opt_i64(row, 10)?;
     let typmod = session::cell_opt_i32(row, 11)?;
     let not_null = session::cell_opt_bool(row, 12)?;
+    let select = session::cell_opt_bool(row, 15)?;
     match (attnum, name, type_oid, typmod, not_null) {
         (None, None, None, None, None) => Ok(None),
         (Some(attnum), Some(name), Some(type_oid), Some(typmod), Some(not_null)) => {
@@ -1958,6 +1966,7 @@ fn read_observed_attr(
                 type_oid,
                 typmod,
                 not_null,
+                select,
             }))
         }
         _ => Err(SourceError::catalog("decode")),

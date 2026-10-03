@@ -124,12 +124,29 @@ pub(crate) const RELEASE_STREAM: &str = "RELEASE SAVEPOINT oo_stream_lock";
 
 /// One current-catalog snapshot. `$1` and `$2` are the selected names.
 /// `$3` is the row ceiling. A full ceiling is treated as drift.
+/// The last expression is selected-column `SELECT` for `CURRENT_USER` on this row.
+/// It reads `relacl` and `attacl` from the row. A prepared `has_column_privilege`
+/// on this session can keep answering with the grant from open.
 pub(crate) const CURRENT_CATALOG: &str = "\
 SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::text, \
 pg_catalog.current_database()::text, SESSION_USER::text, CURRENT_USER::text, \
 w.ord::int4, c.oid::int8, c.relkind::text, a.attnum::int4, a.attname::text, \
 a.atttypid::int8, a.atttypmod::int4, a.attnotnull, \
-pk.attnums::int4[], pk.names::text[] \
+pk.attnums::int4[], pk.names::text[], \
+CASE WHEN a.attnum IS NULL THEN NULL ELSE ( \
+EXISTS (SELECT 1 FROM pg_catalog.pg_roles r WHERE r.rolname = CURRENT_USER AND r.rolsuper) \
+OR pg_catalog.pg_has_role(CURRENT_USER, 'pg_read_all_data', 'USAGE') \
+OR EXISTS ( \
+SELECT 1 FROM pg_catalog.aclexplode(COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))) AS x \
+WHERE x.privilege_type = 'SELECT' \
+AND (x.grantee = 0 OR pg_catalog.pg_has_role(CURRENT_USER, x.grantee, 'USAGE')) \
+) \
+OR EXISTS ( \
+SELECT 1 FROM pg_catalog.aclexplode(a.attacl) AS x \
+WHERE x.privilege_type = 'SELECT' \
+AND (x.grantee = 0 OR pg_catalog.pg_has_role(CURRENT_USER, x.grantee, 'USAGE')) \
+) \
+) END \
 FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS w(schema_name, table_name, ord) \
 LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = w.schema_name \
 LEFT JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid AND c.relname = w.table_name \
@@ -496,6 +513,10 @@ mod tests {
         assert!(RELEASE_PROBE.starts_with("RELEASE"));
         assert!(ROLLBACK_PROBE.starts_with("ROLLBACK TO"));
         assert!(!CURRENT_CATALOG.to_ascii_uppercase().contains("COMMIT"));
+        let catalog = CURRENT_CATALOG.to_ascii_uppercase();
+        assert!(catalog.contains("ACLEXPLODE"));
+        assert!(catalog.contains("PRIVILEGE_TYPE = 'SELECT'"));
+        assert!(!catalog.contains("HAS_COLUMN_PRIVILEGE"));
         assert_eq!(first_verb(BEGIN_CURRENT), "START");
         assert!(BEGIN_CURRENT.contains("READ COMMITTED"));
         assert!(BEGIN.contains("REPEATABLE READ"));
