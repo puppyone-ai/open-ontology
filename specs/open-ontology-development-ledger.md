@@ -924,3 +924,7 @@ a126handle13008实际exit0关闭，578a5523三报告完整读取/hashmanifest92�
 a127 R2-P命名portal生产实现卡激活：固定b8e7bf1/接受ff783ac9driver，slot B最多1builder1PG，精确vendor portal相关与新tests/contract写权，不触碰a125 session/sql/snapshot。按用户新目标只跑必要主路径/已知协议风险测试，不扩展边界穷举；完成前不勾R2-P，后续R2-S实际Arrow流，goal active。
 
 a127实际Grok4.7xhighhandle35475已启动，slot B生产portal写权生效，a12536253保持slot A；旧a12613008关闭不再观察。下一新UUID a128，产品10/10/返工7比10，goal active。
+
+### a125实现终态与目录读取回归修复
+
+a12536253实际exit0关闭，2254eab3六源路径提交；完整三报告/proposal与rawoutcome已读，lib52/Clippy0、作者oracle0，但原snapshot_live101为真实未解决回归，R1不勾。协调者精确保存198证据文件81a0f8f，未交hashmanifest不冒称hash核验；残留三个UUID卷清理未完，非无关开发阻塞。a128目录/access/type读取有界预约与有效结算修复卡激活slot A，固定81a0f8f，只改明确业务paths，不升50k cap、不加假sleep、不改原snapshot_live。a12735475保持slot B生产portal，metrics10/10/7比10及goal active保持。
