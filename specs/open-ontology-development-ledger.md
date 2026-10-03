@@ -889,3 +889,7 @@ a121实际Grok4.7 xhigh handle72657启动，slot A独占补证；旧68913关闭�
 a120 handle7304实际exit0关闭，固定代码a90c86b405febebfdc70f8169be42dc4de4c3dfc/tree6e7eb46c09470a8163a324063beef48c6254bbb1/parent6de125ab01df6564024005dcc74fbf9d0a96b392，仅7授权路径提交。三报告已完整读取，verify-4原始lib/bounds/clippy/fetch/docker退出0、RED101核对；作者49库测试+13wire测试通过尚不是独立验收。docker精确a120容器列表为空。R2-W保持未勾，完整reader/catalog/probe opt-in/typed connector mapping/portal及后续阶段保持开放。
 
 a122独立复审已派发，Grok4.7xhigh实际handle16255，slot B/最多1builder/无PG，仅own evidence写权，冻结a90c86b4归档。a121 handle72657保持slot A。产品指标仍9组件/9验收子项/首轮返工6比9，87父项与16phase均未完整完成，goal active；下一新UUID a123。
+
+a121 handle72657实际exit0关闭；eb288ad9三报告完整读取及raw attempt6 outcome核对，REQUEST_CHANGES保留，ADD COLUMN后仍SnapshotFinished为真实返工项。接收a121-snapshot-supplement-receipt.md，R1不勾。slot A释放；同cut/ACL/deadline补证不升级为整体验收，产品指标不变。
+
+a122原handle16255实际exit0但无最终三报告/证据提交；own Docker review容器实际Exited101，独立矩阵12pass2fail，需判定实错还是oracle假设。按resume卡恢复同UUID，实际新handle14299，slot B最多1builder无PG，旧句柄关闭不再轮询。a123当前schema安全设计analysis-only实际handle39100，无builder/PG写权，仅own evidence；先明确current catalog观测、连接预算及释放设计再冻结实现路径。下一新UUID a124，goal active。
