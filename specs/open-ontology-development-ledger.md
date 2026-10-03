@@ -893,3 +893,7 @@ a122独立复审已派发，Grok4.7xhigh实际handle16255，slot B/最多1builde
 a121 handle72657实际exit0关闭；eb288ad9三报告完整读取及raw attempt6 outcome核对，REQUEST_CHANGES保留，ADD COLUMN后仍SnapshotFinished为真实返工项。接收a121-snapshot-supplement-receipt.md，R1不勾。slot A释放；同cut/ACL/deadline补证不升级为整体验收，产品指标不变。
 
 a122原handle16255实际exit0但无最终三报告/证据提交；own Docker review容器实际Exited101，独立矩阵12pass2fail，需判定实错还是oracle假设。按resume卡恢复同UUID，实际新handle14299，slot B最多1builder无PG，旧句柄关闭不再轮询。a123当前schema安全设计analysis-only实际handle39100，无builder/PG写权，仅own evidence；先明确current catalog观测、连接预算及释放设计再冻结实现路径。下一新UUID a124，goal active。
+
+a122恢复handle14299实际exit0关闭，8c8e24a0三报告完整读取、hashmanifest43项实际全部OK、exactDockera122为空。REQUEST_CHANGES：no-op reserve参数计为分配，unsplit复制未计量；原两失败断言本身错误不掩盖独立观测。R2-W不勾，metrics9/9/6比9保持。接收a122-wire-review-receipt.md。
+
+a124专用wire计量返工已启动，Grok4.7xhigh实际handle97117，slot B最多1builder无PG，明确vendor计量与Rust测试有限路径，固定8c8e24a0，不改schema业务源码/manifest/lock。a123handle39100继续analysis-only；下一新UUID a125。87父项16phase仍未完整验收，goal active。
