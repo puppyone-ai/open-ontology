@@ -1002,3 +1002,5 @@ a138实际Grok4.7xhighhandle84709 slotB生产R3 max1builder1PG，明确keys/canc
 a13884709实际exit0完整作者交付keys8bda0cd4+cancel58afa97d/tree543fd103，evidence85d34ae6三报告完整读取、103hash实际0、raw Linuxlib63/keys/cancel/Clippy/docker0、ownDocker空。作者失败日志多次覆盖明确保留缺口，不签R3；droppednext_batch后backend仍active不能当取消完成。a139固定独立复审启动，指标暂不重复登记已有reader组件，13交付/14验收子项/返工9比13，goal active。
 
 a139实际Grok4.7xhighhandle28762 slotB fixedR3reviewmax1builder1PG；旧a13884709关闭不再观察。下一UUIDa140，单次25分钟等待，goal active。
+
+用户授权增加实际Grok并行量：当前从1任务增加到2任务，保持globalmax2Rustbuilder/每任务1PG及全部原约束。a13928762固定R3复审继续slotB；a140目标物理标识持久化组件slotA写域oo-pipeline限定新路径，独立于reader，完整targetapply仍待R4。等待被消息中断不作终态证据，不重复查看a139。goal active。
