@@ -1,0 +1,3 @@
+lookup_physical_mapping|oo_target_owner|true|{"search_path=pg_catalog, _oo"}|0
+pm_sha256|oo_target_owner|false|{search_path=pg_catalog}|0
+register_physical_mapping|oo_target_owner|true|{"search_path=pg_catalog, _oo"}|2586

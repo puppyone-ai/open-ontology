@@ -1,0 +1,1 @@
+docker_run_exit=0 probe_exit=1 restart_exit=0
