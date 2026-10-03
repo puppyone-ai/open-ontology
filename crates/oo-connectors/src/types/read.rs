@@ -89,6 +89,79 @@ pub fn compose_select(schema: &str, table: &str, columns: &[String]) -> Result<S
     Ok(sql)
 }
 
+/// Keyed scan. Bounds are half-open and parameterized. No `LIMIT`, `OFFSET`, or `COLLATE`.
+/// Column order is the attribute collation, because the text has no `COLLATE` clause.
+pub(crate) fn compose_key_scan(
+    schema: &str,
+    table: &str,
+    columns: &[String],
+    keys: &[String],
+    lower: bool,
+    upper: bool,
+) -> Result<String, SourceError> {
+    if columns.is_empty() || keys.is_empty() || keys.len() > 8 {
+        return Err(SourceError::protocol("key_plan"));
+    }
+    if !valid_quoted_ident(schema) || !valid_quoted_ident(table) {
+        return Err(SourceError::catalog("quote_ident"));
+    }
+    for ident in columns.iter().chain(keys.iter()) {
+        if !valid_quoted_ident(ident) {
+            return Err(SourceError::catalog("quote_ident"));
+        }
+    }
+    let mut sql = String::from("SELECT ");
+    push_list(&mut sql, columns);
+    sql.push_str(" FROM ");
+    sql.push_str(schema);
+    sql.push('.');
+    sql.push_str(table);
+    let mut next = 1usize;
+    if lower || upper {
+        sql.push_str(" WHERE ");
+    }
+    if lower {
+        sql.push('(');
+        push_list(&mut sql, keys);
+        sql.push_str(") >= (");
+        push_params(&mut sql, keys.len(), &mut next);
+        sql.push(')');
+    }
+    if lower && upper {
+        sql.push_str(" AND ");
+    }
+    if upper {
+        sql.push('(');
+        push_list(&mut sql, keys);
+        sql.push_str(") < (");
+        push_params(&mut sql, keys.len(), &mut next);
+        sql.push(')');
+    }
+    sql.push_str(" ORDER BY ");
+    push_list(&mut sql, keys);
+    Ok(sql)
+}
+
+fn push_list(sql: &mut String, items: &[String]) {
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            sql.push(',');
+        }
+        sql.push_str(item);
+    }
+}
+
+fn push_params(sql: &mut String, count: usize, next: &mut usize) {
+    for index in 0..count {
+        if index > 0 {
+            sql.push(',');
+        }
+        sql.push('$');
+        sql.push_str(&next.to_string());
+        *next += 1;
+    }
+}
+
 /// Full-snapshot scan. No `LIMIT`, `OFFSET`, or `ORDER BY`.
 pub(crate) fn compose_scan(
     schema: &str,

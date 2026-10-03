@@ -30,7 +30,9 @@ pub use typmod::{numeric_typmod_v1, NumericTypmodV1};
 // and plan guard. Mapping and decode semantics stay the ones in `binary` and
 // `read`. This is not a catalog or access collect API.
 pub(crate) use binary::decode_payload;
-pub(crate) use read::{compose_presence_scan, compose_scan, guard_plans, require_binary};
+pub(crate) use read::{
+    compose_key_scan, compose_presence_scan, compose_scan, guard_plans, require_binary,
+};
 
 use crate::model::CapabilityStatus;
 

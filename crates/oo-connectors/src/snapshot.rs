@@ -8,9 +8,10 @@
 //!
 //! `read_probe` is one primary-key lookup with `LIMIT 2`. It is not a table scan.
 //! `open_stream` / `next_batch` pull a full-snapshot Arrow stream on this same
-//! owner and transaction (`oo.source.pgsql.stream/v1`). That pull is not a second
-//! snapshot and not the whole reader. Resume cursors and cancel stay unimplemented.
-//! Dropping a client timeout is not backend cancellation.
+//! owner and transaction (`oo.source.pgsql.stream/v1`). `plan_keys`, `open_chunk`,
+//! and `read_keys` plan and read typed half-open ranges on that same transaction.
+//! That pull is not a second snapshot and not the whole reader. Resume cursors
+//! and cancel stay unimplemented. Dropping a client timeout is not backend cancellation.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -18,8 +19,8 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use sha2::{Digest, Sha256};
-use sqlx::postgres::PgValueFormat;
-use sqlx::{Row, ValueRef};
+use sqlx::postgres::{PgArguments, PgValueFormat};
+use sqlx::{Arguments, Row, ValueRef};
 
 use crate::config::PgSourceConfig;
 use crate::error::SourceError;
@@ -40,13 +41,13 @@ pub const SNAPSHOT_PROTOCOL: &str = "oo.source.pgsql.snapshot/v1";
 /// This is not an in-flight statement-cancel proof.
 pub const CLEANUP_OBSERVATION_BOUND_MS: u64 = 5_000;
 
-const OID_BOOL: i64 = 16;
-const OID_INT8: i64 = 20;
-const OID_INT2: i64 = 21;
-const OID_INT4: i64 = 23;
-const OID_TEXT: i64 = 25;
-const OID_BPCHAR: i64 = 1042;
-const OID_VARCHAR: i64 = 1043;
+pub(crate) const OID_BOOL: i64 = 16;
+pub(crate) const OID_INT8: i64 = 20;
+pub(crate) const OID_INT2: i64 = 21;
+pub(crate) const OID_INT4: i64 = 23;
+pub(crate) const OID_TEXT: i64 = 25;
+pub(crate) const OID_BPCHAR: i64 = 1042;
+pub(crate) const OID_VARCHAR: i64 = 1043;
 const MAX_KEY_COLUMNS: usize = 8;
 const INDEX_MAX_KEYS: usize = 32;
 
@@ -698,6 +699,57 @@ impl SnapshotOwner {
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))
     }
 
+    /// Plan typed half-open chunks for every selected table on this cut.
+    ///
+    /// `target_rows` is `1..=50_000`. A table with no supported plain key gets one
+    /// unkeyed chunk and no resume cursor. Planning uses this transaction.
+    pub async fn plan_keys(&mut self, target_rows: u32) -> Result<crate::key_plan::KeyPlan, SourceError> {
+        if target_rows == 0 || target_rows > crate::key_plan::DEFAULT_TARGET_ROWS {
+            return Err(SourceError::config("target_rows"));
+        }
+        if self.stream.is_some() {
+            return Err(SourceError::protocol("stream_active"));
+        }
+        match self.plan_keys_inner(target_rows).await {
+            Ok(plan) => Ok(plan),
+            Err(err) => Err(self.poison(err)),
+        }
+    }
+
+    /// Pull one planned chunk. The chunk generation and input digest must be this cut.
+    pub async fn open_chunk(
+        &mut self,
+        chunk: &crate::key_plan::PlannedChunk,
+        budget: crate::stream::StreamBudget,
+    ) -> Result<(), SourceError> {
+        if self.stream.is_some() {
+            return Err(SourceError::protocol("stream_active"));
+        }
+        match self.open_chunk_inner(chunk, budget).await {
+            Ok(()) => Ok(()),
+            Err(err) => Err(self.poison(err)),
+        }
+    }
+
+    /// Pull one keyed range on this cut. No declared key is `key_required` and does not poison.
+    /// Both bounds empty is a full ordered scan of the declared key.
+    pub async fn read_keys(
+        &mut self,
+        schema: &str,
+        table: &str,
+        range: crate::key_plan::KeyRange,
+        budget: crate::stream::StreamBudget,
+    ) -> Result<(), SourceError> {
+        if self.stream.is_some() {
+            return Err(SourceError::protocol("stream_active"));
+        }
+        match self.read_keys_inner(schema, table, range, budget).await {
+            Ok(()) => Ok(()),
+            Err(err) if err.fact() == Some("key_required") => Err(err),
+            Err(err) => Err(self.poison(err)),
+        }
+    }
+
     /// Move both sessions into one pull. `next_batch` is the only Execute driver.
     pub async fn open_stream(
         &mut self,
@@ -708,16 +760,7 @@ impl SnapshotOwner {
         }
         self.ensure_usable()?;
         let plan = self.stream_plan(&budget)?;
-        let data = self
-            .session
-            .take()
-            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
-        let guard = self
-            .guard
-            .take()
-            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
-        self.stream = Some(crate::stream::StreamSlot::start(data, guard, plan));
-        Ok(())
+        self.install_stream(plan)
     }
 
     /// One demanded batch, one table end, or run exhaustion. This polls the pull.
@@ -775,54 +818,248 @@ impl SnapshotOwner {
         }
     }
 
+    async fn plan_keys_inner(&mut self, target_rows: u32) -> Result<crate::key_plan::KeyPlan, SourceError> {
+        self.ensure_usable()?;
+        self.observe_guard().await?;
+        let generation = self.binding.generation;
+        let input_digest = self.binding.input_digest;
+        let deadline = self.deadline;
+        let mut planned = Vec::with_capacity(self.tables.len());
+        for index in 0..self.tables.len() {
+            ensure_deadline(deadline)?;
+            let source = self.source_at(index)?;
+            let schema_sql = self.tables[index].schema_sql.clone();
+            let table_sql = self.tables[index].table_sql.clone();
+            let plans = self.tables[index].plans.clone();
+            let session = self.live_session()?;
+            planned.push(
+                crate::key_plan::plan_table(crate::key_plan::PlanIn {
+                    session,
+                    source: &source,
+                    schema_sql: &schema_sql,
+                    table_sql: &table_sql,
+                    plans: &plans,
+                    generation,
+                    input_digest,
+                    target_rows,
+                    deadline,
+                })
+                .await?,
+            );
+        }
+        Ok(crate::key_plan::KeyPlan {
+            protocol: crate::key_plan::KEY_PLAN_PROTOCOL,
+            generation,
+            input_digest,
+            target_rows,
+            tables: planned,
+        })
+    }
+
+    async fn open_chunk_inner(
+        &mut self,
+        chunk: &crate::key_plan::PlannedChunk,
+        budget: crate::stream::StreamBudget,
+    ) -> Result<(), SourceError> {
+        self.ensure_usable()?;
+        self.observe_guard().await?;
+        if chunk.generation != self.binding.generation || chunk.input_digest != self.binding.input_digest
+        {
+            return Err(SourceError::protocol("key_plan"));
+        }
+        let index = self
+            .table_index(&chunk.schema, &chunk.table)
+            .ok_or_else(|| SourceError::catalog("selected_table_missing"))?;
+        let spec = self.read_spec_chunk(index, chunk).await?;
+        let plan = self.stream_plan_one(&budget, index, &spec)?;
+        self.install_stream(plan)
+    }
+
+    async fn read_keys_inner(
+        &mut self,
+        schema: &str,
+        table: &str,
+        range: crate::key_plan::KeyRange,
+        budget: crate::stream::StreamBudget,
+    ) -> Result<(), SourceError> {
+        self.ensure_usable()?;
+        self.observe_guard().await?;
+        let index = self
+            .table_index(schema, table)
+            .ok_or_else(|| SourceError::catalog("selected_table_missing"))?;
+        let spec = self.read_spec_range(index, &range).await?;
+        let plan = self.stream_plan_one(&budget, index, &spec)?;
+        self.install_stream(plan)
+    }
+
+    async fn read_spec_chunk(
+        &mut self,
+        index: usize,
+        chunk: &crate::key_plan::PlannedChunk,
+    ) -> Result<crate::key_plan::ReadSpec, SourceError> {
+        let source = self.source_at(index)?;
+        let schema_sql = self.tables[index].schema_sql.clone();
+        let table_sql = self.tables[index].table_sql.clone();
+        let select_sql = self.tables[index].select_sql.clone();
+        let plans = self.tables[index].plans.clone();
+        let deadline = self.deadline;
+        let session = self.live_session()?;
+        crate::key_plan::chunk_read(
+            crate::key_plan::ReadIn {
+                session,
+                source: &source,
+                plans: &plans,
+                schema_sql: &schema_sql,
+                table_sql: &table_sql,
+                select_sql: &select_sql,
+                deadline,
+            },
+            chunk,
+        )
+        .await
+    }
+
+    async fn read_spec_range(
+        &mut self,
+        index: usize,
+        range: &crate::key_plan::KeyRange,
+    ) -> Result<crate::key_plan::ReadSpec, SourceError> {
+        let source = self.source_at(index)?;
+        let schema_sql = self.tables[index].schema_sql.clone();
+        let table_sql = self.tables[index].table_sql.clone();
+        let select_sql = self.tables[index].select_sql.clone();
+        let plans = self.tables[index].plans.clone();
+        let deadline = self.deadline;
+        let session = self.live_session()?;
+        crate::key_plan::range_read(
+            crate::key_plan::ReadIn {
+                session,
+                source: &source,
+                plans: &plans,
+                schema_sql: &schema_sql,
+                table_sql: &table_sql,
+                select_sql: &select_sql,
+                deadline,
+            },
+            range,
+        )
+        .await
+    }
+
+    fn table_index(&self, schema: &str, table: &str) -> Option<usize> {
+        self.tables
+            .iter()
+            .position(|item| item.schema == schema && item.name == table)
+    }
+
+    fn source_at(&self, index: usize) -> Result<SourceTable, SourceError> {
+        let table = self
+            .tables
+            .get(index)
+            .ok_or_else(|| SourceError::catalog("selected_table_missing"))?;
+        self.binding
+            .catalog
+            .tables
+            .iter()
+            .find(|source| source.schema == table.schema && source.name == table.name)
+            .cloned()
+            .ok_or_else(|| SourceError::catalog("catalog_identity"))
+    }
+
+    fn install_stream(&mut self, plan: crate::stream::StreamPlan) -> Result<(), SourceError> {
+        let data = self
+            .session
+            .take()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        let guard = self
+            .guard
+            .take()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        self.stream = Some(crate::stream::StreamSlot::start(data, guard, plan));
+        Ok(())
+    }
+
     fn stream_plan(
         &self,
         budget: &crate::stream::StreamBudget,
+    ) -> Result<crate::stream::StreamPlan, SourceError> {
+        let mut tables = Vec::with_capacity(self.tables.len());
+        for index in 0..self.tables.len() {
+            tables.push(self.stream_table(index, None)?);
+        }
+        self.stream_envelope(budget, tables)
+    }
+
+    fn stream_plan_one(
+        &self,
+        budget: &crate::stream::StreamBudget,
+        index: usize,
+        spec: &crate::key_plan::ReadSpec,
+    ) -> Result<crate::stream::StreamPlan, SourceError> {
+        let tables = vec![self.stream_table(index, Some(spec))?];
+        self.stream_envelope(budget, tables)
+    }
+
+    fn stream_table(
+        &self,
+        index: usize,
+        spec: Option<&crate::key_plan::ReadSpec>,
+    ) -> Result<crate::stream::StreamTablePlan, SourceError> {
+        let table = &self.tables[index];
+        let presence = table.select_sql.is_empty();
+        let sql = if let Some(spec) = spec {
+            spec.sql.clone()
+        } else if presence {
+            crate::types::compose_presence_scan(&table.schema_sql, &table.table_sql)?
+        } else {
+            crate::types::compose_scan(&table.schema_sql, &table.table_sql, &table.select_sql)?
+        };
+        let cut = self.recheck_cut(index)?;
+        let zero_column = cut.source.columns.is_empty();
+        let arrow_columns = u32::try_from(
+            table
+                .plans
+                .iter()
+                .filter(|plan| plan.mapping.decision == MapDecision::Lossless)
+                .count(),
+        )
+        .unwrap_or(u32::MAX);
+        let (lower, upper, key_oids, key_attnums) = if let Some(spec) = spec {
+            (
+                spec.lower.clone(),
+                spec.upper.clone(),
+                spec.key_oids.clone(),
+                spec.key_attnums.clone(),
+            )
+        } else {
+            (Vec::new(), Vec::new(), Vec::new(), table.key_attnums.clone())
+        };
+        Ok(crate::stream::StreamTablePlan {
+            schema: table.schema.clone(),
+            name: table.name.clone(),
+            sql,
+            plans: table.plans.clone(),
+            key_attnums,
+            zero_column,
+            presence,
+            result_columns: if presence { 1 } else { table.select_sql.len() },
+            arrow_columns,
+            cut,
+            lower,
+            upper,
+            key_oids,
+        })
+    }
+
+    fn stream_envelope(
+        &self,
+        budget: &crate::stream::StreamBudget,
+        tables: Vec<crate::stream::StreamTablePlan>,
     ) -> Result<crate::stream::StreamPlan, SourceError> {
         let session = self
             .session
             .as_ref()
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
-        let mut tables = Vec::with_capacity(self.tables.len());
-        for index in 0..self.tables.len() {
-            let table = &self.tables[index];
-            let presence = table.select_sql.is_empty();
-            let sql = if presence {
-                crate::types::compose_presence_scan(&table.schema_sql, &table.table_sql)?
-            } else {
-                crate::types::compose_scan(
-                    &table.schema_sql,
-                    &table.table_sql,
-                    &table.select_sql,
-                )?
-            };
-            let cut = self.recheck_cut(index)?;
-            let zero_column = cut.source.columns.is_empty();
-            let arrow_columns = u32::try_from(
-                table
-                    .plans
-                    .iter()
-                    .filter(|plan| plan.mapping.decision == MapDecision::Lossless)
-                    .count(),
-            )
-            .unwrap_or(u32::MAX);
-            tables.push(crate::stream::StreamTablePlan {
-                schema: table.schema.clone(),
-                name: table.name.clone(),
-                sql,
-                plans: table.plans.clone(),
-                key_attnums: table.key_attnums.clone(),
-                zero_column,
-                presence,
-                result_columns: if presence {
-                    1
-                } else {
-                    table.select_sql.len()
-                },
-                arrow_columns,
-                cut,
-            });
-        }
         Ok(crate::stream::StreamPlan {
             source_id: self.binding.source_id.clone(),
             generation: self.binding.generation,
@@ -1280,11 +1517,15 @@ fn probe_keys(source: &SourceTable) -> ProbeKeys {
     }
 }
 
-fn probe_oid(oid: i64) -> bool {
+pub(crate) fn supported_key_oid(oid: i64) -> bool {
     matches!(
         oid,
         OID_BOOL | OID_INT8 | OID_INT2 | OID_INT4 | OID_TEXT | OID_BPCHAR | OID_VARCHAR
     )
+}
+
+fn probe_oid(oid: i64) -> bool {
+    supported_key_oid(oid)
 }
 
 struct QuotedTable {
@@ -1487,7 +1728,7 @@ fn bind_probe<'a>(
     Ok(query.bind(2_i64))
 }
 
-fn bind_one<'a>(
+pub(crate) fn bind_one<'a>(
     query: sqlx::query::Query<'a, sqlx::Postgres, sqlx::postgres::PgArguments>,
     value: &'a ProbeValue,
     oid: i64,
@@ -1505,6 +1746,30 @@ fn bind_one<'a>(
         (ProbeValue::Bool(value), OID_BOOL) => Ok(query.bind(*value)),
         (ProbeValue::Text(value), OID_TEXT | OID_VARCHAR | OID_BPCHAR) => Ok(query.bind(value.as_str())),
         _ => Err(SourceError::protocol("probe_key")),
+    }
+}
+
+pub(crate) fn push_probe(
+    args: &mut PgArguments,
+    value: &ProbeValue,
+    oid: i64,
+) -> Result<(), SourceError> {
+    let bad = || SourceError::protocol("probe_key");
+    match (value, oid) {
+        (ProbeValue::Int8(value), OID_INT2) => {
+            let narrowed = i16::try_from(*value).map_err(|_| bad())?;
+            args.add(narrowed).map_err(|_| bad())
+        }
+        (ProbeValue::Int8(value), OID_INT4) => {
+            let narrowed = i32::try_from(*value).map_err(|_| bad())?;
+            args.add(narrowed).map_err(|_| bad())
+        }
+        (ProbeValue::Int8(value), OID_INT8) => args.add(*value).map_err(|_| bad()),
+        (ProbeValue::Bool(value), OID_BOOL) => args.add(*value).map_err(|_| bad()),
+        (ProbeValue::Text(value), OID_TEXT | OID_VARCHAR | OID_BPCHAR) => {
+            args.add(value.clone()).map_err(|_| bad())
+        }
+        _ => Err(bad()),
     }
 }
 

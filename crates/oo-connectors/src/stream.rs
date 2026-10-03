@@ -150,6 +150,12 @@ pub(crate) struct StreamTablePlan {
     pub result_columns: usize,
     pub arrow_columns: u32,
     pub cut: RecheckCut,
+    /// Inclusive lower bound. Empty means unbounded. An unkeyed scan stays empty.
+    pub lower: Vec<snapshot::ProbeValue>,
+    /// Exclusive upper bound. Empty means unbounded.
+    pub upper: Vec<snapshot::ProbeValue>,
+    /// Oid for each declared key column. Empty on an unkeyed scan.
+    pub key_oids: Vec<i64>,
 }
 
 pub(crate) struct StreamPlan {
@@ -512,14 +518,14 @@ async fn scan(
                     if let Err(err) = install_bounds(data, plan, table.result_columns) {
                         return prefer(err, rollback_only(data).await);
                     }
+                    let arguments = match portal_arguments(table) {
+                        Ok(arguments) => arguments,
+                        Err(err) => return prefer(err, rollback_only(data).await),
+                    };
                     let mut open_err: Option<SourceError> = None;
                     let mut exit_slot = None;
                     {
-                        match data
-                            .conn
-                            .open_named_portal(&table.sql, PgArguments::default())
-                            .await
-                        {
+                        match data.conn.open_named_portal(&table.sql, arguments).await {
                             Ok(portal) => {
                                 exit_slot = Some(
                                     hold_portal(
@@ -946,6 +952,25 @@ fn prefer(primary: SourceError, settled: Result<(), SourceError>) -> Result<(), 
         Ok(()) => Err(primary),
         Err(err) => Err(err),
     }
+}
+
+fn portal_arguments(table: &StreamTablePlan) -> Result<PgArguments, SourceError> {
+    if table.lower.is_empty() && table.upper.is_empty() {
+        return Ok(PgArguments::default());
+    }
+    if (!table.lower.is_empty() && table.lower.len() != table.key_oids.len())
+        || (!table.upper.is_empty() && table.upper.len() != table.key_oids.len())
+    {
+        return Err(SourceError::protocol("key_plan"));
+    }
+    let mut args = PgArguments::default();
+    for (value, oid) in table.lower.iter().zip(table.key_oids.iter().copied()) {
+        snapshot::push_probe(&mut args, value, oid)?;
+    }
+    for (value, oid) in table.upper.iter().zip(table.key_oids.iter().copied()) {
+        snapshot::push_probe(&mut args, value, oid)?;
+    }
+    Ok(args)
 }
 
 fn install_bounds(

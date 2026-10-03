@@ -26,6 +26,8 @@ A shape or primary-key difference remains `schema_drift`. A committed change tha
 
 A table with no primary key, a primary key the probe cannot use, or a primary key of 9 to 32 columns still opens. `read_probe` is unchanged: those keys still return `probe_key` and poison the owner. A primary key wider than PostgreSQL `INDEX_MAX_KEYS` (32) is `config` fact `selection` and does not open. An empty column list with a non-empty primary key is `probe_key`. `plan.key` is set only for a probe-supported key. The stream does not invent a resume key. `StreamBatch.resumable` and `TableEof.resumable_key` are false. A key digest on a supported key is the existing canonical digest, not a cursor.
 
+`open_stream` still scans every selected table with the full-snapshot statement: no `WHERE`, no `ORDER BY`, and no `OFFSET`. A keyed chunk and `read_keys` use a different statement on that same owner and the same repeatable-read transaction. The statement orders by the declared key and binds half-open bounds. It is not a resume cursor. See `reader-keys-v1`. The client deadline still does not cancel an Execute already sent. That remains the cancellation slice.
+
 ## Empty and zero-column tables
 
 A table with columns and no rows produces no `Batch`. The first `Execute` completes with no row. That demand returns `TableEof` with `rows_emitted = 0`.

@@ -361,6 +361,37 @@ ORDER BY con.contypid, con.oid LIMIT $2::int8";
 
 pub(crate) const QUOTE_IDENT: &str = "SELECT pg_catalog.quote_ident($1) LIMIT 1";
 
+/// Primary index name and whether the index is neither partial nor an expression.
+/// One row. Names are bound.
+pub(crate) const KEY_PRIMARY_PLAIN: &str = "\
+SELECT ic.relname::text, (i.indpred IS NULL AND i.indexprs IS NULL) \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+JOIN pg_catalog.pg_index i ON i.indrelid = c.oid AND i.indisprimary \
+JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid \
+WHERE n.nspname = $1 AND c.relname = $2 \
+LIMIT 1";
+
+/// Whether a named non-primary unique index is neither partial nor an expression.
+pub(crate) const KEY_INDEX_PLAIN: &str = "\
+SELECT (i.indpred IS NULL AND i.indexprs IS NULL) \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+JOIN pg_catalog.pg_index i ON i.indrelid = c.oid AND i.indisunique AND NOT i.indisprimary \
+JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid \
+WHERE n.nspname = $1 AND c.relname = $2 AND ic.relname = $3 \
+LIMIT 1";
+
+/// Collation name for one attribute. Null when the attribute has no collation.
+pub(crate) const KEY_COLLATION: &str = "\
+SELECT coll.collname::text \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped \
+LEFT JOIN pg_catalog.pg_collation coll ON coll.oid = a.attcollation AND a.attcollation <> 0 \
+WHERE n.nspname = $1 AND c.relname = $2 AND a.attname = $3 \
+LIMIT 1";
+
 pub(crate) const TYPE_FACTS: &str = "\
 SELECT t.oid::int8, t.typname::text, n.nspname::text, t.typtype::text, t.typlen::int4, \
 COALESCE(t.typelem, 0)::int8, COALESCE(t.typbasetype, 0)::int8, t.typtypmod::int4, \
@@ -455,6 +486,9 @@ const ALL: &[&str] = &[
     ENUM_LABELS_BOUNDED,
     DOMAIN_CHECKS,
     QUOTE_IDENT,
+    KEY_PRIMARY_PLAIN,
+    KEY_INDEX_PLAIN,
+    KEY_COLLATION,
     TYPE_FACTS,
     CAPTURED_AT,
     SNAPSHOT_BACKEND,

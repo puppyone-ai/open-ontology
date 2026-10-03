@@ -6,7 +6,8 @@
 //! Binary decoding is the separate protocol [`types::TYPE_CONVERSION_PROTOCOL`].
 //! [`PgSession::read_typed`] is that decoder. The snapshot owner protocol is
 //! [`SNAPSHOT_PROTOCOL`]. [`STREAM_PROTOCOL`] is the bounded full-snapshot Arrow
-//! pull on that same owner. It is not the whole reader. Resume cursors, cancel,
+//! pull on that same owner. [`KEY_PLAN_PROTOCOL`] plans typed half-open chunks
+//! on that same owner. It is not the whole reader. Resume cursors, cancel,
 //! CDC, and the registry API stay unsupported. Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
@@ -16,6 +17,7 @@ mod catalog;
 mod config;
 mod error;
 mod ident;
+mod key_plan;
 mod model;
 mod session;
 mod snapshot;
@@ -29,6 +31,10 @@ pub use config::{
 };
 pub use error::{SourceError, SourceErrorKind};
 pub use ident::{PG17_RESERVED, stable_ident};
+pub use key_plan::{
+    DeclaredKey, DeclaredKeyKind, KeyColumnPlan, KeyPlan, KeyRange, PlannedChunk, TableKeyPlan,
+    DEFAULT_TARGET_ROWS, KEY_PLAN_PROTOCOL, MAX_PLAN_CHUNKS, SNAPSHOT_DEADLINE_DEFAULT,
+};
 pub use model::{
     AccessReport, BlockReason, CapabilityStatus, CdcPrerequisite, ColumnPrivileges, DbaItem,
     DefinerFunction, EMPTY_SCHEMA_HASH, Fact, FactStatus, ForeignKey, ForeignKeyColumn, KeyColumn,
