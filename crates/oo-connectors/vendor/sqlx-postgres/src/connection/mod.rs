@@ -146,7 +146,8 @@ impl PgConnection {
         self.inner.stream.bounds()
     }
 
-    /// Bytes and capacities measured on the socket buffer. This is not the configured cap.
+    /// View capacities, reserve arguments, growth, and copy counts on the socket buffer.
+    /// This is not the configured cap and it is not a resident-set size.
     pub fn incoming_allocation(&self) -> PgIncomingAllocation {
         self.inner.stream.allocation()
     }

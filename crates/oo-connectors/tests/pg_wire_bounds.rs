@@ -423,7 +423,19 @@ async fn allocator_rounding_and_retained_storage() {
     assert_ne!(meter.view_capacity_peak, 80_000);
     assert!(meter.reserved_additional > base.reserved_additional);
     assert!(meter.overread_bytes > base.overread_bytes);
-    assert_eq!(meter.assembly_bytes, 0);
+    // `assembly_bytes` is bytes copied while joining the windows, not a second
+    // claim that the frame was not copied. The sum of the event rows is the
+    // lifetime counter when the diagnostic log has not dropped a row.
+    assert_eq!(meter.events_dropped, 0);
+    assert_eq!(
+        meter.assembly_bytes,
+        meter
+            .events
+            .iter()
+            .map(|event| event.assembly_bytes)
+            .sum::<u64>()
+    );
+    assert!(meter.assembly_bytes <= meter.bytes_read);
     assert!(meter.trace_bytes < 1_000_000);
     assert_eq!(
         meter.accepted_logical_payload - base.accepted_logical_payload,
@@ -434,12 +446,30 @@ async fn allocator_rounding_and_retained_storage() {
     let fresh = &meter.events[base.events.len()..];
     let grown = fresh
         .iter()
-        .find(|event| event.reserve_argument > 0)
+        .find(|event| event.reserved_growth > 0)
         .expect("body reserve");
     assert!(grown.available_capacity_after > grown.available_capacity_before);
-    // bytes 1.12.1 on this linux/arm64 image returned exactly the requested spare.
-    assert_eq!(grown.available_capacity_after, grown.reserve_argument);
-    assert_eq!(meter.rounding_peak, 0);
+    assert!(grown.reserve_argument > 0);
+    // Spare above the reserve argument is rounding. Exact spare leaves it at 0.
+    // A bytes original-capacity floor leaves it above 0. Both are measurements.
+    let measured_slack = fresh
+        .iter()
+        .map(|event| {
+            if event.reserve_argument == 0 || event.reserved_growth == 0 {
+                0
+            } else {
+                event
+                    .available_capacity_after
+                    .saturating_sub(event.reserve_argument)
+            }
+        })
+        .max()
+        .unwrap_or(0);
+    assert_eq!(meter.rounding_peak, measured_slack);
+    assert_eq!(
+        meter.reserved_additional - base.reserved_additional,
+        fresh.iter().map(|event| event.reserved_growth).sum::<u64>()
+    );
     drop(peer);
 }
 
@@ -574,7 +604,7 @@ fn assert_invalid(err: sqlx::Error) {
 
 fn trace(case: &str, meter: &PgIncomingAllocation) {
     println!(
-        "TRACE case={case} logical_peak={} reserved_additional={} resident_view_peak={} reads={} bytes_read={} assembly={} accepted_logical={} overread={} rounding={} last_logical={} reserve_calls={} trace_bytes={} messages={} accepted_backing={}",
+        "TRACE case={case} logical_peak={} reserved_growth={} view_capacity_peak={} reads={} bytes_read={} assembly={} accepted_logical={} overread={} rounding={} last_logical={} reserve_calls={} trace_bytes={} messages={} accepted_backing={}",
         meter.logical_requested_peak,
         meter.reserved_additional,
         meter.view_capacity_peak,

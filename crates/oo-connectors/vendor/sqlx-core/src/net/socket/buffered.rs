@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::net::Socket;
 use bytes::BytesMut;
-use std::mem::size_of;
+use std::mem::{replace, size_of};
 use std::ops::ControlFlow;
 use std::{cmp, io};
 
@@ -9,40 +9,82 @@ use crate::io::{AsyncRead, AsyncReadExt, ProtocolDecode, ProtocolEncode};
 
 /// One socket read performed while filling a protocol frame.
 ///
-/// Lengths are byte counts measured on this buffer. They are not configuration knobs.
+/// Lengths are byte counts measured on this buffer. They are not configuration knobs
+/// and they are not `malloc_usable_size` or RSS.
+///
+/// `view_capacity_before` and `view_capacity_after` are `read.capacity() + available.capacity()`.
+/// That sum is the two live windows. It is not a physical resident total: the windows may
+/// share one allocation, or they may not, and a retained frame is a separate view that is
+/// not added in. An offset kept outside both windows is missing from the sum as well.
 #[derive(Copy, Clone, Debug)]
 pub struct IncomingAllocEvent {
     /// Absolute buffer length the parser asked to have present.
     pub logical_need: u64,
-    /// Argument actually passed to `BytesMut::reserve`. Zero when spare capacity was enough.
+    /// Argument passed to `BytesMut::reserve`. Zero when that call was not made.
+    ///
+    /// The argument is additional bytes beyond the buffer's current `len`, which is
+    /// what `BytesMut::reserve` requires. It is not the number of bytes of capacity
+    /// that were added.
     pub reserve_argument: u64,
+    /// View-capacity increase for this step: the sum of the two windows after the
+    /// step, minus the sum before it. Zero when the call did not grow a window.
+    pub reserved_growth: u64,
     /// `read` view capacity before the reserve.
     pub read_capacity_before: u64,
     /// `available` view capacity before the reserve.
     pub available_capacity_before: u64,
     /// `available.len()` before the reserve. Zero means that view is spare only.
     pub available_len_before: u64,
-    /// `available` view capacity after the reserve.
+    /// `available` view capacity after the reserve and before the socket read.
     pub available_capacity_after: u64,
-    /// `read.capacity() + available.capacity()` after the bytes were appended.
+    /// Sum of the two view capacities before this step.
+    pub view_capacity_before: u64,
+    /// Sum of the two view capacities after this step. For a read that has not
+    /// returned, this is the sum after the reserve only.
     pub view_capacity_after: u64,
     /// `read.len()` before this socket read.
     pub read_len_before: u64,
-    /// Bytes returned by this socket read.
+    /// Bytes returned by this socket read. Zero when the read has not returned.
     pub bytes_returned: u64,
+    /// Bytes copied while joining the windows on this step. Zero when `unsplit` stayed
+    /// a pointer adjustment. This is not the size of the allocation.
+    pub assembly_bytes: u64,
+    /// `1` after the socket read returns, including a zero-byte EOF. `0` when the
+    /// future was dropped while the read was pending.
+    pub read_completed: u64,
 }
 
 /// Lifetime high-water of incoming socket buffering.
 ///
-/// Peaks are taken from `BytesMut` capacity and from read counts. They are not copies of a bound.
+/// Peaks are taken from `BytesMut` view capacity and from read counts. They are not
+/// copies of a bound, not RSS, and not `malloc_usable_size`.
+///
+/// `view_capacity_peak` is the largest sum of the two live windows. Summing those
+/// windows does not yield a physical resident total. `accepted_backing_peak` is that
+/// same kind of sum sampled when a frame is accepted. Retained frames are not added
+/// into either figure.
 #[derive(Clone, Debug)]
 pub struct IncomingHighWater {
     pub logical_requested_peak: u64,
+    /// Sum of view-capacity increases. A `BytesMut::reserve` argument that does not
+    /// change capacity is not included.
     pub reserved_additional: u64,
+    /// Number of `BytesMut::reserve` calls, including calls whose argument was already
+    /// covered by spare capacity.
     pub reserve_calls: u64,
+    /// Calls included in `reserve_calls` whose capacity did not change.
+    pub noop_reserve_calls: u64,
+    /// Sum of the arguments of those no-op calls. Not capacity growth.
+    pub noop_reserve_arguments: u64,
+    /// Sum of every argument passed to `BytesMut::reserve`, including no-op calls.
+    pub reserve_argument_bytes: u64,
     pub read_capacity_peak: u64,
     pub available_capacity_peak: u64,
     pub view_capacity_peak: u64,
+    /// Largest spare, above the reserve argument, left by a call that did grow.
+    /// bytes 1.12.1 can raise a new buffer to its original-capacity floor, and
+    /// `Vec::reserve` can add more than requested. Zero means the measured spare
+    /// matched the argument. This is not allocator slack below `BytesMut::capacity`.
     pub rounding_peak: u64,
     pub overread_bytes: u64,
     pub reads: u64,
@@ -50,10 +92,16 @@ pub struct IncomingHighWater {
     pub messages: u64,
     pub accepted_logical_payload: u64,
     pub accepted_backing_peak: u64,
-    /// Extra frame copy made by the receive path. This path does not make one.
+    /// Bytes copied while joining `read` and `available`. A pointer-only `unsplit`
+    /// adds nothing. Relocation of a retained prefix and a non-contiguous append
+    /// both add the number of bytes copied. Capacity already advanced past, in
+    /// front of both windows, is not part of either view and is not added. In-place
+    /// growth that keeps the pointer adds nothing.
     pub assembly_bytes: u64,
     /// Most recent parser decision length, including a rejection that did not read again.
     pub last_logical_need: u64,
+    /// Diagnostic rows that were not stored because `events` is capped.
+    pub events_dropped: u64,
     pub events: Vec<IncomingAllocEvent>,
 }
 
@@ -63,6 +111,9 @@ impl Default for IncomingHighWater {
             logical_requested_peak: 0,
             reserved_additional: 0,
             reserve_calls: 0,
+            noop_reserve_calls: 0,
+            noop_reserve_arguments: 0,
+            reserve_argument_bytes: 0,
             read_capacity_peak: 0,
             available_capacity_peak: 0,
             view_capacity_peak: 0,
@@ -75,6 +126,7 @@ impl Default for IncomingHighWater {
             accepted_backing_peak: 0,
             assembly_bytes: 0,
             last_logical_need: 0,
+            events_dropped: 0,
             events: Vec::new(),
         }
     }
@@ -89,6 +141,10 @@ impl IncomingHighWater {
 
 // Tokio, async-std, and std all use this as the default capacity for their buffered I/O.
 const DEFAULT_BUF_SIZE: usize = 8192;
+
+/// The event log is a diagnostic ring of recent reads, not the socket buffer.
+/// Lifetime counters keep moving after this cap is reached.
+const MAX_INCOMING_ALLOC_EVENTS: usize = 64;
 
 pub struct BufferedSocket<S> {
     socket: S,
@@ -135,11 +191,12 @@ impl<S: Socket> BufferedSocket<S> {
 
     /// Measured incoming allocation, as plain integers.
     ///
-    /// Order: logical peak, reserved additional, reserve calls, read capacity peak,
+    /// Order: logical peak, reserved growth, reserve calls, read capacity peak,
     /// available capacity peak, view capacity peak, rounding peak, overread, reads,
     /// bytes read, messages, accepted logical payload, accepted backing peak,
-    /// assembly bytes, last logical need, trace bytes.
-    pub fn incoming_meter_parts(&self) -> [u64; 16] {
+    /// assembly bytes, last logical need, trace bytes, no-op reserve calls,
+    /// no-op reserve arguments, reserve argument bytes, events dropped.
+    pub fn incoming_meter_parts(&self) -> [u64; 20] {
         let meter = &self.read_buf.meter;
         [
             meter.logical_requested_peak,
@@ -158,13 +215,15 @@ impl<S: Socket> BufferedSocket<S> {
             meter.assembly_bytes,
             meter.last_logical_need,
             meter.trace_bytes() as u64,
+            meter.noop_reserve_calls,
+            meter.noop_reserve_arguments,
+            meter.reserve_argument_bytes,
+            meter.events_dropped,
         ]
     }
 
-    /// Socket-read events. Each row is logical need, reserve argument, read capacity before,
-    /// available capacity before, available len before, available capacity after,
-    /// view capacity after, read len before, bytes returned.
-    pub fn incoming_meter_events(&self) -> Vec<[u64; 9]> {
+    /// Socket-read events, in the field order of [`IncomingAllocEvent`].
+    pub fn incoming_meter_events(&self) -> Vec<[u64; 13]> {
         self.read_buf
             .meter
             .events
@@ -173,13 +232,17 @@ impl<S: Socket> BufferedSocket<S> {
                 [
                     event.logical_need,
                     event.reserve_argument,
+                    event.reserved_growth,
                     event.read_capacity_before,
                     event.available_capacity_before,
                     event.available_len_before,
                     event.available_capacity_after,
+                    event.view_capacity_before,
                     event.view_capacity_after,
                     event.read_len_before,
                     event.bytes_returned,
+                    event.assembly_bytes,
+                    event.read_completed,
                 ]
             })
             .collect()
@@ -451,6 +514,10 @@ impl ReadBuffer {
         self.last_sampled_view = view;
     }
 
+    fn view_capacity(&self) -> u64 {
+        (self.read.capacity() + self.available.capacity()) as u64
+    }
+
     async fn read(&mut self, len: usize, socket: &mut impl Socket) -> io::Result<()> {
         // Because of how `BytesMut` works, we should only be shifting capacity back and forth
         // between `read` and `available` unless we have to read an oversize message.
@@ -461,17 +528,41 @@ impl ReadBuffer {
             let read_capacity_before = self.read.capacity();
             let available_len_before = self.available.len();
             let available_capacity_before = self.available.capacity();
-            let reserve_argument = self.reserve(deficit);
-            let available_capacity_after = self.available.capacity();
-            if reserve_argument > 0 && available_capacity_after > available_capacity_before {
-                let slack = (available_capacity_after as u64).saturating_sub(reserve_argument as u64);
-                self.meter.rounding_peak = self.meter.rounding_peak.max(slack);
+            let view_before = self.view_capacity();
+            let (reserve_argument, mut assembly) = self.prepare_window(deficit);
+            let view_prepared = self.view_capacity();
+            let growth = view_prepared
+                .checked_sub(view_before)
+                .expect("incoming view shrank during reserve");
+            self.note_reserve(reserve_argument, growth);
+            self.note_rounding(reserve_argument, growth);
+            if assembly > 0 {
+                self.meter.assembly_bytes += assembly;
             }
+            let available_capacity_after = self.available.capacity();
             self.sample_peaks();
+            // The row is stored before the await. Dropping the parked read keeps the
+            // growth and the copy that already happened; it does not invent a socket read.
+            let pushed = self.push_event(IncomingAllocEvent {
+                logical_need: len as u64,
+                reserve_argument: reserve_argument as u64,
+                reserved_growth: growth,
+                read_capacity_before: read_capacity_before as u64,
+                available_capacity_before: available_capacity_before as u64,
+                available_len_before: available_len_before as u64,
+                available_capacity_after: available_capacity_after as u64,
+                view_capacity_before: view_before,
+                view_capacity_after: view_prepared,
+                read_len_before: read_len_before as u64,
+                bytes_returned: 0,
+                assembly_bytes: assembly,
+                read_completed: 0,
+            });
 
             let read = socket.read(&mut self.available).await?;
 
             if read == 0 {
+                self.finish_event(pushed, 0, assembly, view_prepared, growth);
                 return Err(io::Error::new(
                     io::ErrorKind::UnexpectedEof,
                     format!(
@@ -487,44 +578,174 @@ impl ReadBuffer {
             self.meter.reads += 1;
             self.meter.bytes_read += read as u64;
             self.meter.overread_bytes += overread as u64;
-            self.advance(read);
+            let copied = self.advance(read);
+            assembly += copied;
+            if copied > 0 {
+                self.meter.assembly_bytes += copied;
+            }
             self.sample_peaks();
-            self.meter.events.push(IncomingAllocEvent {
-                logical_need: len as u64,
-                reserve_argument: reserve_argument as u64,
-                read_capacity_before: read_capacity_before as u64,
-                available_capacity_before: available_capacity_before as u64,
-                available_len_before: available_len_before as u64,
-                available_capacity_after: available_capacity_after as u64,
-                view_capacity_after: self.last_sampled_view,
-                read_len_before: read_len_before as u64,
-                bytes_returned: read as u64,
-            });
+            let view_done = self.view_capacity();
+            let extra = view_done
+                .checked_sub(view_prepared)
+                .expect("incoming view shrank during advance");
+            if extra > 0 {
+                self.meter.reserved_additional += extra;
+            }
+            self.finish_event(pushed, read as u64, assembly, view_done, growth + extra);
         }
 
         Ok(())
     }
 
-    /// Reserve `amt` more payload bytes in `available`.
+    /// Make `available` able to accept `deficit` more bytes.
     ///
-    /// `BytesMut::capacity` is the view capacity (`len + spare`). After `advance`,
-    /// `available.len()` is 0, so the capacity is the spare. A zero difference is not
-    /// passed to `reserve` and is not counted. Returns the argument that was passed.
-    fn reserve(&mut self, amt: usize) -> usize {
-        let Some(additional) = amt.checked_sub(self.available.capacity()) else {
-            return 0;
-        };
-        if additional == 0 {
-            return 0;
+    /// `BytesMut::reserve(n)` guarantees `capacity - len >= n`. `n` is therefore
+    /// `deficit` (additional bytes beyond the current length), not `deficit` minus
+    /// the current spare. Subtracting the spare and passing that remainder asks
+    /// for less room than the read needs, and the call returns without growing
+    /// whenever the remainder already fits in the spare.
+    ///
+    /// When the spare is already at least `deficit`, this does not call `reserve`.
+    /// Returns the argument that was passed (0 if none) and bytes copied while
+    /// relocating a retained prefix.
+    fn prepare_window(&mut self, deficit: usize) -> (usize, u64) {
+        let spare = self
+            .available
+            .capacity()
+            .saturating_sub(self.available.len());
+        if deficit <= spare {
+            return (0, 0);
         }
-        self.available.reserve(additional);
-        self.meter.reserve_calls += 1;
-        self.meter.reserved_additional += additional as u64;
-        additional
+        // A tail that already holds bytes is not the usual spare. Grow it in place
+        // rather than rejoining those bytes into `read` twice.
+        if self.available.len() != 0 {
+            return self.grow_available(deficit);
+        }
+        // Put the spare back on `read` when the two windows are contiguous, grow
+        // that one buffer, then split the spare off again. The following `unsplit`
+        // of the bytes just read stays a pointer adjustment instead of a copy.
+        let tail = replace(&mut self.available, BytesMut::new());
+        match self.read.try_unsplit(tail) {
+            Ok(()) => self.grow_read(deficit),
+            Err(tail) => {
+                self.available = tail;
+                self.grow_available(deficit)
+            }
+        }
     }
 
-    fn advance(&mut self, amt: usize) {
-        self.read.unsplit(self.available.split_to(amt));
+    fn grow_read(&mut self, deficit: usize) -> (usize, u64) {
+        let ptr = self.read.as_ptr();
+        let old = self.read.len();
+        self.read.reserve(deficit);
+        let assembly = if old > 0 && self.read.as_ptr() != ptr {
+            old as u64
+        } else {
+            0
+        };
+        let kept = self.read.len();
+        self.available = self.read.split_off(kept);
+        (deficit, assembly)
+    }
+
+    fn grow_available(&mut self, deficit: usize) -> (usize, u64) {
+        let ptr = self.available.as_ptr();
+        let old = self.available.len();
+        self.available.reserve(deficit);
+        let assembly = if old > 0 && self.available.as_ptr() != ptr {
+            old as u64
+        } else {
+            0
+        };
+        (deficit, assembly)
+    }
+
+    fn note_reserve(&mut self, argument: usize, growth: u64) {
+        if argument == 0 && growth == 0 {
+            return;
+        }
+        if argument > 0 {
+            self.meter.reserve_calls += 1;
+            self.meter.reserve_argument_bytes += argument as u64;
+        }
+        if growth == 0 {
+            self.meter.noop_reserve_calls += 1;
+            self.meter.noop_reserve_arguments += argument as u64;
+        } else {
+            self.meter.reserved_additional += growth;
+        }
+    }
+
+    fn note_rounding(&mut self, argument: usize, growth: u64) {
+        if argument == 0 || growth == 0 {
+            return;
+        }
+        let spare_after = self
+            .available
+            .capacity()
+            .saturating_sub(self.available.len());
+        if spare_after > argument {
+            let slack = (spare_after - argument) as u64;
+            self.meter.rounding_peak = self.meter.rounding_peak.max(slack);
+        }
+    }
+
+    fn push_event(&mut self, event: IncomingAllocEvent) -> bool {
+        if self.meter.events.len() == MAX_INCOMING_ALLOC_EVENTS {
+            self.meter.events_dropped += 1;
+            return false;
+        }
+        self.meter.events.push(event);
+        true
+    }
+
+    fn finish_event(
+        &mut self,
+        pushed: bool,
+        bytes_returned: u64,
+        assembly: u64,
+        view_done: u64,
+        growth: u64,
+    ) {
+        if !pushed {
+            return;
+        }
+        let event = self
+            .meter
+            .events
+            .last_mut()
+            .expect("pushed incoming allocation event");
+        event.bytes_returned = bytes_returned;
+        event.assembly_bytes = assembly;
+        event.view_capacity_after = view_done;
+        event.reserved_growth = growth;
+        event.read_completed = 1;
+    }
+
+    /// Move `amt` bytes from `available` onto `read`.
+    ///
+    /// An empty `read` takes the view. A contiguous tail is `unsplit` in O(1).
+    /// Anything else is appended, and the returned count is the number of bytes copied.
+    fn advance(&mut self, amt: usize) -> u64 {
+        let piece = self.available.split_to(amt);
+        if self.read.is_empty() {
+            self.read = piece;
+            return 0;
+        }
+        let piece_len = piece.len();
+        match self.read.try_unsplit(piece) {
+            Ok(()) => 0,
+            Err(piece) => {
+                let ptr = self.read.as_ptr();
+                let old = self.read.len();
+                self.read.extend_from_slice(&piece);
+                let mut copied = piece_len as u64;
+                if old > 0 && self.read.as_ptr() != ptr {
+                    copied += old as u64;
+                }
+                copied
+            }
+        }
     }
 
     fn shrink(&mut self) {

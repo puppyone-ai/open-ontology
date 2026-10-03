@@ -125,12 +125,32 @@ state: it is consumed only after a full frame is accepted, with no await
 between that decision and the split. Dropping the read future leaves the
 bytes in place.
 
-`incoming_allocation` reports `BytesMut` capacities, reserve arguments, read
-counts, overread, and accepted payload lengths. The configured caps are not
-copied into those fields. The receive path does not allocate a second copy of
-the frame. `executor` portal execution is unchanged: `run` still sends no row
-limit and an unnamed `Close`. This hunk does not add named portals, a stream
-reader, or a product catalog cap.
+`incoming_allocation` reports `BytesMut` view capacities, reserve arguments,
+view-capacity growth, read counts, overread, copied bytes, and accepted payload
+lengths. The configured caps are not copied into those fields. `BytesMut::reserve`
+is given the additional length beyond the buffer's current `len`. That argument
+is `reserve_argument_bytes`. `reserved_additional` is the increase in the sum of
+the two live view capacities and does not include an argument that left capacity
+unchanged. Those no-op arguments are `noop_reserve_arguments`.
+
+The two view capacities are not a physical resident total. They can share one
+allocation, or not, and a caller-retained frame is not added in.
+`accepted_backing_peak` is the same view sum sampled when a frame is accepted.
+`rounding_peak` is spare above the reserve argument after a call that grew,
+including the bytes 1.12.1 original-capacity floor when that floor is what the
+buffer returned. It is not `malloc_usable_size`. Zero is recorded only when the
+measured spare matched the argument.
+
+`assembly_bytes` counts bytes copied when a retained prefix is relocated or when
+`unsplit` cannot join the new spare in place. A contiguous join copies nothing.
+Bytes already advanced past, sitting in front of both windows, are outside either
+view and are not counted. Growth that keeps the same pointer adds nothing.
+The diagnostic event log keeps at most 64 rows; `events_dropped` counts the
+rest. A row is stored before the socket read is awaited, so dropping that read
+leaves the growth and any copy that already happened on the counters and on the
+row. `executor` portal execution is unchanged: `run` still sends no row limit
+and an unnamed `Close`. This hunk does not add named portals, a stream reader,
+or a product catalog cap.
 
 No crates.io version is claimed for this hunk. `Cargo.toml` and `Cargo.lock`
 are unchanged.

@@ -72,25 +72,48 @@ impl PgIncomingBounds {
 }
 
 /// One measured socket read. Counts come from the buffer, not from a bound.
+///
+/// `reserve_argument` is the `BytesMut::reserve` argument (additional bytes beyond
+/// `len`). `reserved_growth` is the change in the sum of the two live view
+/// capacities. `view_capacity_before` and `view_capacity_after` are that sum, not
+/// a physical resident total and not the sum of retained frames. `assembly_bytes`
+/// is bytes copied while joining the windows. An abandoned offset in front of both
+/// windows is not included, and in-place growth that keeps the pointer adds nothing.
+/// `read_completed` is 0 when the socket read has not returned.
 #[derive(Copy, Clone, Debug)]
 pub struct PgIncomingAllocEvent {
     pub logical_need: u64,
     pub reserve_argument: u64,
+    pub reserved_growth: u64,
     pub read_capacity_before: u64,
     pub available_capacity_before: u64,
     pub available_len_before: u64,
     pub available_capacity_after: u64,
+    pub view_capacity_before: u64,
     pub view_capacity_after: u64,
     pub read_len_before: u64,
     pub bytes_returned: u64,
+    pub assembly_bytes: u64,
+    pub read_completed: u64,
 }
 
-/// Actual incoming buffer high-water for the life of the connection.
+/// Incoming buffer high-water for the life of the connection.
+///
+/// `reserved_additional` is view-capacity growth, not the sum of reserve arguments.
+/// `reserve_argument_bytes` is that sum, including no-op calls. `noop_reserve_arguments`
+/// is the no-op portion and is not growth. `view_capacity_peak` and
+/// `accepted_backing_peak` are sums of live `BytesMut` view capacities. They are
+/// not RSS, not `malloc_usable_size`, and not the sum of frames the caller still holds.
+/// `trace_bytes` is the diagnostic event log, capped, with `events_dropped` counting
+/// rows that were not stored.
 #[derive(Clone, Debug)]
 pub struct PgIncomingAllocation {
     pub logical_requested_peak: u64,
     pub reserved_additional: u64,
     pub reserve_calls: u64,
+    pub noop_reserve_calls: u64,
+    pub noop_reserve_arguments: u64,
+    pub reserve_argument_bytes: u64,
     pub read_capacity_peak: u64,
     pub available_capacity_peak: u64,
     pub view_capacity_peak: u64,
@@ -104,6 +127,7 @@ pub struct PgIncomingAllocation {
     pub assembly_bytes: u64,
     pub last_logical_need: u64,
     pub trace_bytes: u64,
+    pub events_dropped: u64,
     pub events: Vec<PgIncomingAllocEvent>,
 }
 
@@ -181,13 +205,17 @@ impl PgStream {
             .map(|row| PgIncomingAllocEvent {
                 logical_need: row[0],
                 reserve_argument: row[1],
-                read_capacity_before: row[2],
-                available_capacity_before: row[3],
-                available_len_before: row[4],
-                available_capacity_after: row[5],
-                view_capacity_after: row[6],
-                read_len_before: row[7],
-                bytes_returned: row[8],
+                reserved_growth: row[2],
+                read_capacity_before: row[3],
+                available_capacity_before: row[4],
+                available_len_before: row[5],
+                available_capacity_after: row[6],
+                view_capacity_before: row[7],
+                view_capacity_after: row[8],
+                read_len_before: row[9],
+                bytes_returned: row[10],
+                assembly_bytes: row[11],
+                read_completed: row[12],
             })
             .collect();
         PgIncomingAllocation {
@@ -207,6 +235,10 @@ impl PgStream {
             assembly_bytes: parts[13],
             last_logical_need: parts[14],
             trace_bytes: parts[15],
+            noop_reserve_calls: parts[16],
+            noop_reserve_arguments: parts[17],
+            reserve_argument_bytes: parts[18],
+            events_dropped: parts[19],
             events,
         }
     }
