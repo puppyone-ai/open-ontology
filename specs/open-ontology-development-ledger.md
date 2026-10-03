@@ -920,3 +920,5 @@ R2-P命名portal任务卡已细化为execution/prompts/v01-pg-named-portal-prepa
 ### a126限定签收与下一产品工作线
 
 a126handle13008实际exit0关闭，578a5523三报告完整读取/hashmanifest92项actualexit0，原始49/13/12/12测试结果与Clippy0/ownDocker为空核对。接收a126-wire-accounting-review-receipt.md，仅勾§3 R2-W限定驱动子项，保留review1断言假设失败101、live-view非RSS及完整reader未完成。累计产品10组件/10验收子项，首次复审返工7/10；87父项16phase仍0。slot B释放转命名portal生产实现，a12536253继续slot A，goal active。
+
+a127 R2-P命名portal生产实现卡激活：固定b8e7bf1/接受ff783ac9driver，slot B最多1builder1PG，精确vendor portal相关与新tests/contract写权，不触碰a125 session/sql/snapshot。按用户新目标只跑必要主路径/已知协议风险测试，不扩展边界穷举；完成前不勾R2-P，后续R2-S实际Arrow流，goal active。
