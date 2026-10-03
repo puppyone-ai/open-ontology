@@ -885,3 +885,7 @@ a120 实际 Grok4.7 xhigh handle7304 已启动，slot B 独占限定路径；旧
 a116实际handle68913 exit0，9dc6d4eb三报告完整读完/八fail raw核对，精确UUID容器列表为空。接收a116-snapshot-review-receipt.md但不勾R1：同cut两更新行actual tokens缺失、side首query太晚、column revoke fixture不充分。slot A移交a121聚焦固定2b6dd57补证，own evidence唯一写权；slot B仍a120 handle7304。原八fail保留，产品指标未增。下一新UUID a122。
 
 a121实际Grok4.7 xhigh handle72657启动，slot A独占补证；旧68913关闭不再轮询，a120 handle7304保持slot B。
+
+a120 handle7304实际exit0关闭，固定代码a90c86b405febebfdc70f8169be42dc4de4c3dfc/tree6e7eb46c09470a8163a324063beef48c6254bbb1/parent6de125ab01df6564024005dcc74fbf9d0a96b392，仅7授权路径提交。三报告已完整读取，verify-4原始lib/bounds/clippy/fetch/docker退出0、RED101核对；作者49库测试+13wire测试通过尚不是独立验收。docker精确a120容器列表为空。R2-W保持未勾，完整reader/catalog/probe opt-in/typed connector mapping/portal及后续阶段保持开放。
+
+a122独立复审已派发，Grok4.7xhigh实际handle16255，slot B/最多1builder/无PG，仅own evidence写权，冻结a90c86b4归档。a121 handle72657保持slot A。产品指标仍9组件/9验收子项/首轮返工6比9，87父项与16phase均未完整完成，goal active；下一新UUID a123。
