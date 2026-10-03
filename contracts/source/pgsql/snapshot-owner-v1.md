@@ -22,7 +22,7 @@ Connect uses the existing `PgConnector` path: `verify-full`, caller CA only, `ap
 
 The owner calls `BEGIN` once: `START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`. A second `begin` on that session returns `nested_transaction`. `PgSession::catalog` and `PgSession::read_typed` are not used to create this transaction. `collect_catalog` runs inside it.
 
-Inside the transaction the owner reads `pg_is_in_recovery()`, `pg_postmaster_start_time()::text`, `current_database()`, `session_user`, and `current_user`. A recovery or postmaster mismatch is `read_node`. It then checks each selected relation: ordinary table (`relkind = r`), RLS off, `SELECT` granted, and `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE` all false. `NULL` is `privilege_unknown`. A true write privilege is `write_capable`. Missing `SELECT` is `select_not_granted`. The attribute set must match the admitted shape or the open returns `catalog_identity`. A drift from the catalog just captured in this same transaction is `schema_drift`.
+Inside the transaction the owner reads `pg_is_in_recovery()`, `pg_postmaster_start_time()::text`, `current_database()`, `session_user`, and `current_user`. A recovery or postmaster mismatch is `read_node`. It then checks each selected relation: ordinary table (`relkind = r`), RLS off, `SELECT` granted, and `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE` all false. `NULL` is `privilege_unknown`. A true write privilege is `write_capable`. Missing `SELECT` is `select_not_granted`. The attribute set must match the admitted shape or the open returns `catalog_identity`. The attribute set and primary key are compared with the admitted shape inside this transaction. A mismatch is `catalog_identity`. A drift between that captured shape and a later current-catalog observation is `schema_drift`. The current observation is a second session in `READ COMMITTED READ ONLY`. It is not a second read of `pg_attribute` inside this repeatable-read transaction. The data connection remains the one repeatable-read read-only transaction. The second session is reserved against the source cap of 4 before either socket is opened.
 
 R1 primary keys must be one to eight columns of int2, int4, int8, bool, text, varchar, or bpchar. Other key shapes return `probe_key` and do not return an owner.
 
@@ -44,13 +44,15 @@ Identifiers come from `quote_ident` on the bound catalog and must pass `valid_qu
 
 Decoded rows use the existing binary decoder and `assemble_batch`. The batch protocol stays `oo.source.pgsql.types/v1`. The batch `run_generation` and `input_digest` are this cut. The public API does not return the connection or accept caller SQL.
 
-A privilege or shape mismatch on the recheck stops the probe. `has_*_privilege` is the server's answer for that statement. This contract does not say MVCC freezes ACL checks. A denial is `select_not_granted` or SQLSTATE `42501`, and `finish` is not `SnapshotFinished`. A shape or relation-oid mismatch is `schema_drift`. A principal or database change is `identity_drift`. A recovery or postmaster change is `read_node`.
+A privilege or shape mismatch on the recheck stops the probe. `has_*_privilege` is the server's answer for that statement. This contract does not say MVCC freezes ACL checks. A denial is `select_not_granted` or SQLSTATE `42501`, and `finish` is not `SnapshotFinished`. A difference of relation oid, relkind, attnum, name, type oid, typmod, nullability, or primary-key attnum and name order, between the captured shape and the current committed catalog, is `schema_drift`. The owner is poisoned. `finish` is not `SnapshotFinished`. The same compare runs before the probe statement, after it, and on finish, including when no probe ran. A principal or database change is `identity_drift`. A recovery or postmaster change is `read_node`.
+
+Each current-catalog statement observes commits that landed before that statement's snapshot. The post-probe check and finish detect DDL that committed before those observations. The owner does not claim that DDL cannot commit after the last observation. An `ALTER` that has not committed and blocks the probe is `lock_timeout` (SQLSTATE `55P03`) or `statement_timeout`. That is not `schema_drift`. The owner is poisoned, and finish is not `SnapshotFinished`.
 
 Any probe error poisons the owner.
 
 ## Finish, abort, drop
 
-`finish` rolls back, then closes the connection. `SnapshotFinished` is returned only when rollback is accepted, close succeeds, the owner is not poisoned, and the deadline has not passed. Cleanup failure returns that failure and not `SnapshotFinished`.
+`finish` reads the current catalog before rollback when the deadline has not yet passed and the owner is not already poisoned. A mismatch is `schema_drift`. `SnapshotFinished` still requires accepted rollback and close of every session this owner opened, an empty poison, and a deadline that has not passed. Cap refusal before connect does not consume the generation. Failure after the generation is reserved does. Cleanup failure returns that failure and not `SnapshotFinished`.
 
 `abort` uses the same cleanup. Confirmed cleanup returns `SnapshotAborted` even if the owner was poisoned. That type is not `SnapshotFinished`.
 
@@ -58,7 +60,7 @@ Any probe error poisons the owner.
 
 After a confirmed close, an admin poll of `pg_stat_activity` for that `(pid, backend_start::text)` should find no row within `CLEANUP_OBSERVATION_BOUND_MS` (5000). The row must not remain `idle in transaction`. The product connection cannot observe its own `idle` state: a confirmation query on that backend is `active`, and a read-only transaction may have a virtual xid, so `txid_current_if_assigned()` is not the proof.
 
-There is no commit, no source DML, and no source DDL. There is no second transaction and no reconnect on the owner. The generation cannot be appended to.
+There is no commit, no source DML, and no source DDL. The data transaction may `SAVEPOINT oo_probe_lock`, `ROLLBACK TO SAVEPOINT oo_probe_lock`, and then `RELEASE SAVEPOINT oo_probe_lock` around a probe read. `RELEASE` alone is not the lock drop. The client does not send `COMMIT`. There is no second data transaction and no reconnect on the owner. The generation cannot be appended to.
 
 ## Later stream, not this slice
 
@@ -66,4 +68,4 @@ A later `read_stream` would borrow this owner and this transaction, return a str
 
 ## Errors
 
-Facts used by this owner include `generation_invalid`, `generation_reused`, `config_identity`, `type_policy_identity`, `deadline`, `session_user_mismatch`, `startup_options`, `principal`, `database`, `read_node`, `catalog_identity`, `nested_transaction`, `snapshot_transaction`, `write_capable`, `privilege_unknown`, `select_not_granted`, `rls_unsupported`, `relkind`, `schema_drift`, `identity_drift`, `probe_key`, `snapshot_incomplete`, and `cleanup_failed`, plus the existing version, TLS, and connection facts. `Display` stays kind, static fact, and SQLSTATE. Logs and batches do not carry the password, the CA PEM, or driver text.
+Facts used by this owner include `generation_invalid`, `generation_reused`, `config_identity`, `type_policy_identity`, `deadline`, `session_user_mismatch`, `startup_options`, `principal`, `database`, `read_node`, `catalog_identity`, `nested_transaction`, `snapshot_transaction`, `write_capable`, `privilege_unknown`, `select_not_granted`, `rls_unsupported`, `relkind`, `schema_drift`, `identity_drift`, `probe_key`, `snapshot_incomplete`, `cleanup_failed`, `max_connections`, and `max_rows_per_sec`, plus the existing version, TLS, and connection facts. `max_connections` and `max_rows_per_sec` use the existing budget kind. `Display` stays kind, static fact, and SQLSTATE. Logs and batches do not carry the password, the CA PEM, or driver text.

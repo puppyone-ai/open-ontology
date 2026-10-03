@@ -100,7 +100,40 @@ WHERE p.prosecdef AND n.nspname <> 'pg_catalog' AND n.nspname <> 'information_sc
 
 pub(crate) const BEGIN: &str = "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY";
 
+pub(crate) const BEGIN_CURRENT: &str =
+    "START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY";
+
 pub(crate) const ROLLBACK: &str = "ROLLBACK";
+
+pub(crate) const SAVEPOINT_PROBE: &str = "SAVEPOINT oo_probe_lock";
+
+pub(crate) const ROLLBACK_PROBE: &str = "ROLLBACK TO SAVEPOINT oo_probe_lock";
+
+pub(crate) const RELEASE_PROBE: &str = "RELEASE SAVEPOINT oo_probe_lock";
+
+/// One current-catalog snapshot. `$1` and `$2` are the selected names.
+/// `$3` is the row ceiling. A full ceiling is treated as drift.
+pub(crate) const CURRENT_CATALOG: &str = "\
+SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::text, \
+pg_catalog.current_database()::text, SESSION_USER::text, CURRENT_USER::text, \
+w.ord::int4, c.oid::int8, c.relkind::text, a.attnum::int4, a.attname::text, \
+a.atttypid::int8, a.atttypmod::int4, a.attnotnull, \
+pk.attnums::int4[], pk.names::text[] \
+FROM unnest($1::text[], $2::text[]) WITH ORDINALITY AS w(schema_name, table_name, ord) \
+LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = w.schema_name \
+LEFT JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid AND c.relname = w.table_name \
+LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped \
+LEFT JOIN LATERAL ( \
+SELECT COALESCE(array_agg(a2.attnum::int4 ORDER BY u.ord), '{}'::int4[]) AS attnums, \
+COALESCE(array_agg(a2.attname::text ORDER BY u.ord), '{}'::text[]) AS names \
+FROM pg_catalog.pg_index i \
+JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS u(attnum, ord) ON true \
+LEFT JOIN pg_catalog.pg_attribute a2 ON a2.attrelid = c.oid AND a2.attnum = u.attnum \
+AND a2.attnum > 0 AND NOT a2.attisdropped \
+WHERE i.indrelid = c.oid AND i.indisprimary \
+) pk ON true \
+ORDER BY w.ord, a.attnum NULLS FIRST \
+LIMIT $3";
 
 pub(crate) const FACTS: &str = "\
 SELECT CURRENT_USER::text, SESSION_USER::text, \
@@ -353,7 +386,12 @@ const ALL: &[&str] = &[
     GLOBAL_COLUMN_WRITE,
     DEFINER_REACH,
     BEGIN,
+    BEGIN_CURRENT,
     ROLLBACK,
+    SAVEPOINT_PROBE,
+    ROLLBACK_PROBE,
+    RELEASE_PROBE,
+    CURRENT_CATALOG,
     FACTS,
     ROLE,
     ASSUMABLE,
@@ -395,7 +433,7 @@ mod tests {
 
     #[test]
     fn statements_are_read_only_and_carry_no_secret_marker() {
-        const ALLOWED: &[&str] = &["SELECT", "WITH", "START", "ROLLBACK"];
+        const ALLOWED: &[&str] = &["SELECT", "WITH", "START", "ROLLBACK", "SAVEPOINT", "RELEASE"];
         for sql in ALL {
             let verb = first_verb(sql);
             assert!(ALLOWED.contains(&verb), "{verb}");
@@ -414,7 +452,24 @@ mod tests {
             }
             assert!(!sql.contains("CANARY"));
             assert!(!sql.contains('\n'));
+            assert_ne!(verb, "COMMIT");
         }
+    }
+
+    #[test]
+    fn probe_lock_drop_is_rollback_to_before_release() {
+        assert_eq!(SAVEPOINT_PROBE, "SAVEPOINT oo_probe_lock");
+        assert_eq!(ROLLBACK_PROBE, "ROLLBACK TO SAVEPOINT oo_probe_lock");
+        assert_eq!(RELEASE_PROBE, "RELEASE SAVEPOINT oo_probe_lock");
+        assert!(ALL.contains(&ROLLBACK_PROBE));
+        assert!(ALL.contains(&RELEASE_PROBE));
+        assert_ne!(ROLLBACK_PROBE, RELEASE_PROBE);
+        assert!(RELEASE_PROBE.starts_with("RELEASE"));
+        assert!(ROLLBACK_PROBE.starts_with("ROLLBACK TO"));
+        assert!(!CURRENT_CATALOG.to_ascii_uppercase().contains("COMMIT"));
+        assert_eq!(first_verb(BEGIN_CURRENT), "START");
+        assert!(BEGIN_CURRENT.contains("READ COMMITTED"));
+        assert!(BEGIN.contains("REPEATABLE READ"));
     }
 
     #[test]

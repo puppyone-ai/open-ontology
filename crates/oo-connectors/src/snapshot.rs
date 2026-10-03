@@ -1,8 +1,10 @@
 //! Non-reusable PostgreSQL snapshot owner. Protocol `oo.source.pgsql.snapshot/v1`.
 //!
-//! One owner holds one connection and one `REPEATABLE READ READ ONLY` transaction.
+//! One owner holds one data connection and one current-catalog connection.
+//! The data connection has one `REPEATABLE READ READ ONLY` transaction.
+//! The current-catalog connection has one `READ COMMITTED READ ONLY` transaction.
 //! [`PgSession::catalog`] is not this snapshot: that method begins and rolls back
-//! on its own. This owner calls `collect_catalog` inside the transaction it started.
+//! on its own. This owner calls `collect_catalog` inside the data transaction.
 //!
 //! `read_probe` is one primary-key lookup with `LIMIT 2`. It is not a table scan
 //! and not the bounded reader. A later `read_stream` would borrow this same owner
@@ -18,10 +20,10 @@ use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use sqlx::postgres::PgValueFormat;
-use sqlx::{Connection, Row, ValueRef};
+use sqlx::{Row, ValueRef};
 
 use crate::config::PgSourceConfig;
-use crate::error::{SourceError, map_sqlx};
+use crate::error::SourceError;
 use crate::model::{SourceCatalog, SourceColumn, SourceTable};
 use crate::session::{self, PgConnector, PgSession};
 use crate::sql;
@@ -358,9 +360,10 @@ pub fn snapshot_input_digest(
 }
 
 /// Lifetime-bound snapshot. Drop rolls back and closes when a Tokio runtime is
-/// current, and otherwise drops the socket. Drop does not return [`SnapshotFinished`].
+/// current, and otherwise drops both sockets. Drop does not return [`SnapshotFinished`].
 pub struct SnapshotOwner {
     session: Option<PgSession>,
+    guard: Option<PgSession>,
     binding: SnapshotBinding,
     tables: Vec<BoundTable>,
     policy: PgTypePolicy,
@@ -370,34 +373,77 @@ pub struct SnapshotOwner {
 }
 
 impl SnapshotOwner {
-    /// Reserve `generation`, connect, and begin one read-only repeatable-read transaction.
+    /// Reserve `generation`, open the data session and the current-catalog session,
+    /// and begin one read-only repeatable-read transaction on the data session.
     ///
     /// A generation of zero, a stale deadline, or an identity mismatch is refused
-    /// before the generation is reserved. A failure after reservation consumes
-    /// the generation. The owner is returned only while the transaction is open.
+    /// before a connection slot is taken and before the generation is reserved.
+    /// Cap refusal does not consume the generation. A failure after reservation consumes
+    /// the generation. The owner is returned only while both transactions are open.
     pub async fn open(request: SnapshotRequest) -> Result<Self, SourceError> {
         let plan = open_plan(&request)?;
-        reserve(&plan.source_id, plan.generation)?;
+        let mut permits = session::try_reserve(&plan.source_id, 2)?;
+        if let Err(err) = reserve(&plan.source_id, plan.generation) {
+            drop(permits);
+            return Err(err);
+        }
+        let data_permit = match permits.pop() {
+            Some(permit) => permit,
+            None => {
+                drop(permits);
+                return Err(SourceError::budget("max_connections"));
+            }
+        };
+        let guard_permit = match permits.pop() {
+            Some(permit) => permit,
+            None => {
+                drop(data_permit);
+                drop(permits);
+                return Err(SourceError::budget("max_connections"));
+            }
+        };
+        drop(permits);
         let connector = PgConnector::new(request.config);
-        let mut session = match connector.connect().await {
+        let mut data = match connector.connect_reserved(data_permit).await {
             Ok(session) => session,
-            Err(err) => return Err(err),
+            Err(err) => {
+                drop(guard_permit);
+                return Err(err);
+            }
         };
-        if let Err(err) = admit_connected(&session, &plan) {
-            return Err(fail_open(session, err).await);
+        if let Err(err) = admit_connected(&data, &plan) {
+            drop(guard_permit);
+            return Err(fail_open(data, err).await);
+        }
+        let mut guard = match connector.connect_reserved(guard_permit).await {
+            Ok(session) => session,
+            Err(err) => return Err(fail_open(data, err).await),
+        };
+        if let Err(err) = admit_connected(&guard, &plan) {
+            return Err(fail_pair(data, guard, err).await);
+        }
+        if data.version_num != guard.version_num {
+            return Err(fail_pair(data, guard, SourceError::protocol("read_node")).await);
         }
         if let Err(err) = ensure_deadline(plan.deadline) {
-            return Err(fail_open(session, err).await);
+            return Err(fail_pair(data, guard, err).await);
         }
-        if let Err(err) = session.begin().await {
-            return Err(fail_open(session, err).await);
+        if let Err(err) = data.begin().await {
+            return Err(fail_pair(data, guard, err).await);
         }
-        let captured = match capture(&mut session, &plan).await {
+        if let Err(err) = guard.begin_read_committed().await {
+            return Err(fail_pair(data, guard, err).await);
+        }
+        let captured = match capture(&mut data, &plan).await {
             Ok(captured) => captured,
-            Err(err) => return Err(fail_open(session, err).await),
+            Err(err) => return Err(fail_pair(data, guard, err).await),
         };
         if let Err(err) = ensure_deadline(plan.deadline) {
-            return Err(fail_open(session, err).await);
+            return Err(fail_pair(data, guard, err).await);
+        }
+        if let Err(err) = observe_current(&mut guard, &captured.node, &captured.catalog, &captured.access).await
+        {
+            return Err(fail_pair(data, guard, err).await);
         }
         let input_digest = match snapshot_input_digest(
             &plan.config_identity,
@@ -406,10 +452,11 @@ impl SnapshotOwner {
             plan.generation,
         ) {
             Ok(digest) => digest,
-            Err(err) => return Err(fail_open(session, err).await),
+            Err(err) => return Err(fail_pair(data, guard, err).await),
         };
         Ok(Self {
-            session: Some(session),
+            session: Some(data),
+            guard: Some(guard),
             binding: SnapshotBinding {
                 protocol: SNAPSHOT_PROTOCOL,
                 generation: plan.generation,
@@ -452,26 +499,33 @@ impl SnapshotOwner {
         }
     }
 
-    /// Confirm `ROLLBACK`, then close. [`SnapshotFinished`] is returned only when
-    /// both succeed and the owner is not poisoned or past its deadline.
+    /// Read the current catalog, then roll back and close both sessions.
+    /// [`SnapshotFinished`] is returned only when the catalog still matches,
+    /// both rollbacks and closes succeed, the owner is not poisoned, and the
+    /// deadline has not passed.
     pub async fn finish(mut self) -> Result<SnapshotFinished, SourceError> {
         let finished = SnapshotFinished {
             generation: self.binding.generation,
             source_id: self.binding.source_id.clone(),
             backend: self.binding.backend.clone(),
         };
-        let poison = self.poison.clone();
-        let deadline = self.deadline;
-        let session = self.take_session()?;
-        release_session(session).await?;
-        if let Some(err) = poison {
+        let mut early = self.poison.clone();
+        if early.is_none() {
+            if Instant::now() >= self.deadline {
+                early = Some(SourceError::budget("deadline"));
+            } else if let Err(err) = self.observe_guard().await {
+                early = Some(err);
+            }
+        }
+        self.release_both().await?;
+        if let Some(err) = early {
             return Err(err);
         }
-        ensure_deadline(deadline)?;
+        ensure_deadline(self.deadline)?;
         Ok(finished)
     }
 
-    /// Confirm `ROLLBACK`, then close. Success is [`SnapshotAborted`], including
+    /// Roll back and close both sessions. Success is [`SnapshotAborted`], including
     /// when the owner was already poisoned. Cleanup failure is an error.
     pub async fn abort(mut self) -> Result<SnapshotAborted, SourceError> {
         let aborted = SnapshotAborted {
@@ -479,8 +533,7 @@ impl SnapshotOwner {
             source_id: self.binding.source_id.clone(),
             backend: self.binding.backend.clone(),
         };
-        let session = self.take_session()?;
-        release_session(session).await?;
+        self.release_both().await?;
         Ok(aborted)
     }
 
@@ -499,13 +552,40 @@ impl SnapshotOwner {
             recheck(session, &cut).await?;
         }
         self.ensure_usable()?;
+        self.observe_guard().await?;
+        self.ensure_usable()?;
+        {
+            let session = self.live_session()?;
+            session.execute_control(sql::SAVEPOINT_PROBE).await?;
+        }
+        if let Err(err) = self.ensure_usable() {
+            let err = match self.drop_probe_lock().await {
+                Ok(()) => err,
+                Err(cleanup) => cleanup,
+            };
+            return Err(self.drift_or(err).await);
+        }
         let max_bytes = self.live_session()?.budget.max_bytes();
         let query = bind_probe(prepared.sql, &probe.key, &prepared.key_oids)?;
-        let rows = {
+        let fetched = {
             let session = self.live_session()?;
-            session::fetch_all(session, query).await?
+            session.arm_rows(2);
+            session::fetch_all(session, query).await
         };
-        let decoded = decode_rows(max_bytes, &prepared.plans, &rows)?;
+        let rows = match fetched {
+            Ok(rows) => rows,
+            Err(err) => {
+                let _ = self.drop_probe_lock().await;
+                return Err(self.drift_or(err).await);
+            }
+        };
+        if let Err(err) = self.drop_probe_lock().await {
+            return Err(self.drift_or(err).await);
+        }
+        let decoded = match decode_rows(max_bytes, &prepared.plans, &rows) {
+            Ok(decoded) => decoded,
+            Err(err) => return Err(self.drift_or(err).await),
+        };
         let run = RunBinding {
             source_id: self.binding.source_id.clone(),
             schema: prepared.schema,
@@ -513,11 +593,74 @@ impl SnapshotOwner {
             run_generation: self.binding.generation,
             input_digest: self.binding.input_digest,
         };
-        assemble_batch(&run, prepared.plans, &prepared.key_attnums, decoded)
+        let batch = match assemble_batch(&run, prepared.plans, &prepared.key_attnums, decoded) {
+            Ok(batch) => batch,
+            Err(err) => return Err(self.drift_or(err).await),
+        };
+        self.ensure_usable()?;
+        self.observe_guard().await?;
+        Ok(batch)
+    }
+
+    async fn drift_or(&mut self, err: SourceError) -> SourceError {
+        if Instant::now() < self.deadline
+            && let Err(observed) = self.observe_guard().await
+            && observed.fact() == Some("schema_drift")
+        {
+            return observed;
+        }
+        err
+    }
+
+    async fn drop_probe_lock(&mut self) -> Result<(), SourceError> {
+        let session = self.live_session()?;
+        let rolled = session.execute_control(sql::ROLLBACK_PROBE).await;
+        let released = session.execute_control(sql::RELEASE_PROBE).await;
+        match (rolled, released) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(err), _) => Err(err),
+            (Ok(()), Err(err)) => Err(err),
+        }
+    }
+
+    async fn observe_guard(&mut self) -> Result<(), SourceError> {
+        let node = NodeFact {
+            in_recovery: self.binding.in_recovery,
+            postmaster_start: self.binding.postmaster_start.clone(),
+            database: self.binding.database.clone(),
+            session_user: self.binding.principal.clone(),
+            current_user: self.binding.principal.clone(),
+        };
+        let catalog = self.binding.catalog.clone();
+        let access = self.binding.access.clone();
+        let guard = self
+            .guard
+            .as_mut()
+            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        observe_current(guard, &node, &catalog, &access).await
+    }
+
+    async fn release_both(&mut self) -> Result<(), SourceError> {
+        self.released = true;
+        let data = self.session.take();
+        let guard = self.guard.take();
+        let data_res = match data {
+            Some(session) => release_session(session).await,
+            None => Ok(()),
+        };
+        let guard_res = match guard {
+            Some(session) => release_session(session).await,
+            None => Ok(()),
+        };
+        match (data_res, guard_res) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(err), _) => Err(err),
+            (Ok(()), Err(err)) => Err(err),
+        }
     }
 
     fn ensure_usable(&self) -> Result<(), SourceError> {
-        if self.released || self.session.is_none() {
+        if self.released || self.session.is_none() || self.guard.is_none() {
             return Err(SourceError::protocol("snapshot_incomplete"));
         }
         if let Some(err) = &self.poison {
@@ -540,15 +683,6 @@ impl SnapshotOwner {
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))
     }
 
-    fn take_session(&mut self) -> Result<PgSession, SourceError> {
-        if self.released {
-            return Err(SourceError::protocol("snapshot_incomplete"));
-        }
-        self.released = true;
-        self.session
-            .take()
-            .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))
-    }
 }
 
 impl fmt::Debug for SnapshotOwner {
@@ -558,6 +692,7 @@ impl fmt::Debug for SnapshotOwner {
             .field("source_id", &self.binding.source_id)
             .field("backend_pid", &self.binding.backend.pid)
             .field("open", &self.session.is_some())
+            .field("guard_open", &self.guard.is_some())
             .finish()
     }
 }
@@ -568,14 +703,23 @@ impl Drop for SnapshotOwner {
             return;
         }
         self.released = true;
-        let Some(session) = self.session.take() else {
-            return;
-        };
+        let data = self.session.take();
+        let guard = self.guard.take();
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                let _ = release_session(session).await;
-            });
+            if let Some(session) = data {
+                handle.spawn(async move {
+                    let _ = release_session(session).await;
+                });
+            }
+            if let Some(session) = guard {
+                handle.spawn(async move {
+                    let _ = release_session(session).await;
+                });
+            }
+            return;
         }
+        drop(data);
+        drop(guard);
     }
 }
 
@@ -1358,15 +1502,277 @@ async fn fail_open(session: PgSession, err: SourceError) -> SourceError {
     }
 }
 
-async fn release_session(mut session: PgSession) -> Result<(), SourceError> {
-    let rolled = session.finish(Ok(())).await.map(|_| ());
-    let PgSession { conn, .. } = session;
-    let closed = Connection::close(conn).await.map_err(map_sqlx);
-    match (rolled, closed) {
-        (Ok(()), Ok(())) => Ok(()),
-        (Err(err), _) => Err(err),
-        (Ok(()), Err(_)) => Err(SourceError::protocol("cleanup_failed")),
+async fn fail_pair(data: PgSession, guard: PgSession, err: SourceError) -> SourceError {
+    let data_res = release_session(data).await;
+    let guard_res = release_session(guard).await;
+    match (data_res, guard_res) {
+        (Ok(()), Ok(())) => err,
+        (Err(cleanup), _) => cleanup,
+        (Ok(()), Err(cleanup)) => cleanup,
     }
+}
+
+async fn release_session(session: PgSession) -> Result<(), SourceError> {
+    session.shutdown().await
+}
+
+struct ObservedAttr {
+    attnum: i32,
+    name: String,
+    type_oid: i64,
+    typmod: i32,
+    not_null: bool,
+}
+
+struct ObservedTable {
+    ord: i32,
+    oid: i64,
+    relkind: String,
+    attrs: Vec<ObservedAttr>,
+    pk_attnums: Vec<i32>,
+    pk_names: Vec<String>,
+}
+
+fn observation_limit(catalog: &SourceCatalog) -> Result<i32, SourceError> {
+    if catalog.tables.is_empty() {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    let mut sum = 0_i64;
+    for table in &catalog.tables {
+        let width = i64::try_from(table.columns.len())
+            .map_err(|_| SourceError::catalog("schema_drift"))?;
+        sum = sum
+            .checked_add(width)
+            .and_then(|value| value.checked_add(1))
+            .ok_or_else(|| SourceError::catalog("schema_drift"))?;
+    }
+    i32::try_from(sum).map_err(|_| SourceError::catalog("schema_drift"))
+}
+
+async fn observe_current(
+    guard: &mut PgSession,
+    node: &NodeFact,
+    catalog: &SourceCatalog,
+    access: &[TableAccess],
+) -> Result<(), SourceError> {
+    let limit = observation_limit(catalog)?;
+    let bound = u32::try_from(limit).map_err(|_| SourceError::catalog("schema_drift"))?;
+    let schemas: Vec<String> = catalog.tables.iter().map(|table| table.schema.clone()).collect();
+    let names: Vec<String> = catalog.tables.iter().map(|table| table.name.clone()).collect();
+    guard.arm_rows(bound);
+    let rows = session::fetch_all(
+        guard,
+        sqlx::query(sql::CURRENT_CATALOG)
+            .bind(&schemas)
+            .bind(&names)
+            .bind(limit),
+    )
+    .await?;
+    if rows.is_empty() {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    for row in &rows {
+        match_guard_node(row, node)?;
+    }
+    let row_count = i64::try_from(rows.len()).unwrap_or(i64::MAX);
+    if row_count >= i64::from(limit) {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    let mut used = 0_u64;
+    let max_bytes = guard.budget.max_bytes();
+    let mut grouped: Vec<ObservedTable> = Vec::new();
+    let mut current: Option<ObservedTable> = None;
+    for row in &rows {
+        let ord = session::cell_i32(row, 5)?;
+        let charge_keys = current.as_ref().is_none_or(|open| open.ord != ord);
+        let table = read_observed_row(row, &mut used, max_bytes, charge_keys)?;
+        match current.as_mut() {
+            Some(open) if open.ord == table.ord => {
+                if open.oid != table.oid
+                    || open.relkind != table.relkind
+                    || open.pk_attnums != table.pk_attnums
+                    || open.pk_names != table.pk_names
+                {
+                    return Err(SourceError::catalog("schema_drift"));
+                }
+                if table.attrs.is_empty() {
+                    return Err(SourceError::catalog("schema_drift"));
+                }
+                open.attrs.extend(table.attrs);
+            }
+            _ => {
+                if let Some(done) = current.take() {
+                    grouped.push(done);
+                }
+                current = Some(table);
+            }
+        }
+    }
+    if let Some(done) = current {
+        grouped.push(done);
+    }
+    if grouped.len() != catalog.tables.len() {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    for (index, expected) in catalog.tables.iter().enumerate() {
+        let got = &grouped[index];
+        let want_ord = i32::try_from(index + 1).map_err(|_| SourceError::catalog("schema_drift"))?;
+        if got.ord != want_ord || got.relkind != "r" {
+            return Err(SourceError::catalog("schema_drift"));
+        }
+        let relation_oid = access
+            .iter()
+            .find(|item| item.schema == expected.schema && item.name == expected.name)
+            .map(|item| item.relation_oid)
+            .ok_or_else(|| SourceError::catalog("schema_drift"))?;
+        if got.oid != relation_oid || !observed_attrs_match(&expected.columns, &got.attrs) {
+            return Err(SourceError::catalog("schema_drift"));
+        }
+        let want_pk: Vec<(i32, &str)> = expected
+            .primary_key
+            .iter()
+            .map(|key| (key.attnum, key.name.as_str()))
+            .collect();
+        let got_pk: Vec<(i32, &str)> = got
+            .pk_attnums
+            .iter()
+            .copied()
+            .zip(got.pk_names.iter().map(String::as_str))
+            .collect();
+        if want_pk != got_pk {
+            return Err(SourceError::catalog("schema_drift"));
+        }
+    }
+    drop(grouped);
+    Ok(())
+}
+
+fn match_guard_node(row: &sqlx::postgres::PgRow, node: &NodeFact) -> Result<(), SourceError> {
+    let in_recovery = session::cell_bool(row, 0)?;
+    let postmaster = session::cell_string(row, 1)?;
+    let database = session::cell_string(row, 2)?;
+    let session_user = session::cell_string(row, 3)?;
+    let current_user = session::cell_string(row, 4)?;
+    if in_recovery != node.in_recovery || postmaster != node.postmaster_start {
+        return Err(SourceError::protocol("read_node"));
+    }
+    if database != node.database
+        || session_user != node.session_user
+        || current_user != node.current_user
+    {
+        return Err(SourceError::protocol("identity_drift"));
+    }
+    Ok(())
+}
+
+fn read_observed_row(
+    row: &sqlx::postgres::PgRow,
+    used: &mut u64,
+    max_bytes: u64,
+    charge_keys: bool,
+) -> Result<ObservedTable, SourceError> {
+    let ord = session::cell_i32(row, 5)?;
+    let Some(oid) = session::cell_opt_i64(row, 6)? else {
+        return Err(SourceError::catalog("schema_drift"));
+    };
+    let Some(relkind) = session::cell_opt_string(row, 7)? else {
+        return Err(SourceError::catalog("schema_drift"));
+    };
+    if relkind != "r" {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    let relkind = retain_name(used, max_bytes, relkind, charge_keys)?;
+    let pk_attnums = cell_i32_array(row, 13)?;
+    let pk_name_cells = cell_text_array(row, 14)?;
+    if pk_attnums.len() != pk_name_cells.len() {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    let mut pk_names = Vec::with_capacity(pk_name_cells.len());
+    for name in pk_name_cells {
+        pk_names.push(retain_name(used, max_bytes, name, charge_keys)?);
+    }
+    let attr = read_observed_attr(row, used, max_bytes)?;
+    Ok(ObservedTable {
+        ord,
+        oid,
+        relkind,
+        attrs: attr.into_iter().collect(),
+        pk_attnums,
+        pk_names,
+    })
+}
+
+fn read_observed_attr(
+    row: &sqlx::postgres::PgRow,
+    used: &mut u64,
+    max_bytes: u64,
+) -> Result<Option<ObservedAttr>, SourceError> {
+    let attnum = session::cell_opt_i32(row, 8)?;
+    let name = session::cell_opt_string(row, 9)?;
+    let type_oid = session::cell_opt_i64(row, 10)?;
+    let typmod = session::cell_opt_i32(row, 11)?;
+    let not_null = session::cell_opt_bool(row, 12)?;
+    match (attnum, name, type_oid, typmod, not_null) {
+        (None, None, None, None, None) => Ok(None),
+        (Some(attnum), Some(name), Some(type_oid), Some(typmod), Some(not_null)) => {
+            if attnum <= 0 || name.is_empty() {
+                return Err(SourceError::catalog("schema_drift"));
+            }
+            Ok(Some(ObservedAttr {
+                attnum,
+                name: retain_name(used, max_bytes, name, true)?,
+                type_oid,
+                typmod,
+                not_null,
+            }))
+        }
+        _ => Err(SourceError::catalog("decode")),
+    }
+}
+
+fn observed_attrs_match(want: &[SourceColumn], got: &[ObservedAttr]) -> bool {
+    if want.len() != got.len() {
+        return false;
+    }
+    let mut want: Vec<&SourceColumn> = want.iter().collect();
+    want.sort_by_key(|column| column.attnum);
+    let mut got: Vec<&ObservedAttr> = got.iter().collect();
+    got.sort_by_key(|attr| attr.attnum);
+    if got.windows(2).any(|pair| pair[0].attnum == pair[1].attnum) {
+        return false;
+    }
+    want.iter().zip(got.iter()).all(|(want, got)| {
+        want.attnum == got.attnum
+            && want.name == got.name
+            && want.type_oid == got.type_oid
+            && want.typmod == got.typmod
+            && want.not_null == got.not_null
+    })
+}
+
+fn retain_name(
+    used: &mut u64,
+    max_bytes: u64,
+    name: String,
+    charge_bytes: bool,
+) -> Result<String, SourceError> {
+    if name.is_empty() || name.len() > 63 || name.as_bytes().contains(&0) {
+        return Err(SourceError::catalog("schema_drift"));
+    }
+    if charge_bytes {
+        charge(used, max_bytes, name.len() as u64)?;
+    }
+    Ok(name)
+}
+
+fn cell_i32_array(row: &sqlx::postgres::PgRow, index: usize) -> Result<Vec<i32>, SourceError> {
+    row.try_get(index)
+        .map_err(|_| SourceError::catalog("decode"))
+}
+
+fn cell_text_array(row: &sqlx::postgres::PgRow, index: usize) -> Result<Vec<String>, SourceError> {
+    row.try_get(index)
+        .map_err(|_| SourceError::catalog("decode"))
 }
 
 fn ensure_deadline(deadline: Instant) -> Result<(), SourceError> {
@@ -1535,5 +1941,67 @@ mod tests {
         request.deadline = Instant::now().checked_sub(Duration::from_secs(5)).unwrap();
         let err = SnapshotOwner::open(request).await.unwrap_err();
         assert_eq!(err.fact(), Some("deadline"));
+    }
+
+    #[test]
+    fn cap_refusal_does_not_consume_generation() {
+        let _ledger = super::session::lock_ledger();
+        let held = super::session::try_reserve("cap_src", 4).unwrap();
+        let source = single_config("cap_src");
+        let mut request = SnapshotRequest {
+            config_identity: config_identity(&source),
+            type_policy_identity: type_policy_identity(PgTypePolicy::PRESERVE_ROW),
+            config: source,
+            admitted: admitted(),
+            policy: PgTypePolicy::PRESERVE_ROW,
+            generation: 0,
+            deadline: Instant::now() + Duration::from_secs(30),
+            expected_principal: "oo_snap_reader".to_string(),
+            expected_database: "snapdb".to_string(),
+            expected_in_recovery: false,
+            expected_postmaster_start: "unused".to_string(),
+        };
+        let err = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(SnapshotOwner::open(request.clone()))
+            .unwrap_err();
+        assert_eq!(err.fact(), Some("generation_invalid"));
+        assert!(super::session::try_reserve("cap_src", 1).is_err());
+        drop(held);
+        let held = super::session::try_reserve("cap_src", 3).unwrap();
+        request.generation = 41;
+        let err = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(SnapshotOwner::open(request))
+            .unwrap_err();
+        assert_eq!(err.fact(), Some("max_connections"));
+        let generations = super::GENERATIONS.lock().unwrap_or_else(|err| err.into_inner());
+        assert!(!generations.contains(&("cap_src".to_string(), 41)));
+        drop(generations);
+        drop(held);
+    }
+
+    fn single_config(source_id: &str) -> PgSourceConfig {
+        PgSourceConfig::try_new(
+            SourceId::new(source_id).unwrap(),
+            PgEndpoint::new("oo-snap-pg", 5432, "snapdb").unwrap(),
+            PgCredentials::new("oo_snap_reader", "one-secret").unwrap(),
+            SecretRef::new("secret://pg/snap/reader").unwrap(),
+            PgTlsConfig::from_ca_pem(pem()).unwrap(),
+            PgBudget::new(
+                Duration::from_secs(30),
+                Duration::from_secs(30),
+                Duration::from_secs(5),
+                1000,
+                1024 * 1024,
+            )
+            .unwrap(),
+            TableSelection::new(vec![SelectedTable::new("snap", "parent").unwrap()]).unwrap(),
+        )
+        .unwrap()
     }
 }

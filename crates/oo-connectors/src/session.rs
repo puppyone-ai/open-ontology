@@ -1,11 +1,13 @@
 //! One read-only PostgreSQL session. The connection is not pooled and is not
 //! printed: the driver options retain the password.
 
+use std::collections::BTreeMap;
 use std::fmt;
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
-use sqlx::{ConnectOptions, Row};
+use sqlx::{ConnectOptions, Connection, Row};
 
 use crate::config::{PgSourceConfig, TableSelection};
 use crate::error::{SourceError, map_connect, map_sqlx};
@@ -14,6 +16,149 @@ use crate::model::{
     admit_version, connector_capabilities, tls_report,
 };
 use crate::sql;
+
+const MAX_CONNECTIONS: u8 = 4;
+const MAX_ROWS_PER_SEC: u32 = 50_000;
+const ROW_WINDOW: Duration = Duration::from_secs(1);
+const MAX_TRACKED_SOURCES: usize = 64;
+
+struct SourceEntry {
+    in_use: u8,
+    rows_left: u32,
+    window_started: Instant,
+}
+
+static LEDGER: Mutex<BTreeMap<String, SourceEntry>> = Mutex::new(BTreeMap::new());
+
+pub(crate) struct ConnPermit {
+    source_id: String,
+}
+
+impl Drop for ConnPermit {
+    fn drop(&mut self) {
+        release_slot(&self.source_id);
+    }
+}
+
+fn ledger() -> Result<std::sync::MutexGuard<'static, BTreeMap<String, SourceEntry>>, SourceError> {
+    LEDGER.lock().map_err(|_| SourceError::budget("max_connections"))
+}
+
+fn prepare(entries: &mut BTreeMap<String, SourceEntry>, now: Instant) {
+    entries.retain(|_, entry| {
+        entry.in_use > 0 || now.duration_since(entry.window_started) < ROW_WINDOW
+    });
+    for entry in entries.values_mut() {
+        if now.duration_since(entry.window_started) >= ROW_WINDOW {
+            entry.rows_left = MAX_ROWS_PER_SEC;
+            entry.window_started = now;
+        }
+    }
+}
+
+fn fresh_entry(now: Instant) -> SourceEntry {
+    SourceEntry {
+        in_use: 0,
+        rows_left: MAX_ROWS_PER_SEC,
+        window_started: now,
+    }
+}
+
+pub(crate) fn try_reserve(source_id: &str, count: u8) -> Result<Vec<ConnPermit>, SourceError> {
+    if count == 0 || count > MAX_CONNECTIONS {
+        return Err(SourceError::budget("max_connections"));
+    }
+    let mut entries = ledger()?;
+    let now = Instant::now();
+    prepare(&mut entries, now);
+    let entry = if let Some(entry) = entries.get_mut(source_id) {
+        entry
+    } else if entries.len() >= MAX_TRACKED_SOURCES {
+        return Err(SourceError::budget("max_connections"));
+    } else {
+        entries.insert(source_id.to_string(), fresh_entry(now));
+        entries.get_mut(source_id).ok_or_else(|| SourceError::budget("max_connections"))?
+    };
+    if u16::from(entry.in_use) + u16::from(count) > u16::from(MAX_CONNECTIONS) {
+        return Err(SourceError::budget("max_connections"));
+    }
+    entry.in_use = entry.in_use.saturating_add(count);
+    Ok((0..count)
+        .map(|_| ConnPermit {
+            source_id: source_id.to_string(),
+        })
+        .collect())
+}
+
+pub(crate) fn try_charge_rows(source_id: &str, rows: u32) -> Result<(), SourceError> {
+    if rows == 0 {
+        return Ok(());
+    }
+    let mut entries = LEDGER.lock().map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+    let now = Instant::now();
+    prepare(&mut entries, now);
+    let entry = if let Some(entry) = entries.get_mut(source_id) {
+        entry
+    } else if entries.len() >= MAX_TRACKED_SOURCES {
+        return Err(SourceError::budget("max_connections"));
+    } else {
+        entries.insert(source_id.to_string(), fresh_entry(now));
+        entries.get_mut(source_id).ok_or_else(|| SourceError::budget("max_rows_per_sec"))?
+    };
+    if entry.rows_left < rows {
+        return Err(SourceError::budget("max_rows_per_sec"));
+    }
+    entry.rows_left -= rows;
+    Ok(())
+}
+
+fn release_slot(source_id: &str) {
+    let Ok(mut entries) = LEDGER.lock() else {
+        return;
+    };
+    if let Some(entry) = entries.get_mut(source_id) {
+        entry.in_use = entry.in_use.saturating_sub(1);
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct LedgerLock {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+pub(crate) fn lock_ledger() -> LedgerLock {
+    static LOCK: Mutex<()> = Mutex::new(());
+    let guard = match LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Ok(mut entries) = LEDGER.lock() {
+        entries.clear();
+    }
+    LedgerLock { _guard: guard }
+}
+
+#[cfg(test)]
+impl Drop for LedgerLock {
+    fn drop(&mut self) {
+        if let Ok(mut entries) = LEDGER.lock() {
+            entries.clear();
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn age_ledger_window(source_id: &str, by: Duration) {
+    let Ok(mut entries) = LEDGER.lock() else {
+        return;
+    };
+    if let Some(entry) = entries.get_mut(source_id)
+        && let Some(started) = entry.window_started.checked_sub(by)
+    {
+        entry.window_started = started;
+    }
+}
 
 /// Configured connector. `connect` opens a fresh session every time.
 pub struct PgConnector {
@@ -31,6 +176,16 @@ impl PgConnector {
     /// An untested version still returns a session. `inspect_access` then
     /// blocks registration. A failed version query fails closed.
     pub async fn connect(&self) -> Result<PgSession, SourceError> {
+        let mut permits = try_reserve(self.config.source_id().as_str(), 1)?;
+        let Some(permit) = permits.pop() else {
+            return Err(SourceError::budget("max_connections"));
+        };
+        self.connect_reserved(permit).await
+    }
+
+    /// Open one session on a permit reserved by the caller.
+    /// The permit stays held until the socket closes.
+    pub(crate) async fn connect_reserved(&self, permit: ConnPermit) -> Result<PgSession, SourceError> {
         let options = PgConnectOptions::from_explicit()
             .host(self.config.endpoint().host())
             .port(self.config.endpoint().port())
@@ -54,6 +209,7 @@ impl PgConnector {
         };
         let mut session = PgSession {
             conn,
+            permit: Some(permit),
             source_id: self.config.source_id().as_str().to_string(),
             secret_ref: self.config.secret_ref().as_str().to_string(),
             selection: self.config.selection().clone(),
@@ -71,6 +227,7 @@ impl PgConnector {
             session_user: String::new(),
             current_user: String::new(),
             database_name: String::new(),
+            row_bound: None,
         };
         session.read_identity().await?;
         session.apply_guards().await?;
@@ -91,6 +248,7 @@ impl fmt::Debug for PgConnector {
 /// A connected source. Dropping it closes the socket. There is no `COMMIT`.
 pub struct PgSession {
     pub(crate) conn: PgConnection,
+    permit: Option<ConnPermit>,
     pub(crate) source_id: String,
     pub(crate) secret_ref: String,
     pub(crate) selection: TableSelection,
@@ -108,6 +266,7 @@ pub struct PgSession {
     pub(crate) session_user: String,
     pub(crate) current_user: String,
     pub(crate) database_name: String,
+    row_bound: Option<u32>,
 }
 
 impl fmt::Debug for PgSession {
@@ -166,6 +325,7 @@ impl PgSession {
     }
 
     async fn read_identity(&mut self) -> Result<(), SourceError> {
+        try_charge_rows(&self.source_id, 1)?;
         let allow = [
             "DateStyle",
             "client_encoding",
@@ -224,6 +384,7 @@ impl PgSession {
     }
 
     async fn apply_guards(&mut self) -> Result<(), SourceError> {
+        try_charge_rows(&self.source_id, 1)?;
         let statement_ms = duration_ms(self.budget.statement_timeout())?;
         let lock_ms = duration_ms(self.budget.lock_timeout())?;
         let budget = self.budget.statement_timeout();
@@ -246,6 +407,7 @@ impl PgSession {
     }
 
     async fn read_version(&mut self) -> Result<(), SourceError> {
+        try_charge_rows(&self.source_id, 1)?;
         let budget = self.budget.statement_timeout();
         let result =
             tokio::time::timeout(budget, sqlx::query(sql::VERSION).fetch_one(&mut self.conn)).await;
@@ -279,19 +441,54 @@ impl PgSession {
         if self.in_transaction {
             return Err(SourceError::protocol("nested_transaction"));
         }
+        self.execute_charged(sql::BEGIN).await?;
+        self.in_transaction = true;
+        Ok(())
+    }
+
+    pub(crate) async fn begin_read_committed(&mut self) -> Result<(), SourceError> {
+        self.ensure_open()?;
+        if self.in_transaction {
+            return Err(SourceError::protocol("nested_transaction"));
+        }
+        self.execute_charged(sql::BEGIN_CURRENT).await?;
+        self.in_transaction = true;
+        Ok(())
+    }
+
+    pub(crate) fn arm_rows(&mut self, bound: u32) {
+        self.row_bound = Some(bound);
+    }
+
+    async fn execute_charged(&mut self, sql: &'static str) -> Result<(), SourceError> {
+        try_charge_rows(&self.source_id, 1)?;
         let budget = self.budget.statement_timeout();
-        let result =
-            tokio::time::timeout(budget, sqlx::query(sql::BEGIN).execute(&mut self.conn)).await;
+        let result = tokio::time::timeout(budget, sqlx::query(sql).execute(&mut self.conn)).await;
         match result {
-            Ok(Ok(_)) => {
-                self.in_transaction = true;
-                Ok(())
-            }
+            Ok(Ok(_)) => Ok(()),
             Ok(Err(err)) => Err(map_sqlx(err)),
             Err(_) => {
                 self.poisoned = true;
                 Err(SourceError::budget("statement_timeout"))
             }
+        }
+    }
+
+    pub(crate) async fn execute_control(&mut self, sql: &'static str) -> Result<(), SourceError> {
+        self.ensure_open()?;
+        self.execute_charged(sql).await
+    }
+
+    pub(crate) async fn shutdown(mut self) -> Result<(), SourceError> {
+        let rolled = self.finish(Ok(())).await.map(|_| ());
+        let permit = self.permit.take();
+        let PgSession { conn, .. } = self;
+        let closed = Connection::close(conn).await.map_err(map_sqlx);
+        drop(permit);
+        match (rolled, closed) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(err), _) => Err(err),
+            (Ok(()), Err(_)) => Err(SourceError::protocol("cleanup_failed")),
         }
     }
 
@@ -308,19 +505,12 @@ impl PgSession {
         if !self.in_transaction {
             return Ok(());
         }
-        let budget = self.budget.statement_timeout();
-        let result =
-            tokio::time::timeout(budget, sqlx::query(sql::ROLLBACK).execute(&mut self.conn)).await;
         self.in_transaction = false;
-        match result {
-            Ok(Ok(_)) => Ok(()),
-            Ok(Err(err)) => {
+        match self.execute_charged(sql::ROLLBACK).await {
+            Ok(()) => Ok(()),
+            Err(err) => {
                 self.poisoned = true;
-                Err(map_sqlx(err))
-            }
-            Err(_) => {
-                self.poisoned = true;
-                Err(SourceError::budget("statement_timeout"))
+                Err(err)
             }
         }
     }
@@ -490,10 +680,16 @@ pub(crate) async fn fetch_all(
     session: &mut PgSession,
     query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
 ) -> Result<Vec<sqlx::postgres::PgRow>, SourceError> {
+    let bound = session
+        .row_bound
+        .take()
+        .unwrap_or_else(|| session.budget.max_rows().min(MAX_ROWS_PER_SEC));
+    try_charge_rows(&session.source_id, bound)?;
     let budget = session.budget.statement_timeout();
     let result = tokio::time::timeout(budget, query.fetch_all(&mut session.conn)).await;
     match result {
         Ok(Ok(rows)) => {
+            within_rows(rows.len(), bound)?;
             within_rows(rows.len(), session.budget.max_rows())?;
             Ok(rows)
         }
@@ -509,6 +705,7 @@ pub(crate) async fn fetch_one(
     session: &mut PgSession,
     query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
 ) -> Result<sqlx::postgres::PgRow, SourceError> {
+    try_charge_rows(&session.source_id, 1)?;
     let budget = session.budget.statement_timeout();
     let result = tokio::time::timeout(budget, query.fetch_one(&mut session.conn)).await;
     match result {
@@ -551,6 +748,14 @@ pub(crate) fn cell_opt_i64(
 }
 
 pub(crate) fn cell_i32(row: &sqlx::postgres::PgRow, index: usize) -> Result<i32, SourceError> {
+    row.try_get(index)
+        .map_err(|_| SourceError::catalog("decode"))
+}
+
+pub(crate) fn cell_opt_i32(
+    row: &sqlx::postgres::PgRow,
+    index: usize,
+) -> Result<Option<i32>, SourceError> {
     row.try_get(index)
         .map_err(|_| SourceError::catalog("decode"))
 }
@@ -604,5 +809,51 @@ mod tests {
     fn version_without_ssl_is_not_success() {
         let err = classify_server_tls(None, Some("TLSv1.3".to_string())).unwrap_err();
         assert_eq!(err.fact(), Some("tls_version_unknown"));
+    }
+
+    #[test]
+    fn ledger_cap_is_four_and_a_live_window_keeps_its_debit() {
+        let _lock = super::lock_ledger();
+        let first = super::try_reserve("a125_cap", 2).unwrap();
+        let second = super::try_reserve("a125_cap", 2).unwrap();
+        let fifth = match super::try_reserve("a125_cap", 1) {
+            Err(err) => err,
+            Ok(permits) => {
+                drop(permits);
+                panic!("fifth reserve succeeded");
+            }
+        };
+        assert_eq!(fifth.fact(), Some("max_connections"));
+        drop(second);
+        let restored = super::try_reserve("a125_cap", 2).unwrap();
+        drop(restored);
+        drop(first);
+
+        let held = super::try_reserve("a125_busy", 1).unwrap();
+        super::try_charge_rows("a125_busy", 50_000).unwrap();
+        super::age_ledger_window("a125_busy", std::time::Duration::from_secs(2));
+        super::try_charge_rows("a125_busy", 1).unwrap();
+        drop(held);
+
+        super::try_charge_rows("a125_rows", 50_000).unwrap();
+        let over = super::try_charge_rows("a125_rows", 1).unwrap_err();
+        assert_eq!(over.fact(), Some("max_rows_per_sec"));
+        super::try_charge_rows("a125_rows", 0).unwrap();
+        let still = super::try_charge_rows("a125_rows", 1).unwrap_err();
+        assert_eq!(still.fact(), Some("max_rows_per_sec"));
+        for index in 0..61 {
+            let permit = super::try_reserve(&format!("a125_pad_{index}"), 1).unwrap();
+            drop(permit);
+        }
+        let blocked = match super::try_reserve("a125_extra", 1) {
+            Err(err) => err,
+            Ok(permits) => {
+                drop(permits);
+                panic!("extra reserve succeeded");
+            }
+        };
+        assert_eq!(blocked.fact(), Some("max_connections"));
+        let kept = super::try_charge_rows("a125_rows", 1).unwrap_err();
+        assert_eq!(kept.fact(), Some("max_rows_per_sec"));
     }
 }

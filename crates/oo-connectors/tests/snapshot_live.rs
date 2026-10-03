@@ -686,26 +686,17 @@ impl World {
             .execute(&mut self.admin)
             .await
             .expect("add column");
-        let probed = owner
+        let err = owner
             .read_probe(key_probe("snap", "parent", ProbeValue::Int8(1)))
-            .await;
-        match probed {
-            Ok(batch) => {
-                assert!(batch.arrow.iter().all(|column| column.name != "note"));
-                assert_eq!(utf8_at(&batch, "label"), "beta");
-                owner.finish().await.expect("schema old cut finish");
-                self.note("schema_inflight=old_cut".to_string());
-            }
-            Err(err) => {
-                assert_eq!(err.fact(), Some("schema_drift"), "{err}");
-                let finished = owner.finish().await;
-                assert!(finished.is_err(), "schema drift finished");
-                self.note(format!(
-                    "schema_inflight={}",
-                    err.fact().unwrap_or("none")
-                ));
-            }
-        }
+            .await
+            .expect_err("committed add column");
+        assert_eq!(err.fact(), Some("schema_drift"), "{err}");
+        let finished = owner.finish().await.expect_err("schema drift finished");
+        assert_eq!(finished.fact(), Some("schema_drift"), "{finished}");
+        self.note(format!(
+            "schema_inflight={}",
+            err.fact().unwrap_or("none")
+        ));
         let err = self
             .open_next(
                 old,
@@ -728,27 +719,20 @@ impl World {
             .execute(&mut self.admin)
             .await
             .expect("revoke");
-        let probed = owner
+        let err = owner
             .read_probe(key_probe("snap", "parent", ProbeValue::Int8(1)))
-            .await;
-        match probed {
-            Err(err) => {
-                assert!(
-                    err.fact() == Some("select_not_granted") || err.sqlstate() == Some("42501"),
-                    "{err}"
-                );
-                assert!(owner.finish().await.is_err(), "denied probe finished");
-                self.note(format!(
-                    "privilege_inflight={}",
-                    err.fact().unwrap_or(err.sqlstate().unwrap_or("denied"))
-                ));
-            }
-            Ok(batch) => {
-                assert_eq!(utf8_at(&batch, "label"), "beta");
-                owner.finish().await.expect("privilege old cut finish");
-                self.note("privilege_inflight=old_cut".to_string());
-            }
-        }
+            .await
+            .expect_err("revoked select");
+        assert!(
+            err.fact() == Some("select_not_granted") || err.sqlstate() == Some("42501"),
+            "{err}"
+        );
+        let finished = owner.finish().await.expect_err("denied probe finished");
+        assert_eq!(finished.fact(), err.fact(), "{finished}");
+        self.note(format!(
+            "privilege_inflight={}",
+            err.fact().unwrap_or(err.sqlstate().unwrap_or("denied"))
+        ));
         let err = self
             .open_next(
                 self.admitted.clone(),
@@ -922,6 +906,9 @@ impl World {
         }
         let mut saw_start = false;
         let mut saw_probe = false;
+        let mut saw_savepoint = false;
+        let mut saw_rollback_to = false;
+        let mut saw_release = false;
         let mut probe_before_start = false;
         let mut oo_statements = 0_usize;
         let mut writer_writes = 0_usize;
@@ -950,6 +937,15 @@ impl World {
             if matches!(verb.as_str(), "START" | "BEGIN") {
                 saw_start = true;
             }
+            if verb == "SAVEPOINT" {
+                saw_savepoint = true;
+            }
+            if verb == "ROLLBACK" && sql.to_ascii_uppercase().contains("SAVEPOINT") {
+                saw_rollback_to = true;
+            }
+            if verb == "RELEASE" {
+                saw_release = true;
+            }
             if write_word(&strip_sql_literals(sql)).is_some() {
                 panic!("oo statement contains a write verb");
             }
@@ -963,6 +959,9 @@ impl World {
         assert!(oo_statements > 0, "oo statements were not logged");
         assert!(saw_start, "oo transaction start was not logged");
         assert!(saw_probe, "oo parent probe was not logged");
+        assert!(saw_savepoint, "probe savepoint was not logged");
+        assert!(saw_rollback_to, "rollback to savepoint was not logged");
+        assert!(saw_release, "release savepoint was not logged");
         assert!(!probe_before_start, "probe ran before start");
         assert!(writer_writes > 0, "fixture writer writes were not logged");
         self.note(format!(
@@ -1167,7 +1166,8 @@ fn strip_sql_literals(sql: &str) -> String {
 fn write_word(sql: &str) -> Option<&'static str> {
     const WORDS: &[&str] = &[
         "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE", "COPY", "CREATE", "ALTER", "DROP",
-        "GRANT", "REVOKE", "COMMENT", "VACUUM", "CLUSTER", "REINDEX", "CALL", "DO", "NEXTVAL",
+        "GRANT", "REVOKE", "COMMENT", "VACUUM", "CLUSTER", "REINDEX", "CALL", "DO", "COMMIT",
+        "NEXTVAL",
         "LO_IMPORT", "LO_EXPORT", "LO_CREATE", "DBLINK", "PG_WRITE_FILE", "PG_READ_FILE",
         "PG_READ_BINARY_FILE",
     ];
