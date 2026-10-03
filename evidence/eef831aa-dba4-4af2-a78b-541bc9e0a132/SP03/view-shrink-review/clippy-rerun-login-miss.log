@@ -1,0 +1,4 @@
+bash: line 1: rustup: command not found
+clippy_add_exit=127
+bash: line 1: cargo: command not found
+clippy_exit=127

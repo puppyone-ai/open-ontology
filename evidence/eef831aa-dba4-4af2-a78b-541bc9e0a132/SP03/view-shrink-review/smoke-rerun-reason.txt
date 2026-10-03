@@ -1,0 +1,1 @@
+The first lib.exit and clippy.exit are 101 because that git archive omitted contracts/source/pgsql/empty-catalog.json, which model.rs includes under cfg(test). smoke-rerun/lib.exit is 0, 55 passed. clippy-rerun.exit is 0. Every container reported OOMKilled=false. The 512-frame run was not repeated.
