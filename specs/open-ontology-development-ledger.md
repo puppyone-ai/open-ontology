@@ -183,6 +183,7 @@
 - [ ] SP07-W04 LLM候选/驻留/预算
   - [x] W02-CC captured-pg-draft命令：3353380b经a160独立限定批准，真实catalog fixture→命令→draft/evidence/wrapper seals；完整agent对话/审核workflow/发布未验。
 - [ ] SP07-W05 审核/owner/分类
+  - [x] W05-RC review-pg-draft命令：2283f904经a163独立限定批准，fresh accept/reject/override、FK closure、stale schema/fact pending、curated echo；owner/auth/persisted audited workflow/语义发布未验。
 - [ ] SP07-W06 role Pack/缓存/manifest
 - [ ] SP07 D组件/Phase退出
 
@@ -1094,3 +1095,6 @@ a161 actualGrok4.7xhighhandle60794 slotB structuralreviewCLI1builder0PG; a159187
 a15918794/a16160794 actualexit0 complete476d21c7/2283f904+aa9a083d, full3reportsread103/93hash actual0/ownDockerempty. a159 independentactual2tables5rows/oracles/canonicaldigests/fences/rollback/replay/failure0, limitedfullimportW02-FIaccepted23→24; uniquecomponentfirstreviewapproved denominator18→19,rework9/19=47.37%. PublicRunSummaryconstructible commentincorrectandfail_fenceopenlifecycle retainednotDBsealbypass, no misleadingclaim. a161 structure_draft_cli obsoleteassertion extraownedpath acceptednarrowforfixeda163review,deviationrecorded. Reviewcommanddeliverednewcomponent19→20 pendingreview. Dispatcha162 realimportCLI+sourcepreparationfactory, a163 fixedreviewcommandparallel; all87parentsopen goalactive.
 
 a162 actualGrok4.7xhighhandle77062 slotA realimportCLI/sourcefactory soleconnector+pipeline+lockwriter1builder1PG; a163 handle59321 slotB fixed2283f904 reviewCLIreview1builder0PG/global2. Old18794/60794closed notobservedagain. Dispatch56f40a6f,nextUUIDa164. One25minute wait goalactive.
+
+
+a16359321 actualexit0 complete44482400, all3reportsread includingpreviouslytruncatedREPORT/FINDINGS;153hash actual0/oracleClippyDocker0/ownDockerempty. OnlyW05-RCaccepted24→25; delivered20, firstreviewapproved denominator19→20 rework9/20=45%. Extra structure_draft_cli obsoleteusageassertion scope deviation remains documented. a16277062 unifiedchecklive continues solepipeline/connector/lockwriter; slotB free awaiting nextmeaningful integration task, no duplicate or conflictingwork. NextUUIDa164/one25minwait/goalactive/all87parentsopen.
