@@ -1,0 +1,6 @@
+psql:/tmp/domain.sql:10: ERROR:  23514: value for domain oo_copy_a148_chk.pos_int violates check constraint "pos_int_check"
+CONTEXT:  COPY checked, line 1, column n
+SCHEMA NAME:  oo_copy_a148_chk
+DATATYPE NAME:  pos_int
+CONSTRAINT NAME:  pos_int_check
+LOCATION:  domain_check_input, domains.c:194

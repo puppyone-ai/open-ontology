@@ -1,0 +1,133 @@
+oo_task=a148-copy-encoder-oracle
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+archive_hashes_match=1
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo test --test a148_copy_oracle ===
+   Compiling jobserver v0.1.35
+   Compiling smallvec v1.16.1
+   Compiling pkg-config v0.3.34
+   Compiling fs_extra v1.3.0
+   Compiling dunce v1.0.5
+   Compiling cc v1.4.7
+   Compiling parking_lot_core v0.9.12
+   Compiling serde_json v1.0.151
+   Compiling parking_lot v0.12.5
+   Compiling aws-lc-rs v1.18.1
+   Compiling icu_normalizer v2.3.0
+   Compiling tokio-macros v2.7.2
+   Compiling cmake v0.1.58
+   Compiling idna_adapter v1.2.2
+   Compiling futures-sink v0.3.34
+   Compiling rustls v0.23.45
+   Compiling tokio v1.53.1
+   Compiling aws-lc-sys v0.45.0
+   Compiling ring v0.17.14
+   Compiling idna v1.1.0
+   Compiling slab v0.4.12
+   Compiling jsonschema-value v0.57.0
+   Compiling futures-util v0.3.34
+   Compiling tokio-stream v0.1.19
+   Compiling referencing v0.57.0
+   Compiling granit-parser v1.3.0
+   Compiling url v2.5.8
+   Compiling futures-intrusive v0.5.0
+   Compiling base64 v0.22.1
+   Compiling serde-saphyr v1.3.0
+   Compiling schemars v1.2.2
+   Compiling jsonschema v0.57.0
+   Compiling utoipa v6.0.0
+   Compiling futures-channel v0.3.34
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+   Compiling rustls-webpki v0.103.15
+   Compiling sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0308]: mismatched types
+   --> crates/oo-pipeline/tests/a148_copy_oracle.rs:971:18
+    |
+971 |         out.push(DIGITS[usize::from(byte >> 4)]);
+    |             ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `char`, found `u8`
+    |             |
+    |             arguments to this method are incorrect
+    |
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/string.rs:1416:11
+
+error[E0308]: mismatched types
+   --> crates/oo-pipeline/tests/a148_copy_oracle.rs:972:18
+    |
+972 |         out.push(DIGITS[usize::from(byte & 0x0f)]);
+    |             ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `char`, found `u8`
+    |             |
+    |             arguments to this method are incorrect
+    |
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/string.rs:1416:11
+
+error[E0716]: temporary value dropped while borrowed
+  --> crates/oo-pipeline/tests/a148_copy_oracle.rs:95:10
+   |
+95 |         &positions(),
+   |          ^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+98 |     );
+   |      - temporary value is freed at the end of this statement
+99 |     let error = selected.expect_err("money");
+   |                 -------- borrow later used here
+   |
+help: consider using a `let` binding to create a longer lived value
+   |
+92 ~     let binding = positions();
+93 ~     let selected = CopyEncoder::open(
+94 |         batch,
+95 |         &[CopyColumn::SystemPosition, CopyColumn::User { attnum: 1 }],
+96 ~         &binding,
+   |
+
+error[E0716]: temporary value dropped while borrowed
+   --> crates/oo-pipeline/tests/a148_copy_oracle.rs:195:10
+    |
+195 |         &positions(),
+    |          ^^^^^^^^^^^ creates a temporary value which is freed while still in use
+...
+198 |     );
+    |      - temporary value is freed at the end of this statement
+199 |     assert_eq!(order.expect_err("order").code, "system_position_order");
+    |                ----- borrow later used here
+    |
+help: consider using a `let` binding to create a longer lived value
+    |
+192 ~     let binding = positions();
+193 ~     let order = CopyEncoder::open(
+194 |         batch,
+195 |         &[CopyColumn::User { attnum: 2 }, CopyColumn::SystemPosition],
+196 ~         &binding,
+    |
+
+Some errors have detailed explanations: E0308, E0716.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `oo-pipeline` (test "a148_copy_oracle") due to 4 previous errors
+phase_exit=101 phase=test
+elapsed_seconds=24

@@ -1,0 +1,18 @@
+1|pos|numeric(38,0)|true
+2|raw|bytea|false
+3|note|text|false
+4|flag|boolean|true
+5|n|bigint|true
+6|small|smallint|true
+7|wide|integer|true
+8|amount|numeric(12,4)|true
+9|day|date|true
+10|frac|double precision|true
+11|narrow|real|true
+12|clock|time without time zone|true
+13|ts|timestamp without time zone|true
+14|tstz|timestamp with time zone|true
+15|doc|json|false
+16|token|uuid|false
+17|label|character varying(4)|false
+18|code|character(4)|false

@@ -1,0 +1,4 @@
+observed_at=2026-10-04T01:23:07Z
+where=before-copy-encoder-oracle
+name=oo-a148-pg kind=postgres owner=a148 status=Up 2 seconds
+host_toolchain_comm:

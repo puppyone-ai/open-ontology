@@ -1,0 +1,9 @@
+Pager usage is off.
+Output format is unaligned.
+Field separator is "|".
+SET
+BEGIN
+CREATE SCHEMA
+CREATE TABLE
+COPY 2
+ROLLBACK
