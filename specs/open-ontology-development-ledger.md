@@ -140,6 +140,7 @@
 - [ ] SP04-W02 COPY/merge/TOAST/墓碑
   - [x] W02-PM persisted physical-mapping/v1原语：b5415544经a142限定批准，runtime注册/lookup/replay/restart；完整Loader/fencedCOPY未验。
   - [x] W02-CE bounded binary COPY encoder/v1：d80472d8经a148独立限定批准，fresh PostgreSQL解码/schema/value/count/bounds；完整sink/Loader未验。
+  - [x] W02-FI unpublished PostgreSQL full import：cc764cbc经a159真实PG独立限定批准，reader→COPY→同conn fence/data-quality-receipt→RunComplete→DB awaiting_publish seal；未发布/Agent grant/controlmirror/job/ACK/全types。
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
@@ -1088,3 +1089,6 @@ a159 actualGrok4.7xhighhandle18794 slotA fixedcc764cbc realfullimportreview1buil
 a1604390 actualexit0 complete5bfbd49a, all3reportsread includingtruncatedREPORTtail,119hash actual0/oracleClippyDocker0/ownDockerempty. OnlyW02-CC accepted22→23, delivered19, firstreviewCLIapproved denominator17→18 rework9/18=50%. NoargsobsoleteUXretainednotfunctionaldefect; a161 reviewcommandincludesmeaningfulusagefix. a15918794 unifiedchecklive continuesfixedfullimportreview; a161 existingcurated+reviewAPIcommandparallel0PG. Goalactive/all87parentsopen.
 
 a161 actualGrok4.7xhighhandle60794 slotB structuralreviewCLI1builder0PG; a15918794 slotA fullimportreview continues. Old4390closed notobservedagain/global2builder. Dispatchafd6d48f,nextUUIDa162, one25minute wait goalactive.
+
+
+a15918794/a16160794 actualexit0 complete476d21c7/2283f904+aa9a083d, full3reportsread103/93hash actual0/ownDockerempty. a159 independentactual2tables5rows/oracles/canonicaldigests/fences/rollback/replay/failure0, limitedfullimportW02-FIaccepted23→24; uniquecomponentfirstreviewapproved denominator18→19,rework9/19=47.37%. PublicRunSummaryconstructible commentincorrectandfail_fenceopenlifecycle retainednotDBsealbypass, no misleadingclaim. a161 structure_draft_cli obsoleteassertion extraownedpath acceptednarrowforfixeda163review,deviationrecorded. Reviewcommanddeliverednewcomponent19→20 pendingreview. Dispatcha162 realimportCLI+sourcepreparationfactory, a163 fixedreviewcommandparallel; all87parentsopen goalactive.
