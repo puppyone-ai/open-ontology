@@ -132,6 +132,7 @@
 - [ ] SP03-W04 type/PositionCodec/精度
   - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
 - [ ] SP03-W05 catalog/名字映射/注册
+  - [x] W05-CX catalog-pg导出命令：34498e75经a166独立真实TLS PG限定批准，实际columns/PK/FK/commenthash与草案命令串联；注册持久化、完整policy与父项未验。
 - [ ] SP03源审计/Phase退出
 
 ### SP04
@@ -1107,3 +1108,5 @@ a164 actualhandle80276/a16544259 both exit1 terminal after one25minute wait, ser
 a164 resumed51209 actualexit0 completea173c58a; all3reportsread218hash actual0/probe4Docker0/ownDockerempty. Limited W02-IC accepted25→26, delivered21, firstcomponentreview approved denominator20→21 rework9/21=42.86%. Failed review harness runs preserved and deciding a164-prefixed outputs distinguished from author overwrite. a16583585 unifiedcheck live, source34498e75 already committed but reports/evidence pending, no acceptance. Original interrupted15797 terminalexit1 confirmed before new resumes; no live task duplicated. One25minute wait, all87parentsopen/goalactive.
 
 a16583585 actualexit0 complete34498e75/evidencece06598c; all3reportsread200hash actual0/post3Docker0/ownDockerempty. Actual source-only catalog→captured/review draft processcomposition passes author gate, no depschanges, new component delivered21→22 pendinga166; accepted26/firstreview9of21 unchanged. Dispatcha166 fixedcatalogreview and a167 rolePackcompiler with explicit trusted-policy-input boundary, no auth/publication approval. TwoactualGrok tasks/global2builder/eachmax1PG, all87parentsopen.
+
+a16688851 actualexit0 completeb4117703; all3reportsread231hash actual0/probe3Docker0/ownDockerempty. Limited catalog export W05-CX accepted26→27, delivered22, firstcomponentreviewapproved denominator21→22 rework9/22=40.91%. Fresh oracle5columns/PK/FK/comments/read-only/no target and exact process draft composition0. a16752259 unifiedchecklive continues builderwriter; no moving-workspace review. One25minwait/goalactive/all87parentsopen.
