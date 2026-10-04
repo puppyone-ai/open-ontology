@@ -1,6 +1,6 @@
 # PostgreSQL source catalog protocol `oo.source.pgsql/v1`
 
-This slice freezes the read-only inspection API implemented by `oo-connectors`. It does not implement scan, bounded read, CDC, type conversion, or a registry API. SP03-W01 is not complete. PostgreSQL 13 is the declared major floor. The only tested server version is `17.10`.
+This slice freezes the read-only inspection API implemented by `oo-connectors`. This catalog protocol does not implement CDC, type conversion, or a registry API. Connector capabilities `scan` and `bounded_read` are supported on the separate full-mode reader, for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. See `bounded-stream-v1.md` and `reader-lifecycle-v1.md`. SP03-W01 is not complete. PostgreSQL 13 is the declared major floor. The only tested server version is `17.10`.
 
 ## Methods
 
@@ -44,7 +44,7 @@ The driver sets `sslmode=verify-full` and requires a caller CA PEM. Trust is `ca
 
 The DBA checklist is text. The connector does not create publications, slots, signaling tables, heartbeats, or other source DDL, and it does not write source data. Example passwords use the placeholder `<由 DBA 设置>`.
 
-Capabilities `scan`, `bounded_read`, `cdc`, `type_conversion`, and `registry_api` are `not_in_this_slice`. `source_ddl` and `source_write` are `forbidden`. `cdc.implemented` is false even when prerequisites are present.
+`connector_capabilities` reports `scan` and `bounded_read` supported, reason `PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission`. `cdc`, `type_conversion`, and `registry_api` are `not_in_this_slice`. `source_ddl` and `source_write` are `forbidden`. `cdc.implemented` is false even when prerequisites are present. Incremental mode stays unsupported.
 
 ## Catalog
 

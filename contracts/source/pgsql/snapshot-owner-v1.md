@@ -1,6 +1,6 @@
 # PostgreSQL snapshot owner `oo.source.pgsql.snapshot/v1`
 
-R1 only. R2, R3, and R4 are unsigned. This is not the bounded reader. `scan`, `bounded_read`, `cdc`, `type_conversion` on the catalog protocol, and `registry_api` stay unsupported. Catalog `type_support.converted` stays false.
+R1 remains this owner's open, probe, and lifecycle close. R2 (bounded Arrow batch stream and budgets), R3 (key planning, cancellation, and whole-round failure), and R4 (full-selection admission) have limited acceptance for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Those contracts are `bounded-stream-v1.md`, `reader-keys-v1.md`, and `reader-lifecycle-v1.md`. `read_probe` is not the bounded reader. `finish` returns `SnapshotFinished` as lifecycle close only and is not admission. `finish_complete` returns `RunComplete` as full-selection admission only after this owner delivered `StreamItem::Exhausted` for every selected table. `scan` and `bounded_read` are supported for that path. `cdc`, incremental mode, catalog `type_conversion`, and `registry_api` stay unsupported. Source DDL and source write stay forbidden. Catalog `type_support.converted` stays false. The acceptance is not full types, a customer proof, or a release. No production target loader admits `RunComplete`. The reader token is the prerequisite only.
 
 The owner reuses `map_column`, `guard_plans`, `decode_payload`, and `assemble_batch` from `oo.source.pgsql.types/v1`. `decode_payload` and `guard_plans` are re-exported crate-visible from `types/mod.rs` so the owner can call them. That re-export does not change mapping or decode semantics. `collect_catalog` and `collect_access` keep their result shape. Their reads admit a row bound before SQL.
 
@@ -54,7 +54,7 @@ Any probe error poisons the owner.
 
 ## Finish, abort, drop
 
-`finish` reads the current catalog before rollback when the deadline has not yet passed and the owner is not already poisoned. A mismatch is `schema_drift`. `SnapshotFinished` still requires accepted rollback and close of every session this owner opened, an empty poison, and a deadline that has not passed. Cap refusal before connect does not consume the generation. Failure after the generation is reserved does. Cleanup failure returns that failure and not `SnapshotFinished`.
+`finish` reads the current catalog before rollback when the deadline has not yet passed and the owner is not already poisoned. A mismatch is `schema_drift`. `SnapshotFinished` still requires accepted rollback and close of every session this owner opened, an empty poison, and a deadline that has not passed. `SnapshotFinished` is lifecycle close only and is not admission. `finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table. See `reader-lifecycle-v1.md`. Cap refusal before connect does not consume the generation. Failure after the generation is reserved does. Cleanup failure returns that failure and not `SnapshotFinished`.
 
 `abort` uses the same cleanup. Confirmed cleanup returns `SnapshotAborted` even if the owner was poisoned. That type is not `SnapshotFinished`.
 
@@ -66,7 +66,7 @@ There is no commit, no source DML, and no source DDL. The data transaction may `
 
 ## Later stream, not this slice
 
-A later `read_stream` would borrow this owner and this transaction, return a stream of `TypedBatch`, page with a server-side cursor or portal, call `decode_payload` per row, and refuse `fetch_all` of the table. Dropping the stream would not finish the owner. R3 is the in-flight cancellation proof. R1 does not implement that method.
+The bounded pull borrows this owner and this transaction, returns batches through a server-side portal, calls `decode_payload` per row, and refuses `fetch_all` of the table. Its contract is `bounded-stream-v1.md`. Dropping the stream does not finish the owner. R3 is the in-flight cancellation proof in `reader-lifecycle-v1.md`. This owner's probe and `finish` do not implement that cancel.
 
 ## Errors
 
