@@ -1,0 +1,11 @@
+ contracts/source/pgsql/bounded-stream-v1.md        |  4 +-
+ contracts/source/pgsql/reader-lifecycle-v1.md      |  2 +-
+ crates/oo-connectors/src/key_plan.rs               |  5 +-
+ crates/oo-connectors/src/lib.rs                    | 25 ++++++++--
+ crates/oo-connectors/src/model.rs                  | 55 ++++++++++++++++------
+ crates/oo-connectors/src/types/mod.rs              |  6 ++-
+ crates/oo-connectors/src/types/tests.rs            | 29 +++++++++++-
+ crates/oo-connectors/tests/live_pg.rs              | 24 +++++++++-
+ crates/oo-connectors/tests/lossless_live.rs        | 22 ++++++++-
+ .../oo-connectors/tests/pg_reader_complete_live.rs | 53 ++++++++++++++++-----
+ 10 files changed, 187 insertions(+), 38 deletions(-)

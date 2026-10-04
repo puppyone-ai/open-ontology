@@ -1,0 +1,1 @@
+own_postgres_running=0 running_rust_image_or_label=0
