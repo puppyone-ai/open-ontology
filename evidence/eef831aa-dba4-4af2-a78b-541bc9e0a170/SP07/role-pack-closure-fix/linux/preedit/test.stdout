@@ -1,0 +1,14 @@
+
+running 9 tests
+test analyst_pack_redacts_hidden_dependencies ... ok
+test hashes_match_an_independent_oracle ... ok
+test budgets_refuse ... ok
+test paths_reject_traversal ... ok
+test principal_changes_only_the_cache_key ... ok
+test repeated_compiles_match ... ok
+test support_pack_is_a_separate_project_artifact ... ok
+test bindings_and_policy_inputs_refuse ... ok
+test unreviewed_text_needs_an_explicit_token ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
