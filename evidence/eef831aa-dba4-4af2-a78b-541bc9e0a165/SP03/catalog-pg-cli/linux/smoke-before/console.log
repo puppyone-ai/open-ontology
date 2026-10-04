@@ -1,0 +1,35 @@
+oo_task=catalog-pg-cli-smoke-before
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=head_archive_before_edit
+Linux f42f360de41f 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+=== rustup component add clippy --toolchain 1.94.0 ===
+phase_exit=0 phase=rustup-clippy
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== pipeline lib ===
+phase_exit=0 phase=pipeline-lib
+=== import-pg cli focused ===
+phase_exit=0 phase=import-cli
+=== pipeline clippy ===
+phase_exit=0 phase=pipeline-clippy

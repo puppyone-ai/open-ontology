@@ -1,0 +1,24 @@
+commit=34498e75d5876d74ddb5343b1b0f5b9b1adaf1df
+tree=a99506b163e7b0dfcbdcbc4d8236c69546593a94
+parent=a173c58a9f90a10b7853ddc1c3fcb74d1b0befa1
+subject=pipeline: add a catalog-pg command
+fixed_base=3fba40dd9fdebaa219ab4eb7fdb39b8fcf1a1e4a
+rust_image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres_image=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+rustc=1.94.0 (4a4ef493e 2026-03-02) host aarch64-unknown-linux-gnu
+postgres=17.10 (Debian 17.10-1.pgdg12+1)
+postgres_container=eee98d8a88bfafca4b8efb602677229c875710890fe23e9264694e9ac21b0687
+post_container=b7eedd50c62df62d7842ae338d5b22a3b89bd4d8e29e126a0d95d8d3eb890aa9
+smoke_container=f42f360de41f96d4f2c8822f03a7be024e2e2f793c94b7737c935a3f3b43760a
+ca_fingerprint=sha256 Fingerprint=B3:BC:71:BC:AE:5E:00:E7:EE:D5:5B:B1:91:0E:24:6F:B5:74:27:AF:5F:C3:E7:D4:D1:73:F5:19:53:FF:05:2D
+contract_blob=b5e256b99f72df158672c476d3b7241380898159
+bin_blob=cf8416936aec7f964833196a71bb80ebba75be9d
+catalog_cli_blob=294ef7f363f481e1fae24e6e1355a7872afd41f0
+import_cli_blob=d94a62324fbac0290f36a10284d8f0652ab720a2
+pipeline_lib_blob=bbd075dbc545e895c0c0f1f486668853cd45bb1f
+catalog_test_blob=ddff83e4479678b3d509bd50f4a3526fbd2ea3c7
+blobs_match_worktree=0
+schema_hash=30ddee6dfef5c60f3d30ae251048b99d673b9ccfce37631685c08ce153fb215f
+root_cargo_toml=unchanged
+pipeline_cargo_toml=unchanged
+cargo_lock=unchanged

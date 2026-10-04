@@ -1,0 +1,6 @@
+100644 blob b5e256b99f72df158672c476d3b7241380898159	contracts/pipeline/catalog-pg-cli-v1.md
+100644 blob cf8416936aec7f964833196a71bb80ebba75be9d	crates/oo-pipeline/src/bin/oo-pipeline.rs
+100644 blob 294ef7f363f481e1fae24e6e1355a7872afd41f0	crates/oo-pipeline/src/catalog_cli.rs
+100644 blob d94a62324fbac0290f36a10284d8f0652ab720a2	crates/oo-pipeline/src/import_cli.rs
+100644 blob bbd075dbc545e895c0c0f1f486668853cd45bb1f	crates/oo-pipeline/src/lib.rs
+100644 blob ddff83e4479678b3d509bd50f4a3526fbd2ea3c7	crates/oo-pipeline/tests/catalog_pg_cli_live.rs

@@ -1,0 +1,17 @@
+workspace_head=cf9bdb98e43d7702a81ff1214a678a8a69363b1e
+fixed=3fba40dd9fdebaa219ab4eb7fdb39b8fcf1a1e4a
+composition=git archive HEAD, pipeline matches fixed base, no catalog overlay
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a165-smoke
+network=oo-a165-eef831aa-net
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+host_ca_mounted=no
+private_ca=/tmp/oo-a165-eef831aa-dba4-4af2-a78b-541bc9e0a165/ca
+phases=toolchain fetch pipeline-lib import-cli pipeline-clippy

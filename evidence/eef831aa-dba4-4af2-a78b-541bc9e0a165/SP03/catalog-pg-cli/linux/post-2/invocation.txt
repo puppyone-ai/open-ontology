@@ -1,0 +1,17 @@
+workspace_head=a173c58a9f90a10b7853ddc1c3fcb74d1b0befa1
+composition=git archive HEAD plus owned catalog overlay
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a165-post-2
+network=oo-a165-eef831aa-net
+postgres_host=oo-a165-pg
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+password_env=no
+ca_mount=/private-ca/ca.crt
+phases=toolchain clippy-if-missing build-bins pipeline-lib import-cli catalog-cli pipeline-clippy captured-cli review-cli catalog-live

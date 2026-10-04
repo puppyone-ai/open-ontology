@@ -1,0 +1,43 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0599]: no function or associated item named `connect_with` found for struct `sqlx::PgConnection` in the current scope
+   --> crates/oo-pipeline/tests/catalog_pg_cli_live.rs:868:35
+    |
+868 |     sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+    |                                   ^^^^^^^^^^^^ function or associated item not found in `sqlx::PgConnection`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `Connection` which provides `connect_with` is implemented but not in scope; perhaps you want to import it
+    |
+  7 + use sqlx::Connection;
+    |
+help: there is an associated function `connect` with a similar name
+    |
+868 -     sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+868 +     sqlx::postgres::PgConnection::connect(&options).await.expect("dial")
+    |
+
+error[E0282]: type annotations needed
+   --> crates/oo-pipeline/tests/catalog_pg_cli_live.rs:868:5
+    |
+868 |     sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+Some errors have detailed explanations: E0282, E0599.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `oo-pipeline` (test "catalog_pg_cli_live") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
