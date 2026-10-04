@@ -10,9 +10,12 @@
 //! `full_import` is the unpublished full-import entry. It is not a publication.
 //! `import_cli` is the `import-pg` command. It calls that entry and does not
 //! install the target schema.
+//! `catalog_cli` is the `catalog-pg` command. It does not install a target
+//! schema or import rows.
 
 #![forbid(unsafe_code)]
 
+pub mod catalog_cli;
 pub mod copy_encoder;
 pub mod copy_sink;
 pub mod full_import;

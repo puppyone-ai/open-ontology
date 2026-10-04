@@ -6,6 +6,9 @@ fn main() -> ExitCode {
     let _argv0 = args.next();
     match args.next() {
         Some(command) if command == OsStr::new("import-pg") && args.next().is_none() => import_pg(),
+        Some(command) if command == OsStr::new("catalog-pg") && args.next().is_none() => {
+            catalog_pg()
+        }
         Some(_) | None => {
             eprintln!("oo-pipeline: usage");
             ExitCode::from(2)
@@ -16,6 +19,14 @@ fn main() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn import_pg() -> ExitCode {
     match oo_pipeline::import_cli::import_pg().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn catalog_pg() -> ExitCode {
+    match oo_pipeline::catalog_cli::catalog_pg().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }

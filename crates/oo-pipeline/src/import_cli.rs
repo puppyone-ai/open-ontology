@@ -162,7 +162,7 @@ fn render(summary: RunSummary) -> Result<String, Stop> {
     Ok(canonical_json(&value))
 }
 
-fn build_source(
+pub(crate) fn build_source(
     source: &SourceIn,
     password: String,
     ca: &[u8],
@@ -227,7 +227,7 @@ async fn expect_principal(
     }
 }
 
-fn source_budget(budget: Option<BudgetIn>) -> Result<PgBudget, Stop> {
+pub(crate) fn source_budget(budget: Option<BudgetIn>) -> Result<PgBudget, Stop> {
     let (connect_ms, statement_ms, lock_ms, max_rows, max_bytes) = match budget {
         None => (30_000, 60_000, 30_000, 10_000, 8_388_608),
         Some(item) => (
@@ -329,7 +329,7 @@ fn timeout_ms(ms: u64) -> Result<Duration, Stop> {
     }
 }
 
-fn from_source(err: SourceError) -> Stop {
+pub(crate) fn from_source(err: SourceError) -> Stop {
     let kind = match err.kind() {
         SourceErrorKind::Config => "config",
         SourceErrorKind::Connect => "connect",
@@ -436,12 +436,16 @@ fn physical_name(name: &str, prefix: &[u8]) -> bool {
 }
 
 fn read_stdin() -> Result<String, Stop> {
+    read_bounded_stdin("import input")
+}
+
+pub(crate) fn read_bounded_stdin(io_label: &'static str) -> Result<String, Stop> {
     let mut stdin = io::stdin();
     let mut buf = Vec::new();
     let mut chunk = [0_u8; 8192];
     let limit = oo_core::limits::DOCUMENT_MAX_BYTES;
     loop {
-        let read = stdin.read(&mut chunk).map_err(|_| Stop::Fixed("import input"))?;
+        let read = stdin.read(&mut chunk).map_err(|_| Stop::Fixed(io_label))?;
         if read == 0 {
             break;
         }
@@ -453,7 +457,7 @@ fn read_stdin() -> Result<String, Stop> {
     String::from_utf8(buf).map_err(|_| Stop::Fixed("invalid input"))
 }
 
-fn read_password(path: &str, label: &'static str) -> Result<String, Stop> {
+pub(crate) fn read_password(path: &str, label: &'static str) -> Result<String, Stop> {
     let bytes = read_bounded(path, 1026).map_err(|_| Stop::Fixed(label))?;
     let mut text = String::from_utf8(bytes).map_err(|_| Stop::Fixed(label))?;
     if text.ends_with("\r\n") {
@@ -467,7 +471,7 @@ fn read_password(path: &str, label: &'static str) -> Result<String, Stop> {
     Ok(text)
 }
 
-fn read_ca(path: &str, label: &'static str) -> Result<Vec<u8>, Stop> {
+pub(crate) fn read_ca(path: &str, label: &'static str) -> Result<Vec<u8>, Stop> {
     let bytes = read_bounded(path, 1024 * 1024).map_err(|_| Stop::Fixed(label))?;
     PgTlsConfig::from_ca_pem(&bytes).map_err(|_| Stop::Fixed(label))?;
     Ok(bytes)
@@ -554,14 +558,14 @@ fn push_string(out: &mut String, value: &str) {
     out.push('"');
 }
 
-enum Stop {
+pub(crate) enum Stop {
     Fixed(&'static str),
     Source { kind: &'static str, fact: &'static str },
     Noted(String),
 }
 
 impl Stop {
-    fn emit(self) {
+    pub(crate) fn emit(self) {
         match self {
             Self::Fixed(message) => eprintln!("oo-pipeline: {message}"),
             Self::Source { kind, fact } => eprintln!("oo-pipeline: source {kind} {fact}"),
@@ -640,18 +644,18 @@ struct Request {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SourceIn {
+pub(crate) struct SourceIn {
     source_id: String,
     host: String,
     port: u16,
     database: String,
     username: String,
     secret_ref: String,
-    password_file: String,
-    ca_file: String,
-    tables: Vec<TableIn>,
+    pub(crate) password_file: String,
+    pub(crate) ca_file: String,
+    pub(crate) tables: Vec<TableIn>,
     #[serde(default, deserialize_with = "strict_budget")]
-    budget: Option<BudgetIn>,
+    pub(crate) budget: Option<BudgetIn>,
 }
 
 #[derive(Deserialize)]
@@ -667,14 +671,14 @@ struct TargetIn {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct TableIn {
+pub(crate) struct TableIn {
     schema: String,
     table: String,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct BudgetIn {
+pub(crate) struct BudgetIn {
     connect_ms: u64,
     statement_ms: u64,
     lock_ms: u64,
