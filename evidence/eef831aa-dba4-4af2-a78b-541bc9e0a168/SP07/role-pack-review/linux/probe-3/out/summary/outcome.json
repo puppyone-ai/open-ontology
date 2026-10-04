@@ -1,0 +1,146 @@
+{
+  "ada2_cache": "oo.builder.role-pack-cache/v1|project=alpha|principal=ada2|role=oo_r_clerk|policy=pol-alpha@7|knowledge=know-alpha@3|ontology=ont-a168|catalog=cat-a168|compiler=oo-builder/role-pack/v1|pack=1005498c6345066a5f88fa1302185d02d2c8b3582831d7f7b1852a9c8be9f90f",
+  "ada2_digest": "1005498c6345066a5f88fa1302185d02d2c8b3582831d7f7b1852a9c8be9f90f",
+  "audit_cache": "oo.builder.role-pack-cache/v1|project=alpha|principal=cy|role=oo_r_audit|policy=pol-alpha@7|knowledge=know-alpha@3|ontology=ont-a168|catalog=cat-a168|compiler=oo-builder/role-pack/v1|pack=367aa80499d60d827df5aad30ad548560ec1a532d93ba0612182367508416f1d",
+  "audit_digest": "367aa80499d60d827df5aad30ad548560ec1a532d93ba0612182367508416f1d",
+  "audit_hits": {
+    "queue_note": [
+      {
+        "at": 146,
+        "path": "calendar.md",
+        "snippet": "nchors:\n\n- `month_start`\n- `today`\n\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_sta"
+      }
+    ],
+    "客户备注": [
+      {
+        "at": 181,
+        "path": "calendar.md",
+        "snippet": "\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_start .. today\n- 本月: month_start .. "
+      }
+    ]
+  },
+  "beta_cache": "oo.builder.role-pack-cache/v1|project=beta|principal=bea|role=oo_r_clerk|policy=pol-beta@1|knowledge=know-beta@1|ontology=ont-a168|catalog=cat-a168|compiler=oo-builder/role-pack/v1|pack=66b3300e79fcbe09d2f074c062a9e704a76c0e89ae3aeecd8eaac5c4a6c99a29",
+  "beta_digest": "66b3300e79fcbe09d2f074c062a9e704a76c0e89ae3aeecd8eaac5c4a6c99a29",
+  "beta_hits": {
+    "queue_note": [
+      {
+        "at": 146,
+        "path": "calendar.md",
+        "snippet": "nchors:\n\n- `month_start`\n- `today`\n\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_sta"
+      }
+    ],
+    "客户备注": [
+      {
+        "at": 181,
+        "path": "calendar.md",
+        "snippet": "\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_start .. today\n- 本月: month_start .. "
+      }
+    ]
+  },
+  "clerk_cache": "oo.builder.role-pack-cache/v1|project=alpha|principal=ada|role=oo_r_clerk|policy=pol-alpha@7|knowledge=know-alpha@3|ontology=ont-a168|catalog=cat-a168|compiler=oo-builder/role-pack/v1|pack=1005498c6345066a5f88fa1302185d02d2c8b3582831d7f7b1852a9c8be9f90f",
+  "clerk_digest": "1005498c6345066a5f88fa1302185d02d2c8b3582831d7f7b1852a9c8be9f90f",
+  "clerk_hits": {
+    "\"yard\".\"slip\"": [
+      {
+        "at": 164,
+        "path": "examples/verified.sql",
+        "snippet": " depot.shipment\nUNION ALL\nSELECT weight_kg FROM \"yard\".\"slip\"\n\n-- ex-weight\n-- verified_at: 2026-04-01\n-- how"
+      },
+      {
+        "at": 172,
+        "path": "glossary.md",
+        "snippet": " dataset `depot.shipment`\n\n## 引用隐藏\n\nsee \"yard\".\"slip\" and 客户备注\n\nmaps to dataset `depot.shipme"
+      },
+      {
+        "at": 475,
+        "path": "metrics.md",
+        "snippet": " depot.shipment\nUNION ALL\nSELECT weight_kg FROM \"yard\".\"slip\"\n```\n\n## weight_total — weight_total\n\nstatus: "
+      },
+      {
+        "at": 490,
+        "path": "tables/depot.shipment.md",
+        "snippet": "ote |  | none | unit queue_note 称重后对照 \"yard\".\"slip\" 的客户备注 |\n| `handle` |  |  | phone | pe"
+      }
+    ],
+    "ex-quoted": [
+      {
+        "at": 3,
+        "path": "examples/verified.sql",
+        "snippet": "-- ex-quoted\n-- verified_at: 2026-04-01\n-- how the hidden sl"
+      }
+    ],
+    "queue_note": [
+      {
+        "at": 146,
+        "path": "calendar.md",
+        "snippet": "nchors:\n\n- `month_start`\n- `today`\n\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_sta"
+      },
+      {
+        "at": 435,
+        "path": "tables/depot.shipment.md",
+        "snippet": "|  |  |  | none |  |\n| `weight_kg` |  | numeric queue_note |  | none | unit queue_note 称重后对照 \"ya"
+      },
+      {
+        "at": 463,
+        "path": "tables/depot.shipment.md",
+        "snippet": "ht_kg` |  | numeric queue_note |  | none | unit queue_note 称重后对照 \"yard\".\"slip\" 的客户备注 |"
+      }
+    ],
+    "quoted_mix": [
+      {
+        "at": 133,
+        "path": "metrics.md",
+        "snippet": "liation is not executed and is not claimed.\n\n## quoted_mix — quoted_mix\n\nstatus: `active`\nunit: kg\ndefau"
+      },
+      {
+        "at": 148,
+        "path": "metrics.md",
+        "snippet": "executed and is not claimed.\n\n## quoted_mix — quoted_mix\n\nstatus: `active`\nunit: kg\ndefault anchor: `mon"
+      }
+    ],
+    "客户备注": [
+      {
+        "at": 181,
+        "path": "calendar.md",
+        "snippet": "\nPhrases:\n\n- queue_note: month_start .. today\n- 客户备注: month_start .. today\n- 本月: month_start .. "
+      },
+      {
+        "at": 98,
+        "path": "examples/verified.sql",
+        "snippet": " hidden slip is referenced\nSELECT weight_kg AS \"客户备注\" FROM depot.shipment\nUNION ALL\nSELECT weight_kg"
+      },
+      {
+        "at": 190,
+        "path": "glossary.md",
+        "snippet": "ipment`\n\n## 引用隐藏\n\nsee \"yard\".\"slip\" and 客户备注\n\nmaps to dataset `depot.shipment`\n"
+      },
+      {
+        "at": 330,
+        "path": "metrics.md",
+        "snippet": " executed and is not claimed to match.\n\n```text\n客户备注 remains visible in this sentence\n```\n\n```sql\nSE"
+      },
+      {
+        "at": 409,
+        "path": "metrics.md",
+        "snippet": " this sentence\n```\n\n```sql\nSELECT weight_kg AS \"客户备注\" FROM depot.shipment\nUNION ALL\nSELECT weight_kg"
+      },
+      {
+        "at": 507,
+        "path": "tables/depot.shipment.md",
+        "snippet": "nit queue_note 称重后对照 \"yard\".\"slip\" 的客户备注 |\n| `handle` |  |  | phone | personal | Samples"
+      }
+    ],
+    "引用隐藏": [
+      {
+        "at": 154,
+        "path": "glossary.md",
+        "snippet": "ment term\n\nmaps to dataset `depot.shipment`\n\n## 引用隐藏\n\nsee \"yard\".\"slip\" and 客户备注\n\nmaps to da"
+      }
+    ]
+  },
+  "problems": [
+    "clerk leaked {\"\\\"yard\\\".\\\"slip\\\"\":[{\"at\":164,\"path\":\"examples/verified.sql\",\"snippet\":\" depot.shipment\\nUNION ALL\\nSELECT weight_kg FROM \\\"yard\\\".\\\"slip\\\"\\n\\n-- ex-weight\\n-- verified_at: 2026-04-01\\n-- how\"},{\"at\":172,\"path\":\"glossary.md\",\"snippet\":\" dataset `depot.shipment`\\n\\n## 引用隐藏\\n\\nsee \\\"yard\\\".\\\"slip\\\" and 客户备注\\n\\nmaps to dataset `depot.shipme\"},{\"at\":475,\"path\":\"metrics.md\",\"snippet\":\" depot.shipment\\nUNION ALL\\nSELECT weight_kg FROM \\\"yard\\\".\\\"slip\\\"\\n```\\n\\n## weight_total — weight_total\\n\\nstatus: \"},{\"at\":490,\"path\":\"tables/depot.shipment.md\",\"snippet\":\"ote |  | none | unit queue_note 称重后对照 \\\"yard\\\".\\\"slip\\\" 的客户备注 |\\n| `handle` |  |  | phone | pe\"}],\"ex-quoted\":[{\"at\":3,\"path\":\"examples/verified.sql\",\"snippet\":\"-- ex-quoted\\n-- verified_at: 2026-04-01\\n-- how the hidden sl\"}],\"queue_note\":[{\"at\":146,\"path\":\"calendar.md\",\"snippet\":\"nchors:\\n\\n- `month_start`\\n- `today`\\n\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_sta\"},{\"at\":435,\"path\":\"tables/depot.shipment.md\",\"snippet\":\"|  |  |  | none |  |\\n| `weight_kg` |  | numeric queue_note |  | none | unit queue_note 称重后对照 \\\"ya\"},{\"at\":463,\"path\":\"tables/depot.shipment.md\",\"snippet\":\"ht_kg` |  | numeric queue_note |  | none | unit queue_note 称重后对照 \\\"yard\\\".\\\"slip\\\" 的客户备注 |\"}],\"quoted_mix\":[{\"at\":133,\"path\":\"metrics.md\",\"snippet\":\"liation is not executed and is not claimed.\\n\\n## quoted_mix — quoted_mix\\n\\nstatus: `active`\\nunit: kg\\ndefau\"},{\"at\":148,\"path\":\"metrics.md\",\"snippet\":\"executed and is not claimed.\\n\\n## quoted_mix — quoted_mix\\n\\nstatus: `active`\\nunit: kg\\ndefault anchor: `mon\"}],\"客户备注\":[{\"at\":181,\"path\":\"calendar.md\",\"snippet\":\"\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_start .. today\\n- 本月: month_start .. \"},{\"at\":98,\"path\":\"examples/verified.sql\",\"snippet\":\" hidden slip is referenced\\nSELECT weight_kg AS \\\"客户备注\\\" FROM depot.shipment\\nUNION ALL\\nSELECT weight_kg\"},{\"at\":190,\"path\":\"glossary.md\",\"snippet\":\"ipment`\\n\\n## 引用隐藏\\n\\nsee \\\"yard\\\".\\\"slip\\\" and 客户备注\\n\\nmaps to dataset `depot.shipment`\\n\"},{\"at\":330,\"path\":\"metrics.md\",\"snippet\":\" executed and is not claimed to match.\\n\\n```text\\n客户备注 remains visible in this sentence\\n```\\n\\n```sql\\nSE\"},{\"at\":409,\"path\":\"metrics.md\",\"snippet\":\" this sentence\\n```\\n\\n```sql\\nSELECT weight_kg AS \\\"客户备注\\\" FROM depot.shipment\\nUNION ALL\\nSELECT weight_kg\"},{\"at\":507,\"path\":\"tables/depot.shipment.md\",\"snippet\":\"nit queue_note 称重后对照 \\\"yard\\\".\\\"slip\\\" 的客户备注 |\\n| `handle` |  |  | phone | personal | Samples\"}],\"引用隐藏\":[{\"at\":154,\"path\":\"glossary.md\",\"snippet\":\"ment term\\n\\nmaps to dataset `depot.shipment`\\n\\n## 引用隐藏\\n\\nsee \\\"yard\\\".\\\"slip\\\" and 客户备注\\n\\nmaps to da\"}]}",
+    "audit missing [] leaked {\"queue_note\":[{\"at\":146,\"path\":\"calendar.md\",\"snippet\":\"nchors:\\n\\n- `month_start`\\n- `today`\\n\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_sta\"}],\"客户备注\":[{\"at\":181,\"path\":\"calendar.md\",\"snippet\":\"\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_start .. today\\n- 本月: month_start .. \"}]}",
+    "beta missing [] leaked {\"queue_note\":[{\"at\":146,\"path\":\"calendar.md\",\"snippet\":\"nchors:\\n\\n- `month_start`\\n- `today`\\n\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_sta\"}],\"客户备注\":[{\"at\":181,\"path\":\"calendar.md\",\"snippet\":\"\\nPhrases:\\n\\n- queue_note: month_start .. today\\n- 客户备注: month_start .. today\\n- 本月: month_start .. \"}]}"
+  ]
+}

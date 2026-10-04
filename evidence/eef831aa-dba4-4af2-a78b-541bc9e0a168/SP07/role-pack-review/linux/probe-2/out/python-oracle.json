@@ -1,0 +1,14 @@
+{
+  "clerk": {
+    "present": false
+  },
+  "audit": {
+    "present": false
+  },
+  "beta": {
+    "present": false
+  },
+  "ada2": {
+    "present": false
+  }
+}

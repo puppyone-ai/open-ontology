@@ -1,0 +1,2 @@
+039c2da0303643d17d4336e246464696e6a35a64502a5719948e926284704c18  crates/oo-builder/src/role_pack.rs
+8e138d4f3aaadd32f5b09ba05d97bf44c312e68f647cc64d6b912a855bc36cd1  crates/oo-builder/src/lib.rs

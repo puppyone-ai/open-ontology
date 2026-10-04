@@ -1,0 +1,1 @@
+oo.builder.role-pack-cache/v1|project=alpha|principal=ada|role=oo_r_clerk|policy=pol-alpha@7|knowledge=know-alpha@3|ontology=ont-a168|catalog=cat-a168|compiler=oo-builder/role-pack/v1|pack=1005498c6345066a5f88fa1302185d02d2c8b3582831d7f7b1852a9c8be9f90f

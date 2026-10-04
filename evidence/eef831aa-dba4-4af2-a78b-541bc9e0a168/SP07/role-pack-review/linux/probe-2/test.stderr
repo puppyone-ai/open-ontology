@@ -1,0 +1,5 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running tests/role_pack.rs (/target/debug/deps/role_pack-ceb7bedc5b55ffa8)
+     Running tests/role_pack_a168_review.rs (/target/debug/deps/role_pack_a168_review-0eab1c1b9473218f)
+error: test failed, to rerun pass `-p oo-builder --test role_pack_a168_review`
