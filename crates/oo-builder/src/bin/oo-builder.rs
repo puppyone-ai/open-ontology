@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use oo_builder::{
     CapturedPgDraft, DraftError, EVIDENCE_PROTOCOL, compile_captured_pg_catalog,
-    compile_structure_draft,
+    compile_role_pack_command, compile_structure_draft,
 };
 use oo_core::limits::DOCUMENT_MAX_BYTES;
 use serde::Deserialize;
@@ -16,7 +16,7 @@ fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         None => {
-            // The entry implements the three draft commands below. The old
+            // The entry implements the commands listed by usage. The old
             // SP00-W01 skeleton sentence said this entry was not implemented.
             usage();
             ExitCode::from(2)
@@ -72,6 +72,27 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Some("role-pack") => {
+            if args.next().is_some() {
+                eprintln!(
+                    "oo-builder: role-pack reads one oo.builder.role-pack-command/v1 JSON document from stdin and takes no arguments"
+                );
+                return ExitCode::from(2);
+            }
+            match read_stdin() {
+                Ok(text) => match compile_role_pack_command(&text) {
+                    Ok(bytes) => write_command("role-pack", &bytes),
+                    Err(err) => {
+                        eprintln!("oo-builder: role-pack: {} {}", err.code, err.message);
+                        ExitCode::from(1)
+                    }
+                },
+                Err(err) => {
+                    eprintln!("oo-builder: role-pack: {} {}", err.code, err.message);
+                    ExitCode::from(1)
+                }
+            }
+        }
         Some(_) => {
             eprintln!("oo-builder: unknown command");
             ExitCode::from(2)
@@ -91,6 +112,16 @@ fn usage() {
     );
     eprintln!(
         "oo-builder: review-pg-draft passes those values to compile_captured_pg_catalog"
+    );
+    eprintln!("oo-builder:   role-pack             one oo.builder.role-pack-command/v1 document");
+    eprintln!(
+        "oo-builder: role-pack passes effective_oos and visibility to compile_role_pack"
+    );
+    eprintln!(
+        "oo-builder: the visibility object is caller-supplied public data, not a live permission proof"
+    );
+    eprintln!(
+        "oo-builder: role-pack does not write a file, mount a pack, authenticate, grant, or publish"
     );
     eprintln!(
         "oo-builder: these commands do not connect, call a model, import rows, grant, certify, or publish"
