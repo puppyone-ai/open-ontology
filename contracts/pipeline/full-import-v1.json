@@ -1,0 +1,22 @@
+{
+  "contract": "oo.pipeline.full-import/v1",
+  "schema_version": "full-import/v1",
+  "phase": "expand",
+  "filename": "0005_full_import_expand.sql",
+  "sha256": "a9cef2013019784857353ff4fe060350d71a4e9ac4ab18551b992a7a9b52ecb6",
+  "backend_visibility": "oo_target_owner is NOINHERIT. install_full_import grants pg_read_all_stats WITH INHERIT TRUE, SET FALSE so the security-definer fence can read the caller backend_start. 0005 refuses unless that usage is present. Runtime and Agent are not members. The grant is not the fence.",
+  "installed_by": "install_full_import",
+  "readiness": "verify_full_import_readiness",
+  "entry": "import_unpublished",
+  "success_state": "awaiting_publish",
+  "publication_created": false,
+  "permissions_granted_to_agent": false,
+  "atomic_commit": ["shadow copy", "masked quality", "apply receipt"],
+  "separate_later": ["control mirror", "job", "stream acknowledgement"],
+  "fence": "one target connection holds the shard advisory lock, owner, generation, and backend identity for every write and commit",
+  "position_column": "_oo_pos",
+  "position_type": "numeric(38,0)",
+  "position_origin": 0,
+  "replay": "same batch id and same payload digest is not a second copy; a different payload aborts the data, quality, and receipt transaction with OO010",
+  "recovery": "an ambiguous commit is resolved by the stored receipt identity"
+}

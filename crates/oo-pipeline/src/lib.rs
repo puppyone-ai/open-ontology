@@ -6,9 +6,13 @@
 //! `physical_mapping` binds a `pgident/v1` logical name to a stored PostgreSQL identifier.
 //! It does not write user data, shadows, or receipts, and it is not the Loader.
 //! `copy_encoder` emits bounded COPY binary rows and is not the Loader.
+//! `copy_sink` sends those bytes on the caller's connection.
+//! `full_import` is the unpublished full-import entry. It is not a publication.
 
 #![forbid(unsafe_code)]
 
 pub mod copy_encoder;
+pub mod copy_sink;
+pub mod full_import;
 pub mod physical_mapping;
 pub mod target_installer;

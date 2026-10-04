@@ -10,9 +10,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use oo_pipeline::target_installer::{
-    compiled_digests, install, sha256_hex, verify_readiness, InstallError, InstallOutcome,
-    ReadinessError, HISTORICAL_V2_SHA256, VERSION_BOOTSTRAP, VERSION_FENCE, VERSION_MAPPING,
-    VERSION_PREFLIGHT, VERSION_SEGMENT_V2,
+    compiled_digests, compiled_full_import_digest, install, install_full_import, sha256_hex,
+    verify_full_import_readiness, verify_readiness, FullImportInstallOutcome, InstallError,
+    InstallOutcome, ReadinessError, HISTORICAL_V2_SHA256, VERSION_BOOTSTRAP, VERSION_FENCE,
+    VERSION_FULL_IMPORT, VERSION_MAPPING, VERSION_PREFLIGHT, VERSION_SEGMENT_V2,
 };
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::Connection;
@@ -228,6 +229,90 @@ async fn production_installer_on_one_postgres() {
     }
     report.push_str("fail=OO021\nfail_unchanged=1\nfail_ready=incomplete\n");
     drop(failed);
+
+    reset(&mut admin).await;
+    let mut bad_full = created(&host, port, &user, &password, &mut admin, "oo_a154_bad").await;
+    assert_eq!(
+        install(&mut bad_full).await.expect("0005 base"),
+        InstallOutcome::Bootstrapped
+    );
+    raw(
+        &mut bad_full,
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES ('full-import/v1', 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'expand', '0005_full_import_expand.sql')",
+    )
+    .await;
+    let bad_full_before = migration_text(&mut bad_full).await;
+    match install_full_import(&mut bad_full).await {
+        Err(err) => {
+            assert_eq!(err.sqlstate(), Some("OO001"), "{err}");
+            assert_eq!(err.version(), Some(VERSION_FULL_IMPORT));
+        }
+        Ok(outcome) => panic!("bad 0005 installed: {outcome}"),
+    }
+    assert_eq!(migration_text(&mut bad_full).await, bad_full_before);
+    assert_eq!(checksum_of(&bad_full_before, VERSION_FULL_IMPORT), LIE);
+    verify_readiness(&mut bad_full).await.expect("0004 readiness ignores 0005");
+    match verify_full_import_readiness(&mut bad_full).await {
+        Err(ReadinessError::ChecksumMismatch { version, stored }) => {
+            assert_eq!(version, VERSION_FULL_IMPORT);
+            assert_eq!(stored, LIE);
+        }
+        other => panic!("bad 0005 readiness: {other:?}"),
+    }
+    report.push_str("full_import_oo001=OO001\nfull_import_oo001_unchanged=1\n");
+    drop(bad_full);
+
+    reset(&mut admin).await;
+    let mut full = created(&host, port, &user, &password, &mut admin, "oo_a154_ok").await;
+    assert_eq!(
+        install(&mut full).await.expect("0005 fresh"),
+        InstallOutcome::Bootstrapped
+    );
+    match verify_full_import_readiness(&mut full).await {
+        Err(ReadinessError::Incomplete) => {}
+        other => panic!("0005 before install: {other:?}"),
+    }
+    let stamped = migration_text(&mut full).await;
+    assert_eq!(
+        install_full_import(&mut full).await.expect("0005 install"),
+        FullImportInstallOutcome::Installed
+    );
+    assert_eq!(
+        install_full_import(&mut full).await.expect("0005 replay"),
+        FullImportInstallOutcome::Replay
+    );
+    let expanded = migration_text(&mut full).await;
+    for version in [VERSION_BOOTSTRAP, VERSION_FENCE, VERSION_PREFLIGHT, VERSION_MAPPING] {
+        assert_eq!(applied_at_of(&stamped, version), applied_at_of(&expanded, version));
+    }
+    assert_eq!(checksum_of(&expanded, VERSION_FULL_IMPORT), compiled_full_import_digest());
+    assert_eq!(install(&mut full).await.expect("0004 replay"), InstallOutcome::Replay);
+    assert_eq!(migration_text(&mut full).await, expanded);
+    let full_ready = verify_full_import_readiness(&mut full).await.expect("0005 ready");
+    assert_eq!(full_ready.digest(), compiled_full_import_digest());
+    let runtime_password = hex_bytes(&read_random(16));
+    exec(
+        &mut full,
+        "CREATE ROLE oo_a154_runtime LOGIN PASSWORD '",
+        &runtime_password,
+        "' NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOBYPASSRLS NOREPLICATION",
+    )
+    .await;
+    raw(&mut full, "GRANT oo_pipeline_runtime TO oo_a154_runtime").await;
+    let mut full_runtime = connect(&host, port, "oo_a154_runtime", &runtime_password, "oo_a154_ok").await;
+    verify_full_import_readiness(&mut full_runtime)
+        .await
+        .expect("runtime 0005 readiness");
+    match install_full_import(&mut full_runtime).await {
+        Err(InstallError::NotAdministrator) => {}
+        other => panic!("runtime 0005 install: {other:?}"),
+    }
+    drop(full_runtime);
+    assert_eq!(migration_text(&mut full).await, expanded);
+    assert!(logged_full(&mut full).await.contains("full_import_run=p"));
+    assert!(logged_full(&mut full).await.contains("full_import_quality=p"));
+    report.push_str("full_import_installed=1\nfull_import_replay=1\nfull_import_runtime_install=not_administrator\n");
+    drop(full);
     reset(&mut admin).await;
     report.push_str("installer_live_ok\n");
     fs::write(evidence.join("outcome.txt"), &report).expect("outcome");
@@ -302,9 +387,24 @@ async fn created(
 }
 
 async fn reset(admin: &mut PgConnection) {
-    for name in ["oo_a150_empty", "oo_a150_v1", "oo_a150_v2", "oo_a150_miss", "oo_a150_bad", "oo_a150_fail"] {
+    for name in [
+        "oo_a150_empty",
+        "oo_a150_v1",
+        "oo_a150_v2",
+        "oo_a150_miss",
+        "oo_a150_bad",
+        "oo_a150_fail",
+        "oo_a154_bad",
+        "oo_a154_ok",
+        "oo_a154_src",
+        "oo_a154_dst",
+    ] {
         raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
     }
+    raw(admin, "DROP ROLE IF EXISTS oo_a154_runtime").await;
+    raw(admin, "DROP ROLE IF EXISTS oo_a154_reader").await;
+    raw(admin, "DROP ROLE IF EXISTS oo_a154_writer").await;
+    raw(admin, "DROP ROLE IF EXISTS oo_a154_agent").await;
     raw(admin, "DROP ROLE IF EXISTS oo_a150_runtime").await;
     raw(admin, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;
     raw(admin, "DROP ROLE IF EXISTS oo_target_owner").await;
@@ -386,6 +486,14 @@ async fn logged(conn: &mut PgConnection) -> String {
     scalar(
         conn,
         "SELECT string_agg(relation.relname || '=' || relation.relpersistence::text, E'\\n' ORDER BY relation.relname) || E'\\n' FROM pg_catalog.pg_class AS relation JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace WHERE namespace.nspname = '_oo' AND relation.relname IN ('schema_migrations', 'migration_lock', 'target_generations', 'apply_receipts', 'physical_mappings')",
+    )
+    .await
+}
+
+async fn logged_full(conn: &mut PgConnection) -> String {
+    scalar(
+        conn,
+        "SELECT string_agg(relation.relname || '=' || relation.relpersistence::text, E'\\n' ORDER BY relation.relname) || E'\\n' FROM pg_catalog.pg_class AS relation JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace WHERE namespace.nspname = '_oo' AND relation.relname IN ('full_import_session', 'full_import_run', 'full_import_table', 'full_import_quality')",
     )
     .await
 }

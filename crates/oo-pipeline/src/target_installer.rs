@@ -33,6 +33,11 @@ pub const VERSION_PREFLIGHT: &str = "target-fence-receipts/3";
 /// Mapping version stored for `0004_physical_mapping.sql`.
 pub const VERSION_MAPPING: &str = "physical-mapping/v1";
 
+/// Full-import version stored for `0005_full_import_expand.sql`.
+///
+/// `install` does not apply this version. [`install_full_import`] does.
+pub const VERSION_FULL_IMPORT: &str = "full-import/v1";
+
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
 ///
 /// A stored v2 row must match this digest. The file is not compiled into the
@@ -45,11 +50,13 @@ const FILE_FENCE: &str = "0001_target_fence_expand.sql";
 const FILE_SEGMENT_V2: &str = "0002_target_segment_null_expand.sql";
 const FILE_PREFLIGHT: &str = "0003_target_segment_preflight_expand.sql";
 const FILE_MAPPING: &str = "0004_physical_mapping.sql";
+const FILE_FULL_IMPORT: &str = "0005_full_import_expand.sql";
 
 const SCRIPT_BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const SCRIPT_FENCE: &str = include_str!("../migrations/0001_target_fence_expand.sql");
 const SCRIPT_PREFLIGHT: &str = include_str!("../migrations/0003_target_segment_preflight_expand.sql");
 const SCRIPT_MAPPING: &str = include_str!("../migrations/0004_physical_mapping.sql");
+const SCRIPT_FULL_IMPORT: &str = include_str!("../migrations/0005_full_import_expand.sql");
 
 const LOCK_SQL: &str = "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)";
 const ROW_LOCK_SQL: &str = "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE";
@@ -101,6 +108,11 @@ pub fn compiled_digests() -> CompiledDigests {
         preflight: sha256_hex(SCRIPT_PREFLIGHT.as_bytes()),
         mapping: sha256_hex(SCRIPT_MAPPING.as_bytes()),
     }
+}
+
+/// SHA-256 of `0005_full_import_expand.sql`. This is not part of [`compiled_digests`].
+pub fn compiled_full_import_digest() -> String {
+    sha256_hex(SCRIPT_FULL_IMPORT.as_bytes())
 }
 
 /// Lowercase hex SHA-256. This is the migration checksum function.
@@ -299,6 +311,37 @@ impl fmt::Display for ReadinessError {
 
 impl std::error::Error for ReadinessError {}
 
+/// What one successful [`install_full_import`] call did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FullImportInstallOutcome {
+    /// `0005` ran and its marker was inserted. `0000` through `0004` were not rewritten.
+    Installed,
+    /// The stored `full-import/v1` row already matches. No script ran.
+    Replay,
+}
+
+impl fmt::Display for FullImportInstallOutcome {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Installed => "installed",
+            Self::Replay => "replay",
+        })
+    }
+}
+
+/// `0005` readiness. Schema setup is not a finished import.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedFullImport {
+    digest: String,
+}
+
+impl VerifiedFullImport {
+    /// Compiled digest of `0005_full_import_expand.sql`.
+    pub fn digest(&self) -> &str {
+        &self.digest
+    }
+}
+
 /// Install or replay the frozen target schema.
 ///
 /// `conn` must be idle. Bootstrap needs a superuser. An upgrade needs a
@@ -440,6 +483,209 @@ pub async fn verify_readiness(
         digests,
         retains_historical_v2,
     })
+}
+
+/// Install `0005` after the production rows are exact.
+///
+/// This does not call [`install`] and does not change `0000` through `0004`.
+/// A stored `full-import/v1` checksum that differs raises `OO001` and does not
+/// update the row. An exact row is a replay.
+pub async fn install_full_import(
+    conn: &mut PgConnection,
+) -> Result<FullImportInstallOutcome, InstallError> {
+    let digest = compiled_full_import_digest();
+    let digests = compiled_digests();
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        return rollback_full(tx, err).await;
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => return rollback_full(tx, err).await,
+    };
+    let rows = if catalog.migrations {
+        match read_rows(&mut tx).await {
+            Ok(rows) => rows,
+            Err(err) => return rollback_full(tx, err).await,
+        }
+    } else {
+        Vec::new()
+    };
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return mismatch(tx, hit).await;
+    }
+    if let Some(row) = find_row(&rows, VERSION_FULL_IMPORT) {
+        if !row_exact(row, VERSION_FULL_IMPORT, &digest, FILE_FULL_IMPORT) {
+            return mismatch(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        if let Err(err) = grant_caller_backend_visibility(&mut tx, principal.superuser).await {
+            return rollback_full(tx, err).await;
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(FullImportInstallOutcome::Replay);
+    }
+    if !production_exact(&rows, &digests) {
+        return rollback_full(
+            tx,
+            InstallError::Refused {
+                message: "full import requires the production target schema".to_string(),
+            },
+        )
+        .await;
+    }
+    if let Err(err) = grant_caller_backend_visibility(&mut tx, principal.superuser).await {
+        return rollback_full(tx, err).await;
+    }
+    if let Err(err) = exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await {
+        return rollback_full(tx, err).await;
+    }
+    if let Err(err) = exec_script(&mut tx, SCRIPT_FULL_IMPORT).await {
+        return rollback_full(tx, err).await;
+    }
+    if let Err(err) = insert_markers(
+        &mut tx,
+        &[marker(VERSION_FULL_IMPORT, &digest, FILE_FULL_IMPORT)],
+    )
+    .await
+    {
+        return rollback_full(tx, err).await;
+    }
+    tx.commit().await.map_err(database_error)?;
+    Ok(FullImportInstallOutcome::Installed)
+}
+
+/// Compare the production rows and the `full-import/v1` row with the compiled files.
+///
+/// This does not install, `SET ROLE`, or take the migration lock.
+pub async fn verify_full_import_readiness(
+    conn: &mut PgConnection,
+) -> Result<VerifiedFullImport, ReadinessError> {
+    let mut tx = conn.begin().await.map_err(readiness_database)?;
+    if let Err(err) = exec_static(&mut tx, "SET TRANSACTION READ ONLY").await {
+        let _ = tx.rollback().await;
+        return Err(readiness_from_install(err));
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => {
+            let _ = tx.rollback().await;
+            return Err(readiness_from_install(err));
+        }
+    };
+    if !catalog.migrations {
+        let _ = tx.rollback().await;
+        return Err(ReadinessError::NotInstalled);
+    }
+    let rows = match read_rows(&mut tx).await {
+        Ok(rows) => rows,
+        Err(err) => {
+            let _ = tx.rollback().await;
+            return Err(readiness_from_install(err));
+        }
+    };
+    tx.commit().await.map_err(readiness_database)?;
+    let digests = compiled_digests();
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return Err(ReadinessError::ChecksumMismatch {
+            version: hit.version,
+            stored: hit.stored,
+        });
+    }
+    if !production_exact(&rows, &digests) {
+        return Err(ReadinessError::Incomplete);
+    }
+    let digest = compiled_full_import_digest();
+    match find_row(&rows, VERSION_FULL_IMPORT) {
+        Some(row) if row_exact(row, VERSION_FULL_IMPORT, &digest, FILE_FULL_IMPORT) => {
+            Ok(VerifiedFullImport { digest })
+        }
+        Some(row) => Err(ReadinessError::ChecksumMismatch {
+            version: row.version.clone(),
+            stored: row.checksum.clone(),
+        }),
+        None => Err(ReadinessError::Incomplete),
+    }
+}
+
+async fn prepare_locked(
+    conn: &mut sqlx::PgConnection,
+    principal: &Principal,
+) -> Result<(), InstallError> {
+    exec_static(conn, "SET LOCAL lock_timeout = '15s'").await?;
+    exec_static(conn, "SET LOCAL statement_timeout = '60s'").await?;
+    if !principal.superuser {
+        exec_static(conn, "SET LOCAL ROLE oo_target_owner").await?;
+    }
+    exec_static(conn, LOCK_SQL).await?;
+    let catalog = read_catalog(conn).await?;
+    if catalog.migration_lock {
+        exec_static(conn, ROW_LOCK_SQL).await?;
+    }
+    Ok(())
+}
+
+async fn grant_caller_backend_visibility(
+    conn: &mut PgConnection,
+    superuser: bool,
+) -> Result<(), InstallError> {
+    if superuser {
+        return exec_static(
+            conn,
+            "GRANT pg_read_all_stats TO oo_target_owner WITH INHERIT TRUE, SET FALSE",
+        )
+        .await;
+    }
+    let visible: bool = sqlx::query_scalar("SELECT pg_catalog.pg_has_role('pg_read_all_stats', 'member')")
+        .fetch_one(&mut *conn)
+        .await
+        .map_err(database_error)?;
+    if visible {
+        Ok(())
+    } else {
+        Err(InstallError::Refused {
+            message: "oo_target_owner cannot read the caller backend identity".to_string(),
+        })
+    }
+}
+
+async fn rollback_full(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    err: InstallError,
+) -> Result<FullImportInstallOutcome, InstallError> {
+    let _ = tx.rollback().await;
+    Err(err)
+}
+
+async fn mismatch(
+    mut tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    hit: Mismatch,
+) -> Result<FullImportInstallOutcome, InstallError> {
+    let raised = exec_static(&mut tx, RAISE_OO001).await;
+    let _ = tx.rollback().await;
+    match raised {
+        Err(InstallError::Database { sqlstate, .. }) if sqlstate == "OO001" => {
+            Err(InstallError::ChecksumMismatch {
+                version: hit.version,
+                stored: hit.stored,
+            })
+        }
+        Err(err) => Err(err),
+        Ok(()) => Err(InstallError::Refused {
+            message: "checksum mismatch did not raise OO001".to_string(),
+        }),
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -925,6 +1171,18 @@ mod tests {
         assert_eq!(SCRIPT_PREFLIGHT.matches(ABSENT_MESSAGE).count(), 3);
         assert!(!SCRIPT_BOOTSTRAP.contains("GRANT oo_target_owner TO oo_pipeline_runtime"));
         assert!(!SCRIPT_MAPPING.contains("COPY "));
+    }
+
+    #[test]
+    fn full_import_digest_matches_the_contract_file() {
+        let digest = compiled_full_import_digest();
+        assert_eq!(digest.len(), 64);
+        assert!(digest.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert_ne!(digest, compiled_digests().mapping());
+        assert!(!SCRIPT_FULL_IMPORT.contains("COPY "));
+        let contract = include_str!("../../../contracts/pipeline/full-import-v1.json");
+        assert!(contract.contains(&digest));
+        assert!(!contract.contains("37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208"));
     }
 
     #[test]
