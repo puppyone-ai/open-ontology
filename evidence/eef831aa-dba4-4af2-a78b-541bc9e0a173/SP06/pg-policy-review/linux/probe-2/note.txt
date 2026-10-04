@@ -1,0 +1,6 @@
+The public TLS check passed. Clippy on the library and this harness exited 0.
+The row-filter refusal matched RowFilterRefused, then the harness asserted xact_commit delta 1.
+On this PostgreSQL 17.10 the counter stayed flat across back-to-back reads: delta 0.
+pg_stat_database publishes the backend's counters at a flush, not at the next statement.
+That is a harness measurement bug. The product returned the pure refusal. No role was created because the test stopped at the delta assert, before the role-absence check.
+probe-3 reads the counters after SELECT pg_stat_force_next_flush() on both sides.

@@ -1,0 +1,18 @@
+version|17.10 (Debian 17.10-1.pgdg12+1)
+ssl|false
+role|oo_a173_grantor|true|true|true|true|true|true|true
+role|oo_a173_session|true|false|false|false|true|false|false
+role|oo_r_picker|false|false|false|false|false|false|false
+role|oo_r_scribe|false|false|false|false|false|false|false
+oo_r|oo_r_picker
+oo_r|oo_r_scribe
+map|c|ward|visit|mrn|pc_1aebc0fbc6985eb0e711aaabcc312426ba5304d45295617dd6e39f46e79d
+map|c|ward|visit|visit_id|pc_c2dfff4fcdb51e42cb605ec5ce73ab4cbffad2f79b4f9d0efdd14c33a0c0
+map|c|ward|visit|wing|pc_4fa8dab5fa59b5037a072aa85a784044ba6846ead130cdcf35bbf4059319
+map|n|ward|||pn_d2fc34b853d2d9e468bf44a1d7f3e7e133a0e0b591bf0c77011f62a3091f
+map|t|ward|visit||pt_f79809783ebf2a7dfb549c414d95e4a05169de72684566385f1ebd09fa6b
+migrations|full-import/v1|oo_target_owner
+migrations|physical-mapping/v1|oo_target_owner
+migrations|target-bootstrap/1|oo_target_owner
+migrations|target-fence-receipts/1|oo_target_owner
+migrations|target-fence-receipts/3|oo_target_owner

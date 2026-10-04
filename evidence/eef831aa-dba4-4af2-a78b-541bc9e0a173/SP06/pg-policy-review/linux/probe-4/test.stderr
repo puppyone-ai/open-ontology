@@ -1,0 +1,3 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running tests/policy_pg_a173_review.rs (/target/debug/deps/policy_pg_a173_review-27b1cd4e83271e81)

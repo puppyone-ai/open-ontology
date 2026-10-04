@@ -1,0 +1,1 @@
+catalog-map.txt is a local-socket psql as oo_a173_grantor after the Rust test returned. pg_hba allows local trust and hostssl only, so this connection is not TLS and pg_stat_ssl.ssl is false here. The reviewed sessions are the ones in live/oracle.txt: admin_tls=true and reader_tls=true.

@@ -1,0 +1,10 @@
+ExitCode=101
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a173-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=8589934592
+PortBindings={}
+Tmpfs={"/tmp":"rw,nosuid,nodev,noexec,size=1g"}
+Id=22da31f79e432c2696c12ad2f22c214886101dbcd53594cf569dae288f73bc65

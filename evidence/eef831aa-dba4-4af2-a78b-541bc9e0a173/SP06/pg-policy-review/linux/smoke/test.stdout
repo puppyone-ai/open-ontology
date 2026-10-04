@@ -1,0 +1,10 @@
+
+running 5 tests
+test policy::tests::a_confirmed_allowlist_compiles_to_one_nologin_role ... ok
+test policy::tests::an_empty_allowlist_is_refused ... ok
+test policy::tests::identifiers_reject_sql_and_the_owner_role ... ok
+test policy::tests::row_filter_is_refused_without_a_partial_allowlist ... ok
+test policy::tests::unknown_pii_and_unclassified_columns_are_refused ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

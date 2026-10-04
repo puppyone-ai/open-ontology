@@ -1,0 +1,6 @@
+135:pub fn is_gateway_postgres_stack(name: &str) -> bool {
+136:    matches!(
+137:        name,
+138:        "tokio-postgres" | "postgres-types" | "postgres-protocol" | "deadpool-postgres"
+139:    )
+140:}

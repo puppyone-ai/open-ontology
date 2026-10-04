@@ -1,0 +1,8 @@
+
+running 3 tests
+test check::tests::dev_only_gateway_pipeline_is_forbidden ... ok
+test check::tests::gateway_postgres_stack_is_allowed ... ok
+test check::tests::gateway_sync_postgres_and_sqlx_are_forbidden ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.23s
+

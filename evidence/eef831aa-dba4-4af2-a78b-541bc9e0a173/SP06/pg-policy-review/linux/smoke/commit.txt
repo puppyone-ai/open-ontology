@@ -1,0 +1,15 @@
+d3429726618a4e69ada7fb35131f9043a21e23e9
+285f4d2f3e3ea45f0a3d070ef6e3652c5ed10b52
+d61945f1ae66f9d3b35666385cc9d94d5d4ae08a
+subject=gateway: install a scoped column ACL on a trusted TLS session
+author_date=2026-10-05T05:29:22+08:00
+parent=d61945f1ae66f9d3b35666385cc9d94d5d4ae08a
+--- stat vs parent ---
+ Cargo.lock                                | 278 ++++++++-
+ contracts/gateway/pg-policy-v1.md         |  38 ++
+ crates/oo-gateway/Cargo.toml              |  15 +-
+ crates/oo-gateway/src/lib.rs              |  11 +-
+ crates/oo-gateway/src/policy.rs           | 921 +++++++++++++++++++++++++++
+ crates/oo-gateway/tests/policy_pg_live.rs | 999 ++++++++++++++++++++++++++++++
+ 6 files changed, 2256 insertions(+), 6 deletions(-)
+--- product vs HEAD ---

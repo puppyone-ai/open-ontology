@@ -1,0 +1,27 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+warning: variable `last` is assigned to, but never used
+   --> crates/oo-gateway/tests/policy_pg_a173_review.rs:445:9
+    |
+445 |     let mut last = String::new();
+    |         ^^^^^^^^
+    |
+    = note: consider using `_last` instead
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `last` is never read
+   --> crates/oo-gateway/tests/policy_pg_a173_review.rs:450:17
+    |
+450 |                 last = err;
+    |                 ^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-gateway` (test "policy_pg_a173_review") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.42s
+     Running tests/policy_pg_a173_review.rs (/target/debug/deps/policy_pg_a173_review-27b1cd4e83271e81)
+
+thread 'clinic_visit_column_acl_review' (415) panicked at crates/oo-gateway/tests/policy_pg_a173_review.rs:79:5:
+other CA error was not a certificate failure: postgres sqlstate= error performing TLS handshake
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-gateway --test policy_pg_a173_review`

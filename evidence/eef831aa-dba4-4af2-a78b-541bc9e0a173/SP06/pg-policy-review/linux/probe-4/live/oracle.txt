@@ -1,0 +1,45 @@
+tls_other_ca=handshake_reason_omitted
+tls_other_name=handshake_reason_omitted
+admin_tls=true
+login_rolinherit=true
+physical_table=pt_f79809783ebf2a7dfb549c414d95e4a05169de72684566385f1ebd09fa6b
+stale_physical_table=pt_9c1ecd15349f1c01aeaf938c758b57b3f74be6d11c4fab2834638dae4a1c
+generation_scoped=11
+generation_source_only=99
+generation_digest_only=50
+xact_pure=commit=4 rollback=0
+xact_read_rollback=commit=6 rollback=1
+refusal_roles=absent
+picker_effect=installed_then_replay
+grantor=oo_a173_grantor
+conflict_shrink=grant_mismatch_acl_unchanged
+conflict_expand=grant_mismatch_acl_unchanged
+membership_grantor=oo_a173_grantor
+membership=inherit=false set=true admin=false
+relacl={oo_target_owner=arwdDxtm/oo_target_owner,oo_pipeline_runtime=a/oo_target_owner}
+attacl._oo_pos=null
+attacl.pc_1aebc0fbc6985eb0e711aaabcc312426ba5304d45295617dd6e39f46e79d=null
+attacl.pc_4fa8dab5fa59b5037a072aa85a784044ba6846ead130cdcf35bbf4059319={oo_r_picker=r/oo_target_owner}
+attacl.pc_c2dfff4fcdb51e42cb605ec5ce73ab4cbffad2f79b4f9d0efdd14c33a0c0={oo_r_picker=r/oo_target_owner,oo_r_scribe=r/oo_target_owner}
+reader_tls=true
+picker_visit_id=8801
+picker_wing=north
+after_rollback_visit=42501
+scribe_visit_id=8801
+scribe_wing=42501
+after_reset_role_visit=42501
+same_backend=true
+claims_set_sqlstate=00000
+claims_mrn=42501
+transaction_read_only=off
+hidden_mrn=42501
+hidden_pos=42501
+hidden_note_after=42501
+write_insert=42501
+write_update=42501
+write_delete=42501
+metadata_mappings=42501
+metadata_run=42501
+metadata_lookup=42501
+reader_pid=237
+installer_still_grantor=oo_a173_grantor
