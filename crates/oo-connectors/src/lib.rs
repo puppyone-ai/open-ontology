@@ -8,8 +8,11 @@
 //! [`SNAPSHOT_PROTOCOL`]. [`STREAM_PROTOCOL`] is the bounded full-snapshot Arrow
 //! pull on that same owner. [`KEY_PLAN_PROTOCOL`] plans typed half-open chunks
 //! on that same owner. It is not the whole reader. [`SnapshotOwner::cancel`]
-//! stops an active pull and releases both backends. Resume cursors, CDC, and
-//! the registry API stay unsupported. Gateway crates do not depend on this crate.
+//! stops an active pull and releases both backends. [`PgConnector::prepare_snapshot`]
+//! builds a [`SnapshotRequest`] from the configured read-only session and releases
+//! that session before it returns. It does not open the snapshot owner. Resume
+//! cursors, CDC, and the registry API stay unsupported. Gateway crates do not
+//! depend on this crate.
 
 #![forbid(unsafe_code)]
 

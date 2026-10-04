@@ -29,7 +29,7 @@ use sqlx::{Arguments, Row, ValueRef};
 
 use crate::config::{PgSourceConfig, SelectedTable};
 use crate::error::SourceError;
-use crate::model::{SourceCatalog, SourceColumn, SourceTable};
+use crate::model::{AccessReport, FactStatus, SourceCatalog, SourceColumn, SourceTable};
 use crate::session::{self, PgConnector, PgSession};
 use crate::sql;
 use crate::types::{
@@ -431,6 +431,132 @@ pub fn snapshot_input_digest(
     hasher.update(hash);
     hasher.update(generation.to_le_bytes());
     Ok(hasher.finalize().into())
+}
+
+impl PgConnector {
+    /// Build a [`SnapshotRequest`] from this connector's read-only session.
+    ///
+    /// The same session reads `inspect_access` and `catalog`, then the existing
+    /// snapshot-node statement. Registration that is not allowed is refused
+    /// before the catalog is read. The session is dropped before this returns,
+    /// so the source connection cap is free for [`SnapshotOwner::open`].
+    /// This does not open the owner and it does not take a generation.
+    pub async fn prepare_snapshot(
+        &self,
+        policy: PgTypePolicy,
+        generation: u64,
+        deadline: Instant,
+    ) -> Result<SnapshotRequest, SourceError> {
+        if generation == 0 {
+            return Err(SourceError::config("generation_invalid"));
+        }
+        ensure_deadline(deadline)?;
+        if self.source_config().selection().tables().is_empty() {
+            return Err(SourceError::config("selection"));
+        }
+        let mut session = self.connect().await?;
+        let built = assemble_request(&mut session, self.source_config(), policy, generation, deadline).await;
+        drop(session);
+        built
+    }
+}
+
+async fn assemble_request(
+    session: &mut PgSession,
+    config: &PgSourceConfig,
+    policy: PgTypePolicy,
+    generation: u64,
+    deadline: Instant,
+) -> Result<SnapshotRequest, SourceError> {
+    ensure_deadline(deadline)?;
+    let report = session.inspect_access().await?;
+    if !report.registration_allowed {
+        return Err(SourceError::privilege("registration_refused"));
+    }
+    ensure_deadline(deadline)?;
+    let catalog = session.catalog().await?;
+    ensure_deadline(deadline)?;
+    let node = read_node(session).await?;
+    startup_matches(config, &report, &node)?;
+    valid_postmaster(&node.postmaster_start)?;
+    let admitted = admitted_from_catalog(&catalog)?;
+    selection_matches(config, &admitted)?;
+    Ok(SnapshotRequest {
+        config_identity: config_identity(config),
+        type_policy_identity: type_policy_identity(policy),
+        config: config.clone(),
+        admitted,
+        policy,
+        generation,
+        deadline,
+        expected_principal: node.current_user,
+        expected_database: node.database,
+        expected_in_recovery: node.in_recovery,
+        expected_postmaster_start: node.postmaster_start,
+    })
+}
+
+fn startup_matches(
+    config: &PgSourceConfig,
+    report: &AccessReport,
+    node: &NodeFact,
+) -> Result<(), SourceError> {
+    if node.database != config.endpoint().database() {
+        return Err(SourceError::config("database"));
+    }
+    if node.current_user != node.session_user || node.current_user != config.credentials().username() {
+        return Err(SourceError::config("principal"));
+    }
+    let Some(principal) = report.principal.value.as_ref() else {
+        return Err(SourceError::protocol("read_node"));
+    };
+    if report.principal.status != FactStatus::Known
+        || principal.current_user != node.current_user
+        || principal.session_user != node.session_user
+        || principal.database != node.database
+    {
+        return Err(SourceError::protocol("read_node"));
+    }
+    match report.in_recovery.value {
+        Some(recovery) if report.in_recovery.status == FactStatus::Known && recovery == node.in_recovery => {
+            Ok(())
+        }
+        _ => Err(SourceError::protocol("read_node")),
+    }
+}
+
+fn valid_postmaster(value: &str) -> Result<(), SourceError> {
+    if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
+        Err(SourceError::catalog("postmaster_start"))
+    } else {
+        Ok(())
+    }
+}
+
+fn admitted_from_catalog(catalog: &SourceCatalog) -> Result<AdmittedCatalog, SourceError> {
+    let mut tables = Vec::with_capacity(catalog.tables.len());
+    for table in &catalog.tables {
+        if table.columns.is_empty() {
+            return Err(SourceError::config("selection"));
+        }
+        tables.push(AdmittedTable {
+            schema: table.schema.clone(),
+            name: table.name.clone(),
+            columns: table
+                .columns
+                .iter()
+                .map(|column| AdmittedColumn {
+                    attnum: column.attnum,
+                    name: column.name.clone(),
+                    type_oid: column.type_oid,
+                    typmod: column.typmod,
+                    not_null: column.not_null,
+                })
+                .collect(),
+            primary_key: table.primary_key.iter().map(|key| key.name.clone()).collect(),
+        });
+    }
+    Ok(AdmittedCatalog { tables })
 }
 
 /// Lifetime-bound snapshot. Drop rolls back and closes when a Tokio runtime is
@@ -2856,5 +2982,28 @@ mod tests {
             TableSelection::new(vec![SelectedTable::new("snap", "parent").unwrap()]).unwrap(),
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn prepare_rejects_generation_zero_and_a_past_deadline_before_connect() {
+        let connector = crate::PgConnector::new(config("oo-snap-pg", "one-secret", pem()));
+        let err = connector
+            .prepare_snapshot(
+                PgTypePolicy::PRESERVE_ROW,
+                0,
+                Instant::now() + Duration::from_secs(30),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err.fact(), Some("generation_invalid"));
+        let err = connector
+            .prepare_snapshot(
+                PgTypePolicy::PRESERVE_ROW,
+                1,
+                Instant::now().checked_sub(Duration::from_secs(5)).unwrap(),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err.fact(), Some("deadline"));
     }
 }

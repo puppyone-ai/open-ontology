@@ -376,6 +376,10 @@ impl PgConnector {
         Self { config }
     }
 
+    pub(crate) fn source_config(&self) -> &PgSourceConfig {
+        &self.config
+    }
+
     /// Open one TLS session and read the server version.
     ///
     /// An untested version still returns a session. `inspect_access` then
@@ -754,12 +758,26 @@ impl PgSession {
         if !self.in_transaction {
             return Ok(());
         }
+        // `begin` increments the driver depth. A raw ROLLBACK leaves that depth
+        // at 1, and the next custom BEGIN on this session is refused. The
+        // manager clears that depth. Depth 1 sends `sql::ROLLBACK`.
         self.in_transaction = false;
-        match self.execute_charged(sql::ROLLBACK).await {
+        let depth = PgTransactionManager::get_transaction_depth(&self.conn);
+        if depth != 1 {
+            self.poisoned = true;
+            return Err(SourceError::protocol("rollback"));
+        }
+        let statement = sqlx_core::transaction::rollback_ansi_transaction_sql(depth);
+        if statement.as_str() != sql::ROLLBACK {
+            self.poisoned = true;
+            return Err(SourceError::protocol("rollback"));
+        }
+        try_charge_rows(&self.source_id, 1)?;
+        match PgTransactionManager::rollback(&mut self.conn).await {
             Ok(()) => Ok(()),
             Err(err) => {
                 self.poisoned = true;
-                Err(err)
+                Err(map_sqlx(err))
             }
         }
     }

@@ -8,11 +8,14 @@
 //! `copy_encoder` emits bounded COPY binary rows and is not the Loader.
 //! `copy_sink` sends those bytes on the caller's connection.
 //! `full_import` is the unpublished full-import entry. It is not a publication.
+//! `import_cli` is the `import-pg` command. It calls that entry and does not
+//! install the target schema.
 
 #![forbid(unsafe_code)]
 
 pub mod copy_encoder;
 pub mod copy_sink;
 pub mod full_import;
+pub mod import_cli;
 pub mod physical_mapping;
 pub mod target_installer;
