@@ -1,0 +1,8 @@
+Cargo.lock: OK
+crates/oo-builder/src/lib.rs: OK
+crates/oo-builder/src/bin/oo-builder.rs: OK
+crates/oo-builder/src/role_pack.rs: OK
+crates/oo-builder/src/role_pack_cli.rs: OK
+crates/oo-builder/tests/role_pack_cli.rs: OK
+contracts/builder/role-pack-v1.md: OK
+contracts/builder/role-pack-cli-v1.md: OK

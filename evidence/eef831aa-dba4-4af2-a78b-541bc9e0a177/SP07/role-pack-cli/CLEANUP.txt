@@ -1,0 +1,20 @@
+# Cleanup — a177 role-pack command
+
+Own resources only. `docker prune` was not run. The pinned image was left in place. No foreign container, network, volume, or worktree was removed. Slot B was not touched. PostgreSQL was not started.
+
+Launch scripts had already removed the builders. `docker ps -a --filter label=oo.owner=a177` printed no containers before cleanup:
+
+- `oo-a177-preedit` (`df848d9a5e56880bd3ee787b872d024e3f06202f62c508e4de6bdef526f80ce6`)
+- `oo-a177-focused` (`f55d90d46d025c05336d224d88a28ef3a46c3a705912fecf46b33eca595a36cf`)
+- `oo-a177-focused-2` (`eb5eab783c9f28870615a2f529392fd56e6ef1b85b416c3e8b02871b00fc7e20`)
+- `oo-a177-focused-3` (`6e24ff3321d026749610ac8ff88dc1b1c744d529f808919557f823a3c2426fc1`)
+- `oo-a177-commit` (`fc8e513711af4cb71b157db3dc42285efd503eebff126e04dee706406cd93305`)
+
+Removed:
+
+- network `oo-a177-eef831aa-net` (`3910795f96c5620e5a49ceb835c60436ad0f8bc71ea7906e864fa085c5aca6dc`)
+- volume `oo-a177-eef831aa-cargo`
+- volume `oo-a177-eef831aa-target`
+- `/tmp/oo-a177-eef831aa-dba4-4af2-a78b-541bc9e0a177` (`tmp_absent=yes`)
+
+Afterward, `docker network ls --filter name=oo-a177` and `docker volume ls --filter name=oo-a177` printed nothing. Volumes `oo-a175-cargo` and `oo-a175-target` were still present. Image `docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5` was still present (`linux/arm64`). `prune_not_run`.

@@ -1,0 +1,1 @@
+crates/oo-builder/src/lib.rs:12:#![forbid(unsafe_code)]
