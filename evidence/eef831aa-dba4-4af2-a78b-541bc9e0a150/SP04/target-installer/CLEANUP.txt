@@ -1,0 +1,12 @@
+removed_containers=oo-a150-probe oo-a150-pg oo-a150-smoke
+removed_network=oo-a150-eef831aa-net
+removed_volumes=oo-a150-eef831aa-pg oo-a150-eef831aa-cargo oo-a150-eef831aa-target
+removed_tmp=/tmp/oo-a150-eef831aa-dba4-4af2-a78b-541bc9e0a150
+volume_rm_before_smoke_rm=failed, volumes still referenced by exited oo-a150-smoke db046731e8c70c6f30bdf85d25277b97b01bc7372a64625a23ef4d85daa5ecbd
+volume_rm_after_smoke_rm=succeeded
+remaining_a150_containers=none
+remaining_a150_networks=none
+remaining_a150_volumes=none
+prune=not run
+foreign_containers=not removed
+a149_name_filter_after_cleanup=no containers listed

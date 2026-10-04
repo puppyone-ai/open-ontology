@@ -1,0 +1,147 @@
+oo_task=target-installer-probe
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=working_tree
+Linux c6273cebeff4 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== cargo test --lib ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.67s
+     Running unittests src/lib.rs (/target/debug/deps/oo_pipeline-f6d68aea547aa293)
+
+running 9 tests
+test physical_mapping::tests::closed_tokens_do_not_echo_the_input ... ok
+test physical_mapping::tests::golden_namespace_digest_is_63_bytes ... ok
+test physical_mapping::tests::long_names_that_share_a_63_byte_prefix_stay_distinct ... ok
+test physical_mapping::tests::source_config_and_generation_change_the_physical_name ... ok
+test physical_mapping::tests::length_bounds_and_scope_follow_the_parent_identity ... ok
+test physical_mapping::tests::migration_keeps_the_pgident_reserved_list_and_its_own_writer_gate ... ok
+test physical_mapping::tests::pgident_forms_round_trip_and_raw_unicode_stays_closed ... ok
+test target_installer::tests::routes_do_not_execute_v2_and_do_not_repair ... ok
+test target_installer::tests::compiled_digests_match_the_frozen_files ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=lib
+=== cargo test embed ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.98s
+     Running tests/target_installer_live.rs (/target/debug/deps/target_installer_live-dfceeb2d82fbf450)
+
+running 1 test
+test installer_embeds_production_scripts_and_not_v2 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+phase_exit=0 phase=embed
+=== cargo clippy -p oo-pipeline --all-targets -- -D warnings ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
+phase_exit=0 phase=clippy
+=== cargo test live installer ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/target_installer_live.rs (/target/debug/deps/target_installer_live-dfceeb2d82fbf450)
+
+running 1 test
+
+thread 'production_installer_on_one_postgres' (499) panicked at crates/oo-pipeline/tests/target_installer_live.rs:81:5:
+assertion `left == right` failed
+  left: "oo_pipeline_runtime|false|false|false|false|false|false|false\noo_target_owner|false|false|false|false|false|false|false\n"
+ right: "oo_pipeline_runtime|f|f|f|f|f|f|f\noo_target_owner|f|f|f|f|f|f|f\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test production_installer_on_one_postgres ... FAILED
+
+failures:
+
+failures:
+    production_installer_on_one_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p oo-pipeline --test target_installer_live`
+phase_exit=101 phase=live
+elapsed_seconds=6
