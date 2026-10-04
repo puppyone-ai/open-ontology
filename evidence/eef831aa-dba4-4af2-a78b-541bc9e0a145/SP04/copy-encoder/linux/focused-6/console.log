@@ -1,0 +1,170 @@
+oo_task=copy-encoder-focused-6
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=6b95d6f2_archive_plus_copy_encoder_overlay
+Linux 7cda43f1c4a1 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+archive_hashes_match=1
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustfmt-component
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== rustfmt --check --edition 2024 ===
+phase_exit=0 phase=rustfmt
+=== cargo fetch --locked --offline ===
+phase_exit=0 phase=fetch
+=== cargo test -p oo-pipeline ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.04s
+     Running unittests src/lib.rs (/target/debug/deps/oo_pipeline-5eb8e641ae74b3e8)
+
+running 7 tests
+test physical_mapping::tests::closed_tokens_do_not_echo_the_input ... ok
+test physical_mapping::tests::golden_namespace_digest_is_63_bytes ... ok
+test physical_mapping::tests::long_names_that_share_a_63_byte_prefix_stay_distinct ... ok
+test physical_mapping::tests::source_config_and_generation_change_the_physical_name ... ok
+test physical_mapping::tests::migration_keeps_the_pgident_reserved_list_and_its_own_writer_gate ... ok
+test physical_mapping::tests::pgident_forms_round_trip_and_raw_unicode_stays_closed ... ok
+test physical_mapping::tests::length_bounds_and_scope_follow_the_parent_identity ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/oo-pipeline.rs (/target/debug/deps/oo_pipeline-fb5303a3e0bbd8b6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/copy_encoder_live.rs (/target/debug/deps/copy_encoder_live-c37f287edf01b39b)
+
+running 6 tests
+test postgres_decodes_copy_rows ... ignored, requires OO_COPY_ENCODER_HOST and one private PostgreSQL 17.10
+test md5_known_answers ... ok
+test refusals_are_typed ... ok
+test empty_batch_is_header_and_trailer ... ok
+test representative_rows_keep_copy_order_and_budgets ... ok
+test temporal_numeric_and_float4_boundaries ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/physical_mapping_live.rs (/target/debug/deps/physical_mapping_live-49f30700c9b9766b)
+
+running 2 tests
+test physical_mapping_live ... ignored, requires OO_PHYSICAL_MAPPING_HOST and one private PostgreSQL 17.10
+test sha256_and_frozen_migration_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/segment_null_correction.rs (/target/debug/deps/segment_null_correction-2082b9c8d994d7a4)
+
+running 2 tests
+test live_segment_null_correction ... ignored, one owned PostgreSQL 17 fixture; run outside the offline package smoke
+test published_v1_bytes_stay_and_v2_closes_unknown_segments ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/segment_preflight_correction.rs (/target/debug/deps/segment_preflight_correction-c689750ed243028b)
+
+running 3 tests
+test live_segment_preflight ... ignored, one owned PostgreSQL 17.10; OO_SEGMENT_PREFLIGHT_HOST must be set by the deciding run
+test error_and_data_row_parsers_keep_sqlstate_text ... ok
+test published_bytes_and_reference_route_are_closed ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/target_fence_contract.rs (/target/debug/deps/target_fence_contract-2fb40279efd78de8)
+
+running 1 test
+test target_fence_files_match_the_published_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oo_pipeline
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=test
+=== cargo clippy -p oo-pipeline --all-targets -- -D warnings ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s
+phase_exit=0 phase=clippy
+=== cargo test --test copy_encoder_live -- --ignored ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.70s
+     Running tests/copy_encoder_live.rs (/target/debug/deps/copy_encoder_live-197987edf311052d)
+
+running 1 test
+test postgres_decodes_copy_rows ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+phase_exit=0 phase=live
+elapsed_seconds=6

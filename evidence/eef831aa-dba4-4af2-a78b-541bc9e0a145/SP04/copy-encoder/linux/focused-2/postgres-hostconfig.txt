@@ -1,0 +1,1 @@
+privileged=false capdrop=["ALL"] capadd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] ports={} net=oo-a145-eef831aa-net tmpfs={"/tmp":"rw,nosuid,nodev,size=256m"} memory=1073741824
