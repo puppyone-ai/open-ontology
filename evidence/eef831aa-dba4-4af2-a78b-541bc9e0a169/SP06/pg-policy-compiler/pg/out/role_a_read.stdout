@@ -1,0 +1,16 @@
+ pid |  before_role  
+-----+---------------
+ 162 | oo_a169_login
+(1 row)
+
+ bound_role 
+------------
+ oo_r_a
+(1 row)
+
+ id | region 
+----+--------
+  1 | eu
+  2 | us
+(2 rows)
+

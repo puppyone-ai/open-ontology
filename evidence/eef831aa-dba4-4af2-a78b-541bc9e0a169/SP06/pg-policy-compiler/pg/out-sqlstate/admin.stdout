@@ -1,0 +1,23 @@
+ nspname |       relname       |      owner      |                   relacl                   
+---------+---------------------+-----------------+--------------------------------------------
+ _oo     | full_import_quality | oo_target_owner | {oo_target_owner=arwdDxtm/oo_target_owner}
+ _oo     | full_import_run     | oo_target_owner | {oo_target_owner=arwdDxtm/oo_target_owner}
+ _oo     | full_import_session | oo_target_owner | {oo_target_owner=arwdDxtm/oo_target_owner}
+ _oo     | full_import_table   | oo_target_owner | {oo_target_owner=arwdDxtm/oo_target_owner}
+ _oo     | physical_mappings   | oo_target_owner | {oo_target_owner=arwdDxtm/oo_target_owner}
+ _oo     | probe_orders        | oo_target_owner | 
+(6 rows)
+
+ attname |                       attacl                        
+---------+-----------------------------------------------------
+ id      | {oo_r_a=r/oo_target_owner,oo_r_b=r/oo_target_owner}
+ region  | {oo_r_a=r/oo_target_owner}
+ secret  | 
+ extra   | 
+(4 rows)
+
+     import_run      |     import_session      |       mappings        | run_select | session_select | table_select | usage | login_usage 
+---------------------+-------------------------+-----------------------+------------+----------------+--------------+-------+-------------
+ _oo.full_import_run | _oo.full_import_session | _oo.physical_mappings | f          | f              | f            | t     | f
+(1 row)
+

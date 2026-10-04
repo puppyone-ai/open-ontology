@@ -1,0 +1,31 @@
+ pid 
+-----
+ 295
+(1 row)
+
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+BEGIN
+SET
+ROLLBACK
+ back_to_login | pid_after 
+---------------+-----------
+ oo_a169_login |       295
+(1 row)
+

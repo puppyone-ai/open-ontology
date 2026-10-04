@@ -1,0 +1,16 @@
+=== reset partial cluster objects from an earlier attempt ===
+=== create database ===
+=== install reviewed migrations ===
+=== fixture roles and owner table ===
+=== tls identity ===
+=== role a read ===
+=== hidden column ===
+=== role b same session class ===
+=== login without set role ===
+=== write denial ===
+=== new column ===
+=== set_config and utility SET ===
+=== audit ===
+=== direct metadata ===
+=== redact check ===
+probe_finished

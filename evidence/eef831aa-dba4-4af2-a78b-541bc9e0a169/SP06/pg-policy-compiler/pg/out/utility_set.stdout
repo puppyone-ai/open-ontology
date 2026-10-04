@@ -1,0 +1,10 @@
+    set_config     
+-------------------
+ {"region":["eu"]}
+(1 row)
+
+ claims_after_set  
+-------------------
+ {"region":["us"]}
+(1 row)
+

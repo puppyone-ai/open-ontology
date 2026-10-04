@@ -1,0 +1,3 @@
+ERROR:  permission denied for schema _oo
+LINE 1: SELECT id FROM _oo.probe_orders;
+                       ^
