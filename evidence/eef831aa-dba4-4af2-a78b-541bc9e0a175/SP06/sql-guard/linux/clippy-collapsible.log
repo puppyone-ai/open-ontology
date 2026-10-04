@@ -1,0 +1,146 @@
+   Compiling aws-lc-sys v0.45.0
+   Compiling getrandom v0.4.3
+   Compiling clang-sys v1.9.1
+    Checking der v0.7.10
+   Compiling tempfile v3.27.0
+   Compiling prost-build v0.13.5
+    Checking strum v0.28.0
+    Checking spki v0.7.3
+    Checking either v1.18.0
+    Checking jsonschema v0.57.0
+    Checking itertools v0.10.5
+   Compiling bindgen v0.66.1
+    Checking thiserror v1.0.69
+    Checking x509-cert v0.2.5
+    Checking prost v0.13.5
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling pg_query v6.2.1
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.45
+    Checking rustls-webpki v0.103.15
+    Checking tokio-rustls v0.26.5
+    Checking tokio-postgres-rustls v0.14.0
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: this `if` statement can be collapsed
+   --> crates/oo-gateway/src/sql_guard.rs:896:5
+    |
+896 | /     if let Some(pb::node::Node::ResTarget(res)) = target.node.as_mut() {
+897 | |         if res.name.is_empty() {
+898 | |             if let ExprKind::Column {
+899 | |                 rel_index,
+...   |
+907 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+896 ~     if let Some(pb::node::Node::ResTarget(res)) = target.node.as_mut()
+897 ~         && res.name.is_empty() {
+898 |             if let ExprKind::Column {
+...
+905 |             }
+906 ~         }
+    |
+
+error: this `if` statement can be collapsed
+   --> crates/oo-gateway/src/sql_guard.rs:897:9
+    |
+897 | /         if res.name.is_empty() {
+898 | |             if let ExprKind::Column {
+899 | |                 rel_index,
+900 | |                 column_index,
+...   |
+906 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+897 ~         if res.name.is_empty()
+898 ~             && let ExprKind::Column {
+899 |                 rel_index,
+...
+904 |                 res.name.clone_from(&ctx.catalog.relations[*rel_index].columns[*column_index].name);
+905 ~             }
+    |
+
+error: this binary expression can be simplified
+    --> crates/oo-gateway/src/sql_guard.rs:1069:8
+     |
+1069 |     if sort.sortby_dir == SORT_USING || sort.sortby_dir > SORT_USING || !sort.use_op.is_empty() {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `sort.sortby_dir >= SORT_USING`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#double_comparisons
+     = note: `-D clippy::double-comparisons` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::double_comparisons)]`
+
+error: this `if` statement can be collapsed
+    --> crates/oo-gateway/src/sql_guard.rs:1428:9
+     |
+1428 | /         if let Some(schema) = schema {
+1429 | |             if function.schema != schema {
+1430 | |                 continue;
+1431 | |             }
+1432 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1428 ~         if let Some(schema) = schema
+1429 ~             && function.schema != schema {
+1430 |                 continue;
+1431 ~             }
+     |
+
+error: this `if` statement can be collapsed
+    --> crates/oo-gateway/src/sql_guard.rs:1549:9
+     |
+1549 | /         if let Some(schema) = schema {
+1550 | |             if operator.schema != schema {
+1551 | |                 continue;
+1552 | |             }
+1553 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1549 ~         if let Some(schema) = schema
+1550 ~             && operator.schema != schema {
+1551 |                 continue;
+1552 ~             }
+     |
+
+error: using `contains()` instead of `iter().any()` is more efficient
+    --> crates/oo-gateway/src/sql_guard.rs:1598:8
+     |
+1598 |     if parts.iter().any(|fold| *fold == Fold::False) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `parts.contains(&Fold::False)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_contains
+     = note: `-D clippy::manual-contains` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_contains)]`
+
+error: using `contains()` instead of `iter().any()` is more efficient
+    --> crates/oo-gateway/src/sql_guard.rs:1608:8
+     |
+1608 |     if parts.iter().any(|fold| *fold == Fold::True) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `parts.contains(&Fold::True)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_contains
+
+error: using `contains()` instead of `iter().any()` is more efficient
+    --> crates/oo-gateway/src/sql_guard.rs:1929:33
+     |
+1929 |         if function.oid == 0 || function.argument_type_oids.iter().any(|oid| *oid == 0) {
+     |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `function.argument_type_oids.contains(&0)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_contains
+
+error: could not compile `oo-gateway` (lib test) due to 8 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-gateway` (lib) due to 8 previous errors

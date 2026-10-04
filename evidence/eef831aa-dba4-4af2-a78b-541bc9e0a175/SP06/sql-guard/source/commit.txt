@@ -1,0 +1,3 @@
+source=03512f91324ac33e772e9702fe806e8e04037ec4
+parent=93e6b6a24fab71c10dd9966ee28d5258516bed63
+subject=gateway: admit one SELECT through the PostgreSQL parser

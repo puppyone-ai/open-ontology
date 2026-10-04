@@ -1,0 +1,24 @@
+before
+oo-a175-pg Up 3 minutes 313158fcea9c
+oo-a175-rust194 Up 22 minutes 057629845c90
+oo-a175-rust194
+docker_rm_rust exit=0
+oo-a175-pg
+docker_rm_pg exit=0
+oo-a175-cargo
+volume_rm_cargo exit=0
+oo-a175-target
+volume_rm_target exit=0
+oo-a175-pgdata
+volume_rm_pgdata exit=0
+oo-a175-net
+network_rm exit=0
+tmp_rm exit=0
+after
+own_containers=0
+own_volumes=0
+network=0
+tmp_left=2
+other_rust_builders:
+tmp_remainder exit=0
+tmp_left=0
