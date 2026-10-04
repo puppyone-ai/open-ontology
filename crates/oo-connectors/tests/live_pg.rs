@@ -116,7 +116,29 @@ async fn live_source_catalog() {
         report.tls.negotiated_version
     );
     assert_eq!(report.tls.server_observation, "observed");
-    assert!(report.capabilities.iter().all(|item| !item.supported));
+    let supported: Vec<&str> = report
+        .capabilities
+        .iter()
+        .filter(|item| item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    let unsupported: Vec<&str> = report
+        .capabilities
+        .iter()
+        .filter(|item| !item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    assert_eq!(supported, ["scan", "bounded_read"]);
+    assert_eq!(
+        unsupported,
+        [
+            "cdc",
+            "type_conversion",
+            "registry_api",
+            "source_ddl",
+            "source_write"
+        ]
+    );
     assert!(
         report
             .dba_checklist

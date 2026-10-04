@@ -718,32 +718,34 @@ pub struct TlsReport {
     pub server_observation: String,
 }
 
-/// One capability this slice does not implement.
+/// One capability this connector reports.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilityStatus {
     /// Capability name.
     pub name: String,
-    /// Always false in this slice.
+    /// True when this build advertises the capability.
     pub supported: bool,
-    /// Why it is unsupported.
+    /// Why it is supported or unsupported.
     pub reason: String,
 }
 
 /// Static capability list. CDC prerequisites are separate facts.
 pub fn connector_capabilities() -> Vec<CapabilityStatus> {
+    const READER: &str =
+        "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission";
     [
-        ("scan", "not_in_this_slice"),
-        ("bounded_read", "not_in_this_slice"),
-        ("cdc", "not_in_this_slice"),
-        ("type_conversion", "not_in_this_slice"),
-        ("registry_api", "not_in_this_slice"),
-        ("source_ddl", "forbidden"),
-        ("source_write", "forbidden"),
+        ("scan", true, READER),
+        ("bounded_read", true, READER),
+        ("cdc", false, "not_in_this_slice"),
+        ("type_conversion", false, "not_in_this_slice"),
+        ("registry_api", false, "not_in_this_slice"),
+        ("source_ddl", false, "forbidden"),
+        ("source_write", false, "forbidden"),
     ]
     .into_iter()
-    .map(|(name, reason)| CapabilityStatus {
+    .map(|(name, supported, reason)| CapabilityStatus {
         name: name.to_string(),
-        supported: false,
+        supported,
         reason: reason.to_string(),
     })
     .collect()
@@ -847,7 +849,7 @@ pub struct AccessReport {
     pub replication_slots: Fact<Vec<String>>,
     /// CDC inputs. Implementation remains false.
     pub cdc: CdcPrerequisite,
-    /// Capabilities. Every entry is unsupported.
+    /// Capabilities. `scan` and `bounded_read` are supported. The other entries are not.
     pub capabilities: Vec<CapabilityStatus>,
     /// Objects a DBA would create. This process does not create them.
     pub dba_checklist: Vec<DbaItem>,
@@ -1025,7 +1027,32 @@ mod tests {
             classify_type("e", "order_status", -1).reason,
             TypeUnsupportedReason::EnumNotConverted
         ));
-        assert!(connector_capabilities().iter().all(|item| !item.supported));
+        let caps = connector_capabilities();
+        let supported: Vec<&str> = caps
+            .iter()
+            .filter(|item| item.supported)
+            .map(|item| item.name.as_str())
+            .collect();
+        let unsupported: Vec<&str> = caps
+            .iter()
+            .filter(|item| !item.supported)
+            .map(|item| item.name.as_str())
+            .collect();
+        assert_eq!(supported, ["scan", "bounded_read"]);
+        assert_eq!(
+            unsupported,
+            [
+                "cdc",
+                "type_conversion",
+                "registry_api",
+                "source_ddl",
+                "source_write"
+            ]
+        );
+        assert!(caps.iter().filter(|item| item.supported).all(|item| {
+            item.reason
+                == "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
+        }));
         assert_eq!(admit_version(17, 10, "17.10 (Debian)"), "tested");
         assert_eq!(admit_version(13, 0, "13.0"), "untested");
         assert_eq!(admit_version(12, 22, "12.22"), "below_minimum");

@@ -1,6 +1,6 @@
 # PostgreSQL run cancel and unpublished-run failure
 
-This is the active-pull cancel and the failure close on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` (`scan`, `bounded_read`) and `bounded_reader` stay unchanged and false. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle release. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table.
+This is the active-pull cancel and the failure close on one already-open snapshot owner. Acceptance is qualified to the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` `scan` and `bounded_read`, and type capability `bounded_reader`, are supported for that path. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle close only. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table.
 
 ## Caller
 

@@ -118,7 +118,34 @@ fn converted_flag_does_not_authorize_or_block_a_builtin() {
     let plan = plan_builtin(OID_BOOL, "bool", "boolsend", 1, -1);
     assert_eq!(plan.mapping.decision, MapDecision::Lossless);
     assert_eq!(plan.mapping.protocol, TYPE_CONVERSION_PROTOCOL);
-    assert!(connector_capabilities().iter().all(|item| !item.supported));
+    let caps = connector_capabilities();
+    let supported: Vec<&str> = caps
+        .iter()
+        .filter(|item| item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    let unsupported: Vec<&str> = caps
+        .iter()
+        .filter(|item| !item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    assert_eq!(supported, ["scan", "bounded_read"]);
+    assert_eq!(
+        unsupported,
+        [
+            "cdc",
+            "type_conversion",
+            "registry_api",
+            "source_ddl",
+            "source_write"
+        ]
+    );
+    assert!(type_capabilities().iter().any(|item| {
+        item.name == "bounded_reader"
+            && item.supported
+            && item.reason
+                == "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
+    }));
     assert!(type_capabilities()
         .iter()
         .any(|item| item.name == "pg_builtin_lossless" && item.supported));

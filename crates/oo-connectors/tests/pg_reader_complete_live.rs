@@ -116,8 +116,35 @@ impl World {
     }
 
     fn note_capabilities(&mut self) {
-        for cap in connector_capabilities() {
-            assert!(!cap.supported, "capability {} was advertised", cap.name);
+        let caps = connector_capabilities();
+        let supported: Vec<&str> = caps
+            .iter()
+            .filter(|cap| cap.supported)
+            .map(|cap| cap.name.as_str())
+            .collect();
+        let unsupported: Vec<&str> = caps
+            .iter()
+            .filter(|cap| !cap.supported)
+            .map(|cap| cap.name.as_str())
+            .collect();
+        assert_eq!(supported, ["scan", "bounded_read"]);
+        assert_eq!(
+            unsupported,
+            [
+                "cdc",
+                "type_conversion",
+                "registry_api",
+                "source_ddl",
+                "source_write"
+            ]
+        );
+        for cap in &caps {
+            if cap.supported {
+                assert_eq!(
+                    cap.reason,
+                    "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
+                );
+            }
             if cap.name == "scan" || cap.name == "bounded_read" {
                 self.note(format!(
                     "connector_capability name={} supported={} reason={}",
@@ -125,15 +152,19 @@ impl World {
                 ));
             }
         }
-        for cap in type_capabilities() {
-            if cap.name == "bounded_reader" {
-                assert!(!cap.supported, "bounded_reader was advertised");
-                self.note(format!(
-                    "type_capability name={} supported={} reason={}",
-                    cap.name, cap.supported, cap.reason
-                ));
-            }
-        }
+        let bounded = type_capabilities()
+            .into_iter()
+            .find(|cap| cap.name == "bounded_reader")
+            .expect("bounded_reader");
+        assert!(bounded.supported, "bounded_reader was not advertised");
+        assert_eq!(
+            bounded.reason,
+            "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
+        );
+        self.note(format!(
+            "type_capability name={} supported={} reason={}",
+            bounded.name, bounded.supported, bounded.reason
+        ));
     }
 
     fn next_gen(&self) -> u64 {

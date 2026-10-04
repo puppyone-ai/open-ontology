@@ -110,7 +110,28 @@ async fn live_lossless_types() {
     assert_eq!(report.tls.server_observation, "observed");
     assert_eq!(report.tls.negotiated_version, "TLSv1.3");
     assert_eq!(report.version.admission, "tested");
-    assert!(connector_capabilities().iter().all(|item| !item.supported));
+    let caps = connector_capabilities();
+    let supported: Vec<&str> = caps
+        .iter()
+        .filter(|item| item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    let unsupported: Vec<&str> = caps
+        .iter()
+        .filter(|item| !item.supported)
+        .map(|item| item.name.as_str())
+        .collect();
+    assert_eq!(supported, ["scan", "bounded_read"]);
+    assert_eq!(
+        unsupported,
+        [
+            "cdc",
+            "type_conversion",
+            "registry_api",
+            "source_ddl",
+            "source_write"
+        ]
+    );
     assert!(type_capabilities().iter().any(|item| item.name == "pg_arrow_crate" && item.supported));
     assert!(type_capabilities()
         .iter()

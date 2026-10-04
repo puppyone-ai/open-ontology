@@ -64,8 +64,9 @@ pub struct KeyRange {
     pub upper: Option<Vec<ProbeValue>>,
 }
 
-/// One planned slice. `resumable` is false. The loader treats anything other than
-/// [`crate::SnapshotFinished`] as incomplete.
+/// One planned slice. `resumable` is false. `finish` / [`crate::SnapshotFinished`]
+/// is lifecycle close only. `finish_complete` / [`crate::RunComplete`] is
+/// full-selection admission.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlannedChunk {
     pub generation: u64,

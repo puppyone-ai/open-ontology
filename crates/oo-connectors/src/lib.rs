@@ -108,10 +108,27 @@ mod tests {
         ));
         let _linked = options;
         assert_eq!(super::CORE_BOUNDARY, oo_core::CONTRACT_CONFIG);
-        assert!(
-            super::connector_capabilities()
-                .iter()
-                .all(|item| !item.supported)
+        let caps = super::connector_capabilities();
+        let supported: Vec<&str> = caps
+            .iter()
+            .filter(|item| item.supported)
+            .map(|item| item.name.as_str())
+            .collect();
+        let unsupported: Vec<&str> = caps
+            .iter()
+            .filter(|item| !item.supported)
+            .map(|item| item.name.as_str())
+            .collect();
+        assert_eq!(supported, ["scan", "bounded_read"]);
+        assert_eq!(
+            unsupported,
+            [
+                "cdc",
+                "type_conversion",
+                "registry_api",
+                "source_ddl",
+                "source_write"
+            ]
         );
     }
 

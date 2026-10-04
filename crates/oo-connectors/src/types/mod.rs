@@ -107,7 +107,11 @@ pub fn type_capabilities() -> Vec<CapabilityStatus> {
         ("mysql_unsigned", false, "not this slice"),
         ("position_codec", false, "not this slice"),
         ("cdc", false, "not this slice"),
-        ("bounded_reader", false, "not this slice"),
+        (
+            "bounded_reader",
+            true,
+            "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission",
+        ),
         ("loader_reject_persistence", false, "reject records are returned, not stored"),
         ("user_defined_output", false, "custom send functions are not selected"),
     ]
