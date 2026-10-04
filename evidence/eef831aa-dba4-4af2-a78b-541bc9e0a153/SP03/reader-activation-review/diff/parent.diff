@@ -1,0 +1,374 @@
+diff --git a/contracts/source/pgsql/bounded-stream-v1.md b/contracts/source/pgsql/bounded-stream-v1.md
+index c0f01b52..1226ea54 100644
+--- a/contracts/source/pgsql/bounded-stream-v1.md
++++ b/contracts/source/pgsql/bounded-stream-v1.md
+@@ -1,12 +1,12 @@
+ # PostgreSQL bounded full-snapshot stream `oo.source.pgsql.stream/v1`
+ 
+-This is the pull on one already-open snapshot owner. It is not whole-reader acceptance. Typed key chunks are `reader-keys-v1`. Active-pull cancellation is `reader-lifecycle-v1`. R4, resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` is unchanged.
++This is the pull on one already-open snapshot owner. Acceptance is qualified to the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Typed key chunks are `reader-keys-v1`. Active-pull cancellation is `reader-lifecycle-v1`. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` `scan` and `bounded_read` are supported for that path. `cdc`, `type_conversion`, `registry_api`, `source_ddl`, and `source_write` stay unsupported.
+ 
+ The stream reuses admitted columns, `decode_payload`, and `assemble_batch`. It does not change type mapping or canonical cell semantics.
+ 
+ ## Caller
+ 
+-`SnapshotOwner::open_stream` takes a `StreamBudget` and moves the owner's two sessions into one pull. `next_batch` is the only driver. It returns `StreamItem::Batch`, `TableEof`, or `Exhausted`. `SnapshotOwner::finish` is still the run finish. `TableEof` is the end of one table. `Exhausted` means every selected table has reached `TableEof` and the owner is still open. `SnapshotFinished` is only `finish` after a clean close.
++`SnapshotOwner::open_stream` takes a `StreamBudget` and moves the owner's two sessions into one pull. `next_batch` is the only driver. It returns `StreamItem::Batch`, `TableEof`, or `Exhausted`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle close only. `SnapshotOwner::finish_complete` returns `RunComplete` as full-selection admission. `TableEof` is the end of one table. `Exhausted` means every selected table has reached `TableEof` and the owner is still open.
+ 
+ `StreamBudget::try_new` requires `batch_rows` in `1..=65536`, `batch_bytes > 0`, `max_value_bytes > 0`, and `max_row_bytes >= max(2, max_value_bytes)`. Invalid combinations are `config` facts `batch_rows`, `batch_bytes`, `max_value`, or `max_row`. `queue_batches` is 1 and is not a parameter. These fields are not part of `config_identity`.
+ 
+diff --git a/contracts/source/pgsql/reader-lifecycle-v1.md b/contracts/source/pgsql/reader-lifecycle-v1.md
+index bdae1239..6f4f242f 100644
+--- a/contracts/source/pgsql/reader-lifecycle-v1.md
++++ b/contracts/source/pgsql/reader-lifecycle-v1.md
+@@ -1,6 +1,6 @@
+ # PostgreSQL run cancel and unpublished-run failure
+ 
+-This is the active-pull cancel and the failure close on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` (`scan`, `bounded_read`) and `bounded_reader` stay unchanged and false. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle release. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table.
++This is the active-pull cancel and the failure close on one already-open snapshot owner. Acceptance is qualified to the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` `scan` and `bounded_read`, and type capability `bounded_reader`, are supported for that path. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle close only. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table.
+ 
+ ## Caller
+ 
+diff --git a/crates/oo-connectors/src/key_plan.rs b/crates/oo-connectors/src/key_plan.rs
+index 8f152763..6052fe9f 100644
+--- a/crates/oo-connectors/src/key_plan.rs
++++ b/crates/oo-connectors/src/key_plan.rs
+@@ -64,8 +64,9 @@ pub struct KeyRange {
+     pub upper: Option<Vec<ProbeValue>>,
+ }
+ 
+-/// One planned slice. `resumable` is false. The loader treats anything other than
+-/// [`crate::SnapshotFinished`] as incomplete.
++/// One planned slice. `resumable` is false. `finish` / [`crate::SnapshotFinished`]
++/// is lifecycle close only. `finish_complete` / [`crate::RunComplete`] is
++/// full-selection admission.
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct PlannedChunk {
+     pub generation: u64,
+diff --git a/crates/oo-connectors/src/lib.rs b/crates/oo-connectors/src/lib.rs
+index 9f233d68..64a7efae 100644
+--- a/crates/oo-connectors/src/lib.rs
++++ b/crates/oo-connectors/src/lib.rs
+@@ -108,10 +108,27 @@ mod tests {
+         ));
+         let _linked = options;
+         assert_eq!(super::CORE_BOUNDARY, oo_core::CONTRACT_CONFIG);
+-        assert!(
+-            super::connector_capabilities()
+-                .iter()
+-                .all(|item| !item.supported)
++        let caps = super::connector_capabilities();
++        let supported: Vec<&str> = caps
++            .iter()
++            .filter(|item| item.supported)
++            .map(|item| item.name.as_str())
++            .collect();
++        let unsupported: Vec<&str> = caps
++            .iter()
++            .filter(|item| !item.supported)
++            .map(|item| item.name.as_str())
++            .collect();
++        assert_eq!(supported, ["scan", "bounded_read"]);
++        assert_eq!(
++            unsupported,
++            [
++                "cdc",
++                "type_conversion",
++                "registry_api",
++                "source_ddl",
++                "source_write"
++            ]
+         );
+     }
+ 
+diff --git a/crates/oo-connectors/src/model.rs b/crates/oo-connectors/src/model.rs
+index 0d7af7c1..5964e400 100644
+--- a/crates/oo-connectors/src/model.rs
++++ b/crates/oo-connectors/src/model.rs
+@@ -718,32 +718,34 @@ pub struct TlsReport {
+     pub server_observation: String,
+ }
+ 
+-/// One capability this slice does not implement.
++/// One capability this connector reports.
+ #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+ pub struct CapabilityStatus {
+     /// Capability name.
+     pub name: String,
+-    /// Always false in this slice.
++    /// True when this build advertises the capability.
+     pub supported: bool,
+-    /// Why it is unsupported.
++    /// Why it is supported or unsupported.
+     pub reason: String,
+ }
+ 
+ /// Static capability list. CDC prerequisites are separate facts.
+ pub fn connector_capabilities() -> Vec<CapabilityStatus> {
++    const READER: &str =
++        "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission";
+     [
+-        ("scan", "not_in_this_slice"),
+-        ("bounded_read", "not_in_this_slice"),
+-        ("cdc", "not_in_this_slice"),
+-        ("type_conversion", "not_in_this_slice"),
+-        ("registry_api", "not_in_this_slice"),
+-        ("source_ddl", "forbidden"),
+-        ("source_write", "forbidden"),
++        ("scan", true, READER),
++        ("bounded_read", true, READER),
++        ("cdc", false, "not_in_this_slice"),
++        ("type_conversion", false, "not_in_this_slice"),
++        ("registry_api", false, "not_in_this_slice"),
++        ("source_ddl", false, "forbidden"),
++        ("source_write", false, "forbidden"),
+     ]
+     .into_iter()
+-    .map(|(name, reason)| CapabilityStatus {
++    .map(|(name, supported, reason)| CapabilityStatus {
+         name: name.to_string(),
+-        supported: false,
++        supported,
+         reason: reason.to_string(),
+     })
+     .collect()
+@@ -847,7 +849,7 @@ pub struct AccessReport {
+     pub replication_slots: Fact<Vec<String>>,
+     /// CDC inputs. Implementation remains false.
+     pub cdc: CdcPrerequisite,
+-    /// Capabilities. Every entry is unsupported.
++    /// Capabilities. `scan` and `bounded_read` are supported. The other entries are not.
+     pub capabilities: Vec<CapabilityStatus>,
+     /// Objects a DBA would create. This process does not create them.
+     pub dba_checklist: Vec<DbaItem>,
+@@ -1025,7 +1027,32 @@ mod tests {
+             classify_type("e", "order_status", -1).reason,
+             TypeUnsupportedReason::EnumNotConverted
+         ));
+-        assert!(connector_capabilities().iter().all(|item| !item.supported));
++        let caps = connector_capabilities();
++        let supported: Vec<&str> = caps
++            .iter()
++            .filter(|item| item.supported)
++            .map(|item| item.name.as_str())
++            .collect();
++        let unsupported: Vec<&str> = caps
++            .iter()
++            .filter(|item| !item.supported)
++            .map(|item| item.name.as_str())
++            .collect();
++        assert_eq!(supported, ["scan", "bounded_read"]);
++        assert_eq!(
++            unsupported,
++            [
++                "cdc",
++                "type_conversion",
++                "registry_api",
++                "source_ddl",
++                "source_write"
++            ]
++        );
++        assert!(caps.iter().filter(|item| item.supported).all(|item| {
++            item.reason
++                == "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
++        }));
+         assert_eq!(admit_version(17, 10, "17.10 (Debian)"), "tested");
+         assert_eq!(admit_version(13, 0, "13.0"), "untested");
+         assert_eq!(admit_version(12, 22, "12.22"), "below_minimum");
+diff --git a/crates/oo-connectors/src/types/mod.rs b/crates/oo-connectors/src/types/mod.rs
+index 9920752c..dbb95bcc 100644
+--- a/crates/oo-connectors/src/types/mod.rs
++++ b/crates/oo-connectors/src/types/mod.rs
+@@ -107,7 +107,11 @@ pub fn type_capabilities() -> Vec<CapabilityStatus> {
+         ("mysql_unsigned", false, "not this slice"),
+         ("position_codec", false, "not this slice"),
+         ("cdc", false, "not this slice"),
+-        ("bounded_reader", false, "not this slice"),
++        (
++            "bounded_reader",
++            true,
++            "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission",
++        ),
+         ("loader_reject_persistence", false, "reject records are returned, not stored"),
+         ("user_defined_output", false, "custom send functions are not selected"),
+     ]
+diff --git a/crates/oo-connectors/src/types/tests.rs b/crates/oo-connectors/src/types/tests.rs
+index 0b806989..3e98361d 100644
+--- a/crates/oo-connectors/src/types/tests.rs
++++ b/crates/oo-connectors/src/types/tests.rs
+@@ -118,7 +118,34 @@ fn converted_flag_does_not_authorize_or_block_a_builtin() {
+     let plan = plan_builtin(OID_BOOL, "bool", "boolsend", 1, -1);
+     assert_eq!(plan.mapping.decision, MapDecision::Lossless);
+     assert_eq!(plan.mapping.protocol, TYPE_CONVERSION_PROTOCOL);
+-    assert!(connector_capabilities().iter().all(|item| !item.supported));
++    let caps = connector_capabilities();
++    let supported: Vec<&str> = caps
++        .iter()
++        .filter(|item| item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    let unsupported: Vec<&str> = caps
++        .iter()
++        .filter(|item| !item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    assert_eq!(supported, ["scan", "bounded_read"]);
++    assert_eq!(
++        unsupported,
++        [
++            "cdc",
++            "type_conversion",
++            "registry_api",
++            "source_ddl",
++            "source_write"
++        ]
++    );
++    assert!(type_capabilities().iter().any(|item| {
++        item.name == "bounded_reader"
++            && item.supported
++            && item.reason
++                == "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
++    }));
+     assert!(type_capabilities()
+         .iter()
+         .any(|item| item.name == "pg_builtin_lossless" && item.supported));
+diff --git a/crates/oo-connectors/tests/live_pg.rs b/crates/oo-connectors/tests/live_pg.rs
+index d475cd73..c21d5ee8 100644
+--- a/crates/oo-connectors/tests/live_pg.rs
++++ b/crates/oo-connectors/tests/live_pg.rs
+@@ -116,7 +116,29 @@ async fn live_source_catalog() {
+         report.tls.negotiated_version
+     );
+     assert_eq!(report.tls.server_observation, "observed");
+-    assert!(report.capabilities.iter().all(|item| !item.supported));
++    let supported: Vec<&str> = report
++        .capabilities
++        .iter()
++        .filter(|item| item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    let unsupported: Vec<&str> = report
++        .capabilities
++        .iter()
++        .filter(|item| !item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    assert_eq!(supported, ["scan", "bounded_read"]);
++    assert_eq!(
++        unsupported,
++        [
++            "cdc",
++            "type_conversion",
++            "registry_api",
++            "source_ddl",
++            "source_write"
++        ]
++    );
+     assert!(
+         report
+             .dba_checklist
+diff --git a/crates/oo-connectors/tests/lossless_live.rs b/crates/oo-connectors/tests/lossless_live.rs
+index ccd36715..dbbbc79e 100644
+--- a/crates/oo-connectors/tests/lossless_live.rs
++++ b/crates/oo-connectors/tests/lossless_live.rs
+@@ -110,7 +110,28 @@ async fn live_lossless_types() {
+     assert_eq!(report.tls.server_observation, "observed");
+     assert_eq!(report.tls.negotiated_version, "TLSv1.3");
+     assert_eq!(report.version.admission, "tested");
+-    assert!(connector_capabilities().iter().all(|item| !item.supported));
++    let caps = connector_capabilities();
++    let supported: Vec<&str> = caps
++        .iter()
++        .filter(|item| item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    let unsupported: Vec<&str> = caps
++        .iter()
++        .filter(|item| !item.supported)
++        .map(|item| item.name.as_str())
++        .collect();
++    assert_eq!(supported, ["scan", "bounded_read"]);
++    assert_eq!(
++        unsupported,
++        [
++            "cdc",
++            "type_conversion",
++            "registry_api",
++            "source_ddl",
++            "source_write"
++        ]
++    );
+     assert!(type_capabilities().iter().any(|item| item.name == "pg_arrow_crate" && item.supported));
+     assert!(type_capabilities()
+         .iter()
+diff --git a/crates/oo-connectors/tests/pg_reader_complete_live.rs b/crates/oo-connectors/tests/pg_reader_complete_live.rs
+index 26ace07d..5a50f65c 100644
+--- a/crates/oo-connectors/tests/pg_reader_complete_live.rs
++++ b/crates/oo-connectors/tests/pg_reader_complete_live.rs
+@@ -116,8 +116,35 @@ impl World {
+     }
+ 
+     fn note_capabilities(&mut self) {
+-        for cap in connector_capabilities() {
+-            assert!(!cap.supported, "capability {} was advertised", cap.name);
++        let caps = connector_capabilities();
++        let supported: Vec<&str> = caps
++            .iter()
++            .filter(|cap| cap.supported)
++            .map(|cap| cap.name.as_str())
++            .collect();
++        let unsupported: Vec<&str> = caps
++            .iter()
++            .filter(|cap| !cap.supported)
++            .map(|cap| cap.name.as_str())
++            .collect();
++        assert_eq!(supported, ["scan", "bounded_read"]);
++        assert_eq!(
++            unsupported,
++            [
++                "cdc",
++                "type_conversion",
++                "registry_api",
++                "source_ddl",
++                "source_write"
++            ]
++        );
++        for cap in &caps {
++            if cap.supported {
++                assert_eq!(
++                    cap.reason,
++                    "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
++                );
++            }
+             if cap.name == "scan" || cap.name == "bounded_read" {
+                 self.note(format!(
+                     "connector_capability name={} supported={} reason={}",
+@@ -125,15 +152,19 @@ impl World {
+                 ));
+             }
+         }
+-        for cap in type_capabilities() {
+-            if cap.name == "bounded_reader" {
+-                assert!(!cap.supported, "bounded_reader was advertised");
+-                self.note(format!(
+-                    "type_capability name={} supported={} reason={}",
+-                    cap.name, cap.supported, cap.reason
+-                ));
+-            }
+-        }
++        let bounded = type_capabilities()
++            .into_iter()
++            .find(|cap| cap.name == "bounded_reader")
++            .expect("bounded_reader");
++        assert!(bounded.supported, "bounded_reader was not advertised");
++        assert_eq!(
++            bounded.reason,
++            "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
++        );
++        self.note(format!(
++            "type_capability name={} supported={} reason={}",
++            bounded.name, bounded.supported, bounded.reason
++        ));
+     }
+ 
+     fn next_gen(&self) -> u64 {

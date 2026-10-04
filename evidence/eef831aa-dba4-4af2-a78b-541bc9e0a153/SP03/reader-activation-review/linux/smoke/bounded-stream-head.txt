@@ -1,0 +1,12 @@
+# PostgreSQL bounded full-snapshot stream `oo.source.pgsql.stream/v1`
+
+This is the pull on one already-open snapshot owner. Acceptance is qualified to the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Typed key chunks are `reader-keys-v1`. Active-pull cancellation is `reader-lifecycle-v1`. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` `scan` and `bounded_read` are supported for that path. `cdc`, `type_conversion`, `registry_api`, `source_ddl`, and `source_write` stay unsupported.
+
+The stream reuses admitted columns, `decode_payload`, and `assemble_batch`. It does not change type mapping or canonical cell semantics.
+
+## Caller
+
+`SnapshotOwner::open_stream` takes a `StreamBudget` and moves the owner's two sessions into one pull. `next_batch` is the only driver. It returns `StreamItem::Batch`, `TableEof`, or `Exhausted`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle close only. `SnapshotOwner::finish_complete` returns `RunComplete` as full-selection admission. `TableEof` is the end of one table. `Exhausted` means every selected table has reached `TableEof` and the owner is still open.
+
+`StreamBudget::try_new` requires `batch_rows` in `1..=65536`, `batch_bytes > 0`, `max_value_bytes > 0`, and `max_row_bytes >= max(2, max_value_bytes)`. Invalid combinations are `config` facts `batch_rows`, `batch_bytes`, `max_value`, or `max_row`. `queue_batches` is 1 and is not a parameter. These fields are not part of `config_identity`.
+

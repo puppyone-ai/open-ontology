@@ -1,0 +1,3 @@
+cargo fetch --manifest-path Cargo.toml --locked
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-connectors --lib
+cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-connectors --all-targets -- -D warnings
