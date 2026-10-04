@@ -1,0 +1,9 @@
+host
+port
+database
+reader_user
+owner_role
+super_user
+password_dir
+ca_file
+log_file

@@ -1,0 +1,14 @@
+oo_task=captured-pg-draft-focused
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+rustc_host=aarch64-unknown-linux-gnu
+=== rustup-rustfmt ===
+phase rustup-rustfmt exit 0
+=== rustfmt ===
+phase rustfmt exit 0
+=== lib ===
+phase lib exit 0
+=== captured_pg ===
+phase captured_pg exit 0
+=== structure_draft_cli ===
+phase structure_draft_cli exit 101

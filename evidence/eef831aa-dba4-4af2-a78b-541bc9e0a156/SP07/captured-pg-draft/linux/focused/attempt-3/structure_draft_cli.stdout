@@ -1,0 +1,27 @@
+
+running 4 tests
+test repeated_key_member_exits_nonzero_without_echoing_the_name ... FAILED
+test rejected_fk_endpoint_closes_the_relationship_on_the_cli ... FAILED
+test skeleton_and_unknown_commands_exit_2 ... ok
+test structure_draft_writes_the_customer_golden_and_rejects_a_duplicate_key ... ok
+
+failures:
+
+---- repeated_key_member_exits_nonzero_without_echoing_the_name stdout ----
+
+thread 'repeated_key_member_exits_nonzero_without_echoing_the_name' (574) panicked at crates/oo-builder/tests/structure_draft_cli.rs:81:78:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- rejected_fk_endpoint_closes_the_relationship_on_the_cli stdout ----
+
+thread 'rejected_fk_endpoint_closes_the_relationship_on_the_cli' (573) panicked at crates/oo-builder/tests/structure_draft_cli.rs:106:84:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+
+
+failures:
+    rejected_fk_endpoint_closes_the_relationship_on_the_cli
+    repeated_key_member_exits_nonzero_without_echoing_the_name
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,4 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests/structure_draft_cli.rs (/target/debug/deps/structure_draft_cli-2128ea11b6cd52a6)
+error: test failed, to rerun pass `-p oo-builder --test structure_draft_cli`

@@ -1,0 +1,10 @@
+source_commit=e6bd4c7aa8c3a43cc0516a21e325765c5eecb2f6
+tree=66b9a76dc668f11e9466a1de2b3922b9222ef9d5
+snapshot_method=git archive of e6bd4c7aa8c3a43cc0516a21e325765c5eecb2f6 plus overlay of captured-pg sources
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a156-builder-focused
+network=oo-a156-eef831aa-net
+pull=never
+privileged=no
