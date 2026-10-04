@@ -188,6 +188,7 @@
 - [ ] SP07-W05 审核/owner/分类
   - [x] W05-RC review-pg-draft命令：2283f904经a163独立限定批准，fresh accept/reject/override、FK closure、stale schema/fact pending、curated echo；owner/auth/persisted audited workflow/语义发布未验。
 - [ ] SP07-W06 role Pack/缓存/manifest
+  - [x] W06-PC bounded角色Pack编译器：eff1959b经a176独立限定批准，隐藏依赖闭包/PII与RLS统计限制/内容与cache hash；真实policy adapter、鉴权、mount、tokenizer及完整W06未验。
 - [ ] SP07 D组件/Phase退出
 
 ### SP08
@@ -1125,3 +1126,5 @@ a17231651 actualexit0 completedindependentreview REQUEST_CHANGES onef34ad7b; all
 a17394769 actualexit0 complete independently APPROVE LIMITED d3429726; all3reportsread/hashreceiptchecked/owncleanup proof. W01-CA accepted27→28, delivered24, firstcomponentreviewapproved denominator23→24 rework10/24=41.67%. Actualclinicfixture mappedshadow/grants/generationdecoys/replay/42501/TLS/24checksums0; release deny/audit/SBOM and adaptertaxonomyremainopen notpublicdevblocker. a17459332 unifiedchecklive. Dispatcha175actualASTSQLguardparallel gatewaysolewriter/deps/global2builder, all87parentsopen/goalactive.
 
 a17459332 actualexit0 completeeff1959b full3reportsread/manifestchecked/commitMSRV11testsClippyDocker0, fixesliteral/namecollision/DISTINCT pendinga176 noacceptance/newcomponent. a17542701 unifiedchecklive actualASTguardwriter. Dispatcha176fixedPackliteralreviewparallel/global2builder, metrics24/28/10of24 unchanged/all87parentsopen/goalactive.
+
+a17666424 actualexit0 limitedAPPROVE eff1959b all3reportsread/manifestchecked/probe2Docker0/owncleanupempty. AllrequiredPackF1F2F3/literal/namenotesclosed withmeaningfulvisibleobjects retained; W06-PC accepted28→29, delivered24, firstreview10of24=41.67% unchanged (re-review notnewcomponent). a17542701 unifiedchecklive SQLguardwriter. Dispatcha177actualrolePackCLIparallel/global2builder/all87parentsopen/goalactive.
