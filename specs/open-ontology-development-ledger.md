@@ -1076,3 +1076,5 @@ a154 sameUUIDresume3 actualhandle90213 slotA fullimport; a15771206 slotB fixedca
 
 
 a15771206 actualexit0 complete92829c3b, full3reportsread115hashactual0, ownDockerempty. IndependentactualPG capture/stale0, builder28+CLI4+captured6/Clippy0; Rustaudit34statements/0writes completeextendedclassification. OnlyW02-CPaccepted21→22; delivered17/firstcomponentreviewapproved denominator16→17,rework9/17=52.94%. a15490213 actualexit0 incomplete logOO018backendstatsvisibility fixedwithowner-onlygrant and ownretrylaunched; resume4collectexistingresult no duplicatebuilder, grantexplicitversionedreviewrequired. a158usablecaptureddraftCLIparallel noPG, all87parentsopen goalactive.
+
+a154 sameUUIDresume4 actualhandle5484 slotA fullimport; a158 actualGrok4.7xhighhandle57584 slotB captureddraftCLI1builder0PG. Old90213/71206 closed notobservedagain, global2builder, dispatch5894042e/nextUUIDa159. One25minute wait, goal active.
