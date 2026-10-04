@@ -1,0 +1,14 @@
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a157/SP07/captured-pg-draft-review/probe/out/catalog-before.json
+sha256=de094222fcd5cb4e54c95a5ec8950c8fd2d55837bd1cff8cd3dd49673f8d56d9
+bytes=5644
+protocol=oo.source.pgsql/v1
+source_id=ledger_src
+database=oo_a157
+schema_hash=a0efbfc8b5bc7536a121208a1c8e3ff41b16cdda4018b5618b047f40d415271c
+tables=ledger.party ledger.invoice
+email_comment_byte_len=37
+email_comment_sha256=5b4c8687a0a47b150796d520ec9c5253d23eeb33e80cfd685831a7f29384df81
+comment_body_in_file=0
+a157_review=92829c3b1b80abc10324535051ca5c84faa0d2d8
+password_count=0
+private_key_count=0
