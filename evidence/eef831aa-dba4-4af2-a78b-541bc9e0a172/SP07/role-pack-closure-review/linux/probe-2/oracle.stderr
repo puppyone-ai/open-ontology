@@ -1,0 +1,9 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.15s
+     Running tests/role_pack_a172_review.rs (/target/debug/deps/role_pack_a172_review-9e17a9e56b249c61)
+
+thread 'fresh_closure_cases_and_independent_oracle' (131) panicked at crates/oo-builder/tests/role_pack_a172_review.rs:1195:5:
+closure violations:
+["`签''记` in metrics.md: \\n```text\\n本季到港重量\\n```\\n\\n```sql\\nSELECT '签''记' AS mass_kg FROM dock.parcel\\n```\\n\\n## string_met","hidden or unsupported object kept: ## sq_leak"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p oo-builder --test role_pack_a172_review`

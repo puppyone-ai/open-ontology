@@ -1,0 +1,1 @@
+oo.builder.role-pack-cache/v1|project=alpha|principal=cy|role=oo_r_audit|policy=pol-alpha@7|knowledge=know-alpha@3|ontology=ont-a172|catalog=cat-a172|compiler=oo-builder/role-pack/v1|pack=50f6803cf24510398b4a7e6dbf486899515950b5763438ff86ba3adb5f1ebbcd
