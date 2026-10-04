@@ -46,3 +46,30 @@ The wrapper records the same historical pair under `historical`, plus:
 `live_catalog_review` stays `pending` when the inner draft applies a caller decision. An accept or override is the existing review queue. It does not turn `not_accepted` into a live catalog approval.
 
 Generated, curated, and effective layers, the review queue, unknown PII and semantics, stale schema and fact decisions, foreign-key endpoint closure, and Unicode 17 canonical identifiers are unchanged. They are the structure-draft compiler's behavior. A schema-hash change returns a prior decision to pending, queues `stale_decision`, and leaves the curated echo in place without applying it.
+
+## Command
+
+`oo-builder captured-pg-draft` reads one `oo.source.pgsql/v1` catalog document from stdin and writes one command result to stdout. Protocol `oo.builder.captured-pg-draft-command/v1`. No arguments. The command calls `compile_captured_pg_catalog(input, None, None)`. It does not open a connection, call a model, read source credentials, import rows, grant, certify, or publish.
+
+Curated overlays and review decisions are not arguments of this command. They stay on `compile_captured_pg_catalog`.
+
+Stdout is one JSON object with sorted keys and no trailing newline. `wrapper`, `evidence_envelope`, and `draft` are objects, the same values as the three canonical strings on `CapturedPgDraft`. They are not escaped JSON strings. The bytes of each object are those strings.
+
+| Key | Value |
+|---|---|
+| `protocol` | `oo.builder.captured-pg-draft-command/v1` |
+| `wrapper` | Parsed `CapturedPgDraft.wrapper` |
+| `evidence_envelope` | Parsed `CapturedPgDraft.evidence_envelope` |
+| `draft` | Parsed `CapturedPgDraft.draft` |
+
+The captured catalog inside the envelope still carries owner and privilege records. The draft and the wrapper do not copy the owner. Comment bodies are not in the result. `wrapper.row_import` is `not_proven`. `wrapper.grants` is `not_authorized`. Unknown PII, tentative foreign keys, and the review queue are the draft's.
+
+Stdin is read up to 1048577 bytes. A longer stream is not read further. The parser then rejects a document above 1048576 bytes. Nothing is written to stdout until the command result parses as one JSON object. A failure writes a static diagnostic to stderr and does not echo the catalog.
+
+| Exit | Cause |
+|---|---|
+| 0 | The command result was written |
+| 1 | Stdin could not be read, is not UTF-8, the catalog or compiler rejected it, or stdout could not be written |
+| 2 | The command is missing or unknown, or `captured-pg-draft` was given an argument |
+
+`structure-draft` is unchanged: one evidence envelope on stdin, the same draft bytes on stdout, exit 0 on success, exit 1 on a draft error, and exit 2 when that command is given an argument. With no arguments the process still reports that the SP00-W01 entry skeleton is not implemented, and it names these two public draft commands.
