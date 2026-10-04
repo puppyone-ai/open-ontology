@@ -1,0 +1,1 @@
+cargo test a160_oracle and cargo clippy exited 101. serde_json::json! hit the recursion limit in the independent oracle. Lib 28, structure_draft_cli 4, and captured_pg_cli 3 had already passed. Product sources were not edited. The oracle summary was rewritten without that macro and rerun in the same private volumes.
