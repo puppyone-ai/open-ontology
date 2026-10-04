@@ -1,0 +1,7 @@
+ExitCode=0
+Status=exited
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a147-eef831aa-net
+Memory=8589934592
+CapDrop=[ALL]
