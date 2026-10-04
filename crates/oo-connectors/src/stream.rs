@@ -179,6 +179,11 @@ pub(crate) struct StreamPlan {
     pub backend_pid: i64,
     /// `backend_start::text` captured at open. A reused pid does not match.
     pub backend_start: String,
+    /// True only for one unbounded scan of every table this owner selected.
+    pub covers_selected: bool,
+    /// Owner flag. The pull stores `true` only when `Exhausted` is delivered
+    /// for `covers_selected`. There is no other writer.
+    pub exhausted_delivered: Arc<AtomicBool>,
 }
 
 struct Acc {
@@ -370,6 +375,8 @@ pub(crate) struct StreamSlot {
     gate: Arc<Gate>,
     drive: Option<Pin<Box<dyn Future<Output = DriveEnd> + Send>>>,
     next_id: u64,
+    covers_selected: bool,
+    exhausted_delivered: Arc<AtomicBool>,
 }
 
 /// Puts the drive back if the demand future is dropped before it completes.
@@ -394,10 +401,14 @@ impl StreamSlot {
     pub(crate) fn start(data: PgSession, guard: PgSession, plan: StreamPlan) -> Self {
         let gate = Arc::new(Gate::new());
         let gate_run = Arc::clone(&gate);
+        let covers_selected = plan.covers_selected;
+        let exhausted_delivered = Arc::clone(&plan.exhausted_delivered);
         Self {
             gate,
             drive: Some(Box::pin(run(data, guard, plan, gate_run))),
             next_id: 1,
+            covers_selected,
+            exhausted_delivered,
         }
     }
 
@@ -445,7 +456,14 @@ impl StreamSlot {
         }
         drop(held);
         match outcome {
-            Outcome::Item(item) => Next::Item(item),
+            Outcome::Item(item) => {
+                // The consumer has taken this item from the gate. Record
+                // admission only for Exhausted on a full selected-table scan.
+                if self.covers_selected && matches!(item, StreamItem::Exhausted(_)) {
+                    self.exhausted_delivered.store(true, Ordering::Relaxed);
+                }
+                Next::Item(item)
+            }
             Outcome::End(end) => Next::Ended(Some(end)),
         }
     }

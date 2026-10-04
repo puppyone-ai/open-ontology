@@ -1,6 +1,6 @@
 # PostgreSQL run cancel and unpublished-run failure
 
-This is the active-pull cancel and the failure close on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` and `bounded_reader` stay unchanged. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`.
+This is the active-pull cancel and the failure close on one already-open snapshot owner. It is not whole-reader acceptance. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` (`scan`, `bounded_read`) and `bounded_reader` stay unchanged and false. Key planning stays `reader-keys-v1`. The pull stays `bounded-stream-v1`. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle release. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table.
 
 ## Caller
 
@@ -10,7 +10,9 @@ This is the active-pull cancel and the failure close on one already-open snapsho
 
 `finish` after the flag is set releases both sessions and returns `protocol` fact `cancelled`. It does not return `SnapshotFinished`.
 
-With the flag clear, `finish` still requires the pull task to return success, the catalog recheck to pass, both releases to succeed, an unpoisoned owner, and the deadline. A portal value past `max_value` fails the pull with `budget` fact `max_value`. `settle_after` can skip `ROLLBACK` after `portal_poison` and return success to `prefer`, and `prefer` keeps that budget error. `finish` returns the same fact. `shutdown` drops the data socket without `ROLLBACK`. That reset is not `SnapshotFinished`. Both backends still leave a current `pg_stat_activity` sample within `CLEANUP_OBSERVATION_BOUND_MS`. A drained portal EOF that rolls back and closes still returns `SnapshotFinished`. A later generation of those committed rows reads the same ids. `RunCancel::request` before `finish` still returns `protocol` fact `cancelled`.
+With the flag clear, `finish` still requires the pull task to return success, the catalog recheck to pass, both releases to succeed, an unpoisoned owner, and the deadline. A portal value past `max_value` fails the pull with `budget` fact `max_value`. `settle_after` can skip `ROLLBACK` after `portal_poison` and return success to `prefer`, and `prefer` keeps that budget error. `finish` returns the same fact. `shutdown` drops the data socket without `ROLLBACK`. That reset is not `SnapshotFinished`. Both backends still leave a current `pg_stat_activity` sample within `CLEANUP_OBSERVATION_BOUND_MS`. A drained portal EOF that rolls back and closes still returns `SnapshotFinished`. That value is lifecycle release for compatibility. It does not require `StreamItem::Exhausted`, and a successful rollback is not proof that every selected table was read. A later generation of those committed rows reads the same ids. `RunCancel::request` before `finish` still returns `protocol` fact `cancelled`.
+
+`finish_complete` consumes the owner. It checks cancellation, the deadline, and the current catalog and ACL before release, then closes both connections. It returns `RunComplete` only when this owner delivered `StreamItem::Exhausted` for every selected table and those release checks pass. The pull records that delivery when the consumer takes `Exhausted` from a scan of every selected table. `TableEof` does not record it. A key-range or single-table chunk does not record it. Callers cannot construct `RunComplete` and cannot assert completion. The token binds the source id, config identity, generation, type policy, input digest, fixed catalog, and selected-table identity captured for this owner. No stream, a stream that was not pulled, one batch while rows remain, and a later selected table that was never scanned return `protocol` fact `not_exhausted` after both connections close. Cancellation, a budget or portal or source failure, a deadline, a current catalog or ACL failure, and a failed cleanup return that failure and do not mint `RunComplete`. No production target admits a load yet. Only `RunComplete` may admit an eventual loader. `SnapshotFinished` cannot.
 
 `abort` is unchanged: it releases and returns `SnapshotAborted` when cleanup succeeds, including when the owner was already poisoned.
 
@@ -39,7 +41,7 @@ A dropped client timeout on catalog `fetch_all` / `fetch_one` is unchanged. It s
 
 ## Unpublished run
 
-`SnapshotFinished` is the only successful close. A cut that lost its source, hit a deadline, was cancelled, or failed a statement does not finish and does not reconnect under the same generation. Later chunks are not appended to that output.
+`SnapshotFinished` is the successful lifecycle close and is not admission. `RunComplete` from `finish_complete` is the only value that may admit an eventual loader. This slice still has no production target admission. A cut that lost its source, hit a deadline, was cancelled, failed a statement, or did not deliver `StreamItem::Exhausted` for every selected table does not return `RunComplete` and does not reconnect under the same generation. Later chunks are not appended to that output.
 
 A new `SnapshotOwner` generation after a committed writer mutation reads that new cut completely. It does not mix rows from the old generation. The old output stays incomplete.
 

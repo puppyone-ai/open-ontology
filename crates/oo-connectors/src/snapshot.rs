@@ -13,7 +13,9 @@
 //! That pull is not a second snapshot and not the whole reader. Resume cursors
 //! stay unimplemented. `cancel` asks the guard session to cancel the data backend
 //! and then rolls back both sessions. Dropping `next_batch` restores the drive
-//! and does not by itself end the backend.
+//! and does not by itself end the backend. `finish` is lifecycle release.
+//! `SnapshotFinished` is not admission. `finish_complete` returns `RunComplete`
+//! only after this owner delivered `StreamItem::Exhausted` for every selected table.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -25,7 +27,7 @@ use sha2::{Digest, Sha256};
 use sqlx::postgres::{PgArguments, PgValueFormat};
 use sqlx::{Arguments, Row, ValueRef};
 
-use crate::config::PgSourceConfig;
+use crate::config::{PgSourceConfig, SelectedTable};
 use crate::error::SourceError;
 use crate::model::{SourceCatalog, SourceColumn, SourceTable};
 use crate::session::{self, PgConnector, PgSession};
@@ -206,8 +208,10 @@ pub struct SnapshotBinding {
     pub access: Vec<TableAccess>,
 }
 
-/// Returned only after `ROLLBACK` is accepted and the connection close succeeds.
-/// Callers outside this crate cannot construct it.
+/// Lifecycle release after `ROLLBACK` is accepted and both connections close.
+/// This is not admission. It does not mean every selected table reached
+/// [`crate::StreamItem::Exhausted`]. No production target admits a load from
+/// this value. Callers outside this crate cannot construct it.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SnapshotFinished {
@@ -218,6 +222,41 @@ pub struct SnapshotFinished {
     /// Backend that was closed.
     pub backend: BackendKey,
 }
+
+/// Admission that this owner delivered [`crate::StreamItem::Exhausted`] for
+/// every selected table and then passed the release checks.
+///
+/// `SnapshotFinished` is not this value. A successful rollback is not this
+/// value. Callers cannot construct it: the seal is private to the snapshot
+/// owner, and there is no public constructor. No production target admits a
+/// load yet. Only this value may admit an eventual loader.
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunComplete {
+    /// Source id captured for this owner.
+    pub source_id: String,
+    /// Generation that was consumed.
+    pub generation: u64,
+    /// [`config_identity`] of the configuration bound at open.
+    pub config_identity: [u8; 32],
+    /// [`type_policy_identity`] of the policy bound at open.
+    pub type_policy_identity: [u8; 32],
+    /// Type policy bound at open.
+    pub policy: PgTypePolicy,
+    /// Digest of the config identity, policy identity, schema hash, and generation.
+    pub input_digest: [u8; 32],
+    /// `pg-catalog-hash/v1` of the catalog captured in this transaction.
+    pub schema_hash: String,
+    /// Catalog captured inside the snapshot transaction. This is not a second read.
+    pub catalog: SourceCatalog,
+    /// Selected tables in owner order.
+    pub selected: Vec<SelectedTable>,
+    seal: CompleteSeal,
+}
+
+/// Private proof that [`RunComplete`] was minted by [`SnapshotOwner::finish_complete`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CompleteSeal;
 
 /// Returned only after an explicit abort confirms `ROLLBACK` and close.
 /// This is not [`SnapshotFinished`]. Callers outside this crate cannot construct it.
@@ -407,6 +446,9 @@ pub struct SnapshotOwner {
     released: bool,
     stream: Option<crate::stream::StreamSlot>,
     cancel: Arc<AtomicBool>,
+    /// Set only by the pull when it delivers [`crate::StreamItem::Exhausted`]
+    /// for every selected table. Nothing in the test crate can store this.
+    exhausted_delivered: Arc<AtomicBool>,
 }
 
 impl SnapshotOwner {
@@ -520,6 +562,7 @@ impl SnapshotOwner {
             released: false,
             stream: None,
             cancel: Arc::new(AtomicBool::new(false)),
+            exhausted_delivered: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -564,9 +607,10 @@ impl SnapshotOwner {
     }
 
     /// Read the current catalog, then roll back and close both sessions.
-    /// [`SnapshotFinished`] is returned only when the catalog still matches,
-    /// both rollbacks and closes succeed, the owner is not poisoned, and the
-    /// deadline has not passed.
+    /// [`SnapshotFinished`] is lifecycle release for compatibility. It is not
+    /// admission and does not require [`crate::StreamItem::Exhausted`].
+    /// It is returned only when the catalog still matches, both rollbacks and
+    /// closes succeed, the owner is not poisoned, and the deadline has not passed.
     pub async fn finish(mut self) -> Result<SnapshotFinished, SourceError> {
         let requested = self.cancel.load(Ordering::Relaxed);
         let stream_err = self.take_stream().await.err();
@@ -606,6 +650,106 @@ impl SnapshotOwner {
         }
         ensure_deadline(self.deadline)?;
         Ok(finished)
+    }
+
+    /// Release both sessions and return [`RunComplete`] only when this owner
+    /// delivered [`crate::StreamItem::Exhausted`] for every selected table.
+    ///
+    /// Cancellation, the deadline, and the current catalog and ACL are checked
+    /// before release. A budget, portal, or source failure, a deadline, a
+    /// current catalog or ACL failure, and a failed cleanup return that failure
+    /// and do not mint [`RunComplete`]. No stream, a stream that was not pulled,
+    /// one batch while rows remain, `TableEof` without `Exhausted`, and a later
+    /// selected table that was never scanned return `protocol` fact
+    /// `not_exhausted` after both connections close. A successful rollback is
+    /// not admission. [`SnapshotFinished`] cannot admit a loader.
+    pub async fn finish_complete(mut self) -> Result<RunComplete, SourceError> {
+        let requested = self.cancel.load(Ordering::Relaxed);
+        let stream_err = self.take_stream().await.err();
+        if let Some(err) = stream_err.clone() {
+            let _ = self.poison(err);
+        }
+        if requested || self.cancel.load(Ordering::Relaxed) {
+            let cancelled = RunCancelled {
+                generation: self.binding.generation,
+                source_id: self.binding.source_id.clone(),
+                backend: self.binding.backend.clone(),
+            };
+            self.finish_cancel(stream_err, cancelled).await?;
+            return Err(SourceError::protocol("cancelled"));
+        }
+        let mut early = self.poison.clone();
+        if early.is_none() {
+            if Instant::now() >= self.deadline {
+                early = Some(SourceError::budget("deadline"));
+            } else if let Err(err) = self.observe_guard().await {
+                early = Some(err);
+            } else if !self.exhausted_delivered.load(Ordering::Relaxed) {
+                early = Some(SourceError::protocol("not_exhausted"));
+            }
+        }
+        if self.cancel.load(Ordering::Relaxed) {
+            let cancelled = RunCancelled {
+                generation: self.binding.generation,
+                source_id: self.binding.source_id.clone(),
+                backend: self.binding.backend.clone(),
+            };
+            self.finish_cancel(stream_err, cancelled).await?;
+            return Err(SourceError::protocol("cancelled"));
+        }
+        let complete = if early.is_none() {
+            match self.mint_complete() {
+                Ok(token) => Some(token),
+                Err(err) => {
+                    early = Some(err);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let released = self.release_both().await;
+        if let Some(err) = stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
+        {
+            return Err(err);
+        }
+        released?;
+        if let Some(err) = early {
+            return Err(err);
+        }
+        if self.cancel.load(Ordering::Relaxed) {
+            return Err(SourceError::protocol("cancelled"));
+        }
+        ensure_deadline(self.deadline)?;
+        if !self.exhausted_delivered.load(Ordering::Relaxed) {
+            return Err(SourceError::protocol("not_exhausted"));
+        }
+        complete.ok_or_else(|| SourceError::protocol("not_exhausted"))
+    }
+
+    fn mint_complete(&self) -> Result<RunComplete, SourceError> {
+        if !self.exhausted_delivered.load(Ordering::Relaxed) {
+            return Err(SourceError::protocol("not_exhausted"));
+        }
+        let mut selected = Vec::with_capacity(self.tables.len());
+        for table in &self.tables {
+            selected.push(
+                SelectedTable::new(table.schema.clone(), table.name.clone())
+                    .map_err(|_| SourceError::catalog("catalog_identity"))?,
+            );
+        }
+        Ok(RunComplete {
+            source_id: self.binding.source_id.clone(),
+            generation: self.binding.generation,
+            config_identity: self.binding.config_identity,
+            type_policy_identity: self.binding.type_policy_identity,
+            policy: self.policy,
+            input_digest: self.binding.input_digest,
+            schema_hash: self.binding.schema_hash.clone(),
+            catalog: self.binding.catalog.clone(),
+            selected,
+            seal: CompleteSeal,
+        })
     }
 
     /// Roll back and close both sessions. Success is [`SnapshotAborted`], including
@@ -1086,7 +1230,7 @@ impl SnapshotOwner {
         for index in 0..self.tables.len() {
             tables.push(self.stream_table(index, None)?);
         }
-        self.stream_envelope(budget, tables)
+        self.stream_envelope(budget, tables, true)
     }
 
     fn stream_plan_one(
@@ -1096,7 +1240,7 @@ impl SnapshotOwner {
         spec: &crate::key_plan::ReadSpec,
     ) -> Result<crate::stream::StreamPlan, SourceError> {
         let tables = vec![self.stream_table(index, Some(spec))?];
-        self.stream_envelope(budget, tables)
+        self.stream_envelope(budget, tables, false)
     }
 
     fn stream_table(
@@ -1154,11 +1298,22 @@ impl SnapshotOwner {
         &self,
         budget: &crate::stream::StreamBudget,
         tables: Vec<crate::stream::StreamTablePlan>,
+        covers_selected: bool,
     ) -> Result<crate::stream::StreamPlan, SourceError> {
         let session = self
             .session
             .as_ref()
             .ok_or_else(|| SourceError::protocol("snapshot_incomplete"))?;
+        let full = covers_selected
+            && tables.len() == self.tables.len()
+            && tables.iter().enumerate().all(|(index, table)| {
+                self.tables.get(index).is_some_and(|bound| {
+                    table.schema == bound.schema
+                        && table.name == bound.name
+                        && table.lower.is_empty()
+                        && table.upper.is_empty()
+                })
+            });
         Ok(crate::stream::StreamPlan {
             source_id: self.binding.source_id.clone(),
             generation: self.binding.generation,
@@ -1183,6 +1338,8 @@ impl SnapshotOwner {
             cancel: Arc::clone(&self.cancel),
             backend_pid: self.binding.backend.pid,
             backend_start: self.binding.backend.backend_start.clone(),
+            covers_selected: full,
+            exhausted_delivered: Arc::clone(&self.exhausted_delivered),
         })
     }
 

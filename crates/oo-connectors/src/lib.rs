@@ -48,7 +48,8 @@ pub use session::{PgConnector, PgSession};
 pub use snapshot::{
     config_identity, snapshot_input_digest, type_policy_identity, AdmittedCatalog, AdmittedColumn,
     AdmittedTable, BackendKey, CutProbe, ProbeValue, SnapshotAborted, SnapshotBinding,
-    RunCancel, RunCancelled, SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess,
+    RunCancel, RunCancelled, RunComplete, SnapshotFinished, SnapshotOwner, SnapshotRequest,
+    TableAccess,
     CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
 };
 pub use stream::{
