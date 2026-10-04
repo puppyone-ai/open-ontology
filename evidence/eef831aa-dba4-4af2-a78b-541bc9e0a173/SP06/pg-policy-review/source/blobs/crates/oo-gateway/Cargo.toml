@@ -1,0 +1,27 @@
+[package]
+name = "oo-gateway"
+description = "Read-only data gateway. SP06-W01 installs a scoped column ACL for a trusted administrator."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oo-core = { path = "../oo-core" }
+# Pinned to the versions already locked by the workspace. Not a new stack.
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+# Official rust-postgres 0.7.18 line (2026-06-12). MIT OR Apache-2.0. MSRV 1.85.
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+postgres-types = { version = "=0.2.14", default-features = false }
+postgres-protocol = { version = "=0.6.12", default-features = false }
+# Docs require rustls plus the tokio-postgres TLS adapter. No webpki-roots and no native-certs.
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+
+[dev-dependencies]
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
