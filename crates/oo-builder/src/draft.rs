@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use oo_core::config::version::OosVersion;
@@ -26,7 +26,7 @@ use crate::pgsql::{self, Catalog, Column, ForeignKey, Table, TypeReason};
 
 pub const DRAFT_PROTOCOL: &str = "oo.builder.structure-draft/v1";
 pub const COMPILER: &str = "oo-builder/structure-draft/v1";
-const PG_CONTRACT_COMMIT: &str = "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74";
+pub(crate) const PG_CONTRACT_COMMIT: &str = "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74";
 
 /// Compile one evidence envelope into canonical structure-draft JSON.
 ///
@@ -166,13 +166,13 @@ struct BindingsIn {
     evidence_hash: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct SelectionIn {
     tables: Vec<SelectedTable>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct SelectedTable {
     schema: String,
@@ -476,7 +476,7 @@ fn check_bindings(envelope: &EnvelopeIn, catalog: &Catalog) -> Result<(), DraftE
     Ok(())
 }
 
-fn config_hash(catalog: &Catalog) -> String {
+pub(crate) fn config_hash(catalog: &Catalog) -> String {
     canonical_sha256(&serde_json::json!({
         "adapter": "pgsql",
         "config_version": pgsql::CORE_CONTRACT,
@@ -485,7 +485,7 @@ fn config_hash(catalog: &Catalog) -> String {
     }))
 }
 
-fn type_hash(catalog: &Catalog) -> String {
+pub(crate) fn type_hash(catalog: &Catalog) -> String {
     let mut columns = Vec::new();
     for table in &catalog.tables {
         for column in &table.columns {
@@ -2399,6 +2399,92 @@ fn seal(mut document: Value) -> String {
         object.insert("manifest_hash".to_string(), Value::String(manifest));
     }
     canonical_json(&document)
+}
+
+pub(crate) fn parse_evidence_document(input: &str) -> Result<Value, DraftError> {
+    parse_json_value(input, EVIDENCE_PROTOCOL).map_err(map_json)
+}
+
+fn selection_from_catalog(catalog: &Catalog) -> SelectionIn {
+    SelectionIn {
+        tables: catalog
+            .tables
+            .iter()
+            .map(|table| {
+                let mut columns: Vec<String> = table
+                    .columns
+                    .iter()
+                    .map(|column| column.name.clone())
+                    .collect();
+                columns.sort();
+                let mut keys = Vec::new();
+                if !table.primary_key.is_empty() {
+                    keys.push("primary_key".to_string());
+                }
+                keys.extend(table.unique_keys.iter().map(|key| key.name.clone()));
+                keys.extend(table.foreign_keys.iter().map(|key| key.name.clone()));
+                keys.sort();
+                SelectedTable {
+                    schema: table.schema.clone(),
+                    name: table.name.clone(),
+                    columns,
+                    keys,
+                }
+            })
+            .collect(),
+    }
+}
+
+pub(crate) fn catalog_bindings(catalog: &Catalog) -> (String, String, String) {
+    let selection = selection_from_catalog(catalog);
+    (
+        config_hash(catalog),
+        type_hash(catalog),
+        evidence_hash(catalog, &selection),
+    )
+}
+
+pub(crate) fn evidence_envelope_bytes(
+    catalog_value: &Value,
+    catalog: &Catalog,
+    curated: Option<&Value>,
+    reviews: &Value,
+) -> String {
+    let selection = selection_from_catalog(catalog);
+    let mut envelope = serde_json::json!({
+        "adapter": "pgsql",
+        "bindings": {
+            "config_hash": config_hash(catalog),
+            "evidence_hash": evidence_hash(catalog, &selection),
+            "schema_hash": &catalog.schema_hash,
+            "type_hash": type_hash(catalog),
+        },
+        "catalog": catalog_value,
+        "protocol": EVIDENCE_PROTOCOL,
+        "reviews": reviews,
+        "selection": selection,
+        "source": {
+            "database": &catalog.database,
+            "source_id": &catalog.source_id,
+        },
+        "versions": {
+            "config": pgsql::CORE_CONTRACT,
+            "evidence": EVIDENCE_PROTOCOL,
+            "schema": pgsql::HASH_ALGORITHM,
+            "type": pgsql::PROTOCOL,
+        },
+    });
+    if let Some(curated) = curated {
+        envelope["curated"] = curated.clone();
+    }
+    canonical_json(&envelope)
+}
+
+pub(crate) fn manifest_preimage_hash(document: &Value) -> Option<String> {
+    let mut copy = document.clone();
+    let object = copy.get_mut("provenance")?.as_object_mut()?;
+    object.remove("manifest_hash")?;
+    Some(canonical_sha256(&copy))
 }
 
 #[cfg(test)]

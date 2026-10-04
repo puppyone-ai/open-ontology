@@ -1355,6 +1355,73 @@ fn valid_captured_at(value: &str) -> bool {
 
 const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
+/// Normalize array order that `pg-catalog-hash/v1` already treats as a set,
+/// then validate with [`load`]. Primary-key members, foreign-key pairs, enum
+/// labels, and domain checks keep their captured order.
+pub(crate) fn accept_captured_catalog(mut value: Value) -> Result<(Value, Catalog), DraftError> {
+    normalize_captured_arrays(&mut value);
+    let catalog = load(&value)?;
+    Ok((value, catalog))
+}
+
+fn normalize_captured_arrays(value: &mut Value) {
+    let Some(tables) = value.get_mut("tables").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for table in tables.iter_mut() {
+        sort_by_attnum(table, "columns");
+        sort_by_name(table, "unique_keys");
+        sort_by_name(table, "foreign_keys");
+        sort_by_name(table, "policies");
+        sort_privileges(table);
+    }
+    tables.sort_by(|left, right| table_order(left).cmp(&table_order(right)));
+}
+
+fn table_order(value: &Value) -> (&str, &str) {
+    (text_field(value, "schema"), text_field(value, "name"))
+}
+
+fn sort_by_attnum(table: &mut Value, key: &str) {
+    let Some(items) = table.get_mut(key).and_then(Value::as_array_mut) else {
+        return;
+    };
+    items.sort_by_key(|item| {
+        item.get("attnum")
+            .and_then(Value::as_i64)
+            .unwrap_or(i64::MAX)
+    });
+}
+
+fn sort_by_name(table: &mut Value, key: &str) {
+    let Some(items) = table.get_mut(key).and_then(Value::as_array_mut) else {
+        return;
+    };
+    items.sort_by(|left, right| text_field(left, "name").cmp(text_field(right, "name")));
+}
+
+fn sort_privileges(table: &mut Value) {
+    let Some(items) = table.get_mut("privileges").and_then(Value::as_array_mut) else {
+        return;
+    };
+    items.sort_by(|left, right| privilege_order(left).cmp(&privilege_order(right)));
+}
+
+fn privilege_order(value: &Value) -> (&str, &str, bool) {
+    (
+        text_field(value, "grantee"),
+        text_field(value, "privilege"),
+        value
+            .get("grantable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    )
+}
+
+fn text_field<'a>(value: &'a Value, key: &str) -> &'a str {
+    value.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
