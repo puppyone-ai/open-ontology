@@ -9,8 +9,12 @@
 //! and classification never add a table or column to that allowlist. A column
 //! the snapshot names must already be classified. Unknown PII stays out, and
 //! naming it in the allowlist refuses the pack instead of inventing a class.
-//! User-authored labels and prose that contain a hidden column identifier are
-//! omitted. `classification.auto_accept` is not applied.
+//! User-authored text is copied only when it passes the visibility closure.
+//! That includes data types, units, labels, and calendar phrases and anchors.
+//! Hidden names and hidden labels are matched after NFC. Quoted identifiers
+//! use PostgreSQL doubled quotes. Verified SQL must parse as the supported
+//! subset; this module does not execute SQL and is not a gateway.
+//! `classification.auto_accept` is not applied.
 //!
 //! Samples are never emitted. The OOS model has no sample or most-common
 //! field; a document that tries to carry one is rejected. RLS datasets omit
@@ -1077,6 +1081,9 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
 }
 
 fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
+    if !verified_sql(metric.sql.as_str()) {
+        return false;
+    }
     let mut texts = vec![metric.metric.as_str(), metric.label.as_str(), metric.sql.as_str()];
     if let Some(description) = &metric.description {
         texts.push(description.as_str());
@@ -1087,7 +1094,16 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
     for synonym in &metric.synonyms {
         texts.push(synonym.as_str());
     }
+    if let Some(unit) = &metric.unit {
+        texts.push(unit.as_str());
+    }
+    if let Some(anchor) = metric.default_anchor {
+        texts.push(anchor.as_str());
+    }
     if let Some(control) = &metric.control_total {
+        if !verified_sql(control.sql.as_str()) {
+            return false;
+        }
         texts.push(control.sql.as_str());
     }
     let mut forced = BTreeSet::new();
@@ -1185,6 +1201,9 @@ fn example_kept(
             return false;
         }
     }
+    if !verified_sql(example.sql.as_str()) {
+        return false;
+    }
     matches!(
         scan_texts(
             model,
@@ -1243,10 +1262,12 @@ enum Scan {
     Unbound,
 }
 
-/// Hidden column names match every ASCII identifier in the text.
+/// Hidden names and labels match user text after NFC.
 ///
 /// Qualifiers and aliases are included. A hidden column named `id` drops any
-/// text that uses that token. This is fail-closed; it is not a SQL parser.
+/// text that uses that token. Quoted identifiers use PostgreSQL doubled
+/// quotes. This closure does not authorize SQL. Verified SQL has to parse
+/// before it can be kept.
 fn scan_texts(
     model: &Model,
     texts: &[&str],
@@ -1256,27 +1277,40 @@ fn scan_texts(
     let mut datasets = forced.clone();
     let mut bare = BTreeSet::new();
     for text in texts {
-        match scan_one(model, text) {
+        let text = nfc(text);
+        let idents = match all_idents(&text) {
+            Ok(idents) => idents,
+            Err(()) => return Scan::Affected,
+        };
+        if copies_hidden_label(model, &text, &idents) {
+            return Scan::Affected;
+        }
+        match scan_one(model, &text) {
             Scan::Affected => return Scan::Affected,
             Scan::Unbound => return Scan::Unbound,
             Scan::Ok {
                 datasets: found,
             } => {
                 datasets.extend(found);
-                bare.extend(all_idents(text));
+                bare.extend(idents);
             }
         }
     }
     for dataset in model.datasets.values() {
         let grant = model.grants.get(dataset.dataset.as_str());
+        if grant.is_none() && ident_hit(&bare, dataset.label.as_str()) {
+            return Scan::Affected;
+        }
         for column in &dataset.columns {
             let visible = grant.is_some_and(|grant| grant.columns.contains(column.name.as_str()));
             if visible {
                 continue;
             }
-            if bare
-                .iter()
-                .any(|ident| ident.eq_ignore_ascii_case(column.name.as_str()))
+            if ident_hit(&bare, column.name.as_str()) {
+                return Scan::Affected;
+            }
+            if let Some(label) = &column.label
+                && ident_hit(&bare, label.as_str())
             {
                 return Scan::Affected;
             }
@@ -1288,9 +1322,83 @@ fn scan_texts(
     Scan::Ok { datasets }
 }
 
+fn ident_hit(bare: &BTreeSet<String>, candidate: &str) -> bool {
+    let candidate = nfc(candidate);
+    if !is_plain_ident(&candidate) {
+        return false;
+    }
+    bare.iter()
+        .any(|ident| ident.eq_ignore_ascii_case(&candidate))
+}
+
+fn copies_hidden_label(model: &Model, text: &str, idents: &BTreeSet<String>) -> bool {
+    hidden_substrings(model).into_iter().any(|label| {
+        label_in_text(text, &label) || idents.iter().any(|ident| label_eq(ident, &label))
+    })
+}
+
+/// Equality on a decoded identifier. Non-ASCII labels stay case-sensitive.
+fn label_eq(ident: &str, label: &str) -> bool {
+    if !label.is_ascii() {
+        ident == label
+    } else {
+        ident.eq_ignore_ascii_case(label)
+    }
+}
+
+fn hidden_substrings(model: &Model) -> Vec<String> {
+    let mut labels = Vec::new();
+    for dataset in model.datasets.values() {
+        let grant = model.grants.get(dataset.dataset.as_str());
+        if grant.is_none() {
+            push_substring(&mut labels, dataset.label.as_str());
+        }
+        for column in &dataset.columns {
+            let visible = grant.is_some_and(|grant| grant.columns.contains(column.name.as_str()));
+            if visible {
+                continue;
+            }
+            if let Some(label) = &column.label {
+                push_substring(&mut labels, label.as_str());
+            }
+            push_substring(&mut labels, column.name.as_str());
+        }
+    }
+    labels
+}
+
+fn push_substring(labels: &mut Vec<String>, value: &str) {
+    let value = nfc(value);
+    if value.is_empty() || is_plain_ident(&value) {
+        return;
+    }
+    labels.push(value);
+}
+
+fn label_in_text(text: &str, label: &str) -> bool {
+    if !label.is_ascii() {
+        text.contains(label)
+    } else {
+        text.to_ascii_lowercase()
+            .contains(&label.to_ascii_lowercase())
+    }
+}
+
+fn is_plain_ident(text: &str) -> bool {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(ch) if is_ident_start(ch) => chars.all(is_ident_cont),
+        _ => false,
+    }
+}
+
 fn scan_one(model: &Model, text: &str) -> Scan {
     let mut datasets = BTreeSet::new();
-    for parts in qualified_parts(text) {
+    let parts = match qualified_parts(text) {
+        Ok(parts) => parts,
+        Err(()) => return Scan::Affected,
+    };
+    for parts in parts {
         if parts.len() < 2 || parts.len() > 3 {
             continue;
         }
@@ -1327,63 +1435,360 @@ fn scan_one(model: &Model, text: &str) -> Scan {
     Scan::Ok { datasets }
 }
 
-fn qualified_parts(text: &str) -> Vec<Vec<String>> {
-    let bytes = text.as_bytes();
-    let mut index = 0;
-    let mut found = Vec::new();
-    while index < bytes.len() {
-        if is_ident_start(bytes[index]) {
-            let start = index;
-            index += 1;
-            while index < bytes.len() && is_ident_cont(bytes[index]) {
-                index += 1;
-            }
-            let mut parts = vec![String::from_utf8_lossy(&bytes[start..index]).into_owned()];
-            while index + 1 < bytes.len() && bytes[index] == b'.' && is_ident_start(bytes[index + 1])
-            {
-                index += 1;
-                let part_start = index;
-                index += 1;
-                while index < bytes.len() && is_ident_cont(bytes[index]) {
-                    index += 1;
+struct Walk<'a> {
+    text: &'a str,
+    index: usize,
+}
+
+impl<'a> Walk<'a> {
+    fn new(text: &'a str) -> Self {
+        Self { text, index: 0 }
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.text[self.index..].chars().next()
+    }
+
+    fn bump(&mut self) -> Option<char> {
+        let ch = self.peek()?;
+        self.index += ch.len_utf8();
+        Some(ch)
+    }
+
+    fn skip_ws(&mut self) {
+        while self.peek().is_some_and(char::is_whitespace) {
+            self.bump();
+        }
+    }
+}
+
+/// PostgreSQL quoted identifiers, with `""` meaning one embedded quote.
+/// An unclosed quote is an error so the caller can fail closed.
+fn take_ident(walk: &mut Walk<'_>) -> Result<Option<String>, ()> {
+    let Some(ch) = walk.peek() else {
+        return Ok(None);
+    };
+    if ch == '"' {
+        walk.bump();
+        let mut out = String::new();
+        loop {
+            match walk.bump() {
+                None => return Err(()),
+                Some('"') => {
+                    if walk.peek() == Some('"') {
+                        walk.bump();
+                        out.push('"');
+                    } else {
+                        break;
+                    }
                 }
-                parts.push(String::from_utf8_lossy(&bytes[part_start..index]).into_owned());
+                Some(ch) => out.push(ch),
             }
-            if parts.len() >= 2 {
-                found.push(parts);
-            }
-        } else {
-            index += 1;
         }
+        return Ok(Some(nfc(&out)));
     }
-    found
+    if is_ident_start(ch) {
+        let mut out = String::new();
+        out.push(ch);
+        walk.bump();
+        while walk.peek().is_some_and(is_ident_cont) {
+            out.push(walk.bump().expect("peeked ident byte"));
+        }
+        return Ok(Some(out));
+    }
+    Ok(None)
 }
 
-fn all_idents(text: &str) -> BTreeSet<String> {
-    let bytes = text.as_bytes();
-    let mut index = 0;
+fn qualified_parts(text: &str) -> Result<Vec<Vec<String>>, ()> {
+    let mut walk = Walk::new(text);
+    let mut found = Vec::new();
+    while walk.peek().is_some() {
+        match take_ident(&mut walk)? {
+            Some(first) => {
+                let mut parts = vec![first];
+                loop {
+                    let mark = walk.index;
+                    walk.skip_ws();
+                    if walk.peek() != Some('.') {
+                        walk.index = mark;
+                        break;
+                    }
+                    walk.bump();
+                    walk.skip_ws();
+                    match take_ident(&mut walk)? {
+                        Some(next) => parts.push(next),
+                        None => {
+                            walk.index = mark;
+                            break;
+                        }
+                    }
+                }
+                if parts.len() >= 2 {
+                    found.push(parts);
+                }
+            }
+            None => {
+                walk.bump();
+            }
+        }
+    }
+    Ok(found)
+}
+
+fn all_idents(text: &str) -> Result<BTreeSet<String>, ()> {
+    let mut walk = Walk::new(text);
     let mut found = BTreeSet::new();
-    while index < bytes.len() {
-        if is_ident_start(bytes[index]) {
-            let start = index;
-            index += 1;
-            while index < bytes.len() && is_ident_cont(bytes[index]) {
-                index += 1;
+    while walk.peek().is_some() {
+        match take_ident(&mut walk)? {
+            Some(ident) => {
+                found.insert(ident);
             }
-            found.insert(String::from_utf8_lossy(&bytes[start..index]).into_owned());
-        } else {
-            index += 1;
+            None => {
+                walk.bump();
+            }
         }
     }
-    found
+    Ok(found)
 }
 
-fn is_ident_start(byte: u8) -> bool {
-    byte.is_ascii_alphabetic() || byte == b'_'
+fn is_ident_start(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_'
 }
 
-fn is_ident_cont(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
+fn is_ident_cont(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+const SQL_KEYWORDS: &[&str] = &[
+    "select", "from", "where", "union", "all", "as", "and", "is", "not", "null",
+];
+
+fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {
+    let mut chars = walk.text[walk.index..].chars();
+    for expected in keyword.chars() {
+        match chars.next() {
+            Some(ch) if ch.eq_ignore_ascii_case(&expected) => {}
+            _ => return false,
+        }
+    }
+    !chars.next().is_some_and(is_ident_cont)
+}
+
+fn keyword_here(walk: &Walk<'_>) -> bool {
+    SQL_KEYWORDS.iter().any(|keyword| keyword_matches(walk, keyword))
+}
+
+fn eat_keyword(walk: &mut Walk<'_>, keyword: &str) -> bool {
+    walk.skip_ws();
+    if !keyword_matches(walk, keyword) {
+        return false;
+    }
+    walk.index += keyword.len();
+    true
+}
+
+fn eat_op(walk: &mut Walk<'_>) -> bool {
+    walk.skip_ws();
+    let rest = &walk.text[walk.index..];
+    for op in ["<>", "!=", "<=", ">=", "=", "<", ">"] {
+        if rest.starts_with(op) {
+            walk.index += op.len();
+            return true;
+        }
+    }
+    false
+}
+
+/// Supported verified SQL. Rejection means the object is omitted.
+/// Acceptance is not execution and not a grant.
+fn verified_sql(text: &str) -> bool {
+    let mut walk = Walk::new(text);
+    if parse_query(&mut walk).is_err() {
+        return false;
+    }
+    walk.skip_ws();
+    walk.index == walk.text.len()
+}
+
+fn parse_query(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_select(walk)?;
+    loop {
+        let mark = walk.index;
+        if eat_keyword(walk, "union") && eat_keyword(walk, "all") {
+            parse_select(walk)?;
+            continue;
+        }
+        walk.index = mark;
+        break;
+    }
+    Ok(())
+}
+
+fn parse_select(walk: &mut Walk<'_>) -> Result<(), ()> {
+    if !eat_keyword(walk, "select") {
+        return Err(());
+    }
+    parse_item(walk)?;
+    loop {
+        walk.skip_ws();
+        if walk.peek() != Some(',') {
+            break;
+        }
+        walk.bump();
+        parse_item(walk)?;
+    }
+    if !eat_keyword(walk, "from") {
+        return Err(());
+    }
+    parse_relation(walk)?;
+    if eat_keyword(walk, "where") {
+        parse_predicate(walk)?;
+    }
+    Ok(())
+}
+
+fn parse_item(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_expr(walk)?;
+    if eat_keyword(walk, "as") {
+        parse_name(walk)?;
+    }
+    Ok(())
+}
+
+fn parse_relation(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_name(walk)?;
+    walk.skip_ws();
+    if walk.peek() == Some('.') {
+        walk.bump();
+        parse_name(walk)?;
+    }
+    Ok(())
+}
+
+fn parse_predicate(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_comparison(walk)?;
+    while eat_keyword(walk, "and") {
+        parse_comparison(walk)?;
+    }
+    Ok(())
+}
+
+fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_expr(walk)?;
+    if eat_keyword(walk, "is") {
+        if eat_keyword(walk, "not") {
+            if eat_keyword(walk, "null") {
+                return Ok(());
+            }
+            return Err(());
+        }
+        if eat_keyword(walk, "null") {
+            return Ok(());
+        }
+        return Err(());
+    }
+    if !eat_op(walk) {
+        return Err(());
+    }
+    parse_expr(walk)
+}
+
+fn parse_expr(walk: &mut Walk<'_>) -> Result<(), ()> {
+    walk.skip_ws();
+    if walk.peek() == Some('\'') {
+        return parse_string(walk);
+    }
+    if walk.peek().is_some_and(|ch| ch.is_ascii_digit()) {
+        return parse_number(walk);
+    }
+    parse_name(walk)?;
+    walk.skip_ws();
+    if walk.peek() == Some('(') {
+        walk.bump();
+        walk.skip_ws();
+        if walk.peek() == Some('*') {
+            walk.bump();
+            walk.skip_ws();
+            if walk.peek() != Some(')') {
+                return Err(());
+            }
+            walk.bump();
+            return Ok(());
+        }
+        parse_expr(walk)?;
+        loop {
+            walk.skip_ws();
+            if walk.peek() != Some(',') {
+                break;
+            }
+            walk.bump();
+            parse_expr(walk)?;
+        }
+        walk.skip_ws();
+        if walk.peek() != Some(')') {
+            return Err(());
+        }
+        walk.bump();
+        return Ok(());
+    }
+    loop {
+        walk.skip_ws();
+        if walk.peek() != Some('.') {
+            break;
+        }
+        walk.bump();
+        parse_name(walk)?;
+    }
+    Ok(())
+}
+
+fn parse_name(walk: &mut Walk<'_>) -> Result<(), ()> {
+    walk.skip_ws();
+    if keyword_here(walk) {
+        return Err(());
+    }
+    match take_ident(walk)? {
+        Some(_) => Ok(()),
+        None => Err(()),
+    }
+}
+
+fn parse_number(walk: &mut Walk<'_>) -> Result<(), ()> {
+    if !walk.peek().is_some_and(|ch| ch.is_ascii_digit()) {
+        return Err(());
+    }
+    while walk.peek().is_some_and(|ch| ch.is_ascii_digit()) {
+        walk.bump();
+    }
+    if walk.peek() == Some('.') {
+        let fraction = walk.text[walk.index + 1..].chars().next();
+        if fraction.is_some_and(|ch| ch.is_ascii_digit()) {
+            walk.bump();
+            while walk.peek().is_some_and(|ch| ch.is_ascii_digit()) {
+                walk.bump();
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_string(walk: &mut Walk<'_>) -> Result<(), ()> {
+    if walk.bump() != Some('\'') {
+        return Err(());
+    }
+    loop {
+        match walk.bump() {
+            None => return Err(()),
+            Some('\'') => {
+                if walk.peek() == Some('\'') {
+                    walk.bump();
+                } else {
+                    return Ok(());
+                }
+            }
+            Some(_) => {}
+        }
+    }
 }
 
 fn is_system_schema(schema: &str) -> bool {
@@ -1461,11 +1866,11 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
         let path = normalize_pack_path(&format!("tables/{name}.md"))?;
         add_file(&mut files, &path, render_table(model, selected, dataset, grant)?)?;
     }
-    add_file(&mut files, "metrics.md", render_metrics(selected)?)?;
+    add_file(&mut files, "metrics.md", render_metrics(model, selected)?)?;
     add_file(&mut files, "calendar.md", render_calendar(model)?)?;
-    add_file(&mut files, "glossary.md", render_glossary(selected)?)?;
+    add_file(&mut files, "glossary.md", render_glossary(model, selected)?)?;
     add_file(&mut files, "relationships.md", render_relationships(model, selected)?)?;
-    add_file(&mut files, "examples/verified.sql", render_examples(selected)?)?;
+    add_file(&mut files, "examples/verified.sql", render_examples(model, selected)?)?;
     for enum_file in &selected.enums {
         let path = normalize_pack_path(&format!("enums/{}.md", enum_file.enum_name.as_str()))?;
         add_file(&mut files, &path, render_enum(model, enum_file)?)?;
@@ -1658,7 +2063,13 @@ fn render_table(
             .unwrap_or("");
         text.push_str(&cell(label));
         text.push_str(" | ");
-        text.push_str(&cell(column.data_type.as_ref().map(Label::as_str).unwrap_or("")));
+        let data_type = column
+            .data_type
+            .as_ref()
+            .map(Label::as_str)
+            .filter(|text| visible_prose(model, text))
+            .unwrap_or("");
+        text.push_str(&cell(data_type));
         text.push_str(" | ");
         let semantic = match &column.semantic_type {
             Some(value) => enum_token(value)?,
@@ -1703,7 +2114,9 @@ fn column_notes(model: &Model, column: &DatasetColumn) -> Result<String, RolePac
             pii_token(pii)
         ));
     }
-    if let Some(unit) = &column.unit {
+    if let Some(unit) = &column.unit
+        && visible_prose(model, unit.as_str())
+    {
         notes.push(format!("unit {}", unit.as_str()));
     }
     if let Some(status) = column.status {
@@ -1759,7 +2172,7 @@ fn description_text(
     }
 }
 
-fn render_metrics(selected: &Selected) -> Result<String, RolePackError> {
+fn render_metrics(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
     let mut text = String::from("# metrics\n\n");
     text.push_str("Only certified metrics with a visible dependency set are included. Reconciliation is not executed and is not claimed.\n\n");
     if selected.metrics.is_empty() {
@@ -1769,18 +2182,25 @@ fn render_metrics(selected: &Selected) -> Result<String, RolePackError> {
     for metric in &selected.metrics {
         text.push_str("## ");
         text.push_str(metric.metric.as_str());
-        text.push_str(" — ");
-        text.push_str(metric.label.as_str());
+        if visible_prose(model, metric.label.as_str()) {
+            text.push_str(" — ");
+            text.push_str(metric.label.as_str());
+        }
         text.push_str("\n\n");
         line(&mut text, &format!("status: `{}`", enum_token(&metric.status)?));
         if metric.status == MetricStatus::Deprecated {
             text.push_str("Deprecated. A replacement is not named unless it is a visible column path on the metric itself.\n");
         }
-        if let Some(unit) = &metric.unit {
+        if let Some(unit) = &metric.unit
+            && visible_prose(model, unit.as_str())
+        {
             line(&mut text, &format!("unit: {}", unit.as_str()));
         }
         if let Some(anchor) = metric.default_anchor {
-            line(&mut text, &format!("default anchor: `{}`", enum_token(&anchor)?));
+            let token = enum_token(&anchor)?;
+            if visible_prose(model, &token) {
+                line(&mut text, &format!("default anchor: `{token}`"));
+            }
         }
         let mut warned = BTreeSet::new();
         for filter in &metric.enum_filters {
@@ -1794,13 +2214,17 @@ fn render_metrics(selected: &Selected) -> Result<String, RolePackError> {
             text.push_str(" has undetermined or unexplained values. Those codes count in no class.\n\n");
         }
         text.push_str("> Reconciliation status is not in this pack. control_total was not executed and is not claimed to match.\n\n");
-        if let Some(description) = &metric.description {
+        if let Some(description) = &metric.description
+            && visible_prose(model, description.as_str())
+        {
             text.push_str(&fence(description.as_str()));
             text.push('\n');
         }
-        text.push_str("```sql\n");
-        text.push_str(metric.sql.as_str().trim_end());
-        text.push_str("\n```\n\n");
+        if verified_sql(metric.sql.as_str()) && visible_prose(model, metric.sql.as_str()) {
+            text.push_str("```sql\n");
+            text.push_str(metric.sql.as_str().trim_end());
+            text.push_str("\n```\n\n");
+        }
     }
     finish(text)
 }
@@ -1831,16 +2255,27 @@ fn render_calendar(model: &Model) -> Result<String, RolePackError> {
     line(&mut text, &format!("fiscal year start month: {month}"));
     line(&mut text, &format!("week start: `{}`", enum_token(&calendar.week_start)?));
     text.push_str("\nAnchors:\n\n");
+    let mut any_anchor = false;
     for anchor in &calendar.anchors {
+        let token = enum_token(anchor)?;
+        if !visible_prose(model, &token) {
+            continue;
+        }
+        any_anchor = true;
         text.push_str("- `");
-        text.push_str(&enum_token(anchor)?);
+        text.push_str(&token);
         text.push_str("`\n");
     }
-    text.push_str("\nPhrases:\n\n");
-    if calendar.phrases.is_empty() {
+    if !any_anchor {
         text.push_str("None.\n");
     }
+    text.push_str("\nPhrases:\n\n");
+    let mut any_phrase = false;
     for (label, phrase) in calendar.phrases.iter() {
+        if !phrase_visible(model, label.as_str(), phrase) {
+            continue;
+        }
+        any_phrase = true;
         text.push_str("- ");
         text.push_str(label.as_str());
         text.push_str(": ");
@@ -1863,10 +2298,30 @@ fn render_calendar(model: &Model) -> Result<String, RolePackError> {
         }
         text.push('\n');
     }
+    if !any_phrase {
+        text.push_str("None.\n");
+    }
     finish(text)
 }
 
-fn render_glossary(selected: &Selected) -> Result<String, RolePackError> {
+fn phrase_visible(model: &Model, label: &str, phrase: &oo_core::oos::Phrase) -> bool {
+    if !visible_prose(model, label) {
+        return false;
+    }
+    match phrase {
+        oo_core::oos::Phrase::Range(range) => {
+            visible_prose(model, range.start.as_str()) && visible_prose(model, range.end.as_str())
+        }
+        oo_core::oos::Phrase::Comparison(item) => {
+            visible_prose(model, item.current.start.as_str())
+                && visible_prose(model, item.current.end.as_str())
+                && visible_prose(model, item.previous.start.as_str())
+                && visible_prose(model, item.previous.end.as_str())
+        }
+    }
+}
+
+fn render_glossary(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
     let mut text = String::from("# glossary\n\n");
     text.push_str("Only terms with status approved and a visible binding are included.\n\n");
     if selected.glossary.is_empty() {
@@ -1875,10 +2330,14 @@ fn render_glossary(selected: &Selected) -> Result<String, RolePackError> {
     }
     for term in &selected.glossary {
         text.push_str("## ");
-        text.push_str(term.term.as_str());
+        if visible_prose(model, term.term.as_str()) {
+            text.push_str(term.term.as_str());
+        }
         text.push_str("\n\n");
-        text.push_str(term.definition.as_str());
-        text.push_str("\n\n");
+        if visible_prose(model, term.definition.as_str()) {
+            text.push_str(term.definition.as_str());
+            text.push_str("\n\n");
+        }
         if let Some(mapping) = &term.maps_to {
             if let Some(dataset) = &mapping.dataset {
                 line(&mut text, &format!("maps to dataset `{}`", dataset.as_str()));
@@ -1886,7 +2345,9 @@ fn render_glossary(selected: &Selected) -> Result<String, RolePackError> {
             if let Some(metric) = &mapping.metric {
                 line(&mut text, &format!("maps to metric `{}`", metric.as_str()));
             }
-            if let Some(filter) = &mapping.filter {
+            if let Some(filter) = &mapping.filter
+                && visible_prose(model, filter.as_str())
+            {
                 text.push_str(&fence(filter.as_str()));
             }
         }
@@ -1952,13 +2413,18 @@ fn stats_allowed(model: &Model, dataset: &str) -> bool {
     })
 }
 
-fn render_examples(selected: &Selected) -> Result<String, RolePackError> {
+fn render_examples(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
     let mut text = String::new();
-    if selected.examples.is_empty() {
-        text.push_str("-- No verified example is visible for this role.\n");
-        return finish(text);
-    }
+    let mut wrote = false;
     for example in &selected.examples {
+        if !verified_sql(example.sql.as_str())
+            || !visible_prose(model, example.sql.as_str())
+            || !visible_prose(model, example.question.as_str())
+            || !visible_prose(model, example.id.as_str())
+        {
+            continue;
+        }
+        wrote = true;
         text.push_str("-- ");
         text.push_str(example.id.as_str());
         text.push('\n');
@@ -1972,6 +2438,9 @@ fn render_examples(selected: &Selected) -> Result<String, RolePackError> {
         }
         text.push_str(example.sql.as_str().trim_end());
         text.push_str("\n\n");
+    }
+    if !wrote {
+        text.push_str("-- No verified example is visible for this role.\n");
     }
     finish(text)
 }

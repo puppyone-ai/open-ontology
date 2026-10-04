@@ -944,6 +944,508 @@ fn hashes_match_an_independent_oracle() {
     }
 }
 
+fn closure_documents() -> (Value, Value) {
+    let mut shipment_id = none_col("shipment_id");
+    shipment_id["data_type"] = json!("bigint");
+    shipment_id["description"] = json!("本月称重记录");
+    shipment_id["review"] = json!({"state": "approved"});
+
+    let mut weight = none_col("weight_kg");
+    weight["data_type"] = json!("numeric queue_note");
+    weight["unit"] = json!("queue_note");
+    weight["description"] = json!("称重后对照 \"yard\".\"slip\" 的客户备注");
+    weight["review"] = json!({"state": "approved"});
+
+    let mut handle = none_col("handle");
+    handle["pii"] = json!("personal");
+    handle["semantic_type"] = json!("phone");
+    handle["description"] = json!("classified handle");
+    handle["review"] = json!({"state": "approved", "by": "class.clerk"});
+    handle["classification"]["by"] = json!("class.clerk");
+
+    let mut note_ascii = none_col("note_ascii");
+    note_ascii["description"] = json!("legacy queue_note alias");
+    note_ascii["review"] = json!({"state": "approved"});
+
+    let mut note_quoted = none_col("note_quoted");
+    note_quoted["description"] = json!("see \"queue_note\" token");
+    note_quoted["review"] = json!({"state": "approved"});
+
+    let mut status = none_col("status");
+    status["enum"] = json!("depot.shipment.status");
+
+    let mut mark_visible = none_col("mark_visible");
+    mark_visible["description"] = json!("é标记不应出现");
+    mark_visible["review"] = json!({"state": "approved"});
+
+    let mut tally_weight = none_col("weight_kg");
+    tally_weight["unit"] = json!("kg");
+
+    let queue_note = json!({
+        "name": "queue_note",
+        "label": "客户备注",
+        "pii": "sensitive",
+        "classification": {"state": "confirmed", "by": "class.clerk"},
+        "description": "a168-hidden-body",
+        "review": {"state": "approved", "by": "review.clerk"}
+    });
+    let mark_nfc = json!({
+        "name": "mark_nfc",
+        "label": "e\u{0301}标记",
+        "pii": "none",
+        "classification": {"state": "confirmed"}
+    });
+    let quarter = none_col("quarter_start");
+
+    let shipment = json!({
+        "schema_version": "oos/v1",
+        "dataset": "depot.shipment",
+        "label": "Shipment",
+        "tier": "file",
+        "grain": "one row per shipment",
+        "primary_key": ["shipment_id"],
+        "row_count_estimate": 4242427,
+        "columns": [
+            shipment_id, weight, handle, note_ascii, note_quoted, status, mark_visible,
+            queue_note, mark_nfc, quarter
+        ]
+    });
+    let tally = json!({
+        "schema_version": "oos/v1",
+        "dataset": "depot.tally",
+        "label": "Tally",
+        "tier": "file",
+        "grain": "one row per tally",
+        "primary_key": ["tally_id"],
+        "row_count_estimate": 17,
+        "columns": [none_col("tally_id"), tally_weight]
+    });
+    let slip = json!({
+        "schema_version": "oos/v1",
+        "dataset": "yard.slip",
+        "label": "Slip",
+        "tier": "file",
+        "grain": "one row per slip",
+        "primary_key": ["slip_id"],
+        "row_count_estimate": 8888887,
+        "columns": [none_col("slip_id")]
+    });
+
+    let metric = |name: &str, description: &str, unit: &str, sql: &str| {
+        json!({
+            "metric": name,
+            "label": name,
+            "description": description,
+            "owner": "clerk.one",
+            "certified": true,
+            "unit": unit,
+            "status": "active",
+            "default_anchor": "month_start",
+            "sql": sql,
+            "tests": [{"params": {}, "expect": {"rows": 3}}],
+            "control_total": {
+                "as_of": "month_start",
+                "source": "depot",
+                "sql": "SELECT sum(weight_kg) AS control_sum FROM depot.shipment",
+                "tolerance": {"abs": "1"}
+            }
+        })
+    };
+    let mut weight_total = metric(
+        "weight_total",
+        "sum of visible weight",
+        "kg",
+        "SELECT sum(weight_kg) AS total FROM depot.shipment",
+    );
+    weight_total["enum_filters"] = json!([{
+        "column": "depot.shipment.status",
+        "enum": "depot.shipment.status",
+        "classes": ["open"]
+    }]);
+    let quoted_visible_sql = "SELECT \"weight_kg\" AS \"净\"\"重\" FROM \"depot\".\"shipment\"\nUNION ALL\nSELECT weight_kg FROM depot.tally";
+    let quoted_mix_sql = "SELECT weight_kg AS \"客户备注\" FROM depot.shipment\nUNION ALL\nSELECT weight_kg FROM \"yard\".\"slip\"";
+
+    let effective = json!({
+        "protocol": "oo.builder.effective-oos/v1",
+        "project": "alpha",
+        "ontology_version": "ont-a168",
+        "catalog_version": "cat-a168",
+        "policy": {"id": "pol-alpha", "version": "7"},
+        "knowledge": {"id": "know-alpha", "version": "3"},
+        "ontology": {
+            "spec_version": "oos/v1",
+            "name": "depotmap",
+            "locale": "zh-CN",
+            "include_schemas": ["depot", "yard"],
+            "default_tier_preference": ["file"],
+            "publish": {"include_unreviewed": []},
+            "classification": {"auto_accept": "rule_high_confidence"},
+            "lifecycle": {"deprecation_min_releases": 2},
+            "compile": {
+                "per_role": true,
+                "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+                "sample_values": {"default": "masked", "max_per_column": 0}
+            }
+        },
+        "datasets": [shipment, tally, slip],
+        "relationships": [
+            {
+                "name": "shipment_tally",
+                "from": {"dataset": "depot.shipment", "columns": ["weight_kg"]},
+                "to": {"dataset": "depot.tally", "columns": ["weight_kg"]},
+                "cardinality": "many_to_one",
+                "join_hint": "left",
+                "provenance": "human",
+                "confidence": "0.272727",
+                "review": {"state": "approved", "by": "review.clerk"},
+                "evidence": {
+                    "containment": "0.919191",
+                    "name_match": "exact",
+                    "type_compatible": true,
+                    "seen_in_query_log": 515151
+                }
+            },
+            {
+                "name": "declared_link",
+                "from": {"dataset": "depot.shipment", "columns": ["weight_kg"]},
+                "to": {"dataset": "depot.tally", "columns": ["weight_kg"]},
+                "cardinality": "many_to_one",
+                "join_hint": "left",
+                "provenance": "declared_fk"
+            },
+            {
+                "name": "guessed_link",
+                "from": {"dataset": "depot.shipment", "columns": ["weight_kg"]},
+                "to": {"dataset": "depot.tally", "columns": ["weight_kg"]},
+                "cardinality": "many_to_one",
+                "join_hint": "left",
+                "provenance": "inferred"
+            }
+        ],
+        "metrics": [
+            weight_total,
+            metric("quoted_mix", "客户备注 remains visible in this sentence", "kg", quoted_mix_sql),
+            metric("ascii_hidden", "names the hidden column", "kg", "SELECT queue_note FROM depot.shipment"),
+            metric("quoted_visible", "本月可见重量", "kg", quoted_visible_sql),
+            metric("unit_leak", "visible unit carrier", "queue_note", "SELECT sum(weight_kg) AS total FROM depot.shipment"),
+            metric("prose_metric", "本月可见重量", "kg", "weight is just prose")
+        ],
+        "glossary": [
+            {
+                "term": "在册",
+                "definition": "a visible shipment term",
+                "maps_to": {"dataset": "depot.shipment"},
+                "status": "approved"
+            },
+            {
+                "term": "引用隐藏",
+                "definition": "see \"yard\".\"slip\" and 客户备注",
+                "maps_to": {"dataset": "depot.shipment"},
+                "status": "approved"
+            },
+            {
+                "term": "草稿",
+                "definition": "draft wording",
+                "maps_to": {"dataset": "depot.shipment"},
+                "status": "draft"
+            },
+            {
+                "term": "隐藏表",
+                "definition": "hidden dataset term",
+                "maps_to": {"dataset": "yard.slip"},
+                "status": "approved"
+            },
+            {
+                "term": "可见术语",
+                "definition": "本月发货重量，不含隐藏对象",
+                "maps_to": {"dataset": "depot.shipment"},
+                "status": "approved"
+            }
+        ],
+        "examples": [
+            closure_example("ex-weight", "how much weight is visible", "SELECT sum(weight_kg) AS total FROM depot.shipment", &["dataset:depot.shipment", "column:depot.shipment.weight_kg", "metric:weight_total"]),
+            closure_example("ex-quoted", "how the hidden slip is referenced", quoted_mix_sql, &["dataset:depot.shipment", "column:depot.shipment.weight_kg"]),
+            closure_example("ex-ascii", "show the hidden note", "SELECT queue_note FROM depot.shipment", &["dataset:depot.shipment"]),
+            closure_example("ex-token", "show the quoted spelling of the hidden note", "SELECT \"queue_note\" FROM depot.shipment", &["dataset:depot.shipment"]),
+            closure_example("ex-quoted-visible", "可见的引号查询", "SELECT weight_kg AS \"重量\" FROM \"depot\".\"shipment\"", &["dataset:depot.shipment", "column:depot.shipment.weight_kg"]),
+            closure_example("ex-prose", "not a query", "weight is just prose", &["dataset:depot.shipment"]),
+            closure_example("ex-join", "two visible tables joined", "SELECT weight_kg FROM depot.shipment JOIN depot.tally ON weight_kg = weight_kg", &["dataset:depot.shipment", "dataset:depot.tally"])
+        ],
+        "enums": [{
+            "schema_version": "oos/v1",
+            "enum": "depot.shipment.status",
+            "classes": {"open": "open shipment", "unexplained": "meaning is not assigned"},
+            "values": [
+                {"code": "1", "label": "open", "class": "open", "status": "approved"},
+                {"code": "9", "label": "unknown", "class": "unexplained", "status": "unexplained", "evidence": {"rows": 183213}}
+            ],
+            "coverage": "0.131313",
+            "unexplained_values": ["9"]
+        }],
+        "entities": [
+            {
+                "schema_version": "oos/v1",
+                "entity": "shipment",
+                "label": "Shipment",
+                "primary_dataset": "depot.shipment",
+                "key": "shipment_id",
+                "display": "weight_kg",
+                "members": [{"dataset": "depot.shipment", "key": ["shipment_id"], "name": "weight_kg"}],
+                "datasets": ["depot.shipment"]
+            },
+            {
+                "schema_version": "oos/v1",
+                "entity": "slip",
+                "label": "Slip",
+                "primary_dataset": "yard.slip",
+                "key": "slip_id",
+                "display": "slip_id",
+                "members": [{"dataset": "yard.slip", "key": ["slip_id"]}],
+                "datasets": ["yard.slip"]
+            }
+        ],
+        "calendar": {
+            "schema_version": "oos/v1",
+            "business_tz": "Asia/Shanghai",
+            "fiscal_year_start_month": 4,
+            "week_start": "monday",
+            "anchors": ["month_start", "today", "quarter_start"],
+            "phrases": {
+                "queue_note": {"start": "month_start", "end": "today", "bounds": "[)"},
+                "客户备注": {"start": "month_start", "end": "today", "bounds": "[)"},
+                "本月": {"start": "month_start", "end": "today", "bounds": "[)"},
+                "é标记": {"start": "month_start", "end": "today", "bounds": "[)"}
+            }
+        }
+    });
+    let visibility = json!({
+        "protocol": "oo.builder.role-visibility/v1",
+        "project": "alpha",
+        "principal": "ada",
+        "role": "oo_r_clerk",
+        "ontology_version": "ont-a168",
+        "catalog_version": "cat-a168",
+        "policy": {"id": "pol-alpha", "version": "7"},
+        "knowledge": {"id": "know-alpha", "version": "3"},
+        "issued_for_compiler": "oo-builder/role-pack/v1",
+        "datasets": [
+            {
+                "dataset": "depot.shipment",
+                "row_security": "rls",
+                "global_stats": "denied",
+                "columns": ["shipment_id", "weight_kg", "handle", "note_ascii", "note_quoted", "status", "mark_visible"]
+            },
+            {
+                "dataset": "depot.tally",
+                "row_security": "rls",
+                "global_stats": "permitted",
+                "global_stats_proof": {"ref": "proof-tally-1", "proven": true},
+                "columns": ["tally_id", "weight_kg"]
+            }
+        ],
+        "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+    });
+    (effective, visibility)
+}
+
+fn closure_example(id: &str, question: &str, sql: &str, uses: &[&str]) -> Value {
+    json!({
+        "id": id,
+        "question": question,
+        "sql": sql,
+        "uses": uses,
+        "verified_by": "review.clerk",
+        "verified_at": "2026-04-01"
+    })
+}
+
+fn assert_rust_sha256(pack: &RolePack) {
+    let artifact: Value = serde_json::from_str(&pack.artifact).expect("artifact json");
+    assert_eq!(pack.artifact, canonical_json(&artifact));
+    let files = artifact["files"].as_array().expect("files");
+    let mut records = Vec::new();
+    let mut total = 0_u64;
+    for file in files {
+        let text = file["text"].as_str().expect("text");
+        let bytes = text.len() as u64;
+        total += bytes;
+        let digest = sha256_hex(text.as_bytes());
+        assert_eq!(file["sha256"], digest);
+        assert_eq!(file["bytes"], bytes);
+        records.push(json!({"bytes": bytes, "path": file["path"], "sha256": digest}));
+    }
+    assert_eq!(pack.total_bytes, total);
+    assert_eq!(pack.entry_count, files.len() as u64);
+    assert_eq!(
+        pack.pack_digest,
+        sha256_hex(canonical_json(&Value::Array(records)).as_bytes())
+    );
+    assert_eq!(pack.cache_key_sha256, sha256_hex(pack.cache_key.as_bytes()));
+    let manifest = pack.file("manifest.json").expect("manifest");
+    assert_eq!(pack.manifest_sha256, sha256_hex(manifest.as_bytes()));
+}
+
+#[test]
+fn closure_keeps_visible_text_and_omits_hidden_references() {
+    let (effective, visibility) = closure_documents();
+    let clerk = must(&effective, &visibility);
+    let mut ada2_visibility = visibility.clone();
+    ada2_visibility["principal"] = json!("ada2");
+    let ada2 = must(&effective, &ada2_visibility);
+    let mut audit_visibility = visibility.clone();
+    audit_visibility["principal"] = json!("cy");
+    audit_visibility["role"] = json!("oo_r_audit");
+    audit_visibility["datasets"] = json!([{
+        "dataset": "depot.tally",
+        "row_security": "rls",
+        "global_stats": "permitted",
+        "global_stats_proof": {"ref": "proof-tally-1", "proven": true},
+        "columns": ["tally_id", "weight_kg"]
+    }]);
+    let audit = must(&effective, &audit_visibility);
+    let mut beta_effective = effective.clone();
+    beta_effective["project"] = json!("beta");
+    beta_effective["policy"] = json!({"id": "pol-beta", "version": "1"});
+    beta_effective["knowledge"] = json!({"id": "know-beta", "version": "1"});
+    let beta_visibility = json!({
+        "protocol": "oo.builder.role-visibility/v1",
+        "project": "beta",
+        "principal": "bea",
+        "role": "oo_r_clerk",
+        "ontology_version": "ont-a168",
+        "catalog_version": "cat-a168",
+        "policy": {"id": "pol-beta", "version": "1"},
+        "knowledge": {"id": "know-beta", "version": "1"},
+        "issued_for_compiler": "oo-builder/role-pack/v1",
+        "datasets": [{
+            "dataset": "yard.slip",
+            "row_security": "none",
+            "global_stats": "denied",
+            "columns": ["slip_id"]
+        }],
+        "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+    });
+    let beta = must(&beta_effective, &beta_visibility);
+
+    assert_eq!(clerk.artifact, ada2.artifact);
+    assert_eq!(clerk.pack_digest, ada2.pack_digest);
+    assert_ne!(clerk.cache_key, ada2.cache_key);
+    assert!(ada2.cache_key.contains("principal=ada2"));
+    assert_ne!(clerk.pack_digest, audit.pack_digest);
+    assert_ne!(clerk.pack_digest, beta.pack_digest);
+    assert!(audit.cache_key.contains("role=oo_r_audit"));
+    assert!(beta.cache_key.contains("project=beta"));
+    assert_rust_sha256(&clerk);
+    assert_rust_sha256(&audit);
+    assert_rust_sha256(&beta);
+
+    let body = prose(&clerk);
+    let shipment = clerk.file("tables/depot.shipment.md").expect("shipment");
+    let tally = clerk.file("tables/depot.tally.md").expect("tally");
+    let metrics = clerk.file("metrics.md").expect("metrics");
+    let examples = clerk.file("examples/verified.sql").expect("examples");
+    let glossary = clerk.file("glossary.md").expect("glossary");
+    let calendar = clerk.file("calendar.md").expect("calendar");
+    let relationships = clerk.file("relationships.md").expect("relationships");
+    assert!(shipment.contains("bigint"));
+    assert!(shipment.contains("本月称重记录"));
+    assert!(shipment.contains("weight_kg"));
+    assert!(shipment.contains("mark_visible"));
+    assert!(shipment.contains("Samples are omitted because pii is personal."));
+    assert!(shipment.contains("Estimated row count is omitted."));
+    assert!(tally.contains("estimated rows: 17"));
+    assert!(tally.contains("unit kg"));
+    assert!(tally.contains("proof-tally-1"));
+    assert!(tally.contains("did not re-prove"));
+    assert!(metrics.contains("## weight_total"));
+    assert!(metrics.contains("## quoted_visible"));
+    assert!(metrics.contains("本月可见重量"));
+    assert!(metrics.contains("unit: kg"));
+    assert!(metrics.contains("净\"\"重"));
+    assert!(metrics.contains("\"depot\".\"shipment\""));
+    assert!(metrics.contains("UNION ALL"));
+    assert!(examples.contains("ex-weight"));
+    assert!(examples.contains("ex-quoted-visible"));
+    assert!(examples.contains("重量"));
+    assert!(examples.contains("\"depot\".\"shipment\""));
+    assert!(glossary.contains("在册"));
+    assert!(glossary.contains("可见术语"));
+    assert!(glossary.contains("本月发货重量，不含隐藏对象"));
+    assert!(calendar.contains("本月"));
+    assert!(calendar.contains("month_start"));
+    assert!(calendar.contains("today"));
+    assert!(relationships.contains("source-declared"));
+    assert!(clerk.file("entities/shipment.md").is_ok());
+    assert_eq!(
+        clerk.file("tables/yard.slip.md").expect_err("hidden table").code,
+        "oo.builder.role-pack/v1/path.absent"
+    );
+    assert_eq!(
+        clerk.file("entities/slip.md").expect_err("hidden entity").code,
+        "oo.builder.role-pack/v1/path.absent"
+    );
+
+    for token in [
+        "queue_note",
+        "客户备注",
+        "yard",
+        "slip",
+        "a168-hidden-body",
+        "4242427",
+        "8888887",
+        "quoted_mix",
+        "ascii_hidden",
+        "unit_leak",
+        "prose_metric",
+        "-- ex-quoted\n",
+        "ex-ascii",
+        "ex-token",
+        "ex-prose",
+        "ex-join",
+        "引用隐藏",
+        "mark_nfc",
+        "é标记",
+        "e\u{0301}标记",
+        "quarter_start",
+        "legacy queue_note alias",
+        "class.clerk",
+        "review.clerk",
+        "0.272727",
+        "515151",
+        "183213",
+        "control_sum",
+        "guessed_link",
+    ] {
+        assert_absent(&body, token);
+    }
+
+    let audit_body = prose(&audit);
+    let audit_calendar = audit.file("calendar.md").expect("audit calendar");
+    assert!(audit_calendar.contains("本月"));
+    assert!(audit.file("tables/depot.tally.md").expect("audit tally").contains("estimated rows: 17"));
+    for token in ["queue_note", "客户备注", "é标记", "quarter_start", "shipment", "yard", "4242427"] {
+        assert_absent(&audit_body, token);
+    }
+    let beta_body = prose(&beta);
+    let beta_calendar = beta.file("calendar.md").expect("beta calendar");
+    assert!(beta_calendar.contains("本月"));
+    assert!(beta.file("tables/yard.slip.md").is_ok());
+    assert!(beta.file("entities/slip.md").is_ok());
+    for token in ["queue_note", "客户备注", "é标记", "e\u{0301}标记", "quarter_start", "shipment", "4242427", "8888887"] {
+        assert_absent(&beta_body, token);
+    }
+
+    let manifest: Value = serde_json::from_str(clerk.file("manifest.json").expect("manifest")).expect("json");
+    assert_eq!(manifest["authentication"], "not_claimed");
+    assert_eq!(manifest["authorization"], "not_claimed");
+    assert_eq!(manifest["publication"], "not_claimed");
+    assert_eq!(manifest["samples"], "omitted");
+    assert_eq!(manifest["row_security_reproven"], false);
+    assert_eq!(manifest["tokens"]["status"], "unsupported");
+    assert!(manifest.get("principal").is_none());
+    assert!(!clerk.artifact.contains("principal"));
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     const HEX: &[u8; 16] = b"0123456789abcdef";

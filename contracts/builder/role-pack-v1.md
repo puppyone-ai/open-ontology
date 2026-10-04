@@ -43,16 +43,37 @@ Columns absent from the allowlist stay out, including columns whose review is `a
 
 ## What is compiled
 
-Only allowlisted datasets are written. Hidden columns are removed from those files. The compiler does not write a count or a name of a hidden column.
+Only allowlisted datasets are written. Hidden columns are removed from those files. The compiler does not write a count, a name, or a label of a hidden column, and it does not write the label of a hidden dataset.
 
-Dependency closure is fail-closed and is not a SQL parser. Every ASCII identifier in the text is compared, case-insensitively, with every hidden column name in the effective document. A hidden column named `id` drops any text that uses that token. Qualified `schema.table` is a dataset reference only when that pair is a known dataset or `schema` is in `include_schemas`. An unknown table in an included schema drops the object. `pg_catalog`, `information_schema`, and schemas that start with `_oo` drop the object. `oo_dict` and `oo_entity` are not visibility edges. An alias such as `r.amount` is not a dataset when `r` is outside `include_schemas`, but `amount` still matches a hidden column of that name.
+Dependency closure is fail-closed. It does not authorize SQL. This compiler is not a SQL gateway and does not send text to PostgreSQL. Prose that survives closure is still not a verified statement.
+
+User text is compared after Unicode NFC from `unicode-normalization` 0.1.25, the same canonical form as `pgident/v1`. ASCII identifiers compare case-insensitively. Non-ASCII text is not case-folded. The closure reads PostgreSQL quoted identifiers: `"` opens an identifier and `""` inside it is one quote character. Identifiers separated by `.`, with optional whitespace around the dot, are one reference. An unclosed quote fails closed.
+
+A qualified `schema.table` or `schema.table.column`, quoted or unquoted, is a dataset reference only when that pair is a known dataset or `schema` is in `include_schemas`. An unknown table in an included schema drops the object. `pg_catalog`, `information_schema`, and schemas that start with `_oo` drop the object. `oo_dict` and `oo_entity` are not visibility edges. An alias such as `r.amount` is not a dataset when `r` is outside `include_schemas`, but `amount` still matches a hidden column of that name. A hidden column named `id` drops any text that uses that token.
+
+Every hidden column name matches those identifiers. A hidden column label or a hidden dataset label that is itself an ASCII identifier matches the same way. Any other hidden label, including a non-ASCII label, matches when the NFC text contains that NFC label. The same label also matches a quoted identifier after `""` is decoded to one quote.
+
+The same closure runs at every place user text is copied: dataset labels, grain, source labels, column labels, `data_type`, `unit`, descriptions, enum codes, enum labels, metric labels, metric units, metric anchor names, glossary text, example ids and questions, calendar phrase labels, calendar anchor names, and the anchor expressions a phrase renders. A failing column field is left blank. A failing calendar anchor or phrase is omitted. The allowlisted column row can remain. A metric, example, or glossary term that fails is omitted.
+
+Verified SQL is only `metric.sql`, example `sql`, and `control_total.sql`. Each of those strings must parse as the subset below or the metric or example is omitted. An identifier scan does not keep text the parser rejects. Control SQL is parsed for closure and is not copied. Parse success is not execution and not a grant.
+
+The supported subset is one statement. Keywords are case-insensitive.
+
+- `SELECT` list `FROM` one relation, an optional `WHERE`, and an optional `UNION ALL` of that same shape
+- a list item is an expression, or an expression with `AS` and an alias
+- an expression is a numeric literal, a single-quoted string (`''` is one quote), an identifier, a dotted identifier, or `name(arguments)` whose arguments are `*` or expressions
+- a relation is `name` or `name.name`, and each name may be quoted
+- a predicate is comparisons joined by `AND`, or `IS NULL` / `IS NOT NULL`
+- comparison operators are `=`, `<>`, `!=`, `<`, `>`, `<=`, and `>=`
+
+Comments, semicolons, a second statement, `JOIN`, subqueries, `WITH`, `OR`, `DISTINCT`, casts, `SELECT *`, and any other syntax are unsupported. The metric or example is omitted.
 
 | Object | Kept when |
 |---|---|
 | Relationship | Every endpoint column is allowlisted, the relationship is not rejected, and it is review-approved, `declared_fk`, or `include_unreviewed` contains `relationships` |
-| Metric | `certified` is true, status is not `draft`, and the SQL, label, description, caveats, synonyms, control SQL, time dimension, and enum filters stay inside the visible set |
-| Glossary term | `status` is `approved`, `maps_to` names a visible dataset or a kept metric but not both, and the term text has no hidden column identifier |
-| Verified example | `uses` entries are `metric:`, `rel:`, `dataset:`, or `column:` references that were kept, and the id, SQL, and question have no hidden column identifier |
+| Metric | `certified` is true, status is not `draft`, the SQL and control SQL parse as the supported subset, and the SQL, label, description, caveats, synonyms, unit, anchor name, control SQL, time dimension, and enum filters stay inside the visible set |
+| Glossary term | `status` is `approved`, `maps_to` names a visible dataset or a kept metric but not both, and the term text has no hidden name, hidden label, or hidden dataset reference. Term text is prose, not verified SQL |
+| Verified example | `uses` entries are `metric:`, `rel:`, `dataset:`, or `column:` references that were kept, the SQL parses as the supported subset, and the id, SQL, and question have no hidden name, hidden label, or hidden dataset reference |
 | Enum | The `schema.table.column` path is an allowlisted column |
 | Entity | The primary dataset, key, display, every `datasets` entry, and every member key, name, phone, and strong key are visible. Otherwise the whole entity is omitted |
 
@@ -60,7 +81,7 @@ Dependency closure is fail-closed and is not a SQL parser. Every ASCII identifie
 
 Certified metrics with `deprecated` status stay, with a deprecation line. Draft and uncertified metrics are omitted. Owner, `verified_by`, `review.by`, and `classification.by` are omitted. Control SQL is not copied and is not executed. The metrics file says reconciliation is not claimed. A metric whose enum has `undetermined` or `unexplained` values, or a non-empty `unexplained_values` list, gets an unconfirmed-code warning.
 
-Column prose is included when `review.state` is `approved`. Provenance `declared` is not approval. Other column prose is included only when `include_unreviewed` contains `column_descriptions`, and then it is prefixed `UNREVIEWED:`. Dataset descriptions and caveats have no review field. They are omitted unless `dataset_descriptions` or `caveats` is listed, and then they are quoted as `UNREVIEWED` and fenced. A fence that contains `` ``` `` is rewritten with `'''`. User-authored labels, grain, source labels, descriptions, enum codes, and enum labels that contain a hidden column identifier are omitted.
+Column prose is included when `review.state` is `approved`. Provenance `declared` is not approval. Other column prose is included only when `include_unreviewed` contains `column_descriptions`, and then it is prefixed `UNREVIEWED:`. Dataset descriptions and caveats have no review field. They are omitted unless `dataset_descriptions` or `caveats` is listed, and then they are quoted as `UNREVIEWED` and fenced. A fence that contains `` ``` `` is rewritten with `'''`. User-authored labels, grain, source labels, data types, units, descriptions, enum codes, enum labels, and calendar phrases or anchors that fail the closure are omitted. A legal visible phrase, a quoted identifier that names a visible relation, and non-ASCII prose that does not name a hidden object stay in the pack.
 
 PII other than `none` is named in the column note. Samples are omitted for every column. `most_common_vals` is not a field on the OOS model and is not emitted.
 
