@@ -1,0 +1,162 @@
+oo_task=sp06-pg-policy-compiler-install
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a171
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+fetch_argv=cargo fetch --manifest-path Cargo.toml
+test_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-gateway --lib --test policy_pg_live -- --test-threads=1
+Linux 417bbd27cca8 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+info: downloading component clippy
+=== cargo fetch ===
+=== cargo clippy oo-gateway ===
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+=== arch focused ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (/target/debug/deps/oo_arch_check-03b0ec4a019dbaba)
+
+running 3 tests
+test check::tests::dev_only_gateway_pipeline_is_forbidden ... ok
+test check::tests::gateway_postgres_stack_is_allowed ... ok
+test check::tests::gateway_sync_postgres_and_sqlx_are_forbidden ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.22s
+
+=== cargo test oo-gateway lib and policy_pg_live ===
+   Compiling typenum v1.20.1
+   Compiling memchr v2.8.3
+   Compiling jobserver v0.1.35
+   Compiling cc v1.4.7
+   Compiling serde v1.0.229
+   Compiling hybrid-array v0.4.15
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.2
+   Compiling cmake v0.1.58
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling const-oid v0.10.2
+   Compiling once_cell v1.21.4
+   Compiling aws-lc-sys v0.45.0
+   Compiling bytes v1.12.1
+   Compiling digest v0.11.3
+   Compiling rand_core v0.10.1
+   Compiling serde_json v1.0.151
+   Compiling pin-project-lite v0.2.17
+   Compiling zeroize v1.9.0
+   Compiling tinyvec v1.13.3
+   Compiling unicode-normalization v0.1.25
+   Compiling ref-cast v1.0.27
+   Compiling generic-array v0.14.9
+   Compiling getrandom v0.4.3
+   Compiling chacha20 v0.10.2
+   Compiling aho-corasick v1.1.5
+   Compiling cpufeatures v0.3.1
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling futures-sink v0.3.34
+   Compiling unicode-bidi v0.3.18
+   Compiling unicode-properties v0.1.4
+   Compiling futures-core v0.3.34
+   Compiling stringprep v0.1.5
+   Compiling tokio v1.53.1
+   Compiling regex-automata v0.4.18
+   Compiling sha2 v0.11.0
+   Compiling rand v0.10.3
+   Compiling ahash v0.8.12
+   Compiling rustls-pki-types v1.15.1
+   Compiling md-5 v0.11.0
+   Compiling hmac v0.13.0
+   Compiling const-oid v0.9.6
+   Compiling base64 v0.22.1
+   Compiling untrusted v0.9.0
+   Compiling byteorder v1.5.0
+   Compiling fallible-iterator v0.2.0
+   Compiling flagset v0.4.7
+   Compiling postgres-protocol v0.6.12
+   Compiling der v0.7.10
+   Compiling fluent-uri v0.4.1
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling phf_shared v0.13.1
+   Compiling futures-task v0.3.34
+   Compiling subtle v2.6.1
+   Compiling jsonschema-value v0.57.0
+   Compiling phf v0.13.1
+   Compiling futures-util v0.3.34
+   Compiling referencing v0.57.0
+   Compiling digest v0.10.7
+   Compiling spki v0.7.3
+   Compiling strum v0.28.0
+   Compiling postgres-types v0.2.14
+   Compiling fancy-regex v0.19.2
+   Compiling tokio-util v0.7.19
+   Compiling regex v1.13.1
+   Compiling futures-channel v0.3.34
+   Compiling email_address v0.2.9
+   Compiling whoami v2.1.3
+   Compiling log v0.4.34
+   Compiling tokio-postgres v0.7.18
+   Compiling jsonschema v0.57.0
+   Compiling schemars v1.2.2
+   Compiling sha2 v0.10.9
+   Compiling thiserror v2.0.21
+   Compiling utoipa v6.0.0
+   Compiling x509-cert v0.2.5
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.45
+   Compiling rustls-webpki v0.103.15
+   Compiling tokio-rustls v0.26.5
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 26.39s
+     Running unittests src/lib.rs (/target/debug/deps/oo_gateway-a0fe6bd78d7d7e1e)
+
+running 5 tests
+test policy::tests::a_confirmed_allowlist_compiles_to_one_nologin_role ... ok
+test policy::tests::an_empty_allowlist_is_refused ... ok
+test policy::tests::identifiers_reject_sql_and_the_owner_role ... ok
+test policy::tests::row_filter_is_refused_without_a_partial_allowlist ... ok
+test policy::tests::unknown_pii_and_unclassified_columns_are_refused ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/policy_pg_live.rs (/target/debug/deps/policy_pg_live-4e8a96cc17d7e8a5)
+
+running 1 test
+test shadow_column_acl_installs_and_denies ... FAILED
+
+failures:
+
+---- shadow_column_acl_installs_and_denies stdout ----
+
+thread 'shadow_column_acl_installs_and_denies' (3135) panicked at crates/oo-gateway/tests/policy_pg_live.rs:405:10:
+adopt: Error { kind: ToSql(1), cause: Some(WrongType { postgres: Uuid, rust: "&str" }) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    shadow_column_acl_installs_and_denies
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p oo-gateway --test policy_pg_live`

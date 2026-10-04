@@ -1,0 +1,19 @@
+cleanup_start=2026-10-04T21:29:35Z
+scope=oo-a171 only
+oo-a171-rust194
+rm_rust=0
+oo-a171-pg
+stop_pg=0
+oo-a171-pg
+rm_pg=0
+oo-a171-cargo
+oo-a171-target
+oo-a171-pgdata
+rm_volumes=0
+oo-a171-net
+rm_network=0
+rm_tmp=0
+---remaining a171---
+tmp=absent
+---other rust containers left untouched---
+cleanup_end=2026-10-04T21:29:36Z
