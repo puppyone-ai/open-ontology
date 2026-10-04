@@ -1,6 +1,6 @@
 [package]
 name = "oo-pipeline"
-description = "Sync pipeline and loader. SP00-W01 skeleton; no write path."
+description = "Sync pipeline, target schema installer, and loader skeleton."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -14,3 +14,22 @@ workspace = true
 oo-core = { path = "../oo-core" }
 oo-jobs = { path = "../oo-jobs" }
 oo-connectors = { path = "../oo-connectors" }
+# Same pins as oo-connectors. Default features stay off. The sqlx 0.9.0
+# facade still depends on sqlx-core with `migrate` unconditionally. This
+# crate does not call migrate. TLS is the patched sqlx-core feature
+# `_tls-rustls-ring-no-roots`. Do not enable `tls-rustls-ring-webpki`,
+# `tls-rustls-ring-native-roots`, or `tls-native-tls`.
+sqlx = { version = "=0.9.0", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = [
+    "_rt-tokio",
+    "_tls-rustls-ring-no-roots",
+] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["time"] }
+
+[dev-dependencies]
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "time"] }

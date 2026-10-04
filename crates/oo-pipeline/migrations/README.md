@@ -19,13 +19,23 @@ Checksums are SHA-256 of those file bytes. `target-fence-receipts/1` is recorded
 
 There is no migrate-phase or contract-phase file in this slice.
 
-## Applicator
+## Production installer
 
-The Rust driver is not in this crate. Until it exists, `tests/pg_fixture.sh` is the reference applicator. It passes fixed `psql -f` paths and hex checksum variables. It does not concatenate SQL text.
+`oo_pipeline::target_installer` installs this schema. It is not the Loader. It does not copy user rows, write receipts, create a publication, or admit a source reader. The contract is `contracts/pipeline/target-installer-v1.md`.
 
-The applicator takes `pg_advisory_xact_lock(6404202605)` and then `_oo.migration_lock` `FOR UPDATE`. That key is only the migration executor lock. It is not a shard fence. The jobs control lock `6401202601` is a different database and a different key.
+The caller passes one idle `&mut sqlx::PgConnection`. The installer does not open a pool and does not read a credential. Bootstrap runs `0000_bootstrap_roles.sql` as that session, so the session has to be a superuser: the script creates `NOLOGIN` roles and revokes `pg_catalog` execution. `0001`, `0003`, and `0004` then run as `oo_target_owner` in the same transaction, and that transaction inserts `target-bootstrap/1`, `target-fence-receipts/1`, `target-fence-receipts/3`, and `physical-mapping/v1`. Roles are cluster-wide. A second database in a cluster that already has `oo_target_owner` is not a fresh bootstrap; `0000` is not rewritten to skip `CREATE ROLE`.
 
-On an empty target database the applicator runs both files in one transaction. It then inserts the two `_oo.schema_migrations` rows in a second transaction. A run with the same checksums locks, compares, and does not execute the files again. A missing bookkeeping row raises `OO002`. A different checksum raises `OO001` and does not change the row. A failed file rolls back with its transaction. `_oo.service_readiness.schema_version_present` is true only when the `target-fence-receipts/1` expand row exists. `_oo.schema_ready(checksum)` compares the stored checksum and returns false on a mismatch. Neither one opens the file.
+The scripts are compiled with `include_str`. SHA-256 is computed from those bytes. `0002_target_segment_null_expand.sql` is not compiled into the install path and is not executed. A database whose `target-bootstrap/1` and `target-fence-receipts/1` rows match those digests, with no v2 row, is upgraded by `0003` and then `0004`. No `target-fence-receipts/2` row is inserted. A v2 row whose checksum is the frozen SHA-256 of `0002` takes the same two scripts. The v1 and v2 checksums and `applied_at` values stay. `0004` runs only after `0003` returns.
+
+The transaction takes `pg_advisory_xact_lock(6404202605)` and, once the row exists, locks `_oo.migration_lock` `FOR UPDATE`. That key is only the migration executor lock. It is not a shard fence. The jobs control lock `6401202601` is a different database and a different key. An exact checksum match executes no script and does not change `applied_at`. A stored checksum that differs raises `OO001` with message `migration checksum mismatch` and does not update the row. A catalog that is not fresh and is missing `_oo.apply_receipts` or `apply_receipts_segment_check` runs `0003`, which raises `OO002` with message `target-fence-receipts/1 segment relation is absent` and inserts no marker. The installer does not delete, update, or recreate a migration row to repair a mismatch, and it does not rewrite receipt rows. A statement failure rolls the transaction back. Readiness is not true after that rollback.
+
+`verify_readiness` reads `_oo.schema_migrations` and compares it with the compiled digests. It does not bootstrap, `SET ROLE`, take the migration lock, or execute a script. It takes no caller-supplied hash. `oo_pipeline_runtime` can call it. That role cannot call `install`.
+
+`_oo.schema_ready`, `_oo.segment_contract_ready`, and `_oo.segment_preflight_ready` still compare a caller argument with the stored row. They do not open a file. The production readiness check does not call them with a hash the caller invented.
+
+## Reference applicators
+
+`tests/pg_fixture.sh` is the v1 reference applicator. It passes fixed `psql -f` paths and hex checksum variables. It does not concatenate SQL text. On an empty target database it runs `0000` and `0001` in one transaction and inserts the two `_oo.schema_migrations` rows in a second transaction. The production installer does not use that second transaction. A missing bookkeeping row in the reference raises `OO002`. A different checksum raises `OO001` and does not change the row. `_oo.service_readiness.schema_version_present` is true only when the `target-fence-receipts/1` expand row exists. `_oo.schema_ready(checksum)` compares the stored checksum and returns false on a mismatch. Neither one opens the file.
 
 `_oo.schema_migrations` rejects update and delete.
 
@@ -93,4 +103,4 @@ Backup consumers need `_oo.schema_migrations`, `_oo.migration_lock`, `_oo.target
 
 ## Tests
 
-`tests/target_fence_contract.rs` checks the v1 file text and the published v1 checksums. `tests/segment_null_correction.rs` checks the v2 checksums and, when run against one owned PostgreSQL 17 fixture, the segment cases. `tests/segment_preflight_correction.rs` is the v3 reference applicator and its focused fixture. `tests/pg_fixture.sh` remains the v1 applicator. None of these is the 100-worker acceptance test, a dual-architecture matrix, a Loader, CDC, or a production deploy.
+`tests/target_fence_contract.rs` checks the v1 file text and the published v1 checksums. `tests/segment_null_correction.rs` checks the v2 checksums and, when run against one owned PostgreSQL 17 fixture, the segment cases. `tests/segment_preflight_correction.rs` is the historical v3 reference applicator and its focused fixture. `tests/pg_fixture.sh` remains the v1 reference applicator. `tests/target_installer_live.rs` runs the production installer against one private PostgreSQL 17 fixture. None of these is the 100-worker acceptance test, a dual-architecture matrix, a Loader, CDC, or a production deploy. The production installer is the schema installer only.
