@@ -177,6 +177,7 @@
   - [x] V01-OOS-01A-NFC findings1/2/5修正：a094固定3ed558a批准；Linux1.94测试/Clippy0、Unicode16 19965行/17 20034行及34新mark独立对照通过，旧hash不静默复用。供应链、physical63byte与完整SP07另验。
   - [x] V01-OOS-01A开发预检：a063首次Linux/MSRV冒烟已核验attempt-2原始日志，rustc1.94.0、62个core测试、fetch/test/Clippy exit0；attempt-1的101保留。此项仅证明开发基线，不证明草案功能或SP07验收。
 - [ ] SP07-W02 catalog/profile/evidence
+  - [x] W02-CP captured PostgreSQL catalog→reviewable draft API：63466471经a157真实PG17.10独立限定批准，bindings/PK/FK/unknownPII/stale/curated/Rust SQL audit；完整profile/语义审核/发布未验。
 - [ ] SP07-W03 规则/关系/码表/专家卡
 - [ ] SP07-W04 LLM候选/驻留/预算
 - [ ] SP07-W05 审核/owner/分类
@@ -1072,3 +1073,6 @@ a154 sameUUIDresume2 actualhandle78618 slotA fullimportwriter; a157 actualGrok4.
 a15478618 actualexit0 incomplete reports/commit missing. Logrecords lib+installerpassed, fullimporttest compilefailed; movedfixturevalues/Debug fixed, attempt2 preserved, ownretrybuilder launched. OriginalUUIDresume3 retrievesexistingactualresult first, no duplicatePG/builder. a15771206 unifiedcheck live. No completioncheckbox/metric change, goal active.
 
 a154 sameUUIDresume3 actualhandle90213 slotA fullimport; a15771206 slotB fixedcaptureddraftreview continues. Old78618closed notobservedagain, global2builder/each1PG, nextUUIDa158. One25minute wait, goal active.
+
+
+a15771206 actualexit0 complete92829c3b, full3reportsread115hashactual0, ownDockerempty. IndependentactualPG capture/stale0, builder28+CLI4+captured6/Clippy0; Rustaudit34statements/0writes completeextendedclassification. OnlyW02-CPaccepted21→22; delivered17/firstcomponentreviewapproved denominator16→17,rework9/17=52.94%. a15490213 actualexit0 incomplete logOO018backendstatsvisibility fixedwithowner-onlygrant and ownretrylaunched; resume4collectexistingresult no duplicatebuilder, grantexplicitversionedreviewrequired. a158usablecaptureddraftCLIparallel noPG, all87parentsopen goalactive.
