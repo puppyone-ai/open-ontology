@@ -128,6 +128,7 @@
   - [x] R2-P 正数Execute命名portal原语：a130限定批准；实际Arrow流与完整取消/键计划另验。
   - [x] R2-W opt-in PG驱动接收上限与live-view计量：固定ff783ac9经a126独立复审限定批准，Linux1.94库49/bounds13/accounting12/独立12与Clippy0；非RSS/保留frame总量/backend heap，生产opt-in、portal/Arrow/full reader另验。
   - [x] R4-F PostgreSQL full-mode RunComplete admission API：16ca2969经a149独立限定批准；完整selected Exhausted、同cut/新generation、early/subset/失败不mint；能力声明待a151，其他DB/CDC/父项未验。
+  - [x] R4-A full-mode能力声明：bedd6a2c经a153限定批准，scan/bounded_read/bounded_reader与真实RunComplete API一致；旧文档待a155。
 - [ ] SP03-W04 type/PositionCodec/精度
   - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
 - [ ] SP03-W05 catalog/名字映射/注册
@@ -143,6 +144,7 @@
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
   - [ ] W05-a 目标锁/generation与耐久receipt迁移：a104交付6cd955a版本3，a108 preflight有限切片已签收；完整fence与Loader driver、控制镜像和ACK/TRIM仍未验收。
+    - [x] W05-TI production target installer/v1：4ed22b8c经a152独立限定批准，install/readiness/replay/v1→v3/v2保留/mapping-only/回滚；同集群第二空DB初始化仍不支持，完整Loader/fence未验。
     - [x] W05-a1 version3 preflight修正：固定6cd955a经a108独立Linux1.94/PG17.10实测与协调者原始记录签收；缺schema/relation/constraint精确OO002、不写marker，旧SQL不变、v1 supersede/v2 forward与有限NULL/ACL/replay回归通过。test参考路线不等于生产installer；F2/F3/F5仍开放。
 - [ ] SP04-W06 full/incremental/快照失效恢复
 - [ ] SP04完整A/Phase退出
@@ -1049,3 +1051,6 @@ a151 actualGrok4.7xhighhandle60178 slotB capability/docs activation; a152 handle
 a15160178 actualexit0 deliverybedd6a2c/evidence057e30db, full reports read117hash actual0, ownDockerempty. Added narrow obsolete assertions lib.rs+types/tests.rs outside original pathlist accepted explicitly for fixedreview, deviation retained. No uniquecomponent increment/checkbox untila153. a15272790 actualexit0 incomplete reports missing; logconfirms ownPG+smoke alreadylaunched, sameUUIDresume must collect existingresults before anynewbuilder, no acceptance. Metrics16/19/9of15 unchanged. Parallel fixedactivationreview a153 and samea152 continuedinstallerreview; goal active.
 
 a152 sameUUID resumed actualhandle52463 slotA fixedinstallerreview; a153 actualGrok4.7xhighhandle93176 slotB fixedbedd6a2c activationreview. Each1builder1PG/global2. Old72790/60178 terminalclosed notcheckedagain. Dispatch42640fe4, nextUUIDa154, one25minute wait; goal active.
+
+
+a15252463/a15393176 actualexit0 completeac4b7272/b476c756, all3reports read including previously truncateda153sections;111/98hash actual0, rawindependentinstaller2tests0 and readerlive0/Docker0, ownDockerempty. LimitedacceptinstallerW05-TI and readeradvertisementR4-A; accepted19→21, delivered16, firstcomponentreviewinstallerapproved denominator15→16 rework9/16=56.25%. Explicit installer secondemptytargetsamecluster OO002 limitation retainednotanytargetreadiness. Dispatcha154 actualfullimportverticalwriter and a155 docconsistencyparallel, no parent/Phase completion, goal active.
