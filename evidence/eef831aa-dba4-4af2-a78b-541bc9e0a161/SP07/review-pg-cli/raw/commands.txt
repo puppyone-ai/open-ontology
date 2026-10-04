@@ -1,0 +1,9 @@
+pre-edit, archive 3353380b, no overlay:
+cargo test -p oo-builder --lib -- --test-threads=8
+cargo clippy -p oo-builder --lib --test captured_pg -- -D warnings
+
+focused, archive 3353380b plus the five committed paths and the two a157 catalogs:
+cargo test -p oo-builder --test review_pg_cli -- --test-threads=4
+cargo test -p oo-builder --test captured_pg_cli -- --test-threads=4
+cargo test -p oo-builder --test structure_draft_cli -- --test-threads=4
+cargo clippy -p oo-builder --bin oo-builder --test review_pg_cli --test captured_pg_cli -- -D warnings

@@ -1,0 +1,14 @@
+source_commit=3353380b03a5585a349fddd0038d0a79877c51e1
+tree=5d6767362bedea26d673b43b932a7776f2ecfc25
+snapshot_method=git archive of 3353380b03a5585a349fddd0038d0a79877c51e1 with no working-tree overlay
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a161-builder-smoke
+network=oo-a161-eef831aa-net
+pull=never
+privileged=no
+host_network=no
+docker_socket=no
+home_mount=no
+phase=pre-edit library and scoped clippy

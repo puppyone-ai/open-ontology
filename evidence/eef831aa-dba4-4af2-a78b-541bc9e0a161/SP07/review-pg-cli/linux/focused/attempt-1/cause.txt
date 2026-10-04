@@ -1,0 +1,1 @@
+attempt 1: review_pg_cli did not compile (raw string br"{}"#). captured_pg_cli usage assertion looked for "does not connect"; the usage text says "do not connect". structure_draft_cli 4 passed.

@@ -1,0 +1,14 @@
+{
+  "command_protocol": "oo.builder.captured-pg-draft-command/v1",
+  "catalog_before_sha256": "de094222fcd5cb4e54c95a5ec8950c8fd2d55837bd1cff8cd3dd49673f8d56d9",
+  "catalog_after_sha256": "53e2fe7e68197f8698a2a9e2683dc2131426a0faea6bfb277594f9ba9ce52903",
+  "before_schema_hash": "a0efbfc8b5bc7536a121208a1c8e3ff41b16cdda4018b5618b047f40d415271c",
+  "after_schema_hash": "c123519256e1c88ab063a41f250ac02483822983d3cf95c364d25983e86fde4d",
+  "before_draft_hash": "d6980c138fa4939195bd673582938c94e9adca72a9acf710ddcebae407b138ef",
+  "before_wrapper_hash": "e525520f010677050108f4aed9d899ecca28e2c56cbcb91e10d9485d20e3267e",
+  "before_captured_catalog_hash": "5c17683d74bcc7916954dfb23d22004e5ccbd4058f54bb1d3699ca679a8b90b0",
+  "after_captured_catalog_hash": "6f4fca46a3144f9e5c0073fec0945af70717cde52a18c257ec74b0d60109c92c",
+  "after_stale_draft_hash": "8e00ba219f9e99044a739acb3f96eff04f7ce44784a42bec1609e32ee7ae688f",
+  "historical_commit": "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74",
+  "source": "a157 preserved catalog-before.json and catalog-after.json, checked by review_pg_cli against compile_captured_pg_catalog"
+}

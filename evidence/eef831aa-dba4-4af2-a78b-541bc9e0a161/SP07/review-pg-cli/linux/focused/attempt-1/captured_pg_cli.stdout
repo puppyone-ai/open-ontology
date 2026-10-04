@@ -1,0 +1,20 @@
+
+running 3 tests
+test usage_unknown_and_extra_arguments_exit_2 ... FAILED
+test bad_json_utf8_and_oversize_exit_1_without_echo ... ok
+test captured_catalog_command_matches_the_public_api ... ok
+
+failures:
+
+---- usage_unknown_and_extra_arguments_exit_2 stdout ----
+
+thread 'usage_unknown_and_extra_arguments_exit_2' (321) panicked at crates/oo-builder/tests/captured_pg_cli.rs:129:5:
+assertion failed: stderr.contains("does not connect")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    usage_unknown_and_extra_arguments_exit_2
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

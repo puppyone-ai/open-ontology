@@ -1,0 +1,33 @@
+
+running 28 tests
+test draft::tests::accept_does_not_classify_pii_or_publish ... ok
+test draft::tests::comment_only_change_moves_evidence_hash_not_schema_hash ... ok
+test draft::tests::curated_label_applies_and_pii_stays_in_the_echo ... ok
+test draft::tests::empty_catalog_is_a_stable_unpublished_draft ... ok
+test draft::tests::budgets_reject_long_names_wide_keys_depth_and_bytes ... ok
+test draft::tests::fk_outside_the_selection_is_not_a_relationship ... ok
+test draft::tests::failures_use_static_codes_and_do_not_echo_payloads ... ok
+test draft::tests::fresh_rejection_does_not_resurrect_and_stale_rejection_stays_pending ... ok
+test captured_pg::tests::parser_locks_the_shop_schema_hash ... ok
+test draft::tests::accepted_relationship_closes_when_its_column_is_rejected ... ok
+test draft::tests::fresh_from_endpoint_rejection_closes_only_that_relationship ... ok
+test draft::tests::fresh_to_endpoint_rejection_closes_referencing_relationships ... ok
+test draft::tests::human_relationship_rejection_is_not_rewritten ... ok
+test draft::tests::selection_mismatch_and_identifier_collision_fail ... ok
+test draft::tests::legitimate_composite_order_and_shared_columns_stay ... ok
+test draft::tests::simple_customer_matches_independent_schema_hash_and_hides_untrusted_text ... ok
+test draft::tests::composite_member_rejection_closes_the_whole_relationship ... ok
+test ident::tests::safe_reserved_and_unicode_follow_pgident ... ok
+test nfc::tests::nfc_is_unicode_17_canonical ... ok
+test draft::tests::underscore_schema_stays_physical_and_out_of_oos ... ok
+test pgsql::tests::empty_and_one_column_hashes_match_independent_vectors ... ok
+test pgsql::tests::wide_numeric_and_domain_are_not_coerced ... ok
+test draft::tests::repeated_key_members_fail_after_valid_hash_lineage ... ok
+test draft::tests::shop_keeps_structure_tentative_and_types_explicit ... ok
+test draft::tests::reordered_lists_keep_the_same_bytes ... ok
+test draft::tests::fresh_rejection_of_both_ends_and_self_reference ... ok
+test draft::tests::stale_column_rejection_keeps_the_relationship ... ok
+test draft::tests::checked_in_goldens_match_compiler_bytes ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+

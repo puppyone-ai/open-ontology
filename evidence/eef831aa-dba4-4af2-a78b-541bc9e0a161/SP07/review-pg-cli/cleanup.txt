@@ -1,0 +1,10 @@
+removed a161 objects only
+oo-a161-builder-smoke
+oo-a161-builder-focused
+oo-a161-eef831aa-cargo
+oo-a161-eef831aa-target
+oo-a161-eef831aa-net
+--- remaining a161 ---
+--- tmp ---
+tmp_snapshot=absent
+--- other running ---

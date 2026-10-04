@@ -1,0 +1,11 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+error: too many `#` when terminating raw string
+   --> crates/oo-builder/tests/review_pg_cli.rs:324:60
+    |
+324 |     assert_static_failure(&run(&["review-pg-draft"], br"{}"#), "/field.missing");
+    |                                                      ------^ help: remove the extra `#`
+    |                                                      |
+    |                                                      this raw string started with 0 `#`s
+
+error: could not compile `oo-builder` (test "review_pg_cli") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
