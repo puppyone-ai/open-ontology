@@ -1,0 +1,4 @@
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.82s

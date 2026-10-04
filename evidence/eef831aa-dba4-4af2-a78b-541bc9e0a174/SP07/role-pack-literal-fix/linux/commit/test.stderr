@@ -1,0 +1,5 @@
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.97s
+     Running tests/role_pack.rs (/target/debug/deps/role_pack-ceb7bedc5b55ffa8)
