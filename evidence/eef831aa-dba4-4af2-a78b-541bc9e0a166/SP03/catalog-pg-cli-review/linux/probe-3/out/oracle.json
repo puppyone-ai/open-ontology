@@ -1,0 +1,99 @@
+{
+  "berth": {
+    "columns": [
+      {
+        "attnum": 1,
+        "comment": null,
+        "insert": false,
+        "name": "id",
+        "not_null": true,
+        "select": true,
+        "type_name": "int4",
+        "type_oid": 23,
+        "update": false
+      },
+      {
+        "attnum": 2,
+        "comment": {
+          "byte_len": 28,
+          "sha256": "b9589d60ed95d53fda035dc404d21dcf1268cc4027aa674b4c703bd144b6ec3e"
+        },
+        "insert": false,
+        "name": "label",
+        "not_null": true,
+        "select": true,
+        "type_name": "text",
+        "type_oid": 25,
+        "update": false
+      },
+      {
+        "attnum": 3,
+        "comment": null,
+        "insert": false,
+        "name": "note",
+        "not_null": false,
+        "select": true,
+        "type_name": "text",
+        "type_oid": 25,
+        "update": false
+      }
+    ],
+    "comment": {
+      "byte_len": 28,
+      "sha256": "2901b761da219ea1f9881d9e9328ca74fc80a876743d05c35d94081f98cdc446"
+    },
+    "foreign_keys": [],
+    "primary_key": [
+      {
+        "attnum": 1,
+        "name": "id"
+      }
+    ]
+  },
+  "mooring": {
+    "columns": [
+      {
+        "attnum": 1,
+        "comment": null,
+        "insert": false,
+        "name": "id",
+        "not_null": true,
+        "select": true,
+        "type_name": "int4",
+        "type_oid": 23,
+        "update": false
+      },
+      {
+        "attnum": 2,
+        "comment": {
+          "byte_len": 27,
+          "sha256": "3afbc85a5c8693d35b283d807c9758ce15c92d5b48dd0171893370f5bc246174"
+        },
+        "insert": false,
+        "name": "berth_id",
+        "not_null": true,
+        "select": true,
+        "type_name": "int4",
+        "type_oid": 23,
+        "update": false
+      }
+    ],
+    "comment": null,
+    "foreign_keys": [
+      {
+        "attnum": 2,
+        "column": "berth_id",
+        "name": "mooring_berth_fk",
+        "ref_attnum": 1,
+        "ref_name": "id",
+        "ref_table": "berth"
+      }
+    ],
+    "primary_key": [
+      {
+        "attnum": 1,
+        "name": "id"
+      }
+    ]
+  }
+}

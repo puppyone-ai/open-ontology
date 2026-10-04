@@ -1,0 +1,29 @@
+Pre-overlay Linux 1.94 smoke, immutable archive of 34498e75, no PostgreSQL:
+linux/smoke/inside.sh
+cargo fetch --manifest-path Cargo.toml --locked
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --lib
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test import_pg_cli_live
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test catalog_pg_cli_live
+cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-pipeline --all-targets -- -D warnings
+
+Deciding probe, archive copy plus overlay/catalog_pg_a166_review.rs, one private PostgreSQL:
+linux/probe-3/inside.sh
+cargo build --manifest-path Cargo.toml --locked --offline -p oo-pipeline -p oo-builder --bins
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test import_pg_cli_live
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test catalog_pg_cli_live
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test catalog_pg_a166_review -- --exact narrow_invalid_strict_and_noargs_exits
+cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-pipeline --all-targets -- -D warnings
+cargo test --manifest-path Cargo.toml --locked --offline -p oo-pipeline --test catalog_pg_a166_review -- --ignored --exact catalog_stdout_matches_postgres_and_the_fixed_builder
+
+The live process is oo-pipeline catalog-pg. Stdin is oo.pipeline.catalog-pg/v1. The same stdout bytes go to oo-builder captured-pg-draft twice and, as {"catalog": <object>}, to oo-builder review-pg-draft. Package commands used --locked --offline after one fetch. No --ignored import test. No target install.
+
+Preserved harness exits, not overwritten:
+linux/smoke inside 0, docker-run 0
+linux/probe inside 101 (review test type annotation; live skipped)
+linux/probe-2 inside 101 (clippy derivable_impls; live test itself exited 0)
+linux/probe-3 inside 0, docker-run 0
+pg/ready.exit 0
+
+Source commit, already on the branch, no product edit in this review:
+34498e75d5876d74ddb5343b1b0f5b9b1adaf1df
+pipeline: add a catalog-pg command

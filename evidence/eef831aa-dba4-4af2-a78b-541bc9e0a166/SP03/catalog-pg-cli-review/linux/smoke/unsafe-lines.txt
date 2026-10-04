@@ -1,0 +1,1 @@
+crates/oo-pipeline/src/lib.rs:16:#![forbid(unsafe_code)]

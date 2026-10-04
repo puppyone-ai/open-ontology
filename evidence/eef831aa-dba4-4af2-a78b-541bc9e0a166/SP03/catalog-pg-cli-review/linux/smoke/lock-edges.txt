@@ -1,0 +1,13 @@
+name = "oo-pipeline"
+version = "0.1.0"
+dependencies = [
+ "oo-connectors",
+ "oo-core",
+ "oo-jobs",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "sqlx-core",
+ "tokio",
+]
