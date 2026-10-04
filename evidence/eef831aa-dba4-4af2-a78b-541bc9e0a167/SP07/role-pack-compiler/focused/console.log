@@ -1,0 +1,108 @@
+=== rustc -vV ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_vv_exit=0
+=== cargo -V ===
+cargo 1.94.0 (85eff7c80 2026-01-15)
+cargo_v_exit=0
+=== rustup show ===
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+=== uname ===
+Linux 1635d1670eb9 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+=== id ===
+uid=0(root) gid=0(root) groups=0(root)
+=== toolchain file ===
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
+=== overlaid sources ===
+8e138d4f3aaadd32f5b09ba05d97bf44c312e68f647cc64d6b912a855bc36cd1  crates/oo-builder/src/lib.rs
+bf6253188f4d6cf1d09385f152040ae3956ed8faa9608f81560c22827555e7c1  crates/oo-builder/src/role_pack.rs
+6dfdec91765f10df56a16a4ca15a8fc71f387e22f7dc216d1d8f04319a810246  crates/oo-builder/tests/role_pack.rs
+=== clippy component ===
+info: downloading component clippy
+PHASE clippy_component_exit=0
+=== cargo fetch --locked --offline ===
+PHASE offline_fetch_exit=0
+PHASE fetch_exit=0
+=== cargo test -p oo-builder --test role_pack ===
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+error[E0507]: cannot move out of `record.state` which is behind a shared reference
+   --> crates/oo-builder/src/role_pack.rs:964:63
+    |
+964 |             match column.classification.as_ref().map(|record| record.state) {
+    |                                                               ^^^^^^^^^^^^ move occurs because `record.state` has type `ClassState`, which does not implement the `Copy` trait
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+964 |             match column.classification.as_ref().map(|record| record.state.clone()) {
+    |                                                                           ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `oo-builder` (lib) due to 1 previous error
+PHASE test_exit=101
+=== cargo clippy -p oo-builder --lib ===
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/src/crates/oo-jobs)
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+error[E0507]: cannot move out of `record.state` which is behind a shared reference
+   --> crates/oo-builder/src/role_pack.rs:964:63
+    |
+964 |             match column.classification.as_ref().map(|record| record.state) {
+    |                                                               ^^^^^^^^^^^^ move occurs because `record.state` has type `oo_core::oos::ClassState`, which does not implement the `Copy` trait
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+964 |             match column.classification.as_ref().map(|record| record.state.clone()) {
+    |                                                                           ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `oo-builder` (lib) due to 1 previous error
+PHASE clippy_lib_exit=101
+=== cargo clippy -p oo-builder --test role_pack ===
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+error[E0507]: cannot move out of `record.state` which is behind a shared reference
+   --> crates/oo-builder/src/role_pack.rs:964:63
+    |
+964 |             match column.classification.as_ref().map(|record| record.state) {
+    |                                                               ^^^^^^^^^^^^ move occurs because `record.state` has type `oo_core::oos::ClassState`, which does not implement the `Copy` trait
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+964 |             match column.classification.as_ref().map(|record| record.state.clone()) {
+    |                                                                           ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `oo-builder` (lib) due to 1 previous error
+PHASE clippy_test_exit=101
+worst_phase_exit=101

@@ -1,0 +1,26 @@
+run_id=a167preedit01
+source_commit=688401ee3dca600835ff001e4ded8f6a666bab9e
+source_tree=b092f00fd239f856475f2d47d7210ab4eaa8f0fe
+fixed_base=34498e75d5876d74ddb5343b1b0f5b9b1adaf1df
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a167-a167preedit01-net
+container=oo-a167-msrv-a167preedit01
+cargo_volume=oo-a167-a167preedit01-cargo
+target_volume=oo-a167-a167preedit01-target
+snapshot=/tmp/oo-a167-eef831aa/snapshot
+snapshot_method=git archive HEAD
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+cap_drop=ALL
+cap_add=none
+init=yes
+no_new_privileges=yes
+command=cargo fetch --locked; cargo test --locked --offline -p oo-builder --lib; cargo clippy --locked --offline -p oo-builder --lib -- -D warnings
