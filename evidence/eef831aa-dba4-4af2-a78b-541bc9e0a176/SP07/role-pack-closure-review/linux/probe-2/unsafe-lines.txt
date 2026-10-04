@@ -1,0 +1,2 @@
+crates/oo-builder/src/lib.rs:10:#![forbid(unsafe_code)]
+crates/oo-builder/tests/role_pack_a176_review.rs:7:#![forbid(unsafe_code)]
