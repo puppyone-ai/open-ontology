@@ -22,6 +22,12 @@ postgres-types = { version = "=0.2.14", default-features = false }
 postgres-protocol = { version = "=0.6.12", default-features = false }
 # Docs require rustls plus the tokio-postgres TLS adapter. No webpki-roots and no native-certs.
 tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+# Official crates.io pg_query 6.2.1 (2026-09-30). libpg_query embeds PostgreSQL 17.7
+# (PG_VERSION_NUM 170007). The Rust wrapper is MIT; vendored PostgreSQL sources are
+# the PostgreSQL license and the rest of libpg_query is BSD-3-Clause. Exact pin.
+# Product code does not use unsafe. The FFI stays inside pg_query.
+pg_query = "=6.2.1"
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
