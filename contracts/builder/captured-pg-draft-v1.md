@@ -51,7 +51,7 @@ Generated, curated, and effective layers, the review queue, unknown PII and sema
 
 `oo-builder captured-pg-draft` reads one `oo.source.pgsql/v1` catalog document from stdin and writes one command result to stdout. Protocol `oo.builder.captured-pg-draft-command/v1`. No arguments. The command calls `compile_captured_pg_catalog(input, None, None)`. It does not open a connection, call a model, read source credentials, import rows, grant, certify, or publish.
 
-Curated overlays and review decisions are not arguments of this command. They stay on `compile_captured_pg_catalog`.
+Curated overlays and review decisions are not arguments of this command. `review-pg-draft` is the input path that passes them to `compile_captured_pg_catalog`.
 
 Stdout is one JSON object with sorted keys and no trailing newline. `wrapper`, `evidence_envelope`, and `draft` are objects, the same values as the three canonical strings on `CapturedPgDraft`. They are not escaped JSON strings. The bytes of each object are those strings.
 
@@ -72,4 +72,47 @@ Stdin is read up to 1048577 bytes. A longer stream is not read further. The pars
 | 1 | Stdin could not be read, is not UTF-8, the catalog or compiler rejected it, or stdout could not be written |
 | 2 | The command is missing or unknown, or `captured-pg-draft` was given an argument |
 
-`structure-draft` is unchanged: one evidence envelope on stdin, the same draft bytes on stdout, exit 0 on success, exit 1 on a draft error, and exit 2 when that command is given an argument. With no arguments the process still reports that the SP00-W01 entry skeleton is not implemented, and it names these two public draft commands.
+`structure-draft` is unchanged: one evidence envelope on stdin, the same draft bytes on stdout, exit 0 on success, exit 1 on a draft error, and exit 2 when that command is given an argument. `captured-pg-draft` stdout bytes and exits are unchanged.
+
+With no arguments the process exits 2. It no longer says that the SP00-W01 entry skeleton is not implemented. That sentence was left over from before these commands existed, and it described the entry as unimplemented after `structure-draft` and `captured-pg-draft` were real. The no-argument text is usage for the commands that exist. A missing command is still not a draft, so the exit stays 2. Stderr is:
+
+```
+oo-builder: usage: oo-builder <command>
+oo-builder: public draft commands read one JSON document from stdin and take no arguments
+oo-builder:   structure-draft       one oo.builder.catalog-evidence/v1 envelope
+oo-builder:   captured-pg-draft     one oo.source.pgsql/v1 catalog
+oo-builder:   review-pg-draft       catalog object, optional curated object, optional reviews array
+oo-builder: review-pg-draft passes those values to compile_captured_pg_catalog
+oo-builder: these commands do not connect, call a model, import rows, grant, certify, or publish
+oo-builder: a review decision binds one structural item and does not approve semantics, grants, or publication
+```
+
+## Review command
+
+`oo-builder review-pg-draft` reads one JSON document from stdin and writes one command result to stdout. No arguments. The result protocol is `oo.builder.captured-pg-draft-command/v1`, the same object shape as `captured-pg-draft`: `protocol`, `wrapper`, `evidence_envelope`, and `draft`. The three compiler values are JSON objects, not escaped JSON strings. There is no trailing newline.
+
+The document is one object:
+
+| Field | Required | Shape |
+|---|---|---|
+| `catalog` | yes | one `oo.source.pgsql/v1` object |
+| `curated` | no | one object, the overlay `compile_captured_pg_catalog` already accepts |
+| `reviews` | no | one array, the decision list that function already accepts |
+
+Absent `curated` or `reviews` is passed as none. The function already treats that as no overlay and an empty decision list. This command does not add review rules.
+
+Stdin is read up to 1048577 bytes. A longer stream is not read further. The core scanner then rejects a document above 1048576 bytes, a duplicate key, a depth or node overrun, and trailing data. `serde` `deny_unknown_fields` rejects an unknown top-level field. `catalog` must be an object. `curated`, when present, must be an object. `reviews`, when present, must be an array. A null is not that shape. The command extracts those values as key-sorted JSON and calls `compile_captured_pg_catalog`. It does not reimplement the draft compiler. The compiler scans the extracted values again and recomputes every hash. Previously sealed draft hashes are not rewritten.
+
+A review item is the existing `{item_id, action, schema_hash, fact_fingerprint}`. `action` is `accept`, `reject`, or `override`. A fresh decision, one whose schema hash and fact fingerprint match that item, is applied by the structure-draft compiler. A schema-hash or fact-fingerprint mismatch stays a pending `stale_decision` and does not apply. Unknown PII and unknown semantic type stay unknown and not publishable. Curated content is echoed. A curated PII or semantic value is not a semantic approval and is not copied into the effective layer. An accept or override does not change `live_catalog_review` from `pending`, `pg_catalog_integration` from `not_accepted`, `grants` from `not_authorized`, or `publication` from `unavailable`.
+
+The catalog is an `oo.source.pgsql/v1` document, the preserved capture. The caller does not supply `config_hash`, `type_hash`, `evidence_hash`, or a replacement for the catalog `schema_hash`. Those stay the compiler's bindings.
+
+The command does not open a file, a connection, or a credential. It does not call a model, import rows, grant, certify, or publish. It does not record an owner, an operator, a tenant, or an audit history. Real owner authority, authentication, multitenant isolation, persistence, and an audited review workflow stay later SP07-W05 work. This command only makes the existing review arguments reachable from the process.
+
+Nothing is written to stdout until the command result parses as one JSON object. A failure writes a static diagnostic to stderr and does not echo the document.
+
+| Exit | Cause |
+|---|---|
+| 0 | The command result was written |
+| 1 | Stdin could not be read, is not UTF-8, the document, catalog, or compiler rejected it, or stdout could not be written |
+| 2 | The command is missing or unknown, or `review-pg-draft` was given an argument |

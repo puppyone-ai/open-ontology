@@ -18,7 +18,9 @@ fn skeleton_and_unknown_commands_exit_2() {
     let bare = bin().output().unwrap();
     assert_eq!(bare.status.code(), Some(2));
     let stderr = String::from_utf8(bare.stderr).unwrap();
-    assert!(stderr.contains("process entry is not implemented (SP00-W01 skeleton)"));
+    assert!(stderr.contains("usage: oo-builder <command>"));
+    assert!(stderr.contains("structure-draft"));
+    assert!(!stderr.contains("process entry is not implemented"));
 
     let unknown = bin().arg("publish").output().unwrap();
     assert_eq!(unknown.status.code(), Some(2));

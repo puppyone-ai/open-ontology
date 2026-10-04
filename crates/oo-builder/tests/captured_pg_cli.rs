@@ -121,12 +121,15 @@ fn usage_unknown_and_extra_arguments_exit_2() {
     assert_eq!(bare.status.code(), Some(2));
     assert!(bare.stdout.is_empty());
     let stderr = String::from_utf8(bare.stderr).unwrap();
-    assert!(stderr.contains("process entry is not implemented (SP00-W01 skeleton)"));
+    assert!(stderr.contains("usage: oo-builder <command>"));
     assert!(stderr.contains("structure-draft"));
     assert!(stderr.contains("captured-pg-draft"));
+    assert!(stderr.contains("review-pg-draft"));
     assert!(stderr.contains("one oo.source.pgsql/v1 catalog"));
-    assert!(stderr.contains("curated overlays and review decisions stay on the library API"));
-    assert!(stderr.contains("does not connect"));
+    assert!(stderr.contains("do not connect"));
+    assert!(!stderr.contains("process entry is not implemented"));
+    assert!(!stderr.contains("SP00-W01 skeleton"));
+    assert!(!stderr.contains("stay on the library API"));
 
     let unknown = bin().arg("publish").output().unwrap();
     assert_eq!(unknown.status.code(), Some(2));
