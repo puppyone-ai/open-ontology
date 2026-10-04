@@ -1,0 +1,21 @@
+commit 63466471a6d403e0a2a29c8d1ae064179da65bd8
+Author:     Redux0223 <171701490+Redux0223@users.noreply.github.com>
+AuthorDate: Sun Oct 4 13:23:02 2026 +0800
+Commit:     Redux0223 <171701490+Redux0223@users.noreply.github.com>
+CommitDate: Sun Oct 4 13:23:02 2026 +0800
+
+    builder: compile a captured PostgreSQL catalog into a reviewable draft
+    
+    compile_captured_pg_catalog accepts the serde document of an
+    oo.source.pgsql/v1 catalog, recomputes the existing catalog hashes, and
+    seals an evidence envelope through the structure-draft compiler. The
+    historical not_accepted contract stays on the legacy draft. Live review
+    stays pending on the new wrapper.
+
+ contracts/builder/captured-pg-draft-v1.md |  48 +++
+ crates/oo-builder/src/captured_pg.rs      | 347 +++++++++++++++++++++
+ crates/oo-builder/src/draft.rs            |  98 +++++-
+ crates/oo-builder/src/lib.rs              |  10 +-
+ crates/oo-builder/src/pgsql.rs            |  67 ++++
+ crates/oo-builder/tests/captured_pg.rs    | 492 ++++++++++++++++++++++++++++++
+ 6 files changed, 1054 insertions(+), 8 deletions(-)

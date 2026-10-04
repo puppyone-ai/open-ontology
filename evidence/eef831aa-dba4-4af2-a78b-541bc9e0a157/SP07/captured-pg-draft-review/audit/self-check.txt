@@ -1,0 +1,1 @@
+self_check_ok reader_execute=1 reader_simple=2 insert_seen=1 disconnect_ignored=1

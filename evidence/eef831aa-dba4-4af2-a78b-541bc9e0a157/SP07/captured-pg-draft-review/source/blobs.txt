@@ -1,0 +1,6 @@
+100644 blob 916fe4c053b91d072fbc16fe000e7b41206d940c	contracts/builder/captured-pg-draft-v1.md
+100644 blob 373bcad7968d88d9be331e4622b63d1ca60b1449	crates/oo-builder/src/captured_pg.rs
+100644 blob 9505a8fd63e5c2517622c695d9ffeda4a639b562	crates/oo-builder/src/draft.rs
+100644 blob 5849b4884e08ce2bdb8a553d56733748ef1715cc	crates/oo-builder/src/lib.rs
+100644 blob c7f399aa919c18858ae9d29da22deabd01ebe115	crates/oo-builder/src/pgsql.rs
+100644 blob e2218b0dc82ecaec39f67dd00a580cd5468e2f7f	crates/oo-builder/tests/captured_pg.rs

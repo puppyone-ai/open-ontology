@@ -1,0 +1,259 @@
+diff --git a/crates/oo-builder/src/draft.rs b/crates/oo-builder/src/draft.rs
+index 1789ac8f..9505a8fd 100644
+--- a/crates/oo-builder/src/draft.rs
++++ b/crates/oo-builder/src/draft.rs
+@@ -7,7 +7,7 @@
+ 
+ use std::collections::{BTreeMap, BTreeSet};
+ 
+-use serde::Deserialize;
++use serde::{Deserialize, Serialize};
+ use serde_json::{Map, Value};
+ 
+ use oo_core::config::version::OosVersion;
+@@ -26,7 +26,7 @@ use crate::pgsql::{self, Catalog, Column, ForeignKey, Table, TypeReason};
+ 
+ pub const DRAFT_PROTOCOL: &str = "oo.builder.structure-draft/v1";
+ pub const COMPILER: &str = "oo-builder/structure-draft/v1";
+-const PG_CONTRACT_COMMIT: &str = "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74";
++pub(crate) const PG_CONTRACT_COMMIT: &str = "b2d3cbc5af2b97d6565cbd67f0a9208f778a8c74";
+ 
+ /// Compile one evidence envelope into canonical structure-draft JSON.
+ ///
+@@ -166,13 +166,13 @@ struct BindingsIn {
+     evidence_hash: String,
+ }
+ 
+-#[derive(Debug, Clone, Deserialize)]
++#[derive(Debug, Clone, Deserialize, Serialize)]
+ #[serde(deny_unknown_fields)]
+ struct SelectionIn {
+     tables: Vec<SelectedTable>,
+ }
+ 
+-#[derive(Debug, Clone, Deserialize)]
++#[derive(Debug, Clone, Deserialize, Serialize)]
+ #[serde(deny_unknown_fields)]
+ struct SelectedTable {
+     schema: String,
+@@ -476,7 +476,7 @@ fn check_bindings(envelope: &EnvelopeIn, catalog: &Catalog) -> Result<(), DraftE
+     Ok(())
+ }
+ 
+-fn config_hash(catalog: &Catalog) -> String {
++pub(crate) fn config_hash(catalog: &Catalog) -> String {
+     canonical_sha256(&serde_json::json!({
+         "adapter": "pgsql",
+         "config_version": pgsql::CORE_CONTRACT,
+@@ -485,7 +485,7 @@ fn config_hash(catalog: &Catalog) -> String {
+     }))
+ }
+ 
+-fn type_hash(catalog: &Catalog) -> String {
++pub(crate) fn type_hash(catalog: &Catalog) -> String {
+     let mut columns = Vec::new();
+     for table in &catalog.tables {
+         for column in &table.columns {
+@@ -2401,6 +2401,92 @@ fn seal(mut document: Value) -> String {
+     canonical_json(&document)
+ }
+ 
++pub(crate) fn parse_evidence_document(input: &str) -> Result<Value, DraftError> {
++    parse_json_value(input, EVIDENCE_PROTOCOL).map_err(map_json)
++}
++
++fn selection_from_catalog(catalog: &Catalog) -> SelectionIn {
++    SelectionIn {
++        tables: catalog
++            .tables
++            .iter()
++            .map(|table| {
++                let mut columns: Vec<String> = table
++                    .columns
++                    .iter()
++                    .map(|column| column.name.clone())
++                    .collect();
++                columns.sort();
++                let mut keys = Vec::new();
++                if !table.primary_key.is_empty() {
++                    keys.push("primary_key".to_string());
++                }
++                keys.extend(table.unique_keys.iter().map(|key| key.name.clone()));
++                keys.extend(table.foreign_keys.iter().map(|key| key.name.clone()));
++                keys.sort();
++                SelectedTable {
++                    schema: table.schema.clone(),
++                    name: table.name.clone(),
++                    columns,
++                    keys,
++                }
++            })
++            .collect(),
++    }
++}
++
++pub(crate) fn catalog_bindings(catalog: &Catalog) -> (String, String, String) {
++    let selection = selection_from_catalog(catalog);
++    (
++        config_hash(catalog),
++        type_hash(catalog),
++        evidence_hash(catalog, &selection),
++    )
++}
++
++pub(crate) fn evidence_envelope_bytes(
++    catalog_value: &Value,
++    catalog: &Catalog,
++    curated: Option<&Value>,
++    reviews: &Value,
++) -> String {
++    let selection = selection_from_catalog(catalog);
++    let mut envelope = serde_json::json!({
++        "adapter": "pgsql",
++        "bindings": {
++            "config_hash": config_hash(catalog),
++            "evidence_hash": evidence_hash(catalog, &selection),
++            "schema_hash": &catalog.schema_hash,
++            "type_hash": type_hash(catalog),
++        },
++        "catalog": catalog_value,
++        "protocol": EVIDENCE_PROTOCOL,
++        "reviews": reviews,
++        "selection": selection,
++        "source": {
++            "database": &catalog.database,
++            "source_id": &catalog.source_id,
++        },
++        "versions": {
++            "config": pgsql::CORE_CONTRACT,
++            "evidence": EVIDENCE_PROTOCOL,
++            "schema": pgsql::HASH_ALGORITHM,
++            "type": pgsql::PROTOCOL,
++        },
++    });
++    if let Some(curated) = curated {
++        envelope["curated"] = curated.clone();
++    }
++    canonical_json(&envelope)
++}
++
++pub(crate) fn manifest_preimage_hash(document: &Value) -> Option<String> {
++    let mut copy = document.clone();
++    let object = copy.get_mut("provenance")?.as_object_mut()?;
++    object.remove("manifest_hash")?;
++    Some(canonical_sha256(&copy))
++}
++
+ #[cfg(test)]
+ #[path = "draft_tests.rs"]
+ mod tests;
+diff --git a/crates/oo-builder/src/lib.rs b/crates/oo-builder/src/lib.rs
+index e6069a0b..5849b488 100644
+--- a/crates/oo-builder/src/lib.rs
++++ b/crates/oo-builder/src/lib.rs
+@@ -1,12 +1,15 @@
+ //! Structure-draft compiler.
+ //!
+ //! A bounded `oo.builder.catalog-evidence/v1` envelope becomes a reviewable
+-//! `oo.builder.structure-draft/v1` document. This crate does not connect to a
+-//! database, call a model, grant privileges, certify entities, or publish.
++//! `oo.builder.structure-draft/v1` document. `compile_captured_pg_catalog`
++//! builds that envelope from one captured `oo.source.pgsql/v1` catalog.
++//! This crate does not connect to a database, call a model, grant privileges,
++//! certify entities, or publish.
+ 
+ #![forbid(unsafe_code)]
+ 
+ mod canonical;
++mod captured_pg;
+ mod draft;
+ mod error;
+ mod ident;
+@@ -14,6 +17,9 @@ mod limits;
+ mod nfc;
+ mod pgsql;
+ 
++pub use captured_pg::{
++    CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
++};
+ pub use draft::{COMPILER, DRAFT_PROTOCOL, compile_structure_draft};
+ pub use error::{DraftError, EVIDENCE_PROTOCOL};
+ pub use nfc::nfc;
+diff --git a/crates/oo-builder/src/pgsql.rs b/crates/oo-builder/src/pgsql.rs
+index 5374e5e8..c7f399aa 100644
+--- a/crates/oo-builder/src/pgsql.rs
++++ b/crates/oo-builder/src/pgsql.rs
+@@ -1355,6 +1355,73 @@ fn valid_captured_at(value: &str) -> bool {
+ 
+ const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+ 
++/// Normalize array order that `pg-catalog-hash/v1` already treats as a set,
++/// then validate with [`load`]. Primary-key members, foreign-key pairs, enum
++/// labels, and domain checks keep their captured order.
++pub(crate) fn accept_captured_catalog(mut value: Value) -> Result<(Value, Catalog), DraftError> {
++    normalize_captured_arrays(&mut value);
++    let catalog = load(&value)?;
++    Ok((value, catalog))
++}
++
++fn normalize_captured_arrays(value: &mut Value) {
++    let Some(tables) = value.get_mut("tables").and_then(Value::as_array_mut) else {
++        return;
++    };
++    for table in tables.iter_mut() {
++        sort_by_attnum(table, "columns");
++        sort_by_name(table, "unique_keys");
++        sort_by_name(table, "foreign_keys");
++        sort_by_name(table, "policies");
++        sort_privileges(table);
++    }
++    tables.sort_by(|left, right| table_order(left).cmp(&table_order(right)));
++}
++
++fn table_order(value: &Value) -> (&str, &str) {
++    (text_field(value, "schema"), text_field(value, "name"))
++}
++
++fn sort_by_attnum(table: &mut Value, key: &str) {
++    let Some(items) = table.get_mut(key).and_then(Value::as_array_mut) else {
++        return;
++    };
++    items.sort_by_key(|item| {
++        item.get("attnum")
++            .and_then(Value::as_i64)
++            .unwrap_or(i64::MAX)
++    });
++}
++
++fn sort_by_name(table: &mut Value, key: &str) {
++    let Some(items) = table.get_mut(key).and_then(Value::as_array_mut) else {
++        return;
++    };
++    items.sort_by(|left, right| text_field(left, "name").cmp(text_field(right, "name")));
++}
++
++fn sort_privileges(table: &mut Value) {
++    let Some(items) = table.get_mut("privileges").and_then(Value::as_array_mut) else {
++        return;
++    };
++    items.sort_by(|left, right| privilege_order(left).cmp(&privilege_order(right)));
++}
++
++fn privilege_order(value: &Value) -> (&str, &str, bool) {
++    (
++        text_field(value, "grantee"),
++        text_field(value, "privilege"),
++        value
++            .get("grantable")
++            .and_then(Value::as_bool)
++            .unwrap_or(false),
++    )
++}
++
++fn text_field<'a>(value: &'a Value, key: &str) -> &'a str {
++    value.get(key).and_then(Value::as_str).unwrap_or("")
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;

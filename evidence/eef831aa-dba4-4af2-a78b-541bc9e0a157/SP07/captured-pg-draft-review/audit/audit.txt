@@ -1,0 +1,13 @@
+reader_statements=34
+reader_simple=2
+reader_execute=32
+reader_data_writes=0
+reader_unclassified=0
+reader_keywords:
+  ROLLBACK=2
+  SELECT=30
+  START=2
+admin_keywords:
+  ALTER=1
+  SELECT=3
+  SHOW=1
