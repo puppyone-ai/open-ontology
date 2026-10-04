@@ -1,0 +1,5 @@
+M	contracts/builder/captured-pg-draft-v1.md
+M	crates/oo-builder/src/bin/oo-builder.rs
+M	crates/oo-builder/tests/captured_pg_cli.rs
+A	crates/oo-builder/tests/review_pg_cli.rs
+M	crates/oo-builder/tests/structure_draft_cli.rs
