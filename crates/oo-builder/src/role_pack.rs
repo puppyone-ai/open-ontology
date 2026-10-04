@@ -10,10 +10,13 @@
 //! the snapshot names must already be classified. Unknown PII stays out, and
 //! naming it in the allowlist refuses the pack instead of inventing a class.
 //! User-authored text is copied only when it passes the visibility closure.
-//! That includes data types, units, labels, and calendar phrases and anchors.
+//! That includes data types, units, labels, calendar phrases and anchors,
+//! relationship names, and entity names and paths.
 //! Hidden names and hidden labels are matched after NFC. Quoted identifiers
-//! use PostgreSQL doubled quotes. Verified SQL must parse as the supported
-//! subset; this module does not execute SQL and is not a gateway.
+//! use PostgreSQL doubled quotes. A supported SQL string decodes `''` to one
+//! apostrophe before that comparison. Unquoted DISTINCT is reserved and does
+//! not parse. Verified SQL must parse as the supported subset; this module
+//! does not execute SQL and is not a gateway.
 //! `classification.auto_accept` is not applied.
 //!
 //! Samples are never emitted. The OOS model has no sample or most-common
@@ -1008,7 +1011,9 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
             .is_some_and(|review| review.state == ReviewState::Approved);
         let declared = relationship.provenance == RelationProvenance::DeclaredFk;
         let unreviewed = model.unreviewed.contains("relationships");
-        if approved || declared || unreviewed {
+        if (approved || declared || unreviewed)
+            && visible_prose(model, relationship.name.as_str())
+        {
             relationships.push(relationship.clone());
         }
     }
@@ -1220,6 +1225,10 @@ fn example_kept(
 }
 
 fn entity_fully_visible(model: &Model, entity: &EntityFile) -> bool {
+    let path = format!("entities/{}.md", entity.entity.as_str());
+    if !visible_prose(model, entity.entity.as_str()) || !visible_prose(model, path.as_str()) {
+        return false;
+    }
     let primary = entity.primary_dataset.as_str();
     if !column_visible(model, primary, entity.key.as_str())
         || !column_visible(model, primary, entity.display.as_str())
@@ -1266,7 +1275,9 @@ enum Scan {
 ///
 /// Qualifiers and aliases are included. A hidden column named `id` drops any
 /// text that uses that token. Quoted identifiers use PostgreSQL doubled
-/// quotes. This closure does not authorize SQL. Verified SQL has to parse
+/// quotes. A supported single-quoted string is decoded (`''` is one
+/// apostrophe) before the label comparison. An unclosed quote fails closed.
+/// This closure does not authorize SQL. Verified SQL has to parse
 /// before it can be kept.
 fn scan_texts(
     model: &Model,
@@ -1278,11 +1289,15 @@ fn scan_texts(
     let mut bare = BTreeSet::new();
     for text in texts {
         let text = nfc(text);
+        let decoded = match decode_supported_sql_strings(&text) {
+            Ok(decoded) => nfc(&decoded),
+            Err(()) => return Scan::Affected,
+        };
         let idents = match all_idents(&text) {
             Ok(idents) => idents,
             Err(()) => return Scan::Affected,
         };
-        if copies_hidden_label(model, &text, &idents) {
+        if copies_hidden_label(model, &decoded, &idents) {
             return Scan::Affected;
         }
         match scan_one(model, &text) {
@@ -1331,9 +1346,9 @@ fn ident_hit(bare: &BTreeSet<String>, candidate: &str) -> bool {
         .any(|ident| ident.eq_ignore_ascii_case(&candidate))
 }
 
-fn copies_hidden_label(model: &Model, text: &str, idents: &BTreeSet<String>) -> bool {
+fn copies_hidden_label(model: &Model, decoded: &str, idents: &BTreeSet<String>) -> bool {
     hidden_substrings(model).into_iter().any(|label| {
-        label_in_text(text, &label) || idents.iter().any(|ident| label_eq(ident, &label))
+        label_in_text(decoded, &label) || idents.iter().any(|ident| label_eq(ident, &label))
     })
 }
 
@@ -1373,6 +1388,78 @@ fn push_substring(labels: &mut Vec<String>, value: &str) {
         return;
     }
     labels.push(value);
+}
+
+/// Decode supported SQL strings for the label comparison.
+///
+/// A `'` opens a string when it is outside a double-quoted identifier and the
+/// previous character is not an identifier character. `''` is one apostrophe.
+/// An unclosed string or quoted identifier fails closed. The copied pack text
+/// is not rewritten. An apostrophe after an identifier character, as in
+/// prose `it's`, is left as written.
+fn decode_supported_sql_strings(text: &str) -> Result<String, ()> {
+    let mut walk = Walk::new(text);
+    let mut out = String::new();
+    let mut after_ident = false;
+    while let Some(ch) = walk.peek() {
+        if ch == '"' {
+            copy_quoted_ident(&mut walk, &mut out)?;
+            after_ident = false;
+            continue;
+        }
+        if ch == '\'' && !after_ident {
+            out.push_str(&decode_one_sql_string(&mut walk)?);
+            after_ident = false;
+            continue;
+        }
+        out.push(ch);
+        after_ident = is_ident_cont(ch);
+        walk.bump();
+    }
+    Ok(out)
+}
+
+fn copy_quoted_ident(walk: &mut Walk<'_>, out: &mut String) -> Result<(), ()> {
+    let Some('"') = walk.bump() else {
+        return Err(());
+    };
+    out.push('"');
+    loop {
+        match walk.bump() {
+            None => return Err(()),
+            Some('"') => {
+                out.push('"');
+                if walk.peek() == Some('"') {
+                    walk.bump();
+                    out.push('"');
+                } else {
+                    return Ok(());
+                }
+            }
+            Some(ch) => out.push(ch),
+        }
+    }
+}
+
+fn decode_one_sql_string(walk: &mut Walk<'_>) -> Result<String, ()> {
+    if walk.bump() != Some('\'') {
+        return Err(());
+    }
+    let mut out = String::new();
+    loop {
+        match walk.bump() {
+            None => return Err(()),
+            Some('\'') => {
+                if walk.peek() == Some('\'') {
+                    walk.bump();
+                    out.push('\'');
+                } else {
+                    return Ok(out);
+                }
+            }
+            Some(ch) => out.push(ch),
+        }
+    }
 }
 
 fn label_in_text(text: &str, label: &str) -> bool {
@@ -1560,7 +1647,7 @@ fn is_ident_cont(ch: char) -> bool {
 }
 
 const SQL_KEYWORDS: &[&str] = &[
-    "select", "from", "where", "union", "all", "as", "and", "is", "not", "null",
+    "select", "distinct", "from", "where", "union", "all", "as", "and", "is", "not", "null",
 ];
 
 fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {

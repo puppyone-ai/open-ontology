@@ -53,7 +53,9 @@ A qualified `schema.table` or `schema.table.column`, quoted or unquoted, is a da
 
 Every hidden column name matches those identifiers. A hidden column label or a hidden dataset label that is itself an ASCII identifier matches the same way. Any other hidden label, including a non-ASCII label, matches when the NFC text contains that NFC label. The same label also matches a quoted identifier after `""` is decoded to one quote.
 
-The same closure runs at every place user text is copied: dataset labels, grain, source labels, column labels, `data_type`, `unit`, descriptions, enum codes, enum labels, metric labels, metric units, metric anchor names, glossary text, example ids and questions, calendar phrase labels, calendar anchor names, and the anchor expressions a phrase renders. A failing column field is left blank. A failing calendar anchor or phrase is omitted. The allowlisted column row can remain. A metric, example, or glossary term that fails is omitted.
+A `'` opens a supported single-quoted string when it is outside a double-quoted identifier and the previous character is not an identifier character. `''` inside that string is one apostrophe. The hidden-label comparison uses the NFC text after those strings are decoded. An unclosed string or an unclosed quoted identifier fails closed and the object is omitted. Decoding does not rewrite the copied text. A decoded string that contains no hidden label stays, including `'it''s visible'`. An apostrophe after an identifier character, as in the prose `it's`, is not a string and is not rewritten.
+
+The same closure runs at every place user text is copied: dataset labels, grain, source labels, column labels, `data_type`, `unit`, descriptions, enum codes, enum labels, metric labels, metric units, metric anchor names, glossary text, example ids and questions, calendar phrase labels, calendar anchor names, the anchor expressions a phrase renders, relationship names, entity names, and the entity file path `entities/<name>.md`. A failing column field is left blank. A failing calendar anchor or phrase is omitted. The allowlisted column row can remain. A metric, example, or glossary term that fails is omitted. A relationship or entity whose name or entity path fails is omitted.
 
 Verified SQL is only `metric.sql`, example `sql`, and `control_total.sql`. Each of those strings must parse as the subset below or the metric or example is omitted. An identifier scan does not keep text the parser rejects. Control SQL is parsed for closure and is not copied. Parse success is not execution and not a grant.
 
@@ -66,18 +68,18 @@ The supported subset is one statement. Keywords are case-insensitive.
 - a predicate is comparisons joined by `AND`, or `IS NULL` / `IS NOT NULL`
 - comparison operators are `=`, `<>`, `!=`, `<`, `>`, `<=`, and `>=`
 
-Comments, semicolons, a second statement, `JOIN`, subqueries, `WITH`, `OR`, `DISTINCT`, casts, `SELECT *`, and any other syntax are unsupported. The metric or example is omitted.
+Comments, semicolons, a second statement, `JOIN`, subqueries, `WITH`, `OR`, `DISTINCT`, casts, `SELECT *`, and any other syntax are unsupported. The metric or example is omitted. Unquoted `DISTINCT` is reserved in this subset. `SELECT DISTINCT ...` and the degenerate form `SELECT DISTINCT FROM relation` do not parse. That form is not a column named `distinct`.
 
 | Object | Kept when |
 |---|---|
-| Relationship | Every endpoint column is allowlisted, the relationship is not rejected, and it is review-approved, `declared_fk`, or `include_unreviewed` contains `relationships` |
+| Relationship | Every endpoint column is allowlisted, the relationship is not rejected, the name passes the same hidden name and label closure, and it is review-approved, `declared_fk`, or `include_unreviewed` contains `relationships` |
 | Metric | `certified` is true, status is not `draft`, the SQL and control SQL parse as the supported subset, and the SQL, label, description, caveats, synonyms, unit, anchor name, control SQL, time dimension, and enum filters stay inside the visible set |
 | Glossary term | `status` is `approved`, `maps_to` names a visible dataset or a kept metric but not both, and the term text has no hidden name, hidden label, or hidden dataset reference. Term text is prose, not verified SQL |
 | Verified example | `uses` entries are `metric:`, `rel:`, `dataset:`, or `column:` references that were kept, the SQL parses as the supported subset, and the id, SQL, and question have no hidden name, hidden label, or hidden dataset reference |
 | Enum | The `schema.table.column` path is an allowlisted column |
-| Entity | The primary dataset, key, display, every `datasets` entry, and every member key, name, phone, and strong key are visible. Otherwise the whole entity is omitted |
+| Entity | The primary dataset, key, display, every `datasets` entry, and every member key, name, phone, and strong key are visible, and the entity name and `entities/<name>.md` path pass the same closure. Otherwise the whole entity is omitted |
 
-`declared_fk` without an approved review is labeled source-declared. That label is not a grant. Other unapproved relationships included through `include_unreviewed` are labeled `UNREVIEWED`. Rejected relationships are skipped.
+`declared_fk` without an approved review is labeled source-declared. That label is not a grant. Other unapproved relationships included through `include_unreviewed` are labeled `UNREVIEWED`. Rejected relationships are skipped. Endpoint allowlisting does not publish a relationship or entity whose name is a hidden column name or label. An example whose `rel:` entry names an omitted relationship is omitted with it. The entity path is not written.
 
 Certified metrics with `deprecated` status stay, with a deprecation line. Draft and uncertified metrics are omitted. Owner, `verified_by`, `review.by`, and `classification.by` are omitted. Control SQL is not copied and is not executed. The metrics file says reconciliation is not claimed. A metric whose enum has `undetermined` or `unexplained` values, or a non-empty `unexplained_values` list, gets an unconfirmed-code warning.
 

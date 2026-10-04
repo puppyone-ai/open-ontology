@@ -1446,6 +1446,308 @@ fn closure_keeps_visible_text_and_omits_hidden_references() {
     assert!(!clerk.artifact.contains("principal"));
 }
 
+fn literal_metric(
+    name: &str,
+    label: &str,
+    description: &str,
+    sql: &str,
+    control_sql: &str,
+) -> Value {
+    json!({
+        "metric": name,
+        "label": label,
+        "description": description,
+        "owner": "owner.a174",
+        "certified": true,
+        "unit": "kg",
+        "status": "active",
+        "default_anchor": "month_start",
+        "sql": sql,
+        "tests": [{"params": {}, "expect": {"rows": 1}}],
+        "control_total": {
+            "as_of": "month_start",
+            "source": "depot",
+            "sql": control_sql,
+            "tolerance": {"abs": "1"}
+        }
+    })
+}
+
+fn literal_documents() -> (Value, Value) {
+    let mut badge = none_col("badge");
+    badge["pii"] = json!("personal");
+    badge["classification"]["by"] = json!("class.a174");
+
+    let tick = json!({
+        "name": "tick_col",
+        "label": "签'记",
+        "pii": "none",
+        "classification": {"state": "confirmed"}
+    });
+    let hold = json!({
+        "name": "hold_bin",
+        "label": "暂存格",
+        "pii": "none",
+        "classification": {"state": "confirmed"}
+    });
+    let parcel = json!({
+        "schema_version": "oos/v1",
+        "dataset": "depot.parcel",
+        "label": "Parcel",
+        "tier": "file",
+        "grain": "one row per parcel",
+        "primary_key": ["parcel_id"],
+        "row_count_estimate": 515151,
+        "columns": [none_col("parcel_id"), none_col("mass_kg"), badge, tick, hold]
+    });
+    let scale = json!({
+        "schema_version": "oos/v1",
+        "dataset": "depot.scale",
+        "label": "Scale",
+        "tier": "file",
+        "grain": "one row per scale",
+        "primary_key": ["scale_id"],
+        "row_count_estimate": 19,
+        "columns": [none_col("scale_id"), none_col("mass_kg")]
+    });
+    let legal_sql = "SELECT 'it''s visible' AS label_ok FROM depot.parcel";
+    let leak_sql = "SELECT '签''记' AS mass_kg FROM depot.parcel";
+    let legal_control = "SELECT sum(mass_kg) AS control_sum FROM depot.parcel";
+    let ends = json!({
+        "from": {"dataset": "depot.parcel", "columns": ["mass_kg"]},
+        "to": {"dataset": "depot.scale", "columns": ["mass_kg"]},
+        "cardinality": "many_to_one",
+        "join_hint": "left"
+    });
+    let mut parcel_scale = ends.clone();
+    parcel_scale["name"] = json!("parcel_scale");
+    parcel_scale["provenance"] = json!("human");
+    parcel_scale["review"] = json!({"state": "approved", "by": "review.a174"});
+    let mut hold_link = ends;
+    hold_link["name"] = json!("hold_bin");
+    hold_link["provenance"] = json!("declared_fk");
+    let entity = |name: &str| {
+        json!({
+            "schema_version": "oos/v1",
+            "entity": name,
+            "label": "Parcel",
+            "primary_dataset": "depot.parcel",
+            "key": "parcel_id",
+            "display": "mass_kg",
+            "members": [{"dataset": "depot.parcel", "key": ["parcel_id"], "name": "mass_kg"}],
+            "datasets": ["depot.parcel"]
+        })
+    };
+    let effective = json!({
+        "protocol": "oo.builder.effective-oos/v1",
+        "project": "alpha",
+        "ontology_version": "ont-a174",
+        "catalog_version": "cat-a174",
+        "policy": {"id": "pol-alpha", "version": "7"},
+        "knowledge": {"id": "know-alpha", "version": "3"},
+        "ontology": {
+            "spec_version": "oos/v1",
+            "name": "depotmap",
+            "locale": "zh-CN",
+            "include_schemas": ["depot"],
+            "default_tier_preference": ["file"],
+            "publish": {"include_unreviewed": []},
+            "classification": {"auto_accept": "rule_high_confidence"},
+            "lifecycle": {"deprecation_min_releases": 2},
+            "compile": {
+                "per_role": true,
+                "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+                "sample_values": {"default": "masked", "max_per_column": 0}
+            }
+        },
+        "datasets": [parcel, scale],
+        "relationships": [parcel_scale, hold_link],
+        "metrics": [
+            literal_metric(
+                "string_metric",
+                "可见字符串",
+                "visible weight string",
+                legal_sql,
+                legal_control
+            ),
+            literal_metric("sq_leak", "单引号标签", "escaped hidden label", leak_sql, legal_control),
+            literal_metric("control_leak", "对账泄漏", "legal display sql", legal_sql, leak_sql),
+            literal_metric(
+                "distinct_bare",
+                "退化去重",
+                "degenerate distinct",
+                "SELECT DISTINCT FROM depot.parcel",
+                legal_control
+            ),
+            literal_metric(
+                "distinct_cols",
+                "列去重",
+                "distinct before a column",
+                "SELECT DISTINCT mass_kg FROM depot.parcel",
+                legal_control
+            ),
+            literal_metric(
+                "open_quote",
+                "未闭合",
+                "see '签''记",
+                "SELECT mass_kg FROM depot.parcel",
+                legal_control
+            ),
+            literal_metric(
+                "kept_mass",
+                "可见重量",
+                "visible mass",
+                "SELECT mass_kg FROM depot.parcel",
+                legal_control
+            )
+        ],
+        "glossary": [{
+            "term": "可见",
+            "definition": "it's a visible note",
+            "maps_to": {"dataset": "depot.parcel"},
+            "status": "approved"
+        }],
+        "examples": [
+            closure_example(
+                "ex-rel-kept",
+                "kept relationship question",
+                "SELECT mass_kg AS rel_kept_alias FROM depot.parcel",
+                &["rel:parcel_scale", "dataset:depot.parcel", "column:depot.parcel.mass_kg"]
+            ),
+            closure_example(
+                "ex-rel-hidden",
+                "hidden relationship question",
+                "SELECT mass_kg AS rel_hidden_alias FROM depot.parcel",
+                &["rel:hold_bin", "dataset:depot.parcel", "column:depot.parcel.mass_kg"]
+            )
+        ],
+        "entities": [entity("parcel"), entity("hold_bin")]
+    });
+    let visibility = json!({
+        "protocol": "oo.builder.role-visibility/v1",
+        "project": "alpha",
+        "principal": "ada",
+        "role": "oo_r_clerk",
+        "ontology_version": "ont-a174",
+        "catalog_version": "cat-a174",
+        "policy": {"id": "pol-alpha", "version": "7"},
+        "knowledge": {"id": "know-alpha", "version": "3"},
+        "issued_for_compiler": "oo-builder/role-pack/v1",
+        "datasets": [
+            {
+                "dataset": "depot.parcel",
+                "row_security": "rls",
+                "global_stats": "denied",
+                "columns": ["parcel_id", "mass_kg", "badge"]
+            },
+            {
+                "dataset": "depot.scale",
+                "row_security": "rls",
+                "global_stats": "permitted",
+                "global_stats_proof": {"ref": "proof-scale-1", "proven": true},
+                "columns": ["scale_id", "mass_kg"]
+            }
+        ],
+        "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+    });
+    (effective, visibility)
+}
+
+/// a172 fresh literal: `'签''记'` is the hidden label `签'记`.
+///
+/// The hash oracle is `sha2` 0.10.9, the dev-dependency already on
+/// `oo-builder`. It does not call the library hash helper.
+#[test]
+fn escaped_sql_label_distinct_and_name_closure() {
+    let (effective, visibility) = literal_documents();
+    let clerk = must(&effective, &visibility);
+    let mut ada2_visibility = visibility.clone();
+    ada2_visibility["principal"] = json!("ada2");
+    let ada2 = must(&effective, &ada2_visibility);
+
+    assert_eq!(clerk.artifact, ada2.artifact);
+    assert_eq!(clerk.pack_digest, ada2.pack_digest);
+    assert_ne!(clerk.cache_key, ada2.cache_key);
+    assert!(ada2.cache_key.contains("principal=ada2"));
+    assert!(!clerk.artifact.contains("principal"));
+    assert_rust_sha256(&clerk);
+    assert_rust_sha256(&ada2);
+
+    let body = prose(&clerk);
+    let metrics = clerk.file("metrics.md").expect("metrics");
+    let examples = clerk.file("examples/verified.sql").expect("examples");
+    let glossary = clerk.file("glossary.md").expect("glossary");
+    let relationships = clerk.file("relationships.md").expect("relationships");
+    let parcel = clerk.file("tables/depot.parcel.md").expect("parcel");
+    let scale = clerk.file("tables/depot.scale.md").expect("scale");
+    let entity = clerk.file("entities/parcel.md").expect("parcel entity");
+
+    assert!(metrics.contains("## string_metric"));
+    assert!(metrics.contains("## kept_mass"));
+    assert!(metrics.contains("SELECT 'it''s visible' AS label_ok FROM depot.parcel"));
+    assert!(glossary.contains("it's a visible note"));
+    assert!(relationships.contains("## parcel_scale"));
+    assert!(examples.contains("ex-rel-kept"));
+    assert!(examples.contains("rel_kept_alias"));
+    assert!(entity.contains("# parcel"));
+    assert!(parcel.contains("Samples are omitted because pii is personal."));
+    assert!(parcel.contains("Estimated row count is omitted."));
+    assert!(parcel.contains("did not re-prove"));
+    assert!(scale.contains("estimated rows: 19"));
+    assert!(scale.contains("proof-scale-1"));
+    assert!(scale.contains("did not re-prove"));
+    assert_eq!(
+        clerk
+            .file("entities/hold_bin.md")
+            .expect_err("hidden entity name")
+            .code,
+        "oo.builder.role-pack/v1/path.absent"
+    );
+
+    for token in [
+        "签'记",
+        "签''记",
+        "sq_leak",
+        "单引号标签",
+        "control_leak",
+        "对账泄漏",
+        "distinct_bare",
+        "distinct_cols",
+        "DISTINCT",
+        "open_quote",
+        "see '签",
+        "control_sum",
+        "hold_bin",
+        "暂存格",
+        "tick_col",
+        "ex-rel-hidden",
+        "rel_hidden_alias",
+        "hidden relationship question",
+        "declared_fk",
+        "515151",
+        "owner.a174",
+        "review.a174",
+        "class.a174",
+    ] {
+        assert_absent(&body, token);
+    }
+
+    let manifest: Value =
+        serde_json::from_str(clerk.file("manifest.json").expect("manifest")).expect("json");
+    assert_eq!(manifest["authentication"], "not_claimed");
+    assert_eq!(manifest["authorization"], "not_claimed");
+    assert_eq!(manifest["publication"], "not_claimed");
+    assert_eq!(manifest["mount"], "not_performed");
+    assert_eq!(manifest["samples"], "omitted");
+    assert_eq!(manifest["domains"], "unsupported");
+    assert_eq!(manifest["file_splitting"], "unsupported");
+    assert_eq!(manifest["search"], "unsupported");
+    assert_eq!(manifest["row_security_reproven"], false);
+    assert_eq!(manifest["tokens"]["status"], "unsupported");
+    assert_eq!(manifest["tokens"]["estimator"], "none");
+    assert!(manifest.get("principal").is_none());
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     const HEX: &[u8; 16] = b"0123456789abcdef";
