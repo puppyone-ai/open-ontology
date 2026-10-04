@@ -141,6 +141,7 @@
   - [x] W02-PM persisted physical-mapping/v1原语：b5415544经a142限定批准，runtime注册/lookup/replay/restart；完整Loader/fencedCOPY未验。
   - [x] W02-CE bounded binary COPY encoder/v1：d80472d8经a148独立限定批准，fresh PostgreSQL解码/schema/value/count/bounds；完整sink/Loader未验。
   - [x] W02-FI unpublished PostgreSQL full import：cc764cbc经a159真实PG独立限定批准，reader→COPY→同conn fence/data-quality-receipt→RunComplete→DB awaiting_publish seal；未发布/Agent grant/controlmirror/job/ACK/全types。
+  - [x] W02-IC import-pg命令与prepare_snapshot：3fba40dd经a164独立限定批准，真实TLS两表导入/DB seal/只读注册/变更拒绝/rollback深度；发布、Agent grant与完整SP04未验。
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
@@ -1102,3 +1103,5 @@ a16359321 actualexit0 complete44482400, all3reportsread includingpreviouslytrunc
 a16277062 actualexit0 complete3fba40dd/evidencefe7e4741; full3reports read322hash actual0/ownDockerempty. Public source factory and actual import binary TLS fixtures pass; final lib/Clippy/prepare/import raw0. Rollback transaction-depth correction included explicit independentreview scope; earlier failures retained. New import executable component delivered20→21, accepted25/firstreview9of20=45% unchanged pendinga164. All87parentsopen. Next parallel a164 fixed import/factory review and a165 real catalog export CLI plus actual draft composition; global2 builders/each1PG, one25minute wait.
 
 a164 actualhandle80276/a16544259 both exit1 terminal after one25minute wait, service402 Payment Required “Grok Build usage balance exhausted”. No repeat polling/relaunch and no accepted child. a164 partial Linux smoke evidence preserved; a165 no evidence directory/source edits. Tracked diff empty, HEAD58288fd1 unchanged, exact ownDocker filters empty. Both originalUUIDs retained for resume after external balance restored; no source delivery/review approval claimed. Metrics21delivered/25accepted/9of20firstreviewrework remain; all87parentsopen, goal remains active (first occurrence external blocker, not completed/paused/blocked).
+
+a164 resumed51209 actualexit0 completea173c58a; all3reportsread218hash actual0/probe4Docker0/ownDockerempty. Limited W02-IC accepted25→26, delivered21, firstcomponentreview approved denominator20→21 rework9/21=42.86%. Failed review harness runs preserved and deciding a164-prefixed outputs distinguished from author overwrite. a16583585 unifiedcheck live, source34498e75 already committed but reports/evidence pending, no acceptance. Original interrupted15797 terminalexit1 confirmed before new resumes; no live task duplicated. One25minute wait, all87parentsopen/goalactive.
