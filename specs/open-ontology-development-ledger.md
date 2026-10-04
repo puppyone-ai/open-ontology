@@ -137,6 +137,7 @@
 - [ ] SP04-W01 Debezium/decoder/事务流
 - [ ] SP04-W02 COPY/merge/TOAST/墓碑
   - [x] W02-PM persisted physical-mapping/v1原语：b5415544经a142限定批准，runtime注册/lookup/replay/restart；完整Loader/fencedCOPY未验。
+  - [x] W02-CE bounded binary COPY encoder/v1：d80472d8经a148独立限定批准，fresh PostgreSQL解码/schema/value/count/bounds；完整sink/Loader未验。
 - [ ] SP04-W03 L0/chunk/fill/shadow
 - [ ] SP04-W04 大事务spool/隔离/schema
 - [ ] SP04-W05 fence/receipt/reject/ACK/TRIM
@@ -1033,3 +1034,6 @@ a146实际Grok4.7xhighhandle9926 slotB fixedR4完整reader审阅1builder1PG；a1
 a14556326/a1469926 actualexit0 closed. Receipt execution/decisions/a145-a146-delivery-receipt.md records verified265/169 hash entries and finalraw0. COPY d80472d8 author delivery adds component14→15, pending a148 fixed review. R4 requestchanges: clean lifecycle finish also permits incomplete input; a147 adds separate actual Exhausted-bound admission proof. Acceptedchildren17/firstreviewrework9of14 unchanged, all87parents open. Two disjoint Grok tasks continue, globalmax2builder/each1PG; one25minute wait then unified handle check. Goal active.
 
 a147 actualGrok4.7xhigh handle33641 slotB completion API writer; a148 handle53252 slotA fixed COPY review. Eachmax1builder1PG, actualparallel2. Dispatchf22ed531. Old56326/9926 closed, no further observations. NextUUIDa149; once25minute wait applies, goal active.
+
+
+a14733641/a14853252 actualexit0 closed. a14716ca2969/evidence3df15045 adds private RunComplete after delivered full-selection Exhausted; author smoke63/Clippy/complete+finish live0,112hash checked0. Pending a149 fixed review; no R4 checkbox. a1484cce7df7 limited APPROVE fixed COPY d80472d8,271hash checked0, independent encoder test/Clippy0 and PG decode/schema/rowdiff0; domain23514 is expected refusal, not success exit. Own container filters empty. Only W02-CE checked; delivered15/accepted18/firstreviewrework9of15=60%, all87parents open. Next parallel a149 reader fixed review and a150 production target installer, global2builder/each1PG retained.
