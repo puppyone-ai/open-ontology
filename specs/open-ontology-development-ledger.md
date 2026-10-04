@@ -127,6 +127,7 @@
   - [x] R2-C catalog SQL边界与速率预留结算：a130限定批准，不计为新增产品组件。
   - [x] R2-P 正数Execute命名portal原语：a130限定批准；实际Arrow流与完整取消/键计划另验。
   - [x] R2-W opt-in PG驱动接收上限与live-view计量：固定ff783ac9经a126独立复审限定批准，Linux1.94库49/bounds13/accounting12/独立12与Clippy0；非RSS/保留frame总量/backend heap，生产opt-in、portal/Arrow/full reader另验。
+  - [x] R4-F PostgreSQL full-mode RunComplete admission API：16ca2969经a149独立限定批准；完整selected Exhausted、同cut/新generation、early/subset/失败不mint；能力声明待a151，其他DB/CDC/父项未验。
 - [ ] SP03-W04 type/PositionCodec/精度
   - [ ] W04-a PG无损真实SQLx解码/Arrow：a110已实际exit0、request_changes；转换/非空源SQL审计有限范围获批准，但新CC0与继承CDLA许可证门禁失败。协调者接收raw中，未勾选完整子项；Reader预算与取消另验。
 - [ ] SP03-W05 catalog/名字映射/注册
@@ -1039,3 +1040,6 @@ a147 actualGrok4.7xhigh handle33641 slotB completion API writer; a148 handle5325
 a14733641/a14853252 actualexit0 closed. a14716ca2969/evidence3df15045 adds private RunComplete after delivered full-selection Exhausted; author smoke63/Clippy/complete+finish live0,112hash checked0. Pending a149 fixed review; no R4 checkbox. a1484cce7df7 limited APPROVE fixed COPY d80472d8,271hash checked0, independent encoder test/Clippy0 and PG decode/schema/rowdiff0; domain23514 is expected refusal, not success exit. Own container filters empty. Only W02-CE checked; delivered15/accepted18/firstreviewrework9of15=60%, all87parents open. Next parallel a149 reader fixed review and a150 production target installer, global2builder/each1PG retained.
 
 a149 actualGrok4.7xhighhandle67256 slotB fixed16ca2969 RunComplete/R4review; a150 handle28452 slotA targetinstaller production/dependency solewriter. Each1builder1PG/global2, dispatch5ea435c7. Old33641/53252 closed not observed again. NextUUIDa151; one25minute wait, goal active.
+
+
+a14967256/a15028452 actualexit0 closed. Three reports read including separately reread truncated a149 FINDINGS;97/96hash actualchecked0, rawindependentreaderlib63/Clippy/review/privateconstructionharness0 and installerClippy/live/docker0, ownDockerempty. a149 approves reader API16ca2969 limited R4-F, accepted18→19. a1504ed22b8c/evidencee9f1b773 installerauthor delivery adds component15→16; only4package dependency names addedlock, fixedSQLunchanged; pending a152 independentreview. Firstreview9/15=60% unchanged. a151 capability/terminologyactivation and a152 installerreview parallel, all87parents open, goal active.
