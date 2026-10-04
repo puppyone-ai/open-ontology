@@ -1,0 +1,9 @@
+ExitCode=0
+Running=true
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a152-eef831aa-net
+CapDrop=[ALL]
+CapAdd=[CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETGID CAP_SETUID]
+PortBindings=map[]
+Id=ad308b26ab64b41f23e37d15eb8e163afd7d204231c589825493a8aa28b0591c

@@ -1,0 +1,16 @@
+Removed only a152 objects after the green probe.
+
+Containers removed:
+- oo-a152-probe ba4148c94ab6b53bed17df77bfe4798f4417af39c759d5eff273b75d8fc8de41 (exit 0)
+- oo-a152-smoke f423def6076e66e1a991feb948addcd6bedd35eb71a344cc61d89451f8b32bb6 (exit 0)
+- oo-a152-pg ad308b26ab64b41f23e37d15eb8e163afd7d204231c589825493a8aa28b0591c
+- attempt-1 container e9cde77ef46c107b987eed6d077c79874e689230bb30b9d96ff947a4e0b86d5c was removed before the retry
+
+Network removed: oo-a152-eef831aa-net
+Volumes removed: oo-a152-eef831aa-cargo, oo-a152-eef831aa-target, oo-a152-eef831aa-pg
+Private directory removed: /tmp/oo-a152-eef831aa-dba4-4af2-a78b-541bc9e0a152
+The password file was in that directory. A scan of this evidence tree found no copy of it.
+
+docker prune was not run. No foreign container, volume, or network was removed. After cleanup, docker ps -a and docker volume ls with label oo.owner=a152 were empty, and the a152 network was gone.
+
+a064 exited containers were still present and were not touched.
