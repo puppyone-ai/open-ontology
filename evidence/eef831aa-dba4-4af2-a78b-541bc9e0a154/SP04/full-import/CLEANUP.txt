@@ -1,0 +1,22 @@
+Removed after the green verify, before this evidence commit:
+
+containers
+  oo-a154-full-import-verify (exited 0)
+  oo-a154-full-import-smoke (exited 0)
+  oo-a154-pg (stopped, then removed)
+
+volumes
+  oo-a154-eef831aa-cargo
+  oo-a154-eef831aa-target
+  oo-a154-eef831aa-pgdata
+
+network
+  oo-a154-eef831aa-net
+
+private directory
+  /tmp/oo-a154-eef831aa
+  This held the verify snapshot, the admin, reader, and runtime password files, and the TLS key material. Those files were not in this evidence tree.
+
+After removal, no container, volume, or network with label oo.owner=a154 remained, and /tmp/oo-a154-eef831aa was absent.
+
+docker prune was not run. Containers oo-a064-rust194-contract2, oo-a064-rust194-contract, oo-a064-pg1710-jobs, and oo-a064-rust194-smoke were still present and were not removed. No a158 container was present at cleanup.

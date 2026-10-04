@@ -1,0 +1,11 @@
+
+running 1 test
+test unpublished_full_import_on_one_postgres ... FAILED
+
+failures:
+
+failures:
+    unpublished_full_import_on_one_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+

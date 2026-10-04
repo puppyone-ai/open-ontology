@@ -1,0 +1,27 @@
+server=PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+empty=bootstrapped
+empty_replay=replay
+empty_applied_at_same=1
+empty_v2_rows=0
+runtime_verify=ok
+runtime_install=not_administrator
+v1=upgraded_from_v1
+v1_v2_rows=0
+v1_applied_at_same=1
+v2=upgraded_from_v2
+v2_history_same=1
+v2_receipt_same=1
+oo002=OO002
+oo002_unchanged=1
+oo002_ready=incomplete
+oo001=OO001
+oo001_unchanged=1
+fail=OO021
+fail_unchanged=1
+fail_ready=incomplete
+full_import_oo001=OO001
+full_import_oo001_unchanged=1
+full_import_installed=1
+full_import_replay=1
+full_import_runtime_install=not_administrator
+installer_live_ok

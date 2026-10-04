@@ -1,0 +1,28 @@
+
+running 1 test
+test unpublished_full_import_on_one_postgres ... server=PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+schema_setup_runs=0
+main_state=awaiting_publish
+main_rows=4
+main_generation=1
+agent_denied=1
+backpressure_chunks=2
+oversized=retired
+unsupported_jsonb=refused
+coherent_cut=2_then_3
+cancel=retired
+deadline=retired
+snapshot_lost=retired
+same_shard=blocked
+other_shard=imported
+takeover=incremented
+rollback=absent
+crash_before=absent
+crash_after=replay
+conflict=aborted
+source_reader_writes=0
+full_import_live_ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.51s
+

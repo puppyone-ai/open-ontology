@@ -1,0 +1,109 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0382]: borrow of moved value: `host`
+   --> crates/oo-pipeline/tests/full_import_live.rs:116:26
+    |
+ 78 |         let host = env::var("OO_FULL_IMPORT_HOST").expect("OO_FULL_IMPORT_HOST");
+    |             ---- move occurs because `host` has type `String`, which does not implement the `Copy` trait
+...
+105 |             host,
+    |             ---- value moved here
+...
+116 |             source: dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await,
+    |                          ^^^^^ value borrowed here after move
+    |
+    = note: borrow occurs due to deref coercion to `str`
+help: consider cloning the value if the performance cost is acceptable
+    |
+105 |             host: host.clone(),
+    |                 ++++++++++++++
+
+error[E0382]: borrow of moved value: `admin_user`
+   --> crates/oo-pipeline/tests/full_import_live.rs:116:39
+    |
+ 84 |         let admin_user = env::var("OO_FULL_IMPORT_ADMIN_USER").expect("OO_FULL_IMPORT_ADMIN_USER");
+    |             ---------- move occurs because `admin_user` has type `String`, which does not implement the `Copy` trait
+...
+107 |             admin_user,
+    |             ---------- value moved here
+...
+116 |             source: dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await,
+    |                                       ^^^^^^^^^^^ value borrowed here after move
+    |
+    = note: borrow occurs due to deref coercion to `str`
+help: consider cloning the value if the performance cost is acceptable
+    |
+107 |             admin_user: admin_user.clone(),
+    |                       ++++++++++++++++++++
+
+error[E0382]: borrow of moved value: `admin_password`
+   --> crates/oo-pipeline/tests/full_import_live.rs:116:52
+    |
+ 85 |         let admin_password = password("OO_FULL_IMPORT_ADMIN_PASSWORD_FILE");
+    |             -------------- move occurs because `admin_password` has type `String`, which does not implement the `Copy` trait
+...
+108 |             admin_password,
+    |             -------------- value moved here
+...
+116 |             source: dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await,
+    |                                                    ^^^^^^^^^^^^^^^ value borrowed here after move
+    |
+    = note: borrow occurs due to deref coercion to `str`
+help: consider cloning the value if the performance cost is acceptable
+    |
+108 |             admin_password: admin_password.clone(),
+    |                           ++++++++++++++++++++++++
+
+error[E0382]: borrow of moved value: `ca`
+   --> crates/oo-pipeline/tests/full_import_live.rs:116:88
+    |
+ 88 |         let ca = fs::read(env::var("OO_FULL_IMPORT_CA_FILE").expect("OO_FULL_IMPORT_CA_FILE")).expect("ca");
+    |             -- move occurs because `ca` has type `Vec<u8>`, which does not implement the `Copy` trait
+...
+113 |             ca,
+    |             -- value moved here
+...
+116 |             source: dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await,
+    |                                                                                        ^^^ value borrowed here after move
+    |
+    = note: borrow occurs due to deref coercion to `[u8]`
+help: consider cloning the value if the performance cost is acceptable
+    |
+113 |             ca: ca.clone(),
+    |               ++++++++++++
+
+warning: use of deprecated method `sha2::digest::generic_array::GenericArray::<T, N>::as_slice`: please upgrade to generic-array 1.x
+   --> crates/oo-pipeline/tests/full_import_live.rs:340:70
+    |
+340 |             .map(|(name, hasher)| (name, hex_bytes(hasher.finalize().as_slice())))
+    |                                                                      ^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+error[E0277]: `ImportSession` doesn't implement `std::fmt::Debug`
+   --> crates/oo-pipeline/tests/full_import_live.rs:437:10
+    |
+437 |         .expect_err("jsonb");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `ImportSession`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+Some errors have detailed explanations: E0277, E0382.
+For more information about an error, try `rustc --explain E0277`.
+warning: `oo-pipeline` (test "full_import_live") generated 1 warning
+error: could not compile `oo-pipeline` (test "full_import_live") due to 5 previous errors; 1 warning emitted

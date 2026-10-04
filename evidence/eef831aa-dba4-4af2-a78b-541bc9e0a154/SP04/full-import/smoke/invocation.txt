@@ -1,0 +1,17 @@
+source_commit=bedd6a2ced65edf6a44ac85ecd40551e1b79a45c
+tree=10a29baf168403bc849e9fd2078a16f1d1ee0682
+lib_blob=9c940731d79ff3555dfff717ede6b5e6451040cb
+snapshot_method=git archive of product paths from bedd6a2ced65edf6a44ac85ecd40551e1b79a45c
+paths=Cargo.toml Cargo.lock rust-toolchain.toml crates .cargo contracts
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a154-full-import-smoke
+network=oo-a154-eef831aa-net
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+phases=rustup-clippy,fetch,clippy
