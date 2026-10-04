@@ -1,0 +1,17 @@
+removed_containers:
+oo-a159-probe
+oo-a159-pg
+removed_volumes:
+oo-a159-eef831aa-cargo
+oo-a159-eef831aa-pgdata
+oo-a159-eef831aa-target
+removed_network:
+oo-a159-eef831aa-net
+removed_tmp:
+tmp_absent
+remaining_a159:
+remaining_named:
+network_inspect:
+absent
+prune=not_run
+foreign_containers_left_untouched=yes

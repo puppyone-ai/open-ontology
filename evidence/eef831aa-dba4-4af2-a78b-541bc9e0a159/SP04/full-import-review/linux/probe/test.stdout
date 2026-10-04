@@ -1,0 +1,55 @@
+
+running 1 test
+test independent_unpublished_import ... server=PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+installer_0005=installed_replay
+frozen_applied_at=unchanged
+stats_grant=owner_inherit_true_set_false
+fence_checks=present
+runtime_install=not_administrator
+installer_oo001=unchanged
+schema_setup_runs=0
+oracle_digest_crates=301ea1bbe4416d9bea11121343daeb48b3048ea45f3784df7f69063137b753eb
+rows_crates=3
+oracle_digest_tags=b3169d53e3a17365d1361235d31544b7f4468a412cd20ccf599eaa7b61efa8b2
+rows_tags=2
+mapping_stored=1
+quality_masked=1
+quality_lineage=1
+main_state=awaiting_publish
+main_rows=5
+main_generation=1
+agent_denied=1
+session_bound=1
+pending=open
+admin_dml=OO014
+runtime_dml=blocked
+receipt_only_unbound=blocked
+coverage_gap=retired
+backpressure_chunks=3
+oversized=retired
+unsupported_jsonb=refused
+coherent_cut=3_then_4
+old_shadow_unmixed=3
+cancel=retired
+deadline=retired
+snapshot_lost=retired
+same_shard=blocked
+other_shard=imported
+takeover=incremented
+failed_fence=unsealed
+failed_fence_state_before_finish=open
+failed_fence_finish=reader is not exhausted
+failed_fence_state=open
+rollback=absent
+crash_before=absent
+crash_after=replay
+conflict=aborted
+replay_rows=unchanged
+source_reader_writes=0
+source_audit=writer_only
+registration_only=not_complete
+full_import_review_ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.15s
+
