@@ -1,0 +1,18 @@
+
+running 1 test
+test import_pg_seals_two_tables_and_refuses_the_rest ... FAILED
+
+failures:
+
+---- import_pg_seals_two_tables_and_refuses_the_rest stdout ----
+
+thread 'import_pg_seals_two_tables_and_refuses_the_rest' (916) panicked at crates/oo-pipeline/tests/import_pg_a164_review.rs:35:12:
+a164 import review: "writer refusal wrote a row"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    import_pg_seals_two_tables_and_refuses_the_rest
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+

@@ -1,0 +1,6 @@
+
+running 1 test
+test session::a164_rollback_depth::sequential_begins_keep_depth_and_poison_stays_until_drop ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.63s
+

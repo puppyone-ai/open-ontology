@@ -1,0 +1,17 @@
+select_only_reader=1
+writer_registration=refused
+postmaster_bytes=29
+catalog_hash=f376a71cfc377c2e40e09351abc122e7938e28f83962506d31dc1e55dc864c99
+facts_and_catalog=bound
+target_not_ready=exit_1_no_0005
+changed_catalog=refused
+hulls=2
+fasteners=3
+seal=48ffd752-5224-4bca-ac1b-3525237b624e
+canonical_hulls=781b94a77f0795fb3597c58a03c4d70be754ae5a5833ab22471e2f0732fbc175
+canonical_fasteners=57bdcde8f8e66cc23ee6ee5281c409fe61ef68945983e4bdbc0e713aa13c08af
+awaiting_publish_row=authoritative
+agent_denied=42501
+source_writes=reader_0_writer_1
+constructed_run_summary_rows=0
+import_pg_a164_review=ok

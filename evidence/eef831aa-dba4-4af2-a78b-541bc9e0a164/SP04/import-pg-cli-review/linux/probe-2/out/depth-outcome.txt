@@ -1,0 +1,5 @@
+sequential_inspect_catalog=depth_0
+explicit_begin_rollback_begin=depth_1_0_1
+depth0_poison=rollback_no_sql
+depth2_poison=no_rollback_sql pid_closed=124
+cleanup=socket_drop
