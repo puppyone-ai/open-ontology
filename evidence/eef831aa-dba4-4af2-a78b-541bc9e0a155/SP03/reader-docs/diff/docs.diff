@@ -1,0 +1,107 @@
+diff --git a/contracts/source/pgsql/README.md b/contracts/source/pgsql/README.md
+index 88c1947e..05337709 100644
+--- a/contracts/source/pgsql/README.md
++++ b/contracts/source/pgsql/README.md
+@@ -1,6 +1,6 @@
+ # PostgreSQL source catalog protocol `oo.source.pgsql/v1`
+ 
+-This slice freezes the read-only inspection API implemented by `oo-connectors`. It does not implement scan, bounded read, CDC, type conversion, or a registry API. SP03-W01 is not complete. PostgreSQL 13 is the declared major floor. The only tested server version is `17.10`.
++This slice freezes the read-only inspection API implemented by `oo-connectors`. This catalog protocol does not implement CDC, type conversion, or a registry API. Connector capabilities `scan` and `bounded_read` are supported on the separate full-mode reader, for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. See `bounded-stream-v1.md` and `reader-lifecycle-v1.md`. SP03-W01 is not complete. PostgreSQL 13 is the declared major floor. The only tested server version is `17.10`.
+ 
+ ## Methods
+ 
+@@ -44,7 +44,7 @@ The driver sets `sslmode=verify-full` and requires a caller CA PEM. Trust is `ca
+ 
+ The DBA checklist is text. The connector does not create publications, slots, signaling tables, heartbeats, or other source DDL, and it does not write source data. Example passwords use the placeholder `<由 DBA 设置>`.
+ 
+-Capabilities `scan`, `bounded_read`, `cdc`, `type_conversion`, and `registry_api` are `not_in_this_slice`. `source_ddl` and `source_write` are `forbidden`. `cdc.implemented` is false even when prerequisites are present.
++`connector_capabilities` reports `scan` and `bounded_read` supported, reason `PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission`. `cdc`, `type_conversion`, and `registry_api` are `not_in_this_slice`. `source_ddl` and `source_write` are `forbidden`. `cdc.implemented` is false even when prerequisites are present. Incremental mode stays unsupported.
+ 
+ ## Catalog
+ 
+diff --git a/contracts/source/pgsql/reader-keys-v1.md b/contracts/source/pgsql/reader-keys-v1.md
+index 34683301..b7a69643 100644
+--- a/contracts/source/pgsql/reader-keys-v1.md
++++ b/contracts/source/pgsql/reader-keys-v1.md
+@@ -1,6 +1,6 @@
+ # PostgreSQL typed key plan `oo.source.pgsql.keys/v1`
+ 
+-This plans and reads typed half-open chunks on one already-open snapshot owner. It is not whole-reader acceptance. Cancellation of an in-flight Execute is `reader-lifecycle-v1`. Resume cursors, CDC, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` and `bounded_reader` stay unchanged.
++This plans and reads typed half-open chunks on one already-open snapshot owner. It is not whole-reader acceptance and not full-run admission. Cancellation of an in-flight Execute is `reader-lifecycle-v1`. Resume cursors, CDC, incremental mode, and the registry API stay unsigned. Catalog `type_support.converted` stays false. `connector_capabilities` `scan` and `bounded_read`, and type capability `bounded_reader`, are supported for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. A key chunk does not record that admission.
+ 
+ ## Caller
+ 
+@@ -34,4 +34,4 @@ Chunks are half-open. The first lower bound is the first key. Each later lower b
+ 
+ `open_stream` is not this plan. It still reads every selected table with no key predicate and no `ORDER BY`. `StreamBatch.resumable` and `TableEof.resumable_key` stay false. A key digest on a declared key is the existing canonical digest, not a cursor.
+ 
+-The same repeatable-read transaction covers planning and every chunk. A commit from another session after the owner opened is absent from later chunks. `SnapshotFinished` is still the only successful close. Output from a cut that did not finish is incomplete. A later generation is a new cut and reads the committed rows again. Cancelling an Execute that has already been sent is `reader-lifecycle-v1`, on this same owner.
++The same repeatable-read transaction covers planning and every chunk. A commit from another session after the owner opened is absent from later chunks. `SnapshotOwner::finish` returns `SnapshotFinished` as lifecycle close only. That value is not admission. `SnapshotOwner::finish_complete` returns `RunComplete` as full-selection admission only after this owner delivered `StreamItem::Exhausted` for every selected table. A key-range read or a single-table chunk does not record that delivery. Output from a cut that did not finish is incomplete. Loss of the snapshot does not append later chunks and does not reconnect under the same generation. The whole unpublished run restarts on a new generation, with no mixed cut. A later generation is a new cut and reads the committed rows again. Cancelling an Execute that has already been sent is `reader-lifecycle-v1`, on this same owner.
+diff --git a/contracts/source/pgsql/snapshot-owner-v1.md b/contracts/source/pgsql/snapshot-owner-v1.md
+index 724c692b..faaf24c2 100644
+--- a/contracts/source/pgsql/snapshot-owner-v1.md
++++ b/contracts/source/pgsql/snapshot-owner-v1.md
+@@ -1,6 +1,6 @@
+ # PostgreSQL snapshot owner `oo.source.pgsql.snapshot/v1`
+ 
+-R1 only. R2, R3, and R4 are unsigned. This is not the bounded reader. `scan`, `bounded_read`, `cdc`, `type_conversion` on the catalog protocol, and `registry_api` stay unsupported. Catalog `type_support.converted` stays false.
++R1 remains this owner's open, probe, and lifecycle close. R2 (bounded Arrow batch stream and budgets), R3 (key planning, cancellation, and whole-round failure), and R4 (full-selection admission) have limited acceptance for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. Those contracts are `bounded-stream-v1.md`, `reader-keys-v1.md`, and `reader-lifecycle-v1.md`. `read_probe` is not the bounded reader. `finish` returns `SnapshotFinished` as lifecycle close only and is not admission. `finish_complete` returns `RunComplete` as full-selection admission only after this owner delivered `StreamItem::Exhausted` for every selected table. `scan` and `bounded_read` are supported for that path. `cdc`, incremental mode, catalog `type_conversion`, and `registry_api` stay unsupported. Source DDL and source write stay forbidden. Catalog `type_support.converted` stays false. The acceptance is not full types, a customer proof, or a release. No production target loader admits `RunComplete`. The reader token is the prerequisite only.
+ 
+ The owner reuses `map_column`, `guard_plans`, `decode_payload`, and `assemble_batch` from `oo.source.pgsql.types/v1`. `decode_payload` and `guard_plans` are re-exported crate-visible from `types/mod.rs` so the owner can call them. That re-export does not change mapping or decode semantics. `collect_catalog` and `collect_access` keep their result shape. Their reads admit a row bound before SQL.
+ 
+@@ -54,7 +54,7 @@ Any probe error poisons the owner.
+ 
+ ## Finish, abort, drop
+ 
+-`finish` reads the current catalog before rollback when the deadline has not yet passed and the owner is not already poisoned. A mismatch is `schema_drift`. `SnapshotFinished` still requires accepted rollback and close of every session this owner opened, an empty poison, and a deadline that has not passed. Cap refusal before connect does not consume the generation. Failure after the generation is reserved does. Cleanup failure returns that failure and not `SnapshotFinished`.
++`finish` reads the current catalog before rollback when the deadline has not yet passed and the owner is not already poisoned. A mismatch is `schema_drift`. `SnapshotFinished` still requires accepted rollback and close of every session this owner opened, an empty poison, and a deadline that has not passed. `SnapshotFinished` is lifecycle close only and is not admission. `finish_complete` returns `RunComplete` only after this owner delivered `StreamItem::Exhausted` for every selected table. See `reader-lifecycle-v1.md`. Cap refusal before connect does not consume the generation. Failure after the generation is reserved does. Cleanup failure returns that failure and not `SnapshotFinished`.
+ 
+ `abort` uses the same cleanup. Confirmed cleanup returns `SnapshotAborted` even if the owner was poisoned. That type is not `SnapshotFinished`.
+ 
+@@ -66,7 +66,7 @@ There is no commit, no source DML, and no source DDL. The data transaction may `
+ 
+ ## Later stream, not this slice
+ 
+-A later `read_stream` would borrow this owner and this transaction, return a stream of `TypedBatch`, page with a server-side cursor or portal, call `decode_payload` per row, and refuse `fetch_all` of the table. Dropping the stream would not finish the owner. R3 is the in-flight cancellation proof. R1 does not implement that method.
++The bounded pull borrows this owner and this transaction, returns batches through a server-side portal, calls `decode_payload` per row, and refuses `fetch_all` of the table. Its contract is `bounded-stream-v1.md`. Dropping the stream does not finish the owner. R3 is the in-flight cancellation proof in `reader-lifecycle-v1.md`. This owner's probe and `finish` do not implement that cancel.
+ 
+ ## Errors
+ 
+diff --git a/contracts/source/pgsql/type-conversion-v1.md b/contracts/source/pgsql/type-conversion-v1.md
+index a86eb459..f17f7eb0 100644
+--- a/contracts/source/pgsql/type-conversion-v1.md
++++ b/contracts/source/pgsql/type-conversion-v1.md
+@@ -1,6 +1,6 @@
+ # PostgreSQL type conversion `oo.source.pgsql.types/v1`
+ 
+-This protocol decodes PostgreSQL binary values. It does not replace the frozen catalog protocol `oo.source.pgsql/v1`. Catalog `type_support.converted` stays false. Catalog `type_conversion` stays `unsupported`. `connector_capabilities` stays unsupported, including `type_conversion`. `numeric_parts` stays the unsigned inspection decoder. A caller `converted=true` flag is ignored.
++This protocol decodes PostgreSQL binary values. It does not replace the frozen catalog protocol `oo.source.pgsql/v1`. Catalog `type_support.converted` stays false. Catalog `type_conversion` stays `unsupported`. `connector_capabilities` `type_conversion` stays unsupported. `scan` and `bounded_read` are supported for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission, and that support is not a type certificate. `numeric_parts` stays the unsigned inspection decoder. A caller `converted=true` flag is ignored.
+ 
+ `PgSession::read_typed` is the production entry. It uses the same private-CA `verify-full` session, startup allow-list, and repeatable-read read-only transaction as catalog inspection, then rolls back. It does not `SET ROLE`, run user output functions, or execute SQL built from values.
+ 
+@@ -50,4 +50,4 @@ The canonical hash is `type-policy/v1` over the lossless fields only. It is not
+ 
+ ## What this protocol does not do
+ 
+-`TypedBatch::record_batch` builds an Arrow 60 `RecordBatch` with `arrow-array`, `arrow-buffer`, and `arrow-schema` `60.0.0` (`default-features = false`). Field types follow the series-60 physical plan, including `decimal128`, `decimal256`, `timestamp[us,UTC]`, and flat lists. A field is nullable when the catalog column is nullable or any cell is an Arrow null, including a masked reject in a catalog `NOT NULL` column. SQL NULL in a non-nullable column still fails the read before a batch exists. The canonical hash is still the type-policy frame, not a hash of those buffers. `pg_arrow_crate` is supported for that builder. MySQL unsigned, PositionCodec, CDC, the bounded reader, Loader reject persistence, and user-defined output stay unsupported. This slice does not claim the reader or the Loader.
++`TypedBatch::record_batch` builds an Arrow 60 `RecordBatch` with `arrow-array`, `arrow-buffer`, and `arrow-schema` `60.0.0` (`default-features = false`). Field types follow the series-60 physical plan, including `decimal128`, `decimal256`, `timestamp[us,UTC]`, and flat lists. A field is nullable when the catalog column is nullable or any cell is an Arrow null, including a masked reject in a catalog `NOT NULL` column. SQL NULL in a non-nullable column still fails the read before a batch exists. The canonical hash is still the type-policy frame, not a hash of those buffers. `pg_arrow_crate` is supported for that builder. Type capability `bounded_reader` is supported for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. MySQL unsigned, PositionCodec, CDC, Loader reject persistence, and user-defined output stay unsupported. Per-column `converted` stays false. This protocol does not certify full types, incremental mode, a customer proof, or a release. It does not claim a production target loader. The reader token is the prerequisite only.
+diff --git a/crates/oo-connectors/README.md b/crates/oo-connectors/README.md
+index 55d10470..1699beed 100644
+--- a/crates/oo-connectors/README.md
++++ b/crates/oo-connectors/README.md
+@@ -8,13 +8,13 @@ The frozen method and field contract is [contracts/source/pgsql/README.md](../..
+ 
+ `PgConnector::connect`, `PgSession::inspect_access`, and `PgSession::catalog` are the public inspection methods. The caller resolves a `secret://` reference and passes the password in memory. `Debug` redacts the password and the CA PEM. `SourceError` displays a kind, a static fact, and an optional SQLSTATE.
+ 
+-`SnapshotOwner` is a separate protocol, `oo.source.pgsql.snapshot/v1`. The contract is [contracts/source/pgsql/snapshot-owner-v1.md](../../contracts/source/pgsql/snapshot-owner-v1.md). `open` reserves a generation and holds one data connection plus one current-catalog connection, and one `REPEATABLE READ READ ONLY` transaction on the data connection. `PgSession::catalog` is not that transaction: it still begins and rolls back on its own. `read_probe` is one primary-key lookup (`LIMIT 2`) decoded with the existing type converter. It is not a batch stream and not the bounded reader. `finish` returns `SnapshotFinished` only after `ROLLBACK` and connection close both succeed. `abort` returns `SnapshotAborted` on that same cleanup. Drop closes the backend when it can and does not return either value. `bounded_read` stays unsupported. R2 (bounded Arrow batch stream and budgets), R3 (key planning, cancellation, and whole-round failure), and R4 (full reader acceptance) are unsigned. This crate does not implement them.
++`SnapshotOwner` is a separate protocol, `oo.source.pgsql.snapshot/v1`. The contract is [contracts/source/pgsql/snapshot-owner-v1.md](../../contracts/source/pgsql/snapshot-owner-v1.md). `open` reserves a generation and holds one data connection plus one current-catalog connection, and one `REPEATABLE READ READ ONLY` transaction on the data connection. `PgSession::catalog` is not that transaction: it still begins and rolls back on its own. `read_probe` is one primary-key lookup (`LIMIT 2`) decoded with the existing type converter. It is not a batch stream and not the bounded reader. `finish` returns `SnapshotFinished` as lifecycle close only, after `ROLLBACK` and connection close both succeed. That value is not admission. `finish_complete` returns `RunComplete` as full-selection admission only after this owner delivered `StreamItem::Exhausted` for every selected table and the existing release checks passed. `abort` returns `SnapshotAborted` on that same cleanup. Drop closes the backend when it can and does not return either value. `scan` and `bounded_read` are supported for the PostgreSQL full-mode snapshot, the bounded pull, and `RunComplete` admission. The reason is `PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission`. R2 (bounded Arrow batch stream and budgets), R3 (key planning, cancellation, and whole-round failure), and R4 (full-selection admission on that same path) have that limited acceptance. The pull is [contracts/source/pgsql/bounded-stream-v1.md](../../contracts/source/pgsql/bounded-stream-v1.md). Key chunks are [contracts/source/pgsql/reader-keys-v1.md](../../contracts/source/pgsql/reader-keys-v1.md) and are not full-run admission. Cancel and unpublished-run failure are [contracts/source/pgsql/reader-lifecycle-v1.md](../../contracts/source/pgsql/reader-lifecycle-v1.md). Loss of the snapshot restarts the whole unpublished run. A new generation does not mix rows from the old cut. This acceptance is not full types, CDC, incremental mode, a registry API, source DDL, source write, a customer proof, or a release. No production target loader admits `RunComplete`. The reader token is the prerequisite only.
+ 
+ `inspect_access` returns an `AccessReport`. `registration_allowed` is false when block reasons are present. `catalog` returns the selected tables, or a `SourceError` when the server version is untested, a selected table is missing, or an essential catalog fact is unreadable. A write-capable source can still produce a catalog snapshot. The next import step has to read `registration_allowed` itself.
+ 
+ Each catalog, access, and typed read reserves that statement's row bound before the round trip and puts the same bound in a static `LIMIT`. The reservation settles to the rows actually returned, in the same one-second window. Unused allowance is released only in that window. A failed or timed-out read keeps the reservation. An exact natural bound, such as the selected-table count, the 1600-column ceiling, or a primary key of at most 32 columns, may come back full. A result that fills a non-natural limit is `catalog_truncated`. Keyword admission reserves the embedded reserved-word count plus one. `max_rows` still rejects a result larger than the configured budget. `max_rows_per_sec` remains 50000 for the source, and the connection cap remains 4 across 64 tracked sources.
+ 
+-Capabilities `scan`, `bounded_read`, `cdc`, `type_conversion`, and `registry_api` are unsupported. `source_ddl` and `source_write` are forbidden. This crate does not create publications, replication slots, signaling tables, heartbeats, or other source objects, and it does not write source data. The DBA checklist is text.
++`connector_capabilities` reports `scan` and `bounded_read` supported, with the reason above. `cdc`, `type_conversion`, and `registry_api` stay unsupported (`not_in_this_slice`). `source_ddl` and `source_write` stay forbidden. Type capability `bounded_reader` uses the same reason. Per-column `type_support.converted` stays false, and catalog `type_conversion` stays unsupported. Those decode entries are not a whole-type certificate. This crate does not create publications, replication slots, signaling tables, heartbeats, or other source objects, and it does not write source data. The DBA checklist is text.
+ 
+ ## TLS and versions
+ 
