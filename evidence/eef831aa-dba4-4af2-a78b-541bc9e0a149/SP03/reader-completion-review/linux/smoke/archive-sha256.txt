@@ -1,0 +1,6 @@
+43c76114412533600ef554450b50d1f598f04ec674bbffd0611295272dd23227  crates/oo-connectors/src/snapshot.rs
+6933bf4e855682e6998b89c8c756f8db6239e28e4bc9a249fd34af98c088f16f  crates/oo-connectors/src/session.rs
+7f211507126dea33fd1c20a9b38b29e2e70796437312b89caf23c504d390410f  crates/oo-connectors/src/stream.rs
+6e4c8cc1afb3293d11a41ee5db3a7de36aca319ee4f6247dbed665cb85387055  crates/oo-connectors/src/lib.rs
+5beee06fd11370ca973f6066ce7205581b954432df612929176ebc493690a3f6  contracts/source/pgsql/reader-lifecycle-v1.md
+ac96863c677676f699aed0b624a3ed214428662d63b3ae9d42b333143701ff9f  contracts/source/pgsql/bounded-stream-v1.md

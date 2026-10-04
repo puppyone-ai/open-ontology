@@ -1,0 +1,17 @@
+CREATE ROLE
+CREATE ROLE
+ALTER ROLE
+CREATE SCHEMA
+CREATE TABLE
+INSERT 0 1
+REVOKE
+REVOKE
+GRANT
+GRANT
+ALTER SYSTEM
+ pg_reload_conf 
+----------------
+ t
+(1 row)
+
+init_ok version=17.10 (Debian 17.10-1.pgdg12+1)

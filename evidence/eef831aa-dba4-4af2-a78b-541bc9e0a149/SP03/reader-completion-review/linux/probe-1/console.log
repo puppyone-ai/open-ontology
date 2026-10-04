@@ -1,0 +1,49 @@
+oo_task=reader-completion-review-probe
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=16ca2969_archive_plus_review_overlay
+Linux f7929b482799 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+overlay_hashes_match=1
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=clippy-component
+=== cargo clippy -p oo-connectors --all-targets -- -D warnings ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: argument never used
+   --> crates/oo-connectors/tests/pg_reader_r4_review.rs:595:21
+    |
+592 |                     "acl_revoke_blocked generation={generation} abort_generation={} detail={}",
+    |                     -------------------------------------------------------------------------- formatting specifier missing
+...
+595 |                     one_line(&blocked)
+    |                     ^^^^^^^^^^^^^^^^^^ argument never used
+
+error: argument never used
+   --> crates/oo-connectors/tests/pg_reader_r4_review.rs:641:21
+    |
+638 |                     "catalog_alter_blocked generation={generation} abort_generation={} detail={}",
+    |                     ----------------------------------------------------------------------------- formatting specifier missing
+...
+641 |                     one_line(&blocked)
+    |                     ^^^^^^^^^^^^^^^^^^ argument never used
+
+error: could not compile `oo-connectors` (test "pg_reader_r4_review") due to 2 previous errors
+phase_exit=101 phase=clippy
+elapsed_seconds=1

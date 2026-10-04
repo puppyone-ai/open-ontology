@@ -1,0 +1,70 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0423]: expected value, found struct `oo_connectors::stream::StreamPlan`
+   --> crates/oo-connectors/tests/run_complete_private_fail.rs:35:17
+    |
+ 35 |     let _plan = oo_connectors::stream::StreamPlan;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use struct literal syntax instead: `oo_connectors::stream::StreamPlan { source_id: val, generation: val, input_digest: val, deadline: val, statement_timeout: val, max_bytes: val, batch_rows: val, batch_bytes: val, max_value_bytes: val, max_row_bytes: val, guard: val, tables: val, cancel: val, backend_pid: val, backend_start: val, covers_selected: val, exhausted_delivered: val }`
+    |
+   ::: crates/oo-connectors/src/stream.rs:162:1
+    |
+162 | pub(crate) struct StreamPlan {
+    | ---------------------------- `oo_connectors::stream::StreamPlan` defined here
+
+error[E0603]: module `stream` is private
+  --> crates/oo-connectors/tests/run_complete_private_fail.rs:35:32
+   |
+35 |     let _plan = oo_connectors::stream::StreamPlan;
+   |                                ^^^^^^ private module
+   |
+note: the module `stream` is defined here
+  --> crates/oo-connectors/src/lib.rs:26:1
+   |
+26 | mod stream;
+   | ^^^^^^^^^^
+
+error[E0639]: cannot create non-exhaustive struct using struct expression
+  --> crates/oo-connectors/tests/run_complete_private_fail.rs:18:18
+   |
+18 |       let _token = RunComplete {
+   |  __________________^
+19 | |         source_id: String::new(),
+20 | |         generation: 1,
+21 | |         config_identity: [0_u8; 32],
+...  |
+28 | |         seal: (),
+29 | |     };
+   | |_____^
+
+error[E0308]: mismatched types
+  --> crates/oo-connectors/tests/run_complete_private_fail.rs:28:15
+   |
+28 |         seal: (),
+   |               ^^ expected `CompleteSeal`, found `()`
+
+error[E0599]: no function or associated item named `new` found for struct `RunComplete` in the current scope
+  --> crates/oo-connectors/tests/run_complete_private_fail.rs:30:30
+   |
+30 |     let _also = RunComplete::new();
+   |                              ^^^ function or associated item not found in `RunComplete`
+   |
+help: there is a method `ne` with a similar name, but with different arguments
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/cmp.rs:264:4
+
+Some errors have detailed explanations: E0308, E0423, E0599, E0603, E0639.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `oo-connectors` (test "run_complete_private_fail") due to 5 previous errors
