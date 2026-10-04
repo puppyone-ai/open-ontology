@@ -1062,3 +1062,5 @@ a15525907 actualexit0 docsdeliverye6bd4c7a/evidence4ab80fb4, full3reportsread; f
 a156 actualGrok4.7xhighhandle17335 slotB capturedPGdraft1builder1PG; a15439393 slotA fullimport continues. a15550hash actualchecked0, closed25907 notobservedagain. Dispatch75ec879f; nextUUIDa157/global2builder retained; one25minute wait, goal active.
 
 a15439393 actualexit0 incomplete, no reports/sourcecommit. Logconfirms productiondrafts+0005 and own oo-a154-full-import-verify launched with privatePG separateDBs; sameUUIDresume must retrieveexistingresult first no duplicatebuilder. a15617335 unifiedcheck stilllive. No functiondelivery/checkboxcount, goal active.
+
+a154 sameUUID resumed actualhandle22354 slotA realfullimport1builder1PG; a15617335 slotB capturedPGdraft continues. Old39393 closed notobservedagain. Dispatchbd7d4b63 nextUUIDa157/global2builder retained; one25minute wait, goal active.
