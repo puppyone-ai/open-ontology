@@ -180,6 +180,7 @@
   - [x] W02-CP captured PostgreSQL catalog→reviewable draft API：63466471经a157真实PG17.10独立限定批准，bindings/PK/FK/unknownPII/stale/curated/Rust SQL audit；完整profile/语义审核/发布未验。
 - [ ] SP07-W03 规则/关系/码表/专家卡
 - [ ] SP07-W04 LLM候选/驻留/预算
+  - [x] W02-CC captured-pg-draft命令：3353380b经a160独立限定批准，真实catalog fixture→命令→draft/evidence/wrapper seals；完整agent对话/审核workflow/发布未验。
 - [ ] SP07-W05 审核/owner/分类
 - [ ] SP07-W06 role Pack/缓存/manifest
 - [ ] SP07 D组件/Phase退出
@@ -1082,3 +1083,6 @@ a154 sameUUIDresume4 actualhandle5484 slotA fullimport; a158 actualGrok4.7xhighh
 a1545484/a15857584 actualexit0 completecc764cbc/evidence549a82a0 and3353380b/evidence2996562c; bothfull3reportsread299/72hash actual0, ownDockerempty. a154rawfinal lib/installer/fullimport/Clippy/Docker0, all9failureattemptsretained; owner-onlystatsgrant explicit functionalnewinputnotsecuritysignoff. a158focusedCLI3/legacy4/Clippy0 perrawdelivery pendingreview. Productdelivered17→19 (actualfullimport+capturedcatalogcommand), accepted22/firstreview9of17unchanged. a159fixedfullimport and a160fixedCLI reviewsparallel; mapping-onlya154handoffopenclaim stale,a152alreadyverifiedexplicitlynotedforreview. All87parentsopen, goalactive.
 
 a159 actualGrok4.7xhighhandle18794 slotA fixedcc764cbc realfullimportreview1builder1PG; a160 handle4390 slotB fixed3353380b capturedCLIreview1builder0PG/global2. Old5484/57584closed notobservedagain. Dispatch2abcd694,nextUUIDa161, one25minute wait, goalactive.
+
+
+a1604390 actualexit0 complete5bfbd49a, all3reportsread includingtruncatedREPORTtail,119hash actual0/oracleClippyDocker0/ownDockerempty. OnlyW02-CC accepted22→23, delivered19, firstreviewCLIapproved denominator17→18 rework9/18=50%. NoargsobsoleteUXretainednotfunctionaldefect; a161 reviewcommandincludesmeaningfulusagefix. a15918794 unifiedchecklive continuesfixedfullimportreview; a161 existingcurated+reviewAPIcommandparallel0PG. Goalactive/all87parentsopen.
