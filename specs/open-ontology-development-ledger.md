@@ -165,6 +165,7 @@
 ### SP06
 
 - [ ] SP06-W01 ACL/RLS/helper/drift
+  - [x] W01-CA PostgreSQL列ACL安装原语：d3429726经a173独立限定批准，真实mapped shadow/NOLOGIN/列授权/新增隐藏列与写拒绝/双角色rollback/TLS；RLS、鉴权、审计及发布未验。
 - [ ] SP06-W02 parser/R1–R9/star/OID
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
@@ -1120,3 +1121,5 @@ a17087456 actualexit0 completeef34ad7b/evidence89cc545d all3reportsread; repairF
 a17173741 actualexit0 completed3429726/evidence22d99427 full3reportsread, actualshadowcolumnACL/TLS/live/5lib/Clippy/3arch0; 24newlockpairs noexistingremoved, supplychainreleasegateopen. New publicpolicyinstall component23→24 pendinga173, accepted27/firstreview10of23 unchanged. a17231651 unifiedchecklive Packclosure reviewcontinues. Dispatcha173fixedcolumnACLreviewparallel global2builder/eachmax1PG. All87parentsopen/goalactive.
 
 a17231651 actualexit0 completedindependentreview REQUEST_CHANGES onef34ad7b; all3reportsread. a168F1/F2 closed; nonASCIIhiddenlabel escapedSQLstring stillleaks, DISTINCTtruthfulness and entity/relationshipnamecollision observednotes. Noacceptedchild/no newfirstreviewcomponentdenominator. a17394769 unifiedchecklive continuesfixedpolicyreview. Dispatcha174literal+preciserendernotesrepairparallel, no broadcampaign; counts24delivered27accepted10of23 firstreviewrework unchanged/all87parentsopen/goalactive.
+
+a17394769 actualexit0 complete independently APPROVE LIMITED d3429726; all3reportsread/hashreceiptchecked/owncleanup proof. W01-CA accepted27→28, delivered24, firstcomponentreviewapproved denominator23→24 rework10/24=41.67%. Actualclinicfixture mappedshadow/grants/generationdecoys/replay/42501/TLS/24checksums0; release deny/audit/SBOM and adaptertaxonomyremainopen notpublicdevblocker. a17459332 unifiedchecklive. Dispatcha175actualASTSQLguardparallel gatewaysolewriter/deps/global2builder, all87parentsopen/goalactive.
