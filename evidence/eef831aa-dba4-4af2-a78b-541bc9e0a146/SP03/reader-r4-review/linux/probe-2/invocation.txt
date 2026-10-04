@@ -1,0 +1,4 @@
+source_commit=f5f0a73b0678e8b1611f1dc4a40e1dbf1d67b10e
+tree=6ec4bf24dd0111089b87b9b805e2ee71837cd34a
+composition=git archive plus corrected overlay; acl then r4; log truncated before this run
+prior_attempt=linux/probe ACL log-count 101 and r4 compile 101 preserved

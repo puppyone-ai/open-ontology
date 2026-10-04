@@ -1,0 +1,14 @@
+log_mark=33938
+connector_capability name=scan supported=false reason=not_in_this_slice
+connector_capability name=bounded_read supported=false reason=not_in_this_slice
+connector_capability name=cdc supported=false reason=not_in_this_slice
+connector_capability name=type_conversion supported=false reason=not_in_this_slice
+connector_capability name=registry_api supported=false reason=not_in_this_slice
+connector_capability name=source_ddl supported=false reason=forbidden
+connector_capability name=source_write supported=false reason=forbidden
+type_capability name=position_codec supported=false reason=not this slice
+type_capability name=cdc supported=false reason=not this slice
+type_capability name=bounded_reader supported=false reason=not this slice
+seeded r4.item r4.line r4e.rows r4e.extra r4e.wide
+oracle_before_writer items=2 lines=3 item1=willow
+catalog_type_support item.id converted=false reason=KnownBuiltinNotConverted item.name converted=false reason=KnownBuiltinNotConverted line.line_id converted=false reason=KnownBuiltinNotConverted line.item_id converted=false reason=KnownBuiltinNotConverted line.qty converted=false reason=KnownBuiltinNotConverted

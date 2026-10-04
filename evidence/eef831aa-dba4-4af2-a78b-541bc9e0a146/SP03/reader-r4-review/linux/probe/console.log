@@ -1,0 +1,322 @@
+oo_task=reader-r4-probe
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+composition=f5f0a73b_archive_plus_r4_probe
+Linux d5b3fa8b45e4 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+rustc_host=aarch64-unknown-linux-gnu
+archive_hashes_match=1
+=== cargo test --test pg_stream_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.94s
+     Running tests/pg_stream_live.rs (/target/debug/deps/pg_stream_live-7776e6e470432e6c)
+
+running 1 test
+test bounded_arrow_stream_live ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+
+phase_exit=0 phase=pg_stream_live
+=== cargo test --test pg_stream_bounds ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.19s
+     Running tests/pg_stream_bounds.rs (/target/debug/deps/pg_stream_bounds-422ab3014c583d44)
+
+running 1 test
+test bounded_arrow_stream_bounds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+
+phase_exit=0 phase=pg_stream_bounds
+=== cargo test --test pg_stream_acl_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.32s
+     Running tests/pg_stream_acl_live.rs (/target/debug/deps/pg_stream_acl_live-c45a6da62660d96b)
+
+running 1 test
+test revoke_after_first_eof_is_select_not_granted_before_scan ... FAILED
+
+failures:
+
+---- revoke_after_first_eof_is_select_not_granted_before_scan stdout ----
+
+thread 'revoke_after_first_eof_is_select_not_granted_before_scan' (852) panicked at crates/oo-connectors/tests/pg_stream_acl_live.rs:210:5:
+assertion `left == right` failed: first table did not take one stream savepoint
+  left: 10
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    revoke_after_first_eof_is_select_not_granted_before_scan
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+error: test failed, to rerun pass `-p oo-connectors --test pg_stream_acl_live`
+phase_exit=101 phase=pg_stream_acl_live
+=== cargo test --test pg_reader_keys_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.31s
+     Running tests/pg_reader_keys_live.rs (/target/debug/deps/pg_reader_keys_live-ed0e1f9de2cc4183)
+
+running 1 test
+test typed_key_plan_live ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+phase_exit=0 phase=pg_reader_keys_live
+=== cargo test --test pg_reader_cancel_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.27s
+     Running tests/pg_reader_cancel_live.rs (/target/debug/deps/pg_reader_cancel_live-e29ee7335c9a9d8d)
+
+running 1 test
+test run_cancel_live ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.66s
+
+phase_exit=0 phase=pg_reader_cancel_live
+=== cargo test --test pg_reader_drop_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.37s
+     Running tests/pg_reader_drop_live.rs (/target/debug/deps/pg_reader_drop_live-a6d11abacf19fb39)
+
+running 1 test
+test owner_drop_while_blocked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+phase_exit=0 phase=pg_reader_drop_live
+=== cargo test --test pg_reader_finish_live ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.23s
+     Running tests/pg_reader_finish_live.rs (/target/debug/deps/pg_reader_finish_live-5c98c167182332ae)
+
+running 1 test
+test finish_does_not_report_a_failed_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+
+phase_exit=0 phase=pg_reader_finish_live
+=== cargo test --test pg_reader_r4_probe ===
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0596]: cannot borrow `world` as mutable, as it is not declared as mutable
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:104:9
+    |
+104 |         world.note(format!("log_mark={}", world.log_mark));
+    |         ^^^^^ cannot borrow as mutable
+    |
+help: consider changing this to be mutable
+    |
+ 90 |         let mut world = Self {
+    |             +++
+
+error[E0505]: cannot move out of `finished` because it is borrowed
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:255:29
+    |
+251 |           self.note(format!(
+    |  ___________________-
+252 | |             "fresh_generation={} fresh_item1=pine fresh_lines={} fresh_has_13=1 old_generation_reused=0 finish={}",
+253 | |             finished.generation,
+    | |             ------------------- borrow of `finished.generation` occurs here
+254 | |             again.lines.len(),
+255 | |             finish_label(Ok(finished))
+    | |                             ^^^^^^^^ move out of `finished` occurs here
+256 | |         ));
+    | |_________- borrow later used here
+
+error[E0599]: no method named `close` found for struct `PgConnection` in the current scope
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:276:24
+    |
+276 |         let _ = writer.close().await;
+    |                        ^^^^^
+    |
+   ::: crates/oo-connectors/vendor/sqlx-core/src/connection.rs:37:8
+    |
+ 37 |     fn close(self) -> impl Future<Output = Result<(), Error>> + Send + 'static;
+    |        ----- the method is available for `PgConnection` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `Connection` which provides `close` is implemented but not in scope; perhaps you want to import it
+    |
+  7 + use sqlx::Connection;
+    |
+help: there is a method `close_hard` with a similar name
+    |
+276 |         let _ = writer.close_hard().await;
+    |                             +++++
+
+error[E0277]: the trait bound `std::string::String: From<&&str>` is not satisfied
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:420:55
+    |
+420 |             .map(|(schema, table)| SelectedTable::new(schema, table).expect("table"))
+    |                                    ------------------ ^^^^^^ the trait `From<&&str>` is not implemented for `std::string::String`
+    |                                    |
+    |                                    required by a bound introduced by this call
+    |
+    = note: required for `&&str` to implement `Into<std::string::String>`
+note: required by a bound in `SelectedTable::new`
+   --> crates/oo-connectors/src/config.rs:290:29
+    |
+290 |     pub fn new(schema: impl Into<String>, table: impl Into<String>) -> Result<Self, SourceError> {
+    |                             ^^^^^^^^^^^^ required by this bound in `SelectedTable::new`
+help: consider dereferencing here
+    |
+420 |             .map(|(schema, table)| SelectedTable::new(*schema, table).expect("table"))
+    |                                                       +
+
+error[E0277]: the trait bound `std::string::String: From<&&str>` is not satisfied
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:420:63
+    |
+420 |             .map(|(schema, table)| SelectedTable::new(schema, table).expect("table"))
+    |                                    ------------------         ^^^^^ the trait `From<&&str>` is not implemented for `std::string::String`
+    |                                    |
+    |                                    required by a bound introduced by this call
+    |
+    = note: required for `&&str` to implement `Into<std::string::String>`
+note: required by a bound in `SelectedTable::new`
+   --> crates/oo-connectors/src/config.rs:290:55
+    |
+290 |     pub fn new(schema: impl Into<String>, table: impl Into<String>) -> Result<Self, SourceError> {
+    |                                                       ^^^^^^^^^^^^ required by this bound in `SelectedTable::new`
+help: consider dereferencing here
+    |
+420 |             .map(|(schema, table)| SelectedTable::new(schema, *table).expect("table"))
+    |                                                               +
+
+warning: value assigned to `first_eof` is never read
+   --> crates/oo-connectors/tests/pg_reader_r4_probe.rs:341:29
+    |
+341 |         let mut first_eof = String::new();
+    |                             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0505, E0596, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `oo-connectors` (test "pg_reader_r4_probe") generated 1 warning
+error: could not compile `oo-connectors` (test "pg_reader_r4_probe") due to 5 previous errors; 1 warning emitted
+phase_exit=101 phase=pg_reader_r4_probe
+postgres_window_bytes=850070
+elapsed_seconds=46
