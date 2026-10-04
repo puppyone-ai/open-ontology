@@ -1,0 +1,25 @@
+Deciding Linux 1.94 run: linux/live-6/inside.sh on image
+docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+against postgres container oo-a162-pg. All commands used --locked --offline.
+
+cargo test -p oo-connectors --lib
+cargo clippy -p oo-connectors --all-targets -- -D warnings
+cargo test -p oo-pipeline --lib
+cargo clippy -p oo-pipeline --all-targets -- -D warnings
+cargo test -p oo-pipeline --test import_pg_cli_live
+cargo test -p oo-connectors --test pg_prepare_snapshot_live -- --ignored --test-threads=1 prepare_snapshot_reads_the_public_session
+cargo test -p oo-pipeline --test import_pg_cli_live -- --ignored --test-threads=1 import_pg_binary_on_private_postgres
+
+Earlier exits, kept and not overwritten:
+linux/smoke-before/attempt-1 inside 1 (clippy component absent)
+linux/smoke-before inside 0 (pre-edit package smoke)
+linux/build inside 101
+linux/build-2 inside 101
+linux/build-3 inside 0 (compile gate before the rollback change; live tests ignored)
+linux/live inside 101
+linux/live-2 inside 101
+linux/live-3 inside 101
+linux/live-4 inside 101
+linux/live-5 inside 101 (prepare 0, import test 101, clippy component absent)
+linux/live-6 inside 0
+pg/ready.exit 0

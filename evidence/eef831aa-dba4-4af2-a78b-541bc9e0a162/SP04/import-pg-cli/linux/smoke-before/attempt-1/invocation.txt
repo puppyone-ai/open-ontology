@@ -1,0 +1,17 @@
+workspace_head=10854656cfea7b3372947ee5acd3a720ff740c4b
+fixed=cc764cbc5f9d5d2cf6056a2c41ff2612161b5ff4
+composition=git archive HEAD, pipeline and connectors match fixed base, no overlay
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a162-smoke
+network=oo-a162-eef831aa-net
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+host_ca_mounted=no
+private_ca=/tmp/oo-a162-eef831aa-dba4-4af2-a78b-541bc9e0a162/ca
+phases=toolchain fetch pipeline-lib connectors-lib pipeline-clippy connectors-clippy

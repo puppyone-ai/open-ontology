@@ -1,0 +1,18 @@
+
+running 1 test
+test prepare_snapshot_reads_the_public_session ... FAILED
+
+failures:
+
+---- prepare_snapshot_reads_the_public_session stdout ----
+
+thread 'prepare_snapshot_reads_the_public_session' (421) panicked at crates/oo-connectors/tests/pg_prepare_snapshot_live.rs:23:12:
+prepare_snapshot live: "prepare catalog_read"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    prepare_snapshot_reads_the_public_session
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+

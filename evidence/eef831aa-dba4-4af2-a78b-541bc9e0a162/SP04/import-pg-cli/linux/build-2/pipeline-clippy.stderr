@@ -1,0 +1,41 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error: manual `!RangeInclusive::contains` implementation
+   --> crates/oo-pipeline/src/import_cli.rs:271:12
+    |
+271 |           || max_row < 2
+    |  ____________^
+272 | |         || max_row > 4_194_304
+    | |______________________________^ help: use: `!(2..=4_194_304).contains(&max_row)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+    = note: `-D clippy::manual-range-contains` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_range_contains)]`
+
+error: manual `!RangeInclusive::contains` implementation
+   --> crates/oo-pipeline/src/import_cli.rs:300:12
+    |
+300 |           || max_chunk < 19
+    |  ____________^
+301 | |         || max_chunk > 8_388_608
+    | |________________________________^ help: use: `!(19..=8_388_608).contains(&max_chunk)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+
+error: could not compile `oo-pipeline` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `oo-pipeline` (lib test) due to 2 previous errors

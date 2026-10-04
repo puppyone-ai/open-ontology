@@ -1,0 +1,8 @@
+oo_task=import-pg-cli-live
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+Linux e5ac181d57d2 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+=== prepare_snapshot live ===
+phase=prepare exit=101
+=== import-pg binary live ===
+phase=import exit=101

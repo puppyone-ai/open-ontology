@@ -1,0 +1,1 @@
+removed oo-a162-smoke after clippy component was absent; lib tests had exited 0

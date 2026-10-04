@@ -1,0 +1,18 @@
+
+running 1 test
+test import_pg_binary_on_private_postgres ... FAILED
+
+failures:
+
+---- import_pg_binary_on_private_postgres stdout ----
+
+thread 'import_pg_binary_on_private_postgres' (1189) panicked at crates/oo-pipeline/tests/import_pg_cli_live.rs:142:12:
+import-pg live: "identity pt_e478927e10f4cba30eae037d976953f8b72f8dd37b4e651b382df75fed8c 07ba797b71a38e7b3e2dc485331078c5f604a9337f75d111caafc21c0f577d66"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    import_pg_binary_on_private_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 1.74s
+

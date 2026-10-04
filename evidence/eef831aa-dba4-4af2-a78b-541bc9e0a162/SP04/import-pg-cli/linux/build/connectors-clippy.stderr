@@ -1,0 +1,64 @@
+    Checking tokio v1.53.1
+    Checking tokio-stream v0.1.19
+    Checking sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+    Checking sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking sqlx v0.9.0
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0507]: cannot move out of `self.source` which is behind a mutable reference
+   --> crates/oo-connectors/tests/pg_prepare_snapshot_live.rs:206:17
+    |
+206 |         let _ = self.source.close().await;
+    |                 ^^^^^^^^^^^ ------- `self.source` moved due to this method call
+    |                 |
+    |                 move occurs because `self.source` has type `sqlx::PgConnection`, which does not implement the `Copy` trait
+    |
+note: `sqlx::Connection::close` takes ownership of the receiver `self`, which moves `self.source`
+   --> crates/oo-connectors/vendor/sqlx-core/src/connection.rs:37:14
+    |
+ 37 |     fn close(self) -> impl Future<Output = Result<(), Error>> + Send + 'static;
+    |              ^^^^
+
+error[E0507]: cannot move out of `self.postgres` which is behind a mutable reference
+   --> crates/oo-connectors/tests/pg_prepare_snapshot_live.rs:211:17
+    |
+211 |         let _ = self.postgres.close().await;
+    |                 ^^^^^^^^^^^^^ ------- `self.postgres` moved due to this method call
+    |                 |
+    |                 move occurs because `self.postgres` has type `sqlx::PgConnection`, which does not implement the `Copy` trait
+
+error[E0599]: no method named `disable_statement_logging` found for struct `sqlx::sqlx_postgres::PgConnectOptions` in the current scope
+   --> crates/oo-connectors/tests/pg_prepare_snapshot_live.rs:288:27
+    |
+288 |     let options = options.disable_statement_logging();
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `sqlx::sqlx_postgres::PgConnectOptions`
+    |
+   ::: crates/oo-connectors/vendor/sqlx-core/src/connection.rs:269:8
+    |
+269 |     fn disable_statement_logging(self) -> Self {
+    |        ------------------------- the method is available for `sqlx::sqlx_postgres::PgConnectOptions` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ConnectOptions` which provides `disable_statement_logging` is implemented but not in scope; perhaps you want to import it
+    |
+  6 + use sqlx::ConnectOptions;
+    |
+
+Some errors have detailed explanations: E0507, E0599.
+For more information about an error, try `rustc --explain E0507`.
+error: could not compile `oo-connectors` (test "pg_prepare_snapshot_live") due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
