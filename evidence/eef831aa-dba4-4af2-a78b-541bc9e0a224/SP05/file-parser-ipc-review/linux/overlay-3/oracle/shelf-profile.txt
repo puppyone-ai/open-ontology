@@ -1,0 +1,14 @@
+oo-delimited-profile/v1
+id=a224-shelf
+dialect=csv
+bom=refuse
+header=exact
+null=token
+null_token=~
+quote=double
+record=lf-or-crlf
+escape=double-quote
+column=sku	utf8	1	-	-
+column=qty	int64	0	-	-
+column=price	decimal	0	8	3
+column=note	utf8	1	-	-

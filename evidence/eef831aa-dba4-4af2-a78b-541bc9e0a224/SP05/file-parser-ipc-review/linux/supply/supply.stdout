@@ -1,0 +1,96 @@
+clock=2026-10-05T21:49:34Z
+additions=4
+addition arrow-cmp 60.0.0
+addition arrow-ipc 60.0.0
+addition arrow-select 60.0.0
+addition flatbuffers 25.12.19
+ok addition_set
+package=arrow-cmp version=60.0.0
+lock_checksum=73a0e9adb28d95739fabcdae637261a2c14e618caf58ba1b88857120f9ee2687
+source=registry+https://github.com/rust-lang/crates.io-index
+deps=arrow-array,arrow-buffer,arrow-schema
+crate_path=/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/arrow-cmp-60.0.0.crate
+crate_checksum=73a0e9adb28d95739fabcdae637261a2c14e618caf58ba1b88857120f9ee2687
+ok crate_checksum arrow-cmp 60.0.0
+toml_license=Apache-2.0
+toml_rust_version=1.88
+ok msrv arrow-cmp 1.88
+index_checksum=73a0e9adb28d95739fabcdae637261a2c14e618caf58ba1b88857120f9ee2687
+ok index_yanked arrow-cmp
+index_rust_version=1.88
+index_pubtime=2026-09-15T15:30:07Z
+api_checksum=73a0e9adb28d95739fabcdae637261a2c14e618caf58ba1b88857120f9ee2687
+api_license=Apache-2.0
+ok api_yanked arrow-cmp
+api_rust_version=1.88
+api_created_at=2026-09-15T15:30:07.395040Z
+age_seconds=1750767
+age_days=20
+ok age arrow-cmp
+package=arrow-ipc version=60.0.0
+lock_checksum=86c523472d22e31f984df7a44fc36e6323d3c9b05ffe53d267ee4c3aa7c128d2
+source=registry+https://github.com/rust-lang/crates.io-index
+deps=arrow-array,arrow-buffer,arrow-data,arrow-schema,arrow-select,flatbuffers
+crate_path=/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/arrow-ipc-60.0.0.crate
+crate_checksum=86c523472d22e31f984df7a44fc36e6323d3c9b05ffe53d267ee4c3aa7c128d2
+ok crate_checksum arrow-ipc 60.0.0
+toml_license=Apache-2.0
+toml_rust_version=1.88
+ok msrv arrow-ipc 1.88
+index_checksum=86c523472d22e31f984df7a44fc36e6323d3c9b05ffe53d267ee4c3aa7c128d2
+ok index_yanked arrow-ipc
+index_rust_version=1.88
+index_pubtime=2026-09-15T15:30:28Z
+api_checksum=86c523472d22e31f984df7a44fc36e6323d3c9b05ffe53d267ee4c3aa7c128d2
+api_license=Apache-2.0
+ok api_yanked arrow-ipc
+api_rust_version=1.88
+api_created_at=2026-09-15T15:30:28.788489Z
+age_seconds=1750746
+age_days=20
+ok age arrow-ipc
+package=arrow-select version=60.0.0
+lock_checksum=ba3482b7d03bf4a3bf0b195f08a7f2b071595ccd54897e35b975ac63d3104977
+source=registry+https://github.com/rust-lang/crates.io-index
+deps=ahash,arrow-array,arrow-buffer,arrow-cmp,arrow-data,arrow-schema,num-traits
+crate_path=/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/arrow-select-60.0.0.crate
+crate_checksum=ba3482b7d03bf4a3bf0b195f08a7f2b071595ccd54897e35b975ac63d3104977
+ok crate_checksum arrow-select 60.0.0
+toml_license=Apache-2.0
+toml_rust_version=1.88
+ok msrv arrow-select 1.88
+index_checksum=ba3482b7d03bf4a3bf0b195f08a7f2b071595ccd54897e35b975ac63d3104977
+ok index_yanked arrow-select
+index_rust_version=1.88
+index_pubtime=2026-09-15T15:30:11Z
+api_checksum=ba3482b7d03bf4a3bf0b195f08a7f2b071595ccd54897e35b975ac63d3104977
+api_license=Apache-2.0
+ok api_yanked arrow-select
+api_rust_version=1.88
+api_created_at=2026-09-15T15:30:11.676477Z
+age_seconds=1750763
+age_days=20
+ok age arrow-select
+package=flatbuffers version=25.12.19
+lock_checksum=35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3
+source=registry+https://github.com/rust-lang/crates.io-index
+deps=bitflags,rustc_version
+crate_path=/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/flatbuffers-25.12.19.crate
+crate_checksum=35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3
+ok crate_checksum flatbuffers 25.12.19
+toml_license=Apache-2.0
+toml_rust_version=1.51
+ok msrv flatbuffers 1.51
+index_checksum=35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3
+ok index_yanked flatbuffers
+index_rust_version=1.51
+index_pubtime=2025-12-19T23:16:16Z
+api_checksum=35f6839d7b3b98adde531effaf34f0c2badc6f4735d26fe74709d8e513a96ef3
+api_license=Apache-2.0
+ok api_yanked flatbuffers
+api_rust_version=1.51
+api_created_at=2025-12-19T23:16:16.576273Z
+age_seconds=25050798
+age_days=289
+ok age flatbuffers
+supply_audit=ok

@@ -1,0 +1,12 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review /origin/a204 rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review /origin/a199 rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a224/SP05/file-parser-ipc-review/source/blobs /blobs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a224/SP05/file-parser-ipc-review/tools /tools rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review /origin/a200 rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a224/SP05/file-parser-ipc-review/linux/overlay-4/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a224/SP05/file-parser-ipc-review/linux/overlay-4 /evidence rw=true
+volume /var/lib/docker/volumes/oo-a224-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a224-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a224-eef831aa-dba4-4af2-a78b-541bc9e0a224/overlay-4/archive /src rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a224/SP05/file-parser-ipc-review/recipes /recipes rw=false
+

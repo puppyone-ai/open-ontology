@@ -1,0 +1,14 @@
+
+running 9 tests
+test sha256_matches_the_empty_and_abc_vectors ... ok
+test ipc_ceiling_writes_no_frame ... ok
+test late_hash_mismatch_keeps_the_batch_and_omits_completion ... ok
+test tsv_keeps_a_quoted_tab_a_comma_and_negative_zero ... ok
+test jsonl_separates_null_from_missing_across_three_frames ... ok
+test csv_decodes_exact_values_lineage_and_receipt ... ok
+test empty_eof_header_policy_and_header_only_bind_completion ... ok
+test unknown_profile_request_cap_and_path_class_refuse ... ok
+test parent_kills_a_blocked_read_and_the_drop_guard_reaps ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+

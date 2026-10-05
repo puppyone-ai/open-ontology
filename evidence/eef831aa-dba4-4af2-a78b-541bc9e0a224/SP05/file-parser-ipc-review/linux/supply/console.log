@@ -1,0 +1,23 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+PHASE pins=0
+=== supply rustc ===
+PHASE supply_rustc=0
+=== supply index and api ===
+PHASE curl_arrow-ipc-index=0
+PHASE curl_arrow-cmp-index=0
+PHASE curl_arrow-select-index=0
+PHASE curl_flatbuffers-index=0
+PHASE curl_arrow-ipc-api=0
+PHASE curl_arrow-cmp-api=0
+PHASE curl_arrow-select-api=0
+PHASE curl_flatbuffers-api=0
+PHASE supply_curl=0
+=== supply audit ===
+PHASE supply_exit=0

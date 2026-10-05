@@ -1,0 +1,5 @@
+Cargo.lock
+contracts/connectors/file-parser-worker-v1.md
+crates/oo-connectors/Cargo.toml
+crates/oo-connectors/src/bin/oo-file-parser-worker.rs
+crates/oo-connectors/tests/file_parser_worker.rs

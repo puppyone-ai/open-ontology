@@ -1,0 +1,34 @@
+Reviewed launch and report recipes, with the hashes of the files that were read.
+The container rechecks recipes/origin.list with the Safe Rust hasher.
+
+a204 commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/launch.sh
+78c8ef8c179c59317850c1b6a9ae53d3f883b8a1b24c2567fa0d3d26f1997eee
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/inside.sh
+a93a5e00832284b805ea89236d9aace547766080316962139d3514dc58f84928
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/REPORT.md
+structure only: verdict, fixed source, preoverlay smoke, decisive run, preserved failures, limits, rerun, cleanup
+
+a199 commit 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+Copied unchanged to tools/sha256_manifest.rs. Fresh CSV and TSV values in the harness follow the approved delimited preimage, not the a199 fixture bytes.
+
+a200 commit a587031c719a484830d78e493605f48e2056cae4
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+Not copied. Those scripts start PostgreSQL, a private CA, and clang. This review starts none of them.
+
+Changes from the a204 scripts:
+- Names, network, volumes, and paths are UUID eef831aa-dba4-4af2-a78b-541bc9e0a224.
+- New builder memory is 6g and CPUs are 1. CARGO_BUILD_JOBS is 1. The global rust-builder cap checked here is 10.
+- Preoverlay smoke is cargo test -p oo-connectors --test file_parser_worker, then clippy on that bin and test.
+- Overlay adds only tests/file_parser_worker_a224_review.rs on a fresh git archive of 6bd2455849da2527973c136968d4549ecd98d770.
+- A supply audit of the four new registry rows runs in the same preoverlay container after fetch.
+- Blob pins include the worker, its test, the contract, the connector manifest, Cargo.lock, and the delimited, JSONL, and lib sources at that commit.
