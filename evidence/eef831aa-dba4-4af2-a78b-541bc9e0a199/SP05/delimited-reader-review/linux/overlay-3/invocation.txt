@@ -1,0 +1,1 @@
+docker run --name oo-a199-overlay3 --platform linux/arm64 --pull never --network oo-a199-eef831aa-net --cap-drop ALL --memory 8g image=pinned-rust-1.94 bash /inside.sh

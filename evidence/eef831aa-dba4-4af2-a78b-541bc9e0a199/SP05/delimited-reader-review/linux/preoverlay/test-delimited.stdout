@@ -1,0 +1,30 @@
+
+running 25 tests
+test drop_releases_the_reader_and_debug_hides_cells ... ok
+test bom_require_and_exact_header_shift_lineage ... ok
+test batch_caps_rewind_or_refuse ... ok
+test early_finish_does_not_mint_completion ... ok
+test empty_absent_header_completes_and_a_bad_hash_does_not ... ok
+test empty_null_policy_distinguishes_quoted_empty_from_null ... ok
+test hash_mismatch_returns_the_batch_then_refuses_completion ... ok
+test header_only_completes_with_zero_data_rows ... ok
+test io_errors_drop_the_os_message ... ok
+test enterprise_csv_matches_the_hand_checked_oracle ... ok
+test negative_scale_decimal_strips_zeros_only ... ok
+test malformed_quotes_encoding_and_controls_hide_the_bytes ... ok
+test open_does_not_read ... ok
+test profile_and_budget_reject_ambiguous_input ... ok
+test profile_preimage_and_budget_identity_are_exact ... ok
+test quoted_controls_that_are_legal_stay_in_the_field ... ok
+test record_field_and_total_budgets_stop_before_completion ... ok
+test quoted_null_token_stays_literal_text ... ok
+test sha256_oracle_matches_the_empty_and_abc_vectors ... ok
+test number_budget_is_closed ... ok
+test source_is_a_bounded_state_machine ... ok
+test tsv_keeps_quoted_tabs_and_unquoted_commas ... ok
+test width_header_and_bom_failures_are_closed ... ok
+test signed_decimal_and_lexical_rejections_drop_the_cell ... ok
+test cancel_before_a_read_and_a_blocked_read_refuse_completion ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

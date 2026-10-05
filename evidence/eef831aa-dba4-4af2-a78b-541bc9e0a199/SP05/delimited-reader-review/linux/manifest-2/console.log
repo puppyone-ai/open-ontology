@@ -1,0 +1,11 @@
+error: unused import: `Read`
+ --> /evidence/tools/sha256_manifest.rs:8:21
+  |
+8 | use std::io::{self, Read, Write};
+  |                     ^^^^
+  |
+  = note: `-D unused-imports` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error: aborting due to 1 previous error
+
