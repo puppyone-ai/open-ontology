@@ -1,0 +1,9 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.89s
+     Running tests/column_acl_set_pg_live.rs (/target/debug/deps/column_acl_set_pg_live-872089b9e58e43b3)
+
+running 1 test
+test two_tables_one_role_column_acl_set ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+

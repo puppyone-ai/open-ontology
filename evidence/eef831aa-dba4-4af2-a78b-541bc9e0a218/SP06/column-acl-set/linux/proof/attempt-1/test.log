@@ -1,0 +1,21 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.24s
+     Running tests/column_acl_set_pg_live.rs (/target/debug/deps/column_acl_set_pg_live-872089b9e58e43b3)
+
+running 1 test
+test two_tables_one_role_column_acl_set ... 
+thread 'two_tables_one_role_column_acl_set' (2221) panicked at crates/oo-gateway/tests/column_acl_set_pg_live.rs:561:9:
+assertion `left == right` failed: pt_6708f7876808ea22372a5ec37c9a9f00623a6d12b6a6a0839a3788c9ff90
+  left: 5
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    two_tables_one_role_column_acl_set
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+error: test failed, to rerun pass `-p oo-gateway --test column_acl_set_pg_live`

@@ -1,0 +1,107 @@
+{
+  "audit_file": "/evidence/live/clerk-audit.jsonl",
+  "ca_file": "/run/oo-a218/fixture/ca.crt",
+  "catalog": {
+    "large_table_row_threshold": 1000000,
+    "max_columns": 64,
+    "max_functions": 1,
+    "max_operators": 64,
+    "max_tables": 4,
+    "unknown_rows": "refuse"
+  },
+  "endpoint": {
+    "database": "oo_a218",
+    "host": "oo-a218-pg",
+    "port": 5432,
+    "user": "oo_a218_login"
+  },
+  "identity": {
+    "policy_id": "a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218",
+    "project": "trade",
+    "role": "oo_r_clerk"
+  },
+  "password_file": "/run/oo-a218/fixture/login.pass",
+  "policies": [
+    {
+      "config_digest": "a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218",
+      "generation": 7,
+      "login": "oo_a218_login",
+      "project": "trade",
+      "role": "clerk",
+      "table": {
+        "columns": [
+          {
+            "name": "party_id",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          },
+          {
+            "name": "display_name",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          },
+          {
+            "name": "note",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          }
+        ],
+        "name": "party",
+        "namespace": "trade"
+      }
+    },
+    {
+      "config_digest": "a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218a218",
+      "generation": 7,
+      "login": "oo_a218_login",
+      "project": "trade",
+      "role": "clerk",
+      "table": {
+        "columns": [
+          {
+            "name": "entry_id",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          },
+          {
+            "name": "party_id",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          },
+          {
+            "name": "memo",
+            "pii": {
+              "class": "none"
+            },
+            "semantic_type": "identifier",
+            "status": "confirmed"
+          }
+        ],
+        "name": "ledger",
+        "namespace": "trade"
+      }
+    }
+  ],
+  "statement": {
+    "max_result_bytes": 65536,
+    "max_rows": 20,
+    "source": "stdin",
+    "wall_clock_ms": 30000
+  },
+  "version": "oo.gateway.query-pg/v1"
+}

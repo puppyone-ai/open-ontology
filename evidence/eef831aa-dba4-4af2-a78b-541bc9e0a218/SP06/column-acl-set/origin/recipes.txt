@@ -1,0 +1,26 @@
+a218 column-acl-set recipes. Fixed archive c2db9c430b822a824a1062b6c3c7345924df7dd8.
+Origin hashes are SHA-256 of the reviewed files before a218 edits. python3 was used once to draft origin/recipe-hashes.txt; this note is not an oracle.
+
+a200 smoke launch.sh 837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+  -> linux/smoke/launch.sh. Changes: 6GiB, 1 CPU, global cap 10, a218 volumes, archive blob check, no clippy in smoke.
+a200 smoke inside.sh b56d83ddbf95ecb0a33ab5028f2f99c562d9f6e51d47075c2ee7584ac315a0eb
+  -> linux/smoke/inside.sh. Changes: policy::tests only, expect 5 passed, refuse install_column_acl_set, clippy deferred.
+a200 extract-libclang.sh dc0d980692091bec55d4fbc3eb12a0eda9c5aaa4b9f7d5c6eab995b2a726690d
+  -> linux/smoke/extract-libclang.sh. Changes: a218 clang root and package list paths.
+a200 tools/sha256.rs 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e
+  -> tools/sha256.rs copied.
+a200 tools/select-debs.rs 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644
+  -> tools/select-debs.rs copied.
+a200 pg/pg-wrap.sh 25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+  -> pg/pg-wrap.sh copied byte-identical.
+a200 pg/up.sh 96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+  -> pg/up.sh. Changes: a218 names, SAN DNS:oo-a218-pg, 1GiB, 1 CPU.
+a200 proof launch.sh c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+  -> linux/proof/launch.sh. Changes: 6GiB, 1 CPU, cap 10, overlay policy.rs plus the live test plus the contract.
+a200 proof inside.sh 64b70ee4050267d147128abbf254be93151effcb94b67051a5c0b01f878fadf0
+  -> linux/proof/inside.sh. Changes: policy.rs must differ, frozen files must match, live oracle required, clippy after.
+a200 cleanup/run.sh 1943ba8e5e1d128b96b3c25cf281a2386f83167ec6901fecc0110340dfaf2ff6
+  -> cleanup/run.sh. Changes: a218 names only. No prune.
+a204 preoverlay launch 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a199 preoverlay launch bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+  Capacity and refuse-overwrite checks follow those launches. No manifest or lock edits.
