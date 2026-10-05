@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS, d
 Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincommit/path/hash and minimal changes. Always UUID-private resources/new independentrawproof. Review only frozen scope and necessary boundarytests; broaden only concrete newfailure/change. Do not inflate acceptedunits: new expansion child must frozenbeforecoding. No nestedagents.
 
 CONTINUATION: Original CLI exited 0 before reports, not review completion. Resume SAME UUID. First collect existing smoke exit/log and resource limits. Existing oo-a229-pg is your private PG; reuse it. Do not duplicate builder or PG. Finish necessary live proof, reports, hashes and own cleanup. Latest coordinator wait ONE20minutes; development cap12, reviews separate.
+
+RESUME2: CLI exited before collecting live proof. First collect existing proof builder actual exit/log; do not launch duplicate. Complete original scoped review and all three reports before exit.

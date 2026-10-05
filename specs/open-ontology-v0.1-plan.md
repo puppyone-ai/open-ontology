@@ -1027,3 +1027,9 @@ passed必须实际exit0、artifact存在且hash匹配、环境/scope齐备。pen
 任务实现后的检查顺序固定为：核对写入范围→执行适用验证→检查资源终态→生成证据清单→独立审阅→更新状态。存在安全失败、精度损失、版本不匹配、证据缺失或未实现的 required suite 时，保持未签收；文档检查通过不改变这些状态。
 
 开发状态补充：a111固定7acca207独立复审批准CLI-FIFO-OPEN-BLOCKS，仅该修复切片勾选；完整CLI query/SP09仍未验收。a107 jobs复审继续；a109基础许可证记录复审接替已释放槽B。以开发台账及固定提交证据为准，完整87工作项和16Phase未完成。
+
+Current coordinator acceptance update: a228 fixed9daeaa05 bridge APPROVE_LIMITED, 239 SHA256 entries verified0 plus smoke/test/Clippy0 and owncontainers absent; accept M1-D18A only. a230 fixed613aa981 stats APPROVE_LIMITED,175 SHA256 entries verified0, live/catalog/Clippy0 and owncontainers absent; accept M1-D06A only. E2-D2/6, M1-D17/24 unchanged; historical accepted43→45, unique authored45→46 with a227baf70c5c pending independent review; first-component review36→38, rework10/38=26.32%. Frozen aggregate20/37=54.05% before new E6. Integration0/4 and release0/6 unchanged.
+
+- [x] M1-D18A: sealed reviewed draft + explicit bound classification -> effective-oos (a228 limited independent acceptance).
+- [x] M1-D06A: mapped generation -> explicit ANALYZE estimate (a230 limited independent acceptance).
+- [ ] M1-D14C / E6-D1 unit frozen BEFORE coding: trusted reviewed-effective command + administrative binding -> bounded compiled reviewed-policy CLI deterministic policy-set DTO, actual producer/CLI/compile-set tests and refusal exits. a234 owns new bin/test/contract only; E6-D0/1, aggregate20/38=52.63%, not global development rate. Semantic publication, auth, live installation and audit WAL remain separate.
