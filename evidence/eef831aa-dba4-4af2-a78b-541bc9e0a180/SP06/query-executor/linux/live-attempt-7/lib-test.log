@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (/target/debug/deps/oo_gateway-106fcc779d4869ba)
+
+running 10 tests
+test policy::tests::an_empty_allowlist_is_refused ... ok
+test policy::tests::identifiers_reject_sql_and_the_owner_role ... ok
+test policy::tests::a_confirmed_allowlist_compiles_to_one_nologin_role ... ok
+test policy::tests::row_filter_is_refused_without_a_partial_allowlist ... ok
+test policy::tests::unknown_pii_and_unclassified_columns_are_refused ... ok
+test query_executor::tests::bootstrap_oids_match_the_driver_and_other_types_are_refused ... ok
+test query_executor::tests::byte_cap_is_applied_before_append_and_integers_are_canonical ... ok
+test query_executor::tests::cancel_gate_matches_only_the_accepted_generation ... ok
+test query_executor::tests::error_codes_use_the_existing_enum_and_hide_server_text ... ok
+test query_executor::tests::role_shape_accepts_only_the_nologin_prefix ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

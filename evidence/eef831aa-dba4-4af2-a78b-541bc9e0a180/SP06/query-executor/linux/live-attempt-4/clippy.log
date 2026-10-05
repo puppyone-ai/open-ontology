@@ -1,0 +1,78 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: variable does not need to be mutable
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:240:9
+    |
+240 |     let mut reader = connect_db(DATABASE, LOGIN, &env.login_pass, &env.ca).await;
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+error[E0277]: `oo_gateway::query_executor::SelectStream` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:448:10
+    |
+448 |         .expect_err("cross role");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::query_executor::SelectStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::query_executor::SelectStream` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:470:10
+    |
+470 |         .expect_err("hidden");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::query_executor::SelectStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::query_executor::SelectStream` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:489:10
+    |
+489 |         .expect_err("extra");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::query_executor::SelectStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::query_executor::SelectStream` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:508:10
+    |
+508 |         .expect_err("write");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::query_executor::SelectStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::query_executor::SelectStream` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:644:10
+    |
+644 |         .expect_err("audit fail");
+    |          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::query_executor::SelectStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error: variable does not need to be mutable
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:669:9
+    |
+669 |     let mut locker = connect_db(DATABASE, ADMIN, &env.admin_pass, &env.ca).await;
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:813:9
+    |
+811 |     let (rows, summary) = finish_ok(
+    |                           --------- first borrow later used by call
+812 |         &mut session,
+    |         ------------ first mutable borrow occurs here
+813 |         session
+    |         ^^^^^^^ second mutable borrow occurs here
+
+Some errors have detailed explanations: E0277, E0499.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `oo-gateway` (test "query_executor_pg_live") due to 8 previous errors

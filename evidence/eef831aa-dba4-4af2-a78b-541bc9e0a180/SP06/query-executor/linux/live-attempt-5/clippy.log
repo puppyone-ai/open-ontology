@@ -1,0 +1,70 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0596]: cannot borrow `session` as mutable, as it is not declared as mutable
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:323:37
+    |
+323 |     let (rows, summary) = finish_ok(&mut session, star_stream).await;
+    |                                     ^^^^^^^^^^^^ cannot borrow as mutable
+    |
+note: the binding is already a mutable borrow
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:302:5
+    |
+302 |     session: &mut DedicatedSession,
+    |     ^^^^^^^
+help: if there is only one mutable reborrow, remove the `&mut`
+    |
+323 -     let (rows, summary) = finish_ok(&mut session, star_stream).await;
+323 +     let (rows, summary) = finish_ok(session, star_stream).await;
+    |
+
+error[E0596]: cannot borrow `session` as mutable, as it is not declared as mutable
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:398:49
+    |
+398 |     let (bound_rows, bound_summary) = finish_ok(&mut session, bound_stream).await;
+    |                                                 ^^^^^^^^^^^^ cannot borrow as mutable
+    |
+note: the binding is already a mutable borrow
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:381:5
+    |
+381 |     session: &mut DedicatedSession,
+    |     ^^^^^^^
+help: if there is only one mutable reborrow, remove the `&mut`
+    |
+398 -     let (bound_rows, bound_summary) = finish_ok(&mut session, bound_stream).await;
+398 +     let (bound_rows, bound_summary) = finish_ok(session, bound_stream).await;
+    |
+
+error[E0596]: cannot borrow `session` as mutable, as it is not declared as mutable
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:410:5
+    |
+410 |     session: &mut DedicatedSession,
+    |     ^^^^^^^ not mutable
+...
+422 |     let (byte_rows, byte_summary) = finish_ok(&mut session, byte_stream).await;
+    |                                               ------------ cannot borrow as mutable
+...
+438 |     let (wide_rows, wide_summary) = finish_ok(&mut session, wide_stream).await;
+    |                                               ------------ cannot borrow as mutable
+    |
+note: the binding is already a mutable borrow
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:410:5
+    |
+410 |     session: &mut DedicatedSession,
+    |     ^^^^^^^
+note: the binding is already a mutable borrow
+   --> crates/oo-gateway/tests/query_executor_pg_live.rs:410:5
+    |
+410 |     session: &mut DedicatedSession,
+    |     ^^^^^^^
+help: if there is only one mutable reborrow, remove the `&mut`
+    |
+422 -     let (byte_rows, byte_summary) = finish_ok(&mut session, byte_stream).await;
+422 +     let (byte_rows, byte_summary) = finish_ok(session, byte_stream).await;
+    |
+help: if there is only one mutable reborrow, remove the `&mut`
+    |
+438 -     let (wide_rows, wide_summary) = finish_ok(&mut session, wide_stream).await;
+438 +     let (wide_rows, wide_summary) = finish_ok(session, wide_stream).await;
+    |
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `oo-gateway` (test "query_executor_pg_live") due to 3 previous errors
