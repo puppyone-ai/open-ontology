@@ -1,7 +1,9 @@
-//! Column ACL compiler for one mapped shadow table.
+//! Column ACL compiler for mapped shadow tables.
 //!
 //! A trusted administrator connection installs a `NOLOGIN` role and column
-//! `SELECT` grants. The caller supplies the connection. This module does not
+//! `SELECT` grants. [`install_column_acl`] is one table.
+//! [`install_column_acl_set`] is one role across a bounded list of tables in
+//! one transaction. The caller supplies the connection. This module does not
 //! accept a password, a raw `GRANT` string, or a row filter.
 //!
 //! Row filters are refused before any database call. PostgreSQL still allows
@@ -179,6 +181,24 @@ pub enum PolicyError {
     PhysicalAbsent,
     /// The CA PEM did not yield a certificate.
     CertificateRejected,
+    /// The aggregate policy list is empty. No SQL was sent.
+    EmptyPolicySet,
+    /// The list does not share one role, login, project, digest, and generation.
+    MixedIdentity,
+    /// More than 32 tables, or one table has more than 512 columns.
+    LimitExceeded,
+    /// A mapped column is not a supported base type.
+    TypeRefused {
+        /// Logical column name.
+        column: String,
+    },
+    /// A metadata column was named, or `_oo_pos` is selectable.
+    MetadataColumn {
+        /// Logical name, or `_oo_pos` for the physical metadata column.
+        column: String,
+    },
+    /// An existing role's membership is not exactly this login.
+    MembershipMismatch,
     /// PostgreSQL rejected a statement. `message` is the driver text.
     Database {
         /// SQLSTATE, or empty when the driver has none.
@@ -217,6 +237,20 @@ impl fmt::Display for PolicyError {
             Self::MappingAbsent => formatter.write_str("stored physical mapping is absent"),
             Self::PhysicalAbsent => formatter.write_str("mapped relation is absent in _oo"),
             Self::CertificateRejected => formatter.write_str("CA certificate was rejected"),
+            Self::EmptyPolicySet => formatter.write_str("column policy set is empty"),
+            Self::MixedIdentity => {
+                formatter.write_str("column policy set mixes role, login, project, digest, or generation")
+            }
+            Self::LimitExceeded => formatter.write_str("column policy set exceeds a bound"),
+            Self::TypeRefused { column } => {
+                write!(formatter, "mapped column type is not grantable: {column}")
+            }
+            Self::MetadataColumn { column } => {
+                write!(formatter, "metadata column is not grantable: {column}")
+            }
+            Self::MembershipMismatch => {
+                formatter.write_str("existing role membership does not match")
+            }
             Self::Database { sqlstate, message } => {
                 write!(formatter, "postgres sqlstate={sqlstate} {message}")
             }
@@ -329,6 +363,237 @@ pub async fn connect_require_tls(
     config.ssl_mode(tokio_postgres::config::SslMode::Require);
     config.application_name("oo-gateway-policy");
     config.connect(tls).await.map_err(db_error)
+}
+
+/// Maximum tables in one [`install_column_acl_set`] call.
+pub const COLUMN_ACL_SET_MAX_TABLES: usize = 32;
+
+/// Maximum columns on one table in that call. Matches the catalog column bound.
+pub const COLUMN_ACL_SET_MAX_COLUMNS: usize = 512;
+
+/// Policies that passed the pure aggregate checks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledPolicySet {
+    policies: Vec<CompiledPolicy>,
+}
+
+impl CompiledPolicySet {
+    /// Number of tables in the set.
+    pub fn len(&self) -> usize {
+        self.policies.len()
+    }
+
+    /// True when the set has no tables. [`compile_column_acl_set`] does not
+    /// return that value.
+    pub fn is_empty(&self) -> bool {
+        self.policies.is_empty()
+    }
+
+    /// Database role name, `oo_r_` plus the shared slug.
+    pub fn role(&self) -> &str {
+        &self.policies[0].role
+    }
+}
+
+/// One table in a committed aggregate install. Order follows the input.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SetTableGrant {
+    /// Physical shadow table in `_oo`.
+    pub physical_table: String,
+    /// Physical columns granted, in policy order.
+    pub physical_columns: Vec<String>,
+}
+
+/// Result of a committed aggregate install.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SetInstallOutcome {
+    /// Created now, or an exact full-set replay.
+    pub effect: InstallEffect,
+    /// `oo_r_<slug>`.
+    pub role: String,
+    /// `session_user` that issued the grants. Never `oo_target_owner`.
+    pub grantor: String,
+    /// One entry per input policy, in that order.
+    pub tables: Vec<SetTableGrant>,
+}
+
+/// Pure aggregate compile. Every row filter, identifier, classification, and
+/// bound is checked before a connection is used.
+pub fn compile_column_acl_set(
+    policies: &[ColumnAclPolicy],
+) -> Result<CompiledPolicySet, PolicyError> {
+    if policies.is_empty() {
+        return Err(PolicyError::EmptyPolicySet);
+    }
+    if policies.len() > COLUMN_ACL_SET_MAX_TABLES {
+        return Err(PolicyError::LimitExceeded);
+    }
+    let mut compiled = Vec::with_capacity(policies.len());
+    for policy in policies {
+        let one = compile_column_acl(policy)?;
+        if one.columns.len() > COLUMN_ACL_SET_MAX_COLUMNS {
+            return Err(PolicyError::LimitExceeded);
+        }
+        for column in &one.columns {
+            if metadata_column(&column.name) {
+                return Err(PolicyError::MetadataColumn {
+                    column: column.name.clone(),
+                });
+            }
+        }
+        compiled.push(one);
+    }
+    let first = &compiled[0];
+    let mut tables = BTreeSet::new();
+    for policy in &compiled {
+        if policy.project != first.project
+            || policy.config_digest != first.config_digest
+            || policy.generation != first.generation
+            || policy.role != first.role
+            || policy.login != first.login
+        {
+            return Err(PolicyError::MixedIdentity);
+        }
+        if !tables.insert((policy.namespace.clone(), policy.table.clone())) {
+            return Err(PolicyError::InvalidIdentifier { field: "table" });
+        }
+    }
+    Ok(CompiledPolicySet { policies: compiled })
+}
+
+/// Install one role for every table in `policies`.
+///
+/// Compile, mapping, type, generation, PII, and row-filter checks finish
+/// before `CREATE ROLE` or any `GRANT`. A new role is created once. An
+/// existing role is replayed only when its membership and its full column
+/// grant set already equal this list. A partial list, a foreign table, or a
+/// changed column is [`PolicyError::GrantMismatch`] and does not revoke or
+/// add grants. Any error rolls the transaction back, including a role created
+/// in that transaction.
+pub async fn install_column_acl_set(
+    client: &mut Client,
+    policies: &[ColumnAclPolicy],
+) -> Result<SetInstallOutcome, PolicyError> {
+    let compiled = compile_column_acl_set(policies)?;
+    require_tls_session(client).await?;
+    let mut tx = client.transaction().await.map_err(db_error)?;
+    match install_set_in_transaction(&mut tx, &compiled).await {
+        Ok(outcome) => {
+            tx.commit().await.map_err(db_error)?;
+            Ok(outcome)
+        }
+        Err(err) => {
+            let _ = tx.rollback().await;
+            Err(err)
+        }
+    }
+}
+
+struct ResolvedTable {
+    physical_table: String,
+    physical_columns: Vec<String>,
+}
+
+async fn install_set_in_transaction(
+    tx: &mut Transaction<'_>,
+    compiled: &CompiledPolicySet,
+) -> Result<SetInstallOutcome, PolicyError> {
+    let grantor = require_grantor(tx).await?;
+    let first = &compiled.policies[0];
+    let current = current_generation(tx, &first.project, &first.config_digest).await?;
+    if current != Some(first.generation) {
+        return Err(PolicyError::StaleGeneration {
+            policy: first.generation,
+            current,
+        });
+    }
+    let mut resolved = Vec::with_capacity(compiled.policies.len());
+    let mut physical_tables = BTreeSet::new();
+    for policy in &compiled.policies {
+        let physical_table = lookup_relation(
+            tx,
+            policy,
+            "table",
+            &policy.namespace,
+            &policy.table,
+            "",
+            "pt_",
+        )
+        .await?;
+        if !physical_tables.insert(physical_table.clone()) {
+            return Err(PolicyError::InvalidIdentifier { field: "table" });
+        }
+        let mut physical_columns = Vec::with_capacity(policy.columns.len());
+        let mut seen_columns = BTreeSet::new();
+        for column in &policy.columns {
+            let physical = lookup_relation(
+                tx,
+                policy,
+                "column",
+                &policy.namespace,
+                &policy.table,
+                &column.name,
+                "pc_",
+            )
+            .await?;
+            if !seen_columns.insert(physical.clone()) {
+                return Err(PolicyError::InvalidIdentifier { field: "column" });
+            }
+            ensure_grantable_type(tx, &physical_table, &physical, &column.name).await?;
+            physical_columns.push(physical);
+        }
+        resolved.push(ResolvedTable {
+            physical_table,
+            physical_columns,
+        });
+    }
+    ensure_login(tx, &first.login).await?;
+    let existed = role_exists(tx, &first.role).await?;
+    if existed {
+        ensure_role_shape(tx, &first.role).await?;
+        ensure_membership(tx, &first.role, &first.login).await?;
+        ensure_exact_grants(tx, &first.role, &resolved).await?;
+        ensure_schema_usage(tx, &first.role).await?;
+    }
+    if !existed {
+        create_role(tx, &first.role).await?;
+    }
+    grant_membership(tx, &first.role, &first.login).await?;
+    if !existed {
+        for table in &resolved {
+            grant_usage_and_columns(
+                tx,
+                &first.role,
+                &table.physical_table,
+                &table.physical_columns,
+            )
+            .await?;
+        }
+        ensure_role_shape(tx, &first.role).await?;
+        ensure_membership(tx, &first.role, &first.login).await?;
+        ensure_exact_grants(tx, &first.role, &resolved).await?;
+        ensure_schema_usage(tx, &first.role).await?;
+    }
+    Ok(SetInstallOutcome {
+        effect: if existed {
+            InstallEffect::Replay
+        } else {
+            InstallEffect::Installed
+        },
+        role: first.role.clone(),
+        grantor,
+        tables: resolved
+            .into_iter()
+            .map(|table| SetTableGrant {
+                physical_table: table.physical_table,
+                physical_columns: table.physical_columns,
+            })
+            .collect(),
+    })
+}
+
+fn metadata_column(name: &str) -> bool {
+    name == "_oo_pos" || name.starts_with("_oo_")
 }
 
 /// Install the compiled column ACL on `client`.
@@ -710,11 +975,7 @@ async fn create_role(tx: &mut Transaction<'_>, role: &str) -> Result<(), PolicyE
     ensure_role_shape(tx, role).await
 }
 
-async fn grant_membership(
-    tx: &mut Transaction<'_>,
-    role: &str,
-    login: &str,
-) -> Result<(), PolicyError> {
+async fn ensure_login(tx: &mut Transaction<'_>, login: &str) -> Result<(), PolicyError> {
     let row = tx
         .query_opt(
             "SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname = $1",
@@ -727,8 +988,18 @@ async fn grant_membership(
     };
     let superuser: bool = row.get(0);
     if superuser {
-        return Err(PolicyError::LoginAbsent);
+        Err(PolicyError::LoginAbsent)
+    } else {
+        Ok(())
     }
+}
+
+async fn grant_membership(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    login: &str,
+) -> Result<(), PolicyError> {
+    ensure_login(tx, login).await?;
     let quoted_role = quote_ident(role)?;
     let quoted_login = quote_ident(login)?;
     tx.batch_execute(&format!(
@@ -794,6 +1065,164 @@ async fn ensure_no_table_privilege(
         .map_err(db_error)?;
     let count: i64 = row.get(0);
     if count == 0 {
+        Ok(())
+    } else {
+        Err(PolicyError::GrantMismatch)
+    }
+}
+
+async fn ensure_grantable_type(
+    tx: &mut Transaction<'_>,
+    table: &str,
+    column: &str,
+    logical: &str,
+) -> Result<(), PolicyError> {
+    let row = tx
+        .query_opt(
+            "SELECT type_row.typname::text, type_row.typtype::text \
+             FROM pg_catalog.pg_attribute AS attribute \
+             JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid \
+             JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
+             JOIN pg_catalog.pg_type AS type_row ON type_row.oid = attribute.atttypid \
+             WHERE namespace.nspname = '_oo' AND relation.relname = $1 AND attribute.attname = $2 \
+               AND attribute.attnum > 0 AND NOT attribute.attisdropped",
+            &[&table, &column],
+        )
+        .await
+        .map_err(db_error)?;
+    let Some(row) = row else {
+        return Err(PolicyError::PhysicalAbsent);
+    };
+    let name: String = row.get(0);
+    let kind: String = row.get(1);
+    if kind == "b" && catalog::SUPPORTED_TYPES.contains(&name.as_str()) {
+        Ok(())
+    } else {
+        Err(PolicyError::TypeRefused {
+            column: logical.to_string(),
+        })
+    }
+}
+
+async fn ensure_membership(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    login: &str,
+) -> Result<(), PolicyError> {
+    let rows = tx
+        .query(
+            "SELECT member_role.rolname::text, membership.inherit_option, \
+                    membership.set_option, membership.admin_option \
+             FROM pg_catalog.pg_auth_members AS membership \
+             JOIN pg_catalog.pg_roles AS granted ON granted.oid = membership.roleid \
+             JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = membership.member \
+             WHERE granted.rolname = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    if rows.len() != 1 {
+        return Err(PolicyError::MembershipMismatch);
+    }
+    let name: String = rows[0].get(0);
+    let inherit: bool = rows[0].get(1);
+    let set_option: bool = rows[0].get(2);
+    let admin_option: bool = rows[0].get(3);
+    if name == login && !inherit && set_option && !admin_option {
+        Ok(())
+    } else {
+        Err(PolicyError::MembershipMismatch)
+    }
+}
+
+async fn ensure_exact_grants(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    tables: &[ResolvedTable],
+) -> Result<(), PolicyError> {
+    let rows = tx
+        .query(
+            "SELECT table_schema::text, table_name::text, column_name::text, privilege_type::text \
+             FROM information_schema.column_privileges WHERE grantee = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let mut actual = BTreeSet::new();
+    for row in rows {
+        let schema: String = row.get(0);
+        let table: String = row.get(1);
+        let column: String = row.get(2);
+        let privilege: String = row.get(3);
+        actual.insert((schema, table, column, privilege));
+    }
+    let mut expected = BTreeSet::new();
+    for table in tables {
+        for column in &table.physical_columns {
+            expected.insert((
+                "_oo".to_string(),
+                table.physical_table.clone(),
+                column.clone(),
+                "SELECT".to_string(),
+            ));
+        }
+        ensure_metadata_hidden(tx, role, &table.physical_table).await?;
+    }
+    if actual != expected {
+        return Err(PolicyError::GrantMismatch);
+    }
+    let row = tx
+        .query_one(
+            "SELECT count(*)::int8 FROM information_schema.table_privileges WHERE grantee = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let count: i64 = row.get(0);
+    if count == 0 {
+        Ok(())
+    } else {
+        Err(PolicyError::GrantMismatch)
+    }
+}
+
+async fn ensure_metadata_hidden(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    table: &str,
+) -> Result<(), PolicyError> {
+    let row = tx
+        .query_one(
+            "SELECT pg_catalog.has_column_privilege(($1::text)::name, relation.oid, '_oo_pos'::text, 'SELECT') \
+             FROM pg_catalog.pg_class AS relation \
+             JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
+             WHERE namespace.nspname = '_oo' AND relation.relname = $2",
+            &[&role, &table],
+        )
+        .await
+        .map_err(db_error)?;
+    let allowed: Option<bool> = row.get(0);
+    if allowed == Some(true) {
+        Err(PolicyError::MetadataColumn {
+            column: "_oo_pos".to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+async fn ensure_schema_usage(tx: &mut Transaction<'_>, role: &str) -> Result<(), PolicyError> {
+    let row = tx
+        .query_one(
+            "SELECT pg_catalog.has_schema_privilege(($1::text)::name, '_oo'::name, 'USAGE'), \
+                    pg_catalog.has_schema_privilege(($1::text)::name, '_oo'::name, 'CREATE')",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let usage: bool = row.get(0);
+    let create: bool = row.get(1);
+    if usage && !create {
         Ok(())
     } else {
         Err(PolicyError::GrantMismatch)
@@ -922,5 +1351,73 @@ mod tests {
         assert_eq!(compiled.role, "oo_r_dispatcher");
         assert_eq!(compiled.generation, 7);
         assert_eq!(compiled.columns.len(), 2);
+    }
+
+    #[test]
+    fn a_set_refuses_empty_mixed_duplicate_bounds_and_metadata() {
+        let one = policy(None, vec![column("order_id", PiiClass::None)]);
+        assert_eq!(
+            compile_column_acl_set(&[]).unwrap_err(),
+            PolicyError::EmptyPolicySet
+        );
+        let mut other_role = one.clone();
+        other_role.role = "other".to_string();
+        other_role.table.name = "invoice".to_string();
+        assert_eq!(
+            compile_column_acl_set(&[one.clone(), other_role]).unwrap_err(),
+            PolicyError::MixedIdentity
+        );
+        let mut other_generation = one.clone();
+        other_generation.table.name = "invoice".to_string();
+        other_generation.generation = 8;
+        assert_eq!(
+            compile_column_acl_set(&[one.clone(), other_generation]).unwrap_err(),
+            PolicyError::MixedIdentity
+        );
+        assert_eq!(
+            compile_column_acl_set(&[one.clone(), one.clone()]).unwrap_err(),
+            PolicyError::InvalidIdentifier { field: "table" }
+        );
+        let mut wide = one.clone();
+        wide.table.columns = (0..513)
+            .map(|index| column(&format!("c{index}"), PiiClass::None))
+            .collect();
+        assert_eq!(
+            compile_column_acl_set(&[wide]).unwrap_err(),
+            PolicyError::LimitExceeded
+        );
+        let mut many = Vec::new();
+        for index in 0..33 {
+            let mut item = one.clone();
+            item.table.name = format!("t{index}");
+            many.push(item);
+        }
+        assert_eq!(
+            compile_column_acl_set(&many).unwrap_err(),
+            PolicyError::LimitExceeded
+        );
+        let mut hidden = one.clone();
+        hidden.table.columns = vec![column("_oo_pos", PiiClass::None)];
+        assert!(matches!(
+            compile_column_acl_set(&[hidden.clone()]),
+            Err(PolicyError::MetadataColumn { .. })
+        ));
+        assert!(compile_column_acl(&hidden).is_ok());
+        let mut filtered = one.clone();
+        filtered.table.name = "invoice".to_string();
+        filtered.row_filter = Some(RowFilter::Claims {
+            column: "region".to_string(),
+            claim: "region".to_string(),
+        });
+        assert_eq!(
+            compile_column_acl_set(&[one.clone(), filtered]).unwrap_err(),
+            PolicyError::RowFilterRefused
+        );
+        let mut second = one.clone();
+        second.table.name = "invoice".to_string();
+        let compiled = compile_column_acl_set(&[one, second]).expect("set");
+        assert_eq!(compiled.len(), 2);
+        assert!(!compiled.is_empty());
+        assert_eq!(compiled.role(), "oo_r_dispatcher");
     }
 }
