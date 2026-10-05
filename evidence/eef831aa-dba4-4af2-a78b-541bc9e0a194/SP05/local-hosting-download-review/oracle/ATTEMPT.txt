@@ -1,0 +1,10 @@
+attempt=1
+result=compile_error
+docker_run_exit=101
+oom=false
+console=console.log
+source=review_download.attempt1.rs
+source_sha256=fc232808909836f8f411dae7570c257d277254fdc44b9f8bba7cc083af807a97
+errors=E0382 range moved before bytes; E0502 and E0499 pin binding outlived the explicit drop
+next=oracle-attempt-2
+preserved=1

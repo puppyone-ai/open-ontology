@@ -1,0 +1,22 @@
+fixed=e3363ffecc21af4dc9fcf75509978da34b0860b1
+tree=fb3f57bfcb2853e56a617549be340043fe3cd7fb
+composition=git archive of e3363ffecc21af4dc9fcf75509978da34b0860b1; overlay absent
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a194-pre-edit
+network=oo-a194-eef831aa-net
+cargo_volume=oo-a194-eef831aa-cargo
+target_volume=oo-a194-eef831aa-target
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+postgres=none
+tmpfs=/tmp:rw,nosuid,nodev,size=2g
+memory=8g
+phases=fmt-check fetch lock-unchanged test clippy
+package=oo-control
+hash_oracle=shasum and git hash-object; no python hashlib

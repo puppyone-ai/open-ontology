@@ -1,0 +1,7 @@
+observed_at=2026-10-05T16:54:08Z
+name=oo-a195-smoke image=0f24958fa693 status=Up 16 seconds
+name=oo-a196-smoke image=0f24958fa693 status=Up 2 minutes
+labeled:
+name=oo-a195-smoke kind=rust-builder owner=a195 status=Up 16 seconds
+name=oo-a196-smoke kind=rust-builder owner=a196 status=Up 2 minutes
+host_toolchain_comm:

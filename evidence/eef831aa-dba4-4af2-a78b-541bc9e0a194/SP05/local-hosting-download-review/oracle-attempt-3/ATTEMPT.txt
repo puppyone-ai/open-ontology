@@ -1,0 +1,9 @@
+attempt=3
+result=tests_passed_clippy_failed
+docker_run_exit=101
+tests=5 passed in 20.47s
+clippy=5 denies
+console=console.log
+source=review_download.attempt3.rs
+next=oracle-attempt-4
+preserved=1

@@ -1,0 +1,15 @@
+unread_hash_flip=Corrupt
+unread_hash_flip_complete=0
+consumed_prefix_flip_complete=1
+consumed_prefix_running_hash_matches_snapshot=1
+consumed_prefix_stored_file_matches_snapshot=0
+append_before_eof=Corrupt
+truncate_after_first_chunk=Store
+changed_manifest=Corrupt
+snapshot_replaced=0
+different_object_key=NotFound
+forged_size_0=Corrupt
+empty_manifest=Corrupt
+manifest_above_4096=Corrupt
+missing_manifest=NotFound
+body_unbounded=0
