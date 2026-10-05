@@ -1,0 +1,12 @@
+passed=true
+questions=1
+trials=1
+passes=1
+fails=0
+timeouts=0
+reannotations=0
+not_runs=0
+lane=trusted_sql
+metadata=declared
+mode=frozen_eval
+trial exact status=pass reason=match query_exit=0 adapter_exit=0 comparator_exit=0 comparator_verdict=match end_audit_ok=true truncated=false partial=false backend_cleanup=unknown index=0

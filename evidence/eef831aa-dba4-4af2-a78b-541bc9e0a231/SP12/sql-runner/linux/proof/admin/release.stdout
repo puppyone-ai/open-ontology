@@ -1,0 +1,5 @@
+ terminated | pid | state  |     query_prefix      
+------------+-----+--------+-----------------------
+ t          | 161 | active | SELECT pg_sleep(120);
+(1 row)
+

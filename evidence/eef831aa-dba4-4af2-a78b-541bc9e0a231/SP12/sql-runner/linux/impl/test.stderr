@@ -1,0 +1,36 @@
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-sql-runner v0.1.0 (/src/benchmarks/sql-runner)
+error[E0618]: expected function, found `PathBuf`
+   --> tests/cli.rs:411:20
+    |
+107 |   fn request(dir: &Path, sql: &str) -> PathBuf {
+    |   -------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+372 |       let request = request(&dir, "SELECT note FROM dispatch.ticket /* A231-MATCH */");
+    |           ------- `request` has type `PathBuf`
+...
+411 |       let poisoned = request(
+    |                      -^^^^^^- help: consider using a semicolon here to finish the statement: `;`
+    |  ____________________|
+    | |
+412 | |         &dir,
+413 | |         &format!("SELECT '{path}' /* A231-MATCH */", path = gold.display()),
+414 | |     );
+    | |_____- call expression requires function
+
+error[E0618]: expected function, found `PathBuf`
+   --> tests/cli.rs:424:18
+    |
+107 | fn request(dir: &Path, sql: &str) -> PathBuf {
+    | -------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+372 |     let request = request(&dir, "SELECT note FROM dispatch.ticket /* A231-MATCH */");
+    |         ------- `request` has type `PathBuf`
+...
+424 |     let leaked = request(&dir, &format!("SELECT '{SECRET}' /* A231-MATCH */"));
+    |                  ^^^^^^^------------------------------------------------------
+    |                  |
+    |                  call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-sql-runner` (test "cli") due to 2 previous errors

@@ -1,0 +1,17 @@
+passed=false
+questions=6
+trials=6
+passes=1
+fails=5
+timeouts=0
+reannotations=0
+not_runs=0
+lane=trusted_sql
+metadata=declared
+mode=synthetic
+trial exact status=pass reason=match query_exit=0 adapter_exit=0 comparator_exit=0 comparator_verdict=match end_audit_ok=true truncated=false partial=false backend_cleanup=unknown
+trial changed status=fail reason=mismatch query_exit=0 adapter_exit=0 comparator_exit=1 comparator_verdict=mismatch end_audit_ok=true truncated=false partial=false backend_cleanup=unknown
+trial seal status=fail reason=refused query_exit=6 adapter_exit=null comparator_exit=null comparator_verdict=absent end_audit_ok=null truncated=null partial=null backend_cleanup=unknown
+trial hold status=fail reason=refused query_exit=6 adapter_exit=null comparator_exit=null comparator_verdict=absent end_audit_ok=null truncated=null partial=null backend_cleanup=unknown
+trial trunc status=fail reason=truncated query_exit=0 adapter_exit=0 comparator_exit=0 comparator_verdict=match end_audit_ok=true truncated=true partial=false backend_cleanup=unknown
+trial cmpset status=fail reason=comparator_refused query_exit=0 adapter_exit=0 comparator_exit=2 comparator_verdict=absent end_audit_ok=true truncated=false partial=false backend_cleanup=unknown

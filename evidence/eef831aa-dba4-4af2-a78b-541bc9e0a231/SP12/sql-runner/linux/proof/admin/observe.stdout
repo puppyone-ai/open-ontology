@@ -1,0 +1,21 @@
+       rolname       
+---------------------
+ oo_a198_login
+ oo_fixture_admin
+ oo_pipeline_runtime
+ oo_r_desk
+ oo_r_peek
+ oo_target_owner
+(6 rows)
+
+ level | logical_namespace | logical_table 
+-------+-------------------+---------------
+ n     | dispatch          | 
+ t     | dispatch          | ticket
+(2 rows)
+
+ nspname  | relname 
+----------+---------
+ dispatch | hold
+(1 row)
+

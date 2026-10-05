@@ -1,0 +1,1 @@
+{"/tight":"rw,nosuid,nodev,noexec,size=64k","/tmp":"rw,nosuid,nodev,noexec,size=1g"}

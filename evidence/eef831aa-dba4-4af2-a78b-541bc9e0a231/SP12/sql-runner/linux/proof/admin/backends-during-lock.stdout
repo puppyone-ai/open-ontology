@@ -1,0 +1,11 @@
+ oo_a198_backends 
+------------------
+                2
+(1 row)
+
+ pid | state  | wait_event_type |  backend_type  |                   query_prefix                   
+-----+--------+-----------------+----------------+--------------------------------------------------
+ 161 | active | Timeout         | client backend | SELECT pg_sleep(120);
+ 184 | active |                 | client backend | SELECT pid, state, wait_event_type, backend_type
+(2 rows)
+
