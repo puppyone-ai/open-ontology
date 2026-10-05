@@ -1,0 +1,14 @@
+    Checking oo-query-result-adapter v0.1.0 (/src/benchmarks/query-result-adapter)
+error[E0624]: associated function `at` is private
+   --> tests/adapt.rs:284:30
+    |
+284 |     let error = ConfigError::at("protocol", "/1");
+    |                              ^^ private associated function
+    |
+   ::: src/parse.rs:36:5
+    |
+ 36 |     pub(crate) fn at(token: &'static str, pointer: impl Into<String>) -> Self {
+    |     ------------------------------------------------------------------------- private associated function defined here
+
+For more information about this error, try `rustc --explain E0624`.
+error: could not compile `oo-query-result-adapter` (test "adapt") due to 1 previous error

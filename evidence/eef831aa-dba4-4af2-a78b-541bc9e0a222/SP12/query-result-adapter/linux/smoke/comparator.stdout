@@ -1,0 +1,70 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 16 tests
+test complete_actual_does_not_match_partial_expected ... ok
+test document_byte_cap_is_budget ... ok
+test duplicate_key_is_json ... ok
+test failed_does_not_match_complete ... ok
+test fractional_scale_is_decimal ... ok
+test int64_extremes_outside_the_range_are_config ... ok
+test int64_json_number_and_noncanonical_spellings_are_refused ... ok
+test json_number_coefficient_is_schema ... ok
+test leading_zero_coefficient_is_decimal ... ok
+test negative_zero_decimal_is_refused ... ok
+test not_found_rejects_a_row_payload ... ok
+test payload_byte_cap_is_budget ... ok
+test set_comparator_is_rejected ... ok
+test short_row_is_schema ... ok
+test too_many_rows_is_budget ... ok
+test unavailable_does_not_match_null ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.02s
+
+
+running 4 tests
+test binary_duplicate_key_exits_config ... ok
+test binary_match_and_mismatch_exits ... ok
+test help_exits_zero_and_does_not_read_stdin ... ok
+test unknown_argument_is_usage ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 12 tests
+test completion_is_reported_before_a_decimal_mismatch ... ok
+test exact_decimal_and_int64_extremes_match ... ok
+test mismatched_decimal_is_not_a_float_tolerance ... ok
+test negative_scale_rescales_exactly ... ok
+test not_found_matches_only_not_found ... ok
+test null_does_not_match_missing ... ok
+test ordered_rows_do_not_treat_a_swap_as_a_tie ... ok
+test partial_actual_does_not_match_complete ... ok
+test unordered_keeps_duplicate_multiplicity ... ok
+test unordered_swap_matches_without_becoming_a_set ... ok
+test warnings_are_ordered_and_exact ... ok
+test zero_coefficients_match_across_scale ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test fips_180_4_448_bit_alphabet ... ok
+test fips_180_4_abc ... ok
+test fips_180_4_empty_string ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,337 @@
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:204:
+         return Err(ConfigError::at("schema", child(pointer, "version")));
+     }
+     let turn = req_bound(map, "turn", pointer, MAX_TURN)?;
+-    let max_rows = req_bound(map, "max_rows", pointer, u64::try_from(MAX_ROWS).unwrap_or(0))?;
++    let max_rows = req_bound(
++        map,
++        "max_rows",
++        pointer,
++        u64::try_from(MAX_ROWS).unwrap_or(0),
++    )?;
+     let max_result_bytes = req_bound(map, "max_result_bytes", pointer, MAX_RESULT_BYTES)?;
+     let columns = parse_columns(req(map, "columns", pointer)?, pointer)?;
+-    let width = columns.iter().filter(|column| column.ordinal.is_some()).count();
++    let width = columns
++        .iter()
++        .filter(|column| column.ordinal.is_some())
++        .count();
+     let mut seen = vec![false; width];
+     for column in &columns {
+         let Some(ordinal) = column.ordinal else {
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:270:
+ }
+ 
+ fn parse_ordinal(number: &Number, pointer: &str) -> Result<usize, ConfigError> {
+-    let value = parse_u64(number).map_err(|_| ConfigError::at("schema", format!("{pointer}/ordinal")))?;
++    let value =
++        parse_u64(number).map_err(|_| ConfigError::at("schema", format!("{pointer}/ordinal")))?;
+     if value >= u64::try_from(MAX_COLUMNS).unwrap_or(0) {
+         return Err(ConfigError::at("budget", format!("{pointer}/ordinal")));
+     }
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:277:
+     usize::try_from(value).map_err(|_| ConfigError::at("schema", format!("{pointer}/ordinal")))
+ }
+ 
+-fn parse_row(map: &Map<String, Value>, header: &Header, pointer: &str) -> Result<Vec<OutCell>, ConfigError> {
++fn parse_row(
++    map: &Map<String, Value>,
++    header: &Header,
++    pointer: &str,
++) -> Result<Vec<OutCell>, ConfigError> {
+     check_keys(map, &["cells", "record", "turn"], pointer)?;
+     let turn = req_bound(map, "turn", pointer, MAX_TURN)?;
+     if turn != header.turn {
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:289:
+     }
+     let mut parsed = Vec::with_capacity(cells.len());
+     for (index, cell) in cells.iter().enumerate() {
+-        parsed.push(parse_gateway_cell(cell, &format!("{}/cells/{index}", pointer.trim_end_matches('/')))?);
++        parsed.push(parse_gateway_cell(
++            cell,
++            &format!("{}/cells/{index}", pointer.trim_end_matches('/')),
++        )?);
+     }
+     let mut out = Vec::with_capacity(header.columns.len());
+     for column in &header.columns {
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:330:
+         }
+         "text" => {
+             check_keys(map, &["kind", "value"], pointer)?;
+-            Ok(GatewayCell::Text(req_str(map, "value", pointer)?.to_owned()))
++            Ok(GatewayCell::Text(
++                req_str(map, "value", pointer)?.to_owned(),
++            ))
+         }
+         _ => Err(ConfigError::at("protocol", child(pointer, "kind"))),
+     }
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:374:
+ }
+ 
+ fn decimal_cell(text: &str, integer_only: bool, pointer: &str) -> Result<OutCell, ConfigError> {
+-    let decimal = exact_decimal(text, integer_only).map_err(|_| ConfigError::at("decimal", pointer))?;
++    let decimal =
++        exact_decimal(text, integer_only).map_err(|_| ConfigError::at("decimal", pointer))?;
+     Ok(OutCell::Decimal(DecimalCell {
+         coefficient: decimal.coefficient().to_owned(),
+         negative: decimal.is_negative(),
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:423:
+     fraction.is_none_or(|fraction| fraction.bytes().all(|byte| byte.is_ascii_digit()))
+ }
+ 
+-fn parse_summary(map: &Map<String, Value>, turn: u64, pointer: &str) -> Result<Summary, ConfigError> {
++fn parse_summary(
++    map: &Map<String, Value>,
++    turn: u64,
++    pointer: &str,
++) -> Result<Summary, ConfigError> {
+     check_keys(
+         map,
+         &[
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:454:
+         _ => return Err(ConfigError::at("schema", child(pointer, "status"))),
+     };
+     let _truncated = req_bool(map, "truncated", pointer)?;
+-    let returned_rows = req_bound(map, "returned_rows", pointer, u64::try_from(MAX_ROWS).unwrap_or(0))?;
++    let returned_rows = req_bound(
++        map,
++        "returned_rows",
++        pointer,
++        u64::try_from(MAX_ROWS).unwrap_or(0),
++    )?;
+     let result_bytes = req_bound(map, "result_bytes", pointer, MAX_RESULT_BYTES)?;
+     let _rollback = req_bool(map, "rollback_confirmed", pointer)?;
+     let _socket = req_bool(map, "socket_dropped", pointer)?;
+Diff in /src/benchmarks/query-result-adapter/src/parse.rs:625:
+     }
+ }
+ 
+-fn check_keys(map: &Map<String, Value>, allowed: &[&str], pointer: &str) -> Result<(), ConfigError> {
++fn check_keys(
++    map: &Map<String, Value>,
++    allowed: &[&str],
++    pointer: &str,
++) -> Result<(), ConfigError> {
+     let mut unknown: Vec<&str> = map
+         .keys()
+         .filter(|key| !allowed.contains(&key.as_str()))
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:1:
+ use std::io::Cursor;
+ 
+-use oo_query_result_adapter::{run, ConfigError};
++use oo_query_result_adapter::{ConfigError, run};
+ use serde_json::Value;
+ 
+ const SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:8:
+ fn run_text(input: &str) -> (i32, String, String) {
+     let mut stdout = Vec::new();
+     let mut stderr = Vec::new();
+-    let code = run(Vec::<String>::new(), Cursor::new(input.as_bytes()), &mut stdout, &mut stderr);
++    let code = run(
++        Vec::<String>::new(),
++        Cursor::new(input.as_bytes()),
++        &mut stdout,
++        &mut stderr,
++    );
+     (
+         code,
+         String::from_utf8(stdout).unwrap(),
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:63:
+         .unwrap()
+         .split_once(' ')
+         .map(|(token, _)| token)
+-        .unwrap_or(stderr.trim_end().strip_prefix("query-result-adapter: ").unwrap())
++        .unwrap_or(
++            stderr
++                .trim_end()
++                .strip_prefix("query-result-adapter: ")
++                .unwrap(),
++        )
+ }
+ 
+ #[test]
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:84:
+     assert_eq!(value["warnings"], serde_json::json!([]));
+     assert_eq!(value["rows"][0][1]["value"], "-9223372036854775808");
+     assert_eq!(value["rows"][0][2]["value"], "雪の票́");
+-    assert!(value["rows"][0][2]["value"].as_str().unwrap().contains('\u{0301}'));
++    assert!(
++        value["rows"][0][2]["value"]
++            .as_str()
++            .unwrap()
++            .contains('\u{0301}')
++    );
+     assert_eq!(value["rows"][1][2], serde_json::json!({"presence":"null"}));
+     assert_ne!(value["rows"][1][2]["presence"], "missing");
+ }
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:109:
+         &header(
+             r#"[{"name":"note","type":"text","ordinal":1},{"name":"lane","type":"int64","ordinal":0}]"#,
+         ),
+-        &[r#"{"record":"row","turn":0,"cells":[{"kind":"int","value":"7"},{"kind":"text","value":"beta"}]}"#],
++        &[
++            r#"{"record":"row","turn":0,"cells":[{"kind":"int","value":"7"},{"kind":"text","value":"beta"}]}"#,
++        ],
+         &summary("succeeded", 1, 5, true, false),
+     );
+     let value = ok(&input);
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:124:
+         &header(
+             r#"[{"name":"amount","type":"decimal","ordinal":0},{"name":"whole","type":"decimal","ordinal":1}]"#,
+         ),
+-        &[r#"{"record":"row","turn":0,"cells":[{"kind":"text","value":"1.20"},{"kind":"int","value":"-12"}]}"#],
++        &[
++            r#"{"record":"row","turn":0,"cells":[{"kind":"text","value":"1.20"},{"kind":"int","value":"-12"}]}"#,
++        ],
+         &summary("succeeded", 1, 6, true, false),
+     );
+     let value = ok(&input);
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:156:
+ fn partial_and_failed_keep_their_words() {
+     let row = r#"{"record":"row","turn":0,"cells":[{"kind":"bool","value":true}]}"#;
+     let head = header(r#"[{"name":"flag","type":"bool","ordinal":0}]"#);
+-    let partial = ok(&stream(&head, &[row], &summary("partial", 1, 4, false, false)));
++    let partial = ok(&stream(
++        &head,
++        &[row],
++        &summary("partial", 1, 4, false, false),
++    ));
+     assert_eq!(partial["completion"], "partial");
+-    let failed = ok(&stream(&head, &[row], &summary("failed", 1, 4, true, false)));
++    let failed = ok(&stream(
++        &head,
++        &[row],
++        &summary("failed", 1, 4, true, false),
++    ));
+     assert_eq!(failed["completion"], "failed");
+-    let truncated = ok(&stream(&head, &[row], &summary("succeeded", 1, 4, true, true)));
++    let truncated = ok(&stream(
++        &head,
++        &[row],
++        &summary("succeeded", 1, 4, true, true),
++    ));
+     assert_eq!(truncated["completion"], "complete");
+ }
+ 
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:172:
+         &summary("succeeded", 1, 4, false, false),
+     );
+     let (_, stderr) = err(&input);
+-    assert_eq!(stderr, "query-result-adapter: completion /summary/end_audit_ok\n");
++    assert_eq!(
++        stderr,
++        "query-result-adapter: completion /summary/end_audit_ok\n"
++    );
+ }
+ 
+ #[test]
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:196:
+     assert_eq!(token(&err(&trailer).1), "protocol");
+     let duplicate = format!("{head}\n{row}\n{done}\n{done}\n");
+     assert_eq!(token(&err(&duplicate).1), "protocol");
+-    let unknown = format!(
+-        "{head}\n{{\"record\":\"page\",\"turn\":0}}\n{done}\n"
+-    );
++    let unknown = format!("{head}\n{{\"record\":\"page\",\"turn\":0}}\n{done}\n");
+     assert_eq!(token(&err(&unknown).1), "protocol");
+     let missing_header = format!("{row}\n{done}\n");
+     assert_eq!(token(&err(&missing_header).1), "protocol");
+Diff in /src/benchmarks/query-result-adapter/tests/adapt.rs:213:
+     let mismatch = stream(&head, &[row], &summary("succeeded", 2, 4, true, false));
+     assert_eq!(token(&err(&mismatch).1), "rowcount");
+     let over = stream(
+-        &header(r#"[{"name":"flag","type":"bool","ordinal":0}]"#).replace("\"max_rows\":20", "\"max_rows\":0"),
++        &header(r#"[{"name":"flag","type":"bool","ordinal":0}]"#)
++            .replace("\"max_rows\":20", "\"max_rows\":0"),
+         &[],
+         &summary("succeeded", 0, 0, true, false),
+     );
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:8:
+ use std::path::{Path, PathBuf};
+ use std::process::{Command, Stdio};
+ 
+-use serde_json::{json, Value};
++use serde_json::{Value, json};
+ 
+ #[test]
+ fn live_query_pg_stdout_matches_hand_gold_and_mutations_refuse() {
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:89:
+                     &bytes,
+                     Expect::Mismatch,
+                 );
+-                let actual = adapt(&adapter, &fs::read(root.join("fixtures/desk-header.jsonl")).unwrap(), &bytes);
++                let actual = adapt(
++                    &adapter,
++                    &fs::read(root.join("fixtures/desk-header.jsonl")).unwrap(),
++                    &bytes,
++                );
+                 assert_eq!(actual["completion"], "complete");
+                 assert_eq!(actual["rows"].as_array().unwrap().len(), 1);
+                 saw_truncate += 1;
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:100:
+                     &fs::read(root.join("fixtures/peek-header.jsonl")).unwrap(),
+                     &bytes,
+                 );
+-                assert_eq!(refused.code, 2, "{}", String::from_utf8_lossy(&refused.stderr));
++                assert_eq!(
++                    refused.code,
++                    2,
++                    "{}",
++                    String::from_utf8_lossy(&refused.stderr)
++                );
+                 assert!(refused.stdout.is_empty());
+                 let stderr = String::from_utf8(refused.stderr).unwrap();
+-                assert!(stderr.starts_with("query-result-adapter: protocol"), "{stderr}");
++                assert!(
++                    stderr.starts_with("query-result-adapter: protocol"),
++                    "{stderr}"
++                );
+                 saw_multi += 1;
+             }
+             Shape::Other(shape) => panic!("unclassified query-pg stdout {name}: {shape}"),
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:158:
+     );
+     assert_eq!(refused.code, 2);
+     let stderr = String::from_utf8(refused.stderr).unwrap();
+-    assert!(stderr.starts_with("query-result-adapter: protocol"), "{stderr}");
++    assert!(
++        stderr.starts_with("query-result-adapter: protocol"),
++        "{stderr}"
++    );
+ }
+ 
+ enum Expect {
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:238:
+             return Shape::Truncate;
+         }
+     }
+-    Shape::Other(format!("rows={rows} width={width} summaries={summaries} status={status}"))
++    Shape::Other(format!(
++        "rows={rows} width={width} summaries={summaries} status={status}"
++    ))
+ }
+ 
+ fn compare_capture(
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:251:
+ ) {
+     let header_bytes = fs::read(header).expect("header");
+     let actual = adapt(adapter, &header_bytes, stdout);
+-    let gold: Value = serde_json::from_slice(&fs::read(gold_path).expect("gold")).expect("gold json");
++    let gold: Value =
++        serde_json::from_slice(&fs::read(gold_path).expect("gold")).expect("gold json");
+     let mode = gold["row_comparator"].as_str().expect("mode");
+     let document = json!({
+         "version": "oo.benchmark.result-comparison/v1",
+Diff in /src/benchmarks/query-result-adapter/tests/proof.rs:319:
+ }
+ 
+ fn mutate_once(bytes: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+-    let start = bytes.windows(from.len()).position(|window| window == from).expect("needle");
++    let start = bytes
++        .windows(from.len())
++        .position(|window| window == from)
++        .expect("needle");
+     let mut out = Vec::with_capacity(bytes.len() - from.len() + to.len());
+     out.extend_from_slice(&bytes[..start]);
+     out.extend_from_slice(to);

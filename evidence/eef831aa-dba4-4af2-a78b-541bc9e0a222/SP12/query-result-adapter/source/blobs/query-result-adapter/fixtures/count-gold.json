@@ -1,0 +1,1 @@
+{"row_comparator":"ordered","expected":{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"ticket_count","type":"int64"}],"rows":[[{"presence":"value","value":"3"}]]}}

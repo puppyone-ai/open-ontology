@@ -1,0 +1,4 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"-2"},{"kind":"int","value":"-20"},{"kind":"int","value":"-9223372036854775808"},{"kind":"text","value":"雪の票́"},{"kind":"bool","value":true}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"1"},{"kind":"int","value":"10"},{"kind":"int","value":"9223372036854775807"},{"kind":"null"},{"kind":"bool","value":false}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"7"},{"kind":"int","value":"0"},{"kind":"int","value":"0"},{"kind":"text","value":"beta"},{"kind":"bool","value":true}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":78,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"3372bb47178cee213466e1255109f59cbfb17e8efcd555f5b6263edcd4ac97e4","executed_sha256":"3fc98cd0c3c26446104b49aed4f12abe111458ef1333499e4237082ffc51d386","stop":null,"sqlstate":null}

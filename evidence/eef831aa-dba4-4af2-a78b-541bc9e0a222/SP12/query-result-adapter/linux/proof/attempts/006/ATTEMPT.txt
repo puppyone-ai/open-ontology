@@ -1,0 +1,13 @@
+attempt=006
+container=oo-a222-proof
+docker_run_exit=1
+oom=false
+hostconfig_id=315e4bac1f63f3380e52ade0ea8d234627487a5dd34bedd4c5e29f6eef9a4acd
+memory=6442450944
+nanocpus=1000000000
+norun_exit=0
+tee=not_recorded
+cause=second --no-run hardlinked debug/query-pg onto the query-pg.real inode, so mv reported they are the same file
+preserved=yes
+postgres=oo-a222-pg left running
+inside_sha256_at_run=f3a6be66239cd356918b8cbb9a01f6e847f0d6cc60e795914a3bf73e6ba6923c

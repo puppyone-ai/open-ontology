@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running tests/proof.rs (/target/adapter/debug/deps/proof-71889c6b3dd8024e)
+
+thread 'live_query_pg_stdout_matches_hand_gold_and_mutations_refuse' (376) panicked at tests/proof.rs:115:17:
+query-result-adapter: type /1/cells/0
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test proof`

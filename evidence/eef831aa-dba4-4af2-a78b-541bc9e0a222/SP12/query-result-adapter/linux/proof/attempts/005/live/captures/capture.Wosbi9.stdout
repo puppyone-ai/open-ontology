@@ -1,0 +1,4 @@
+{"record":"row","turn":0,"cells":[{"kind":"text","value":"beta"}]}
+{"record":"row","turn":0,"cells":[{"kind":"text","value":"雪の票́"}]}
+{"record":"row","turn":0,"cells":[{"kind":"null"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":15,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"e6734e6e0a96a7e64917ab89765bd7cb13b67a61a0f258e4d78ef21a0c89d031","executed_sha256":"d0a419c09e42ef130b70ee5fb42c8891ec298d6e6143e52e48b1b45c6418f222","stop":null,"sqlstate":null}

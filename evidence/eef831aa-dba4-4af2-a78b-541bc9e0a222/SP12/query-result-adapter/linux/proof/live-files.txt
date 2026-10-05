@@ -1,0 +1,13 @@
+/evidence/live/captures/capture.2PJXAp.stdout
+/evidence/live/captures/capture.8hcOxE.stdout
+/evidence/live/captures/capture.LF8LWX.stdout
+/evidence/live/captures/capture.SRIV4h.stdout
+/evidence/live/captures/capture.Tfd9ls.stdout
+/evidence/live/captures/capture.khBfgr.stdout
+/evidence/live/captures/capture.r4K0CA.stdout
+/evidence/live/desk-explicit.audit.jsonl
+/evidence/live/desk-explicit.stdout
+/evidence/live/oracle.txt
+/evidence/live/stdin.audit.jsonl
+/evidence/live/test.stderr
+/evidence/live/test.stdout
