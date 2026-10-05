@@ -1,0 +1,4 @@
+da54f4468e0d3ca8fb9f47ad40047477fd8fbe99bcfbcf9b1aef7323df528e17  crates/oo-connectors/src/file_worker_parent.rs
+5dac4dacd63d8b2c0b4e124a263c9d5f05fbf5ed4a964d9cb1ed45f14438e5d6  crates/oo-connectors/src/lib.rs
+995d69fa005d6f9d0fc2d8864abe5de30fb2870849e6742be4022b3bd9baab53  crates/oo-connectors/tests/file_worker_parent.rs
+9a3c023bb683a1525cbd63075258791cb58d3ad0ee691a7568ee01fe37936ee5  contracts/connectors/file-worker-parent-v1.md

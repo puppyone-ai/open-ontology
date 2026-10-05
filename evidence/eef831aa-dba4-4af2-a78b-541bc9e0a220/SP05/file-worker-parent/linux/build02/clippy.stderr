@@ -1,0 +1,102 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: large size difference between variants
+   --> crates/oo-connectors/src/file_worker_parent.rs:530:1
+    |
+530 | / enum Phase {
+531 | |     Live,
+    | |     ---- the second-largest variant carries no data at all
+532 | |     Ready(ReadyProof),
+    | |     ----------------- the largest variant contains at least 216 bytes
+533 | |     Finished,
+534 | | }
+    | |_^ the entire enum is at least 216 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#large_enum_variant
+    = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+532 -     Ready(ReadyProof),
+532 +     Ready(Box<ReadyProof>),
+    |
+
+error: using `map_err` over `inspect_err`
+   --> crates/oo-connectors/src/file_worker_parent.rs:832:53
+    |
+832 |     let spawned = spawn_child(&config.worker, &cwd).map_err(|err| {
+    |                                                     ^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_inspect
+    = note: `-D clippy::manual-inspect` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_inspect)]`
+help: try
+    |
+832 ~     let spawned = spawn_child(&config.worker, &cwd).inspect_err(|err| {
+833 ~         let _ = fs::remove_dir_all(&cwd);
+    |
+
+error: the function `drain_stderr` doesn't need a mutable reference
+   --> crates/oo-connectors/src/file_worker_parent.rs:974:22
+    |
+974 |         drain_stderr(&mut pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+    |                      ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#unnecessary_mut_passed
+    = note: `-D clippy::unnecessary-mut-passed` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_mut_passed)]`
+help: remove this `mut`
+    |
+974 -         drain_stderr(&mut pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+974 +         drain_stderr(&pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+    |
+
+error: the function `drain_stderr` doesn't need a mutable reference
+    --> crates/oo-connectors/src/file_worker_parent.rs:1023:30
+     |
+1023 |                 drain_stderr(&mut pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+     |                              ^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#unnecessary_mut_passed
+help: remove this `mut`
+     |
+1023 -                 drain_stderr(&mut pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+1023 +                 drain_stderr(&pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+     |
+
+error: match expression looks like `matches!` macro
+    --> crates/oo-connectors/src/file_worker_parent.rs:2044:5
+     |
+2044 | /     match proc_field(leader, 2) {
+2045 | |         Some(pgrp) if pgrp == u64::from(leader) && pgrp > 1 => true,
+2046 | |         _ => false,
+2047 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#match_like_matches_macro
+     = note: `-D clippy::match-like-matches-macro` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::match_like_matches_macro)]`
+help: use `matches!` directly
+     |
+2044 -     match proc_field(leader, 2) {
+2045 -         Some(pgrp) if pgrp == u64::from(leader) && pgrp > 1 => true,
+2046 -         _ => false,
+2047 -     }
+2044 +     matches!(proc_field(leader, 2), Some(pgrp) if pgrp == u64::from(leader) && pgrp > 1)
+     |
+
+error: could not compile `oo-connectors` (lib) due to 5 previous errors
