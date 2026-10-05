@@ -8,7 +8,7 @@ The child is the existing guard. Admission rules, OID checks, and statement limi
 
 ## What this slice does not do
 
-`RESTRICTION_CAPABILITY` is `Unsupported`. `std::process::Command` with `env_clear` is not a kernel network, filesystem, or memory sandbox. This crate does not call `runsc`, does not add a dependency, and does not use `unsafe` to install namespaces, landlock, seccomp, or rlimits. Inherited file descriptors other than the assigned stdin, stdout, and stderr are not closed. A grandchild that leaves the child is not reaped by the direct `SIGKILL`. Those controls remain a separate launcher gate.
+`RESTRICTION_CAPABILITY` is `Unsupported`. `std::process::Command` with `env_clear` is not a kernel network, filesystem, or memory sandbox. This crate does not call `runsc`, does not add a dependency, and does not use `unsafe` to install namespaces, landlock, seccomp, or rlimits. Inherited file descriptors other than the assigned stdin, stdout, and stderr are not closed. The parent signals the child's process group. A descendant that has left that group is not killed. The parent's socket timeout still ends the IO join inside the deadline. Those gaps are an unsupported capability, not kernel isolation, and remain a separate launcher gate.
 
 `oo_gateway::query_executor::UNTRUSTED_ADMISSION` stays `Blocked`. This module is not an HTTP route, an authentication check, an audit write, a row-level security check, or a database session. The worker receives no database URL, model token, or home directory. Public untrusted admission stays closed until the worker, authentication, audit, and row-level security are all present, including a reviewed production launcher.
 
@@ -20,19 +20,23 @@ SP06-R8, the public gateway, and the full gateway goal stay open.
 
 `TrustedWorker::approve` accepts an absolute path to an existing file and stores the canonical path. `AdmitRequest` has identity, catalog, and SQL. It has no path field. The approved path is platform configuration. Caller SQL cannot replace it.
 
-`supervise` and `supervise_with` start one child per call. The child is not reused. `on_start` runs after `spawn` and before `wait`, so `/proc/<pid>` still names that child on Linux, including a zombie. The next call does not signal a pid from an earlier call. `Child::kill` sends `SIGKILL` to that child. The parent then `wait`s. It does not signal a process group.
+`supervise` and `supervise_with` start one child per call. The child is not reused. `on_start` runs after `spawn` and before `wait`, so `/proc/<pid>` still names that child on Linux, including a zombie. The next call does not signal a pid from an earlier call.
 
-The command is the canonical path. There is no shell. The environment is cleared. The working directory is an empty directory under the temp dir, named `oo-parser-worker-<parent pid>-<counter>`, removed when the call returns. Standard input and output are pipes. Standard error is null. On Unix the child is placed in a new process group (`process_group(0)`).
+The command is the canonical path. There is no shell. The environment is cleared. The working directory is an empty directory under the temp dir, named `oo-parser-worker-<parent pid>-<counter>`, removed when the call returns. Standard error is null. On Unix, standard input and output are `UnixStream` pairs. The child end is passed through `OwnedFd` because `Stdio` has no `From<UnixStream>` on Rust 1.94. The child is placed in a new process group (`process_group(0)`), so the group id is the child pid.
 
-The deadline is 500 ms from immediately before `spawn` through the reply read (`PARSE_DEADLINE`). A frame that arrives at or after that instant is a timeout. Timeout, oversize, malformed, crash, and cancel all `SIGKILL` and `wait`, except cancel that fires before `spawn`, which returns `Cancelled(None)` and starts nothing. An encode failure is `RequestBudget` and starts nothing.
+The deadline is 500 ms from immediately before `spawn` (`PARSE_DEADLINE`). It includes the request write, the wait for the child to observe end of file after that frame, the reply read, the group signal, the direct `wait`, and the join of the IO thread. A frame that arrives at or after that instant is a timeout. The IO thread sets a socket timeout of at most 20 ms and refreshes it until the deadline, so a blocked read or write returns and the join is bounded by one slice. The parent does not detach that thread, does not drop the `JoinHandle` as a timeout, and does not call `JoinHandle::abort`. `std::thread` cannot abort a thread blocked in IO.
 
-A usable reply is exit status 0 and exactly one plan or refusal frame, with the following read returning end of file. A non-zero exit is `Crashed` even when a frame was decoded. End of file before a frame is `Crashed`. A bad magic, version, kind, or body is `Malformed`. A declared body longer than 8 MiB is `Oversize` and the body is not allocated.
+Timeout, oversize, malformed, crash, and cancel signal the owned group and then the direct pid, then `wait`. Cancel that fires before `spawn` returns `Cancelled(None)` and starts nothing. An encode failure is `RequestBudget` and starts nothing. The group signal is the absolute program `/bin/kill` with arguments `-KILL`, `--`, and `-<group>`. Those arguments are the fixed signal and the recorded group id. The parent does not signal group 0 or 1, its own group, or a group whose leader has a different process-group id in `/proc`. If `/proc` no longer names the leader, the parent still signals the recorded group so a grandchild that kept the id is included. Reuse of that id is not prevented.
+
+Same-group members are killed and their pipe ends close. A descendant that left the group, including one that called `setsid`, is not killed. The socket timeout still lets the parent return. That is not a kernel sandbox.
+
+A usable reply is exit status 0 and exactly one plan or refusal frame, with the following read returning end of file. A non-zero exit is `Crashed` even when a frame was decoded. End of file before a frame is `Crashed`. A bad magic, version, kind, or body is `Malformed`. A declared body longer than 8 MiB is `Oversize` and the body is not allocated. A socket wait that reaches the deadline is `TimedOut`, including when the child has already written a complete frame and is still holding the reply stream open.
 
 The parent reads the reply on a dedicated thread. It does not call `Read::read_to_end` on the child, and it does not use `tokio::task::spawn_blocking` or `JoinHandle::abort` as the kill.
 
 ## Child
 
-`oo-sql-parser-worker` reads one request frame, drops stdin, calls `guard_select`, and writes one frame.
+`oo-sql-parser-worker` reads one request frame, requires the next read to be end of file, drops stdin, calls `guard_select`, and writes one frame. A trailing request byte is rejected. The child exits 1 and writes no guard reply. The parent's deadline still bounds the wait for that end of file, including a request write that has not finished.
 
 | Exit | When |
 |---|---|

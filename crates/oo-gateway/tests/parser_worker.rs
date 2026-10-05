@@ -38,6 +38,7 @@ const CANARY: &str = "canary_secret_sql_9f3a";
 
 const FAULT_SRC: &str = r#"
 use std::io::{Read, Write};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -67,8 +68,69 @@ fn main() {
             out.flush().unwrap();
         }
         "kind" => write_header(1, 99, 0),
+        "partial" => {
+            let mut out = std::io::stdout().lock();
+            out.write_all(b"OOSW").unwrap();
+            out.flush().unwrap();
+            thread::sleep(Duration::from_secs(30));
+        }
+        "hold-stdout" => {
+            write_header(1, 3, 1);
+            let mut out = std::io::stdout().lock();
+            out.write_all(&[1]).unwrap();
+            out.flush().unwrap();
+            thread::sleep(Duration::from_secs(30));
+        }
+        "late" => {
+            thread::sleep(Duration::from_millis(700));
+            write_header(1, 3, 1);
+            let mut out = std::io::stdout().lock();
+            out.write_all(&[1]).unwrap();
+            out.flush().unwrap();
+        }
+        "orphan" => orphan(false),
+        "orphan-stdout" => orphan(true),
+        "setsid-stdout" => setsid_stdout(),
         _ => std::process::exit(2),
     }
+}
+
+fn orphan(inherit_stdout: bool) {
+    let mut cmd = Command::new("/bin/sleep");
+    cmd.arg("25").stdin(Stdio::null()).stderr(Stdio::null());
+    if inherit_stdout {
+        cmd.stdout(Stdio::inherit());
+    } else {
+        cmd.stdout(Stdio::null());
+    }
+    let child = cmd.spawn().expect("sleep");
+    let id = child.id();
+    std::mem::forget(child);
+    let _ = std::fs::write("grandchild.pid", id.to_string());
+    thread::sleep(Duration::from_secs(30));
+}
+
+fn setsid_stdout() {
+    let setsid = if std::path::Path::new("/usr/bin/setsid").is_file() {
+        "/usr/bin/setsid"
+    } else if std::path::Path::new("/bin/setsid").is_file() {
+        "/bin/setsid"
+    } else {
+        let _ = std::fs::write("grandchild.pid", "absent");
+        thread::sleep(Duration::from_secs(30));
+        return;
+    };
+    let mut cmd = Command::new(setsid);
+    cmd.arg("/bin/sleep")
+        .arg("25")
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::inherit());
+    let child = cmd.spawn().expect("setsid");
+    let id = child.id();
+    std::mem::forget(child);
+    let _ = std::fs::write("grandchild.pid", id.to_string());
+    thread::sleep(Duration::from_secs(30));
 }
 
 fn oversize() {
@@ -105,7 +167,21 @@ fn echo() {
 "#;
 
 const FAULT_MODES: &[&str] = &[
-    "slow", "crash", "oversize", "version", "magic", "echo", "trailer", "delayed", "kind",
+    "slow",
+    "crash",
+    "oversize",
+    "version",
+    "magic",
+    "echo",
+    "trailer",
+    "delayed",
+    "kind",
+    "partial",
+    "hold-stdout",
+    "late",
+    "orphan",
+    "orphan-stdout",
+    "setsid-stdout",
 ];
 
 fn bin_path() -> &'static Path {
@@ -947,6 +1023,15 @@ fn direct_binary_matches_the_guard_and_rejects_a_non_request() {
     });
     assert_eq!(code, 1);
     assert!(out.is_empty(), "{out:?}");
+
+    let mut trailed = bytes.clone();
+    trailed.push(0x7f);
+    assert!(matches!(decode_frame(&trailed), Err(CodecError::Trailing)));
+    let (code, out, _) = collect_worker(&trailed, |cmd| {
+        cmd.env_clear();
+    });
+    assert_eq!(code, 1, "request trailer was accepted");
+    assert!(out.is_empty(), "{out:?}");
 }
 
 #[test]
@@ -1165,4 +1250,219 @@ fn a_timeout_does_not_kill_the_next_child() {
     );
     assert_eq!(response, ParserResponse::Refusal(GuardError::IdentityMismatch));
     assert_ne!(second_pid.get(), 0);
+}
+
+fn expect_timeout(result: Result<ParserResponse, SuperviseError>, label: &str) -> ProcessReport {
+    let Err(SuperviseError::TimedOut(report)) = result else {
+        panic!("{label}");
+    };
+    report
+}
+
+fn wait_for_grandchild(pid: u32, slot: &Cell<u32>) {
+    let cwd = fs::read_link(format!("/proc/{pid}/cwd")).unwrap_or_default();
+    let look = Instant::now();
+    while look.elapsed() < Duration::from_millis(200) {
+        if let Ok(text) = fs::read_to_string(cwd.join("grandchild.pid"))
+            && let Ok(parsed) = text.trim().parse::<u32>()
+        {
+            slot.set(parsed);
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn assert_group_gone(leader: u32) {
+    let entries = fs::read_dir("/proc").unwrap();
+    for entry in entries.flatten() {
+        let Ok(pid) = entry.file_name().to_str().unwrap_or("").parse::<u32>() else {
+            continue;
+        };
+        if proc_field(pid, 2) == Some(u64::from(leader)) {
+            let comm = fs::read_to_string(format!("/proc/{pid}/comm")).unwrap_or_default();
+            panic!("pid {pid} comm {} still in group {leader}", comm.trim());
+        }
+    }
+}
+
+fn signal_one(pid: u32) {
+    if pid <= 1 {
+        return;
+    }
+    let _ = Command::new("/bin/kill")
+        .arg("-KILL")
+        .arg("--")
+        .arg(pid.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+#[test]
+fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
+    let mut bulky = request(&small(), "SELECT 1");
+    bulky.catalog.relations.clear();
+    for rel in 0..80 {
+        let mut columns = Vec::new();
+        for col in 0..80 {
+            columns.push(column(
+                &format!("n{rel:02}{col:02}{}", "x".repeat(50)),
+                &format!("p{rel:02}{col:02}"),
+                INT_OID,
+            ));
+        }
+        bulky.catalog.relations.push(VisibleRelation {
+            schema: "logistics".to_string(),
+            name: format!("r{rel:02}"),
+            physical_schema: "_oo".to_string(),
+            physical_name: format!("t{rel:02}"),
+            columns,
+            pending_unclassified: 0,
+            estimated_rows: 1,
+        });
+    }
+    let encoded = encode_request(&bulky).expect("bulky encodes");
+    assert!(
+        encoded.len() > 300_000,
+        "request {} is small enough to sit in a socket buffer",
+        encoded.len()
+    );
+
+    let wall = Instant::now();
+    let pid = Cell::new(0u32);
+    let start = Cell::new(0u64);
+    let err = supervise_with(&fault("slow"), &bulky, &CancelFlag::new(), |child| {
+        pid.set(child);
+        start.set(live_child(child, &fault("slow")));
+    });
+    let report = expect_timeout(err, "blocked stdin was not a timeout");
+    assert!(
+        wall.elapsed() < Duration::from_secs(2),
+        "blocked stdin wall {:?}",
+        wall.elapsed()
+    );
+    assert!(report.elapsed < Duration::from_secs(1), "{report:?}");
+    assert_killed(&report);
+    assert_gone(&report, pid.get(), start.get());
+
+    for mode in ["hold-stdout", "partial"] {
+        let wall = Instant::now();
+        let pid = Cell::new(0u32);
+        let start = Cell::new(0u64);
+        let err = supervise_with(&fault(mode), &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
+            pid.set(child);
+            start.set(live_child(child, &fault(mode)));
+        });
+        let report = expect_timeout(err, mode);
+        assert!(wall.elapsed() < Duration::from_secs(1), "{mode} wall {:?}", wall.elapsed());
+        assert_killed(&report);
+        assert_gone(&report, pid.get(), start.get());
+    }
+
+    let wall = Instant::now();
+    let pid = Cell::new(0u32);
+    let start = Cell::new(0u64);
+    let err = supervise_with(&fault("late"), &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
+        pid.set(child);
+        start.set(live_child(child, &fault("late")));
+    });
+    let report = expect_timeout(err, "late frame was accepted");
+    assert!(wall.elapsed() < Duration::from_secs(1), "late wall {:?}", wall.elapsed());
+    assert_killed(&report);
+    assert!(
+        report.elapsed < Duration::from_millis(690),
+        "late frame was not killed before its 700 ms write: {report:?}"
+    );
+    assert_gone(&report, pid.get(), start.get());
+}
+
+#[test]
+fn same_group_grandchild_is_reaped_inside_one_second() {
+    let mut neighbor = Command::new("/bin/sleep")
+        .arg("30")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("neighbor");
+    let neighbor_pid = neighbor.id();
+    let neighbor_start = start_ticks(neighbor_pid);
+    let req = request(&small(), "SELECT 1");
+
+    for mode in ["orphan", "orphan-stdout"] {
+        let wall = Instant::now();
+        let child_pid = Cell::new(0u32);
+        let child_start = Cell::new(0u64);
+        let grand = Cell::new(0u32);
+        let err = supervise_with(&fault(mode), &req, &CancelFlag::new(), |pid| {
+            child_pid.set(pid);
+            child_start.set(live_child(pid, &fault(mode)));
+            wait_for_grandchild(pid, &grand);
+        });
+        let report = expect_timeout(err, mode);
+        assert!(wall.elapsed() < Duration::from_secs(1), "{mode} wall {:?}", wall.elapsed());
+        assert_killed(&report);
+        assert_gone(&report, child_pid.get(), child_start.get());
+        let grandchild = grand.get();
+        assert_ne!(grandchild, 0, "{mode} grandchild pid was not recorded");
+        if let Some(now) = proc_field(grandchild, 19) {
+            panic!("{mode} grandchild {grandchild} still alive start {now}");
+        }
+        assert_group_gone(child_pid.get());
+        assert_eq!(proc_field(neighbor_pid, 19), Some(neighbor_start), "neighbor was killed");
+    }
+
+    let _ = neighbor.kill();
+    let _ = neighbor.wait();
+}
+
+#[test]
+fn escaped_session_is_not_reaped_and_the_parent_still_returns() {
+    let setsid_present =
+        Path::new("/usr/bin/setsid").is_file() || Path::new("/bin/setsid").is_file();
+    let mut neighbor = Command::new("/bin/sleep")
+        .arg("30")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("neighbor");
+    let neighbor_pid = neighbor.id();
+    let neighbor_start = start_ticks(neighbor_pid);
+    let wall = Instant::now();
+    let child_pid = Cell::new(0u32);
+    let child_start = Cell::new(0u64);
+    let recorded = Cell::new(0u32);
+    let err = supervise_with(
+        &fault("setsid-stdout"),
+        &request(&small(), "SELECT 1"),
+        &CancelFlag::new(),
+        |pid| {
+            child_pid.set(pid);
+            child_start.set(live_child(pid, &fault("setsid-stdout")));
+            wait_for_grandchild(pid, &recorded);
+        },
+    );
+    let report = expect_timeout(err, "setsid stdout blocked the parent");
+    assert!(wall.elapsed() < Duration::from_secs(1), "setsid wall {:?}", wall.elapsed());
+    assert_killed(&report);
+    assert_gone(&report, child_pid.get(), child_start.get());
+    assert_eq!(proc_field(neighbor_pid, 19), Some(neighbor_start));
+    if setsid_present {
+        let escaped = recorded.get();
+        assert_ne!(escaped, 0, "setsid pid was not recorded");
+        let comm = fs::read_to_string(format!("/proc/{escaped}/comm")).unwrap_or_default();
+        assert!(
+            comm.starts_with("sleep") || comm.starts_with("setsid"),
+            "escaped comm {comm}"
+        );
+        assert_ne!(proc_field(escaped, 2), Some(u64::from(child_pid.get())));
+        signal_one(escaped);
+        thread::sleep(Duration::from_millis(50));
+        assert_eq!(proc_field(neighbor_pid, 19), Some(neighbor_start));
+    }
+    let _ = neighbor.kill();
+    let _ = neighbor.wait();
 }

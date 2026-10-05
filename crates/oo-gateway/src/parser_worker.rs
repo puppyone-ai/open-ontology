@@ -2,8 +2,9 @@
 //!
 //! The parent sends one length-prefixed frame and reads one frame back. The
 //! child is a fresh process for that call. At 500 ms, or on an oversize frame,
-//! a malformed frame, a crash, or cancel, the parent sends `SIGKILL` and
-//! `wait`s. It does not parse the SQL itself.
+//! a malformed frame, a crash, or cancel, the parent signals the child's
+//! process group, signals the direct pid, and `wait`s. The same deadline
+//! covers that teardown and the joined IO thread. It does not parse the SQL.
 //!
 //! `env_clear` and this kill are not a kernel network, filesystem, or memory
 //! sandbox. [`RESTRICTION_CAPABILITY`] is [`RestrictionCapability::Unsupported`].
@@ -13,8 +14,14 @@
 use std::fmt;
 use std::fs;
 use std::io::{self, Read, Write};
+#[cfg(unix)]
+use std::os::fd::OwnedFd;
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
+#[cfg(not(unix))]
+use std::process::{ChildStdin, ChildStdout};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::thread;
@@ -42,8 +49,28 @@ pub const KIND_PLAN: u16 = 2;
 /// Child to parent: a [`GuardError`].
 pub const KIND_REFUSAL: u16 = 3;
 
-/// Inclusive parent deadline for spawn, write, child execution, and the reply read.
+/// Inclusive parent deadline from immediately before `spawn`.
+///
+/// It covers the request write, the child's read of the trailing end of file,
+/// the reply read, the process-group signal, the direct `wait`, and the join
+/// of the IO thread.
 pub const PARSE_DEADLINE: Duration = Duration::from_millis(500);
+
+/// Longest socket wait before the IO thread checks the deadline again.
+const IO_SLICE: Duration = Duration::from_millis(20);
+
+/// Absolute procps `kill`. Arguments are the fixed signal and one group id.
+#[cfg(unix)]
+const GROUP_KILL_BIN: &str = "/bin/kill";
+
+#[cfg(unix)]
+type InPipe = UnixStream;
+#[cfg(unix)]
+type OutPipe = UnixStream;
+#[cfg(not(unix))]
+type InPipe = ChildStdin;
+#[cfg(not(unix))]
+type OutPipe = ChildStdout;
 
 /// Largest frame body accepted. Checked before the body is allocated.
 pub const MAX_FRAME_BODY: usize = 8 * 1024 * 1024;
@@ -227,11 +254,11 @@ pub const CONSTRUCTS: &[&str] = &[
 /// memory isolation. No approved launcher is invoked: `runsc` remains a
 /// separate gate, and this crate does not add a dependency, an `unsafe`
 /// block, or a privilege to apply namespaces, landlock, seccomp, or rlimits.
-/// A grandchild that leaves the process group is not killed by the direct
-/// `SIGKILL`.
+/// Members of the child's process group are signaled. A descendant that has
+/// left that group is not. Inherited extra file descriptors are not closed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RestrictionCapability {
-    /// The 500 ms kill is implemented. The sandbox is not.
+    /// The 500 ms group teardown is implemented. The sandbox is not.
     Unsupported,
 }
 
@@ -481,7 +508,7 @@ where
     let body = encode_request(request).map_err(|_| SuperviseError::RequestBudget)?;
     let frame = encode_frame(KIND_REQUEST, &body).map_err(|_| SuperviseError::RequestBudget)?;
     let cwd = OwnedDir::create().map_err(|_| SuperviseError::Spawn)?;
-    let (mut child, started) = spawn_worker(worker, &cwd)?;
+    let (mut child, started, parent_write, parent_read) = spawn_worker(worker, &cwd)?;
     let pid = child.id();
     let watch = Watch {
         pid,
@@ -489,19 +516,12 @@ where
         started,
     };
     on_start(watch.pid);
-    let (stdin, stdout) = match (child.stdin.take(), child.stdout.take()) {
-        (Some(stdin), Some(stdout)) => (stdin, stdout),
-        _ => {
-            let _ = stop_child(&mut child, true);
-            return Err(SuperviseError::Spawn);
-        }
-    };
     let (tx, rx) = mpsc::channel();
+    let deadline = watch.started + PARSE_DEADLINE;
     let mut io = Some(thread::spawn(move || {
-        let outcome = exchange(stdin, stdout, &frame);
+        let outcome = exchange(parent_write, parent_read, &frame, deadline);
         let _ = tx.send(outcome);
     }));
-    let deadline = watch.started + PARSE_DEADLINE;
     let outcome = poll_exchange(&mut child, &mut io, &rx, cancel, deadline, watch)?;
     if let Some(handle) = io.take() {
         let _ = handle.join();
@@ -509,22 +529,37 @@ where
     accept_frame(&mut child, outcome, cancel, deadline, watch)
 }
 
-fn spawn_worker(worker: &TrustedWorker, cwd: &OwnedDir) -> Result<(Child, Instant), SuperviseError> {
+fn spawn_worker(
+    worker: &TrustedWorker,
+    cwd: &OwnedDir,
+) -> Result<(Child, Instant, InPipe, OutPipe), SuperviseError> {
     let mut command = Command::new(worker.path());
     command
         .env_clear()
         .current_dir(&cwd.0)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
         .stderr(Stdio::null());
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
-        command.process_group(0);
+        let (parent_write, child_read) = UnixStream::pair().map_err(|_| SuperviseError::Spawn)?;
+        let (child_write, parent_read) = UnixStream::pair().map_err(|_| SuperviseError::Spawn)?;
+        command
+            .stdin(Stdio::from(OwnedFd::from(child_read)))
+            .stdout(Stdio::from(OwnedFd::from(child_write)))
+            .process_group(0);
+        let started = Instant::now();
+        let child = command.spawn().map_err(|_| SuperviseError::Spawn)?;
+        Ok((child, started, parent_write, parent_read))
     }
-    let started = Instant::now();
-    let child = command.spawn().map_err(|_| SuperviseError::Spawn)?;
-    Ok((child, started))
+    #[cfg(not(unix))]
+    {
+        command.stdin(Stdio::piped()).stdout(Stdio::piped());
+        let started = Instant::now();
+        let mut child = command.spawn().map_err(|_| SuperviseError::Spawn)?;
+        let stdin = child.stdin.take().ok_or(SuperviseError::Spawn)?;
+        let stdout = child.stdout.take().ok_or(SuperviseError::Spawn)?;
+        Ok((child, started, stdin, stdout))
+    }
 }
 
 fn poll_exchange(
@@ -553,6 +588,7 @@ fn poll_exchange(
         let left = deadline.saturating_duration_since(Instant::now());
         let slice = Duration::from_millis(10).min(left);
         match rx.recv_timeout(slice) {
+            Ok(IoOutcome::Deadline) => return Err(stop_timed_out(child, io, watch)),
             Ok(_) if Instant::now() >= deadline => return Err(stop_timed_out(child, io, watch)),
             Ok(outcome) => return Ok(outcome),
             Err(mpsc::RecvTimeoutError::Timeout) => continue,
@@ -598,6 +634,7 @@ fn accept_frame(
         IoOutcome::Oversize => SuperviseError::Oversize,
         IoOutcome::Malformed => SuperviseError::Malformed,
         IoOutcome::Ended | IoOutcome::Io => SuperviseError::Crashed,
+        IoOutcome::Deadline => SuperviseError::TimedOut,
         IoOutcome::Frame { kind, body } => {
             return finish_frame(child, kind, &body, cancel, deadline, watch);
         }
@@ -670,9 +707,10 @@ pub fn supervise(
 }
 
 /// Child entry. Returns `2` when an argument is present or when
-/// `OO_PARSER_WORKER_SLOW` is set, `1` on a protocol failure, and `0` after
-/// one reply frame. The variable is rejected. It is not a slow path. Fault
-/// modes are not implemented in this binary.
+/// `OO_PARSER_WORKER_SLOW` is set, `1` when the frame, a trailing request
+/// byte, or the reply encode fails, and `0` after one reply frame. The
+/// variable is rejected. It is not a slow path. Fault modes are not
+/// implemented in this binary.
 pub fn worker_main() -> i32 {
     if std::env::args_os().nth(1).is_some() || std::env::var_os("OO_PARSER_WORKER_SLOW").is_some()
     {
@@ -763,9 +801,53 @@ fn finish_joined(
 
 fn stop_child(child: &mut Child, kill: bool) -> Option<ExitStatus> {
     if kill {
+        #[cfg(unix)]
+        kill_owned_group(child.id());
         let _ = child.kill();
     }
     child.wait().ok()
+}
+
+/// Signal the recorded process group, then the caller signals the direct pid.
+///
+/// `/bin/kill -KILL -- -<group>` is the procps-ng form measured on the proof
+/// image. `-s KILL` did not signal the group. A descendant that called
+/// `setsid` is outside this group and is not killed.
+#[cfg(unix)]
+fn kill_owned_group(leader: u32) {
+    if !group_is_owned(leader) {
+        return;
+    }
+    let _ = Command::new(GROUP_KILL_BIN)
+        .arg("-KILL")
+        .arg("--")
+        .arg(format!("-{leader}"))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+#[cfg(all(unix, target_os = "linux"))]
+fn group_is_owned(leader: u32) -> bool {
+    if leader <= 1 {
+        return false;
+    }
+    let own = proc_field(std::process::id(), 2);
+    if own == Some(u64::from(leader)) {
+        return false;
+    }
+    match proc_field(leader, 2) {
+        Some(pgrp) if pgrp <= 1 => false,
+        Some(pgrp) if own == Some(pgrp) => false,
+        Some(pgrp) if pgrp != u64::from(leader) => false,
+        _ => true,
+    }
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+fn group_is_owned(leader: u32) -> bool {
+    leader > 1
 }
 
 fn observe(
@@ -812,12 +894,17 @@ fn read_start_ticks(_pid: u32) -> Option<u64> {
 }
 
 #[cfg(target_os = "linux")]
-fn proc_start_ticks(pid: u32) -> Option<u64> {
+fn proc_field(pid: u32, index: usize) -> Option<u64> {
     let text = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
     let end = text.rfind(')')?;
     let from = end.checked_add(2)?;
     let rest = text.get(from..)?;
-    rest.split_whitespace().nth(19)?.parse().ok()
+    rest.split_whitespace().nth(index)?.parse().ok()
+}
+
+#[cfg(target_os = "linux")]
+fn proc_start_ticks(pid: u32) -> Option<u64> {
+    proc_field(pid, 19)
 }
 
 #[cfg(target_os = "linux")]
@@ -857,57 +944,166 @@ impl Drop for OwnedDir {
     }
 }
 
+#[derive(PartialEq, Eq)]
 enum IoOutcome {
     Frame { kind: u16, body: Vec<u8> },
     Oversize,
     Malformed,
     Ended,
     Io,
+    Deadline,
 }
 
-fn exchange(mut stdin: ChildStdin, mut stdout: ChildStdout, request: &[u8]) -> IoOutcome {
-    if stdin.write_all(request).and_then(|()| stdin.flush()).is_err() {
-        return IoOutcome::Ended;
+fn exchange(mut stdin: InPipe, mut stdout: OutPipe, request: &[u8], deadline: Instant) -> IoOutcome {
+    if let Err(outcome) = write_all_within(&mut stdin, request, deadline) {
+        return outcome;
     }
     drop(stdin);
     let mut magic = [0u8; 4];
-    if read_exact(&mut stdout, &mut magic).is_err() {
-        return IoOutcome::Ended;
+    if let Err(outcome) = read_exact_within(&mut stdout, &mut magic, deadline) {
+        return unless_deadline(outcome, IoOutcome::Ended);
     }
     if magic != MAGIC {
-        return IoOutcome::Malformed;
+        return classify(deadline, IoOutcome::Malformed);
     }
     let mut rest = [0u8; 8];
-    if read_exact(&mut stdout, &mut rest).is_err() {
-        return IoOutcome::Malformed;
+    if let Err(outcome) = read_exact_within(&mut stdout, &mut rest, deadline) {
+        return unless_deadline(outcome, IoOutcome::Malformed);
     }
     let version = u16::from_le_bytes([rest[0], rest[1]]);
     if version != PROTOCOL_VERSION {
-        return IoOutcome::Malformed;
+        return classify(deadline, IoOutcome::Malformed);
     }
     let kind = u16::from_le_bytes([rest[2], rest[3]]);
     let len = u32::from_le_bytes([rest[4], rest[5], rest[6], rest[7]]) as usize;
     if len > MAX_FRAME_BODY {
-        return IoOutcome::Oversize;
+        return classify(deadline, IoOutcome::Oversize);
     }
     if kind != KIND_PLAN && kind != KIND_REFUSAL {
-        return IoOutcome::Malformed;
+        return classify(deadline, IoOutcome::Malformed);
     }
     let mut body = vec![0u8; len];
-    if len > 0 && read_exact(&mut stdout, &mut body).is_err() {
-        return IoOutcome::Ended;
+    if len > 0
+        && let Err(outcome) = read_exact_within(&mut stdout, &mut body, deadline)
+    {
+        return unless_deadline(outcome, IoOutcome::Ended);
     }
     let mut extra = [0u8; 1];
     loop {
+        if let Err(outcome) = arm_read(&stdout, deadline) {
+            return outcome;
+        }
         match stdout.read(&mut extra) {
             Ok(0) => break,
-            Ok(_) => return IoOutcome::Malformed,
+            Ok(_) => return classify(deadline, IoOutcome::Malformed),
             Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
             Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => break,
-            Err(_) => return IoOutcome::Io,
+            Err(err) if is_wait(err.kind()) => continue,
+            Err(_) => return classify(deadline, IoOutcome::Io),
         }
     }
-    IoOutcome::Frame { kind, body }
+    classify(deadline, IoOutcome::Frame { kind, body })
+}
+
+fn unless_deadline(outcome: IoOutcome, fallback: IoOutcome) -> IoOutcome {
+    if outcome == IoOutcome::Deadline {
+        outcome
+    } else {
+        fallback
+    }
+}
+
+/// A completed observation at or after the deadline stays a timeout.
+fn classify(deadline: Instant, outcome: IoOutcome) -> IoOutcome {
+    if Instant::now() >= deadline {
+        IoOutcome::Deadline
+    } else {
+        outcome
+    }
+}
+
+fn write_all_within(stdin: &mut InPipe, bytes: &[u8], deadline: Instant) -> Result<(), IoOutcome> {
+    let mut offset = 0;
+    while offset < bytes.len() {
+        arm_write(stdin, deadline)?;
+        match stdin.write(&bytes[offset..]) {
+            Ok(0) => return Err(IoOutcome::Ended),
+            Ok(n) => offset += n,
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) if is_wait(err.kind()) => continue,
+            Err(_) => return Err(classify(deadline, IoOutcome::Ended)),
+        }
+    }
+    loop {
+        arm_write(stdin, deadline)?;
+        match stdin.flush() {
+            Ok(()) => return Ok(()),
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) if is_wait(err.kind()) => continue,
+            Err(_) => return Err(classify(deadline, IoOutcome::Ended)),
+        }
+    }
+}
+
+fn read_exact_within(stdout: &mut OutPipe, buf: &mut [u8], deadline: Instant) -> Result<(), IoOutcome> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        arm_read(stdout, deadline)?;
+        match stdout.read(&mut buf[filled..]) {
+            Ok(0) => return Err(IoOutcome::Ended),
+            Ok(n) => filled += n,
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) if is_wait(err.kind()) => continue,
+            Err(_) => return Err(classify(deadline, IoOutcome::Io)),
+        }
+    }
+    Ok(())
+}
+
+fn arm_read(stdout: &OutPipe, deadline: Instant) -> Result<(), IoOutcome> {
+    let Some(budget) = slice_budget(deadline) else {
+        return Err(IoOutcome::Deadline);
+    };
+    #[cfg(unix)]
+    {
+        stdout
+            .set_read_timeout(Some(budget))
+            .map_err(|_| IoOutcome::Io)?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (stdout, budget);
+    }
+    Ok(())
+}
+
+fn arm_write(stdin: &InPipe, deadline: Instant) -> Result<(), IoOutcome> {
+    let Some(budget) = slice_budget(deadline) else {
+        return Err(IoOutcome::Deadline);
+    };
+    #[cfg(unix)]
+    {
+        stdin
+            .set_write_timeout(Some(budget))
+            .map_err(|_| IoOutcome::Io)?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (stdin, budget);
+    }
+    Ok(())
+}
+
+fn slice_budget(deadline: Instant) -> Option<Duration> {
+    let now = Instant::now();
+    if now >= deadline {
+        return None;
+    }
+    Some(IO_SLICE.min(deadline.saturating_duration_since(now)).max(Duration::from_millis(1)))
+}
+
+fn is_wait(kind: io::ErrorKind) -> bool {
+    matches!(kind, io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut)
 }
 
 fn read_exact(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<()> {
@@ -996,7 +1192,22 @@ fn read_frame_from(reader: &mut impl Read) -> Result<Frame, CodecError> {
     if len > 0 {
         read_exact(reader, &mut body).map_err(|_| CodecError::Truncated)?;
     }
+    read_following_eof(reader)?;
     Ok(Frame { version, kind, body })
+}
+
+/// The request is one frame. The next read must be end of file.
+fn read_following_eof(reader: &mut impl Read) -> Result<(), CodecError> {
+    let mut extra = [0u8; 1];
+    loop {
+        match reader.read(&mut extra) {
+            Ok(0) => return Ok(()),
+            Ok(_) => return Err(CodecError::Trailing),
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => return Ok(()),
+            Err(_) => return Err(CodecError::Io),
+        }
+    }
 }
 
 /// Encode the request body.
