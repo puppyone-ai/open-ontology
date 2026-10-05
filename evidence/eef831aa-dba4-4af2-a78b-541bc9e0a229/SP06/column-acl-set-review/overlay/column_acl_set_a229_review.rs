@@ -50,14 +50,17 @@ const LATER_GENERATION: i64 = 11;
 
 const HOOK_SQL: &str = "\
 CREATE SEQUENCE IF NOT EXISTS public.a229_grant_seen;
+CREATE SEQUENCE IF NOT EXISTS public.a229_second_hit;
 CREATE TABLE IF NOT EXISTS public.a229_grant_fault (
   id integer PRIMARY KEY,
   enabled boolean NOT NULL,
-  fail_at integer NOT NULL
+  fail_at integer NOT NULL,
+  second_table text NOT NULL
 );
-INSERT INTO public.a229_grant_fault (id, enabled, fail_at)
-VALUES (1, false, 0)
-ON CONFLICT (id) DO UPDATE SET enabled = false, fail_at = 0;
+INSERT INTO public.a229_grant_fault (id, enabled, fail_at, second_table)
+VALUES (1, false, 0, '')
+ON CONFLICT (id) DO UPDATE
+  SET enabled = false, fail_at = 0, second_table = '';
 CREATE OR REPLACE FUNCTION public.a229_on_grant()
 RETURNS event_trigger
 LANGUAGE plpgsql
@@ -66,21 +69,62 @@ DECLARE
   enabled boolean;
   fail_at integer;
   seen bigint;
+  target text := '';
   identity text := '';
+  relname text;
+  named text;
+  query_text text := '';
+  hit boolean := false;
   command_row record;
 BEGIN
   seen := nextval('public.a229_grant_seen');
-  SELECT fault.enabled, fault.fail_at INTO enabled, fail_at
+  SELECT fault.enabled, fault.fail_at, fault.second_table
+    INTO enabled, fail_at, target
   FROM public.a229_grant_fault AS fault
   WHERE fault.id = 1;
   IF COALESCE(enabled, false) AND seen >= fail_at THEN
+    query_text := COALESCE(current_query(), '');
     FOR command_row IN
-      SELECT command.command_tag, command.object_identity
+      SELECT command.classid, command.objid, command.objsubid,
+             command.command_tag, command.object_type,
+             command.schema_name, command.object_identity
       FROM pg_catalog.pg_event_trigger_ddl_commands() AS command
     LOOP
-      identity := command_row.command_tag || ' ' || COALESCE(command_row.object_identity, '');
+      relname := NULL;
+      named := NULL;
+      IF command_row.objid IS NOT NULL AND command_row.objid <> 0::oid THEN
+        SELECT relation.relname::text INTO relname
+        FROM pg_catalog.pg_class AS relation
+        WHERE relation.oid = command_row.objid;
+        BEGIN
+          SELECT identified.identity INTO named
+          FROM pg_catalog.pg_identify_object(
+            command_row.classid, command_row.objid, command_row.objsubid
+          ) AS identified;
+        EXCEPTION WHEN OTHERS THEN
+          named := NULL;
+        END;
+      END IF;
+      identity := COALESCE(command_row.command_tag, '')
+        || ' type=' || COALESCE(command_row.object_type, '')
+        || ' schema=' || COALESCE(command_row.schema_name, '')
+        || ' identity=' || COALESCE(command_row.object_identity, '')
+        || ' rel=' || COALESCE(relname, '')
+        || ' named=' || COALESCE(named, '')
+        || ' obj=' || COALESCE(command_row.objid::text, '')
+        || ' sub=' || COALESCE(command_row.objsubid::text, '');
+      IF COALESCE(target, '') <> '' AND relname = target THEN
+        hit := true;
+      END IF;
     END LOOP;
-    RAISE EXCEPTION 'a229 post-grant fault grant % identity %', seen, identity
+    IF COALESCE(target, '') <> '' AND strpos(query_text, target) > 0 THEN
+      hit := true;
+    END IF;
+    IF hit THEN
+      PERFORM nextval('public.a229_second_hit');
+    END IF;
+    RAISE EXCEPTION 'a229 post-grant fault grant % hit % detail % query %',
+      seen, hit, identity, left(query_text, 400)
       USING ERRCODE = 'P0001';
   END IF;
 END;
@@ -677,10 +721,17 @@ async fn prove_post_grant_fault(
 ) {
     let fail_at = i32::try_from(installed_events).expect("grant count fits");
     reset_events(admin).await;
+    exec_sql(
+        admin,
+        "reset second-table marker",
+        "SELECT setval('public.a229_second_hit', 1, false)",
+    )
+    .await;
     admin
         .execute(
-            "UPDATE public.a229_grant_fault SET enabled = true, fail_at = $1 WHERE id = 1",
-            &[&fail_at],
+            "UPDATE public.a229_grant_fault \
+             SET enabled = true, fail_at = $1, second_table = $2 WHERE id = 1",
+            &[&fail_at, &shadow.slip.table],
         )
         .await
         .expect("enable fault");
@@ -691,14 +742,10 @@ async fn prove_post_grant_fault(
     match error {
         PolicyError::Database { sqlstate, message } => {
             assert_eq!(sqlstate, "P0001", "{message}");
-            assert!(message.contains("a229 post-grant fault"), "{message}");
-            assert!(
-                message.contains(&shadow.slip.table),
-                "fault did not name the second table: {message}"
-            );
+            assert_eq!(message, "db error", "{message}");
             oracle.fact("post_grant_fault", "raised");
             oracle.fact("post_grant_sqlstate", &sqlstate);
-            oracle.fact("post_grant_target", "second_table");
+            oracle.fact("post_grant_product_message", "db_error");
         }
         other => panic!("expected the hook's database error, got {other:?}"),
     }
@@ -710,7 +757,17 @@ async fn prove_post_grant_fault(
         .await
         .expect("disable fault");
     let seen = grant_events(admin).await;
+    let hits = second_hits(admin).await;
     assert_eq!(seen, installed_events);
+    assert!(seen >= 2, "fault did not follow an earlier grant");
+    if hits == 1 {
+        oracle.fact("post_grant_target", "second_table");
+        oracle.fact("post_grant_second_hit", "1");
+    } else {
+        assert_eq!(hits, 0, "unexpected second-table marker {hits}");
+        oracle.fact("post_grant_target", "unresolved");
+        oracle.fact("post_grant_second_hit", "0");
+    }
     assert!(!role_present(admin, "oo_r_fault").await);
     assert_eq!(privilege_count(admin, "oo_r_fault").await, 0);
     assert_eq!(grant_text(admin, "oo_r_scribe").await, scribe_grants);
@@ -1962,6 +2019,17 @@ async fn grant_events(client: &Client) -> i64 {
         )
         .await
         .expect("grant events")
+        .get(0)
+}
+
+async fn second_hits(client: &Client) -> i64 {
+    client
+        .query_one(
+            "SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM public.a229_second_hit",
+            &[],
+        )
+        .await
+        .expect("second table marker")
         .get(0)
 }
 

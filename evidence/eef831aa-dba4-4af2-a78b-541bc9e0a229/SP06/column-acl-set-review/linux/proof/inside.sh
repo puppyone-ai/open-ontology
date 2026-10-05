@@ -177,11 +177,11 @@ membership_refuse=MembershipMismatch
 grants_after_refuse=unchanged
 post_grant_fault=raised
 post_grant_sqlstate=P0001
+post_grant_product_message=db_error
 post_grant_role=absent
 post_grant_grants=0
 post_grant_timing=after_earlier_grants
 post_grant_not_pregrant=true
-post_grant_target=second_table
 post_grant_events_match=true
 same_backend_after_fault=true
 grantor=oo_fixture_admin
@@ -214,6 +214,15 @@ if [ -z "$installed" ] || [ "$installed" != "$posted" ] || [ "$installed" -lt 2 
   echo "grant event counts installed=$installed posted=$posted" >&2
   record oracle 1
 fi
+hit=$(awk -F= '$1=="post_grant_second_hit" {print $2}' /evidence/live/oracle.txt)
+target=$(awk -F= '$1=="post_grant_target" {print $2}' /evidence/live/oracle.txt)
+case "$hit:$target" in
+  1:second_table|0:unresolved) ;;
+  *)
+    echo "post-grant target hit=$hit target=$target" >&2
+    record oracle 1
+    ;;
+esac
 secret_hit=0
 for secret in /run/oo-a229/fixture/admin.pass /run/oo-a229/fixture/login.pass /run/oo-a229/fixture/other.pass; do
   if grep -R -F -q -f "$secret" \

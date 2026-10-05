@@ -1,0 +1,16 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"1"},{"kind":"text","value":"北店"}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"2"},{"kind":"text","value":"南店"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":14,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"1e45a4903cb684d786b88162151dbe7441d9348e4355652a87e229af9a522fa8","executed_sha256":"7ff07ecd51bf6a4a1ccb7b7dc0bbc17778d5640bd01ff89aafe1be28b4aa159b","stop":null,"sqlstate":null}
+{"record":"row","turn":1,"cells":[{"kind":"int","value":"2"}]}
+{"record":"summary","turn":1,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":1,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"59ca6630b8b78897caf64197a191d6dd2466427df2ebd84d8de4cf7edb032b36","executed_sha256":"f4e4be3380f012f6462f6aa4405f69d5f219f07bb4c209b6ac6b28f44a470309","stop":null,"sqlstate":null}
+{"record":"row","turn":2,"cells":[{"kind":"int","value":"1"},{"kind":"text","value":"北店"}]}
+{"record":"row","turn":2,"cells":[{"kind":"int","value":"2"},{"kind":"text","value":"南店"}]}
+{"record":"summary","turn":2,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":14,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"d5ee4b7f3786c1c8414b749c9504d98a1c150a50815973944a8a3b70fb658768","executed_sha256":"7ff07ecd51bf6a4a1ccb7b7dc0bbc17778d5640bd01ff89aafe1be28b4aa159b","stop":null,"sqlstate":null}
+{"record":"row","turn":3,"cells":[{"kind":"int","value":"20"},{"kind":"int","value":"1"}]}
+{"record":"row","turn":3,"cells":[{"kind":"int","value":"21"},{"kind":"int","value":"2"}]}
+{"record":"summary","turn":3,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":6,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"03e6516e67298d1333219123549b8df024fb96e4575b9dca822ca748c01518fb","executed_sha256":"8d1fbaf45d562397e40e64a841151c22b6007de78076371212d89e80c9222e11","stop":null,"sqlstate":null}
+{"record":"row","turn":4,"cells":[{"kind":"int","value":"2"}]}
+{"record":"summary","turn":4,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":1,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"ab30a9ce926556300a5d7648e5dedc63ad41f9976567e021a0d50b3ecb17276a","executed_sha256":"4631ffca77e6a9e5b4cd918210a373f78c51810514c7e13d52069ec4de5cf4b6","stop":null,"sqlstate":null}
+{"record":"row","turn":5,"cells":[{"kind":"int","value":"20"},{"kind":"int","value":"1"}]}
+{"record":"row","turn":5,"cells":[{"kind":"int","value":"21"},{"kind":"int","value":"2"}]}
+{"record":"summary","turn":5,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":6,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"1053ec74657525d7e71b4d619fbed2ca62cbb980f75fa04dbe4af477eb0e089d","executed_sha256":"8d1fbaf45d562397e40e64a841151c22b6007de78076371212d89e80c9222e11","stop":null,"sqlstate":null}
