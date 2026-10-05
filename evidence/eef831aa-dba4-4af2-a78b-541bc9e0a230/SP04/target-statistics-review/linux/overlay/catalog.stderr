@@ -1,0 +1,3 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.67s
+     Running tests/target_statistics_a230_catalog.rs (/target/debug/deps/target_statistics_a230_catalog-bc2e905f7ba1186b)

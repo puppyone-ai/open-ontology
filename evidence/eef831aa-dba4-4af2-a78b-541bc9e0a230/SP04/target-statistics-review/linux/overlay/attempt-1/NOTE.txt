@@ -1,0 +1,1 @@
+Attempt 1: pipeline review passed (live.exit=0). Catalog query matched the typed gold, then finish failed because the harness looked for nosleep_kind=OpenTransaction/Reusable. The pipeline facts record nosleep_kind and nosleep_disposition on separate lines. Product source was not edited.

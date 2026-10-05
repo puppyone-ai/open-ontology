@@ -1,0 +1,10 @@
+bind /src rw=false
+bind /blobs rw=false
+bind /inside.sh rw=false
+bind /extract-libclang.sh rw=false
+bind /secrets rw=false
+bind /evidence rw=true
+volume /target rw=true
+bind /tools rw=false
+volume /cargo-home rw=true
+

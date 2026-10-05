@@ -1,0 +1,4 @@
+c3cbbce6e5f3ce6e89148f9284ffe10623b8531b  crates/oo-pipeline/src/target_statistics.rs
+8d92236dc828604605428f06964d5db1ba3b057c  crates/oo-pipeline/src/lib.rs
+8aa879a8e2245d34368fd45384fdc637fbd93cb8  crates/oo-pipeline/tests/target_statistics_pg_live.rs
+cb1755a694967f67c9d3f174949cd917a9f9f0bc  contracts/pipeline/target-statistics-v1.md
