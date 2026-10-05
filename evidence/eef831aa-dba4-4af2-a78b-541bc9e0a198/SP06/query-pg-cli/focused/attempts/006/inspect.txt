@@ -1,0 +1,1 @@
+id=9a27dd68af32e21b411caeade0b51e3244a3aadd24e190b33228d4b066a297f0 status=exited exit=1 oom=false privileged=false network=oo-a198-net

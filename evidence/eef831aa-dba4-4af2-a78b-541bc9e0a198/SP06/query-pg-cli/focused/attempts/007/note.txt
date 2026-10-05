@@ -1,0 +1,1 @@
+tests passed. clippy denied never_loop, cloned_ref_to_slice_refs, and too_many_arguments.

@@ -1,0 +1,1 @@
+check and lock edge passed. offline tests failed because CARGO_BIN_EXE_query_pg was unset and the fallback name was not on PATH.

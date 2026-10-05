@@ -1,0 +1,66 @@
+oo_task=sp06-query-pg-cli-focused
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a198
+phase=focused
+Linux 4de2acd4bab4 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=libclang-load
+=== cargo check --offline query-pg ===
+phase_exit=0 phase=check
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s
+phase_exit=0 phase=lock-edge
+lock_edge=serde,serde_json
+=== cargo test query_pg_cli offline ===
+phase_exit=101 phase=test-offline
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.47s
+     Running tests/query_pg_cli.rs (/target/debug/deps/query_pg_cli-add98238182e5ce1)
+
+running 5 tests
+test live_query_pg_against_private_postgres ... ok
+test help_documents_the_request_and_exits_zero ... FAILED
+test request_rejects_malformed_documents_without_leaking_the_password ... FAILED
+test usage_rejects_missing_unknown_and_mixed_arguments ... FAILED
+test policy_and_audit_and_ca_fail_closed ... FAILED
+
+failures:
+
+---- help_documents_the_request_and_exits_zero stdout ----
+
+thread 'help_documents_the_request_and_exits_zero' (700) panicked at crates/oo-gateway/tests/query_pg_cli.rs:1105:26:
+run: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- request_rejects_malformed_documents_without_leaking_the_password stdout ----
+
+thread 'request_rejects_malformed_documents_without_leaking_the_password' (703) panicked at crates/oo-gateway/tests/query_pg_cli.rs:1105:26:
+run: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+
+---- usage_rejects_missing_unknown_and_mixed_arguments stdout ----
+
+thread 'usage_rejects_missing_unknown_and_mixed_arguments' (709) panicked at crates/oo-gateway/tests/query_pg_cli.rs:1105:26:
+run: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+
+---- policy_and_audit_and_ca_fail_closed stdout ----
+
+thread 'policy_and_audit_and_ca_fail_closed' (702) panicked at crates/oo-gateway/tests/query_pg_cli.rs:1105:26:
+run: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+
+
+failures:
+    help_documents_the_request_and_exits_zero
+    policy_and_audit_and_ca_fail_closed
+    request_rejects_malformed_documents_without_leaking_the_password
+    usage_rejects_missing_unknown_and_mixed_arguments
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p oo-gateway --test query_pg_cli`

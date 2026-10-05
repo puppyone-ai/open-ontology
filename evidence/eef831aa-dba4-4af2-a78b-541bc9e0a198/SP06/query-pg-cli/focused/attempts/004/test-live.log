@@ -1,0 +1,26 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/query_pg_cli.rs (/target/debug/deps/query_pg_cli-add98238182e5ce1)
+
+running 1 test
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"3"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":1,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"cf98cfa7c122bc31ba0426d3dc07c3df6b930748b5e30358b84749825e657e8a","executed_sha256":"538b7361db1c61fb8f53580d031d7825fb0e6b38fb08e52da374cd36cba27859","stop":null,"sqlstate":null}
+{"record":"row","turn":1,"cells":[{"kind":"text","value":"beta"}]}
+{"record":"row","turn":1,"cells":[{"kind":"text","value":"雪の票́"}]}
+{"record":"row","turn":1,"cells":[{"kind":"null"}]}
+{"record":"summary","turn":1,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":15,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"abc48c5e227a2b6fd204d591bd2a622c56cb2633ee95401ad7f2c94be16ce513","executed_sha256":"d0a419c09e42ef130b70ee5fb42c8891ec298d6e6143e52e48b1b45c6418f222","stop":null,"sqlstate":null}
+
+thread 'live_query_pg_against_private_postgres' (447) panicked at crates/oo-gateway/tests/query_pg_cli.rs:562:5:
+assertion `left == right` failed
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test live_query_pg_against_private_postgres ... FAILED
+
+failures:
+
+failures:
+    live_query_pg_against_private_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.02s
+
+error: test failed, to rerun pass `-p oo-gateway --test query_pg_cli`

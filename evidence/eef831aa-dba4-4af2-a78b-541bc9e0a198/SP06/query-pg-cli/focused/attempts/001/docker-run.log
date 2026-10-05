@@ -1,0 +1,68 @@
+oo_task=sp06-query-pg-cli-focused
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a198
+phase=focused
+Linux 763468179dd3 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=libclang-load
+=== cargo check --offline query-pg ===
+phase_exit=101 phase=check
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 20]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 20]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:198:37
+    |
+198 |     assert!(!output.stdout.contains(b"not-a-certificate"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 17]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 17]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:208:37
+    |
+208 |     assert!(!output.stderr.contains(b"PRIVATE KEY"));
+    |                            -------- ^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 11]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 11]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:227:37
+    |
+227 |     assert!(!output.stderr.contains(b"local-password-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 20]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 20]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `oo-gateway` (test "query_pg_cli") due to 12 previous errors
+phase_exit=126 phase=lock-edge
+/evidence/focused/inside.sh: line 85: /tmp/lock-edge: Permission denied

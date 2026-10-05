@@ -1,0 +1,174 @@
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: environment variable `CARGO_BIN_EXE_query_pg` not defined at compile time
+    --> crates/oo-gateway/tests/query_pg_cli.rs:1079:36
+     |
+1079 |     let mut command = Command::new(env!("CARGO_BIN_EXE_query_pg"));
+     |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_query_pg")` instead
+
+error: expected `;`, found `" or "stdin`
+    --> crates/oo-gateway/src/bin/query-pg.rs:1063:9
+     |
+1063 | "request" or "stdin". Stdin carries up to 8 oo.gateway.query-pg-turn/v1
+     |         ^----------
+     |         |
+     |         unexpected token
+     |         help: add `;` here
+
+error: expected item, found `" or "stdin`
+    --> crates/oo-gateway/src/bin/query-pg.rs:1063:9
+     |
+1063 | "request" or "stdin". Stdin carries up to 8 oo.gateway.query-pg-turn/v1
+     |         ^^^^^^^^^^^ expected item
+     |
+     = note: for a full list of items that can appear in modules, see <https://doc.rust-lang.org/reference/items.html>
+
+error: could not compile `oo-gateway` (bin "query-pg") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:108:41
+    |
+108 |         assert!(!output.stderr.contains(b"pw-a198"), "{name} stderr");
+    |                                -------- ^^^^^^^^^^ expected `&u8`, found `&[u8; 7]`
+    |                                |
+    |                                arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 7]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:109:41
+    |
+109 |         assert!(!output.stdout.contains(b"pw-a198"), "{name} stdout");
+    |                                -------- ^^^^^^^^^^ expected `&u8`, found `&[u8; 7]`
+    |                                |
+    |                                arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 7]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:121:37
+    |
+121 |     assert!(!output.stderr.contains(b"pw-a198-request-secret-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 28]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 28]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:122:37
+    |
+122 |     assert!(!output.stdout.contains(b"pw-a198-request-secret-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 28]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 28]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:131:37
+    |
+131 |     assert!(!output.stdout.contains(b"pw-a198-request-secret-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 28]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 28]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:132:37
+    |
+132 |     assert!(!output.stderr.contains(b"pw-a198-request-secret-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 28]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 28]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:171:37
+    |
+171 |     assert!(!output.stderr.contains(b"local-password-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 20]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 20]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:197:37
+    |
+197 |     assert!(!output.stderr.contains(b"local-password-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 20]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 20]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:198:37
+    |
+198 |     assert!(!output.stdout.contains(b"not-a-certificate"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 17]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 17]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:208:37
+    |
+208 |     assert!(!output.stderr.contains(b"PRIVATE KEY"));
+    |                            -------- ^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 11]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 11]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+error[E0308]: mismatched types
+   --> crates/oo-gateway/tests/query_pg_cli.rs:227:37
+    |
+227 |     assert!(!output.stderr.contains(b"local-password-value"));
+    |                            -------- ^^^^^^^^^^^^^^^^^^^^^^^ expected `&u8`, found `&[u8; 20]`
+    |                            |
+    |                            arguments to this method are incorrect
+    |
+    = note: expected reference `&u8`
+               found reference `&'static [u8; 20]`
+note: method defined here
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/slice/mod.rs:2589:11
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `oo-gateway` (test "query_pg_cli") due to 12 previous errors
