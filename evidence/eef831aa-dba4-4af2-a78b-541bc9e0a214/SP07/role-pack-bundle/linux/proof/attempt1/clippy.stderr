@@ -1,0 +1,50 @@
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+error: unused import: `self`
+  --> crates/oo-builder/src/bin/role-pack-bundle.rs:13:15
+   |
+13 | use std::io::{self, ErrorKind, Read, Write};
+   |               ^^^^
+   |
+   = note: `-D unused-imports` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error[E0034]: multiple applicable items in scope
+   --> crates/oo-builder/src/bin/role-pack-bundle.rs:167:10
+    |
+167 |     file.by_ref()
+    |          ^^^^^^ multiple `by_ref` found
+    |
+    = note: candidate #1 is defined in an impl of the trait `std::io::Read` for the type `std::fs::File`
+    = note: candidate #2 is defined in an impl of the trait `std::io::Write` for the type `std::fs::File`
+help: disambiguate the method for candidate #1
+    |
+167 -     file.by_ref()
+167 +     std::io::Read::by_ref(&mut file)
+    |
+help: disambiguate the method for candidate #2
+    |
+167 -     file.by_ref()
+167 +     std::io::Write::by_ref(&mut file)
+    |
+
+error[E0034]: multiple applicable items in scope
+   --> crates/oo-builder/src/bin/role-pack-bundle.rs:582:10
+    |
+582 |     file.by_ref()
+    |          ^^^^^^ multiple `by_ref` found
+    |
+    = note: candidate #1 is defined in an impl of the trait `std::io::Read` for the type `std::fs::File`
+    = note: candidate #2 is defined in an impl of the trait `std::io::Write` for the type `std::fs::File`
+help: disambiguate the method for candidate #1
+    |
+582 -     file.by_ref()
+582 +     std::io::Read::by_ref(&mut file)
+    |
+help: disambiguate the method for candidate #2
+    |
+582 -     file.by_ref()
+582 +     std::io::Write::by_ref(&mut file)
+    |
+
+For more information about this error, try `rustc --explain E0034`.
+error: could not compile `oo-builder` (bin "role-pack-bundle") due to 3 previous errors

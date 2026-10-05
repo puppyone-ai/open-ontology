@@ -1,0 +1,23 @@
+# Cleanup
+
+Own containers were already removed by their launch scripts: `oo-a214-smoke` and `oo-a214-proof`, plus the three failed proof containers of the same proof name. No `docker rm` of a foreign container was run. No `docker system prune` and no `docker volume prune` were run.
+
+Removed after the green logs were on disk:
+
+```text
+docker volume rm oo-a214-eef831aa-cargo oo-a214-eef831aa-target
+docker network rm oo-a214-eef831aa-net
+rm -rf /tmp/oo-a214-eef831aa-dba4-4af2-a78b-541bc9e0a214
+```
+
+Volume and network removal printed those three names. The archive directory was 38M and was absent afterward. `docker ps -a --filter name=oo-a214` was empty before the removal.
+
+Left running, untouched:
+
+```text
+oo-a211-chain a211 rust-builder
+oo-a211-pg a211 postgres
+oo-a203-pg a203 postgres
+```
+
+The inventory tool may recreate `/tmp/oo-a214-eef831aa-dba4-4af2-a78b-541bc9e0a214/manifest-outside` for hasher stdout. That directory is outside this evidence tree. The refresh container's stdout and hostconfig stay there so `MANIFEST.sha256` can include every file in this directory except itself.

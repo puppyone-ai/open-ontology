@@ -1,0 +1,25 @@
+
+running 11 tests
+test analyst_pack_redacts_hidden_dependencies ... ok
+test bindings_and_policy_inputs_refuse ... ok
+test budgets_refuse ... ok
+test closure_keeps_visible_text_and_omits_hidden_references ... ok
+test escaped_sql_label_distinct_and_name_closure ... ok
+test hashes_match_an_independent_oracle ... ok
+test paths_reject_traversal ... ok
+test principal_changes_only_the_cache_key ... ok
+test repeated_compiles_match ... ok
+test support_pack_is_a_separate_project_artifact ... ok
+test unreviewed_text_needs_an_explicit_token ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 4 tests
+test invalid_json_version_duplicate_unknown_and_oversize_are_static ... ok
+test stale_policy_and_sample_field_are_refused_without_echo ... ok
+test two_roles_match_the_library_pack_and_drop_hidden_metadata ... ok
+test usage_lists_role_pack_and_the_existing_commands_still_exit_2 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
