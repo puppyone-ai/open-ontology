@@ -1,0 +1,11 @@
+ExitCode=101
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a201-eef831aa-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=8589934592
+NanoCpus=4000000000
+PidsLimit=4096
+SecurityOpt=["no-new-privileges:true"]
+ReadonlyRootfs=false

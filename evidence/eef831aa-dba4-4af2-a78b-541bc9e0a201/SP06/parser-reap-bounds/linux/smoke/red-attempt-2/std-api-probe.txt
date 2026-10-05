@@ -1,0 +1,3 @@
+probe=std-api-2
+stdio_from_unixstream=unsupported_on_1_94
+std_io_pipe=ok reader_fd_ok=1

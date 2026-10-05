@@ -1,0 +1,1 @@
+killed-by-outer-wait sigterm after probe compiled; probe file stopped after std_io_pipe=ok; red harness did not start

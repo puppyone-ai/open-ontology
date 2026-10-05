@@ -1,0 +1,28 @@
+probe=std-api-3
+stdio_from_unixstream=unsupported_on_1_94
+std_io_pipe=ok
+step=owned_fd_begin
+step=owned_fd_converted
+step=cat_spawned pid=33
+step=cat_wrote
+step=cat_read_err kind=WouldBlock
+owned_fd_stdio pid=33 status=exit status: 0 bytes=probe-bytes
+zero_read_timeout_kind=InvalidInput
+read_timeout_kind=WouldBlock elapsed_ms=94
+write_timeout_kind=WouldBlock wrote=233152 elapsed_ms=175
+kill_path=/bin/kill kind=file link_target=
+kill_path=/usr/bin/kill kind=file link_target=
+kill_version_exit=0 line=kill from procps-ng 4.0.4
+dpkg_kill_exit=1 line=
+spawned tag=direct leader=38 grand=40 line=40 leader_pgrp=Some(38) grand_pgrp=Some(38) own_pgrp=Some(30)
+direct_kill status=signal: 9 (SIGKILL) leader_alive=0 grand_alive=1 grand_start=Some(66655) grand_start_now=Some(66655)
+spawned tag=group leader=43 grand=45 line=45 leader_pgrp=Some(43) grand_pgrp=Some(43) own_pgrp=Some(30)
+group_form args=-KILL,--,-43 exit=0 stderr= leader_alive=1 grand_alive=0
+spawned tag=group leader=49 grand=51 line=51 leader_pgrp=Some(49) grand_pgrp=Some(49) own_pgrp=Some(30)
+group_form args=-s,KILL,--,-49 exit=1 stderr= leader_alive=1 grand_alive=1
+spawned tag=group leader=55 grand=57 line=57 leader_pgrp=Some(55) grand_pgrp=Some(55) own_pgrp=Some(30)
+group_form args=-KILL,-55 exit=1 stderr= leader_alive=1 grand_alive=0
+setsid_path=/usr/bin/setsid
+setsid_before leader=61 leader_pgrp=Some(61) recorded=63 line=63 recorded_pgrp=Some(63) recorded_comm=sleep
+setsid_after_group_kill leader_alive=1 recorded_alive=1 recorded_pgrp=Some(63) recorded_comm=sleep
+probe_done=1

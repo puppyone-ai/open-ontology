@@ -1,0 +1,310 @@
+[
+    {
+        "Id": "4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667",
+        "Created": "2026-10-05T17:47:49.000072833Z",
+        "Path": "bash",
+        "Args": [
+            "/inside.sh"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 143,
+            "Error": "",
+            "StartedAt": "2026-10-05T17:47:49.034287Z",
+            "FinishedAt": "2026-10-05T17:58:10.525708177Z"
+        },
+        "Image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+        "ResolvConfPath": "/var/lib/docker/containers/4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667/hostname",
+        "HostsPath": "/var/lib/docker/containers/4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667/hosts",
+        "LogPath": "/var/lib/docker/containers/4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667/4305b6899c8b6747add2ceba545f642f0244ee997e3f26b2383df36c66652667-json.log",
+        "Name": "/oo-a201-red2",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "oo-a201-eef831aa-net",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "no-new-privileges:true"
+            ],
+            "Tmpfs": {
+                "/tmp": "rw,nosuid,nodev,noexec,size=1g"
+            },
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 8589934592,
+            "NanoCpus": 4000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 8589934592,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 4096,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a201-eef831aa-dba4-4af2-a78b-541bc9e0a201/archive",
+                    "Target": "/src"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds/linux/smoke/rerun-inside.sh",
+                    "Target": "/inside.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds/tools",
+                    "Target": "/tools",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds",
+                    "Target": "/evidence"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a201-eef831aa-cargo",
+                    "Target": "/cargo-home"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a201-eef831aa-target",
+                    "Target": "/target"
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a201-eef831aa-dba4-4af2-a78b-541bc9e0a201/archive",
+                "Destination": "/src",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a201-eef831aa-target",
+                "Source": "/var/lib/docker/volumes/oo-a201-eef831aa-target/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds/tools",
+                "Destination": "/tools",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a201-eef831aa-cargo",
+                "Source": "/var/lib/docker/volumes/oo-a201-eef831aa-cargo/_data",
+                "Destination": "/cargo-home",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds/linux/smoke/rerun-inside.sh",
+                "Destination": "/inside.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "4305b6899c8b",
+            "Domainname": "",
+            "User": "0:0",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "CARGO_HOME=/cargo-home",
+                "CARGO_TARGET_DIR=/target",
+                "CARGO_BUILD_JOBS=4",
+                "RUSTUP_TOOLCHAIN=1.94.0",
+                "CARGO_TERM_COLOR=never",
+                "HOME=/tmp",
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "RUST_VERSION=1.94.0"
+            ],
+            "Cmd": [
+                "bash",
+                "/inside.sh"
+            ],
+            "Image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "Labels": {
+                "oo.kind": "rust-builder",
+                "oo.owner": "a201",
+                "oo.platform": "linux/arm64",
+                "oo.project": "open-ontology",
+                "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a201",
+                "oo.task": "parser-reap-bounds-red2",
+                "oo.toolchain": "1.94.0",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "oo-a201-eef831aa-net": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e6dcedf26b164cf305f84ed2f2e49b690f2b4b2e04a95263ce323716e58cbc77",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "oo-a201-red2",
+                        "4305b6899c8b"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "size": 1936,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            }
+        }
+    }
+]

@@ -1,0 +1,4 @@
+100644 blob 14fdbcd0244c0f83c8dd640a34b53325dc2c4dbc	contracts/gateway/parser-worker-v1.md
+100644 blob 99e04e5b9810fb8885534c685a59d49c3ad5b0d8	crates/oo-gateway/src/bin/oo-sql-parser-worker.rs
+100644 blob 59c1518d5d2941f04e2c51ec1585de1e9e57c283	crates/oo-gateway/src/parser_worker.rs
+100644 blob 8b47ac63ed490a77a734218bd9ec14942b62a7f1	crates/oo-gateway/tests/parser_worker.rs
