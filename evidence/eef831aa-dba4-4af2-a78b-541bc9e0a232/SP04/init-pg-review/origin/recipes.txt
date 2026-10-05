@@ -1,0 +1,51 @@
+Reviewed launch and hash recipes for a232 init-pg review.
+Fixed product commit 6e1e6e576d1afd2bde10dedad649f09dee95bd34.
+Tree 7f387aeea34cfc374940bf454767f3a49b167be9.
+Parent d71a17d68769306bb55a9b377c2aefb948da55c9.
+The archive is that commit. Product files are not copied from the worktree.
+Author evidence a223 was read. Its three product blobs match this commit. This review does not copy a223 launch scripts.
+
+a204 file-validation review preoverlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+    git blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+    sha256 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+  Used for the partial git archive, the refuse-to-overwrite console.log rule, the private network, and the docker run shape.
+
+a204 preoverlay inside:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+    sha256 b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+  Used for the locked fetch, the toolchain pin, and the lock comparison.
+
+a200 policy-catalog review postgres:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+    git blob 1784718c92323df0f216e9f5bd8fee182f4ff24d
+    sha256 96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+    git blob e12a368394c724f8f9d3436ad5f4873e139baa66
+    sha256 25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+  pg/pg-wrap.sh is a byte copy of the a200 file.
+  pg/up.sh keeps that shape.
+
+a200 smoke launch and inside, read and not executed:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+    sha256 837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/inside.sh
+    sha256 b56d83ddbf95ecb0a33ab5028f2f99c562d9f6e51d47075c2ee7584ac315a0eb
+
+a199 hash tool:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+    git blob f21989651570187fc286462349d59174a6a6b8ef
+    sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  tools/sha256_manifest.rs is a byte copy. No product oracle is Python.
+
+a214 manifest launch, used for the hash inventory:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a214/SP07/role-pack-bundle/linux/manifest/launch.sh
+    git blob 7463b55ef41208a065c9a18201870a67ea881e11
+    commit 7b5f1599bafb385a8c31a2b6fe38d8f71830fd1e
+    sha256 df95de366350a6a90b829ea5ffb6a43d0640d49c357f77f49347ebc9e4fd8d1f
+  linux/hash/launch.sh keeps that shape: pinned image, network none, 6g, 1 cpu, cap-drop ALL, rustc --edition 2024 -D warnings to /usr/local/bin, tmpfs /tmp noexec, two sequential containers. The second walk is the inventory.
+  Minimal changes: owner a232, output path SHA256SUMS, and the second container seals that file as SHA256SUMS.sha256 from a one-file directory after the walk.
+
+Edits from those recipes: owner a232, session eef831aa-dba4-4af2-a78b-541bc9e0a232, fixed commit 6e1e6e576d1afd2bde10dedad649f09dee95bd34, new builder memory 6g and cpus 1, CARGO_BUILD_JOBS 1, global running rust-builder cap 10, one private PostgreSQL, private network and volumes. No privileged mode, host network, docker socket, host home, or shared cargo cache. The fixed commit rust-toolchain.toml names channel 1.98.1. RUSTUP_TOOLCHAIN=1.94.0 stays set. The git object is not rewritten.
+
+Smoke runs the fixed commit's own init_pg_cli tests before the review harness exists. The live author test stays ignored. Proof copies only overlay/init_pg_a232_review.rs onto a fresh archive of the same commit and runs that test plus clippy. No dependency file is edited. cargo update is not run.

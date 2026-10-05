@@ -1,0 +1,1 @@
+Harness compared schema_migrations in install order against ORDER BY version. Stored digests matched the init-pg seals. Clippy rejected unread field secrets. Product source was not changed.

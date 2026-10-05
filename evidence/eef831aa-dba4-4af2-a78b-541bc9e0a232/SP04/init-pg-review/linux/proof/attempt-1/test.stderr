@@ -1,0 +1,31 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+warning: field `secrets` is never read
+  --> crates/oo-pipeline/tests/init_pg_a232_review.rs:51:5
+   |
+42 | struct Harness {
+   |        ------- field in this struct
+...
+51 |     secrets: PathBuf,
+   |     ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `oo-pipeline` (test "init_pg_a232_review") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.65s
+     Running tests/init_pg_a232_review.rs (/target/debug/deps/init_pg_a232_review-03be2410138dbad0)
+error: test failed, to rerun pass `-p oo-pipeline --test init_pg_a232_review`
