@@ -1,0 +1,2 @@
+collected=2026-10-05T20:30:19Z
+name=/oo-a203-harness id=480a6081957a1faa07190d7b23a8394edbb133067e3eace60355d69dfff08a74 status=exited exit=0 oom=false privileged=false finished=2026-10-05T20:00:26.777289221Z image=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 memory=8589934592 nano_cpus=4000000000 pids=4096 capdrop=["ALL"] capadd=null network=oo-a203-net  ports={} binds=null

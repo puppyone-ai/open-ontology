@@ -1,0 +1,60 @@
+started=2026-10-05T20:30:56Z
+scope=oo-a203 containers volumes network and private tmp only
+--- before containers ---
+480a6081957a oo-a203-harness Exited (0) 30 minutes ago
+2fa76563fc84 oo-a203-pg Up 2 hours
+27182e6c011d oo-a203-rust194 Exited (0) 2 hours ago
+--- before volumes ---
+oo-a203-cargo
+oo-a203-pgdata
+oo-a203-target
+--- before network ---
+oo-a203-net
+--- rm containers ---
+oo-a203-harness
+rm_harness=0
+Error response from daemon: cannot remove container "oo-a203-pg": container is running: stop the container before removing or force remove
+rm_pg=1
+oo-a203-rust194
+rm_rust194=0
+--- rm volumes ---
+oo-a203-cargo
+rm_cargo=0
+oo-a203-target
+rm_target=0
+Error response from daemon: remove oo-a203-pgdata: volume is in use - [2fa76563fc845a20748c3e6a48c9fd693d33b841994017143d4af8b3e80e2bae]
+rm_pgdata=1
+--- rm network ---
+Error response from daemon: error while removing network: network oo-a203-net has active endpoints (name:"oo-a203-pg" id:"cb4943591f69")
+exit status 1
+rm_net=1
+--- rm tmp ---
+rm_archive=0
+rm_secrets_dir=0
+--- after containers ---
+2fa76563fc84 oo-a203-pg Up 2 hours
+after_container_lines=1
+--- after volumes ---
+oo-a203-pgdata
+after_volume_lines=1
+--- after network ---
+oo-a203-net
+after_network_lines=1
+archive_left=no
+secrets_left=no
+finished=2026-10-05T20:30:57Z
+--- stop pg ---
+stop_started=2026-10-05T20:31:05Z
+oo-a203-pg
+stop_pg=0
+oo-a203-pg
+rm_pg_after_stop=0
+oo-a203-pgdata
+rm_pgdata_after_stop=0
+oo-a203-net
+rm_net_after_stop=0
+--- final ---
+after_container_lines=0
+after_volume_lines=0
+after_network_lines=0
+finished=2026-10-05T20:31:06Z

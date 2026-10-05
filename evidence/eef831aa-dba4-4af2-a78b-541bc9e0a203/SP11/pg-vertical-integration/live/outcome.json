@@ -1,0 +1,185 @@
+{
+  "captured_catalog_hash": "6df2d552aed6a192532e2c2360bee20a100b671f2c122e2d2109cd8eaf6dc996",
+  "config_digest": "3033ccada1eef250b5f550f8cdfde039b3e9897e7b3e0489779f3adec3490859",
+  "draft_hash": "529298a3db7f3352ccf512eec754713f0934f1e5d66ac092e40b82f228f63498",
+  "full_import_calls": 1,
+  "install": "bootstrapped",
+  "install_calls": 1,
+  "install_full_import": "installed",
+  "label_attempt": "chinese_labels_accepted",
+  "manifest_hash": "e61563a840dd508c610d3ff19695c9185053406e103548fe3ce43d32cbb27e87",
+  "oracle_sha256": "23fc44cafec8ebfe4fd4f47c4368549bddcb82a36914634e7c8ca190d6f80c8a",
+  "parent_acceptance": false,
+  "publication": "unavailable",
+  "queries": [
+    {
+      "class": "rows",
+      "rows": 3,
+      "sql": "SELECT party_id, display_name, active, credit_limit FROM ent.party"
+    },
+    {
+      "class": "count",
+      "sql": "SELECT count(*) FROM ent.party"
+    },
+    {
+      "class": "star",
+      "rows": 3,
+      "sql": "SELECT * FROM ent.party"
+    },
+    {
+      "class": "guard_refusal",
+      "detail": "column is not visible: ent.party.party_id, ent.party.display_name, ent.party.active, ent.party.credit_limit; 2 columns are pending classification",
+      "sql": "SELECT internal_note FROM ent.party"
+    },
+    {
+      "class": "guard_refusal",
+      "detail": "write statement is not allowed",
+      "sql": "INSERT INTO ent.party (party_id, active, credit_limit) VALUES (9, true, 0)"
+    },
+    {
+      "class": "rows",
+      "rows": 3,
+      "sql": "SELECT invoice_id, party_id, memo, posted, amount FROM ent.invoice"
+    },
+    {
+      "class": "count",
+      "sql": "SELECT count(*) FROM ent.invoice"
+    },
+    {
+      "class": "star",
+      "rows": 3,
+      "sql": "SELECT * FROM ent.invoice"
+    },
+    {
+      "class": "guard_refusal",
+      "detail": "column is not visible: ent.invoice.invoice_id, ent.invoice.party_id, ent.invoice.memo, ent.invoice.posted, ent.invoice.amount; 2 columns are pending classification",
+      "sql": "SELECT clerk_note FROM ent.invoice"
+    },
+    {
+      "class": "guard_refusal",
+      "detail": "write statement is not allowed",
+      "sql": "INSERT INTO ent.invoice (invoice_id, party_id, posted) VALUES (9, 1, false)"
+    }
+  ],
+  "query_cli": "not_exercised",
+  "review_note": "one_review_per_item_id blocks override beside accept:relationship/ent.invoice/invoice_party_fk",
+  "role_pack": [
+    {
+      "compiled": false,
+      "error_code": "oo.builder.role-pack/v1/schema.rejected",
+      "error_message": "the effective document does not match the role-pack contract",
+      "error_path": "/",
+      "input_kind": "structure_draft_json"
+    },
+    {
+      "compiled": false,
+      "error_code": "oo.builder.role-pack/v1/classification.unknown_pii",
+      "error_message": "unknown PII stays hidden and is not classified by this compiler",
+      "error_path": "/datasets/0/columns/0",
+      "input_kind": "compiler_datasets_and_relationships"
+    },
+    {
+      "compiled": false,
+      "error_code": "oo.builder.role-pack/v1/classification.unknown_pii",
+      "error_message": "unknown PII stays hidden and is not classified by this compiler",
+      "error_path": "/datasets/0/columns/0",
+      "input_kind": "compiler_datasets_only"
+    }
+  ],
+  "run_id": "7dba3fda-8dba-4cbd-83a6-a7ac0382bda0",
+  "schema_hash": "42c7ceab75c670f1d8d165efe3eb69ba99dbce5b8e407c6e26f2f724f06de5eb",
+  "shadow_marked_published": false,
+  "source_generation": 1,
+  "source_id": "a203ent",
+  "source_sha": "0ee7cf86ad443ee1d84fe9fe3ed3f7d8847799c1",
+  "state": "awaiting_publish",
+  "status": "api_slice_completed",
+  "tables": [
+    {
+      "canonical_digest": "1a033f73481a8099a16b72a6d2a8d7f57e82aca3b870fb2b1f99fbf1907ca025",
+      "columns": [
+        {
+          "attnum": 1,
+          "name": "party_id",
+          "physical_name": "pc_d9ecdc6cd2b621a21aae2dde8560a386dad19b0dc2a2778595bea5ba702e",
+          "type_oid": 20
+        },
+        {
+          "attnum": 2,
+          "name": "display_name",
+          "physical_name": "pc_8cf77eaf7fe4276d8dcf03499c76742050c5bc95861e24cee3f930a94997",
+          "type_oid": 25
+        },
+        {
+          "attnum": 3,
+          "name": "active",
+          "physical_name": "pc_f06d15f2174e2e9635d707c4fe1e815accc251cce40f2b89ffc322cb8a35",
+          "type_oid": 16
+        },
+        {
+          "attnum": 4,
+          "name": "credit_limit",
+          "physical_name": "pc_d89e532704b62a0543cab95bdadffd8073ba4358ac0d325abfd90bfc57e4",
+          "type_oid": 20
+        },
+        {
+          "attnum": 5,
+          "name": "internal_note",
+          "physical_name": "pc_fdaa80edd422b1fb9a56247bef27675893dba342a4a3e2d1f5221405e23b",
+          "type_oid": 25
+        }
+      ],
+      "name": "party",
+      "physical_name": "pt_d07a54b9f66626e18bc0b460df32f874bfcf08ebaf552350c24e428cb24d",
+      "rows": 3,
+      "schema": "ent"
+    },
+    {
+      "canonical_digest": "e201aeb50cda3c3dd761f41924222ebb7fba93909cb34f641b33115106185138",
+      "columns": [
+        {
+          "attnum": 1,
+          "name": "invoice_id",
+          "physical_name": "pc_dfaf29eabd49d9223075d227a7ad97b48ef32e0270177f6922ef9f20736d",
+          "type_oid": 20
+        },
+        {
+          "attnum": 2,
+          "name": "party_id",
+          "physical_name": "pc_e2f14c3f8f33014de16b47c91271c4efe4ea1d8c0fc28f9ab1df28889a45",
+          "type_oid": 20
+        },
+        {
+          "attnum": 3,
+          "name": "memo",
+          "physical_name": "pc_22d9984198792eed143b8a9d6da85fbc142cef67c9d8ed2a6afc65dabf8a",
+          "type_oid": 25
+        },
+        {
+          "attnum": 4,
+          "name": "posted",
+          "physical_name": "pc_115bf2e641933afd7f014081f0e2a2195a4792e7016b58900385cc7fc6ac",
+          "type_oid": 16
+        },
+        {
+          "attnum": 5,
+          "name": "amount",
+          "physical_name": "pc_5662dbc70ad6212e27f584c2795bd0f926f0ad63835d145c55c85015218c",
+          "type_oid": 20
+        },
+        {
+          "attnum": 6,
+          "name": "clerk_note",
+          "physical_name": "pc_3c0366d8d7cd26f7bec820839589a1d774d212fbee3772614d32059f1454",
+          "type_oid": 25
+        }
+      ],
+      "name": "invoice",
+      "physical_name": "pt_d9e20ef093d36d42e808074ca6d002eabc15e78a810f3516e38df2c0e878",
+      "rows": 3,
+      "schema": "ent"
+    }
+  ],
+  "target_generation": 1,
+  "wrapper_hash": "ac13ae27e2474479214c11e25bb7a063228dacaa646d0d5a51b74887856c91df"
+}

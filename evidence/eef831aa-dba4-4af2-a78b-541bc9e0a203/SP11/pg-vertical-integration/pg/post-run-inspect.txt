@@ -1,0 +1,2 @@
+collected=2026-10-05T20:30:19Z
+name=/oo-a203-pg id=2fa76563fc845a20748c3e6a48c9fd693d33b841994017143d4af8b3e80e2bae status=running exit=0 oom=false privileged=false started=2026-10-05T18:42:51.610139386Z image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb memory=1073741824 capdrop=["ALL"] capadd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] network=oo-a203-net  ports={"5432/tcp":null} portbindings={}

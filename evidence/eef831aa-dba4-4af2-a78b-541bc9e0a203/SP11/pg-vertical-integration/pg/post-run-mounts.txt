@@ -1,0 +1,5 @@
+volume /var/lib/postgresql/data rw=true
+bind /fixture rw=false
+bind /secrets rw=false
+bind /tls-in rw=false
+

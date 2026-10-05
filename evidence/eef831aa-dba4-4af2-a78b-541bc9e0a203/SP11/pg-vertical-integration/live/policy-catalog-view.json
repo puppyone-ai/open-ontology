@@ -1,0 +1,83 @@
+{
+  "invoice": {
+    "large_table_row_threshold": 1000000,
+    "policy_id": "3033ccada1eef250b5f550f8cdfde039b3e9897e7b3e0489779f3adec3490859",
+    "project": "a203ent",
+    "relations": [
+      {
+        "columns": [
+          {
+            "name": "invoice_id",
+            "physical_name": "pc_dfaf29eabd49d9223075d227a7ad97b48ef32e0270177f6922ef9f20736d",
+            "type_oid": 20
+          },
+          {
+            "name": "party_id",
+            "physical_name": "pc_e2f14c3f8f33014de16b47c91271c4efe4ea1d8c0fc28f9ab1df28889a45",
+            "type_oid": 20
+          },
+          {
+            "name": "memo",
+            "physical_name": "pc_22d9984198792eed143b8a9d6da85fbc142cef67c9d8ed2a6afc65dabf8a",
+            "type_oid": 25
+          },
+          {
+            "name": "posted",
+            "physical_name": "pc_115bf2e641933afd7f014081f0e2a2195a4792e7016b58900385cc7fc6ac",
+            "type_oid": 16
+          },
+          {
+            "name": "amount",
+            "physical_name": "pc_5662dbc70ad6212e27f584c2795bd0f926f0ad63835d145c55c85015218c",
+            "type_oid": 20
+          }
+        ],
+        "estimated_rows": 0,
+        "name": "invoice",
+        "pending_unclassified": 2,
+        "physical_name": "pt_d9e20ef093d36d42e808074ca6d002eabc15e78a810f3516e38df2c0e878",
+        "physical_schema": "_oo",
+        "schema": "ent"
+      }
+    ],
+    "role": "oo_r_invoice_read"
+  },
+  "party": {
+    "large_table_row_threshold": 1000000,
+    "policy_id": "3033ccada1eef250b5f550f8cdfde039b3e9897e7b3e0489779f3adec3490859",
+    "project": "a203ent",
+    "relations": [
+      {
+        "columns": [
+          {
+            "name": "party_id",
+            "physical_name": "pc_d9ecdc6cd2b621a21aae2dde8560a386dad19b0dc2a2778595bea5ba702e",
+            "type_oid": 20
+          },
+          {
+            "name": "display_name",
+            "physical_name": "pc_8cf77eaf7fe4276d8dcf03499c76742050c5bc95861e24cee3f930a94997",
+            "type_oid": 25
+          },
+          {
+            "name": "active",
+            "physical_name": "pc_f06d15f2174e2e9635d707c4fe1e815accc251cce40f2b89ffc322cb8a35",
+            "type_oid": 16
+          },
+          {
+            "name": "credit_limit",
+            "physical_name": "pc_d89e532704b62a0543cab95bdadffd8073ba4358ac0d325abfd90bfc57e4",
+            "type_oid": 20
+          }
+        ],
+        "estimated_rows": 0,
+        "name": "party",
+        "pending_unclassified": 2,
+        "physical_name": "pt_d07a54b9f66626e18bc0b460df32f874bfcf08ebaf552350c24e428cb24d",
+        "physical_schema": "_oo",
+        "schema": "ent"
+      }
+    ],
+    "role": "oo_r_party_read"
+  }
+}
