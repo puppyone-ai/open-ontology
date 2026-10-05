@@ -9,6 +9,8 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
 use oo_gateway::query_executor::{
     observe_backend, AuditAdmission, CancelOutcome, Cell, CompletionRecord, CompletionStatus,
     DedicatedSession, ExecError, QuerySummary, SelectRequest, SelectStream, StopClass,
@@ -242,6 +244,7 @@ async fn run_live() {
     prove_role_timing(&mut env).await;
     prove_blocked_shutdown(&mut env).await;
     prove_cancel_transport_bounds(&mut env).await;
+    prove_cancel_future_abort(&mut env).await;
     env.oracle.fact("live_result", "compared");
 }
 
@@ -2824,4 +2827,490 @@ async fn bridge_proxy(mut inbound: tokio::net::TcpStream, upstream: &str) -> std
     let mut outbound = tokio::net::TcpStream::connect(upstream).await?;
     tokio::io::copy_bidirectional(&mut inbound, &mut outbound).await?;
     Ok(())
+}
+
+const PG_SSL_REQUEST: i32 = 80877103;
+const PG_CANCEL_REQUEST: i32 = 80877102;
+
+struct HeldPrefix {
+    // The socket stays open until discard. Releasing it would write this prefix onto a later backend.
+    _sock: tokio::net::TcpStream,
+    code: i32,
+}
+
+struct CancelOnlyProxy {
+    arm: Arc<AtomicBool>,
+    held: Arc<tokio::sync::Mutex<Vec<HeldPrefix>>>,
+    holds: Arc<AtomicUsize>,
+    forwarded: Arc<AtomicUsize>,
+    unexpected: Arc<AtomicUsize>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl CancelOnlyProxy {
+    async fn start(port: u16, upstream: String) -> Result<Self, String> {
+        let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+            .await
+            .map_err(|_| "proxy-bind".to_string())?;
+        let arm = Arc::new(AtomicBool::new(false));
+        let held = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let holds = Arc::new(AtomicUsize::new(0));
+        let forwarded = Arc::new(AtomicUsize::new(0));
+        let unexpected = Arc::new(AtomicUsize::new(0));
+        let arm_task = Arc::clone(&arm);
+        let held_task = Arc::clone(&held);
+        let holds_task = Arc::clone(&holds);
+        let forwarded_task = Arc::clone(&forwarded);
+        let unexpected_task = Arc::clone(&unexpected);
+        let task = tokio::spawn(async move {
+            loop {
+                let Ok((mut sock, _)) = listener.accept().await else {
+                    break;
+                };
+                let mut prefix = [0u8; 8];
+                let read =
+                    tokio::time::timeout(Duration::from_secs(3), sock.read_exact(&mut prefix)).await;
+                if !matches!(read, Ok(Ok(_))) {
+                    continue;
+                }
+                let code = i32::from_be_bytes([prefix[4], prefix[5], prefix[6], prefix[7]]);
+                let cancelish = code == PG_SSL_REQUEST || code == PG_CANCEL_REQUEST;
+                let armed = arm_task.load(Ordering::SeqCst);
+                if armed && cancelish {
+                    holds_task.fetch_add(1, Ordering::SeqCst);
+                    held_task.lock().await.push(HeldPrefix {
+                        _sock: sock,
+                        code,
+                    });
+                } else {
+                    if armed {
+                        unexpected_task.fetch_add(1, Ordering::SeqCst);
+                    }
+                    forwarded_task.fetch_add(1, Ordering::SeqCst);
+                    let upstream = upstream.clone();
+                    tokio::spawn(async move {
+                        let _ = bridge_prefixed(sock, prefix.to_vec(), &upstream).await;
+                    });
+                }
+            }
+        });
+        Ok(Self {
+            arm,
+            held,
+            holds,
+            forwarded,
+            unexpected,
+            task,
+        })
+    }
+
+    fn disarm(&self) {
+        self.arm.store(false, Ordering::SeqCst);
+    }
+
+    fn holds(&self) -> usize {
+        self.holds.load(Ordering::SeqCst)
+    }
+
+    fn forwarded(&self) -> usize {
+        self.forwarded.load(Ordering::SeqCst)
+    }
+
+    fn unexpected(&self) -> usize {
+        self.unexpected.load(Ordering::SeqCst)
+    }
+
+    async fn wait_holds(&self, before: usize, bound: Duration) -> bool {
+        let started = Instant::now();
+        while started.elapsed() < bound {
+            if self.holds() > before {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+
+    async fn discard(&self) {
+        self.held.lock().await.clear();
+    }
+
+    async fn codes(&self) -> String {
+        let guard = self.held.lock().await;
+        if guard.is_empty() {
+            return "none".to_string();
+        }
+        guard
+            .iter()
+            .map(|held| match held.code {
+                PG_SSL_REQUEST => "sslrequest".to_string(),
+                PG_CANCEL_REQUEST => "cancel".to_string(),
+                other => other.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
+impl Drop for CancelOnlyProxy {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+async fn bridge_prefixed(
+    mut inbound: tokio::net::TcpStream,
+    prefix: Vec<u8>,
+    upstream: &str,
+) -> std::io::Result<()> {
+    let mut outbound = tokio::net::TcpStream::connect(upstream).await?;
+    outbound.write_all(&prefix).await?;
+    tokio::io::copy_bidirectional(&mut inbound, &mut outbound).await?;
+    Ok(())
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+fn exec_label(result: &Result<SelectStream, ExecError>) -> &'static str {
+    match result {
+        Ok(_) => "started",
+        Err(ExecError::SessionBusy) => "busy",
+        Err(ExecError::SessionClosed) => "closed",
+        Err(_) => "other",
+    }
+}
+
+async fn settle_exec(
+    session: &mut DedicatedSession,
+    result: Result<SelectStream, ExecError>,
+) -> &'static str {
+    let label = exec_label(&result);
+    if let Ok(stream) = result {
+        drop(stream);
+        let _ = tokio::time::timeout(Duration::from_secs(2), session.wait_idle()).await;
+    }
+    label
+}
+
+fn join_label(
+    joined: Result<
+        Result<Result<CancelOutcome, ExecError>, tokio::task::JoinError>,
+        tokio::time::error::Elapsed,
+    >,
+) -> &'static str {
+    match joined {
+        Ok(Ok(Ok(CancelOutcome::Sent))) => "sent",
+        Ok(Ok(Ok(CancelOutcome::NotSent))) => "not_sent",
+        Ok(Ok(Err(ExecError::Timeout { sqlstate: None }))) => "timeout-none",
+        Ok(Ok(Err(ExecError::Protocol { .. }))) => "protocol",
+        Ok(Ok(Err(_))) => "err",
+        Ok(Err(err)) if err.is_cancelled() => "aborted",
+        Ok(Err(_)) => "join-err",
+        Err(_) => "join-hung",
+    }
+}
+
+fn cancel_label(result: Result<CancelOutcome, ExecError>) -> &'static str {
+    match result {
+        Ok(CancelOutcome::Sent) => "sent",
+        Ok(CancelOutcome::NotSent) => "not_sent",
+        Err(ExecError::Timeout { sqlstate: None }) => "timeout-none",
+        Err(ExecError::Protocol { .. }) => "protocol",
+        Err(_) => "err",
+    }
+}
+
+struct AbortSuccess {
+    join: &'static str,
+    idle: &'static str,
+    during: &'static str,
+    first: &'static str,
+    later: &'static str,
+    retry: &'static str,
+    codes: String,
+}
+
+struct AbortDrop {
+    join: &'static str,
+    idle: &'static str,
+    next: &'static str,
+    codes: String,
+}
+
+async fn prove_cancel_future_abort(env: &mut Env) {
+    ensure_proxy_name("oo-a210-proxy").expect("a210 proxy name");
+    let proxy = CancelOnlyProxy::start(15434, "oo-a189-pg:5432".to_string())
+        .await
+        .expect("a210 proxy");
+    let success = prove_aborted_success(env, &proxy).await;
+    proxy.disarm();
+    proxy.discard().await;
+    let dropped = prove_aborted_drop(env, &proxy).await;
+    proxy.disarm();
+    proxy.discard().await;
+    proxy.task.abort();
+    assert!(
+        success.codes.contains("sslrequest"),
+        "owning cancel did not enter transport: {}",
+        success.codes
+    );
+    assert!(
+        dropped.codes.contains("sslrequest"),
+        "aborted drop did not enter transport: {}",
+        dropped.codes
+    );
+    assert_eq!(success.join, "aborted", "success cancel future was not aborted");
+    assert_eq!(dropped.join, "aborted", "drop cancel future was not aborted");
+    assert_eq!(success.idle, "ok", "producer did not exit after abort");
+    assert_eq!(dropped.idle, "ok", "producer did not exit after aborted drop");
+    assert_eq!(
+        success.during, "busy",
+        "non-owning cancel released the reservation"
+    );
+    assert_eq!(success.retry, "not_sent");
+    assert_eq!(proxy.unexpected(), 0, "armed proxy forwarded an unexpected prefix");
+    assert!(
+        success.first == "closed" && success.later == "closed" && dropped.next == "closed",
+        "owning cancel abort left {} after_1200ms:{}; aborted drop left {}",
+        success.first,
+        success.later,
+        dropped.next
+    );
+}
+
+async fn install_abort_brief(client: &Client) -> u32 {
+    client
+        .batch_execute(
+            "CREATE OR REPLACE FUNCTION fixture.abort_brief() RETURNS integer\n\
+             LANGUAGE plpgsql VOLATILE AS $$\n\
+             BEGIN PERFORM pg_catalog.pg_sleep(0.25); RETURN 1; END $$;\n\
+             REVOKE ALL ON FUNCTION fixture.abort_brief() FROM PUBLIC;\n\
+             GRANT EXECUTE ON FUNCTION fixture.abort_brief() TO oo_r_reader_a",
+        )
+        .await
+        .expect("abort brief");
+    function_oid(client, "abort_brief", 0_i16).await
+}
+
+async fn prove_aborted_success(env: &mut Env, proxy: &CancelOnlyProxy) -> AbortSuccess {
+    proxy.disarm();
+    let brief_oid = install_abort_brief(&env.admin).await;
+    let mut catalog = hold_catalog(env);
+    catalog.functions.push(ResolvedFunction {
+        oid: brief_oid,
+        schema: "fixture".to_string(),
+        name: "abort_brief".to_string(),
+        argument_type_oids: Vec::new(),
+        aggregate_star: false,
+    });
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session_at(env, "oo-a210-proxy", 15434).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let mut stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &catalog,
+                "SELECT fixture.abort_brief() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                30_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("aborted success stream");
+    assert!(
+        wait_user_query(&env.admin, pid, &env.shadow.table).await,
+        "aborted success query did not become active"
+    );
+    let handle = stream.cancel_handle();
+    let retry = handle.clone();
+    let direct = connect_db(DATABASE, ADMIN, &env.admin_pass, &env.ca).await;
+    let before = proxy.holds();
+    proxy.arm.store(true, Ordering::SeqCst);
+    let cancel_task = tokio::spawn(async move { handle.cancel(&direct).await });
+    assert!(
+        proxy.wait_holds(before, Duration::from_secs(3)).await,
+        "aborted success did not hold a cancel transport"
+    );
+    let row = tokio::time::timeout(Duration::from_secs(3), stream.next_row()).await;
+    let row_label = match &row {
+        Err(_) => "hung",
+        Ok(Ok(Some(_))) => "row",
+        Ok(Ok(None)) => "end",
+        Ok(Err(_)) => "err",
+    };
+    assert_eq!(row_label, "row", "brief row did not finish while cancel was held");
+    let during_result = page_hold_select(&mut session, env, &identity, &hold_catalog(env)).await;
+    let during = exec_label(&during_result);
+    assert!(during_result.is_err(), "pending cancel started another query");
+    let clone_label = cancel_label(retry.cancel(&env.admin).await);
+    let during_again_result = page_hold_select(&mut session, env, &identity, &hold_catalog(env)).await;
+    let during_again = exec_label(&during_again_result);
+    let codes = proxy.codes().await;
+    cancel_task.abort();
+    let joined = tokio::time::timeout(Duration::from_secs(2), cancel_task).await;
+    let join = join_label(joined);
+    drop(stream);
+    let idle_at = Instant::now();
+    let idle = tokio::time::timeout(Duration::from_millis(2_000), session.wait_idle()).await;
+    let idle_ms = idle_at.elapsed().as_millis();
+    let idle_label = match &idle {
+        Err(_) => "hung",
+        Ok(Err(_)) => "err",
+        Ok(Ok(())) => "ok",
+    };
+    let (status, rollback, socket, sqlstate, open, first, later, retry_label, after_retry) =
+        if idle_label == "ok" {
+            let summary = session.summary().expect("aborted success summary");
+            let catalog = hold_catalog(env);
+            let first_result = page_hold_select(&mut session, env, &identity, &catalog).await;
+            let first = settle_exec(&mut session, first_result).await;
+            tokio::time::sleep(Duration::from_millis(1_200)).await;
+            let later_result = page_hold_select(&mut session, env, &identity, &catalog).await;
+            let later = settle_exec(&mut session, later_result).await;
+            let retry_label = cancel_label(retry.cancel(&env.admin).await);
+            let after_result = page_hold_select(&mut session, env, &identity, &catalog).await;
+            let after_retry = settle_exec(&mut session, after_result).await;
+            (
+                summary.status().as_str().to_string(),
+                yes_no(summary.rollback_confirmed()),
+                yes_no(summary.socket_dropped()),
+                summary.sqlstate().unwrap_or("none").to_string(),
+                yes_no(session.is_open()),
+                first,
+                later,
+                retry_label,
+                after_retry,
+            )
+        } else {
+            (
+                "absent".to_string(),
+                "absent",
+                "absent",
+                "absent".to_string(),
+                yes_no(session.is_open()),
+                "skipped",
+                "skipped",
+                "skipped",
+                "skipped",
+            )
+        };
+    let seen = observe_backend(&env.admin, pid).await;
+    let backend = activity_label(seen, &start);
+    env.oracle.fact(
+        "aborted_success",
+        &format!(
+            "join:{join} row:{row_label} idle:{idle_label} idle_ms:{idle_ms} open:{open} status:{status} rollback:{rollback} socket:{socket} sqlstate:{sqlstate} during:{during} clone:{clone_label} during_again:{during_again} first:{first} after_1200ms:{later} retry:{retry_label} after_retry:{after_retry} backend:{backend} codes:{codes} holds:{} forwarded:{} unexpected:{}",
+            proxy.holds() - before,
+            proxy.forwarded(),
+            proxy.unexpected(),
+        ),
+    );
+    AbortSuccess {
+        join,
+        idle: idle_label,
+        during: during_again,
+        first,
+        later,
+        retry: retry_label,
+        codes,
+    }
+}
+
+async fn prove_aborted_drop(env: &mut Env, proxy: &CancelOnlyProxy) -> AbortDrop {
+    proxy.disarm();
+    let hold = hold_catalog(env);
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session_at(env, "oo-a210-proxy", 15434).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &hold,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                30_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("aborted drop stream");
+    assert!(
+        wait_user_query(&env.admin, pid, &env.shadow.table).await,
+        "aborted drop query did not become active"
+    );
+    let handle = stream.cancel_handle();
+    let other = handle.clone();
+    let direct = connect_db(DATABASE, ADMIN, &env.admin_pass, &env.ca).await;
+    let before = proxy.holds();
+    proxy.arm.store(true, Ordering::SeqCst);
+    let cancel_task = tokio::spawn(async move { handle.cancel(&direct).await });
+    assert!(
+        proxy.wait_holds(before, Duration::from_secs(3)).await,
+        "aborted drop did not hold a cancel transport"
+    );
+    let clone_label = cancel_label(
+        tokio::time::timeout(Duration::from_secs(2), other.cancel(&env.admin))
+            .await
+            .unwrap_or(Err(ExecError::Timeout { sqlstate: None })),
+    );
+    let codes = proxy.codes().await;
+    cancel_task.abort();
+    let joined = tokio::time::timeout(Duration::from_secs(2), cancel_task).await;
+    let join = join_label(joined);
+    let dropped_at = Instant::now();
+    drop(stream);
+    let idle = tokio::time::timeout(Duration::from_millis(2_000), session.wait_idle()).await;
+    let drop_ms = dropped_at.elapsed().as_millis();
+    let idle_label = match &idle {
+        Err(_) => "hung",
+        Ok(Err(_)) => "err",
+        Ok(Ok(())) => "ok",
+    };
+    proxy.disarm();
+    let (status, rollback, sqlstate, open, next) = if idle_label == "ok" {
+        let summary = session.summary().expect("aborted drop summary");
+        let next_result = page_hold_select(&mut session, env, &identity, &hold).await;
+        let next = settle_exec(&mut session, next_result).await;
+        (
+            summary.status().as_str().to_string(),
+            yes_no(summary.rollback_confirmed()),
+            summary.sqlstate().unwrap_or("none").to_string(),
+            yes_no(session.is_open()),
+            next,
+        )
+    } else {
+        (
+            "absent".to_string(),
+            "absent",
+            "absent".to_string(),
+            yes_no(session.is_open()),
+            "skipped",
+        )
+    };
+    let seen = observe_backend(&env.admin, pid).await;
+    let backend = activity_label(seen, &start);
+    env.oracle.fact(
+        "aborted_drop",
+        &format!(
+            "join:{join} idle:{idle_label} drop_ms:{drop_ms} open:{open} status:{status} rollback:{rollback} sqlstate:{sqlstate} clone:{clone_label} next:{next} backend:{backend} codes:{codes} holds:{}",
+            proxy.holds() - before,
+        ),
+    );
+    AbortDrop {
+        join,
+        idle: idle_label,
+        next,
+        codes,
+    }
 }

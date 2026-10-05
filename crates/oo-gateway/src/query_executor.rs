@@ -43,8 +43,12 @@
 //! and driver. That abort is not `cancel_query` and does not prove the backend
 //! stopped.
 //! A [`CancelHandle`] reserves the accepting generation before its transport.
-//! The session is not lent while that reservation stands. A late handle carries
-//! the generation captured when the query started. The next query bumps that
+//! The session is not lent while that reservation stands. The future that
+//! reserved owns the reservation. The handle is cloned and its destructor does
+//! not clear it. Dropping that future before `cancel_query` releases only its
+//! generation. Dropping it after the transport was entered fail-closes the
+//! session on that thread, with no further await. A late handle carries the
+//! generation captured when the query started. The next query bumps that
 //! generation, so the old handle does not call `cancel_query`.
 //!
 //! The audit trait must return before the transaction begins. The hook in the
@@ -870,12 +874,25 @@ impl CancelHandle {
     /// The observer must be a different session. The query connection is busy.
     /// A matching accepting generation is reserved before any await, so the
     /// producer cannot lend that connection while this transport is in flight.
-    /// The gate is checked after observation returns. There is no await between
-    /// that check and `cancel_query`. Observe and `cancel_query` share one
-    /// cleanup deadline. Timeout or a transport error fail-closes the session.
-    /// A handle that does not own the reservation does not fail-close it.
+    /// The future that reserved owns that reservation through [`ReservationGuard`].
+    /// This handle is [`Clone`] and has no [`Drop`]. Dropping the future before
+    /// `cancel_query` releases only its generation. Dropping it after the
+    /// transport is entered fail-closes the session with no await in the
+    /// destructor. The gate is checked after observation returns. There is no
+    /// await between that check and `cancel_query`. Observe and `cancel_query`
+    /// share one cleanup deadline. Timeout or a transport error fail-closes
+    /// the session. A handle that does not own the reservation does not
+    /// release it and does not fail-close it.
     pub async fn cancel(&self, observer: &Client) -> Result<CancelOutcome, ExecError> {
         let owned = try_reserve_cancel(&self.shared, self.generation);
+        let mut owner = if owned {
+            Some(ReservationGuard::arm(
+                Arc::clone(&self.shared),
+                self.generation,
+            ))
+        } else {
+            None
+        };
         let budget = if owned {
             shared_cleanup_remaining(&self.shared)
         } else {
@@ -884,8 +901,8 @@ impl CancelHandle {
         let observed = match observe_within(observer, self.pid, budget).await {
             Ok(view) => view,
             Err(err) => {
-                if owned {
-                    fail_close_session(&self.shared);
+                if let Some(guard) = owner.as_mut() {
+                    guard.fail_close_on_drop();
                 }
                 return Err(err);
             }
@@ -902,30 +919,29 @@ impl CancelHandle {
             ) == CancelGate::Send
         };
         if !owned || !send {
-            if owned {
-                release_reservation(&self.shared);
-            }
             return Ok(CancelOutcome::NotSent);
         }
         let remain = shared_cleanup_remaining(&self.shared);
         if remain.is_zero() {
-            fail_close_session(&self.shared);
+            if let Some(guard) = owner.as_mut() {
+                guard.fail_close_on_drop();
+            }
             return Err(ExecError::Timeout { sqlstate: None });
+        }
+        if let Some(guard) = owner.as_mut() {
+            guard.enter_transport();
         }
         let tls = self.tls.clone();
         match tokio::time::timeout(remain, self.token.cancel_query(tls)).await {
             Ok(Ok(())) => {
+                if let Some(guard) = owner.as_mut() {
+                    guard.disarm();
+                }
                 mark_cancel_packet(&self.shared);
                 Ok(CancelOutcome::Sent)
             }
-            Ok(Err(_)) => {
-                fail_close_session(&self.shared);
-                Err(ExecError::Protocol { step: "cancel" })
-            }
-            Err(_) => {
-                fail_close_session(&self.shared);
-                Err(ExecError::Timeout { sqlstate: None })
-            }
+            Ok(Err(_)) => Err(ExecError::Protocol { step: "cancel" }),
+            Err(_) => Err(ExecError::Timeout { sqlstate: None }),
         }
     }
 }
@@ -2122,10 +2138,98 @@ fn try_reserve_cancel(shared: &Mutex<Shared>, generation: u64) -> bool {
     true
 }
 
-fn release_reservation(shared: &Mutex<Shared>) {
+/// Future-local owner of the generation reserved by `try_reserve_cancel`.
+///
+/// `CancelHandle` is cloned, including by the session, so its destructor must
+/// not touch the reservation. Drop runs on the future that reserved. It does
+/// not await.
+struct ReservationGuard {
+    shared: Arc<Mutex<Shared>>,
+    generation: u64,
+    fate: ReservationFate,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReservationFate {
+    /// Dropped before `cancel_query` was entered.
+    Release,
+    /// Transport was entered, or this future already chose fail-close.
+    FailClose,
+    /// The future settled the reservation on its own path.
+    Disarmed,
+}
+
+impl ReservationGuard {
+    fn arm(shared: Arc<Mutex<Shared>>, generation: u64) -> Self {
+        Self {
+            shared,
+            generation,
+            fate: ReservationFate::Release,
+        }
+    }
+
+    fn enter_transport(&mut self) {
+        self.fate = ReservationFate::FailClose;
+    }
+
+    fn fail_close_on_drop(&mut self) {
+        self.fate = ReservationFate::FailClose;
+    }
+
+    fn disarm(&mut self) {
+        self.fate = ReservationFate::Disarmed;
+    }
+}
+
+impl Drop for ReservationGuard {
+    fn drop(&mut self) {
+        match self.fate {
+            ReservationFate::Disarmed => {}
+            ReservationFate::Release => release_own_reservation(&self.shared, self.generation),
+            ReservationFate::FailClose => fail_close_owned(&self.shared, self.generation),
+        }
+    }
+}
+
+fn release_own_reservation(shared: &Mutex<Shared>, generation: u64) {
     let notify = {
         let mut guard = lock(shared);
+        if guard.cancel_reserved != Some(generation) {
+            return;
+        }
         guard.cancel_reserved = None;
+        Arc::clone(&guard.cancel_notify)
+    };
+    notify.notify_waiters();
+}
+
+fn fail_close_owned(shared: &Mutex<Shared>, generation: u64) {
+    let notify = {
+        let mut guard = lock(shared);
+        if guard.cancel_reserved != Some(generation) {
+            return;
+        }
+        guard.open = false;
+        guard.accepting_cancel = false;
+        guard.cancel_reserved = None;
+        let _ = guard.destroy.send(true);
+        Arc::clone(&guard.cancel_notify)
+    };
+    notify.notify_waiters();
+}
+
+/// Producer exit with a reservation still set. The check and the close share
+/// one lock, so a generation that already released is left open.
+fn close_leftover_reservation(shared: &Mutex<Shared>) {
+    let notify = {
+        let mut guard = lock(shared);
+        if guard.cancel_reserved.is_none() {
+            return;
+        }
+        guard.open = false;
+        guard.accepting_cancel = false;
+        guard.cancel_reserved = None;
+        let _ = guard.destroy.send(true);
         Arc::clone(&guard.cancel_notify)
     };
     notify.notify_waiters();
@@ -2136,18 +2240,6 @@ fn mark_cancel_packet(shared: &Mutex<Shared>) {
         let mut guard = lock(shared);
         guard.cancel_packet_sent = true;
         guard.cancel_reserved = None;
-        Arc::clone(&guard.cancel_notify)
-    };
-    notify.notify_waiters();
-}
-
-fn fail_close_session(shared: &Mutex<Shared>) {
-    let notify = {
-        let mut guard = lock(shared);
-        guard.open = false;
-        guard.accepting_cancel = false;
-        guard.cancel_reserved = None;
-        let _ = guard.destroy.send(true);
         Arc::clone(&guard.cancel_notify)
     };
     notify.notify_waiters();
@@ -2187,9 +2279,11 @@ async fn wait_cancel_settled(shared: &Mutex<Shared>) {
 
 async fn settle_lend(mut attempt: Attempt, shared: &Mutex<Shared>) -> Attempt {
     if !attempt.reuse {
+        close_leftover_reservation(shared);
         return attempt;
     }
     wait_cancel_settled(shared).await;
+    close_leftover_reservation(shared);
     let lend = {
         let mut guard = lock(shared);
         let reserved = guard.cancel_reserved.is_some();
@@ -2514,5 +2608,84 @@ mod tests {
         assert!(checked_wall(Duration::from_millis(30_001)).is_err());
         assert!(checked_wall(Duration::from_millis(30_000)).is_ok());
         assert!(checked_wall(Duration::from_nanos(1_500_000)).is_err());
+    }
+
+    fn reservation_shared(
+        generation: u64,
+        reserved: Option<u64>,
+    ) -> (Arc<Mutex<Shared>>, watch::Receiver<bool>) {
+        let (destroy, rx) = watch::channel(false);
+        let shared = Arc::new(Mutex::new(Shared {
+            generation,
+            accepting_cancel: true,
+            backend_pid: 11,
+            backend_start: "20261006120000111111".to_string(),
+            bound_role: None,
+            open: true,
+            summary: None,
+            cancel_reserved: reserved,
+            cancel_packet_sent: false,
+            cleanup_deadline: None,
+            cancel_notify: Arc::new(Notify::new()),
+            destroy,
+        }));
+        (shared, rx)
+    }
+
+    #[test]
+    fn reservation_guard_drop_before_transport_releases_only_its_generation() {
+        let (shared, _rx) = reservation_shared(4, None);
+        assert!(try_reserve_cancel(&shared, 4));
+        drop(ReservationGuard::arm(Arc::clone(&shared), 9));
+        assert_eq!(lock(&shared).cancel_reserved, Some(4));
+        assert!(lock(&shared).open);
+        drop(ReservationGuard::arm(Arc::clone(&shared), 4));
+        assert!(lock(&shared).cancel_reserved.is_none());
+        assert!(lock(&shared).open);
+        assert!(lock(&shared).accepting_cancel);
+        assert!(try_reserve_cancel(&shared, 4));
+    }
+
+    #[test]
+    fn reservation_guard_drop_after_transport_fail_closes_only_its_generation() {
+        let (shared, _rx) = reservation_shared(4, None);
+        assert!(try_reserve_cancel(&shared, 4));
+        {
+            let mut foreign = ReservationGuard::arm(Arc::clone(&shared), 9);
+            foreign.enter_transport();
+        }
+        assert_eq!(lock(&shared).cancel_reserved, Some(4));
+        assert!(lock(&shared).open);
+        {
+            let mut owner = ReservationGuard::arm(Arc::clone(&shared), 4);
+            owner.enter_transport();
+            owner.disarm();
+        }
+        assert_eq!(lock(&shared).cancel_reserved, Some(4));
+        assert!(lock(&shared).open);
+        {
+            let mut owner = ReservationGuard::arm(Arc::clone(&shared), 4);
+            owner.enter_transport();
+        }
+        let guard = lock(&shared);
+        assert!(guard.cancel_reserved.is_none());
+        assert!(!guard.open);
+        assert!(!guard.accepting_cancel);
+        assert!(*guard.destroy.borrow());
+    }
+
+    #[test]
+    fn producer_leftover_reservation_fail_closes_and_an_empty_one_does_not() {
+        let (clear, _clear_rx) = reservation_shared(2, None);
+        close_leftover_reservation(&clear);
+        assert!(lock(&clear).open);
+        assert!(lock(&clear).cancel_reserved.is_none());
+        let (held, _held_rx) = reservation_shared(2, Some(2));
+        close_leftover_reservation(&held);
+        let guard = lock(&held);
+        assert!(!guard.open);
+        assert!(!guard.accepting_cancel);
+        assert!(guard.cancel_reserved.is_none());
+        assert!(*guard.destroy.borrow());
     }
 }
