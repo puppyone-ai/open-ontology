@@ -11,8 +11,9 @@
 //! stops an active pull and releases both backends. [`PgConnector::prepare_snapshot`]
 //! builds a [`SnapshotRequest`] from the configured read-only session and releases
 //! that session before it returns. It does not open the snapshot owner. Resume
-//! cursors, CDC, and the registry API stay unsupported. Gateway crates do not
-//! depend on this crate.
+//! cursors, CDC, and the registry API stay unsupported. [`JSONL_PROTOCOL`] is a
+//! separate bounded file pull over [`std::io::Read`]. It does not admit an import.
+//! Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
 
@@ -21,6 +22,7 @@ mod catalog;
 mod config;
 mod error;
 mod ident;
+mod jsonl;
 mod key_plan;
 mod model;
 mod session;
@@ -54,6 +56,15 @@ pub use snapshot::{
     RunCancel, RunCancelled, RunComplete, SnapshotFinished, SnapshotOwner, SnapshotRequest,
     TableAccess,
     CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
+};
+pub use jsonl::{
+    FieldLineage, FieldPresence, JsonlBatch, JsonlBudget, JsonlCancel, JsonlCancelled,
+    JsonlColumn, JsonlComplete, JsonlError, JsonlErrorKind, JsonlExhausted, JsonlHeader,
+    JsonlItem, JsonlProfile, JsonlReader, JsonlType, RowLineage, JSONL_LINEAGE_VERSION,
+    JSONL_MAX_ARRAY_ELEMENTS, JSONL_MAX_BATCH_BYTES, JSONL_MAX_BATCH_ROWS, JSONL_MAX_COLUMNS,
+    JSONL_MAX_DEPTH, JSONL_MAX_FIELDS, JSONL_MAX_NAME_BYTES, JSONL_MAX_RECORD_BYTES,
+    JSONL_MAX_ROWS, JSONL_MAX_TOTAL_BYTES, JSONL_PROFILE_VERSION, JSONL_PROTOCOL,
+    JSONL_RECEIPT_VERSION,
 };
 pub use stream::{
     StreamAccounting, StreamBatch, StreamBudget, StreamItem, TableEof, STREAM_PROTOCOL,
