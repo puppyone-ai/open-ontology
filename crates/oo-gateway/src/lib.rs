@@ -13,12 +13,17 @@
 pub mod parser_worker;
 pub mod policy;
 pub mod query_executor;
+pub mod reviewed_policy;
 pub mod sql_guard;
 
 pub use policy::{
     compile_column_acl, connect_require_tls, install_column_acl, rustls_connector, ClassStatus,
     ColumnAclPolicy, ColumnSpec, CompiledPolicy, InstallEffect, InstallOutcome, LogicalTable,
     PiiClass, PolicyError, RowFilter, TlsConnection, TlsEndpoint,
+};
+pub use reviewed_policy::{
+    compile_reviewed_policies, ReviewedAllow, ReviewedBinding, ReviewedColumnPolicies,
+    ReviewedIdentity, ReviewedPolicyError, ReviewedSourceSeal,
 };
 pub use sql_guard::{
     guard_select, BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError,
