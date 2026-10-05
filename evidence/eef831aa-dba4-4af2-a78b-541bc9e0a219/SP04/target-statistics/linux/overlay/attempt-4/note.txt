@@ -1,0 +1,1 @@
+Attempt 4: library tests exited 0. Live test failed in 1.17s. The idle probe treated every statement as an open transaction because xact_start was earlier than query_start. Expected StaleGeneration, got OpenTransaction. Clippy denied explicit_auto_deref on six transaction reborrows. OOMKilled=false. Container removed.

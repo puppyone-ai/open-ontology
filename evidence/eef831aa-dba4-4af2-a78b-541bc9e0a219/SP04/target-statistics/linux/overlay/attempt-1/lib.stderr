@@ -1,0 +1,87 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:248:44
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ------------------
+    |                        |
+    |                        first mutable borrow occurs here
+    |                        a temporary with access to the first borrow is created here ...
+247 |         Ok(tx) => tx,
+248 |         Err(err) => return Err(from_driver(conn, err).await),
+    |                                            ^^^^ second mutable borrow occurs here
+249 |     };
+    |      - ... and the first borrow might be used here, when that temporary is dropped and runs the destructor for type `Result<Transaction<'_, Postgres>, sqlx::Error>`
+
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:251:26
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ---- first mutable borrow occurs here
+...
+251 |         return Err(abort(conn, tx, kind).await);
+    |                          ^^^^  -- first borrow later used here
+    |                          |
+    |                          second mutable borrow occurs here
+
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:254:26
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ---- first mutable borrow occurs here
+...
+254 |         return Err(abort(conn, tx, kind).await);
+    |                          ^^^^  -- first borrow later used here
+    |                          |
+    |                          second mutable borrow occurs here
+
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:258:39
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ---- first mutable borrow occurs here
+...
+258 |         Err(kind) => return Err(abort(conn, tx, kind).await),
+    |                                       ^^^^  -- first borrow later used here
+    |                                       |
+    |                                       second mutable borrow occurs here
+
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:261:26
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ---- first mutable borrow occurs here
+...
+261 |         return Err(abort(conn, tx, kind).await);
+    |                          ^^^^  -- first borrow later used here
+    |                          |
+    |                          second mutable borrow occurs here
+
+error[E0499]: cannot borrow `*conn` as mutable more than once at a time
+   --> crates/oo-pipeline/src/target_statistics.rs:265:39
+    |
+246 |     let mut tx = match conn.begin().await {
+    |                        ---- first mutable borrow occurs here
+...
+265 |         Err(kind) => return Err(abort(conn, tx, kind).await),
+    |                                       ^^^^  -- first borrow later used here
+    |                                       |
+    |                                       second mutable borrow occurs here
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `oo-pipeline` (lib test) due to 6 previous errors

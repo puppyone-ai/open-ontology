@@ -1,0 +1,11 @@
+pipeline_unknown_before=true
+pipeline_published=false
+catalog_reltuples_known=true
+rounded_estimate=2
+policy_catalog=loaded
+unknown_rows=refuse
+estimated_rows=2
+query_status=succeeded
+query_count=2
+classification=operator_label
+statistics_published=false

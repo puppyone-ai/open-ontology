@@ -1,0 +1,1 @@
+Attempt 3: library tests exited 0. The live test did not compile: identity() borrowed self while target was borrowed. Clippy was not installed in the new container. OOMKilled=false. Container removed.

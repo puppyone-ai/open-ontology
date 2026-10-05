@@ -1,0 +1,1 @@
+Attempt 2 exited 101. The Result from begin() stayed in scope, so its destructor still borrowed the connection at every later probe. OOMKilled=false. Container removed.

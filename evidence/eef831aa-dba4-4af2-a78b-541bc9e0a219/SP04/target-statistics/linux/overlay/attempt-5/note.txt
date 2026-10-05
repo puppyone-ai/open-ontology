@@ -1,0 +1,1 @@
+Attempt 5: library compile failed. The patched sqlx Executor is implemented for &mut PgConnection and not for &mut Transaction. ANALYZE and the reltuples read must pass &mut **tx. OOMKilled=false. Container removed.

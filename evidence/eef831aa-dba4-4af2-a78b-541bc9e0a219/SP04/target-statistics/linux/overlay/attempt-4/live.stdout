@@ -1,0 +1,20 @@
+
+running 1 test
+test mapped_shadow_analyze_on_one_postgres ... FAILED
+
+failures:
+
+---- mapped_shadow_analyze_on_one_postgres stdout ----
+
+thread 'mapped_shadow_analyze_on_one_postgres' (721) panicked at crates/oo-pipeline/tests/target_statistics_pg_live.rs:466:5:
+assertion `left == right` failed: target statistics connection already has a transaction (connection reusable)
+  left: OpenTransaction
+ right: StaleGeneration
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    mapped_shadow_analyze_on_one_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
