@@ -1,0 +1,4 @@
+92f8bae6b44413f4702a01314d0745ac9bc68550a375ee65bfc0c2648ec78273  /Users/redux/puppy-one/open-ontology/crates/oo-builder/src/bin/ontology-artifact-diff.rs
+41e0c502fcc5982072f4274046dfe5974525865aa9bb4c6b86f403d9345566fa  /Users/redux/puppy-one/open-ontology/crates/oo-builder/tests/ontology_artifact_diff.rs
+92f8bae6b44413f4702a01314d0745ac9bc68550a375ee65bfc0c2648ec78273  /tmp/oo-a213-eef831aa-dba4-4af2-a78b-541bc9e0a213/overlay/archive/crates/oo-builder/src/bin/ontology-artifact-diff.rs
+41e0c502fcc5982072f4274046dfe5974525865aa9bb4c6b86f403d9345566fa  /tmp/oo-a213-eef831aa-dba4-4af2-a78b-541bc9e0a213/overlay/archive/crates/oo-builder/tests/ontology_artifact_diff.rs

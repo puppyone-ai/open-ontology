@@ -1,0 +1,68 @@
+
+running 9 tests
+test column_rename_adds_and_removes_column_identities ... FAILED
+test corrupt_version_and_shape_inputs_refuse ... FAILED
+test flag_order_and_whitespace_do_not_change_the_diff ... FAILED
+test foreign_key_change_keeps_the_constraint_identity ... FAILED
+test preimage_locks_the_checked_in_shop_hashes ... ok
+test resealed_duplicate_column_is_duplicate_fact ... FAILED
+test stale_review_and_curated_classification_stay_unaccepted ... FAILED
+test type_change_changes_the_physical_and_generated_column ... FAILED
+test unchanged_catalogs_emit_a_deterministic_sealed_diff ... FAILED
+
+failures:
+
+---- column_rename_adds_and_removes_column_identities stdout ----
+
+thread 'column_rename_adds_and_removes_column_identities' (211) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- corrupt_version_and_shape_inputs_refuse stdout ----
+
+thread 'corrupt_version_and_shape_inputs_refuse' (212) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- flag_order_and_whitespace_do_not_change_the_diff stdout ----
+
+thread 'flag_order_and_whitespace_do_not_change_the_diff' (213) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- foreign_key_change_keeps_the_constraint_identity stdout ----
+
+thread 'foreign_key_change_keeps_the_constraint_identity' (214) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- resealed_duplicate_column_is_duplicate_fact stdout ----
+
+thread 'resealed_duplicate_column_is_duplicate_fact' (216) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- stale_review_and_curated_classification_stay_unaccepted stdout ----
+
+thread 'stale_review_and_curated_classification_stay_unaccepted' (217) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- type_change_changes_the_physical_and_generated_column stdout ----
+
+thread 'type_change_changes_the_physical_and_generated_column' (218) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+---- unchanged_catalogs_emit_a_deterministic_sealed_diff stdout ----
+
+thread 'unchanged_catalogs_emit_a_deterministic_sealed_diff' (219) panicked at crates/oo-builder/tests/ontology_artifact_diff.rs:908:10:
+CARGO_BIN_EXE_ontology_artifact_diff: NotPresent
+
+
+failures:
+    column_rename_adds_and_removes_column_identities
+    corrupt_version_and_shape_inputs_refuse
+    flag_order_and_whitespace_do_not_change_the_diff
+    foreign_key_change_keeps_the_constraint_identity
+    resealed_duplicate_column_is_duplicate_fact
+    stale_review_and_curated_classification_stay_unaccepted
+    type_change_changes_the_physical_and_generated_column
+    unchanged_catalogs_emit_a_deterministic_sealed_diff
+
+test result: FAILED. 1 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+

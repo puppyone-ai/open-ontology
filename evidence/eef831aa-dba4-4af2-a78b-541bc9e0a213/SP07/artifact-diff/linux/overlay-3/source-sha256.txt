@@ -1,0 +1,5 @@
+ce0ff74acdd8672f6826e33da2d4cb2a4f53f0fcff4d9c57a16d96333548fb4e  crates/oo-builder/src/bin/ontology-artifact-diff.rs
+857205c2251e837be44b0b9ce517f218fcebcd96804295182e816b0842677fc0  crates/oo-builder/tests/ontology_artifact_diff.rs
+04a5df89bb4906a96528f7fba4489e992becde0d4e9fc50b8f7a395545f47e88  crates/oo-builder/src/captured_pg.rs
+59be2f75130f82889c34399b2e498ebdbb3019bda0f5e8b28f85319f84145d4b  crates/oo-builder/src/lib.rs
+9fb2562bf81892436f81087c719723a48f21395fb7134e3933a69f66d8807b3f  crates/oo-builder/src/bin/oo-builder.rs

@@ -1,0 +1,4 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.83s
+     Running tests/ontology_artifact_diff.rs (/target/debug/deps/ontology_artifact_diff-9bd66d27d02c2627)
+error: test failed, to rerun pass `-p oo-builder --test ontology_artifact_diff`

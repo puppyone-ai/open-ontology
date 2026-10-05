@@ -1,0 +1,29 @@
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+error: environment variable `CARGO_BIN_EXE_ontology_artifact_diff` not defined at compile time
+   --> crates/oo-builder/tests/ontology_artifact_diff.rs:907:18
+    |
+907 |     Command::new(env!("CARGO_BIN_EXE_ontology_artifact_diff"))
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_ontology_artifact_diff")` instead
+
+error[E0277]: the trait bound `char: std::fmt::LowerHex` is not satisfied
+    --> crates/oo-builder/tests/ontology_artifact_diff.rs:1096:43
+     |
+1096 |                 out.push_str(&format!("\\u{ch:04x}"));
+     |                                           ^^^^^^^^ the trait `std::fmt::LowerHex` is not implemented for `char`
+     |
+     = help: the following other types implement trait `std::fmt::LowerHex`:
+               &T
+               &mut T
+               generic_array::GenericArray<u8, T>
+               i128
+               i16
+               i32
+               i64
+               i8
+             and 27 others
+     = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-builder` (test "ontology_artifact_diff") due to 2 previous errors
