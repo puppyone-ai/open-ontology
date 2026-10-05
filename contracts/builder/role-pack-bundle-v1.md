@@ -18,7 +18,7 @@ role-pack-bundle -h
 
 | Exit | When |
 |---|---|
-| 0 | `--help` or `-h` printed the usage text on stdout, or the bundle file was renamed into place |
+| 0 | `--help` or `-h` printed the usage text on stdout, or the bundle file was linked into place |
 | 1 | The request, the compiler, the bundle check, or the local write failed |
 | 2 | The arguments are not the usage above |
 
@@ -85,7 +85,7 @@ The bundle does not contain `cache_key`, `cache_key_sha256`, or `principal`. A c
 
 ## Local file
 
-The output parent must already exist and must be a directory. The command does not create the parent. A symlink parent is refused and is not followed. The output path and the staging path must not exist. Existence is `symlink_metadata`, so a symlink counts as present and is not followed.
+The output parent must already exist and must be a directory. The command does not create the parent. A symlink parent is refused and is not followed. The staging path must not exist. Staging existence is `symlink_metadata`, so a symlink counts as present and is not followed. The output name is published with `hard_link`. That call refuses an existing name, including a regular file, a directory, or a symlink, and it does not follow a symlink.
 
 The output path must be a file path: it has a UTF-8 file name, it does not end in a separator, and the file name is not empty, `.`, or `..`. The staging file is in the same parent directory. Its name is the output file name plus `.role-pack-bundle-staging`. That name must be at most 255 bytes. A name that does not fit is `oo.builder.role-pack-bundle/v1/io.name` with `the output file name does not fit the staging suffix`.
 
@@ -93,17 +93,21 @@ Publish order:
 
 1. Refuse when the staging path already exists. That path is not deleted. The code is `oo.builder.role-pack-bundle/v1/io.collision` with `the staging path already exists`.
 2. Create the staging file with `create_new`. Write the bundle, flush, and `sync_all`.
-3. Read the staging file back. A short, long, or different body is not renamed.
-4. Refuse when the output path exists. The code is `oo.builder.role-pack-bundle/v1/io.destination` with `the output path already exists`.
-5. `rename` the staging file onto the output path.
+3. Read the staging file back. A short, long, or different body is not linked.
+4. `hard_link` the staging file to the output path. This creates a second directory entry for the same inode. It does not copy the bytes and it does not replace an existing name. `AlreadyExists` is `oo.builder.role-pack-bundle/v1/io.destination` with `the output path already exists`. The existing name is left unchanged.
+5. Remove the staging name with `remove_file`. The output path keeps the inode and the synced bytes. A failure of this removal is `oo.builder.role-pack-bundle/v1/io.cleanup` with `the staging file could not be removed`. The output path is not removed.
 
-`rename` is the publish step. It is atomic only for a file in the same directory on a filesystem that provides atomic rename. The command does not fsync the parent directory. A crash before rename can leave the staging file. A crash after rename can still lose the directory entry until the parent is durable. This is not a publication barrier and not a power-fail guarantee.
+`hard_link` is the publish step. On Linux, `link(2)` either creates the new name or fails. It does not replace a name that appeared after the readback. The staging file and the output path are two names in the same directory, so a successful link is on one filesystem. The command does not fall back to `rename`.
 
-On a failure after this attempt has created the staging file, the command removes that file with `remove_file` and removes nothing else. It does not remove the output path, the parent, a pre-existing staging path, or a neighbor. `remove_file` on a directory fails and does not become `remove_dir_all`. If that removal fails, the diagnostic is `oo.builder.role-pack-bundle/v1/io.cleanup` with `the staging file could not be removed`.
+A filesystem that does not support hard links fails step 4. Linux reports that `link(2)` failure as `EPERM` (raw code 1), and an unsupported operation as `EOPNOTSUPP`. Both are `oo.builder.role-pack-bundle/v1/io.link` with `the filesystem does not support a hard link`. The staging file created by this attempt is removed. The output path is not created. Any other `hard_link` failure, including a missing parent, a permission failure other than that `EPERM`, and a cross-device path, is `oo.builder.role-pack-bundle/v1/io.link` with `the staging file could not be linked`. The diagnostic does not copy the operating-system text.
+
+The command does not fsync the parent directory. A crash before the link can leave the staging file. A crash after the link and before the staging name is removed can leave both names. A crash can still lose a directory entry until the parent is durable. This is not a publication barrier and not a power-fail guarantee.
+
+On a failure after this attempt has created the staging file, and before the link has succeeded, the command removes that staging file with `remove_file` and removes nothing else. It does not remove the output path, the parent, a pre-existing staging path, or a neighbor. `remove_file` on a directory fails and does not become `remove_dir_all`. If that removal fails, the diagnostic is `oo.builder.role-pack-bundle/v1/io.cleanup` with `the staging file could not be removed`. After a successful link, only the staging name is removed. A pre-existing output path is never removed.
 
 A request, compiler, or bundle-budget failure happens before step 1. Those failures do not create a staging file.
 
-The parent directory is a trusted path supplied by the caller. It is not a jail, a sandbox, or a confinement boundary. The command does not canonicalize, does not chroot, and does not rewrite `..`. The file mode follows the process umask. A destination that appears in the gap before `rename` can be replaced by `rename` on this platform. The parent is trusted not to race this command. The check is not a lock.
+The parent directory is a trusted path supplied by the caller. It is not a jail, a sandbox, or a confinement boundary. The command does not canonicalize, does not chroot, and does not rewrite `..`. The file mode follows the process umask. An existing output name stays in place.
 
 ## Diagnostics
 
@@ -125,13 +129,13 @@ A failure writes one line on stderr and does not write a success file. The line 
 | `oo.builder.role-pack-bundle/v1/io.sync` | `the staging file could not be synced` |
 | `oo.builder.role-pack-bundle/v1/io.readback` | `the staging file could not be read` or `the staging file did not match the bundle` |
 | `oo.builder.role-pack-bundle/v1/io.destination` | `the output path already exists` |
-| `oo.builder.role-pack-bundle/v1/io.rename` | `the staging file could not be renamed` |
+| `oo.builder.role-pack-bundle/v1/io.link` | `the filesystem does not support a hard link` or `the staging file could not be linked` |
 | `oo.builder.role-pack-bundle/v1/io.cleanup` | `the staging file could not be removed` |
 | `oo.builder.role-pack-bundle/v1/bundle.identity` | `compiled output is missing an identity` |
 | `oo.builder.role-pack-bundle/v1/bundle.status` | `compiled manifest status was not left unchanged` |
 | `oo.builder.role-pack-bundle/v1/bundle.budget` | `bundle exceeds the byte budget` |
 
-Compiler failures keep the code and static message from `compile_role_pack_command`. An inspect error on the output path uses `io.destination` and `the output path could not be inspected`. An inspect error on the staging path uses `io.collision` and `the staging path could not be inspected`.
+Compiler failures keep the code and static message from `compile_role_pack_command`. An inspect error on the staging path uses `io.collision` and `the staging path could not be inspected`. An output name that already exists is `io.destination` from `hard_link`, not from a separate existence check.
 
 ## Outside this slice
 

@@ -26,6 +26,8 @@ const COMPILER: &str = "oo-builder/role-pack/v1";
 const STAGING_SUFFIX: &str = ".role-pack-bundle-staging";
 const NAME_MAX: usize = 255;
 const BUNDLE_MAX_BYTES: usize = DOCUMENT_MAX_BYTES * 8;
+// Linux link(2) uses EPERM when the filesystem does not support hard links.
+const LINUX_LINK_EPERM: i32 = 1;
 
 const HELP: &str = "\
 role-pack-bundle reads one oo.builder.role-pack-command/v1 file and writes one new bundle file.
@@ -35,7 +37,9 @@ The request is caller-supplied public data. This command calls compile_role_pack
 It does not authenticate, grant, mount, tokenize, trust a cache, or publish.
 The output parent is a trusted path, not a jail. Symlinks are not followed.
 The parent directory is not fsynced. A crash can leave a staging file or an undurable directory entry.
-Staging uses create_new, sync_all, and rename. An existing output or staging path is refused.
+Staging uses create_new and sync_all. Publication is a same-directory hard link.
+An existing output path is not replaced. An existing staging path is refused.
+A filesystem that does not support hard links fails publication.
 On failure only the staging file created by this attempt is removed.";
 
 #[derive(Debug)]
@@ -551,27 +555,36 @@ fn write_synced(file: &mut File, bytes: &[u8]) -> Result<(), Fail> {
 }
 
 fn finish_owned(staging: &Path, dest: &Path, bytes: &[u8]) -> Result<(), Fail> {
-    let outcome = readback_and_rename(staging, dest, bytes);
-    if let Err(err) = outcome {
+    if let Err(err) = readback_and_link(staging, dest, bytes) {
         return Err(prefer_cleanup(staging, err));
     }
-    Ok(())
+    cleanup_owned(staging)
 }
 
-fn readback_and_rename(staging: &Path, dest: &Path, bytes: &[u8]) -> Result<(), Fail> {
+fn readback_and_link(staging: &Path, dest: &Path, bytes: &[u8]) -> Result<(), Fail> {
     readback(staging, bytes)?;
-    if path_exists(
-        dest,
-        "io.destination",
-        "the output path could not be inspected",
-    )? {
-        return Err(Fail::bundle(
-            "io.destination",
-            "the output path already exists",
-        ));
+    link_no_replace(staging, dest)
+}
+
+fn link_no_replace(staging: &Path, dest: &Path) -> Result<(), Fail> {
+    match std::fs::hard_link(staging, dest) {
+        Ok(()) => Ok(()),
+        Err(err) => Err(link_failure(err)),
     }
-    fs::rename(staging, dest)
-        .map_err(|_| Fail::bundle("io.rename", "the staging file could not be renamed"))
+}
+
+fn link_failure(err: std::io::Error) -> Fail {
+    if err.kind() == ErrorKind::AlreadyExists {
+        return Fail::bundle("io.destination", "the output path already exists");
+    }
+    if hard_link_unsupported(&err) {
+        return Fail::bundle("io.link", "the filesystem does not support a hard link");
+    }
+    Fail::bundle("io.link", "the staging file could not be linked")
+}
+
+fn hard_link_unsupported(err: &std::io::Error) -> bool {
+    err.kind() == ErrorKind::Unsupported || err.raw_os_error() == Some(LINUX_LINK_EPERM)
 }
 
 fn readback(path: &Path, expected: &[u8]) -> Result<(), Fail> {
@@ -900,19 +913,105 @@ mod tests {
     }
 
     #[test]
-    fn rename_failure_removes_only_the_staging_file() {
-        let dir = temp_dir("rename");
+    fn link_failure_removes_only_the_staging_file() {
+        let dir = temp_dir("link");
         let staging = dir.join("owned.staging");
         let foreign = dir.join("foreign.txt");
         fs::write(&staging, b"bundle").unwrap();
         fs::write(&foreign, b"KEEP").unwrap();
         let dest = dir.join("missing-dir").join("out.json");
-        let err = readback_and_rename(&staging, &dest, b"bundle").expect_err("rename");
+        let err = readback_and_link(&staging, &dest, b"bundle").expect_err("link");
         let err = prefer_cleanup(&staging, err);
-        assert!(err.code.ends_with("/io.rename"), "{}", err.code);
+        assert!(err.code.ends_with("/io.link"), "{}", err.code);
+        assert_eq!(err.message, "the staging file could not be linked");
         assert!(!staging.exists());
+        assert!(!dir.join("missing-dir").exists());
         assert_eq!(fs::read(&foreign).unwrap(), b"KEEP");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn hard_link_shares_the_inode_and_then_drops_the_staging_name() {
+        use std::os::unix::fs::MetadataExt;
+
+        let dir = temp_dir("inode");
+        let staging = dir.join("owned.staging");
+        let dest = dir.join("out.json");
+        fs::write(&staging, b"BUNDLE").unwrap();
+        link_no_replace(&staging, &dest).expect("link");
+        let linked = fs::metadata(&dest).unwrap();
+        assert_eq!(linked.ino(), fs::metadata(&staging).unwrap().ino());
+        assert!(linked.nlink() >= 2);
+        cleanup_owned(&staging).expect("unlink staging");
+        assert!(!staging.exists());
+        assert_eq!(fs::read(&dest).unwrap(), b"BUNDLE");
+        assert_eq!(fs::metadata(&dest).unwrap().ino(), linked.ino());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn existing_name_is_not_replaced() {
+        let dir = temp_dir("gap");
+        let staging = dir.join("owned.staging");
+        let dest = dir.join("out.json");
+        let foreign = dir.join("foreign.txt");
+        fs::write(&staging, b"BUNDLE").unwrap();
+        fs::write(&dest, b"SENTINEL-a221-gap").unwrap();
+        fs::write(&foreign, b"KEEP").unwrap();
+        let err = link_no_replace(&staging, &dest).expect_err("exists");
+        assert!(err.code.ends_with("/io.destination"), "{}", err.code);
+        assert_eq!(err.message, "the output path already exists");
+        assert_eq!(fs::read(&dest).unwrap(), b"SENTINEL-a221-gap");
+        assert_eq!(fs::read(&staging).unwrap(), b"BUNDLE");
+        assert_eq!(fs::read(&foreign).unwrap(), b"KEEP");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn symlink_destination_is_not_replaced() {
+        let dir = temp_dir("symlink");
+        let staging = dir.join("owned.staging");
+        let real = dir.join("real.json");
+        let dest = dir.join("out.json");
+        fs::write(&staging, b"BUNDLE").unwrap();
+        fs::write(&real, b"KEEP-REAL").unwrap();
+        std::os::unix::fs::symlink(&real, &dest).unwrap();
+        let err = link_no_replace(&staging, &dest).expect_err("symlink");
+        assert!(err.code.ends_with("/io.destination"), "{}", err.code);
+        assert!(fs::symlink_metadata(&dest).unwrap().file_type().is_symlink());
+        assert_eq!(fs::read(&real).unwrap(), b"KEEP-REAL");
+        assert_eq!(fs::read(&staging).unwrap(), b"BUNDLE");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn link_errors_use_static_sentences() {
+        const LINUX_ENOENT: i32 = 2;
+        const LINUX_EACCES: i32 = 13;
+        const LINUX_EEXIST: i32 = 17;
+        const LINUX_EXDEV: i32 = 18;
+        const LINUX_EOPNOTSUPP: i32 = 95;
+
+        let unsupported = link_failure(std::io::Error::from_raw_os_error(LINUX_LINK_EPERM));
+        assert!(unsupported.code.ends_with("/io.link"), "{}", unsupported.code);
+        assert_eq!(
+            unsupported.message,
+            "the filesystem does not support a hard link"
+        );
+        let opnotsupp = link_failure(std::io::Error::from_raw_os_error(LINUX_EOPNOTSUPP));
+        assert_eq!(
+            opnotsupp.message,
+            "the filesystem does not support a hard link"
+        );
+        let exists = link_failure(std::io::Error::from_raw_os_error(LINUX_EEXIST));
+        assert!(exists.code.ends_with("/io.destination"), "{}", exists.code);
+        assert_eq!(exists.message, "the output path already exists");
+        let denied = link_failure(std::io::Error::from_raw_os_error(LINUX_EACCES));
+        assert_eq!(denied.message, "the staging file could not be linked");
+        let missing = link_failure(std::io::Error::from_raw_os_error(LINUX_ENOENT));
+        assert_eq!(missing.message, "the staging file could not be linked");
+        let cross = link_failure(std::io::Error::from_raw_os_error(LINUX_EXDEV));
+        assert_eq!(cross.message, "the staging file could not be linked");
     }
 
     #[test]

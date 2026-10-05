@@ -5,7 +5,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -806,7 +806,9 @@ fn help_and_usage_do_not_touch_files() {
         "does not authenticate, grant, mount, tokenize, trust a cache, or publish",
         "trusted path, not a jail",
         "create_new",
-        "rename",
+        "hard link",
+        "not replaced",
+        "does not support hard links",
         "staging file created by this attempt is removed",
     ] {
         assert!(stdout.contains(phrase), "missing {phrase}");
@@ -844,5 +846,115 @@ fn help_and_usage_do_not_touch_files() {
         assert_line(&output, 2, &usage, &[MARKER]);
     }
     assert!(names(&dir).is_empty());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn second_publish_keeps_the_first_bundle() {
+    let (effective, clerk_vis, audit_vis) = wharf();
+    let clerk_pack = library_pack(&effective, &clerk_vis);
+    let dir = scratch("second");
+    let clerk_input = dir.join("clerk-request.json");
+    let audit_input = dir.join("audit-request.json");
+    fs::write(&clerk_input, command_bytes(&effective, &clerk_vis)).expect("clerk request");
+    fs::write(&audit_input, command_bytes(&effective, &audit_vis)).expect("audit request");
+    let dest = dir.join("out.json");
+    let neighbor = dir.join("neighbor.txt");
+    fs::write(&neighbor, b"KEEP-NEIGHBOR").expect("neighbor");
+    let first = run_bundle(&clerk_input, &dest);
+    assert_eq!(first.status.code(), Some(0), "{}", String::from_utf8_lossy(&first.stderr));
+    let kept = fs::read(&dest).expect("first bundle");
+    assert_bundle(&kept, &clerk_pack, "oo_r_clerk");
+    let second = run_bundle(&audit_input, &dest);
+    assert_line(
+        &second,
+        1,
+        &own("io.destination", "the output path already exists"),
+        &[MARKER, "ada177", "aud177"],
+    );
+    assert_eq!(fs::read(&dest).expect("still first"), kept);
+    assert!(!staging_of(&dest).exists());
+    assert_eq!(fs::read(&neighbor).expect("neighbor"), b"KEEP-NEIGHBOR");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn competing_processes_one_publishes_and_the_other_refuses() {
+    let (effective, clerk_vis, audit_vis) = wharf();
+    let clerk_pack = library_pack(&effective, &clerk_vis);
+    let audit_pack = library_pack(&effective, &audit_vis);
+    let dir = scratch("compete");
+    let clerk_input = dir.join("clerk-request.json");
+    let audit_input = dir.join("audit-request.json");
+    fs::write(&clerk_input, command_bytes(&effective, &clerk_vis)).expect("clerk request");
+    fs::write(&audit_input, command_bytes(&effective, &audit_vis)).expect("audit request");
+    let clerk_only = dir.join("clerk-only.json");
+    let audit_only = dir.join("audit-only.json");
+    let clerk_ref = run_bundle(&clerk_input, &clerk_only);
+    let audit_ref = run_bundle(&audit_input, &audit_only);
+    assert_eq!(clerk_ref.status.code(), Some(0), "{}", String::from_utf8_lossy(&clerk_ref.stderr));
+    assert_eq!(audit_ref.status.code(), Some(0), "{}", String::from_utf8_lossy(&audit_ref.stderr));
+    let clerk_bytes = fs::read(&clerk_only).expect("clerk bytes");
+    let audit_bytes = fs::read(&audit_only).expect("audit bytes");
+    assert_ne!(clerk_bytes, audit_bytes);
+    assert_bundle(&clerk_bytes, &clerk_pack, "oo_r_clerk");
+    assert_bundle(&audit_bytes, &audit_pack, "oo_r_audit");
+
+    let dest = dir.join("shared.json");
+    let neighbor = dir.join("neighbor.txt");
+    fs::write(&neighbor, b"KEEP-NEIGHBOR").expect("neighbor");
+    let spawn = |request: &Path, output: &Path| {
+        Command::new(env!("CARGO_BIN_EXE_role-pack-bundle"))
+            .env_clear()
+            .arg("--request")
+            .arg(request)
+            .arg("--output")
+            .arg(output)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn role-pack-bundle")
+    };
+    let clerk_child = spawn(&clerk_input, &dest);
+    let audit_child = spawn(&audit_input, &dest);
+    let clerk_out = clerk_child.wait_with_output().expect("clerk wait");
+    let audit_out = audit_child.wait_with_output().expect("audit wait");
+    let clerk_ok = clerk_out.status.success();
+    let audit_ok = audit_out.status.success();
+    assert_eq!(
+        i32::from(clerk_ok) + i32::from(audit_ok),
+        1,
+        "clerk={} audit={} clerk_err={} audit_err={}",
+        clerk_out.status,
+        audit_out.status,
+        String::from_utf8_lossy(&clerk_out.stderr),
+        String::from_utf8_lossy(&audit_out.stderr),
+    );
+    let (winner, loser, winner_bytes) = if clerk_ok {
+        (&clerk_out, &audit_out, clerk_bytes.as_slice())
+    } else {
+        (&audit_out, &clerk_out, audit_bytes.as_slice())
+    };
+    let dest_bytes = fs::read(&dest).expect("shared");
+    assert_eq!(dest_bytes, winner_bytes);
+    assert!(winner.stdout.is_empty());
+    assert!(winner.stderr.is_empty());
+    assert_eq!(loser.status.code(), Some(1));
+    assert!(loser.stdout.is_empty());
+    let stderr = String::from_utf8(loser.stderr.clone()).expect("loser stderr");
+    let collision = own("io.collision", "the staging path already exists");
+    let destination = own("io.destination", "the output path already exists");
+    assert!(
+        stderr == format!("{collision}\n") || stderr == format!("{destination}\n"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("ada177"));
+    assert!(!stderr.contains("aud177"));
+    assert!(!staging_of(&dest).exists());
+    assert!(!staging_of(&clerk_only).exists());
+    assert!(!staging_of(&audit_only).exists());
+    assert_eq!(fs::read(&clerk_only).expect("clerk kept"), clerk_bytes);
+    assert_eq!(fs::read(&audit_only).expect("audit kept"), audit_bytes);
+    assert_eq!(fs::read(&neighbor).expect("neighbor"), b"KEEP-NEIGHBOR");
     let _ = fs::remove_dir_all(&dir);
 }
