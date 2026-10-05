@@ -1,0 +1,10 @@
+fixed=755fb84acc7f80e5ba2fba1c2b80412dab7fab26
+parent=72b5136ba23d134916425132523383947046aeff
+tree=9bb6da0a68e8533831f3d92fe105caf1423e2c0c
+workspace_head=5abe6bdcfa75c9b6f70a7f756481bb25ddc193d9
+M	Cargo.lock
+A	contracts/control/local-file-hosting-v1.md
+M	crates/oo-control/Cargo.toml
+A	crates/oo-control/src/file_hosting.rs
+M	crates/oo-control/src/lib.rs
+A	crates/oo-control/tests/file_hosting.rs
