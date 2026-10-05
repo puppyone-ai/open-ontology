@@ -13,6 +13,10 @@
 | 等待策略 | 用户于2026-10-02更新：确认真实进程handle；收到退出结果后立即核对产物和证据、判断下一步；运行中按任务阶段与预计耗时安排等待，不固定30分钟，不持续或密集轮询，不因安静或观察超时重启 |
 | 完成定义 | 所有适用工作真实完成，AT/不变量/原型/构建/完整测试/E2E/审阅/客户门禁证据齐备；不缩小为骨架或小样通过 |
 
+## 当前分层进度
+
+冻结规则见[验收计数附录](open-ontology-acceptance-counting.md)。M1-D开发16/24（66.67%）；M1集成0/4；内部发行包0/6；外部X01–X05单列待核验。全量开发分母尚未冻结，不能把87父项未退出当作开发0%。历史吞吐35交付组件/41验收子项/首次返工10of34独立记录。
+
 ## 1. 写入边界与冲突规约
 
 每个Grok执行者有独立提示词、CLI session UUID、stdout日志、任务范围与证据目录。禁止启动Codex原生子Agent或嵌套Codex；Grok也设置`--no-subagents`，并行由协调者直接调度多个独立Grok进程。
@@ -159,6 +163,7 @@
   - [x] W01-LB 本地并发quota与流式发布：3a251dea经a188固定独立限定批准，8并发只保留8/10配额、8192字节range、独立32MiB常驻增量139264字节；S3/跨机器独立目录/download/reaper另验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
   - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
+  - [x] W02-FV validate-file命令：59be14ba经a204固定独立限定批准，Linux1.94既有11测试与独立10进程测试/Clippy0，三格式EOF receipt及错误退出；可信本地校验，不签IPC/import/publicauth。
   - [x] W02-DS explicit CSV/TSV pull：671507b2经a199固定独立限定批准，实际Arrow exactdecimal/int64/UTF8/引号/lineage/EOF SHA；blockingRead不可抢占，IPC/loader/其他编码仍未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
 - [ ] SP05-W04 SQLite/dump隔离恢复
@@ -1232,3 +1237,5 @@ a20169640/a20458582/a20587720 actualexit0 complete; full3reportsread, coordinato
 
 
 a203 originalresume2 actualhandle46177 integration1builder1PG; a20787636 IPC worker development lastconfirmedlive/solemanifestlockwriter; a21064540 cancelRAII development1builder1PG. Independent reviews a20868110 trustedqueryCLI+catalogalignment1builder1PG and a20950300 downloadEOF1builder0PG. Actual3development+2review, cap4development+2review/global6; no sourcewriterconflict. Dispatchbabb8c95 nextUUIDa211 parserrepairfixedreviewqueued. Next ONE25minute wait then ONE unified actual5handle observation, no intermediatepolling. Metrics35delivered41accepted10of34=29.41%; all87parentsopen/goalactive.
+
+用户2026-10-06冻结计数/限定审阅/复用配方规则已写入OO-COUNT-001；当前25minwait被用户输入打断325.9346s，期间未观察任务。继续剩余1174066ms后统一观察，实际handles保持46177/87636/64540/68110/50300。
