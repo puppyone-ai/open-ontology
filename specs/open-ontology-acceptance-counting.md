@@ -94,3 +94,7 @@ E2-D 0/6；M1-D仍17/24、E1-D0/3，已冻结开发合计17/33（51.52%），覆
 ## E3-D（本次派工前冻结）
 
 B-D03 / SP12-W03：成对完整question试次向量→精确pass^k与可复现成对question bootstrap报告；验收为手算k3/固定随机向量/独立小样本枚举/混合版本和缺试次拒绝、reannotation不移出分母、实际CLI与固定独立审阅。E3-D0/1，a225；已有三批不变。全部已冻结批次合计17/34（50%），不称全项目完成率；B-D03不是完整题库或客户benchmark。
+
+## E4-D（派工前冻结）
+
+M1-D14B / SP06-W01：真实sealed reviewed-effective artifact+administrative role/mapping bindings→已编译ColumnAclPolicy完整set；验收实际编译器输出消费、currentdecision/schema/fact/PII/semantic闭包与tamper/unknown/stale拒绝。E4-D0/1，a227；纯adapter不证明身份/授权安装/发布。所有已冻结批次合计17/35（48.57%），仍不是全项目率。a226是既有I01/I02组合证据，不能新增开发分母或自动签收I节点。
