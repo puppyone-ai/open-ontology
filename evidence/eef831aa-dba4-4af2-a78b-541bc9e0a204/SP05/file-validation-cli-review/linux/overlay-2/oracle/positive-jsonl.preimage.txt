@@ -1,0 +1,6 @@
+oo-jsonl-profile/v1
+id=a204-jsonl
+column=label	utf8	1
+column=ok	bool	1
+column=n	int64	1
+column=payload	json_text	1

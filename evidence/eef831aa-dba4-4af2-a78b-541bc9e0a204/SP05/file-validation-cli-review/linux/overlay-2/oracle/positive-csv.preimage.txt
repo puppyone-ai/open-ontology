@@ -1,0 +1,13 @@
+oo-delimited-profile/v1
+id=a204-csv
+dialect=csv
+bom=strip
+header=exact
+null=empty
+quote=double
+record=lf-or-crlf
+escape=double-quote
+column=label	utf8	1	-	-
+column=ok	bool	1	-	-
+column=n	int64	1	-	-
+column=amount	decimal	1	10	2

@@ -1,0 +1,7 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay /evidence rw=true
+volume /var/lib/docker/volumes/oo-a204-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a204-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a204-eef831aa-dba4-4af2-a78b-541bc9e0a204/preoverlay/archive /src rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/source/blobs /blobs rw=false
+

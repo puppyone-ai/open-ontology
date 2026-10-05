@@ -1,0 +1,14 @@
+oo-delimited-profile/v1
+id=a204-tsv
+dialect=tsv
+bom=refuse
+header=absent
+null=token
+null_token=\N
+quote=double
+record=lf-or-crlf
+escape=double-quote
+column=note	utf8	1	-	-
+column=ok	bool	1	-	-
+column=n	int64	1	-	-
+column=amount	decimal	1	12	2

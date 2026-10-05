@@ -1,0 +1,153 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1320:6
+     |
+1320 |     .expect_err("header");
+     |      ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1331:86
+     |
+1331 |     let err = pull_delimited(&inexact_path, csv_profile(), sha256(&row), 100, false).expect_err("inexact");
+     |                                                                                      ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1342:83
+     |
+1342 |     let err = pull_delimited(&bool_path, csv_profile(), sha256(&row), 100, false).expect_err("bool");
+     |                                                                                   ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1353:82
+     |
+1353 |     let err = pull_delimited(&int_path, csv_profile(), sha256(&row), 100, false).expect_err("int");
+     |                                                                                  ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `JsonlSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1364:89
+     |
+1364 |     let err = pull_jsonl(&fraction_path, jsonl_profile(), sha256(fraction), 100, false).expect_err("fraction");
+     |                                                                                         ^^^^^^^^^^ the trait `Debug` is not implemented for `JsonlSeen`
+     |
+     = note: add `#[derive(Debug)]` to `JsonlSeen` or manually `impl Debug for JsonlSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `JsonlSeen` with `#[derive(Debug)]`
+     |
+ 628 + #[derive(Debug)]
+ 629 | struct JsonlSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1380:80
+     |
+1380 |     let err = pull_delimited(&csv_path, csv_profile(), sha256(&csv), 1, false).expect_err("max_rows");
+     |                                                                                ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1394:83
+     |
+1394 |     let err = pull_delimited(&csv_path, csv_profile(), flipped_bytes, 100, false).expect_err("hash");
+     |                                                                                   ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1409:6
+     |
+1409 |     .expect_err("bom");
+     |      ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+error[E0277]: `DelimitedSeen` doesn't implement `Debug`
+    --> crates/oo-pipeline/tests/validate_file_a204_review.rs:1419:81
+     |
+1419 |     let err = pull_delimited(&csv_path, csv_profile(), sha256(&csv), 100, true).expect_err("cancel");
+     |                                                                                 ^^^^^^^^^^ the trait `Debug` is not implemented for `DelimitedSeen`
+     |
+     = note: add `#[derive(Debug)]` to `DelimitedSeen` or manually `impl Debug for DelimitedSeen`
+note: required by a bound in `Result::<T, E>::expect_err`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `DelimitedSeen` with `#[derive(Debug)]`
+     |
+ 611 + #[derive(Debug)]
+ 612 | struct DelimitedSeen {
+     |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-pipeline` (test "validate_file_a204_review") due to 9 previous errors
