@@ -1176,3 +1176,6 @@ a187 originalresume3 actualhandle34262 slotB parserworker1builder0PG; a191actual
 
 
 User steering: raise parallelism; independent reviews do NOT consume developmenttaskslots. Verifiedhost128GiB/Docker94GiB16CPU permits4dev+2review tasks with globalmax6Rustbuilders eachtask1builder/1PG private8GiBbuilder. a187/a190dev and a191fixedreview remain, dispatcha192connectorCSV/TSV anda193controlboundeddownload completes4disjointdevwriters; NOmanifest/lockwriters. Gatewaylib/parser, gatewaypolicy/nestedcatalog, connectorlib/newdelimited, controlfilehosting ownership explicit; reviewimmutablearchive. Prior25minwait interrupted1129s byuserinput, no taskpollsince; finishremainingwindowbeforeunifiedactualhandlecheck. All87parentsopen/goalactive.
+
+
+a192 actualGrok4.7xhighhandle34924 CSV/TSVconnectorwriter1builder0PG; a193handle48632boundedlocaldownloadcontrolwriter1builder0PG. a18734262+a19056028 development, a1919585 independentreview. Actual4development+1review (5total), reviewsnotdevelopmentlimit; max6globalbuilders. Dispatch7918e42f/nextUUIDa194. No taskobservationduringinterruptedwait; newtasksstartfresh25minwindow thenONEunified5handlescheck. All87parentsopen/goalactive.
