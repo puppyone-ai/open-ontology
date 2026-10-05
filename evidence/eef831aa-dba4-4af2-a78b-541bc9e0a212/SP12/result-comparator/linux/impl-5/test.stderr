@@ -1,0 +1,9 @@
+   Compiling oo-result-comparator v0.1.0 (/src/benchmarks/result-comparator)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.34s
+     Running unittests src/lib.rs (/target/debug/deps/oo_result_comparator-d14050249d2eadc2)
+     Running unittests src/main.rs (/target/debug/deps/result_comparator-a26c8233fdcaba6f)
+     Running tests/bounds.rs (/target/debug/deps/bounds-d69022520431598d)
+     Running tests/cli.rs (/target/debug/deps/cli-f0b6ba41e861845b)
+     Running tests/gold.rs (/target/debug/deps/gold-96c2f8fe580020ce)
+     Running tests/sha256.rs (/target/debug/deps/sha256-1119a1a6e17e57be)
+   Doc-tests oo_result_comparator

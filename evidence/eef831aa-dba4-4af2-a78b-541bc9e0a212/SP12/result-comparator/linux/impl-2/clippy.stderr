@@ -1,0 +1,14 @@
+    Checking oo-result-comparator v0.1.0 (/src/benchmarks/result-comparator)
+error[E0282]: type annotations needed for `&_`
+   --> src/parse.rs:250:32
+    |
+250 |         if columns.iter().any(|column| column.name == name) {
+    |                                ^^^^^^  ----------- type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type, where the type for type parameter `T` is specified
+    |
+250 |         if columns.iter().any(|column: &T| column.name == name) {
+    |                                      ++++
+
+For more information about this error, try `rustc --explain E0282`.
+error: could not compile `oo-result-comparator` (lib) due to 1 previous error

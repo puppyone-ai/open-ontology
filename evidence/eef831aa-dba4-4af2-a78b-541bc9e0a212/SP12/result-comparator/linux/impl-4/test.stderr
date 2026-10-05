@@ -1,0 +1,10 @@
+   Compiling oo-result-comparator v0.1.0 (/src/benchmarks/result-comparator)
+error: environment variable `CARGO_BIN_EXE_result_comparator` not defined at compile time
+  --> tests/cli.rs:36:34
+   |
+36 |     let mut child = Command::new(env!("CARGO_BIN_EXE_result_comparator"))
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_result_comparator")` instead
+
+error: could not compile `oo-result-comparator` (test "cli") due to 1 previous error

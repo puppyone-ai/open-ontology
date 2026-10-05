@@ -1,0 +1,170 @@
+Diff in /src/benchmarks/result-comparator/src/compare.rs:6:
+ use serde_json::{Map, Value};
+ 
+ use crate::parse::{
+-    parse_input, Cell, Column, ColumnType, Comparator, Completion, ConfigError, Kind, TypedResult,
+-    Warning,
++    Cell, Column, ColumnType, Comparator, Completion, ConfigError, Kind, TypedResult, Warning,
++    parse_input,
+ };
+ use crate::render_report;
+ 
+Diff in /src/benchmarks/result-comparator/src/compare.rs:252:
+         .map(|warning| {
+             let mut map = Map::new();
+             map.insert("code".to_owned(), Value::String(warning.code.clone()));
+-            map.insert(
+-                "message".to_owned(),
+-                Value::String(warning.message.clone()),
+-            );
++            map.insert("message".to_owned(), Value::String(warning.message.clone()));
+             Value::Object(map)
+         })
+         .collect();
+Diff in /src/benchmarks/result-comparator/src/lib.rs:12:
+ 
+ use serde::Serialize;
+ 
+-pub use compare::{compare_document, Comparison};
++pub use compare::{Comparison, compare_document};
+ pub use parse::ConfigError;
+ 
+ const HELP: &str = "\
+Diff in /src/benchmarks/result-comparator/src/parse.rs:126:
+     }
+     let value = parse_json_value(input, PROTOCOL).map_err(|_| ConfigError::bare("json"))?;
+     let root = object(&value, "/")?;
+-    check_keys(root, &["actual", "expected", "row_comparator", "version"], "/")?;
++    check_keys(
++        root,
++        &["actual", "expected", "row_comparator", "version"],
++        "/",
++    )?;
+     let version = req_str(root, "version", "/")?;
+     if version != PROTOCOL {
+         return Err(ConfigError::at("schema", "/version"));
+Diff in /src/benchmarks/result-comparator/src/parse.rs:161:
+     let warnings = parse_warnings(req(map, "warnings", pointer)?, pointer)?;
+     let (columns, rows) = match kind {
+         Kind::NotFound => {
+-            check_keys(
+-                map,
+-                &["completion", "kind", "warnings"],
+-                pointer,
+-            )?;
++            check_keys(map, &["completion", "kind", "warnings"], pointer)?;
+             (Vec::new(), Vec::new())
+         }
+         Kind::Rows => {
+Diff in /src/benchmarks/result-comparator/src/parse.rs:323:
+         ColumnType::Int64 => {
+             check_keys(map, &["presence", "value"], pointer)?;
+             let text = req_str(map, "value", pointer)?;
+-            canonical_i64(text).map(Cell::Int).map_err(|_| {
+-                ConfigError::at("int64", child(pointer, "value"))
+-            })
++            canonical_i64(text)
++                .map(Cell::Int)
++                .map_err(|_| ConfigError::at("int64", child(pointer, "value")))
+         }
+         ColumnType::Text => {
+             check_keys(map, &["presence", "value"], pointer)?;
+Diff in /src/benchmarks/result-comparator/src/parse.rs:339:
+             Ok(Cell::Text(text.to_owned()))
+         }
+         ColumnType::Decimal => {
+-            check_keys(map, &["coefficient", "negative", "presence", "scale"], pointer)?;
++            check_keys(
++                map,
++                &["coefficient", "negative", "presence", "scale"],
++                pointer,
++            )?;
+             let negative = req_bool(map, "negative", pointer)?;
+             let coefficient = req_str(map, "coefficient", pointer)?;
+             if !valid_coefficient(coefficient) {
+Diff in /src/benchmarks/result-comparator/src/parse.rs:399:
+     let bytes = name.as_bytes();
+     !bytes.is_empty()
+         && bytes.len() <= CANONICAL_MAX_FIELD_NAME_BYTES
+-        && bytes.iter().all(|byte| {
+-            (*byte >= 0x80) || ((0x20..0x7f).contains(byte) && *byte != b'/')
+-        })
++        && bytes
++            .iter()
++            .all(|byte| (*byte >= 0x80) || ((0x20..0x7f).contains(byte) && *byte != b'/'))
+ }
+ 
+ fn valid_coefficient(text: &str) -> bool {
+Diff in /src/benchmarks/result-comparator/src/parse.rs:497:
+     }
+ }
+ 
+-fn check_keys(map: &Map<String, Value>, allowed: &[&str], pointer: &str) -> Result<(), ConfigError> {
++fn check_keys(
++    map: &Map<String, Value>,
++    allowed: &[&str],
++    pointer: &str,
++) -> Result<(), ConfigError> {
+     let mut unknown: Vec<&str> = map
+         .keys()
+         .filter(|key| !allowed.contains(&key.as_str()))
+Diff in /src/benchmarks/result-comparator/tests/bounds.rs:14:
+ 
+ fn token(input: &str) -> (String, Option<String>) {
+     let error = compare_document(input).expect_err("config");
+-    (
+-        error.token().to_owned(),
+-        error.pointer().map(str::to_owned),
+-    )
++    (error.token().to_owned(), error.pointer().map(str::to_owned))
+ }
+ 
+ #[test]
+Diff in /src/benchmarks/result-comparator/tests/bounds.rs:52:
+     let body = r#"{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"amount","type":"decimal"}],"rows":[[{"presence":"value","negative":false,"coefficient":"120","scale":2.0}]]}"#;
+     assert_eq!(
+         token(&side(body)),
+-        ("decimal".to_owned(), Some("/expected/rows/0/0/scale".to_owned()))
++        (
++            "decimal".to_owned(),
++            Some("/expected/rows/0/0/scale".to_owned())
++        )
+     );
+ }
+ 
+Diff in /src/benchmarks/result-comparator/tests/bounds.rs:61:
+     let body = r#"{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"k","type":"int64"}],"rows":[[{"presence":"value","value":"9223372036854775808"}]]}"#;
+     assert_eq!(
+         token(&side(body)),
+-        ("int64".to_owned(), Some("/expected/rows/0/0/value".to_owned()))
++        (
++            "int64".to_owned(),
++            Some("/expected/rows/0/0/value".to_owned())
++        )
+     );
+     let negative = body.replace("9223372036854775808", "-9223372036854775809");
+     assert_eq!(token(&side(&negative)).0, "int64");
+Diff in /src/benchmarks/result-comparator/tests/bounds.rs:127:
+ 
+ #[test]
+ fn payload_byte_cap_is_budget() {
+-    let cell = format!(
+-        r#"[{{"presence":"value","value":"{}"}}]"#,
+-        "a".repeat(500)
+-    );
++    let cell = format!(r#"[{{"presence":"value","value":"{}"}}]"#, "a".repeat(500));
+     let rows = vec![cell; 524].join(",");
+     let body = format!(
+         r#"{{"kind":"rows","completion":"complete","warnings":[],"columns":[{{"name":"t","type":"text"}}],"rows":[{rows}]}}"#
+Diff in /src/benchmarks/result-comparator/tests/cli.rs:82:
+ 
+ #[test]
+ fn binary_duplicate_key_exits_config() {
+-    let (code, stdout, stderr) = binary(
+-        br#"{"version":"oo.benchmark.result-comparison/v1","version":"again"}"#,
+-    );
++    let (code, stdout, stderr) =
++        binary(br#"{"version":"oo.benchmark.result-comparison/v1","version":"again"}"#);
+     assert_eq!(code, 2);
+     assert!(stdout.is_empty());
+     assert_eq!(stderr, b"result-comparator: json\n");

@@ -1,0 +1,1 @@
+{"differences":[{"actual":"{\"coefficient\":\"121\",\"negative\":false,\"presence\":\"value\",\"scale\":2}","expected":"{\"coefficient\":\"120\",\"negative\":false,\"presence\":\"value\",\"scale\":2}","path":"rows/0/0","reason":"decimal"}],"verdict":"mismatch","version":"oo.benchmark.result-comparison-report/v1"}
