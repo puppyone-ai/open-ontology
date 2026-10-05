@@ -1,0 +1,10 @@
+live=ran
+untrusted_admission=blocked
+track_functions=pl
+physical_table=pt_3025345308a0c16c28b893cc7e78d18444d67e899a65990a6d34a86b6845
+note_oid=16915
+role_flags=nologin
+hidden_grants=0
+red_drop=blocked:true ms:1501 active:true accepts:1
+red_race=held:true next_started:true next_active:true cancel:sent
+red_result=reproduced
