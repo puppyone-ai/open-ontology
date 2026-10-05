@@ -1,0 +1,23 @@
+run_id=eef831aa-dba4-4af2-a78b-541bc9e0a187
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+msrv_override=RUSTUP_TOOLCHAIN=1.94.0
+network=oo-a187-net
+container=oo-a187-focused-4
+cargo_volume=oo-a187-cargo
+target_volume=oo-a187-target
+privileged=no
+network_mode=bridge_not_host
+home_mount=no
+socket_mount=no
+host_port=none
+shared_cargo_cache=no
+pull=never
+postgres=none
+phase=focused-4
+global_cap=3
+archive=/tmp/oo-a187-eef831aa-dba4-4af2-a78b-541bc9e0a187/archive
+tree=/tmp/oo-a187-eef831aa-dba4-4af2-a78b-541bc9e0a187/focused-tree
+overlay=copied-parser-worker
+prior_attempt=linux/focused exit125 mountpoint; linux/focused-2 exit101 compile; linux/focused-3 exit2 worktree-executor-differs
