@@ -1,0 +1,19 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.95s
+     Running tests/policy_catalog_a200_review.rs (/target/debug/deps/policy_catalog_a200_review-32f1a655c7b72e94)
+
+running 1 test
+test policy_catalog_review_on_a_different_fixture ... 
+thread 'policy_catalog_review_on_a_different_fixture' (227) panicked at crates/oo-gateway/tests/policy_catalog_a200_review.rs:1001:9:
+after_gap_rollback xact
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    policy_catalog_review_on_a_different_fixture
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p oo-gateway --test policy_catalog_a200_review`

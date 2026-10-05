@@ -1,0 +1,15 @@
+container oo-a200-smoke already absent
+container oo-a200-proof already absent
+oo-a200-pg
+removed container oo-a200-pg
+oo-a200-eef831aa-cargo
+removed volume oo-a200-eef831aa-cargo
+oo-a200-eef831aa-target
+removed volume oo-a200-eef831aa-target
+oo-a200-eef831aa-pgdata
+removed volume oo-a200-eef831aa-pgdata
+oo-a200-eef831aa-net
+removed network oo-a200-eef831aa-net
+removed /tmp/oo-a200-eef831aa-dba4-4af2-a78b-541bc9e0a200
+remaining a200 containers:
+cleanup_done
