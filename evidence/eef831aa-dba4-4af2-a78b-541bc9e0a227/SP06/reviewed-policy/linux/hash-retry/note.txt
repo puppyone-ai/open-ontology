@@ -1,0 +1,1 @@
+This directory is the retry after linux/hash exit 127. SHA256SUMS is rewritten after these files exist. The rewrite container is removed here and its inspect is not stored.

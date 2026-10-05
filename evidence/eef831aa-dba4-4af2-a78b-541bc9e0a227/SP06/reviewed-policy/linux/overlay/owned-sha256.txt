@@ -1,0 +1,5 @@
+c7c95a3dafc150132defdfcacc07db67efff1dec5f849a4451184e2485ccf096  crates/oo-gateway/src/reviewed_policy.rs
+8a680dec57896e9a95fc8bdde7e353df8e8b770aeb67eb37d5ec34cc1faad10f  crates/oo-gateway/src/lib.rs
+a80c86939c2f8fdad96b002dac52f835b3b5ca4632fa47097b2e21ca11f9bf68  crates/oo-gateway/tests/reviewed_policy.rs
+de58f632be17f5e2f77e35660fcd949cb4b0da360eff6ecce9584d7d9a0aa53b  contracts/gateway/reviewed-policy-v1.md
+16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

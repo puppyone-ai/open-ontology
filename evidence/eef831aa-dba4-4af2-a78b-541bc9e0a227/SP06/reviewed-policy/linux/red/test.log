@@ -1,0 +1,40 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: couldn't read `crates/oo-gateway/tests/../src/reviewed_policy.rs`: No such file or directory (os error 2)
+    --> crates/oo-gateway/tests/reviewed_policy.rs:1181:18
+     |
+1181 |     let source = include_str!("../src/reviewed_policy.rs");
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+help: there is a file with the same name in a different directory
+     |
+1181 -     let source = include_str!("../src/reviewed_policy.rs");
+1181 +     let source = include_str!("reviewed_policy.rs");
+     |
+
+error[E0432]: unresolved import `oo_gateway::reviewed_policy`
+  --> crates/oo-gateway/tests/reviewed_policy.rs:12:17
+   |
+12 | use oo_gateway::reviewed_policy::{
+   |                 ^^^^^^^^^^^^^^^ could not find `reviewed_policy` in `oo_gateway`
+
+error[E0277]: the trait bound `char: LowerHex` is not satisfied
+  --> crates/oo-gateway/tests/reviewed_policy.rs:71:67
+   |
+71 |             ch if (ch as u32) < 0x20 => out.push_str(&format!("\\u{ch:04x}")),
+   |                                                                   ^^^^^^^^ the trait `LowerHex` is not implemented for `char`
+   |
+   = help: the following other types implement trait `LowerHex`:
+             &T
+             &mut T
+             GenericArray<u8, T>
+             Saturating<T>
+             Wrapping<T>
+             bytes::bytes::Bytes
+             bytes::bytes_mut::BytesMut
+             either::Either<L, R>
+           and 31 others
+   = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0277, E0432.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `oo-gateway` (test "reviewed_policy") due to 3 previous errors

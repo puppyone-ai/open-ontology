@@ -1,0 +1,1 @@
+bash -lc started a login shell and rustc was not on PATH. Exit 127. OOMKilled=false. The inventory was not written. The retry uses bash -c, which is how the proof containers invoke rustc.
