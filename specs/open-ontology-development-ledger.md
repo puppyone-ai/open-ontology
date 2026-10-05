@@ -1170,3 +1170,6 @@ a187 originalUUIDresume2 actualhandle32222 slotB parserworker1builder0PG; a190 a
 
 
 a18910444 actualexit0 complete15d23fe9/evidencec3ac0200 full3reportsread184hashactual0/smokeproof0/ownDockerempty. RealDrop3/6ms+rollback androlebind authorproof pendingfixeda191; existingcomponentrepair no newcount/acceptance. a18732222 actualexit0 incompletefocused-5resultpending originalresume3collectexistinglogs first. a19056028 ONEunifiedchecklive. Dispatcha191fixedexecutorrepairreview, disjointglobal3; metrics29delivered35accepted10of29=34.48% unchanged/all87parentsopen/goalactive.
+
+
+a187 originalresume3 actualhandle34262 slotB parserworker1builder0PG; a191actualhandle9585 slotC fixed15d23fe9shutdownreview1builder1PG; a19056028slotAactualcatalogcontinueslastconfirmedlive. Global3builders/actual3Grok; dispatch09697cb6 nextUUIDa192. NextONE25minutewait+unifiedactualhandlecheck, nointermediatepolling; all87parentsopen/goalactive.
