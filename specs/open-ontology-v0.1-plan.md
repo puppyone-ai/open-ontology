@@ -1039,3 +1039,7 @@ Coordinator verified a232 init-pg fixed6e1e6e57 full reports,223 SHA256 entries0
 - [ ] M1-D14D / E7-D: strict operator policy-set request -> actual aggregate ACL install CLI; a235 owns newbin/test/contract only, privateTLS2tables2roles and refusal/replay/query.
 - [ ] M1-D06B / E7-D: explicit compiled analyze-pg operator command -> mapped stats receipt; a236 owns newbin/test/contract only, realimport/stats/catalog query.
 E7-D0/2 frozen BEFORE code, aggregate21/40=52.50%; not global development rate. Integration0/4 and release0/6 unchanged. IPCparenta237 and correctedPackbundlea238 independent fixed reviews queued, no additional countableunits.
+
+Coordinator accepts M1-D14B limited sealed adapter on baf70c5c after a233 full reports/148hash0/smoke21+independent9/Clippy0/owncontainers absent. E4-D1/1, frozen22/40=55%; historical46→47, firstcomponent39→40/rework10/40=25%; authored46→47 with a234bcc86734 CLI262hash0/smoke21+CLI6/Clippy0 pendinga239fixedreview. M1-D17/24, integration0/4 release0/6 unchanged.
+- [x] M1-D14B: reviewed effective artifact+bound decisions->compiled policy sets (a233 limited independent review).
+- [ ] M1-D14E / E8-D0/1 frozen BEFORE code: explicit administrative mapping reader provisioning->actual catalog/query without fixture mapping GRANT; a240 module+libexport/newtest/contract only, no existing installer or migration edits. Does not authenticate or guarantee tenant isolation; metadata exposure named. Aggregate22/41=53.66%, not global completion.

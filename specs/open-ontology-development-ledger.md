@@ -1302,3 +1302,13 @@ Coordinator verified a232 init-pg fixed6e1e6e57 full reports,223 SHA256 entries0
 E7-D0/2 frozen BEFORE code, aggregate21/40=52.50%; not global development rate. Integration0/4 and release0/6 unchanged. IPCparenta237 and correctedPackbundlea238 independent fixed reviews queued, no additional countableunits.
 
 Actual Grok4.7xhigh a23516400 columnACLCLI/a23665778 statsCLI development; a23799886 IPCparent/a23885202 bundle fixedreview. Existing lastconfirmedlive a23123546/a23434157 development and a22959496/a23315333 review. Actual4development+4review, max8builders6GiB1CPU each/global10, devcap12 reviewsseparate. NextUUIDa239; ONE20minute wait thenONE unified8actualhandle observation, no interim polling.
+
+ONE20minute unified8handles: a23434157/a22959496/a23315333 actualexit0; full completion and acceptance still require reports/raw/hash verification. a23123546/a23516400/a23665778/a23799886/a23885202 remain live per actualhandles. No repeated observation or exit-code-only acceptance.
+
+a229 again originalUUID continuation required reports absent after terminal CLI; collect existing proof first, no duplicate builder/PG. a233 reports present APPROVE_LIMITED awaiting coordinator fullread/hashes; a234 authoredCLI reports present awaiting verification/fixedreview. No accepted metrics change this observation.
+
+Coordinator accepts M1-D14B limited sealed adapter on baf70c5c after a233 full reports/148hash0/smoke21+independent9/Clippy0/owncontainers absent. E4-D1/1, frozen22/40=55%; historical46→47, firstcomponent39→40/rework10/40=25%; authored46→47 with a234bcc86734 CLI262hash0/smoke21+CLI6/Clippy0 pendinga239fixedreview. M1-D17/24, integration0/4 release0/6 unchanged.
+- [x] M1-D14B: reviewed effective artifact+bound decisions->compiled policy sets (a233 limited independent review).
+- [ ] M1-D14E / E8-D0/1 frozen BEFORE code: explicit administrative mapping reader provisioning->actual catalog/query without fixture mapping GRANT; a240 module+libexport/newtest/contract only, no existing installer or migration edits. Does not authenticate or guarantee tenant isolation; metadata exposure named. Aggregate22/41=53.66%, not global completion.
+
+a239 actual26939 CLI independentreview1builder0PG; a240 actual36519 mapping-access product1builder1PG. Remaining lastconfirmedlive a23123546/a23516400/a23665778 dev and a22964841/a23799886/a23885202 review. Actual4dev+4review, devcap12 reviewsseparate/global10builders. NextUUIDa241; ONE20minute wait thenONE unified8handles no repeatedpolling.
