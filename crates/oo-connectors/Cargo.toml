@@ -18,6 +18,9 @@ oo-core = { path = "../oo-core" }
 arrow-array = { version = "=60.0.0", default-features = false }
 arrow-buffer = { version = "=60.0.0", default-features = false }
 arrow-schema = { version = "=60.0.0", default-features = false }
+# Uncompressed Arrow IPC. Series 60, the same pin as the array crates.
+# Default features stay off, so lz4_flex and zstd are not enabled.
+arrow-ipc = { version = "=60.0.0", default-features = false }
 # Source driver only. Default features stay off, so `any`, macros, and the
 # JSON type feature stay off. The sqlx 0.9.0 facade still depends on
 # sqlx-core with the `migrate` feature unconditionally. This crate does not
@@ -42,6 +45,7 @@ zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 arrow-array = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
 arrow-schema = { version = "=60.0.0", default-features = false }
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
 tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
