@@ -1,0 +1,16 @@
+oo_task=sp06-catalog-test-alignment-red
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a206
+oo_fixed=5e3ba29f8d460a1aa6919733100c34a68a2fdb75
+oo_platform=linux/arm64
+phase=preedit-live
+Linux 982f3a82239e 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=old-assertion
+phase_exit=0 phase=product-match
+phase_exit=0 phase=libclang
+=== OO_A190_LIVE=1 old assertion ===
+phase_exit=101 phase=live-test
+phase_exit=0 phase=reproduced
+preedit_assertion_reproduced=yes

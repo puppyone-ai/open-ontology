@@ -1,0 +1,20 @@
+before 2026-10-05T18:45:06Z
+--- own containers ---
+oo-a206-pg Up 7 minutes postgres
+--- own volumes ---
+oo-a206-eef831aa-cargo
+oo-a206-eef831aa-pgdata
+oo-a206-eef831aa-target
+--- own networks ---
+oo-a206-eef831aa-net
+d41935ec1fe3
+oo-a206-eef831aa-cargo
+oo-a206-eef831aa-target
+oo-a206-eef831aa-pgdata
+oo-a206-eef831aa-net
+--- after ---
+own containers:
+own volumes:
+own networks:
+tmp=removed
+no prune

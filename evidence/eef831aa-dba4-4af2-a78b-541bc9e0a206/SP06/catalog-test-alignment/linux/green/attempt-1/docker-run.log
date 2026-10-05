@@ -1,0 +1,16 @@
+oo_task=sp06-catalog-test-alignment-green
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a206
+oo_platform=linux/arm64
+phase=postedit
+Linux 3237e79f5352 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=assertion
+phase_exit=0 phase=unchanged-hash
+phase_exit=0 phase=unchanged
+phase_exit=0 phase=libclang
+phase_exit=0 phase=clippy-component
+phase_exit=0 phase=rustfmt-component
+=== rustfmt edited files ===
+phase_exit=1 phase=rustfmt
