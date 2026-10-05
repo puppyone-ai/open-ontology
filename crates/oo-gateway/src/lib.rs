@@ -2,12 +2,14 @@
 //!
 //! SP06-W01 installs scoped column ACLs for a trusted administrator.
 //! SP06-W02 admits one `SELECT` through the PostgreSQL parser and a caller-supplied
-//! policy snapshot. Authentication, execution, audit, and row-level security are
-//! not implemented here.
+//! policy snapshot. `query_executor` runs that admitted statement on one dedicated
+//! session for a trusted runtime. Authentication, durable audit, and row-level
+//! security are not implemented here.
 
 #![forbid(unsafe_code)]
 
 pub mod policy;
+pub mod query_executor;
 pub mod sql_guard;
 
 pub use policy::{
