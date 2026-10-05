@@ -5,14 +5,24 @@
 
 #![forbid(unsafe_code)]
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, Waker};
 use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
+use futures_util::stream::{self, BoxStream};
 use object_store::local::LocalFileSystem;
 use object_store::path::Path as ObjectPath;
-use object_store::{ObjectStore, ObjectStoreExt};
+use object_store::path::Path as StorePath;
+use object_store::{
+    Attributes, CopyOptions, GetOptions, GetRange, GetResult, GetResultPayload, ListResult,
+    MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutMultipartOptions, PutOptions,
+    PutPayload, PutResult,
+};
 use oo_control::{
     AdmissionContext, FileHost, FileHostError, GrantEvidence, HostLimits, MAX_OBJECT_BYTES,
     MAX_PART_COUNT, ObjectKey, ObjectManifest, PrincipalId, ProjectId, SessionId, UploadConfig,
@@ -1304,6 +1314,438 @@ async fn download_pull_memory_is_bounded() {
     }
 }
 
+#[tokio::test]
+async fn download_eof_rejects_flipped_bytes_and_keeps_a_clean_object() {
+    let scratch = Scratch::new("download-eof");
+    let root = scratch.store();
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-eof");
+    let source = b"abcdefghij0123456789".to_vec();
+    let independent = digest(&source);
+
+    let clean = publish(&host, &ctx, "clean.bin", &source).await;
+    let clean_path = root.join(clean.object_key.as_str());
+    let mut reader = host
+        .open_download(&ctx, &clean.object_key, 8, None)
+        .await
+        .unwrap();
+    let mut returned = Sha256::new();
+    let mut offset = 0usize;
+    loop {
+        assert_eq!(reader.manifest(), &clean);
+        match reader.next_chunk().await.unwrap() {
+            Some(chunk) => {
+                assert!(!chunk.is_empty() && chunk.len() <= 8);
+                assert!(!reader.is_complete());
+                assert_eq!(&source[offset..offset + chunk.len()], chunk.as_slice());
+                returned.update(&chunk);
+                offset += chunk.len();
+            }
+            None => break,
+        }
+    }
+    assert_eq!(offset, source.len());
+    assert_eq!(finish_sha(returned), independent);
+    assert_eq!(digest(&std::fs::read(&clean_path).unwrap()), independent);
+    assert_eq!(clean.object_digest, independent);
+    assert!(reader.is_complete());
+    let mut raced = std::fs::read(&clean_path).unwrap();
+    raced[0] ^= 0xff;
+    std::fs::write(&clean_path, &raced).unwrap();
+    assert!(reader.is_complete());
+    assert!(reader.next_chunk().await.unwrap().is_none());
+    assert!(reader.is_complete());
+    assert_eq!(reader.manifest(), &clean);
+    assert_ne!(digest(&std::fs::read(&clean_path).unwrap()), independent);
+
+    let consumed = publish(&host, &ctx, "consumed.bin", &source).await;
+    let consumed_path = root.join(consumed.object_key.as_str());
+    let mut reader = host
+        .open_download(&ctx, &consumed.object_key, 8, None)
+        .await
+        .unwrap();
+    let first = reader.next_chunk().await.unwrap().unwrap();
+    assert_eq!(first.as_slice(), &source[..8]);
+    assert!(!reader.is_complete());
+    let mut edited = std::fs::read(&consumed_path).unwrap();
+    edited[0] ^= 0xff;
+    std::fs::write(&consumed_path, &edited).unwrap();
+    let mut returned = Sha256::new();
+    returned.update(&first);
+    let mut offset = first.len();
+    let err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(chunk)) => {
+                assert!(!reader.is_complete());
+                returned.update(&chunk);
+                offset += chunk.len();
+            }
+            Ok(None) => panic!("consumed prefix flip completed"),
+            Err(error) => break error,
+        }
+    };
+    assert_eq!(offset, source.len());
+    assert_eq!(finish_sha(returned), independent);
+    assert_ne!(digest(&std::fs::read(&consumed_path).unwrap()), independent);
+    assert_eq!(err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &consumed);
+
+    let unread = publish(&host, &ctx, "unread.bin", &source).await;
+    let unread_path = root.join(unread.object_key.as_str());
+    let mut reader = host
+        .open_download(&ctx, &unread.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(reader.next_chunk().await.unwrap().is_some());
+    let mut edited = std::fs::read(&unread_path).unwrap();
+    let last = edited.len() - 1;
+    edited[last] ^= 0x5a;
+    std::fs::write(&unread_path, &edited).unwrap();
+    let err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(_)) => assert!(!reader.is_complete()),
+            Ok(None) => panic!("unread byte flip completed"),
+            Err(error) => break error,
+        }
+    };
+    assert_eq!(err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_ne!(digest(&std::fs::read(&unread_path).unwrap()), independent);
+    assert_eq!(reader.manifest(), &unread);
+}
+
+#[tokio::test]
+async fn download_deadline_does_not_start_bytes_after_held_get() {
+    let scratch = Scratch::new("download-held");
+    let root = scratch.store();
+    let publisher = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-held");
+    let source = b"abcdefghij0123456789".to_vec();
+    let manifest = publish(&publisher, &ctx, "held.bin", &source).await;
+    let (store, gate) = CountingStore::open(&root);
+    let host = FileHost::new(store, HostLimits::standard());
+
+    gate.hold_get.store(true, Ordering::SeqCst);
+    gate.hold_bytes.store(true, Ordering::SeqCst);
+    let deadline = Instant::now() + Duration::from_millis(400);
+    let mut reader = host
+        .open_download(&ctx, &manifest.object_key, 8, Some(deadline))
+        .await
+        .unwrap();
+    let stopped = {
+        let mut fut = std::pin::pin!(reader.next_chunk());
+        poll_until(&mut fut, || gate.entered_get.load(Ordering::SeqCst));
+        assert!(!gate.entered_bytes.load(Ordering::SeqCst));
+        assert!(!gate.done_get.load(Ordering::SeqCst));
+        while Instant::now() < deadline + Duration::from_millis(50) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(
+            !gate.dropped_get.load(Ordering::SeqCst),
+            "deadline dropped the in-flight get_opts"
+        );
+        assert!(!gate.entered_bytes.load(Ordering::SeqCst));
+        gate.release_get.store(true, Ordering::SeqCst);
+        let stopped = poll_ready(&mut fut).unwrap_err();
+        assert!(
+            !gate.entered_bytes.load(Ordering::SeqCst),
+            "bytes() started after the deadline"
+        );
+        stopped
+    };
+    assert_eq!(stopped, FileHostError::Stopped);
+    assert_eq!(
+        stopped.to_string(),
+        "download stopped before the object was verified"
+    );
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &manifest);
+    gate.hold_get.store(false, Ordering::SeqCst);
+    gate.hold_bytes.store(false, Ordering::SeqCst);
+    assert_eq!(
+        reader.next_chunk().await.unwrap_err(),
+        FileHostError::Stopped
+    );
+    assert!(!reader.is_complete());
+
+    reset_gate(&gate);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut reader = host
+        .open_download(&ctx, &manifest.object_key, source.len(), Some(deadline))
+        .await
+        .unwrap();
+    let chunk = reader.next_chunk().await.unwrap().unwrap();
+    assert_eq!(chunk.as_slice(), source.as_slice());
+    assert!(!reader.is_complete());
+    gate.hold_get.store(true, Ordering::SeqCst);
+    gate.hold_bytes.store(true, Ordering::SeqCst);
+    let stopped = {
+        let mut fut = std::pin::pin!(reader.next_chunk());
+        poll_until(&mut fut, || gate.entered_get.load(Ordering::SeqCst));
+        assert!(!gate.entered_bytes.load(Ordering::SeqCst));
+        while Instant::now() < deadline + Duration::from_millis(50) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(!gate.dropped_get.load(Ordering::SeqCst));
+        assert!(!gate.entered_bytes.load(Ordering::SeqCst));
+        gate.release_get.store(true, Ordering::SeqCst);
+        let stopped = poll_ready(&mut fut).unwrap_err();
+        assert!(
+            !gate.entered_bytes.load(Ordering::SeqCst),
+            "EOF rehash started bytes() after the deadline"
+        );
+        stopped
+    };
+    assert_eq!(stopped, FileHostError::Stopped);
+    assert!(!reader.is_complete());
+
+    reset_gate(&gate);
+    gate.hold_get.store(true, Ordering::SeqCst);
+    let mut reader = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    {
+        let mut fut = std::pin::pin!(reader.next_chunk());
+        poll_until(&mut fut, || gate.entered_get.load(Ordering::SeqCst));
+        assert!(!gate.done_get.load(Ordering::SeqCst));
+    }
+    assert!(gate.dropped_get.load(Ordering::SeqCst));
+    assert!(!gate.done_get.load(Ordering::SeqCst));
+    gate.release_get.store(true, Ordering::SeqCst);
+    let start = Instant::now();
+    while !gate.done_get.load(Ordering::SeqCst) {
+        if start.elapsed() > Duration::from_secs(5) {
+            panic!("in-flight get_opts did not finish after release");
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(!reader.is_complete());
+    assert_eq!(
+        reader.next_chunk().await.unwrap_err(),
+        FileHostError::Stopped
+    );
+}
+
+#[tokio::test]
+async fn download_regressions_deadline_cancel_manifest_truncate_quota() {
+    let scratch = Scratch::new("download-regress");
+    let root = scratch.store();
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-regress");
+    let source = b"abcdefghij0123456789".to_vec();
+    let manifest = publish(&host, &ctx, "regress.bin", &source).await;
+    let quota_path = root.join(format!(
+        "meta/quota/{}/{}",
+        ctx.project_id.as_str(),
+        manifest.session_id.as_str()
+    ));
+    let quota_before = std::fs::read(&quota_path).unwrap();
+
+    let mut expired = host
+        .open_download(
+            &ctx,
+            &manifest.object_key,
+            8,
+            Some(Instant::now() - Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    let stopped = expired.next_chunk().await.unwrap_err();
+    assert_eq!(stopped, FileHostError::Stopped);
+    assert_eq!(
+        stopped.to_string(),
+        "download stopped before the object was verified"
+    );
+    assert!(!expired.is_complete());
+
+    let mut cancelling = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(cancelling.next_chunk().await.unwrap().is_some());
+    cancelling.cancel();
+    assert_eq!(
+        cancelling.next_chunk().await.unwrap_err(),
+        FileHostError::Stopped
+    );
+    assert!(!cancelling.is_complete());
+    assert_eq!(cancelling.manifest(), &manifest);
+
+    let edited = publish(&host, &ctx, "manifest.bin", &source).await;
+    let manifest_path = root.join(format!("meta/manifest/{}", edited.session_id.as_str()));
+    let mut reader = host
+        .open_download(&ctx, &edited.object_key, 8, None)
+        .await
+        .unwrap();
+    let mut manifest_bytes = std::fs::read(&manifest_path).unwrap();
+    manifest_bytes[20] ^= 0x01;
+    std::fs::write(&manifest_path, &manifest_bytes).unwrap();
+    let manifest_err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(_)) => assert!(!reader.is_complete()),
+            Ok(None) => panic!("changed manifest completed"),
+            Err(error) => break error,
+        }
+    };
+    assert_eq!(manifest_err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &edited);
+
+    let cut = publish(&host, &ctx, "cut.bin", &source).await;
+    let mut reader = host
+        .open_download(&ctx, &cut.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(reader.next_chunk().await.unwrap().is_some());
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(root.join(cut.object_key.as_str()))
+        .unwrap()
+        .set_len(0)
+        .unwrap();
+    let cut_err = reader.next_chunk().await.unwrap_err();
+    assert!(matches!(
+        cut_err,
+        FileHostError::Store | FileHostError::Corrupt
+    ));
+    assert!(!cut_err.to_string().contains('/'));
+    assert!(!reader.is_complete());
+
+    let flipped = publish(&host, &ctx, "generic-flip.bin", &source).await;
+    let names_before = quota_names(&root, ctx.project_id.as_str());
+    let generic_store = Arc::new(LocalFileSystem::new_with_prefix(&root).unwrap());
+    let generic = FileHost::new(generic_store, HostLimits::standard());
+    let fresh = upload("other.bin", b"zzzzzzzz", None);
+    assert_eq!(
+        generic.begin(&ctx, &fresh).await.unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        generic
+            .put_part(&ctx, &manifest.session_id, 1, b"zzzzzzzz")
+            .await
+            .unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        generic
+            .complete(&ctx, &manifest.session_id)
+            .await
+            .unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        generic.abort(&ctx, &manifest.session_id).await.unwrap_err(),
+        FileHostError::Unsupported
+    );
+    let mut reader = generic
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    let mut returned = Sha256::new();
+    let mut offset = 0usize;
+    while let Some(chunk) = reader.next_chunk().await.unwrap() {
+        assert!(!reader.is_complete());
+        assert!(chunk.len() <= 8);
+        returned.update(&chunk);
+        offset += chunk.len();
+    }
+    assert_eq!(offset, source.len());
+    assert!(reader.is_complete());
+    assert_eq!(finish_sha(returned), digest(&source));
+    assert_eq!(
+        digest(&std::fs::read(root.join(manifest.object_key.as_str())).unwrap()),
+        digest(&source)
+    );
+    let flip_path = root.join(flipped.object_key.as_str());
+    let mut reader = generic
+        .open_download(&ctx, &flipped.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(reader.next_chunk().await.unwrap().is_some());
+    let mut raw = std::fs::read(&flip_path).unwrap();
+    raw[0] ^= 0xff;
+    std::fs::write(&flip_path, &raw).unwrap();
+    let err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(_)) => assert!(!reader.is_complete()),
+            Ok(None) => panic!("generic consumed-prefix flip completed"),
+            Err(error) => break error,
+        }
+    };
+    assert_eq!(err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_eq!(std::fs::read(&quota_path).unwrap(), quota_before);
+    assert_eq!(quota_names(&root, ctx.project_id.as_str()), names_before);
+}
+
+fn finish_sha(hasher: Sha256) -> [u8; 32] {
+    let hash = hasher.finalize();
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&hash);
+    out
+}
+
+fn quota_names(root: &Path, project: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for entry in std::fs::read_dir(root.join(format!("meta/quota/{project}"))).unwrap() {
+        names.push(entry.unwrap().file_name().to_string_lossy().into_owned());
+    }
+    names.sort();
+    names
+}
+
+fn reset_gate(gate: &HoldGate) {
+    gate.hold_get.store(false, Ordering::SeqCst);
+    gate.hold_bytes.store(false, Ordering::SeqCst);
+    gate.release_get.store(false, Ordering::SeqCst);
+    gate.release_bytes.store(false, Ordering::SeqCst);
+    gate.entered_get.store(false, Ordering::SeqCst);
+    gate.entered_bytes.store(false, Ordering::SeqCst);
+    gate.done_get.store(false, Ordering::SeqCst);
+    gate.done_bytes.store(false, Ordering::SeqCst);
+    gate.dropped_get.store(false, Ordering::SeqCst);
+    gate.dropped_bytes.store(false, Ordering::SeqCst);
+}
+
+fn poll_until<F: Future>(fut: &mut Pin<&mut F>, pred: impl Fn() -> bool) {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    let start = Instant::now();
+    loop {
+        if pred() {
+            return;
+        }
+        match fut.as_mut().poll(&mut context) {
+            Poll::Pending => {}
+            Poll::Ready(_) => panic!("download future finished before the hold was entered"),
+        }
+        if start.elapsed() > Duration::from_secs(20) {
+            panic!("timed out waiting for the held operation");
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn poll_ready<F: Future>(fut: &mut Pin<&mut F>) -> F::Output {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    let start = Instant::now();
+    loop {
+        match fut.as_mut().poll(&mut context) {
+            Poll::Ready(value) => return value,
+            Poll::Pending => {
+                if start.elapsed() > Duration::from_secs(30) {
+                    panic!("timed out waiting for the held download");
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+    }
+}
+
 fn child_for(test_name: &str) -> bool {
     std::env::var_os("OO_FH_CHILD").is_some()
         && std::env::var("OO_FH_TEST").as_deref() == Ok(test_name)
@@ -1900,4 +2342,311 @@ async fn object_keys(root: &Path) -> Vec<String> {
     }
     keys.sort();
     keys
+}
+
+struct HoldGate {
+    hold_get: AtomicBool,
+    hold_bytes: AtomicBool,
+    release_get: AtomicBool,
+    release_bytes: AtomicBool,
+    entered_get: AtomicBool,
+    entered_bytes: AtomicBool,
+    done_get: AtomicBool,
+    done_bytes: AtomicBool,
+    dropped_get: AtomicBool,
+    dropped_bytes: AtomicBool,
+    waker_get: Mutex<Option<Waker>>,
+    waker_bytes: Mutex<Option<Waker>>,
+}
+
+impl HoldGate {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            hold_get: AtomicBool::new(false),
+            hold_bytes: AtomicBool::new(false),
+            release_get: AtomicBool::new(false),
+            release_bytes: AtomicBool::new(false),
+            entered_get: AtomicBool::new(false),
+            entered_bytes: AtomicBool::new(false),
+            done_get: AtomicBool::new(false),
+            done_bytes: AtomicBool::new(false),
+            dropped_get: AtomicBool::new(false),
+            dropped_bytes: AtomicBool::new(false),
+            waker_get: Mutex::new(None),
+            waker_bytes: Mutex::new(None),
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Hold {
+    Get,
+    Bytes,
+}
+
+struct Pause {
+    hold: Hold,
+    gate: Arc<HoldGate>,
+    completed: bool,
+    started: bool,
+}
+
+impl Pause {
+    fn flag(
+        gate: &HoldGate,
+        hold: Hold,
+    ) -> (
+        &AtomicBool,
+        &AtomicBool,
+        &AtomicBool,
+        &AtomicBool,
+        &Mutex<Option<Waker>>,
+    ) {
+        match hold {
+            Hold::Get => (
+                &gate.release_get,
+                &gate.entered_get,
+                &gate.done_get,
+                &gate.dropped_get,
+                &gate.waker_get,
+            ),
+            Hold::Bytes => (
+                &gate.release_bytes,
+                &gate.entered_bytes,
+                &gate.done_bytes,
+                &gate.dropped_bytes,
+                &gate.waker_bytes,
+            ),
+        }
+    }
+}
+
+impl Future for Pause {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = self.get_mut();
+        let (release, entered, done, _dropped, waker_slot) = Self::flag(&this.gate, this.hold);
+        entered.store(true, Ordering::SeqCst);
+        if release.load(Ordering::SeqCst) {
+            this.completed = true;
+            done.store(true, Ordering::SeqCst);
+            return Poll::Ready(());
+        }
+        *waker_slot.lock().unwrap() = Some(cx.waker().clone());
+        if !this.started {
+            this.started = true;
+            let gate = Arc::clone(&this.gate);
+            let hold = this.hold;
+            std::thread::Builder::new()
+                .name("oo-a202-hold".to_owned())
+                .spawn(move || {
+                    let (release, _entered, done, _dropped, waker_slot) = Pause::flag(&gate, hold);
+                    while !release.load(Ordering::SeqCst) {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    done.store(true, Ordering::SeqCst);
+                    if let Some(waker) = waker_slot.lock().unwrap().take() {
+                        waker.wake();
+                    }
+                })
+                .unwrap();
+        }
+        Poll::Pending
+    }
+}
+
+impl Drop for Pause {
+    fn drop(&mut self) {
+        if self.completed {
+            return;
+        }
+        let (_release, _entered, _done, dropped, _waker) = Self::flag(&self.gate, self.hold);
+        dropped.store(true, Ordering::SeqCst);
+    }
+}
+
+struct CountingStore {
+    inner: Arc<dyn ObjectStore>,
+    gate: Arc<HoldGate>,
+}
+
+impl CountingStore {
+    fn open(root: &Path) -> (Arc<Self>, Arc<HoldGate>) {
+        let local = LocalFileSystem::new_with_prefix(root).unwrap();
+        let gate = HoldGate::new();
+        let store = Arc::new(Self {
+            inner: Arc::new(local),
+            gate: Arc::clone(&gate),
+        });
+        (store, gate)
+    }
+}
+
+impl std::fmt::Debug for CountingStore {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("CountingStore")
+    }
+}
+
+impl std::fmt::Display for CountingStore {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("counting-store")
+    }
+}
+
+fn pin_box<'a, T: Send + 'a>(
+    fut: impl Future<Output = T> + Send + 'a,
+) -> Pin<Box<dyn Future<Output = T> + Send + 'a>> {
+    Box::pin(fut)
+}
+
+impl ObjectStore for CountingStore {
+    fn put_opts<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        location: &'life1 StorePath,
+        payload: PutPayload,
+        opts: PutOptions,
+    ) -> Pin<Box<dyn Future<Output = object_store::Result<PutResult>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let inner = Arc::clone(&self.inner);
+        let location = location.clone();
+        pin_box(async move { inner.put_opts(&location, payload, opts).await })
+    }
+
+    fn put_multipart_opts<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        location: &'life1 StorePath,
+        opts: PutMultipartOptions,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = object_store::Result<Box<dyn MultipartUpload>>>
+                + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let inner = Arc::clone(&self.inner);
+        let location = location.clone();
+        pin_box(async move { inner.put_multipart_opts(&location, opts).await })
+    }
+
+    fn get_opts<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        location: &'life1 StorePath,
+        options: GetOptions,
+    ) -> Pin<Box<dyn Future<Output = object_store::Result<GetResult>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let inner = Arc::clone(&self.inner);
+        let gate = Arc::clone(&self.gate);
+        let location = location.clone();
+        pin_box(async move {
+            let key = location.to_string();
+            let body = !options.head && key.ends_with("original");
+            if body {
+                match &options.range {
+                    Some(GetRange::Bounded(_)) => {}
+                    Some(_) | None => {
+                        return Err(object_store::Error::NotImplemented {
+                            operation: "unbounded body get".to_owned(),
+                            implementer: "CountingStore".to_owned(),
+                        });
+                    }
+                }
+                if gate.hold_get.load(Ordering::SeqCst) {
+                    Pause {
+                        hold: Hold::Get,
+                        gate: Arc::clone(&gate),
+                        completed: false,
+                        started: false,
+                    }
+                    .await;
+                }
+            }
+            if body && gate.hold_bytes.load(Ordering::SeqCst) {
+                let got = inner.get_opts(&location, options).await?;
+                let range = got.range.clone();
+                let meta = got.meta.clone();
+                let payload = got.bytes().await?;
+                let gate_stream = Arc::clone(&gate);
+                let stream = stream::once(async move {
+                    Pause {
+                        hold: Hold::Bytes,
+                        gate: gate_stream,
+                        completed: false,
+                        started: false,
+                    }
+                    .await;
+                    Ok::<_, object_store::Error>(payload)
+                })
+                .boxed();
+                return Ok(GetResult {
+                    payload: GetResultPayload::Stream(stream),
+                    meta,
+                    range,
+                    attributes: Attributes::default(),
+                    extensions: Default::default(),
+                });
+            }
+            inner.get_opts(&location, options).await
+        })
+    }
+
+    fn delete_stream(
+        &self,
+        locations: BoxStream<'static, object_store::Result<StorePath>>,
+    ) -> BoxStream<'static, object_store::Result<StorePath>> {
+        self.inner.delete_stream(locations)
+    }
+
+    fn list(
+        &self,
+        prefix: Option<&StorePath>,
+    ) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
+        self.inner.list(prefix)
+    }
+
+    fn list_with_delimiter<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        prefix: Option<&'life1 StorePath>,
+    ) -> Pin<Box<dyn Future<Output = object_store::Result<ListResult>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let inner = Arc::clone(&self.inner);
+        let prefix = prefix.cloned();
+        pin_box(async move { inner.list_with_delimiter(prefix.as_ref()).await })
+    }
+
+    fn copy_opts<'life0, 'life1, 'life2, 'async_trait>(
+        &'life0 self,
+        from: &'life1 StorePath,
+        to: &'life2 StorePath,
+        options: CopyOptions,
+    ) -> Pin<Box<dyn Future<Output = object_store::Result<()>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        'life2: 'async_trait,
+        Self: 'async_trait,
+    {
+        let inner = Arc::clone(&self.inner);
+        let from = from.clone();
+        let to = to.clone();
+        pin_box(async move { inner.copy_opts(&from, &to, options).await })
+    }
 }
