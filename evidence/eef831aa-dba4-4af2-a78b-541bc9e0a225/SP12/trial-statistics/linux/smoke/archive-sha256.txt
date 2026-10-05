@@ -1,0 +1,5 @@
+f139097538f3918568719464afb68fd8f5ff569ebe79481b7c74e2cd505b46aa  crates/oo-core/src/json_scan.rs
+8df39cb72bc2fbdb34dea2a2a4bac21b603fb72e2dd9773c284b469ea89351c8  crates/oo-core/src/limits.rs
+b902438a4cca5e6983b18764803633495b7fb859d6a51ca2e694ba47defb9dc1  crates/oo-core/src/lib.rs
+7411d0c659fa33143565efdd7cae5f9d70f873ee8f556898866df306bd1a3931  crates/oo-core/Cargo.toml
+16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock
