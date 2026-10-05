@@ -1173,3 +1173,6 @@ a18910444 actualexit0 complete15d23fe9/evidencec3ac0200 full3reportsread184hasha
 
 
 a187 originalresume3 actualhandle34262 slotB parserworker1builder0PG; a191actualhandle9585 slotC fixed15d23fe9shutdownreview1builder1PG; a19056028slotAactualcatalogcontinueslastconfirmedlive. Global3builders/actual3Grok; dispatch09697cb6 nextUUIDa192. NextONE25minutewait+unifiedactualhandlecheck, nointermediatepolling; all87parentsopen/goalactive.
+
+
+User steering: raise parallelism; independent reviews do NOT consume developmenttaskslots. Verifiedhost128GiB/Docker94GiB16CPU permits4dev+2review tasks with globalmax6Rustbuilders eachtask1builder/1PG private8GiBbuilder. a187/a190dev and a191fixedreview remain, dispatcha192connectorCSV/TSV anda193controlboundeddownload completes4disjointdevwriters; NOmanifest/lockwriters. Gatewaylib/parser, gatewaypolicy/nestedcatalog, connectorlib/newdelimited, controlfilehosting ownership explicit; reviewimmutablearchive. Prior25minwait interrupted1129s byuserinput, no taskpollsince; finishremainingwindowbeforeunifiedactualhandlecheck. All87parentsopen/goalactive.
