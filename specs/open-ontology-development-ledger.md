@@ -155,6 +155,7 @@
 ### SP05
 
 - [ ] SP05-W01 multipart/checksum/local/S3/ACL
+  - [x] W01-LP 本地上传原语：755fb84a经a183独立限定批准，顺序multipart/恢复/sha256/幂等/跨context拒绝/owned abort；并发quota及大对象流式内存未满足，完整W01未验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
 - [ ] SP05-W03 xls/xlsx/日期/公式
 - [ ] SP05-W04 SQLite/dump隔离恢复
@@ -1144,3 +1145,5 @@ a17962445 actualexit0 complete82d2cd8e(sourceblobs4f44d2ca), full3reportsread/ha
 a18189265 actualexit0 complete755fb84a reports3fullyread/6SOURCEhash actual0/owncleanuprecorded; SHA256SUMS source-only notfull evidenceinventory, deliverygap explicitlya183reviewinput. RealLocalFileSystem6tests/Clippy/arch0,5newpairs existingunchanged. Newcomponent26→27 pendinga183, accepted31/firstreview10of26 unchanged. Quota/reaper/auth/S3 limitations explicitreview. a18083276/a18299230 unifiedchecklive; dispatcha183fixedhostingreview maintains3actualGrok/disjointfixedarchives/global3builders. All87parentsopen/goalactive.
 
 a18083276/a18299230 actualexit0 complete8a289f0c/evidencece040593 and47743688/evidence753423b7; full3reportsread/fullhash actualchecked/owncontainers empty. Author executoractualTLS6s/live+10libClippy0, JSONL11+64lib/cleanClippy0; newcomponents27→29 pendinga184/a185, accepted31/firstreview10of26 unchanged. BlockingRead/typedbootstrap/publicparser/auditfixture scope explicitreview. a18395249 unifiedchecklivehostingreview; dispatcha184executor+a185JSONLfixedreviews to3actualGrok/global3builders. All87parentsopen/goalactive.
+
+a18395249 actualexit0 complete950406b8 reports3read/fullhashactualchecked/ownDockerempty. LimitedW01-LP accepted31→32, delivered29, uniquecomponentfirstreviewapproved denominator26→27 rework10/27=37.04%; specconcurrentquota16>10 andmemory2xpart realfail remainmandatorywork notscopeexcused. Dispatcha186controlstream/quotafixparallel a18484576/a18574571 live perlastunifiedcheck; global3builders/actual3Grok/all87parentsopen/goalactive.
