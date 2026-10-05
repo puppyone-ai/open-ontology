@@ -1,0 +1,17 @@
+fixed=755fb84acc7f80e5ba2fba1c2b80412dab7fab26
+tree=9bb6da0a68e8533831f3d92fe105caf1423e2c0c
+composition=git archive of 755fb84acc7f80e5ba2fba1c2b80412dab7fab26 plus review_oracle.rs and review_memory.rs
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a183-review-oracle
+network=oo-a183-eef831aa-net
+cargo_volume=oo-a183-eef831aa-cargo
+target_volume=oo-a183-eef831aa-target
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+postgres=none

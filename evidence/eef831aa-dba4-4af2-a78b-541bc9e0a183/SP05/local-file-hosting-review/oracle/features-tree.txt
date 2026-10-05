@@ -1,0 +1,12 @@
+oo-control v0.1.0 (/src/crates/oo-control)
+├── futures-util feature "std"
+├── getrandom feature "std"
+├── object_store feature "fs"
+├── oo-core feature "default"
+├── sha2 feature "std"
+└── oo-jobs feature "default"
+[dev-dependencies]
+├── object_store feature "fs" (*)
+├── tokio feature "macros"
+├── tokio feature "rt-multi-thread"
+└── sha2 feature "std" (*)

@@ -1,0 +1,6 @@
+host_script_exit=1
+docker_run_exit=0
+container_worst_exit=0
+failure=launch.sh treated each source/blobs.txt line as a filesystem path
+product_comparison=recomputed on the surviving oracle snap
+product_files_changed=no
