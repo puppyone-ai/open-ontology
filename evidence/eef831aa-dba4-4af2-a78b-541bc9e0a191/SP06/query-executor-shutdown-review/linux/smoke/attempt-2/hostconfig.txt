@@ -1,0 +1,9 @@
+ExitCode=52
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a191-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=8589934592
+PortBindings={}
+Id=cabcf6d63b64e80162495f493d96616a6d38d094dc14b866b47a108657db2ca9

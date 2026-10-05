@@ -1,0 +1,17 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: this loop could be written as a `while let` loop
+    --> crates/oo-gateway/tests/query_executor_a191_review.rs:1507:5
+     |
+1507 | /     loop {
+1508 | |         match stream.next_row().await.map_err(|_| "row".to_string())? {
+1509 | |             Some(row) => rows.push(row),
+1510 | |             None => break,
+1511 | |         }
+1512 | |     }
+     | |_____^ help: try: `while let Some(row) = stream.next_row().await.map_err(|_| "row".to_string())? { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#while_let_loop
+     = note: `-D clippy::while-let-loop` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::while_let_loop)]`
+
+error: could not compile `oo-gateway` (test "query_executor_a191_review") due to 1 previous error

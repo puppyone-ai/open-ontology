@@ -1,0 +1,9 @@
+ExitCode=127
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a191-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=8589934592
+PortBindings={}
+Id=45185b598c3d8d82624b4438033d3e6443c515a722a575670c58c9eb25a404b8

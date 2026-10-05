@@ -1,0 +1,33 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0382]: borrow of partially moved value: `err`
+   --> crates/oo-gateway/tests/query_executor_a191_review.rs:715:25
+    |
+709 |     check(matches!(err, ExecError::Timeout { sqlstate: Some(code) } if code == "57014"), "server-class")?;
+    |                                                             ---- value partially moved here
+...
+715 |     check(display_clean(&err, &ctx.login_pass), "server-display")?;
+    |                         ^^^^ value borrowed here after partial move
+    |
+    = note: partial move occurs because value has type `std::string::String`, which does not implement the `Copy` trait
+help: borrow this binding in the pattern to avoid moving the value
+    |
+709 |     check(matches!(err, ExecError::Timeout { sqlstate: Some(ref code) } if code == "57014"), "server-class")?;
+    |                                                             +++
+
+error[E0382]: borrow of partially moved value: `err`
+   --> crates/oo-gateway/tests/query_executor_a191_review.rs:765:25
+    |
+759 |     check(matches!(err, ExecError::Canceled { sqlstate } if sqlstate == "57014"), "user-class")?;
+    |                                               -------- value partially moved here
+...
+765 |     check(display_clean(&err, &ctx.login_pass), "user-display")?;
+    |                         ^^^^ value borrowed here after partial move
+    |
+    = note: partial move occurs because value has type `std::string::String`, which does not implement the `Copy` trait
+help: borrow this binding in the pattern to avoid moving the value
+    |
+759 |     check(matches!(err, ExecError::Canceled { ref sqlstate } if sqlstate == "57014"), "user-class")?;
+    |                                               +++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `oo-gateway` (test "query_executor_a191_review") due to 2 previous errors

@@ -1,0 +1,1 @@
+clippy exit 101. Two match patterns moved ExecError SQLSTATE strings before display_clean borrowed them. No live fixture ran.

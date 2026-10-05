@@ -1,0 +1,14 @@
+oo-a191-proof and oo-a191-smoke were already removed by their launch scripts. docker rm -f of those two names printed "No such container" and removed oo-a191-pg. The recorded container_rm_exit was 0.
+
+docker volume rm removed oo-a191-cargo, oo-a191-target, and oo-a191-pgdata. volume_rm_exit=0.
+docker network rm removed oo-a191-net. network_rm_exit=0.
+
+After that, docker ps, docker volume ls, and docker network ls with name oo-a191 were empty.
+
+Images left in place:
+sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 linux/arm64
+sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb linux/arm64
+
+Left untouched: oo-a192-focused-3, oo-a190-rust194, oo-a190-pg, oo-a064-rust194-contract2, oo-a064-rust194-contract, oo-a064-pg1710-jobs, oo-a064-rust194-smoke. docker prune was not used.
+
+The Rust sha256 and leakscan binaries were copied to /tmp/oo-a191-bins before the cargo volume was removed. /tmp/oo-a191-eef831aa-dba4-4af2-a78b-541bc9e0a191 and /tmp/oo-a191-bins are removed after leak-scan-final.txt and SHA256SUMS are written.
