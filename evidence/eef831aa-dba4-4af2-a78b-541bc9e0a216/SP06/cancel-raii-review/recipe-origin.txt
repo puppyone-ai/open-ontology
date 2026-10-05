@@ -1,0 +1,25 @@
+Origins and the changes made for this review.
+
+a210 TLS, native clang, proxy, and builder shape
+commit 31767bbcbdf7dadad390f604d17d923c50329d22
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/linux/smoke/launch.sh
+16a0990d807fed03eb593ff18583315b297602a5dd16018d6c3b77223d15d4b6
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/linux/smoke/inside.sh
+65c67621dc2353ba2e06771309b755750b4e8493aabc382dc392f37a7cd19f66
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/linux/smoke/extract-libclang.sh
+009abe681bef27f4abee7fa2f9d1d6a320a292d71c6ba7d801bdcdad0f027003
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/linux/proof/launch.sh
+2bfe2ea198b34a5b6879e12e7dc5ffb49f56a145157a07d92d0feeef48ffc76e
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/linux/proof/inside.sh
+25b683641d5fff113b615500f7ade3eefc86d3dd8ab5e7284a246432aa498b19
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/pg/up.sh
+08755f634b0ae441115cad39329982343d2d479acd327816e45756f89cd22fbc
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/pg/pg-wrap.sh
+c159c8a156c7f7fcb64962d3e01a0def5edb5000754ee6a4512ba01aaa4f5836
+
+a200 archive accounting
+commit a587031c719a484830d78e493605f48e2056cae4
+evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+
+extract-libclang.sh and pg-wrap.sh are copied unchanged. The launch scripts keep the pinned images, cap-drop, no published ports, private volumes, and HOME=/tmp. Memory is 6g and CPUs are 1. The global builder cap in the script is 10. The archive is 8434b451. The proof mounts the review test only. It does not mount product sources from the worktree and it does not mount server.key.

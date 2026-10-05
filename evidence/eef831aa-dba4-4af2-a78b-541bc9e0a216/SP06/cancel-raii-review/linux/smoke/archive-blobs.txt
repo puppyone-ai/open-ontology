@@ -1,0 +1,3 @@
+crates/oo-gateway/src/query_executor.rs want=015cbaba6ba0adc6a0b9ecb07fdc6f83e56bccfb got=015cbaba6ba0adc6a0b9ecb07fdc6f83e56bccfb
+crates/oo-gateway/tests/query_executor_pg_live.rs want=c620ed3dd0dfe57616885072a1bf8cc093da274e got=c620ed3dd0dfe57616885072a1bf8cc093da274e
+contracts/gateway/query-executor-v1.md want=b223b8caae8d0ca7ed2ecccf187d3dd56b0eca39 got=b223b8caae8d0ca7ed2ecccf187d3dd56b0eca39

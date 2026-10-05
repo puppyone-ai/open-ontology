@@ -1,0 +1,22 @@
+oo_task=sp06-cancel-raii-review-proof
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a216
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+phase=proof
+Linux e79e00458a24 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=libclang
+=== cargo clean -p oo-gateway ===
+phase_exit=0 phase=clean
+=== cargo test -p oo-gateway --lib ===
+phase_exit=0 phase=lib-test
+phase_exit=0 phase=lib-guard
+=== cargo test live_cancel_raii_review ===
+phase_exit=101 phase=live

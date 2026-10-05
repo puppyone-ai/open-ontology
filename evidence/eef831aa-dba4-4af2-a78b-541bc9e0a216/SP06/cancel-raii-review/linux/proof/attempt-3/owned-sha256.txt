@@ -1,0 +1,3 @@
+7604e5ee02bd493c5cc03e355c4c98f0c69f36bd601a07dcb6b76b67153df094  crates/oo-gateway/src/query_executor.rs
+937319a720d0afdefec96fbc6cf8ca1ce6ffa3a6e89e01e5a2463cb97b4fa363  crates/oo-gateway/tests/query_executor_pg_live.rs
+ec218bb896c7a56600cfc108ae40bd8c2f3c0c90b791fa0ff663af3d08fc9a47  contracts/gateway/query-executor-v1.md

@@ -1,0 +1,9 @@
+review=ran
+untrusted_admission=blocked
+track_functions=pl
+physical_table=pt_3025345308a0c16c28b893cc7e78d18444d67e899a65990a6d34a86b6845
+note_oid=17183
+role_flags=nologin
+hidden_grants=0
+healthy_select=rows:1 status:succeeded rollback:yes open:yes
+before_transport=join:aborted clone:not_sent during:busy holds:0 read:ok rows:1 idle:ok open:yes next:started gen_before:1 gen_at_release:1 unexpected:0

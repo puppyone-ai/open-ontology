@@ -1,0 +1,20 @@
+own cleanup only. no docker prune. pinned images stay.
+=== before ===
+oo-a216-pg 5564f7610ecd Up 19 minutes
+=== rm containers ===
+Error response from daemon: No such container: oo-a216-proof
+Error response from daemon: No such container: oo-a216-smoke
+oo-a216-pg
+=== rm volumes ===
+oo-a216-cargo
+oo-a216-target
+oo-a216-pgdata
+=== rm network ===
+oo-a216-net
+=== rm temp ===
+temp removed
+=== after a216 ===
+=== images still present ===
+sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 arm64
+sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb arm64
+=== secret files in evidence ===
