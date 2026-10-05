@@ -1241,3 +1241,5 @@ a203 originalresume2 actualhandle46177 integration1builder1PG; a20787636 IPC wor
 用户2026-10-06冻结计数/限定审阅/复用配方规则已写入OO-COUNT-001；当前25minwait被用户输入打断325.9346s，期间未观察任务。继续剩余1174066ms后统一观察，实际handles保持46177/87636/64540/68110/50300。
 
 用户提高上限为12 DEVELOPMENT，独立review不占此上限；等待改ONE20min不连续轮询。Docker94GiB/16CPU既有5任务builder8GiB；新增4任务builder6GiB/1CPU，global实际最多9builders资源预算64GiB，全局暂限10builders保护内存，开发12是调度上限非同时重编12的强制要求。实际新增产品线a211真实CLI链、a212exact benchmark比较器、a213ontology artifact diff、a214rolePack bundle；后三者在E1-D派工前冻结0/3，M1分母不变。新工作路径互斥/无共享manifest写入，a207仍唯一rootlockwriter。旧wait被新输入再中断173.0332s，本轮调度后按新20min重新起窗，不提前观察旧handles。
+
+Actual newGrok4.7xhigh: a21136094 actualCLIchain1builder1PG; a21257582benchmarkcomparator1builder0PG; a21372216artifactdiff1builder0PG; a21456227Packbundle1builder0PG. Existing a20346177/a20787636/a21064540 development and a20868110/a20950300 review remain lastconfirmedlive, no repeatedpolling. Scheduled7development+2review, devcap12 reviewsoutsidecap; new4tasks6GiB/1CPU privatebuilders, globalbuildercap10. Dispatchc706f03e nextUUIDa215; one20minwait thenONE unified9actualhandlecheck.
