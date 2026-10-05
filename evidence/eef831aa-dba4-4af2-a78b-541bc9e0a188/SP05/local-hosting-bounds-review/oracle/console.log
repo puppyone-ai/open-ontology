@@ -1,0 +1,135 @@
+oo_task=sp05-local-hosting-bounds-review-oracle
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+overlay=review_bounds.rs
+fixed=3a251deacd7e86fc3fbe0855be3e1f6ec976c9d6
+fetch_argv=none_offline
+test_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-control --test review_bounds -- --nocapture --test-threads=1
+clippy_argv=cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-control --all-targets -- -D warnings
+Linux 279083b17c55 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== cargo fmt --check -p oo-control ===
+phase_exit=0 phase=cargo_fmt_check
+=== cargo test review_bounds ===
+   Compiling oo-control v0.1.0 (/src/crates/oo-control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.11s
+     Running tests/review_bounds.rs (/target/debug/deps/review_bounds-8adef0ab75cabe1a)
+
+running 6 tests
+test bounded_publish_and_resident_complete ... empty_part=Limit
+exact8192=ok size=8192
+tail8193=ok size=8193
+memory_bytes=8388608
+memory_hwm_before_kib=5048
+memory_hwm_after_kib=5188
+memory_hwm_delta_bytes=143360
+memory_rss_before_kib=5048
+memory_rss_after_kib=5188
+memory_vmpeak_before_kib=208004
+memory_vmpeak_after_kib=210156
+memory_vmpeak_delta_bytes=2203648
+memory_threads_before=3
+memory_threads_after=4
+part_gone=1
+object_sha_match=1
+expected_sha=5598dbee2a3ccc9b62206ba34ad81a2425283322e91b8af22faed21486e7053e
+object_path=/tmp/oo-a188-bounded-283/mem-8388608/uploads/5185fa892f15776df938c2aaff23a104/5598dbee2a3ccc9b62206ba34ad81a2425283322e91b8af22faed21486e7053e/original
+object_size=8388608
+memory_bytes=33554432
+memory_hwm_before_kib=5040
+memory_hwm_after_kib=5176
+memory_hwm_delta_bytes=139264
+memory_rss_before_kib=5040
+memory_rss_after_kib=5176
+memory_vmpeak_before_kib=208004
+memory_vmpeak_after_kib=210156
+memory_vmpeak_delta_bytes=2203648
+memory_threads_before=3
+memory_threads_after=4
+part_gone=1
+object_sha_match=1
+expected_sha=54a2813fff554842b91ce8dc4285d36e1c3ef92778983b73663f093ca48a205d
+object_path=/tmp/oo-a188-bounded-283/mem-33554432/uploads/9c683034ae8ea7acb2e7e5961c89ecef/54a2813fff554842b91ce8dc4285d36e1c3ef92778983b73663f093ca48a205d/original
+object_size=33554432
+resident_cap=2097152
+delta_8=143360
+delta_32=139264
+scale_with_part=0
+
+ok
+test complete_part_writer_across_processes ... complete_lines_equal=1
+writer=err Closed
+object_sha=8e338be649868e7c9e053212037e4bb0965ba7653e81b974bab76578bd59c80a
+manifest_bytes_unchanged=1
+lineage_independent=1
+foreign_unchanged=1
+
+ok
+test generic_store_refuses_before_write ... unsupported_before_write=1
+store_keys=0
+
+ok
+test lock_lifetime_cancel_timeout_exit ... cancel_abort_ms=0
+follow_up_begin_ms=9
+cancel_reserved_after_abort=0
+timeout_ms=30001
+timeout_error=Unavailable
+timeout_store_files=0
+kill_to_begin_ms=6
+process_exit_released_lock=1
+second_begin_after_exit=1
+
+ok
+test quota_ten_eight_byte_reservations ... distinct_lines=8
+distinct_ok=1
+distinct_quota=7
+distinct_other=0
+distinct_reserved=8
+distinct_session_ids=1
+after_distinct_abort=0
+same_ok=8
+same_quota=0
+same_other=0
+same_reserved=8
+same_unique_sessions=1
+grant_resume_same_session=1
+grant_stored=grant-one
+abort_retry_reserved_cycle=8_then_0
+second_abort=NotFound
+conflict_isolated=1
+abort_left_other_session=1
+
+ok
+test trusted_directory_lock_scope ... canonical_ok=1
+canonical_quota=3
+canonical_reserved=8
+decoy_unchanged=1
+sibling_basename_reserved=8
+lock_outside_store=1
+
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.73s
+
+phase_exit=0 phase=cargo_test_review_bounds
+=== cargo clippy oo-control ===
+    Checking oo-control v0.1.0 (/src/crates/oo-control)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.33s
+phase_exit=0 phase=cargo_clippy
+phase_exit=0 phase=lock_after
+phase_exit=0 phase=product_files
+phase_exit=0 phase=worst
+review_oracle=pass

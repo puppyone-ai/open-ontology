@@ -1,0 +1,9 @@
+cancel_abort_ms=0
+follow_up_begin_ms=9
+cancel_reserved_after_abort=0
+timeout_ms=30001
+timeout_error=Unavailable
+timeout_store_files=0
+kill_to_begin_ms=6
+process_exit_released_lock=1
+second_begin_after_exit=1

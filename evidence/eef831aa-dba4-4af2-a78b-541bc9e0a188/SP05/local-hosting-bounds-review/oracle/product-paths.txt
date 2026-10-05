@@ -1,0 +1,6 @@
+crates/oo-control/src/file_hosting.rs
+crates/oo-control/tests/file_hosting.rs
+crates/oo-control/src/lib.rs
+crates/oo-control/Cargo.toml
+contracts/control/local-file-hosting-v1.md
+Cargo.lock

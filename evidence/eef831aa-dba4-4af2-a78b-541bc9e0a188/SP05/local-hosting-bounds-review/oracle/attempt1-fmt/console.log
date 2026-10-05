@@ -1,0 +1,244 @@
+oo_task=sp05-local-hosting-bounds-review-oracle
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+overlay=review_bounds.rs
+fixed=3a251deacd7e86fc3fbe0855be3e1f6ec976c9d6
+fetch_argv=none_offline
+test_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-control --test review_bounds -- --nocapture --test-threads=1
+clippy_argv=cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-control --all-targets -- -D warnings
+Linux ad052525b6e6 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== cargo fmt --check -p oo-control ===
+Diff in /src/crates/oo-control/tests/review_bounds.rs:9:
+ 
+ use object_store::ObjectStore;
+ use oo_control::{
+-    idempotency_key, AdmissionContext, FileHost, FileHostError, GrantEvidence, HostLimits,
+-    ObjectManifest, PrincipalId, ProjectId, SessionId, UploadConfig, UploadSession,
++    AdmissionContext, FileHost, FileHostError, GrantEvidence, HostLimits, ObjectManifest,
++    PrincipalId, ProjectId, SessionId, UploadConfig, UploadSession, idempotency_key,
+ };
+ use sha2::{Digest, Sha256};
+ 
+Diff in /src/crates/oo-control/tests/review_bounds.rs:118:
+     assert_eq!(resumed.session_id.as_str(), session_id);
+     assert_eq!(reserved_bytes(&root, &project), 8);
+     let stored = fs::read_to_string(root.join(format!("meta/session/{session_id}"))).unwrap();
+-    assert!(stored.contains("\"grant_evidence\":\"grant-one\""), "{stored}");
++    assert!(
++        stored.contains("\"grant_evidence\":\"grant-one\""),
++        "{stored}"
++    );
+     assert!(!stored.contains("grant-two"), "{stored}");
+     note.push_str("grant_resume_same_session=1\ngrant_stored=grant-one\n");
+ 
+Diff in /src/crates/oo-control/tests/review_bounds.rs:155:
+     host.put_part(&ctx_b, &session_b.session_id, 1, b"bbbbbbbb")
+         .await
+         .unwrap();
+-    let notes = conflict_root.join(format!("staging/{}/part/notes", session_a.session_id.as_str()));
++    let notes = conflict_root.join(format!(
++        "staging/{}/part/notes",
++        session_a.session_id.as_str()
++    ));
+     fs::create_dir_all(notes.parent().unwrap()).unwrap();
+     fs::write(&notes, b"keep-notes").unwrap();
+     let conflict = host
+Diff in /src/crates/oo-control/tests/review_bounds.rs:302:
+     assert_eq!(fs::read(&object_path).unwrap(), ORIGINAL);
+     write_note(
+         "complete.txt",
+-        &format!("complete_lines_equal=1\nwriter={writer}\nobject_sha={}\nmanifest_bytes_unchanged=1\nlineage_independent=1\nforeign_unchanged=1\n", hex_encode(&sha256(ORIGINAL))),
++        &format!(
++            "complete_lines_equal=1\nwriter={writer}\nobject_sha={}\nmanifest_bytes_unchanged=1\nlineage_independent=1\nforeign_unchanged=1\n",
++            hex_encode(&sha256(ORIGINAL))
++        ),
+     );
+ }
+ 
+Diff in /src/crates/oo-control/tests/review_bounds.rs:337:
+     tokio::task::spawn_blocking(|| std::thread::sleep(Duration::from_millis(300)))
+         .await
+         .unwrap();
+-    assert!(!handle.is_finished(), "begin acquired the lock while the holder was alive");
++    assert!(
++        !handle.is_finished(),
++        "begin acquired the lock while the holder was alive"
++    );
+     let abort_at = Instant::now();
+     handle.abort();
+     let abort_elapsed = match handle.await {
+Diff in /src/crates/oo-control/tests/review_bounds.rs:361:
+         .await
+         .unwrap();
+     let follow_elapsed = follow.elapsed();
+-    assert!(follow_elapsed < Duration::from_secs(5), "{follow_elapsed:?}");
++    assert!(
++        follow_elapsed < Duration::from_secs(5),
++        "{follow_elapsed:?}"
++    );
+     assert_eq!(reserved_bytes(&cancel_root, "projectl"), 8);
+     host.abort(
+         &admission("projectl", "userl", "grant-l"),
+Diff in /src/crates/oo-control/tests/review_bounds.rs:396:
+     assert_eq!(err, FileHostError::Unavailable);
+     assert!(elapsed >= Duration::from_secs(29), "{elapsed:?}");
+     assert!(elapsed < Duration::from_secs(45), "{elapsed:?}");
+-    assert!(files_under(&timeout_root).is_empty(), "{:?}", files_under(&timeout_root));
++    assert!(
++        files_under(&timeout_root).is_empty(),
++        "{:?}",
++        files_under(&timeout_root)
++    );
+     fs::write(&release, b"release").unwrap();
+     assert!(holder.wait().unwrap().success());
+     let host = FileHost::open_local(&timeout_root, limits).unwrap();
+Diff in /src/crates/oo-control/tests/review_bounds.rs:438:
+     tokio::task::spawn_blocking(|| std::thread::sleep(Duration::from_millis(200)))
+         .await
+         .unwrap();
+-    assert!(!handle.is_finished(), "begin finished before the holder was killed");
++    assert!(
++        !handle.is_finished(),
++        "begin finished before the holder was killed"
++    );
+     let killed = Instant::now();
+     holder.kill().unwrap();
+     let outcome = handle.await.unwrap();
+Diff in /src/crates/oo-control/tests/review_bounds.rs:566:
+     let cfg = upload("mem.bin", EIGHT, None);
+     let session = SessionId::parse("0123456789abcdef0123456789abcdef").unwrap();
+     let begin_err = host.begin(&ctx, &cfg).await.unwrap_err();
+-    let put_err = host
+-        .put_part(&ctx, &session, 1, EIGHT)
+-        .await
+-        .unwrap_err();
++    let put_err = host.put_part(&ctx, &session, 1, EIGHT).await.unwrap_err();
+     let complete_err = host.complete(&ctx, &session).await.unwrap_err();
+     let abort_err = host.abort(&ctx, &session).await.unwrap_err();
+     assert_eq!(begin_err, FileHostError::Unsupported);
+Diff in /src/crates/oo-control/tests/review_bounds.rs:589:
+         .await
+         .unwrap();
+     assert!(listed.objects.is_empty(), "generic store gained objects");
+-    assert!(listed.common_prefixes.is_empty(), "generic store gained prefixes");
++    assert!(
++        listed.common_prefixes.is_empty(),
++        "generic store gained prefixes"
++    );
+     write_note("generic.txt", "unsupported_before_write=1\nstore_keys=0\n");
+ }
+ 
+Diff in /src/crates/oo-control/tests/review_bounds.rs:651:
+             "bounded_publish_and_resident_complete",
+             "memory",
+             &[
+-                ("OO_A188_ROOT", scratch.join(format!("mem-{size}")).to_str().unwrap()),
++                (
++                    "OO_A188_ROOT",
++                    scratch.join(format!("mem-{size}")).to_str().unwrap(),
++                ),
+                 ("OO_A188_METRICS", metrics.to_str().unwrap()),
+                 ("OO_A188_SIZE", &size.to_string()),
+             ],
+Diff in /src/crates/oo-control/tests/review_bounds.rs:716:
+         .collect();
+     let barrier_wait = barrier.clone();
+     let ids_wait = ids.clone();
+-    let releaser = tokio::task::spawn_blocking(move || release_when_ready(&barrier_wait, &ids_wait));
++    let releaser =
++        tokio::task::spawn_blocking(move || release_when_ready(&barrier_wait, &ids_wait));
+     let mut children = Vec::new();
+     let mut hosts = Vec::new();
+     for participant in &wave.participants {
+Diff in /src/crates/oo-control/tests/review_bounds.rs:783:
+     barrier_arrive(&spec.barrier, &spec.id).await;
+     let host = FileHost::open_local(&spec.root, quota_limits()).unwrap();
+     let ctx = admission(&spec.project, &spec.principal, &spec.grant);
+-    let result = host
+-        .begin(&ctx, &upload(&spec.display, EIGHT, None))
+-        .await;
++    let result = host.begin(&ctx, &upload(&spec.display, EIGHT, None)).await;
+     begin_line(&result)
+ }
+ 
+Diff in /src/crates/oo-control/tests/review_bounds.rs:872:
+     assert!(size == MIB8 || size == MIB32, "{size}");
+     fs::create_dir_all(&root).unwrap();
+     let digest = digest_pattern(size);
+-    let limits = HostLimits::try_new(
+-        64 * 1024 * 1024,
+-        64 * 1024 * 1024,
+-        4,
+-        128 * 1024 * 1024,
+-    )
+-    .unwrap();
++    let limits =
++        HostLimits::try_new(64 * 1024 * 1024, 64 * 1024 * 1024, 4, 128 * 1024 * 1024).unwrap();
+     let host = FileHost::open_local(&root, limits).unwrap();
+     let ctx = admission("projectm", "userm", "grant-m");
+     let session = host
+Diff in /src/crates/oo-control/tests/review_bounds.rs:931:
+ 
+ fn assert_memory(text: &str, size: usize) {
+     let delta = metric_u64(text, "memory_hwm_delta_bytes");
+-    assert!(delta < RESIDENT_CAP, "resident delta {delta} for {size}\n{text}");
++    assert!(
++        delta < RESIDENT_CAP,
++        "resident delta {delta} for {size}\n{text}"
++    );
+     assert_eq!(metric_u64(text, "object_sha_match"), 1, "{text}");
+     assert_eq!(metric_u64(text, "part_gone"), 1, "{text}");
+     assert_eq!(metric_u64(text, "object_size"), size as u64, "{text}");
+Diff in /src/crates/oo-control/tests/review_bounds.rs:1017:
+ fn release_when_ready(dir: &Path, ids: &[String]) {
+     let started = Instant::now();
+     loop {
+-        if ids.iter().all(|id| dir.join(format!("ready-{id}")).is_file()) {
++        if ids
++            .iter()
++            .all(|id| dir.join(format!("ready-{id}")).is_file())
++        {
+             fs::write(dir.join("go"), b"go").unwrap();
+             return;
+         }
+Diff in /src/crates/oo-control/tests/review_bounds.rs:1106:
+         let entry = entry.unwrap();
+         let name = entry.file_name();
+         let name = name.to_str().unwrap();
+-        if name.len() == 32 && name.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
++        if name.len() == 32
++            && name
++                .bytes()
++                .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
++        {
+             bodies.push(fs::read(entry.path()).unwrap());
+         }
+     }
+Diff in /src/crates/oo-control/tests/review_bounds.rs:1256:
+     feed(&mut hasher, &manifest.part_count.to_string());
+     feed(&mut hasher, manifest.idempotency_key.as_str());
+     feed(&mut hasher, &manifest.display_name);
+-    feed(
+-        &mut hasher,
+-        manifest.content_type.as_deref().unwrap_or(""),
+-    );
++    feed(&mut hasher, manifest.content_type.as_deref().unwrap_or(""));
+     hex_encode(&finalize(hasher))
+ }
+ 
+phase_exit=1 phase=cargo_fmt_check
+fmt check failed

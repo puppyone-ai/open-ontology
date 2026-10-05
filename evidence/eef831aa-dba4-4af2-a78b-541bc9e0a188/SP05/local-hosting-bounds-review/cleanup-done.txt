@@ -1,0 +1,42 @@
+observed_at=2026-10-05T14:27:29Z
+--- before ---
+--- rm containers ---
+Error response from daemon: No such container: oo-a188-review
+Error response from daemon: No such container: oo-a188-pre-edit
+Error response from daemon: No such container: oo-a188-rustfmt
+container_rm_exit=0
+--- rm network ---
+oo-a188-eef831aa-net
+network_rm_exit=0
+--- rm volumes ---
+oo-a188-eef831aa-cargo
+oo-a188-eef831aa-target
+volume_rm_exit=0
+--- rm tmp ---
+tmp_rm_exit=0
+--- after own ---
+tmp_present=0
+--- foreign left ---
+oo-a060-net-9829f7c9-8438-45b9-ba9e-b7622eb96e4a
+oo-a064-net
+oo-a064-pg-net
+oo-a133-eef831aa-net
+oo-a187-net
+oo-a189-net
+oo-a064-cargo-home
+oo-a064-pg-data
+oo-a064-target
+oo-a108-eef831aa-dba4-4af2-a78b-541bc9e0a108-cargo
+oo-a108-eef831aa-dba4-4af2-a78b-541bc9e0a108-target
+oo-a133-eef831aa-cargo
+oo-a133-eef831aa-target
+oo-a187-cargo
+oo-a187-target
+oo-a189-cargo
+oo-a189-pgdata
+oo-a189-target
+name=oo-a189-pg owner=a189 status=Up 4 minutes
+name=oo-a064-rust194-contract2 owner=a064 status=Exited (0) 3 days ago
+name=oo-a064-rust194-contract owner=a064 status=Exited (101) 3 days ago
+name=oo-a064-pg1710-jobs owner=a064 status=Exited (0) 3 days ago
+name=oo-a064-rust194-smoke owner=a064 status=Exited (0) 3 days ago

@@ -1,0 +1,7 @@
+path=crates/oo-control/src/file_hosting.rs sha256=f3f9a12596c1e8dab66649145fbb43a7232242018e3279a932e35a110427acb7 match=1
+path=crates/oo-control/tests/file_hosting.rs sha256=d1ea989e3adc1fbe2d0198cf17238ca4f6397b6e3d94b3621ddaf60e0e7e6042 match=1
+path=crates/oo-control/src/lib.rs sha256=4443cc7b540645c499f32e414af3634ac742fe1e950ec140b64641272d8662fb match=1
+path=crates/oo-control/Cargo.toml sha256=c39dd947f6e1a7b865e37698d9bcdbf178428baa0ff649c1cf4fee546f67bc14 match=1
+path=contracts/control/local-file-hosting-v1.md sha256=ba9db89fbb8515e4650560bf3e133e4c724fc40334b41593890a402a9510b496 match=1
+path=Cargo.lock sha256=1e9b9377cb2bdf951ab22f7f0a4b68649cb70e563f6ef13adad5852e1c72c657 match=1
+product_files_match=1
