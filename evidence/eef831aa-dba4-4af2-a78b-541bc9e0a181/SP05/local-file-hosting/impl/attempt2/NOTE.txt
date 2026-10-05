@@ -1,0 +1,1 @@
+attempt2_exit=101 reason=ObjectStoreExt was out of scope, so get and delete did not resolve. object_store 0.14.2 itself compiled, including nix.

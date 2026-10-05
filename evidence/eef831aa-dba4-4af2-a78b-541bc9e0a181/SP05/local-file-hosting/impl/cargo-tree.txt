@@ -1,0 +1,331 @@
+oo-control v0.1.0 (/src/crates/oo-control) 
+├── futures-util v0.3.34 alloc,async-await,async-await-macro,default,futures-macro,futures-sink,sink,slab,std
+│   ├── futures-core v0.3.34 alloc,default,std
+│   ├── futures-macro v0.3.34 (proc-macro) 
+│   │   ├── proc-macro2 v1.0.107 default,proc-macro
+│   │   │   └── unicode-ident v1.0.26 
+│   │   ├── quote v1.0.47 default,proc-macro
+│   │   │   └── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut
+│   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │       └── unicode-ident v1.0.26 
+│   ├── futures-sink v0.3.34 
+│   ├── futures-task v0.3.34 alloc,std
+│   ├── pin-project-lite v0.2.17 
+│   └── slab v0.4.12 std
+├── getrandom v0.2.17 std
+│   ├── cfg-if v1.0.5 
+│   └── libc v0.2.189 default,extra_traits,std
+├── object_store v0.14.2 fs,nix,tokio,walkdir,windows-sys
+│   ├── async-trait v0.1.92 (proc-macro) 
+│   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   ├── bytes v1.12.1 default,std
+│   ├── chrono v0.4.45 alloc,clock,iana-time-zone,now,std,winapi,windows-link
+│   │   ├── iana-time-zone v0.1.65 fallback
+│   │   └── num-traits v0.2.19 default,i128,std
+│   │       [build-dependencies]
+│   │       └── autocfg v1.5.1 
+│   ├── futures-core v0.3.34 alloc,default,std
+│   ├── futures-util v0.3.34 alloc,async-await,async-await-macro,default,futures-macro,futures-sink,sink,slab,std (*)
+│   ├── http v1.5.0 default,std
+│   │   ├── bytes v1.12.1 default,std
+│   │   └── itoa v1.0.18 
+│   ├── humantime v2.4.0 
+│   ├── itertools v0.15.0 default,use_alloc,use_std
+│   │   └── either v1.18.0 std,use_std
+│   ├── nix v0.31.3 
+│   │   ├── bitflags v2.13.2 
+│   │   ├── cfg-if v1.0.5 
+│   │   └── libc v0.2.189 default,extra_traits,std
+│   │   [build-dependencies]
+│   │   └── cfg_aliases v0.2.2 
+│   ├── parking_lot v0.12.5 default
+│   │   ├── lock_api v0.4.14 atomic_usize,default
+│   │   │   └── scopeguard v1.2.0 
+│   │   └── parking_lot_core v0.9.12 
+│   │       ├── cfg-if v1.0.5 
+│   │       ├── libc v0.2.189 default,extra_traits,std
+│   │       └── smallvec v1.16.1 const_generics
+│   ├── percent-encoding v2.3.2 alloc,default,std
+│   ├── thiserror v2.0.21 default,std
+│   │   └── thiserror-impl v2.0.21 (proc-macro) 
+│   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │       └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   ├── tokio v1.53.1 bytes,default,io-util,macros,rt,rt-multi-thread,sync,time,tokio-macros
+│   │   ├── bytes v1.12.1 default,std
+│   │   ├── pin-project-lite v0.2.17 
+│   │   └── tokio-macros v2.7.2 (proc-macro) 
+│   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │       └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   ├── tracing v0.1.44 attributes,default,std,tracing-attributes
+│   │   ├── pin-project-lite v0.2.17 
+│   │   ├── tracing-attributes v0.1.31 (proc-macro) 
+│   │   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   └── syn v2.0.119 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut
+│   │   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │   │       └── unicode-ident v1.0.26 
+│   │   └── tracing-core v0.1.36 once_cell,std
+│   │       └── once_cell v1.21.4 alloc,default,race,std
+│   ├── url v2.5.8 default,std
+│   │   ├── form_urlencoded v1.2.2 alloc,std
+│   │   │   └── percent-encoding v2.3.2 alloc,default,std
+│   │   ├── idna v1.1.0 alloc,compiled_data,std
+│   │   │   ├── idna_adapter v1.2.2 compiled_data
+│   │   │   │   ├── icu_normalizer v2.3.0 compiled_data
+│   │   │   │   │   ├── icu_collections v2.3.0 
+│   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) 
+│   │   │   │   │   │   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │   └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   ├── potential_utf v0.1.6 zerovec
+│   │   │   │   │   │   │   └── zerovec v0.11.8 derive,yoke
+│   │   │   │   │   │   │       ├── yoke v0.8.3 derive,zerofrom
+│   │   │   │   │   │   │       │   ├── stable_deref_trait v1.2.1 
+│   │   │   │   │   │   │       │   ├── yoke-derive v0.8.2 (proc-macro) 
+│   │   │   │   │   │   │       │   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │       │   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │       │   │   ├── syn v2.0.119 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   │       │   │   └── synstructure v0.13.2 default,proc-macro
+│   │   │   │   │   │   │       │   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │       │   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │       │   │       └── syn v2.0.119 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   │       │   └── zerofrom v0.1.8 derive
+│   │   │   │   │   │   │       │       └── zerofrom-derive v0.1.8 (proc-macro) 
+│   │   │   │   │   │   │       │           ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │       │           ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │       │           ├── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   │       │           └── synstructure v0.14.0 default,proc-macro
+│   │   │   │   │   │   │       │               ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │       │               ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │       │               └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   │       ├── zerofrom v0.1.8 derive (*)
+│   │   │   │   │   │   │       └── zerovec-derive v0.11.6 (proc-macro) 
+│   │   │   │   │   │   │           ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │   │   │           ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │   │   │           └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   │   │   ├── utf8_iter v1.0.4 
+│   │   │   │   │   │   ├── yoke v0.8.3 derive,zerofrom (*)
+│   │   │   │   │   │   ├── zerofrom v0.1.8 derive (*)
+│   │   │   │   │   │   └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   │   │   ├── icu_normalizer_data v2.3.0 
+│   │   │   │   │   ├── icu_provider v2.3.1 baked
+│   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro)  (*)
+│   │   │   │   │   │   ├── icu_locale_core v2.3.0 zerovec
+│   │   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro)  (*)
+│   │   │   │   │   │   │   ├── litemap v0.8.3 
+│   │   │   │   │   │   │   ├── tinystr v0.8.4 zerovec
+│   │   │   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro)  (*)
+│   │   │   │   │   │   │   │   └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   │   │   │   │   ├── writeable v0.6.4 
+│   │   │   │   │   │   │   └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   │   │   │   ├── writeable v0.6.4 
+│   │   │   │   │   │   ├── yoke v0.8.3 derive,zerofrom (*)
+│   │   │   │   │   │   ├── zerofrom v0.1.8 derive (*)
+│   │   │   │   │   │   ├── zerotrie v0.2.5 yoke,zerofrom
+│   │   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro)  (*)
+│   │   │   │   │   │   │   ├── yoke v0.8.3 derive,zerofrom (*)
+│   │   │   │   │   │   │   └── zerofrom v0.1.8 derive (*)
+│   │   │   │   │   │   └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   │   │   ├── smallvec v1.16.1 const_generics
+│   │   │   │   │   └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   │   └── icu_properties v2.3.0 compiled_data
+│   │   │   │       ├── displaydoc v0.2.7 (proc-macro)  (*)
+│   │   │   │       ├── icu_collections v2.3.0  (*)
+│   │   │   │       ├── icu_locale_core v2.3.0 zerovec (*)
+│   │   │   │       ├── icu_properties_data v2.3.0 
+│   │   │   │       ├── icu_provider v2.3.1 baked (*)
+│   │   │   │       ├── zerotrie v0.2.5 yoke,zerofrom (*)
+│   │   │   │       └── zerovec v0.11.8 derive,yoke (*)
+│   │   │   ├── smallvec v1.16.1 const_generics
+│   │   │   └── utf8_iter v1.0.4 
+│   │   └── percent-encoding v2.3.2 alloc,default,std
+│   └── walkdir v2.5.0 
+│       └── same-file v1.0.6 
+├── oo-core v0.1.0 (/src/crates/oo-core) 
+│   ├── chrono v0.4.45 alloc,clock,iana-time-zone,now,std,winapi,windows-link (*)
+│   ├── chrono-tz v0.10.4 std
+│   │   ├── chrono v0.4.45 alloc,clock,iana-time-zone,now,std,winapi,windows-link (*)
+│   │   └── phf v0.12.1 
+│   │       └── phf_shared v0.12.1 
+│   │           └── siphasher v1.0.3 default,std
+│   ├── encoding_rs v0.8.41 alloc,default
+│   │   ├── cfg-if v1.0.5 
+│   │   ├── multiversion_no_op v1.0.0 (proc-macro) 
+│   │   ├── scopeguard v1.2.0 
+│   │   └── simdutf8 v0.1.5 aarch64_neon,public_imp
+│   │   [build-dependencies]
+│   │   └── rustversion v1.0.23 (proc-macro) 
+│   ├── jsonschema v0.57.0 
+│   │   ├── ahash v0.8.12 default,getrandom,runtime-rng,serde,std
+│   │   │   ├── cfg-if v1.0.5 
+│   │   │   ├── getrandom v0.3.4 
+│   │   │   │   ├── cfg-if v1.0.5 
+│   │   │   │   └── libc v0.2.189 default,extra_traits,std
+│   │   │   ├── once_cell v1.21.4 alloc,default,race,std
+│   │   │   ├── serde v1.0.229 alloc,default,derive,serde_derive,std
+│   │   │   │   ├── serde_core v1.0.229 alloc,default,result,std
+│   │   │   │   └── serde_derive v1.0.229 (proc-macro) default
+│   │   │   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │       └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   └── zerocopy v0.8.57 simd
+│   │   │   [build-dependencies]
+│   │   │   └── version_check v0.9.5 
+│   │   ├── bytecount v0.6.9 runtime-dispatch-simd
+│   │   ├── data-encoding v2.11.1 alloc,default,std
+│   │   ├── email_address v0.2.9 default,serde,serde_support
+│   │   │   └── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   │   ├── fancy-regex v0.19.2 default,perf,std,unicode,variable-lookbehinds
+│   │   │   ├── bit-set v0.8.0 std
+│   │   │   │   └── bit-vec v0.8.0 std
+│   │   │   ├── regex-automata v0.4.18 alloc,dfa-onepass,dfa-search,hybrid,meta,nfa,nfa-backtrack,nfa-pikevm,nfa-thompson,perf,perf-inline,perf-literal,perf-literal-multisubstring,perf-literal-substring,std,syntax,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment,unicode-word-boundary
+│   │   │   │   ├── aho-corasick v1.1.5 perf-literal,std
+│   │   │   │   │   └── memchr v2.8.3 alloc,std
+│   │   │   │   ├── memchr v2.8.3 alloc,std
+│   │   │   │   └── regex-syntax v0.8.11 default,std,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment
+│   │   │   └── regex-syntax v0.8.11 default,std,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment
+│   │   ├── fraction v0.17.0 num-bigint,with-bigint
+│   │   │   ├── num v0.4.3 num-bigint,std
+│   │   │   │   ├── num-bigint v0.4.8 default,std
+│   │   │   │   │   ├── num-integer v0.1.47 i128,std
+│   │   │   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   │   ├── num-complex v0.4.6 std
+│   │   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   │   ├── num-integer v0.1.47 i128,std (*)
+│   │   │   │   ├── num-iter v0.1.46 i128,std
+│   │   │   │   │   ├── num-integer v0.1.47 i128,std (*)
+│   │   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   │   ├── num-rational v0.4.2 num-bigint,num-bigint-std,std
+│   │   │   │   │   ├── num-bigint v0.4.8 default,std (*)
+│   │   │   │   │   ├── num-integer v0.1.47 i128,std (*)
+│   │   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   │   └── num-traits v0.2.19 default,i128,std (*)
+│   │   │   └── num-bigint v0.4.8 default,std (*)
+│   │   ├── itoa v1.0.18 
+│   │   ├── jsonschema-regex v0.57.0 
+│   │   │   └── regex-syntax v0.8.11 default,std,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment
+│   │   ├── jsonschema-value v0.57.0 default,serde_json
+│   │   │   ├── ahash v0.8.12 default,getrandom,runtime-rng,serde,std (*)
+│   │   │   ├── bytecount v0.6.9 runtime-dispatch-simd
+│   │   │   ├── fraction v0.17.0 num-bigint,with-bigint (*)
+│   │   │   ├── num-cmp v0.1.0 
+│   │   │   ├── num-traits v0.2.19 default,i128,std (*)
+│   │   │   ├── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std
+│   │   │   │   ├── itoa v1.0.18 
+│   │   │   │   ├── memchr v2.8.3 alloc,std
+│   │   │   │   ├── serde_core v1.0.229 alloc,default,result,std
+│   │   │   │   └── zmij v1.0.23 
+│   │   │   └── zmij v1.0.23 
+│   │   ├── num-cmp v0.1.0 
+│   │   ├── num-traits v0.2.19 default,i128,std (*)
+│   │   ├── percent-encoding v2.3.2 alloc,default,std
+│   │   ├── referencing v0.57.0 default
+│   │   │   ├── ahash v0.8.12 default,getrandom,runtime-rng,serde,std (*)
+│   │   │   ├── fluent-uri v0.4.1 alloc,default,impl-error,serde,std
+│   │   │   │   ├── borrow-or-share v0.2.4 alloc
+│   │   │   │   ├── ref-cast v1.0.27 
+│   │   │   │   │   └── ref-cast-impl v1.0.27 (proc-macro) 
+│   │   │   │   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   │       └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   │   └── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   │   │   ├── hashbrown v0.17.1 allocator-api2,default,default-hasher,equivalent,inline-more,raw-entry
+│   │   │   │   ├── allocator-api2 v0.2.21 alloc
+│   │   │   │   ├── equivalent v1.0.2 
+│   │   │   │   └── foldhash v0.2.0 
+│   │   │   ├── itoa v1.0.18 
+│   │   │   ├── micromap v0.3.0 default
+│   │   │   ├── parking_lot v0.12.5 default (*)
+│   │   │   ├── percent-encoding v2.3.2 alloc,default,std
+│   │   │   └── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std (*)
+│   │   ├── regex v1.13.1 default,perf,perf-backtrack,perf-cache,perf-dfa,perf-inline,perf-literal,perf-onepass,std,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment
+│   │   │   ├── aho-corasick v1.1.5 perf-literal,std (*)
+│   │   │   ├── memchr v2.8.3 alloc,std
+│   │   │   ├── regex-automata v0.4.18 alloc,dfa-onepass,dfa-search,hybrid,meta,nfa,nfa-backtrack,nfa-pikevm,nfa-thompson,perf,perf-inline,perf-literal,perf-literal-multisubstring,perf-literal-substring,std,syntax,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment,unicode-word-boundary (*)
+│   │   │   └── regex-syntax v0.8.11 default,std,unicode,unicode-age,unicode-bool,unicode-case,unicode-gencat,unicode-perl,unicode-script,unicode-segment
+│   │   ├── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   │   ├── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std (*)
+│   │   ├── strum v0.28.0 default,derive,std,strum_macros
+│   │   │   └── strum_macros v0.28.0 (proc-macro) 
+│   │   │       ├── heck v0.5.0 
+│   │   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │   │       └── syn v2.0.119 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   ├── unicode-general-category v1.1.0 
+│   │   └── uuid-simd v0.8.0 alloc,detect,std
+│   │       ├── outref v0.5.2 
+│   │       └── vsimd v0.8.0 alloc,detect,std
+│   ├── schemars v1.2.2 default,derive,schemars_derive,std
+│   │   ├── dyn-clone v1.0.20 
+│   │   ├── ref-cast v1.0.27  (*)
+│   │   ├── schemars_derive v1.2.2 (proc-macro) 
+│   │   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   ├── serde_derive_internals v0.30.0 
+│   │   │   │   ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │   │   │   ├── quote v1.0.47 default,proc-macro (*)
+│   │   │   │   └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   │   └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   │   ├── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   │   └── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std (*)
+│   ├── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   ├── serde-saphyr v1.3.0 deserialize,serialize
+│   │   ├── annotate-snippets v0.12.16 default,std
+│   │   │   ├── anstyle v1.0.14 std
+│   │   │   └── unicode-width v0.2.2 cjk,default
+│   │   ├── base64 v0.23.1 alloc,default,simd-unsafe,std
+│   │   ├── encoding_rs_io v0.1.8 
+│   │   │   └── encoding_rs v0.8.41 alloc,default (*)
+│   │   ├── granit-parser v1.3.0 default,error_messages,std
+│   │   │   ├── arraydeque v0.5.1 
+│   │   │   └── smallvec v1.16.1 const_generics
+│   │   ├── nohash-hasher v0.2.0 default,std
+│   │   ├── num-traits v0.2.19 default,i128,std (*)
+│   │   ├── serde_core v1.0.229 alloc,default,result,std
+│   │   ├── smallvec v1.16.1 const_generics
+│   │   └── zmij v1.0.23 
+│   ├── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std (*)
+│   ├── sha2 v0.10.9 std
+│   │   ├── cfg-if v1.0.5 
+│   │   ├── cpufeatures v0.2.17 
+│   │   │   └── libc v0.2.189 default,extra_traits,std
+│   │   └── digest v0.10.7 alloc,block-buffer,core-api,default,std
+│   │       ├── block-buffer v0.10.4 
+│   │       │   └── generic-array v0.14.9 more_lengths
+│   │       │       └── typenum v1.20.1 
+│   │       │       [build-dependencies]
+│   │       │       └── version_check v0.9.5 
+│   │       └── crypto-common v0.1.6 std
+│   │           ├── generic-array v0.14.9 more_lengths (*)
+│   │           └── typenum v1.20.1 
+│   ├── siphasher v1.0.3 default,std
+│   ├── smallvec v1.16.1 const_generics
+│   ├── thiserror v2.0.21 default,std (*)
+│   ├── utoipa v6.0.0 macros
+│   │   ├── indexmap v2.14.2 default,serde,std
+│   │   │   ├── equivalent v1.0.2 
+│   │   │   ├── hashbrown v0.17.1 allocator-api2,default,default-hasher,equivalent,inline-more,raw-entry (*)
+│   │   │   └── serde_core v1.0.229 alloc,default,result,std
+│   │   ├── serde v1.0.229 alloc,default,derive,serde_derive,std (*)
+│   │   ├── serde_json v1.0.151 alloc,arbitrary_precision,default,float_roundtrip,std (*)
+│   │   └── utoipa-gen v6.0.0 (proc-macro) 
+│   │       ├── proc-macro2 v1.0.107 default,proc-macro (*)
+│   │       ├── quote v1.0.47 default,proc-macro (*)
+│   │       └── syn v3.0.6 clone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut (*)
+│   ├── utoipa-gen v6.0.0 (proc-macro)  (*)
+│   └── zerocopy v0.8.57 simd
+├── oo-jobs v0.1.0 (/src/crates/oo-jobs) 
+│   └── oo-core v0.1.0 (/src/crates/oo-core)  (*)
+└── sha2 v0.10.9 std (*)
+[dev-dependencies]
+├── object_store v0.14.2 fs,nix,tokio,walkdir,windows-sys (*)
+├── sha2 v0.10.9 std (*)
+└── tokio v1.53.1 bytes,default,io-util,macros,rt,rt-multi-thread,sync,time,tokio-macros (*)
