@@ -188,6 +188,7 @@
 - [ ] SP07-W05 审核/owner/分类
   - [x] W05-RC review-pg-draft命令：2283f904经a163独立限定批准，fresh accept/reject/override、FK closure、stale schema/fact pending、curated echo；owner/auth/persisted audited workflow/语义发布未验。
 - [ ] SP07-W06 role Pack/缓存/manifest
+  - [x] W06-CLI role-pack命令：af3308c3经a178独立限定批准，真实binary/双角色artifact与独立hash/旧命令回归；visibility为可信输入数据，不是实时授权。
   - [x] W06-PC bounded角色Pack编译器：eff1959b经a176独立限定批准，隐藏依赖闭包/PII与RLS统计限制/内容与cache hash；真实policy adapter、鉴权、mount、tokenizer及完整W06未验。
 - [ ] SP07 D组件/Phase退出
 
@@ -1130,3 +1131,5 @@ a17459332 actualexit0 completeeff1959b full3reportsread/manifestchecked/commitMS
 a17666424 actualexit0 limitedAPPROVE eff1959b all3reportsread/manifestchecked/probe2Docker0/owncleanupempty. AllrequiredPackF1F2F3/literal/namenotesclosed withmeaningfulvisibleobjects retained; W06-PC accepted28→29, delivered24, firstreview10of24=41.67% unchanged (re-review notnewcomponent). a17542701 unifiedchecklive SQLguardwriter. Dispatcha177actualrolePackCLIparallel/global2builder/all87parentsopen/goalactive.
 
 a17779817 actualexit0 completeaf3308c3 all3reportsread/manifestactualchecked/owncleanupempty. RealrolePackCLI author4tests+existing4/3/4+library11/Clippy0, newcomponent24→25 pendinga178; accepted29/firstreview10of24 unchanged. a17542701 unifiedchecklive SQLguardwriter, fixedcommittedlock isolated. Dispatcha178fixedCLIreviewparallel/global2builder/all87parentsopen/goalactive.
+
+a17888846/a17542701 actualexit0 full3reports eachread288/106hashactual0/ownDockerempty. a178limitedCLIAPPROVE af3308c3 W06-CLIaccepted29→30, uniquecomponentfirstreviewapproved denominator24→25 rework10/25=40%. a17503512f91 authoractualASTdeparse/physicalSELECT realPG0/24focused/Clippy/arch0 addscomponent25→26 pendinga179; 35newpairs, nativebuild/prost/isolation/fullgatewaylimits and preciseupdate deviation explicitreview. Dispatcha179fixedASTreview+a180actualtrustedexecutorprimitive, no publicuntrustedqueryuntilparserisolation/auth/audit gates. Global2builders/eachmax1PG/all87parentsopen/goalactive.
