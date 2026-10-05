@@ -1158,3 +1158,6 @@ a18484576/a1867244 actualexit0 closed; full3reports previouslyread, coordinator2
 
 
 a188 actualGrok4.7xhighhandle90216 slotA fixed3a251dea localboundsreview1builder0PG; a189handle10444 slotC executorblockedDrop/rolebindrepair1builder1PG; a18770068slotBparserworkercontinues. Actual3Grok/global3builders no dependencies/manifests/sharedsourcewriters. Dispatchfd408808, nextUUIDa190; one25minutewait thenONEunifiedactualhandlecheck, no intermediatepolling. Goalactive/all87parentsopen.
+
+
+a18770068 actualexit0 incomplete fullreports/sourcecommitmissing; focusedbuilderalreadylaunched perlog, no acceptance. OriginalUUIDresume actualhandle51761 collects existingresult before anynewbuilder. Two CLIargumenterror exits2 before resume had no serviceexecution/build, retainedlog. a18890216/a18910444 ONEunifiedcheck live; no repeatedobservation. Global3builders/actual3Grok retained. Nextone25minwait; metrics29/34/10of29 unchanged, goalactive/all87parentsopen.
