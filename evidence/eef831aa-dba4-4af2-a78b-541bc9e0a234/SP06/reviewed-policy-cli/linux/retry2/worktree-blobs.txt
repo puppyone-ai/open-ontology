@@ -1,0 +1,3 @@
+crates/oo-gateway/src/bin/reviewed-policy.rs work=34f7824250c39a58f177e70f21dc6db02b5527bd archive=34f7824250c39a58f177e70f21dc6db02b5527bd
+crates/oo-gateway/tests/reviewed_policy_cli.rs work=de88e2dba6648fadf61d5f92884732317db13a1c archive=de88e2dba6648fadf61d5f92884732317db13a1c
+contracts/gateway/reviewed-policy-cli-v1.md work=6ae87b2c56468793151ccceccbf2fc34e80125fe archive=6ae87b2c56468793151ccceccbf2fc34e80125fe

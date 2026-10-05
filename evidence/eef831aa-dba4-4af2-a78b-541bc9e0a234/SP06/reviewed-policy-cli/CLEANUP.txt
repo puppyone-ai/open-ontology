@@ -1,0 +1,15 @@
+container oo-a234-smoke already absent
+container oo-a234-proof already absent
+container oo-a234-retry1 already absent
+container oo-a234-retry2 already absent
+container oo-a234-hash already absent
+container oo-a234-hash2 already absent
+oo-a234-eef831aa-cargo
+removed volume oo-a234-eef831aa-cargo
+oo-a234-eef831aa-target
+removed volume oo-a234-eef831aa-target
+oo-a234-eef831aa-net
+removed network oo-a234-eef831aa-net
+removed /tmp/oo-a234-eef831aa-dba4-4af2-a78b-541bc9e0a234
+remaining a234 containers:
+cleanup_done
