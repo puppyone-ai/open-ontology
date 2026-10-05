@@ -4,10 +4,10 @@
 //! [`crate::sql_guard::guard_select`] on the caller's original SQL and runs
 //! `GuardedPlan::executed_sql`. The caller has no field for executed SQL.
 //!
-//! Untrusted parser admission stays closed. A 500 ms process-isolated parser
-//! worker does not exist in this crate, so [`UNTRUSTED_ADMISSION`] is
-//! [`UntrustedAdmission::Blocked`] and there is no public function that would
-//! accept an untrusted statement.
+//! Untrusted parser admission stays closed. The parser worker exists, but its
+//! kernel sandbox is unsupported and this crate has no authentication gate, so
+//! [`UNTRUSTED_ADMISSION`] is [`UntrustedAdmission::Blocked`]. There is no
+//! public function that accepts an untrusted statement.
 //!
 //! The session is one dedicated `tokio_postgres` client. This slice has no
 //! pool. The user statement is a prepared portal fetched one row at a time.
@@ -30,16 +30,22 @@
 //!
 //! `Transaction`'s destructor requests a rollback through a private driver
 //! call. That request is not a confirmed rollback. Success awaits `rollback`.
-//! Dropping the stream sets shutdown. A database call that is already polled
-//! is cancelled on the bound backend and kept polled until the server answers
-//! or 750 ms passes. A call that has not been polled is not started. A
-//! consumed answer is rolled back. A client deadline, or a call that does not
-//! finish inside that cleanup bound, drops the socket and does not claim a
-//! rollback.
-//! Failure drops the socket even after a confirmed rollback. A late
-//! [`CancelHandle`] carries the generation captured when the query started.
-//! The next query bumps that generation, so the old handle does not call
-//! `cancel_query`.
+//! Dropping the stream sets shutdown. A call that has not been polled is not
+//! started. A call that is already polled is cancelled on the bound backend.
+//! Observe, cancel connect, TLS, the cancel send, the pinned response, and
+//! rollback share one 750 ms deadline taken at the first cleanup action. A
+//! later phase uses only the time still left and does not start another 750 ms.
+//! A consumed answer is rolled back inside that remainder. A client deadline
+//! spends the same budget on the cancel transport, then drops the unread future
+//! and does not claim a rollback. If the budget expires, or the cancel transport
+//! fails, the dedicated session is destroyed and rollback is not claimed.
+//! [`JoinHandle::abort`] when the session is dropped stops the local producer
+//! and driver. That abort is not `cancel_query` and does not prove the backend
+//! stopped.
+//! A [`CancelHandle`] reserves the accepting generation before its transport.
+//! The session is not lent while that reservation stands. A late handle carries
+//! the generation captured when the query started. The next query bumps that
+//! generation, so the old handle does not call `cancel_query`.
 //!
 //! The audit trait must return before the transaction begins. The hook in the
 //! live fixture writes through a second client. That callback is not a
@@ -56,7 +62,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{mpsc, oneshot, watch, Notify};
 use tokio::task::JoinHandle;
 use tokio_postgres::{Client, Error as PgError, IsolationLevel, Row, Transaction};
 
@@ -87,19 +93,20 @@ const OID_INT4: u32 = 23;
 const OID_TEXT: u32 = 25;
 const TIMEOUT_MARGIN: Duration = Duration::from_millis(250);
 
-/// How long a dropped call may wait for the canceled server response and for
-/// `ROLLBACK`. This is not a per-page query budget and does not refresh the
-/// whole-query [`Instant`].
+/// One cleanup deadline shared by observe, cancel transport, the pinned
+/// response, and rollback. Later phases use only the time still left.
+/// This is not a per-page query budget and does not refresh the whole-query
+/// [`Instant`].
 const CLEANUP_BOUND: Duration = Duration::from_millis(750);
 
 /// Why an untrusted statement cannot be admitted by this crate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UntrustedAdmission {
-    /// No 500 ms process-isolated parser worker is implemented.
+    /// The parser worker's kernel sandbox is unsupported, and there is no authentication gate.
     Blocked,
 }
 
-/// Untrusted admission is unreachable until that worker exists.
+/// Untrusted admission stays blocked while the kernel sandbox is unsupported and no authentication gate exists.
 pub const UNTRUSTED_ADMISSION: UntrustedAdmission = UntrustedAdmission::Blocked;
 
 /// One dedicated TLS session. Not a pool.
@@ -513,6 +520,14 @@ struct Shared {
     bound_role: Option<String>,
     open: bool,
     summary: Option<QuerySummary>,
+    /// Generation whose cancel transport has not finished. Blocks the next lend.
+    cancel_reserved: Option<u64>,
+    /// A cancel request was written. The same connection must not be lent.
+    cancel_packet_sent: bool,
+    /// First cleanup action. Later phases do not add another 750 ms.
+    cleanup_deadline: Option<Instant>,
+    cancel_notify: Arc<Notify>,
+    destroy: watch::Sender<bool>,
 }
 
 enum StreamItem {
@@ -579,6 +594,7 @@ impl DedicatedSession {
                 return Err(err);
             }
         };
+        let (destroy, _destroy_rx) = watch::channel(false);
         let shared = Arc::new(Mutex::new(Shared {
             generation: 0,
             accepting_cancel: false,
@@ -587,6 +603,11 @@ impl DedicatedSession {
             bound_role: None,
             open: true,
             summary: None,
+            cancel_reserved: None,
+            cancel_packet_sent: false,
+            cleanup_deadline: None,
+            cancel_notify: Arc::new(Notify::new()),
+            destroy,
         }));
         Ok(Self {
             client: Some(client),
@@ -615,6 +636,9 @@ impl DedicatedSession {
         self.reap_finished().await?;
         {
             let guard = lock(&self.shared);
+            if guard.cancel_reserved.is_some() {
+                return Err(ExecError::SessionBusy);
+            }
             if !guard.open || self.client.is_none() {
                 return Err(ExecError::SessionClosed);
             }
@@ -669,6 +693,7 @@ impl DedicatedSession {
         let shared = Arc::clone(&self.shared);
         let token = self.token.clone();
         let tls = self.tls.clone();
+        let destroy_rx = lock(&self.shared).destroy.subscribe();
         let limits = Limits {
             max_rows: request.max_rows,
             max_result_bytes: request.max_result_bytes,
@@ -686,6 +711,7 @@ impl DedicatedSession {
                 shared,
                 audit,
                 shutdown_rx,
+                destroy_rx,
                 row_tx,
                 back_tx,
             )
@@ -716,14 +742,29 @@ impl DedicatedSession {
         self.join_task().await
     }
 
-    /// Refuse later cancels, then drop the socket. This does not claim a rollback.
+    /// Refuse later cancels and stop the local producer and driver.
+    ///
+    /// Abort drops an in-flight cancel future owned by this session. That is
+    /// local teardown. It does not prove the backend stopped, and it is not
+    /// `cancel_query`. This does not claim a rollback.
     pub fn close(&mut self) {
-        {
+        self.shutdown_local();
+    }
+
+    fn shutdown_local(&mut self) {
+        let notify = {
             let mut guard = lock(&self.shared);
             guard.accepting_cancel = false;
             guard.open = false;
-        }
+            guard.cancel_reserved = None;
+            let _ = guard.destroy.send(true);
+            Arc::clone(&guard.cancel_notify)
+        };
+        notify.notify_waiters();
         self.client.take();
+        if let Some(task) = self.task.as_ref() {
+            task.abort();
+        }
         self.driver.abort();
     }
 
@@ -792,6 +833,12 @@ impl DedicatedSession {
     }
 }
 
+impl Drop for DedicatedSession {
+    fn drop(&mut self) {
+        self.shutdown_local();
+    }
+}
+
 impl SelectStream {
     /// Next decoded row. `Ok(None)` is a clean end. Errors are executor failures.
     pub async fn next_row(&mut self) -> Result<Option<Vec<Cell>>, ExecError> {
@@ -821,10 +868,28 @@ impl CancelHandle {
     /// Cancel only when the observed backend is still this generation.
     ///
     /// The observer must be a different session. The query connection is busy.
-    /// The gate is checked after that observation returns and before
-    /// `cancel_query`. There is no await between the check and the cancel call.
+    /// A matching accepting generation is reserved before any await, so the
+    /// producer cannot lend that connection while this transport is in flight.
+    /// The gate is checked after observation returns. There is no await between
+    /// that check and `cancel_query`. Observe and `cancel_query` share one
+    /// cleanup deadline. Timeout or a transport error fail-closes the session.
+    /// A handle that does not own the reservation does not fail-close it.
     pub async fn cancel(&self, observer: &Client) -> Result<CancelOutcome, ExecError> {
-        let observed = observe_backend(observer, self.pid).await?;
+        let owned = try_reserve_cancel(&self.shared, self.generation);
+        let budget = if owned {
+            shared_cleanup_remaining(&self.shared)
+        } else {
+            CLEANUP_BOUND
+        };
+        let observed = match observe_within(observer, self.pid, budget).await {
+            Ok(view) => view,
+            Err(err) => {
+                if owned {
+                    fail_close_session(&self.shared);
+                }
+                return Err(err);
+            }
+        };
         let send = {
             let guard = lock(&self.shared);
             cancel_gate(
@@ -836,14 +901,32 @@ impl CancelHandle {
                 observed.as_ref(),
             ) == CancelGate::Send
         };
-        if !send {
+        if !owned || !send {
+            if owned {
+                release_reservation(&self.shared);
+            }
             return Ok(CancelOutcome::NotSent);
         }
-        self.token
-            .cancel_query(self.tls.clone())
-            .await
-            .map_err(|_| ExecError::Protocol { step: "cancel" })?;
-        Ok(CancelOutcome::Sent)
+        let remain = shared_cleanup_remaining(&self.shared);
+        if remain.is_zero() {
+            fail_close_session(&self.shared);
+            return Err(ExecError::Timeout { sqlstate: None });
+        }
+        let tls = self.tls.clone();
+        match tokio::time::timeout(remain, self.token.cancel_query(tls)).await {
+            Ok(Ok(())) => {
+                mark_cancel_packet(&self.shared);
+                Ok(CancelOutcome::Sent)
+            }
+            Ok(Err(_)) => {
+                fail_close_session(&self.shared);
+                Err(ExecError::Protocol { step: "cancel" })
+            }
+            Err(_) => {
+                fail_close_session(&self.shared);
+                Err(ExecError::Timeout { sqlstate: None })
+            }
+        }
     }
 }
 
@@ -948,6 +1031,7 @@ async fn run_producer<A>(
     shared: Arc<Mutex<Shared>>,
     mut audit: A,
     mut shutdown: watch::Receiver<bool>,
+    mut destroy: watch::Receiver<bool>,
     rows: mpsc::Sender<StreamItem>,
     back: oneshot::Sender<Option<Client>>,
 ) where
@@ -969,9 +1053,11 @@ async fn run_producer<A>(
         &tls,
         &shared,
         &mut shutdown,
+        &mut destroy,
         &rows,
     )
     .await;
+    let attempt = settle_lend(attempt, &shared).await;
     let returned = if attempt.reuse {
         Some(client)
     } else {
@@ -998,6 +1084,7 @@ async fn drive(
     tls: &tokio_postgres_rustls::MakeRustlsConnect,
     shared: &Mutex<Shared>,
     shutdown: &mut watch::Receiver<bool>,
+    destroy: &mut watch::Receiver<bool>,
     rows: &mpsc::Sender<StreamItem>,
 ) -> Attempt {
     let backend_start = lock(shared).backend_start.clone();
@@ -1005,6 +1092,7 @@ async fn drive(
     let pid = lock(shared).backend_pid;
     let mut hot = HotWait {
         shutdown,
+        destroy,
         cancel: BoundCancel {
             shared,
             token,
@@ -1015,37 +1103,40 @@ async fn drive(
         },
         started,
         wall: limits.wall,
+        cleanup_deadline: None,
+        cancel_attempted: false,
+        deadline_cleanup: false,
     };
     let tx = match open_read_only(client, &mut hot).await {
         Ok(tx) => tx,
         Err(kind) => {
-            if kind.desync {
-                send_bound_cancel(&hot.cancel).await;
+            if kind.desync && !hot.cancel_attempted {
+                let _ = arm_and_send(&mut hot).await;
             }
             return publish_stop(rows, kind, false).await;
         }
     };
     if shutdown_requested(hot.shutdown) {
-        return cleanup(tx, rows, consumer_stop(0, 0), &hot).await;
+        return cleanup(tx, rows, consumer_stop(0, 0), &mut hot).await;
     }
     if let Err(kind) = apply_session(&tx, role, &mut hot).await {
-        return cleanup(tx, rows, kind, &hot).await;
+        return cleanup(tx, rows, kind, &mut hot).await;
     }
     let statement = match prepare_user(&tx, executed_sql, &mut hot).await {
         Ok(statement) => statement,
-        Err(kind) => return cleanup(tx, rows, kind, &hot).await,
+        Err(kind) => return cleanup(tx, rows, kind, &mut hot).await,
     };
     if let Err(err) = allowed_result_types(&statement) {
         let kind = StopKind::synced(err);
-        return cleanup(tx, rows, kind, &hot).await;
+        return cleanup(tx, rows, kind, &mut hot).await;
     }
     if !statement.params().is_empty() {
         let kind = StopKind::synced(ExecError::Protocol { step: "parameters" });
-        return cleanup(tx, rows, kind, &hot).await;
+        return cleanup(tx, rows, kind, &mut hot).await;
     }
     let portal = match bind_portal(&tx, &statement, &mut hot).await {
         Ok(portal) => portal,
-        Err(kind) => return cleanup(tx, rows, kind, &hot).await,
+        Err(kind) => return cleanup(tx, rows, kind, &mut hot).await,
     };
     let read = read_pages(&tx, &portal, rows, &mut hot, limits).await;
     match read {
@@ -1097,7 +1188,7 @@ async fn drive(
                 reuse: true,
             }
         }
-        Read::Stop(kind) => cleanup(tx, rows, kind, &hot).await,
+        Read::Stop(kind) => cleanup(tx, rows, kind, &mut hot).await,
     }
 }
 
@@ -1129,9 +1220,13 @@ struct BoundCancel<'a> {
 
 struct HotWait<'a> {
     shutdown: &'a mut watch::Receiver<bool>,
+    destroy: &'a mut watch::Receiver<bool>,
     cancel: BoundCancel<'a>,
     started: Instant,
     wall: Duration,
+    cleanup_deadline: Option<Instant>,
+    cancel_attempted: bool,
+    deadline_cleanup: bool,
 }
 
 enum Hot<T> {
@@ -1178,42 +1273,105 @@ fn abandoned_stop(returned_rows: u32, result_bytes: u64) -> StopKind {
 /// Poll `future` until it completes.
 ///
 /// Shutdown and the client deadline share this future. Dropping it unread
-/// would leave the portal response on the socket. The cleanup sleep starts
-/// only after a bound cancel and does not replace the whole-query budget.
+/// would leave the portal response on the socket. Cancel transport and the
+/// pinned response share the one cleanup deadline. A client deadline still
+/// returns [`Hot::Deadline`] when that transport expires.
 async fn await_hot<T>(future: impl Future<Output = T> + Send, hot: &mut HotWait<'_>) -> Hot<T> {
+    if destroy_requested(hot.destroy) {
+        hot.cancel_attempted = true;
+        return Hot::Abandoned;
+    }
     if shutdown_requested(hot.shutdown) {
         return Hot::Consumer;
     }
     let Some(remain) = remaining(hot.started, hot.wall) else {
         return Hot::NotStartedDeadline;
     };
-    let shutdown = &mut *hot.shutdown;
-    let cancel = &hot.cancel;
     let mut future = std::pin::pin!(future);
     let mut deadline = std::pin::pin!(tokio::time::sleep(remain));
-    let mut cancel_sent = false;
     loop {
-        if cancel_sent {
-            let outcome = tokio::select! {
+        if hot.cancel_attempted && !hot.deadline_cleanup {
+            let budget = cleanup_remaining(hot.cleanup_deadline);
+            if budget.is_zero() || destroy_requested(hot.destroy) {
+                return Hot::Abandoned;
+            }
+            let destroy = &mut *hot.destroy;
+            return tokio::select! {
                 biased;
                 result = future.as_mut() => Hot::Ready(result),
-                () = tokio::time::sleep(CLEANUP_BOUND) => Hot::Abandoned,
+                changed = destroy.changed() => {
+                    let _ = changed;
+                    Hot::Abandoned
+                }
+                () = tokio::time::sleep(budget) => Hot::Abandoned,
             };
-            return outcome;
         }
-        let outcome = tokio::select! {
-            biased;
-            changed = shutdown.changed() => changed.is_err(),
-            result = future.as_mut() => return Hot::Ready(result),
-            () = deadline.as_mut() => {
-                send_bound_cancel(cancel).await;
-                return Hot::Deadline;
+        let decision = {
+            let shutdown = &mut *hot.shutdown;
+            let destroy = &mut *hot.destroy;
+            tokio::select! {
+                biased;
+                changed = destroy.changed() => {
+                    if changed.is_err() || destroy_requested(destroy) {
+                        CleanupDecision::Destroy
+                    } else {
+                        CleanupDecision::Ignore
+                    }
+                }
+                changed = shutdown.changed() => {
+                    if changed.is_err() || shutdown_requested(shutdown) {
+                        CleanupDecision::Shutdown
+                    } else {
+                        CleanupDecision::Ignore
+                    }
+                }
+                result = future.as_mut() => return Hot::Ready(result),
+                () = deadline.as_mut() => CleanupDecision::ClientDeadline,
             }
         };
-        if outcome || shutdown_requested(shutdown) {
-            send_bound_cancel(cancel).await;
-            cancel_sent = true;
+        match decision {
+            CleanupDecision::Ignore => {}
+            CleanupDecision::Destroy => {
+                hot.cancel_attempted = true;
+                return Hot::Abandoned;
+            }
+            CleanupDecision::Shutdown => {
+                if arm_and_send(hot).await == Arm::Expired {
+                    return Hot::Abandoned;
+                }
+            }
+            CleanupDecision::ClientDeadline => {
+                hot.deadline_cleanup = true;
+                let _ = arm_and_send(hot).await;
+                return Hot::Deadline;
+            }
         }
+    }
+}
+
+enum CleanupDecision {
+    Ignore,
+    Destroy,
+    Shutdown,
+    ClientDeadline,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Arm {
+    Ready,
+    Expired,
+}
+
+async fn arm_and_send(hot: &mut HotWait<'_>) -> Arm {
+    let deadline = begin_cleanup_deadline(hot.cancel.shared, &mut hot.cleanup_deadline);
+    hot.cancel_attempted = true;
+    let budget = deadline.saturating_duration_since(Instant::now());
+    if budget.is_zero() {
+        return Arm::Expired;
+    }
+    match send_bound_cancel(&hot.cancel, budget).await {
+        CancelSend::Expired => Arm::Expired,
+        CancelSend::Sent | CancelSend::Skipped => Arm::Ready,
     }
 }
 
@@ -1237,8 +1395,11 @@ async fn hot_result<T>(
 /// Cancel only while this generation still names the bound backend.
 ///
 /// The stored identity check and `cancel_query` are not separated by another await.
-/// No second session is opened.
-async fn send_bound_cancel(cancel: &BoundCancel<'_>) {
+/// No second session is opened. `budget` is the time left on the one cleanup deadline.
+async fn send_bound_cancel(cancel: &BoundCancel<'_>, budget: Duration) -> CancelSend {
+    if budget.is_zero() {
+        return CancelSend::Expired;
+    }
     let send = {
         let guard = lock(cancel.shared);
         guard.accepting_cancel
@@ -1249,29 +1410,51 @@ async fn send_bound_cancel(cancel: &BoundCancel<'_>) {
             && guard.backend_start == cancel.backend_start
     };
     if !send {
-        return;
+        return CancelSend::Skipped;
     }
     let tls = cancel.tls.clone();
-    let _ = cancel.token.cancel_query(tls).await;
+    match tokio::time::timeout(budget, cancel.token.cancel_query(tls)).await {
+        Ok(Ok(())) => CancelSend::Sent,
+        Ok(Err(_)) | Err(_) => CancelSend::Expired,
+    }
+}
+
+enum CancelSend {
+    Skipped,
+    Sent,
+    Expired,
 }
 
 async fn cleanup(
     tx: Transaction<'_>,
     rows: &mpsc::Sender<StreamItem>,
     kind: StopKind,
-    hot: &HotWait<'_>,
+    hot: &mut HotWait<'_>,
 ) -> Attempt {
     if kind.desync {
-        send_bound_cancel(&hot.cancel).await;
+        if !hot.cancel_attempted {
+            let _ = arm_and_send(hot).await;
+        }
         drop(tx);
         return publish_stop(rows, kind, false).await;
     }
-    let confirmed = if kind.partial {
-        rollback_bounded(tx, CLEANUP_BOUND).await
+    let confirmed = if uses_cleanup_clock(&kind.error, kind.partial) {
+        let deadline = begin_cleanup_deadline(hot.cancel.shared, &mut hot.cleanup_deadline);
+        let budget = deadline.saturating_duration_since(Instant::now());
+        if budget.is_zero() {
+            drop(tx);
+            false
+        } else {
+            rollback_bounded(tx, budget).await
+        }
     } else {
         rollback_confirmed(tx, hot.started, hot.wall).await
     };
     publish_stop(rows, kind, confirmed).await
+}
+
+fn uses_cleanup_clock(error: &ExecError, partial: bool) -> bool {
+    partial || matches!(error, ExecError::Canceled { .. })
 }
 
 async fn publish_stop(
@@ -1867,6 +2050,8 @@ fn begin_generation(shared: &Mutex<Shared>) -> u64 {
     guard.generation = guard.generation.wrapping_add(1);
     guard.accepting_cancel = true;
     guard.summary = None;
+    guard.cleanup_deadline = None;
+    guard.cancel_packet_sent = false;
     guard.generation
 }
 
@@ -1882,6 +2067,147 @@ fn lock(shared: &Mutex<Shared>) -> MutexGuard<'_, Shared> {
 
 fn remaining(started: Instant, wall: Duration) -> Option<Duration> {
     wall.checked_sub(started.elapsed()).filter(|remain| !remain.is_zero())
+}
+
+fn budget_left(deadline: Instant, now: Instant) -> Duration {
+    deadline.saturating_duration_since(now)
+}
+
+fn cleanup_remaining(deadline: Option<Instant>) -> Duration {
+    deadline
+        .map(|deadline| budget_left(deadline, Instant::now()))
+        .unwrap_or(Duration::ZERO)
+}
+
+fn may_lend(open: bool, reserved: bool, packet_sent: bool) -> bool {
+    open && !reserved && !packet_sent
+}
+
+fn begin_cleanup_deadline(shared: &Mutex<Shared>, local: &mut Option<Instant>) -> Instant {
+    if let Some(deadline) = *local {
+        return deadline;
+    }
+    let deadline = {
+        let mut guard = lock(shared);
+        match guard.cleanup_deadline {
+            Some(deadline) => deadline,
+            None => {
+                let deadline = Instant::now() + CLEANUP_BOUND;
+                guard.cleanup_deadline = Some(deadline);
+                deadline
+            }
+        }
+    };
+    *local = Some(deadline);
+    deadline
+}
+
+fn shared_cleanup_remaining(shared: &Mutex<Shared>) -> Duration {
+    cleanup_remaining(lock(shared).cleanup_deadline)
+}
+
+fn try_reserve_cancel(shared: &Mutex<Shared>, generation: u64) -> bool {
+    let mut guard = lock(shared);
+    if !guard.open
+        || !guard.accepting_cancel
+        || guard.generation != generation
+        || guard.cancel_reserved.is_some()
+    {
+        return false;
+    }
+    guard.cancel_reserved = Some(generation);
+    if guard.cleanup_deadline.is_none() {
+        guard.cleanup_deadline = Some(Instant::now() + CLEANUP_BOUND);
+    }
+    true
+}
+
+fn release_reservation(shared: &Mutex<Shared>) {
+    let notify = {
+        let mut guard = lock(shared);
+        guard.cancel_reserved = None;
+        Arc::clone(&guard.cancel_notify)
+    };
+    notify.notify_waiters();
+}
+
+fn mark_cancel_packet(shared: &Mutex<Shared>) {
+    let notify = {
+        let mut guard = lock(shared);
+        guard.cancel_packet_sent = true;
+        guard.cancel_reserved = None;
+        Arc::clone(&guard.cancel_notify)
+    };
+    notify.notify_waiters();
+}
+
+fn fail_close_session(shared: &Mutex<Shared>) {
+    let notify = {
+        let mut guard = lock(shared);
+        guard.open = false;
+        guard.accepting_cancel = false;
+        guard.cancel_reserved = None;
+        let _ = guard.destroy.send(true);
+        Arc::clone(&guard.cancel_notify)
+    };
+    notify.notify_waiters();
+}
+
+async fn observe_within(
+    observer: &Client,
+    pid: i32,
+    budget: Duration,
+) -> Result<Option<BackendView>, ExecError> {
+    if budget.is_zero() {
+        return Err(ExecError::Timeout { sqlstate: None });
+    }
+    match tokio::time::timeout(budget, observe_backend(observer, pid)).await {
+        Ok(result) => result,
+        Err(_) => Err(ExecError::Timeout { sqlstate: None }),
+    }
+}
+
+async fn wait_cancel_settled(shared: &Mutex<Shared>) {
+    loop {
+        let notify = Arc::clone(&lock(shared).cancel_notify);
+        let notified = notify.notified();
+        let remain = {
+            let guard = lock(shared);
+            if guard.cancel_reserved.is_none() {
+                return;
+            }
+            cleanup_remaining(guard.cleanup_deadline)
+        };
+        if remain.is_zero() {
+            return;
+        }
+        let _ = tokio::time::timeout(remain, notified).await;
+    }
+}
+
+async fn settle_lend(mut attempt: Attempt, shared: &Mutex<Shared>) -> Attempt {
+    if !attempt.reuse {
+        return attempt;
+    }
+    wait_cancel_settled(shared).await;
+    let lend = {
+        let mut guard = lock(shared);
+        let reserved = guard.cancel_reserved.is_some();
+        let allowed = may_lend(guard.open, reserved, guard.cancel_packet_sent);
+        if allowed {
+            guard.accepting_cancel = false;
+        }
+        allowed
+    };
+    if !lend {
+        attempt.reuse = false;
+        attempt.socket_dropped = true;
+    }
+    attempt
+}
+
+fn destroy_requested(destroy: &watch::Receiver<bool>) -> bool {
+    *destroy.borrow()
 }
 
 fn timeout_parameter_ms(started: Instant, wall: Duration) -> Option<u64> {
@@ -2070,6 +2396,34 @@ mod tests {
         assert_eq!(CLEANUP_BOUND, Duration::from_millis(750));
         assert!(CLEANUP_BOUND < Duration::from_secs(1));
         assert!(CLEANUP_BOUND < MAX_QUERY_WALL);
+    }
+
+    #[test]
+    fn cleanup_budget_does_not_grow_after_it_starts() {
+        let start = Instant::now();
+        let deadline = start + CLEANUP_BOUND;
+        assert_eq!(budget_left(deadline, start), CLEANUP_BOUND);
+        assert_eq!(
+            budget_left(deadline, start + Duration::from_millis(200)),
+            Duration::from_millis(550)
+        );
+        assert_eq!(
+            budget_left(deadline, start + Duration::from_millis(500)),
+            Duration::from_millis(250)
+        );
+        assert_eq!(budget_left(deadline, start + CLEANUP_BOUND), Duration::ZERO);
+        assert_eq!(
+            budget_left(deadline, start + Duration::from_millis(900)),
+            Duration::ZERO
+        );
+    }
+
+    #[test]
+    fn may_lend_requires_an_open_unfenced_session() {
+        assert!(!may_lend(true, true, false));
+        assert!(!may_lend(true, false, true));
+        assert!(!may_lend(false, false, false));
+        assert!(may_lend(true, false, false));
     }
 
     #[test]

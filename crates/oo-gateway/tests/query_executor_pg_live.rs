@@ -5,6 +5,8 @@
 
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use oo_gateway::query_executor::{
@@ -239,6 +241,7 @@ async fn run_live() {
     deadline_cancel_and_role_b(&mut env).await;
     prove_role_timing(&mut env).await;
     prove_blocked_shutdown(&mut env).await;
+    prove_cancel_transport_bounds(&mut env).await;
     env.oracle.fact("live_result", "compared");
 }
 
@@ -2409,4 +2412,416 @@ fn quote_physical(name: &str, prefix: &str) -> String {
         "physical hex"
     );
     format!("\"{name}\"")
+}
+
+async fn prove_cancel_transport_bounds(env: &mut Env) {
+    let upstream = "oo-a189-pg:5432";
+    let proxy = StallProxy::start(15432, upstream.to_string())
+        .await
+        .expect("bound proxy");
+    ensure_proxy_name("oo-a196-proxy").expect("proxy name");
+    prove_stalled_drop(env, &proxy, upstream).await;
+    prove_stalled_handle(env, &proxy, upstream).await;
+    proxy.task.abort();
+    prove_whole_page_budget(env).await;
+}
+
+async fn prove_stalled_drop(env: &mut Env, proxy: &StallProxy, upstream: &str) {
+    proxy.stall.store(false, Ordering::SeqCst);
+    proxy.release(upstream).await;
+    let hold = hold_catalog(env);
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session_at(env, "oo-a196-proxy", 15432).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &hold,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                30_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("stalled drop stream");
+    assert!(
+        wait_user_query(&env.admin, pid, &env.shadow.table).await,
+        "stalled drop query did not become active"
+    );
+    let before = proxy.accepts.load(Ordering::SeqCst);
+    proxy.stall.store(true, Ordering::SeqCst);
+    let dropped_at = Instant::now();
+    drop(stream);
+    let idle = tokio::time::timeout(Duration::from_millis(1_500), session.wait_idle()).await;
+    let elapsed = dropped_at.elapsed();
+    assert!(idle.is_ok(), "stalled drop still blocked at {} ms", elapsed.as_millis());
+    idle.expect("stalled drop wait").expect("stalled drop idle");
+    let summary = session.summary().expect("stalled drop summary");
+    let seen = observe_backend(&env.admin, pid).await;
+    let backend = activity_label(seen, &start);
+    let accepts = proxy.accepts.load(Ordering::SeqCst).saturating_sub(before);
+    env.oracle.fact(
+        "stalled_drop",
+        &format!(
+            "ms:{} status:{} rollback:{} backend:{backend} slo:miss accepts:{accepts}",
+            elapsed.as_millis(),
+            summary.status().as_str(),
+            if summary.rollback_confirmed() { "yes" } else { "no" },
+        ),
+    );
+    assert_eq!(summary.status(), CompletionStatus::Partial);
+    assert!(!summary.rollback_confirmed());
+    assert_eq!(summary.stop(), Some(StopClass::Protocol));
+    assert_eq!(summary.sqlstate(), None);
+    assert!(summary.socket_dropped());
+    assert!(!session.is_open());
+    assert!(accepts >= 1, "stalled cancel transport was not accepted");
+    assert!(
+        (Duration::from_millis(700)..Duration::from_millis(1_000)).contains(&elapsed),
+        "stalled drop took {} ms",
+        elapsed.as_millis()
+    );
+    proxy.stall.store(false, Ordering::SeqCst);
+    proxy.release(upstream).await;
+}
+
+async fn prove_stalled_handle(env: &mut Env, proxy: &StallProxy, upstream: &str) {
+    proxy.stall.store(false, Ordering::SeqCst);
+    proxy.release(upstream).await;
+    let brief_oid = install_bound_brief(&env.admin).await;
+    let mut catalog = hold_catalog(env);
+    catalog.functions.push(ResolvedFunction {
+        oid: brief_oid,
+        schema: "fixture".to_string(),
+        name: "bound_brief".to_string(),
+        argument_type_oids: Vec::new(),
+        aggregate_star: false,
+    });
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session_at(env, "oo-a196-proxy", 15432).await;
+    let mut brief = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &catalog,
+                "SELECT fixture.bound_brief() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                30_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("stalled handle stream");
+    assert!(
+        wait_user_query(&env.admin, session.backend_pid(), &env.shadow.table).await,
+        "stalled handle query did not become active"
+    );
+    let handle = brief.cancel_handle();
+    let direct = connect_db(DATABASE, ADMIN, &env.admin_pass, &env.ca).await;
+    let before = proxy.accepts.load(Ordering::SeqCst);
+    proxy.stall.store(true, Ordering::SeqCst);
+    let started = Instant::now();
+    let cancel_task = tokio::spawn(async move { handle.cancel(&direct).await });
+    assert!(
+        wait_proxy_accepts(proxy, before, Duration::from_secs(2)).await,
+        "stalled handle transport was not accepted"
+    );
+    let row = brief.next_row().await.expect("brief row");
+    assert!(row.is_some(), "brief query did not finish while cancel was held");
+    let hold = hold_catalog(env);
+    let busy = page_hold_select(&mut session, env, &identity, &hold).await;
+    assert!(
+        matches!(busy, Err(ExecError::SessionBusy)),
+        "pending cancel allowed another query"
+    );
+    let outcome = tokio::time::timeout(Duration::from_millis(1_200), cancel_task)
+        .await
+        .expect("stalled handle cancel hung")
+        .expect("stalled handle join");
+    let elapsed = started.elapsed();
+    proxy.stall.store(false, Ordering::SeqCst);
+    proxy.release(upstream).await;
+    drop(brief);
+    tokio::time::timeout(Duration::from_secs(3), session.wait_idle())
+        .await
+        .expect("stalled handle idle timed out")
+        .expect("stalled handle idle");
+    let summary = session.summary().expect("stalled handle summary");
+    let closed = page_hold_select(&mut session, env, &identity, &hold).await;
+    let session_closed = matches!(closed, Err(ExecError::SessionClosed));
+    env.oracle.fact(
+        "stalled_handle",
+        &format!(
+            "ms:{} busy:yes status:{} closed:{session_closed} rollback:{}",
+            elapsed.as_millis(),
+            summary.status().as_str(),
+            if summary.rollback_confirmed() { "yes" } else { "no" },
+        ),
+    );
+    assert!(matches!(outcome, Err(ExecError::Timeout { sqlstate: None })));
+    assert_eq!(summary.status(), CompletionStatus::Succeeded);
+    assert!(summary.rollback_confirmed());
+    assert!(summary.socket_dropped());
+    assert!(!session.is_open());
+    assert!(session_closed);
+    assert!(
+        (Duration::from_millis(700)..Duration::from_millis(1_000)).contains(&elapsed),
+        "stalled handle took {} ms",
+        elapsed.as_millis()
+    );
+}
+
+async fn prove_whole_page_budget(env: &mut Env) {
+    let pace_oid = install_pace_row(&env.admin).await;
+    let mut catalog = happy_catalog(env);
+    catalog.functions.push(ResolvedFunction {
+        oid: pace_oid,
+        schema: "fixture".to_string(),
+        name: "pace_row".to_string(),
+        argument_type_oids: vec![env.oids.int4],
+        aggregate_star: false,
+    });
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session(env).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let started = Instant::now();
+    let mut stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &catalog,
+                "SELECT fixture.pace_row(i4) FROM logistics.shipment ORDER BY i4",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                3_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("pace stream");
+    let first = stream.next_row().await.expect("pace first").expect("pace row");
+    assert!(matches!(first.first(), Some(Cell::Int(_))));
+    let err = stream.next_row().await.expect_err("pace deadline");
+    drop(stream);
+    session.wait_idle().await.expect("pace idle");
+    let elapsed = started.elapsed();
+    let summary = session.summary().expect("pace summary");
+    match &err {
+        ExecError::Timeout { sqlstate } => assert!(sqlstate.is_none(), "pace sqlstate {sqlstate:?}"),
+        other => panic!("whole-page budget became {other}"),
+    }
+    assert_eq!(summary.status(), CompletionStatus::Failed);
+    assert_eq!(summary.stop(), Some(StopClass::Timeout));
+    assert_eq!(summary.sqlstate(), None);
+    assert!(!summary.rollback_confirmed());
+    assert!(summary.socket_dropped());
+    assert!(!session.is_open());
+    assert!((Duration::from_millis(2_500)..=Duration::from_millis(4_500)).contains(&elapsed));
+    assert!(backend_gone(&env.admin, pid, &start).await, "pace backend stayed queryable");
+    env.oracle.fact(
+        "whole_page_budget",
+        &format!("sqlstate:none elapsed_ms:{} rollback:no", elapsed.as_millis()),
+    );
+}
+
+async fn page_hold_select(
+    session: &mut DedicatedSession,
+    env: &Env,
+    identity: &PolicyIdentity,
+    catalog: &PolicyCatalog,
+) -> Result<SelectStream, ExecError> {
+    session
+        .execute_trusted_select(
+            req(
+                identity,
+                catalog,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                30_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+}
+
+async fn install_bound_brief(client: &Client) -> u32 {
+    client
+        .batch_execute(
+            "CREATE FUNCTION fixture.bound_brief() RETURNS integer\n\
+             LANGUAGE plpgsql VOLATILE AS $$\n\
+             BEGIN PERFORM pg_catalog.pg_sleep(0.25); RETURN 1; END $$;\n\
+             REVOKE ALL ON FUNCTION fixture.bound_brief() FROM PUBLIC;\n\
+             GRANT EXECUTE ON FUNCTION fixture.bound_brief() TO oo_r_reader_a",
+        )
+        .await
+        .expect("bound brief");
+    function_oid(client, "bound_brief", 0_i16).await
+}
+
+async fn install_pace_row(client: &Client) -> u32 {
+    client
+        .batch_execute(
+            "CREATE FUNCTION fixture.pace_row(v integer) RETURNS integer\n\
+             LANGUAGE plpgsql VOLATILE AS $$\n\
+             BEGIN\n\
+               IF v = '-2147483648'::integer THEN\n\
+                 PERFORM pg_catalog.pg_sleep(1.2);\n\
+               ELSE\n\
+                 PERFORM pg_catalog.pg_sleep(30);\n\
+               END IF;\n\
+               RETURN v;\n\
+             END $$;\n\
+             REVOKE ALL ON FUNCTION fixture.pace_row(integer) FROM PUBLIC;\n\
+             GRANT EXECUTE ON FUNCTION fixture.pace_row(integer) TO oo_r_reader_a",
+        )
+        .await
+        .expect("pace row");
+    function_oid(client, "pace_row", 1_i16).await
+}
+
+async fn function_oid(client: &Client, name: &str, args: i16) -> u32 {
+    let oid: i32 = client
+        .query_one(
+            "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
+             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+             WHERE n.nspname = 'fixture' AND p.proname = $1 AND p.pronargs = $2",
+            &[&name, &args],
+        )
+        .await
+        .expect("function oid")
+        .get(0);
+    u32::try_from(oid).expect("function oid range")
+}
+
+async fn open_session_at(env: &Env, host: &str, port: u16) -> DedicatedSession {
+    let endpoint = TlsEndpoint {
+        host: host.to_string(),
+        port,
+        database: DATABASE.to_string(),
+        user: LOGIN.to_string(),
+    };
+    let (client, connection) = connect_require_tls(&endpoint, &env.login_pass, &env.ca)
+        .await
+        .expect("session connect");
+    let tls = rustls_connector(&env.ca).expect("connector");
+    DedicatedSession::bind(client, connection, tls)
+        .await
+        .expect("bind")
+}
+
+fn ensure_proxy_name(name: &str) -> Result<(), String> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|_| "local-ip".to_string())?;
+    socket
+        .connect("oo-a189-pg:5432")
+        .map_err(|_| "local-route".to_string())?;
+    let ip = socket.local_addr().map_err(|_| "local-addr".to_string())?;
+    let mut hosts = fs::read_to_string("/etc/hosts").map_err(|_| "hosts-read".to_string())?;
+    if !hosts.contains(name) {
+        if !hosts.ends_with('\n') {
+            hosts.push('\n');
+        }
+        hosts.push_str(&format!("{} {name}\n", ip.ip()));
+        fs::write("/etc/hosts", hosts).map_err(|_| "hosts-write".to_string())?;
+    }
+    Ok(())
+}
+
+fn activity_label(
+    result: Result<Option<oo_gateway::query_executor::BackendView>, ExecError>,
+    start: &str,
+) -> &'static str {
+    match result {
+        Ok(None) => "gone",
+        Ok(Some(view)) if view.backend_start() != start => "gone",
+        Ok(Some(_)) => "present",
+        Err(_) => "unconfirmed",
+    }
+}
+
+async fn wait_proxy_accepts(proxy: &StallProxy, before: usize, bound: Duration) -> bool {
+    let started = Instant::now();
+    while started.elapsed() < bound {
+        if proxy.accepts.load(Ordering::SeqCst) > before {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    false
+}
+
+struct StallProxy {
+    stall: Arc<AtomicBool>,
+    held: Arc<tokio::sync::Mutex<Vec<tokio::net::TcpStream>>>,
+    accepts: Arc<AtomicUsize>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl StallProxy {
+    async fn start(port: u16, upstream: String) -> Result<Self, String> {
+        let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+            .await
+            .map_err(|_| "proxy-bind".to_string())?;
+        let stall = Arc::new(AtomicBool::new(false));
+        let held = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let accepts = Arc::new(AtomicUsize::new(0));
+        let stall_task = Arc::clone(&stall);
+        let held_task = Arc::clone(&held);
+        let accepts_task = Arc::clone(&accepts);
+        let task = tokio::spawn(async move {
+            loop {
+                let Ok((sock, _)) = listener.accept().await else {
+                    break;
+                };
+                if stall_task.load(Ordering::SeqCst) {
+                    accepts_task.fetch_add(1, Ordering::SeqCst);
+                    held_task.lock().await.push(sock);
+                } else {
+                    let upstream = upstream.clone();
+                    tokio::spawn(async move {
+                        let _ = bridge_proxy(sock, &upstream).await;
+                    });
+                }
+            }
+        });
+        Ok(Self {
+            stall,
+            held,
+            accepts,
+            task,
+        })
+    }
+
+    async fn release(&self, upstream: &str) {
+        self.stall.store(false, Ordering::SeqCst);
+        let drained: Vec<tokio::net::TcpStream> = self.held.lock().await.drain(..).collect();
+        for sock in drained {
+            let upstream = upstream.to_string();
+            tokio::spawn(async move {
+                let _ = bridge_proxy(sock, &upstream).await;
+            });
+        }
+    }
+}
+
+impl Drop for StallProxy {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+async fn bridge_proxy(mut inbound: tokio::net::TcpStream, upstream: &str) -> std::io::Result<()> {
+    let mut outbound = tokio::net::TcpStream::connect(upstream).await?;
+    tokio::io::copy_bidirectional(&mut inbound, &mut outbound).await?;
+    Ok(())
 }
