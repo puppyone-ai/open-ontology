@@ -1,0 +1,8 @@
+ExitCode=101
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a210-net
+CapDrop=["ALL"]
+Memory=8589934592
+PortBindings={}
+Id=1fa12b65fd1dda123da4d713f0751f2046e7d70a4ba3a7017678b9dcc6c5f0bb

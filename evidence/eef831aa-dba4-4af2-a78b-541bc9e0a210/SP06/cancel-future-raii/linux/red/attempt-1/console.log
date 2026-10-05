@@ -1,0 +1,17 @@
+oo_task=sp06-cancel-future-raii-red
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a210
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+phase=red
+Linux 88ebf61524ad 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+phase_exit=0 phase=libclang
+=== future abort against unchanged executor ===
+phase_exit=101 phase=live
+live failed before the abort assertion

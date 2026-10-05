@@ -1,0 +1,44 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3175:34
+     |
+3173 |             let first = settle_exec(
+     |                         ----------- first borrow later used by call
+3174 |                 &mut session,
+     |                 ------------ first mutable borrow occurs here
+3175 |                 page_hold_select(&mut session, env, &identity, &catalog).await,
+     |                                  ^^^^^^^^^^^^ second mutable borrow occurs here
+
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3181:34
+     |
+3179 |             let later = settle_exec(
+     |                         ----------- first borrow later used by call
+3180 |                 &mut session,
+     |                 ------------ first mutable borrow occurs here
+3181 |                 page_hold_select(&mut session, env, &identity, &catalog).await,
+     |                                  ^^^^^^^^^^^^ second mutable borrow occurs here
+
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3187:34
+     |
+3185 |             let after_retry = settle_exec(
+     |                               ----------- first borrow later used by call
+3186 |                 &mut session,
+     |                 ------------ first mutable borrow occurs here
+3187 |                 page_hold_select(&mut session, env, &identity, &catalog).await,
+     |                                  ^^^^^^^^^^^^ second mutable borrow occurs here
+
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3295:30
+     |
+3293 |         let next = settle_exec(
+     |                    ----------- first borrow later used by call
+3294 |             &mut session,
+     |             ------------ first mutable borrow occurs here
+3295 |             page_hold_select(&mut session, env, &identity, &hold).await,
+     |                              ^^^^^^^^^^^^ second mutable borrow occurs here
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `oo-gateway` (test "query_executor_pg_live") due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
