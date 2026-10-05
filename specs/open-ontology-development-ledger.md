@@ -157,6 +157,7 @@
 - [ ] SP05-W01 multipart/checksum/local/S3/ACL
   - [x] W01-LP 本地上传原语：755fb84a经a183独立限定批准，顺序multipart/恢复/sha256/幂等/跨context拒绝/owned abort；并发quota及大对象流式内存未满足，完整W01未验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
+  - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
 - [ ] SP05-W04 SQLite/dump隔离恢复
 - [ ] SP05-W05 import策略/lineage/取消
@@ -1147,3 +1148,5 @@ a18189265 actualexit0 complete755fb84a reports3fullyread/6SOURCEhash actual0/own
 a18083276/a18299230 actualexit0 complete8a289f0c/evidencece040593 and47743688/evidence753423b7; full3reportsread/fullhash actualchecked/owncontainers empty. Author executoractualTLS6s/live+10libClippy0, JSONL11+64lib/cleanClippy0; newcomponents27→29 pendinga184/a185, accepted31/firstreview10of26 unchanged. BlockingRead/typedbootstrap/publicparser/auditfixture scope explicitreview. a18395249 unifiedchecklivehostingreview; dispatcha184executor+a185JSONLfixedreviews to3actualGrok/global3builders. All87parentsopen/goalactive.
 
 a18395249 actualexit0 complete950406b8 reports3read/fullhashactualchecked/ownDockerempty. LimitedW01-LP accepted31→32, delivered29, uniquecomponentfirstreviewapproved denominator26→27 rework10/27=37.04%; specconcurrentquota16>10 andmemory2xpart realfail remainmandatorywork notscopeexcused. Dispatcha186controlstream/quotafixparallel a18484576/a18574571 live perlastunifiedcheck; global3builders/actual3Grok/all87parentsopen/goalactive.
+
+a18574571 actualexit0 complete699165c2 full3reportsread/fullhashactualchecked/owncleanuprecorded. LimitedW02-JL accepted32→33, delivered29, uniquecomponentfirstreviewapproved denominator27→28 rework10/28=35.71%. EOF/hash/Arrow8freshcases0, blockingReadhonestlimitation nofullphasecompletion. a18484576/a1867244 unifiedchecklive. Dispatcha187realparserchild500mskill/reap no newdeps disjointgateway/control/fixedreview; nativekernelrestrictioncertificate remainspublicgate. Actual3Grok/global3builders/all87parentsopen/goalactive.
