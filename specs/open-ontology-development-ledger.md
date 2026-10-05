@@ -163,6 +163,7 @@
 - [ ] SP05-W04 SQLite/dump隔离恢复
 - [ ] SP05-W05 import策略/lineage/取消
 - [ ] SP05-W06 下载/保留/删除/reaper
+  - [x] W06-DL 本地bounded download pull：e3363ffe经a194限定批准，独立8192range/32MiB resident77824bytes/输入context与running hash；已读前缀后改仍Complete与await间deadline检查缺口待a202；公共auth/TTL/reaper未验。
 - [ ] SP05全格式/Phase退出
 
 ### SP06
@@ -171,6 +172,7 @@
   - [x] W01-CA PostgreSQL列ACL安装原语：d3429726经a173独立限定批准，真实mapped shadow/NOLOGIN/列授权/新增隐藏列与写拒绝/双角色rollback/TLS；RLS、鉴权、审计及发布未验。
 - [ ] SP06-W02 parser/R1–R9/star/OID
   - [x] W02-AST PostgreSQL AST SELECT准入切片：03512f91经a179独立限定批准，逻辑/物理重写、visible star、snapshot OID绑定、真实PG受限角色执行；500ms隔离、真实OID adapter、完整R1–R9未验，公共不可信入口继续禁用。
+  - [x] W02-PW 单次直接子进程parser supervisor：c22cf08a经a195限定批准，独立503ms slow与blockedpipes kill/reap/legalcodec；孙进程stdout导致join无界及request trailer待a201，kernelrestriction Unsupported/publicBlocked。
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
   - [x] W04-EX 可信输入SELECT执行原语：8a289f0c经a184独立限定批准，真实TLS/列ACL/类型/限额/整次deadline/cancel/rollback；阻塞Drop抢占与首次role绑定修复待a189，公共准入/完整父项未验。
@@ -1198,3 +1200,6 @@ a19025888 actualexit0 completed78a60fde/evidence9d658725; all3reportsfullyread17
 
 
 a198actualGrok4.7xhighhandle29625 trustedqueryCLI1builder1PG/solemanifest+lockwriter. a19611786canceltransport anda19768703fileCLIdevelopment continue; a19449690download anda19580895parserfixedreview continuelastunifiedchecklive. Actual3dev+2review/global6; reviewsnotdevslots. Dispatch7071fb9a nextUUIDa199 queuedCSVfixedreview thenlivecatalogreview. ONE25minwait+unified5actualhandlescheck; all87parentsopen/goalactive.
+
+
+a19449690/a19580895 actualexit0 completeef6c4fc7/ea2c16df full3reportsread includingseparatelytruncateda195F2F3+handoff194tail178/184hashactual0/ownresourcesempty. LimitedW06-DL/W02-PWaccepted36→38; firstcomponentreviewsapproved denominator29→31 rework10/31=32.26%. Consumedprefixflip EOF andgrandchildpipejoin realfail preservedmandatorya202/a201 NOTcontractexcusedfullcompletion. a19768703 actualexit0 complete59be14ba/73d772c5 all3reportsread203hashactual0/newCLI11processClippy0 component33→34 pendingreview; hostPythonmanifestviolationretainednotproductoracle. a19611786 actualexit0incompleteproofalreadylaunched originalresume firstcollectresults. a19829625 ONEunifiedchecklive solemanifestwriter. Dispatcha199CSV+a200catalogfixedreviews in2releasedreviewslots,a201parserrepair+a202downloadrepair fills4developmentwitha196+a198. Max4dev+2review/global6builders; all87parentsopen/goalactive.
