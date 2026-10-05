@@ -1,0 +1,16 @@
+case=blocked-stdin hung=0 wall_ms=506 elapsed_ms=504 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=225 join_returned=1
+case=hold-stdout hung=0 wall_ms=504 elapsed_ms=504 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=229 join_returned=1
+case=partial hung=0 wall_ms=503 elapsed_ms=502 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=233 join_returned=1
+case=late hung=0 wall_ms=502 elapsed_ms=501 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=237 below_late_write=1
+case=crash hung=0 wall_ms=2 elapsed_ms=2 exit=99 signal= reaped=1 pid_absent=1 direct_wait=1
+case=after-timeout next_pid=245 previous_pid=241 neighbor_same=1 pid1_same=1 own_same=1
+case=identity restriction=Unsupported admission=Blocked deadline_ms=500 slice_ms=20 poll_ms=10 ceiling_ms=530 kill_elf=1 kill_len=67824 kill_symlink=0 contract_claims_stale=1 executor_has_stale_sentence=0 executor_names_unsupported=1 pid_reuse_residual=recorded_group_signaled_when_proc_leader_absent
+case=legal wall_ms=2 pid=250 sha_match=1 parser_version=170007 sql_len=58
+case=legal wall_ms=2 pid=253 sha_match=1 parser_version=170007 sql_len=43
+case=legal wall_ms=1 pid=256 sha_match=1 parser_version=170007 sql_len=46
+case=identity-mismatch wall_ms=0 canary_in_display=0
+case=trailer exit=1 stdout_len=0 decode=Trailing wall_ms=7
+case=production-flags slow_arg_exit=2 slow_env_exit=2 stdout_empty=1
+case=setsid-stdout hung=0 wall_ms=502 elapsed_ms=502 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=268 escaped=269 escaped_alive_before_test_signal=1 escaped_group_diff=1 neighbor_same=1 pid1_same=1 own_same=1 join_returned=1
+case=orphan-stdout hung=0 wall_ms=511 elapsed_ms=507 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=276 grandchild=277 grandchild_alive=0 group_empty=1 neighbor_same=1 join_returned=1
+case=orphan hung=0 wall_ms=503 elapsed_ms=502 signal=9 reaped=1 pid_absent=1 pid_reused=0 pid=281 grandchild=282 grandchild_alive=0 group_empty=1 neighbor_same=1 join_returned=1

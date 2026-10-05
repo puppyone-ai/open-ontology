@@ -1,0 +1,31 @@
+a204 preoverlay launch
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+
+a204 overlay-3 launch
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/launch.sh
+sha256 78c8ef8c179c59317850c1b6a9ae53d3f883b8a1b24c2567fa0d3d26f1997eee
+
+a204 manifest tool
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+
+a201 libclang extract
+commit of that evidence tree is the a201 record; file sha256 3b954ed72b72905b8b483a97060db35703ce353c4c66c97d497d048559b55b87
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a201/SP06/parser-reap-bounds/linux/smoke/extract-libclang.sh
+
+a201 select-debs.rs sha256 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644
+a201 sha256.rs sha256 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e
+
+a204 manifest launch
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/manifest/launch.sh
+sha256 9b28b43d9a9afe9cad69a5f086d7d96af4758f58c7e053a25efa52567a69cdd8
+
+a204 preoverlay inside.sh sha256 b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+a204 overlay-3 inside.sh sha256 a93a5e00832284b805ea89236d9aace547766080316962139d3514dc58f84928
+
+Changes from those recipes: owner a215, memory 6g, cpus 1, CARGO_BUILD_JOBS 1, global cap 10, parser-worker blobs, TMPDIR on the private cargo volume, no PostgreSQL. The manifest follow-up rewrites only MANIFEST.sha256 and leaves its stdout outside this directory.

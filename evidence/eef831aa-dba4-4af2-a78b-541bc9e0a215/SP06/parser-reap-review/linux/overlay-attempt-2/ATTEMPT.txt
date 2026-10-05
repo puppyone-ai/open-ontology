@@ -1,0 +1,15 @@
+attempt=2
+docker_exit=101
+test_exit=0
+clippy_exit=101
+cause=harness clippy::clone_on_copy at parser_worker_a215_review.rs:542 report.clone() on Copy ProcessReport
+product_blobs_cmp=0
+fetch=0
+clippy_component=0
+container=bd6791bc739b04cef58136d832eef5050c7489af934c20f44fc0947518b7160d
+oom=false
+tests=5 passed in 4.26s
+ceiling_ms=530
+elapsed_ms=blocked-stdin 504, hold-stdout 504, partial 502, late 501, orphan-stdout 507, orphan 502, setsid-stdout 502
+crash_elapsed_ms=2 exit=99
+fix=dereference the Copy report

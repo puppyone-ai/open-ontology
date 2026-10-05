@@ -1,0 +1,13 @@
+own containers already removed by their launch scripts
+container_rm_exit=none
+network oo-a215-eef831aa-net attached=0
+network_rm_exit=0
+cargo_volume_rm_exit=0
+target_volume_rm_exit=0
+tmp /tmp/oo-a215-eef831aa-dba4-4af2-a78b-541bc9e0a215
+tmp_rm_exit=0
+tmp_still_present=0
+image_kept=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+docker_prune=not_run
+foreign_left=oo-a226-chain oo-a226-pg oo-a229-pg oo-a064-rust194-contract2 oo-a064-rust194-contract oo-a064-pg1710-jobs oo-a064-rust194-smoke
+followup_console=/tmp/oo-a215-eef831aa-manifest-followup.log
