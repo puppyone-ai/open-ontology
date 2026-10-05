@@ -1,0 +1,13 @@
+--- containers before ---
+oo-a190-rust194 Exited (0) About a minute ago a190
+oo-a190-pg Up About an hour a190
+oo-a064-rust194-contract2 Exited (0) 3 days ago a064
+oo-a064-rust194-contract Exited (101) 3 days ago a064
+oo-a064-pg1710-jobs Exited (0) 3 days ago a064
+oo-a064-rust194-smoke Exited (0) 3 days ago a064
+--- a190 network ---
+oo-a190-pg 
+--- volumes ---
+oo-a190-cargo
+oo-a190-pgdata
+oo-a190-target

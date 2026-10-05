@@ -1,0 +1,12 @@
+--- containers after ---
+--- a190 volumes after ---
+--- network after ---
+--- tmp ---
+ls: /tmp/oo-a190-eef831aa-dba4-4af2-a78b-541bc9e0a190: No such file or directory
+ls: /tmp/oo-a190-fixed: No such file or directory
+ls: /tmp/oo-a190-overlay: No such file or directory
+--- foreign still present ---
+oo-a064-rust194-contract2 Exited (0) 3 days ago a064
+oo-a064-rust194-contract Exited (101) 3 days ago a064
+oo-a064-pg1710-jobs Exited (0) 3 days ago a064
+oo-a064-rust194-smoke Exited (0) 3 days ago a064

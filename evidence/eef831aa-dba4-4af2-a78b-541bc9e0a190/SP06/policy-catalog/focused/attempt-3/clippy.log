@@ -1,0 +1,46 @@
+   Compiling aws-lc-sys v0.45.0
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.45
+    Checking rustls-webpki v0.103.15
+    Checking tokio-rustls v0.26.5
+    Checking tokio-postgres-rustls v0.14.0
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: digits grouped inconsistently by underscores
+  --> crates/oo-gateway/tests/policy_catalog_pg_live.rs:48:28
+   |
+48 | const ADVISORY_LOCK: i64 = 6_404_202_6190;
+   |                            ^^^^^^^^^^^^^^ help: consider: `64_042_026_190`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#inconsistent_digit_grouping
+   = note: `-D clippy::inconsistent-digit-grouping` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::inconsistent_digit_grouping)]`
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/oo-gateway/tests/policy_catalog_pg_live.rs:231:42
+    |
+231 |             self.load(&auditor_identity, &[clerk.clone()], UnknownRows::Refuse)
+    |                                          ^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&clerk)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+    = note: `-D clippy::cloned-ref-to-slice-refs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cloned_ref_to_slice_refs)]`
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/oo-gateway/tests/policy_catalog_pg_live.rs:262:36
+    |
+262 |             .load(&clerk_identity, &[clerk.clone()], UnknownRows::Zero)
+    |                                    ^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&clerk)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: very complex type used. Consider factoring parts into `type` definitions
+    --> crates/oo-gateway/tests/policy_catalog_pg_live.rs:1681:15
+     |
+1681 |     let rows: [(&str, i16, i32, i64, Option<&str>, bool, &str); 3] = [
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#type_complexity
+     = note: `-D clippy::type-complexity` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: could not compile `oo-gateway` (test "policy_catalog_pg_live") due to 4 previous errors

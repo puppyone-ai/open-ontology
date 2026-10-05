@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/policy_catalog_pg_live.rs (/target/debug/deps/policy_catalog_pg_live-3f89c667e73917fd)
+
+running 1 test
+
+thread 'policy_catalog_loads_from_postgres_and_executes' (866) panicked at crates/oo-gateway/tests/policy_catalog_pg_live.rs:1018:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test policy_catalog_loads_from_postgres_and_executes ... FAILED
+
+failures:
+
+failures:
+    policy_catalog_loads_from_postgres_and_executes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p oo-gateway --test policy_catalog_pg_live`
