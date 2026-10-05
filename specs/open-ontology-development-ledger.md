@@ -1164,3 +1164,6 @@ a18770068 actualexit0 incomplete fullreports/sourcecommitmissing; focusedbuilder
 
 
 a18890216 actualexit0 completeb6cddea1, all3reports fullyread97hashactual0/rawsmoke+oracle0/owncontainers empty. LimitedW01-LB accepted34→35, existingcomponentrepair no delivered/firstcomponentreviewincrement:29delivered/35accepted/10of29=34.48%. Independent8concurrentquota+processlockcancel/timeout/exit+8192boundedcomplete proof; hostPythonhashlib patternrecompute violation explicitlyretained (SafeRustoracle directive), lateroraclesmustRust. a18751761 actualexit0 incompletefocused-4 alreadylaunched; originalUUIDresume2collectresultfirst. a18910444 ONEunifiedchecklive. ReleasedslotA dispatcha190realPolicyCatalog adapter, policy.rs/nestednewmodule only disjointa187lib/parser and a189executor; no manifests/dependencies. Goalactive/all87parentsopen.
+
+
+a187 originalUUIDresume2 actualhandle32222 slotB parserworker1builder0PG; a190 actualhandle56028 slotA livePolicyCatalog1builder1PG. Launch after interruption verifieda190logabsent/no interveningdispatchcommit, no duplicateoriginal. a18910444 slotC executorrepair continueslastconfirmedlive. Global3builders/actual3Grok; dispatchbb035c56 nextUUIDa191. One25minutewait thenunifiedactualhandlescheck. All87parentsopen/goalactive.
