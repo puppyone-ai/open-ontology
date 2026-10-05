@@ -1,0 +1,1 @@
+docker-run.exit=101 test.exit=0 clippy.exit=101 OOMKilled=false. Three review tests passed in 22.19s. Clippy -D warnings denied dead_code on SeenRange start/end, while_let_loop on two pull loops, and needless_borrow on Context::from_waker. Product hashes and Cargo.lock were unchanged. Notes from this passing test run are kept here. The next run applies those clippy fixes.

@@ -1,0 +1,5 @@
+docker-run.exit=101 test.exit=101 OOMKilled=false. The overlay did not compile.
+ObjectDownload is public in the private file_hosting module and is not re-exported, so the integration test cannot name it.
+Pause tried to Arc::clone fields that are AtomicBool values inside Arc<ProbeLog>, not Arc<AtomicBool>.
+The blocking-get future was still pinned when the test borrowed the reader again.
+rustfmt rewrote the overlay; product hashes stayed unchanged; Cargo.lock stayed unchanged. Artifacts kept here.

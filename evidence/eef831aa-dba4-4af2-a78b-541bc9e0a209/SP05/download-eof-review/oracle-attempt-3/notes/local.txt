@@ -1,0 +1,15 @@
+source_len=23
+source_sha256=e0e224046caa35812b45c51b8a26954aae99bd241927ef719b34af2b1fe9f899
+clean_complete=1
+post_complete_flip_still_complete=1
+later_reader_after_flip=Corrupt
+consumed_prefix_flip=Corrupt
+consumed_prefix_running_matches_source=1
+consumed_prefix_file_matches_source=0
+unread_tail_flip=Corrupt
+truncate_after_first_chunk=Store
+generic_mutations=Unsupported
+generic_clean_complete=1
+generic_prefix_flip=Corrupt
+quota_bytes_unchanged=1
+quota_names_unchanged=1

@@ -1,0 +1,23 @@
+fixed=5e3ba29f8d460a1aa6919733100c34a68a2fdb75
+composition=git archive of the fixed commit plus the review overlay copied after extraction
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a209-oracle
+network=oo-a209-eef831aa-net
+cargo_volume=oo-a209-eef831aa-cargo
+target_volume=oo-a209-eef831aa-target
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+postgres=none
+tmpfs=/tmp:rw,nosuid,nodev,size=2g
+memory=8g
+phases=fetch rustfmt fmt-check test clippy
+package=oo-control
+overlay=crates/oo-control/tests/review_download.rs
+hash_oracle=shasum and git hash-object; no python hashlib
+notes=OO_A209_NOTES

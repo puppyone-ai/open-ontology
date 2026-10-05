@@ -1,0 +1,1 @@
+cargo fmt -- --check walked the workspace and failed on oo-builder files outside this review. The smoke did not reach the file_hosting tests. Artifacts kept here. The next smoke checks rustfmt for the oo-control package only.
