@@ -1,0 +1,90 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: this function has too many arguments (8/7)
+   --> crates/oo-connectors/tests/jsonl_reader.rs:155:1
+    |
+155 | / fn budget(
+156 | |     batch_rows: u32,
+157 | |     batch_bytes: u64,
+158 | |     max_record: u32,
+...   |
+163 | |     deadline: Instant,
+164 | | ) -> JsonlBudget {
+    | |________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: the following explicit lifetimes could be elided: 'a
+   --> crates/oo-connectors/tests/jsonl_reader.rs:265:15
+    |
+265 | fn string_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a StringArray {
+    |               ^^          ^^                                ^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_lifetimes
+    = note: `-D clippy::needless-lifetimes` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_lifetimes)]`
+help: elide the lifetimes
+    |
+265 - fn string_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a StringArray {
+265 + fn string_col(batch: &RecordBatch, index: usize) -> &StringArray {
+    |
+
+error: the following explicit lifetimes could be elided: 'a
+   --> crates/oo-connectors/tests/jsonl_reader.rs:273:13
+    |
+273 | fn bool_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a BooleanArray {
+    |             ^^          ^^                                ^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_lifetimes
+help: elide the lifetimes
+    |
+273 - fn bool_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a BooleanArray {
+273 + fn bool_col(batch: &RecordBatch, index: usize) -> &BooleanArray {
+    |
+
+error: the following explicit lifetimes could be elided: 'a
+   --> crates/oo-connectors/tests/jsonl_reader.rs:281:12
+    |
+281 | fn int_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a Int64Array {
+    |            ^^          ^^                                ^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_lifetimes
+help: elide the lifetimes
+    |
+281 - fn int_col<'a>(batch: &'a RecordBatch, index: usize) -> &'a Int64Array {
+281 + fn int_col(batch: &RecordBatch, index: usize) -> &Int64Array {
+    |
+
+error: this loop never actually loops
+   --> crates/oo-connectors/tests/jsonl_reader.rs:915:15
+    |
+915 |       let err = loop {
+    |  _______________^
+916 | |         match reader.next_batch() {
+917 | |             Ok(JsonlItem::Batch(_)) => panic!("{fact} delivered a batch"),
+918 | |             Ok(JsonlItem::Exhausted(_)) => panic!("{fact} exhausted"),
+...   |
+921 | |     };
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#never_loop
+    = note: `#[deny(clippy::never_loop)]` on by default
+
+error: could not compile `oo-connectors` (test "jsonl_reader") due to 5 previous errors
+warning: build failed, waiting for other jobs to finish...

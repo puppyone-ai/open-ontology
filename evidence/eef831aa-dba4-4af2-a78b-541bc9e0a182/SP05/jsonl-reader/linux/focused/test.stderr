@@ -1,0 +1,162 @@
+   Compiling sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+   Compiling sqlx v0.9.0
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0308]: mismatched types
+   --> crates/oo-connectors/src/jsonl.rs:259:16
+    |
+259 |         sha256(&profile_preimage(self))
+    |         ------ ^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&String`
+    |         |
+    |         arguments to this function are incorrect
+    |
+    = note: expected reference `&[u8]`
+               found reference `&std::string::String`
+note: function defined here
+   --> crates/oo-connectors/src/jsonl.rs:304:4
+    |
+304 | fn sha256(bytes: &[u8]) -> [u8; 32] {
+    |    ^^^^^^ ------------
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/src/jsonl.rs:265:16
+    |
+265 |         sha256(&config_preimage(self, expected_sha256))
+    |         ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&String`
+    |         |
+    |         arguments to this function are incorrect
+    |
+    = note: expected reference `&[u8]`
+               found reference `&std::string::String`
+note: function defined here
+   --> crates/oo-connectors/src/jsonl.rs:304:4
+    |
+304 | fn sha256(bytes: &[u8]) -> [u8; 32] {
+    |    ^^^^^^ ------------
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/src/jsonl.rs:707:52
+    |
+707 |             let overflow_rows = pending_rows + 1 > self.budget.batch_rows;
+    |                                 ----------------   ^^^^^^^^^^^^^^^^^^^^^^ expected `u64`, found `u32`
+    |                                 |
+    |                                 expected because this is `u64`
+    |
+help: you can convert a `u32` to a `u64`
+    |
+707 |             let overflow_rows = pending_rows + 1 > self.budget.batch_rows.into();
+    |                                                                          +++++++
+
+error[E0308]: mismatched types
+   --> crates/oo-connectors/src/jsonl.rs:730:29
+    |
+730 |             if slot.rows == self.budget.batch_rows {
+    |                             ^^^^^^^^^^^^^^^^^^^^^^ expected `u64`, found `u32`
+
+error[E0277]: can't compare `u64` with `u32`
+   --> crates/oo-connectors/src/jsonl.rs:730:26
+    |
+730 |             if slot.rows == self.budget.batch_rows {
+    |                          ^^ no implementation for `u64 == u32`
+    |
+    = help: the trait `PartialEq<u32>` is not implemented for `u64`
+help: the following other types implement trait `PartialEq<Rhs>`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/cmp.rs:1868:12
+    |
+    = note: `u64` implements `PartialEq`
+   ::: /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/cmp.rs:1892:5
+    |
+    = note: in this macro invocation
+    |
+   ::: /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/value/partial_eq.rs:76:13
+    |
+ 76 |               impl PartialEq<Value> for $ty {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `u64` implements `PartialEq<serde_json::value::Value>`
+...
+ 97 | / partialeq_numeric! {
+ 98 | |     eq_i64[i8 i16 i32 i64 isize]
+ 99 | |     eq_u64[u8 u16 u32 u64 usize]
+100 | |     eq_f32[f32]
+101 | |     eq_f64[f64]
+102 | |     eq_bool[bool]
+103 | | }
+    | |_- in this macro invocation
+    = note: this error originates in the macro `partial_eq_impl` which comes from the expansion of the macro `partialeq_numeric` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `std::option::Option<_>: Clone` is not satisfied
+    --> crates/oo-connectors/src/jsonl.rs:1085:29
+     |
+1085 |         let mut vals = vec![None; width];
+     |                        -----^^^^--------
+     |                        |    |
+     |                        |    the trait `Clone` is not implemented for `std::option::Option<_>`
+     |                        required by a bound introduced by this call
+     |
+     = note: required for `std::option::Option<CellVal>` to implement `Clone`
+note: required by a bound in `from_elem`
+    --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/vec/mod.rs:3586:0
+help: consider borrowing here
+     |
+1085 |         let mut vals = vec![&None; width];
+     |                             +
+
+warning: variable does not need to be mutable
+   --> crates/oo-connectors/src/jsonl.rs:773:19
+    |
+773 |     pub fn cancel(mut self) -> JsonlCancelled {
+    |                   ----^^^^
+    |                   |
+    |                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error[E0499]: cannot borrow `*self` as mutable more than once at a time
+    --> crates/oo-connectors/src/jsonl.rs:1045:20
+     |
+1045 |         let read = self.read_some(&mut self.window[self.len..self.len + allow])?;
+     |                    ^^^^^---------^^^^^^-----------^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |                    |    |              |
+     |                    |    |              first mutable borrow occurs here
+     |                    |    first borrow later used by call
+     |                    second mutable borrow occurs here
+
+error[E0499]: cannot borrow `self.window` as mutable more than once at a time
+    --> crates/oo-connectors/src/jsonl.rs:1045:40
+     |
+1045 |         let read = self.read_some(&mut self.window[self.len..self.len + allow])?;
+     |                    ---- ---------      ^^^^^^^^^^^ second mutable borrow occurs here
+     |                    |    |
+     |                    |    first borrow later used by call
+     |                    first mutable borrow occurs here
+     |
+help: try adding a local storing this argument...
+    --> crates/oo-connectors/src/jsonl.rs:1045:51
+     |
+1045 |         let read = self.read_some(&mut self.window[self.len..self.len + allow])?;
+     |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: ...and then using that local as the argument to this call
+    --> crates/oo-connectors/src/jsonl.rs:1045:20
+     |
+1045 |         let read = self.read_some(&mut self.window[self.len..self.len + allow])?;
+     |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0277, E0308, E0499.
+For more information about an error, try `rustc --explain E0277`.
+warning: `oo-connectors` (lib) generated 1 warning
+error: could not compile `oo-connectors` (lib) due to 8 previous errors; 1 warning emitted

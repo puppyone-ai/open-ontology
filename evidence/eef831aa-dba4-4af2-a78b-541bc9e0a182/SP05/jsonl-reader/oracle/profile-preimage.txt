@@ -1,0 +1,5 @@
+oo-jsonl-profile/v1
+id=people
+column=name	utf8	1
+column=ok	bool	0
+column=n	int64	0

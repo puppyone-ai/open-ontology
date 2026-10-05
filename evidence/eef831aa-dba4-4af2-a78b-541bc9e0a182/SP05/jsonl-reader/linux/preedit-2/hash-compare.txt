@@ -1,0 +1,6 @@
+Cargo.toml: OK
+Cargo.lock: OK
+rust-toolchain.toml: OK
+crates/oo-connectors/src/lib.rs: OK
+crates/oo-connectors/Cargo.toml: OK
+contracts/source/pgsql/empty-catalog.json: OK

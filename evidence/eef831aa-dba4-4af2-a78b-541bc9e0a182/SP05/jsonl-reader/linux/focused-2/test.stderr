@@ -1,0 +1,30 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0277]: can't compare `&u8` with `u8`
+   --> crates/oo-connectors/tests/jsonl_reader.rs:226:70
+    |
+226 |                 let line = bytes[..start].iter().filter(|byte| *byte == b'\n').count() as u64 + 1;
+    |                                                                      ^^ no implementation for `&u8 == u8`
+    |
+    = help: the trait `PartialEq<u8>` is not implemented for `&u8`
+help: consider dereferencing here
+    |
+226 |                 let line = bytes[..start].iter().filter(|byte| **byte == b'\n').count() as u64 + 1;
+    |                                                                +
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-connectors` (test "jsonl_reader") due to 1 previous error
