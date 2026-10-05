@@ -1,0 +1,6 @@
+strategy=symlink_metadata_then_rename
+gap=sentinel_written_after_absence
+result=overwritten
+dest_bytes=BUNDLE-a221-gap
+staging_exists=false
+neighbor_bytes=KEEP-NEIGHBOR

@@ -1,0 +1,4 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.58s
+     Running unittests src/bin/role-pack-bundle.rs (/target/debug/deps/role_pack_bundle-3a1a6e5e044ba3e2)
+     Running tests/role_pack_bundle.rs (/target/debug/deps/role_pack_bundle-f1008d124082ab31)

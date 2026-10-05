@@ -1,0 +1,31 @@
+
+running 11 tests
+test tests::cleanup_refuses_a_directory ... ok
+test tests::existing_name_is_not_replaced ... ok
+test tests::field_span_keeps_braces_inside_strings ... ok
+test tests::hard_link_shares_the_inode_and_then_drops_the_staging_name ... ok
+test tests::hash_bytes_matches_sha256_vectors ... ok
+test tests::link_errors_use_static_sentences ... ok
+test tests::link_failure_removes_only_the_staging_file ... ok
+test tests::publish_leaves_a_preexisting_staging_path ... ok
+test tests::publish_removes_staging_when_destination_exists ... ok
+test tests::readback_mismatch_removes_only_the_staging_file ... ok
+test tests::symlink_destination_is_not_replaced ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test competing_processes_one_publishes_and_the_other_refuses ... ok
+test corrupt_utf8_and_oversize_do_not_echo_or_create_output ... ok
+test destination_collision_removes_only_the_owned_staging_file ... ok
+test existing_destination_keeps_the_sentinel ... ok
+test help_and_usage_do_not_touch_files ... ok
+test independent_sha256_matches_core_hash_bytes ... ok
+test missing_kind_and_parent_failures_are_static ... ok
+test preexisting_staging_and_long_name_are_left_untouched ... ok
+test second_publish_keeps_the_first_bundle ... ok
+test two_roles_splice_compiler_bytes_and_independent_hashes ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s
+

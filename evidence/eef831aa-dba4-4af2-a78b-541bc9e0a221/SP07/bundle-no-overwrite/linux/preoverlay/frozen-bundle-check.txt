@@ -1,0 +1,3 @@
+crates/oo-builder/src/bin/role-pack-bundle.rs: OK
+crates/oo-builder/tests/role_pack_bundle.rs: OK
+contracts/builder/role-pack-bundle-v1.md: OK
