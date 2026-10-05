@@ -13,6 +13,8 @@
 //! that session before it returns. It does not open the snapshot owner. Resume
 //! cursors, CDC, and the registry API stay unsupported. [`JSONL_PROTOCOL`] is a
 //! separate bounded file pull over [`std::io::Read`]. It does not admit an import.
+//! [`DELIMITED_PROTOCOL`] is a separate bounded CSV or TSV pull over [`std::io::Read`].
+//! It does not admit an import.
 //! Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
@@ -20,6 +22,7 @@
 mod access;
 mod catalog;
 mod config;
+mod delimited;
 mod error;
 mod ident;
 mod jsonl;
@@ -56,6 +59,18 @@ pub use snapshot::{
     RunCancel, RunCancelled, RunComplete, SnapshotFinished, SnapshotOwner, SnapshotRequest,
     TableAccess,
     CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
+};
+pub use delimited::{
+    BomPolicy, DelimitedBatch, DelimitedBudget, DelimitedCancel, DelimitedCancelled,
+    DelimitedColumn, DelimitedComplete, DelimitedDialect, DelimitedError, DelimitedErrorKind,
+    DelimitedExhausted, DelimitedHeader, DelimitedItem, DelimitedProfile, DelimitedReader,
+    DelimitedType, FieldLineage as DelimitedFieldLineage, FieldPresence as DelimitedFieldPresence,
+    HeaderPolicy, NullPolicy, RowLineage as DelimitedRowLineage, DELIMITED_LINEAGE_VERSION,
+    DELIMITED_MAX_BATCH_BYTES, DELIMITED_MAX_BATCH_ROWS, DELIMITED_MAX_COLUMNS,
+    DELIMITED_MAX_FIELD_BYTES, DELIMITED_MAX_FIELDS, DELIMITED_MAX_NAME_BYTES,
+    DELIMITED_MAX_NULL_TOKEN_BYTES, DELIMITED_MAX_RECORD_BYTES, DELIMITED_MAX_ROWS,
+    DELIMITED_MAX_TOTAL_BYTES, DELIMITED_MIN_RECORD_BYTES, DELIMITED_PROFILE_VERSION,
+    DELIMITED_PROTOCOL, DELIMITED_RECEIPT_VERSION,
 };
 pub use jsonl::{
     FieldLineage, FieldPresence, JsonlBatch, JsonlBudget, JsonlCancel, JsonlCancelled,
