@@ -1,0 +1,1 @@
+{"expected":{"columns":[{"name":"note","type":"text"}],"completion":"complete","kind":"rows","rows":[[{"presence":"value","value":"GOLD-CANARY-a231-9f3c"}]],"warnings":[]},"row_comparator":"ordered"}
