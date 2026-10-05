@@ -1155,3 +1155,6 @@ a18574571 actualexit0 complete699165c2 full3reportsread/fullhashactualchecked/ow
 
 
 a18484576/a1867244 actualexit0 closed; full3reports previouslyread, coordinator273/114hash actualchecked0, greenrawsmoke/probe/postedit exits0 and exactownDocker/volume/networkfilters empty. a184 APPROVE LIMITED W04-EXaccepted33→34; delivered29, firstcomponentreviewapproved denominator28→29 rework10/29=34.48%. BlockedportalDrop2713ms and firstrolebind discrepancy preserved mandatory a189repair; a1863a251dea localquota+8192range repair notnewcomponent nor accepteduntila188review. a18770068 liveperlastunifiedcheck; no repeatobservation. Dispatch a188fixedcontrolreview+a189narrowexecutorrepair, disjointproductionpaths/no dependencywriters/global3Rustbuilders/actual3Grok. All87parentsopen/goalactive.
+
+
+a188 actualGrok4.7xhighhandle90216 slotA fixed3a251dea localboundsreview1builder0PG; a189handle10444 slotC executorblockedDrop/rolebindrepair1builder1PG; a18770068slotBparserworkercontinues. Actual3Grok/global3builders no dependencies/manifests/sharedsourcewriters. Dispatchfd408808, nextUUIDa190; one25minutewait thenONEunifiedactualhandlecheck, no intermediatepolling. Goalactive/all87parentsopen.
