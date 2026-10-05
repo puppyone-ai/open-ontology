@@ -1,0 +1,133 @@
+Diff in /src/benchmarks/trial-statistics/src/parse.rs:206:
+ fn align_variants(left: &ParsedVariant, right: &ParsedVariant) -> Result<(), ConfigError> {
+     for (index, key) in TUPLE_ORDER.iter().enumerate() {
+         if left.tuple[index] != right.tuple[index] {
+-            return Err(ConfigError::at(
+-                "tuple",
+-                format!("/variants/1/tuple/{key}"),
+-            ));
++            return Err(ConfigError::at("tuple", format!("/variants/1/tuple/{key}")));
+         }
+     }
+     if left.variant.questions.len() != right.variant.questions.len() {
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:1:
+ use std::io::Cursor;
+ 
+-use oo_trial_statistics::{evaluate, run, DOCUMENT_MAX_BYTES};
++use oo_trial_statistics::{DOCUMENT_MAX_BYTES, evaluate, run};
+ 
+ fn tuple(model: &str, project: &str, as_of: &str) -> String {
+     format!(
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:97:
+         ),
+         resamples = resamples,
+         seed = seed,
+-        left = variant(left_id, left_model, left_project, left_as_of, left_questions),
++        left = variant(
++            left_id,
++            left_model,
++            left_project,
++            left_as_of,
++            left_questions
++        ),
+         right = variant(
+             right_id,
+             right_model,
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:234:
+         "trial-statistics: budget /variants/0/questions/0/trials\n",
+     );
+     assert_config(
+-        &document("1", "0", "left", "right", &questions(1, 4, 0), &questions(1, 4, 0)),
++        &document(
++            "1",
++            "0",
++            "left",
++            "right",
++            &questions(1, 4, 0),
++            &questions(1, 4, 0),
++        ),
+         "trial-statistics: budget /variants/0/questions/0/trials\n",
+     );
+ 
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:288:
+     );
+     let max_seed = document("1", "18446744073709551615", "left", "right", &q, &q);
+     let evaluation = evaluate(&max_seed).expect("max seed");
+-    assert!(evaluation.report.contains("\"seed\":\"18446744073709551615\""));
++    assert!(
++        evaluation
++            .report
++            .contains("\"seed\":\"18446744073709551615\"")
++    );
+ 
+     assert_config(
+         &document(
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:382:
+ 
+ #[test]
+ fn trial_vectors_and_ids_must_line_up() {
+-    let left = format!("{},{}", question("q0", &["pass"; 3]), question("q1", &["pass"; 3]));
+-    let short = format!("{},{}", question("q0", &["pass"; 3]), question("q1", &["fail"; 2]));
++    let left = format!(
++        "{},{}",
++        question("q0", &["pass"; 3]),
++        question("q1", &["pass"; 3])
++    );
++    let short = format!(
++        "{},{}",
++        question("q0", &["pass"; 3]),
++        question("q1", &["fail"; 2])
++    );
+     assert_config(
+         &document("1", "0", "left", "right", &left, &short),
+         "trial-statistics: trials /variants/1/questions/1/trials\n",
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:390:
+     );
+-    let swapped = format!("{},{}", question("q1", &["pass"; 3]), question("q0", &["pass"; 3]));
++    let swapped = format!(
++        "{},{}",
++        question("q1", &["pass"; 3]),
++        question("q0", &["pass"; 3])
++    );
+     assert_config(
+         &document("1", "0", "left", "right", &left, &swapped),
+         "trial-statistics: schema /variants/1/questions/0/id\n",
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:395:
+     );
+-    let duplicated = format!("{},{}", question("q0", &["pass"]), question("q0", &["fail"]));
++    let duplicated = format!(
++        "{},{}",
++        question("q0", &["pass"]),
++        question("q0", &["fail"])
++    );
+     assert_config(
+         &document("1", "0", "left", "right", &duplicated, &duplicated),
+         "trial-statistics: schema /variants/0/questions/1/id\n",
+Diff in /src/benchmarks/trial-statistics/tests/bounds.rs:428:
+         "trial-statistics: budget /variants/0/id\n",
+     );
+     assert_config(
+-        &document("1", "0", "left", "right", &question("?", &["pass"]), &question("?", &["pass"])),
++        &document(
++            "1",
++            "0",
++            "left",
++            "right",
++            &question("?", &["pass"]),
++            &question("?", &["pass"]),
++        ),
+         "trial-statistics: schema /variants/0/questions/0/id\n",
+     );
+     let mut project = "p".to_owned();
+Diff in /src/benchmarks/trial-statistics/tests/cli.rs:66:
+     let (code, stdout, stderr) = binary(&[], &fixture("mixed-tuple.json"));
+     assert_eq!(code, 2);
+     assert!(stdout.is_empty());
+-    assert_eq!(
+-        stderr,
+-        b"trial-statistics: tuple /variants/1/tuple/model\n"
+-    );
++    assert_eq!(stderr, b"trial-statistics: tuple /variants/1/tuple/model\n");
+ 
+     let (code, stdout, stderr) = binary(&[], &fixture("missing-trial.json"));
+     assert_eq!(code, 2);

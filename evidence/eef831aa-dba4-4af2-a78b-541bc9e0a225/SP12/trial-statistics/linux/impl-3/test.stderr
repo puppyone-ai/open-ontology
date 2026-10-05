@@ -1,0 +1,9 @@
+   Compiling oo-trial-statistics v0.1.0 (/src/benchmarks/trial-statistics)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.44s
+     Running unittests src/lib.rs (/target/debug/deps/oo_trial_statistics-d21533e820d81c03)
+     Running unittests src/main.rs (/target/debug/deps/trial_statistics-5d082e4de84eca0f)
+     Running tests/bounds.rs (/target/debug/deps/bounds-d907e869da400d07)
+     Running tests/cli.rs (/target/debug/deps/cli-16315319ea92533c)
+     Running tests/enumerate.rs (/target/debug/deps/enumerate-ea771f4d3fba8182)
+     Running tests/gold.rs (/target/debug/deps/gold-05cb1c070895b75a)
+   Doc-tests oo_trial_statistics

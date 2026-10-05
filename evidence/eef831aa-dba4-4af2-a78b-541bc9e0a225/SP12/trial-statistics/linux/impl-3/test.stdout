@@ -1,0 +1,52 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+test help_and_usage_do_not_parse_stdin ... ok
+test length_and_payload_budgets ... ok
+test mixed_tuple_is_not_compared ... ok
+test passed_gate_and_whitespace_are_stable ... ok
+test question_and_trial_and_resample_bounds ... ok
+test schema_duplicates_unknown_and_bad_spellings ... ok
+test trial_vectors_and_ids_must_line_up ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 3 tests
+test compiled_cli_config_does_not_write_a_report ... ok
+test compiled_cli_help_and_usage ... ok
+test compiled_cli_reports_and_exits ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test eighty_resamples_match_an_independent_enumeration ... ok
+test known_splitmix_vector_locks_the_library ... ok
+test rejection_tail_matches_the_independent_rule ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test both_variants_needing_reannotation_count_once ... ok
+test handwritten_k3_is_not_a_pass_at_average ... ok
+test handwritten_k3_passed_gate ... ok
+test handwritten_k3_reannotation_stays_in_the_denominator ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
