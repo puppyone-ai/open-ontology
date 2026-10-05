@@ -1,0 +1,1 @@
+Independent tests passed (5). Clippy -D warnings failed on the harness SHA-256 loop (needless_range_loop at reviewed_effective_a228_review.rs). Product sources were not edited. The loop now writes each of the first 16 words through iter_mut.

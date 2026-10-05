@@ -1,0 +1,9 @@
+decision.stale_schema
+decision.stale_fact
+decision.unknown
+decision.duplicate
+decision.invalid
+field.unknown
+hash.schema
+visibility.unknown_column
+seal.rejected

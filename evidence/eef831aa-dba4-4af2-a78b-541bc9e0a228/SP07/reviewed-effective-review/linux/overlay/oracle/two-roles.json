@@ -1,0 +1,25 @@
+{
+  "auto_accept": "accept_everything",
+  "curated_sha256": "26d5e5f72a2b580749ea2b42ba9e8532c78ae42db95dc5034b65a447eee661ad",
+  "customer_id_pii": "personal",
+  "customer_id_semantic": "foreign_key",
+  "decisions_sha256": "b8b46bb240da154bd32b8599d37b3cf23bfcce074281156b76be25acbf71cc32",
+  "desk_has_fk": false,
+  "draft_hash": "7aef5bc111365d4bb4c6c6e732f6c6405c6a4942a4663bd567109cd411108a5f",
+  "email_pack": "classification.unknown_pii",
+  "generated_sha256": "5c05e34a70cd0878e9de0399001566a9b036a50cb5c9af6f0a9acfaad3fda8ed",
+  "hidden": [
+    {
+      "column": "email",
+      "dataset": "public.customer",
+      "reason": "classification.absent"
+    }
+  ],
+  "pay_has_fk": true,
+  "reviewed_at": "2026-10-05",
+  "reviewer": "mina.reviewer",
+  "schema_hash": "bcb019d92270bf12092a3f47697b25719cc087a1ac4b7c56a10cf6dd00294c4c",
+  "sealed_source_sha256": "379e7d46d9a7d9fb83b53a766a8973ab7df53f67ca4d96614972588701a12c43",
+  "tenant_pii": "restricted",
+  "wrapper_hash": "9c9688bfd37a2b39ac2d661d5546249af36a22953242563048c872f5cd614315"
+}
