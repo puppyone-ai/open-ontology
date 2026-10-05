@@ -67,3 +67,13 @@ R01制品/双架构/SBOM与完整依赖政策，R02升级/迁移/回滚/备份�
 复用的是固定版本脚本与结构，不是旧运行结果。每任务复制/参数化已审阅配方到自己的证据目录，记录origin commit/path/SHA256和改动；必须使用UUID私有cargo/target/network/CA/home/tmp/PG，不能复用活跃容器、Secret、cache卷或完成证据。每次保存本次实际命令/退出/镜像/源码/fixture/hash/cleanup；REPORT/FINDINGS/HANDOFF采用相同结构：范围与verdict、固定来源、preedit smoke、决定性验证、保留失败、限制、复现、cleanup。
 
 优先来源：a204 b2b3adab的pipeline无PG preoverlay/overlay-3脚本及报告；a200 a587031c的gateway/privateclang/TLS PG配方；a199 5b8cce62的CSV fresh oracle与SafeRust hash工具。配方使用前审读全文，不能盲跑携带旧UUID/路径的脚本。依赖图/工具链/目标改变才重建配方；同任务保持一个builder。源码与manifest单writer规则优先于复用便利。
+
+## 扩展批次 E1-D（派工前冻结，不改变M1-D分母）
+
+| ID / Plan归属 | 输入→输出 | 验收 | 状态 |
+|---|---|---|---|
+| B-D01 / SP12-W03 | typed expected/actual→exact comparison report | compiled CLI、decimal/null/multiset/partial/completion正确拒绝与接受、固定独立审阅 | 未验收，a212 |
+| O-D01 / SP07-W05 | 两个真实draft artifacts→结构/审核差异 | 实际草案编译器fixture→compiled diff CLI，身份/类型/FK/unknown/strict拒绝 | 未验收，a213 |
+| O-D02 / SP07-W06 | 真实role-pack command→packbytes+sealed bundle | 实际编译器双角色、独立hash、new-only/失败清理、compiled CLI | 未验收，a214 |
+
+E1-D开发0/3，M1-D仍16/24；两批已冻结开发合计16/27（59.26%），只覆盖这两批，不是全项目比例。a211是M1-I02的CLI链证据工作，不增加开发单位。
