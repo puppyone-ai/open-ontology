@@ -174,6 +174,7 @@
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
   - [x] W04-EX 可信输入SELECT执行原语：8a289f0c经a184独立限定批准，真实TLS/列ACL/类型/限额/整次deadline/cancel/rollback；阻塞Drop抢占与首次role绑定修复待a189，公共准入/完整父项未验。
+  - [x] W04-SD 可达服务器Drop抢占与首次role绑定：15d23fe9经a191限定批准，独立10/9ms rollback/backend消失，整次clientdeadline及四类stop；cancel TCP卡住750ms未启动与潜在pendingcancel跨generation缺口待a196，完整父项未验。
 - [ ] SP06-W05 typed结果/质量/freshness
 - [ ] SP06-W06 audit WAL/completion/read-own
 - [ ] SP06完整B/Phase退出
@@ -1185,3 +1186,6 @@ a19348632 actualexit0 completee3363ffe/evidencea699f8da, all3reportsfullyread73h
 
 
 a187originalresume4 actualhandle33449 parserdevelopment; a190originalresumeactualhandle16416 catalogdevelopment; a194handle97845 fixeddownloadreview. a19234924CSVdevelopment anda1919585fixedexecutorreview lastunifiedchecklive. Actual3dev+2review, developmentcap4/reviewcap2/global6builders; reviewsnotdevslots. Dispatchd4832776 nextUUIDa195. NextONE25minutewait thenunifiedactual5handlescheck. All87parentsopen/goalactive.
+
+
+a18733449/a19234924 actualexit0 completedc22cf08a/a63f2de3 and671507b2/123383c0+b487f0a1, full3reportsread228/249hashactual0/focusedgreenClippy0/ownresourcesempty; newcomponents30→32 pendinga195parserreview andCSVreviewqueue. a192hostPythonmanifest directiveviolation retainednotproductoracle; futureoraclesRust. a1919585 actualexit0complete65169f37 all3reportsreadincludingseparatetruncatedFINDINGS/REPORTtail271hashactual0/finalscan0; rawproof.exit1 selfscanmarker ownsource retains, liveClippy0 andfinalcorrectedscan0. LimitedW04-SDaccepted35→36 existingrepairnofirstreviewdenominatorschange. StalledcancelTCP>1502ms andpendingcancelrace NOTclosure, mandatorya196repair notcontractexcused. a19016416/a19497845 actualexit0 incompleteexistingfocusedbuild/smokeoriginalresumesfirst. Dispatcha195fixedparserreview+a196canceltransportrepair+a197realfilevalidationcommand; max4dev+2review/global6, disjointexecutor/policy/pipeline/controlreview/parserreview. Metrics32delivered36accepted10of29=34.48%/all87parentsopen/goalactive.
