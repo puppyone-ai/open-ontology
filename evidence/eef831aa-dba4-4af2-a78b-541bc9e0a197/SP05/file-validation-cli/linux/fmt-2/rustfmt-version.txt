@@ -1,0 +1,1 @@
+rustfmt 1.8.0-stable (4a4ef493e3 2026-03-02)

@@ -1,0 +1,16 @@
+
+running 11 tests
+test empty_absent_header_completes_with_the_empty_digest ... ok
+test cancel_and_read_errors_are_distinct ... ok
+test help_and_unknown_flags ... ok
+test import_command_usage_and_empty_stdin_stay_failed ... ok
+test jsonl_fraction_is_not_int64 ... ok
+test failures_have_no_success_receipt ... ok
+test positive_csv_matches_independent_receipt_and_exact_decimal ... ok
+test positive_jsonl_parses_every_type_including_nested_text ... ok
+test positive_tsv_token_null_and_quoted_token ... ok
+test request_size_is_capped_before_a_success_parse ... ok
+test unknown_profile_dialect_and_secret_field_are_config ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

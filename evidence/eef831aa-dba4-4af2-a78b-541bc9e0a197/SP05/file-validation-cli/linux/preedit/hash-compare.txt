@@ -1,0 +1,9 @@
+Cargo.toml: OK
+Cargo.lock: OK
+rust-toolchain.toml: OK
+crates/oo-pipeline/Cargo.toml: OK
+crates/oo-pipeline/src/lib.rs: OK
+crates/oo-pipeline/src/bin/oo-pipeline.rs: OK
+crates/oo-connectors/src/lib.rs: OK
+crates/oo-connectors/src/delimited.rs: OK
+crates/oo-connectors/src/jsonl.rs: OK

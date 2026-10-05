@@ -1,0 +1,6 @@
+oo-jsonl-profile/v1
+id=events
+column=label	utf8	0
+column=flag	bool	0
+column=count	int64	1
+column=payload	json_text	1
