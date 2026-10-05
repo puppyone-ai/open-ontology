@@ -1,6 +1,6 @@
 //! Live permission-bound SELECT executor.
 //!
-//! Runs only when `OO_A180_LIVE=1`. Without that variable the file compiles
+//! Runs only when `OO_A189_LIVE=1`. Without that variable the file compiles
 //! and returns. It does not claim the parent gateway work items.
 
 use std::fs;
@@ -22,13 +22,14 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
 
-const HOST: &str = "oo-a180-pg";
-const DATABASE: &str = "oo_a180";
+const HOST: &str = "oo-a189-pg";
+const DATABASE: &str = "oo_a189";
 const ADMIN: &str = "oo_fixture_admin";
-const LOGIN: &str = "oo_a180_login";
+const LOGIN: &str = "oo_a189_login";
 const ROLE_A: &str = "oo_r_reader_a";
 const ROLE_B: &str = "oo_r_reader_b";
-const SECRET_DIR: &str = "/run/oo-a180/fixture";
+const ROLE_FLAG: &str = "oo_r_flag_probe";
+const SECRET_DIR: &str = "/run/oo-a189/fixture";
 const ORACLE_PATH: &str = "/evidence/live/oracle.txt";
 const OWNER: &str = "a1800000-0000-4000-8000-000000000180";
 const SHARD: &str = "shard_a180";
@@ -46,8 +47,8 @@ const BYTES_OK: u64 = 256 * 1024;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn live_permission_bound_select() {
-    if std::env::var("OO_A180_LIVE").ok().as_deref() != Some("1") {
-        eprintln!("OO_A180_LIVE is unset; the executor comparison was not run");
+    if std::env::var("OO_A189_LIVE").ok().as_deref() != Some("1") {
+        eprintln!("OO_A189_LIVE is unset; the executor comparison was not run");
         return;
     }
     run_live().await;
@@ -153,6 +154,7 @@ struct Env {
     ca: Vec<u8>,
     shadow: Shadow,
     note_oid: u32,
+    hold_oid: u32,
     oids: Oids,
     eq_int: (u32, u32),
 }
@@ -192,6 +194,7 @@ async fn run_live() {
         .await
         .expect("add extra");
     let note_oid = install_note_function(&admin).await;
+    let hold_oid = install_page_hold(&admin).await;
     install_audit(&admin).await;
     let oids = load_oids(&admin, &shadow).await;
     let eq_int = operator_oid(&admin, oids.int4, oids.int4).await;
@@ -226,6 +229,7 @@ async fn run_live() {
         ca,
         shadow,
         note_oid,
+        hold_oid,
         oids,
         eq_int,
     };
@@ -233,6 +237,8 @@ async fn run_live() {
     happy_reuse_and_bounds(&mut env).await;
     type_lying_drop_and_audit(&mut env).await;
     deadline_cancel_and_role_b(&mut env).await;
+    prove_role_timing(&mut env).await;
+    prove_blocked_shutdown(&mut env).await;
     env.oracle.fact("live_result", "compared");
 }
 
@@ -699,8 +705,30 @@ async fn prove_audit_fail(env: &mut Env) {
         .get(0);
     assert!(!mentioned);
     assert!(session.is_open());
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    let identity_b = identity_for(ROLE_B);
+    let role_b = role_b_catalog(env);
+    let reuse = session
+        .execute_trusted_select(
+            req(
+                &identity_b,
+                &role_b,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_B,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    let reuse = refused(reuse);
+    assert!(matches!(reuse, ExecError::RoleReuse));
+    assert_eq!(audit_count(&env.admin).await, audit_before);
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    assert!(session.is_open());
     session.close();
-    env.oracle.fact("audit_fail", "no_query");
+    env.oracle.fact("audit_fail", "bound_then_other_role_refused");
 }
 
 async fn deadline_cancel_and_role_b(env: &mut Env) {
@@ -897,6 +925,481 @@ async fn prove_role_b_rows(env: &mut Env) {
     env.oracle.fact("role_b", "rows:4 cols:1");
 }
 
+async fn prove_role_timing(env: &mut Env) {
+    prove_fresh_guard_binds(env).await;
+    prove_invalid_role_does_not_bind(env).await;
+    prove_login_flag_closes(env).await;
+}
+
+async fn prove_fresh_guard_binds(env: &mut Env) {
+    let identity = identity_for(ROLE_A);
+    let happy = happy_catalog(env);
+    let mut session = open_session(env).await;
+    let audit_before = audit_count(&env.admin).await;
+    let write = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &happy,
+                "INSERT INTO logistics.shipment (i4) VALUES (1)",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    let write = refused(write);
+    assert!(matches!(write.guard_error(), Some(GuardError::Write)));
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    assert_eq!(audit_count(&env.admin).await, audit_before);
+    assert!(session.is_open());
+    let identity_b = identity_for(ROLE_B);
+    let role_b = role_b_catalog(env);
+    let reuse = session
+        .execute_trusted_select(
+            req(
+                &identity_b,
+                &role_b,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_B,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    let reuse = refused(reuse);
+    assert!(matches!(reuse, ExecError::RoleReuse));
+    assert_eq!(audit_count(&env.admin).await, audit_before);
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment ORDER BY i4",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("same role retry");
+    let (rows, summary) = finish_ok(&mut session, stream).await;
+    assert_eq!(rows.len(), 4);
+    assert_eq!(summary.status(), CompletionStatus::Succeeded);
+    assert!(session.is_open());
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    session.close();
+    env.oracle.fact("fresh_guard_bind", "other_role_rejected same_role_ran");
+}
+
+async fn prove_invalid_role_does_not_bind(env: &mut Env) {
+    let happy = happy_catalog(env);
+    let mut session = open_session(env).await;
+    let bad_identity = identity_for("not-a-role");
+    let invalid = session
+        .execute_trusted_select(
+            req(
+                &bad_identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment",
+                "not-a-role",
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    assert!(matches!(refused(invalid), ExecError::RoleParameter));
+    assert_eq!(session.bound_role(), None);
+    assert!(session.is_open());
+    let mismatched = identity_for(ROLE_B);
+    let mismatch = session
+        .execute_trusted_select(
+            req(
+                &mismatched,
+                &happy,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    assert!(matches!(refused(mismatch), ExecError::RoleParameter));
+    assert_eq!(session.bound_role(), None);
+    let limited_identity = identity_for(ROLE_A);
+    let limited = session
+        .execute_trusted_select(
+            req(
+                &limited_identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_A,
+                2_001,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    assert!(matches!(refused(limited), ExecError::Limit));
+    assert_eq!(session.bound_role(), None);
+    assert!(session.is_open());
+    let identity = identity_for(ROLE_A);
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment ORDER BY i4",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("valid role binds");
+    let (rows, summary) = finish_ok(&mut session, stream).await;
+    assert_eq!(rows.len(), 4);
+    assert_eq!(summary.status(), CompletionStatus::Succeeded);
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    let again = session
+        .execute_trusted_select(
+            req(
+                &bad_identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment",
+                "not-a-role",
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    assert!(matches!(refused(again), ExecError::RoleParameter));
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
+    assert!(session.is_open());
+    session.close();
+    env.oracle.fact("invalid_role", "not_bound");
+}
+
+async fn prove_login_flag_closes(env: &mut Env) {
+    env.admin
+        .batch_execute(
+            "CREATE ROLE oo_r_flag_probe LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE \
+             NOBYPASSRLS NOREPLICATION",
+        )
+        .await
+        .expect("flag role");
+    let identity = identity_for(ROLE_FLAG);
+    let i4_name = env.shadow.i4.clone();
+    let i4_oid = env.oids.int4;
+    let catalog = catalog(env, ROLE_FLAG, vec![("i4", &i4_name, i4_oid)], false, false, 0);
+    let mut session = open_session(env).await;
+    let audit_before = audit_count(&env.admin).await;
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &catalog,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_FLAG,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("flag stream");
+    let (err, summary) = finish_err(&mut session, stream).await;
+    assert!(matches!(err, ExecError::RoleParameter));
+    assert_eq!(summary.status(), CompletionStatus::Failed);
+    assert!(summary.socket_dropped());
+    assert!(!session.is_open());
+    assert_eq!(session.bound_role().as_deref(), Some(ROLE_FLAG));
+    assert_eq!(audit_count(&env.admin).await, audit_before + 1);
+    let identity_b = identity_for(ROLE_B);
+    let role_b = role_b_catalog(env);
+    let closed = session
+        .execute_trusted_select(
+            req(
+                &identity_b,
+                &role_b,
+                "SELECT i4 FROM logistics.shipment",
+                ROLE_B,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await;
+    assert!(matches!(refused(closed), ExecError::SessionClosed));
+    assert_eq!(audit_count(&env.admin).await, audit_before + 1);
+    env.oracle.fact("flag_role", "session_closed");
+}
+
+async fn prove_blocked_shutdown(env: &mut Env) {
+    prove_lock_drop(env).await;
+    let hold = hold_catalog(env);
+    prove_held_drop(
+        env,
+        "sleep",
+        "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+        &hold,
+    )
+    .await;
+    prove_client_budget_spares_next(env, &hold).await;
+    prove_finished_drop_spares_next(env, &hold).await;
+}
+
+async fn prove_lock_drop(env: &mut Env) {
+    let locker = connect_db(DATABASE, ADMIN, &env.admin_pass, &env.ca).await;
+    lock_table(&locker, &env.shadow.table).await;
+    let happy = happy_catalog(env);
+    prove_held_drop(env, "lock", "SELECT i4 FROM logistics.shipment", &happy).await;
+    unlock_table(&locker).await;
+}
+
+async fn prove_held_drop(env: &mut Env, label: &str, sql: &str, catalog: &PolicyCatalog) {
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session(env).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let stream = session
+        .execute_trusted_select(
+            req(&identity, catalog, sql, ROLE_A, 10, BYTES_OK, 8_000),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .unwrap_or_else(|err| panic!("{label} stream refused: {err}"));
+    assert!(
+        wait_user_query(&env.admin, pid, &env.shadow.table).await,
+        "{label} query did not become active"
+    );
+    tokio::time::sleep(Duration::from_millis(3_100)).await;
+    assert!(
+        backend_active(&env.admin, pid).await,
+        "{label} server limit fired before 3s"
+    );
+    let dropped_at = Instant::now();
+    drop(stream);
+    session.wait_idle().await.expect("held idle");
+    let elapsed = dropped_at.elapsed();
+    let summary = session.summary().expect("held summary");
+    env.oracle.fact(&format!("{label}_held_ms"), "3100");
+    env.oracle.fact(&format!("{label}_wall_ms"), "8000");
+    env.oracle.fact(&format!("{label}_drop_ms"), &elapsed.as_millis().to_string());
+    env.oracle.fact(&format!("{label}_status"), summary.status().as_str());
+    env.oracle.fact(&format!("{label}_sqlstate"), summary.sqlstate().unwrap_or("none"));
+    env.oracle.fact(&format!("{label}_stop"), stop_name(summary.stop()));
+    env.oracle.fact(
+        &format!("{label}_rollback"),
+        if summary.rollback_confirmed() { "yes" } else { "no" },
+    );
+    env.oracle.fact(
+        &format!("{label}_socket"),
+        if summary.socket_dropped() { "yes" } else { "no" },
+    );
+    env.oracle.fact(
+        &format!("{label}_end_audit"),
+        if summary.end_audit_ok() { "yes" } else { "no" },
+    );
+    assert_eq!(summary.status(), CompletionStatus::Partial);
+    assert_ne!(summary.status(), CompletionStatus::Succeeded);
+    assert_ne!(summary.status(), CompletionStatus::Failed);
+    assert_eq!(summary.stop(), Some(StopClass::Protocol));
+    assert_eq!(summary.sqlstate(), None);
+    assert!(summary.rollback_confirmed(), "{label} rollback was not confirmed");
+    assert!(summary.socket_dropped());
+    assert!(summary.end_audit_ok());
+    assert!(!session.is_open());
+    assert!(
+        elapsed < Duration::from_millis(1_000),
+        "{label} drop took {} ms",
+        elapsed.as_millis()
+    );
+    assert!(
+        backend_gone(&env.admin, pid, &start).await,
+        "{label} backend stayed active"
+    );
+}
+
+async fn prove_client_budget_spares_next(env: &mut Env, hold: &PolicyCatalog) {
+    let identity = identity_for(ROLE_A);
+    let mut session = open_session(env).await;
+    let pid = session.backend_pid();
+    let start = session.backend_start();
+    let started = Instant::now();
+    let stream = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                hold,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                2_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("budget stream");
+    let handle = stream.cancel_handle();
+    let (err, summary) = finish_err(&mut session, stream).await;
+    let elapsed = started.elapsed();
+    match &err {
+        ExecError::Timeout { sqlstate } => assert_eq!(sqlstate.as_deref(), Some("57014")),
+        other => panic!("client budget became {other}"),
+    }
+    assert_eq!(summary.status(), CompletionStatus::Failed);
+    assert_ne!(summary.status(), CompletionStatus::Partial);
+    assert_eq!(summary.stop(), Some(StopClass::Timeout));
+    assert!(summary.socket_dropped());
+    assert!(!session.is_open());
+    assert!((Duration::from_millis(500)..=Duration::from_secs(5)).contains(&elapsed));
+    assert!(backend_gone(&env.admin, pid, &start).await);
+    let stale = handle.cancel(&env.admin).await.expect("stale budget cancel");
+    assert_eq!(stale, CancelOutcome::NotSent);
+    let mut next = open_session(env).await;
+    let next_pid = next.backend_pid();
+    let next_start = next.backend_start();
+    let sleeping = next
+        .execute_trusted_select(
+            req(
+                &identity,
+                hold,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                8_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("next sleep");
+    assert!(wait_user_query(&env.admin, next_pid, &env.shadow.table).await);
+    let late = handle.cancel(&env.admin).await.expect("late budget cancel");
+    assert_eq!(late, CancelOutcome::NotSent);
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(backend_active(&env.admin, next_pid).await, "late cancel hit the next query");
+    let dropped_at = Instant::now();
+    drop(sleeping);
+    next.wait_idle().await.expect("next idle");
+    let drop_elapsed = dropped_at.elapsed();
+    let next_summary = next.summary().expect("next summary");
+    assert_eq!(next_summary.status(), CompletionStatus::Partial);
+    assert!(
+        drop_elapsed < Duration::from_millis(1_000),
+        "next drop took {} ms",
+        drop_elapsed.as_millis()
+    );
+    assert!(backend_gone(&env.admin, next_pid, &next_start).await);
+    env.oracle.fact(
+        "client_budget",
+        &format!("57014 elapsed_ms:{} late:not_sent", elapsed.as_millis()),
+    );
+}
+
+async fn prove_finished_drop_spares_next(env: &mut Env, hold: &PolicyCatalog) {
+    let identity = identity_for(ROLE_A);
+    let happy = happy_catalog(env);
+    let mut session = open_session(env).await;
+    let first = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                &happy,
+                "SELECT i4 FROM logistics.shipment ORDER BY i4",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                WALL_OK,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("finished first");
+    let (rows, first_summary) = finish_ok(&mut session, first).await;
+    assert_eq!(rows.len(), 4);
+    assert_eq!(first_summary.status(), CompletionStatus::Succeeded);
+    assert!(session.is_open());
+    let pid = session.backend_pid();
+    let sleeping = session
+        .execute_trusted_select(
+            req(
+                &identity,
+                hold,
+                "SELECT fixture.page_hold() FROM logistics.shipment LIMIT 1",
+                ROLE_A,
+                10,
+                BYTES_OK,
+                8_000,
+            ),
+            open_audit(env, false, false).await,
+        )
+        .await
+        .expect("finished next");
+    assert!(wait_user_query(&env.admin, pid, &env.shadow.table).await);
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(backend_active(&env.admin, pid).await, "finished drop canceled the next query");
+    let dropped_at = Instant::now();
+    drop(sleeping);
+    session.wait_idle().await.expect("finished next idle");
+    let elapsed = dropped_at.elapsed();
+    let summary = session.summary().expect("finished next summary");
+    assert_eq!(summary.status(), CompletionStatus::Partial);
+    assert!(
+        elapsed < Duration::from_millis(1_000),
+        "finished next drop took {} ms",
+        elapsed.as_millis()
+    );
+    env.oracle.fact(
+        "finished_drop_next",
+        &format!("still_active drop_ms:{}", elapsed.as_millis()),
+    );
+}
+
+async fn backend_active(client: &Client, pid: i32) -> bool {
+    client
+        .query_one(
+            "SELECT EXISTS (\
+                SELECT 1 FROM pg_catalog.pg_stat_activity \
+                WHERE pid = $1 AND state = 'active')",
+            &[&pid],
+        )
+        .await
+        .expect("backend active")
+        .get(0)
+}
+
+fn stop_name(stop: Option<StopClass>) -> &'static str {
+    match stop {
+        Some(StopClass::Timeout) => "timeout",
+        Some(StopClass::Canceled) => "canceled",
+        Some(StopClass::TypeRefused) => "type",
+        Some(StopClass::Database) => "database",
+        Some(StopClass::Protocol) => "protocol",
+        None => "none",
+    }
+}
+
 fn refused(result: Result<SelectStream, ExecError>) -> ExecError {
     match result {
         Err(err) => err,
@@ -990,6 +1493,18 @@ fn happy_catalog(env: &Env) -> PolicyCatalog {
         true,
         1,
     )
+}
+
+fn hold_catalog(env: &Env) -> PolicyCatalog {
+    let mut catalog = happy_catalog(env);
+    catalog.functions.push(ResolvedFunction {
+        oid: env.hold_oid,
+        schema: "fixture".to_string(),
+        name: "page_hold".to_string(),
+        argument_type_oids: Vec::new(),
+        aggregate_star: false,
+    });
+    catalog
 }
 
 fn amount_catalog(env: &Env) -> PolicyCatalog {
@@ -1315,6 +1830,39 @@ async fn install_note_function(client: &Client) -> u32 {
         .get(0);
     assert_eq!(volatile, "v");
     u32::try_from(oid).expect("note oid range")
+}
+
+async fn install_page_hold(client: &Client) -> u32 {
+    client
+        .batch_execute(
+            "CREATE FUNCTION fixture.page_hold() RETURNS integer\n\
+             LANGUAGE plpgsql VOLATILE AS $$\n\
+             BEGIN PERFORM pg_catalog.pg_sleep(30); RETURN 1; END $$;\n\
+             REVOKE ALL ON FUNCTION fixture.page_hold() FROM PUBLIC;\n\
+             GRANT EXECUTE ON FUNCTION fixture.page_hold() TO oo_r_reader_a",
+        )
+        .await
+        .expect("page hold function");
+    let oid: i32 = client
+        .query_one(
+            "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
+             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+             WHERE n.nspname = 'fixture' AND p.proname = 'page_hold' AND p.pronargs = 0",
+            &[],
+        )
+        .await
+        .expect("page hold oid")
+        .get(0);
+    let volatile: String = client
+        .query_one(
+            "SELECT provolatile::text FROM pg_catalog.pg_proc WHERE oid = ($1::int4)::oid",
+            &[&oid],
+        )
+        .await
+        .expect("page hold volatility")
+        .get(0);
+    assert_eq!(volatile, "v");
+    u32::try_from(oid).expect("page hold oid range")
 }
 
 async fn install_audit(client: &Client) {

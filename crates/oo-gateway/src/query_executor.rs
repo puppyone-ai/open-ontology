@@ -21,10 +21,21 @@
 //! client [`Instant`] taken at `execute_trusted_select` entry. It covers
 //! admission, blocking, network, and drain.
 //!
+//! The first syntactically valid `oo_r_` role that matches `identity.role`
+//! binds the session before the guard and before audit admission. An invalid
+//! role does not bind. A different valid role is `RoleReuse` even when the
+//! first request was refused by the guard or by admission. The `pg_roles`
+//! flag check still runs later, inside the read-only transaction, before the
+//! user statement.
+//!
 //! `Transaction`'s destructor requests a rollback through a private driver
 //! call. That request is not a confirmed rollback. Success awaits `rollback`.
-//! A dropped portal read desynchronizes the connection, so that path cancels
-//! the bound backend and drops the socket instead of claiming a rollback.
+//! Dropping the stream sets shutdown. A database call that is already polled
+//! is cancelled on the bound backend and kept polled until the server answers
+//! or 750 ms passes. A call that has not been polled is not started. A
+//! consumed answer is rolled back. A client deadline, or a call that does not
+//! finish inside that cleanup bound, drops the socket and does not claim a
+//! rollback.
 //! Failure drops the socket even after a confirmed rollback. A late
 //! [`CancelHandle`] carries the generation captured when the query started.
 //! The next query bumps that generation, so the old handle does not call
@@ -75,6 +86,11 @@ const OID_INT2: u32 = 21;
 const OID_INT4: u32 = 23;
 const OID_TEXT: u32 = 25;
 const TIMEOUT_MARGIN: Duration = Duration::from_millis(250);
+
+/// How long a dropped call may wait for the canceled server response and for
+/// `ROLLBACK`. This is not a per-page query budget and does not refresh the
+/// whole-query [`Instant`].
+const CLEANUP_BOUND: Duration = Duration::from_millis(750);
 
 /// Why an untrusted statement cannot be admitted by this crate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -397,7 +413,7 @@ pub enum ExecError {
     AuditUnavailable,
     /// The role string is not the exact `oo_r_<slug>` NOLOGIN shape.
     RoleParameter,
-    /// This session already completed a query as a different role.
+    /// This session already bound a different syntactically valid role.
     RoleReuse,
     /// A limit is outside the slice budget or is not a whole millisecond count.
     Limit,
@@ -583,7 +599,7 @@ impl DedicatedSession {
         })
     }
 
-    /// Guard `request.original_sql`, require audit admission, then start the portal.
+    /// Bind a valid role, guard the original SQL, require admission, then start the portal.
     ///
     /// `wait_idle` while this stream is unread and still held deadlocks: the
     /// producer blocks on a one-row channel. Read the stream or drop it first.
@@ -607,13 +623,20 @@ impl DedicatedSession {
         if request.max_rows > MAX_QUERY_ROWS || request.max_result_bytes > MAX_QUERY_BYTES {
             return Err(ExecError::Limit);
         }
-        if !role_shape_ok(request.role) || request.role != request.identity.role {
-            return Err(ExecError::RoleParameter);
-        }
         {
-            let guard = lock(&self.shared);
-            if guard.bound_role.as_deref().is_some_and(|bound| bound != request.role) {
-                return Err(ExecError::RoleReuse);
+            let mut guard = lock(&self.shared);
+            match role_bind_decision(
+                guard.bound_role.as_deref(),
+                request.role,
+                &request.identity.role,
+            ) {
+                RoleBind::Invalid => return Err(ExecError::RoleParameter),
+                RoleBind::Reuse => return Err(ExecError::RoleReuse),
+                RoleBind::Proceed => {
+                    if guard.bound_role.is_none() {
+                        guard.bound_role = Some(request.role.to_string());
+                    }
+                }
             }
         }
         let plan = guard_select(request.identity, request.catalog, request.original_sql)
@@ -950,7 +973,6 @@ async fn run_producer<A>(
     )
     .await;
     let returned = if attempt.reuse {
-        lock(&shared).bound_role = Some(audit_ids.role.clone());
         Some(client)
     } else {
         drop(client);
@@ -978,39 +1000,54 @@ async fn drive(
     shutdown: &mut watch::Receiver<bool>,
     rows: &mpsc::Sender<StreamItem>,
 ) -> Attempt {
-    let tx = match open_read_only(client, started, limits.wall).await {
+    let backend_start = lock(shared).backend_start.clone();
+    let generation = lock(shared).generation;
+    let pid = lock(shared).backend_pid;
+    let mut hot = HotWait {
+        shutdown,
+        cancel: BoundCancel {
+            shared,
+            token,
+            tls,
+            generation,
+            pid,
+            backend_start: &backend_start,
+        },
+        started,
+        wall: limits.wall,
+    };
+    let tx = match open_read_only(client, &mut hot).await {
         Ok(tx) => tx,
         Err(kind) => {
             if kind.desync {
-                let _ = token.cancel_query(tls.clone()).await;
+                send_bound_cancel(&hot.cancel).await;
             }
             return publish_stop(rows, kind, false).await;
         }
     };
-    if let Err(kind) = apply_session(&tx, role, started, limits.wall).await {
-        return cleanup(tx, rows, kind, started, limits.wall, token, tls).await;
+    if shutdown_requested(hot.shutdown) {
+        return cleanup(tx, rows, consumer_stop(0, 0), &hot).await;
     }
-    let statement = match prepare_user(&tx, executed_sql, started, limits.wall).await {
+    if let Err(kind) = apply_session(&tx, role, &mut hot).await {
+        return cleanup(tx, rows, kind, &hot).await;
+    }
+    let statement = match prepare_user(&tx, executed_sql, &mut hot).await {
         Ok(statement) => statement,
-        Err(kind) => {
-            return cleanup(tx, rows, kind, started, limits.wall, token, tls).await;
-        }
+        Err(kind) => return cleanup(tx, rows, kind, &hot).await,
     };
     if let Err(err) = allowed_result_types(&statement) {
         let kind = StopKind::synced(err);
-        return cleanup(tx, rows, kind, started, limits.wall, token, tls).await;
+        return cleanup(tx, rows, kind, &hot).await;
     }
     if !statement.params().is_empty() {
         let kind = StopKind::synced(ExecError::Protocol { step: "parameters" });
-        return cleanup(tx, rows, kind, started, limits.wall, token, tls).await;
+        return cleanup(tx, rows, kind, &hot).await;
     }
-    let portal = match bind_portal(&tx, &statement, started, limits.wall).await {
+    let portal = match bind_portal(&tx, &statement, &mut hot).await {
         Ok(portal) => portal,
-        Err(kind) => {
-            return cleanup(tx, rows, kind, started, limits.wall, token, tls).await;
-        }
+        Err(kind) => return cleanup(tx, rows, kind, &hot).await,
     };
-    let read = read_pages(&tx, &portal, rows, shutdown, limits, started, token, tls).await;
+    let read = read_pages(&tx, &portal, rows, &mut hot, limits).await;
     match read {
         Read::Finished {
             truncated,
@@ -1060,25 +1097,180 @@ async fn drive(
                 reuse: true,
             }
         }
-        Read::Stop(kind) => cleanup(tx, rows, kind, started, limits.wall, token, tls).await,
+        Read::Stop(kind) => cleanup(tx, rows, kind, &hot).await,
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RoleBind {
+    Invalid,
+    Reuse,
+    Proceed,
+}
+
+fn role_bind_decision(already: Option<&str>, role: &str, identity_role: &str) -> RoleBind {
+    if !role_shape_ok(role) || role != identity_role {
+        return RoleBind::Invalid;
+    }
+    match already {
+        Some(bound) if bound != role => RoleBind::Reuse,
+        _ => RoleBind::Proceed,
+    }
+}
+
+struct BoundCancel<'a> {
+    shared: &'a Mutex<Shared>,
+    token: &'a tokio_postgres::CancelToken,
+    tls: &'a tokio_postgres_rustls::MakeRustlsConnect,
+    generation: u64,
+    pid: i32,
+    backend_start: &'a str,
+}
+
+struct HotWait<'a> {
+    shutdown: &'a mut watch::Receiver<bool>,
+    cancel: BoundCancel<'a>,
+    started: Instant,
+    wall: Duration,
+}
+
+enum Hot<T> {
+    Ready(T),
+    Consumer,
+    NotStartedDeadline,
+    Deadline,
+    Abandoned,
+}
+
+fn consumer_stop(returned_rows: u32, result_bytes: u64) -> StopKind {
+    StopKind {
+        error: ExecError::Protocol { step: "consumer" },
+        desync: false,
+        partial: true,
+        truncated: false,
+        returned_rows,
+        result_bytes,
+    }
+}
+
+fn deadline_stop(returned_rows: u32, result_bytes: u64, desync: bool) -> StopKind {
+    StopKind {
+        error: ExecError::Timeout { sqlstate: None },
+        desync,
+        partial: false,
+        truncated: false,
+        returned_rows,
+        result_bytes,
+    }
+}
+
+fn abandoned_stop(returned_rows: u32, result_bytes: u64) -> StopKind {
+    StopKind {
+        error: ExecError::Protocol { step: "consumer" },
+        desync: true,
+        partial: true,
+        truncated: false,
+        returned_rows,
+        result_bytes,
+    }
+}
+
+/// Poll `future` until it completes.
+///
+/// Shutdown and the client deadline share this future. Dropping it unread
+/// would leave the portal response on the socket. The cleanup sleep starts
+/// only after a bound cancel and does not replace the whole-query budget.
+async fn await_hot<T>(future: impl Future<Output = T> + Send, hot: &mut HotWait<'_>) -> Hot<T> {
+    if shutdown_requested(hot.shutdown) {
+        return Hot::Consumer;
+    }
+    let Some(remain) = remaining(hot.started, hot.wall) else {
+        return Hot::NotStartedDeadline;
+    };
+    let shutdown = &mut *hot.shutdown;
+    let cancel = &hot.cancel;
+    let mut future = std::pin::pin!(future);
+    let mut deadline = std::pin::pin!(tokio::time::sleep(remain));
+    let mut cancel_sent = false;
+    loop {
+        if cancel_sent {
+            let outcome = tokio::select! {
+                biased;
+                result = future.as_mut() => Hot::Ready(result),
+                () = tokio::time::sleep(CLEANUP_BOUND) => Hot::Abandoned,
+            };
+            return outcome;
+        }
+        let outcome = tokio::select! {
+            biased;
+            changed = shutdown.changed() => changed.is_err(),
+            result = future.as_mut() => return Hot::Ready(result),
+            () = deadline.as_mut() => {
+                send_bound_cancel(cancel).await;
+                return Hot::Deadline;
+            }
+        };
+        if outcome || shutdown_requested(shutdown) {
+            send_bound_cancel(cancel).await;
+            cancel_sent = true;
+        }
+    }
+}
+
+async fn hot_result<T>(
+    future: impl Future<Output = Result<T, PgError>> + Send,
+    hot: &mut HotWait<'_>,
+    step: &'static str,
+) -> Result<T, StopKind> {
+    match await_hot(future, hot).await {
+        Hot::Consumer => Err(consumer_stop(0, 0)),
+        Hot::NotStartedDeadline => Err(deadline_stop(0, 0, false)),
+        Hot::Deadline => Err(deadline_stop(0, 0, true)),
+        Hot::Abandoned => Err(abandoned_stop(0, 0)),
+        Hot::Ready(Ok(_)) if shutdown_requested(hot.shutdown) => Err(consumer_stop(0, 0)),
+        Hot::Ready(Ok(value)) => Ok(value),
+        Hot::Ready(Err(_)) if shutdown_requested(hot.shutdown) => Err(consumer_stop(0, 0)),
+        Hot::Ready(Err(err)) => Err(StopKind::synced(classify_pg(err, step, false))),
+    }
+}
+
+/// Cancel only while this generation still names the bound backend.
+///
+/// The stored identity check and `cancel_query` are not separated by another await.
+/// No second session is opened.
+async fn send_bound_cancel(cancel: &BoundCancel<'_>) {
+    let send = {
+        let guard = lock(cancel.shared);
+        guard.accepting_cancel
+            && guard.generation == cancel.generation
+            && guard.backend_pid > 0
+            && guard.backend_pid == cancel.pid
+            && !cancel.backend_start.is_empty()
+            && guard.backend_start == cancel.backend_start
+    };
+    if !send {
+        return;
+    }
+    let tls = cancel.tls.clone();
+    let _ = cancel.token.cancel_query(tls).await;
 }
 
 async fn cleanup(
     tx: Transaction<'_>,
     rows: &mpsc::Sender<StreamItem>,
     kind: StopKind,
-    started: Instant,
-    wall: Duration,
-    token: &tokio_postgres::CancelToken,
-    tls: &tokio_postgres_rustls::MakeRustlsConnect,
+    hot: &HotWait<'_>,
 ) -> Attempt {
     if kind.desync {
-        let _ = token.cancel_query(tls.clone()).await;
+        send_bound_cancel(&hot.cancel).await;
         drop(tx);
         return publish_stop(rows, kind, false).await;
     }
-    let confirmed = rollback_confirmed(tx, started, wall).await;
+    let confirmed = if kind.partial {
+        rollback_bounded(tx, CLEANUP_BOUND).await
+    } else {
+        rollback_confirmed(tx, hot.started, hot.wall).await
+    };
     publish_stop(rows, kind, confirmed).await
 }
 
@@ -1143,68 +1335,37 @@ enum Read {
     Stop(StopKind),
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn read_pages(
     tx: &Transaction<'_>,
     portal: &tokio_postgres::Portal,
     rows: &mpsc::Sender<StreamItem>,
-    shutdown: &mut watch::Receiver<bool>,
+    hot: &mut HotWait<'_>,
     limits: &Limits,
-    started: Instant,
-    token: &tokio_postgres::CancelToken,
-    tls: &tokio_postgres_rustls::MakeRustlsConnect,
 ) -> Read {
     let mut returned_rows = 0_u32;
     let mut result_bytes = 0_u64;
     loop {
-        if shutdown_requested(shutdown) {
-            return Read::Stop(StopKind {
-                error: ExecError::Protocol { step: "consumer" },
-                desync: false,
-                partial: true,
-                truncated: false,
-                returned_rows,
-                result_bytes,
-            });
+        if shutdown_requested(hot.shutdown) {
+            return Read::Stop(consumer_stop(returned_rows, result_bytes));
         }
-        let Some(remain) = remaining(started, limits.wall) else {
-            return Read::Stop(StopKind {
-                error: ExecError::Timeout { sqlstate: None },
-                desync: false,
-                partial: false,
-                truncated: false,
-                returned_rows,
-                result_bytes,
-            });
-        };
-        let page = tokio::select! {
-            biased;
-            changed = shutdown.changed() => {
-                let requested = match changed {
-                    Ok(()) => *shutdown.borrow(),
-                    Err(_) => true,
-                };
-                if requested {
-                    let _ = token.cancel_query(tls.clone()).await;
-                    return Read::Stop(StopKind {
-                        error: ExecError::Protocol { step: "consumer" },
-                        desync: true,
-                        partial: true,
-                        truncated: false,
-                        returned_rows,
-                        result_bytes,
-                    });
-                }
-                continue;
-            }
-            result = tokio::time::timeout(remain, tx.query_portal(portal, PORTAL_PAGE_ROWS)) => result,
-        };
+        if remaining(hot.started, hot.wall).is_none() {
+            return Read::Stop(deadline_stop(returned_rows, result_bytes, false));
+        }
+        let page = await_hot(tx.query_portal(portal, PORTAL_PAGE_ROWS), hot).await;
         let fetched = match page {
-            Ok(Ok(fetched)) => fetched,
-            Ok(Err(err)) => {
-                let error = classify_pg(err, "portal", false);
+            Hot::Consumer => return Read::Stop(consumer_stop(returned_rows, result_bytes)),
+            Hot::NotStartedDeadline => {
+                return Read::Stop(deadline_stop(returned_rows, result_bytes, false));
+            }
+            Hot::Deadline => return Read::Stop(deadline_stop(returned_rows, result_bytes, true)),
+            Hot::Abandoned => return Read::Stop(abandoned_stop(returned_rows, result_bytes)),
+            Hot::Ready(Err(err)) if shutdown_requested(hot.shutdown) => {
+                let _ = err;
+                return Read::Stop(consumer_stop(returned_rows, result_bytes));
+            }
+            Hot::Ready(Err(err)) => {
                 return Read::Stop(StopKind {
-                    error,
+                    error: classify_pg(err, "portal", false),
                     desync: false,
                     partial: false,
                     truncated: false,
@@ -1212,17 +1373,10 @@ async fn read_pages(
                     result_bytes,
                 });
             }
-            Err(_) => {
-                let _ = token.cancel_query(tls.clone()).await;
-                return Read::Stop(StopKind {
-                    error: ExecError::Timeout { sqlstate: None },
-                    desync: true,
-                    partial: false,
-                    truncated: false,
-                    returned_rows,
-                    result_bytes,
-                });
+            Hot::Ready(Ok(_)) if shutdown_requested(hot.shutdown) => {
+                return Read::Stop(consumer_stop(returned_rows, result_bytes));
             }
+            Hot::Ready(Ok(fetched)) => fetched,
         };
         if fetched.is_empty() {
             return Read::Finished {
@@ -1268,7 +1422,7 @@ async fn read_pages(
                 result_bytes,
             };
         }
-        match push_row(rows, shutdown, cells).await {
+        match push_row(rows, hot.shutdown, cells).await {
             Push::Sent => {
                 returned_rows = returned_rows.saturating_add(1);
                 result_bytes = result_bytes.saturating_add(row_bytes);
@@ -1310,51 +1464,41 @@ async fn push_row(
     }
 }
 
-async fn open_read_only(
-    client: &mut Client,
-    started: Instant,
-    wall: Duration,
-) -> Result<Transaction<'_>, StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(
-        remain,
-        client
-            .build_transaction()
-            .isolation_level(IsolationLevel::RepeatableRead)
-            .read_only(true)
-            .start(),
-    )
-    .await
-    {
-        Ok(Ok(tx)) => Ok(tx),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, "begin", false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
+async fn open_read_only<'c>(
+    client: &'c mut Client,
+    hot: &mut HotWait<'_>,
+) -> Result<Transaction<'c>, StopKind> {
+    let started = client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .read_only(true)
+        .start();
+    match await_hot(started, hot).await {
+        Hot::Consumer => Err(consumer_stop(0, 0)),
+        Hot::NotStartedDeadline => Err(deadline_stop(0, 0, false)),
+        Hot::Deadline => Err(deadline_stop(0, 0, true)),
+        Hot::Abandoned => Err(abandoned_stop(0, 0)),
+        Hot::Ready(Err(err)) if shutdown_requested(hot.shutdown) => {
+            let _ = err;
+            Err(consumer_stop(0, 0))
+        }
+        Hot::Ready(Err(err)) => Err(StopKind::synced(classify_pg(err, "begin", false))),
+        Hot::Ready(Ok(tx)) => Ok(tx),
     }
 }
 
 async fn apply_session(
     tx: &Transaction<'_>,
     role: &str,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<(), StopKind> {
-    platform_batch(tx, "SET LOCAL search_path TO ''", "search_path", started, wall).await?;
+    platform_batch(tx, "SET LOCAL search_path TO ''", "search_path", hot).await?;
     match platform_query(
         tx,
         "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolbypassrls, rolreplication \
          FROM pg_catalog.pg_roles WHERE rolname = $1",
         role,
-        started,
-        wall,
+        hot,
     )
     .await?
     {
@@ -1363,25 +1507,23 @@ async fn apply_session(
     }
     let quoted = quote_role(role).map_err(StopKind::synced)?;
     let set_role = format!("SET LOCAL ROLE {quoted}");
-    platform_batch(tx, &set_role, "set_role", started, wall).await?;
-    let Some(ms) = timeout_parameter_ms(started, wall) else {
+    platform_batch(tx, &set_role, "set_role", hot).await?;
+    let Some(ms) = timeout_parameter_ms(hot.started, hot.wall) else {
         return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
     };
     let set_timeout = format!("SET LOCAL statement_timeout = {ms}");
-    platform_batch(tx, &set_timeout, "statement_timeout", started, wall).await?;
+    platform_batch(tx, &set_timeout, "statement_timeout", hot).await?;
     let settings = platform_query_one(
         tx,
         "SELECT current_setting('transaction_isolation'), current_setting('transaction_read_only'), \
          current_user::text, current_setting('search_path')",
-        started,
-        wall,
+        hot,
     )
     .await?;
     let timeout_setting = platform_query_one(
         tx,
         "SELECT setting FROM pg_catalog.pg_settings WHERE name = 'statement_timeout'",
-        started,
-        wall,
+        hot,
     )
     .await?;
     check_settings(&settings, &timeout_setting, role, ms)?;
@@ -1391,124 +1533,53 @@ async fn apply_session(
 async fn prepare_user(
     tx: &Transaction<'_>,
     executed_sql: &str,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<tokio_postgres::Statement, StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(remain, tx.prepare(executed_sql)).await {
-        Ok(Ok(statement)) => Ok(statement),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, "prepare", false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
-    }
+    hot_result(tx.prepare(executed_sql), hot, "prepare").await
 }
 
 async fn bind_portal(
     tx: &Transaction<'_>,
     statement: &tokio_postgres::Statement,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<tokio_postgres::Portal, StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(remain, tx.bind(statement, &[])).await {
-        Ok(Ok(portal)) => Ok(portal),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, "bind", false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
-    }
+    hot_result(tx.bind(statement, &[]), hot, "bind").await
 }
 
 async fn platform_batch(
     tx: &Transaction<'_>,
     sql: &str,
     step: &'static str,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<(), StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(remain, tx.batch_execute(sql)).await {
-        Ok(Ok(())) => Ok(()),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, step, false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
-    }
+    hot_result(tx.batch_execute(sql), hot, step).await
 }
 
 async fn platform_query(
     tx: &Transaction<'_>,
     sql: &str,
     role: &str,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<Option<Row>, StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(remain, tx.query(sql, &[&role])).await {
-        Ok(Ok(rows)) if rows.is_empty() => Ok(None),
-        Ok(Ok(mut rows)) if rows.len() == 1 => Ok(rows.pop()),
-        Ok(Ok(_)) => Err(StopKind::synced(ExecError::RoleParameter)),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, "role", false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
+    let rows = hot_result(tx.query(sql, &[&role]), hot, "role").await?;
+    match rows.len() {
+        0 => Ok(None),
+        1 => Ok(rows.into_iter().next()),
+        _ => Err(StopKind::synced(ExecError::RoleParameter)),
     }
 }
 
 async fn platform_query_one(
     tx: &Transaction<'_>,
     sql: &str,
-    started: Instant,
-    wall: Duration,
+    hot: &mut HotWait<'_>,
 ) -> Result<Row, StopKind> {
-    let Some(remain) = remaining(started, wall) else {
-        return Err(StopKind::synced(ExecError::Timeout { sqlstate: None }));
-    };
-    match tokio::time::timeout(remain, tx.query(sql, &[])).await {
-        Ok(Ok(mut rows)) if rows.len() == 1 => match rows.pop() {
-            Some(row) => Ok(row),
-            None => Err(StopKind::synced(ExecError::Protocol { step: "settings" })),
-        },
-        Ok(Ok(_)) => Err(StopKind::synced(ExecError::Protocol { step: "settings" })),
-        Ok(Err(err)) => Err(StopKind::synced(classify_pg(err, "settings", false))),
-        Err(_) => Err(StopKind {
-            error: ExecError::Timeout { sqlstate: None },
-            desync: true,
-            partial: false,
-            truncated: false,
-            returned_rows: 0,
-            result_bytes: 0,
-        }),
+    let mut rows = hot_result(tx.query(sql, &[]), hot, "settings").await?;
+    if rows.len() != 1 {
+        return Err(StopKind::synced(ExecError::Protocol { step: "settings" }));
     }
+    rows.pop()
+        .ok_or_else(|| StopKind::synced(ExecError::Protocol { step: "settings" }))
 }
 
 fn check_role_row(row: &Row) -> Result<(), StopKind> {
@@ -1563,6 +1634,13 @@ fn check_settings(row: &Row, timeout_row: &Row, role: &str, ms: u64) -> Result<(
         return Err(StopKind::synced(ExecError::Protocol { step: "statement_timeout" }));
     }
     Ok(())
+}
+
+async fn rollback_bounded(tx: Transaction<'_>, bound: Duration) -> bool {
+    match tokio::time::timeout(bound, tx.rollback()).await {
+        Ok(Ok(())) => true,
+        Ok(Err(_)) | Err(_) => false,
+    }
 }
 
 async fn rollback_confirmed(tx: Transaction<'_>, started: Instant, wall: Duration) -> bool {
@@ -1963,6 +2041,35 @@ mod tests {
             cancel_gate(3, 3, true, 42, "20261005120000123456", Some(&other)),
             CancelGate::Refuse
         );
+    }
+
+    #[test]
+    fn role_bind_is_permanent_for_a_valid_role_only() {
+        assert_eq!(
+            role_bind_decision(None, "oo_r_reader_a", "oo_r_reader_a"),
+            RoleBind::Proceed
+        );
+        assert_eq!(role_bind_decision(None, "nope", "nope"), RoleBind::Invalid);
+        assert_eq!(
+            role_bind_decision(None, "oo_r_reader_a", "oo_r_reader_b"),
+            RoleBind::Invalid
+        );
+        assert_eq!(role_bind_decision(None, "oo_r_", "oo_r_"), RoleBind::Invalid);
+        assert_eq!(
+            role_bind_decision(Some("oo_r_reader_a"), "oo_r_reader_a", "oo_r_reader_a"),
+            RoleBind::Proceed
+        );
+        assert_eq!(
+            role_bind_decision(Some("oo_r_reader_a"), "oo_r_reader_b", "oo_r_reader_b"),
+            RoleBind::Reuse
+        );
+        assert_eq!(
+            role_bind_decision(Some("oo_r_reader_a"), "nope", "nope"),
+            RoleBind::Invalid
+        );
+        assert_eq!(CLEANUP_BOUND, Duration::from_millis(750));
+        assert!(CLEANUP_BOUND < Duration::from_secs(1));
+        assert!(CLEANUP_BOUND < MAX_QUERY_WALL);
     }
 
     #[test]

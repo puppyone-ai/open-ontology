@@ -16,7 +16,13 @@ The API takes the caller's current `PolicyCatalog` and `PolicyIdentity` as trust
 
 One `tokio_postgres` client, connected by the platform with TLS. This slice has no pool and does not add a pool type. `DedicatedSession::bind` reads `pg_backend_pid()`, the timezone-stable `backend_start` (`to_char(... AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISSUS')`), and `pg_stat_ssl.ssl` before any user statement and before any cancel. `ssl` must be true. The platform login has to be able to read its own `pg_stat_activity` and `pg_stat_ssl` rows.
 
-The role argument must be `oo_r_` plus a lowercase slug of 1..=58 characters, must equal `identity.role`, and must match exactly one `pg_roles` row whose login, superuser, createdb, createrole, inherit, bypassrls, and replication flags are all false. The check is parameterized. A second role on the same session returns `RoleReuse` before the guard and before the audit hook. The session is not a role multiplexer.
+The role string is read after the session-open check and after the row, byte, and wall limits, and before `guard_select` and before `AuditAdmission::admit`.
+
+A role binds only when it is `oo_r_` plus a lowercase slug of 1..=58 characters and it equals `identity.role`. That first valid role is stored on the dedicated session before the guard runs. An invalid role, or a role that does not equal `identity.role`, returns `RoleParameter` and does not set or clear the stored role. A limit error returns before this check and does not bind.
+
+A later request whose valid role string differs from the stored role returns `RoleReuse` before the guard and before the audit hook. That is also the result when the first request was refused by the guard or by `admit`. The same valid role may be submitted again. The session does not run one connection as two roles.
+
+The `pg_roles` flag check still runs later, inside the `REPEATABLE READ READ ONLY` transaction, before the user statement. The read is parameterized and expects one row. Login, superuser, createdb, createrole, inherit, bypassrls, and replication must all be false. A missing row or any true flag is `RoleParameter` and closes the socket. The next call on that session is `SessionClosed`.
 
 The user statement runs in one `REPEATABLE READ READ ONLY` transaction. Before that statement the executor sets, once:
 
@@ -40,13 +46,19 @@ The prepared statement's result OIDs are checked before the portal is executed. 
 
 `CancelHandle` stores the generation captured when the query became cancellable. `cancel` observes `pg_stat_activity` from a different session, checks the generation, acceptance flag, pid, and `backend_start`, and only then calls `cancel_query`. There is no await between that check and the cancel call. A late handle from a finished query does not cancel the next generation on the same connection. The token's process id does not change for the life of the connection, so the generation is the fence.
 
-`Transaction` drop is not a confirmed rollback. Success awaits `rollback` and re-reads pid and `backend_start` before the client may be reused. A dropped or timed-out portal read desynchronizes the socket: the executor cancels the bound backend when it still has the binding, drops the socket, and does not claim a rollback. Any failure drops the socket even after a confirmed rollback. The client is not returned to a pool. There is no pool. A closed session is not reused, including across roles.
+Dropping `SelectStream` sets the producer shutdown flag. The producer task is not aborted, and an in-flight database future is not dropped to stand in for cancellation. If shutdown is already set before a database call is polled, that call is not started and `cancel_query` is not sent for it. If shutdown arrives while a call is being polled, the producer checks the stored generation, acceptance flag, pid, and `backend_start`, and only then calls `cancel_query`. There is no await between that check and the call, and this path does not open a second session. A mismatch does not call `cancel_query`.
 
-Server `57014` whose message starts with `canceling statement due to user request` is `Canceled`. Any other `57014` is `Timeout` and keeps the SQLSTATE. The message text is not stored. Other database errors expose SQLSTATE only.
+That same future stays pinned. It is polled until the server response is consumed or 750 ms passes. The 750 ms ceiling applies only to this cleanup and to the following `ROLLBACK`. It is not a per-page query budget. It does not refresh the whole-query `Instant` or `statement_timeout`. PostgreSQL still restarts `statement_timeout` on each portal `Execute`; the client budget stays the one `Instant` from `execute_trusted_select`.
+
+A consumed response leaves the socket synchronized. The executor then waits up to 750 ms for `ROLLBACK`. A rollback that returns is recorded as confirmed. The completion status is `partial`, the stop class is `Protocol`, the step is `consumer`, and SQLSTATE is absent. That classification holds when the consumed server error was `57014`. If the 750 ms ceiling expires first, the future is abandoned, the socket is dropped, and rollback is not claimed. The status remains `partial` with stop class `Protocol`.
+
+A client deadline that fires while a call is in flight uses the same bound cancel, drops that unread future, and completes as `failed` with stop class `Timeout` and SQLSTATE absent. Rollback is not claimed. A `CancelHandle` cancel whose `57014` arrives without consumer shutdown completes as `failed` with stop class `Canceled` and keeps SQLSTATE `57014`. Any other server `57014` completes as `failed` with stop class `Timeout` and keeps SQLSTATE `57014`. The message text is not stored. Other database errors expose SQLSTATE only. A `complete` hook failure does not rewrite any of these statuses.
+
+`Transaction` drop is not a confirmed rollback. Success awaits `rollback` and re-reads pid and `backend_start` before the client may be reused. Any result other than success drops the socket even after a confirmed rollback. The client is not returned to a pool. There is no pool. A closed session is not reused, including across roles.
 
 ## Audit
 
-`AuditAdmission::admit` must succeed before `BEGIN`. The live fixture writes one row with a second client (`Client::execute`, autocommit) and is not a production audit WAL. Guard refusal does not call the hook. Hook failure returns `AuditUnavailable` and does not start the query. `complete` runs after the summary is stored. A stream the consumer aborts completes as `partial` or `failed`, never `succeeded`. A `complete` failure does not rewrite that status into success. The summary's `end_audit_ok` flag records the hook result separately.
+`AuditAdmission::admit` must succeed before `BEGIN`. The live fixture writes one row with a second client (`Client::execute`, autocommit) and is not a production audit WAL. Guard refusal does not call the hook. Hook failure returns `AuditUnavailable` and does not start the query. The role is already bound when that happens. `complete` runs after the summary is stored. A stream the consumer drops completes as `partial`, never `succeeded`. A cancel handle or a deadline completes as `failed`. A `complete` failure does not rewrite that status into success. The summary's `end_audit_ok` flag records the hook result separately.
 
 `QuerySummary`, `Cell`, `Admission`, and `CompletionRecord` are built by this crate. Fields are private. There is no public constructor a caller can use to forge a completed read.
 
