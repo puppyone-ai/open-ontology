@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "oo-query-result-adapter"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Map one query-pg JSONL result into a typed comparator actual. Not a scorer."
+
+[[bin]]
+name = "query-result-adapter"
+path = "src/main.rs"
+
+[dependencies]
+oo-core = { path = "../../crates/oo-core" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+# Same registry pin as the library. The integration tests parse its stdout.
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
