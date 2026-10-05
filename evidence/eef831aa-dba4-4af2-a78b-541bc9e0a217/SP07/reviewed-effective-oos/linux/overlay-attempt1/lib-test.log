@@ -1,0 +1,12 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+error[E0432]: unresolved import `oo_core::text::CivilDate`
+  --> crates/oo-builder/src/reviewed_effective.rs:24:21
+   |
+24 | use oo_core::text::{CivilDate, Label, TableName};
+   |                     ^^^^^^^^^ no `CivilDate` in `text`
+   |
+   = help: consider importing this struct instead:
+           oo_core::oos::CivilDate
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `oo-builder` (lib test) due to 1 previous error

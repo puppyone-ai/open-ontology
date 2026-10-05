@@ -1,0 +1,42 @@
+Reviewed launch and hash recipes copied with the minimum edits for UUID eef831aa-dba4-4af2-a78b-541bc9e0a217.
+Fixed product commit c2db9c430b822a824a1062b6c3c7345924df7dd8. This file records origin blobs at the workspace when the copies were taken. The product archive is that fixed commit, not HEAD.
+
+a204 file-validation review preoverlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+    blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  Used for the partial git archive (Cargo.toml, Cargo.lock, rust-toolchain.toml, .cargo, crates, contracts), the refuse-to-overwrite console.log rule, and the docker run shape.
+
+a200 policy-catalog review smoke:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+    blob 20b391304358e474c189203eeb525b46fc2ea194
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/inside.sh
+    blob d3613027a864b2a40d24642b861374027227f41f
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/tools/sha256.rs
+    blob b69a2af13099ce4baf2d04e79c5692d9988ab67d
+    copied unchanged to tools/sha256.rs
+
+a199 delimited-reader review preoverlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+    blob 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+  Used for the archive-drift check and the private network, cargo volume, and target volume labels.
+
+Edits from those recipes: owner a217, session eef831aa-dba4-4af2-a78b-541bc9e0a217, fixed commit c2db9c430b822a824a1062b6c3c7345924df7dd8, new builder memory 6g and cpus 1, CARGO_BUILD_JOBS 1, global running rust-builder cap 10, private network and volumes, focused oo-builder tests. No privileged mode, host network, docker socket, host home, or shared cargo cache. No PostgreSQL. libclang extraction is not copied: this crate's build does not use bindgen. The fixed commit's rust-toolchain.toml names channel 1.98.1; the extracted copy used for the build is moved aside so the pinned 1.94.0 image stays selected, and RUSTUP_TOOLCHAIN=1.94.0 is set. The git object is not rewritten.
+
+Smoke attempt 1 is linux/smoke-attempt1. docker-run exit 101. captured_pg passed. review_pg_cli could not read evidence/eef831aa-dba4-4af2-a78b-541bc9e0a157/SP07/captured-pg-draft-review/probe/out/catalog-before.json because the partial archive did not include it. Attempt 2 adds catalog-before.json and catalog-after.json from the same fixed commit. No product file is added to the smoke archive. Attempt 2 docker-run exit 0. rustc 1.94.0. Lock unchanged 16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a. captured_pg 6, review_pg_cli 4, role_pack 11, role_pack_cli 4 passed. OOMKilled false. Container removed.
+
+Overlay launch reuses this task's smoke launch and inside scripts, which already carry the a204, a200, and a199 recipe notes above. Additional origin blobs read before the overlay copy:
+
+a204 overlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay/launch.sh
+    blob b3f7d047398274d585dd4f2133477bb7912d3a1f
+  Used for copying owned files onto a fresh fixed archive and refusing to overwrite console.log.
+
+a200 proof launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+    blob d22e475694a69d32689401f59a98b456fff9a6aa
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/inside.sh
+    blob f0ead5074056bc47cdcc3de755c382d7a03e3998
+
+This task smoke launch blob d715ba6bc1b0a7cd0f414abe05bd86c998319a49. Smoke inside blob 9e2de0745a365aa0adc6b6afd74862d67c768ef5.
+
+Overlay edits: container oo-a217-overlay, evidence linux/overlay, same 6g and 1 CPU, same private network and volumes, archive of c2db9c430b822a824a1062b6c3c7345924df7dd8 plus the two review fixtures, then only the owned product files. Uncommitted tracked edits under crates/oo-builder and contracts/builder other than crates/oo-builder/src/lib.rs are refused. Commits after the fixed archive, including the role-pack bundle, are not copied. lib.rs is copied only when its diff against the fixed blob adds mod reviewed_effective and the reviewed_effective exports. Focused commands are cargo test --lib reviewed_effective, cargo test --test reviewed_effective, and cargo clippy -p oo-builder --lib --bins --test reviewed_effective -- -D warnings. No PostgreSQL. No dependency edit.

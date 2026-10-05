@@ -1,0 +1,8 @@
+59be2f75130f82889c34399b2e498ebdbb3019bda0f5e8b28f85319f84145d4b  crates/oo-builder/src/lib.rs
+9fb2562bf81892436f81087c719723a48f21395fb7134e3933a69f66d8807b3f  crates/oo-builder/src/bin/oo-builder.rs
+e9349ccd9b0e4576e0b4dd712e28aba0f5e7562dba72413d431aac3d14a7d544  crates/oo-builder/src/role_pack.rs
+d44463afbd193011de39d7f97afe3758cc07555faaab69eaf3a03fafa1f2f99d  crates/oo-builder/src/role_pack_cli.rs
+04a5df89bb4906a96528f7fba4489e992becde0d4e9fc50b8f7a395545f47e88  crates/oo-builder/src/captured_pg.rs
+dce53af7210c4d8c87bb3bff78ac349e56f4be7d432dfe2242a9c9166d47132a  contracts/builder/role-pack-v1.md
+abfe41ef9a614c81d6bbaeb1b4da7abde931e825b0a17b7ccf1a8555f2f65c41  contracts/builder/captured-pg-draft-v1.md
+16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

@@ -1,0 +1,17 @@
+cleanup_session=eef831aa-dba4-4af2-a78b-541bc9e0a217
+date=2026-10-05T21:34:17Z
+=== containers before ===
+=== volume labels ===
+oo-a217-eef831aa-cargo owner=a217 session=eef831aa-dba4-4af2-a78b-541bc9e0a217 kind=cargo
+oo-a217-eef831aa-target owner=a217 session=eef831aa-dba4-4af2-a78b-541bc9e0a217 kind=target
+=== network label ===
+oo-a217-eef831aa-net owner=a217 session=eef831aa-dba4-4af2-a78b-541bc9e0a217
+=== rm volumes ===
+oo-a217-eef831aa-cargo
+oo-a217-eef831aa-target
+=== rm network ===
+oo-a217-eef831aa-net
+=== rm private tmp ===
+tmp_removed
+=== after ===
+cleanup_done
