@@ -1,10 +1,10 @@
 # 冻结验收计数与复用规范（OO-COUNT-001，2026-10-06）
 
-本文件是 Plan 的执行附录。冻结当前优先纵向批次 M1-D 的24个开发验收单位；全项目87个父工作项和16个Phase仍全部保留。**16/24（66.67%）只表示此批次开发验收，不表示全项目开发完成率或可发行。** 后续数据库、文件、CDC等按单独冻结批次报告，不能纳入本批次分母后回填成功。
+本文件是 Plan 的执行附录。冻结当前优先纵向批次 M1-D 的24个开发验收单位；全项目87个父工作项和16个Phase仍全部保留。**17/24（70.83%）只表示此批次开发验收，不表示全项目开发完成率或可发行。** 后续数据库、文件、CDC等按单独冻结批次报告，不能纳入本批次分母后回填成功。
 
 ## 计数规则
 
-开发单位完成要求：固定接口与范围、真实实现、Linux/MSRV局部测试与必要边界测试、固定提交独立批准、协调者核验原始退出及证据hash。已批准的有限接口范围按原review约束计数；发现强制返工时增加缺陷状态，不删除历史批准、不增加新功能单位；当前可用性另标受影响。修复、补报告、增加测试和重审均不增加分母或交付功能数。16个已验单位可包含同一功能的API与CLI，因接口/用户输出及验收不同；不能据此宣称16个独立产品组件。
+开发单位完成要求：固定接口与范围、真实实现、Linux/MSRV局部测试与必要边界测试、固定提交独立批准、协调者核验原始退出及证据hash。已批准的有限接口范围按原review约束计数；发现强制返工时增加缺陷状态，不删除历史批准、不增加新功能单位；当前可用性另标受影响。修复、补报告、增加测试和重审均不增加分母或交付功能数。17个已验单位可包含同一功能的API与CLI，因接口/用户输出及验收不同；不能据此宣称16个独立产品组件。
 
 新增/合并/删除单位必须先提交范围变更记录：旧分母、新分母、原因、对应Plan父ID、输入/输出、测试、旧证据迁移。禁止完成后再拆单位抬高完成率。历史35交付组件/41验收子项/10of34首次返工是历史吞吐计数，口径不同，不能用41除24。
 
@@ -32,7 +32,7 @@
 | M1-D14 | 列ACL安装 | mapping/role classification→column grants | 已验收，a173 |
 | M1-D15 | SELECT AST准入 | trusted catalog/SQL→physical guarded query | 已验收，a179 |
 | M1-D16 | live PolicyCatalog | actual mapping/ACL/OID→guard catalog | 已验收，a200 |
-| M1-D17 | 实际PG查询CLI | trusted SQL→typed rows/audit/exit | 未验收，pending:a208 |
+| M1-D17 | 实际PG查询CLI | trusted SQL→typed rows/audit/exit | 已验收，a208 |
 | M1-D18 | 语义发布屏障 | reviewed version/DB seal→authorized published snapshot | 未验收，pending |
 | M1-D19 | 自然语言CLI对话 | prompt/role pack→agent query turn/result | 未验收，pending |
 | M1-D20 | 完整agent harness | session/pack/tools→actual agent RPC turn | 未验收，pending |
@@ -52,7 +52,7 @@ D15 parser内核隔离依赖D23；D16当前角色测试修复a206由a208验证�
 | M1-I03 | 已发布语义版本→自然语言CLI/真实harness/session释放 | 真实agent工具调用、权限拒绝、stop/restart/revoke资源闭环 | 未验收 |
 | M1-I04 | 同一集成提交→Linux/MSRV双架构部署与回归 | pinned双架构完整相关矩阵/Compose启动/恢复，证据与源码一一对应 | 未验收 |
 
-当前集成0/4；该0只表示四条完整链尚未验收，不否定16项开发交付。部分运行记录可标“已运行、待修复/待审”，不能冒充链完成。
+当前集成0/4；该0只表示四条完整链尚未验收，不否定17项开发交付。部分运行记录可标“已运行、待修复/待审”，不能冒充链完成。
 
 ## 发行准备度（冻结6个内部包，外部条件另列）
 
@@ -76,4 +76,4 @@ R01制品/双架构/SBOM与完整依赖政策，R02升级/迁移/回滚/备份�
 | O-D01 / SP07-W05 | 两个真实draft artifacts→结构/审核差异 | 实际草案编译器fixture→compiled diff CLI，身份/类型/FK/unknown/strict拒绝 | 未验收，a213 |
 | O-D02 / SP07-W06 | 真实role-pack command→packbytes+sealed bundle | 实际编译器双角色、独立hash、new-only/失败清理、compiled CLI | 未验收，a214 |
 
-E1-D开发0/3，M1-D仍16/24；两批已冻结开发合计16/27（59.26%），只覆盖这两批，不是全项目比例。a211是M1-I02的CLI链证据工作，不增加开发单位。
+E1-D开发0/3，M1-D现17/24；两批已冻结开发合计17/27（62.96%），只覆盖这两批，不是全项目比例。a211是M1-I02的CLI链证据工作，不增加开发单位。

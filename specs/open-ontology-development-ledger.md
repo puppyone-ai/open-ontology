@@ -15,7 +15,7 @@
 
 ## 当前分层进度
 
-冻结规则见[验收计数附录](open-ontology-acceptance-counting.md)。M1-D开发16/24（66.67%）；M1集成0/4；内部发行包0/6；外部X01–X05单列待核验。全量开发分母尚未冻结，不能把87父项未退出当作开发0%。历史吞吐35交付组件/41验收子项/首次返工10of34独立记录。
+冻结规则见[验收计数附录](open-ontology-acceptance-counting.md)。M1-D开发17/24（70.83%）；M1集成0/4；内部发行包0/6；外部X01–X05单列待核验。全量开发分母尚未冻结，不能把87父项未退出当作开发0%。历史吞吐35交付组件/41验收子项/首次返工10of34独立记录。
 
 ## 1. 写入边界与冲突规约
 
@@ -169,7 +169,7 @@
 - [ ] SP05-W04 SQLite/dump隔离恢复
 - [ ] SP05-W05 import策略/lineage/取消
 - [ ] SP05-W06 下载/保留/删除/reaper
-  - [x] W06-DL 本地bounded download pull：e3363ffe经a194限定批准，独立8192range/32MiB resident77824bytes/输入context与running hash；已读前缀后改仍Complete与await间deadline检查缺口待a202；公共auth/TTL/reaper未验。
+  - [x] W06-DL 本地bounded download pull：e3363ffe经a194限定批准，独立8192range/32MiB resident77824bytes/输入context与running hash；a202修复经a209固定限定批准，已读前缀改变拒绝Complete、await前后deadline与8192存储复哈希；在途FS不可抢占/未来修改不撤销历史EOF；公共auth/TTL/reaper未验。
 - [ ] SP05全格式/Phase退出
 
 ### SP06
@@ -223,6 +223,7 @@
   - [ ] W01-a 有界JSON query Rust SDK：a084六项runtime问题经bde2e8c修正，a090固定批准；完整SDK和供应链独立pending。该协议验收不替代生产Gateway/PG闭环。
   - [x] W01-a-R 六项runtime修正：a090固定bde2e8c独立55必验case通过；短token/SQL、一次percent/路径脱敏、Header敏感与Retry-After边界。仅此切片，不签完整W01-a。
 - [ ] SP09-W02 CLI/认证/输出/退出码
+  - [x] W02-PQ trusted query-pg CLI：4f3f329a同blob在a661dcdf经a208限定批准，真实TLS双角色typed rows/两轮/42501/local audit与退出；非NL/auth/WAL/harness。
   - [ ] W02-a 外部认证query/JSON/Markdown/退出码：a103固定3347f5a复审request-changes；a106已交付FIFO修正版7acca207，a111固定复审已批准FIFO修复，完整query子项仍unsigned；沙盒proxy/管理命令/完整对话另验。
   - [x] W02-a1 CLI-FIFO-OPEN-BLOCKS定点修复：a111固定7acca207独立批准；Linux1.94 11tests与24oracle cases通过，六FIFO无signal/zeroaccepts；不签完整query或SP09。
 - [ ] SP09-W03 Arrow/EOS/Parquet/completion
@@ -1247,3 +1248,5 @@ Actual newGrok4.7xhigh: a21136094 actualCLIchain1builder1PG; a21257582benchmarkc
 AfterONE20min unified9actualhandle observation: a20346177 and a20787636 actualexit0 incomplete (all3reportsmissing; existingintegrationharness and actualIPCbuilder alreadylaunched), originalUUIDresumescollectexistingresultsfirst. a21064540/a20868110/a20950300/a21136094/a21257582/a21372216/a21456227 live, no repeatedobservation. No newacceptance/completionmetric change. Continue7dev+2review with resumedhandles; globalbuilder10/eachmax1 unchanged.
 
 a203 originalresume3 actualhandle83467; a207 originalresume actualhandle36350. Other7actualhandles64540/68110/50300/36094/57582/72216/56227 remain lastconfirmedlive. ONE20minwait next unified9handlecheck. No duplicates/newbuilders beyondownresources, no acceptance from exit0 alone.
+
+AftersecondONE20min unified9actualhandle observation: a20868110/a20950300/a21064540/a21257582 actualexit0 complete. Full3reportsread and354/182/196/286hash entries actualverified0; smoke/decisiveproof+Clippy0, a210realred101 preserved; exactowncontainers empty. a208400bfac1 limitedqueryCLIacceptance+scopeda206alignment; M1-D17/24, historicalaccepted41→42, firstcomponentreview34→35/rework10of35=28.57%. a209c630d609 limitedEOFrepair closure no newunit per frozenrule. a2108434b451/31767bbc repairs abortbusy→closed pendinga216 independentreview, no newcomponent. a2120ae42f94 authored35focusedtests/Clippy0 actualbenchmarkcomparator addsuniquecomponent35→36 pendingreview/E1-Dremains0/3. a20383467 and a21372216 actualexit0 incomplete existingharness/diffbuilderalreadylaunched originalsresume firstcollectresults; a20736350/a21136094/a21456227 live. Dispatcha215parserreap+a216cancelRAII fixedreviews separatecapacity; benchmarkreviewqueued. No parent/releaseclosure.
