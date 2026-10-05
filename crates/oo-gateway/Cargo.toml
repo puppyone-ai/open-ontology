@@ -12,6 +12,9 @@ workspace = true
 
 [dependencies]
 oo-core = { path = "../oo-core" }
+# Exact pins already locked by the workspace. arbitrary_precision keeps integer text exact.
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 # Pinned to the versions already locked by the workspace. Not a new stack.
 tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
