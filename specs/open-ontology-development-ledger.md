@@ -163,6 +163,7 @@
   - [x] W01-LB 本地并发quota与流式发布：3a251dea经a188固定独立限定批准，8并发只保留8/10配额、8192字节range、独立32MiB常驻增量139264字节；S3/跨机器独立目录/download/reaper另验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
   - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
+  - [x] W02-FI / F-D01 file-parser child IPC：6bd24558经a224固定限定批准，actualStreamReader独立9fixtures+Arrow四新包source/license/MSRV/age/hash检查；falseimport/publication/kernelUnsupported，parent/loader另验。
   - [x] W02-FV validate-file命令：59be14ba经a204固定独立限定批准，Linux1.94既有11测试与独立10进程测试/Clippy0，三格式EOF receipt及错误退出；可信本地校验，不签IPC/import/publicauth。
   - [x] W02-DS explicit CSV/TSV pull：671507b2经a199固定独立限定批准，实际Arrow exactdecimal/int64/UTF8/引号/lineage/EOF SHA；blockingRead不可抢占，IPC/loader/其他编码仍未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
@@ -1273,3 +1274,5 @@ ONE20min unified8handles: a21768984/a21817378/a21910077/a22030118 actualexit0 co
 Reviewqueueactualcapacityupdate: developmentcap12 unchanged; reviewsoutsidecap, increaseindependentreview2→4 with global10builders6GiB1CPU/newprivatePG. Actual4dev(a222/a225+a226/a227) plus4review(a215/a224+a228bridge/a229ACL)8totalbuildersmax48GiB+PG, leaves2builderheadroom. No sharedsource/dependencywriter, reviewsfixedimmutablecommits; necessaryscopeonly. Newreviewdispatch advances productacceptance bottleneck, not repeatedreview ofsameunchangedparts.
 
 a226actual20637 reviewedPGcomposition1builder1PG; a227actual26129 reviewedpolicyadapter1builder0PG; a228actual82214 fixedbridgeindependentreview1builder0PG; a229actual82328 fixedACLsetreview1builder1PG. a22261938/a22522103 dev and a21564756/a2244463 review remainlastconfirmedlive. Actual4development+4independentreview/globalmax10builders 6GiB1CPU each, devcap12 reviewsoutsidecap. Dispatcha21894de nextUUIDa230; initCLI/stats/parent/bundle/comparator/diff reviewqueue remains. NextONE20minwait unified8actualhandles.
+
+ONE20min unified8handles: a22261938/a22522103/a2244463 actualexit0 complete; full3reportsread/545/307/353hashverified0/rawdecisive0/owncontainers empty. a224IPCF-D01limitedaccepted historical42→43, firstcomponentreview35→36/rework10of36=27.78%; H0-D1/1 inheriteda207prefrozen scope notretroactivefeaturesplit/M1unchanged17of24. a222ed661809 query→adapter→comparator realTLS+handgold and a2254b15249b actualpassk/bootstrap17tests/Clippy0 authored2components43→45 pendingreviews; truncatedadaptercompleteactualone rowcomparefullgoldmismatch, runnera231mustrefuse !truncated independentsemanticcompletion. a22620637/a22726129/a21564756/a22882214/a22982328 live no repeatedobservation. Freedreviewslotdispatcha230fixedstats independentreview; freeddevslotdispatcha231actualtrustedSQLbenchmarkrunner frozenB-D04 E5-D0/1 beforecode. Developmentcap12 separate4review/global10builders.

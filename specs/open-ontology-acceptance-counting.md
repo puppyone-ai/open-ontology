@@ -98,3 +98,11 @@ B-D03 / SP12-W03：成对完整question试次向量→精确pass^k与可复现�
 ## E4-D（派工前冻结）
 
 M1-D14B / SP06-W01：真实sealed reviewed-effective artifact+administrative role/mapping bindings→已编译ColumnAclPolicy完整set；验收实际编译器输出消费、currentdecision/schema/fact/PII/semantic闭包与tamper/unknown/stale拒绝。E4-D0/1，a227；纯adapter不证明身份/授权安装/发布。所有已冻结批次合计17/35（48.57%），仍不是全项目率。a226是既有I01/I02组合证据，不能新增开发分母或自动签收I节点。
+
+## H0-D：继承既有冻结任务卡的文件子项
+
+F-D01 / SP05-W02：a207在dbaad666派工前已冻结的真实file-parser child→CSV/TSV/JSONL framed IPC与clean-EOF receipt，a224固定6bd24558独立限定批准。此处补充计数ID归属，不改变已派卡范围、不把测试拆新功能。H0-D1/1；parent/loader/公共隔离仍未验。历史已冻结卡未在初版M1表中列入，单列继承批次避免冒充M1进度。
+
+## E5-D（派工前冻结）
+
+B-D04 / SP12-W02：explicit synthetic suite+trusted executable hashes→实际query/adapter/comparator逐题独立试次报告；验收freshprivateTLS双角色/手写gold/hidden/timeout/缺completion/匹配截断前缀仍拒绝、保留所有失败trial与子进程回收。E5-D0/1，a231；只trustedSQL基线，不替代真实agent会话/历史冻结DB证明/客户benchmark。合计已冻结批次18/37（48.65%），不是全项目完成率。
