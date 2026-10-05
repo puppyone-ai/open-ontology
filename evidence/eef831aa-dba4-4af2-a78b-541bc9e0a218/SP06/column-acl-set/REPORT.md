@@ -87,4 +87,4 @@ Attempt logs, notes, and the partial live outputs stay in `linux/proof/attempt-1
 
 `MANIFEST.sha256` is a host `shasum -a 256` of every file in this directory except itself, written after this report, `FINDINGS.md`, and `HANDOFF.md`. It is not a cargo run and not a Python digest.
 
-At the time these three reports were written, `oo-a218-pg` was still up. `cleanup/run.sh` had not run. Smoke and proof containers were already removed by their launch scripts.
+Smoke and proof containers were already removed by their launch scripts when these reports were first written. `cleanup/run.sh` then ran after evidence commit `4df5d9165193adf5307a0bdf9f690ca3679b577f`. Its transcript is `CLEANUP.txt`. The private PostgreSQL container, the three volumes, the network, and `/tmp/oo-a218-eef831aa-dba4-4af2-a78b-541bc9e0a218` were removed. The pinned images stayed. `MANIFEST.sha256` was regenerated after `CLEANUP.txt` and this paragraph.
