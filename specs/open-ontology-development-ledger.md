@@ -156,7 +156,7 @@
 
 - [ ] SP05-W01 multipart/checksum/local/S3/ACL
   - [x] W01-LP 本地上传原语：755fb84a经a183独立限定批准，顺序multipart/恢复/sha256/幂等/跨context拒绝/owned abort；并发quota及大对象流式内存未满足，完整W01未验。
-  - [ ] W01-LB 本地并发quota与流式发布：a186修复3a251dea已交付，固定a188独立复审待验；S3与跨机器独立目录另验。
+  - [x] W01-LB 本地并发quota与流式发布：3a251dea经a188固定独立限定批准，8并发只保留8/10配额、8192字节range、独立32MiB常驻增量139264字节；S3/跨机器独立目录/download/reaper另验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
   - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
@@ -1161,3 +1161,6 @@ a188 actualGrok4.7xhighhandle90216 slotA fixed3a251dea localboundsreview1builder
 
 
 a18770068 actualexit0 incomplete fullreports/sourcecommitmissing; focusedbuilderalreadylaunched perlog, no acceptance. OriginalUUIDresume actualhandle51761 collects existingresult before anynewbuilder. Two CLIargumenterror exits2 before resume had no serviceexecution/build, retainedlog. a18890216/a18910444 ONEunifiedcheck live; no repeatedobservation. Global3builders/actual3Grok retained. Nextone25minwait; metrics29/34/10of29 unchanged, goalactive/all87parentsopen.
+
+
+a18890216 actualexit0 completeb6cddea1, all3reports fullyread97hashactual0/rawsmoke+oracle0/owncontainers empty. LimitedW01-LB accepted34→35, existingcomponentrepair no delivered/firstcomponentreviewincrement:29delivered/35accepted/10of29=34.48%. Independent8concurrentquota+processlockcancel/timeout/exit+8192boundedcomplete proof; hostPythonhashlib patternrecompute violation explicitlyretained (SafeRustoracle directive), lateroraclesmustRust. a18751761 actualexit0 incompletefocused-4 alreadylaunched; originalUUIDresume2collectresultfirst. a18910444 ONEunifiedchecklive. ReleasedslotA dispatcha190realPolicyCatalog adapter, policy.rs/nestednewmodule only disjointa187lib/parser and a189executor; no manifests/dependencies. Goalactive/all87parentsopen.
