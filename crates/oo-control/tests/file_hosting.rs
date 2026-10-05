@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use futures_util::StreamExt;
 use object_store::local::LocalFileSystem;
@@ -608,6 +609,634 @@ async fn limits_and_names_are_refused_before_write() {
         .as_deref(),
         Some(b"1234".as_slice())
     );
+}
+
+#[tokio::test]
+async fn generic_store_refuses_before_any_write() {
+    let store = Arc::new(object_store::memory::InMemory::new());
+    let host_store: Arc<dyn ObjectStore> = store.clone();
+    let host = FileHost::new(host_store, HostLimits::try_new(16, 16, 4, 10).unwrap());
+    let ctx = admission("project_a", "user_a", "grant-a");
+    let cfg = upload("a.bin", b"12345678", None);
+    let missing = SessionId::parse("ab".repeat(16)).unwrap();
+    assert_eq!(
+        host.begin(&ctx, &cfg).await.unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        host.put_part(&ctx, &missing, 1, b"12345678")
+            .await
+            .unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        host.complete(&ctx, &missing).await.unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert_eq!(
+        host.abort(&ctx, &missing).await.unwrap_err(),
+        FileHostError::Unsupported
+    );
+    assert!(store.list(None).next().await.is_none());
+    let text = FileHostError::Unsupported.to_string();
+    assert!(!text.contains('/'));
+    assert!(!text.contains("memory"));
+}
+
+#[tokio::test]
+async fn concurrent_quota_two_hosts_and_child() {
+    if child_for("concurrent_quota_two_hosts_and_child") {
+        quota_child().await;
+        return;
+    }
+    let scratch = Scratch::new("quota-race");
+    let root = scratch.store();
+    let limits = HostLimits::try_new(64, 64, 4, 10).unwrap();
+    let ctx = admission("project_q", "user_q", "grant-q");
+
+    for round in 0..4 {
+        let barrier = scratch.root.join(format!("barrier-round-{round}"));
+        std::fs::create_dir_all(&barrier).unwrap();
+        let payload_a = [1u8; 8];
+        let payload_b = [2u8; 8];
+        let name_a = format!("r{round}a.bin");
+        let name_b = format!("r{round}b.bin");
+        let root_a = root.clone();
+        let root_b = root.clone();
+        let barrier_a = barrier.clone();
+        let barrier_b = barrier.clone();
+        let name_a_task = name_a.clone();
+        let task_a = tokio::spawn(async move {
+            barrier_arrive(&barrier_a, "a").await;
+            let host = FileHost::open_local(&root_a, limits).unwrap();
+            host.begin(&ctx_q(), &upload(&name_a_task, &payload_a, None))
+                .await
+        });
+        let task_b = tokio::spawn(async move {
+            barrier_arrive(&barrier_b, "b").await;
+            let host = FileHost::open_local(&root_b, limits).unwrap();
+            host.begin(&ctx_q(), &upload(&name_b, &payload_b, None))
+                .await
+        });
+        tokio::task::spawn_blocking(move || release_when_ready(&barrier, &["a", "b"]))
+            .await
+            .unwrap();
+        let left = task_a.await.unwrap();
+        let right = task_b.await.unwrap();
+        let oks = [&left, &right].iter().filter(|item| item.is_ok()).count();
+        assert_eq!(oks, 1, "round {round} left={left:?} right={right:?}");
+        assert!(
+            [&left, &right]
+                .iter()
+                .filter(|item| item.is_err())
+                .all(|item| item.as_ref().unwrap_err() == &FileHostError::Quota),
+            "round {round} left={left:?} right={right:?}"
+        );
+        assert_eq!(reserved_bytes(&root, "project_q").await, 8);
+        let winner = left.ok().or(right.ok()).unwrap();
+        let host = FileHost::open_local(&root, limits).unwrap();
+        host.abort(&ctx, &winner.session_id).await.unwrap();
+        assert_eq!(reserved_bytes(&root, "project_q").await, 0);
+    }
+
+    let barrier = scratch.root.join("barrier-child");
+    std::fs::create_dir_all(&barrier).unwrap();
+    let root_a = root.clone();
+    let root_b = root.clone();
+    let barrier_a = barrier.clone();
+    let barrier_b = barrier.clone();
+    let task_a = tokio::spawn(async move {
+        barrier_arrive(&barrier_a, "a").await;
+        let host = FileHost::open_local(&root_a, limits).unwrap();
+        host.begin(&ctx_q(), &upload("pa.bin", &[4u8; 8], None))
+            .await
+    });
+    let task_b = tokio::spawn(async move {
+        barrier_arrive(&barrier_b, "b").await;
+        let host = FileHost::open_local(&root_b, limits).unwrap();
+        host.begin(&ctx_q(), &upload("pb.bin", &[5u8; 8], None))
+            .await
+    });
+    let child = spawn_child(
+        "concurrent_quota_two_hosts_and_child",
+        &[
+            ("OO_FH_KIND", "distinct"),
+            ("OO_FH_ROOT", root.to_str().unwrap()),
+            ("OO_FH_BARRIER", barrier.to_str().unwrap()),
+            (
+                "OO_FH_RESULT",
+                barrier.join("result-child").to_str().unwrap(),
+            ),
+        ],
+    );
+    let barrier_wait = barrier.clone();
+    tokio::task::spawn_blocking(move || release_when_ready(&barrier_wait, &["a", "b", "child"]))
+        .await
+        .unwrap();
+    let left = task_a.await.unwrap();
+    let right = task_b.await.unwrap();
+    wait_child(child);
+    let child_line = std::fs::read_to_string(barrier.join("result-child")).unwrap();
+    let child_ok = child_line.starts_with("ok ");
+    let oks = usize::from(left.is_ok()) + usize::from(right.is_ok()) + usize::from(child_ok);
+    assert_eq!(oks, 1, "left={left:?} right={right:?} child={child_line}");
+    for result in [&left, &right] {
+        if let Err(error) = result {
+            assert_eq!(*error, FileHostError::Quota);
+        }
+    }
+    if !child_ok {
+        assert_eq!(child_line, "err Quota");
+    }
+    assert!(reserved_bytes(&root, "project_q").await <= 10);
+    assert_eq!(reserved_bytes(&root, "project_q").await, 8);
+    assert!(scratch.root.join("store.oo-file-hosting.lock").is_file());
+    assert!(
+        object_keys(&root)
+            .await
+            .iter()
+            .all(|key| !key.contains("oo-file-hosting"))
+    );
+
+    let winner = if let Ok(session) = &left {
+        session.session_id.clone()
+    } else if let Ok(session) = &right {
+        session.session_id.clone()
+    } else {
+        let id = child_line.trim_start_matches("ok ").trim();
+        SessionId::parse(id).unwrap()
+    };
+    let reopened = FileHost::open_local(&root, limits).unwrap();
+    assert_eq!(
+        reopened
+            .begin(&ctx, &upload("later.bin", &[6u8; 8], None))
+            .await
+            .unwrap_err(),
+        FileHostError::Quota
+    );
+    reopened.abort(&ctx, &winner).await.unwrap();
+    assert_eq!(reserved_bytes(&root, "project_q").await, 0);
+    let released = reopened
+        .begin(&ctx, &upload("later.bin", &[6u8; 8], None))
+        .await
+        .unwrap();
+    reopened.abort(&ctx, &released.session_id).await.unwrap();
+    assert_eq!(reserved_bytes(&root, "project_q").await, 0);
+
+    let barrier = scratch.root.join("barrier-same");
+    std::fs::create_dir_all(&barrier).unwrap();
+    let same = [7u8; 8];
+    let root_a = root.clone();
+    let root_b = root.clone();
+    let barrier_a = barrier.clone();
+    let barrier_b = barrier.clone();
+    let task_a = tokio::spawn(async move {
+        barrier_arrive(&barrier_a, "a").await;
+        let host = FileHost::open_local(&root_a, limits).unwrap();
+        host.begin(&ctx_q(), &upload("same.bin", &same, None)).await
+    });
+    let task_b = tokio::spawn(async move {
+        barrier_arrive(&barrier_b, "b").await;
+        let host = FileHost::open_local(&root_b, limits).unwrap();
+        host.begin(&ctx_q(), &upload("same.bin", &same, None)).await
+    });
+    let child = spawn_child(
+        "concurrent_quota_two_hosts_and_child",
+        &[
+            ("OO_FH_KIND", "same"),
+            ("OO_FH_ROOT", root.to_str().unwrap()),
+            ("OO_FH_BARRIER", barrier.to_str().unwrap()),
+            (
+                "OO_FH_RESULT",
+                barrier.join("result-child").to_str().unwrap(),
+            ),
+        ],
+    );
+    let barrier_wait = barrier.clone();
+    tokio::task::spawn_blocking(move || release_when_ready(&barrier_wait, &["a", "b", "child"]))
+        .await
+        .unwrap();
+    let left = task_a.await.unwrap().unwrap();
+    let right = task_b.await.unwrap().unwrap();
+    wait_child(child);
+    let child_line = std::fs::read_to_string(barrier.join("result-child")).unwrap();
+    assert!(child_line.starts_with("ok "), "{child_line}");
+    let child_id = child_line.trim_start_matches("ok ").trim();
+    assert_eq!(left.session_id.as_str(), right.session_id.as_str());
+    assert_eq!(left.session_id.as_str(), child_id);
+    assert_eq!(reserved_bytes(&root, "project_q").await, 8);
+    let host = FileHost::open_local(&root, limits).unwrap();
+    host.abort(&ctx, &left.session_id).await.unwrap();
+    assert_eq!(reserved_bytes(&root, "project_q").await, 0);
+    let retried = host
+        .begin(&ctx, &upload("same.bin", &same, None))
+        .await
+        .unwrap();
+    assert_ne!(retried.session_id.as_str(), left.session_id.as_str());
+    assert_eq!(reserved_bytes(&root, "project_q").await, 8);
+    host.abort(&ctx, &retried.session_id).await.unwrap();
+    assert_eq!(
+        host.abort(&ctx, &retried.session_id).await.unwrap_err(),
+        FileHostError::NotFound
+    );
+    assert_eq!(reserved_bytes(&root, "project_q").await, 0);
+}
+
+#[tokio::test]
+async fn concurrent_complete_and_part_keep_one_object() {
+    if child_for("concurrent_complete_and_part_keep_one_object") {
+        conflict_child().await;
+        return;
+    }
+    let scratch = Scratch::new("race-complete");
+    let outside = scratch.root.join("outside-keep.txt");
+    std::fs::write(&outside, b"keep-me").unwrap();
+    let root = scratch.store();
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-a");
+    let bytes = b"abcdefgh";
+    let session = host
+        .begin(&ctx, &upload("race.bin", bytes, None))
+        .await
+        .unwrap();
+    host.put_part(&ctx, &session.session_id, 1, bytes)
+        .await
+        .unwrap();
+    let notes = format!("staging/{}/part/notes", session.session_id.as_str());
+    write_store(&root, &notes, b"foreign").await;
+    write_store(
+        &root,
+        &format!("meta/quota/{}/notes", ctx.project_id.as_str()),
+        b"999999",
+    )
+    .await;
+    let session_text = session.session_id.as_str().to_owned();
+    let key_text = session.object_key.as_str().to_owned();
+    drop(host);
+
+    let barrier = scratch.root.join("barrier-complete");
+    std::fs::create_dir_all(&barrier).unwrap();
+    let root_a = root.clone();
+    let root_b = root.clone();
+    let barrier_a = barrier.clone();
+    let barrier_b = barrier.clone();
+    let session_a = session_text.clone();
+    let session_b = session_text.clone();
+    let task_a = tokio::spawn(async move {
+        barrier_arrive(&barrier_a, "a").await;
+        let host = FileHost::open_local(&root_a, HostLimits::standard()).unwrap();
+        host.complete(&ctx_a(), &SessionId::parse(&session_a).unwrap())
+            .await
+    });
+    let task_b = tokio::spawn(async move {
+        barrier_arrive(&barrier_b, "b").await;
+        let host = FileHost::open_local(&root_b, HostLimits::standard()).unwrap();
+        host.complete(&ctx_a(), &SessionId::parse(&session_b).unwrap())
+            .await
+    });
+    let child = spawn_child(
+        "concurrent_complete_and_part_keep_one_object",
+        &[
+            ("OO_FH_KIND", "conflict"),
+            ("OO_FH_ROOT", root.to_str().unwrap()),
+            ("OO_FH_BARRIER", barrier.to_str().unwrap()),
+            (
+                "OO_FH_RESULT",
+                barrier.join("result-child").to_str().unwrap(),
+            ),
+            ("OO_FH_SESSION", session_text.as_str()),
+        ],
+    );
+    let barrier_wait = barrier.clone();
+    tokio::task::spawn_blocking(move || release_when_ready(&barrier_wait, &["a", "b", "child"]))
+        .await
+        .unwrap();
+    let left = task_a.await.unwrap().unwrap();
+    let right = task_b.await.unwrap().unwrap();
+    wait_child(child);
+    assert_eq!(left, right);
+    let child_line = std::fs::read_to_string(barrier.join("result-child")).unwrap();
+    assert!(
+        child_line == "err Conflict" || child_line == "err Closed",
+        "{child_line}"
+    );
+    assert_eq!(
+        fetch(&root, &key_text).await.as_deref(),
+        Some(bytes.as_slice())
+    );
+    assert!(
+        fetch(&root, &format!("staging/{session_text}/part/00001"))
+            .await
+            .is_none()
+    );
+    assert_eq!(
+        fetch(&root, &notes).await.as_deref(),
+        Some(b"foreign".as_slice())
+    );
+    assert_eq!(
+        fetch(&root, "meta/quota/project_a/notes").await.as_deref(),
+        Some(b"999999".as_slice())
+    );
+    assert_eq!(std::fs::read(&outside).unwrap(), b"keep-me");
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let stored = host.read_object(&ctx, &left.object_key).await.unwrap();
+    assert_eq!(stored.bytes, bytes);
+    assert_eq!(stored.manifest, left);
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn streaming_complete_memory_is_bounded() {
+    if child_for("streaming_complete_memory_is_bounded") {
+        memory_child().await;
+        return;
+    }
+    for size in [8 * 1024 * 1024_usize, 32 * 1024 * 1024] {
+        let scratch = Scratch::new(&format!("mem-{size}"));
+        let root = scratch.store();
+        std::fs::create_dir_all(&root).unwrap();
+        let metrics = scratch.root.join("metrics.txt");
+        let child = spawn_child(
+            "streaming_complete_memory_is_bounded",
+            &[
+                ("OO_FH_KIND", "memory"),
+                ("OO_FH_ROOT", root.to_str().unwrap()),
+                ("OO_FH_METRICS", metrics.to_str().unwrap()),
+                ("OO_FH_SIZE", &size.to_string()),
+            ],
+        );
+        wait_child(child);
+        let text = std::fs::read_to_string(&metrics).unwrap();
+        println!("{text}");
+        if let Some(dir) = std::env::var_os("OO_FH_METRICS_DIR") {
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(Path::new(&dir).join(format!("memory-{size}.txt")), &text).unwrap();
+        }
+        let delta = metric_u64(&text, "memory_hwm_delta_bytes");
+        assert!(
+            delta.saturating_mul(2) < size as u64,
+            "hwm delta {delta} part {size}\n{text}"
+        );
+        assert!(text.contains("memory_vmpeak_delta_bytes="));
+        assert!(text.contains("memory_threads_before="));
+        assert!(text.contains("memory_ok=1"));
+    }
+}
+
+fn child_for(test_name: &str) -> bool {
+    std::env::var_os("OO_FH_CHILD").is_some()
+        && std::env::var("OO_FH_TEST").as_deref() == Ok(test_name)
+}
+
+fn ctx_q() -> AdmissionContext {
+    admission("project_q", "user_q", "grant-q")
+}
+
+fn ctx_a() -> AdmissionContext {
+    admission("project_a", "user_a", "grant-a")
+}
+
+async fn quota_child() {
+    let root = PathBuf::from(std::env::var("OO_FH_ROOT").unwrap());
+    let barrier = PathBuf::from(std::env::var("OO_FH_BARRIER").unwrap());
+    let result = PathBuf::from(std::env::var("OO_FH_RESULT").unwrap());
+    let kind = std::env::var("OO_FH_KIND").unwrap();
+    barrier_arrive(&barrier, "child").await;
+    let host = FileHost::open_local(&root, HostLimits::try_new(64, 64, 4, 10).unwrap()).unwrap();
+    let begun = match kind.as_str() {
+        "distinct" => {
+            host.begin(&ctx_q(), &upload("pc.bin", &[3u8; 8], None))
+                .await
+        }
+        "same" => {
+            host.begin(&ctx_q(), &upload("same.bin", &[7u8; 8], None))
+                .await
+        }
+        other => panic!("quota child kind {other}"),
+    };
+    write_begin_result(&result, begun);
+}
+
+async fn conflict_child() {
+    let root = PathBuf::from(std::env::var("OO_FH_ROOT").unwrap());
+    let barrier = PathBuf::from(std::env::var("OO_FH_BARRIER").unwrap());
+    let result = PathBuf::from(std::env::var("OO_FH_RESULT").unwrap());
+    let session = SessionId::parse(std::env::var("OO_FH_SESSION").unwrap()).unwrap();
+    barrier_arrive(&barrier, "child").await;
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let begun = host
+        .put_part(&ctx_a(), &session, 1, b"xxxxxxxx")
+        .await
+        .map(|_| ());
+    let line = match begun {
+        Ok(()) => "ok".to_owned(),
+        Err(error) => format!("err {error:?}"),
+    };
+    std::fs::write(result, line).unwrap();
+}
+
+#[cfg(target_os = "linux")]
+async fn memory_child() {
+    let root = PathBuf::from(std::env::var("OO_FH_ROOT").unwrap());
+    let metrics_path = PathBuf::from(std::env::var("OO_FH_METRICS").unwrap());
+    let size: usize = std::env::var("OO_FH_SIZE").unwrap().parse().unwrap();
+    assert!(size == 8 * 1024 * 1024 || size == 32 * 1024 * 1024);
+    let chunk_len = 8192;
+    let chunk = vec![0xA5_u8; chunk_len];
+    let mut hasher = Sha256::new();
+    let mut left = size;
+    while left > 0 {
+        let n = chunk_len.min(left);
+        hasher.update(&chunk[..n]);
+        left -= n;
+    }
+    let expected = hasher.finalize();
+    let mut digest_bytes = [0u8; 32];
+    digest_bytes.copy_from_slice(&expected);
+    let limits =
+        HostLimits::try_new(32 * 1024 * 1024, 32 * 1024 * 1024, 4, 64 * 1024 * 1024).unwrap();
+    let host = FileHost::open_local(&root, limits).unwrap();
+    let cfg = UploadConfig {
+        display_name: "stream.bin".to_owned(),
+        expected_sha256: digest_bytes,
+        expected_size: u64::try_from(size).unwrap(),
+        content_type: None,
+    };
+    let session = host.begin(&ctx_a(), &cfg).await.unwrap();
+    let part_path = root.join(format!(
+        "staging/{}/part/00001",
+        session.session_id.as_str()
+    ));
+    std::fs::create_dir_all(part_path.parent().unwrap()).unwrap();
+    let mut file = std::fs::File::create(&part_path).unwrap();
+    let mut left = size;
+    while left > 0 {
+        let n = chunk_len.min(left);
+        std::io::Write::write_all(&mut file, &chunk[..n]).unwrap();
+        left -= n;
+    }
+    drop(file);
+    let hwm_before = proc_kib("VmHWM:");
+    let rss_before = proc_kib("VmRSS:");
+    let peak_before = proc_kib("VmPeak:");
+    let threads_before = proc_kib("Threads:");
+    let manifest = host.complete(&ctx_a(), &session.session_id).await.unwrap();
+    let hwm_after = proc_kib("VmHWM:");
+    let rss_after = proc_kib("VmRSS:");
+    let peak_after = proc_kib("VmPeak:");
+    let threads_after = proc_kib("Threads:");
+    let hwm_delta = hwm_after.saturating_sub(hwm_before) * 1024;
+    let peak_delta = peak_after.saturating_sub(peak_before) * 1024;
+    let object_path = root.join(manifest.object_key.as_str());
+    let streamed = hash_file(&object_path, chunk_len);
+    let part_gone = !part_path.exists();
+    let ok = hwm_delta.saturating_mul(2) < size as u64
+        && streamed == digest_bytes
+        && manifest.size == size as u64
+        && part_gone;
+    let text = format!(
+        "memory_bytes={size}\nmemory_hwm_before_kib={hwm_before}\nmemory_hwm_after_kib={hwm_after}\nmemory_hwm_delta_bytes={hwm_delta}\nmemory_rss_before_kib={rss_before}\nmemory_rss_after_kib={rss_after}\nmemory_vmpeak_before_kib={peak_before}\nmemory_vmpeak_after_kib={peak_after}\nmemory_vmpeak_delta_bytes={peak_delta}\nmemory_threads_before={threads_before}\nmemory_threads_after={threads_after}\nwrite_chunk={chunk_len}\npart_gone={part_gone}\nobject_sha_match={}\nmemory_ok={}\n",
+        u8::from(streamed == digest_bytes),
+        u8::from(ok)
+    );
+    std::fs::write(&metrics_path, &text).unwrap();
+    if let Some(dir) = std::env::var_os("OO_FH_METRICS_DIR") {
+        let dir = PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("memory-{size}.txt")), &text).unwrap();
+    }
+    assert!(ok, "{text}");
+}
+
+#[cfg(target_os = "linux")]
+fn proc_kib(field: &str) -> u64 {
+    let text = std::fs::read_to_string("/proc/self/status").unwrap();
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix(field) {
+            return rest.split_whitespace().next().unwrap().parse().unwrap();
+        }
+    }
+    panic!("missing {field}");
+}
+
+#[cfg(target_os = "linux")]
+fn hash_file(path: &Path, chunk_len: usize) -> [u8; 32] {
+    let mut file = std::fs::File::open(path).unwrap();
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; chunk_len];
+    loop {
+        let n = std::io::Read::read(&mut file, &mut buf).unwrap();
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    let hash = hasher.finalize();
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&hash);
+    out
+}
+
+fn metric_u64(text: &str, key: &str) -> u64 {
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix(&format!("{key}=")) {
+            return rest.trim().parse().unwrap();
+        }
+    }
+    panic!("missing {key} in {text}");
+}
+
+fn write_begin_result(path: &Path, result: Result<oo_control::UploadSession, FileHostError>) {
+    let line = match result {
+        Ok(session) => format!("ok {}", session.session_id.as_str()),
+        Err(error) => format!("err {error:?}"),
+    };
+    std::fs::write(path, line).unwrap();
+}
+
+fn spawn_child(test_name: &str, vars: &[(&str, &str)]) -> std::process::Child {
+    let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
+    cmd.arg(test_name)
+        .arg("--exact")
+        .arg("--test-threads=1")
+        .env("OO_FH_CHILD", "1")
+        .env("OO_FH_TEST", test_name)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    for (key, value) in vars {
+        cmd.env(key, value);
+    }
+    cmd.spawn().unwrap()
+}
+
+fn wait_child(child: std::process::Child) {
+    let output = child.wait_with_output().unwrap();
+    if !output.status.success() {
+        panic!(
+            "child exit {:?}\nstdout {}\nstderr {}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+async fn barrier_arrive(dir: &Path, id: &str) {
+    let dir = dir.to_path_buf();
+    let id = id.to_owned();
+    tokio::task::spawn_blocking(move || {
+        std::fs::write(dir.join(format!("ready-{id}")), b"ready").unwrap();
+        let go = dir.join("go");
+        let started = std::time::Instant::now();
+        while !go.is_file() {
+            if started.elapsed() > std::time::Duration::from_secs(60) {
+                panic!("barrier timeout for {id}");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    })
+    .await
+    .unwrap();
+}
+
+fn release_when_ready(dir: &Path, ids: &[&str]) {
+    let started = std::time::Instant::now();
+    loop {
+        if ids
+            .iter()
+            .all(|id| dir.join(format!("ready-{id}")).is_file())
+        {
+            std::fs::write(dir.join("go"), b"go").unwrap();
+            return;
+        }
+        if started.elapsed() > std::time::Duration::from_secs(60) {
+            panic!("ready timeout in {}", dir.display());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+async fn reserved_bytes(root: &Path, project: &str) -> u64 {
+    let prefix = format!("meta/quota/{project}/");
+    let mut total = 0u64;
+    for key in object_keys(root).await {
+        if !key.starts_with(&prefix) {
+            continue;
+        }
+        let name = key.rsplit('/').next().unwrap_or("");
+        if name.len() != 32
+            || !name
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            continue;
+        }
+        let body = fetch(root, &key).await.unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+        total += text.parse::<u64>().unwrap();
+    }
+    total
 }
 
 struct Scratch {

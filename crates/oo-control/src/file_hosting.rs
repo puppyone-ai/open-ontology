@@ -7,18 +7,23 @@
 //! Object keys and session ids are generated here. Callers never supply a
 //! filesystem path for an upload, part, or read. [`FileHost::open_local`] is the
 //! operator entry that binds a deployment directory to [`object_store::local::LocalFileSystem`].
-//! [`FileHost::new`] accepts any store, so a later approved S3 backend can be
-//! passed in without a second upload implementation. This crate does not enable
-//! the S3 feature and does not claim that the local store is S3.
+//! [`FileHost::new`] accepts any store so a later approved backend can use the
+//! same calls. A store without the local deployment lock cannot enforce a
+//! linearizable quota, and mutating calls on that host fail before they write.
+//! This crate does not enable the S3 feature and does not claim that the local
+//! store is S3.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::task::Waker;
+use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 use object_store::path::Path;
 use object_store::{
-    MultipartUpload, ObjectStore, ObjectStoreExt, PutMode, PutMultipartOptions, PutOptions,
-    PutPayload,
+    GetOptions, GetRange, MultipartUpload, ObjectStore, ObjectStoreExt, PutMode,
+    PutMultipartOptions, PutOptions, PutPayload,
 };
 use sha2::{Digest, Sha256};
 
@@ -35,6 +40,13 @@ pub const MAX_OBJECT_BYTES: u64 = 5_000_000_000;
 /// S3 allows 10_000 parts. This slice uses the same count ceiling.
 pub const MAX_PART_COUNT: u32 = 10_000;
 const DEFAULT_PROJECT_BYTES: u64 = 50_000_000_000;
+/// Upper bound configured before each ranged read and each multipart write of a stored part.
+///
+/// Caller bytes passed to `put_part`, and the buffer `read_object` returns, are outside this bound.
+const STREAM_CHUNK_BYTES: usize = 8 * 1024;
+/// A mutating call fails closed if the deployment lock is still busy after this long.
+const LOCK_WAIT: Duration = Duration::from_secs(30);
+const LOCK_POLL: Duration = Duration::from_millis(5);
 
 /// Why an upload call was refused. Display text is static and contains no caller data.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,6 +75,10 @@ pub enum FileHostError {
     Corrupt,
     /// The object store returned an error. The store's own text is discarded.
     Store,
+    /// This backend cannot enforce a linearizable project quota, so nothing was allocated.
+    Unsupported,
+    /// The deployment lock was not acquired within its wait, or the lock file is not usable.
+    Unavailable,
 }
 
 impl std::fmt::Display for FileHostError {
@@ -80,6 +96,8 @@ impl std::fmt::Display for FileHostError {
             Self::Closed => "upload session is already complete",
             Self::Corrupt => "stored upload metadata is not usable",
             Self::Store => "object store operation failed",
+            Self::Unsupported => "object store cannot enforce a linearizable project quota",
+            Self::Unavailable => "upload lock is not available",
         })
     }
 }
@@ -332,13 +350,18 @@ struct SessionRecord {
 /// Upload sessions stored through the object store trait.
 ///
 /// `LocalFileSystem` multipart uploads are not durable across a dropped handle.
-/// Parts are therefore ordinary objects. `complete` publishes the final key only
-/// by `put_multipart` after the bytes already stored for those parts hash and
-/// measure to the expected sha256 and size. A failed complete does not leave
-/// that key in place.
+/// Parts are therefore ordinary objects. `complete` hashes and publishes those
+/// parts in chunks of at most 8192 bytes, and the final key is published only
+/// after the streamed bytes hash and measure to the expected sha256 and size.
+/// A failed complete does not leave that key in place.
+///
+/// [`FileHost::open_local`] locks a platform-generated file beside the
+/// deployment root for every mutating call. [`FileHost::new`] has no lock and
+/// refuses those calls instead of racing a quota check.
 pub struct FileHost {
     store: Arc<dyn ObjectStore>,
     limits: HostLimits,
+    deployment_lock: Option<std::path::PathBuf>,
 }
 
 impl std::fmt::Debug for FileHost {
@@ -352,7 +375,11 @@ impl std::fmt::Debug for FileHost {
 impl FileHost {
     /// Bind an already constructed store. The store is the uniform backend interface.
     pub fn new(store: Arc<dyn ObjectStore>, limits: HostLimits) -> Self {
-        Self { store, limits }
+        Self {
+            store,
+            limits,
+            deployment_lock: None,
+        }
     }
 
     /// Open a local store rooted at `root`, creating the directory if needed.
@@ -362,10 +389,22 @@ impl FileHost {
     /// store's durability switch for remote backends.
     pub fn open_local(root: &std::path::Path, limits: HostLimits) -> Result<Self, FileHostError> {
         std::fs::create_dir_all(root).map_err(|_| FileHostError::Store)?;
+        let lock_path = deployment_lock_path(root)?;
+        std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(|_| FileHostError::Unavailable)?;
         let local = object_store::local::LocalFileSystem::new_with_prefix(root)
             .map_err(|_| FileHostError::Store)?
             .with_fsync(true);
-        Ok(Self::new(Arc::new(local), limits))
+        Ok(Self {
+            store: Arc::new(local),
+            limits,
+            deployment_lock: Some(lock_path),
+        })
     }
 
     pub fn limits(&self) -> HostLimits {
@@ -378,6 +417,7 @@ impl FileHost {
         ctx: &AdmissionContext,
         config: &UploadConfig,
     ) -> Result<UploadSession, FileHostError> {
+        let _guard = self.lock_deployment().await?;
         let validated = validate_config(config, self.limits)?;
         let idempotency = idempotency_digest(ctx, &validated);
         let idem_key = hex_encode(&idempotency);
@@ -454,6 +494,7 @@ impl FileHost {
         part_number: u32,
         bytes: &[u8],
     ) -> Result<PartReceipt, FileHostError> {
+        let _guard = self.lock_deployment().await?;
         let record = self.authorized_session(ctx, session_id).await?;
         if self.manifest_exists(session_id).await? {
             return Err(FileHostError::Closed);
@@ -467,8 +508,13 @@ impl FileHost {
         }
         let part_key = part_object_key(session_id, part_number)?;
         let digest = sha256(bytes);
-        if let Some(existing) = self.read_part(&part_key).await? {
-            return if sha256(&existing) == digest {
+        if self.stored_len(&part_key).await?.is_some() {
+            let (stored, stored_size) = match self.hash_key(&part_key).await {
+                Ok(found) => found,
+                Err(FileHostError::NotFound) => return Err(FileHostError::Store),
+                Err(error) => return Err(error),
+            };
+            return if stored == digest && stored_size == size {
                 Ok(PartReceipt {
                     part_number,
                     part_sha256: digest,
@@ -496,14 +542,16 @@ impl FileHost {
                 size,
             }),
             PutOutcome::Exists => {
-                let Some(existing) = self.read_part(&part_key).await? else {
-                    return Err(FileHostError::Store);
+                let (stored, stored_size) = match self.hash_key(&part_key).await {
+                    Ok(found) => found,
+                    Err(FileHostError::NotFound) => return Err(FileHostError::Store),
+                    Err(error) => return Err(error),
                 };
-                if sha256(&existing) == digest {
+                if stored == digest && stored_size == size {
                     Ok(PartReceipt {
                         part_number,
                         part_sha256: digest,
-                        size: u64::try_from(existing.len()).map_err(|_| FileHostError::Corrupt)?,
+                        size: stored_size,
                     })
                 } else {
                     Err(FileHostError::Conflict)
@@ -522,6 +570,7 @@ impl FileHost {
         ctx: &AdmissionContext,
         session_id: &SessionId,
     ) -> Result<ObjectManifest, FileHostError> {
+        let _guard = self.lock_deployment().await?;
         if let Some(manifest) = self.load_manifest_if_present(session_id).await? {
             authorize_manifest(&manifest, ctx)?;
             return Ok(manifest);
@@ -585,6 +634,7 @@ impl FileHost {
         ctx: &AdmissionContext,
         session_id: &SessionId,
     ) -> Result<(), FileHostError> {
+        let _guard = self.lock_deployment().await?;
         let record = self.authorized_session(ctx, session_id).await?;
         if self.manifest_exists(session_id).await? {
             return Err(FileHostError::Closed);
@@ -610,11 +660,25 @@ impl FileHost {
         object_key: &ObjectKey,
     ) -> Result<StoredObject, FileHostError> {
         let manifest = self.read_manifest(ctx, object_key).await?;
-        let Some(bytes) = self.read_part(object_key.as_str()).await? else {
+        let Some(size) = self.stored_len(object_key.as_str()).await? else {
             return Err(FileHostError::Corrupt);
         };
-        let size = u64::try_from(bytes.len()).map_err(|_| FileHostError::Corrupt)?;
-        if sha256(&bytes) != manifest.object_digest || size != manifest.size {
+        if size != manifest.size {
+            return Err(FileHostError::Corrupt);
+        }
+        let mut hasher = Sha256::new();
+        let mut bytes = Vec::new();
+        if size > 0 {
+            let cap = usize::try_from(size).map_err(|_| FileHostError::Corrupt)?;
+            bytes.try_reserve(cap).map_err(|_| FileHostError::Store)?;
+        }
+        let read = self
+            .for_each_chunk(object_key.as_str(), |chunk| {
+                hasher.update(chunk);
+                bytes.extend_from_slice(chunk);
+            })
+            .await?;
+        if read != size || finalize(hasher) != manifest.object_digest {
             return Err(FileHostError::Corrupt);
         }
         Ok(StoredObject { manifest, bytes })
@@ -749,10 +813,9 @@ impl FileHost {
             let Some(number) = part_number_from_key(&location, session_id.as_str()) else {
                 continue;
             };
-            let Some(bytes) = self.get_bytes(&location).await? else {
+            let Some(size) = self.stored_len(&location).await? else {
                 return Err(FileHostError::Store);
             };
-            let size = u64::try_from(bytes.len()).map_err(|_| FileHostError::Corrupt)?;
             if parts.insert(number, size).is_some() {
                 return Err(FileHostError::Corrupt);
             }
@@ -769,15 +832,18 @@ impl FileHost {
         let mut total = 0u64;
         for number in parts.keys() {
             let key = part_object_key(session_id, *number)?;
-            let Some(bytes) = self.read_part(&key).await? else {
-                return Err(FileHostError::Incomplete);
+            let size = match self
+                .for_each_chunk(&key, |chunk| hasher.update(chunk))
+                .await
+            {
+                Ok(size) => size,
+                Err(FileHostError::NotFound) => return Err(FileHostError::Incomplete),
+                Err(error) => return Err(error),
             };
-            let size = u64::try_from(bytes.len()).map_err(|_| FileHostError::Corrupt)?;
             if Some(&size) != parts.get(number) {
                 return Err(FileHostError::Corrupt);
             }
             total = total.checked_add(size).ok_or(FileHostError::Corrupt)?;
-            hasher.update(&bytes);
         }
         Ok((finalize(hasher), total))
     }
@@ -795,14 +861,9 @@ impl FileHost {
             .map_err(|_| FileHostError::Store)?;
         for number in parts.keys() {
             let key = part_object_key_str(&record.session_id, *number)?;
-            let Some(bytes) = self.read_part(&key).await? else {
+            if let Err(error) = self.write_chunks(&key, upload.as_mut()).await {
                 let _ = upload.abort().await;
-                return Err(FileHostError::Incomplete);
-            };
-            let payload: PutPayload = bytes.into();
-            if upload.put_part(payload).await.is_err() {
-                let _ = upload.abort().await;
-                return Err(FileHostError::Store);
+                return Err(error);
             }
         }
         if upload.complete().await.is_err() {
@@ -813,22 +874,113 @@ impl FileHost {
     }
 
     async fn hash_object(&self, key: &str) -> Result<([u8; 32], u64), FileHostError> {
+        self.hash_key(key).await
+    }
+
+    async fn hash_key(&self, key: &str) -> Result<([u8; 32], u64), FileHostError> {
+        let mut hasher = Sha256::new();
+        let size = self
+            .for_each_chunk(key, |chunk| hasher.update(chunk))
+            .await?;
+        Ok((finalize(hasher), size))
+    }
+
+    /// Visit the object in ranges of at most `STREAM_CHUNK_BYTES`.
+    ///
+    /// The range is chosen before `get_opts`. A backend that returns a larger buffer fails closed.
+    async fn for_each_chunk(
+        &self,
+        key: &str,
+        mut visit: impl FnMut(&[u8]),
+    ) -> Result<u64, FileHostError> {
         let path = parse_store_key(key)?;
-        let got = match self.store.get(&path).await {
-            Ok(got) => got,
+        let known = match self.store.head(&path).await {
+            Ok(meta) => meta.size,
             Err(object_store::Error::NotFound { .. }) => return Err(FileHostError::NotFound),
             Err(_) => return Err(FileHostError::Store),
         };
-        let mut stream = got.into_stream();
-        let mut hasher = Sha256::new();
-        let mut size = 0u64;
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|_| FileHostError::Store)?;
+        let mut offset = 0u64;
+        while offset < known {
+            let chunk = read_bounded_range(&*self.store, &path, offset, known).await?;
             let len = u64::try_from(chunk.len()).map_err(|_| FileHostError::Corrupt)?;
-            size = size.checked_add(len).ok_or(FileHostError::Corrupt)?;
-            hasher.update(&chunk);
+            visit(&chunk);
+            offset = offset.checked_add(len).ok_or(FileHostError::Corrupt)?;
         }
-        Ok((finalize(hasher), size))
+        if offset != known {
+            return Err(FileHostError::Corrupt);
+        }
+        Ok(known)
+    }
+
+    async fn write_chunks(
+        &self,
+        key: &str,
+        upload: &mut dyn MultipartUpload,
+    ) -> Result<(), FileHostError> {
+        let path = parse_store_key(key)?;
+        let known = match self.store.head(&path).await {
+            Ok(meta) => meta.size,
+            Err(object_store::Error::NotFound { .. }) => return Err(FileHostError::Incomplete),
+            Err(_) => return Err(FileHostError::Store),
+        };
+        let mut offset = 0u64;
+        while offset < known {
+            let chunk = read_bounded_range(&*self.store, &path, offset, known).await?;
+            let len = u64::try_from(chunk.len()).map_err(|_| FileHostError::Corrupt)?;
+            if upload.put_part(PutPayload::from(chunk)).await.is_err() {
+                return Err(FileHostError::Store);
+            }
+            offset = offset.checked_add(len).ok_or(FileHostError::Corrupt)?;
+        }
+        if offset != known {
+            return Err(FileHostError::Corrupt);
+        }
+        Ok(())
+    }
+
+    async fn stored_len(&self, key: &str) -> Result<Option<u64>, FileHostError> {
+        let path = parse_store_key(key)?;
+        match self.store.head(&path).await {
+            Ok(meta) => Ok(Some(meta.size)),
+            Err(object_store::Error::NotFound { .. }) => Ok(None),
+            Err(_) => Err(FileHostError::Store),
+        }
+    }
+
+    async fn lock_deployment(&self) -> Result<HeldLock, FileHostError> {
+        let Some(path) = self.deployment_lock.clone() else {
+            return Err(FileHostError::Unsupported);
+        };
+        let gate = gate_for(&path)?;
+        let token = next_lock_token();
+        let wait = Arc::new(LockWait {
+            cancel: AtomicBool::new(false),
+            slot: Mutex::new(None),
+            waker: Mutex::new(None),
+        });
+        let thread_wait = Arc::clone(&wait);
+        std::thread::Builder::new()
+            .name("oo-file-host-lock".to_owned())
+            .spawn(move || blocking_lock(path, gate, token, thread_wait))
+            .map_err(|_| FileHostError::Unavailable)?;
+        let mut cancel = CancelOnDrop {
+            wait: Arc::clone(&wait),
+            armed: true,
+        };
+        let outcome = std::future::poll_fn(|cx| {
+            {
+                let mut waker = lock_mutex(&wait.waker);
+                *waker = Some(cx.waker().clone());
+            }
+            let mut slot = lock_mutex(&wait.slot);
+            if let Some(outcome) = slot.take() {
+                return std::task::Poll::Ready(outcome);
+            }
+            std::task::Poll::Pending
+        })
+        .await;
+        cancel.armed = false;
+        outcome
     }
 
     async fn cleanup_open(&self, record: &SessionRecord) -> Result<(), FileHostError> {
@@ -889,10 +1041,6 @@ impl FileHost {
         }
     }
 
-    async fn read_part(&self, key: &str) -> Result<Option<Vec<u8>>, FileHostError> {
-        self.get_bytes(key).await
-    }
-
     async fn put_create(&self, key: &str, bytes: &[u8]) -> Result<PutOutcome, FileHostError> {
         let path = parse_store_key(key)?;
         let payload: PutPayload = bytes.to_vec().into();
@@ -920,6 +1068,206 @@ impl FileHost {
 enum PutOutcome {
     Created,
     Exists,
+}
+
+struct Gate {
+    owner: AtomicU64,
+}
+
+struct HeldLock {
+    file: std::fs::File,
+    gate: Arc<Gate>,
+    token: u64,
+}
+
+impl Drop for HeldLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+        release_gate(&self.gate, self.token);
+    }
+}
+
+struct LockWait {
+    cancel: AtomicBool,
+    slot: Mutex<Option<Result<HeldLock, FileHostError>>>,
+    waker: Mutex<Option<Waker>>,
+}
+
+struct CancelOnDrop {
+    wait: Arc<LockWait>,
+    armed: bool,
+}
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        self.wait.cancel.store(true, Ordering::SeqCst);
+        if let Some(Ok(held)) = lock_mutex(&self.wait.slot).take() {
+            drop(held);
+        }
+    }
+}
+
+fn lock_mutex<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poison| poison.into_inner())
+}
+
+fn gates() -> &'static Mutex<BTreeMap<std::path::PathBuf, Arc<Gate>>> {
+    static GATES: OnceLock<Mutex<BTreeMap<std::path::PathBuf, Arc<Gate>>>> = OnceLock::new();
+    GATES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn gate_for(path: &std::path::Path) -> Result<Arc<Gate>, FileHostError> {
+    let mut map = lock_mutex(gates());
+    Ok(map
+        .entry(path.to_path_buf())
+        .or_insert_with(|| {
+            Arc::new(Gate {
+                owner: AtomicU64::new(0),
+            })
+        })
+        .clone())
+}
+
+fn next_lock_token() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    loop {
+        let token = NEXT.fetch_add(1, Ordering::Relaxed);
+        if token != 0 {
+            return token;
+        }
+    }
+}
+
+fn release_gate(gate: &Gate, token: u64) {
+    let _ = gate
+        .owner
+        .compare_exchange(token, 0, Ordering::SeqCst, Ordering::SeqCst);
+}
+
+fn deployment_lock_path(root: &std::path::Path) -> Result<std::path::PathBuf, FileHostError> {
+    let canonical = std::fs::canonicalize(root).map_err(|_| FileHostError::Store)?;
+    let mut name = canonical
+        .file_name()
+        .ok_or(FileHostError::Store)?
+        .to_os_string();
+    name.push(".oo-file-hosting.lock");
+    let parent = canonical.parent().ok_or(FileHostError::Store)?;
+    Ok(parent.join(name))
+}
+
+fn blocking_lock(path: std::path::PathBuf, gate: Arc<Gate>, token: u64, wait: Arc<LockWait>) {
+    let outcome = acquire_lock(&path, &gate, token, &wait);
+    {
+        let mut slot = lock_mutex(&wait.slot);
+        if wait.cancel.load(Ordering::SeqCst) {
+            drop(outcome.ok());
+            *slot = Some(Err(FileHostError::Unavailable));
+        } else {
+            *slot = Some(outcome);
+        }
+    }
+    let waker = lock_mutex(&wait.waker).take();
+    if let Some(waker) = waker {
+        waker.wake();
+    }
+}
+
+fn acquire_lock(
+    path: &std::path::Path,
+    gate: &Arc<Gate>,
+    token: u64,
+    wait: &LockWait,
+) -> Result<HeldLock, FileHostError> {
+    let started = Instant::now();
+    loop {
+        if wait.cancel.load(Ordering::SeqCst) {
+            return Err(FileHostError::Unavailable);
+        }
+        if gate
+            .owner
+            .compare_exchange(0, token, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            break;
+        }
+        if started.elapsed() >= LOCK_WAIT {
+            return Err(FileHostError::Unavailable);
+        }
+        std::thread::sleep(LOCK_POLL);
+    }
+    let file = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+    {
+        Ok(file) => file,
+        Err(_) => {
+            release_gate(gate, token);
+            return Err(FileHostError::Unavailable);
+        }
+    };
+    loop {
+        if wait.cancel.load(Ordering::SeqCst) {
+            release_gate(gate, token);
+            return Err(FileHostError::Unavailable);
+        }
+        match file.try_lock() {
+            Ok(()) => {
+                return Ok(HeldLock {
+                    file,
+                    gate: Arc::clone(gate),
+                    token,
+                });
+            }
+            Err(std::fs::TryLockError::WouldBlock) => {
+                if started.elapsed() >= LOCK_WAIT {
+                    release_gate(gate, token);
+                    return Err(FileHostError::Unavailable);
+                }
+                std::thread::sleep(LOCK_POLL);
+            }
+            Err(_) => {
+                release_gate(gate, token);
+                return Err(FileHostError::Unavailable);
+            }
+        }
+    }
+}
+
+async fn read_bounded_range(
+    store: &dyn ObjectStore,
+    path: &Path,
+    offset: u64,
+    known: u64,
+) -> Result<Vec<u8>, FileHostError> {
+    let chunk_limit = STREAM_CHUNK_BYTES;
+    let step = u64::try_from(chunk_limit).map_err(|_| FileHostError::Corrupt)?;
+    if step == 0 || offset >= known {
+        return Err(FileHostError::Store);
+    }
+    let end = offset.saturating_add(step).min(known);
+    let options = GetOptions {
+        range: Some(GetRange::Bounded(offset..end)),
+        ..GetOptions::default()
+    };
+    let got = store
+        .get_opts(path, options)
+        .await
+        .map_err(|_| FileHostError::Store)?;
+    let chunk = got.bytes().await.map_err(|_| FileHostError::Store)?;
+    if chunk.is_empty() || chunk.len() > chunk_limit {
+        return Err(FileHostError::Store);
+    }
+    let expected = usize::try_from(end - offset).map_err(|_| FileHostError::Corrupt)?;
+    if chunk.len() != expected {
+        return Err(FileHostError::Store);
+    }
+    Ok(chunk.to_vec())
 }
 
 struct ValidatedConfig {

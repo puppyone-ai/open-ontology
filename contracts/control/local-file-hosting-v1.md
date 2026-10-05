@@ -2,7 +2,7 @@
 
 Contract `oo.control.local-file-hosting/v1`. Library `oo_control` (`file_hosting`).
 
-This slice stores one upload session on an [`object_store::ObjectStore`]. `FileHost::open_local` binds a deployment directory to `LocalFileSystem` and turns fsync on. `FileHost::new` accepts any `Arc<dyn ObjectStore>`, which is the seam for a later approved S3 backend. This crate enables object_store feature `fs` only. It does not enable `aws`, `gcp`, `azure`, or `http`. It does not talk to MinIO, and a passing local test is not an S3 result.
+This slice stores one upload session on an [`object_store::ObjectStore`]. `FileHost::open_local` binds a deployment directory to `LocalFileSystem` and turns fsync on. `FileHost::new` accepts any `Arc<dyn ObjectStore>` as the seam for a later approved backend. Without the local deployment lock, mutating calls return `Unsupported` before they allocate. This crate enables object_store feature `fs` only. It does not enable `aws`, `gcp`, `azure`, or `http`. It does not talk to MinIO, and a passing local test is not an S3 result.
 
 The caller passes an `AdmissionContext` (project, principal, grant evidence) that a future control admission step has already accepted. This module does not authenticate that context, does not check a signature on the grant, and does not speak HTTP. An unguessable key is not authorization. Upload, complete, abort, and read methods do not take a caller filesystem path. The deployment directory is an operator argument to `open_local` only.
 
@@ -62,7 +62,9 @@ Session ids are 16 random bytes, lowercase hex. Object keys are `uploads/<sessio
 | `meta/quota/<project>/<session>` | the expected size, decimal, no leading zeros |
 | `staging/<session>/part/<nnnnn>` | raw part bytes, `nnnnn` is the part number in five digits |
 
-`LocalFileSystem` multipart state is an in-memory handle and a `dest#N` staging file. That handle does not survive a dropped `FileHost`. Parts are therefore ordinary objects. `complete` calls `put_multipart_opts` only after those objects already hash and measure to the expected sha256 and size. The local complete renames the staging file onto the object key. A checksum or size miss does not start that upload, so the object key is not created.
+`LocalFileSystem` multipart state is an in-memory handle and a `dest#N` staging file. That handle does not survive a dropped `FileHost`. Parts are therefore ordinary objects. `complete` hashes each part by ranged reads of at most 8192 bytes. That limit is fixed in the library before each `get_opts` range is built. A response larger than 8192 bytes is `Store` and does not publish. `put_multipart_opts` runs only after those streamed reads already hash and measure to the expected sha256 and size. The publish pass uses the same 8192-byte ranges and writes each chunk into the multipart handle. The local complete renames the staging file onto the object key. A checksum or size miss does not start that upload, so the object key is not created.
+
+The 8192-byte bound is the host's internal read and multipart write. Bytes the caller passes to `put_part` may already occupy the caller's memory, and `read_object` returns one buffer of the stored object size filled from those chunks. This contract does not claim a process limit outside those two API buffers.
 
 ## Idempotency
 
@@ -74,13 +76,17 @@ If the idempotency pointer already names a session whose stored project, princip
 
 ## Completion, abort, and quota
 
-`complete` on a session that already has a manifest returns that manifest after the project and principal match. Otherwise it loads the five-digit part objects. A gap, or a byte count below the expected size, is `Incomplete`. The session and parts stay. A byte count above the expected size is `Size`. The stored digest mismatch is `Checksum`. Both `Size` and `Checksum` delete only this session's part objects, quota reservation, idempotency pointer, and session record. They do not write the object key or the manifest.
+`complete` on a session that already has a manifest returns that manifest after the project and principal match. Otherwise it lists the five-digit part objects and uses each object's stored length. A gap, or a byte count below the expected size, is `Incomplete`. The session and parts stay. A byte count above the expected size is `Size`. The stored digest mismatch is `Checksum`. Both `Size` and `Checksum` delete only this session's part objects, quota reservation, idempotency pointer, and session record. They do not write the object key or the manifest.
 
-On a match, `complete` publishes through `put_multipart_opts`, re-hashes the published object, then creates the manifest, then deletes the part objects. The session, idempotency pointer, quota reservation, manifest, and object key remain. If the published bytes do not re-hash to the same digest and size, the object key just written is deleted and the manifest is not written (`Corrupt`). A second `complete` is the stored manifest.
+On a match, `complete` publishes through `put_multipart_opts`, re-hashes the published object, then creates the manifest, then deletes the part objects. The session, idempotency pointer, quota reservation, manifest, and object key remain. If the published bytes do not re-hash to the same digest and size, the object key just written is deleted and the manifest is not written (`Corrupt`). A second `complete` is the stored manifest. The deployment lock stays held from the part listing through that manifest write, so a concurrent `put_part` or `abort` cannot replace a part after it was hashed and before it is published. One of the concurrent `complete` calls writes the manifest. The other returns that same manifest.
 
 `abort` of an open session deletes those same owned keys. `abort` of a completed session is `Closed` and deletes nothing. `abort` or `put_part` of a session that is already gone is `NotFound`. A second `abort` is `NotFound`.
 
-Project quota is the sum of `meta/quota/<project>/<session>` bodies whose names are 32 lowercase hex characters. Other names under that prefix are ignored and are not deleted. `begin` refuses with `Quota` when the new expected size would pass `max_project_bytes`. A resumed `begin` does not reserve twice. A completed object keeps its reservation. Abort and the checksum/size cleanup release it. Two concurrent `begin` calls can both pass the check before either reservation is visible. That race is open.
+Project quota is the sum of `meta/quota/<project>/<session>` bodies whose names are 32 lowercase hex characters. Other names under that prefix are ignored and are not deleted. `begin` refuses with `Quota` when the new expected size would pass `max_project_bytes`. A resumed `begin` does not reserve twice. A completed object keeps its reservation. Abort and the checksum/size cleanup release it.
+
+On `open_local`, that check and the reservation write are one critical section. The same section covers `put_part`, `complete`, and `abort` for every `FileHost` on that deployment root, including other processes. The lock is `std::fs::File::try_lock` on a file the host creates beside the deployment directory. Its name is the directory's file name plus `.oo-file-hosting.lock`. Callers do not choose that path. An in-process gate orders tasks in the same process, because the file lock is what orders other processes. The wait is 30 seconds of retries. The runtime thread is not the thread that sleeps on the lock. Timeout, a lock-file error, or a poisoned wait returns `Unavailable` and writes nothing. A crash drops the lock with the process. The lock is advisory: a raw store client can still write keys. Two machines that do not share this directory do not share the lock.
+
+`FileHost::new` has no deployment lock. `begin`, `put_part`, `complete`, and `abort` on that host return `Unsupported` before any store write. There is no unlocked quota fallback. A later S3 backend has to bring its own conditional atomic quota before those calls can succeed. This local lock is not that backend.
 
 Cleanup deletes only keys this session recorded or that match its five-digit part names. A name such as `staging/<session>/part/notes` is left in place. A file outside the store prefix is left in place. Empty directories are left in place. A `dest#N` file left by a crash during `put_multipart` is not reaped here.
 
@@ -106,11 +112,12 @@ SP05-W01 is not closed. The ledger is unchanged. SP05-W06 is not started.
 
 Still open:
 
-- an S3 backend contract, including the 5 MiB minimum part size, and any MinIO run
+- an S3 backend contract, including the 5 MiB minimum part size, conditional quota, and any MinIO run
 - reaping `dest#N` leftovers and a crash between deleting owned keys
 - download, TTL, an auth proxy, and HTTP
 - MIME sniffing, formula-safe CSV or Excel output, and retention delete
 - presigned URLs
-- a linearizable project quota
+- quota across hosts that do not share one deployment directory
 - the rest of the REQ-SRC-05 state machine after `stored`
 - checking the grant evidence instead of storing it
+- customer deployment, production release, and a reaper
