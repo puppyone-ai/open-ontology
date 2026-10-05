@@ -1,0 +1,1 @@
+Lib tests passed (test-lib.exit=0). The delimited integration test and clippy did not compile (exit 101). The SHA-256 oracle left its state array as an untyped integer, and a hand-checked row tuple was read at field 4 instead of field 3. Exits in this directory stay as recorded. The next attempt is linux/focused-3.

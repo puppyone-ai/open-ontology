@@ -1,0 +1,1 @@
+Lib tests passed, 64. Delimited tests passed, 25. Clippy exited 101 on three test-only lints: vec_box, needless_range_loop, and io_other_error. Exits in this directory stay as recorded. The next attempt is linux/focused-4.

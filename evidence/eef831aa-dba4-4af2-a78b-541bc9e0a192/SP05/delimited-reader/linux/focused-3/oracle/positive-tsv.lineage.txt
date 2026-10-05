@@ -1,0 +1,8 @@
+row=0 line=1 offset=0
+  name line=1 offset=0 presence=Value
+  raw line=1 offset=4 presence=Value
+  n line=1 offset=10 presence=Value
+row=1 line=2 offset=12
+  name line=2 offset=12 presence=Value
+  raw line=2 offset=20 presence=Value
+  n line=2 offset=27 presence=Value

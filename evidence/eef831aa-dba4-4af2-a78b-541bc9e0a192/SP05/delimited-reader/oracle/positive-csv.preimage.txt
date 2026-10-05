@@ -1,0 +1,15 @@
+oo-delimited-profile/v1
+id=enterprise-import
+dialect=csv
+bom=strip
+header=exact
+null=token
+null_token=\N
+quote=double
+record=lf-or-crlf
+escape=double-quote
+column=名称	utf8	1	-	-
+column=ok	bool	0	-	-
+column=n	int64	0	-	-
+column=amount	decimal	0	10	2
+column=note	utf8	1	-	-

@@ -1,0 +1,58 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error: `Vec<T>` is already on the heap, the boxing is unnecessary
+  --> crates/oo-connectors/tests/delimited.rs:61:14
+   |
+61 |     batches: Vec<Box<DelimitedBatch>>,
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `Vec<DelimitedBatch>`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#vec_box
+   = note: `-D clippy::vec-box` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::vec_box)]`
+
+error: the loop variable `index` is used to index `word`
+  --> crates/oo-connectors/tests/delimited.rs:92:22
+   |
+92 |         for index in 0..16 {
+   |                      ^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_range_loop
+   = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+   |
+92 -         for index in 0..16 {
+92 +         for (index, <item>) in word.iter_mut().enumerate().take(16) {
+   |
+
+error: this can be `std::io::Error::other(_)`
+    --> crates/oo-connectors/tests/delimited.rs:1262:13
+     |
+1262 |         Err(std::io::Error::new(std::io::ErrorKind::Other, "SECRET_OS_a192"))
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#io_other_error
+     = note: `-D clippy::io-other-error` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::io_other_error)]`
+help: use `std::io::Error::other`
+     |
+1262 -         Err(std::io::Error::new(std::io::ErrorKind::Other, "SECRET_OS_a192"))
+1262 +         Err(std::io::Error::other("SECRET_OS_a192"))
+     |
+
+error: could not compile `oo-connectors` (test "delimited") due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...

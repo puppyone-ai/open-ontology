@@ -1,0 +1,10 @@
+Cargo.toml: OK
+Cargo.lock: OK
+rust-toolchain.toml: OK
+crates/oo-connectors/src/lib.rs: OK
+crates/oo-connectors/src/delimited.rs: OK
+crates/oo-connectors/src/jsonl.rs: OK
+crates/oo-connectors/tests/delimited.rs: OK
+crates/oo-connectors/Cargo.toml: OK
+contracts/connectors/delimited-reader-v1.md: OK
+contracts/source/pgsql/empty-catalog.json: OK
