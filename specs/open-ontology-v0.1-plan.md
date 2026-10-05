@@ -1033,3 +1033,9 @@ Current coordinator acceptance update: a228 fixed9daeaa05 bridge APPROVE_LIMITED
 - [x] M1-D18A: sealed reviewed draft + explicit bound classification -> effective-oos (a228 limited independent acceptance).
 - [x] M1-D06A: mapped generation -> explicit ANALYZE estimate (a230 limited independent acceptance).
 - [ ] M1-D14C / E6-D1 unit frozen BEFORE coding: trusted reviewed-effective command + administrative binding -> bounded compiled reviewed-policy CLI deterministic policy-set DTO, actual producer/CLI/compile-set tests and refusal exits. a234 owns new bin/test/contract only; E6-D0/1, aggregate20/38=52.63%, not global development rate. Semantic publication, auth, live installation and audit WAL remain separate.
+
+Coordinator verified a232 init-pg fixed6e1e6e57 full reports,223 SHA256 entries0bad, smoke/proof/test/Clippy0 and owncontainers absent: accept M1-D05A only. Historicalaccepted45→46, firstcomponentreviews38→39, rework10/39=25.64%, authored46 unchanged. E2-D3/6; M1-D17/24 unchanged; frozen21/38=55.26%. a215 c27d6349 parser reap repair182hash0/fresh5testsClippy0 accepted repair only, no newunit/component; M1-D23 kernel remainsopen. a226559hash0 actualcomposition recorded, I01/I02 not accepted due missing operator mapping grants/publication/auth/NL/harness.
+- [x] M1-D05A: init-pg real install/replay/import operator command, a232 limited independent approval.
+- [ ] M1-D14D / E7-D: strict operator policy-set request -> actual aggregate ACL install CLI; a235 owns newbin/test/contract only, privateTLS2tables2roles and refusal/replay/query.
+- [ ] M1-D06B / E7-D: explicit compiled analyze-pg operator command -> mapped stats receipt; a236 owns newbin/test/contract only, realimport/stats/catalog query.
+E7-D0/2 frozen BEFORE code, aggregate21/40=52.50%; not global development rate. Integration0/4 and release0/6 unchanged. IPCparenta237 and correctedPackbundlea238 independent fixed reviews queued, no additional countableunits.
