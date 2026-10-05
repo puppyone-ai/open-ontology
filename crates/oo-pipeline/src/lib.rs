@@ -12,6 +12,8 @@
 //! install the target schema.
 //! `catalog_cli` is the `catalog-pg` command. It does not install a target
 //! schema or import rows.
+//! `target_statistics` is an explicit operator `ANALYZE` of mapped shadows.
+//! It is not part of import and it does not publish.
 
 #![forbid(unsafe_code)]
 
@@ -22,3 +24,4 @@ pub mod full_import;
 pub mod import_cli;
 pub mod physical_mapping;
 pub mod target_installer;
+pub mod target_statistics;
