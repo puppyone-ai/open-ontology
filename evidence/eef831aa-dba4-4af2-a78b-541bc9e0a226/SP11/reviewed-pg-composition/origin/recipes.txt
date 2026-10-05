@@ -1,0 +1,25 @@
+Reviewed launch and hash recipes copied with the minimum edits for UUID eef831aa-dba4-4af2-a78b-541bc9e0a226.
+Fixed product commit ed661809cf6c1e8df37af5842838dd1eb839c98a. The product archive is that commit. HEAD may differ only in prompts and the ledger.
+
+Unchanged tool blobs, copied from a211 which copied a200:
+  tools/sha256.rs blob b69a2af13099ce4baf2d04e79c5692d9988ab67d
+  tools/select-debs.rs blob 565787c25c25bf451343cf4bc0431619c0611899
+  pg/pg-wrap.sh blob e12a368394c724f8f9d3436ad5f4873e139baa66
+  The a199 path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256.rs is not in that tree. The bytes match a200 commit a587031c.
+
+a211 pg-cli-chain, the immediate recipe:
+  linux/smoke/launch.sh blob 4e35d55d9bd49eb437dbb99d2f24f402969913e3
+  linux/smoke/inside.sh blob ee02c1c1e979cb859c9b8b7ac3a1dea9322b360e
+  linux/smoke/extract-libclang.sh from a200 blob 1c23dbd6ab58cb0f42d218075fd55c0a8c4fe5ea
+  linux/chain/launch.sh blob 42bfd4699327065104467767b6ef490624e350f5
+  linux/chain/inside.sh blob 1ac6d09d67ec0be06073683b796f3a06f11dea11
+  pg/up.sh blob 98c1234fa842f9c0f3a889edcbb202f293236735
+  a203 harness-inside.sh git hash-object 7b67c4fca15c19ae14ef0afb7804c1ad686fc038
+
+Earlier launches those recipes already named:
+  a200 smoke launch blob 20b391304358e474c189203eeb525b46fc2ea194
+  a200 up.sh blob 1784718c92323df0f216e9f5bd8fee182f4ff24d
+  a204 preoverlay launch blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  a199 preoverlay launch blob 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+
+Edits from the a211 scripts: owner a226, session eef831aa-dba4-4af2-a78b-541bc9e0a226, fixed commit ed661809, new builder memory 6g and cpus 1, private names oo-a226-*, SAN DNS:oo-a226-pg, and the focused tests for reviewed-effective-oos, role-pack-bundle, init-pg, and policy::tests. Standalone lock resolution is not run. a211 preserved that failure; this directory records the skip in linux/chain/attempt-standalone-skipped.txt. The harness is an overlay workspace member. No cargo update. No product manifest edit. No root lock edit.
