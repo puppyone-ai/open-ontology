@@ -1,0 +1,5 @@
+commit=e3363ffecc21af4dc9fcf75509978da34b0860b1
+parent=33426a733d8f569a74e8074745a2a77528b1cb53
+baseline=15d23fe9f2cbc74e3f3278d70d0f56390568126e
+subject=control: pull published objects in bounded ranges
+files=crates/oo-control/src/file_hosting.rs crates/oo-control/tests/file_hosting.rs contracts/control/local-file-hosting-v1.md
