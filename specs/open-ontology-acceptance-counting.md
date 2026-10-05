@@ -90,3 +90,7 @@ E1-D开发0/3，M1-D现17/24；两批已冻结开发合计17/27（62.96%），�
 | M1-D05A / SP04-W05 | operator targetconfig→实际installer CLI readiness | compiled init→import/replay/TLS/权限/partialschema拒绝 | 未验收a223 |
 
 E2-D 0/6；M1-D仍17/24、E1-D0/3，已冻结开发合计17/33（51.52%），覆盖三个批次，不称全项目。a221是不覆盖竞态修复，不新增单位。a203/a211真实集成结果确认缺effective-oos与多表ACL/stats seam，M1-I01/I02标“已运行、接口待补”，保持未验收，不以退出0签完整链。
+
+## E3-D（本次派工前冻结）
+
+B-D03 / SP12-W03：成对完整question试次向量→精确pass^k与可复现成对question bootstrap报告；验收为手算k3/固定随机向量/独立小样本枚举/混合版本和缺试次拒绝、reannotation不移出分母、实际CLI与固定独立审阅。E3-D0/1，a225；已有三批不变。全部已冻结批次合计17/34（50%），不称全项目完成率；B-D03不是完整题库或客户benchmark。
