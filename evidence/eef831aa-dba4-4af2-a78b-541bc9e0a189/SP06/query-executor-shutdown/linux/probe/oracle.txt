@@ -1,0 +1,35 @@
+repro=baseline
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+ssl=on
+int4_oid=23
+hold_oid=16411
+role_flags=nologin
+guard_refusal=write
+bound_role_after_guard=none
+guard_admits=0
+session_open_after_guard=yes
+other_role=allowed
+other_role_rows=1
+other_role_status=succeeded
+other_role_elapsed_ms=3
+other_role_bound=oo_r_west
+other_role_admits=1
+portal_visible=yes
+portal_activity=state=active wait=Timeout/PgSleep query_len=45 needle=true
+portal_drop_elapsed_ms=4
+portal_drop_status=partial
+portal_drop_sqlstate=none
+portal_drop_stop=protocol
+portal_drop_rollback=no
+portal_drop_socket=yes
+portal_end_audit=yes
+lock_visible=yes
+lock_activity=state=active wait=Lock/relation query_len=40 needle=true
+lock_drop_elapsed_ms=5703
+lock_drop_status=failed
+lock_drop_sqlstate=57014
+lock_drop_stop=timeout
+lock_drop_rollback=yes
+lock_drop_socket=yes
+lock_end_audit=yes
+repro_result=observed

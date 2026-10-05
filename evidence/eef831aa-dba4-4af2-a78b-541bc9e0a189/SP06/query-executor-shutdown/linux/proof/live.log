@@ -1,0 +1,9 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.52s
+     Running tests/query_executor_pg_live.rs (/target/debug/deps/query_executor_pg_live-8718e2252fe3bf6c)
+
+running 1 test
+test live_permission_bound_select ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.51s
+

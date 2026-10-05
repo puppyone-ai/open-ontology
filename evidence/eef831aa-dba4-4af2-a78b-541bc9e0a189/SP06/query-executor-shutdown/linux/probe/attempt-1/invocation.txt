@@ -1,0 +1,1 @@
+docker run --name oo-a189-repro --platform linux/arm64 --pull never --network oo-a189-net --cap-drop ALL image=pinned-rust-1.94 bash /inside.sh

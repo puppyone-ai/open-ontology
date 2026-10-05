@@ -1,0 +1,10 @@
+oo_task=sp06-query-executor-shutdown-proof
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a189
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+phase=proof
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== cargo test -p oo-gateway --lib ===
+phase_exit=0 phase=lib-test
+clippy component missing
+phase_exit=2 phase=clippy-component
