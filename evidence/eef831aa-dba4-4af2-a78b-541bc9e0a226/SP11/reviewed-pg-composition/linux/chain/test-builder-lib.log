@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (/target/debug/deps/oo_builder-43061a3ef0c52471)
+
+running 5 tests
+test reviewed_effective::tests::a_rejected_column_that_is_still_effective_is_not_classified ... ok
+test reviewed_effective::tests::duplicate_decision_and_bad_pii_refuse_the_document ... ok
+test reviewed_effective::tests::omitted_endpoint_is_explicit_and_a_carried_class_is_detected ... ok
+test reviewed_effective::tests::renamed_column_refuses_the_old_name_and_classifies_only_the_new_fingerprint ... ok
+test reviewed_effective::tests::tampered_class_fails_the_seal_before_it_can_apply ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.08s
+

@@ -1,0 +1,5 @@
+label=fixture_configuration_not_library
+before=absent
+after=present
+explicit_allow_source=role_visibility_allowlist_configuration
+role_login_binding=configuration_not_auth
