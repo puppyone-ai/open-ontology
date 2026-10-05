@@ -1,0 +1,3 @@
+path=crates/oo-control/src/file_hosting.rs sha256=05c9d4d7e2888c40d9de848021f3452968671ae0a3ea04ca58a13f147c49b38b
+path=crates/oo-control/tests/file_hosting.rs sha256=ed79247f13c216188047034cecc7b3c20ed3ed940d21f385c97e65daf4e2ec52
+path=contracts/control/local-file-hosting-v1.md sha256=51f8899bcdb29f22919746e50bdd6f93cb5b22f2599e9659b0b32cb116334419

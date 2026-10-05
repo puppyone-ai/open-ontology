@@ -1,0 +1,6 @@
+consumed_prefix_flip_complete=1
+consumed_prefix_end=None
+consumed_prefix_running_hash_matches_snapshot=1
+consumed_prefix_stored_file_matches_snapshot=0
+consumed_prefix_offset=20
+consumed_prefix_source_len=20

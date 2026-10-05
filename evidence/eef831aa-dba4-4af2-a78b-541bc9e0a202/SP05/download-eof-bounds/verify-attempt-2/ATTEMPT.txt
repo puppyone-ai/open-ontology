@@ -1,0 +1,1 @@
+clippy while_let_loop at tests/file_hosting.rs generic pull loop. tests passed (test.exit=0, 16 passed). clippy.exit=101. docker-run.exit=101. OOMKilled=false. container removed by launch trap.

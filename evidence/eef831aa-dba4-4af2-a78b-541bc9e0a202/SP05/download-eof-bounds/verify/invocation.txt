@@ -1,0 +1,21 @@
+head=b3f8f6161c40c87686c1159421b800a53f874d6f
+composition=git archive of HEAD plus the three owned working-tree files
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a202-verify
+network=oo-a202-eef831aa-net
+cargo_volume=oo-a202-eef831aa-cargo
+target_volume=oo-a202-eef831aa-target
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+postgres=none
+tmpfs=/tmp:rw,nosuid,nodev,size=2g
+memory=8g
+phases=fetch fmt test clippy
+package=oo-control
+hash_oracle=shasum and git hash-object; no python hashlib

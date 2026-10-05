@@ -1,0 +1,15 @@
+commit=5e3ba29f8d460a1aa6919733100c34a68a2fdb75
+parent=b3f8f6161c40c87686c1159421b800a53f874d6f
+tree=846870547f225b2bdddc86385539d4c0c79f4427
+subject=control: rehash a local object before download completion
+fixed=e3363ffecc21af4dc9fcf75509978da34b0860b1
+fixed_tree=fb3f57bfcb2853e56a617549be340043fe3cd7fb
+review=ef6c4fc7da03342f900146e90ff692fe742d1ba4
+author_evidence=a699f8da3dfdae918eb1129509d074c7d1d3bdce
+files=crates/oo-control/src/file_hosting.rs crates/oo-control/tests/file_hosting.rs contracts/control/local-file-hosting-v1.md
+unchanged=crates/oo-control/src/lib.rs crates/oo-control/Cargo.toml Cargo.lock
+lock_storage=hash-only
+lock_matches_tested_head=1
+repro_overlay=pre-edit/repro_download_eof.rs
+repro_in_product_commit=0
+verify_archive_head=b3f8f6161c40c87686c1159421b800a53f874d6f

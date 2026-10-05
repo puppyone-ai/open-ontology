@@ -1,0 +1,29 @@
+observed_at=2026-10-05T18:33:01Z
+=== before ===
+name=oo-a064-pg1710-jobs status=Exited (0) 3 days ago
+name=oo-a064-rust194-contract status=Exited (101) 3 days ago
+name=oo-a064-rust194-contract2 status=Exited (0) 3 days ago
+name=oo-a064-rust194-smoke status=Exited (0) 3 days ago
+name=oo-a201-red2 status=Exited (143) 34 minutes ago
+name=oo-a201-red3 status=Up 2 seconds
+name=oo-a203-rust194 status=Exited (0) 22 minutes ago
+=== rm own containers (traps may already have removed them) ===
+stderr: Error response from daemon: No such container: oo-a202-verify
+stderr: Error response from daemon: No such container: oo-a202-pre-edit
+=== rm own network ===
+oo-a202-eef831aa-net
+=== rm own volumes ===
+oo-a202-eef831aa-cargo
+oo-a202-eef831aa-target
+=== rm own tmp ===
+tmp_archive_gone=1
+=== after own resources ===
+=== still present (not removed) ===
+name=oo-a064-pg1710-jobs status=Exited (0) 3 days ago
+name=oo-a064-rust194-contract status=Exited (101) 3 days ago
+name=oo-a064-rust194-contract2 status=Exited (0) 3 days ago
+name=oo-a064-rust194-smoke status=Exited (0) 3 days ago
+name=oo-a201-red2 status=Exited (143) 34 minutes ago
+name=oo-a201-red3 status=Up 6 seconds
+name=oo-a203-rust194 status=Exited (0) 22 minutes ago
+prune=not_run
