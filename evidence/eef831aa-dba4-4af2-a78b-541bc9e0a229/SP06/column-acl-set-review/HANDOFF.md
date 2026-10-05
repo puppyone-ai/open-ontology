@@ -30,4 +30,4 @@ Authentication, row-level security, publication, and the audit WAL remain open. 
 
 ## Cleanup
 
-Cleanup runs after the evidence commit, through `cleanup/run.sh`, and removes only a229 containers, volumes, network, and the `/tmp/oo-a229-eef831aa-dba4-4af2-a78b-541bc9e0a229` directory. No prune. Pinned images stay.
+`cleanup/run.log` records removal after evidence commit `3511172ed93da7d9662893d9821b3bde8ea2e9eb`. Containers `oo-a229-smoke` and `oo-a229-proof` were already absent. The script removed `oo-a229-pg`, volumes `oo-a229-eef831aa-cargo`, `oo-a229-eef831aa-target`, and `oo-a229-eef831aa-pgdata`, network `oo-a229-eef831aa-net`, and `/tmp/oo-a229-eef831aa-dba4-4af2-a78b-541bc9e0a229`. Exit 0. No prune. A second check saw no container, volume, or network with this session's a229 labels. The pinned Rust and PostgreSQL images were still present.
