@@ -1,0 +1,40 @@
+Reviewed launch and hash recipes for UUID eef831aa-dba4-4af2-a78b-541bc9e0a233.
+Fixed product commit baf70c5c7b6d01183a178f53c77f65da4a7bb497.
+Tree 536cb17cc083f11c1bc78e5b5f66ae5e0b79ea08.
+Parent e02b3c8a8ad0e54d968791e244b444189c6bcfff.
+The archive is that commit. Product files are not copied from the worktree.
+No PostgreSQL. No dependency edit.
+
+a204 file-validation review preoverlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+    git hash-object 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  Used for the partial git archive, the refuse-to-overwrite console.log rule, the private network, and the docker run shape.
+
+a204 overlay-3 launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/launch.sh
+    git hash-object 03c8e15c60a376ef0a757c062ebd110063a0ffe6
+  Used for copying one review harness onto a fresh archive and for the read-only /src mount.
+
+a199 delimited-reader review preoverlay launch:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+    git hash-object 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+  Used for the archive-drift cmp against saved blobs.
+
+a200 policy-catalog review hash tool:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/tools/sha256.rs
+    git hash-object b69a2af13099ce4baf2d04e79c5692d9988ab67d
+  Copied unchanged to tools/sha256.rs.
+  a200 smoke launch.sh git hash-object 20b391304358e474c189203eeb525b46fc2ea194
+  Used for the capacity count and labeled private volumes.
+  The a200 PostgreSQL, private CA, and libclang launch was read and was not copied. This review starts no PostgreSQL.
+
+libclang extract, required because oo-gateway compiles pg_query:
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a227/SP06/reviewed-policy/linux/smoke/extract-libclang.sh
+    git hash-object 947c64ba42b4956a172975ccc6b844eff12f4bef
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a227/SP06/reviewed-policy/tools/select-debs.rs
+    git hash-object 565787c25c25bf451343cf4bc0431619c0611899
+  select-debs.rs is copied unchanged. The extract script changes only the a233 cargo paths.
+
+Edits from those recipes: owner a233, session eef831aa-dba4-4af2-a78b-541bc9e0a233, fixed commit baf70c5c7b6d01183a178f53c77f65da4a7bb497, new builder memory 6g and cpus 1, CARGO_BUILD_JOBS 1, global running rust-builder cap 10, private network and volumes. No privileged mode, host network, docker socket, host home, or shared cargo cache. The fixed commit rust-toolchain.toml names channel 1.98.1. The extracted copy used for the build is moved aside. RUSTUP_TOOLCHAIN=1.94.0 stays set. The git object is not rewritten.
+
+Smoke runs the fixed commit's own reviewed_policy integration test before the review harness exists. It builds oo-builder and reviewed-effective-oos from that archive. Overlay copies only overlay/reviewed_policy_a233_review.rs onto a fresh archive and runs that test plus clippy. No dependency file is edited.

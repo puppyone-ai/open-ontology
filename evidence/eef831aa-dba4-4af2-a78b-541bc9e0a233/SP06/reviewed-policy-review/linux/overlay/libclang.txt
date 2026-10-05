@@ -1,0 +1,2 @@
+LIBCLANG_PATH=/cargo-home/a233-clang-root/usr/lib/aarch64-linux-gnu
+stdbool.h=present
