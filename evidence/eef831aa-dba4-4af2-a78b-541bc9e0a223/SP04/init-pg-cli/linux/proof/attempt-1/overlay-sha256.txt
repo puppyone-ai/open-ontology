@@ -1,0 +1,3 @@
+0c0d6708de01b000136093002561f4f131476490c7bea67f5c147f7f6f7cc832  crates/oo-pipeline/src/bin/init-pg.rs
+38a0f34b0b949210b498339879fe8dfafb0841b8ef1c19b8a6d45e252c30fa0a  crates/oo-pipeline/tests/init_pg_cli.rs
+473a0e02c3b5e224df78d2e6a854cc1421613a697534bdeaf15a8b6ae026e4fa  contracts/pipeline/init-pg-cli-v1.md

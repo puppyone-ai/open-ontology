@@ -1,0 +1,1 @@
+live exit 101 after administrator pre-check. privilege exit 5, second empty exit 6. Partial schema owned by the admin made 0003 raise 42501 instead of OO002, so the CLI exited 1. Fixture now creates _oo AUTHORIZATION oo_target_owner so the absent relation is OO002.

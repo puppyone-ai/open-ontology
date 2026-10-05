@@ -1,0 +1,1 @@
+docker run --name oo-a223-smoke --platform linux/arm64 --pull never --network oo-a223-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 bash /inside.sh
