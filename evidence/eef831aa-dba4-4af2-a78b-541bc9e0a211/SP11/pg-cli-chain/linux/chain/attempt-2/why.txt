@@ -1,0 +1,1 @@
+Standalone cargo rejected unstable --lockfile-path. Overlay compiled and stopped in oo-a211-pg-cli-chain: row slices did not coerce, and Stop.step required a static string. Preserved before the source fix.

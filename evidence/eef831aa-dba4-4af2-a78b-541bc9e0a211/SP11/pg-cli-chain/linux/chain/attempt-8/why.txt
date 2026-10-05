@@ -1,0 +1,1 @@
+Column ACL recorded the second-table refusal for clerk and peek. Direct peek SELECT of the granted display_name column ordered by ungranted _oo_pos returned permission denied for the physical table. The same SELECT ordered by the granted party_id column returned the two fixture names. Preserved before ordering that proof by party_id.

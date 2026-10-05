@@ -1,0 +1,33 @@
+warning: this lint expectation is unfulfilled
+  --> /src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-a211-pg-cli-chain v0.1.0 (/tmp/a211-standalone)
+error: recursion limit reached while expanding `$crate::json_internal!`
+   --> src/main.rs:611:19
+    |
+611 |       let outcome = json!({
+    |  ___________________^
+612 | |         "fixed_commit": "a661dcdf72ff91561ae6b7cb79916e582884d08a",
+613 | |         "catalog_protocol": catalog_value["protocol"],
+614 | |         "captured_protocol": captured_value["protocol"],
+...   |
+658 | |         "harness_mount": "not_performed",
+659 | |     });
+    | |______^
+    |
+    = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`oo_a211_pg_cli_chain`)
+    = note: this error originates in the macro `$crate::json_internal` which comes from the expansion of the macro `json` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `oo-a211-pg-cli-chain` (bin "oo-a211-pg-cli-chain") due to 1 previous error

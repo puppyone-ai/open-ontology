@@ -1,0 +1,16 @@
+Own-resource cleanup for session eef831aa-dba4-4af2-a78b-541bc9e0a211. UTC 2026-10-05T20:39:09Z. No prune. No foreign container, volume, or network was removed. Pinned images were left in place.
+
+Already removed by their launch scripts before this step: oo-a211-smoke, oo-a211-chain, oo-a211-sha256.
+
+This step:
+- docker stop oo-a211-pg (exit 0)
+- docker rm oo-a211-pg (exit 0)
+- docker volume rm oo-a211-eef831aa-cargo oo-a211-eef831aa-target oo-a211-eef831aa-pgdata (exit 0)
+- docker network rm oo-a211-eef831aa-net (exit 0)
+- rm -rf /tmp/oo-a211-eef831aa-dba4-4af2-a78b-541bc9e0a211 and the a211 chain watch script under /tmp (exit 0)
+
+Afterward, docker ps, volume ls, and network ls showed no oo-a211 names. The private tmp directory was gone.
+
+Images still present:
+- docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+- docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb

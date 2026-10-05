@@ -1,0 +1,1 @@
+Standalone cargo build of the harness hit serde_json json! recursion limit on the enlarged outcome object (src/main.rs). The product archive was not changed. Preserved before splitting that object into two json values. Overlay did not run.
