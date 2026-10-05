@@ -1,0 +1,1 @@
+exit 101: drop while the portal waited on ACCESS EXCLUSIVE finished as failed after the server statement_timeout, not partial. The immediate-drop case is separated from that measurement.

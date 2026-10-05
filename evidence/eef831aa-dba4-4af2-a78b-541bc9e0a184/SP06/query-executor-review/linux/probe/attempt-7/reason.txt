@@ -1,0 +1,1 @@
+exit 101: the oracle test passed and the scan was clean. Clippy -D warnings failed on too_many_arguments for insert (8), run_ok (11), open_stream (11), and exec_result (11), and on never_loop in the server-timeout read. The live comparison itself passed.

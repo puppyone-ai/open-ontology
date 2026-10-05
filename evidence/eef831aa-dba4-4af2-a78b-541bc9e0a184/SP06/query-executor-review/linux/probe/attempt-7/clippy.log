@@ -1,0 +1,75 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: this function has too many arguments (8/7)
+   --> crates/oo-gateway/tests/query_executor_a184_review.rs:153:5
+    |
+153 | /     async fn insert(
+154 | |         &self,
+155 | |         phase: &str,
+156 | |         original: &str,
+...   |
+161 | |         status: Option<&str>,
+162 | |     ) -> Result<(), ExecError> {
+    | |______________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this loop never actually loops
+   --> crates/oo-gateway/tests/query_executor_a184_review.rs:594:17
+    |
+594 |       let error = loop {
+    |  _________________^
+595 | |         match stream.next_row().await {
+596 | |             Ok(Some(_)) => panic!("server timeout delivered a row"),
+597 | |             Ok(None) => panic!("server timeout ended cleanly"),
+...   |
+600 | |     };
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#never_loop
+    = note: `#[deny(clippy::never_loop)]` on by default
+
+error: this function has too many arguments (11/7)
+   --> crates/oo-gateway/tests/query_executor_a184_review.rs:892:1
+    |
+892 | / async fn run_ok(
+893 | |     env: &mut Env,
+894 | |     session: &mut DedicatedSession,
+895 | |     catalog: &PolicyCatalog,
+...   |
+903 | |     fail_complete: bool,
+904 | | ) -> Outcome {
+    | |____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+
+error: this function has too many arguments (11/7)
+   --> crates/oo-gateway/tests/query_executor_a184_review.rs:911:1
+    |
+911 | / async fn open_stream(
+912 | |     env: &mut Env,
+913 | |     session: &mut DedicatedSession,
+914 | |     catalog: &PolicyCatalog,
+...   |
+922 | |     fail_complete: bool,
+923 | | ) -> Result<SelectStream, ExecError> {
+    | |____________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+
+error: this function has too many arguments (11/7)
+   --> crates/oo-gateway/tests/query_executor_a184_review.rs:941:1
+    |
+941 | / async fn exec_result(
+942 | |     env: &mut Env,
+943 | |     session: &mut DedicatedSession,
+944 | |     catalog: &PolicyCatalog,
+...   |
+952 | |     fail_complete: bool,
+953 | | ) -> Result<SelectStream, ExecError> {
+    | |____________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+
+error: could not compile `oo-gateway` (test "query_executor_a184_review") due to 5 previous errors

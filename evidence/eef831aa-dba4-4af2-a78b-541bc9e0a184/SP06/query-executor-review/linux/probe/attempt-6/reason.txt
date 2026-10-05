@@ -1,0 +1,1 @@
+exit 101: fact() rejected bad_bypass_display because the key contained "pass". The check now rejects only the substring "password". Immediate drop was partial; blocked drop was failed/57014 at 2703ms.

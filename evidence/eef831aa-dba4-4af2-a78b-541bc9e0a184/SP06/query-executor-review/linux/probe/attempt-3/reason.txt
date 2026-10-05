@@ -1,0 +1,1 @@
+exit 101: row truncation returned 2 succeeded rows and call count 0. The dedicated backend was still connected, so pg_stat_user_functions had not published the pending counter. Next run closes that backend before the read, matching the author live harness.

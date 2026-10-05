@@ -1,0 +1,11 @@
+oo_task=sp06-query-executor-review-probe
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a184
+oo_fixed=8a289f0c699abb8c707ca45ad45cb036abc3fc05
+oo_platform=linux/arm64
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=libclang
+phase_exit=0 phase=oracle-test
+oracle_scan=clean lines=85
+phase_exit=0 phase=clippy-component
+phase_exit=0 phase=clippy
+probe_phases_ok

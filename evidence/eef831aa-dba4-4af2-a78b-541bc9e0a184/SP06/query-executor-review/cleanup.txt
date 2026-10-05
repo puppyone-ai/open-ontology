@@ -1,0 +1,11 @@
+container_oo-a184-smoke=already_removed
+container_oo-a184-probe=already_removed
+container_stop_oo-a184-pg=0
+container_rm_oo-a184-pg=0
+volume_rm_oo-a184-cargo=0
+volume_rm_oo-a184-target=0
+volume_rm_oo-a184-pgdata=0
+network_rm=0
+tmp_rm=0
+docker_prune=not_used
+foreign_containers=not_removed

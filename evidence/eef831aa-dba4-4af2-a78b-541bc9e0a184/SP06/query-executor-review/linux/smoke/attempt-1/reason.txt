@@ -1,0 +1,1 @@
+exit 2 before cargo. The allow-site regex required async fn run_producer( and missed run_producer<A>. set -u did not stop on that python failure. libclang search then accepted libclang-19.so; the load check required libclang.so*.
