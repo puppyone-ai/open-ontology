@@ -88,7 +88,9 @@ pub struct ColumnAclPolicy {
     pub project: String,
     /// 64 lowercase hex digits. Must match `physical_mappings.config_digest`.
     pub config_digest: String,
-    /// Mapping `run_generation`. Must equal the maximum stored for this project.
+    /// Mapping `run_generation`. Must equal the maximum stored for this
+    /// source and config digest. A later generation on another digest does
+    /// not raise it.
     pub generation: i64,
     /// Role slug. The database role is `oo_r_` plus this slug.
     pub role: String,

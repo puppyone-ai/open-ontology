@@ -14,7 +14,7 @@ It then requires `pg_stat_ssl.ssl` for this backend and opens one `REPEATABLE RE
 
 Inside that snapshot the loader checks:
 
-1. `max(run_generation)` in `_oo.physical_mappings` for the source and config digest equals the policy generation.
+1. `max(run_generation)` in `_oo.physical_mappings` for the source and config digest equals the policy generation. A later generation stored under another config digest is not this maximum.
 2. `pg_roles` has one row for the role and all seven privilege flags are false (`rolcanlogin`, `rolsuper`, `rolcreatedb`, `rolcreaterole`, `rolinherit`, `rolbypassrls`, `rolreplication`).
 3. Each base type `bool`, `int2`, `int4`, `int8`, and `text` exists once in `pg_catalog` with `typtype = 'b'`. OIDs come from that row. None are hard-coded.
 4. The operator subset below exists once each, with the stated schema, signature, volatility, kind, language, and extension checks.
@@ -24,7 +24,7 @@ Inside that snapshot the loader checks:
 
 Counts run before the detail rows are collected. A count above the caller limit refuses the load. Limits also have absolute caps: 32 tables, 512 columns, 8 functions, 128 operators. `max_operators` must be at least the size of the subset below, so a caller cannot ask for a partial whitelist.
 
-The transaction is committed, not dropped. After commit, `pg_current_xact_id_if_assigned()` must be null. A failed rollback replaces the original error with an incomplete-transaction error. Display text carries a five-character SQLSTATE or a static label. It does not carry SQL, a DSN, a password, or a hidden column name. `OO024` from lookup is `MappingAbsent`.
+The transaction is committed, not dropped. After commit, `ensure_committed` requires `pg_current_xact_id_if_assigned()` to be null. That null is a weak check. An open `REPEATABLE READ READ ONLY` transaction that has not assigned a transaction id also returns null while `xact_start` is set, so the check does not prove the session is idle. A failed rollback replaces the original error with an incomplete-transaction error. Display text carries a five-character SQLSTATE or a static label. It does not carry SQL, a DSN, a password, or a hidden column name. `OO024` from lookup is `MappingAbsent`.
 
 The loader does not `SELECT` a mapped table, sample its rows, or write. One call is one role and one project.
 

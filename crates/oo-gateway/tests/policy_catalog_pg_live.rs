@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use oo_gateway::policy::catalog::{
@@ -69,6 +70,17 @@ async fn policy_catalog_loads_from_postgres_and_executes() {
 
 struct MemoryAudit;
 
+static AUDIT_ADMITS: AtomicU64 = AtomicU64::new(0);
+static AUDIT_COMPLETES: AtomicU64 = AtomicU64::new(0);
+
+fn audit_admits() -> u64 {
+    AUDIT_ADMITS.load(Ordering::SeqCst)
+}
+
+fn audit_completes() -> u64 {
+    AUDIT_COMPLETES.load(Ordering::SeqCst)
+}
+
 impl AuditAdmission for MemoryAudit {
     async fn admit(&mut self, admission: &Admission<'_>) -> Result<(), ExecError> {
         let _ = (
@@ -81,11 +93,13 @@ impl AuditAdmission for MemoryAudit {
             admission.backend_pid(),
             admission.backend_start(),
         );
+        let _ = AUDIT_ADMITS.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 
     async fn complete(&mut self, completion: &CompletionRecord) -> Result<(), ExecError> {
         let _ = completion.status();
+        let _ = AUDIT_COMPLETES.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 }
@@ -536,6 +550,9 @@ impl Live {
 
     async fn deny_hidden_write_and_injection(&mut self) {
         let mut session = self.open_session().await;
+        assert_eq!(session.bound_role(), None);
+        let admits = audit_admits();
+        let completes = audit_completes();
         for (sql, kind) in [
             ("SELECT pg_catalog.pg_sleep(0)", "function"),
             ("SELECT count(amount) FROM billing.invoice", "function"),
@@ -572,11 +589,89 @@ impl Live {
                 }
                 _ => unreachable!(),
             }
-            assert_eq!(session.bound_role(), None);
+            assert_eq!(
+                session.bound_role().as_deref(),
+                Some(self.clerk_role.as_str())
+            );
+            assert!(session.is_open());
+            assert_eq!(audit_admits(), admits);
+            assert_eq!(audit_completes(), completes);
             self.oracle
                 .fact(&format!("guard_{kind}_{}", sql.len()), kind);
         }
+        let reuse = self
+            .guard_only(
+                &mut session,
+                &self.auditor_catalog,
+                &self.auditor_identity,
+                &self.auditor_role,
+                "SELECT amount FROM billing.invoice ORDER BY amount",
+            )
+            .await;
+        assert!(matches!(reuse, ExecError::RoleReuse));
+        assert_eq!(
+            session.bound_role().as_deref(),
+            Some(self.clerk_role.as_str())
+        );
+        assert!(session.is_open());
+        assert_eq!(audit_admits(), admits);
+        assert_eq!(audit_completes(), completes);
+        let mut other = self.open_session().await;
+        assert_eq!(other.bound_role(), None);
+        let hidden = self
+            .guard_only(
+                &mut other,
+                &self.auditor_catalog,
+                &self.auditor_identity,
+                &self.auditor_role,
+                "SELECT qty FROM billing.invoice",
+            )
+            .await;
+        let hidden_text = hidden.to_string();
+        assert!(matches!(
+            hidden,
+            ExecError::Guard(err) if matches!(err.as_ref(), GuardError::ColumnNotAllowed { .. })
+        ));
+        assert!(!hidden_text.contains("qty"));
+        assert_eq!(
+            other.bound_role().as_deref(),
+            Some(self.auditor_role.as_str())
+        );
+        assert!(other.is_open());
+        assert_eq!(audit_admits(), admits);
+        assert_eq!(audit_completes(), completes);
+        assert_eq!(
+            self.query(
+                &mut other,
+                &self.auditor_catalog,
+                &self.auditor_identity,
+                &self.auditor_role,
+                "SELECT amount FROM billing.invoice ORDER BY amount"
+            )
+            .await,
+            vec![
+                vec![Cell::Int("-4".to_string())],
+                vec![Cell::Int("10".to_string())],
+                vec![Cell::Int("20".to_string())],
+            ]
+        );
+        assert_eq!(
+            other.bound_role().as_deref(),
+            Some(self.auditor_role.as_str())
+        );
+        assert_eq!(audit_admits(), admits + 1);
+        assert_eq!(audit_completes(), completes + 1);
+        assert_eq!(
+            session.bound_role().as_deref(),
+            Some(self.clerk_role.as_str())
+        );
+        other.close();
         session.close();
+        self.oracle.fact("guard_bound_role", "clerk");
+        self.oracle.fact("guard_audit_delta", "0");
+        self.oracle.fact("role_reuse", "refused");
+        self.oracle.fact("fresh_other_role", "auditor");
+        self.oracle.fact("fresh_read_audit", "1");
         self.assert_direct_denial(
             &format!(
                 "SELECT {secret} FROM \"_oo\".{table}",
