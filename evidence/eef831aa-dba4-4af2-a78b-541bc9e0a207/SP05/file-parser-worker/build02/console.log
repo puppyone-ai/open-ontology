@@ -1,0 +1,7 @@
+info: downloading component clippy
+info: downloading component rustfmt
+error: unexpected argument '-p' found
+
+Usage: cargo fetch [OPTIONS]
+
+For more information, try '--help'.

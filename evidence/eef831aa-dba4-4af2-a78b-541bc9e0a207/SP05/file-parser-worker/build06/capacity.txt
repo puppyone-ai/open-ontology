@@ -1,0 +1,3 @@
+docker_rust_builders=0
+host_cargo=0
+cap=10

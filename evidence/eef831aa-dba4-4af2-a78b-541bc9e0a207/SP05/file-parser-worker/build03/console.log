@@ -1,0 +1,15 @@
+info: downloading component clippy
+info: downloading component rustfmt
+    Updating crates.io index
+     Locking 4 packages to latest Rust 1.94.0 compatible versions
+      Adding arrow-cmp v60.0.0
+      Adding arrow-ipc v60.0.0
+      Adding arrow-select v60.0.0
+      Adding flatbuffers v25.12.19
+ Downloading crates ...
+  Downloaded arrow-cmp v60.0.0
+  Downloaded flatbuffers v25.12.19
+  Downloaded arrow-ipc v60.0.0
+  Downloaded arrow-select v60.0.0
+lock gate reject: added	flatbuffers	25.12.19
+lock gate reject: missing flatbuffers	25.2.10
