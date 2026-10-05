@@ -77,3 +77,16 @@ R01制品/双架构/SBOM与完整依赖政策，R02升级/迁移/回滚/备份�
 | O-D02 / SP07-W06 | 真实role-pack command→packbytes+sealed bundle | 实际编译器双角色、独立hash、new-only/失败清理、compiled CLI | 未验收，a214 |
 
 E1-D开发0/3，M1-D现17/24；两批已冻结开发合计17/27（62.96%），只覆盖这两批，不是全项目比例。a211是M1-I02的CLI链证据工作，不增加开发单位。
+
+## 扩展批次 E2-D（本次派工前冻结）
+
+| ID / Plan归属 | 输入→输出 | 决定性验收 | 状态 |
+|---|---|---|---|
+| M1-D18A / SP07-W05 | sealed reviewed draft+明确绑定分类→effective-oos | 实际两角色Pack消费、unknown/stale拒绝；不替代D18发布 | 未验收a217 |
+| M1-D14A / SP06-W01 | 一角色多表完整policy set→原子列ACL | 真实双表查询/隐藏42501/全set replay/坏第二表整体回滚 | 未验收a218 |
+| M1-D06A / SP04-W02 | 目标映射+generation→显式ANALYZE已知估计 | realimport unknown→known→query/source零写；不替代publication | 未验收a219 |
+| F-D02 / SP05-W02 | realworker request→bounded parent verified IPC receipt | actualchild类型/lineage/EOF/nonzero/timeout kill+reap | 未验收a220 |
+| B-D02 / SP12-W03 | actualquery-pg流→typed比较器输入 | actualquery→adapter→comparator/缺completion拒绝 | 未验收a222 |
+| M1-D05A / SP04-W05 | operator targetconfig→实际installer CLI readiness | compiled init→import/replay/TLS/权限/partialschema拒绝 | 未验收a223 |
+
+E2-D 0/6；M1-D仍17/24、E1-D0/3，已冻结开发合计17/33（51.52%），覆盖三个批次，不称全项目。a221是不覆盖竞态修复，不新增单位。a203/a211真实集成结果确认缺effective-oos与多表ACL/stats seam，M1-I01/I02标“已运行、接口待补”，保持未验收，不以退出0签完整链。
