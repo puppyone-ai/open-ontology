@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS, d
 Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincommit/path/hash and minimal changes. Always UUID-private resources/new independentrawproof. Review only frozen scope and necessary boundarytests; broaden only concrete newfailure/change. Do not inflate acceptedunits: new expansion child must frozenbeforecoding. No nestedagents.
 
 Dependencywriter a207 CLOSED complete; THIS batch has ZEROdependencywriters. Buildimmutablefixedarchive plusONLYown overlay; lib.rs writers isolated percrate builder217/gatewaypolicy218/pipeline219/connectors220, bundle221existingnewbin isolated. No otherlib changes. Latest12devcap separate2review/global10builders new6GiB1CPU each.
+
+Originalactual85832 exit0 incomplete all3reportsmissing. FIRSTcollectexistingactualbuilderexit/log notduplicatebuilder/PG. Continue throughfull reports/source/evidence/fullhash/owncleanup inoriginalUUID. Latestdevcap12/reviewseparate/global10builders/ONE20minwait. Scopeonlyadapter; existingcomparator/runtime/gatewaynotwriter.
