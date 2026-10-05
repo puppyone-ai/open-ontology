@@ -1,0 +1,21 @@
+fixed=755fb84acc7f80e5ba2fba1c2b80412dab7fab26
+workspace_head=4e495b0df4e8ce6ebfa43052299dd490e10b9669
+composition=git archive of HEAD plus working-tree overlay of file_hosting.rs, tests/file_hosting.rs, and local-file-hosting-v1.md
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a186-post-edit
+network=oo-a186-eef831aa-net
+cargo_volume=oo-a186-eef831aa-cargo
+target_volume=oo-a186-eef831aa-target
+pull=never
+privileged=no
+home_mount=no
+socket_mount=no
+host_network=no
+shared_cargo_cache=no
+postgres=none
+tmpfs=/tmp:rw,nosuid,nodev,size=2g
+metrics=OO_FH_METRICS_DIR=/evidence/metrics
+phases=fmt fmt-check fetch lock-unchanged test clippy
+package=oo-control

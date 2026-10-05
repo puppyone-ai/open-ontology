@@ -1,0 +1,9 @@
+fixed=755fb84acc7f80e5ba2fba1c2b80412dab7fab26
+workspace_head=9c22685ddb1d65c7789557a5529224865882d691
+fixed_tree=9bb6da0a68e8533831f3d92fe105caf1423e2c0c
+head_tree=5bdc63b3c86c537e4be765c35085783ad1c83212
+blob_match crates/oo-control/src/file_hosting.rs 8e198b687482e28baabb38ff86e853e59073ee66
+blob_match crates/oo-control/tests/file_hosting.rs 714a92efae943c7af12ed427fbb5282fad2be504
+blob_match contracts/control/local-file-hosting-v1.md 456b41c57dfb67a3239fb8c2375f770e57f799f3
+blob_match crates/oo-control/Cargo.toml ab86ecccb38618a93ce32141189156c3ab90a7dc
+blob_match crates/oo-control/src/lib.rs b7e3eae88545f792e2d1fd9fd5d560f84580f3bd

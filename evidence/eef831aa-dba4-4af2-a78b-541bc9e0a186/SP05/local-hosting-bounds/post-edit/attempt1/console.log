@@ -1,0 +1,66 @@
+oo_task=sp05-local-hosting-bounds-post-edit
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+overlay=file-hosting
+airgap_claim=no
+fetch_argv=cargo fetch --manifest-path Cargo.toml --locked
+test_argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-control --test file_hosting --lib -- --nocapture
+clippy_argv=cargo clippy --manifest-path Cargo.toml --locked --offline -p oo-control --all-targets -- -D warnings
+Linux 292b79f286b7 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+RUSTUP_TOOLCHAIN=1.94.0
+OO_FH_METRICS_DIR=/evidence/metrics
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== cargo fmt -p oo-control ===
+phase_exit=0 phase=cargo_fmt
+=== cargo fmt --check -p oo-control ===
+phase_exit=0 phase=cargo_fmt_check
+=== cargo fetch --locked ===
+phase_exit=0 phase=cargo_fetch
+phase_exit=0 phase=lock_unchanged
+=== cargo test file_hosting ===
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+   Compiling oo-control v0.1.0 (/src/crates/oo-control)
+error[E0382]: use of moved value: `task_a`
+   --> crates/oo-control/tests/file_hosting.rs:769:10
+    |
+708 |     let task_a = tokio::spawn(async move {
+    |         ------ move occurs because `task_a` has type `tokio::task::JoinHandle<Result<UploadSession, FileHostError>>`, which does not implement the `Copy` trait
+...
+736 |     let left = task_a.await.unwrap();
+    |                       ----- `task_a` moved due to this await
+...
+769 |     drop(task_a);
+    |          ^^^^^^ value used here after move
+    |
+note: `std::future::IntoFuture::into_future` takes ownership of the receiver `self`, which moves `task_a`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/future/into_future.rs:134:19
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `oo-control` (test "file_hosting") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+phase_exit=101 phase=cargo_test_file_hosting

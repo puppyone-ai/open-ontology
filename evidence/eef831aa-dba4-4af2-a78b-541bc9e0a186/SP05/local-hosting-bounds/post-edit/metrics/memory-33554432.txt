@@ -1,0 +1,15 @@
+memory_bytes=33554432
+memory_hwm_before_kib=5100
+memory_hwm_after_kib=5220
+memory_hwm_delta_bytes=122880
+memory_rss_before_kib=5100
+memory_rss_after_kib=5220
+memory_vmpeak_before_kib=208400
+memory_vmpeak_after_kib=210552
+memory_vmpeak_delta_bytes=2203648
+memory_threads_before=3
+memory_threads_after=3
+write_chunk=8192
+part_gone=true
+object_sha_match=1
+memory_ok=1

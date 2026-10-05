@@ -1,0 +1,5 @@
+ca70c5fd8b78a31d868042c12b1f90b22587db1c3cc45671893fb14769bc3aff  crates/oo-control/src/file_hosting.rs
+ed7ef3eb5186b51e5f80a420a38a1eb8208f17e8f91b8911dabfb5e043851a8c  crates/oo-control/tests/file_hosting.rs
+ba9db89fbb8515e4650560bf3e133e4c724fc40334b41593890a402a9510b496  contracts/control/local-file-hosting-v1.md
+c39dd947f6e1a7b865e37698d9bcdbf178428baa0ff649c1cf4fee546f67bc14  crates/oo-control/Cargo.toml
+4443cc7b540645c499f32e414af3634ac742fe1e950ec140b64641272d8662fb  crates/oo-control/src/lib.rs
