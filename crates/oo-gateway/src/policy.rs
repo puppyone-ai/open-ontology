@@ -17,6 +17,9 @@ use rustls::{ClientConfig, RootCertStore};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, Error as PgError, Transaction};
 
+#[path = "policy_catalog.rs"]
+pub mod catalog;
+
 /// TLS stream produced by [`rustls_connector`].
 pub type TlsStream = <tokio_postgres_rustls::MakeRustlsConnect as tokio_postgres::tls::MakeTlsConnect<
     tokio_postgres::Socket,
