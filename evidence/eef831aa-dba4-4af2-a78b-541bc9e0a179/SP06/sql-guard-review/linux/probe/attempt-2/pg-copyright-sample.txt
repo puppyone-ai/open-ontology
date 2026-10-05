@@ -1,0 +1,3 @@
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.1/libpg_query/src/postgres/src_backend_utils_init_globals.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.1/libpg_query/src/postgres/src_common_hashfn.c
+/cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/pg_query-6.2.1/libpg_query/src/postgres/src_backend_utils_mmgr_aset.c

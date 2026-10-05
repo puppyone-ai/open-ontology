@@ -1,0 +1,17 @@
+admin_ssl=on
+tableowner=oo_a179_owner
+oid_source=pg_catalog_query_by_harness
+reader_ssl=on
+session_user=oo_a179_login
+current_user=oo_a179_shadow
+join_region=west
+join_name=ada
+join_compare=equal
+star_order_id=42
+star_region=west
+star_columns=2
+hidden_sqlstate=42501
+write_sqlstate=42501
+logical_sqlstate=42P01
+count_sqlstate=ok:1
+live_result=compared

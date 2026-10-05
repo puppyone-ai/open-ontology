@@ -1,0 +1,16 @@
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling camino v1.2.6
+   Compiling serde_json v1.0.151
+   Compiling memchr v2.8.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling semver v1.0.28
+   Compiling cargo-platform v0.3.3
+   Compiling thiserror v2.0.21
+   Compiling cargo_metadata v0.23.1
+   Compiling oo-arch-check v0.1.0 (/src/crates/oo-arch-check)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.12s
+     Running `/target/debug/oo-arch-check`
+architecture check: pass

@@ -1,0 +1,13 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.19s
+     Running tests/sql_guard_a179_review.rs (/target/debug/deps/sql_guard_a179_review-f2083963b8d7ada1)
+
+running 5 tests
+test unknown_ast_fails_closed_without_echoing_the_input ... ok
+test missing_and_hidden_diagnostics_share_one_error ... ok
+test snapshot_oids_bind_one_operator_and_function_signature ... ok
+test alias_join_and_star_omit_the_hidden_column ... ok
+test live_shadow_role_executes_guarded_sql_and_database_denies_the_rest ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+

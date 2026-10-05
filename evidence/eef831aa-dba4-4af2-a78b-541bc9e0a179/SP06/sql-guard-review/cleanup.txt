@@ -1,0 +1,11 @@
+container_stop_oo-a179-pg=0
+container_rm_oo-a179-pg=0
+volume_rm_oo-a179-cargo=0
+volume_rm_oo-a179-target=0
+volume_rm_oo-a179-pgdata=0
+network_rm_oo-a179-net=0
+tmp_rm=0
+smoke_container=already_removed
+probe_container=already_removed
+docker_prune=not_used
+foreign_containers=not_removed
