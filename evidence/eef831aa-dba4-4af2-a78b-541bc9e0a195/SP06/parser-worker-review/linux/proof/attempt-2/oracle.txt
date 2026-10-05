@@ -1,0 +1,26 @@
+restriction=Unsupported admission=Blocked stale_executor_comment=present unsafe_block=absent group_kill=absent
+codec=optional,length,count,closed-refusal,trailing,oversize-header
+case=legal sql_len=68 wall_ms=1 original=54c62c45b457feb8b21cceb21ed041da67f74c27d9f5bdf7165906151fc16eb2 executed=1b884eaa37fd339086e90c3b6703972168a50c9dffa4cdd141a14f862c4a77df stars=0 fn_oid=0 op_oids=8802
+case=legal sql_len=46 wall_ms=1 original=f9c2df5985f95be33aaa8722f7ea48241d4ab6be1fa36552f8184bfdc2068b7c executed=61d3f0b59ea7fbd1d72409d1597df6b758daee4f9b3c4914f13792d8850eedbb stars=1 fn_oid=0 op_oids=8804
+case=legal sql_len=53 wall_ms=1 original=bfcfad0ff8ecae10d34ae2030fe1a8ac067ec243a360ed60f044b888e3719095 executed=4689ee4d13a97b1848e0c0711cf8f757f864c760ea9e254ff25ebcc99f73c8fd stars=0 fn_oid=8801 op_oids=8802
+case=identity-mismatch canary_in_display=0
+case=cancel-after wall_ms=0 elapsed_ms=0 pid=342 start=519527 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=slow wall_ms=501 elapsed_ms=501 pid=345 start=519527 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=crash wall_ms=0 elapsed_ms=0 pid=347 start=519577 reaped=1 same=0 reused=0 absent=1 exit=Some(99) signal=None 
+case=oversize wall_ms=0 elapsed_ms=0 pid=349 start=519577 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=magic wall_ms=0 elapsed_ms=0 pid=351 start=519577 reaped=1 same=0 reused=0 absent=1 exit=Some(0) signal=None 
+case=kind wall_ms=0 elapsed_ms=0 pid=353 start=519577 reaped=1 same=0 reused=0 absent=1 exit=Some(0) signal=None 
+case=trailer wall_ms=0 elapsed_ms=0 pid=355 start=519577 reaped=1 same=0 reused=0 absent=1 exit=Some(0) signal=None 
+case=cancel-before wall_ms=0 pid=0
+case=bulky-bytes len=1513710
+case=blocked-stdin wall_ms=508 elapsed_ms=501 pid=358 start=519580 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=blocked-stdout wall_ms=501 elapsed_ms=501 pid=360 start=519630 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=partial-stdout wall_ms=504 elapsed_ms=504 pid=362 start=519680 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=late wall_ms=501 elapsed_ms=501 pid=364 start=519731 reaped=1 same=0 reused=0 absent=1 exit=None signal=Some(9) 
+case=next-child first_pid=368 second_pid=370 neighbor_pid=367 neighbor_alive=1 second_wall_ms=1
+case=grandchild-survives pid=374 start=519832 comm=sleep parent_signal=9
+case=grandchild-stdout hung=1 cwd=/tmp/oo-parser-worker-137-19 grandchild=380
+case=grandchild-stdout unblocked_by_test_kill=Err(TimedOut(ProcessReport { pid: 379, start_ticks: Some(519888), reaped: true, same_pid_alive: false, pid_reused: false, pid_absent: true, exit_code: None, term_signal: Some(9), elapsed: 3.003471502s }))
+case=probe pid=384 pgrp=384 own_group=1 env_bytes=0 cmdline_bytes=42 fds_n=3 hosts_fd=false marker_fd=3 net_shared=true mnt_shared=true pid_shared=true user_shared=true exe_len=41 probe=passwd=true listen=ok:34121 fds=0->pipe:[148637];1->pipe:[148638];2->/dev/null
+case=production-rejects-fault-switches arg_exit=Some(2) env_exit=Some(2)
+case=child-request-trailer exit=Some(0) stdout_len=266 decode_frame=trailing

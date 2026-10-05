@@ -1,0 +1,1 @@
+libclang-load looked up libclang.so; Debian ships libclang-19.so.19 and the dynamic loader was invoked with an empty path

@@ -1,0 +1,1 @@
+Harness compile failed before any supervisor run. proc_field indexed str by a byte offset, and seven panics borrowed a Result after unwrap_err. Container removed. Product hashes matched the smoked archive.
