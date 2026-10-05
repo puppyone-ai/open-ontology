@@ -5,7 +5,8 @@
 //! speak HTTP, and does not treat an unguessable key as authorization.
 //!
 //! Object keys and session ids are generated here. Callers never supply a
-//! filesystem path for an upload, part, or read. [`FileHost::open_local`] is the
+//! filesystem path for an upload, part, or read. [`FileHost::open_download`]
+//! pulls a published object in bounded ranges. [`FileHost::open_local`] is the
 //! operator entry that binds a deployment directory to [`object_store::local::LocalFileSystem`].
 //! [`FileHost::new`] accepts any store so a later approved backend can use the
 //! same calls. A store without the local deployment lock cannot enforce a
@@ -43,10 +44,13 @@ const DEFAULT_PROJECT_BYTES: u64 = 50_000_000_000;
 /// Upper bound configured before each ranged read and each multipart write of a stored part.
 ///
 /// Caller bytes passed to `put_part`, and the buffer `read_object` returns, are outside this bound.
+/// `open_download` refuses a chunk budget above it and never builds a larger range.
 const STREAM_CHUNK_BYTES: usize = 8 * 1024;
 /// A mutating call fails closed if the deployment lock is still busy after this long.
 const LOCK_WAIT: Duration = Duration::from_secs(30);
 const LOCK_POLL: Duration = Duration::from_millis(5);
+/// Canonical manifest JSON is a few hundred bytes. A larger body is refused before it is buffered.
+const MAX_MANIFEST_BYTES: usize = 4096;
 
 /// Why an upload call was refused. Display text is static and contains no caller data.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,6 +83,8 @@ pub enum FileHostError {
     Unsupported,
     /// The deployment lock was not acquired within its wait, or the lock file is not usable.
     Unavailable,
+    /// The download was cancelled or its deadline passed before the object was verified.
+    Stopped,
 }
 
 impl std::fmt::Display for FileHostError {
@@ -98,6 +104,7 @@ impl std::fmt::Display for FileHostError {
             Self::Store => "object store operation failed",
             Self::Unsupported => "object store cannot enforce a linearizable project quota",
             Self::Unavailable => "upload lock is not available",
+            Self::Stopped => "download stopped before the object was verified",
         })
     }
 }
@@ -653,7 +660,10 @@ impl FileHost {
         Ok(manifest)
     }
 
-    /// Read the published bytes and re-hash them before returning the manifest.
+    /// Read the published bytes into one buffer and re-hash them before returning.
+    ///
+    /// The returned vector has the object size. [`Self::open_download`] pulls the
+    /// same object in bounded ranges and does not build that buffer.
     pub async fn read_object(
         &self,
         ctx: &AdmissionContext,
@@ -682,6 +692,66 @@ impl FileHost {
             return Err(FileHostError::Corrupt);
         }
         Ok(StoredObject { manifest, bytes })
+    }
+
+    /// Open a bounded pull of one published object.
+    ///
+    /// `chunk_budget` must be `1..=8192`. A value outside that range is
+    /// [`FileHostError::Limit`] and does not touch the store. `deadline`, when
+    /// set, is a caller clock checked before each ranged read and after each
+    /// await. It is not a TTL, a revocation check, or a credential. The
+    /// admission context is trusted input already accepted by a future control
+    /// step. This method compares project and principal with the published
+    /// manifest. It does not speak HTTP and it does not take a filesystem path.
+    pub async fn open_download(
+        &self,
+        ctx: &AdmissionContext,
+        object_key: &ObjectKey,
+        chunk_budget: usize,
+        deadline: Option<std::time::Instant>,
+    ) -> Result<ObjectDownload, FileHostError> {
+        if chunk_budget == 0 || chunk_budget > STREAM_CHUNK_BYTES {
+            return Err(FileHostError::Limit);
+        }
+        let Some(session_id) = session_id_from_object_key(object_key.as_str()) else {
+            return Err(FileHostError::NotFound);
+        };
+        let manifest_key = manifest_object_key_str(&session_id);
+        let Some(manifest_bytes) =
+            load_capped_bytes(self.store.as_ref(), &manifest_key, MAX_MANIFEST_BYTES).await?
+        else {
+            return Err(FileHostError::NotFound);
+        };
+        let manifest = decode_manifest(&manifest_bytes)?;
+        if manifest.object_key.as_str() != object_key.as_str()
+            || manifest.session_id.as_str() != session_id
+        {
+            return Err(FileHostError::NotFound);
+        }
+        authorize_manifest(&manifest, ctx)?;
+        if manifest.size == 0 {
+            return Err(FileHostError::Corrupt);
+        }
+        let Some(stored) = store_len(self.store.as_ref(), object_key.as_str()).await? else {
+            return Err(FileHostError::Corrupt);
+        };
+        if stored != manifest.size {
+            return Err(FileHostError::Corrupt);
+        }
+        Ok(ObjectDownload {
+            store: Arc::clone(&self.store),
+            location: parse_store_key(object_key.as_str())?,
+            manifest_key,
+            manifest,
+            manifest_bytes,
+            chunk_budget,
+            deadline,
+            cancel: Arc::new(AtomicBool::new(false)),
+            offset: 0,
+            hasher: Sha256::new(),
+            complete: false,
+            stop: None,
+        })
     }
 
     async fn reserve_quota(
@@ -901,7 +971,8 @@ impl FileHost {
         };
         let mut offset = 0u64;
         while offset < known {
-            let chunk = read_bounded_range(&*self.store, &path, offset, known).await?;
+            let chunk =
+                read_bounded_range(&*self.store, &path, offset, known, STREAM_CHUNK_BYTES).await?;
             let len = u64::try_from(chunk.len()).map_err(|_| FileHostError::Corrupt)?;
             visit(&chunk);
             offset = offset.checked_add(len).ok_or(FileHostError::Corrupt)?;
@@ -925,7 +996,8 @@ impl FileHost {
         };
         let mut offset = 0u64;
         while offset < known {
-            let chunk = read_bounded_range(&*self.store, &path, offset, known).await?;
+            let chunk =
+                read_bounded_range(&*self.store, &path, offset, known, STREAM_CHUNK_BYTES).await?;
             let len = u64::try_from(chunk.len()).map_err(|_| FileHostError::Corrupt)?;
             if upload.put_part(PutPayload::from(chunk)).await.is_err() {
                 return Err(FileHostError::Store);
@@ -939,12 +1011,7 @@ impl FileHost {
     }
 
     async fn stored_len(&self, key: &str) -> Result<Option<u64>, FileHostError> {
-        let path = parse_store_key(key)?;
-        match self.store.head(&path).await {
-            Ok(meta) => Ok(Some(meta.size)),
-            Err(object_store::Error::NotFound { .. }) => Ok(None),
-            Err(_) => Err(FileHostError::Store),
-        }
+        store_len(self.store.as_ref(), key).await
     }
 
     async fn lock_deployment(&self) -> Result<HeldLock, FileHostError> {
@@ -1030,15 +1097,7 @@ impl FileHost {
     }
 
     async fn get_bytes(&self, key: &str) -> Result<Option<Vec<u8>>, FileHostError> {
-        let path = parse_store_key(key)?;
-        match self.store.get(&path).await {
-            Ok(got) => {
-                let bytes = got.bytes().await.map_err(|_| FileHostError::Store)?;
-                Ok(Some(bytes.to_vec()))
-            }
-            Err(object_store::Error::NotFound { .. }) => Ok(None),
-            Err(_) => Err(FileHostError::Store),
-        }
+        store_bytes(self.store.as_ref(), key).await
     }
 
     async fn put_create(&self, key: &str, bytes: &[u8]) -> Result<PutOutcome, FileHostError> {
@@ -1068,6 +1127,183 @@ impl FileHost {
 enum PutOutcome {
     Created,
     Exists,
+}
+
+/// One bounded pull of a published object.
+///
+/// The manifest snapshot is fixed at open. [`ObjectDownload::is_complete`] becomes
+/// true only after the pulled ranges match that snapshot's size and sha256 and the
+/// stored manifest bytes are still the same. Stopping early, cancelling, passing
+/// the deadline, or dropping the reader does not complete the pull. There is no
+/// download credential and no [`std::io::Read`] cancel.
+pub struct ObjectDownload {
+    store: Arc<dyn ObjectStore>,
+    location: Path,
+    manifest_key: String,
+    manifest: ObjectManifest,
+    manifest_bytes: Vec<u8>,
+    chunk_budget: usize,
+    deadline: Option<std::time::Instant>,
+    cancel: Arc<AtomicBool>,
+    offset: u64,
+    hasher: Sha256,
+    complete: bool,
+    stop: Option<FileHostError>,
+}
+
+impl std::fmt::Debug for ObjectDownload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectDownload")
+            .field("object_key", &self.manifest.object_key)
+            .field("size", &self.manifest.size)
+            .field("offset", &self.offset)
+            .field("chunk_budget", &self.chunk_budget)
+            .field("complete", &self.complete)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for ObjectDownload {
+    fn drop(&mut self) {
+        self.cancel.store(true, Ordering::SeqCst);
+    }
+}
+
+impl ObjectDownload {
+    /// Manifest captured when the pull opened. Later store edits do not replace it.
+    pub fn manifest(&self) -> &ObjectManifest {
+        &self.manifest
+    }
+
+    /// `true` only after a verified end. A dropped or partial pull stays `false`.
+    pub fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    /// Refuse later chunks. This does not grant a credential and does not cancel
+    /// a filesystem read that has already started.
+    pub fn cancel(&self) {
+        self.cancel.store(true, Ordering::SeqCst);
+    }
+
+    /// Next range, or `Ok(None)` after the size and sha256 have been verified.
+    ///
+    /// The vector is at most the chunk budget. The reader does not keep it.
+    /// `Ok(Some)` is not completion. A cancel or a passed deadline is
+    /// [`FileHostError::Stopped`] and leaves the pull incomplete.
+    pub async fn next_chunk(&mut self) -> Result<Option<Vec<u8>>, FileHostError> {
+        let mut arm = CancelArm {
+            cancel: Arc::clone(&self.cancel),
+            armed: true,
+        };
+        let result = self.pull_chunk().await;
+        arm.armed = false;
+        result
+    }
+
+    async fn pull_chunk(&mut self) -> Result<Option<Vec<u8>>, FileHostError> {
+        if self.complete {
+            return Ok(None);
+        }
+        self.ensure_running()?;
+        if self.offset == self.manifest.size {
+            self.finish_eof().await?;
+            return Ok(None);
+        }
+        if self.offset > self.manifest.size {
+            return Err(self.fail(FileHostError::Corrupt));
+        }
+        self.ensure_running()?;
+        let pending = read_bounded_range(
+            self.store.as_ref(),
+            &self.location,
+            self.offset,
+            self.manifest.size,
+            self.chunk_budget,
+        )
+        .await;
+        self.ensure_running()?;
+        let chunk = match pending {
+            Ok(chunk) => chunk,
+            Err(error) => return Err(self.fail(error)),
+        };
+        let Ok(len) = u64::try_from(chunk.len()) else {
+            return Err(self.fail(FileHostError::Corrupt));
+        };
+        let Some(next) = self.offset.checked_add(len) else {
+            return Err(self.fail(FileHostError::Corrupt));
+        };
+        if next > self.manifest.size {
+            return Err(self.fail(FileHostError::Corrupt));
+        }
+        self.hasher.update(&chunk);
+        self.offset = next;
+        Ok(Some(chunk))
+    }
+
+    async fn finish_eof(&mut self) -> Result<(), FileHostError> {
+        self.ensure_running()?;
+        let loaded =
+            load_capped_bytes(self.store.as_ref(), &self.manifest_key, MAX_MANIFEST_BYTES).await;
+        self.ensure_running()?;
+        let bytes = match loaded {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => return Err(self.fail(FileHostError::Corrupt)),
+            Err(error) => return Err(self.fail(error)),
+        };
+        if bytes != self.manifest_bytes {
+            return Err(self.fail(FileHostError::Corrupt));
+        }
+        self.ensure_running()?;
+        let sized = store_len(self.store.as_ref(), self.manifest.object_key.as_str()).await;
+        self.ensure_running()?;
+        let found = match sized {
+            Ok(found) => found,
+            Err(error) => return Err(self.fail(error)),
+        };
+        if found != Some(self.manifest.size) || self.offset != self.manifest.size {
+            return Err(self.fail(FileHostError::Corrupt));
+        }
+        if finalize(self.hasher.clone()) != self.manifest.object_digest {
+            return Err(self.fail(FileHostError::Corrupt));
+        }
+        self.complete = true;
+        Ok(())
+    }
+
+    fn ensure_running(&mut self) -> Result<(), FileHostError> {
+        if let Some(error) = self.stop {
+            return Err(error);
+        }
+        if self.cancel.load(Ordering::SeqCst) {
+            return Err(self.fail(FileHostError::Stopped));
+        }
+        if self
+            .deadline
+            .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+        {
+            return Err(self.fail(FileHostError::Stopped));
+        }
+        Ok(())
+    }
+
+    fn fail(&mut self, error: FileHostError) -> FileHostError {
+        self.complete = false;
+        *self.stop.get_or_insert(error)
+    }
+}
+
+struct CancelArm {
+    cancel: Arc<AtomicBool>,
+    armed: bool,
+}
+
+impl Drop for CancelArm {
+    fn drop(&mut self) {
+        if self.armed {
+            self.cancel.store(true, Ordering::SeqCst);
+        }
+    }
 }
 
 struct Gate {
@@ -1239,15 +1475,67 @@ fn acquire_lock(
     }
 }
 
+async fn store_len(store: &dyn ObjectStore, key: &str) -> Result<Option<u64>, FileHostError> {
+    let path = parse_store_key(key)?;
+    match store.head(&path).await {
+        Ok(meta) => Ok(Some(meta.size)),
+        Err(object_store::Error::NotFound { .. }) => Ok(None),
+        Err(_) => Err(FileHostError::Store),
+    }
+}
+
+async fn load_capped_bytes(
+    store: &dyn ObjectStore,
+    key: &str,
+    cap: usize,
+) -> Result<Option<Vec<u8>>, FileHostError> {
+    let Some(len) = store_len(store, key).await? else {
+        return Ok(None);
+    };
+    let cap_len = u64::try_from(cap).map_err(|_| FileHostError::Corrupt)?;
+    if len == 0 || len > cap_len {
+        return Err(FileHostError::Corrupt);
+    }
+    let path = parse_store_key(key)?;
+    let options = GetOptions {
+        range: Some(GetRange::Bounded(0..len)),
+        ..GetOptions::default()
+    };
+    let got = store
+        .get_opts(&path, options)
+        .await
+        .map_err(|_| FileHostError::Store)?;
+    let bytes = got.bytes().await.map_err(|_| FileHostError::Store)?;
+    if u64::try_from(bytes.len()).ok() != Some(len) || bytes.len() > cap {
+        return Err(FileHostError::Store);
+    }
+    Ok(Some(bytes.to_vec()))
+}
+
+async fn store_bytes(store: &dyn ObjectStore, key: &str) -> Result<Option<Vec<u8>>, FileHostError> {
+    let path = parse_store_key(key)?;
+    match store.get(&path).await {
+        Ok(got) => {
+            let bytes = got.bytes().await.map_err(|_| FileHostError::Store)?;
+            Ok(Some(bytes.to_vec()))
+        }
+        Err(object_store::Error::NotFound { .. }) => Ok(None),
+        Err(_) => Err(FileHostError::Store),
+    }
+}
+
 async fn read_bounded_range(
     store: &dyn ObjectStore,
     path: &Path,
     offset: u64,
     known: u64,
+    chunk_limit: usize,
 ) -> Result<Vec<u8>, FileHostError> {
-    let chunk_limit = STREAM_CHUNK_BYTES;
+    if chunk_limit == 0 || chunk_limit > STREAM_CHUNK_BYTES {
+        return Err(FileHostError::Store);
+    }
     let step = u64::try_from(chunk_limit).map_err(|_| FileHostError::Corrupt)?;
-    if step == 0 || offset >= known {
+    if offset >= known {
         return Err(FileHostError::Store);
     }
     let end = offset.saturating_add(step).min(known);

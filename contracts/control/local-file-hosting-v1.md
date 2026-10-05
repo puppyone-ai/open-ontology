@@ -38,6 +38,12 @@ The `fs` feature also links the crates object_store declares for that feature (i
 
 `read_object(&AdmissionContext, &ObjectKey) -> StoredObject`
 
+`open_download(&AdmissionContext, &ObjectKey, chunk_budget, deadline) -> ObjectDownload`
+
+`ObjectDownload::next_chunk() -> Result<Option<Vec<u8>>, FileHostError>`
+
+`chunk_budget` is a `usize`. `deadline` is `Option<Instant>`. `ObjectDownload::manifest` returns the manifest snapshot from open. `is_complete` is true only after a verified end. `cancel` refuses later chunks.
+
 `idempotency_key(&AdmissionContext, &UploadConfig) -> IdempotencyKey` is pure. It does not touch the store. Host limits are not part of the key. `SessionId::parse` and `ObjectKey::parse` accept only values this host already issues. A bad value is `NotFound` and the text is not copied into the error.
 
 `UploadConfig` carries the display name, the expected sha256 of the whole object, the expected size, and an optional content type. The display name is metadata. It is never a path segment.
@@ -64,7 +70,7 @@ Session ids are 16 random bytes, lowercase hex. Object keys are `uploads/<sessio
 
 `LocalFileSystem` multipart state is an in-memory handle and a `dest#N` staging file. That handle does not survive a dropped `FileHost`. Parts are therefore ordinary objects. `complete` hashes each part by ranged reads of at most 8192 bytes. That limit is fixed in the library before each `get_opts` range is built. A response larger than 8192 bytes is `Store` and does not publish. `put_multipart_opts` runs only after those streamed reads already hash and measure to the expected sha256 and size. The publish pass uses the same 8192-byte ranges and writes each chunk into the multipart handle. The local complete renames the staging file onto the object key. A checksum or size miss does not start that upload, so the object key is not created.
 
-The 8192-byte bound is the host's internal read and multipart write. Bytes the caller passes to `put_part` may already occupy the caller's memory, and `read_object` returns one buffer of the stored object size filled from those chunks. This contract does not claim a process limit outside those two API buffers.
+The 8192-byte bound is the host's internal read and multipart write, and the maximum `open_download` chunk. Bytes the caller passes to `put_part` may already occupy the caller's memory. `read_object` still returns one buffer of the stored object size filled from those chunks. `open_download` does not build that buffer: each `next_chunk` returns at most the chunk budget, and the host does not keep the returned chunk. A caller that retains only the current chunk holds one budget-sized buffer. This contract does not claim a process limit outside those API buffers.
 
 ## Idempotency
 
@@ -84,7 +90,9 @@ On a match, `complete` publishes through `put_multipart_opts`, re-hashes the pub
 
 Project quota is the sum of `meta/quota/<project>/<session>` bodies whose names are 32 lowercase hex characters. Other names under that prefix are ignored and are not deleted. `begin` refuses with `Quota` when the new expected size would pass `max_project_bytes`. A resumed `begin` does not reserve twice. A completed object keeps its reservation. Abort and the checksum/size cleanup release it.
 
-On `open_local`, that check and the reservation write are one critical section. The same section covers `put_part`, `complete`, and `abort` for every `FileHost` on that deployment root, including other processes. The lock is `std::fs::File::try_lock` on a file the host creates beside the deployment directory. Its name is the directory's file name plus `.oo-file-hosting.lock`. Callers do not choose that path. An in-process gate orders tasks in the same process, because the file lock is what orders other processes. The wait is 30 seconds of retries. The runtime thread is not the thread that sleeps on the lock. Timeout, a lock-file error, or a poisoned wait returns `Unavailable` and writes nothing. A crash drops the lock with the process. The lock is advisory: a raw store client can still write keys. Two machines that do not share this directory do not share the lock.
+On `open_local`, that check and the reservation write are one critical section. The same section covers `put_part`, `complete`, and `abort` for every `FileHost` on that deployment root, including other processes. The lock is `std::fs::File::try_lock` on a file the host creates beside the deployment directory. Its name is the directory's file name plus `.oo-file-hosting.lock`. Callers do not choose that path. An in-process gate orders tasks in the same process, because the file lock is what orders other processes. The wait is 30 seconds of retries. The runtime thread is not the thread that sleeps on the lock. Timeout or a lock-file error returns `Unavailable` and writes nothing. A poisoned `std::sync::Mutex` in this wait is recovered with the inner guard and the wait continues. Poison is not turned into `Unavailable` and does not by itself refuse the call. A crash drops the lock with the process. The lock is advisory: a raw store client can still write keys. Two machines that do not share this directory do not share the lock.
+
+Document delta, this revision: the previous sentence said a poisoned wait returns `Unavailable`. `lock_mutex` recovers with `into_inner` and continues. This paragraph matches that recovery. No production fault injection was added for it.
 
 `FileHost::new` has no deployment lock. `begin`, `put_part`, `complete`, and `abort` on that host return `Unsupported` before any store write. There is no unlocked quota fallback. A later S3 backend has to bring its own conditional atomic quota before those calls can succeed. This local lock is not that backend.
 
@@ -96,11 +104,31 @@ The manifest contract string is `oo.control.local-file-hosting/v1`. Fields are t
 
 The lineage digest is SHA-256 over the domain `oo.file-hosting/v1 lineage` and a trailing NUL, then each of these strings followed by a NUL: session, project, principal, grant evidence, object key, object sha256 as lowercase hex, size in decimal, part count in decimal, idempotency key, display name, content type or empty.
 
-`read_object` loads the manifest, reads the object bytes, and returns them only when their sha256 and length match the manifest. A mismatch is `Corrupt`.
+`read_object` loads the manifest, reads the object bytes into one buffer of the object size, and returns them only when their sha256 and length match the manifest. A mismatch is `Corrupt`.
+
+## Download
+
+`open_download` is a local pull of an object this host has already published. It is not an HTTP download, not a public URL, and not a credential. The caller passes the same trusted `AdmissionContext` and the platform `ObjectKey` already returned for that object. The call does not take a filesystem path. `ObjectKey::parse` still accepts only `uploads/<session>/<sha256>/original`. Anything else is `NotFound`, and the text is not copied into the error.
+
+A chunk budget of `0` or above 8192 is `Limit` before any store read. A missing manifest is `NotFound`. A manifest that decodes but names a different object key is `NotFound`. A different project or principal is `Denied` and deletes nothing. A decoded manifest whose size is zero is `Corrupt`. A stored object length that is not the manifest size, including a zero-length file, is `Corrupt`. `begin` still rejects an expected size of zero, so this host does not publish an empty object. `next_chunk` does not return an empty vector. End of a verified pull is `Ok(None)`, not an empty chunk.
+
+The manifest value from `manifest()` is the snapshot taken at open: contract, object key, session, project, principal, digest, size, part count, idempotency key, and lineage. The reader keeps those fields stable. It does not replace them if the stored manifest changes.
+
+Each object-body read is one `get_opts` with `GetRange::Bounded`. The range is chosen before the call. Its length is the smaller of the chunk budget and the bytes remaining in the manifest size, and it is never above 8192. An empty buffer, a buffer longer than the budget, or a buffer whose length is not the requested range is `Store`. The host does not read the next range until the caller calls `next_chunk` again, and it does not retain the returned vector. The running sha256 is updated from that chunk only.
+
+`Ok(None)` and `is_complete() == true` happen only when every object byte has been pulled, the stored manifest bytes still match the snapshot, the stored object length is still the snapshot size, and the running sha256 equals the snapshot digest. A chunk is not completion. `cancel`, a deadline that has passed, `Drop`, or stopping before that end leaves `is_complete` false. After a verified end, further `next_chunk` calls return `Ok(None)` without reading again. `cancel` after that end does not erase the verification and is not revocation.
+
+The deadline is the caller's `Instant`. It is checked before each read and after each await. `None` does not disable the cancel check. The deadline is not a TTL. `cancel` and a passed deadline are `Stopped`, whose display text is `download stopped before the object was verified`. `Drop` of the reader sets that cancel flag and releases the store handle and hash state the reader owns. `Drop` of an in-flight `next_chunk` sets the same flag. Neither one cancels a local filesystem read that has already started, and neither one is a `Read` cancel or a credential.
+
+A changed manifest, a changed object hash, a stored length that no longer matches, or a capped manifest body that is empty or above 4096 bytes is `Corrupt` once the pull has started, and the pull does not become complete. The manifest reload is a bounded range of at most 4096 bytes, not an object-sized buffer.
+
+`open_download` does not take the deployment lock and does not change quota. `FileHost::new` can pull an object that is already stored. Mutating calls on that host are still `Unsupported`.
+
+`read_object` is unchanged. Its caller still receives one buffer of the object size.
 
 ## Authorization
 
-`put_part`, `complete`, `abort`, `read_manifest`, and `read_object` compare the caller project and principal with the stored session or manifest. A difference is `Denied` and deletes nothing. `Denied` on a key the caller already holds does confirm that this key is occupied. Path secrecy is not the control, and this slice does not claim the two errors are indistinguishable.
+`put_part`, `complete`, `abort`, `read_manifest`, `read_object`, and `open_download` compare the caller project and principal with the stored session or manifest. A difference is `Denied` and deletes nothing. Grant evidence is still stored and is not checked. The context is trusted input from a future admission step. This module does not authenticate it. `Denied` on a key the caller already holds does confirm that this key is occupied. Path secrecy is not the control, and this slice does not claim the two errors are indistinguishable.
 
 A key that is not `uploads/<session>/<sha256>/original`, a session id that is not 32 lowercase hex characters, a missing manifest, or a digest that is not the one stored on that session's manifest is `NotFound`. The wrong-digest case is `NotFound` for the owner and for every other context, so a guessed digest is not confirmed. The same bytes uploaded by another project are a new session and a new object key. That response does not include the other project's id or session id.
 
@@ -108,13 +136,14 @@ A key that is not `uploads/<session>/<sha256>/original`, a session id that is no
 
 ## What stays open
 
-SP05-W01 is not closed. The ledger is unchanged. SP05-W06 is not started.
+SP05-W01 is not closed. The ledger is unchanged. SP05-W06 is not closed. The local pull above is not a download proxy, not retention, and not a public download.
 
 Still open:
 
 - an S3 backend contract, including the 5 MiB minimum part size, conditional quota, and any MinIO run
 - reaping `dest#N` leftovers and a crash between deleting owned keys
-- download, TTL, an auth proxy, and HTTP
+- HTTP, an auth proxy, current-authorization checks beyond the trusted project and principal tuple, revocation, and TTL
+- the caller's `read_object` buffer of the object size
 - MIME sniffing, formula-safe CSV or Excel output, and retention delete
 - presigned URLs
 - quota across hosts that do not share one deployment directory

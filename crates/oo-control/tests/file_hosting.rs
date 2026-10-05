@@ -1,4 +1,4 @@
-//! Local filesystem integration for upload sessions.
+//! Local filesystem integration for upload sessions and the bounded download pull.
 //!
 //! These tests open a real [`object_store::local::LocalFileSystem`] under a private
 //! scratch directory. They do not stand in for an S3 backend.
@@ -7,6 +7,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 use object_store::local::LocalFileSystem;
@@ -983,6 +984,326 @@ async fn streaming_complete_memory_is_bounded() {
     }
 }
 
+#[tokio::test]
+async fn download_pull_verifies_identity_without_an_object_buffer() {
+    let scratch = Scratch::new("download-pull");
+    let root = scratch.store();
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-download");
+    let bytes = b"abcdefghij0123456789";
+    let manifest = publish(&host, &ctx, "pull.bin", bytes).await;
+    let missing = ObjectKey::parse(format!(
+        "uploads/{}/{}/original",
+        "ab".repeat(16),
+        "cd".repeat(32)
+    ))
+    .unwrap();
+    assert_eq!(
+        host.open_download(&ctx, &missing, 0, None)
+            .await
+            .unwrap_err(),
+        FileHostError::Limit
+    );
+    assert_eq!(
+        host.open_download(&ctx, &manifest.object_key, 8193, None)
+            .await
+            .unwrap_err(),
+        FileHostError::Limit
+    );
+    assert_eq!(
+        ObjectKey::parse("../secret").unwrap_err(),
+        FileHostError::NotFound
+    );
+    assert_eq!(
+        ObjectKey::parse("/etc/passwd").unwrap_err(),
+        FileHostError::NotFound
+    );
+
+    let mut reader = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    let shown = format!("{reader:?}");
+    assert!(!shown.contains(ctx.grant_evidence.as_str()));
+    assert!(!shown.contains(root.to_str().unwrap()));
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &manifest);
+    let mut hasher = Sha256::new();
+    let mut pulled = 0usize;
+    let mut widths = Vec::new();
+    loop {
+        assert_eq!(reader.manifest(), &manifest);
+        match reader.next_chunk().await.unwrap() {
+            Some(chunk) => {
+                assert!(!chunk.is_empty() && chunk.len() <= 8);
+                assert!(!reader.is_complete());
+                hasher.update(&chunk);
+                pulled += chunk.len();
+                widths.push(chunk.len());
+            }
+            None => break,
+        }
+    }
+    assert_eq!(widths, vec![8, 8, 4]);
+    assert_eq!(pulled, bytes.len());
+    let pulled_hash = hasher.finalize();
+    assert_eq!(&pulled_hash[..], &manifest.object_digest);
+    assert!(reader.is_complete());
+    assert_eq!(reader.manifest(), &manifest);
+    assert!(reader.next_chunk().await.unwrap().is_none());
+    assert!(reader.is_complete());
+    let stored = host.read_object(&ctx, &manifest.object_key).await.unwrap();
+    assert_eq!(stored.bytes, bytes);
+    assert_eq!(stored.manifest, manifest);
+
+    let mut early = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    let first = early.next_chunk().await.unwrap().unwrap();
+    assert_eq!(first.len(), 8);
+    assert!(!early.is_complete());
+    drop(early);
+
+    let mut cancelling = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(cancelling.next_chunk().await.unwrap().is_some());
+    cancelling.cancel();
+    let stopped = cancelling.next_chunk().await.unwrap_err();
+    assert_eq!(stopped, FileHostError::Stopped);
+    assert_eq!(
+        stopped.to_string(),
+        "download stopped before the object was verified"
+    );
+    assert!(!cancelling.is_complete());
+    assert_eq!(cancelling.manifest(), &manifest);
+
+    let mut expired = host
+        .open_download(
+            &ctx,
+            &manifest.object_key,
+            8,
+            Some(Instant::now() - Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        expired.next_chunk().await.unwrap_err(),
+        FileHostError::Stopped
+    );
+    assert!(!expired.is_complete());
+
+    let mut timed = host
+        .open_download(
+            &ctx,
+            &manifest.object_key,
+            8,
+            Some(Instant::now() + Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert!(timed.next_chunk().await.unwrap().is_some());
+    assert!(!timed.is_complete());
+    std::thread::sleep(Duration::from_millis(1100));
+    assert_eq!(
+        timed.next_chunk().await.unwrap_err(),
+        FileHostError::Stopped
+    );
+    assert!(!timed.is_complete());
+
+    let mut polled = host
+        .open_download(&ctx, &manifest.object_key, 8, None)
+        .await
+        .unwrap();
+    let pending = {
+        let fut = polled.next_chunk();
+        tokio::pin!(fut);
+        let waker = std::task::Waker::noop();
+        let mut cx = std::task::Context::from_waker(waker);
+        std::future::Future::poll(fut.as_mut(), &mut cx).is_pending()
+    };
+    if pending {
+        assert_eq!(
+            polled.next_chunk().await.unwrap_err(),
+            FileHostError::Stopped
+        );
+    }
+    assert!(!polled.is_complete());
+}
+
+#[tokio::test]
+async fn download_pull_refuses_other_context_and_altered_bytes() {
+    let scratch = Scratch::new("download-refuse");
+    let root = scratch.store();
+    let host = FileHost::open_local(&root, HostLimits::standard()).unwrap();
+    let ctx = admission("project_a", "user_a", "grant-owner");
+    let other = admission("project_b", "user_b", "grant-other");
+    let bytes = b"owner-bytes-0123456789";
+    let manifest = publish(&host, &ctx, "owned.bin", bytes).await;
+    let object_path = root.join(manifest.object_key.as_str());
+    let before = std::fs::read(&object_path).unwrap();
+    let denied = host
+        .open_download(&other, &manifest.object_key, 8192, None)
+        .await
+        .unwrap_err();
+    assert_eq!(denied, FileHostError::Denied);
+    assert!(!denied.to_string().contains('/'));
+    assert_eq!(std::fs::read(&object_path).unwrap(), before);
+
+    let tampered = publish(&host, &ctx, "tamper.bin", bytes).await;
+    let tamper_path = root.join(tampered.object_key.as_str());
+    let mut raw = std::fs::read(&tamper_path).unwrap();
+    let last = raw.len() - 1;
+    raw[last] ^= 0x5a;
+    std::fs::write(&tamper_path, &raw).unwrap();
+    let mut reader = host
+        .open_download(&ctx, &tampered.object_key, 8, None)
+        .await
+        .unwrap();
+    let mut saw_chunk = false;
+    let err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(chunk)) => {
+                assert!(!chunk.is_empty());
+                saw_chunk = true;
+                assert!(!reader.is_complete());
+                assert_eq!(reader.manifest(), &tampered);
+            }
+            Ok(None) => panic!("tampered object was reported complete"),
+            Err(error) => break error,
+        }
+    };
+    assert!(saw_chunk);
+    assert_eq!(err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &tampered);
+
+    let truncated = publish(&host, &ctx, "empty-file.bin", bytes).await;
+    let truncated_path = root.join(truncated.object_key.as_str());
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&truncated_path)
+        .unwrap()
+        .set_len(0)
+        .unwrap();
+    assert_eq!(
+        host.open_download(&ctx, &truncated.object_key, 8192, None)
+            .await
+            .unwrap_err(),
+        FileHostError::Corrupt
+    );
+
+    let mid = publish(&host, &ctx, "mid-cut.bin", bytes).await;
+    let mut mid_reader = host
+        .open_download(&ctx, &mid.object_key, 8, None)
+        .await
+        .unwrap();
+    assert!(mid_reader.next_chunk().await.unwrap().is_some());
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(root.join(mid.object_key.as_str()))
+        .unwrap()
+        .set_len(0)
+        .unwrap();
+    let mid_err = mid_reader.next_chunk().await.unwrap_err();
+    assert!(matches!(
+        mid_err,
+        FileHostError::Store | FileHostError::Corrupt
+    ));
+    assert!(!mid_err.to_string().contains(root.to_str().unwrap()));
+    assert!(!mid_reader.is_complete());
+
+    let edited = publish(&host, &ctx, "manifest.bin", bytes).await;
+    let manifest_path = root.join(format!("meta/manifest/{}", edited.session_id.as_str()));
+    assert_eq!(
+        std::fs::read(&manifest_path).unwrap(),
+        encode_manifest_oracle(&edited)
+    );
+    let mut reader = host
+        .open_download(&ctx, &edited.object_key, 8, None)
+        .await
+        .unwrap();
+    let mut manifest_bytes = std::fs::read(&manifest_path).unwrap();
+    manifest_bytes[20] ^= 0x01;
+    std::fs::write(&manifest_path, &manifest_bytes).unwrap();
+    let manifest_err = loop {
+        match reader.next_chunk().await {
+            Ok(Some(_)) => assert!(!reader.is_complete()),
+            Ok(None) => panic!("altered manifest was reported complete"),
+            Err(error) => break error,
+        }
+    };
+    assert_eq!(manifest_err, FileHostError::Corrupt);
+    assert!(!reader.is_complete());
+    assert_eq!(reader.manifest(), &edited);
+
+    let zeroed = publish(&host, &ctx, "zero-manifest.bin", bytes).await;
+    let zero_path = root.join(format!("meta/manifest/{}", zeroed.session_id.as_str()));
+    let mut forged = zeroed.clone();
+    forged.size = 0;
+    forged.lineage_digest = lineage_oracle(&forged);
+    std::fs::write(&zero_path, encode_manifest_oracle(&forged)).unwrap();
+    assert_eq!(
+        host.open_download(&ctx, &zeroed.object_key, 8192, None)
+            .await
+            .unwrap_err(),
+        FileHostError::Corrupt
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn download_pull_memory_is_bounded() {
+    if child_for("download_pull_memory_is_bounded") {
+        download_memory_child().await;
+        return;
+    }
+    for size in [8 * 1024 * 1024_usize, 32 * 1024 * 1024] {
+        let scratch = Scratch::new(&format!("download-mem-{size}"));
+        let root = scratch.store();
+        std::fs::create_dir_all(&root).unwrap();
+        let metrics = scratch.root.join("metrics.txt");
+        let child = spawn_child(
+            "download_pull_memory_is_bounded",
+            &[
+                ("OO_FH_ROOT", root.to_str().unwrap()),
+                ("OO_FH_METRICS", metrics.to_str().unwrap()),
+                ("OO_FH_SIZE", &size.to_string()),
+            ],
+        );
+        wait_child(child);
+        let text = std::fs::read_to_string(&metrics).unwrap();
+        println!("{text}");
+        if let Some(dir) = std::env::var_os("OO_FH_METRICS_DIR") {
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                Path::new(&dir).join(format!("download-memory-{size}.txt")),
+                &text,
+            )
+            .unwrap();
+        }
+        let delta = metric_u64(&text, "download_hwm_delta_bytes");
+        assert!(delta < 4 * 1024 * 1024, "hwm delta {delta}\n{text}");
+        assert!(delta.saturating_mul(2) < size as u64, "{text}");
+        let object_key = metric_str(&text, "object_key");
+        let file_hash = hash_file(&root.join(&object_key), 8192);
+        let pattern = pattern_digest(size);
+        assert_eq!(hex(&file_hash), metric_str(&text, "download_sha256"));
+        assert_eq!(hex(&pattern), metric_str(&text, "pattern_sha256"));
+        assert_eq!(
+            metric_str(&text, "download_sha256"),
+            metric_str(&text, "file_sha256")
+        );
+        assert_eq!(metric_u64(&text, "download_chunk_max"), 8192);
+        assert_eq!(metric_u64(&text, "download_pulled"), size as u64);
+        assert_eq!(metric_u64(&text, "download_complete"), 1);
+        assert!(text.contains("fixture_object_vec=0"));
+        assert!(text.contains("caller_retained_chunks=1"));
+    }
+}
+
 fn child_for(test_name: &str) -> bool {
     std::env::var_os("OO_FH_CHILD").is_some()
         && std::env::var("OO_FH_TEST").as_deref() == Ok(test_name)
@@ -1033,6 +1354,119 @@ async fn conflict_child() {
         Err(error) => format!("err {error:?}"),
     };
     std::fs::write(result, line).unwrap();
+}
+
+fn pattern_digest(size: usize) -> [u8; 32] {
+    let chunk = [0xA5_u8; 8192];
+    let mut hasher = Sha256::new();
+    let mut left = size;
+    while left > 0 {
+        let n = 8192.min(left);
+        hasher.update(&chunk[..n]);
+        left -= n;
+    }
+    let hash = hasher.finalize();
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&hash);
+    out
+}
+
+#[cfg(target_os = "linux")]
+async fn download_memory_child() {
+    let root = PathBuf::from(std::env::var("OO_FH_ROOT").unwrap());
+    let metrics_path = PathBuf::from(std::env::var("OO_FH_METRICS").unwrap());
+    let size: usize = std::env::var("OO_FH_SIZE").unwrap().parse().unwrap();
+    assert!(size == 8 * 1024 * 1024 || size == 32 * 1024 * 1024);
+    let digest_bytes = pattern_digest(size);
+    let limits =
+        HostLimits::try_new(32 * 1024 * 1024, 32 * 1024 * 1024, 4, 64 * 1024 * 1024).unwrap();
+    let host = FileHost::open_local(&root, limits).unwrap();
+    let cfg = UploadConfig {
+        display_name: "stream.bin".to_owned(),
+        expected_sha256: digest_bytes,
+        expected_size: u64::try_from(size).unwrap(),
+        content_type: None,
+    };
+    let session = host.begin(&ctx_a(), &cfg).await.unwrap();
+    let part_path = root.join(format!(
+        "staging/{}/part/00001",
+        session.session_id.as_str()
+    ));
+    std::fs::create_dir_all(part_path.parent().unwrap()).unwrap();
+    let mut file = std::fs::File::create(&part_path).unwrap();
+    let chunk = [0xA5_u8; 8192];
+    let mut left = size;
+    while left > 0 {
+        let n = 8192.min(left);
+        std::io::Write::write_all(&mut file, &chunk[..n]).unwrap();
+        left -= n;
+    }
+    drop(file);
+    let published = host.complete(&ctx_a(), &session.session_id).await.unwrap();
+    let hwm_before = proc_kib("VmHWM:");
+    let rss_before = proc_kib("VmRSS:");
+    let peak_before = proc_kib("VmPeak:");
+    let threads_before = proc_kib("Threads:");
+    let mut reader = host
+        .open_download(
+            &ctx_a(),
+            &published.object_key,
+            8192,
+            Some(Instant::now() + Duration::from_secs(120)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reader.manifest(), &published);
+    let mut hasher = Sha256::new();
+    let mut pulled = 0u64;
+    let mut chunk_max = 0usize;
+    loop {
+        assert_eq!(reader.manifest().object_key, published.object_key);
+        assert_eq!(reader.manifest().object_digest, published.object_digest);
+        assert_eq!(reader.manifest().size, published.size);
+        assert_eq!(reader.manifest().lineage_digest, published.lineage_digest);
+        match reader.next_chunk().await.unwrap() {
+            Some(chunk) => {
+                assert!(!chunk.is_empty() && chunk.len() <= 8192);
+                assert!(!reader.is_complete());
+                chunk_max = chunk_max.max(chunk.len());
+                hasher.update(&chunk);
+                pulled += u64::try_from(chunk.len()).unwrap();
+            }
+            None => break,
+        }
+    }
+    let hash = hasher.finalize();
+    let mut download_sha = [0u8; 32];
+    download_sha.copy_from_slice(&hash);
+    let file_sha = hash_file(&root.join(published.object_key.as_str()), 8192);
+    let hwm_after = proc_kib("VmHWM:");
+    let rss_after = proc_kib("VmRSS:");
+    let peak_after = proc_kib("VmPeak:");
+    let threads_after = proc_kib("Threads:");
+    let hwm_delta = hwm_after.saturating_sub(hwm_before) * 1024;
+    let complete =
+        u8::from(reader.is_complete() && download_sha == digest_bytes && file_sha == digest_bytes);
+    let ok = complete == 1
+        && pulled == size as u64
+        && chunk_max <= 8192
+        && hwm_delta < 4 * 1024 * 1024
+        && hwm_delta.saturating_mul(2) < size as u64;
+    let text = format!(
+        "download_bytes={size}\nobject_key={}\ndownload_sha256={}\npattern_sha256={}\nfile_sha256={}\ndownload_hwm_before_kib={hwm_before}\ndownload_hwm_after_kib={hwm_after}\ndownload_hwm_delta_bytes={hwm_delta}\ndownload_rss_before_kib={rss_before}\ndownload_rss_after_kib={rss_after}\ndownload_vmpeak_before_kib={peak_before}\ndownload_vmpeak_after_kib={peak_after}\ndownload_threads_before={threads_before}\ndownload_threads_after={threads_after}\ndownload_chunk_max={chunk_max}\ndownload_pulled={pulled}\ndownload_complete={complete}\ncaller_retained_chunks=1\nfixture_object_vec=0\ndownload_ok={}\n",
+        published.object_key.as_str(),
+        hex(&download_sha),
+        hex(&digest_bytes),
+        hex(&file_sha),
+        u8::from(ok)
+    );
+    std::fs::write(&metrics_path, &text).unwrap();
+    if let Some(dir) = std::env::var_os("OO_FH_METRICS_DIR") {
+        let dir = PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("download-memory-{size}.txt")), &text).unwrap();
+    }
+    assert!(ok, "{text}");
 }
 
 #[cfg(target_os = "linux")]
@@ -1135,6 +1569,15 @@ fn hash_file(path: &Path, chunk_len: usize) -> [u8; 32] {
     let mut out = [0u8; 32];
     out.copy_from_slice(&hash);
     out
+}
+
+fn metric_str(text: &str, key: &str) -> String {
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix(&format!("{key}=")) {
+            return rest.trim().to_owned();
+        }
+    }
+    panic!("missing {key} in {text}");
 }
 
 fn metric_u64(text: &str, key: &str) -> u64 {
@@ -1270,6 +1713,19 @@ fn admission(project: &str, principal: &str, grant: &str) -> AdmissionContext {
     }
 }
 
+async fn publish(
+    host: &FileHost,
+    ctx: &AdmissionContext,
+    name: &str,
+    bytes: &[u8],
+) -> ObjectManifest {
+    let session = host.begin(ctx, &upload(name, bytes, None)).await.unwrap();
+    host.put_part(ctx, &session.session_id, 1, bytes)
+        .await
+        .unwrap();
+    host.complete(ctx, &session.session_id).await.unwrap()
+}
+
 fn upload(name: &str, bytes: &[u8], content_type: Option<&str>) -> UploadConfig {
     UploadConfig {
         display_name: name.to_owned(),
@@ -1321,6 +1777,75 @@ fn idempotency_oracle(
     let mut out = [0u8; 32];
     out.copy_from_slice(&hash);
     out
+}
+
+fn encode_manifest_oracle(manifest: &ObjectManifest) -> Vec<u8> {
+    let mut out = String::new();
+    out.push('{');
+    push_key(&mut out, "content_type", false);
+    out.push(':');
+    match manifest.content_type.as_deref() {
+        Some(value) => push_json_string(&mut out, value),
+        None => out.push_str("null"),
+    }
+    push_key(&mut out, "contract", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.contract);
+    push_key(&mut out, "display_name", true);
+    out.push(':');
+    push_json_string(&mut out, &manifest.display_name);
+    push_key(&mut out, "grant_evidence", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.grant_evidence.as_str());
+    push_key(&mut out, "idempotency_key", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.idempotency_key.as_str());
+    push_key(&mut out, "lineage_digest", true);
+    out.push(':');
+    push_json_string(&mut out, &hex(&manifest.lineage_digest));
+    push_key(&mut out, "object_digest", true);
+    out.push(':');
+    push_json_string(&mut out, &hex(&manifest.object_digest));
+    push_key(&mut out, "object_key", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.object_key.as_str());
+    push_key(&mut out, "part_count", true);
+    out.push(':');
+    out.push_str(&manifest.part_count.to_string());
+    push_key(&mut out, "principal_id", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.principal_id.as_str());
+    push_key(&mut out, "project_id", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.project_id.as_str());
+    push_key(&mut out, "session_id", true);
+    out.push(':');
+    push_json_string(&mut out, manifest.session_id.as_str());
+    push_key(&mut out, "size", true);
+    out.push(':');
+    out.push_str(&manifest.size.to_string());
+    push_key(&mut out, "version", true);
+    out.push_str(":1}");
+    out.into_bytes()
+}
+
+fn push_key(out: &mut String, key: &str, comma: bool) {
+    if comma {
+        out.push(',');
+    }
+    push_json_string(out, key);
+}
+
+fn push_json_string(out: &mut String, value: &str) {
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
 }
 
 fn lineage_oracle(manifest: &ObjectManifest) -> [u8; 32] {
