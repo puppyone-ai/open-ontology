@@ -1,0 +1,1 @@
+libclang.so was present from the partial attempt-1 extract, so attempt-2 skipped the rest of the deb set. ld-linux could not open libLLVM.so.19.1. Not a product failure.

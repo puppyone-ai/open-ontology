@@ -1,0 +1,87 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0308]: mismatched types
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:2872:42
+     |
+2872 |                 if !matches!(read, Ok(Ok(()))) {
+     |                              ----        ^^ expected `usize`, found `()`
+     |                              |
+     |                              this expression has type `Result<Result<usize, std::io::Error>, Elapsed>`
+
+error[E0308]: `if` and `else` have incompatible types
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3171:9
+     |
+3140 |         let (status, rollback, socket, sqlstate, open, first, second, retry_label, third) = if idle_label == "ok" {
+     |  ___________________________________________________________________________________________-
+3141 | |           let summary = session.summary().expect("aborted success summary");
+3142 | |           let first = settle_exec(
+3143 | |               &mut session,
+...    |
+3159 | | /         (
+3160 | | |             summary.status().as_str().to_string(),
+3161 | | |             yes_no(summary.rollback_confirmed()),
+3162 | | |             yes_no(summary.socket_dropped()),
+...    | |
+3168 | | |             third,
+3169 | | |         )
+     | | |_________- expected because of this
+3170 | |       } else {
+3171 | | /         (
+3172 | | |             "absent".to_string(),
+3173 | | |             "absent",
+3174 | | |             "absent",
+...    | |
+3180 | | |             "skipped",
+3181 | | |         )
+     | | |_________^ expected `std::string::String`, found `&str`
+3182 | |       };
+     | |_______- `if` and `else` have incompatible types
+     |
+     = note: expected tuple `(std::string::String, &_, &_, std::string::String, &_, &_, &_, &_, &_)`
+                found tuple `(std::string::String, &_, &_, &str, &_, &_, &_, &_, &_)`
+
+error[E0308]: `if` and `else` have incompatible types
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3260:9
+     |
+3245 |         let (status, rollback, sqlstate, open, next) = if idle_label == "ok" {
+     |  ______________________________________________________-
+3246 | |           let summary = session.summary().expect("aborted drop summary");
+3247 | |           let next = settle_exec(
+3248 | |               &mut session,
+...    |
+3252 | | /         (
+3253 | | |             summary.status().as_str().to_string(),
+3254 | | |             yes_no(summary.rollback_confirmed()),
+3255 | | |             summary.sqlstate().unwrap_or("none").to_string(),
+3256 | | |             yes_no(session.is_open()),
+3257 | | |             next,
+3258 | | |         )
+     | | |_________- expected because of this
+3259 | |       } else {
+3260 | | /         (
+3261 | | |             "absent".to_string(),
+3262 | | |             "absent",
+3263 | | |             "absent",
+3264 | | |             yes_no(session.is_open()),
+3265 | | |             "skipped",
+3266 | | |         )
+     | | |_________^ expected `(String, &str, String, &str, &str)`, found `(String, &str, &str, &str, &str)`
+3267 | |       };
+     | |_______- `if` and `else` have incompatible types
+     |
+     = note: expected tuple `(std::string::String, &_, std::string::String, &_, &_)`
+                found tuple `(std::string::String, &_, &str, &_, &_)`
+
+error[E0499]: cannot borrow `session` as mutable more than once at a time
+    --> crates/oo-gateway/tests/query_executor_pg_live.rs:3341:26
+     |
+3339 |     let next = settle_exec(
+     |                ----------- first borrow later used by call
+3340 |         &mut session,
+     |         ------------ first mutable borrow occurs here
+3341 |         page_hold_select(&mut session, env, &identity, &hold).await,
+     |                          ^^^^^^^^^^^^ second mutable borrow occurs here
+
+Some errors have detailed explanations: E0308, E0499.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `oo-gateway` (test "query_executor_pg_live") due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...

@@ -1,0 +1,9 @@
+ExitCode=2
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a205-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=8589934592
+PortBindings={}
+Id=9eb13e6b331b01beec88c16bc2370070bfeb9d08578f56e9b0dd0c6c023c2d13

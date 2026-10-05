@@ -1,0 +1,23 @@
+removed_containers:
+oo-a205-pg
+Error response from daemon: No such container: oo-a205-smoke
+Error response from daemon: No such container: oo-a205-proof
+Error response from daemon: No such container: oo-a205-clippy
+removed_volumes:
+oo-a205-cargo
+oo-a205-target
+oo-a205-pgdata
+removed_network:
+oo-a205-net
+removed_tmp:
+removed /tmp/oo-a205-eef831aa-dba4-4af2-a78b-541bc9e0a205
+a205_containers_after:
+a205_volumes_after:
+a205_network_after:
+tmp_after:
+absent
+images_still_present:
+sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 linux/arm64
+sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb linux/arm64
+prune: not used
+foreign_containers: left in place
