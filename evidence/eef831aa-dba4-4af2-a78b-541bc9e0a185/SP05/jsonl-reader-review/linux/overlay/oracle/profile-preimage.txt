@@ -1,0 +1,6 @@
+oo-jsonl-profile/v1
+id=review
+column=name	utf8	1
+column=ok	bool	0
+column=n	int64	0
+column=j	json_text	1
