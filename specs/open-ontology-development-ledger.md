@@ -159,6 +159,7 @@
   - [x] W01-LB 本地并发quota与流式发布：3a251dea经a188固定独立限定批准，8并发只保留8/10配额、8192字节range、独立32MiB常驻增量139264字节；S3/跨机器独立目录/download/reaper另验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
   - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
+  - [x] W02-DS explicit CSV/TSV pull：671507b2经a199固定独立限定批准，实际Arrow exactdecimal/int64/UTF8/引号/lineage/EOF SHA；blockingRead不可抢占，IPC/loader/其他编码仍未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
 - [ ] SP05-W04 SQLite/dump隔离恢复
 - [ ] SP05-W05 import策略/lineage/取消
@@ -173,6 +174,7 @@
 - [ ] SP06-W02 parser/R1–R9/star/OID
   - [x] W02-AST PostgreSQL AST SELECT准入切片：03512f91经a179独立限定批准，逻辑/物理重写、visible star、snapshot OID绑定、真实PG受限角色执行；500ms隔离、真实OID adapter、完整R1–R9未验，公共不可信入口继续禁用。
   - [x] W02-PW 单次直接子进程parser supervisor：c22cf08a经a195限定批准，独立503ms slow与blockedpipes kill/reap/legalcodec；孙进程stdout导致join无界及request trailer待a201，kernelrestriction Unsupported/publicBlocked。
+  - [x] W02-LC live PolicyCatalog：78a60fde经a200固定独立限定批准，实际映射/列权限交集/54operator+count OID/两角色真实查询与observer idle；旧角色断言待a206，完整R4/auth/RLS未验。
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
   - [x] W04-EX 可信输入SELECT执行原语：8a289f0c经a184独立限定批准，真实TLS/列ACL/类型/限额/整次deadline/cancel/rollback；阻塞Drop抢占与首次role绑定修复待a189，公共准入/完整父项未验。
@@ -1212,3 +1214,6 @@ a19621805 actualexit0 complete0ee7cf86/evidencec989ccf5 full3reportsread163hasha
 
 
 a203actualGrok4.7xhighhandle3810 realPGverticalintegration1builder1PG development; a19829625queryCLI,a20140330parserrepair,a20245463downloadrepair developmentlastunifiedchecklive. a19975162CSV/a20083917catalog independentreviews. Actual4dev+2review/global6builders; solegatewaymanifest/lockwritera198. Dispatch99a0ce45 nextUUIDa204, queuedreviewfileCLI/cancelbounds. NextONE25minutewait unified6handles; all87parentsopen/goalactive.
+
+
+a19975162/a20083917 actualexit0 completed5b8cce62/a587031c(archiveabaf4022), all3reportsfullyread198/146hashactual0/owncontainers empty. LimitedW02-DS/W02-LCaccepted38→40; firstcomponentreviewsapproved denominator31→33 rework10/33=30.30%. a200 olda190liveassertionline575 realfailuremandatorya206test/docrepair; xidnullnotidleproof/perdigestgeneration limits explicitnotbroadcert. a19829625 actualexit0completed4f3f329a/evidence33e5723e all3reportsread155repo-relativehash0(noinitialpathresolutionfalsemismatches)/lock2edges0registrypairchanges/liveClippy0 cleanup; actualsingle+2turn trustedSQLCLIcomponent34→35 pendingfixedreview. NotNL/harness/auth/WAL approval; residentactorwarningretainedterminalCLI0. a20140330/a20245463 actualexit0incomplete existingred/verifylaunched originalresumesfirstcollectresults (headlesswait600/residentwarnings retained). a2033810 ONEunifiedchecklive. Dispatcha204fileCLI+a205cancelboundsreviews and a206narrowcatalogtestcorrection; 4development(a201,a202,a203,a206)+2review/global6. QueryCLIreviewqueuednext. All87parentsopen/goalactive.
