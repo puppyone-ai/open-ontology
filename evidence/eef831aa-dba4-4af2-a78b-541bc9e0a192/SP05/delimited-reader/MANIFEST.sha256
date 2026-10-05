@@ -243,7 +243,6 @@ ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  ./oracle/sha25
 dfe7a23fefeea519e9bbfdd1a6be94c4b2e4529dd6b7cbea83f9959c2621b13c  ./oracle/sha256-self-check.sha256.txt
 79834f007757fcee918e2f9c1650317d80d958b78110590a503ee98449a344c2  ./source/blob-sha256.txt
 3641c6b750f1684c2116e08ec6092fd1ac7ed1df7bce2bc5e613613345c71623  ./source/blobs/delimited-reader-v1.md
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./source/blobs/delimited-test.rs
 12583452df440852b8979d0dfa966966eebbbc53a04433d1c7bc41aa60cd4587  ./source/blobs/delimited.rs
 5ca17a403e2e8ee01bf074bc81af8a261ffd639a2aa660610cf0c240aaf0007d  ./source/blobs/lib.rs
 b33c4b136c1eb0bc772885e34889f6311c67a1ba39225edbcfa38a594f332f0c  ./source/blobs/tests-delimited.rs
