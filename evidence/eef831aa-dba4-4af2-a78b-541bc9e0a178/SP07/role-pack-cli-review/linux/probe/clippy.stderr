@@ -1,0 +1,13 @@
+    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
+error: this assertion has a constant value
+   --> crates/oo-builder/tests/role_pack_a178_review.rs:866:5
+    |
+866 |     assert!(JSON_MAX_DEPTH < 40);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider moving this into a const block: `const { assert!(..) }`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#assertions_on_constants
+    = note: `-D clippy::assertions-on-constants` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+error: could not compile `oo-builder` (test "role_pack_a178_review") due to 1 previous error

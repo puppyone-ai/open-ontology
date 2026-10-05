@@ -1,0 +1,12 @@
+oo-builder: usage: oo-builder <command>
+oo-builder: public draft commands read one JSON document from stdin and take no arguments
+oo-builder:   structure-draft       one oo.builder.catalog-evidence/v1 envelope
+oo-builder:   captured-pg-draft     one oo.source.pgsql/v1 catalog
+oo-builder:   review-pg-draft       catalog object, optional curated object, optional reviews array
+oo-builder: review-pg-draft passes those values to compile_captured_pg_catalog
+oo-builder:   role-pack             one oo.builder.role-pack-command/v1 document
+oo-builder: role-pack passes effective_oos and visibility to compile_role_pack
+oo-builder: the visibility object is caller-supplied public data, not a live permission proof
+oo-builder: role-pack does not write a file, mount a pack, authenticate, grant, or publish
+oo-builder: these commands do not connect, call a model, import rows, grant, certify, or publish
+oo-builder: a review decision binds one structural item and does not approve semantics, grants, or publication

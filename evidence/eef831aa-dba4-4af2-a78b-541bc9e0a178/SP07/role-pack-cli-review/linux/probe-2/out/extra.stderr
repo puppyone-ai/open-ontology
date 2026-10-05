@@ -1,0 +1,1 @@
+oo-builder: role-pack reads one oo.builder.role-pack-command/v1 JSON document from stdin and takes no arguments

@@ -1,0 +1,9 @@
+
+running 4 tests
+test no_args_and_the_other_three_commands_keep_their_exits ... ok
+test forwarding_stale_binding_and_samples_do_not_echo ... ok
+test bounded_input_version_duplicate_unknown_and_oversize_are_static ... ok
+test two_roles_match_library_bytes_and_independent_hashes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

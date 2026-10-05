@@ -1,0 +1,1 @@
+oo-builder: captured-pg-draft reads one oo.source.pgsql/v1 JSON document from stdin and takes no arguments

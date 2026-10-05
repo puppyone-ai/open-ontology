@@ -1,0 +1,3 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.20s
+     Running tests/role_pack_a178_review.rs (/target/debug/deps/role_pack_a178_review-4d6eb19de5c5accc)
