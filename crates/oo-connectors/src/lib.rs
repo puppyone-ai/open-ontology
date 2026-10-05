@@ -15,6 +15,9 @@
 //! separate bounded file pull over [`std::io::Read`]. It does not admit an import.
 //! [`DELIMITED_PROTOCOL`] is a separate bounded CSV or TSV pull over [`std::io::Read`].
 //! It does not admit an import.
+//! [`FILE_WORKER_PARENT_PROTOCOL`] supervises one trusted file-parser worker and
+//! returns [`ParentParseComplete`] only after a verified IPC end. That receipt
+//! does not admit an import.
 //! Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
@@ -24,6 +27,7 @@ mod catalog;
 mod config;
 mod delimited;
 mod error;
+mod file_worker_parent;
 mod ident;
 mod jsonl;
 mod key_plan;
@@ -59,6 +63,12 @@ pub use snapshot::{
     RunCancel, RunCancelled, RunComplete, SnapshotFinished, SnapshotOwner, SnapshotRequest,
     TableAccess,
     CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
+};
+pub use file_worker_parent::{
+    ChildRequest, Failure, FailureKind, GroupSignal, KernelRestriction, ParentConfig, ParentError,
+    ParentParseComplete, ParentPull, PullBudget, SourceProfile, Teardown, VerifiedBatch,
+    VerifiedField, VerifiedRow, FILE_WORKER_PARENT_PROTOCOL, KERNEL_RESTRICTION,
+    PARENT_DEADLINE_MAX_MS, PARENT_DEADLINE_MIN_MS,
 };
 pub use delimited::{
     BomPolicy, DelimitedBatch, DelimitedBudget, DelimitedCancel, DelimitedCancelled,
