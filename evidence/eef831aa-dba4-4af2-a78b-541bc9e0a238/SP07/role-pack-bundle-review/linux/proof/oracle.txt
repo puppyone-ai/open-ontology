@@ -1,0 +1,29 @@
+hardlink_tmpfs=supported ino_eq=true nlink=2
+hardlink_bind=supported ino_eq=true nlink=2
+compiler_has_cache_key=true compiler_has_clerk_principal=true compiler_has_audit_principal=true
+product_on_tmpfs=published
+clerk_file_sha256=2b0e4250b7ff7a4230706122f09c8e93744b68dde61b4b788dac10ef9f22c784
+clerk_pack_sha256=692972da9a955f6c6e3027129706c86feaa208dc789ab47ea8ecc7fb1ced1f69
+clerk_manifest_sha256=954ff828edca50f8d1156a7d8c9e177ce12ab7b2f8cdef3e8c4e72cd24e20b8e
+clerk_pack_digest=50af382d5c4d692db5030ea9f976d4ae564879b009d18d57d5591a6f55908653
+clerk_pack_length=5543
+clerk_manifest_length=1569
+clerk_snapshot={"catalog_version":"catalog-a238","knowledge_id":"know-kiln","knowledge_version":"4","ontology_version":"ontology-a238","policy_id":"pol-kiln","policy_version":"9","project":"kiln","role":"oo_r_kiln_clerk"}
+audit_file_sha256=82017b513c083fa0e9efec5781c2530a15c5eed2fd92bbb13a0c44205851f25d
+audit_pack_sha256=92cc2aa478db0e8c61d3e499e83fb99d1c15fa768092943ffb166d2057e77520
+audit_manifest_sha256=0cef43cc1801cb265380e08de1ced97dc676135b75a24a7745205772e05ce828
+audit_pack_digest=7a2e476142a854780b22a0df7c294492014f077db76d66abdc08cc2cc99bfef8
+audit_pack_length=5046
+audit_manifest_length=1571
+audit_snapshot={"catalog_version":"catalog-a238","knowledge_id":"know-kiln","knowledge_version":"4","ontology_version":"ontology-a238","policy_id":"pol-kiln","policy_version":"9","project":"kiln","role":"oo_r_kiln_audit"}
+pack_sha256_differ=true
+sentinel=unchanged
+symlink_destination=unchanged
+directory_destination=unchanged
+preexisting_staging=unchanged
+concurrent_same=one_winner_foreign_unchanged
+concurrent_distinct=own_outputs_foreign_unchanged
+help=no_auth_mount_publish_no_file
+product_unsupported=not_mounted
+link_window=not_observed tries=4
+review_result=pass

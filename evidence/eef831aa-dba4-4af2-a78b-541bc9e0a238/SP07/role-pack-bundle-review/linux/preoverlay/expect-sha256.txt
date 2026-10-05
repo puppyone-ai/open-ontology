@@ -1,0 +1,3 @@
+ee085c9d1a28288efe700a58e772377a909613f04731aed4af3ce25591cc0bf2  crates/oo-builder/src/bin/role-pack-bundle.rs
+1143c117e86c1373aa825b2571cbf6473b57b65928c4a1c0a830a28cee7e3f39  crates/oo-builder/tests/role_pack_bundle.rs
+164388a8e496fd989edcc86f5323257d1863a4d9c7f8058304f828a4b91a2863  contracts/builder/role-pack-bundle-v1.md

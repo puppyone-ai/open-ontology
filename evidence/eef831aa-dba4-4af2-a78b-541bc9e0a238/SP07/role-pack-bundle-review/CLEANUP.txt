@@ -1,0 +1,24 @@
+owner=a238
+session=eef831aa-dba4-4af2-a78b-541bc9e0a238
+
+containers removed by launch scripts:
+943df3d97a788f69d8df4d40a0cb6f536794532c5e9c17b55fc460a0cb9efd9c oo-a238-smoke
+ac366f9a5287cd085cae01c5c3467ea7e0c11ee7f0a9c3cb570beba53d95756b oo-a238-proof
+
+docker volume rm oo-a238-eef831aa-cargo oo-a238-eef831aa-target
+removed both volumes, exit 0
+
+docker network rm oo-a238-eef831aa-net
+removed, exit 0
+
+rm -rf /tmp/oo-a238-eef831aa-dba4-4af2-a78b-541bc9e0a238
+removed the smoke and proof archives, exit 0
+
+afterward:
+docker ps -a --filter label=oo.owner=a238 is empty
+docker volume ls --filter label=oo.owner=a238 is empty
+docker network ls --filter label=oo.owner=a238 is empty
+
+left in place: oo-a229-pg Up. No prune. No other task's container, volume, network, or image was removed.
+The pinned rust image was not removed.
+linux/proof/fs-probe is absent. The successful oracle deleted it.

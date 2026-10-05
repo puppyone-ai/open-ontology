@@ -1,0 +1,189 @@
+{
+  "protocol": "oo.builder.role-pack-command/v1",
+  "effective_oos": {
+    "protocol": "oo.builder.effective-oos/v1",
+    "project": "kiln",
+    "ontology_version": "ontology-a238",
+    "catalog_version": "catalog-a238",
+    "policy": {"id": "pol-kiln", "version": "9"},
+    "knowledge": {"id": "know-kiln", "version": "4"},
+    "ontology": {
+      "spec_version": "oos/v1",
+      "name": "hearthworks",
+      "locale": "zh-CN",
+      "include_schemas": ["kiln", "yard"],
+      "default_tier_preference": ["file"],
+      "publish": {"include_unreviewed": []},
+      "classification": {"auto_accept": "rule_high_confidence"},
+      "lifecycle": {"deprecation_min_releases": 2},
+      "compile": {
+        "per_role": true,
+        "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+        "sample_values": {"default": "masked", "max_per_column": 0}
+      }
+    },
+    "datasets": [
+      {
+        "schema_version": "oos/v1",
+        "dataset": "kiln.tile",
+        "label": "砖块",
+        "tier": "file",
+        "grain": "one row per tile",
+        "primary_key": ["tile_id"],
+        "row_count_estimate": 515151,
+        "columns": [
+          {
+            "name": "tile_id",
+            "pii": "none",
+            "classification": {"state": "confirmed"},
+            "label": "砖号",
+            "data_type": "bigint",
+            "description": "tile-mark-a238",
+            "review": {"state": "approved"}
+          },
+          {
+            "name": "mass_g",
+            "pii": "none",
+            "classification": {"state": "confirmed"},
+            "label": "克重",
+            "unit": "g"
+          },
+          {
+            "name": "vault_mark",
+            "pii": "sensitive",
+            "classification": {"state": "confirmed"},
+            "label": "窑记"
+          },
+          {
+            "name": "stamp",
+            "pii": "personal",
+            "classification": {"state": "confirmed"},
+            "label": "印记",
+            "description": "stamp note stays",
+            "review": {"state": "approved"}
+          }
+        ]
+      },
+      {
+        "schema_version": "oos/v1",
+        "dataset": "kiln.hearth",
+        "label": "炉台",
+        "tier": "file",
+        "grain": "one row per hearth",
+        "primary_key": ["hearth_id"],
+        "row_count_estimate": 41,
+        "columns": [
+          {"name": "hearth_id", "pii": "none", "classification": {"state": "confirmed"}},
+          {"name": "reading_c", "pii": "none", "classification": {"state": "confirmed"}}
+        ]
+      },
+      {
+        "schema_version": "oos/v1",
+        "dataset": "yard.pad",
+        "label": "垫位单",
+        "tier": "file",
+        "grain": "one row per pad",
+        "primary_key": ["pad_id"],
+        "row_count_estimate": 181818,
+        "columns": [
+          {
+            "name": "pad_id",
+            "pii": "none",
+            "classification": {"state": "confirmed"},
+            "description": "pad-mark-a238"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "tile_hearth",
+        "from": {"dataset": "kiln.tile", "columns": ["mass_g"]},
+        "to": {"dataset": "kiln.hearth", "columns": ["reading_c"]},
+        "cardinality": "many_to_one",
+        "join_hint": "left",
+        "provenance": "declared_fk"
+      }
+    ],
+    "metrics": [
+      {
+        "metric": "kept_mass",
+        "label": "克重合计",
+        "description": "visible tile mass",
+        "owner": "owner-a238-do-not-copy",
+        "certified": true,
+        "status": "active",
+        "default_anchor": "month_start",
+        "sql": "SELECT mass_g AS total FROM kiln.tile",
+        "tests": [{"params": {}, "expect": {"rows": 1}}],
+        "control_total": {
+          "as_of": "month_start",
+          "source": "kiln",
+          "sql": "SELECT mass_g AS control_sum FROM kiln.tile",
+          "tolerance": {"abs": "1"}
+        }
+      },
+      {
+        "metric": "hidden_mass",
+        "label": "窑记合计",
+        "owner": "owner-a238-do-not-copy",
+        "certified": true,
+        "status": "active",
+        "default_anchor": "month_start",
+        "sql": "SELECT vault_mark AS hidden_total FROM kiln.tile",
+        "tests": [{"params": {}, "expect": {"rows": 1}}],
+        "control_total": {
+          "as_of": "month_start",
+          "source": "kiln",
+          "sql": "SELECT vault_mark FROM kiln.tile",
+          "tolerance": {"abs": "1"}
+        }
+      }
+    ],
+    "glossary": [
+      {
+        "term": "克重口径",
+        "definition": "visible mass note",
+        "maps_to": {"dataset": "kiln.tile"},
+        "status": "approved"
+      },
+      {
+        "term": "炉位",
+        "definition": "hearth-mark-a238",
+        "maps_to": {"dataset": "kiln.hearth"},
+        "status": "approved"
+      }
+    ],
+    "calendar": {
+      "schema_version": "oos/v1",
+      "business_tz": "Asia/Shanghai",
+      "fiscal_year_start_month": 4,
+      "week_start": "monday",
+      "anchors": ["month_start", "today"],
+      "phrases": {
+        "本窑季": {"start": "month_start", "end": "today", "bounds": "[)"},
+        "炉记季": {"start": "month_start", "end": "today", "bounds": "[)"}
+      }
+    }
+  },
+  "visibility": {
+    "protocol": "oo.builder.role-visibility/v1",
+    "project": "kiln",
+    "principal": "prin-audit-a238",
+    "role": "oo_r_kiln_audit",
+    "ontology_version": "ontology-a238",
+    "catalog_version": "catalog-a238",
+    "policy": {"id": "pol-kiln", "version": "9"},
+    "knowledge": {"id": "know-kiln", "version": "4"},
+    "issued_for_compiler": "oo-builder/role-pack/v1",
+    "datasets": [
+      {
+        "dataset": "kiln.hearth",
+        "row_security": "none",
+        "global_stats": "permitted",
+        "columns": ["hearth_id", "reading_c"]
+      }
+    ],
+    "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+  }
+}
