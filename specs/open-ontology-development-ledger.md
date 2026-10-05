@@ -156,6 +156,7 @@
 
 - [ ] SP05-W01 multipart/checksum/local/S3/ACL
   - [x] W01-LP 本地上传原语：755fb84a经a183独立限定批准，顺序multipart/恢复/sha256/幂等/跨context拒绝/owned abort；并发quota及大对象流式内存未满足，完整W01未验。
+  - [ ] W01-LB 本地并发quota与流式发布：a186修复3a251dea已交付，固定a188独立复审待验；S3与跨机器独立目录另验。
 - [ ] SP05-W02 CSV/TSV/JSONL/Parquet
   - [x] W02-JL bounded JSONL pull：47743688经a185独立限定批准，实际Arrow/显式profile/lineage/完整EOF与sha256解析凭据；阻塞Read不可抢占，IPC/worker/loader及其他格式未验。
 - [ ] SP05-W03 xls/xlsx/日期/公式
@@ -172,6 +173,7 @@
   - [x] W02-AST PostgreSQL AST SELECT准入切片：03512f91经a179独立限定批准，逻辑/物理重写、visible star、snapshot OID绑定、真实PG受限角色执行；500ms隔离、真实OID adapter、完整R1–R9未验，公共不可信入口继续禁用。
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
+  - [x] W04-EX 可信输入SELECT执行原语：8a289f0c经a184独立限定批准，真实TLS/列ACL/类型/限额/整次deadline/cancel/rollback；阻塞Drop抢占与首次role绑定修复待a189，公共准入/完整父项未验。
 - [ ] SP06-W05 typed结果/质量/freshness
 - [ ] SP06-W06 audit WAL/completion/read-own
 - [ ] SP06完整B/Phase退出
@@ -1150,3 +1152,6 @@ a18083276/a18299230 actualexit0 complete8a289f0c/evidencece040593 and47743688/ev
 a18395249 actualexit0 complete950406b8 reports3read/fullhashactualchecked/ownDockerempty. LimitedW01-LP accepted31→32, delivered29, uniquecomponentfirstreviewapproved denominator26→27 rework10/27=37.04%; specconcurrentquota16>10 andmemory2xpart realfail remainmandatorywork notscopeexcused. Dispatcha186controlstream/quotafixparallel a18484576/a18574571 live perlastunifiedcheck; global3builders/actual3Grok/all87parentsopen/goalactive.
 
 a18574571 actualexit0 complete699165c2 full3reportsread/fullhashactualchecked/owncleanuprecorded. LimitedW02-JL accepted32→33, delivered29, uniquecomponentfirstreviewapproved denominator27→28 rework10/28=35.71%. EOF/hash/Arrow8freshcases0, blockingReadhonestlimitation nofullphasecompletion. a18484576/a1867244 unifiedchecklive. Dispatcha187realparserchild500mskill/reap no newdeps disjointgateway/control/fixedreview; nativekernelrestrictioncertificate remainspublicgate. Actual3Grok/global3builders/all87parentsopen/goalactive.
+
+
+a18484576/a1867244 actualexit0 closed; full3reports previouslyread, coordinator273/114hash actualchecked0, greenrawsmoke/probe/postedit exits0 and exactownDocker/volume/networkfilters empty. a184 APPROVE LIMITED W04-EXaccepted33→34; delivered29, firstcomponentreviewapproved denominator28→29 rework10/29=34.48%. BlockedportalDrop2713ms and firstrolebind discrepancy preserved mandatory a189repair; a1863a251dea localquota+8192range repair notnewcomponent nor accepteduntila188review. a18770068 liveperlastunifiedcheck; no repeatobservation. Dispatch a188fixedcontrolreview+a189narrowexecutorrepair, disjointproductionpaths/no dependencywriters/global3Rustbuilders/actual3Grok. All87parentsopen/goalactive.
