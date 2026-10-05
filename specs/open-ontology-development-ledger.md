@@ -167,6 +167,7 @@
 - [ ] SP06-W01 ACL/RLS/helper/drift
   - [x] W01-CA PostgreSQL列ACL安装原语：d3429726经a173独立限定批准，真实mapped shadow/NOLOGIN/列授权/新增隐藏列与写拒绝/双角色rollback/TLS；RLS、鉴权、审计及发布未验。
 - [ ] SP06-W02 parser/R1–R9/star/OID
+  - [x] W02-AST PostgreSQL AST SELECT准入切片：03512f91经a179独立限定批准，逻辑/物理重写、visible star、snapshot OID绑定、真实PG受限角色执行；500ms隔离、真实OID adapter、完整R1–R9未验，公共不可信入口继续禁用。
 - [ ] SP06-W03 token/mTLS/撤销/准入
 - [ ] SP06-W04 RR/portal/cancel/pool/reaper
 - [ ] SP06-W05 typed结果/质量/freshness
@@ -1137,3 +1138,5 @@ a17888846/a17542701 actualexit0 full3reports eachread288/106hashactual0/ownDocke
 a17958510/a18031092 both actualexit1 after one25minute wait; service402 Payment Required Grok Build usage balance exhausted. OriginalUUIDs retained no retryloop. No3reports/sourcecommit/no acceptance; tracked diff and new gateway/contract pathlists empty, HEADa381e098 unchanged. a179 partial smoke evidence/privatecargo+targetvolumes+network retained for originalresume; exact owncontainers empty. a180 no evidence directory, no source delivery. Counts26delivered/30accepted/firstreview10of25=40% remain; all87parentsopen. This is first new blocker occurrence after explicit user restored run, goalactive notcomplete/paused/blocked. Next action when balance restored resume original a179/a180, first retrieveexisting rawsmoke/results no duplicatebuilders.
 
 2026-10-05 userrestoredGrok andauthorizedgreateractualparallelism. a179 originalresume62445 unifiedchecklive serviceexecutes/closingreports sourceblobs4f44d2ca pendingactualterminal. Resourceobservedhost137438953472bytes Docker101060706304bytes16CPU, capincrease2→3actualGrok/3globalRustbuilders eachmax1builder/1PG. a180originalresume plusnewa181localfilehosting independentcontrolwriter/dependencysolewriter; gatewayexecutor no dependencies/sharedsource, reviewfixedarchive. Prior balanceblock audit reset afteruserrestored; noacceptance yet, metrics26/30/10of25 unchanged/all87parentsopen/goalactive.
+
+a17962445 actualexit0 complete82d2cd8e(sourceblobs4f44d2ca), full3reportsread/hashactualchecked. Limited W02-AST accepted30→31, delivered26; uniquecomponentfirstreviewapproved denominator25→26 rework10/26=38.46%. FreshSQLjoin/star/physicalAST/OIDs/DB42501 proof0, nativeparserisolation stillpublicblock, preciseupdate deviation retained. a18083276/a18189265 unifiedchecklive, no duplicates. Thirdreleased slot dispatcha182boundedJSONLreader connector-only no deps, disjointgateway/control/deps. Actual3Grok/global3builders/each1PG all87parentsopen/goalactive.
