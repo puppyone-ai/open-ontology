@@ -1,0 +1,1 @@
+id=52aa09a24817d0728ffb2357f66d1d913e0f258cebb2ab99fca0525508f1d3aa status=exited exit=101 oom=false privileged=false network=oo-a208-eef831aa-net capdrop=["ALL"]

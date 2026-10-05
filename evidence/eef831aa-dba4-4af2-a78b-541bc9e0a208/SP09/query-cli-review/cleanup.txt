@@ -1,0 +1,19 @@
+cleanup_owner=a208
+cleanup_session=eef831aa-dba4-4af2-a78b-541bc9e0a208
+prune=not_used
+foreign_left=oo-a211-chain oo-a211-pg oo-a203-pg
+=== remove postgres ===
+oo-a208-pg
+=== remove volumes ===
+oo-a208-eef831aa-cargo
+oo-a208-eef831aa-target
+oo-a208-eef831aa-pgdata
+=== remove network ===
+oo-a208-eef831aa-net
+=== tmp names before delete ===
+tmp_path_absent=/tmp/oo-a208-eef831aa-dba4-4af2-a78b-541bc9e0a208
+=== after ===
+=== foreign after ===
+oo-a211-chain a211
+oo-a211-pg a211
+oo-a203-pg a203

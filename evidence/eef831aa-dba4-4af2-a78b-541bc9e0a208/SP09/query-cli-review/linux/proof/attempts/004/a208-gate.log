@@ -1,0 +1,16 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0597]: `records` does not live long enough
+   --> crates/oo-gateway/tests/query_pg_cli_a208_review.rs:646:13
+    |
+644 |         let audit_state = if audit.exists() {
+    |             ----------- borrow later stored here
+645 |             let records = audit_values(&audit);
+    |                 ------- binding `records` declared here
+646 |             records
+    |             ^^^^^^^ borrowed value does not live long enough
+...
+650 |         } else {
+    |         - `records` dropped here while still borrowed
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `oo-gateway` (test "query_pg_cli_a208_review") due to 1 previous error

@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/query_pg_cli_a208_review.rs (/target/debug/deps/query_pg_cli_a208_review-8893a769220ee1a5)
+
+running 1 test
+test review_query_pg_on_a_fresh_fixture ... 
+thread 'review_query_pg_on_a_fresh_fixture' (229) panicked at crates/oo-gateway/tests/query_pg_cli_a208_review.rs:1214:5:
+drop-roles sqlstate=2BP01
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    review_query_pg_on_a_fresh_fixture
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p oo-gateway --test query_pg_cli_a208_review`

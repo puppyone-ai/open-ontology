@@ -1,0 +1,4 @@
+proof attempt 003 docker exit 101
+a190-live 0, gate 0, clippy 0, secret-scan 0.
+Fresh live panicked at the lock observation: admit was not visible while the user query waited. The assertion required admit, absent completion, and a Lock wait together.
+

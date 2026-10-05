@@ -1,0 +1,29 @@
+oo_task=sp09-query-cli-review-proof
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a208
+oo_fixed=a661dcdf72ff91561ae6b7cb79916e582884d08a
+oo_platform=linux/arm64
+phase=proof
+Linux 55df9c0e298d 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=secret-scan-tool
+phase_exit=0 phase=overlay-present
+phase_exit=0 phase=product-hash
+phase_exit=0 phase=libclang-reuse
+=== OO_A190_LIVE=1 policy_catalog_pg_live ===
+phase_exit=101 phase=a190-live
+phase_exit=1 phase=a190-oracle
+=== OO_A208_LIVE unset ===
+phase_exit=101 phase=a208-gate
+phase_exit=1 phase=a208-gate-message
+=== OO_A208_LIVE=1 fresh fixture ===
+phase_exit=101 phase=a208-live
+phase_exit=1 phase=a208-oracle
+=== clippy component ===
+phase_exit=0 phase=clippy-component
+=== clippy lib bin and review test ===
+phase_exit=101 phase=clippy
+phase_exit=0 phase=lock-hash
+phase_exit=0 phase=secret-scan
+proof_fail=101

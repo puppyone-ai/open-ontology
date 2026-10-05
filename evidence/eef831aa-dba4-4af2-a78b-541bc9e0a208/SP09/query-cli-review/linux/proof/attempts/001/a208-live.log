@@ -1,0 +1,19 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0277]: `Business` doesn't implement `std::fmt::Debug`
+   --> crates/oo-gateway/tests/query_pg_cli_a208_review.rs:686:9
+    |
+686 |         assert_eq!(self.before_rows, after);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `Business`
+    |
+    = note: add `#[derive(Debug)]` to `Business` or manually `impl std::fmt::Debug for Business`
+help: the trait `std::fmt::Debug` is implemented for `Vec<T, A>`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/vec/mod.rs:4178:0
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `Business` with `#[derive(Debug)]`
+    |
+ 89 + #[derive(Debug)]
+ 90 | struct Business {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-gateway` (test "query_pg_cli_a208_review") due to 2 previous errors
