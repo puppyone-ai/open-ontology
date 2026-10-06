@@ -1,0 +1,3 @@
+07d7e26d32edaba62bc2287cfec6c22816c78ce784b22b5df42ef7d437214839  examples/schema/enum-ysk-zt.yaml
+ee222973f1594634fca98ec6688eaa0e61fbef3ef217fec46cbefb4c49cb1674  crates/oo-core/src/oos/parse.rs
+09529bd9985c6049be7b7bd09347dc216b43a1585baceb2fee664a9f558d6b28  crates/oo-core/src/oos/model.rs

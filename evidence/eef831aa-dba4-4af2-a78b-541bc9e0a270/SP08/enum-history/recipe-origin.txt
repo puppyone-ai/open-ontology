@@ -1,0 +1,18 @@
+Rust launch recipe origin
+commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+cross_check_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+cross_check_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+minimal_changes=uuid a270; fixed commit 0bcd494457091d4b55c82fc6b9922b5bc5dc44c4; memory 8g to 6g; cpus 4 to 1; CARGO_BUILD_JOBS 1; cap_global 6 to 10; focused cargo test is oo-core schema_contract documented_oos_examples_parse; archive adds examples; toolchain file moved aside after cp -R onto the cargo volume; 0 postgres; enum-history must be absent; no product overlay
+fixed_source=0bcd494457091d4b55c82fc6b9922b5bc5dc44c4
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+a200_not_executed=private PostgreSQL recipe is not used; this unit starts no database
+proof_inside_origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a263/SP07/description-provider/linux/proof-7/inside.sh
+proof_inside_sha256=aac405f57524b1f4004ebecf2ead7aa33c07829860d9f7f167c58e4b3388f01c
+proof_inside_commit=efdffed87f4e19070536cbd6a72fa1a6583e639e
+proof_lock_subset_origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a263/SP07/description-provider/tools/lock_subset.rs
+proof_lock_subset_sha256=7d24096b8a5ee9ec641e15625aabd2e69ebb71bbd99fa24ece28bc888304d34d
+proof_minimal_changes=cp -R not cp -a; no description-candidate; overlay tools/enum-history; path packages enum-history and oo-core only; 6g; 1 cpu; 0 postgres

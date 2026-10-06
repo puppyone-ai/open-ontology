@@ -1,0 +1,14 @@
+Own resources removed after proof-3 and review-1. No prune. Foreign containers were left in place.
+
+Removed volumes, each labeled oo.owner=a270:
+- oo-a270-eef831aa-cargo (cargo-home)
+- oo-a270-eef831aa-target (cargo-target)
+- oo-a270-eef831aa-target-review (cargo-target)
+
+Removed network oo-a270-eef831aa-net (oo.owner=a270, 0 containers).
+
+Removed directory /tmp/oo-a270-eef831aa-dba4-4af2-a78b-541bc9e0a270.
+
+Containers already removed by their launch scripts: oo-a270-preoverlay, oo-a270-proof1, oo-a270-proof2, oo-a270-proof3, oo-a270-review1.
+
+Afterward, no container, volume, or network with oo.owner=a270 remained. Other rust builders still present at cleanup time: oo-a271-proof, oo-a274-chain. They were not stopped.
