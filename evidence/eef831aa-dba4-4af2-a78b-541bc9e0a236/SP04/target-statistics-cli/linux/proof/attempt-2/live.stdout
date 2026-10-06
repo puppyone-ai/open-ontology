@@ -1,0 +1,21 @@
+
+running 1 test
+test analyze_pg_binary_on_private_postgres ... FAILED
+
+failures:
+
+---- analyze_pg_binary_on_private_postgres stdout ----
+
+thread 'analyze_pg_binary_on_private_postgres' (373) panicked at crates/oo-pipeline/tests/analyze_pg_cli.rs:310:9:
+assertion `left == right` failed: import stderr=oo-pipeline: source privilege registration_refused
+
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    analyze_pg_binary_on_private_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.10s
+

@@ -1,0 +1,10 @@
+
+running 5 tests
+test analyze_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_ANALYZE_PG_HOST must be set by the deciding run
+test closed_fields_fail_before_files ... ok
+test invalid_json_version_and_secret_field ... ok
+test password_and_ca_files_fail_without_echoing_secrets ... ok
+test usage_exits_2_without_echoing_arguments ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

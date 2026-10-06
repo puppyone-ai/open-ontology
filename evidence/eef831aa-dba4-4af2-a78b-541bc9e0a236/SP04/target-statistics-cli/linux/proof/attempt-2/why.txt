@@ -1,0 +1,1 @@
+Attempt 2 exited 101. OOMKilled=false. Clippy 0. Unit tests 0. Live import exited 1: oo-pipeline: source privilege registration_refused. The source audit function was SECURITY DEFINER, which the existing import registration check refuses. Not a product library change.

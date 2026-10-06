@@ -1,0 +1,25 @@
+
+running 4 tests
+test file_budget_deadline_and_generation_errors_keep_the_secret ... ok
+test import_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_IMPORT_PG_HOST must be set by the deciding run
+test invalid_json_version_field_and_duplicate_key ... ok
+test usage_exits_2_without_echoing_arguments ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test endpoint_and_budget_fail_before_files ... ok
+test init_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_INIT_PG_HOST must be set by the deciding run
+test invalid_json_version_and_secret_field ... ok
+test password_and_ca_files_fail_without_echoing_secrets ... ok
+test usage_exits_2_without_echoing_arguments ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test mapped_shadow_analyze_on_one_postgres ... ignored, one private PostgreSQL 17.10; OO_TARGET_STATS_HOST must be set by the deciding run
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

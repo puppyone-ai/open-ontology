@@ -1,0 +1,18 @@
+
+running 1 test
+test analyze_pg_binary_on_private_postgres ... FAILED
+
+failures:
+
+---- analyze_pg_binary_on_private_postgres stdout ----
+
+thread 'analyze_pg_binary_on_private_postgres' (1281) panicked at crates/oo-pipeline/tests/analyze_pg_cli.rs:671:31:
+scalar failed: error occurred while decoding column 0: mismatched types; Rust type `alloc::string::String` (as SQL type `TEXT`) is not compatible with SQL type `INT8`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    analyze_pg_binary_on_private_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.62s
+
