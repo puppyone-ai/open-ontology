@@ -1331,3 +1331,11 @@ Coordinator accepts M1-D14C limited reviewed-policy CLI bcc86734 after a239fullr
 - [ ] F-D03 / E9-D0/1 frozen BEFORE code: actual IPC parent backed parse-file CLI for CSV/TSV/JSONL bounded summary/cleanEOF; a245 ownsnewbin/test/contract only. Aggregate26/42=61.90%, not global project rate.
 
 a244 actual56889 runnerfixedreview1builder1PG; a245 actual46614 IPCparseCLI development1builder0PG. Lastconfirmedlive a24010906/a23665332 dev and a24131448/a24297195/a24373668 reviews. Actual3dev+4reviews cap12dev/global10builders. NextUUIDa246; ONE20minute wait thenONE unified7handles.
+
+ONE20minute unified7handles: a24010906/a23665332/a24131448/a24297195/a24373668 actualexit0; reports inventory collected, full verification pending beforeacceptance. a24456889/a24546614 live. No repeatedpolling or exit-onlyacceptance.
+
+Coordinator accepts frozen M1-D14D ACL CLI13566602 aftera241fullreports/253hash0/smoke12+actualindependentquery/Clippy0/owncontainersabsent; fixturemapping/ANALYZE separate. E7-D1/2, accepted51→52, firstreviews43→44/rework10/44=22.73%. a2401f1028f6 mappingmodule253hash0/live+Clippy0 and a2366ac22165 statsCLI216hash0/livecatalog+Clippy0/owncontainersabsent authored49→51 pendingfixedreview. Aggregate27/42=64.29%, M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] M1-D14D: real aggregate install-column-acl CLI and independent compiledquery (a241).
+- [ ] M1-D14F / E10-D0/1 frozen BEFORE code: bounded provision-mapping-reader CLI -> actual mapping provision receipt/catalogquery; a249newbin/test/contract only. Aggregate27/43=62.79%, not wholeproject rate. a248 fixedoperatorcomposition evidenceonly, no newdevelopmentunit.
+
+a24664129 mappingreview/a2474557 analyzeCLIreview each1builder1PG; a24857851 operatorcomposition1builder1PG; a2491956 mappingCLI1builder1PG. Lastconfirmedlive a24456889runnerreview/a24546614fileCLI. Actual3dev(inclintegration)+3review, cap12dev reviewsoutside/global10builders. a242/a243 terminalreports pendingfullverification, not reobserved. NextUUIDa250; ONE20minute wait thenONE unified6handles.
