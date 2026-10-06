@@ -122,3 +122,8 @@ E7-D0/2 frozen BEFORE code, aggregate21/40=52.50%; not global development rate. 
 Coordinator accepts M1-D14B limited sealed adapter on baf70c5c after a233 full reports/148hash0/smoke21+independent9/Clippy0/owncontainers absent. E4-D1/1, frozen22/40=55%; historical46→47, firstcomponent39→40/rework10/40=25%; authored46→47 with a234bcc86734 CLI262hash0/smoke21+CLI6/Clippy0 pendinga239fixedreview. M1-D17/24, integration0/4 release0/6 unchanged.
 - [x] M1-D14B: reviewed effective artifact+bound decisions->compiled policy sets (a233 limited independent review).
 - [ ] M1-D14E / E8-D0/1 frozen BEFORE code: explicit administrative mapping reader provisioning->actual catalog/query without fixture mapping GRANT; a240 module+libexport/newtest/contract only, no existing installer or migration edits. Does not authenticate or guarantee tenant isolation; metadata exposure named. Aggregate22/41=53.66%, not global completion.
+
+Coordinator verified full independent reports and hashes: a229202entries0bad/realpostgrant rollback+query/Clippy0, a237257entries0bad/fresh5+author8/Clippy0, a238104entries0bad/actualcompilebundle+concurrentnooverwrite/Clippy0; allowncontainers absent. Accept M1-D14A, F-D02, O-D02 within frozen scope. Historicalaccepted47→50; firstcomponentreviews40→42 (ACLextensionexcluded), rework10/42=23.81%. E2-D5/6, E1-D1/3, E4-D1/1; aggregate25/41=60.98%, not global project rate. M1-D17/24, integration0/4/release0/6 unchanged.
+- [x] M1-D14A: aggregate two-table ACL install/replay and atomic failure rollback (a229).
+- [x] F-D02: real IPC parent parse/cleanEOF/recovery, kernelUnsupported preserved (a237).
+- [x] O-D02: rolePack bundle exact bytes and non-replacing hardlink (a238).
