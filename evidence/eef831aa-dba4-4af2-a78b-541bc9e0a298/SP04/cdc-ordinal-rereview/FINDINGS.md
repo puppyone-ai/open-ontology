@@ -1,6 +1,8 @@
 # Findings
 
-Scope is the ordinal check in the fixed archive of `tools/cdc-transaction` at `cc98bab7eba2c58c127435db4d2ae777797259de`. Reviewed repaired `assemble.rs` SHA-256 `9b9940554767b88b7d5eef81047cf7590c884e8094a498416a27cfa097621840`. This session did not edit the product, the contract range, the `u16` type, the locks, the manifests, `model.rs`, or the existing tests.
+Verdict: **APPROVE_LIMITED** for the frozen CDC-D01 normalized assembler child, `tools/cdc-transaction`, at `cc98bab7eba2c58c127435db4d2ae777797259de`. Reviewed repaired `assemble.rs` SHA-256 `9b9940554767b88b7d5eef81047cf7590c884e8094a498416a27cfa097621840`. No frozen requirement of that child remains unresolved in `linux/proof`.
+
+Scope is the ordinal check in that fixed archive. This session did not edit the product, the contract range, the `u16` type, the locks, the manifests, `model.rs`, or the existing tests.
 
 ## Historical sealed result
 
@@ -38,6 +40,12 @@ On the 32767 completions the overlay inspects, the seven attestation flags read 
 
 `linux/proof/a284.stdout` passed the unchanged 15-test overlay in 25.60s, including `ordinals_32768_and_65535_are_outside_the_contract`, `event_cap_200000_completes_with_zero_value_bytes`, and `value_byte_budget_is_separate_from_line_length_and_the_event_cap`. The author smoke passed `txn_of_200000_completes_and_the_next_needs_spool` and `payload_budget_is_exact_and_the_next_event_is_not_stored` in the 19-test file, finished in 23.68s. HostConfig OOMKilled is false. The a284 file also contains tests whose names mention an epoch barrier and two tables. Their passing lines are part of that unchanged file. They are not an epoch, router, cross-table, or durability proof.
 
-## What stays open
+## What stays outside this child
 
-CDC-D01 stays unaccepted. SP04 stays unaccepted. The parent goal stays unaccepted. A release stays unaccepted. `seen` is still not an applied position. The event cap and the value-byte cap are unchanged separate checks. This record does not prove Debezium, target applied, ACK, epoch, router, cross-table consistency, durability, or a full parent.
+`seen` is still not an applied position. The event cap and the value-byte cap are unchanged separate checks. Parent SP04 stays unaccepted. A release stays unaccepted. This record does not prove Debezium, target applied, ACK, epoch, router, cross-table consistency, durability, or a full parent. Those items are later work in the frozen child text. They are not an unmet requirement of the normalized assembler.
+
+## Clarification 2026-10-06
+
+The first wording under "What stays open" said "CDC-D01 stays unaccepted" next to the parent. The proof had already passed with no recorded product defect: author 37, unchanged a284 overlay 15, fresh overlay 9, Clippy 0. The only child requirement a284 left open was the ordinal range. `CONTRACT.md` requires `0..=32767`. The unrepaired assembler completed 32768 and 65535. The repaired assembler refuses both with `OrdinalRange` before hash, buffer, and `seen.data` mutation, and the unchanged a284 test `ordinals_32768_and_65535_are_outside_the_contract` passed on `linux/proof`.
+
+No frozen requirement of this child is unresolved on that proof. a284 stays **WITHHELD** on its own unrepaired evidence. Its files were not edited. The false sentence "A `u16` ordinal cannot exceed 32767, which is the contract maximum." stays in the a284 REPORT. a290's red result, 4 passed and 6 failed, stays historical. This clarification re-ran no test. The inventory retry is a hash only. The first hasher exited 126 on the noexec `/tmp`.

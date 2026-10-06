@@ -1,6 +1,6 @@
 # Handoff
 
-Verdict: limited review of the repaired normalized assembler at fixed archive `cc98bab7eba2c58c127435db4d2ae777797259de`. Reviewed repaired `assemble.rs` SHA-256 `9b9940554767b88b7d5eef81047cf7590c884e8094a498416a27cfa097621840`. CDC-D01 is unaccepted. SP04 is unaccepted. The parent goal is unaccepted. A release is unaccepted.
+Verdict: **APPROVE_LIMITED** for the frozen CDC-D01 normalized assembler child, `tools/cdc-transaction`, at fixed archive `cc98bab7eba2c58c127435db4d2ae777797259de`. Reviewed repaired `assemble.rs` SHA-256 `9b9940554767b88b7d5eef81047cf7590c884e8094a498416a27cfa097621840`. No frozen requirement of that child remains unresolved in `linux/proof`. Parent SP04, Debezium, target applied, ACK, and a release stay unaccepted. This file does not edit the parent ledger and does not record coordinator acceptance.
 
 UUID `eef831aa-dba4-4af2-a78b-541bc9e0a298`. Repair commit `6f8385e87ae350d1ce4bf31fca8dc8b423aca29d`, tree `832024e6e0a5052db72be37e7b85bd10468ad12b`. Assembler commit `2bdb3faa6329caa1503dceb52686c18c0be007dd`, tree `8368b5947f4119f258f0dab00ceae3eba1bcea04`. Fixed archive tree `a9369aab2c53afdf94616abee66b5099adc46d3e`. Repo HEAD at the proof launch was `96afe70fd68a56ae8eec7504bf20e09ecd3cdf65`. The proof used `git archive` of the fixed commit, copied with `cp -R`. No product file was edited.
 
@@ -46,3 +46,11 @@ Run those before copying review tests. The author count on this archive is 37. T
 The evidence inventory is `MANIFEST.sha256`, written by `linux/manifest/launch.sh`. The first container is `oo-a298-manifest`. The refresh container is `oo-a298-manifest-refresh`. The inventory rewrite, after `CLEANUP.txt` records the manifest-outside removal, is `oo-a298-manifest-inventory`. That last container's hostconfig is outside this directory.
 
 Flags that read false in the overlay are an observation of the assembler output. They are not a Debezium, target-applied, ACK, epoch, router, cross-table, durability, or full-parent proof.
+
+## Clarification 2026-10-06
+
+The first opening verdict said "limited review" and "CDC-D01 is unaccepted." Read the child verdict above instead. **APPROVE_LIMITED** applies only to `tools/cdc-transaction` at archive `cc98bab7eba2c58c127435db4d2ae777797259de`, repaired `assemble.rs` SHA-256 `9b9940554767b88b7d5eef81047cf7590c884e8094a498416a27cfa097621840`.
+
+The frozen child requires a bounded normalized assembler: BEGIN, DATA, END, rollback, count, hash, caller-declared commit LSN, and read, seen, and complete distinct from applied, with ordinals `0..=32767`. `linux/proof` records author 37, Clippy 0, unchanged a284 15, and fresh 9, all exit 0. The a284 ordinal failure is closed on these bytes. No further frozen child requirement is open in that proof.
+
+Parent SP04, Debezium, target applied, ACK, and a release stay unaccepted. Coordinator acceptance is not claimed. a284 was not edited and stays **WITHHELD** for the unrepaired assembler. a290 red 4 passed / 6 failed stays historical. No test was re-run. One private hasher rewrites `MANIFEST.sha256` after this text. A first hasher, container `de1fd109b9e505f7450bd4a52736dd583c2c055c431590a8f7c29bd414cae818`, exited 126 because the binary was written on the noexec `/tmp`. The retry writes the binary under `/usr/local/bin`.
