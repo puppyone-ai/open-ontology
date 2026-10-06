@@ -1077,3 +1077,7 @@ Actuala248 composition refused confirmed int8 quantity in reviewed-policy: noDTO
 
 B-D06 / E14-D0/1 frozen BEFORE code: publicsynthetic versioned questionbank validator->contentboundmanifest/separateagent-scorerview, unresolvedgold staysreannotation; a256standalonewriter only. No privateholdout/customer/public300/humanannotation claim. Aggregate34/47=72.34%, not globalrate. a248338hash0 provessemanticrefusalnotquerysuccess; a250340hash0/16testsClippy0/owncontainersabsent authored53→54 pendinga255review. No accepted/rework change.
 - [ ] B-D06: public question-bank manifest and gold-separated views.
+
+Coordinator accepts F-D03 parse-file CLI aftera251 fullreports/188hash0/smoke12+fresh12/Clippy0/owncontainersabsent; actualIPCcleanEOF summary, import/published/pg_run_completefalse/kernelUnsupported. Accept M1-D14F mappingreaderCLI aftera252 fullreports/167hash0/privateTLS14testsClippy0/owncontainersabsent, same-sessiona249nestedreviewexcluded. E9-D1/1,E10-D1/1, historical59→61, firstcomponent51→53/rework10/53=18.87%, authored54unchanged. Aggregate36/47=76.60%, notwholeproject rate; M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] F-D03: actual parse-file IPC parent CLI bounded summary (a251).
+- [x] M1-D14F: explicit provision-mapping-reader CLI (a252).

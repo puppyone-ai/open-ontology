@@ -1376,3 +1376,9 @@ B-D06 / E14-D0/1 frozen BEFORE code: publicsynthetic versioned questionbank vali
 - [ ] B-D06: public question-bank manifest and gold-separated views.
 
 a254actual44249 quantitycompatibility1builder1PG; a255actual12229 trialreportadapter fixedreview1builder0PG; a256actual98618 publicquestionbank1builder0PG. Existinglastconfirmedlive a25378440 S5candidate development; a251/a252 terminalreports pendingfullverification no reobservation. Actual3development+1review cap12development reviewsoutside/global10builders. NextUUIDa257. ONE20minute wait thenONE unified4actualhandles.
+
+ONE20minute wait followed by ONE unified4actualhandle observation: a25378440/a25444249/a25512229/a25698618 all confirmedlive. No repeatedpolling/restart, no acceptancechange. Quantityrepair awaitsactualcommit beforecompositionrerun.
+
+Coordinator accepts F-D03 parse-file CLI aftera251 fullreports/188hash0/smoke12+fresh12/Clippy0/owncontainersabsent; actualIPCcleanEOF summary, import/published/pg_run_completefalse/kernelUnsupported. Accept M1-D14F mappingreaderCLI aftera252 fullreports/167hash0/privateTLS14testsClippy0/owncontainersabsent, same-sessiona249nestedreviewexcluded. E9-D1/1,E10-D1/1, historical59→61, firstcomponent51→53/rework10/53=18.87%, authored54unchanged. Aggregate36/47=76.60%, notwholeproject rate; M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] F-D03: actual parse-file IPC parent CLI bounded summary (a251).
+- [x] M1-D14F: explicit provision-mapping-reader CLI (a252).
