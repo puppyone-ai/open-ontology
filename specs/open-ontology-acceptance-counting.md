@@ -254,3 +254,12 @@ ONE20minute unified5handles: a28028070/a28288449/a27679380/a27750649 terminal0; 
 - [ ] H-D02 / E28-D0/1 frozen BEFORE code: actualasyncRust Pi adapter launch/send/boundedevents/abort/transcript/restore/toolmapping basedpinnedREALupstream, a287tools/pi-harness only. Productionrunsc/signedruntime/pinage gates separate, no realkeys.
 
 Frozen47/61=77.05% localchildrenonly; historical72/first63/reworked11=17.46%, M1-D17/24/integration0/4/release0/6 unchanged. a277stillmissingreports resumeSAMEUUID firstexistingresult/no duplicatebuilder. Currentafternewdispatch2development(a277,a287)+4review(a283,a284,a285,a286)/max6Rustbuilders/devcap12. NextUUIDa288. ONE20minute wait thenONE unified6actualhandles, no repeatedpoll.
+
+
+ONE20minute unified6handles: a28345401/a27769342 terminal0, a28464564/a28594611/a28652114/a28787026 live. Retireclosedhandles. Fulla283reports210hash0/21author+9fresh testsClippy0/ALL115subset0/owncontainersabsent -> acceptSEM-D01 only E21-D1/1, historical72→73/firstunique63→64/reworked11/64=17.19%, frozen48/61=78.69%. M1-D17/24/integration0/4/release0/6 unchanged.
+- [x] SEM-D01: configuredbusinesscalendar/explicitas_of/DST/fiscalquarter/phrase helper, DBview/authfinanceclose separate (a283).
+
+Fulla277reports252hash0/16testsClippy0/ALL117subset0/owncontainersabsent authored67→68 pendinga288 independentreview8f4e792c. RepeatedCLIinterruptions finally deliveredfullreports, no earlyacceptance. a288fillsfourthindependentreview slot.
+- [ ] SEM-D03 / E29-D0/1 frozen BEFORE code: tools/calendar-store actualPGimmutable resolvedsnapshots/CASactivepointer/restricted-owner oo_dict.calendar view in explicitsingleproject deployment; a289isolatedonly. Sharedmulti-projectauthorization/financeownerUI remainrequired parentwork, not replaced by childscope.
+
+Frozen48/62=77.42% localchildrenonly; othermetricsunchanged. Afternewdispatch2development(a287,a289)+4review(a284-a286,a288),max6builders<10/devcap12. NextUUIDa290; ONE20minute wait thenONE unified6actualhandles no repeatedpoll.
