@@ -1,0 +1,9 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli/linux/chain/inside.sh /inside.sh rw=false
+volume /var/lib/docker/volumes/oo-a249-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a249-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a249-eef831aa-dba4-4af2-a78b-541bc9e0a249/archive /src rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli /evidence rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli/tools /tools rw=false
+bind /tmp/oo-a249-eef831aa-dba4-4af2-a78b-541bc9e0a249/secrets /secrets rw=false
+bind /tmp/oo-a249-eef831aa-dba4-4af2-a78b-541bc9e0a249/overlay /overlay rw=true
+

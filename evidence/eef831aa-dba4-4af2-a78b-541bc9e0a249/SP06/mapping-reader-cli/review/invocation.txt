@@ -1,0 +1,1 @@
+docker run --name oo-a249-review --platform linux/arm64 --pull never --network oo-a249-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 bash /inside.sh

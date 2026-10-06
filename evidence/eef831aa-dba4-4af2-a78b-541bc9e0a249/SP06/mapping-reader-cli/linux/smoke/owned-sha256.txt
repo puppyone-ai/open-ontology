@@ -1,0 +1,8 @@
+9a3b922ad440411489407d06496b1977ed88033333e90ad56928729b11d0f6ea  crates/oo-gateway/src/lib.rs
+5d03f40d4f35cf75b111b22b716dfdacb6748758c967281c0cb16be1a2c9176e  crates/oo-gateway/src/mapping_reader_access.rs
+68d6a1639263f6e7083eb44244360dfd22f73897fb3eff2570052da6b508188d  crates/oo-gateway/src/policy.rs
+9733c33e4ef7ec4e47489db23039bd01bfa3cf9f0f46b389820da32e27367c55  crates/oo-gateway/src/bin/install-column-acl.rs
+20a69568214f23926761dfabfb87c015774181952f002450b177668a91378e02  contracts/gateway/mapping-reader-access-v1.md
+ba1fa49985396fd4a5d0d3f9f4b2265e23f31f9833dce2c79896ff91f3c69f77  contracts/gateway/reviewed-policy-cli-v1.md
+d0df87be3cd4e0bd49c8b23a9c17bd7a241445d2c704affa5b9110fe0f639eb4  contracts/gateway/install-column-acl-cli-v1.md
+16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

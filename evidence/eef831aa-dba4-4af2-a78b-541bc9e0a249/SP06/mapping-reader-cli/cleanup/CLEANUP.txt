@@ -1,0 +1,19 @@
+owner=a249
+session=eef831aa-dba4-4af2-a78b-541bc9e0a249
+started=2026-10-06T01:44:39Z
+absent container oo-a249-smoke
+absent container oo-a249-chain
+absent container oo-a249-review
+oo-a249-pg
+oo-a249-pg
+removed container oo-a249-pg
+oo-a249-eef831aa-cargo
+removed volume oo-a249-eef831aa-cargo
+oo-a249-eef831aa-target
+removed volume oo-a249-eef831aa-target
+oo-a249-eef831aa-pgdata
+removed volume oo-a249-eef831aa-pgdata
+oo-a249-eef831aa-net
+removed network oo-a249-eef831aa-net
+removed /tmp/oo-a249-eef831aa-dba4-4af2-a78b-541bc9e0a249
+finished=2026-10-06T01:44:46Z
