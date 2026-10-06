@@ -1,0 +1,1 @@
+The archived root Cargo.toml is on /src and hashed. It did not load in this slice because other workspace members or patch paths are absent. /work/repo/Cargo.toml is a harness with only the inherited package and lint tables for oo-core. It lists no patch and no missing member. enum-store keeps its own workspace and lock. The root lock bytes are the archived lock.

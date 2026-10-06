@@ -1,0 +1,5 @@
+   Compiling oo-core v0.1.0 (/work/repo/crates/oo-core)
+   Compiling enum-history v0.1.0 (/work/repo/tools/enum-history)
+   Compiling enum-store v0.1.0 (/work/repo/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.03s
+     Running tests/live.rs (/target/debug/deps/live-45c79df3fb342547)

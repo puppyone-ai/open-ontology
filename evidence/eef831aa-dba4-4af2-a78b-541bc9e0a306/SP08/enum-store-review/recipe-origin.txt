@@ -1,0 +1,54 @@
+enum-store independent review recipes
+
+fixed archive 72dc9e2db841de4de368216bbbe13d738f850ea9
+fixed tree bf6c8d28dcb47a8dcb1c6cc1e7b6bfc21b963e64
+helper enum-history tree 701743f204495101b5efd20104bccb8d104df467
+
+Rust launch
+  origin commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  sha256 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+  cross_check evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+  cross_check sha256 bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a297/SP08/calendar-store-review/linux/launch.sh
+  immediate sha256 47ce3862b1fe85a2ed5d599771ed427c3be8d66636741aa00e55687c911139ca
+  this launch linux/launch.sh
+  change uuid a306; fixed commit 72dc9e2; archive of root Cargo.toml, Cargo.lock, enum-store, enum-history, and oo-core; 6 GiB; 1 CPU; global cap 10; MODE smoke/overlay/persist; optional restart of this task's postgres before the builder; postmaster time uses oo_fixture_admin and the secret file inside the container; fixture mounted at /run/oo-a293/fixture and /run/oo-a306/fixture
+
+inside
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+  sha256 b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a297/SP08/calendar-store-review/linux/inside.sh
+  immediate sha256 90661bc42dcb7284b142bbc0af5dbc935229e7b5b7006b7502cf6334cd11be32
+  change enum-store layout; author tests and clippy before any overlay; author restart read before the independent test is copied; clippy again on that same archive after the independent test; lock subset of 208 registry triples; three path packages enum-history, enum-store, oo-core; harness manifest only after the archived root Cargo.toml fails to load because other members or patch paths are outside this slice; run_clippy stays with set +e so a clippy failure still reaches the unchanged-byte check
+
+sha256_manifest.rs
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+  sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  this copy tools/sha256_manifest.rs
+  change none
+
+lock_subset.rs
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/tools/lock_subset.rs
+  origin sha256 ae1b14592bfee8c94fcbd98f8bdac28da520fb140b8ff9e6e1654cfac9e8afc6
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a297/SP08/calendar-store-review/tools/lock_subset.rs
+  immediate sha256 d6dd9af806af406b3b89d3c237099f1ff9075f1cecb5e9d62541245ac1debd36
+  change header names enum-store; path allowlist enum-history, enum-store, oo-core; direct pins copied from the enum-store manifest; helper pins chrono 0.4.45, chrono-tz 0.10.4, sha2 0.10.9; require 208 registry triples
+
+pg/pg-wrap.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+  sha256 25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+  this copy pg/pg-wrap.sh
+  change none
+
+pg/up.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+  sha256 96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+  change a306 names, enum roles, database name oo_a293 required by the frozen author test, certificate SAN DNS:oo-a306-pg, endpoint host oo-a306-pg, no host port
+
+manifest launch
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/manifest/launch.sh
+  sha256 9b28b43d9a9afe9cad69a5f086d7d96af4758f58c7e053a25efa52567a69cdd8
+  change a306 names, 6g, 1 cpu, global cap 10
+
+The product root Cargo.toml and both locks stay archived bytes. A work-tree harness Cargo.toml is written only after the archived root manifest fails to load. No cargo update. No cargo generate-lockfile. No product manifest edit.

@@ -1,0 +1,34 @@
+owner=a306
+session=eef831aa-dba4-4af2-a78b-541bc9e0a306
+
+containers_removed_by_launch=oo-a306-smoke oo-a306-overlay oo-a306-restart
+container=oo-a306-pg
+pg_stop_exit=0
+pg_rm_exit=0
+
+network=oo-a306-eef831aa-net
+network_rm_exit=0
+
+volume=oo-a306-eef831aa-pgdata
+pgdata_volume_rm_exit=0
+volume=oo-a306-eef831aa-cargo
+cargo_volume_rm_exit=0
+volume=oo-a306-eef831aa-target
+target_volume_rm_exit=0
+
+tmp=/tmp/oo-a306-eef831aa-dba4-4af2-a78b-541bc9e0a306
+tmp_rm_exit=0
+tmp_present_after=no
+
+containers_after=0
+volumes_after=0
+networks_after=0
+image_present=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres_image_present=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+docker_prune=not_run
+foreign_left_running=oo-a301-pg oo-a305-pg
+
+manifest_container=oo-a306-manifest
+manifest_removed_by=linux/manifest/launch.sh
+manifest_console_outside=/tmp/oo-a306-manifest-console.log
+manifest_console_removed_with_tmp=yes

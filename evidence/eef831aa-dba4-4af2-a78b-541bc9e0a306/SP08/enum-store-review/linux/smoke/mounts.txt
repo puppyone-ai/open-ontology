@@ -1,0 +1,12 @@
+bind /tmp/oo-a306-eef831aa-dba4-4af2-a78b-541bc9e0a306/work /work rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a306/SP08/enum-store-review/overlay /overlay rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a306/SP08/enum-store-review/tools/lock_subset.rs /tools/lock_subset.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a306/SP08/enum-store-review/linux/smoke /evidence rw=true
+bind /tmp/oo-a306-eef831aa-dba4-4af2-a78b-541bc9e0a306/fixture /run/oo-a293/fixture rw=false
+bind /tmp/oo-a306-eef831aa-dba4-4af2-a78b-541bc9e0a306/fixture /run/oo-a306/fixture rw=false
+bind /tmp/oo-a306-eef831aa-dba4-4af2-a78b-541bc9e0a306/archive /src rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a306/SP08/enum-store-review/source/blobs /blobs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a306/SP08/enum-store-review/linux/smoke/inside.sh /inside.sh rw=false
+volume /var/lib/docker/volumes/oo-a306-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a306-eef831aa-target/_data /target rw=true
+
