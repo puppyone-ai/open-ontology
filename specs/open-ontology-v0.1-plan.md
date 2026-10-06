@@ -1150,3 +1150,11 @@ ONE20minute unified6actualhandles: a26969958/a27566011/a27676818/a27719446/a2788
 - [ ] CDC-D01 / E27-D0/1 frozen BEFORE code: actual bounded Rust normalizedPGtransaction assembler, BEGIN/DATA/END/rollback/count/hash/commitLSN and read/seen/complete vs NOTapplied; a280tools/cdc-transaction only. ActualDebezium/P2P11/fencedtargetwriter/offsetACK/durablelarge-spool remainlater requiredwork, no made-uptransactional guarantee.
 
 Frozen45/60=75% localchildrenonly; authored63/historical70/first61/reworked11=18.03%, M1-D17/24/integration0/4/internalrelease0/6 unchanged. WithnewCDCassembler6development+1review/max7builders<10/devcap12. NextUUIDa281. ONE20minute wait thenONE unified7actualhandles, no intermediate/repeatedpolling.
+
+
+ONE20minute unified7handles: a27566011/a27676818/a27719446/a27886321 terminal0; a26969958/a27998869/a28028070 confirmedlive. Retireclosedhandles. Fulla278reports165hash0/23author+11freshindependenttestsClippy0/ALL115registrysubset0/owncontainersabsent -> acceptSEM-D02 only. E22-D1/1, historical70→71, firstunique61→62/reworked11/62=17.74%, frozen46/60=76.67%. M1-D17/24/integration0/4/internalrelease0/6 unchanged.
+- [x] SEM-D02: temporal enum history/current classes/exact observedcoverage, DBsweeper/oo_dict/auth/metriccert separate (a278).
+
+Fulla275 reports273hash0/11lib+12actualPGtestsClippy0/owncontainersabsent authored63→64 pendinga281 fixedindependentreview. Concrete authorprocessdeviation preserved: standalone recipe cargo generate-lockfile followed by cargo update --precise despite no-updatecard; finalclaimedrootregistry subset must independentcheck ALLtriples. a281 usesCOMMITTEDlock only, no generate/update; don'thidehistoricalfailure/newtransitiveattempt. No acceptancebeforeindependentproof.
+
+a276/a277 terminal0 lackfullreports, resume SAMEUUID originalcards firstcollectexistingownactualbuilder results/no duplicatebuilder/PG. No acceptance fromexit. NextUUIDa282. Afterresumescurrent5development+1review/max6builders<10/devcap12. ONE20minute wait thenONE unified6actualhandles no interim/repeatedpolling.
