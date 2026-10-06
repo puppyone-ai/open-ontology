@@ -1,0 +1,135 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling serde_derive v1.0.229
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling cdc-spool v0.1.0 (/work/cdc-spool)
+warning: variable does not need to be mutable
+   --> src/recover.rs:606:9
+    |
+606 |     let mut file = File::open(&path).map_err(|_| fault(FaultCode::Io, None))?;
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error[E0502]: cannot borrow `self.collections` as immutable because it is also borrowed as mutable
+   --> src/spool.rs:473:12
+    |
+472 |         let collection = self.collections.entry(table.clone()).or_insert_with(Bits::new);
+    |                          ---------------- mutable borrow occurs here
+473 |         if self.collections.len() > self.limits.max_collections {
+    |            ^^^^^^^^^^^^^^^^ immutable borrow occurs here
+...
+476 |         let fresh_collection = collection
+    |                                ---------- mutable borrow later used here
+
+error[E0500]: closure requires unique access to `*self` but it is already borrowed
+   --> src/spool.rs:534:51
+    |
+534 |         let epoch = self.bind.as_ref().ok_or_else(|| self.fail(FaultCode::BindRequired))?.epoch;
+    |                     ---------          ---------- ^^ ---- second borrow occurs due to use of `*self` in closure
+    |                     |                  |          |
+    |                     |                  |          closure construction occurs here
+    |                     |                  first borrow later used by call
+    |                     borrow occurs here
+
+error[E0500]: closure requires unique access to `*self` but it is already borrowed
+   --> src/spool.rs:616:56
+    |
+616 |                 let end = self.end.as_ref().ok_or_else(|| self.fail(FaultCode::Io))?;
+    |                           --------          ---------- ^^ ---- second borrow occurs due to use of `*self` in closure
+    |                           |                 |          |
+    |                           |                 |          closure construction occurs here
+    |                           |                 first borrow later used by call
+    |                           borrow occurs here
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:643:48
+    |
+643 |         let end = self.end.as_ref().ok_or_else(|| self.fail(FaultCode::Io))?;
+    |                                                ^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                                |
+    |                                                `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+642 |     fn sealed_position(&mut self) -> Result<String, Fault> {
+    |                         +++
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:644:51
+    |
+644 |         let epoch = self.bind.as_ref().ok_or_else(|| self.fail(FaultCode::BindRequired))?.epoch;
+    |                                                   ^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                                   |
+    |                                                   `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+642 |     fn sealed_position(&mut self) -> Result<String, Fault> {
+    |                         +++
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:645:61
+    |
+645 |         let lsn = parse_commit_lsn(&end.commit_lsn).map_err(|code| self.fail(code))?;
+    |                                                             ^^^^^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                                             |
+    |                                                             `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+642 |     fn sealed_position(&mut self) -> Result<String, Fault> {
+    |                         +++
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:646:45
+    |
+646 |         encode_position(epoch, lsn).map_err(|code| self.fail(code))
+    |                                             ^^^^^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                             |
+    |                                             `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+642 |     fn sealed_position(&mut self) -> Result<String, Fault> {
+    |                         +++
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:712:50
+    |
+712 |         let bind = self.bind.as_ref().ok_or_else(|| self.fail(FaultCode::BindRequired))?;
+    |                                                  ^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                                  |
+    |                                                  `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+704 |         &mut self,
+    |          +++
+
+error[E0596]: cannot borrow `*self` as mutable, as it is behind a `&` reference
+   --> src/spool.rs:713:74
+    |
+713 |         let set_hash = sha256(self.chunk_set_body.as_bytes()).ok_or_else(|| self.fail(FaultCode::Io))?;
+    |                                                                          ^^ ---- mutable borrow occurs due to use of `*self` in closure
+    |                                                                          |
+    |                                                                          `self` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider changing this to be a mutable reference
+    |
+704 |         &mut self,
+    |          +++
+
+Some errors have detailed explanations: E0500, E0502, E0596.
+For more information about an error, try `rustc --explain E0500`.
+warning: `cdc-spool` (lib) generated 1 warning
+error: could not compile `cdc-spool` (lib) due to 9 previous errors; 1 warning emitted

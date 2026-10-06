@@ -1,0 +1,1 @@
+msrv_smoke_ok active=1 events=500000 chunk_events=8192 chunk_bytes=4194304 files=96 disk=268435456 line=1048576 ordinal_max=32767 position=18446744168199581248

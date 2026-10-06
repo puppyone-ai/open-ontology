@@ -1,0 +1,28 @@
+    Checking cdc-spool v0.1.0 (/work/cdc-spool)
+error: manually reimplementing `div_ceil`
+  --> tests/scale.rs:15:27
+   |
+15 |         ("public.orders", (seq + 1) / 2)
+   |                           ^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `seq.div_ceil(2)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_div_ceil
+   = note: `-D clippy::manual-div-ceil` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::manual_div_ceil)]`
+
+error: manually reimplementing `div_ceil`
+  --> tests/scale.rs:26:27
+   |
+26 |         ("public.orders", (seq + 1) / 2)
+   |                           ^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `seq.div_ceil(2)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_div_ceil
+
+error: manually reimplementing `div_ceil`
+   --> tests/scale.rs:163:31
+    |
+163 |             ("public.orders", (seq + 1) / 2)
+    |                               ^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `seq.div_ceil(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_div_ceil
+
+error: could not compile `cdc-spool` (test "scale") due to 3 previous errors
