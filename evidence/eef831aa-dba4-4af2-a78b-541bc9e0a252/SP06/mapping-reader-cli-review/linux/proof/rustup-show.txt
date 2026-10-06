@@ -1,0 +1,13 @@
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu

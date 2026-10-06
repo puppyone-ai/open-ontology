@@ -1,0 +1,143 @@
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling libm v0.2.16
+   Compiling num-traits v0.2.19
+   Compiling synstructure v0.14.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling synstructure v0.13.2
+   Compiling yoke-derive v0.8.2
+   Compiling zerofrom v0.1.8
+   Compiling num-integer v0.1.47
+   Compiling smallvec v1.16.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling once_cell v1.21.4
+   Compiling yoke v0.8.3
+   Compiling serde_derive v1.0.229
+   Compiling zerocopy v0.8.57
+   Compiling serde v1.0.229
+   Compiling zerocopy-derive v0.8.57
+   Compiling zerovec-derive v0.11.6
+   Compiling zerovec v0.11.8
+   Compiling displaydoc v0.2.7
+   Compiling tinystr v0.8.4
+   Compiling num-complex v0.4.6
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling cc v1.4.7
+   Compiling icu_locale_core v2.3.0
+   Compiling ahash v0.8.12
+   Compiling parking_lot_core v0.9.12
+   Compiling zerotrie v0.2.5
+   Compiling potential_utf v0.1.6
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling utf8_iter v1.0.4
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling parking_lot v0.12.5
+   Compiling ring v0.17.14
+   Compiling iana-time-zone v0.1.65
+   Compiling chrono v0.4.45
+   Compiling num-bigint v0.4.8
+   Compiling ref-cast-impl v1.0.27
+   Compiling ref-cast v1.0.27
+   Compiling num-rational v0.4.2
+   Compiling digest v0.11.3
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling half v2.7.1
+   Compiling num-bigint v0.5.1
+   Compiling num-iter v0.1.46
+   Compiling getrandom v0.2.17
+   Compiling thiserror-impl v2.0.21
+   Compiling crossbeam-utils v0.8.23
+   Compiling thiserror v2.0.21
+   Compiling num v0.4.3
+   Compiling arrow-buffer v60.0.0
+   Compiling idna_adapter v1.2.2
+   Compiling tokio-macros v2.7.2
+   Compiling futures-sink v0.3.34
+   Compiling rustls v0.23.45
+   Compiling semver v1.0.28
+   Compiling arrow-schema v60.0.0
+   Compiling strum_macros v0.28.0
+   Compiling arrow-data v60.0.0
+   Compiling rustc_version v0.4.1
+   Compiling fluent-uri v0.4.1
+   Compiling tokio v1.53.1
+   Compiling idna v1.1.0
+   Compiling fraction v0.17.0
+   Compiling rustls-webpki v0.103.15
+   Compiling form_urlencoded v1.2.2
+   Compiling hashbrown v0.16.1
+   Compiling tracing-core v0.1.36
+   Compiling tracing-attributes v0.1.31
+   Compiling serde_derive_internals v0.30.0
+   Compiling bitflags v2.13.2
+   Compiling futures-io v0.3.34
+   Compiling crc-catalog v2.5.0
+   Compiling futures-task v0.3.34
+   Compiling slab v0.4.12
+   Compiling parking v2.2.1
+   Compiling referencing v0.57.0
+   Compiling granit-parser v1.3.0
+   Compiling event-listener v5.4.2
+   Compiling futures-util v0.3.34
+   Compiling jsonschema-value v0.57.0
+   Compiling crc v3.4.0
+   Compiling tracing v0.1.44
+   Compiling schemars_derive v1.2.2
+   Compiling hashlink v0.11.1
+   Compiling url v2.5.8
+   Compiling crossbeam-queue v0.3.14
+   Compiling tokio-stream v0.1.19
+   Compiling flatbuffers v25.12.19
+   Compiling arrow-array v60.0.0
+   Compiling strum v0.28.0
+   Compiling hmac v0.13.0
+   Compiling futures-intrusive v0.5.0
+   Compiling email_address v0.2.9
+   Compiling utoipa-gen v6.0.0
+   Compiling either v1.18.0
+   Compiling base64 v0.22.1
+   Compiling serde-saphyr v1.3.0
+   Compiling schemars v1.2.2
+   Compiling sqlx-core v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling jsonschema v0.57.0
+   Compiling utoipa v6.0.0
+   Compiling sha2 v0.11.0
+   Compiling hkdf v0.13.0
+   Compiling rand v0.10.3
+   Compiling chrono-tz v0.10.4
+   Compiling arrow-cmp v60.0.0
+   Compiling futures-channel v0.3.34
+   Compiling md-5 v0.11.0
+   Compiling atoi v2.0.0
+   Compiling byteorder v1.5.0
+   Compiling whoami v2.1.3
+   Compiling dotenvy v0.15.7
+   Compiling hex v0.4.3
+   Compiling sqlx-postgres v0.9.0 (/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling arrow-select v60.0.0
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling arrow-ipc v60.0.0
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+   Compiling oo-jobs v0.1.0 (/src/crates/oo-jobs)
+   Compiling oo-pipeline v0.1.0 (/src/crates/oo-pipeline)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 15s

@@ -1,0 +1,23 @@
+server=ssl=true
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+init=bootstrapped
+import_state=awaiting_publish
+import_tables=2
+mapping_generation=7
+column_acl=installed
+mapping_after_column_acl=absent
+catalog_before=42501
+stale=policy stale
+unknown_login=policy login
+partial_privilege=usage_only_refused
+provision=installed
+mapping_exposure=database_wide_catalog_listing
+replay=replay
+peek_replay=replay
+catalog_tables=2
+catalog_roles=2
+compiled_query=clerk_customer_peek_order
+public=false
+owner_membership=false
+source_reader_insert=42501
+outcome=provision_mapping_reader_cli_recorded
