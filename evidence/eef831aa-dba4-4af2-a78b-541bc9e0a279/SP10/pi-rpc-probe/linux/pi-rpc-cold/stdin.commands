@@ -1,0 +1,10 @@
+{"id":"s1","type":"get_state"}
+{"id":"m1","type":"get_messages"}
+{"id":"a1","type":"abort"}
+{"id":"e1","type":"export"}
+{"id":"r1","type":"restore"}
+{"id":"h1","type":"export_html"}
+{"id":"g1","type":"get_entries"}
+{"id":"u1","type":"get_state","unexpected":true}
+{"id":"n1"}
+not-json

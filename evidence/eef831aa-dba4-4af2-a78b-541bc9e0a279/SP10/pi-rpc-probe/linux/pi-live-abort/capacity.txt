@@ -1,0 +1,1 @@
+own=0 own_pi=0 global=1 host_cargo=0 cap_global=10 cap_pi=1 mode=abort

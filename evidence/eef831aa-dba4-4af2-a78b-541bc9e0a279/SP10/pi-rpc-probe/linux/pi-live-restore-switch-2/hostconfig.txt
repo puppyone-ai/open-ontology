@@ -1,0 +1,8 @@
+ExitCode=0
+OOMKilled=false
+Privileged=false
+NetworkMode=none
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+Id=62a18417e288ed294a5bd5c902fc73e33fccf0a94cf4cbb251dfec50a2253ee8

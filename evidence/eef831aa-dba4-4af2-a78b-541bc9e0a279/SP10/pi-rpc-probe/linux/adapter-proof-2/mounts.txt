@@ -1,0 +1,8 @@
+volume /opt/probe rw=false
+volume /cargo rw=true
+volume /target rw=true
+bind /inside.sh rw=false
+bind /work rw=true
+bind /proof rw=true
+volume /opt/pi-prefix rw=false
+

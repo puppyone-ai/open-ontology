@@ -1,0 +1,7 @@
+CHANGELOG.md
+README.md
+dist
+docs
+examples
+package.json
+pi-coding-agent

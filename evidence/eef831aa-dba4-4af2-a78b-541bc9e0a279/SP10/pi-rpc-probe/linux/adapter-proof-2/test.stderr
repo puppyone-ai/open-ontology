@@ -1,0 +1,7 @@
+   Compiling oo-p09-pi-rpc v0.1.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
+     Running unittests src/lib.rs (/target/debug/deps/oo_p09_pi_rpc-a21180fc325689aa)
+     Running unittests src/bin/live.rs (/target/debug/deps/pi_rpc_live-561991a7e6c798d3)
+     Running unittests src/bin/stub.rs (/target/debug/deps/pi_rpc_stub-6d126147a836b9e1)
+     Running tests/boundary.rs (/target/debug/deps/boundary-dbe120b442397eee)
+   Doc-tests oo_p09_pi_rpc

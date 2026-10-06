@@ -1,0 +1,3 @@
+2005 /evidence/stdout.bin
+   0 /evidence/stderr.bin
+2005 total

@@ -1,0 +1,4 @@
+bind /evidence rw=true
+volume /opt/pi-prefix rw=false
+bind /inside.sh rw=false
+

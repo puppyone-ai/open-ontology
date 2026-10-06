@@ -1,0 +1,5 @@
+origin_commit_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+copied=byte-identical
+executed=no
+reason=fifteenth container already over the 12 cap; host shasum used instead

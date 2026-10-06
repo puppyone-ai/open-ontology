@@ -1,0 +1,1 @@
+predicate matched the user prompt text "fixture-reply" inside the echoed user message, so abort was written before a text_delta. mock.log is accept then eof before header. assistant stopReason is aborted and content is empty. This attempt is preserved. It does not prove an assistant content event.

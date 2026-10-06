@@ -1,0 +1,5 @@
+PHASE rustc
+PHASE observe
+PHASE observe_exit=0
+PHASE test
+PHASE test_exit=1

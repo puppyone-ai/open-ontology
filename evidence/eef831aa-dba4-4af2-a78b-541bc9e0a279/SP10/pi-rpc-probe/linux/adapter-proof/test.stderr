@@ -1,0 +1,953 @@
+   Compiling oo-p09-pi-rpc v0.1.0 (/work)
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:31:38
+   |
+31 |     fs::create_dir_all(&out).map_err(ToString::to_string)?;
+   |                              ------- ^^^^^^^^^^^^^^^^^^^
+   |                              |       |
+   |                              |       expected due to this
+   |                              |       found signature defined here
+   |                              required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+31 |     fs::create_dir_all(&out).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                      ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:34:38
+   |
+34 |     fs::create_dir_all(work).map_err(ToString::to_string)?;
+   |                              ------- ^^^^^^^^^^^^^^^^^^^
+   |                              |       |
+   |                              |       expected due to this
+   |                              |       found signature defined here
+   |                              required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+34 |     fs::create_dir_all(work).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                      ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:46:73
+   |
+46 |     fs::write(format!("{out}/version.stdout"), &version.stdout).map_err(ToString::to_string)?;
+   |                                                                 ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                                 |       |
+   |                                                                 |       expected due to this
+   |                                                                 |       found signature defined here
+   |                                                                 required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+46 |     fs::write(format!("{out}/version.stdout"), &version.stdout).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                         ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:47:73
+   |
+47 |     fs::write(format!("{out}/version.stderr"), &version.stderr).map_err(ToString::to_string)?;
+   |                                                                 ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                                 |       |
+   |                                                                 |       expected due to this
+   |                                                                 |       found signature defined here
+   |                                                                 required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+47 |     fs::write(format!("{out}/version.stderr"), &version.stderr).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                         ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:48:85
+   |
+48 |     fs::write(format!("{out}/version.exit"), format!("{}\n", version.code)).map_err(ToString::to_string)?;
+   |                                                                             ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                                             |       |
+   |                                                                             |       expected due to this
+   |                                                                             |       found signature defined here
+   |                                                                             required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+48 |     fs::write(format!("{out}/version.exit"), format!("{}\n", version.code)).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                                     ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:53:67
+   |
+53 |     fs::write(format!("{out}/help.stdout"), &help.stdout).map_err(ToString::to_string)?;
+   |                                                           ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                           |       |
+   |                                                           |       expected due to this
+   |                                                           |       found signature defined here
+   |                                                           required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+53 |     fs::write(format!("{out}/help.stdout"), &help.stdout).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                   ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:54:67
+   |
+54 |     fs::write(format!("{out}/help.stderr"), &help.stderr).map_err(ToString::to_string)?;
+   |                                                           ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                           |       |
+   |                                                           |       expected due to this
+   |                                                           |       found signature defined here
+   |                                                           required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+54 |     fs::write(format!("{out}/help.stderr"), &help.stderr).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                   ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:55:79
+   |
+55 |     fs::write(format!("{out}/help.exit"), format!("{}\n", help.code)).map_err(ToString::to_string)?;
+   |                                                                       ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                                       |       |
+   |                                                                       |       expected due to this
+   |                                                                       |       found signature defined here
+   |                                                                       required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+55 |     fs::write(format!("{out}/help.exit"), format!("{}\n", help.code)).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                               ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:76:18
+   |
+76 |         .map_err(ToString::to_string)?;
+   |          ------- ^^^^^^^^^^^^^^^^^^^
+   |          |       |
+   |          |       expected due to this
+   |          |       found signature defined here
+   |          required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+76 |         .map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                  ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:86:40
+   |
+86 |     fs::create_dir_all(&agent).map_err(ToString::to_string)?;
+   |                                ------- ^^^^^^^^^^^^^^^^^^^
+   |                                |       |
+   |                                |       expected due to this
+   |                                |       found signature defined here
+   |                                required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+86 |     fs::create_dir_all(&agent).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                        ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:94:18
+   |
+94 |         .map_err(ToString::to_string)?;
+   |          ------- ^^^^^^^^^^^^^^^^^^^
+   |          |       |
+   |          |       expected due to this
+   |          |       found signature defined here
+   |          required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+94 |         .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+   |                  ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+  --> src/bin/live.rs:98:68
+   |
+98 |         fs::write(format!("{out}/cold-{kind}.json"), &raw).map_err(ToString::to_string)?;
+   |                                                            ------- ^^^^^^^^^^^^^^^^^^^
+   |                                                            |       |
+   |                                                            |       expected due to this
+   |                                                            |       found signature defined here
+   |                                                            required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(std::io::Error) -> _`
+              found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+   |
+98 |         fs::write(format!("{out}/cold-{kind}.json"), &raw).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+   |                                                                    ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:100:79
+    |
+100 |     expect_success_false(&fs::read(format!("{out}/cold-export.json")).map_err(ToString::to_string)?, "Unknown command: export")?;
+    |                                                                       ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                       |       |
+    |                                                                       |       expected due to this
+    |                                                                       |       found signature defined here
+    |                                                                       required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+100 |     expect_success_false(&fs::read(format!("{out}/cold-export.json")).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?, "Unknown command: export")?;
+    |                                                                               ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:101:80
+    |
+101 |     expect_success_false(&fs::read(format!("{out}/cold-restore.json")).map_err(ToString::to_string)?, "Unknown command: restore")?;
+    |                                                                        ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                        |       |
+    |                                                                        |       expected due to this
+    |                                                                        |       found signature defined here
+    |                                                                        required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+101 |     expect_success_false(&fs::read(format!("{out}/cold-restore.json")).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?, "Unknown command: restore")?;
+    |                                                                                ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:102:62
+    |
+102 |     let stop = proc.shutdown(Duration::from_secs(3)).map_err(ToString::to_string)?;
+    |                                                      ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                      |       |
+    |                                                      |       expected due to this
+    |                                                      |       found signature defined here
+    |                                                      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+102 |     let stop = proc.shutdown(Duration::from_secs(3)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:103:109
+    |
+103 |     fs::write(format!("{out}/cold.exit"), format!("code={:?} killed={}\n", stop.code, stop.killed)).map_err(ToString::to_string)?;
+    |                                                                                                     ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                                                     |       |
+    |                                                                                                     |       expected due to this
+    |                                                                                                     |       found signature defined here
+    |                                                                                                     required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+103 |     fs::write(format!("{out}/cold.exit"), format!("code={:?} killed={}\n", stop.code, stop.killed)).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                                                             ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:109:40
+    |
+109 |     fs::create_dir_all(&agent).map_err(ToString::to_string)?;
+    |                                ------- ^^^^^^^^^^^^^^^^^^^
+    |                                |       |
+    |                                |       expected due to this
+    |                                |       found signature defined here
+    |                                required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+109 |     fs::create_dir_all(&agent).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                        ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:140:14
+    |
+140 |     .map_err(ToString::to_string)?;
+    |      ------- ^^^^^^^^^^^^^^^^^^^
+    |      |       |
+    |      |       expected due to this
+    |      |       found signature defined here
+    |      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+140 |     .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:141:76
+    |
+141 |     let prompt = proc.wait_response("p1", Duration::from_secs(15)).map_err(ToString::to_string)?;
+    |                                                                    ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                    |       |
+    |                                                                    |       expected due to this
+    |                                                                    |       found signature defined here
+    |                                                                    required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+141 |     let prompt = proc.wait_response("p1", Duration::from_secs(15)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                                            ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:142:68
+    |
+142 |     fs::write(format!("{out}/abort-prompt.json"), &prompt).map_err(ToString::to_string)?;
+    |                                                            ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                            |       |
+    |                                                            |       expected due to this
+    |                                                            |       found signature defined here
+    |                                                            required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+142 |     fs::write(format!("{out}/abort-prompt.json"), &prompt).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                    ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:163:71
+    |
+163 |     fs::write(format!("{out}/abort-events.bin"), &transcript).map_err(ToString::to_string)?;
+    |                                                               ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                               |       |
+    |                                                               |       expected due to this
+    |                                                               |       found signature defined here
+    |                                                               required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+163 |     fs::write(format!("{out}/abort-events.bin"), &transcript).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                       ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:173:14
+    |
+173 |     .map_err(ToString::to_string)?;
+    |      ------- ^^^^^^^^^^^^^^^^^^^
+    |      |       |
+    |      |       expected due to this
+    |      |       found signature defined here
+    |      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+173 |     .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:174:75
+    |
+174 |     let abort = proc.wait_response("a1", Duration::from_secs(12)).map_err(ToString::to_string)?;
+    |                                                                   ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                   |       |
+    |                                                                   |       expected due to this
+    |                                                                   |       found signature defined here
+    |                                                                   required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+174 |     let abort = proc.wait_response("a1", Duration::from_secs(12)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                                           ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:175:69
+    |
+175 |     fs::write(format!("{out}/abort-response.json"), &abort).map_err(ToString::to_string)?;
+    |                                                             ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                             |       |
+    |                                                             |       expected due to this
+    |                                                             |       found signature defined here
+    |                                                             required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+175 |     fs::write(format!("{out}/abort-response.json"), &abort).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                     ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:182:14
+    |
+182 |     .map_err(ToString::to_string)?;
+    |      ------- ^^^^^^^^^^^^^^^^^^^
+    |      |       |
+    |      |       expected due to this
+    |      |       found signature defined here
+    |      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+182 |     .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:183:78
+    |
+183 |     let messages = proc.wait_response("m1", Duration::from_secs(10)).map_err(ToString::to_string)?;
+    |                                                                      ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                      |       |
+    |                                                                      |       expected due to this
+    |                                                                      |       found signature defined here
+    |                                                                      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+183 |     let messages = proc.wait_response("m1", Duration::from_secs(10)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                                              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:184:72
+    |
+184 |     fs::write(format!("{out}/abort-messages.json"), &messages).map_err(ToString::to_string)?;
+    |                                                                ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                |       |
+    |                                                                |       expected due to this
+    |                                                                |       found signature defined here
+    |                                                                required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+184 |     fs::write(format!("{out}/abort-messages.json"), &messages).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                        ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:188:59
+    |
+188 |     let _ = proc.shutdown(Duration::from_secs(3)).map_err(ToString::to_string)?;
+    |                                                   ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                   |       |
+    |                                                   |       expected due to this
+    |                                                   |       found signature defined here
+    |                                                   required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+188 |     let _ = proc.shutdown(Duration::from_secs(3)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                           ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:197:40
+    |
+197 |     fs::create_dir_all(&agent).map_err(ToString::to_string)?;
+    |                                ------- ^^^^^^^^^^^^^^^^^^^
+    |                                |       |
+    |                                |       expected due to this
+    |                                |       found signature defined here
+    |                                required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+197 |     fs::create_dir_all(&agent).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                        ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:198:43
+    |
+198 |     fs::create_dir_all(&sessions).map_err(ToString::to_string)?;
+    |                                   ------- ^^^^^^^^^^^^^^^^^^^
+    |                                   |       |
+    |                                   |       expected due to this
+    |                                   |       found signature defined here
+    |                                   required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+198 |     fs::create_dir_all(&sessions).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                           ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:230:14
+    |
+230 |     .map_err(ToString::to_string)?;
+    |      ------- ^^^^^^^^^^^^^^^^^^^
+    |      |       |
+    |      |       expected due to this
+    |      |       found signature defined here
+    |      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+230 |     .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:231:71
+    |
+231 |     let _ = proc.wait_response("p1", Duration::from_secs(15)).map_err(ToString::to_string)?;
+    |                                                               ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                               |       |
+    |                                                               |       expected due to this
+    |                                                               |       found signature defined here
+    |                                                               required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+231 |     let _ = proc.wait_response("p1", Duration::from_secs(15)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                                       ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:250:73
+    |
+250 |     fs::write(format!("{out}/restore-events.bin"), &transcript).map_err(ToString::to_string)?;
+    |                                                                 ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                 |       |
+    |                                                                 |       expected due to this
+    |                                                                 |       found signature defined here
+    |                                                                 required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+250 |     fs::write(format!("{out}/restore-events.bin"), &transcript).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                         ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:254:59
+    |
+254 |     let _ = proc.shutdown(Duration::from_secs(3)).map_err(ToString::to_string)?;
+    |                                                   ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                   |       |
+    |                                                   |       expected due to this
+    |                                                   |       found signature defined here
+    |                                                   required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+254 |     let _ = proc.shutdown(Duration::from_secs(3)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                           ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:258:64
+    |
+258 |     fs::copy(&session, format!("{out}/session.jsonl")).map_err(ToString::to_string)?;
+    |                                                        ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                        |       |
+    |                                                        |       expected due to this
+    |                                                        |       found signature defined here
+    |                                                        required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+258 |     fs::copy(&session, format!("{out}/session.jsonl")).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:266:18
+    |
+266 |         .map_err(ToString::to_string)?;
+    |          ------- ^^^^^^^^^^^^^^^^^^^
+    |          |       |
+    |          |       expected due to this
+    |          |       found signature defined here
+    |          required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+266 |         .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                  ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:270:64
+    |
+270 |     fs::write(format!("{out}/switch.json"), &switched).map_err(ToString::to_string)?;
+    |                                                        ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                        |       |
+    |                                                        |       expected due to this
+    |                                                        |       found signature defined here
+    |                                                        required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+270 |     fs::write(format!("{out}/switch.json"), &switched).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:281:18
+    |
+281 |         .map_err(ToString::to_string)?;
+    |          ------- ^^^^^^^^^^^^^^^^^^^
+    |          |       |
+    |          |       expected due to this
+    |          |       found signature defined here
+    |          required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+281 |         .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                  ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:282:80
+    |
+282 |     let messages = second.wait_response("m2", Duration::from_secs(10)).map_err(ToString::to_string)?;
+    |                                                                        ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                        |       |
+    |                                                                        |       expected due to this
+    |                                                                        |       found signature defined here
+    |                                                                        required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+282 |     let messages = second.wait_response("m2", Duration::from_secs(10)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                                                ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:283:74
+    |
+283 |     fs::write(format!("{out}/restore-messages.json"), &messages).map_err(ToString::to_string)?;
+    |                                                                  ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                                  |       |
+    |                                                                  |       expected due to this
+    |                                                                  |       found signature defined here
+    |                                                                  required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+283 |     fs::write(format!("{out}/restore-messages.json"), &messages).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                                          ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:287:61
+    |
+287 |     let _ = second.shutdown(Duration::from_secs(3)).map_err(ToString::to_string)?;
+    |                                                     ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                     |       |
+    |                                                     |       expected due to this
+    |                                                     |       found signature defined here
+    |                                                     required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+287 |     let _ = second.shutdown(Duration::from_secs(3)).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                                             ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:305:14
+    |
+305 |     .map_err(ToString::to_string)
+    |      ------- ^^^^^^^^^^^^^^^^^^^
+    |      |       |
+    |      |       expected due to this
+    |      |       found signature defined here
+    |      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+305 |     .map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))
+    |              ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:316:18
+    |
+316 |         .map_err(ToString::to_string)
+    |          ------- ^^^^^^^^^^^^^^^^^^^
+    |          |       |
+    |          |       expected due to this
+    |          |       found signature defined here
+    |          required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+316 |         .map_err(|arg0: std::io::Error| ToString::to_string(&arg0))
+    |                  ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:347:62
+    |
+347 |     fs::write(format!("{agent}/models.json"), &body).map_err(ToString::to_string)?;
+    |                                                      ------- ^^^^^^^^^^^^^^^^^^^
+    |                                                      |       |
+    |                                                      |       expected due to this
+    |                                                      |       found signature defined here
+    |                                                      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+347 |     fs::write(format!("{agent}/models.json"), &body).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                              ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:348:54
+    |
+348 |     fs::write(format!("{out}/{name}"), body).map_err(ToString::to_string)?;
+    |                                              ------- ^^^^^^^^^^^^^^^^^^^
+    |                                              |       |
+    |                                              |       expected due to this
+    |                                              |       found signature defined here
+    |                                              required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+348 |     fs::write(format!("{out}/{name}"), body).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                                      ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:353:42
+    |
+353 |     let value = parse_value(raw).map_err(ToString::to_string)?;
+    |                                  ------- ^^^^^^^^^^^^^^^^^^^
+    |                                  |       |
+    |                                  |       expected due to this
+    |                                  |       found signature defined here
+    |                                  required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+353 |     let value = parse_value(raw).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                          ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:361:42
+    |
+361 |     let value = parse_value(raw).map_err(ToString::to_string)?;
+    |                                  ------- ^^^^^^^^^^^^^^^^^^^
+    |                                  |       |
+    |                                  |       expected due to this
+    |                                  |       found signature defined here
+    |                                  required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(oo_p09_pi_rpc::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+361 |     let value = parse_value(raw).map_err(|arg0: oo_p09_pi_rpc::Error| ToString::to_string(&arg0))?;
+    |                                          ++++++++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:385:44
+    |
+385 |     for entry in fs::read_dir(dir).map_err(ToString::to_string)? {
+    |                                    ------- ^^^^^^^^^^^^^^^^^^^
+    |                                    |       |
+    |                                    |       expected due to this
+    |                                    |       found signature defined here
+    |                                    required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+385 |     for entry in fs::read_dir(dir).map_err(|arg0: std::io::Error| ToString::to_string(&arg0))? {
+    |                                            ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:386:35
+    |
+386 |         let entry = entry.map_err(ToString::to_string)?;
+    |                           ------- ^^^^^^^^^^^^^^^^^^^
+    |                           |       |
+    |                           |       expected due to this
+    |                           |       found signature defined here
+    |                           required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+386 |         let entry = entry.map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                   ++++++++++++++++++++++                    +++++++
+
+error[E0631]: type mismatch in function arguments
+   --> src/bin/live.rs:388:46
+    |
+388 |         let kind = entry.file_type().map_err(ToString::to_string)?;
+    |                                      ------- ^^^^^^^^^^^^^^^^^^^
+    |                                      |       |
+    |                                      |       expected due to this
+    |                                      |       found signature defined here
+    |                                      required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(std::io::Error) -> _`
+               found function signature `fn(&_) -> _`
+note: required by a bound in `Result::<T, E>::map_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:962:4
+help: consider wrapping the function in a closure
+    |
+388 |         let kind = entry.file_type().map_err(|arg0: std::io::Error| ToString::to_string(&arg0))?;
+    |                                              ++++++++++++++++++++++                    +++++++
+
+For more information about this error, try `rustc --explain E0631`.
+error: could not compile `oo-p09-pi-rpc` (bin "pi-rpc-live" test) due to 50 previous errors

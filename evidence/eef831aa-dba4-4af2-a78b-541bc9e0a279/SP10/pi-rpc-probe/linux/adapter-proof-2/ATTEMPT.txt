@@ -1,0 +1,1 @@
+12 boundary tests passed. Clippy component is absent (exit 127). pi --version wrote 1.0.4 and pi --help exited 0 with --mode in the stdout file. The checker looked for a 5-byte window, and --mode is 6 bytes, so live returned before any RPC command. This attempt is preserved.

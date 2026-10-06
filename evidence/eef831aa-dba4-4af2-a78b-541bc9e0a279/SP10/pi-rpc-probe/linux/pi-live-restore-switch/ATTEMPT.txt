@@ -1,0 +1,1 @@
+rustc exit 0. Executing /var/pi-home/bin/observe failed with Permission denied. The /var/pi-home tmpfs is noexec. This attempt is preserved. The next run compiles to /usr/local/bin.

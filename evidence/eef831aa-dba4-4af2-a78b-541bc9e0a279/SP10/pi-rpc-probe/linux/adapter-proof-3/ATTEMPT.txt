@@ -1,0 +1,1 @@
+Tests passed. Clippy component absent. Live reached switch_session. The response was success true and data.cancelled false. The checker used a 16-byte window for the 17-byte text "cancelled":false, so get_messages was not sent. This attempt is preserved. switch.json holds the real response.

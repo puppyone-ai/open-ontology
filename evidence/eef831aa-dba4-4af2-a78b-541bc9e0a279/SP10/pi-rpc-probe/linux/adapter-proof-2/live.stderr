@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running `/target/debug/pi-rpc-live /opt/pi-prefix/install/node_modules/.bin/pi /opt/pi-prefix/node/bin /opt/probe/mock_openai /proof/live`
+live: help missing --mode
