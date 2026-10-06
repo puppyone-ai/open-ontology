@@ -1,0 +1,16 @@
+   Compiling session-transition v0.1.0 (/work)
+warning: unused variable: `now`
+   --> tests/handcomputed.rs:116:12
+    |
+116 | fn bind_at(now: u64, lease: u64) -> Event {
+    |            ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `session-transition` (test "handcomputed") generated 1 warning (run `cargo fix --test "handcomputed" -p session-transition` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.26s
+     Running unittests src/lib.rs (/target/debug/deps/session_transition-b913534cf79dbc68)
+     Running unittests src/main.rs (/target/debug/deps/session_transition-da4b2c211361f337)
+     Running tests/cli_roundtrip.rs (/target/debug/deps/cli_roundtrip-a1910d2e39273045)
+     Running tests/handcomputed.rs (/target/debug/deps/handcomputed-8730d2315324e0f1)
+   Doc-tests session_transition

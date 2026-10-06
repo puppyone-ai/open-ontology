@@ -1,0 +1,11 @@
+    Checking session-transition v0.1.0 (/work)
+error: unused variable: `now`
+   --> tests/handcomputed.rs:116:12
+    |
+116 | fn bind_at(now: u64, lease: u64) -> Event {
+    |            ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+    |
+    = note: `-D unused-variables` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_variables)]`
+
+error: could not compile `session-transition` (test "handcomputed") due to 1 previous error

@@ -1,0 +1,29 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling serde_derive v1.0.229
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling session-transition v0.1.0 (/work)
+error: environment variable `CARGO_BIN_EXE_session_transition` not defined at compile time
+ --> tests/cli_roundtrip.rs:6:22
+  |
+6 |     let executable = env!("CARGO_BIN_EXE_session_transition");
+  |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_session_transition")` instead
+
+error: environment variable `CARGO_BIN_EXE_session_transition` not defined at compile time
+   --> tests/cli_roundtrip.rs:101:22
+    |
+101 |     let executable = env!("CARGO_BIN_EXE_session_transition");
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_session_transition")` instead
+
+error: could not compile `session-transition` (test "cli_roundtrip") due to 2 previous errors

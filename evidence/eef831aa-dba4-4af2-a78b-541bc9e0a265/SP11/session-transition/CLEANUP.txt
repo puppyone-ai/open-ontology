@@ -1,0 +1,30 @@
+owner=a265
+session=eef831aa-dba4-4af2-a78b-541bc9e0a265
+
+containers_before=0
+network=oo-a265-eef831aa-net
+network_attached=0
+network_rm_exit=0
+
+volume=oo-a265-eef831aa-cargo
+cargo_volume_rm_exit=0
+volume=oo-a265-eef831aa-target
+target_volume_rm_exit=0
+volume=oo-a265-eef831aa-target-review
+review_target_volume_rm_exit=0
+
+tmp=/tmp/oo-a265-eef831aa-dba4-4af2-a78b-541bc9e0a265
+tmp_rm_exit_first=1
+tmp_rm_first_reason=linux/impl archive was chmod a-w, so rm could not unlink those files
+chmod_u_plus_w_exit=0
+chmod_scope=/tmp/oo-a265-eef831aa-dba4-4af2-a78b-541bc9e0a265 only
+tmp_rm_exit=0
+tmp_present_after=no
+
+networks_after=0
+volumes_after=0
+containers_after=0
+image_present=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+docker_prune=not_run
+postgres=not_started
+foreign_owners=not_touched

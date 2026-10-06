@@ -1,0 +1,85 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking itoa v1.0.18
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking session-transition v0.1.0 (/work)
+error: this `if` statement can be collapsed
+  --> src/reduce.rs:62:5
+   |
+62 | /     if let Some(bound) = &input.state.bound {
+63 | |         if bound != &input.identity {
+64 | |             return finish(
+65 | |                 Outcome::Refused,
+...  |
+71 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+   = note: `-D clippy::collapsible-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+   |
+62 ~     if let Some(bound) = &input.state.bound
+63 ~         && bound != &input.identity {
+64 |             return finish(
+...
+69 |             );
+70 ~         }
+   |
+
+error: this `if` statement can be collapsed
+   --> src/reduce.rs:215:5
+    |
+215 | /     if let Some(workspace) = &state.workspace_id {
+216 | |         if !is_token(workspace) {
+217 | |             return Err(Reason::StateInvalid);
+218 | |         }
+219 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+215 ~     if let Some(workspace) = &state.workspace_id
+216 ~         && !is_token(workspace) {
+217 |             return Err(Reason::StateInvalid);
+218 ~         }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/reduce.rs:735:9
+    |
+735 | /         if let Some(existing) = input.state.release.get(step) {
+736 | |             if existing != record {
+737 | |                 return Err(Reason::ReleaseMismatch);
+738 | |             }
+739 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+735 ~         if let Some(existing) = input.state.release.get(step)
+736 ~             && existing != record {
+737 |                 return Err(Reason::ReleaseMismatch);
+738 ~             }
+    |
+
+error: the loop variable `index` is used to index `word`
+  --> src/sha256.rs:35:22
+   |
+35 |         for index in 0..16 {
+   |                      ^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_range_loop
+   = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+   |
+35 -         for index in 0..16 {
+35 +         for (index, <item>) in word.iter_mut().enumerate().take(16) {
+   |
+
+error: could not compile `session-transition` (lib) due to 4 previous errors
