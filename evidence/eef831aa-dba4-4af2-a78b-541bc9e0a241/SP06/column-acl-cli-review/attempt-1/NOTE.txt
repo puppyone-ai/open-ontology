@@ -1,0 +1,6 @@
+attempt=1
+phase=overlay
+exit=101
+cause=harness json! recursion limit in producer_catalog
+product_change=none
+preserved=overlay console, test log, producer build log, phase exits, hostconfig

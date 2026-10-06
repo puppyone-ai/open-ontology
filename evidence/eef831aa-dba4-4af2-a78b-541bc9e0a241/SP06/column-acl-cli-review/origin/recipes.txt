@@ -1,0 +1,50 @@
+a241 column-acl CLI fixed review recipes. Fixed commit 13566602dc36ce6ebd03fef25a9bd17aae7a281c.
+Hashes are git hash-object. No Python oracle.
+
+a204 preoverlay launch 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  Refuse-overwrite console.log and the private docker run shape.
+
+a200 smoke launch 20b391304358e474c189203eeb525b46fc2ea194
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+  Capacity count and labeled private volumes.
+
+a199 preoverlay launch 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+  Archive blob compare and private network labels.
+
+a235 smoke launch af73d847fd69c8510fa99b4c01ec0eac7e094a28
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/linux/smoke/launch.sh
+  Partial archive, toolchain aside, 6GiB, 1 CPU, global cap 10.
+
+a235 smoke inside 3910361e5c8c90fd584687e68ed7a32a707560aa
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/linux/smoke/inside.sh
+  Pre-overlay cargo test gate and libclang extract.
+
+a235 extract-libclang cf8f23ec3a93b69a6a513ee913ac803eca6b8bb0
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/linux/smoke/extract-libclang.sh
+  Debian libclang extract onto the private cargo volume.
+
+a235 proof launch 38061d58a96a142be67e288a00e488a8eecd37b9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/linux/proof/launch.sh
+  Post-smoke builder, fixture mount, no private keys.
+
+a235 proof inside 53d597b121eb75b2f21fc4274b9d2c62a38c8f03
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/linux/proof/inside.sh
+  Live env, frozen hash match, clippy component.
+
+a235 pg up 56ad38dcb6494eaf610564bc33d64ff27d5be7df
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/pg/up.sh
+  Private TLS postgres, no host port.
+
+a235 pg wrap e12a368394c724f8f9d3436ad5f4873e139baa66
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a235/SP06/column-acl-cli/pg/pg-wrap.sh
+  Copied byte-identical. autovacuum stays off.
+
+a235 sha256 b69a2af13099ce4baf2d04e79c5692d9988ab67d
+  -> tools/sha256.rs copied byte-identical.
+
+a235 select-debs 565787c25c25bf451343cf4bc0431619c0611899
+  -> tools/select-debs.rs copied byte-identical.
+
+Changes in this review: owner a241, archive of fixed commit 13566602dc36ce6ebd03fef25a9bd17aae7a281c rather than a48db85 plus a copied overlay. Smoke runs the committed install_column_acl_cli tests with the live environment unset and refuses the review test. The overlay adds only install_column_acl_a241_review.rs. Mapping-read grants and ANALYZE are fixture SQL in that test, not install-column-acl. query-pg and the a234 producer are compiled binaries from the fixed commit.

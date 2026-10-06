@@ -1,0 +1,24 @@
+   Compiling aws-lc-sys v0.45.0
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls-webpki v0.103.15
+   Compiling rustls v0.23.45
+   Compiling tokio-rustls v0.26.5
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: recursion limit reached while expanding `$crate::json_internal!`
+    --> crates/oo-gateway/tests/install_column_acl_a241_review.rs:1550:58
+     |
+1550 |               "columns": table.columns.iter().map(|column| json!({
+     |  __________________________________________________________^
+1551 | |                 "attnum": column.attnum,
+1552 | |                 "name": column.name,
+1553 | |                 "name_ident": column.name,
+...    |
+1572 | |                 "current_privileges": {"select": true, "insert": false, "update": false}
+1573 | |             })).collect::<Vec<_>>(),
+     | |______________^
+     |
+     = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`install_column_acl_a241_review`)
+     = note: this error originates in the macro `$crate::json_internal` which comes from the expansion of the macro `json` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `oo-gateway` (test "install_column_acl_a241_review") due to 1 previous error

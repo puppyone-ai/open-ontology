@@ -1,0 +1,5 @@
+attempt=2
+phase=overlay
+exit=101
+cause=harness treated the captured-pg-draft evidence envelope as a leak; the envelope keeps the source catalog owner
+install_query=passed before the producer assert

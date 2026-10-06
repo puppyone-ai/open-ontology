@@ -1,0 +1,3 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"41"},{"kind":"text","value":"ada"},{"kind":"text","value":"kept-local"}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"42"},{"kind":"text","value":"bea"},{"kind":"text","value":"other-local"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":31,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"194eaf83b751e805b4f1e35213b69089cf0a773efb9ae209a364e7fcf4ee9b20","executed_sha256":"c2c657d39e0546a0fdeaa6452adf2db754703a79021d34bab0b556a7b4ca340c","stop":null,"sqlstate":null}

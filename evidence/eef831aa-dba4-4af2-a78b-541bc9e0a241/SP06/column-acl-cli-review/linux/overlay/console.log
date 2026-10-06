@@ -1,0 +1,37 @@
+oo_task=sp06-column-acl-cli-review-overlay
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a241
+oo_fixed=13566602dc36ce6ebd03fef25a9bd17aae7a281c
+oo_platform=linux/arm64
+phase=overlay
+Linux 64b599bdafcb 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+phase_exit=0 phase=smoke-gate
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=fixture-keys
+phase_exit=0 phase=source
+phase_exit=0 phase=product-hash
+phase_exit=0 phase=frozen-match
+phase_exit=0 phase=libclang
+=== cargo build producer bins ===
+phase_exit=0 phase=producer-build
+phase_exit=0 phase=producer-bins
+=== cargo test review ===
+phase_exit=0 phase=test
+phase_exit=0 phase=oracle
+phase_exit=0 phase=test-count
+phase_exit=0 phase=clippy-component
+=== cargo clippy ===
+phase_exit=0 phase=clippy
+phase_exit=0 phase=lock-hash
+overlay_proof=ok
