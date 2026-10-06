@@ -1,0 +1,3 @@
+crates/oo-builder/src/description_candidate.rs want=f783ae95f1f7398da18b6c47bcc87941db49f7a3 got=f783ae95f1f7398da18b6c47bcc87941db49f7a3
+tools/description-pack/src/lib.rs want=69930324e1a3faa6347eaffc76ed5000966dc348 got=69930324e1a3faa6347eaffc76ed5000966dc348
+tools/description-review/src/lib.rs want=12202a5f4136b37f67786ec1ee42598bd22482b7 got=12202a5f4136b37f67786ec1ee42598bd22482b7
