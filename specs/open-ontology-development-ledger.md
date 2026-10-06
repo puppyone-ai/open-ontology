@@ -1444,3 +1444,10 @@ ONE20minute unified7handles: a26333224/a26588746/a26624070/a26858054 exited0; a2
 - [ ] RT-D03 / E23-D0/1 frozen BEFORE code: tools/session-store actualPG durable rowlocked reducer/CAS/eventreplay and precise commituncertainty; a275owned standalone+SQL only. Reducera265pendinga272review, fixeddependencychangesrequireexplicitnewproof/no moving source.
 
 Developmentfrozen41/56=73.21% localchildrenonly. M1-D17/24/integration0/4/internalrelease0/6/externalconditions unchanged. Existingactual3development plusnewsessionstore=4development and4review, max8builders/10. NextUUIDa276; ONE20minute wait thenONE unified8actualhandles, no intermediate/repeatedpolling.
+
+
+ONE20minute unified8handles: a26775098/a27016428 exited0; a26969958/a27171878/a27283678/a27391440/a27417848/a27566011 live. No repeatedpolling, retiredterminalhandles. Fulla267reports413hash0/18testsClippy0 and a270reports276hash0/23testsClippy0/owncontainersabsent verified; authored61→63, acceptance/firstreviews unchanged pendingindependentfixedreview. a267actualnot_found emptyrows mismatch retained as real interfacegap, notaccepted productquality.
+- [ ] B-D08 / E24-D0/1 frozen BEFORE code: explicit compatible empty_result opt-in connects adapter/runner/questionbank-suite without changing default emptytables or gold; actualzeroquery/notfound comparison, a276 owns onlythreebenchmarkworkspaces minimalextension.
+- [ ] S5-D04 / E25-D0/1 frozen BEFORE code: actual verifieddescriptioncandidate -> explicit anchored approve/reject/defer -> corevalid curateddataset descriptivefields with CAS/stalequeue/otherfields preserved, a277tools/description-review only.
+
+Frozen41/58=70.69% localfrozenchildren only; historical66, first57/reworked11=19.30%, M1-D17/24/integration0/4/internalrelease0/6 unchanged. Current4review slotsfull so enum/banksuite independentreviewsqueued, never use same-session reviews asacceptance. Withnewlaunches5development+4review/max9Rustbuilders<10. NextUUIDa278; ONE20minute wait thenONE unified9actualhandles, no intermediate/repeatedobservation.
