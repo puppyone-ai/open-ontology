@@ -31,6 +31,11 @@ const ASIDE: &str = "public.aside";
 const LABEL: &str = "Parcel register a292";
 const GRAIN: &str = "one parcel row a292";
 const DESCRIPTION: &str = "The vault_token column stores a bearer for the hidden field.";
+const STRUCT_LABEL: &str = "Structural orders label";
+const STRUCT_GRAIN: &str = "one structural order";
+const STRUCT_DESCRIPTION: &str = "Structural orders prose";
+const STRUCT_SOURCE: &str = "src_orders_bound";
+const COLUMN_LABEL: &str = "Count structural";
 const LEDGER_LABEL: &str = "LEDGER_CANDIDATE_DO_NOT_APPLY";
 const LEDGER_BODY: &str = "seal_owner_a292 ledger prose";
 const INCOMPLETE_BODY: &str = "INCOMPLETE_BODY_a292_DO_NOT_LEAK";
@@ -1205,6 +1210,515 @@ fn cli_matches_the_library() {
     absent(&stderr);
     assert!(!stderr.contains(LABEL));
     assert!(!stderr.contains("vault_token"));
+}
+
+struct Fingerprints {
+    schema_hash: String,
+    dataset: String,
+    column: String,
+    primary_key: String,
+    ledger_column: String,
+}
+
+struct Described {
+    artifact: Value,
+    draft: Value,
+    command_text: String,
+    outcome_sha: String,
+    schema_hash: String,
+    evidence_hash: String,
+    wrapper_hash: String,
+    dataset_review: Value,
+    dataset_review_sha: String,
+}
+
+fn fingerprints() -> &'static Fingerprints {
+    static FINGERPRINTS: OnceLock<Fingerprints> = OnceLock::new();
+    FINGERPRINTS.get_or_init(|| {
+        let compiled = compile_captured_pg_catalog(&catalog_json(), Some(&structural_overlay()), None)
+            .unwrap_or_else(|err| panic!("structural probe failed: {} {}", err.code, err.message));
+        let draft: Value = serde_json::from_str(&compiled.draft).expect("structural draft");
+        Fingerprints {
+            schema_hash: compiled.schema_hash,
+            dataset: queue_detail(&draft, &format!("dataset/{ORDERS}"), "curated_not_applied"),
+            column: column_fingerprint(&draft, ORDERS, "parcel_count"),
+            primary_key: queue_kind(&draft, &format!("primary_key/{ORDERS}"), "structural_primary_key"),
+            ledger_column: column_fingerprint(&draft, LEDGER, "id"),
+        }
+    })
+}
+
+fn structural_overlay() -> String {
+    serde_json::to_string(&json!({
+        "datasets": [{
+            "dataset": ORDERS,
+            "label": STRUCT_LABEL,
+            "description": STRUCT_DESCRIPTION,
+            "grain": STRUCT_GRAIN,
+            "source_name": STRUCT_SOURCE,
+            "entity": "parcel",
+            "primary_key": ["id"],
+            "columns": [{
+                "name": "parcel_count",
+                "label": COLUMN_LABEL,
+                "pii": "sensitive",
+                "semantic_type": "free_text",
+                "status": "draft"
+            }]
+        }],
+        "relationships": []
+    }))
+    .expect("structural overlay")
+}
+
+fn queue_detail(draft: &Value, item_id: &str, detail: &str) -> String {
+    draft["review_queue"]
+        .as_array()
+        .expect("queue")
+        .iter()
+        .find(|item| item["item_id"] == item_id && item["detail"] == detail)
+        .unwrap_or_else(|| panic!("missing detail {detail} {item_id}"))["fact_fingerprint"]
+        .as_str()
+        .expect("fingerprint")
+        .to_owned()
+}
+
+fn queue_kind(draft: &Value, item_id: &str, kind: &str) -> String {
+    draft["review_queue"]
+        .as_array()
+        .expect("queue")
+        .iter()
+        .find(|item| item["item_id"] == item_id && item["kind"] == kind)
+        .unwrap_or_else(|| panic!("missing kind {kind} {item_id}"))["fact_fingerprint"]
+        .as_str()
+        .expect("fingerprint")
+        .to_owned()
+}
+
+fn bound_reviews(action: &str, dataset_fingerprint: &str, fp: &Fingerprints) -> Value {
+    json!([
+        {
+            "action": "accept",
+            "fact_fingerprint": fp.ledger_column,
+            "item_id": format!("column/{LEDGER}/id"),
+            "schema_hash": fp.schema_hash
+        },
+        {
+            "action": "override",
+            "fact_fingerprint": fp.column,
+            "item_id": format!("column/{ORDERS}/parcel_count"),
+            "schema_hash": fp.schema_hash
+        },
+        {
+            "action": action,
+            "fact_fingerprint": dataset_fingerprint,
+            "item_id": format!("dataset/{ORDERS}"),
+            "schema_hash": fp.schema_hash
+        },
+        {
+            "action": "override",
+            "fact_fingerprint": fp.primary_key,
+            "item_id": format!("primary_key/{ORDERS}"),
+            "schema_hash": fp.schema_hash
+        }
+    ])
+}
+
+fn describe(action: &str, dataset_fingerprint: &str) -> Described {
+    let fp = fingerprints();
+    let reviews = bound_reviews(action, dataset_fingerprint, fp);
+    let compiled = compile_captured_pg_catalog(
+        &catalog_json(),
+        Some(&structural_overlay()),
+        Some(&canonical_text(&reviews)),
+    )
+    .unwrap_or_else(|err| panic!("bound compile failed: {} {}", err.code, err.message));
+    assert_eq!(compiled.schema_hash, fp.schema_hash);
+    let artifact = artifact_value(&compiled);
+    let dataset_review = artifact["evidence_envelope"]["reviews"]
+        .as_array()
+        .expect("reviews")
+        .iter()
+        .find(|item| item["item_id"] == format!("dataset/{ORDERS}"))
+        .unwrap_or_else(|| panic!("missing dataset review"))
+        .clone();
+    let command = candidate_command(&compiled, &artifact);
+    let command_text = serde_json::to_string(&command).expect("candidate command");
+    let request_text = prepare_description_request(&command_text)
+        .unwrap_or_else(|err| panic!("prepare failed: {} {}", err.code, err.message));
+    let request: Value = serde_json::from_str(&request_text).expect("request");
+    let (produced, outcome_sha) = finish_candidates(&command, &request, candidates(&request));
+    let draft: Value = serde_json::from_str(&compiled.draft).expect("bound draft");
+    Described {
+        artifact,
+        draft,
+        command_text: produced,
+        outcome_sha,
+        schema_hash: compiled.schema_hash,
+        evidence_hash: compiled.evidence_hash,
+        wrapper_hash: compiled.wrapper_hash,
+        dataset_review_sha: canonical_sha(&dataset_review),
+        dataset_review,
+    }
+}
+
+fn occupied_ready() -> &'static Described {
+    static READY: OnceLock<Described> = OnceLock::new();
+    READY.get_or_init(|| describe("override", &fingerprints().dataset))
+}
+
+fn accept_ready() -> &'static Described {
+    static READY: OnceLock<Described> = OnceLock::new();
+    READY.get_or_init(|| describe("accept", &fingerprints().dataset))
+}
+
+fn stale_ready() -> &'static Described {
+    static READY: OnceLock<Described> = OnceLock::new();
+    READY.get_or_init(|| describe("override", &"11".repeat(32)))
+}
+
+fn cas_map(world: &Described) -> Value {
+    json!({ format!("dataset/{ORDERS}"): world.dataset_review_sha })
+}
+
+fn pack_with(world: &Described, decisions: Vec<Value>, replace: bool, expected: Option<Value>) -> String {
+    let review = review_text(
+        &world.command_text,
+        &world.outcome_sha,
+        &world.schema_hash,
+        &world.evidence_hash,
+        decisions,
+    );
+    let review_bytes = apply_description_review(&review)
+        .unwrap_or_else(|err| panic!("review failed: {} {}", err.code, err.message));
+    let mut command = json!({
+        "protocol": COMMAND_PROTOCOL,
+        "review": review,
+        "expected_review_sha256": payload_sha256(review_bytes.as_bytes()),
+        "artifact": world.artifact,
+        "settings": settings(),
+        "decisions": Value::Array(classifications(&world.draft)),
+        "roles": two_roles()
+    });
+    if replace {
+        command["replace_existing_dataset_review"] = json!(true);
+    }
+    if let Some(expected) = expected {
+        command["expected_existing_review_sha256"] = expected;
+    }
+    serde_json::to_string(&command).expect("occupied pack")
+}
+
+fn occupied_decisions(world: &Described) -> Vec<Value> {
+    happy_decisions(&outcome_of(&world.command_text))
+}
+
+fn review_by_id<'a>(artifact: &'a Value, item_id: &str) -> &'a Value {
+    artifact["evidence_envelope"]["reviews"]
+        .as_array()
+        .expect("reviews")
+        .iter()
+        .find(|item| item["item_id"] == item_id)
+        .unwrap_or_else(|| panic!("missing review {item_id}"))
+}
+
+#[test]
+fn occupied_override_without_authorization_stays_unsupported() {
+    let world = occupied_ready();
+    let command = pack_with(world, occupied_decisions(world), false, None);
+    let (text, packed) = apply_ok(&command);
+    absent(&text);
+    assert!(!text.contains(LABEL));
+    assert!(!text.contains(DESCRIPTION));
+    assert_eq!(packed["outcome"], "unsupported");
+    assert_eq!(packed["seam"], "review.dataset_decision_occupied");
+    assert!(packed.get("occupied_replacements").is_none());
+    assert!(packed.get("packs").is_none());
+    assert!(packed.get("resealed_artifact").is_none());
+    assert_eq!(packed["statements"]["reseal"], "unsupported");
+    assert_eq!(packed["statements"]["source_artifact"], "not_mutated");
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+    let draft: Value = serde_json::from_str(&again.draft).expect("draft");
+    assert_eq!(draft_dataset(&draft, "effective", ORDERS)["label"], STRUCT_LABEL);
+    assert_eq!(draft_dataset(&draft, "effective", ORDERS)["source_name"], STRUCT_SOURCE);
+}
+
+#[test]
+fn occupied_override_approve_reseals_two_roles() {
+    let world = occupied_ready();
+    let before = recompile(&world.artifact);
+    assert_eq!(before.wrapper_hash, world.wrapper_hash);
+    let command = pack_with(world, occupied_decisions(world), true, Some(cas_map(world)));
+    let library = apply_description_pack(&command)
+        .unwrap_or_else(|err| panic!("pack failed: {} {}", err.code, err.message));
+    let output = run_cli(&["apply"], command.as_bytes());
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, library.as_bytes());
+    assert!(output.stderr.is_empty());
+    let packed: Value = serde_json::from_str(&library).expect("pack");
+    assert_bound_hash(&library, &packed);
+    absent(&library);
+    assert_eq!(packed["outcome"], "packed");
+    assert_eq!(packed["statements"]["reseal"], "compiler");
+    assert_eq!(packed["statements"]["authentication"], "not_claimed");
+    assert_eq!(packed["original_wrapper_hash"], world.wrapper_hash);
+    assert_ne!(packed["resealed_wrapper_hash"], world.wrapper_hash);
+    assert!(packed.get("occupied_replacements").is_some());
+    let row = &packed["occupied_replacements"][0];
+    assert_eq!(row["attribution"], "bridge_provenance");
+    assert_eq!(row["item_id"], format!("dataset/{ORDERS}"));
+    assert_eq!(row["prior_review"], world.dataset_review);
+    assert_eq!(row["prior_review_sha256"], world.dataset_review_sha);
+    assert_eq!(row["compiler_review_sha256"], world.dataset_review_sha);
+    assert_eq!(row["descriptive_provenance"]["reviewer_label"], REVIEWER);
+    assert_eq!(row["descriptive_provenance"]["reviewer_at"], REVIEWED_ON);
+    assert_eq!(row["descriptive_provenance"]["authenticated"], false);
+    assert_eq!(
+        row["descriptive_provenance"]["fields"],
+        json!(["description", "grain", "label"])
+    );
+    assert_ne!(row["descriptive_provenance"]["reviewer_label"], "ada.curator");
+
+    let seal = canonical_text(&packed["resealed_artifact"]);
+    assert!(!seal.contains(REVIEWER));
+    assert!(!seal.contains("reviewer_label"));
+    assert!(!seal.contains("ada.curator"));
+    assert!(!seal.contains("bridge_provenance"));
+    assert!(!seal.contains(STRUCT_LABEL));
+    assert!(!seal.contains(STRUCT_DESCRIPTION));
+    assert_eq!(
+        canonical_text(&packed["resealed_artifact"]["evidence_envelope"]["reviews"]),
+        canonical_text(&world.artifact["evidence_envelope"]["reviews"])
+    );
+
+    let orders = document_of(&packed, ORDERS);
+    let file: DatasetFile = serde_json::from_value(orders["document"].clone()).expect("dataset file");
+    assert!(validate_dataset(&file).is_empty());
+    assert_eq!(orders["document"]["label"], LABEL);
+    assert_eq!(orders["document"]["description"], DESCRIPTION);
+    assert_eq!(orders["document"]["grain"], GRAIN);
+    assert_eq!(orders["document"]["entity"], "parcel");
+    assert_eq!(orders["document"]["row_count_estimate"], 42);
+    assert_eq!(column_of(&orders["document"], "parcel_count")["pii"], "personal");
+    assert_eq!(column_of(&orders["document"], "parcel_count")["status"], "deprecated");
+    assert_eq!(column_of(&orders["document"], "parcel_count")["review"]["by"], "ada.curator");
+    assert_eq!(document_of(&packed, LEDGER)["document"], ledger_file());
+    assert_eq!(document_of(&packed, ASIDE)["document"], aside_file());
+
+    let resealed = recompile(&packed["resealed_artifact"]);
+    assert_eq!(resealed.wrapper_hash, packed["resealed_wrapper_hash"]);
+    assert_eq!(resealed.draft_hash, packed["resealed_draft_hash"]);
+    assert_eq!(resealed.evidence_envelope_hash, packed["resealed_evidence_envelope_hash"]);
+    let resealed_draft: Value = serde_json::from_str(&resealed.draft).expect("resealed draft");
+    let effective = draft_dataset(&resealed_draft, "effective", ORDERS);
+    assert_eq!(effective["label"], LABEL);
+    assert_eq!(effective["description"], DESCRIPTION);
+    assert_eq!(effective["grain"], GRAIN);
+    assert_eq!(effective["source_name"], STRUCT_SOURCE);
+    assert_eq!(effective["primary_key"], json!(["id"]));
+    let parcel = column_of(effective, "parcel_count");
+    assert_eq!(parcel["label"], COLUMN_LABEL);
+    assert_eq!(parcel["status"], "draft");
+    assert!(parcel["pii"].is_null());
+    let curated = draft_dataset(&resealed_draft, "curated", ORDERS);
+    assert_eq!(curated["entity"], "parcel");
+    assert_eq!(column_of(curated, "parcel_count")["pii"], "sensitive");
+    assert_eq!(column_of(curated, "parcel_count")["semantic_type"], "free_text");
+    assert_eq!(column_of(curated, "parcel_count")["status"], "draft");
+    assert_eq!(
+        review_by_id(&packed["resealed_artifact"], &format!("column/{LEDGER}/id"))["action"],
+        "accept"
+    );
+    assert_eq!(
+        review_by_id(&packed["resealed_artifact"], &format!("column/{ORDERS}/parcel_count"))["action"],
+        "override"
+    );
+    assert_eq!(
+        canonical_sha(review_by_id(
+            &packed["resealed_artifact"],
+            &format!("primary_key/{ORDERS}"),
+        )),
+        canonical_sha(review_by_id(
+            &world.artifact,
+            &format!("primary_key/{ORDERS}"),
+        ))
+    );
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+
+    let submitted: Value = serde_json::from_str(&command).expect("submitted");
+    let effective_command = canonical_text(&json!({
+        "artifact": packed["resealed_artifact"],
+        "decisions": submitted["decisions"],
+        "protocol": REVIEWED_EFFECTIVE_COMMAND_PROTOCOL,
+        "settings": submitted["settings"],
+    }));
+    let effective_text = compile_reviewed_effective(&effective_command)
+        .unwrap_or_else(|err| panic!("effective failed: {} {}", err.code, err.message));
+    assert_eq!(payload_sha256(effective_text.as_bytes()), packed["effective_sha256"]);
+    let effective_doc: Value = serde_json::from_str(&effective_text).expect("effective");
+    assert_eq!(effective_doc, packed["effective"]);
+    let reviewed = column_of(
+        dataset_row(&effective_doc["effective_oos"]["datasets"], ORDERS),
+        "parcel_count",
+    );
+    assert_eq!(reviewed["pii"], "restricted");
+    assert_eq!(reviewed["classification"]["by"], "ada.owner");
+    let oos = canonical_text(&effective_doc["effective_oos"]);
+    check_role_pack(&packed, "oo_r_desk", &oos, &two_roles()[0], false);
+    check_role_pack(&packed, "oo_r_pay", &oos, &two_roles()[1], true);
+    let desk = canonical_text(&pack_for(&packed, "oo_r_desk")["artifact"]);
+    let pay = canonical_text(&pack_for(&packed, "oo_r_pay")["artifact"]);
+    assert!(!desk.contains(STRUCT_LABEL));
+    assert!(!pay.contains(STRUCT_LABEL));
+    assert!(!desk.contains(STRUCT_DESCRIPTION));
+    assert!(!pay.contains("ada.curator"));
+}
+
+#[test]
+fn occupied_cas_conflict_preserves_the_seal() {
+    let world = occupied_ready();
+    let mut wrong = cas_map(world);
+    wrong[format!("dataset/{ORDERS}")] = json!("ab".repeat(32));
+    let cases = [
+        pack_with(world, occupied_decisions(world), true, Some(wrong)),
+        pack_with(world, occupied_decisions(world), true, Some(json!({}))),
+        pack_with(
+            world,
+            occupied_decisions(world),
+            true,
+            Some({
+                let mut extra = cas_map(world);
+                extra["dataset/public.ledger"] = json!(world.dataset_review_sha.clone());
+                extra
+            }),
+        ),
+    ];
+    for command in cases {
+        let err = apply_description_pack(&command).expect_err("cas");
+        assert!(err.code.ends_with("/review.occupied_cas"), "{}", err.code);
+        assert!(!err.to_string().contains(LABEL));
+        assert!(!err.to_string().contains(REVIEWER));
+        assert!(!err.to_string().contains(&world.dataset_review_sha));
+        assert!(!err.to_string().contains(STRUCT_LABEL));
+    }
+    let unauthorized = pack_with(world, occupied_decisions(world), false, Some(cas_map(world)));
+    let err = apply_description_pack(&unauthorized).expect_err("flag");
+    assert!(err.code.ends_with("/schema.invalid"), "{}", err.code);
+    assert!(err.to_string().contains("a replacement hash requires authorization"));
+    assert!(!err.to_string().contains(LABEL));
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+    let draft: Value = serde_json::from_str(&again.draft).expect("draft");
+    assert_eq!(draft_dataset(&draft, "effective", ORDERS)["label"], STRUCT_LABEL);
+    assert_eq!(column_of(draft_dataset(&draft, "effective", ORDERS), "parcel_count")["status"], "draft");
+}
+
+#[test]
+fn occupied_accept_is_not_rewritten() {
+    let world = accept_ready();
+    let command = pack_with(world, occupied_decisions(world), true, Some(cas_map(world)));
+    let (text, packed) = apply_ok(&command);
+    absent(&text);
+    assert!(!text.contains(LABEL));
+    assert!(!text.contains(DESCRIPTION));
+    assert_eq!(packed["outcome"], "unsupported");
+    assert_eq!(packed["seam"], "review.dataset_action_unsupported");
+    assert!(packed.get("resealed_artifact").is_none());
+    assert!(packed.get("occupied_replacements").is_none());
+    assert!(packed.get("packs").is_none());
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+    assert_eq!(
+        review_by_id(&world.artifact, &format!("dataset/{ORDERS}"))["action"],
+        "accept"
+    );
+    assert_eq!(
+        review_by_id(&world.artifact, &format!("column/{ORDERS}/parcel_count"))["action"],
+        "override"
+    );
+}
+
+#[test]
+fn occupied_stale_override_is_refused() {
+    let world = stale_ready();
+    let command = pack_with(world, occupied_decisions(world), true, Some(cas_map(world)));
+    let err = apply_description_pack(&command).expect_err("stale");
+    assert!(err.code.ends_with("/review.occupied_stale"), "{}", err.code);
+    assert!(!err.to_string().contains(LABEL));
+    assert!(!err.to_string().contains(REVIEWER));
+    assert!(!err.to_string().contains(STRUCT_DESCRIPTION));
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+    let draft: Value = serde_json::from_str(&again.draft).expect("draft");
+    assert_ne!(draft_dataset(&draft, "effective", ORDERS)["label"], LABEL);
+    assert_eq!(
+        column_of(draft_dataset(&draft, "effective", ORDERS), "parcel_count")["status"],
+        "draft"
+    );
+    let dataset = review_by_id(&world.artifact, &format!("dataset/{ORDERS}"));
+    assert_eq!(dataset["action"], "override");
+    assert_eq!(dataset["fact_fingerprint"], "11".repeat(32));
+    assert_eq!(
+        review_by_id(&world.artifact, &format!("primary_key/{ORDERS}"))["action"],
+        "override"
+    );
+}
+
+#[test]
+fn occupied_defer_and_reject_leave_structural_overrides() {
+    let world = occupied_ready();
+    let outcome = outcome_of(&world.command_text);
+    let orders = anchors(&outcome, ORDERS, &canonical_sha(&orders_file()));
+    let ledger = anchors(&outcome, LEDGER, &canonical_sha(&ledger_file()));
+    let command = pack_with(
+        world,
+        vec![
+            decision(ORDERS, "defer", &orders, None),
+            decision(LEDGER, "reject", &ledger, None),
+        ],
+        true,
+        None,
+    );
+    let (text, packed) = apply_ok(&command);
+    absent(&text);
+    assert!(!text.contains(LABEL));
+    assert!(!text.contains(DESCRIPTION));
+    assert_eq!(packed["outcome"], "reviewed_unchanged");
+    assert!(packed["resealed_artifact"].is_null());
+    assert!(packed.get("occupied_replacements").is_none());
+    assert_eq!(packed["statements"]["reseal"], "not_required");
+    assert_eq!(packed["original_wrapper_hash"], world.wrapper_hash);
+    assert_eq!(document_of(&packed, ORDERS)["document"], orders_file());
+    let desk = canonical_text(&pack_for(&packed, "oo_r_desk")["artifact"]);
+    assert!(desk.contains(STRUCT_LABEL));
+    assert!(!desk.contains(LABEL));
+    assert!(!desk.contains(DESCRIPTION));
+    let again = recompile(&world.artifact);
+    assert_eq!(again.wrapper_hash, world.wrapper_hash);
+    let draft: Value = serde_json::from_str(&again.draft).expect("draft");
+    assert_eq!(draft_dataset(&draft, "effective", ORDERS)["description"], STRUCT_DESCRIPTION);
+    assert_eq!(draft_dataset(&draft, "effective", ORDERS)["source_name"], STRUCT_SOURCE);
+    assert_eq!(
+        column_of(draft_dataset(&draft, "effective", ORDERS), "parcel_count")["status"],
+        "draft"
+    );
+
+    let unused = pack_with(
+        world,
+        vec![
+            decision(ORDERS, "defer", &orders, None),
+            decision(LEDGER, "reject", &ledger, None),
+        ],
+        true,
+        Some(cas_map(world)),
+    );
+    let err = apply_description_pack(&unused).expect_err("unused cas");
+    assert!(err.code.ends_with("/review.occupied_cas"), "{}", err.code);
+    assert!(!err.to_string().contains(LABEL));
+    let kept = recompile(&world.artifact);
+    assert_eq!(kept.wrapper_hash, world.wrapper_hash);
 }
 
 fn run_cli(args: &[&str], stdin: &[u8]) -> std::process::Output {

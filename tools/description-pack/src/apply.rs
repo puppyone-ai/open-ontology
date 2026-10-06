@@ -2,9 +2,12 @@
 //!
 //! The captured-draft compiler is the only sealer. This module does not hash
 //! an envelope of its own. A probe compile asks that compiler for the dataset
-//! fact fingerprint, and a second compile applies an override review.
+//! fact fingerprint, and a second compile applies an override review. An
+//! occupied dataset review is replaced only when the caller sets
+//! `replace_existing_dataset_review` and the canonical hash of that review
+//! object. The compiler review object does not gain a reviewer.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -60,6 +63,18 @@ pub fn apply_description_pack(input: &str) -> Result<String, DescriptionPackErro
             "roles must contain one to eight visibility objects",
         ));
     }
+    if !command.replace_existing_dataset_review && command.expected_existing_review_sha256.is_some()
+    {
+        return Err(DescriptionPackError::named(
+            "schema.invalid",
+            "a replacement hash requires authorization",
+        ));
+    }
+    if let Some(map) = &command.expected_existing_review_sha256 {
+        for hash in map.values() {
+            require_sha(hash)?;
+        }
+    }
     let review_bytes = apply_description_review(&command.review)?;
     let review_sha = sha256_bytes(review_bytes.as_bytes());
     if review_sha != command.expected_review_sha256 {
@@ -99,9 +114,24 @@ pub fn apply_description_pack(input: &str) -> Result<String, DescriptionPackErro
         Err(Stop::Refuse(err)) => return Err(err),
     };
     let sealed = if approvals.is_empty() {
+        if command
+            .expected_existing_review_sha256
+            .as_ref()
+            .is_some_and(|map| !map.is_empty())
+        {
+            return Err(occupied_cas());
+        }
         None
     } else {
-        match reseal(supplied, &original, &approvals) {
+        match reseal(
+            supplied,
+            &original,
+            &approvals,
+            ReplaceAuth {
+                enabled: command.replace_existing_dataset_review,
+                expected: command.expected_existing_review_sha256.as_ref(),
+            },
+        ) {
             Ok(item) => Some(item),
             Err(Stop::Unsupported(seam)) => return unsupported_outcome(seam, &review_sha),
             Err(Stop::Refuse(err)) => return Err(err),
@@ -133,6 +163,15 @@ struct CommandIn {
     settings: Value,
     decisions: Value,
     roles: Value,
+    #[serde(default)]
+    replace_existing_dataset_review: bool,
+    #[serde(default)]
+    expected_existing_review_sha256: Option<BTreeMap<String, String>>,
+}
+
+struct ReplaceAuth<'a> {
+    enabled: bool,
+    expected: Option<&'a BTreeMap<String, String>>,
 }
 
 struct OriginalSeal {
@@ -150,6 +189,18 @@ struct Reseal {
     wrapper_hash: String,
     draft_hash: String,
     evidence_envelope_hash: String,
+    replacements: Vec<Replacement>,
+}
+
+struct Replacement {
+    item_id: String,
+    prior_review: Value,
+    prior_sha: String,
+    compiler_sha: String,
+    reviewer_label: String,
+    reviewer_at: String,
+    authenticated: bool,
+    fields: Vec<String>,
 }
 
 struct Approval {
@@ -157,6 +208,9 @@ struct Approval {
     label: Option<String>,
     description: Option<String>,
     grain: Option<String>,
+    reviewer_label: String,
+    reviewer_at: String,
+    authenticated: bool,
 }
 
 struct Downstream {
@@ -256,6 +310,12 @@ fn packed_document(
         "review_sha256".to_owned(),
         Value::String(review_sha.to_owned()),
     );
+    if let Some(item) = reseal.filter(|item| !item.replacements.is_empty()) {
+        map.insert(
+            "occupied_replacements".to_owned(),
+            Value::Array(item.replacements.iter().map(replacement_value).collect()),
+        );
+    }
     map.insert(
         "statements".to_owned(),
         statements(if reseal.is_some() {
@@ -265,6 +325,22 @@ fn packed_document(
         }),
     );
     map
+}
+
+fn replacement_value(item: &Replacement) -> Value {
+    serde_json::json!({
+        "attribution": "bridge_provenance",
+        "compiler_review_sha256": item.compiler_sha,
+        "descriptive_provenance": {
+            "authenticated": item.authenticated,
+            "fields": item.fields,
+            "reviewer_at": item.reviewer_at,
+            "reviewer_label": item.reviewer_label,
+        },
+        "item_id": item.item_id,
+        "prior_review": item.prior_review,
+        "prior_review_sha256": item.prior_sha,
+    })
 }
 
 fn outcome_of(reseal: Option<&Reseal>) -> &'static str {
@@ -388,6 +464,7 @@ fn reseal(
     artifact: &Value,
     original: &OriginalSeal,
     approvals: &[Approval],
+    auth: ReplaceAuth<'_>,
 ) -> Result<Reseal, Stop> {
     let mut overlay = original
         .curated
@@ -399,46 +476,240 @@ fn reseal(
     }
     write_approvals(&mut overlay, approvals).map_err(Stop::Unsupported)?;
     let overlay_text = canonical_json(&overlay);
+    let reviews = review_list(artifact)?;
+    let mut occupied: Vec<(&Approval, &Value)> = Vec::new();
+    let mut fresh: Vec<&Approval> = Vec::new();
+    for approval in approvals {
+        let item_id = format!("dataset/{}", approval.dataset);
+        match find_review(&reviews, &item_id)? {
+            Some(existing) => occupied.push((approval, existing)),
+            None => fresh.push(approval),
+        }
+    }
+    if !occupied.is_empty() && !auth.enabled {
+        return Err(Stop::Unsupported("review.dataset_decision_occupied"));
+    }
+    if !occupied.is_empty() {
+        authorize_occupied(&occupied, auth)?;
+    } else if auth.expected.is_some_and(|map| !map.is_empty()) {
+        return Err(Stop::Refuse(occupied_cas()));
+    }
     let probe = compile_captured_pg_catalog(
         &original.catalog,
         Some(&overlay_text),
         original.reviews.as_deref(),
     )
     .map_err(|err| Stop::Unsupported(seam_code(&err.code)))?;
-    if fields_applied(&probe, approvals) {
-        return reseal_from(probe);
+    if occupied_is_stale(&probe, &occupied) {
+        return Err(Stop::Refuse(occupied_stale()));
     }
-    let mut reviews = review_list(artifact)?;
-    let occupied = occupied_items(&reviews);
-    for approval in approvals {
-        let dataset = approval.dataset.as_str();
-        let item_id = format!("dataset/{dataset}");
-        if occupied.contains(&item_id) {
-            return Err(Stop::Unsupported("review.dataset_decision_occupied"));
+    if occupied.is_empty() && fields_applied(&probe, approvals) {
+        return reseal_from(probe, Vec::new());
+    }
+    if fresh.is_empty() {
+        if !fields_applied(&probe, approvals) {
+            return Err(Stop::Unsupported("effective.field_not_applied"));
         }
+        if !reviews_match(&probe, original.reviews.as_deref()) {
+            return Err(Stop::Unsupported("review.entry_not_preserved"));
+        }
+        let replacements = replacement_rows(&probe, &occupied)?;
+        return reseal_from(probe, replacements);
+    }
+    let mut next = reviews.clone();
+    for approval in &fresh {
+        let item_id = format!("dataset/{}", approval.dataset);
         let fingerprint = dataset_fingerprint(&probe, &item_id)
             .ok_or(Stop::Unsupported("review.dataset_fingerprint_absent"))?;
-        reviews.push(serde_json::json!({
+        next.push(serde_json::json!({
             "action": "override",
             "fact_fingerprint": fingerprint,
             "item_id": item_id,
             "schema_hash": original.schema_hash,
         }));
     }
-    let reviews_text = canonical_json(&Value::Array(reviews));
+    let reviews_text = canonical_json(&Value::Array(next));
     let compiled = compile_captured_pg_catalog(
         &original.catalog,
         Some(&overlay_text),
         Some(&reviews_text),
     )
     .map_err(|err| Stop::Unsupported(seam_code(&err.code)))?;
+    if occupied_is_stale(&compiled, &occupied) {
+        return Err(Stop::Refuse(occupied_stale()));
+    }
     if !fields_applied(&compiled, approvals) {
         return Err(Stop::Unsupported("effective.field_not_applied"));
     }
-    reseal_from(compiled)
+    if !original_reviews_kept(&compiled, &reviews) {
+        return Err(Stop::Unsupported("review.entry_not_preserved"));
+    }
+    let replacements = replacement_rows(&compiled, &occupied)?;
+    reseal_from(compiled, replacements)
 }
 
-fn reseal_from(compiled: CapturedPgDraft) -> Result<Reseal, Stop> {
+fn authorize_occupied(
+    occupied: &[(&Approval, &Value)],
+    auth: ReplaceAuth<'_>,
+) -> Result<(), Stop> {
+    let Some(expected) = auth.expected else {
+        return Err(Stop::Refuse(occupied_cas()));
+    };
+    let needed: BTreeSet<String> = occupied
+        .iter()
+        .map(|(approval, _)| format!("dataset/{}", approval.dataset))
+        .collect();
+    let supplied: BTreeSet<String> = expected.keys().cloned().collect();
+    if supplied != needed {
+        return Err(Stop::Refuse(occupied_cas()));
+    }
+    for (approval, review) in occupied {
+        let item_id = format!("dataset/{}", approval.dataset);
+        let Some(supplied_hash) = expected.get(&item_id) else {
+            return Err(Stop::Refuse(occupied_cas()));
+        };
+        if supplied_hash != &review_sha(review) {
+            return Err(Stop::Refuse(occupied_cas()));
+        }
+        if review.get("action").and_then(Value::as_str) != Some("override") {
+            return Err(Stop::Unsupported("review.dataset_action_unsupported"));
+        }
+    }
+    Ok(())
+}
+
+fn occupied_is_stale(compiled: &CapturedPgDraft, occupied: &[(&Approval, &Value)]) -> bool {
+    occupied.iter().any(|(_, review)| {
+        let item_id = review.get("item_id").and_then(Value::as_str).unwrap_or("");
+        has_stale(compiled, item_id)
+    })
+}
+
+fn has_stale(compiled: &CapturedPgDraft, item_id: &str) -> bool {
+    let Ok(draft) = serde_json::from_str::<Value>(&compiled.draft) else {
+        return true;
+    };
+    let Some(items) = draft.get("review_queue").and_then(Value::as_array) else {
+        return true;
+    };
+    items.iter().any(|item| {
+        item.get("item_id").and_then(Value::as_str) == Some(item_id)
+            && item.get("kind").and_then(Value::as_str) == Some("stale_decision")
+    })
+}
+
+fn reviews_match(compiled: &CapturedPgDraft, original: Option<&str>) -> bool {
+    let Some(original) = original else {
+        return false;
+    };
+    let Ok(envelope) = serde_json::from_str::<Value>(&compiled.evidence_envelope) else {
+        return false;
+    };
+    let Some(reviews) = envelope.get("reviews") else {
+        return false;
+    };
+    canonical_json(reviews) == original
+}
+
+fn original_reviews_kept(compiled: &CapturedPgDraft, original: &[Value]) -> bool {
+    let Ok(envelope) = serde_json::from_str::<Value>(&compiled.evidence_envelope) else {
+        return false;
+    };
+    let Some(reviews) = envelope.get("reviews").and_then(Value::as_array) else {
+        return false;
+    };
+    original.iter().all(|prior| {
+        let prior_text = canonical_json(prior);
+        reviews
+            .iter()
+            .any(|item| canonical_json(item) == prior_text)
+    })
+}
+
+fn replacement_rows(
+    compiled: &CapturedPgDraft,
+    occupied: &[(&Approval, &Value)],
+) -> Result<Vec<Replacement>, Stop> {
+    let envelope: Value = serde_json::from_str(&compiled.evidence_envelope).map_err(|_| {
+        Stop::Refuse(DescriptionPackError::named(
+            "seal.rejected",
+            "the resealed draft is not an object",
+        ))
+    })?;
+    let Some(reviews) = envelope.get("reviews").and_then(Value::as_array) else {
+        return Err(Stop::Unsupported("review.entry_not_preserved"));
+    };
+    let mut rows = Vec::with_capacity(occupied.len());
+    for (approval, prior) in occupied {
+        let item_id = format!("dataset/{}", approval.dataset);
+        let Some(current) = reviews.iter().find(|item| {
+            item.get("item_id").and_then(Value::as_str) == Some(item_id.as_str())
+        }) else {
+            return Err(Stop::Unsupported("review.entry_not_preserved"));
+        };
+        let prior_sha = review_sha(prior);
+        let compiler_sha = review_sha(current);
+        if prior_sha != compiler_sha {
+            return Err(Stop::Unsupported("review.entry_not_preserved"));
+        }
+        rows.push(Replacement {
+            item_id,
+            prior_review: (*prior).clone(),
+            prior_sha,
+            compiler_sha,
+            reviewer_label: approval.reviewer_label.clone(),
+            reviewer_at: approval.reviewer_at.clone(),
+            authenticated: approval.authenticated,
+            fields: approval_fields(approval),
+        });
+    }
+    rows.sort_by(|left, right| left.item_id.cmp(&right.item_id));
+    Ok(rows)
+}
+
+fn approval_fields(approval: &Approval) -> Vec<String> {
+    let mut fields = Vec::new();
+    if approval.description.is_some() {
+        fields.push("description".to_owned());
+    }
+    if approval.grain.is_some() {
+        fields.push("grain".to_owned());
+    }
+    if approval.label.is_some() {
+        fields.push("label".to_owned());
+    }
+    fields
+}
+
+fn review_sha(review: &Value) -> String {
+    sha256_bytes(canonical_json(review).as_bytes())
+}
+
+fn find_review<'a>(reviews: &'a [Value], item_id: &str) -> Result<Option<&'a Value>, Stop> {
+    let mut found = None;
+    for item in reviews {
+        if item.get("item_id").and_then(Value::as_str) == Some(item_id) {
+            if found.is_some() {
+                return Err(Stop::Unsupported("curated.overlay_rejected"));
+            }
+            found = Some(item);
+        }
+    }
+    Ok(found)
+}
+
+fn occupied_cas() -> DescriptionPackError {
+    DescriptionPackError::named(
+        "review.occupied_cas",
+        "the occupied review hash does not match",
+    )
+}
+
+fn occupied_stale() -> DescriptionPackError {
+    DescriptionPackError::named("review.occupied_stale", "the occupied review is stale")
+}
+
+fn reseal_from(compiled: CapturedPgDraft, replacements: Vec<Replacement>) -> Result<Reseal, Stop> {
     let text = command_document(&compiled);
     let artifact: Value = serde_json::from_str(&text).map_err(|_| {
         Stop::Refuse(DescriptionPackError::named(
@@ -452,6 +723,7 @@ fn reseal_from(compiled: CapturedPgDraft) -> Result<Reseal, Stop> {
         draft_hash: compiled.draft_hash,
         text,
         artifact,
+        replacements,
     })
 }
 
@@ -558,13 +830,6 @@ fn review_list(artifact: &Value) -> Result<Vec<Value>, Stop> {
     }
 }
 
-fn occupied_items(reviews: &[Value]) -> BTreeSet<String> {
-    reviews
-        .iter()
-        .filter_map(|item| item.get("item_id").and_then(Value::as_str).map(str::to_owned))
-        .collect()
-}
-
 fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
     let decisions = review.get("decisions").and_then(Value::as_array).ok_or_else(|| {
         Stop::Refuse(DescriptionPackError::named(
@@ -603,11 +868,38 @@ fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
         if label.is_none() && description.is_none() && grain.is_none() {
             continue;
         }
+        let reviewer_label = decision
+            .get("reviewer_label")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                Stop::Refuse(DescriptionPackError::named(
+                    "review.shape",
+                    "the description review document is not an object",
+                ))
+            })?;
+        let reviewer_at = decision.get("reviewer_at").and_then(Value::as_str).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        let authenticated = decision
+            .get("authenticated")
+            .and_then(Value::as_bool)
+            .ok_or_else(|| {
+                Stop::Refuse(DescriptionPackError::named(
+                    "review.shape",
+                    "the description review document is not an object",
+                ))
+            })?;
         approvals.push(Approval {
             dataset: dataset.to_owned(),
             label,
             description,
             grain,
+            reviewer_label: reviewer_label.to_owned(),
+            reviewer_at: reviewer_at.to_owned(),
+            authenticated,
         });
     }
     approvals.sort_by(|left, right| left.dataset.cmp(&right.dataset));
