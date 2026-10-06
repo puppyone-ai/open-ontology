@@ -1,0 +1,9 @@
+volume /var/lib/docker/volumes/oo-a299-eef831aa-cargo/_data /cargo rw=true
+volume /var/lib/docker/volumes/oo-a299-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a299-eef831aa-dba4-4af2-a78b-541bc9e0a299/overlay-1/archive/tools/cdc-spool /tool rw=false
+bind /tmp/oo-a299-eef831aa-dba4-4af2-a78b-541bc9e0a299/overlay-1/archive/Cargo.lock /root.lock rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a299/SP04/cdc-spool-review/tools /review-tools rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a299/SP04/cdc-spool-review/overlay/a299_boundary.rs /overlay/a299_boundary.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a299/SP04/cdc-spool-review/linux/overlay-1/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a299/SP04/cdc-spool-review/linux/overlay-1 /evidence rw=true
+

@@ -1,0 +1,15 @@
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling cdc-spool v0.1.0 (/work/cdc-spool)
+    Finished `test` profile [unoptimized] target(s) in 3.51s
+     Running unittests src/lib.rs (/target/tool/debug/deps/cdc_spool-c5218bcbeeb9f0fd)
+     Running unittests src/main.rs (/target/tool/debug/deps/cdc_spool-537c77e7f92d694e)
+     Running tests/cli.rs (/target/tool/debug/deps/cli-9872d25feaa079f2)
+     Running tests/fault.rs (/target/tool/debug/deps/fault-c6d80e3b8ae75a26)
+     Running tests/protocol.rs (/target/tool/debug/deps/protocol-474fcc84bd5d2aae)
+     Running tests/scale.rs (/target/tool/debug/deps/scale-8afedb1f4c45637d)
+   Doc-tests cdc_spool
