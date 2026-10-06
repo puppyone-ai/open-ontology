@@ -8,3 +8,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 12 concurrentdevelopmentGroks excludingreviews/10 concurrentRustbuilders taskmax1, not lifetimeattemptcap.
 
 RESUME SAME UUID: CLI exited0 but REPORT/FINDINGS/HANDOFF missing. First collect already-existing owned actual builder/PG results and finish current actualwork. Do not duplicate a stillrunning builder/PG. Stayuntil full delivery+rawexits/sourceSHA/fullSafeRustmanifest/owncleanup/exactownedcommit. Exit0 alone is notdelivery or acceptance. Preserve all priorfailures.
+
+RESUME SAME UUID after terminal0 lacking fullREPORT/FINDINGS/HANDOFF. FirstcollectALREADYstarted actualownedbuilder/PG result; no duplicatebuild/PG, don't restart solelysinceactorclosed. Finish focusedverification and fullhandoff/sourceSHA/Rustinventory/owncleanup/ownedcommit. Source/root dependencies nowa313exclusivewriter; useONLYyouroriginalfixedarchive/lockbaseline, no movingworkspace dependencyresolution. No acceptancefromexit0.
