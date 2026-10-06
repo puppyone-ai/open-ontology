@@ -1,0 +1,4 @@
+contracts/connectors/file-worker-parent-v1.md
+crates/oo-connectors/src/file_worker_parent.rs
+crates/oo-connectors/src/lib.rs
+crates/oo-connectors/tests/file_worker_parent.rs

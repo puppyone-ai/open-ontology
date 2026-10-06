@@ -1,0 +1,3 @@
+/usr/bin/setsid
+-rwxr-xr-x 1 root root 67904 May  9  2025 /bin/setsid
+-rwxr-xr-x 1 root root 67904 May  9  2025 /usr/bin/setsid
