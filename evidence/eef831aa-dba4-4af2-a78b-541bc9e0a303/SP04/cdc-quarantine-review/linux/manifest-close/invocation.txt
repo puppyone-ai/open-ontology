@@ -1,0 +1,1 @@
+docker run --name oo-a303-manifest-close --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 rustc sha256_manifest

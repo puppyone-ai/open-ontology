@@ -1,0 +1,17 @@
+    Checking cdc-quarantine v0.1.0 (/src/tools/cdc-quarantine)
+error: used `assert_eq!` with a literal bool
+   --> tests/review_proof.rs:381:5
+    |
+381 |     assert_eq!(stored.local_prerequisite, true);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#bool_assert_comparison
+    = note: `-D clippy::bool-assert-comparison` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::bool_assert_comparison)]`
+help: replace it with `assert!(..)`
+    |
+381 -     assert_eq!(stored.local_prerequisite, true);
+381 +     assert!(stored.local_prerequisite);
+    |
+
+error: could not compile `cdc-quarantine` (test "review_proof") due to 1 previous error
