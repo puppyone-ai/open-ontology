@@ -234,11 +234,11 @@ fn drain_stderr(mut stderr: impl Read, slot: Arc<Mutex<Vec<u8>>>) {
         match stderr.read(&mut buf) {
             Ok(0) | Err(_) => break,
             Ok(n) => {
-                if let Ok(mut guard) = slot.lock() {
-                    if guard.len() < 262_144 {
-                        let room = 262_144 - guard.len();
-                        guard.extend_from_slice(&buf[..n.min(room)]);
-                    }
+                if let Ok(mut guard) = slot.lock()
+                    && guard.len() < 262_144
+                {
+                    let room = 262_144 - guard.len();
+                    guard.extend_from_slice(&buf[..n.min(room)]);
                 }
             }
         }

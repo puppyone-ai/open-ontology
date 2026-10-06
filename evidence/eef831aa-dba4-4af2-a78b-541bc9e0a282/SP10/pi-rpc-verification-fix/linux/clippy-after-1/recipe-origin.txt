@@ -1,0 +1,12 @@
+parent_attempt=linux/clippy-bridge
+parent_container=68f49dc67105303d2a390d3648e96d6c497222d104328f5ac05bc6776a6aa6ec
+parent_clippy_exit=101
+concrete_lint=clippy::collapsible_if src/drive.rs drain_stderr
+fix=let-chain equivalent of the nested if, same lock and 262144 byte cap
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+toolchain=1.94.0
+memory=6442450944
+cpus=1
+network=oo-a282-eef831aa-net
+input=readonly snapshot of testing/spikes/p09-pi-rpc after the one lint edit
+changes=reinstall clippy in this fresh container; cargo test --locked --offline then cargo clippy --locked --offline --all-targets -- -D warnings; both exits recorded; no synthetic 127

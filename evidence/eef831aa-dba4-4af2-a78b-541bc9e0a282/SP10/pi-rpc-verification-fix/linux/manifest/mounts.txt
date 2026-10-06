@@ -1,0 +1,3 @@
+bind /evidence rw=true
+bind /origin-manifest rw=false
+

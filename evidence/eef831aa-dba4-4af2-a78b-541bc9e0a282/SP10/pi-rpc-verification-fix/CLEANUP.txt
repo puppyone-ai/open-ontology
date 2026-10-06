@@ -1,0 +1,14 @@
+started=2026-10-06T08:30:02Z
+own_containers_before=0
+volume oo-a282-eef831aa-cargo exit=0 name=oo-a282-eef831aa-cargo
+volume oo-a282-eef831aa-target exit=0 name=oo-a282-eef831aa-target
+volume oo-a282-eef831aa-pi-prefix exit=0 name=oo-a282-eef831aa-pi-prefix
+volume oo-a282-eef831aa-npm-cache exit=0 name=oo-a282-eef831aa-npm-cache
+volume oo-a282-eef831aa-probe-bin exit=0 name=oo-a282-eef831aa-probe-bin
+network_containers=0
+network exit=0 name=oo-a282-eef831aa-net
+tmp exit=0
+docker_prune=not_run
+foreign_containers=left in place
+pinned_image=left in place
+finished=2026-10-06T08:30:03Z

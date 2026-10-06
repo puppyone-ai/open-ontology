@@ -1,0 +1,1 @@
+{"providers":{"fixture":{"baseUrl":"http://127.0.0.1:40303/v1","api":"openai-completions","apiKey":"public-dummy-fixture-token","models":[{"id":"fixture-echo","name":"Fixture Echo","reasoning":false,"input":["text"],"contextWindow":8192,"maxTokens":128,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}]}}}

@@ -1,0 +1,6 @@
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+claimed_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+claimed_by=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/HASH-METHOD.txt
+byte_copy=cmp equal at copy time
+rust_recheck=linux/hash-verify
+note=This file is the a204 tool unchanged. manifest_eq.rs only compares manifest lines. Neither file shells out.

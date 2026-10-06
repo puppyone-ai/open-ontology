@@ -1,0 +1,10 @@
+origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/linux/pi-install-2/inside.sh
+origin_mock=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/linux/pi-live-src/mock_openai.rs
+mock_bytes=cmp equal to origin at copy time
+pin=Pi v1.0.4 commit 7c10bd4337495ee613f2224843ecdf349b80d1df
+node=v22.23.3 linux-arm64
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+memory=6442450944
+cpus=1
+network=oo-a282-eef831aa-net
+changes=uuid a282; private volumes; missing published LICENSE is recorded instead of failing the install after npm ci; rustc builds mock_openai into the probe volume; pin checksum commands stay the reviewed install script

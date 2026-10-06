@@ -1,0 +1,12 @@
+fixed_commit=16cd808d5d4b69fed3b040b49047c7b67bfeeeb9
+task=fresh private bridge builder installs clippy for 1.94.0 then runs cargo clippy --locked --offline --all-targets -- -D warnings
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+toolchain=1.94.0
+memory=6442450944
+cpus=1
+network=oo-a282-eef831aa-net driver=bridge internal=false
+postgres=no
+archive=git archive of testing/spikes/p09-pi-rpc at the fixed commit, mounted read-only
+recipe=a204 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay/launch.sh
+recipe=a279 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/linux/preedit/launch.sh
+changes=uuid a282; private bridge only so rustup can add clippy; cargo itself stays --locked --offline; clippy.exit is the cargo clippy status; a missing component is the install status and is not rewritten as 127; memory 6g; cpus 1; global cap 10; no postgres; no host shasum

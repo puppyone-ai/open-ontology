@@ -1,0 +1,33 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+files=8
+empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+abc_sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+9b28b43d9a9afe9cad69a5f086d7d96af4758f58c7e053a25efa52567a69cdd8  ./launch.sh
+files=274
+empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+abc_sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+files=275
+empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+abc_sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+expected=274
+fresh=275
+bad=0
+self-check-ok expected=274 fresh=275
+ExitCode=0
+OOMKilled=false
+Privileged=false
+NetworkMode=none
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
+Id=5d784cec7b0025f5080621384046d42a1c3c174a848605f44a879b0b7e5499b2
+docker_run_exit=0
+oo-a282-manifest-rewrite
+outside_stdout_dir_removed=0
