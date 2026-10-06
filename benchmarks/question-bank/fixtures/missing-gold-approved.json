@@ -1,0 +1,26 @@
+{
+  "bank_version": "public-fixture-1",
+  "dataset": {"distribution": "public_synthetic", "id": "oo-logistics", "scale": "xs"},
+  "questions": [
+    {
+      "accepted_interpretations": [],
+      "annotations": [],
+      "as_of": "2026-10-01T00:00:00+08:00",
+      "asker": {"claims": {}, "role": "finance_west"},
+      "category": ["data_quality"],
+      "control_totals": [],
+      "difficulty": "hard",
+      "expected": {"kind": "table"},
+      "id": "pub-missing-gold",
+      "provenance": {"annotator": "unassigned", "origin": "public_synthetic_fixture", "reviewed_by": "unassigned"},
+      "question": "What is the west desk receipt total?",
+      "required_metrics": [],
+      "review": {"attestation": "label_only", "dual_annotation": "not_declared", "status": "fully_approved"},
+      "role_group": "west-gap",
+      "split": "public",
+      "version": "public-fixture-1"
+    }
+  ],
+  "suite": {"id": "public-smoke", "track": "E"},
+  "version": "oo.benchmark.question-bank/v1"
+}

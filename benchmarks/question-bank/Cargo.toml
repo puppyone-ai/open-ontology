@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "oo-question-bank"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Validate a public synthetic question bank into separated views. Not a 300-question bank or a signoff."
+
+[[bin]]
+name = "question-bank"
+path = "src/main.rs"
+
+[dependencies]
+oo-core = { path = "../../crates/oo-core" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[dev-dependencies]
+oo-core = { path = "../../crates/oo-core" }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
