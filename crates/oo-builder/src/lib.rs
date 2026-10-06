@@ -17,6 +17,7 @@
 
 mod canonical;
 mod captured_pg;
+mod description_candidate;
 mod draft;
 mod error;
 mod ident;
@@ -29,6 +30,12 @@ mod role_pack_cli;
 
 pub use captured_pg::{
     CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
+};
+pub use description_candidate::{
+    DESCRIPTION_CANDIDATE_COMPILER, DESCRIPTION_CANDIDATE_PROTOCOL, DESCRIPTION_PROMPT_VERSION,
+    DESCRIPTION_REQUEST_COMMAND_PROTOCOL, DESCRIPTION_REQUEST_PROTOCOL,
+    DESCRIPTION_RESPONSE_PROTOCOL, DescriptionCandidateError, complete_description_candidates,
+    prepare_description_request,
 };
 pub use reviewed_effective::{
     REVIEWED_EFFECTIVE_COMMAND_PROTOCOL, REVIEWED_EFFECTIVE_COMPILER, REVIEWED_EFFECTIVE_PROTOCOL,
