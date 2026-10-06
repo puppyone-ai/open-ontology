@@ -1,0 +1,65 @@
+Recipe origins were hashed in this session with shasum -a 256.
+Launch and report shape follow the reviewed recipes. Isolation pins stay.
+Changes are the a284 paths, the fixed archive, the smoke-then-overlay order,
+and the cdc-transaction lock allowlist.
+
+a204 preoverlay launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  sha256 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+
+a199 preoverlay launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+  sha256 bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+
+a199 sha256_manifest.rs
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+  sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+
+a200 smoke launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+  sha256 837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+
+a280 review-1 launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/review-1/launch.sh
+  sha256 3829fc7b3f021554113030307bef4ade51a020d82eb6bec9dd02d443bd40151d
+
+a280 review-1 inside
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/review-1/inside.sh
+  sha256 081cd1156a537a12e02861c805dd440930de25e943abb0d1dd7a0e8693406e87
+
+a278 proof-2 launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a278/SP08/enum-history-review/linux/proof-2/launch.sh
+  sha256 56ce03da90de0aa4cb03c31475904402814b34d18b990274b2b36549596fbc92
+
+a278 proof-2 inside
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a278/SP08/enum-history-review/linux/proof-2/inside.sh
+  sha256 01e5e69c50dc2b0dfeb406df65455982164628f073d80dd11b8669225740a6a9
+
+a278 manifest launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a278/SP08/enum-history-review/linux/manifest/launch.sh
+  sha256 ad20d98d2ec79e2cdfd99eeef83cb534f77e475d9291150da787753e510d8859
+
+Minimal changes:
+  image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+  platform linux/arm64, pull never, cap-drop ALL, no-new-privileges, init
+  new builder memory 6g, cpus 1, pids 4096, HOME=/tmp, tmpfs /tmp noexec 256m
+  RUSTUP_TOOLCHAIN=1.94.0, CARGO_BUILD_JOBS=1, CARGO_INCREMENTAL=0
+  CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0
+  rust-toolchain.toml moved aside; the file pins 1.98.1 and this image is 1.94.0
+  private bridge network oo-a284-eef831aa-net, not host networking
+  cargo volume oo-a284-eef831aa-cargo
+  target volume oo-a284-eef831aa-target
+  source copy is cp -R, not cp -a
+  fixed archive c551afea55d5a9164760878a5d6a76835b869875
+  assembler commit 2bdb3faa6329caa1503dceb52686c18c0be007dd is byte-identical for tools/cdc-transaction
+  author 27 tests and the three position tests run before the review overlay is copied
+  position oracle is the byte copy of the a280 oracle
+  fresh tests are overlay/a284_independent.rs and drive the CLI
+  lock_subset expects one path package, cdc-transaction
+  no PostgreSQL container
+  no product edit and no root Cargo.toml or Cargo.lock edit
+
+a284 manifest launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a284/SP04/cdc-transaction-review/linux/manifest/launch.sh
+  adapted from the a278 manifest launch above
+  changes: owner a284, review path, container names oo-a284-manifest and oo-a284-manifest-refresh, tmp /tmp/oo-a284-eef831aa-dba4-4af2-a78b-541bc9e0a284

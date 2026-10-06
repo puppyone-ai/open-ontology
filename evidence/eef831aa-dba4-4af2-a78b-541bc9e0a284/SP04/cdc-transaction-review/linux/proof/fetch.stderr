@@ -1,0 +1,14 @@
+    Updating crates.io index
+warning: spurious network error (3 tries remaining): [35] SSL connect error (TLS connect error: error:0A000126:SSL routines::unexpected eof while reading)
+ Downloading crates ...
+  Downloaded itoa v1.0.18
+  Downloaded zmij v1.0.23
+  Downloaded unicode-ident v1.0.26
+  Downloaded quote v1.0.47
+  Downloaded proc-macro2 v1.0.107
+  Downloaded serde_derive v1.0.229
+  Downloaded serde_core v1.0.229
+  Downloaded serde v1.0.229
+  Downloaded memchr v2.8.3
+  Downloaded serde_json v1.0.151
+  Downloaded syn v3.0.6

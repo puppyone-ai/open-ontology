@@ -1,0 +1,16 @@
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+warning: field `stderr` is never read
+  --> tests/a284_independent.rs:20:5
+   |
+17 | struct Out {
+   |        --- field in this struct
+...
+20 |     stderr: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `cdc-transaction` (test "a284_independent") generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 0.22s
+     Running tests/a284_independent.rs (/target/tool/debug/deps/a284_independent-0ad7704dcd7a98de)
+error: test failed, to rerun pass `--test a284_independent`
