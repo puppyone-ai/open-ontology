@@ -1,0 +1,1 @@
+{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"name","type":"text"},{"name":"amount","type":"decimal"}],"rows":[[{"presence":"value","value":"RV_CELL_TABLE"},{"coefficient":"450","negative":false,"presence":"value","scale":2}]]}

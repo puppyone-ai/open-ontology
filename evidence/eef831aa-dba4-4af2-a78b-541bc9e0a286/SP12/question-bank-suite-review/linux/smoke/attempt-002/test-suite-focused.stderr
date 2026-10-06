@@ -1,0 +1,4 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/cli.rs (/target/debug/deps/cli-2980b9e34f658636)
+     Running tests/compile.rs (/target/debug/deps/compile-4d6abe18cba43a23)
+     Running tests/sha256.rs (/target/debug/deps/sha256-b37c0f36b12bacd0)

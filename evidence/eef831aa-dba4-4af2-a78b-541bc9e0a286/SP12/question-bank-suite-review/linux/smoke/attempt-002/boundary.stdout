@@ -1,0 +1,15 @@
+omitted_matches_old=1
+rows_matches_omitted=1
+old_refuses_empty_result=1
+opt_in_clean=not_found
+truncated_matches_old=1
+truncated_never_not_found=1
+failed_matches_old=1
+failed_never_not_found=1
+max_rows_0_matches_old=1
+max_rows_0_never_not_found=1
+contrary_omitted_matches_old=1
+contrary_rows_matches_omitted=1
+contrary_opt_in_stays_rows=1
+contrary_rows=preserved
+boundary_ok

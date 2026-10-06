@@ -1,0 +1,19 @@
+Owned resources removed after the green smoke and the green TLS proof.
+No prune. No foreign container, volume, network, or image was removed.
+Secrets under /tmp were deleted with that directory and were not copied into this evidence tree.
+
+Already removed by their launch scripts:
+- container oo-a286-smoke (linux/smoke/container-removed.txt)
+- container oo-a286-live (linux/live/container-removed.txt)
+
+Removed here after label checks owner=a286 and session=eef831aa-dba4-4af2-a78b-541bc9e0a286:
+- docker rm -f oo-a286-pg
+- docker volume rm oo-a286-eef831aa-cargo
+- docker volume rm oo-a286-eef831aa-target
+- docker volume rm oo-a286-eef831aa-pgdata
+- docker network rm oo-a286-eef831aa-net
+- rm -rf /tmp/oo-a286-eef831aa-dba4-4af2-a78b-541bc9e0a286
+
+Afterward: owned containers 0, owned volumes 0, network absent, tmp path absent.
+
+The manifest launch creates /tmp/oo-a286-eef831aa-dba4-4af2-a78b-541bc9e0a286/manifest-outside and deletes that directory at the end of a successful refresh. Containers oo-a286-manifest and oo-a286-manifest-refresh are removed by linux/manifest/launch.sh.

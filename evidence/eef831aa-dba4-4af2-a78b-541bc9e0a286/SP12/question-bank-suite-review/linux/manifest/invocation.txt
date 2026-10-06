@@ -1,0 +1,2 @@
+docker run --name oo-a286-manifest --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 rustc --edition 2021 -D warnings tools/sha256_manifest.rs
+docker run --name oo-a286-manifest-refresh --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 rustc --edition 2021 -D warnings tools/sha256_manifest.rs
