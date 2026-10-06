@@ -1,0 +1,1172 @@
+//! Independent review of the frozen comparator, query adapter, and trial statistics.
+//!
+//! Oracles in this file are handwritten. They do not call the three libraries.
+//! The SQL runner is not invoked.
+
+#![forbid(unsafe_code)]
+
+use std::cmp::Ordering;
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitCode, Output, Stdio};
+
+const MATCH_REPORT: &str = concat!(
+    r#"{"differences":[],"verdict":"match","version":"oo.benchmark.result-comparison-report/v1"}"#,
+    "\n"
+);
+const CONFIG: &str = "a198a198a198a198a198a198a198a198a198a198a198a198a198a198a198a198";
+const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const NOTE: &str = "\u{96EA}\u{306E}\u{7968}\u{0301}";
+
+fn main() -> ExitCode {
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("a242-review: {err}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn run() -> Result<(), String> {
+    let evidence = PathBuf::from(env_var("EVIDENCE")?);
+    let case_dir = evidence.join("harness");
+    fs::create_dir_all(&case_dir).map_err(|err| format!("mkdir harness: {err}"))?;
+    let mut log = String::new();
+    check_splitmix(&mut log)?;
+    check_rejection_tail(&mut log)?;
+    comparator_handgold(&mut log)?;
+    adapter_handgold(&mut log)?;
+    trial_handgold(&case_dir.join("bootstrap-indexes.txt"), &mut log)?;
+    live_chain(&case_dir, &mut log)?;
+    scan_evidence(&evidence, &mut log)?;
+    fs::write(case_dir.join("cases.txt"), &log).map_err(|err| format!("write cases: {err}"))?;
+    println!("a242-review cases={}", log.lines().count());
+    Ok(())
+}
+
+fn env_var(name: &str) -> Result<String, String> {
+    env::var(name).map_err(|_| format!("missing {name}"))
+}
+
+fn bin(name: &str) -> Result<PathBuf, String> {
+    let value = env_var(name)?;
+    let path = PathBuf::from(&value);
+    if !path.is_file() {
+        return Err(format!("{name} is not a file"));
+    }
+    Ok(path)
+}
+
+fn run_in(path: &Path, args: &[&str], stdin: &[u8]) -> Result<Output, String> {
+    let mut command = Command::new(path);
+    command
+        .args(args)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = command
+        .spawn()
+        .map_err(|err| format!("spawn {}: {err}", path.display()))?;
+    if let Some(mut pipe) = child.stdin.take() {
+        use std::io::Write;
+        pipe.write_all(stdin)
+            .map_err(|err| format!("stdin {}: {err}", path.display()))?;
+    }
+    child
+        .wait_with_output()
+        .map_err(|err| format!("wait {}: {err}", path.display()))
+}
+
+fn note(log: &mut String, name: &str) {
+    log.push_str(name);
+    log.push('\n');
+}
+
+fn expect(
+    log: &mut String,
+    name: &str,
+    path: &Path,
+    stdin: &str,
+    code: i32,
+    stdout: &str,
+    stderr: &str,
+) -> Result<(), String> {
+    let output = run_in(path, &[], stdin.as_bytes())?;
+    let got_code = output.status.code().ok_or_else(|| format!("{name} no exit"))?;
+    let got_out = String::from_utf8(output.stdout).map_err(|_| format!("{name} stdout utf8"))?;
+    let got_err = String::from_utf8(output.stderr).map_err(|_| format!("{name} stderr utf8"))?;
+    if got_code != code || got_out != stdout || got_err != stderr {
+        return Err(format!(
+            "{name} code {got_code} want {code}\nstdout={got_out:?}\nstderr={got_err:?}"
+        ));
+    }
+    note(log, name);
+    Ok(())
+}
+
+fn help_text(path: &Path, want: &str, log: &mut String, name: &str) -> Result<(), String> {
+    let output = run_in(path, &["--help"], b"")?;
+    let code = output.status.code().ok_or_else(|| format!("{name} no exit"))?;
+    let stdout = String::from_utf8(output.stdout).map_err(|_| format!("{name} utf8"))?;
+    if code != 0 || !output.stderr.is_empty() || stdout != want {
+        return Err(format!("{name} help mismatch code={code} stdout={stdout:?}"));
+    }
+    let usage = run_in(path, &["--bogus"], b"")?;
+    let usage_err = String::from_utf8(usage.stderr).map_err(|_| format!("{name} usage utf8"))?;
+    if usage.status.code() != Some(2) || !usage.stdout.is_empty() {
+        return Err(format!("{name} usage exit"));
+    }
+    if !usage_err.ends_with(": usage\n") {
+        return Err(format!("{name} usage stderr {usage_err:?}"));
+    }
+    note(log, name);
+    Ok(())
+}
+
+fn check_splitmix(log: &mut String) -> Result<(), String> {
+    let want = [
+        0xe220_a839_7b1d_cdaf,
+        0x6e78_9e6a_a1b9_65f4,
+        0x06c4_5d18_8009_454f,
+        0xf88b_b8a8_724c_81ec,
+    ];
+    let mut state = 0_u64;
+    for (index, expected) in want.iter().enumerate() {
+        let (draw, next) = splitmix64_step(state);
+        if draw != *expected {
+            return Err(format!("splitmix[{index}] {draw:016x}"));
+        }
+        state = next;
+    }
+    note(log, "oracle-splitmix64-seed0");
+    Ok(())
+}
+
+fn check_rejection_tail(log: &mut String) -> Result<(), String> {
+    if unbiased_index(u64::MAX, 2).is_some() || unbiased_index(u64::MAX - 1, 2).is_some() {
+        return Err("n=2 tail was accepted".to_owned());
+    }
+    if unbiased_index(0, 1) != Some(0) || unbiased_index(u64::MAX, 1).is_some() {
+        return Err("n=1 index rule".to_owned());
+    }
+    note(log, "oracle-rejection-tail");
+    Ok(())
+}
+
+fn comparator_handgold(log: &mut String) -> Result<(), String> {
+    let bin = bin("COMPARATOR")?;
+    help_text(
+        &bin,
+        "result-comparator reads oo.benchmark.result-comparison/v1 from stdin.\n\
+It writes oo.benchmark.result-comparison-report/v1 to stdout.\n\
+exit 0 match\n\
+exit 1 mismatch\n\
+exit 2 config\n",
+        log,
+        "comparator-help",
+    )?;
+    let null = cell_presence("null");
+    let missing = cell_presence("missing");
+    expect(
+        log,
+        "comparator-null-versus-missing",
+        &bin,
+        &compare("ordered", &side_text("note", "text", &[&null]), &side_text("note", "text", &[&missing])),
+        1,
+        "{\"differences\":[{\"actual\":\"{\\\"presence\\\":\\\"missing\\\"}\",\"expected\":\"{\\\"presence\\\":\\\"null\\\"}\",\"path\":\"rows/0/0\",\"reason\":\"presence\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-null-matches-null",
+        &bin,
+        &compare("ordered", &side_text("note", "text", &[&null]), &side_text("note", "text", &[&null])),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-missing-matches-missing",
+        &bin,
+        &compare(
+            "ordered",
+            &side_text("note", "text", &[&missing]),
+            &side_text("note", "text", &[&missing]),
+        ),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let one_twenty = decimal_cell(false, "120", 2);
+    let one_two = decimal_cell(false, "12", 1);
+    let one_twenty_one = decimal_cell(false, "121", 2);
+    let negative_scale = decimal_cell(false, "12", -2);
+    let twelve_hundred = decimal_cell(false, "1200", 0);
+    let zero_scale_0 = decimal_cell(false, "0", 0);
+    let zero_scale_2 = decimal_cell(false, "0", 2);
+    expect(
+        log,
+        "comparator-decimal-exact-rescale",
+        &bin,
+        &compare(
+            "ordered",
+            &side_decimal("amount", &one_twenty),
+            &side_decimal("amount", &one_two),
+        ),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-decimal-value-change",
+        &bin,
+        &compare(
+            "ordered",
+            &side_decimal("amount", &one_twenty),
+            &side_decimal("amount", &one_twenty_one),
+        ),
+        1,
+        "{\"differences\":[{\"actual\":\"{\\\"coefficient\\\":\\\"121\\\",\\\"negative\\\":false,\\\"presence\\\":\\\"value\\\",\\\"scale\\\":2}\",\"expected\":\"{\\\"coefficient\\\":\\\"120\\\",\\\"negative\\\":false,\\\"presence\\\":\\\"value\\\",\\\"scale\\\":2}\",\"path\":\"rows/0/0\",\"reason\":\"decimal\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-decimal-negative-scale",
+        &bin,
+        &compare(
+            "ordered",
+            &side_decimal("amount", &negative_scale),
+            &side_decimal("amount", &twelve_hundred),
+        ),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-decimal-zero-scales",
+        &bin,
+        &compare(
+            "ordered",
+            &side_decimal("amount", &zero_scale_0),
+            &side_decimal("amount", &zero_scale_2),
+        ),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let row_one = value_cell("1");
+    let row_two = value_cell("2");
+    let ordered_left = side_text("n", "int64", &[&row_one, &row_two]);
+    let ordered_right = side_text("n", "int64", &[&row_two, &row_one]);
+    expect(
+        log,
+        "comparator-ordered-swap",
+        &bin,
+        &compare("ordered", &ordered_left, &ordered_right),
+        1,
+        "{\"differences\":[{\"actual\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"2\\\"}\",\"expected\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"1\\\"}\",\"path\":\"rows/0/0\",\"reason\":\"value\"},{\"actual\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"1\\\"}\",\"expected\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"2\\\"}\",\"path\":\"rows/1/0\",\"reason\":\"value\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-unordered-swap",
+        &bin,
+        &compare("unordered", &ordered_left, &ordered_right),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let tied = value_cell("7");
+    let two = side_text("n", "int64", &[&tied, &tied]);
+    let one = side_text("n", "int64", &[&tied]);
+    expect(
+        log,
+        "comparator-tie-multiplicity-match",
+        &bin,
+        &compare("unordered", &two, &two),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-tie-multiplicity-mismatch",
+        &bin,
+        &compare("unordered", &two, &one),
+        1,
+        "{\"differences\":[{\"actual\":\"1\",\"expected\":\"2\",\"path\":\"rows\",\"reason\":\"multiplicity\",\"row\":\"[{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"7\\\"}]\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    let beta = text_cell("beta");
+    let gamma = text_cell("gamma");
+    expect(
+        log,
+        "comparator-text-value-change",
+        &bin,
+        &compare(
+            "ordered",
+            &side_text("note", "text", &[&beta]),
+            &side_text("note", "text", &[&gamma]),
+        ),
+        1,
+        "{\"differences\":[{\"actual\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"gamma\\\"}\",\"expected\":\"{\\\"presence\\\":\\\"value\\\",\\\"value\\\":\\\"beta\\\"}\",\"path\":\"rows/0/0\",\"reason\":\"value\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    let complete = side_done("complete", &beta);
+    let partial = side_done("partial", &beta);
+    expect(
+        log,
+        "comparator-partial-versus-complete",
+        &bin,
+        &compare("ordered", &complete, &partial),
+        1,
+        "{\"differences\":[{\"actual\":\"partial\",\"expected\":\"complete\",\"path\":\"completion\",\"reason\":\"completion\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    expect(
+        log,
+        "comparator-complete-versus-partial",
+        &bin,
+        &compare("ordered", &partial, &complete),
+        1,
+        "{\"differences\":[{\"actual\":\"complete\",\"expected\":\"partial\",\"path\":\"completion\",\"reason\":\"completion\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    Ok(())
+}
+
+fn adapter_handgold(log: &mut String) -> Result<(), String> {
+    let adapter = bin("ADAPTER")?;
+    let comparator = bin("COMPARATOR")?;
+    help_text(
+        &adapter,
+        "query-result-adapter reads oo.benchmark.query-result-adapter/v1 JSONL from stdin.\n\
+It writes one typed actual result for the result comparator to stdout.\n\
+exit 0 actual\n\
+exit 2 config\n",
+        log,
+        "adapter-help",
+    )?;
+    let decimal_stream = stream(
+        &header(&[("amount", "decimal", Some(0))]),
+        &[r#"{"record":"row","turn":0,"cells":[{"kind":"text","value":"1.20"}]}"#],
+        "succeeded",
+        false,
+        1,
+        true,
+    );
+    let decimal_actual = r#"{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"amount","type":"decimal"}],"rows":[[{"coefficient":"120","negative":false,"presence":"value","scale":2}]]}"#;
+    expect(log, "adapter-decimal-text", &adapter, &decimal_stream, 0, &format!("{decimal_actual}\n"), "")?;
+    expect(
+        log,
+        "adapter-decimal-into-comparator",
+        &comparator,
+        &compare(
+            "ordered",
+            &side_decimal("amount", &decimal_cell(false, "12", 1)),
+            decimal_actual,
+        ),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let negative_zero = stream(
+        &header(&[("amount", "decimal", Some(0))]),
+        &[r#"{"record":"row","turn":0,"cells":[{"kind":"text","value":"-0.00"}]}"#],
+        "succeeded",
+        false,
+        1,
+        true,
+    );
+    expect(
+        log,
+        "adapter-decimal-negative-zero",
+        &adapter,
+        &negative_zero,
+        2,
+        "",
+        "query-result-adapter: decimal /1/cells/0\n",
+    )?;
+    let null_missing = stream(
+        &header(&[("note", "text", Some(0)), ("gap", "text", None)]),
+        &[r#"{"record":"row","turn":0,"cells":[{"kind":"null"}]}"#],
+        "succeeded",
+        false,
+        1,
+        true,
+    );
+    let null_missing_actual = r#"{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"note","type":"text"},{"name":"gap","type":"text"}],"rows":[[{"presence":"null"},{"presence":"missing"}]]}"#;
+    expect(
+        log,
+        "adapter-null-and-missing",
+        &adapter,
+        &null_missing,
+        0,
+        &format!("{null_missing_actual}\n"),
+        "",
+    )?;
+    let gold = r#"{"actual":{"rows":[[{"presence":"value","value":"GOLD_CANARY_a242"}]]},"expected":{"rows":[]},"row_comparator":"ordered","version":"oo.benchmark.result-comparison/v1"}"#
+        .to_owned();
+    let refused = run_in(&adapter, &[], gold.as_bytes())?;
+    let refused_err = String::from_utf8(refused.stderr).map_err(|_| "gold stderr utf8".to_owned())?;
+    if refused.status.code() != Some(2)
+        || !refused.stdout.is_empty()
+        || refused_err.contains("GOLD_CANARY_a242")
+        || !refused_err.starts_with("query-result-adapter: ")
+    {
+        return Err(format!("adapter accepted or echoed gold: {refused_err:?}"));
+    }
+    note(log, "adapter-rejects-gold-document");
+    Ok(())
+}
+
+fn trial_handgold(trace_path: &Path, log: &mut String) -> Result<(), String> {
+    let bin = bin("TRIALS")?;
+    help_text(
+        &bin,
+        "trial-statistics reads oo.benchmark.trial-statistics/v1 from stdin.\n\
+It writes oo.benchmark.trial-statistics-report/v1 to stdout.\n\
+exit 0 gate passed\n\
+exit 1 gate failed\n\
+exit 2 config\n",
+        log,
+        "trials-help",
+    )?;
+    let full = [Question {
+        id: "q0",
+        left: &["pass", "pass", "pass"],
+        right: &["pass", "pass", "fail"],
+    }];
+    let full_doc = document("1", 1, &full, "a242");
+    let full_report = oracle("1", 1, &full, trace_path, "full-vector")?;
+    if full_report.contains("\"denominator\":3") {
+        return Err("full vector report used a trial-average denominator".to_owned());
+    }
+    if !full_report.contains("\"point_difference\":{\"denominator\":1,\"numerator\":-1}") {
+        return Err(format!("full vector point {full_report}"));
+    }
+    expect(log, "trials-passk-full-vector", &bin, &full_doc, 0, &format!("{full_report}\n"), "")?;
+    let again = run_in(&bin, &[], full_doc.as_bytes())?;
+    let again_out = String::from_utf8(again.stdout).map_err(|_| "repeat utf8".to_owned())?;
+    if again.status.code() != Some(0) || again_out != format!("{full_report}\n") {
+        return Err("full vector was not reproducible".to_owned());
+    }
+    note(log, "trials-passk-repeat");
+
+    let paired = [
+        Question {
+            id: "q0",
+            left: &["pass", "pass"],
+            right: &["pass", "fail"],
+        },
+        Question {
+            id: "q1",
+            left: &["fail", "pass"],
+            right: &["pass", "pass"],
+        },
+    ];
+    let paired_doc = document("7", 4, &paired, "a242");
+    let paired_report = oracle("7", 4, &paired, trace_path, "paired")?;
+    expect(
+        log,
+        "trials-paired-bootstrap",
+        &bin,
+        &paired_doc,
+        0,
+        &format!("{paired_report}\n"),
+        "",
+    )?;
+
+    let reannotated = [
+        Question {
+            id: "q0",
+            left: &["needs_reannotation", "pass"],
+            right: &["pass", "fail"],
+        },
+        Question {
+            id: "q1",
+            left: &["fail", "pass"],
+            right: &["pass", "pass"],
+        },
+    ];
+    let re_doc = document("7", 4, &reannotated, "a242");
+    let re_report = oracle("7", 4, &reannotated, trace_path, "reannotation")?;
+    if !re_report.contains("\"question_count\":2") || !re_report.contains("\"reannotation_count\":1") {
+        return Err(format!("reannotation denominator {re_report}"));
+    }
+    if !re_report.contains("\"gate\":\"failed\"") {
+        return Err("reannotation gate passed".to_owned());
+    }
+    expect(log, "trials-reannotation-stays", &bin, &re_doc, 1, &format!("{re_report}\n"), "")?;
+
+    let missing = document("7", 4, &paired, "a242").replace(
+        r#"{"id":"q1","trials":[{"index":0,"status":"pass"},{"index":1,"status":"pass"}]}"#,
+        r#"{"id":"q1","trials":[{"index":0,"status":"pass"}]}"#,
+    );
+    expect(
+        log,
+        "trials-missing-trial",
+        &bin,
+        &missing,
+        2,
+        "",
+        "trial-statistics: trials /variants/1/questions/1/trials\n",
+    )?;
+    let mixed = document("7", 4, &paired, "other");
+    expect(
+        log,
+        "trials-tuple-mismatch",
+        &bin,
+        &mixed,
+        2,
+        "",
+        "trial-statistics: tuple /variants/1/tuple/project\n",
+    )?;
+    Ok(())
+}
+
+fn live_chain(case_dir: &Path, log: &mut String) -> Result<(), String> {
+    let query = bin("QUERY_PG")?;
+    let adapter = bin("ADAPTER")?;
+    let comparator = bin("COMPARATOR")?;
+    let password = PathBuf::from(env_var("PASSWORD_FILE")?);
+    let ca = PathBuf::from(env_var("CA_FILE")?);
+    let host = env_var("HOST")?;
+    let audit = case_dir.join("review-audit.jsonl");
+    if audit.exists() {
+        return Err("audit path already exists".to_owned());
+    }
+    let request = request_json(&password, &ca, &audit, &host);
+    let request_path = case_dir.join("request.json");
+    fs::write(&request_path, &request).map_err(|err| format!("write request: {err}"))?;
+    let output = run_in(&query, &["--request", request_path.to_str().ok_or("request path")?], b"")?;
+    let code = output.status.code().ok_or_else(|| "query-pg no exit".to_owned())?;
+    if code != 0 || !output.stderr.is_empty() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("query-pg exit {code} stderr={err}"));
+    }
+    fs::write(case_dir.join("query-pg.stdout"), &output.stdout)
+        .map_err(|err| format!("save stdout: {err}"))?;
+    let stdout = String::from_utf8(output.stdout).map_err(|_| "query stdout utf8".to_owned())?;
+    if stdout.contains("sealed-") {
+        return Err("query stdout contained a hidden seal".to_owned());
+    }
+    let lines: Vec<&str> = stdout.lines().collect();
+    if lines.len() != 4 {
+        return Err(format!("query lines {}", lines.len()));
+    }
+    if !lines[3].contains(r#""record":"summary""#)
+        || !lines[3].contains(r#""status":"succeeded""#)
+        || !lines[3].contains(r#""truncated":false"#)
+        || !lines[3].contains(r#""end_audit_ok":true"#)
+        || !lines[3].contains(r#""returned_rows":3"#)
+    {
+        return Err("query summary shape".to_owned());
+    }
+    let expected = desk_actual();
+    let adapted = adapt_lines(&adapter, &lines, log, "live-desk-adapt")?;
+    if adapted != expected {
+        return Err(format!("live adapter bytes\n{adapted}"));
+    }
+    expect(
+        log,
+        "live-desk-comparator",
+        &comparator,
+        &compare("ordered", &expected, &adapted),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let reversed = desk_actual_rows_reversed();
+    expect(
+        log,
+        "live-unordered-swap",
+        &comparator,
+        &compare("unordered", &reversed, &adapted),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    let ordered = run_in(
+        &comparator,
+        &[],
+        compare("ordered", &reversed, &adapted).as_bytes(),
+    )?;
+    if ordered.status.code() != Some(1) {
+        return Err("live ordered swap matched".to_owned());
+    }
+    note(log, "live-ordered-swap");
+
+    let mut changed = lines.clone();
+    let row = changed[2].replace(r#""value":"beta""#, r#""value":"gamma""#);
+    if row == changed[2] {
+        return Err("beta cell was absent".to_owned());
+    }
+    changed[2] = row.leak();
+    let changed_actual = adapt_lines(&adapter, &changed, log, "live-value-adapt")?;
+    let value = run_in(
+        &comparator,
+        &[],
+        compare("ordered", &expected, &changed_actual).as_bytes(),
+    )?;
+    let value_out = String::from_utf8(value.stdout).map_err(|_| "value stdout".to_owned())?;
+    if value.status.code() != Some(1) || !value_out.contains(r#""reason":"value""#) || !value_out.contains("gamma")
+    {
+        return Err(format!("value change report {value_out}"));
+    }
+    note(log, "live-value-change");
+
+    let mut partial = lines.clone();
+    let summary = partial[3].replace(r#""status":"succeeded""#, r#""status":"partial""#);
+    if summary == partial[3] {
+        return Err("status token absent".to_owned());
+    }
+    partial[3] = summary.leak();
+    let partial_actual = adapt_lines(&adapter, &partial, log, "live-partial-adapt")?;
+    if !partial_actual.contains(r#""completion":"partial""#) {
+        return Err("partial was rewritten".to_owned());
+    }
+    expect(
+        log,
+        "live-partial-versus-full",
+        &comparator,
+        &compare("ordered", &expected, &partial_actual),
+        1,
+        "{\"differences\":[{\"actual\":\"partial\",\"expected\":\"complete\",\"path\":\"completion\",\"reason\":\"completion\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+
+    let truncated_lines = vec![
+        lines[0],
+        summary_line("succeeded", true, 1, true).leak(),
+    ];
+    let truncated_actual = adapt_lines(&adapter, &truncated_lines, log, "live-truncated-adapt")?;
+    if !truncated_actual.contains(r#""completion":"complete""#) || truncated_actual.contains("truncated") {
+        return Err(format!("truncated adapter completion {truncated_actual}"));
+    }
+    expect(
+        log,
+        "live-truncated-versus-full-gold",
+        &comparator,
+        &compare("ordered", &expected, &truncated_actual),
+        1,
+        "{\"differences\":[{\"actual\":\"1\",\"expected\":\"3\",\"path\":\"rows\",\"reason\":\"length\"}],\"verdict\":\"mismatch\",\"version\":\"oo.benchmark.result-comparison-report/v1\"}\n",
+        "",
+    )?;
+    let prefix = desk_prefix();
+    expect(
+        log,
+        "live-truncated-versus-prefix-gold",
+        &comparator,
+        &compare("ordered", &prefix, &truncated_actual),
+        0,
+        MATCH_REPORT,
+        "",
+    )?;
+    fs::write(
+        case_dir.join("truncation-boundary.txt"),
+        "adapter_completion=complete\ncomparator_versus_full_gold=mismatch\ncomparator_versus_prefix_gold=match\nrunner_must_refuse_truncation=independent\nrunner_approved=no\n",
+    )
+    .map_err(|err| format!("write boundary: {err}"))?;
+
+    let mut unaudited = lines.clone();
+    let flipped = unaudited[3].replace(r#""end_audit_ok":true"#, r#""end_audit_ok":false"#);
+    if flipped == unaudited[3] {
+        return Err("end_audit_ok absent".to_owned());
+    }
+    unaudited[3] = flipped.leak();
+    expect(
+        log,
+        "live-end-audit-false",
+        &adapter,
+        &with_header(&unaudited),
+        2,
+        "",
+        "query-result-adapter: completion /summary/end_audit_ok\n",
+    )?;
+    let mut dropped = lines.clone();
+    dropped.pop();
+    expect(
+        log,
+        "live-missing-summary",
+        &adapter,
+        &with_header(&dropped),
+        2,
+        "",
+        "query-result-adapter: protocol /\n",
+    )?;
+    Ok(())
+}
+
+fn adapt_lines(
+    adapter: &Path,
+    rows: &[&str],
+    log: &mut String,
+    name: &str,
+) -> Result<String, String> {
+    let stream = with_header(rows);
+    let output = run_in(adapter, &[], stream.as_bytes())?;
+    if output.status.code() != Some(0) || !output.stderr.is_empty() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("{name} adapter {err}"));
+    }
+    let text = String::from_utf8(output.stdout).map_err(|_| format!("{name} utf8"))?;
+    let Some(body) = text.strip_suffix('\n') else {
+        return Err(format!("{name} newline"));
+    };
+    if body.contains('\n') {
+        return Err(format!("{name} extra line"));
+    }
+    note(log, name);
+    Ok(body.to_owned())
+}
+
+fn with_header(rows: &[&str]) -> String {
+    let mut out = desk_header();
+    out.push('\n');
+    for row in rows {
+        out.push_str(row);
+        out.push('\n');
+    }
+    out
+}
+
+fn desk_header() -> String {
+    header(&[
+        ("lane", "int64", Some(0)),
+        ("rank", "int64", Some(1)),
+        ("stamp", "int64", Some(2)),
+        ("note", "text", Some(3)),
+        ("open", "bool", Some(4)),
+    ])
+}
+
+fn desk_rows() -> [String; 3] {
+    [
+        format!(
+            r#"[{{"presence":"value","value":"-2"}},{{"presence":"value","value":"-20"}},{{"presence":"value","value":"-9223372036854775808"}},{{"presence":"value","value":"{NOTE}"}},{{"presence":"value","value":true}}]"#
+        ),
+        r#"[{"presence":"value","value":"1"},{"presence":"value","value":"10"},{"presence":"value","value":"9223372036854775807"},{"presence":"null"},{"presence":"value","value":false}]"#
+            .to_owned(),
+        r#"[{"presence":"value","value":"7"},{"presence":"value","value":"0"},{"presence":"value","value":"0"},{"presence":"value","value":"beta"},{"presence":"value","value":true}]"#
+            .to_owned(),
+    ]
+}
+
+fn desk_actual() -> String {
+    typed_rows("complete", &desk_rows())
+}
+
+fn desk_actual_rows_reversed() -> String {
+    let rows = desk_rows();
+    typed_rows("complete", &[rows[2].clone(), rows[1].clone(), rows[0].clone()])
+}
+
+fn desk_prefix() -> String {
+    let rows = desk_rows();
+    typed_rows("complete", &[rows[0].clone()])
+}
+
+fn typed_rows(completion: &str, rows: &[String]) -> String {
+    let body = rows.join(",");
+    format!(
+        r#"{{"kind":"rows","completion":"{completion}","warnings":[],"columns":[{{"name":"lane","type":"int64"}},{{"name":"rank","type":"int64"}},{{"name":"stamp","type":"int64"}},{{"name":"note","type":"text"}},{{"name":"open","type":"bool"}}],"rows":[{body}]}}"#
+    )
+}
+
+fn request_json(password: &Path, ca: &Path, audit: &Path, host: &str) -> String {
+    format!(
+        concat!(
+            r#"{{"version":"oo.gateway.query-pg/v1","endpoint":{{"host":"{host}","port":5432,"database":"oo_a198","user":"oo_a198_login"}},"#,
+            r#""password_file":"{password}","ca_file":"{ca}","audit_file":"{audit}","#,
+            r#""identity":{{"project":"tickets","role":"oo_r_desk","policy_id":"{config}"}},"#,
+            r#""policies":[{{"project":"tickets","config_digest":"{config}","generation":7,"role":"desk","login":"oo_a198_login","table":{{"namespace":"dispatch","name":"ticket","columns":["#,
+            r#"{{"name":"lane","status":"confirmed","semantic_type":"value","pii":{{"class":"none"}}}},"#,
+            r#"{{"name":"rank","status":"confirmed","semantic_type":"value","pii":{{"class":"none"}}}},"#,
+            r#"{{"name":"stamp","status":"confirmed","semantic_type":"value","pii":{{"class":"none"}}}},"#,
+            r#"{{"name":"note","status":"confirmed","semantic_type":"value","pii":{{"class":"none"}}}},"#,
+            r#"{{"name":"open","status":"confirmed","semantic_type":"value","pii":{{"class":"none"}}}}]}}}}],"#,
+            r#""catalog":{{"max_tables":4,"max_columns":64,"max_functions":1,"max_operators":64,"large_table_row_threshold":1000000,"unknown_rows":"refuse"}},"#,
+            r#""statement":{{"source":"request","sql":"SELECT lane, rank, stamp, note, open FROM dispatch.ticket ORDER BY lane","max_rows":20,"max_result_bytes":4096,"wall_clock_ms":30000}}}}"#
+        ),
+        host = host,
+        password = password.display(),
+        ca = ca.display(),
+        audit = audit.display(),
+        config = CONFIG,
+    )
+}
+
+fn header(columns: &[(&str, &str, Option<u64>)]) -> String {
+    let mut body = String::new();
+    for (index, (name, ty, ordinal)) in columns.iter().enumerate() {
+        if index > 0 {
+            body.push(',');
+        }
+        let ordinal = match ordinal {
+            Some(value) => value.to_string(),
+            None => "null".to_owned(),
+        };
+        body.push_str(&format!(
+            r#"{{"name":"{name}","type":"{ty}","ordinal":{ordinal}}}"#
+        ));
+    }
+    format!(
+        r#"{{"record":"header","version":"oo.benchmark.query-result-adapter/v1","turn":0,"max_rows":20,"max_result_bytes":4096,"columns":[{body}]}}"#
+    )
+}
+
+fn summary_line(status: &str, truncated: bool, rows: u64, end_audit: bool) -> String {
+    format!(
+        r#"{{"record":"summary","turn":0,"status":"{status}","truncated":{truncated},"returned_rows":{rows},"result_bytes":16,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":{end_audit},"original_sha256":"{HASH}","executed_sha256":"{HASH}","stop":null,"sqlstate":null}}"#
+    )
+}
+
+fn stream(header_line: &str, rows: &[&str], status: &str, truncated: bool, count: u64, end_audit: bool) -> String {
+    let mut out = String::from(header_line);
+    out.push('\n');
+    for row in rows {
+        out.push_str(row);
+        out.push('\n');
+    }
+    out.push_str(&summary_line(status, truncated, count, end_audit));
+    out.push('\n');
+    out
+}
+
+fn compare(mode: &str, expected: &str, actual: &str) -> String {
+    format!(
+        r#"{{"actual":{actual},"expected":{expected},"row_comparator":"{mode}","version":"oo.benchmark.result-comparison/v1"}}"#
+    )
+}
+
+fn side_text(name: &str, ty: &str, rows: &[&str]) -> String {
+    let body = rows.join(",");
+    format!(
+        r#"{{"columns":[{{"name":"{name}","type":"{ty}"}}],"completion":"complete","kind":"rows","rows":[{body}],"warnings":[]}}"#
+    )
+}
+
+fn side_decimal(name: &str, cell: &str) -> String {
+    side_text(name, "decimal", &[cell])
+}
+
+fn side_done(completion: &str, cell: &str) -> String {
+    format!(
+        r#"{{"columns":[{{"name":"note","type":"text"}}],"completion":"{completion}","kind":"rows","rows":[{cell}],"warnings":[]}}"#
+    )
+}
+
+fn cell_presence(word: &str) -> String {
+    format!(r#"[{{"presence":"{word}"}}]"#)
+}
+
+fn value_cell(value: &str) -> String {
+    format!(r#"[{{"presence":"value","value":"{value}"}}]"#)
+}
+
+fn text_cell(value: &str) -> String {
+    value_cell(value)
+}
+
+fn decimal_cell(negative: bool, coefficient: &str, scale: i32) -> String {
+    format!(
+        r#"[{{"coefficient":"{coefficient}","negative":{negative},"presence":"value","scale":{scale}}}]"#
+    )
+}
+
+struct Question {
+    id: &'static str,
+    left: &'static [&'static str],
+    right: &'static [&'static str],
+}
+
+fn document(seed: &str, resamples: u32, questions: &[Question], right_project: &str) -> String {
+    let left = variant("left", "a242", questions, true);
+    let right = variant("right", right_project, questions, false);
+    format!(
+        concat!(
+            r#"{{"algorithm":"oo.benchmark.paired-question-bootstrap/v1","resamples":{resamples},"seed":"{seed}","#,
+            r#""variants":[{left},{right}],"version":"oo.benchmark.trial-statistics/v1"}}"#
+        ),
+        resamples = resamples,
+        seed = seed,
+        left = left,
+        right = right,
+    )
+}
+
+fn variant(id: &str, project: &str, questions: &[Question], left: bool) -> String {
+    let mut body = String::new();
+    for (index, question) in questions.iter().enumerate() {
+        if index > 0 {
+            body.push(',');
+        }
+        let trials = if left { question.left } else { question.right };
+        body.push_str(&format!(
+            r#"{{"id":"{id}","trials":{trials}}}"#,
+            id = question.id,
+            trials = trials_json(trials),
+        ));
+    }
+    format!(
+        concat!(
+            r#"{{"id":"{id}","questions":[{body}],"tuple":{{"project":"{project}","snapshot":"snap","as_of":"d1","#,
+            r#""dataset":"desk","suite":"rev","model":"none","harness":"review","role":"desk","budget":"small","scorer_version":"v1"}}}}"#
+        ),
+        id = id,
+        body = body,
+        project = project,
+    )
+}
+
+fn trials_json(trials: &[&str]) -> String {
+    let mut body = String::from("[");
+    for (index, status) in trials.iter().enumerate() {
+        if index > 0 {
+            body.push(',');
+        }
+        body.push_str(&format!(r#"{{"index":{index},"status":"{status}"}}"#));
+    }
+    body.push(']');
+    body
+}
+
+fn oracle(
+    seed_text: &str,
+    resamples: u32,
+    questions: &[Question],
+    trace_path: &Path,
+    label: &str,
+) -> Result<String, String> {
+    let n = questions.len();
+    let n_u = u64::try_from(n).map_err(|_| "n".to_owned())?;
+    let mut left_bits = Vec::new();
+    let mut right_bits = Vec::new();
+    let mut reannotation = 0_u32;
+    for question in questions {
+        if question.left.len() != question.right.len() {
+            return Err("oracle length".to_owned());
+        }
+        let left = question.left.iter().all(|status| *status == "pass");
+        let right = question.right.iter().all(|status| *status == "pass");
+        left_bits.push(left);
+        right_bits.push(right);
+        if question.left.contains(&"needs_reannotation")
+            || question.right.contains(&"needs_reannotation")
+        {
+            reannotation += 1;
+        }
+    }
+    let left_count = left_bits.iter().filter(|bit| **bit).count() as u32;
+    let right_count = right_bits.iter().filter(|bit| **bit).count() as u32;
+    let mut state: u64 = seed_text.parse().map_err(|_| "seed".to_owned())?;
+    let mut diffs = Vec::new();
+    let mut trace = format!("{label}\n");
+    for sample in 0..resamples {
+        let mut drawn = [0_i64, 0_i64];
+        let mut indexes = Vec::new();
+        for _ in 0..n {
+            let index = next_index(&mut state, n_u);
+            indexes.push(index);
+            if left_bits[index] {
+                drawn[0] += 1;
+            }
+            if right_bits[index] {
+                drawn[1] += 1;
+            }
+        }
+        let diff = reduce(drawn[1] - drawn[0], n_u);
+        trace.push_str(&format!(
+            "sample={sample} indexes={indexes:?} diff={}/{}\n",
+            diff.0, diff.1
+        ));
+        diffs.push(diff);
+    }
+    diffs.sort_by(|left, right| cmp_rational(*left, *right));
+    let low_rank = resamples * 25 / 1000;
+    let high_rank = resamples * 975 / 1000;
+    let low = diffs[low_rank as usize];
+    let high = diffs[high_rank as usize];
+    let point = reduce(i64::from(right_count) - i64::from(left_count), n_u);
+    let gate = if reannotation == 0 { "passed" } else { "failed" };
+    let k = questions[0].left.len() as u32;
+    let report = format!(
+        concat!(
+            r#"{{"algorithm":"oo.benchmark.paired-question-bootstrap/v1","gate":"{gate}","high_rank":{high_rank},"low_rank":{low_rank},"#,
+            r#""percentile_high":{high},"percentile_low":{low},"point_difference":{point},"question_count":{n},"reannotation_count":{reannotation},"#,
+            r#""resamples":{resamples},"seed":"{seed}","trial_count":{k},"variants":[{left},{right}],"#,
+            r#""version":"oo.benchmark.trial-statistics-report/v1"}}"#
+        ),
+        gate = gate,
+        high_rank = high_rank,
+        low_rank = low_rank,
+        high = rat_json(high),
+        low = rat_json(low),
+        point = rat_json(point),
+        n = n,
+        reannotation = reannotation,
+        resamples = resamples,
+        seed = seed_text,
+        k = k,
+        left = variant_json("left", reduce(i64::from(left_count), n_u), left_count),
+        right = variant_json("right", reduce(i64::from(right_count), n_u), right_count),
+    );
+    let mut previous = String::new();
+    if trace_path.is_file() {
+        previous = fs::read_to_string(trace_path).map_err(|err| format!("read trace: {err}"))?;
+        if !previous.ends_with('\n') {
+            previous.push('\n');
+        }
+    }
+    previous.push_str(&trace);
+    fs::write(trace_path, previous).map_err(|err| format!("write trace: {err}"))?;
+    Ok(report)
+}
+
+fn variant_json(id: &str, pass_k: (i64, u64), count: u32) -> String {
+    format!(
+        r#"{{"id":"{id}","pass_k":{pass},"pass_k_count":{count}}}"#,
+        id = id,
+        pass = rat_json(pass_k),
+        count = count,
+    )
+}
+
+fn rat_json(value: (i64, u64)) -> String {
+    format!(
+        r#"{{"denominator":{den},"numerator":{num}}}"#,
+        den = value.1,
+        num = value.0
+    )
+}
+
+fn splitmix64_step(state: u64) -> (u64, u64) {
+    let state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    (z ^ (z >> 31), state)
+}
+
+fn unbiased_index(draw: u64, n: u64) -> Option<u64> {
+    if n == 0 {
+        return None;
+    }
+    let zone = (u64::MAX / n) * n;
+    if draw < zone { Some(draw % n) } else { None }
+}
+
+fn next_index(state: &mut u64, n: u64) -> usize {
+    loop {
+        let (draw, next) = splitmix64_step(*state);
+        *state = next;
+        if let Some(index) = unbiased_index(draw, n) {
+            return usize::try_from(index).expect("index");
+        }
+    }
+}
+
+fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        let next = a % b;
+        a = b;
+        b = next;
+    }
+    a
+}
+
+fn reduce(numerator: i64, denominator: u64) -> (i64, u64) {
+    if numerator == 0 {
+        return (0, 1);
+    }
+    let g = gcd(numerator.unsigned_abs(), denominator);
+    let g_i = i64::try_from(g).expect("gcd");
+    (numerator / g_i, denominator / g)
+}
+
+fn cmp_rational(left: (i64, u64), right: (i64, u64)) -> Ordering {
+    let cross_left = i128::from(left.0) * i128::from(right.1);
+    let cross_right = i128::from(right.0) * i128::from(left.1);
+    cross_left.cmp(&cross_right)
+}
+
+fn scan_evidence(root: &Path, log: &mut String) -> Result<(), String> {
+    let password = fs::read(env_var("PASSWORD_FILE")?).map_err(|err| format!("read password: {err}"))?;
+    let admin = fs::read(env_var("ADMIN_FILE")?).map_err(|err| format!("read admin: {err}"))?;
+    let mut files = Vec::new();
+    walk_files(root, &mut files)?;
+    for path in files {
+        let bytes = fs::read(&path).map_err(|err| format!("read {}: {err}", path.display()))?;
+        if leaked(&bytes, &password) || leaked(&bytes, &admin) {
+            return Err(format!("password bytes in {}", path.display()));
+        }
+        if bytes.windows(b"PRIVATE KEY".len()).any(|window| window == b"PRIVATE KEY") {
+            return Err(format!("private key text in {}", path.display()));
+        }
+    }
+    note(log, "secret-scan");
+    Ok(())
+}
+
+fn leaked(bytes: &[u8], secret: &[u8]) -> bool {
+    let mut needles = Vec::new();
+    if secret.len() >= 16 {
+        needles.push(secret);
+    }
+    let trimmed = trim_ascii(secret);
+    if trimmed.len() >= 16 && trimmed.len() != secret.len() {
+        needles.push(trimmed);
+    }
+    needles
+        .into_iter()
+        .any(|needle| bytes.windows(needle.len()).any(|window| window == needle))
+}
+
+fn trim_ascii(bytes: &[u8]) -> &[u8] {
+    let start = bytes
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or(bytes.len());
+    let end = bytes
+        .iter()
+        .rposition(|byte| !byte.is_ascii_whitespace())
+        .map(|index| index + 1)
+        .unwrap_or(start);
+    &bytes[start..end]
+}
+
+fn walk_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    let mut entries = fs::read_dir(dir)
+        .map_err(|err| format!("read {}: {err}", dir.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("read {}: {err}", dir.display()))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let path = entry.path();
+        let kind = entry
+            .file_type()
+            .map_err(|err| format!("type {}: {err}", path.display()))?;
+        if kind.is_symlink() {
+            return Err(format!("symlink {}", path.display()));
+        }
+        if kind.is_dir() {
+            if entry.file_name() == "attempts" {
+                continue;
+            }
+            walk_files(&path, files)?;
+        } else if kind.is_file() {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
+

@@ -1,0 +1,9 @@
+ExitCode=127
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a242-eef831aa-net
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
+Id=94608d0e90bcfda60da3a9daa97c6f2274eaead085cc653aa0880e56603ea459

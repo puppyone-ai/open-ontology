@@ -1,0 +1,1 @@
+{"differences":[{"actual":"1","expected":"2","path":"rows","reason":"multiplicity","row":"[{\"presence\":\"value\",\"value\":\"7\"}]"}],"verdict":"mismatch","version":"oo.benchmark.result-comparison-report/v1"}

@@ -1,0 +1,1 @@
+{"differences":[{"actual":"{\"presence\":\"missing\"}","expected":"{\"presence\":\"null\"}","path":"rows/0/0","reason":"presence"}],"verdict":"mismatch","version":"oo.benchmark.result-comparison-report/v1"}

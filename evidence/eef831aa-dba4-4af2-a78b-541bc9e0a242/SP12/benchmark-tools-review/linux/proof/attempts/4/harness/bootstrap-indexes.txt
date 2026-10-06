@@ -1,0 +1,12 @@
+full-vector
+sample=0 indexes=[0] diff=-1/1
+paired
+sample=0 indexes=[1, 0] diff=0/1
+sample=1 indexes=[0, 1] diff=0/1
+sample=2 indexes=[0, 1] diff=0/1
+sample=3 indexes=[0, 0] diff=-1/1
+reannotation
+sample=0 indexes=[1, 0] diff=1/2
+sample=1 indexes=[0, 1] diff=1/2
+sample=2 indexes=[0, 1] diff=1/2
+sample=3 indexes=[0, 0] diff=0/1
