@@ -1,0 +1,7 @@
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+    Finished `test` profile [unoptimized] target(s) in 1.40s
+     Running unittests src/lib.rs (/target/tool/debug/deps/cdc_transaction-e0a3dcc028f573d1)
+     Running unittests src/main.rs (/target/tool/debug/deps/cdc_transaction-3a93ef4ccf23d059)
+     Running tests/cli.rs (/target/tool/debug/deps/cli-f53db10d3ac953bf)
+     Running tests/handcomputed.rs (/target/tool/debug/deps/handcomputed-ede180c55871026c)
+   Doc-tests cdc_transaction

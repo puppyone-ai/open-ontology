@@ -1,0 +1,22 @@
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+warning: field `charge` is never read
+  --> src/assemble.rs:42:5
+   |
+33 | struct StoredEvent {
+   |        ----------- field in this struct
+...
+42 |     charge: u64,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `cdc-transaction` (lib) generated 1 warning
+error: environment variable `CARGO_BIN_EXE_cdc_transaction` not defined at compile time
+  --> tests/cli.rs:11:36
+   |
+11 |     let mut command = Command::new(env!("CARGO_BIN_EXE_cdc_transaction"));
+   |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_cdc_transaction")` instead
+
+error: could not compile `cdc-transaction` (test "cli") due to 1 previous error

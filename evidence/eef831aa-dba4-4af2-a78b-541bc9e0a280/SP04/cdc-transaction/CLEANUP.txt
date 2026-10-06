@@ -1,0 +1,17 @@
+Own cleanup after impl-7 and review-1. No prune. The pinned Rust image was left in place. Foreign containers were not removed. oo-a276-pg was still running and was not touched.
+
+Removed:
+  network oo-a280-eef831aa-net
+  volume oo-a280-eef831aa-cargo
+  volume oo-a280-eef831aa-target
+  volume oo-a280-eef831aa-target-review
+  directory /tmp/oo-a280-eef831aa-dba4-4af2-a78b-541bc9e0a280
+
+Confirmed after removal:
+  docker network ls has no oo-a280-eef831aa-net
+  docker volume ls has no oo-a280-eef831aa volume
+  the private tmp directory is gone
+  image sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 is still present
+  oo-a276-pg is still up
+
+Session containers oo-a280-precode, oo-a280-impl, oo-a280-impl-2, oo-a280-impl-3, oo-a280-impl-4, oo-a280-impl-5, oo-a280-impl-6, oo-a280-impl-7, and oo-a280-review-1 were removed by their own launch scripts. The manifest container is removed by linux/manifest/launch.sh after the inventory.

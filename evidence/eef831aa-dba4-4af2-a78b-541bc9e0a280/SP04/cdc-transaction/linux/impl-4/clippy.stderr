@@ -1,0 +1,84 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking memchr v2.8.3
+    Checking itoa v1.0.18
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking cdc-transaction v0.1.0 (/work/cdc-transaction)
+error: this block may be rewritten with the `?` operator
+   --> src/assemble.rs:172:9
+    |
+172 | /         if let Err(fault) = self.bump_lines() {
+173 | |             return Err(fault);
+174 | |         }
+    | |_________^ help: replace it with: `self.bump_lines()?;`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#question_mark
+    = note: `-D clippy::question-mark` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::question_mark)]`
+
+error: this block may be rewritten with the `?` operator
+   --> src/assemble.rs:176:9
+    |
+176 | /         if let Err(fault) = self.add_bytes(bytes) {
+177 | |             return Err(fault);
+178 | |         }
+    | |_________^ help: replace it with: `self.add_bytes(bytes)?;`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#question_mark
+
+error: this `if` statement can be collapsed
+   --> src/assemble.rs:857:9
+    |
+857 | /         if let Some(id) = &txn_id {
+858 | |             if let Some(txn) = self.open.iter_mut().find(|txn| txn.txn_id == *id) {
+859 | |                 txn.status = OpenStatus::Refused;
+860 | |             }
+861 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+857 ~         if let Some(id) = &txn_id
+858 ~             && let Some(txn) = self.open.iter_mut().find(|txn| txn.txn_id == *id) {
+859 |                 txn.status = OpenStatus::Refused;
+860 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/model.rs:552:5
+    |
+552 | /     if let Some(frac) = frac {
+553 | |         if frac.is_empty()
+554 | |             || !frac.bytes().all(|byte| byte.is_ascii_digit())
+555 | |             || int_part.len() + frac.len() > 76
+...   |
+559 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+552 ~     if let Some(frac) = frac
+553 ~         && (frac.is_empty()
+554 |             || !frac.bytes().all(|byte| byte.is_ascii_digit())
+555 ~             || int_part.len() + frac.len() > 76)
+556 |         {
+557 |             return Err(code);
+558 ~         }
+    |
+
+error: manual implementation of `.is_multiple_of()`
+   --> src/model.rs:573:8
+    |
+573 |     if text.len() % 2 == 0
+    |        ^^^^^^^^^^^^^^^^^^^ help: replace with: `text.len().is_multiple_of(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_is_multiple_of
+    = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: could not compile `cdc-transaction` (lib) due to 5 previous errors

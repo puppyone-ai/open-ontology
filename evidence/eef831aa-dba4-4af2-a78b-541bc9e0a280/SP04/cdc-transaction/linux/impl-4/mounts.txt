@@ -1,0 +1,8 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/oracle/cdc_d01_position.rs /oracle/cdc_d01_position.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/impl-4/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/impl-4 /evidence rw=true
+volume /var/lib/docker/volumes/oo-a280-eef831aa-cargo/_data /cargo rw=true
+volume /var/lib/docker/volumes/oo-a280-eef831aa-target/_data /target rw=true
+bind /Users/redux/puppy-one/open-ontology/tools/cdc-transaction /tool rw=false
+bind /tmp/oo-a280-eef831aa-dba4-4af2-a78b-541bc9e0a280/impl-4/core /core rw=false
+
