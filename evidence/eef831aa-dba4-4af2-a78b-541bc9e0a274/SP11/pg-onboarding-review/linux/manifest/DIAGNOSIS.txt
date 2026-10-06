@@ -1,0 +1,4 @@
+manifest.exit is 0 and the console prints manifest=ok. That exit is not a completed inventory.
+rustc wrote /tmp/sha256_manifest. Executing it returned "Permission denied" because the container tmpfs does not allow execution.
+The script did not check that status, and /out/SHA256SUMS was not created.
+Attempt 2 compiles the walker under /out and uses set -e.

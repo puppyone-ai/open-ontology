@@ -1,0 +1,7 @@
+bind /tmp/oo-a274-eef831aa-dba4-4af2-a78b-541bc9e0a274/preoverlay-attempt-3/archive/tools/pg-onboarding /onboarding rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/linux/preoverlay-attempt-3/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/tools/sha256_manifest.rs /tools/sha256_manifest.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review /evidence rw=true
+volume /var/lib/docker/volumes/oo-a274-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a274-eef831aa-target/_data /target rw=true
+

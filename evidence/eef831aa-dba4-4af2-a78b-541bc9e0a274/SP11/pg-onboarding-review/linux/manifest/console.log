@@ -1,0 +1,4 @@
+oo_task=sp11-pg-onboarding-review-manifest
+phase=manifest
+/inside.sh: line 8: /tmp/sha256_manifest: Permission denied
+manifest=ok

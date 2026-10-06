@@ -1,0 +1,20 @@
+oo_task=sp11-pg-onboarding-review-preoverlay-2
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a274
+oo_platform=linux/arm64
+phase=preoverlay
+Linux 8e3640d67580 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=source-identity
+=== rustc sha256_manifest ===
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=sha256-walk
+phase_exit=0 phase=lock
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== cargo test --locked --offline live ignored ===
+phase_exit=0 phase=test
+phase_exit=0 phase=test-count
+phase_exit=0 phase=named-tests
+phase_exit=0 phase=cargo-update-text
+preoverlay=ok
