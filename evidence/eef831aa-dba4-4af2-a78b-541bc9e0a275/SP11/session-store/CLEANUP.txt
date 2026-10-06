@@ -1,0 +1,13 @@
+Own resources removed after linux/impl-7. Each command exited 0.
+
+docker stop oo-a275-pg
+docker rm oo-a275-pg
+docker volume rm oo-a275-eef831aa-cargo
+docker volume rm oo-a275-eef831aa-target-precode
+docker volume rm oo-a275-eef831aa-target-impl
+docker volume rm oo-a275-eef831aa-target-impl2
+docker volume rm oo-a275-eef831aa-pgdata
+docker network rm oo-a275-eef831aa-net
+rm -rf /tmp/oo-a275-eef831aa-dba4-4af2-a78b-541bc9e0a275
+
+After that, no container, volume, or network named oo-a275 remained. The pinned Rust and PostgreSQL images were left in place. docker prune was not run. Containers labeled oo.owner=a064 were not removed. Foreign volumes were not removed.

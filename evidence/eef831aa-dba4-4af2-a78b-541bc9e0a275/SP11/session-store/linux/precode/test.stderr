@@ -1,0 +1,18 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling session-transition v0.1.0 (/work/session-transition)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.08s
+     Running unittests src/lib.rs (/target/debug/deps/session_transition-b913534cf79dbc68)
+     Running unittests src/main.rs (/target/debug/deps/session_transition-da4b2c211361f337)
+     Running tests/cli_roundtrip.rs (/target/debug/deps/cli_roundtrip-a1910d2e39273045)
+     Running tests/handcomputed.rs (/target/debug/deps/handcomputed-8730d2315324e0f1)
+   Doc-tests session_transition

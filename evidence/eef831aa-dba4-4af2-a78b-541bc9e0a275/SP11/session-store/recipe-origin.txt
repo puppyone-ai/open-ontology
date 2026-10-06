@@ -1,0 +1,21 @@
+Rust launch recipe origin
+commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+cross_check_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+cross_check_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+postgres_origin_commit=a587031c719a484830d78e493605f48e2056cae4
+postgres_origin_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+postgres_origin_sha256=96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+postgres_wrap_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+postgres_wrap_sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+hash_tool_origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a265/SP11/session-transition/tools/sha256_manifest.rs
+hash_tool_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+minimal_changes=uuid a275; memory 6g; cpus 1; cap_global 10; precode cargo-tests the fixed session-transition tree before session-store exists; private bridge network for the locked fetch, not host and not internal; one private postgres only after the smoke; no product overlay on the reducer
+fixed_source=9951cda7f128e30f1f6ce02e409d542d20a9e4fb
+reducer_commit=b0f7da4771e3c3625a45329c721e174f4380571c
+reducer_tree=a25733870f1ffac55c057dd399270905ccca9151
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres_image=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb

@@ -1,0 +1,4 @@
+    Updating crates.io index
+     Locking 129 packages to latest Rust 1.94.0 compatible versions
+      Adding tokio v1.53.1 (available: v1.53.2)
+      Adding tokio-rustls v0.26.5 (available: v0.26.6)

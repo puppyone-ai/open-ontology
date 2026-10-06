@@ -1,0 +1,7 @@
+   Compiling session-transition v0.1.0 (/work/session-transition)
+   Compiling session-store v0.1.0 (/work/session-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.71s
+     Running unittests src/lib.rs (/target/debug/deps/session_store-f012bec7e379bc28)
+     Running unittests src/main.rs (/target/debug/deps/session_store-353a0332120d84db)
+     Running tests/live.rs (/target/debug/deps/live-8f14ac29a767ce30)
+   Doc-tests session_store

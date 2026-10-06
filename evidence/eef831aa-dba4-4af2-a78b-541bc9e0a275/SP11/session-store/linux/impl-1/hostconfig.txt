@@ -1,0 +1,8 @@
+ExitCode=4
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a275-eef831aa-net
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
