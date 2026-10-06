@@ -1,0 +1,25 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+error[E0277]: `Vec<serde_json::Value>` doesn't implement `std::fmt::Display`
+   --> crates/oo-builder/tests/ontology_artifact_diff_a243_review.rs:601:32
+    |
+601 |     assert_eq!(keys, ordered, "{facts}");
+    |                                ^^^^^^^ `Vec<serde_json::Value>` cannot be formatted with the default formatter
+    |
+    = help: the trait `std::fmt::Display` is not implemented for `Vec<serde_json::Value>`
+    = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    = note: required for `&Vec<serde_json::Value>` to implement `std::fmt::Display`
+    = note: this error originates in the macro `$crate::format_args` which comes from the expansion of the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Vec<serde_json::Value>` doesn't implement `std::fmt::Display`
+   --> crates/oo-builder/tests/ontology_artifact_diff_a243_review.rs:642:42
+    |
+642 |         "missing one {id} {layer}; facts={facts}"
+    |                                          ^^^^^^^ `Vec<serde_json::Value>` cannot be formatted with the default formatter
+    |
+    = help: the trait `std::fmt::Display` is not implemented for `Vec<serde_json::Value>`
+    = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    = note: required for `&Vec<serde_json::Value>` to implement `std::fmt::Display`
+    = note: this error originates in the macro `$crate::format_args` which comes from the expansion of the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-builder` (test "ontology_artifact_diff_a243_review") due to 2 previous errors

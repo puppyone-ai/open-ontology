@@ -1,0 +1,14 @@
+
+running 9 tests
+test column_rename_adds_and_removes_column_identities ... ok
+test corrupt_version_and_shape_inputs_refuse ... ok
+test flag_order_and_whitespace_do_not_change_the_diff ... ok
+test foreign_key_change_keeps_the_constraint_identity ... ok
+test preimage_locks_the_checked_in_shop_hashes ... ok
+test resealed_duplicate_column_is_duplicate_fact ... ok
+test stale_review_and_curated_classification_stay_unaccepted ... ok
+test type_change_changes_the_physical_and_generated_column ... ok
+test unchanged_catalogs_emit_a_deterministic_sealed_diff ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+

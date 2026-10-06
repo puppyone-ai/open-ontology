@@ -1,0 +1,3 @@
+04a5df89bb4906a96528f7fba4489e992becde0d4e9fc50b8f7a395545f47e88  crates/oo-builder/src/captured_pg.rs
+9fb2562bf81892436f81087c719723a48f21395fb7134e3933a69f66d8807b3f  crates/oo-builder/src/bin/oo-builder.rs
+a139649d0c19f83e040046bc76ecc7a110b5aed873b96113dcc0e26bbb8f9d6e  contracts/builder/artifact-diff-v1.md
