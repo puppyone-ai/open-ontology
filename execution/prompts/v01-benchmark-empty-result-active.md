@@ -5,3 +5,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 
 
 Continuation: prior CLI handle exited0 without full REPORT/FINDINGS/HANDOFF. First collect and await any EXISTING own builder/container/runner result and finish raw exits/manifests/reports/cleanup. Never duplicate already-running build/PG. Resume sameUUID; preserve failed attempts and fixedarchive identity. Stay through complete scoped delivery.
+
+Recovery: twelve means concurrent DEVELOPMENTGrokPROCESSES not totalcontainers/lifetimeattempts. Globalten means concurrentRustbuilders. Prior resumed actor againexited incomplete. Firstcollect existing ownactualresult; fix concretefailure and continue completeproof/reports/commit. No duplicatebuilder/PG. CLIactorfailure notproductcertification.
