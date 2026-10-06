@@ -1,0 +1,22 @@
+    Checking oo-question-bank-suite v0.1.0 (/src/benchmarks/question-bank-suite)
+error: stripping a prefix manually
+   --> tests/compile.rs:189:24
+    |
+189 |         format!("1{}", &original[1..])
+    |                        ^^^^^^^^^^^^^^
+    |
+note: the prefix was tested here
+   --> tests/compile.rs:188:16
+    |
+188 |     let hash = if original.starts_with('0') {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_strip
+    = note: `-D clippy::manual-strip` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_strip)]`
+help: try using the `strip_prefix` method
+    |
+188 ~     let hash = if let Some(<stripped>) = original.strip_prefix('0') {
+189 ~         format!("1{}", <stripped>)
+    |
+
+error: could not compile `oo-question-bank-suite` (test "compile") due to 1 previous error

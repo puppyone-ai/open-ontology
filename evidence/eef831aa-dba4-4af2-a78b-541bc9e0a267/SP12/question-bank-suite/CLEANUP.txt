@@ -1,0 +1,24 @@
+After the refresh pass rewrites MANIFEST.sha256, this session removes only its own resources.
+
+Containers already removed before these documents were written:
+
+- oo-a267-smoke
+- oo-a267-impl
+- oo-a267-impl-2
+- oo-a267-impl-3
+- oo-a267-impl-4
+- oo-a267-manifest-origins
+- oo-a267-manifest-origins-print
+
+Removed after the refresh pass, and only if they still exist under these names:
+
+- container oo-a267-manifest, if launch.sh did not already remove it
+- container oo-a267-manifest-refresh, if refresh.sh did not already remove it
+- volume oo-a267-eef831aa-cargo
+- volume oo-a267-eef831aa-target
+- network oo-a267-eef831aa-net
+- directory /tmp/oo-a267-eef831aa-dba4-4af2-a78b-541bc9e0a267
+
+That tmp directory holds the impl archives and the refresh log. The refresh log is outside MANIFEST.sha256 and is deleted with the directory. This file is not edited after the hash to record the removal.
+
+No docker prune. No foreign container, volume, or network is removed. No Postgres container was started for this session. oo-a261-pg is left in place.

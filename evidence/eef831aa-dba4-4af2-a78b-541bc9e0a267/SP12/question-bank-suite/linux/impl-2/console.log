@@ -1,0 +1,61 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+Linux faac307fd686 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+=== rustup components ===
+PHASE component_exit=0
+=== cargo fmt apply ===
+PHASE fmt_apply_exit=0
+=== cargo fmt check ===
+PHASE fmt_exit=0
+=== rustfmt query-pg test double ===
+PHASE stub_fmt_exit=0
+=== cargo generate-lockfile ===
+PHASE lock_offline_exit=0
+PHASE lock_exit=0
+=== prebuild runner binaries ===
+=== cargo build sql-runner offline ===
+PHASE sql-runner_offline_build_exit=0
+PHASE sql-runner_build_exit=0
+=== cargo build query-result-adapter offline ===
+PHASE query-result-adapter_offline_build_exit=0
+PHASE query-result-adapter_build_exit=0
+=== cargo build result-comparator offline ===
+PHASE result-comparator_offline_build_exit=0
+PHASE result-comparator_build_exit=0
+=== rustc query-pg test double ===
+PHASE query_pg_exit=0
+=== cargo test ===
+PHASE test_exit=0
+=== cargo clippy ===
+PHASE clippy_exit=101
+worst_phase_exit=101
