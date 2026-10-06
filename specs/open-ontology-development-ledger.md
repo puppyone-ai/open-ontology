@@ -1350,3 +1350,12 @@ Coordinator accepts B-D01/B-D02/B-D03 aftera242fullreports/459hash0/44freshCLIca
 - [ ] B-D05 / E11-D0/1 frozen BEFORE code: actual runner reports ->paired trial-statistics input, preserve planned failures/reannotation, stricttuple/fullvector; a250standalonewriter. Aggregate31/44=70.45%, not global project completion.
 
 a250actual22564 trial-report adapter1builder0PG. Existingconfirmedlive a24456889/a24664129/a2474557 reviews, a24546614/a24857851/a2491956 development(inclintegration). Actual4dev+3review/max7builders, devcap12 reviewsseparate/global10builders. NextUUIDa251. ONE20minute wait thenONE unified7actualhandles.
+
+ONE20minute unified7actualhandles: a24456889/a24546614/a24664129/a2474557/a24857851/a2491956 actualexit0; reportinventory collected, acceptance pendingfullverification. a25022564 live. No repeatedpolling; retiredclosedhandles.
+
+Coordinator accepts frozen M1-D14E mappingreader aftera246fullreports/186hash0/freshactualcatalogquery+Clippy0/owncontainersabsent, M1-D06B analyzeCLI aftera247257hash0/realcompiledinitimportanalyze/catalogquery+Clippy0/owncontainersabsent, B-D04 trustedSQLrunner aftera244391hash0/livepairedroles/k2/truncatedprefixfail/Clippy0/owncontainersabsent. Metadata wholemappingtable exposure and backendcleanupunknown retained. Historical56→59, firstcomponent48→51/rework10/51=19.61%, authored51unchanged pendinga245/a249verification. E8-D1/1,E7-D2/2,E5-D1/1; aggregate34/44=77.27%, not wholeproject rate. M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] M1-D14E: explicit mapping reader provisioning and catalogquery (a246).
+- [x] M1-D06B: real analyze-pg operator CLI (a247).
+- [x] B-D04: trustedSQLrunner exact/fail/refusal/timeout/truncation with full trial denominators (a244).
+
+a251actual66493 fileCLI fixedreview1builder0PG; a252actual94260 mappingCLI fixedreview1builder1PG. Existinglastconfirmedlive a248originalresume66080 operatorcomposition/a25022564 trialreportadapter dev. Actual2dev+2review, cap12dev reviewsoutside/global10builders. NextUUIDa253. No acceptance of a245/a249 from author/nestedreview alone. ONE20minute wait thenONE unified4handles.
