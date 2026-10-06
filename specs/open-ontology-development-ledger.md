@@ -1339,3 +1339,14 @@ Coordinator accepts frozen M1-D14D ACL CLI13566602 aftera241fullreports/253hash0
 - [ ] M1-D14F / E10-D0/1 frozen BEFORE code: bounded provision-mapping-reader CLI -> actual mapping provision receipt/catalogquery; a249newbin/test/contract only. Aggregate27/43=62.79%, not wholeproject rate. a248 fixedoperatorcomposition evidenceonly, no newdevelopmentunit.
 
 a24664129 mappingreview/a2474557 analyzeCLIreview each1builder1PG; a24857851 operatorcomposition1builder1PG; a2491956 mappingCLI1builder1PG. Lastconfirmedlive a24456889runnerreview/a24546614fileCLI. Actual3dev(inclintegration)+3review, cap12dev reviewsoutside/global10builders. a242/a243 terminalreports pendingfullverification, not reobserved. NextUUIDa250; ONE20minute wait thenONE unified6handles.
+
+ONE20minute wait and ONE unified6actualhandle observation completed: a24456889/a24546614/a24664129/a2474557/a24857851/a2491956 all confirmed live. No intermediate/repeatedpolling, no restart, no acceptancechange. a242/a243 completedreports still await fullcoordinatorverification.
+
+Coordinator accepts B-D01/B-D02/B-D03 aftera242fullreports/459hash0/44freshCLIcases+actualTLSchain/all3Clippy0/owncontainersabsent; truncationprefix canmatch butrunnerseparatelymustrefuse. Accept O-D01 aftera243fullreports/186hash0/fresh5+author9/Clippy0/owncontainersabsent. E1-D3/3,E2-D6/6,E3-D1/1, historical52→56, firstreviews44→48/rework10/48=20.83%, authored51unchanged. Frozen31/43=72.09%; M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] B-D01: exact typed result comparator (a242).
+- [x] B-D02: actual query-result adapter, truncation boundary retained (a242).
+- [x] B-D03: full-vector pass^k and paired small bootstrap oracle (a242).
+- [x] O-D01: sealed artifact diff with stale review and curated preservation (a243).
+- [ ] B-D05 / E11-D0/1 frozen BEFORE code: actual runner reports ->paired trial-statistics input, preserve planned failures/reannotation, stricttuple/fullvector; a250standalonewriter. Aggregate31/44=70.45%, not global project completion.
+
+a250actual22564 trial-report adapter1builder0PG. Existingconfirmedlive a24456889/a24664129/a2474557 reviews, a24546614/a24857851/a2491956 development(inclintegration). Actual4dev+3review/max7builders, devcap12 reviewsseparate/global10builders. NextUUIDa251. ONE20minute wait thenONE unified7actualhandles.

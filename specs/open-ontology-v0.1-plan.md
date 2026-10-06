@@ -1056,3 +1056,10 @@ Coordinator accepts M1-D14C limited reviewed-policy CLI bcc86734 after a239fullr
 Coordinator accepts frozen M1-D14D ACL CLI13566602 aftera241fullreports/253hash0/smoke12+actualindependentquery/Clippy0/owncontainersabsent; fixturemapping/ANALYZE separate. E7-D1/2, accepted51→52, firstreviews43→44/rework10/44=22.73%. a2401f1028f6 mappingmodule253hash0/live+Clippy0 and a2366ac22165 statsCLI216hash0/livecatalog+Clippy0/owncontainersabsent authored49→51 pendingfixedreview. Aggregate27/42=64.29%, M1-D17/24 integration0/4 release0/6 unchanged.
 - [x] M1-D14D: real aggregate install-column-acl CLI and independent compiledquery (a241).
 - [ ] M1-D14F / E10-D0/1 frozen BEFORE code: bounded provision-mapping-reader CLI -> actual mapping provision receipt/catalogquery; a249newbin/test/contract only. Aggregate27/43=62.79%, not wholeproject rate. a248 fixedoperatorcomposition evidenceonly, no newdevelopmentunit.
+
+Coordinator accepts B-D01/B-D02/B-D03 aftera242fullreports/459hash0/44freshCLIcases+actualTLSchain/all3Clippy0/owncontainersabsent; truncationprefix canmatch butrunnerseparatelymustrefuse. Accept O-D01 aftera243fullreports/186hash0/fresh5+author9/Clippy0/owncontainersabsent. E1-D3/3,E2-D6/6,E3-D1/1, historical52→56, firstreviews44→48/rework10/48=20.83%, authored51unchanged. Frozen31/43=72.09%; M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] B-D01: exact typed result comparator (a242).
+- [x] B-D02: actual query-result adapter, truncation boundary retained (a242).
+- [x] B-D03: full-vector pass^k and paired small bootstrap oracle (a242).
+- [x] O-D01: sealed artifact diff with stale review and curated preservation (a243).
+- [ ] B-D05 / E11-D0/1 frozen BEFORE code: actual runner reports ->paired trial-statistics input, preserve planned failures/reannotation, stricttuple/fullvector; a250standalonewriter. Aggregate31/44=70.45%, not global project completion.
