@@ -1405,3 +1405,12 @@ a257actualterminal REQUEST_CHANGES F1 selected_datasets successpathphysnameorder
 Coordinator verified fulla257REPORT/FINDINGS/HANDOFF/165hash0: actualproductcontractfailure selected_datasets sorting, proof2 independent6pass1fail/docker101, Clippy0; same-key authorfixtures hadmissedphysicalA->q_41ordering. Firstcomponentreviews54→55/rework10→11, rate11/55=20.00%. S5-D01 unaccepted,a262repaironlyno newunit/component. a258827e768b CLI119hash0/preedit2+10/proof5Clippy0/owncontainersabsent authored56→57 pending correctedlibrary+CLI fixedreview aftera262. No newacceptance: historical62/frozen37/49/M1-D17/24/integration0/4/release0/6 unchanged.
 
 a262 actual54137 minimumsortingrepair1builder0PG; existingconfirmedlive a25949834 quantityreview/a26093549 questionbankreview/a26132052 onboarding. Actual2development+2review cap12development reviewsoutside/global10builders. NextUUIDa263. ONE20minute wait thenONE unified4actualhandles, no intermediatepolling.
+
+ONE20minute unified4actualhandles: a25949834/a26093549 actualexit0 reports inventory beforeacceptance; a26132052 onboarding/a26254137 sortingrepair confirmedlive. No repeatedpolling/restart/exit-onlyacceptance.
+
+Coordinator accepts M1-D14G integerquantity aftera259fullreports/hashverified/freshphysicalint2int4int8producer+realint8query/Clippy0/owncleanup; existingadapterextension notnewcomponentfirstreview. Accept B-D06 publicsyntheticbank aftera260fullreports/hashverified/freshhandbank+separatedcanaries/Clippy0/owncleanup. E13-D1/1,E14-D1/1; historical62→64, firstreviews55→56/rework11/56=19.64%. OriginalM1-D17/24 integration0/4 release0/6 unchanged.
+- [x] M1-D14G: confirmed integer quantity remainsquantity throughpolicy/query (a259).
+- [x] B-D06: publicsyntheticbank manifest and separateagent/scorerview (a260); full300/realhumanannotation/customerholdoutstillpending.
+- [ ] S5-D03 / E17-D0/1 frozen BEFORE code: actual HTTPS modelprovider adapter/privateTLSproof->capturedresponse/S5candidate boundedfailure and usage; a263standalonetools/description-provider only, no realkeys/customercalls. Aggregate39/50=78%, notglobalrate.
+
+a259433hashentries0bad/a260407hashentries0bad, rawdecisive0andowncontainersabsent confirmed beforecounting. a263actual13071 realHTTPSdescriptionprovider1builder0PG; existingconfirmedlive a26132052 onboarding/a26254137 sortingrepair. Actual3development0review, cap12dev reviewsoutside/global10builders. NextUUIDa264. ONE20minute wait thenONE unified3actualhandles.
