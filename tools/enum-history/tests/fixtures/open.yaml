@@ -1,0 +1,9 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+classes:
+  open: still open
+values:
+  - code: "1"
+    class: open
+    status: approved
+    source: dictionary_table

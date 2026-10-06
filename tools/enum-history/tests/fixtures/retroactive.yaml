@@ -1,0 +1,23 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+owner: finance
+classes:
+  open: open balance
+  closed: settled
+coverage: 0.50
+values:
+  - code: "4"
+    label: old open
+    class: open
+    status: superseded
+    source: inferred
+    valid_from: "2019-01-01"
+    valid_to: "2024-01-01"
+    review: { state: approved, by: finance.li, at: "2024-06-01" }
+  - code: "4"
+    label: new closed
+    class: closed
+    status: approved
+    source: inferred
+    valid_from: "2024-01-01"
+    review: { state: approved, by: finance.li, at: "2024-06-01" }
