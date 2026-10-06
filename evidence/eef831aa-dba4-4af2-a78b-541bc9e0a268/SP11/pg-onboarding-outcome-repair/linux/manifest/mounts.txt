@@ -1,0 +1,7 @@
+volume /var/lib/docker/volumes/oo-a268-eef831aa-target/_data /target rw=true
+bind /Users/redux/puppy-one/open-ontology/tools/pg-onboarding /onboarding rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a268/SP11/pg-onboarding-outcome-repair/linux/manifest/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a268/SP11/pg-onboarding-outcome-repair/tools/sha256_manifest.rs /tool/sha256_manifest.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a268/SP11/pg-onboarding-outcome-repair /evidence rw=true
+bind /tmp/oo-a268-eef831aa-dba4-4af2-a78b-541bc9e0a268/manifest-out /out rw=true
+

@@ -1,0 +1,19 @@
+oo_task=sp11-pg-onboarding-outcome-repair-green
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a268
+oo_platform=linux/arm64
+phase=green
+Linux 536af1d9655f 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=source-identity
+phase_exit=0 phase=lock
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== cargo test --locked --offline ===
+phase_exit=0 phase=test
+=== rustup component add clippy ===
+phase_exit=0 phase=clippy-component
+=== cargo clippy --locked --offline ===
+phase_exit=0 phase=clippy
+phase_exit=0 phase=cargo-update-text
+green=ok
