@@ -1,0 +1,4 @@
+run exit 1. reviewed-policy-clerk exit 11, stderr "reviewed-policy: semantic".
+shop.order_doc.amount is physical int8, typtype b, and the confirmed semantic type is quantity.
+reviewed_policy::compatible does not accept quantity for int8, so no policy DTO was emitted.
+install-column-acl, provision_mapping_reader, analyze-pg, and query-pg did not run.

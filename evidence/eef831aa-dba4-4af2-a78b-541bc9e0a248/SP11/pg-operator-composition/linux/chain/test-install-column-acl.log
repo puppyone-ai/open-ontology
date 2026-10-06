@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/install_column_acl_cli.rs (/target/debug/deps/install_column_acl_cli-44d5852875e178af)
+
+running 12 tests
+test empty_set_is_policy_empty ... ok
+test malformed_json_is_scan ... ok
+test missing_password_file_is_request ... ok
+test overlong_stdin_is_budget ... ok
+test password_inside_document_is_request ... ok
+test private_key_ca_is_tls ... ok
+test private_tls_two_tables_two_roles ... ok
+test row_filter_is_policy_filter ... ok
+test symlink_password_is_request ... ok
+test unknown_field_is_request ... ok
+test usage_exits_2 ... ok
+test wrong_protocol_is_request ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -1,0 +1,36 @@
+a248 pg-operator-composition recipe origin
+
+Fixed archive: e0704257a1509b968a80a9ccd2f200319d5483ad
+Evidence root: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a248/SP11/pg-operator-composition
+
+Unchanged tool blobs, copied from the a226 tree, which copied them from a211.
+a211 recorded them as a200 blobs.
+tools/sha256.rs b69a2af13099ce4baf2d04e79c5692d9988ab67d
+tools/select-debs.rs 565787c25c25bf451343cf4bc0431619c0611899
+pg/pg-wrap.sh e12a368394c724f8f9d3436ad5f4873e139baa66
+
+Launch and build scripts started from the a226 copies of the a211 recipes.
+a211 chain launch blob 42bfd4699327065104467767b6ef490624e350f5
+a211 chain inside blob 1ac6d09d67ec0be06073683b796f3a06f11dea11
+a211 pg/up.sh blob 98c1234fa842f9c0f3a889edcbb202f293236735
+a211 smoke launch blob 4e35d55d9bd49eb437dbb99d2f24f402969913e3
+a200 extract-libclang.sh blob 1c23dbd6ab58cb0f42d218075fd55c0a8c4fe5ea
+a200 smoke launch blob 20b391304358e474c189203eeb525b46fc2ea194
+a200 pg/up.sh blob 1784718c92323df0f216e9f5bd8fee182f4ff24d
+a204 pre-overlay launch blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+a199 pre-overlay launch blob 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+
+Current evidence blobs after the a248 name, fixed-commit, and compiler edits:
+pg/up.sh 86b7d917a0abf431a7801dfddb38f1584a81c65a
+linux/smoke/launch.sh b9fbaa4d0fc40ebb7e280462c70ed2d5624a8e0c
+linux/smoke/inside.sh f7b0d074ded8b511a4dc386005eb1e446a361c9c
+linux/smoke/extract-libclang.sh c448fdfc5a948ee318b33258f9269637210bcd0f
+linux/chain/launch.sh b45f7760be75382d2cdbb6142039a1ce821f0ef8
+linux/chain/inside.sh 691d2a8924e9668869be2e77826791cc5c1cebf0
+cleanup/run.sh 96979f09f57143e1e015bc95f424cefab095fb2b
+
+Minimal script edits from the a226 copies: UUID eef831aa-dba4-4af2-a78b-541bc9e0a248,
+fixed commit e0704257a1509b968a80a9ccd2f200319d5483ad, private names, builder 6g and 1 CPU,
+and the chain calls reviewed-policy, install-column-acl, and analyze-pg.
+The three tool blobs above were not rewritten.
+Standalone lock resolution stays skipped. a207 remains the only root-lock writer.

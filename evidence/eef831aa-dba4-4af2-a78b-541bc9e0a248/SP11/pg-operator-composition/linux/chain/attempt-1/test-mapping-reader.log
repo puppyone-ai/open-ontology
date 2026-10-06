@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (/target/debug/deps/oo_gateway-1639939c36e2014f)
+
+running 5 tests
+test mapping_reader_access::tests::absent_and_exact_privileges_are_distinct ... ok
+test mapping_reader_access::tests::empty_set_is_refused_before_a_client ... ok
+test mapping_reader_access::tests::login_argument_must_match_the_policy ... ok
+test mapping_reader_access::tests::mixed_identity_is_the_compiler_error ... ok
+test mapping_reader_access::tests::row_filter_and_metadata_stay_in_the_compiler ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+

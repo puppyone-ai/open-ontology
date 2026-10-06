@@ -1,0 +1,4 @@
+Standalone cargo resolution is not executed. a211 attempt-standalone showed that a
+separate [workspace] rewrites the lock and drops registry packages. This harness is
+an overlay member of the fixed archive workspace. The skipped log is that citation,
+not a new failed build.
