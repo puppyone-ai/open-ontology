@@ -1,0 +1,15 @@
+Own cleanup after linux/proof-3. No prune. The pinned Rust image was not deleted. Foreign containers, volumes, and networks were not removed.
+
+Removed volumes:
+oo-a292-eef831aa-cargo
+oo-a292-eef831aa-target
+
+Removed network:
+oo-a292-eef831aa-net
+
+Removed directory:
+/tmp/oo-a292-eef831aa-dba4-4af2-a78b-541bc9e0a292
+
+No a292 container was present. docker volume ls and docker network ls showed no a292 names after removal.
+
+The manifest refresh writes stdout under /tmp/oo-a292-eef831aa-dba4-4af2-a78b-541bc9e0a292/manifest-outside. That directory is removed after the inventory container exits. It is not part of this evidence tree.

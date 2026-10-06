@@ -1,0 +1,8 @@
+proof-2 preserved. docker-run.exit=101. OOMKilled=false. Clippy exit 0.
+Sealed archive smoke passed 16 tests before the overlay. Lock subset path 5 matched.
+cargo test --test pack: 4 passed, 4 failed.
+Failures: approved_text_is_resealed_and_packed_per_role, cli_matches_the_library,
+reject_and_defer_leave_the_original_seal, unclassified_allowlist_is_unknown_pii.
+Error: oo.builder.role-pack/v1/identity.invalid an identity token is outside the accepted pattern.
+Role-pack check_slug rejects '.' . The visibility principals were desk.user and pay.user.
+The next attempt is linux/proof-3. This directory is not overwritten.

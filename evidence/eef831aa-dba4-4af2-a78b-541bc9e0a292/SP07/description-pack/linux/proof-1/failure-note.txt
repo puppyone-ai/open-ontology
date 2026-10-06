@@ -1,0 +1,8 @@
+proof-1 preserved. docker-run.exit=101. OOMKilled=false.
+Sealed archive smoke passed 16 tests before the overlay.
+description-pack lock subset matched registry 117, path packages 5, missing 0, mismatch 0.
+cargo test --test pack failed to compile tests/pack.rs:838.
+error[E0277]: the trait bound `char: LowerHex` is not satisfied
+format!("\\u{ch:04x}") does not implement LowerHex for char.
+clippy --all-targets failed on the same error. Product bytes of description-review were unchanged.
+The next attempt is linux/proof-2. This directory is not overwritten.

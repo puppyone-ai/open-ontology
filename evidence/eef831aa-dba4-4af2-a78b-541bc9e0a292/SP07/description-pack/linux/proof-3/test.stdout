@@ -1,0 +1,13 @@
+
+running 8 tests
+test approved_text_is_resealed_and_packed_per_role ... ok
+test cli_matches_the_library ... ok
+test incomplete_compiler_does_not_leak_candidate_text ... ok
+test occupied_dataset_review_is_unsupported ... ok
+test reject_and_defer_leave_the_original_seal ... ok
+test review_hash_and_artifact_mismatch_refuse ... ok
+test stale_schema_and_cas_refuse_without_a_document ... ok
+test unclassified_allowlist_is_unknown_pii ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+

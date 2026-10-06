@@ -1,0 +1,43 @@
+
+running 8 tests
+test approved_text_is_resealed_and_packed_per_role ... FAILED
+test cli_matches_the_library ... FAILED
+test incomplete_compiler_does_not_leak_candidate_text ... ok
+test occupied_dataset_review_is_unsupported ... ok
+test reject_and_defer_leave_the_original_seal ... FAILED
+test review_hash_and_artifact_mismatch_refuse ... ok
+test stale_schema_and_cas_refuse_without_a_document ... ok
+test unclassified_allowlist_is_unknown_pii ... FAILED
+
+failures:
+
+---- approved_text_is_resealed_and_packed_per_role stdout ----
+
+thread 'approved_text_is_resealed_and_packed_per_role' (1053) panicked at tests/pack.rs:694:31:
+pack failed: oo.builder.role-pack/v1/identity.invalid an identity token is outside the accepted pattern
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cli_matches_the_library stdout ----
+
+thread 'cli_matches_the_library' (1054) panicked at tests/pack.rs:1184:31:
+library failed: oo.builder.role-pack/v1/identity.invalid an identity token is outside the accepted pattern
+
+---- reject_and_defer_leave_the_original_seal stdout ----
+
+thread 'reject_and_defer_leave_the_original_seal' (1057) panicked at tests/pack.rs:694:31:
+pack failed: oo.builder.role-pack/v1/identity.invalid an identity token is outside the accepted pattern
+
+---- unclassified_allowlist_is_unknown_pii stdout ----
+
+thread 'unclassified_allowlist_is_unknown_pii' (1060) panicked at tests/pack.rs:1174:5:
+oo.builder.role-pack/v1/identity.invalid
+
+
+failures:
+    approved_text_is_resealed_and_packed_per_role
+    cli_matches_the_library
+    reject_and_defer_leave_the_original_seal
+    unclassified_allowlist_is_unknown_pii
+
+test result: FAILED. 4 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+

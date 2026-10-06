@@ -1,0 +1,4 @@
+   Compiling description-review v0.1.0 (/work/tree/tools/description-review)
+   Compiling description-pack v0.1.0 (/work/tree/tools/description-pack)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.65s
+     Running tests/pack.rs (/target/debug/deps/pack-b59d7697e34baccf)

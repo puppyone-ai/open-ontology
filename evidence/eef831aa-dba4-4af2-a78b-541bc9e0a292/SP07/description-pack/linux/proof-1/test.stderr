@@ -1,0 +1,22 @@
+   Compiling description-review v0.1.0 (/work/tree/tools/description-review)
+   Compiling description-pack v0.1.0 (/work/tree/tools/description-pack)
+error[E0277]: the trait bound `char: LowerHex` is not satisfied
+   --> tests/pack.rs:838:67
+    |
+838 |             ch if (ch as u32) < 0x20 => out.push_str(&format!("\\u{ch:04x}")),
+    |                                                                   ^^^^^^^^ the trait `LowerHex` is not implemented for `char`
+    |
+    = help: the following other types implement trait `LowerHex`:
+              &T
+              &mut T
+              NonZero<T>
+              Saturating<T>
+              Wrapping<T>
+              generic_array::GenericArray<u8, T>
+              i128
+              i16
+            and 27 others
+    = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `description-pack` (test "pack") due to 1 previous error
