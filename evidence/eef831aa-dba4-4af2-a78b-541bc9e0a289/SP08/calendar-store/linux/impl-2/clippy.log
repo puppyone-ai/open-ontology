@@ -1,0 +1,4 @@
+    Checking oo-core v0.1.0 (/cargo-home/work/src/crates/oo-core)
+    Checking business-calendar v0.1.0 (/cargo-home/work/src/tools/business-calendar)
+    Checking calendar-store v0.1.0 (/cargo-home/work/src/tools/calendar-store)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.61s

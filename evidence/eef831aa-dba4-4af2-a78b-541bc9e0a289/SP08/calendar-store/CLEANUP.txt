@@ -1,0 +1,35 @@
+Own resources removed after linux/impl-2 and linux/restart.
+
+docker stop oo-a289-pg
+oo-a289-pg
+exit=0
+
+docker rm oo-a289-pg
+oo-a289-pg
+exit=0
+
+docker volume rm oo-a289-eef831aa-cargo
+oo-a289-eef831aa-cargo
+exit=0
+
+docker volume rm oo-a289-eef831aa-target
+oo-a289-eef831aa-target
+exit=0
+
+docker volume rm oo-a289-eef831aa-pgdata
+oo-a289-eef831aa-pgdata
+exit=0
+
+docker network rm oo-a289-eef831aa-net
+oo-a289-eef831aa-net
+exit=0
+
+rm -rf /tmp/oo-a289-eef831aa-dba4-4af2-a78b-541bc9e0a289
+exit=0
+
+remaining a289 containers:
+remaining a289 volumes:
+remaining a289 networks:
+tmp=absent
+
+The pinned Rust and PostgreSQL images were left in place. docker prune was not run. Foreign containers and volumes were not removed.

@@ -1,0 +1,1 @@
+docker run --name oo-a289-precode --platform linux/arm64 --pull never --network oo-a289-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 bash /inside.sh
