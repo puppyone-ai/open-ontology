@@ -1,0 +1,7 @@
+Rerun after linux/overlay-2 docker-run.exit=101.
+Clippy on that run exited 0. Ten boundary tests passed.
+command_response_matches_id_not_arrival expected sequences 0,1,2.
+The reorder stub emits turn_start before the matching response, then a full
+turn, so the product sequences are 0,1,2,3. The acceptance id stayed c1.
+The decoy response is not the command result. This run expects that sequence.
+linux/overlay-2/a296_boundary.failed.rs is the source that failed.

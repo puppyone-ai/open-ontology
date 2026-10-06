@@ -1,0 +1,32 @@
+PHASE tools
+aarch64
+PHASE node-sums
+PHASE node-tarball
+PHASE pi-git
+Cloning into '/work/pi'...
+Note: switching to '7c10bd4337495ee613f2224843ecdf349b80d1df'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+PHASE github-tarball
+PHASE npm-metadata
+PHASE npm-tarball
+PHASE npm-ci
+PHASE pi-help
+PHASE pi_version_exit=0 pi_help_exit=0
+PHASE pin-sha
+PHASE published-time
+pi-install-ok

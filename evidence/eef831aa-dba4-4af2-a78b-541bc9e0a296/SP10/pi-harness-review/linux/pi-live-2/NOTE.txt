@@ -1,0 +1,7 @@
+Rerun after linux/pi-live docker-run.exit=1.
+That run's four Pi modes, build, and live.exit were 0.
+The oracle compiled from linux/pi-live/review_oracle.compiled.rs rejected
+/sys/class/net because --network none on this host also lists kernel
+fallback devices and the bonding_masters sysfs file.
+This run records the same modes plus the route tables and device counters
+from the same container. The oracle runs after docker writes hostconfig.

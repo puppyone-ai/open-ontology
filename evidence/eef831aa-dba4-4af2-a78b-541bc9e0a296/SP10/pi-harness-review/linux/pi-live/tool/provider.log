@@ -1,0 +1,8 @@
+listen=127.0.0.1:44855 mode=tool
+accept=127.0.0.1:48164
+method=POST path=/v1/chat/completions local_host=true auth_ok=true auth_other=false body_bytes=5878 followup=false
+sent-text
+sent-tool
+accept=127.0.0.1:48170
+method=POST path=/v1/chat/completions local_host=true auth_ok=true auth_other=false body_bytes=6145 followup=true
+sent-after-tool
