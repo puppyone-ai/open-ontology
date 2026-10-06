@@ -1,0 +1,1 @@
+docker-run.exit is 101. cargo fetch failed before any compile: the fixed archive contained tools/session-store and not tools/session-transition, and session-store path-depends on that crate. No generate-lockfile and no cargo update ran. The container was removed. smoke-2 archives both directories.

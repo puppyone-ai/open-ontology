@@ -1,0 +1,16 @@
+cleanup_owner=a304
+=== rm container ===
+oo-a304-pg
+=== rm volumes ===
+oo-a304-eef831aa-cargo
+oo-a304-eef831aa-target
+oo-a304-eef831aa-pgdata
+=== rm network ===
+oo-a304-eef831aa-net
+=== rm tmp ===
+=== after containers ===
+=== after volumes ===
+=== after network ===
+absent
+=== after tmp ===
+absent

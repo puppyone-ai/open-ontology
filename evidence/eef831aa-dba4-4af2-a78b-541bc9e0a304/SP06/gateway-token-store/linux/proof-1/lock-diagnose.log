@@ -1,0 +1,94 @@
+METADATA_EXIT:0
+--- stderr ---
+--- diff stat ---
+--- diff ---
+--- Cargo.lock.before	2026-10-06 12:26:26.396388007 +0000
++++ Cargo.lock	2026-10-06 12:26:26.414388007 +0000
+@@ -271,6 +271,21 @@
+ ]
+ 
+ [[package]]
++name = "gateway-token-store"
++version = "0.1.0"
++dependencies = [
++ "getrandom 0.2.17",
++ "postgres-protocol",
++ "postgres-types",
++ "rustls",
++ "tokio",
++ "tokio-postgres",
++ "tokio-postgres-rustls",
++ "tokio-rustls",
++ "zeroize",
++]
++
++[[package]]
+ name = "getrandom"
+ version = "0.2.17"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -312,12 +327,6 @@
+ ]
+ 
+ [[package]]
+-name = "itoa"
+-version = "1.0.18"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+-
+-[[package]]
+ name = "jobserver"
+ version = "0.1.35"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -626,7 +635,6 @@
+ checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
+ dependencies = [
+  "serde_core",
+- "serde_derive",
+ ]
+ 
+ [[package]]
+@@ -650,34 +658,6 @@
+ ]
+ 
+ [[package]]
+-name = "serde_json"
+-version = "1.0.151"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
+-dependencies = [
+- "itoa",
+- "memchr",
+- "serde",
+- "serde_core",
+- "zmij",
+-]
+-
+-[[package]]
+-name = "gateway-token-store"
+-version = "0.1.0"
+-dependencies = [
+- "getrandom 0.2.17",
+- "postgres-protocol",
+- "postgres-types",
+- "rustls",
+- "tokio",
+- "tokio-postgres",
+- "tokio-postgres-rustls",
+- "tokio-rustls",
+- "zeroize",
+-]
+-
+-[[package]]
+ name = "sha2"
+ version = "0.11.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1153,9 +1133,3 @@
+  "quote",
+  "syn 2.0.119",
+ ]
+-
+-[[package]]
+-name = "zmij"
+-version = "1.0.23"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"

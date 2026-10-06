@@ -1,0 +1,2 @@
+distinct_hashes=true
+quality_claim=false

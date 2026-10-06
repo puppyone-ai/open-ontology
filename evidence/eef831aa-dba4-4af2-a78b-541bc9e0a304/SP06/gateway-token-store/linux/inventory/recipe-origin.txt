@@ -1,0 +1,3 @@
+origin_a199_manifest_launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/manifest/launch.sh
+c59441884fcd7ce54b8e6cb11a6c632cf5dc8ba757d112145fbf20ede8d83ac3  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/manifest/launch.sh
+changes memory_8g_to_6g cpus_4_to_1 cap_global_6_to_10 owner_a304 crate_recheck_before_walk binary_on_rootfs

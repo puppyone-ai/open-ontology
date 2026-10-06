@@ -1,0 +1,8 @@
+proof-1 cargo fetch --locked exited before download because the hand lock was not the resolve encoding.
+A throwaway offline cargo metadata on a copy, not cargo update and not generate-lockfile, showed the difference.
+The repo lock was then edited by hand to that difference only:
+move the gateway-token-store package block before getrandom,
+drop unused itoa, serde_json, and zmij,
+drop the serde_derive edge on serde.
+No package version, checksum, or new dependency was added.
+The diagnose log is lock-diagnose.log. The container was oo-a304-lockdiag and was removed.

@@ -1,0 +1,1 @@
+committed session-store lock; cargo fetch --locked; cargo check --locked --offline --lib; no generate-lockfile; no cargo update

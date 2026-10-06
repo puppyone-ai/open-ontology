@@ -1,0 +1,1 @@
+18 tests passed. cargo-clippy is not installed in the pinned image. rust-toolchain.toml lists clippy. Next run installs that component with rustup before clippy, matching the a200 smoke recipe. OOMKilled=false.
