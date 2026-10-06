@@ -1359,3 +1359,10 @@ Coordinator accepts frozen M1-D14E mappingreader aftera246fullreports/186hash0/f
 - [x] B-D04: trustedSQLrunner exact/fail/refusal/timeout/truncation with full trial denominators (a244).
 
 a251actual66493 fileCLI fixedreview1builder0PG; a252actual94260 mappingCLI fixedreview1builder1PG. Existinglastconfirmedlive a248originalresume66080 operatorcomposition/a25022564 trialreportadapter dev. Actual2dev+2review, cap12dev reviewsoutside/global10builders. NextUUIDa253. No acceptance of a245/a249 from author/nestedreview alone. ONE20minute wait thenONE unified4handles.
+
+ONE20minute unified4actualhandles: a24866080 actualexit0, reportinventory checked beforeacceptance. a25022564/a25166493/a25294260 live, no repeatedpolling/restarts. Metrics unchanged thisobservation.
+
+S5-D01 / E12-D0/1 frozen BEFORE code: explicit admitted sealed tablecards -> structureddescriptionrequest -> completecapturedresponse -> review-only generated label/description/grain/caveats/open_questions candidates. a253 ownsbuildernewmodule/libexport/newtest/contract only; no modelnetwork/credentials. Actual providertransport/residency/cost and fullS5 remain futuregates. Aggregate34/45=75.56%, not global rate. a245/a249 author fullreportsread and evidencehash verified; same-session nested a249 review is not independent approval.
+- [ ] S5-D01: bounded evidence-bound generated description candidate protocol.
+
+a253actual78440 S5descriptioncandidate1builder0PG. Lastconfirmedlive a24879285 operatorcomposition/a25022564 trialadapter development and a25166493/a25294260 independentreviews. Actual3development+2review cap12development reviewsoutside/global10builders. a245331hash0/build07testClippy0 anda249260hash0/chain14testsClippy0/owncontainersabsent: authored51→53, accepted59/firstreviews10of51 unchanged pendingfixedreviews. NextUUIDa254. ONE20minute wait thenONE unified5handles.

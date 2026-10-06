@@ -147,3 +147,6 @@ Coordinator accepts frozen M1-D14E mappingreader aftera246fullreports/186hash0/f
 - [x] M1-D14E: explicit mapping reader provisioning and catalogquery (a246).
 - [x] M1-D06B: real analyze-pg operator CLI (a247).
 - [x] B-D04: trustedSQLrunner exact/fail/refusal/timeout/truncation with full trial denominators (a244).
+
+S5-D01 / E12-D0/1 frozen BEFORE code: explicit admitted sealed tablecards -> structureddescriptionrequest -> completecapturedresponse -> review-only generated label/description/grain/caveats/open_questions candidates. a253 ownsbuildernewmodule/libexport/newtest/contract only; no modelnetwork/credentials. Actual providertransport/residency/cost and fullS5 remain futuregates. Aggregate34/45=75.56%, not global rate. a245/a249 author fullreportsread and evidencehash verified; same-session nested a249 review is not independent approval.
+- [ ] S5-D01: bounded evidence-bound generated description candidate protocol.

@@ -3,3 +3,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS, d
 
 Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincommit/path/hash and minimal changes. Always UUID-private resources/new independentrawproof. Review only frozen scope and necessary boundarytests; broaden only concrete newfailure/change. Do not inflate acceptedunits: new expansion child must frozenbeforecoding. No nestedagents.
 
+
+CONTINUATION: CLI exited again without REPORT/FINDINGS/HANDOFF. First collect existing own builder actual exit/log and existing PG outcome. No duplicate builder/PG. Stay through result and write all three reports, even if integration fails or seams remain; do not exit after launching proof. Preserve failed attempts and report exact missing requirements.
