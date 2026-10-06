@@ -1390,3 +1390,10 @@ Coordinator accepts B-D05 trialreportadapter aftera255 fullreports/273hash0/16se
 - [ ] S5-D02 / E15-D0/1 frozen BEFORE code: compiled description-candidate CLI prepare/complete publicS5 protocol, a258ownsnewbin/test/contractonly, capturedresponse noactualmodelclaim. Aggregate37/48=77.08%; M1-D17/24 integration0/4 release0/6 unchanged.
 
 a257actual34471 S5candidate fixedreview1builder0PG; a258actual89430 descriptionCLI dev1builder0PG. Existinglastconfirmedlive a25444249 quantityrepair1builder1PG/a25698618 publicquestionbankdev1builder0PG. Actual3development+1review cap12dev reviewsoutside/global10builders. NextUUIDa259. ONE20minute wait thenONE unified4actualhandles.
+
+ONE20minute unified4handles: a25444249/a25698618 actualexit0 fullreportinventory beforeacceptance; a25734471/a25889430 confirmedlive. No repeatedpolling or exit-onlyacceptance.
+
+a254497hash0/postedit21+6+6testsClippy0/livequantitychain0/owncontainersabsent verifiedauthorevidence; actualpolicygeneration mappingrun/sourcecut48 distinct targetfence1. Priorcoordinator suggestiontoforce targetfencegeneration was incorrect; preserve correctactualmapping contract. Pendinga259 independentM1-D14G review, noacceptance/newcomponentcount. a256c275aa63 questionbank511hash0/13testsClippy0/owncontainersabsent authored55→56 pendinga260review.
+- [ ] M1-D25 / E16-D0/1 frozen BEFORE code: Rusttwo-phaseinspect/apply-reviewed onboarding->actualcompiledPGCLIchain/currentmanualreview/privateTLS2tables2roles/quantity and hiddencontrols; a261standalone tools/pg-onboarding only. Ready_for_trusted_query notsemanticpublish/auth/NL/harness. Aggregate37/49=75.51%, notglobalrate; M1-D17/24 integration0/4 release0/6 unchanged.
+
+a259actual49834 integerquantity fixedreview1builder1PG; a260actual93549 questionbank fixedreview1builder0PG; a261actual32052 operatoronboarding1builder1PG. Existingconfirmedlive a25734471 S5review/a25889430 S5CLIdevelopment. Actual2development+3review/globalmax5builders, developmentcap12 reviewsoutside. M1-D25 counted ONLY E16, doesnotchange originalM1-D24 frozen denominator. NextUUIDa262; ONE20minute wait thenONE unified5actualhandles.
