@@ -1,0 +1,4 @@
+parent_launch=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/impl-5/launch.sh
+d574460819d5a53dec35573229ed90a595e0de216accaebffe400ab8504e881a  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/impl-5/launch.sh
+18b75a4d716d58105f1691953f64bea2a4156ca33efe04c2b14c3593b69b7bdd  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/impl-5/inside.sh
+minimal_changes=archive includes session-release from 72dc9e2; no product overlay; fixture mount is a307; OO_A295_FIXTURE name kept for the author tests; lock oracle before cargo; memory 6g; cpus 1; no pull

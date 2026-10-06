@@ -1,0 +1,14 @@
+Own resources only. No prune and no foreign container, volume, network, or temp path.
+
+Removed after linux/preoverlay had already deleted oo-a307-preoverlay:
+- docker stop oo-a307-pg
+- docker rm oo-a307-pg
+- docker volume rm oo-a307-eef831aa-pgdata oo-a307-eef831aa-cargo oo-a307-eef831aa-target
+- docker network rm oo-a307-eef831aa-net
+- rm -rf /tmp/oo-a307-eef831aa-dba4-4af2-a78b-541bc9e0a307
+
+A following label query for oo.owner=a307 returned no containers and no volumes. The network name oo-a307-eef831aa-net was gone. The temp directory was gone.
+
+Secrets were only under that temp directory. They were not copied here.
+
+linux/manifest container oo-a307-manifest was removed after its run. Volume oo-a307-eef831aa-hashbin was removed at the end of linux/manifest-refresh/launch.sh. The final inventory container uses a new volume of the same name and removes it before this review finishes. Its stdout is outside this directory.

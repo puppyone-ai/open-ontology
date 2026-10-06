@@ -1,0 +1,25 @@
+Rust launch and report recipe origin
+a204_commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+a204_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+a204_sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a204_inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+a204_inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+a199_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+a199_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+a200_commit=a587031c719a484830d78e493605f48e2056cae4
+a200_pg_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+a200_pg_sha256=96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+a200_wrap_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+a200_wrap_sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+a295_launch_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/impl-5/launch.sh
+a295_launch_sha256=d574460819d5a53dec35573229ed90a595e0de216accaebffe400ab8504e881a
+a295_inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/impl-5/inside.sh
+a295_inside_sha256=18b75a4d716d58105f1691953f64bea2a4156ca33efe04c2b14c3593b69b7bdd
+a295_pg_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/pg/up.sh
+a295_pg_sha256=4e53f23254965adbcb9197add9fb1d330e597f734733bb5028f3e429144596d9
+manifest_tool_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+manifest_tool_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+minimal_changes=uuid a307; git archive of immutable 72dc9e2db841de4de368216bbbe13d738f850ea9 including tools/session-release; no working-tree product overlay; memory 6g; cpus 1; cap_global 10; one private postgres and CA; author tests read OO_A295_FIXTURE pointed at this session fixture; lock_triples.rs is a review oracle not a crate test; no cargo update; no generate-lockfile; pg-wrap.sh byte-copied from a200
+fixed_commit=72dc9e2db841de4de368216bbbe13d738f850ea9
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres_image=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
