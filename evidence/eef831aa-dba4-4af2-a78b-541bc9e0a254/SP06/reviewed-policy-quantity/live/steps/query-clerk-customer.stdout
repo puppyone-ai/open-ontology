@@ -1,0 +1,6 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"41"},{"kind":"text","value":"丙号"},{"kind":"bool","value":true}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"42"},{"kind":"null"},{"kind":"bool","value":false}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"43"},{"kind":"text","value":"丁铺"},{"kind":"bool","value":true}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":31,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"e617988aaadeab6eb1c9302a033a83c2b3ee7df6133fc005b0d1de9079837400","executed_sha256":"773b7a138f5688b274f8aa3af636754d710561b2932099473a539882f00fde75","stop":null,"sqlstate":null}
+{"record":"row","turn":1,"cells":[{"kind":"int","value":"3"}]}
+{"record":"summary","turn":1,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":1,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"651b1e1ccc26f5745fd1d40ae48998c42db3186021f9ea934e3a671a6a8c6f4e","executed_sha256":"628825c9141d9ad93876b3ddde1f3a762243957b9fe0595f89d0097688acc639","stop":null,"sqlstate":null}

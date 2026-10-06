@@ -1,0 +1,1 @@
+Attempt 1 compiled the boundary tests (21 and 6) and failed the new test at E0521. single_decision passed a non-static &str into one_column, which stores &'static str. The retry stores that parameter as 'static. The unused compile_reviewed_policies import was removed in the same edit.

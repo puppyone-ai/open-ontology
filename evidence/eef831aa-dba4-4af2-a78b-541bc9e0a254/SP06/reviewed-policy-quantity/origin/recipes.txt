@@ -1,0 +1,37 @@
+a254 reviewed integer quantity recipes. Fixed archive c828e2781fc37eb62249fab54fa0b7fff86f0249.
+Hashes below are git hash-object. No Python oracle.
+
+a248 smoke launch.sh b9fbaa4d0fc40ebb7e280462c70ed2d5624a8e0c
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a248/SP11/pg-operator-composition/linux/smoke/launch.sh
+  -> linux/smoke/launch.sh
+  Changes: owner a254, fixed c828e278, quantity overlay refusal, focused blob list, 6GiB, 1 CPU, cap 10, no PostgreSQL.
+a248 extract-libclang.sh c448fdfc5a948ee318b33258f9269637210bcd0f
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a248/SP11/pg-operator-composition/linux/smoke/extract-libclang.sh
+  Origin recorded there: a200 extract-libclang.sh 1c23dbd6ab58cb0f42d218075fd55c0a8c4fe5ea
+  -> linux/smoke/extract-libclang.sh
+  Changes: a254 clang root, debs, and Packages paths. Package selection and checksum check unchanged.
+a248 tools/sha256.rs b69a2af13099ce4baf2d04e79c5692d9988ab67d
+  -> tools/sha256.rs copied byte-identical.
+a248 tools/select-debs.rs 565787c25c25bf451343cf4bc0431619c0611899
+  -> tools/select-debs.rs copied byte-identical.
+a204 preoverlay launch.sh 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  Refuse-overwrite console.log and private docker run shape. Not executed as that script.
+a200 smoke launch.sh 20b391304358e474c189203eeb525b46fc2ea194
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+  Capacity count and labeled private volumes. Not executed as that script.
+a199 preoverlay launch.sh 7a706f544e6d44dfd46f0c7a1095f72ba582afdf
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+  Archive blob compare and private network labels. Not executed as that script.
+No manifest or lock edits. PostgreSQL image is not started by the pre-edit smoke.
+
+Inventory launch origin: a250 linux/inventory/launch.sh git hash-object c82a332f25079d6c9b453a881b011cadeffdbcb5
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a250/SP12/trial-report-adapter/linux/inventory/launch.sh
+  -> linux/inventory/launch.sh
+  Changes: owner a254, tools/sha256.rs with `sha256 dir`, edition 2021, network none, pids 4096, no crate mount.
+Inventory rerun origin: a250 linux/inventory/rerun.sh git hash-object 68658634659c2c5bef51c5438fe260f4e8bf5a13
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a250/SP12/trial-report-adapter/linux/inventory/rerun.sh
+  -> linux/inventory/rerun.sh
+  Changes: owner a254, sha256 dir, edition 2021, network none, pids 4096. Stdout stays outside this directory.
+
+Smoke attempt 1 (preserved under linux/smoke-attempt-1) exited 2. Its gate searched the whole reviewed_policy.rs for SemanticType::Quantity. That string is the semantic_name label on c828e278 blob 56b62fdc1ab9864b99d992ccb46782fc34c1a507. The retry gate prints only the compatible() integer arm, from `"int2" | "int4" | "int8" => matches!` through the next `"text" =>` line, and refuses Quantity there.

@@ -1,0 +1,20 @@
+[package]
+name = "oo-a254-pg-operator-composition"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+# This file is the private overlay member. It is not a product manifest.
+[lints]
+workspace = true
+
+[dependencies]
+oo-gateway = { path = "../crates/oo-gateway" }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }

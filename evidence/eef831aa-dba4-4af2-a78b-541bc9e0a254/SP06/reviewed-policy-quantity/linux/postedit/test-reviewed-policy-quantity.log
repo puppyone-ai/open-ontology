@@ -1,0 +1,14 @@
+   Compiling oo-gateway v0.1.0 (/work/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.92s
+     Running tests/reviewed_policy_quantity.rs (/target/debug/deps/reviewed_policy_quantity-b836355a95a21939)
+
+running 6 tests
+test hand_amount_bounds_are_the_integer_extremes ... ok
+test integer_quantity_reaches_the_reviewed_policy_cli ... ok
+test missing_and_stale_quantity_decisions_refuse ... ok
+test money_needs_a_unit_and_other_semantics_stay_refused ... ok
+test quantity_pii_token_must_match_the_current_allow_rule ... ok
+test wrong_physical_quantity_is_semantic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+

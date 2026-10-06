@@ -1,0 +1,7 @@
+label=after-import
+writer=0
+reader=0
+customers=3
+orders=3
+reltuples=-1,-1
+reader_insert=42501

@@ -1,0 +1,3 @@
+effect=installed
+grantor=oo_fixture_admin
+row_filter=null_preserved

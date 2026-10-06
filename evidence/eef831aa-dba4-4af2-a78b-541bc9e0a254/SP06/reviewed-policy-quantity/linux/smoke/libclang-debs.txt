@@ -1,0 +1,8 @@
+libclang-19-dev pool/main/l/llvm-toolchain-19/libclang-19-dev_19.1.7-3+b1_arm64.deb 7502c447f454496501e1e68806190cb55facbe9a23559c04d2e6e17e5ba6bacc
+libclang1-19 pool/main/l/llvm-toolchain-19/libclang1-19_19.1.7-3+b1_arm64.deb e0719cbb2bd6bb3b91f471d1fa41b364eae0604774db56a7b3dd8d24738a5f20
+libobjc-14-dev pool/main/g/gcc-14/libobjc-14-dev_14.2.0-19_arm64.deb b248dc482ad75e0dbe64e70a468ce61b2c167fe63420185290dd441b28cd1357
+libclang-common-19-dev pool/main/l/llvm-toolchain-19/libclang-common-19-dev_19.1.7-3+b1_arm64.deb fc0f2c5ffd2b2d7cd0119ed4fb1050c5757d0ed20a4f5c0964d8d737c73b0843
+libllvm19 pool/main/l/llvm-toolchain-19/libllvm19_19.1.7-3+b1_arm64.deb 8a48e1a49f7fcc3be74e697767d72902f4b03041401d1529bcfad1849df39148
+libobjc4 pool/main/g/gcc-14/libobjc4_14.2.0-19_arm64.deb 2c402e31c3636f8c5be1f1c4a4716e9335e570862b7e393ade1e63bde9ff933c
+libz3-4 pool/main/z/z3/libz3-4_4.13.3-1_arm64.deb 29a7b924a5a38c9ac4e2a64aa11586a9c54f26b579b18e4f75adf8f7c1106e45
+libgc1 pool/main/libg/libgc/libgc1_8.2.8-1_arm64.deb 58747952e7bd66396023aa8bf53f5039217fddd750b337dfa13352d4fc07f528

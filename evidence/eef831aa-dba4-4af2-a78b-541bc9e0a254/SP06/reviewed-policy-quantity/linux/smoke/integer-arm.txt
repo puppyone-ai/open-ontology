@@ -1,0 +1,8 @@
+        "int2" | "int4" | "int8" => matches!(
+            semantic,
+            SemanticType::Identifier
+                | SemanticType::ForeignKey
+                | SemanticType::Code
+                | SemanticType::StatusCode
+        ),
+        "text" => matches!(

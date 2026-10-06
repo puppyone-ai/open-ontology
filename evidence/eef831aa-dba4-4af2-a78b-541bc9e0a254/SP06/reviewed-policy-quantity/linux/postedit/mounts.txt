@@ -1,0 +1,7 @@
+bind /tmp/oo-a254-eef831aa-dba4-4af2-a78b-541bc9e0a254/archive /src rw=false
+bind /tmp/oo-a254-eef831aa-dba4-4af2-a78b-541bc9e0a254/work /work rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a254/SP06/reviewed-policy-quantity/linux/postedit/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a254/SP06/reviewed-policy-quantity /evidence rw=true
+volume /var/lib/docker/volumes/oo-a254-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a254-eef831aa-target/_data /target rw=true
+

@@ -1,0 +1,17 @@
+before containers:
+oo-a254-pg Up 10 minutes
+before volumes:
+oo-a254-eef831aa-cargo
+oo-a254-eef831aa-pgdata
+oo-a254-eef831aa-target
+before networks:
+oo-a254-eef831aa-net
+oo-a254-pg
+oo-a254-eef831aa-cargo
+oo-a254-eef831aa-pgdata
+oo-a254-eef831aa-target
+oo-a254-eef831aa-net
+after containers:
+after volumes:
+after networks:
+tmp_exists=no
