@@ -1,0 +1,155 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling syn v3.0.6
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+   Compiling serde_core v1.0.229
+   Compiling version_check v0.9.5
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling memchr v2.8.3
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling zmij v1.0.23
+   Compiling num-integer v0.1.47
+   Compiling rustversion v1.0.23
+   Compiling scopeguard v1.2.0
+   Compiling serde_json v1.0.151
+   Compiling generic-array v0.14.9
+   Compiling itoa v1.0.18
+   Compiling smallvec v1.16.1
+   Compiling ref-cast v1.0.27
+   Compiling zerocopy v0.8.57
+   Compiling getrandom v0.3.4
+   Compiling num-bigint v0.4.8
+   Compiling ahash v0.8.12
+   Compiling ref-cast-impl v1.0.27
+   Compiling regex-syntax v0.8.11
+   Compiling parking_lot_core v0.9.12
+   Compiling typenum v1.20.1
+   Compiling equivalent v1.0.2
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling hashbrown v0.17.1
+   Compiling num-rational v0.4.2
+   Compiling encoding_rs v0.8.41
+   Compiling num-iter v0.1.46
+   Compiling aho-corasick v1.1.5
+   Compiling num-complex v0.4.6
+   Compiling once_cell v1.21.4
+   Compiling num v0.4.3
+   Compiling regex-automata v0.4.18
+   Compiling lock_api v0.4.14
+   Compiling syn v2.0.119
+   Compiling bit-vec v0.8.0
+   Compiling unicode-general-category v1.1.0
+   Compiling heck v0.5.0
+   Compiling simdutf8 v0.1.5
+   Compiling borrow-or-share v0.2.4
+   Compiling multiversion_no_op v1.0.0
+   Compiling siphasher v1.0.3
+   Compiling phf_shared v0.12.1
+   Compiling fluent-uri v0.4.1
+   Compiling strum_macros v0.28.0
+   Compiling bit-set v0.8.0
+   Compiling parking_lot v0.12.5
+   Compiling fraction v0.17.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling serde_derive_internals v0.30.0
+   Compiling outref v0.5.2
+   Compiling arraydeque v0.5.1
+   Compiling bytecount v0.6.9
+   Compiling anstyle v1.0.14
+   Compiling unicode-width v0.2.2
+   Compiling chrono-tz v0.10.4
+   Compiling thiserror v2.0.21
+   Compiling micromap v0.3.0
+   Compiling percent-encoding v2.3.2
+   Compiling vsimd v0.8.0
+   Compiling num-cmp v0.1.0
+   Compiling jsonschema-value v0.57.0
+   Compiling uuid-simd v0.8.0
+   Compiling referencing v0.57.0
+   Compiling annotate-snippets v0.12.16
+   Compiling granit-parser v1.3.0
+   Compiling schemars_derive v1.2.2
+   Compiling digest v0.10.7
+   Compiling fancy-regex v0.19.2
+   Compiling strum v0.28.0
+   Compiling encoding_rs_io v0.1.8
+   Compiling phf v0.12.1
+   Compiling regex v1.13.1
+   Compiling indexmap v2.14.2
+   Compiling jsonschema-regex v0.57.0
+   Compiling email_address v0.2.9
+   Compiling cpufeatures v0.2.17
+   Compiling chrono v0.4.45
+   Compiling utoipa-gen v6.0.0
+   Compiling thiserror-impl v2.0.21
+   Compiling dyn-clone v1.0.20
+   Compiling nohash-hasher v0.2.0
+   Compiling base64 v0.23.1
+   Compiling data-encoding v2.11.1
+   Compiling jsonschema v0.57.0
+   Compiling serde-saphyr v1.3.0
+   Compiling schemars v1.2.2
+   Compiling utoipa v6.0.0
+   Compiling sha2 v0.10.9
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling enum-history v0.1.0 (/src/tools/enum-history)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.81s
+     Running unittests src/lib.rs (/target/debug/deps/enum_history-9905a8862ea82f29)
+
+running 3 tests
+test ratio::tests::nineteen_twentieths_equals_lexical_0_95 ... ok
+test ratio::tests::one_hundred_over_one_hundred_five_is_above_0_95 ... ok
+test ratio::tests::trailing_zero_keeps_its_denominator ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/enum_history-a9e517003201cb52)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (/target/debug/deps/cli-20a41346dbdfd4d9)
+
+running 2 tests
+test stdin_compiles_and_refuses ... ok
+test threshold_number_duplicate_and_malformed_exits ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/handcomputed.rs (/target/debug/deps/handcomputed-fcdf745daa0d8a13)
+
+running 18 tests
+test active_undetermined_warns_even_when_unobserved ... ok
+test bad_date_and_threshold_and_core_yaml_refuse ... ok
+test boundary_includes_start_and_excludes_end ... ok
+test canonical_enum_keeps_declared_coverage_separate ... ok
+test class_not_in_the_map_is_not_historical_business ... ok
+test deprecated_with_review_keeps_status_and_historical_class ... ok
+test dormant_future_overlap_and_historical_overlap_refuse ... ok
+test duplicate_observation_and_overflow_refuse_without_a_report ... ok
+test full_business_coverage_needs_no_review ... ok
+test gap_keeps_both_rows_and_does_not_promote ... ok
+test inferred_approval_requires_core_review_fields ... ok
+test observation_bound_precedes_core_parse ... ok
+test reserved_names_never_become_business_classes ... ok
+test retroactive_correction_preserves_history_and_declared_coverage ... ok
+test reversed_and_zero_intervals_refuse ... ok
+test superseded_without_review_is_not_promoted ... ok
+test unknown_code_is_unexplained_and_exact_threshold_matches ... ok
+test zero_rows_are_undefined_and_not_one ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+   Doc-tests enum_history
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

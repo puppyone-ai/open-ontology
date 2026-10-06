@@ -1,0 +1,137 @@
+   Compiling syn v3.0.6
+   Compiling typenum v1.20.1
+   Compiling memchr v2.8.3
+   Compiling jobserver v0.1.35
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.13
+   Compiling cc v1.4.7
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling cmake v0.1.58
+   Compiling hybrid-array v0.4.15
+   Compiling syn v2.0.119
+   Compiling fs_extra v1.3.0
+   Compiling dunce v1.0.5
+   Compiling pkg-config v0.3.34
+   Compiling aws-lc-sys v0.45.0
+   Compiling once_cell v1.21.4
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.2
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling const-oid v0.10.2
+   Compiling digest v0.11.3
+   Compiling serde_json v1.0.151
+   Compiling ref-cast-impl v1.0.27
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling aws-lc-rs v1.18.1
+   Compiling bytes v1.12.1
+   Compiling ref-cast v1.0.27
+   Compiling generic-array v0.14.9
+   Compiling aho-corasick v1.1.5
+   Compiling tinyvec v1.13.3
+   Compiling zeroize v1.9.0
+   Compiling pin-project-lite v0.2.17
+   Compiling unicode-normalization v0.1.25
+   Compiling regex-automata v0.4.18
+   Compiling ahash v0.8.12
+   Compiling chacha20 v0.10.2
+   Compiling tokio-macros v2.7.2
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.3
+   Compiling cpufeatures v0.3.1
+   Compiling unicode-bidi v0.3.18
+   Compiling futures-core v0.3.34
+   Compiling unicode-properties v0.1.4
+   Compiling futures-sink v0.3.34
+   Compiling stringprep v0.1.5
+   Compiling strum_macros v0.28.0
+   Compiling fluent-uri v0.4.1
+   Compiling sha2 v0.11.0
+   Compiling tokio v1.53.1
+   Compiling rand v0.10.3
+   Compiling rustls-pki-types v1.15.1
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling hmac v0.13.0
+   Compiling md-5 v0.11.0
+   Compiling der_derive v0.7.3
+   Compiling serde_derive_internals v0.30.0
+   Compiling rustls v0.23.45
+   Compiling fallible-iterator v0.2.0
+   Compiling flagset v0.4.7
+   Compiling base64 v0.22.1
+   Compiling untrusted v0.9.0
+   Compiling const-oid v0.9.6
+   Compiling byteorder v1.5.0
+   Compiling postgres-protocol v0.6.12
+   Compiling jsonschema-value v0.57.0
+   Compiling der v0.7.10
+   Compiling rustls-webpki v0.103.15
+   Compiling referencing v0.57.0
+   Compiling schemars_derive v1.2.2
+   Compiling digest v0.10.7
+   Compiling fancy-regex v0.19.2
+   Compiling strum v0.28.0
+   Compiling regex v1.13.1
+   Compiling phf_shared v0.13.1
+   Compiling email_address v0.2.9
+   Compiling thiserror-impl v2.0.21
+   Compiling utoipa-gen v6.0.0
+   Compiling subtle v2.6.1
+   Compiling futures-task v0.3.34
+   Compiling futures-util v0.3.34
+   Compiling schemars v1.2.2
+   Compiling jsonschema v0.57.0
+   Compiling sha2 v0.10.9
+   Compiling utoipa v6.0.0
+   Compiling thiserror v2.0.21
+   Compiling phf v0.13.1
+   Compiling spki v0.7.3
+   Compiling postgres-types v0.2.14
+   Compiling tokio-util v0.7.19
+   Compiling futures-channel v0.3.34
+   Compiling async-trait v0.1.92
+   Compiling whoami v2.1.3
+   Compiling log v0.4.34
+   Compiling tokio-postgres v0.7.18
+   Compiling x509-cert v0.2.5
+   Compiling oo-core v0.1.0 (/cargo-home/work/src/crates/oo-core)
+   Compiling tokio-rustls v0.26.5
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling enum-history v0.1.0 (/cargo-home/work/src/tools/enum-history)
+   Compiling enum-store v0.1.0 (/cargo-home/work/src/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 31s
+     Running unittests src/lib.rs (/target/debug/deps/enum_store-2b25998de3b5c623)
+
+running 5 tests
+test publish::tests::historical_report_digest_is_the_hand_literal ... ok
+test publish::tests::unknown_code_is_unexplained_with_a_null_class_and_deprecated_is_not_rewritten ... ok
+test role::tests::role_grammar_rejects_injection_and_fixed_roles ... ok
+test sha256::tests::known_answers ... ok
+test sql::tests::migration_does_not_autofix_or_read_a_clock ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/contract.rs (/target/debug/deps/contract-d49e61ec1a016da7)
+
+running 2 tests
+test contract_name_and_migration_hash_are_fixed ... ok
+test sources_do_not_read_a_clock_or_repair_a_schema ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/live.rs (/target/debug/deps/live-0218c761335b158a)
+
+running 1 test
+test fresh_pg_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.38s
+
+   Doc-tests enum_store
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

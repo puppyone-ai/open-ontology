@@ -1,0 +1,92 @@
+enum-store proof recipes
+
+fixed archive c8588faab992af1193ff58dbc489a0b117796aa0
+tree f63d5ce2dcfbc8de759510280aa3761acf0b3e15
+helper enum-history tree 701743f204495101b5efd20104bccb8d104df467
+
+Immediate copies are the a289 calendar-store scripts after that proof passed.
+Deeper origins are the headers those scripts already recorded.
+
+sha256_manifest.rs
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+  sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  copied through evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/tools/sha256_manifest.rs
+  change none
+
+lock_subset.rs
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a269/SP08/business-calendar/tools/lock_subset.rs
+  origin sha256 0ff689646dde5867f13e642676117f3f654584bb9679a5da1a9c76d08dc3169b
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/tools/lock_subset.rs
+  immediate sha256 36b27279874b3322c69dd76ae0318b46a3ac058b6c2af6f473bf57ace251e4ae
+  change path packages are enum-store, enum-history, and oo-core; count stays 3
+
+pg/pg-wrap.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a275/SP11/session-store/pg/pg-wrap.sh
+  origin sha256 d803bb0b0e284ea50bf1a21a9de5e141178027f06c19989f2f5c13fe004c2d00
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/pg/pg-wrap.sh
+  immediate sha256 04ef2f8688918c5b2fe77437fcbe80ccab9f86f1a98333f6245b347b963b848b
+  change comment only; entrypoint flags unchanged
+
+pg/up.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a275/SP11/session-store/pg/up.sh
+  origin sha256 4abfc3c64eda66f7a4c1a3ac06c1f72f7c0f4b57bd86c380daf30b313582ed62
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/pg/up.sh
+  immediate sha256 6eb5d3bc6106d52d7b41b0a1ae186d2e81063274868864e919b823b112e4229a
+  change a293 names, enum roles, database oo_a293, no host port
+
+linux/impl-1/launch.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a275/SP11/session-store/linux/impl-7/launch.sh
+  origin sha256 a5ded8116a77af27599a2b103fdad8e7a5ae485843045b3365b5da333741a836
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/impl-1/launch.sh
+  immediate sha256 e24fa5d5017d8f701e6189ff49ad787b4990c6313ea0d80c6bd802e5025b5327
+  change fixed commit c8588faa, a293 names, 6g, 1 cpu, archive crates/oo-core and tools/enum-history, overlay tools/enum-store
+
+linux/impl-1/inside.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a269/SP08/business-calendar/linux/impl-4/inside.sh
+  origin sha256 1f1ca9bd49ffa6451f376777d874e3230c2e8a172d27785373588ae53f40a983
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/impl-1/inside.sh
+  immediate sha256 133ccb944554ed2377ce32332b2ea7b9a47070e5a5e1203e907e60185a4b9fec
+  change enum-store fetch, three path packages, skip restart_snapshot_persists, require enum-history
+
+linux/restart/launch.sh
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/restart/launch.sh
+  immediate sha256 3d2120a203fb64faa44d21e309689bacd8aaf45f6364107c2bc371e7d934df6e
+  change a293 names; gate is linux/impl-1/smoke.exit; host docker restart of oo-a293-pg
+
+linux/restart/inside.sh
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/restart/inside.sh
+  immediate sha256 af19473fc3a30d753e4e16c8c8a9efba3cb59eaa159fa300be30d0a56b1a3892
+  change enum-store manifest and restart_snapshot_persists only
+
+linux/precode/launch.sh
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/precode/launch.sh
+  immediate sha256 14013b85162422aad2cd259626d12f167521ecdab4e053d131e871569ca02465
+  change fixed commit c8588faa and enum-history smoke; executed before this note
+
+linux/precode/inside.sh
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/precode/inside.sh
+  immediate sha256 f0f608c38027a67eba354ca9eef5fcb9dcf6eb65fb0a5b330a221bf32d06c377
+  change enum-history test count; executed as written
+
+a200 policy-catalog launch.sh
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+  sha256 c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+  shape reused by the later fixed-archive launch scripts; this proof uses the a289 copy
+
+a199 delimited-reader launch.sh
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/overlay/launch.sh
+  sha256 1212609e380ecea5b72033fa4eb936b61edcf33430f7fe8aa84d3549017c0537
+  shape reused by the later fixed-archive launch scripts; this proof uses the a289 copy
+
+linux/manifest/launch.sh
+  origin evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/manifest/launch.sh
+  origin sha256 9b28b43d9a9afe9cad69a5f086d7d96af4758f58c7e053a25efa52567a69cdd8
+  immediate evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/manifest/launch.sh
+  immediate sha256 4dc7729b535418730b88db3925d514dd0b520482e1f8630619e046ee325fecbb
+  change a293 names, 6g, 1 cpu, global cap 10, enum-store tool path
+
+No root Cargo.toml or Cargo.lock write. No cargo update. No cargo generate-lockfile.
+linux/impl-1 passed the PostgreSQL contract and failed clippy on two needless borrows in tests/live.rs. That console.log stays.
+linux/impl-2 reused the child lock, skipped fresh_pg_contract, and failed clippy on a single-argument concat! in publish.rs tests. That console.log stays.
+linux/impl-3 is the same offline rerun after removing that concat!.
+The restart gate points at linux/impl-3/smoke.exit.

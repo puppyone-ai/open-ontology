@@ -1,0 +1,35 @@
+   Compiling oo-core v0.1.0 (/cargo-home/work/src/crates/oo-core)
+   Compiling enum-history v0.1.0 (/cargo-home/work/src/tools/enum-history)
+   Compiling enum-store v0.1.0 (/cargo-home/work/src/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.16s
+     Running unittests src/lib.rs (/target/debug/deps/enum_store-2b25998de3b5c623)
+
+running 5 tests
+test publish::tests::historical_report_digest_is_the_hand_literal ... ok
+test publish::tests::unknown_code_is_unexplained_with_a_null_class_and_deprecated_is_not_rewritten ... ok
+test role::tests::role_grammar_rejects_injection_and_fixed_roles ... ok
+test sha256::tests::known_answers ... ok
+test sql::tests::migration_does_not_autofix_or_read_a_clock ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/contract.rs (/target/debug/deps/contract-d49e61ec1a016da7)
+
+running 2 tests
+test contract_name_and_migration_hash_are_fixed ... ok
+test sources_do_not_read_a_clock_or_repair_a_schema ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live.rs (/target/debug/deps/live-0218c761335b158a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+   Doc-tests enum_store
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

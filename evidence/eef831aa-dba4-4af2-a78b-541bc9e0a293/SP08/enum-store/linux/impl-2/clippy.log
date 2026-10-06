@@ -1,0 +1,17 @@
+    Checking oo-core v0.1.0 (/cargo-home/work/src/crates/oo-core)
+    Checking enum-history v0.1.0 (/cargo-home/work/src/tools/enum-history)
+    Checking enum-store v0.1.0 (/cargo-home/work/src/tools/enum-store)
+error: unneeded use of `concat!` macro
+   --> src/publish.rs:268:35
+    |
+268 |       const HISTORICAL_JSON: &str = concat!(
+    |  ___________________________________^
+269 | |         r#"{"contract":"enum-history/v1","outcome":"compiled","database_used":false,"source_modified":false,"oo_dict_written":fal...
+270 | |     );
+    | |_____^ help: replace with: `"{\"contract\":\"enum-history/v1\",\"outcome\":\"compiled\",\"database_used\":false,\"source_modified\":false,\"oo_dict_written\":false,\"metric_certified\":false,\"owner_authenticated\":false,\"sweeper_ran\":false,\"schema_version\":\"oos/v1\",\"enum_name\":\"erp_mysql.ysk.zt\",\"as_of\":\"2020-01-01\",\"declared_owner\":null,\"declared_coverage\":null,\"declared_unexplained_values\":[],\"threshold\":{\"decimal\":\"0.95\",\"numerator\":\"95\",\"denominator\":\"100\",\"defaulted\":true},\"rows\":[{\"source_index\":0,\"code\":\"4\",\"label\":null,\"class\":\"open\",\"status\":\"deprecated\",\"source\":\"human\",\"valid_from\":\"2019-01-01\",\"valid_to\":\"2024-01-01\",\"valid_from_unbounded\":false,\"valid_to_unbounded\":false,\"evidence_signature\":null,\"evidence_rows\":null,\"review_state\":\"approved\",\"review_by_declared\":\"finance.li\",\"review_at\":null,\"historical_business_class\":true,\"business_class\":\"open\"}],\"bindings\":[{\"code\":\"4\",\"active\":true,\"source_index\":0,\"status\":\"deprecated\",\"raw_class\":\"open\",\"business_class\":\"open\",\"disposition\":\"business\",\"reason\":\"historical_approved\"}],\"warnings\":[],\"counts\":{\"observation_entries\":\"1\",\"observed_rows\":\"3\",\"business_rows\":\"3\",\"unconfirmed_rows\":\"0\",\"by_code\":[{\"code\":\"4\",\"count\":\"3\",\"disposition\":\"business\",\"reason\":\"historical_approved\"}]},\"observed_coverage\":{\"defined\":true,\"numerator\":\"3\",\"denominator\":\"3\",\"ratio\":\"3/3\"},\"threshold_met\":true,\"comparison\":\"above\",\"review_needed\":false}"`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_concat
+    = note: `-D clippy::useless-concat` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_concat)]`
+
+error: could not compile `enum-store` (lib test) due to 1 previous error
