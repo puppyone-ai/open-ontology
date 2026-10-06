@@ -1,0 +1,33 @@
+    Checking oo-core v0.1.0 (/cargo-home/work/src/crates/oo-core)
+    Checking business-calendar v0.1.0 (/cargo-home/work/src/tools/business-calendar)
+error: this `impl` can be derived
+  --> src/expr.rs:40:1
+   |
+40 | / impl Default for AnchorValues {
+41 | |     fn default() -> Self {
+42 | |         Self { slots: [None; 10] }
+43 | |     }
+44 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#derivable_impls
+   = note: `-D clippy::derivable-impls` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute
+   |
+36 + #[derive(Default)]
+37 | pub struct AnchorValues {
+   |
+
+error: useless conversion to the same type: `i32`
+   --> src/zone.rs:200:16
+    |
+200 |     let year = i32::try_from(year).ok()?;
+    |                ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider removing `i32::try_from()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_conversion
+    = note: `-D clippy::useless-conversion` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_conversion)]`
+
+error: could not compile `business-calendar` (lib) due to 2 previous errors

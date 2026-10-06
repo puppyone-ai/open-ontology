@@ -1,0 +1,12 @@
+Removed only a269 resources after linux/impl-4 and linux/review-1 exited 0.
+
+Containers with label oo.owner=a269: none were still running. Each launch script had already removed its container.
+Volumes removed: oo-a269-eef831aa-cargo, oo-a269-eef831aa-target, oo-a269-eef831aa-target-review.
+Network removed: oo-a269-eef831aa-net.
+Temp directory removed: /tmp/oo-a269-eef831aa-dba4-4af2-a78b-541bc9e0a269.
+
+Afterward: a269 containers 0, those volumes 0, that network 0, that temp directory absent.
+Image kept: docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5.
+No prune. No other owner's containers, volumes, or networks were removed.
+
+The inventory container oo-a269-manifest compiles tools/sha256_manifest.rs, writes SHA256SUMS, and is removed. It is not retained.

@@ -1,0 +1,8 @@
+volume /var/lib/docker/volumes/oo-a269-eef831aa-target-review/_data /target rw=true
+bind /tmp/oo-a269-eef831aa-dba4-4af2-a78b-541bc9e0a269/review-1/archive /src rw=false
+bind /Users/redux/puppy-one/open-ontology/tools/business-calendar /tool rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a269/SP08/business-calendar/tools /tools rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a269/SP08/business-calendar/linux/review-1/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a269/SP08/business-calendar/linux/review-1 /evidence rw=true
+volume /var/lib/docker/volumes/oo-a269-eef831aa-cargo/_data /cargo-home rw=true
+

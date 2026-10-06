@@ -1,0 +1,1 @@
+msrv_smoke_ok calendar_helper=absent postgres=0 clock=explicit

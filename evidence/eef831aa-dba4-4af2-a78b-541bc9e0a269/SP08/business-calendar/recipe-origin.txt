@@ -1,0 +1,22 @@
+Rust launch recipe origin
+commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+cross_check_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+cross_check_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+report_cross_check_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+report_cross_check_sha256=c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+minimal_changes=uuid a269; memory stays 6g; cpus stay 1; cap_global stays 10; precode is rustc MSRV plus fixed-archive absence of tools/business-calendar; network none on precode; 0 postgres; no product overlay on precode
+fixed_source=0bcd494457091d4b55c82fc6b9922b5bc5dc44c4
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+lock_pattern=a263 description-provider: copy root Cargo.lock onto the standalone lock, cargo fetch without cargo update, then lock-subset against the root lock
+impl_launch_origin=a204 preoverlay launch, same commit and sha256 as above; copy uses cp -R from the a265 note; child allow-list is business-calendar and oo-core with path count 2
+review_launch_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a270/SP08/enum-history/linux/review-1/launch.sh
+review_launch_commit=8a6395aef5b1d3b16d1b3d72833d2df2ebaa536e
+review_launch_sha256=21befcad6c519b7edffdc75431a1d2aa62860632ab10d8cd4f2a0d5d4b7c477d
+review_inside_sha256=5b3849341ac30156b344e8bebf90963714d07ef4ba6acf74beb207c4124eefc4
+review_changes=owner a269; fresh target volume oo-a269-eef831aa-target-review; reused cargo volume; archive includes examples/schema/calendar.yaml; no lock regeneration; 0 postgres
+manifest_tool_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+manifest_tool_matches=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
