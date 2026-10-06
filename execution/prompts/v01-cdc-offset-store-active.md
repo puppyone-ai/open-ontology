@@ -6,3 +6,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 
 
 12 concurrentdevelopmentGroks excludingreviews/10 concurrentRustbuilders taskmax1, not lifetimeattemptcap.
+
+RECOVERY PRIORITY from already-closed actual logs (coordinator read-only): Read existing linux/impl-1 test/Clippy logs: postgres client transaction methods require mutable Client references, five compile errors include E0596 and ? conversion into (); Clippy also unused PROVENANCE. Check current source first, then fix minimum signatures/error propagation/import without removing transaction/CAS atomicity. No root/other-task changes, no blanket lock regeneration. Focused actual receipt/control mirror tests + Clippy remain required.
