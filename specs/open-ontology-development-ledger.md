@@ -1323,3 +1323,11 @@ Coordinator verified full independent reports and hashes: a229202entries0bad/rea
 - [x] O-D02: rolePack bundle exact bytes and non-replacing hardlink (a238).
 
 a241 actual31448 ACLCLI fixedreview1builder1PG; a242actual97195 threebenchmarktools fixedreview1builder1PG separateunitverdicts; a243actual73668 artifactdiff1builder0PG. Lastconfirmedlive a23926939 review and a24036519/a23693165 development. Actual2development+4review/devcap12 reviewsoutside/global10builders. a231 authored runner reports still pending fullread/hash, not acceptance. NextUUIDa244; ONE20minwait thenONE unified6handles.
+
+ONE20minute unified6handles: a23926939/a24036519/a23693165 actualexit0; fullreportinventory beforeacceptance. a24131448/a24297195/a24373668 live, no repeatedpolling. Acceptedmetrics unchanged until fullreport/hash/raw verification.
+
+Coordinator accepts M1-D14C limited reviewed-policy CLI bcc86734 after a239fullreports/153hash0/smoke6+independent5/Clippy0/owncontainers absent. E6-D1/1, historical50→51, firstreviews42→43/rework10/43=23.26%; aggregate26/41=63.41%. a231runner358hash0/focused7+liveproof0 and a235ACLCLI170hash0/12testsClippy0/owncontainers absent, authoredcomponents47→49 pendingindependentreviews. M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] M1-D14C: compiled reviewed-policy CLI two-role sealed producer consumption (a239).
+- [ ] F-D03 / E9-D0/1 frozen BEFORE code: actual IPC parent backed parse-file CLI for CSV/TSV/JSONL bounded summary/cleanEOF; a245 ownsnewbin/test/contract only. Aggregate26/42=61.90%, not global project rate.
+
+a244 actual56889 runnerfixedreview1builder1PG; a245 actual46614 IPCparseCLI development1builder0PG. Lastconfirmedlive a24010906/a23665332 dev and a24131448/a24297195/a24373668 reviews. Actual3dev+4reviews cap12dev/global10builders. NextUUIDa246; ONE20minute wait thenONE unified7handles.

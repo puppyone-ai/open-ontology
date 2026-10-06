@@ -1048,3 +1048,7 @@ Coordinator verified full independent reports and hashes: a229202entries0bad/rea
 - [x] M1-D14A: aggregate two-table ACL install/replay and atomic failure rollback (a229).
 - [x] F-D02: real IPC parent parse/cleanEOF/recovery, kernelUnsupported preserved (a237).
 - [x] O-D02: rolePack bundle exact bytes and non-replacing hardlink (a238).
+
+Coordinator accepts M1-D14C limited reviewed-policy CLI bcc86734 after a239fullreports/153hash0/smoke6+independent5/Clippy0/owncontainers absent. E6-D1/1, historical50→51, firstreviews42→43/rework10/43=23.26%; aggregate26/41=63.41%. a231runner358hash0/focused7+liveproof0 and a235ACLCLI170hash0/12testsClippy0/owncontainers absent, authoredcomponents47→49 pendingindependentreviews. M1-D17/24 integration0/4 release0/6 unchanged.
+- [x] M1-D14C: compiled reviewed-policy CLI two-role sealed producer consumption (a239).
+- [ ] F-D03 / E9-D0/1 frozen BEFORE code: actual IPC parent backed parse-file CLI for CSV/TSV/JSONL bounded summary/cleanEOF; a245 ownsnewbin/test/contract only. Aggregate26/42=61.90%, not global project rate.
