@@ -1,0 +1,3 @@
+PHASE pi_version_pre_exit=127
+PHASE live_exit=0
+PHASE oracle_build=0 live_oracle=0

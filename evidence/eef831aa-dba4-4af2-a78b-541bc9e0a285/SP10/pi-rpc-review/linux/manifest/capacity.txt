@@ -1,0 +1,1 @@
+own=0 global=1 host_cargo=0 cap_global=10 cap_task=1 mode=pass1

@@ -1,0 +1,15 @@
+started=2026-10-06T09:24:51Z
+own_containers_before=0
+volume oo-a285-eef831aa-cargo exit=0 name=oo-a285-eef831aa-cargo
+volume oo-a285-eef831aa-target exit=0 name=oo-a285-eef831aa-target
+volume oo-a285-eef831aa-pi-prefix exit=0 name=oo-a285-eef831aa-pi-prefix
+volume oo-a285-eef831aa-npm-cache exit=0 name=oo-a285-eef831aa-npm-cache
+volume oo-a285-eef831aa-probe-bin exit=0 name=oo-a285-eef831aa-probe-bin
+network_containers=0
+network exit=0 name=oo-a285-eef831aa-net
+tmp exit=0 path=/tmp/oo-a285-eef831aa-dba4-4af2-a78b-541bc9e0a285
+docker_prune=not_run
+foreign_containers=left in place
+pinned_image=left in place
+finished=2026-10-06T09:25:02Z
+note=The private tmp directory is removed before the inventory. The manifest launch creates it again for the console, and pass 2 removes that console directory after MANIFEST.sha256 is written. That removal is outside_stdout_dir_removed in linux/manifest/rewrite-stdout.txt.

@@ -1,0 +1,17 @@
+tool=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a285/SP10/pi-rpc-review/tools/sha256_manifest.rs
+origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+origin_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+origin_recheck=linux/preoverlay-msrv/tool-same.stdout same_ok
+compare=tools/manifest_eq.rs
+compare_origin_sha256=33a32df1be6925bee3e416be737ccc9abceb88c635dfaa18300351f359d275dd
+empty=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+abc=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+spike_files=25
+origin_files=17
+a279_clippy_exit=127 preserved in the historical file, not rewritten
+a282_a279_compare=expected=473 fresh=474 bad=0 preserved in the historical file, not rewritten
+host_shasum=not used for this inventory
+python=not used as an oracle
+pin_install=linux/pi-reinstall-2/inside.sh still runs the reviewed sha256sum and openssl checks for the Node and npm pin. The pass/fail pin check for this review is review_oracle pin. pin-oracle.stdout ends pin_ok.
+final_manifest=MANIFEST.sha256 is written by the container under linux/manifest after this file and CLEANUP.txt. Pass 1 copies console.log into the tree after the container exits. Pass 2 rewrites MANIFEST.sha256. rewrite-stdout.txt is copied after that write, so that one file is not a manifest entry.
+rust_manifest_executed=yes
