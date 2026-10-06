@@ -1,0 +1,30 @@
+   Compiling oo-builder v0.1.0 (/cargo-home/work/src/crates/oo-builder)
+warning: use of deprecated method `sha2::digest::generic_array::GenericArray::<T, N>::as_slice`: please upgrade to generic-array 1.x
+  --> crates/oo-builder/tests/description_candidate_a257.rs:80:37
+   |
+80 |     hex_bytes(Sha256::digest(bytes).as_slice())
+   |                                     ^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+error[E0277]: the trait bound `char: LowerHex` is not satisfied
+   --> crates/oo-builder/tests/description_candidate_a257.rs:129:67
+    |
+129 |             ch if (ch as u32) < 0x20 => buf.push_str(&format!("\\u{ch:04x}")),
+    |                                                                   ^^^^^^^^ the trait `LowerHex` is not implemented for `char`
+    |
+    = help: the following other types implement trait `LowerHex`:
+              &T
+              &mut T
+              GenericArray<u8, T>
+              Saturating<T>
+              Wrapping<T>
+              i128
+              i16
+              i32
+            and 27 others
+    = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `oo-builder` (test "description_candidate_a257") generated 1 warning
+error: could not compile `oo-builder` (test "description_candidate_a257") due to 1 previous error; 1 warning emitted

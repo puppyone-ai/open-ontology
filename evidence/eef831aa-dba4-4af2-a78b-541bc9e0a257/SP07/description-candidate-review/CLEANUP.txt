@@ -1,0 +1,13 @@
+# Own cleanup
+
+Removed a257 resources only. No prune. Foreign containers were left in place, including `oo-a064-rust194-contract2`, `oo-a064-rust194-contract`, `oo-a064-pg1710-jobs`, and `oo-a064-rust194-smoke`.
+
+Containers already removed by their launch scripts: `oo-a257-smoke`, `oo-a257-proof`, `oo-a257-proof2`.
+
+Volumes removed: `oo-a257-eef831aa-cargo`, `oo-a257-eef831aa-target`.
+Network removed: `oo-a257-eef831aa-net`.
+Temporary archive removed: `/tmp/oo-a257-eef831aa-dba4-4af2-a78b-541bc9e0a257`.
+
+After removal, `docker ps -aq --filter label=oo.owner=a257 --filter label=oo.kind=rust-builder` was empty, and the a257 volume and network lists were empty.
+
+The inventory containers `oo-a257-manifest` and `oo-a257-manifest-final` run after this note and are removed by their own scripts. Their records are `linux/manifest/`. The finalize stdout stays outside this directory.
