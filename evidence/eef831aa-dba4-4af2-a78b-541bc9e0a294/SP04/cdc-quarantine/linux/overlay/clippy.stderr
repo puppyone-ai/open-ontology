@@ -1,0 +1,32 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking itoa v1.0.18
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking cdc-quarantine v0.1.0 (/src/tools/cdc-quarantine)
+error[E0308]: `?` operator has incompatible types
+   --> src/model.rs:202:32
+    |
+202 |     let reason = Reason::parse(json_str(map.get("reason").ok_or(FaultCode::Malformed)?)?)?;
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&str`, found `String`
+    |
+    = note: `?` operator cannot convert from `std::string::String` to `&str`
+help: consider borrowing here
+    |
+202 |     let reason = Reason::parse(&json_str(map.get("reason").ok_or(FaultCode::Malformed)?)?)?;
+    |                                +
+
+error: variable does not need to be mutable
+   --> src/pathutil.rs:133:9
+    |
+133 |     let mut file = OpenOptions::new()
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `cdc-quarantine` (lib) due to 2 previous errors
