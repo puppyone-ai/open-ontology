@@ -1,0 +1,11 @@
+
+running 6 tests
+test bounds_apply_whole_and_are_not_truncated ... ok
+test compiled_cli_equals_the_library_document ... ok
+test defer_and_missing_decision_preserve_current_curated ... ok
+test sealed_reexecute_overwrites_one_field_and_reject_keeps_confidence ... ok
+test stale_schema_evidence_card_request_curated_and_candidate_do_not_mutate ... ok
+test unknown_classification_and_status_keys_are_refused ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+

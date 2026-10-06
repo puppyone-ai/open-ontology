@@ -1,0 +1,26 @@
+    Checking oo-core v0.1.0 (/work/tree/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/work/tree/crates/oo-jobs)
+    Checking oo-builder v0.1.0 (/work/tree/crates/oo-builder)
+    Checking description-review v0.1.0 (/work/tree/tools/description-review)
+error: field `outcome_text` is never read
+  --> tests/a288_sealed.rs:46:5
+   |
+44 | struct Produced {
+   |        -------- field in this struct
+45 |     command_text: String,
+46 |     outcome_text: String,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: field `lower` is never read
+  --> tests/a288_sealed.rs:64:5
+   |
+60 | struct OneField {
+   |        -------- field in this struct
+...
+64 |     lower: Value,
+   |     ^^^^^
+
+error: could not compile `description-review` (test "a288_sealed") due to 2 previous errors

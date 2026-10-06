@@ -1,0 +1,3 @@
+proof-3 host exit 101. Container bce2af9f733ab3daf5427830d798543279ded8f92ba56ffdaa59311bd5aae4ff. OOMKilled=false. CapDrop ALL. Memory 6442450944. NanoCpus 1000000000.
+Author smoke passed 16 tests before the overlay. Offline fetch --locked exited 0. Lock subset stayed 117/0/0. Overlay cargo test --test a288_sealed exited 0: 6 passed, 0 failed.
+Clippy --locked --offline --all-targets -D warnings exited 101. The only errors were dead_code on Produced.outcome_text and OneField.lower in the overlay. Product bytes were unchanged. console.log is unchanged. The next attempt is linux/proof-4.

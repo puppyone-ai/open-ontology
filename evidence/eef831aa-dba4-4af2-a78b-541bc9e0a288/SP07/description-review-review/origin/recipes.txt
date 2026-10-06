@@ -1,0 +1,34 @@
+Independent review launch and hash tools for a288.
+PostgreSQL recipe a200 was not applied. This review starts no database.
+
+a204 overlay launch
+  commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/launch.sh
+  git blob 03c8e15c60a376ef0a757c062ebd110063a0ffe6
+  content sha256 78c8ef8c179c59317850c1b6a9ae53d3f883b8a1b24c2567fa0d3d26f1997eee
+  change: owner a288, fixed archive 216e6df82a61d2bc22548ce1a5075d5f4a045648, 6 GiB, 1 CPU, private network and volumes, no pull, no prune, no PostgreSQL
+
+a204 preoverlay launch shape used by a283
+  commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  git blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f
+  change: one container runs the author 16 tests before copying the review overlay
+
+a200 proof launch
+  commit a587031c719a484830d78e493605f48e2056cae4
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+  content sha256 c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+  change: not executed. This unit starts no PostgreSQL.
+
+a199 manifest tool
+  commit 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+  git blob f21989651570187fc286462349d59174a6a6b8ef
+  content sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  change: none
+
+Reviewed tree
+  implementation 8f4e792c4eca6eabb204de4c8bc09caa854165ec
+  fixed archive 216e6df82a61d2bc22548ce1a5075d5f4a045648
+  tools/description-review is byte-identical between those commits
+  crates/oo-builder/src/description_candidate.rs blob f783ae95f1f7398da18b6c47bcc87941db49f7a3 at both
