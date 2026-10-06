@@ -1132,3 +1132,15 @@ ONE20minute unified8handles: a26775098/a27016428 exited0; a26969958/a27171878/a2
 - [ ] S5-D04 / E25-D0/1 frozen BEFORE code: actual verifieddescriptioncandidate -> explicit anchored approve/reject/defer -> corevalid curateddataset descriptivefields with CAS/stalequeue/otherfields preserved, a277tools/description-review only.
 
 Frozen41/58=70.69% localfrozenchildren only; historical66, first57/reworked11=19.30%, M1-D17/24/integration0/4/internalrelease0/6 unchanged. Current4review slotsfull so enum/banksuite independentreviewsqueued, never use same-session reviews asacceptance. Withnewlaunches5development+4review/max9Rustbuilders<10. NextUUIDa278; ONE20minute wait thenONE unified9actualhandles, no intermediate/repeatedobservation.
+
+
+Coordinator accepts four frozen development units after full independent reports/inventory/rawexit: S5-D03 a271195hash0/25author+7freshTLS testsClippy0; RT-D01 a272105hash0/15author+11fresh testsClippy0 plus separate corrected11registrytriplecheck0 (proofcontainer2 preservedcheckerfailure); RT-D02 a273191hash0/10author+9freshCLI testsClippy0; M1-D25 a274407hash0/24focusedClippy0+freshprivateTLSchain0 and honestpostspawn/strictJSON repair. Owncontainersabsent for allfour. Historical66→70, firstunique57→61/reworked11/61=18.03%, authored63unchanged. E17/E18/E19/E16 all1/1; frozen45/58=77.59%. FullS5/auth/durableCAS/productionaudit/semanticpublication/NL/harness/I01/I02 remainopen.
+- [x] S5-D03: actual HTTPS provider -> review-only candidate, explicitdeclaredcost/residency (a271).
+- [x] RT-D01: session/turn reducer + CLI, durableCAS separate (a272).
+- [x] RT-D02: localreceipt-bound citation validation, authenticatedaudit/entailment separate (a273).
+- [x] M1-D25: actualtwo-phasePG onboarding + repairedfailuretruth/strictJSON (a274).
+
+Correct process accounting: prior note said9handles/5development+4review, but after a267/a270 closed only a269/a275 plus a276/a277 remained =4development+4reviews=8handles. Observed all8 exactlyonce: a27171878/a27283678/a27391440/a27417848 exited0; a26969958/a27566011/a27676818/a27719446 live. No9thprocess launched/nohiddenpoll. Retiredfourterminalhandles. a278 independentenumreview new1builder0PG.
+- [ ] H-D01 / E26-D0/1 frozen BEFORE code: P9 actualreleasedPi RPC stdio probe/Rustdriver/version/license/integrity; a279testing/spikes/p09-pi-rpc only, no fabricatedprotocol/no realkeys. Actual launch/send/events/abort/transcript/restore required beforeapproval; unsupportedstaysunaccepted.
+
+Frozen45/59=76.27% localchildrenonly, M1-D17/24/integration0/4/internalrelease0/6/externalgates unchanged. NewPi probe gives5development+1review/max6Rustbuilders<10/devcap12. NextUUIDa280. ONE20minute wait thenONE unified6actualhandles, no intermediate/repeatedpolling.
