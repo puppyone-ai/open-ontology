@@ -150,3 +150,9 @@ Coordinator accepts frozen M1-D14E mappingreader aftera246fullreports/186hash0/f
 
 S5-D01 / E12-D0/1 frozen BEFORE code: explicit admitted sealed tablecards -> structureddescriptionrequest -> completecapturedresponse -> review-only generated label/description/grain/caveats/open_questions candidates. a253 ownsbuildernewmodule/libexport/newtest/contract only; no modelnetwork/credentials. Actual providertransport/residency/cost and fullS5 remain futuregates. Aggregate34/45=75.56%, not global rate. a245/a249 author fullreportsread and evidencehash verified; same-session nested a249 review is not independent approval.
 - [ ] S5-D01: bounded evidence-bound generated description candidate protocol.
+
+Actuala248 composition refused confirmed int8 quantity in reviewed-policy: noDTO/install/mapping/analyze/query executed; I01I02 stayunaccepted. Mandatory productcompatibility extension a254 M1-D14G / E13-D0/1 frozen BEFORE code, integerquantity int2/int4/int8 only with same sealeddecision/PII controls; neverreclassify/hideamount to pass. Check targetmappinggeneration distinctsourcegeneration in composition. Aggregate34/46=73.91%, notglobalrate. a2508e7925d7 authored actualrunnerreports->adapter->statistics16testsClippy0 pendinga255independentreview; no qualitywinfromallfail structuralgate.
+- [ ] M1-D14G: reviewed confirmed integer quantity to actual typed policy/query.
+
+B-D06 / E14-D0/1 frozen BEFORE code: publicsynthetic versioned questionbank validator->contentboundmanifest/separateagent-scorerview, unresolvedgold staysreannotation; a256standalonewriter only. No privateholdout/customer/public300/humanannotation claim. Aggregate34/47=72.34%, not globalrate. a248338hash0 provessemanticrefusalnotquerysuccess; a250340hash0/16testsClippy0/owncontainersabsent authored53→54 pendinga255review. No accepted/rework change.
+- [ ] B-D06: public question-bank manifest and gold-separated views.

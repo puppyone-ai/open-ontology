@@ -1366,3 +1366,13 @@ S5-D01 / E12-D0/1 frozen BEFORE code: explicit admitted sealed tablecards -> str
 - [ ] S5-D01: bounded evidence-bound generated description candidate protocol.
 
 a253actual78440 S5descriptioncandidate1builder0PG. Lastconfirmedlive a24879285 operatorcomposition/a25022564 trialadapter development and a25166493/a25294260 independentreviews. Actual3development+2review cap12development reviewsoutside/global10builders. a245331hash0/build07testClippy0 anda249260hash0/chain14testsClippy0/owncontainersabsent: authored51→53, accepted59/firstreviews10of51 unchanged pendingfixedreviews. NextUUIDa254. ONE20minute wait thenONE unified5handles.
+
+ONE20minute unified5actualhandles: a24879285/a25022564/a25166493/a25294260 actualexit0; fullreportinventory beforeacceptance. a25378440 confirmedlive no repeatedpolling. Metrics unchanged pending verification.
+
+Actuala248 composition refused confirmed int8 quantity in reviewed-policy: noDTO/install/mapping/analyze/query executed; I01I02 stayunaccepted. Mandatory productcompatibility extension a254 M1-D14G / E13-D0/1 frozen BEFORE code, integerquantity int2/int4/int8 only with same sealeddecision/PII controls; neverreclassify/hideamount to pass. Check targetmappinggeneration distinctsourcegeneration in composition. Aggregate34/46=73.91%, notglobalrate. a2508e7925d7 authored actualrunnerreports->adapter->statistics16testsClippy0 pendinga255independentreview; no qualitywinfromallfail structuralgate.
+- [ ] M1-D14G: reviewed confirmed integer quantity to actual typed policy/query.
+
+B-D06 / E14-D0/1 frozen BEFORE code: publicsynthetic versioned questionbank validator->contentboundmanifest/separateagent-scorerview, unresolvedgold staysreannotation; a256standalonewriter only. No privateholdout/customer/public300/humanannotation claim. Aggregate34/47=72.34%, not globalrate. a248338hash0 provessemanticrefusalnotquerysuccess; a250340hash0/16testsClippy0/owncontainersabsent authored53→54 pendinga255review. No accepted/rework change.
+- [ ] B-D06: public question-bank manifest and gold-separated views.
+
+a254actual44249 quantitycompatibility1builder1PG; a255actual12229 trialreportadapter fixedreview1builder0PG; a256actual98618 publicquestionbank1builder0PG. Existinglastconfirmedlive a25378440 S5candidate development; a251/a252 terminalreports pendingfullverification no reobservation. Actual3development+1review cap12development reviewsoutside/global10builders. NextUUIDa257. ONE20minute wait thenONE unified4actualhandles.
