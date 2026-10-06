@@ -1,0 +1,39 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+=== source hash ===
+=== lock pins ===
+serde 1.0.229 4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba
+serde_json 1.0.151 c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14
+=== cargo build ===
+PHASE bank_build_exit=0
+=== cargo test ===
+PHASE test_exit=0
+=== rustup components ===
+PHASE component_exit=0
+=== cargo fmt ===
+PHASE fmt_exit=0
+=== cargo clippy ===
+PHASE clippy_exit=0
+=== independent drive ===
+PHASE drive_exit=1
+worst_phase_exit=1

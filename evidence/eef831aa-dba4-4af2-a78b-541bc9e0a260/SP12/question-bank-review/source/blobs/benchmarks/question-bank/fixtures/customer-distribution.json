@@ -1,0 +1,26 @@
+{
+  "bank_version": "public-fixture-1",
+  "dataset": {"distribution": "customer", "id": "oo-logistics", "scale": "xs"},
+  "questions": [
+    {
+      "accepted_interpretations": [],
+      "annotations": [],
+      "as_of": "2026-10-01T00:00:00+08:00",
+      "asker": {"claims": {}, "role": "finance_east"},
+      "category": ["permission"],
+      "control_totals": [],
+      "difficulty": "easy",
+      "expected": {"gold_sql": "select 1 where false", "kind": "refuse_permission"},
+      "id": "pub-refuse",
+      "provenance": {"annotator": "unassigned", "origin": "public_synthetic_fixture", "reviewed_by": "unassigned"},
+      "question": "May the east desk read another tenant?",
+      "required_metrics": [],
+      "review": {"attestation": "label_only", "dual_annotation": "not_declared", "status": "fully_approved"},
+      "role_group": "tenant-gate",
+      "split": "public",
+      "version": "public-fixture-1"
+    }
+  ],
+  "suite": {"id": "public-smoke", "track": "E"},
+  "version": "oo.benchmark.question-bank/v1"
+}
