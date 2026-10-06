@@ -1,0 +1,11 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+classes:
+  open: still open
+values:
+  - code: "4"
+    class: open
+    status: superseded
+    source: dictionary_table
+    valid_from: "2019-01-01"
+    valid_to: "2024-01-01"

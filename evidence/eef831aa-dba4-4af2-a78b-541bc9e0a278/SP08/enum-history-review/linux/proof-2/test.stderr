@@ -1,0 +1,3 @@
+   Compiling enum-history v0.1.0 (/work/tree/tools/enum-history)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.30s
+     Running tests/a278_handcomputed.rs (/target/debug/deps/a278_handcomputed-81bb4e279ab260cc)

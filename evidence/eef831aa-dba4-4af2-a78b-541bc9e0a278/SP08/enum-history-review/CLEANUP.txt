@@ -1,0 +1,29 @@
+owner=a278
+session=eef831aa-dba4-4af2-a78b-541bc9e0a278
+
+containers_removed_by_launch=oo-a278-proof1 oo-a278-proof2
+network=oo-a278-eef831aa-net
+network_attached=0
+network_rm_exit=0
+
+volume=oo-a278-eef831aa-cargo
+cargo_volume_rm_exit=0
+volume=oo-a278-eef831aa-target
+target_volume_rm_exit=0
+
+tmp=/tmp/oo-a278-eef831aa-dba4-4af2-a78b-541bc9e0a278
+tmp_rm_exit=0
+tmp_present_after=no
+host_precompute=/tmp/oo-a278-root.lock
+host_precompute_rm_exit=0
+
+networks_after=0
+volumes_after=0
+containers_after=0
+image_present=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+docker_prune=not_run
+postgres=not_started
+foreign_owners=not_touched
+
+manifest_outside=/tmp/oo-a278-eef831aa-dba4-4af2-a78b-541bc9e0a278/manifest-outside
+manifest_outside_removed_by=linux/manifest/launch.sh after the refresh container exits 0

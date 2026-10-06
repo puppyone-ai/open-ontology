@@ -1,0 +1,18 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+classes:
+  open: still open
+  closed: settled
+values:
+  - code: "1"
+    class: open
+    status: approved
+    source: dictionary_table
+    valid_from: "2010-01-01"
+    valid_to: "2012-01-01"
+  - code: "1"
+    class: closed
+    status: approved
+    source: dictionary_table
+    valid_from: "2011-06-01"
+    valid_to: "2013-01-01"

@@ -1,0 +1,23 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+owner: finance
+classes:
+  open: 应收仍开放（可能有余额）
+  closed: 已结清
+  void: 作废，不是应收
+values:
+  - { code: "1", label: 待收款, class: open, status: approved, source: dictionary_table }
+  - { code: "2", label: 部分收款, class: open, status: approved, source: dictionary_table }
+  - { code: "3", label: 已收讫, class: closed, status: approved, source: dictionary_table }
+  - code: "4"
+    label: 已核销
+    class: closed
+    status: approved
+    source: inferred
+    evidence: { signature: "amount>0 AND received_date IS NULL AND received=amount", rows: 1832 }
+    valid_from: "2019-01-01"
+    review: { state: approved, by: finance.li, at: "2026-10-12" }
+  - { code: "5", label: 已作废, class: void, status: approved, source: inferred, review: { state: approved, by: finance.li } }
+  - { code: "6", class: undetermined, status: undetermined }
+coverage: 0.97
+unexplained_values: ["7"]

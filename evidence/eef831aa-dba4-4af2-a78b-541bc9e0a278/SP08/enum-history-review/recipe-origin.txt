@@ -1,0 +1,21 @@
+Rust launch and report recipe origin
+commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+inside_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/inside.sh
+inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+cross_check_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+cross_check_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+a200_smoke_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh
+a200_smoke_sha256=837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+a200_proof_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+a200_proof_sha256=c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+manifest_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+manifest_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+manifest_launch_shape=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/linux/manifest/launch.sh
+a270_author_review_not_independent=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a270/SP08/enum-history/linux/review-1
+minimal_changes=uuid a278; git archive of fixed 7f500ff0a61a42ea606a281dd931099091a52ef6 for Cargo.toml Cargo.lock rust-toolchain.toml crates tools/enum-history; blobs are git show of reviewed e76813f62150094f1b5b137d0e9d3ce291580149 and match that archive; one proof container runs the author 23 tests before copying the review overlay; memory 6g; cpus 1; cap_global 10; cap-drop ALL; private network volume and tmp; cp -R; no chmod a-w; no Cargo.lock writeback; 0 postgres so the a200 clang and TLS PG stages are not started; lock_subset.rs checks every registry triple; overlay tests are new hand literals
+reviewed_commit=e76813f62150094f1b5b137d0e9d3ce291580149
+fixed_archive=7f500ff0a61a42ea606a281dd931099091a52ef6
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+a200_not_executed=private PostgreSQL recipe is not used; this unit starts no database

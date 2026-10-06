@@ -1,0 +1,16 @@
+
+running 11 tests
+test adjacent_half_open_keeps_history_and_declared_coverage ... ok
+test compiled_cli_reports_history_and_refuses_overlap ... ok
+test exact_ninety_five_of_one_hundred ... ok
+test future_and_historical_overlaps_refuse ... ok
+test gap_day_binds_no_active_and_keeps_both_rows ... ok
+test inferred_approved_needs_explicit_review ... ok
+test overflow_refuses_without_a_wrapped_total ... ok
+test reserved_classes_are_not_business ... ok
+test superseded_without_approval_stays_unconfirmed ... ok
+test unknown_zero_count_is_not_inserted ... ok
+test zero_observations_are_undefined ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+

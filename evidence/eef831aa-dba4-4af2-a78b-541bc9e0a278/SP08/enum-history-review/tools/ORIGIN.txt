@@ -1,0 +1,13 @@
+sha256_manifest.rs
+origin_commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+origin_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+origin_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+change=byte copy
+
+lock_subset.rs
+origin_commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+origin_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/tools/lock_subset.rs
+origin_sha256=ae1b14592bfee8c94fcbd98f8bdac28da520fb140b8ff9e6e1654cfac9e8afc6
+path_allowlist_origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a270/SP08/enum-history/tools/lock_subset.rs
+path_allowlist_sha256=5a95693954ebcd19637ebdf8eff2014c25e390cb709ce67cf7e821eb5a93be40
+change=allow only path packages enum-history and oo-core; require direct pins serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_json 1.0.151; print every registry triple

@@ -1,0 +1,9 @@
+schema_version: oos/v1
+enum: erp_mysql.ysk.zt
+classes:
+  undetermined: not a business class
+values:
+  - code: "1"
+    class: undetermined
+    status: approved
+    source: dictionary_table
