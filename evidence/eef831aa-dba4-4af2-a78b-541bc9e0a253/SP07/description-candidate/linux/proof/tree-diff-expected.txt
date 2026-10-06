@@ -1,0 +1,6 @@
+Files /src/crates/oo-builder/src/lib.rs and /cargo-home/work/src/crates/oo-builder/src/lib.rs differ
+Only in /cargo-home/work/src: rust-toolchain.toml.aside
+Only in /cargo-home/work/src/contracts/builder: description-candidate-v1.md
+Only in /cargo-home/work/src/crates/oo-builder/src: description_candidate.rs
+Only in /cargo-home/work/src/crates/oo-builder/tests: description_candidate.rs
+Only in /src: rust-toolchain.toml
