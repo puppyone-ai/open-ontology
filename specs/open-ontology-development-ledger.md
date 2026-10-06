@@ -1382,3 +1382,11 @@ ONE20minute wait followed by ONE unified4actualhandle observation: a25378440/a25
 Coordinator accepts F-D03 parse-file CLI aftera251 fullreports/188hash0/smoke12+fresh12/Clippy0/owncontainersabsent; actualIPCcleanEOF summary, import/published/pg_run_completefalse/kernelUnsupported. Accept M1-D14F mappingreaderCLI aftera252 fullreports/167hash0/privateTLS14testsClippy0/owncontainersabsent, same-sessiona249nestedreviewexcluded. E9-D1/1,E10-D1/1, historical59→61, firstcomponent51→53/rework10/53=18.87%, authored54unchanged. Aggregate36/47=76.60%, notwholeproject rate; M1-D17/24 integration0/4 release0/6 unchanged.
 - [x] F-D03: actual parse-file IPC parent CLI bounded summary (a251).
 - [x] M1-D14F: explicit provision-mapping-reader CLI (a252).
+
+ONE20minute unified4actualhandles: a25378440/a25512229 actualexit0 reportinventory collected beforeacceptance. a25444249 quantityrepair/a25698618 publicquestionbank confirmedlive. No repeatedpolling/restart. NextUUIDa257.
+
+Coordinator accepts B-D05 trialreportadapter aftera255 fullreports/273hash0/16sealedtests+independentactualrunnerfullvectors/Clippy0/owncontainersabsent. E11-D1/1, historical61→62, firstreviews53→54/rework10/54=18.52%. a253fbc10b04 S5candidate351hash0/proof7 2lib+10testsClippy0/owncontainersabsent authored54→55 pendinga257review; failedproofs1–6 retained. Aggregate37/47=78.72%, not globalrate.
+- [x] B-D05: actualrunner reports ->pairedfulltrialvectors (a255).
+- [ ] S5-D02 / E15-D0/1 frozen BEFORE code: compiled description-candidate CLI prepare/complete publicS5 protocol, a258ownsnewbin/test/contractonly, capturedresponse noactualmodelclaim. Aggregate37/48=77.08%; M1-D17/24 integration0/4 release0/6 unchanged.
+
+a257actual34471 S5candidate fixedreview1builder0PG; a258actual89430 descriptionCLI dev1builder0PG. Existinglastconfirmedlive a25444249 quantityrepair1builder1PG/a25698618 publicquestionbankdev1builder0PG. Actual3development+1review cap12dev reviewsoutside/global10builders. NextUUIDa259. ONE20minute wait thenONE unified4actualhandles.
