@@ -6,3 +6,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 
 
 12 concurrentdevelopmentGroks excludingreviews/10 concurrentRustbuilders taskmax1, not lifetimeattemptcap.
+
+RESUME SAME UUID CLEANUP+HASH ONLY, NO PRODUCT EDITS. Completeauthor packet exists and was read. Sourceproofstartpublic0/smoke0. Author left ownPG/volumes/network/privatecredentials running; run only exactlyowned existingreviewedstop/clean path aftercheckinglabels/record exits, neverforeigncleanup. Product deploy/trusted-demo is NOW owned by a312, so run fixed archived oldclean/stop script from youroriginalSOURCE snapshot or exactoldscript copy; do notreadmovingproductcleanupcode or writeproducts. OriginalhostSHA256SUMS deviation must remainhistorical; produce fresh SafeRust full manifest (UUIDprivate1buildermax/networknone) overcompletedreports/cleanup, preserve oldmanifestbydatedcopy and no retests/rebuildCLIchain. Update REPORT/FINDINGS/HANDOFF with actualcleanedresources/Rustinventory and exactevidenceonlycommit. Notnewunit/component/fullgoal/release.

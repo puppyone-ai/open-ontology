@@ -330,3 +330,16 @@ Accepted79->83/firstunique70->74/reworked12/74=16.22%/authored75unchanged/frozen
 - [ ] FILE-D03 / E41-D0/1 frozenBEFOREcode parentSP05-W06: tools/artifact-retention actualregisteredFileHostobjects→boundedexpiry/reaper/deletionabsence/quota/accounting, noFSbypass; preciseunsupportedupstreamseams not falsecomplete, exactcardexecution/prompts/v01-artifact-retention-active.md a311.
 
 Denominator72->74 addsTWOactualcontroloffset/retentioninterfaces beforecode, frozen58/74=78.38% LOCALchildrenonly. Eightdevelopment plusa306review andreportclarificationa298 =10processes/max10Rustbuilders, devcap12reviewsoutside unchanged. NextUUIDa312. ONE20minute wait thenONE unifiedactualhandles no repeatedpoll.
+
+
+ONE20minute unified10handles: a30048120/a30194204/a30544678/a30684908/a30894421/a29828395 exited0 retired; a30452696/a30947912/a31025985/a31172013 live. Fulla3063reportsread246hash0/8authorsmoke+freshactualPGconcurrentCAS/historical/coverage/restartClippy0/ALL208subset0/owncontainersabsent. Fullupdateda298reports originalbodyreadprior, allclarificationtextread/currentAPPROVE_LIMITED/114hash0; no repeatedtests, hasher126noexecfailure retained thenhash0/owncleanup verified.
+- [x] CDC-D01 / E27-D1/1: repairednormalizedassembler independenta298 explicitlimitedapproval fixedcc98bab7, author37+unchangeda28415+fresh9Clippy0; historicala284WITHHELD/falseu16 and a290red preserved, no newrepairunit/firstreview/reworkinflation.
+- [x] SEM-D04 / E32-D1/1: actualPG immutablehistoricalenumview/CAS/restart independenta306 fixed72dc9e2; singleprojectcurrentas_of notdynamicsharedauth/finance/semanticcert.
+
+Accepted83->85; firstunique74->75(enumstoreonly, CDCwasfirstreviewcountedpreviously); reworked12/75=16%; authored75->76(Dockerdemo). Frozen58->60/74=81.08% LOCALchildrenonly. M1-D17/24/integration0/4/internalrelease0/6/externalgates separateunchanged/full87parents16phasesremainopen.
+
+Fulla305reports489hosthashentries0bad/startpublic0/smoke0/24onboardingfocusedtestClippy0/actualfivepositivePGreads+hidden/writeguard. Sameauthorreview NOTindependentacceptance, hostSHA inventory historicaldeviation vsSafeRust rule and ownedPG/resourcesleft running explicitlyretained. SAMEUUIDa305evidence-onlycleanup/Rustinventory no sourceedits/retest. a312soledeploy/trusted-demo productowner nowparametrizesactualfreshdeploymentidentity, no newcomponent/unitcount; fixedindependentreviewlater.
+
+a300/a301/a308terminal0missingfullreports -> SAMEUUIDresume firstexistingactualbuilderresults/no duplicatebuilder/PG, no authorcount/acceptanceuntilcompletepacket.
+
+Dedicatedfoundation writer assignment a207->a313 forrootCargo.toml/Cargo.lock ONLY gatewayHTTPAxum/Tower exactstableMSRVpins, dependency-baseline report/primaryverifiedmetadata and isolatedRustprobe. Notnewproductunit/denominator; preservepreviousrootpins and fixedimmutableoldarchives, no otherrootwriter/connectorwrites. No adhocdeps inproducttasks. ActualHTTPservice mustfollowreviewedbaseline, fullGateway remainsopen. Eightdevelopment +a305cleanup+a313foundation =10Grokdevelopmentprocesses/max10builders cap12development(reviewsexcluded); no active independentreviews aftera306/a298closed. NextUUIDa314. ONE20minute wait thenONE unified actualhandles no repeatedpoll.
