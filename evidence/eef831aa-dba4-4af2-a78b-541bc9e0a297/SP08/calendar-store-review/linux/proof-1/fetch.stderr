@@ -1,0 +1,18 @@
+    Updating crates.io index
+error: failed to get `oo-core` as a dependency of package `business-calendar v0.1.0 (/work/repo/tools/business-calendar)`
+    ... which satisfies path dependency `business-calendar` (locked to 0.1.0) of package `calendar-store v0.1.0 (/work/repo/tools/calendar-store)`
+
+Caused by:
+  failed to load source for dependency `oo-core`
+
+Caused by:
+  Unable to update /work/repo/crates/oo-core
+
+Caused by:
+  failed to parse manifest at `/work/repo/crates/oo-core/Cargo.toml`
+
+Caused by:
+  error inheriting `edition` from workspace root manifest's `workspace.package.edition`
+
+Caused by:
+  failed to find a workspace root

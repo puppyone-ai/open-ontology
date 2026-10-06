@@ -1,0 +1,3 @@
+   Compiling calendar-store v0.1.0 (/work/repo/tools/calendar-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.68s
+     Running tests/a297_calendar.rs (/target/debug/deps/a297_calendar-a4cd05980f394823)
