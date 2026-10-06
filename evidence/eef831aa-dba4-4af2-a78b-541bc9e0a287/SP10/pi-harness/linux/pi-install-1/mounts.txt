@@ -1,0 +1,5 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/pi-install-1/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/pi-install-1 /evidence rw=true
+volume /var/lib/docker/volumes/oo-a287-eef831aa-npm-cache/_data /npm-cache rw=true
+volume /var/lib/docker/volumes/oo-a287-eef831aa-pi-prefix/_data /opt/pi-prefix rw=true
+

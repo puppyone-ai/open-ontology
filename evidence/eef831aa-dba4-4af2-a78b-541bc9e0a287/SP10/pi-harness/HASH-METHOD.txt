@@ -1,0 +1,17 @@
+Inventory tool: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+Compiled with rustc from docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+RUSTUP_TOOLCHAIN=1.94.0
+rustc --edition 2024 -D warnings writes /usr/local/bin/sha256_manifest. /tmp is noexec, so the binary is not placed there.
+The tool self-checks FIPS empty and abc digests before walking.
+Host shasum is not used for MANIFEST.sha256, source-pi-harness.sha256, or recipe-origin.sha256.
+
+linux/hash-1/launch.sh runs two containers, one at a time, on network none.
+The first writes source-pi-harness.sha256, recipe-origin.sha256, and a draft MANIFEST.sha256.
+Its stdout is then copied to linux/hash-1/console.log.
+CLEANUP.txt records own volume, network, and snapshot removals after that copy.
+linux/hash-1/refresh-id.txt is the rewrite container id, recorded after docker create and before that container starts.
+linux/hash-1/tool-stdout.txt is the expected rewrite stdout: files, empty_sha256, abc_sha256.
+The second container rewrites MANIFEST.sha256. The output path is excluded by the tool.
+Its stdout is compared to tool-stdout.txt and is not copied into this directory after the walk.
+launch.sh exits 0 only when that container exits 0 and the stdout matches.
+/tmp/oo-a287-eef831aa-dba4-4af2-a78b-541bc9e0a287 is removed after that compare. That removal is not a line in CLEANUP.txt.

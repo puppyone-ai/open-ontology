@@ -1,0 +1,52 @@
+
+running 5 tests
+test map::tests::aborted_and_error_message_are_not_finished ... ok
+test map::tests::captured_tool_records_map_and_tool_use_is_not_finished ... ok
+test map::tests::observed_turn_maps_without_tool_events ... ok
+test sha256::tests::empty_and_abc_match_fips_180_4 ... ok
+test sha256::tests::streaming_matches_one_shot ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 17 tests
+test abort_ack_and_ignored_abort_record_the_pid ... ok
+test acknowledgement_and_runsc_do_not_spawn ... ok
+test backpressure_stalls_the_writer ... ok
+test bad_paths_and_origin_do_not_spawn ... ok
+test child_env_is_explicit_and_marker_is_only_in_models ... ok
+test export_and_restore_use_real_commands_and_the_same_messages ... ok
+test export_refuses_two_jsonl_and_a_symlink ... ok
+test finished_turn_is_sequenced_and_acceptance_is_not_completion ... ok
+test not_upstream_real_sixty_one_tools_abort ... ok
+test registry_lock_is_the_root_subset ... ok
+test rejected_prompt_is_not_started ... ok
+test responses_are_paired_by_id ... ok
+test restore_rejects_a_hash_mismatch_before_spawn_and_a_cancelled_switch ... ok
+test turn_deadline_kills_the_spawned_pid ... ok
+test unknown_aborted_error_eof_partial_and_huge_are_not_finished ... ok
+test version_mismatch_does_not_start_rpc ... ok
+test wrong_sha_does_not_spawn ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.22s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

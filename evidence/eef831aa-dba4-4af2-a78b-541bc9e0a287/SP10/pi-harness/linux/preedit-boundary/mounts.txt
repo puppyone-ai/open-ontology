@@ -1,0 +1,6 @@
+volume /var/lib/docker/volumes/oo-a287-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a287-eef831aa-dba4-4af2-a78b-541bc9e0a287/archive/testing/spikes/p09-pi-rpc /work rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/preedit-boundary/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/preedit-boundary /proof rw=true
+volume /var/lib/docker/volumes/oo-a287-eef831aa-cargo/_data /cargo-home rw=true
+

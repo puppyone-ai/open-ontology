@@ -1,0 +1,2 @@
+-rwxr-xr-x 1 root root       160 Oct  6 10:02 /opt/pi-prefix/install/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js
+-rwxr-xr-x 1 root root 122179336 Sep 23 07:57 /opt/pi-prefix/node/bin/node

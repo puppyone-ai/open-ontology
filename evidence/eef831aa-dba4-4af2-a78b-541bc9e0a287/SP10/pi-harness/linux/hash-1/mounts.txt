@@ -1,0 +1,4 @@
+bind /src rw=false
+bind /evidence rw=true
+bind /tool/sha256_manifest.rs rw=false
+

@@ -1,0 +1,1 @@
+published npm package has no LICENSE file

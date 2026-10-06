@@ -1,0 +1,122 @@
+    Checking pi-harness v0.1.0 (/work)
+error: environment variable `CARGO_BIN_EXE_pi_harness_stub` not defined at compile time
+  --> tests/contract.rs:75:30
+   |
+75 |     let stub = PathBuf::from(env!("CARGO_BIN_EXE_pi_harness_stub"));
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_pi_harness_stub")` instead
+
+error: environment variable `CARGO_BIN_EXE_pi_harness_stub` not defined at compile time
+   --> tests/contract.rs:188:36
+    |
+188 |     let mut script = PathBuf::from(env!("CARGO_BIN_EXE_pi_harness_stub"));
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_pi_harness_stub")` instead
+
+error: unused import: `Termination`
+ --> tests/contract.rs:8:83
+  |
+8 |     ModelConfig, ProductEvent, RunscApproval, RuntimeMode, Sequenced, StreamItem, Termination, UserMessage,
+  |                                                                                   ^^^^^^^^^^^
+  |
+  = note: `-D unused-imports` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:157:56
+    |
+157 |     assert_eq!(Harness::launch(relative.request).await.unwrap_err().kind, ErrorKind::Path);
+    |                                                        ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:161:55
+    |
+161 |     assert_eq!(Harness::launch(overlap.request).await.unwrap_err().kind, ErrorKind::Path);
+    |                                                       ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:169:54
+    |
+169 |     assert_eq!(Harness::launch(linked.request).await.unwrap_err().kind, ErrorKind::Path);
+    |                                                      ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:180:59
+    |
+180 |         assert_eq!(Harness::launch(fixture.request).await.unwrap_err().kind, ErrorKind::Protocol, "{origin}");
+    |                                                           ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:197:46
+    |
+197 |     let err = Harness::launch(request).await.unwrap_err();
+    |                                              ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::EventStream` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:239:40
+    |
+239 |     let err = running.harness.events().unwrap_err();
+    |                                        ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::EventStream`
+    |
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:395:116
+    |
+395 |     let err = Harness::restore(fixture.request.clone(), &fixture.temp.path("session/session.jsonl"), digest).await.unwrap_err();
+    |                                                                                                                    ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+    = help: the following other types implement trait `std::fmt::Debug`:
+              ()
+              (A, Z, Y, X, W, V, U, T)
+              (B, A, Z, Y, X, W, V, U, T)
+              (C, B, A, Z, Y, X, W, V, U, T)
+              (D, C, B, A, Z, Y, X, W, V, U, T)
+              (E, D, C, B, A, Z, Y, X, W, V, U, T)
+              (T,)
+              (U, T)
+            and 5 others
+    = note: required for `(pi_harness::Harness, std::vec::Vec<u8>)` to implement `std::fmt::Debug`
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+error[E0277]: `pi_harness::Harness` doesn't implement `std::fmt::Debug`
+   --> tests/contract.rs:400:108
+    |
+400 |     let err = Harness::restore(fixture.request, &fixture.temp.path("session/session.jsonl"), digest).await.unwrap_err();
+    |                                                                                                            ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pi_harness::Harness`
+    |
+    = help: the following other types implement trait `std::fmt::Debug`:
+              ()
+              (A, Z, Y, X, W, V, U, T)
+              (B, A, Z, Y, X, W, V, U, T)
+              (C, B, A, Z, Y, X, W, V, U, T)
+              (D, C, B, A, Z, Y, X, W, V, U, T)
+              (E, D, C, B, A, Z, Y, X, W, V, U, T)
+              (T,)
+              (U, T)
+            and 5 others
+    = note: required for `(pi_harness::Harness, std::vec::Vec<u8>)` to implement `std::fmt::Debug`
+note: required by a bound in `std::result::Result::<T, E>::unwrap_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1324:4
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `pi-harness` (test "contract") due to 11 previous errors
