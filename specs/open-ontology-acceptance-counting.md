@@ -263,3 +263,11 @@ Fulla277reports252hash0/16testsClippy0/ALL117subset0/owncontainersabsent authore
 - [ ] SEM-D03 / E29-D0/1 frozen BEFORE code: tools/calendar-store actualPGimmutable resolvedsnapshots/CASactivepointer/restricted-owner oo_dict.calendar view in explicitsingleproject deployment; a289isolatedonly. Sharedmulti-projectauthorization/financeownerUI remainrequired parentwork, not replaced by childscope.
 
 Frozen48/62=77.42% localchildrenonly; othermetricsunchanged. Afternewdispatch2development(a287,a289)+4review(a284-a286,a288),max6builders<10/devcap12. NextUUIDa290; ONE20minute wait thenONE unified6actualhandles no repeatedpoll.
+
+
+ONE20minute unified6handles: a28464564/a28594611 terminal0, a28652114/a28787026/a28834250/a28915854 live. Retireclosedhandles. Fulla284reports238hash0/27smoke+3Position/14freshpass1productfail/Clippy0/owncontainersabsent verifiesWITHHELD ordinal32768/65535 acceptedagainstcontract<=32767. Firstunique64→65/reworked11→12=18.46%; CDC-D01 remainsunaccepted, a290minimumrepairno newunit. Fulla285reports353hash0/12boundary+freshREALPi launch/send/events/abort/transcript/restore/live0Clippy0/pinchecks/owncontainersabsent -> acceptH-D01 prototypeonly E26-D1/1. Firstunique65→66/reworked12/66=18.18%, historical73→74, frozen49/62=79.03%, authored68unchanged. Under7dayPi pinnotrootbaseline/release; literalexport/restore unsupported verifiedequivalents used.
+- [x] H-D01: actualPi pinnedRPCstdio prototype/recovery with mandatoryMSRVClippy (a285); asyncadapter/runsc/signedimage separate.
+- [ ] CDC-D01: a284WITHHELD missingordinalrangecheck; a290minimumrepair beforefixedrereview, no countinflation.
+- [ ] CDC-D02 / E30-D0/1 frozen BEFORE code: actual500k-event durable boundedspool/chunkmanifest/restart/fault incompleteproof, a291tools/cdc-spool only; no applied/ACK certificate.
+
+Frozen49/63=77.78% localchildrenonly, M1-D17/24/integration0/4/release0/6 unchanged. Newlaunches4development(a287,a289,a290,a291)+2review(a286,a288),max6builders<10/devcap12. NextUUIDa292; ONE20minute wait thenONE unified6actualhandles, no interim/repeatedpoll.
