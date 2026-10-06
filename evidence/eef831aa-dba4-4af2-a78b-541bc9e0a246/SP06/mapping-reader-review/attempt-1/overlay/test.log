@@ -1,0 +1,35 @@
+   Compiling aws-lc-sys v0.45.0
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls-webpki v0.103.15
+   Compiling rustls v0.23.45
+   Compiling tokio-rustls v0.26.5
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0277]: can't compare `&str` with `str`
+   --> crates/oo-gateway/tests/mapping_reader_access_a246_review.rs:187:59
+    |
+187 |     assert!(!clerk_columns(&clerk).iter().any(|name| name == "private_note" || name == "ratio"));
+    |                                                           ^^ no implementation for `&str == str`
+    |
+    = help: the trait `PartialEq<str>` is not implemented for `&str`
+    = note: required for `&&str` to implement `PartialEq<&str>`
+help: consider dereferencing here
+    |
+187 |     assert!(!clerk_columns(&clerk).iter().any(|name| *name == "private_note" || name == "ratio"));
+    |                                                      +
+
+error[E0277]: can't compare `&str` with `str`
+   --> crates/oo-gateway/tests/mapping_reader_access_a246_review.rs:187:85
+    |
+187 |     assert!(!clerk_columns(&clerk).iter().any(|name| name == "private_note" || name == "ratio"));
+    |                                                                                     ^^ no implementation for `&str == str`
+    |
+    = help: the trait `PartialEq<str>` is not implemented for `&str`
+    = note: required for `&&str` to implement `PartialEq<&str>`
+help: consider dereferencing here
+    |
+187 |     assert!(!clerk_columns(&clerk).iter().any(|name| name == "private_note" || *name == "ratio"));
+    |                                                                                +
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-gateway` (test "mapping_reader_access_a246_review") due to 2 previous errors

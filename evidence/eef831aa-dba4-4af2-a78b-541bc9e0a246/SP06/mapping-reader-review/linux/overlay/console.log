@@ -1,0 +1,35 @@
+oo_task=sp06-mapping-reader-review-overlay
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a246
+oo_fixed=1f1028f6161783d6e3bf1e9beb3a23a1161deca0
+oo_platform=linux/arm64
+phase=overlay
+Linux bf89f0455661 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=source
+phase_exit=0 phase=frozen-match
+phase_exit=0 phase=product-hash
+phase_exit=0 phase=libclang
+phase_exit=0 phase=clippy-component
+=== build init-pg and oo-pipeline ===
+phase_exit=0 phase=bins
+phase_exit=0 phase=bin-hash
+=== mapping reader review live test ===
+phase_exit=0 phase=test
+phase_exit=0 phase=test-count
+phase_exit=0 phase=oracle
+=== clippy ===
+phase_exit=0 phase=clippy
+phase_exit=0 phase=lock-hash
+phase_exit=0 phase=secret-scan
+overlay_review=ok

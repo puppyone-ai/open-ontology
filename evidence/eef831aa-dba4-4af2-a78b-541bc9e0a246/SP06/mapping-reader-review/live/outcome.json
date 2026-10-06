@@ -1,0 +1,13 @@
+{
+  "catalog_before": "42501",
+  "effect": "Installed",
+  "hidden": "42501",
+  "mapping_rows": "all",
+  "parent_acceptance": false,
+  "protocol": "oo.gateway.mapping-reader-access-review/v1",
+  "release": false,
+  "replay": "Replay",
+  "runtime_owner": false,
+  "source_reader_writes": 0,
+  "tenant_isolation": "not_provided"
+}

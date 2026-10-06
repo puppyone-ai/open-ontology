@@ -1,0 +1,18 @@
+container oo-a246-smoke already absent
+container oo-a246-proof already absent
+oo-a246-pg
+removed container oo-a246-pg
+container oo-a246-hash already absent
+oo-a246-eef831aa-cargo
+removed volume oo-a246-eef831aa-cargo
+oo-a246-eef831aa-target
+removed volume oo-a246-eef831aa-target
+oo-a246-eef831aa-pgdata
+removed volume oo-a246-eef831aa-pgdata
+oo-a246-eef831aa-net
+removed network oo-a246-eef831aa-net
+removed /tmp/oo-a246-eef831aa-dba4-4af2-a78b-541bc9e0a246
+remaining a246 containers:
+cleanup_done
+
+Inventory container oo-a246-hash writes SHA256SUMS and is removed after that write.
