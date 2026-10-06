@@ -1,0 +1,9 @@
+Removed only a264 resources after proof-2.
+
+Containers: none remained. smoke e2ef6bb117536c9d36a854f57ddbf11a05b1309b7d84fe2f77af09d89733af3f, proof 5764a1b000aeec08c6d88e2dff378f861bd28f88d42ebaf62e38b9ca9e91c4bc, and proof-2 cf05571ca983496aa7726c45e57ead1be9c222d238ed4e67690586476af69b8f were removed by their launch scripts.
+
+Volumes removed: oo-a264-eef831aa-cargo, oo-a264-eef831aa-target.
+Network removed: oo-a264-eef831aa-net (1b6122cad0a6e97fce1297f816d165bdd2e8419b3e5034e69b46ebbf4e998e8d).
+Private tmp removed: /tmp/oo-a264-eef831aa-dba4-4af2-a78b-541bc9e0a264.
+
+No prune. No other owner's containers, volumes, or networks were removed. oo-a263-proof was visible at the proof-2 launch and was left running.

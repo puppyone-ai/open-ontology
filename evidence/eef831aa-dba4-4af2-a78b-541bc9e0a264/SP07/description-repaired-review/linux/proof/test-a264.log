@@ -1,0 +1,24 @@
+   Compiling oo-builder v0.1.0 (/cargo-home/work/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.41s
+     Running tests/description_candidate_a264.rs (/target/debug/deps/description_candidate_a264-89e82d57ec47e081)
+
+running 1 test
+test physical_a_and_b_library_and_cli ... FAILED
+
+failures:
+
+---- physical_a_and_b_library_and_cli stdout ----
+
+thread 'physical_a_and_b_library_and_cli' (142) panicked at crates/oo-builder/tests/description_candidate_a264.rs:547:13:
+assertion `left == right` failed
+  left: String("4d0ad807d8869cc6cd93f70424510780e26453514aaf8ac07e2b6e8a0f640bb1")
+ right: String("5801d0ba79262f00c00902f8d92ac91f3de67959647a7145ac45dd92bfbc52b4")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    physical_a_and_b_library_and_cli
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p oo-builder --test description_candidate_a264`

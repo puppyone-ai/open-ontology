@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/description_candidate_cli.rs (/target/debug/deps/description_candidate_cli-df745b3f3c27bbea)
+
+running 5 tests
+test compiled_draft_prepare_and_hand_response_are_the_public_documents ... ok
+test hidden_and_stale_selections_exit_closed ... ok
+test incomplete_truncated_and_response_oversize_keep_the_draft ... ok
+test malformed_oversize_and_non_utf8_exit_closed ... ok
+test usage_names_the_phase_and_makes_no_runtime_claim ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
