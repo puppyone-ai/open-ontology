@@ -1,0 +1,21 @@
+   Compiling oo-gateway v0.1.0 (/overlay/tree/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.98s
+     Running tests/mapping_reader_access_pg_live.rs (/target/debug/deps/mapping_reader_access_pg_live-7d851ac92c205dd3)
+
+running 1 test
+test mapping_reader_provision_then_catalog_and_query ... 
+thread 'mapping_reader_provision_then_catalog_and_query' (1053) panicked at crates/oo-gateway/tests/mapping_reader_access_pg_live.rs:137:5:
+assertion `left == right` failed: init-pg
+  left: Some(6)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    mapping_reader_provision_then_catalog_and_query
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+error: test failed, to rerun pass `-p oo-gateway --test mapping_reader_access_pg_live`

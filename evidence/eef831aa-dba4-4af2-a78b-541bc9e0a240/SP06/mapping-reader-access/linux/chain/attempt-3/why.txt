@@ -1,0 +1,1 @@
+init-pg exit 6 stderr "target catalog refused". The first run had already created oo_target_owner and oo_pipeline_runtime. A second empty database is refused. Reset now drops those roles before init.

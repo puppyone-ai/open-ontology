@@ -1,0 +1,1 @@
+Installed and mapping_exact succeeded. login_column_grants returned 13 because table SELECT on _oo.physical_mappings is listed once per mapping column. Shadow grants were not separated. exit 101.

@@ -1,0 +1,23 @@
+Mapping-reader launch and hash recipes for UUID eef831aa-dba4-4af2-a78b-541bc9e0a240.
+Fixed product commit df0bce2e235babc0944b68350921c13038741ab9. The smoke archive is that commit. HEAD may contain later commits. The product overlay is applied only after smoke.exit is 0.
+
+Unchanged tool blobs, copied from a226, which copied a211 and a200:
+  tools/sha256.rs blob b69a2af13099ce4baf2d04e79c5692d9988ab67d
+  tools/select-debs.rs blob 565787c25c25bf451343cf4bc0431619c0611899
+  pg/pg-wrap.sh blob e12a368394c724f8f9d3436ad5f4873e139baa66
+
+extract-libclang.sh origin a200 blob 1c23dbd6ab58cb0f42d218075fd55c0a8c4fe5ea
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/extract-libclang.sh
+  a240 blob 20bc9ae212cc80915ae2130fc3dfac6849ec56a3
+  The only edit is the private clang root, deb cache, and package list: a200-* became a240-*.
+
+Launch shape copied from a226:
+  linux/smoke/launch.sh origin blob 4e35d55d9bd49eb437dbb99d2f24f402969913e3
+    a211 path reused by a226. a200 smoke launch blob 20b391304358e474c189203eeb525b46fc2ea194.
+    a204 preoverlay launch blob 3737c1a8321814ff3b1070ddf8b89d6864c63f6f.
+    a199 preoverlay launch blob 7a706f544e6d44dfd46f0c7a1095f72ba582afdf.
+  linux/chain/launch.sh origin blob 42bfd4699327065104467767b6ef490624e350f5
+  pg/up.sh origin blob 98c1234fa842f9c0f3a889edcbb202f293236735
+    which reused a200 blob 1784718c92323df0f216e9f5bd8fee182f4ff24d.
+
+Edits from those scripts: owner a240, session eef831aa-dba4-4af2-a78b-541bc9e0a240, fixed commit df0bce2e235babc0944b68350921c13038741ab9, builder memory 6g and 1 CPU, private names oo-a240-*, SAN DNS:oo-a240-pg. Smoke runs only cargo test -p oo-gateway --lib policy::tests. Chain overlays the four owned product paths and runs the mapping_reader_access unit tests, the live test, and clippy. No harness member. No cargo update. No manifest edit. No root lock edit. Cleanup reads labels with index .Config.Labels.

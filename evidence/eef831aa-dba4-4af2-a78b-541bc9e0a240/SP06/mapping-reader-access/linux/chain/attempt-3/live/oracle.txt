@@ -1,0 +1,4 @@
+server=ssl=true
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+source_reader_insert_before=42501
+import_before_init=target schema is not ready
