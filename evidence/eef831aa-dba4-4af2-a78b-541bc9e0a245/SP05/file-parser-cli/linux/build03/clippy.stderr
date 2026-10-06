@@ -1,0 +1,32 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0618]: expected function, found `serde_json::Value`
+   --> crates/oo-connectors/tests/parse_file_cli.rs:959:9
+    |
+284 | fn budget(delimited: bool, batch_rows: u64, worker_ms: u64) -> Value {
+    | -------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+896 |     let budget = busy_budget(ROWS, u64::try_from(bytes.len()).expect("len"));
+    |         ------ `budget` has type `serde_json::Value`
+...
+959 |         budget(false, 4, 60_000),
+    |         ^^^^^^------------------
+    |         |
+    |         call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-connectors` (test "parse_file_cli") due to 1 previous error

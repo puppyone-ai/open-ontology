@@ -1,0 +1,14 @@
+
+running 8 tests
+test csv_tsv_and_jsonl_round_trip_exact_values ... ok
+test deadline_bounds_and_paths_do_not_spawn ... ok
+test early_finish_is_not_a_receipt_and_the_next_call_works ... ok
+test empty_jsonl_completes_without_import ... ok
+test fixture_malformed_trailer_and_early_complete_are_not_receipts ... ok
+test hash_mismatch_nonzero_and_overflow_are_not_complete ... ok
+test one_millisecond_cannot_complete ... ok
+test stall_is_killed_and_the_next_call_still_completes ... eef831aa-dba4-4af2-a78b-541bc9e0a220 stall_elapsed_ms=824 kind=TimedOut exit=None signal=Some(9) group=Sent reaped=true alive=false
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+

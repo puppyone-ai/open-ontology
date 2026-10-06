@@ -1,0 +1,38 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-connectors v0.1.0 (/src/crates/oo-connectors)
+error[E0277]: the trait bound `[u8]: From<GenericArray<u8, UInt<UInt<UInt<..., ...>, ...>, ...>>>` is not satisfied
+    --> crates/oo-connectors/tests/parse_file_cli.rs:188:28
+     |
+ 188 |     hex(&hasher.finalize().into())
+     |                            ^^^^ the trait `From<GenericArray<u8, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>>` is not implemented for `[u8]`
+     |
+help: the following other types implement trait `From<T>`
+    --> /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.19.2/src/bytes/mod.rs:53:1
+     |
+  53 | impl<'t> From<MatchBytes<'t>> for &'t [u8] {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&[u8]` implements `From<fancy_regex::bytes::MatchBytes<'_>>`
+     |
+    ::: /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.13.1/src/regex/bytes.rs:1622:1
+     |
+1622 | impl<'h> From<Match<'h>> for &'h [u8] {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&[u8]` implements `From<regex::regex::bytes::Match<'_>>`
+     = note: required for `GenericArray<u8, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>>` to implement `Into<[u8]>`
+     = note: the full name for the type has been written to '/target/debug/deps/parse_file_cli-40ccb363226e85cb.long-type-16749123289210157217.txt'
+     = note: consider using `--verbose` to print the full type name to the console
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-connectors` (test "parse_file_cli") due to 1 previous error

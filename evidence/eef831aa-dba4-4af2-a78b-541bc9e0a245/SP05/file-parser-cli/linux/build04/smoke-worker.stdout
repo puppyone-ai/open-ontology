@@ -1,0 +1,17 @@
+
+running 12 tests
+test bom_strip_shifts_the_first_record_and_keeps_the_bom_in_the_hash ... ok
+test csv_round_trip_decodes_exact_values_and_lineage ... ok
+test drop_guard_reaps_when_the_test_does_not_wait ... ok
+test empty_files_follow_the_header_policy ... ok
+test hash_mismatch_can_emit_a_batch_and_still_omits_completion ... ok
+test ipc_ceiling_rejects_before_a_frame_is_written ... ok
+test jsonl_splits_batches_and_distinguishes_null_from_missing ... ok
+test parent_kills_and_reaps_a_child_blocked_on_stdin ... ok
+test rejected_requests_exit_nonzero_without_completion ... ok
+test sha256sum_matches_the_empty_vector ... ok
+test truncated_jsonl_and_record_budget_omit_completion ... ok
+test tsv_keeps_a_quoted_tab_and_an_unquoted_comma ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+

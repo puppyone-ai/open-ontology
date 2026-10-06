@@ -1,0 +1,5 @@
+44566c22f556 oo-a248-chain 0f24958fa693 a248 rust-builder
+08d7bcce2fec oo-a248-pg 3aac91d19d5b a248 postgres
+d2f95b031562 oo-a249-chain 0f24958fa693 a249 rust-builder
+99aa39aac9fe oo-a249-pg 3aac91d19d5b a249 postgres
+cfac53998c2e oo-a247-pg 3aac91d19d5b a247 postgres

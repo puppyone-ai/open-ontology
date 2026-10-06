@@ -1,0 +1,22 @@
+
+running 12 tests
+test csv_summary_matches_the_profile_and_hides_cells ... ok
+test empty_jsonl_completes_without_rows ... ok
+test exact_header_on_an_empty_file_has_no_completion ... ok
+test executable_sha_mismatch_does_not_start_the_parent ... ok
+test hash_mismatch_is_the_parent_receipt_refusal ... ok
+test help_lists_the_closed_contract ... ok
+test jsonl_summary_counts_null_and_missing ... ok
+test malformed_quote_has_no_completion ... ok
+test parent_deadline_kills_the_worker_and_the_next_call_completes ... FAILED
+test request_shape_stops_before_a_child ... ok
+test tsv_summary_counts_two_batches ... ok
+test unknown_arguments_are_usage ... ok
+
+failures:
+
+failures:
+    parent_deadline_kills_the_worker_and_the_next_call_completes
+
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 221.76s
+

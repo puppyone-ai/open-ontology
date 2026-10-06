@@ -1,0 +1,19 @@
+Removed after linux/build07 exited 0.
+
+Launch scripts had already removed containers oo-a245-build01 through oo-a245-build07.
+
+docker volume rm oo-a245-eef831aa-cargo
+exit 0
+
+docker volume rm oo-a245-eef831aa-target
+exit 0
+
+docker network rm oo-a245-eef831aa-net
+exit 0
+
+rm -rf /tmp/oo-a245-eef831aa-dba4-4af2-a78b-541bc9e0a245
+exit 0
+
+A later check showed no container, volume, or network labeled oo.owner=a245, and the private extract was absent.
+
+No docker prune. No foreign container, volume, or network was removed.
