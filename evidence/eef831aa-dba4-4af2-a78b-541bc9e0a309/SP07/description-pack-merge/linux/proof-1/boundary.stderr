@@ -1,0 +1,3 @@
+   Compiling description-pack v0.1.0 (/work/tree/tools/description-pack)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.63s
+     Running tests/a302_sealed.rs (/target/debug/deps/a302_sealed-291bc7cd90a399e4)

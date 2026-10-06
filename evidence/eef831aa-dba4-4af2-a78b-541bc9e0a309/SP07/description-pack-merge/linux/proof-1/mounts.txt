@@ -1,0 +1,11 @@
+bind /Users/redux/puppy-one/open-ontology/tools/description-pack /overlay rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a309/SP07/description-pack-merge/tools/lock_subset.rs /tools/lock_subset.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a302/SP07/description-pack-review/overlay/a302_sealed.rs /boundary/a302_sealed.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a309/SP07/description-pack-merge/linux/proof-1/inside.sh /inside.sh rw=false
+volume /var/lib/docker/volumes/oo-a309-eef831aa-cargo/_data /cargo-home rw=true
+bind /tmp/oo-a309-eef831aa-dba4-4af2-a78b-541bc9e0a309/proof-1/archive /src rw=false
+bind /tmp/oo-a309-eef831aa-dba4-4af2-a78b-541bc9e0a309/proof-1/work /work rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a309/SP07/description-pack-merge/linux/proof-1/blobs /blobs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a309/SP07/description-pack-merge/linux/proof-1 /evidence rw=true
+volume /var/lib/docker/volumes/oo-a309-eef831aa-target/_data /target rw=true
+
