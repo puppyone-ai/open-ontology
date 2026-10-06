@@ -1,0 +1,297 @@
+Diff in /src/benchmarks/question-bank/src/emit.rs:2:
+ 
+ use serde_json::{Map, Value};
+ 
+-use crate::parse::{expected_json, Bank, Interpretation, Note, Question, Total};
++use crate::parse::{Bank, Interpretation, Note, Question, Total, expected_json};
+ use crate::sha256_hex;
+ 
+ const REPORT: &str = "oo.benchmark.question-bank-report/v1";
+Diff in /src/benchmarks/question-bank/src/emit.rs:124:
+             strings(&question.required_metrics),
+         );
+         row.insert("split".to_owned(), Value::String(question.split.clone()));
+-        row.insert("version".to_owned(), Value::String(question.version.clone()));
++        row.insert(
++            "version".to_owned(),
++            Value::String(question.version.clone()),
++        );
+         questions.push(Value::Object(row));
+     }
+     let mut map = Map::new();
+Diff in /src/benchmarks/question-bank/src/emit.rs:156:
+         "dataset_id".to_owned(),
+         Value::String(bank.dataset_id.clone()),
+     );
+-    map.insert("question_count".to_owned(), Value::from(bank.questions.len()));
++    map.insert(
++        "question_count".to_owned(),
++        Value::from(bank.questions.len()),
++    );
+     map.insert("questions".to_owned(), Value::Array(questions));
+     map.insert("suite_id".to_owned(), Value::String(bank.suite_id.clone()));
+     map.insert("version".to_owned(), Value::String(SCORER.to_owned()));
+Diff in /src/benchmarks/question-bank/src/emit.rs:169:
+         "accepted_interpretations".to_owned(),
+         interpretations_json(&question.interpretations),
+     );
+-    row.insert(
+-        "annotations".to_owned(),
+-        notes_json(&question.annotations),
+-    );
++    row.insert("annotations".to_owned(), notes_json(&question.annotations));
+     row.insert("as_of".to_owned(), Value::String(question.as_of.clone()));
+     row.insert("asker".to_owned(), asker_json(question));
+     row.insert("category".to_owned(), strings(&question.category));
+Diff in /src/benchmarks/question-bank/src/emit.rs:201:
+         Value::String(question.role_group.clone()),
+     );
+     row.insert("split".to_owned(), Value::String(question.split.clone()));
+-    row.insert("version".to_owned(), Value::String(question.version.clone()));
++    row.insert(
++        "version".to_owned(),
++        Value::String(question.version.clone()),
++    );
+     Value::Object(row)
+ }
+ 
+Diff in /src/benchmarks/question-bank/src/parse.rs:215:
+     let dataset = parse_dataset(req(root, "dataset", "/")?)?;
+     let suite = parse_suite(req(root, "suite", "/")?)?;
+     let mut payload = bank_version.len() + dataset.0.len() + suite.0.len();
+-    let questions = parse_questions(
+-        req(root, "questions", "/")?,
+-        &bank_version,
+-        &mut payload,
+-    )?;
++    let questions = parse_questions(req(root, "questions", "/")?, &bank_version, &mut payload)?;
+     if payload > MAX_PAYLOAD {
+         return Err(ConfigError::at("budget", "/"));
+     }
+Diff in /src/benchmarks/question-bank/src/parse.rs:320:
+     if version != bank_version {
+         return Err(ConfigError::at("version", child(pointer, "version")));
+     }
+-    let role_group = ident_id(req_str(map, "role_group", pointer)?, &child(pointer, "role_group"))?;
++    let role_group = ident_id(
++        req_str(map, "role_group", pointer)?,
++        &child(pointer, "role_group"),
++    )?;
+     let (review_status, dual_annotation) = parse_review(req(map, "review", pointer)?, pointer)?;
+     let interpretations = parse_interpretations(
+         req(map, "accepted_interpretations", pointer)?,
+Diff in /src/benchmarks/question-bank/src/parse.rs:687:
+         }
+         "needs_reannotation" => {
+             let declared = req_str(map, "unresolved", &at)?;
+-            let reason = defect
+-                .map(Defect::label)
+-                .unwrap_or("declared_unresolved");
++            let reason = defect.map(Defect::label).unwrap_or("declared_unresolved");
+             if declared != reason {
+                 return Err(ConfigError::at("review", child(&at, "unresolved")));
+             }
+Diff in /src/benchmarks/question-bank/src/parse.rs:825:
+ ) -> Result<Option<Value>, ConfigError> {
+     match map.get("typed_gold") {
+         None => Ok(None),
+-        Some(value) => Ok(Some(parse_typed_gold(value, &child(pointer, "typed_gold"), payload)?)),
++        Some(value) => Ok(Some(parse_typed_gold(
++            value,
++            &child(pointer, "typed_gold"),
++            payload,
++        )?)),
+     }
+ }
+ 
+Diff in /src/benchmarks/question-bank/src/parse.rs:974:
+             check_keys(map, &["presence", "value"], pointer)?;
+             let mut out = Map::new();
+             out.insert("presence".to_owned(), Value::String("value".to_owned()));
+-            out.insert("value".to_owned(), Value::Bool(req_bool(map, "value", pointer)?));
++            out.insert(
++                "value".to_owned(),
++                Value::Bool(req_bool(map, "value", pointer)?),
++            );
+             Ok(Value::Object(out))
+         }
+         "int64" => {
+Diff in /src/benchmarks/question-bank/src/parse.rs:981:
+             check_keys(map, &["presence", "value"], pointer)?;
+             let text = req_str(map, "value", pointer)?;
+-            let canonical = canonical_i64(text).map_err(|_| {
+-                ConfigError::at("int64", child(pointer, "value"))
+-            })?;
++            let canonical = canonical_i64(text)
++                .map_err(|_| ConfigError::at("int64", child(pointer, "value")))?;
+             *payload += canonical.len();
+             let mut out = Map::new();
+             out.insert("presence".to_owned(), Value::String("value".to_owned()));
+Diff in /src/benchmarks/question-bank/src/parse.rs:1034:
+             );
+             out.insert("negative".to_owned(), Value::Bool(decimal.is_negative()));
+             out.insert("presence".to_owned(), Value::String("value".to_owned()));
+-            out.insert("scale".to_owned(), Value::Number(Number::from(decimal.scale())));
++            out.insert(
++                "scale".to_owned(),
++                Value::Number(Number::from(decimal.scale())),
++            );
+             Ok(Value::Object(out))
+         }
+         _ => Err(ConfigError::at("schema", pointer)),
+Diff in /src/benchmarks/question-bank/src/parse.rs:1092:
+             if let Some(keys) = self.key_columns
+                 && !keys.is_empty()
+             {
+-                return Err(ConfigError::at("schema", child(self.pointer, "key_columns")));
++                return Err(ConfigError::at(
++                    "schema",
++                    child(self.pointer, "key_columns"),
++                ));
+             }
+             if let Some(values) = self.value_columns
+                 && values.len() != 1
+Diff in /src/benchmarks/question-bank/src/parse.rs:1107:
+             && let Some(keys) = self.key_columns
+             && keys.is_empty()
+         {
+-            return Err(ConfigError::at("schema", child(self.pointer, "key_columns")));
++            return Err(ConfigError::at(
++                "schema",
++                child(self.pointer, "key_columns"),
++            ));
+         }
+         let (Some(keys), Some(values)) = (self.key_columns, self.value_columns) else {
+             return Ok(());
+Diff in /src/benchmarks/question-bank/src/parse.rs:1115:
+         let mut names = BTreeSet::new();
+         for name in keys {
+             if !names.insert(name.as_str()) {
+-                return Err(ConfigError::at("schema", child(self.pointer, "key_columns")));
++                return Err(ConfigError::at(
++                    "schema",
++                    child(self.pointer, "key_columns"),
++                ));
+             }
+         }
+         for (index, column) in values.iter().enumerate() {
+Diff in /src/benchmarks/question-bank/src/parse.rs:1219:
+         if interp_sql == sql {
+             return Ok(());
+         }
+-        let base = self.pointer.strip_suffix("/expected").unwrap_or(self.pointer);
++        let base = self
++            .pointer
++            .strip_suffix("/expected")
++            .unwrap_or(self.pointer);
+         Err(ConfigError::at(
+             "schema",
+             format!("{base}/accepted_interpretations/{index}/gold_sql"),
+Diff in /src/benchmarks/question-bank/src/parse.rs:1260:
+     }
+ 
+     fn one_selected(&self) -> bool {
+-        self.interpretations.iter().filter(|item| item.selected).count() == 1
++        self.interpretations
++            .iter()
++            .filter(|item| item.selected)
++            .count()
++            == 1
+     }
+ 
+     fn typed_kind(&self) -> Option<&str> {
+Diff in /src/benchmarks/question-bank/src/parse.rs:1273:
+ 
+ fn first_relative(columns: Option<&[ValueColumn]>, pointer: &str) -> Option<String> {
+     let columns = columns?;
+-    let index = columns.iter().position(|column| column.tolerance == "relative")?;
++    let index = columns
++        .iter()
++        .position(|column| column.tolerance == "relative")?;
+     Some(format!(
+         "{}/value_columns/{index}/tolerance",
+         pointer.trim_end_matches('/')
+Diff in /src/benchmarks/question-bank/src/parse.rs:1283:
+ fn check_role_groups(questions: &[Question]) -> Result<(), ConfigError> {
+     let mut groups: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+     for (index, question) in questions.iter().enumerate() {
+-        groups.entry(question.role_group.as_str()).or_default().push(index);
++        groups
++            .entry(question.role_group.as_str())
++            .or_default()
++            .push(index);
+     }
+     for indexes in groups.values() {
+         let mut roles = BTreeSet::new();
+Diff in /src/benchmarks/question-bank/src/parse.rs:1352:
+ 
+ fn not_found_gold() -> Value {
+     let mut map = Map::new();
+-    map.insert("completion".to_owned(), Value::String("complete".to_owned()));
++    map.insert(
++        "completion".to_owned(),
++        Value::String("complete".to_owned()),
++    );
+     map.insert("kind".to_owned(), Value::String("not_found".to_owned()));
+     map.insert("warnings".to_owned(), Value::Array(Vec::new()));
+     Value::Object(map)
+Diff in /src/benchmarks/question-bank/src/parse.rs:1368:
+     }
+     let mut map = Map::new();
+     map.insert("columns".to_owned(), Value::Array(column_items));
+-    map.insert("completion".to_owned(), Value::String("complete".to_owned()));
++    map.insert(
++        "completion".to_owned(),
++        Value::String("complete".to_owned()),
++    );
+     map.insert("kind".to_owned(), Value::String("rows".to_owned()));
+     map.insert(
+         "rows".to_owned(),
+Diff in /src/benchmarks/question-bank/src/parse.rs:1440:
+ }
+ 
+ fn bad_control(text: &str) -> bool {
+-    text.chars()
+-        .any(|ch| ch == '\u{7f}' || (ch as u32) < 0x20)
++    text.chars().any(|ch| ch == '\u{7f}' || (ch as u32) < 0x20)
+ }
+ 
+ fn ident_id(text: &str, pointer: &str) -> Result<String, ConfigError> {
+Diff in /src/benchmarks/question-bank/tests/bank.rs:173:
+ 
+     let gold = &report["scorer_view"]["questions"][2]["expected"]["typed_gold"];
+     assert_eq!(
+-        gold.as_object().unwrap().keys().cloned().collect::<Vec<_>>(),
++        gold.as_object()
++            .unwrap()
++            .keys()
++            .cloned()
++            .collect::<Vec<_>>(),
+         ["completion", "kind", "warnings"]
+     );
+     assert_eq!(gold["completion"], "complete");
+Diff in /src/benchmarks/question-bank/tests/cli.rs:105:
+ 
+ #[test]
+ fn compiled_cli_config_does_not_write_a_report() {
+-    expect_config("duplicate-id.json", "question-bank: schema /questions/1/id\n");
+     expect_config(
++        "duplicate-id.json",
++        "question-bank: schema /questions/1/id\n",
++    );
++    expect_config(
+         "missing-gold-approved.json",
+         "question-bank: review /questions/0/review/status\n",
+     );
+Diff in /src/benchmarks/question-bank/tests/cli.rs:114:
+         "bad-version.json",
+         "question-bank: version /questions/0/version\n",
+     );
+-    expect_config("bad-as-of.json", "question-bank: as_of /questions/0/as_of\n");
++    expect_config(
++        "bad-as-of.json",
++        "question-bank: as_of /questions/0/as_of\n",
++    );
+     expect_config(
+         "holdout-split.json",
+         "question-bank: schema /questions/0/split\n",

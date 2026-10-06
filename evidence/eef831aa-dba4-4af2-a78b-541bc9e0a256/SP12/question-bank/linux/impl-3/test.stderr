@@ -1,0 +1,7 @@
+   Compiling oo-question-bank v0.1.0 (/src/benchmarks/question-bank)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.93s
+     Running unittests src/lib.rs (/target/debug/deps/oo_question_bank-97bea3477d8e4965)
+     Running unittests src/main.rs (/target/debug/deps/question_bank-576366ff7eaf84b0)
+     Running tests/bank.rs (/target/debug/deps/bank-fce3e76ec0167b27)
+     Running tests/cli.rs (/target/debug/deps/cli-24fa76ee52df15f1)
+   Doc-tests oo_question_bank

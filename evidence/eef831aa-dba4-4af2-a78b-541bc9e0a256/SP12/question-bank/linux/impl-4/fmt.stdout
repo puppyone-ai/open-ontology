@@ -1,0 +1,13 @@
+Diff in /src/benchmarks/question-bank/tests/bank.rs:492:
+     let short = "t".repeat(472);
+     let mut rows = Vec::new();
+     for index in 0..27 {
+-        let text = if index == 26 { short.clone() } else { full.clone() };
++        let text = if index == 26 {
++            short.clone()
++        } else {
++            full.clone()
++        };
+         rows.push(serde_json::json!([{ "presence": "value", "value": text }]));
+     }
+     let mut bank = serde_json::json!({

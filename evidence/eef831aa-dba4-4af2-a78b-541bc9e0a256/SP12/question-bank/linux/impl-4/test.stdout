@@ -1,0 +1,38 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test approved_decimal_stays_lexical_and_rescales_exactly ... ok
+test clarify_not_found_with_extra_fields_stays_unresolved ... ok
+test content_hashes_follow_the_changed_document ... ok
+test declared_unresolved_is_not_upgraded ... ok
+test mixed_bank_keeps_the_denominator_and_hides_gold ... ok
+test payload_cap_ignores_identity_bytes ... ok
+test scalar_top_k_and_bool_gold_match_the_typed_shape ... ok
+test sha256_matches_fips_180_4 ... ok
+test shape_and_label_failures_use_the_contract_tokens ... ok
+test stdout_write_failure_is_io ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 3 tests
+test compiled_cli_config_does_not_write_a_report ... ok
+test compiled_cli_help_usage_and_stdin_limits ... ok
+test compiled_cli_reports_are_deterministic ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,6 @@
+
+running 1 test
+test yaml_and_json_numbers_stay_lexical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
