@@ -1,0 +1,17 @@
+[package]
+name = "pg-onboarding"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Two-phase operator PostgreSQL onboarding. Inspect seals a draft. Apply runs reviewed compilers."
+
+[workspace]
+
+[dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+
+[dev-dependencies]
+serde_json = "=1.0.151"

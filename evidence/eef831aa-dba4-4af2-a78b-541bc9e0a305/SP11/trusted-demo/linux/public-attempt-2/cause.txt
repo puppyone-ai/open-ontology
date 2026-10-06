@@ -1,0 +1,4 @@
+import-not-ready.exit=1
+stderr=oo-pipeline: source config source_id
+stdout empty
+SourceId rejects hyphen; sent source_id public-shop; no target connection

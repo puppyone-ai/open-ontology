@@ -1,0 +1,27 @@
+error: the loop variable `index` is used to index `words`
+    --> /deploy/src/drive.rs:1438:22
+     |
+1438 |         for index in 0..16 {
+     |                      ^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_range_loop
+     = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+     |
+1438 -         for index in 0..16 {
+1438 +         for (index, <item>) in words.iter_mut().enumerate().take(16) {
+     |
+
+error: useless use of `vec!`
+   --> /deploy/src/drive.rs:859:23
+    |
+859 |     let mut overlap = vec![0_u8; 128];
+    |                       ^^^^^^^^^^^^^^^ help: you can use an array directly: `[0_u8; 128]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_vec
+    = note: `-D clippy::useless-vec` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_vec)]`
+
+error: aborting due to 2 previous errors
+

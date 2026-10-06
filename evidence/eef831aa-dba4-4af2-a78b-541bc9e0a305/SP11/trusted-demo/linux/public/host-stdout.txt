@@ -1,0 +1,2 @@
+postgres_ready name=oo-a305-pg alias=oo-a305-pg
+fixture_loaded
