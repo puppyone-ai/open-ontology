@@ -1,0 +1,18 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.57s
+     Running tests/role_pack_bundle.rs (/target/debug/deps/role_pack_bundle-b22e1243ec248dcc)
+
+running 10 tests
+test competing_processes_one_publishes_and_the_other_refuses ... ok
+test corrupt_utf8_and_oversize_do_not_echo_or_create_output ... ok
+test destination_collision_removes_only_the_owned_staging_file ... ok
+test existing_destination_keeps_the_sentinel ... ok
+test help_and_usage_do_not_touch_files ... ok
+test independent_sha256_matches_core_hash_bytes ... ok
+test missing_kind_and_parent_failures_are_static ... ok
+test preexisting_staging_and_long_name_are_left_untouched ... ok
+test second_publish_keeps_the_first_bundle ... ok
+test two_roles_splice_compiler_bytes_and_independent_hashes ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+

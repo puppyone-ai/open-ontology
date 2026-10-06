@@ -1,0 +1,6 @@
+smoke.exit=101 docker-run.exit=101 container removed.
+phase=test-reviewed_policy_cli
+Five tests panicked: missing OO_A234_OO_BUILDER and missing OO_A234_REVIEWED_POLICY.
+The reviewed_policy_cli harness runs the compiled binaries. inside.sh ran cargo test before building and exporting those paths.
+Quantity arm, lock hash, and the six earlier CLI suites passed.
+Retry is linux/smoke-attempt-2. This directory is unchanged by the retry.

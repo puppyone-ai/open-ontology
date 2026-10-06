@@ -1,0 +1,27 @@
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/analyze_pg_cli.rs (/target/debug/deps/analyze_pg_cli-7c564316bb0768c3)
+
+running 5 tests
+test analyze_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_ANALYZE_PG_HOST must be set by the deciding run
+test closed_fields_fail_before_files ... ok
+test invalid_json_version_and_secret_field ... ok
+test password_and_ca_files_fail_without_echoing_secrets ... ok
+test usage_exits_2_without_echoing_arguments ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

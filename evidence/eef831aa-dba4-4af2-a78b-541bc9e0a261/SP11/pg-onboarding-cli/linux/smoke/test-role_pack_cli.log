@@ -1,0 +1,12 @@
+   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.51s
+     Running tests/role_pack_cli.rs (/target/debug/deps/role_pack_cli-3aec2aad20e143ee)
+
+running 4 tests
+test invalid_json_version_duplicate_unknown_and_oversize_are_static ... ok
+test stale_policy_and_sample_field_are_refused_without_echo ... ok
+test two_roles_match_the_library_pack_and_drop_hidden_metadata ... ok
+test usage_lists_role_pack_and_the_existing_commands_still_exit_2 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

@@ -1,0 +1,20 @@
+    Checking pg-onboarding v0.1.0 (/onboarding)
+error: useless use of `format!`
+   --> tests/orchestration.rs:340:9
+    |
+340 |         format!(r#"{{"name":"customer_id","pii":{{"class":"none"}},"semantic_type":"identifier","status":"confirmed"}}"#)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.to_string()`: `r#"{"name":"customer_id","pii":{"class":"none"},"semantic_type":"identifier","status":"confirmed"}"#.to_string()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_format
+    = note: `-D clippy::useless-format` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_format)]`
+
+error: useless use of `format!`
+   --> tests/orchestration.rs:342:9
+    |
+342 | ...   format!(r#"{{"name":"display_name","pii":{{"class":"declared","explicit_allow":true}},"semantic_type":"person_name","status":"confirmed"}}"#)
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.to_string()`: `r#"{"name":"display_name","pii":{"class":"declared","explicit_allow":true},"semantic_type":"person_name","status":"confirmed"}"#.to_string()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_format
+
+error: could not compile `pg-onboarding` (test "orchestration") due to 2 previous errors

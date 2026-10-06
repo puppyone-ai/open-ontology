@@ -1,0 +1,36 @@
+   Compiling pg-onboarding v0.1.0 (/onboarding)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.25s
+     Running unittests src/lib.rs (/target/onboarding/debug/deps/pg_onboarding-385ee15b0b3a7d7e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/onboarding/debug/deps/pg_onboarding-9d3f708bca1ce37d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_chain.rs (/target/onboarding/debug/deps/live_chain-b23d6da2576d5063)
+
+running 1 test
+test live_chain ... ignored, one private PostgreSQL; linux/chain/inside.sh sets OO_A261_*
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/orchestration.rs (/target/onboarding/debug/deps/orchestration-c5cd0ce596f32ee9)
+
+running 3 tests
+test fake_compilers_cover_both_phases ... ok
+test refuses_secret_symlink_and_existing_run ... ok
+test sha256_and_generation_vectors ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+
+   Doc-tests pg_onboarding
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

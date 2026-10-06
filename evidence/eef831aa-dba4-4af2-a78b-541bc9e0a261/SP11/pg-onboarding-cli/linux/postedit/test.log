@@ -1,0 +1,26 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling pg-onboarding v0.1.0 (/onboarding)
+error[E0277]: can't compare `Value` with `&Value`
+   --> src/apply.rs:753:109
+    |
+753 |     if value["role"] != format!("oo_r_{slug}") || value["grantor"] == "oo_target_owner" || value["grantor"] != admin {
+    |                                                                                                             ^^ no implementation for `Value == &Value`
+    |
+    = help: the trait `PartialEq<&Value>` is not implemented for `Value`
+help: consider dereferencing here
+    |
+753 |     if value["role"] != format!("oo_r_{slug}") || value["grantor"] == "oo_target_owner" || value["grantor"] != *admin {
+    |                                                                                                                +
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `pg-onboarding` (lib) due to 1 previous error
