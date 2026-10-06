@@ -1,0 +1,3 @@
+   Compiling oo-question-bank-suite v0.1.0 (/src/benchmarks/question-bank-suite)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running tests/proof.rs (/target/debug/deps/proof-81d8cd21ad275acc)

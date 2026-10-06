@@ -178,6 +178,7 @@ struct Planned {
     row_comparator: String,
     typed_gold: Value,
     columns: Vec<Value>,
+    not_found: bool,
 }
 
 struct Input {
@@ -586,7 +587,8 @@ fn plan_question(question: &Value, bank_index: usize) -> Result<Planned, ConfigE
     }
     let typed_map = object(&typed, &pointer)?;
     let typed_kind = req_str(typed_map, "kind", &pointer)?;
-    let (row_comparator, columns) = if kind == "not_found" {
+    let not_found = kind == "not_found";
+    let (row_comparator, columns) = if not_found {
         if typed_kind != "not_found" {
             return Err(ConfigError::at("gold", &pointer));
         }
@@ -628,6 +630,7 @@ fn plan_question(question: &Value, bank_index: usize) -> Result<Planned, ConfigE
         row_comparator,
         typed_gold: typed,
         columns,
+        not_found,
     })
 }
 
@@ -956,7 +959,7 @@ fn render(
         check_abs(&binding_path, "/out_dir")?;
         check_abs(&gold_path, "/out_dir")?;
         let request_bytes = request_bytes(&template.request, &question.gold_sql)?;
-        let binding_bytes = binding_bytes(template, &question.columns)?;
+        let binding_bytes = binding_bytes(template, &question.columns, question.not_found)?;
         let gold_bytes = gold_bytes(&question.typed_gold, &question.row_comparator)?;
         if contains(&request_bytes, gold_path.as_bytes())
             || contains(&binding_bytes, gold_path.as_bytes())
@@ -1039,9 +1042,19 @@ fn request_bytes(template: &Value, gold_sql: &str) -> Result<Vec<u8>, ConfigErro
     json_bytes(&Value::Object(request))
 }
 
-fn binding_bytes(template: &Template, columns: &[Value]) -> Result<Vec<u8>, ConfigError> {
+fn binding_bytes(
+    template: &Template,
+    columns: &[Value],
+    not_found: bool,
+) -> Result<Vec<u8>, ConfigError> {
     let mut header = Map::new();
     header.insert("columns".to_owned(), Value::Array(columns.to_vec()));
+    if not_found {
+        header.insert(
+            "empty_result".to_owned(),
+            Value::String("not_found_if_complete_empty".to_owned()),
+        );
+    }
     header.insert(
         "max_result_bytes".to_owned(),
         Value::from(template.max_result_bytes),

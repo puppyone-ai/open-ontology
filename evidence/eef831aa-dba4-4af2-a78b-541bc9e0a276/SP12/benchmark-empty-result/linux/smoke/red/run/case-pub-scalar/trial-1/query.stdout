@@ -1,0 +1,2 @@
+{"cells":[{"kind":"int","value":"7"}],"record":"row","turn":0}
+{"end_audit_ok":true,"executed_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","original_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","record":"summary","result_bytes":63,"returned_rows":1,"rollback_confirmed":true,"socket_dropped":false,"sqlstate":null,"status":"succeeded","stop":null,"truncated":false,"turn":0}

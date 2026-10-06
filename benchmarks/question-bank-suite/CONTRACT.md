@@ -52,7 +52,7 @@ A bank error from `oo_question_bank::evaluate`, including `decimal`, is reported
 
 ## Document
 
-The input path is a safe absolute path: it begins with `/`, it is not `/`, it has no empty, `.`, or `..` component, no component equal to `unknown`, and no byte outside ASCII letters, digits, and `/._:-`. The file is a regular non-symlink of at most 1_048_576 bytes. The bytes must be UTF-8. `oo_core::parse_json_value` rejects duplicate keys, depth past 32, more than 50_000 nodes, and trailing bytes. JSON null is rejected. Unknown keys are rejected.
+The input path is a safe absolute path: it begins with `/`, it is not `/`, it has no empty, `.`, or `..` component, no component equal to `unknown`, and no byte outside ASCII letters, digits, and `/._:-`. The file is a regular non-symlink of at most 1_048_576 bytes. The bytes must be UTF-8. `oo_core::parse_json_value` rejects duplicate keys, depth past 32, more than 50_000 nodes, and trailing bytes. `oo_core::parse_json_value` accepts the JSON literal null. A null at the top level, or a null where this compiler requires an object, a string, or a checked key set, is `schema`. A top-level null fails at `/`. A null cell inside typed gold that the question bank already admitted is copied into the gold file and is not rewritten. Unknown keys are rejected.
 
 Object key order in the input is not significant. The bank value is re-serialized as compact JSON with sorted keys and passed to `oo_question_bank::evaluate`. The operator does not pass a separate bank file. `manifest_sha256` is the question-bank content hash of the manifest view from that evaluation, 64 lowercase hex digits. It is not a hash of the compile document.
 
@@ -118,7 +118,7 @@ The request is an `oo.gateway.query-pg/v1` object. Keys, all required, no others
 
 `password_file`, `ca_file`, and `audit_file` are safe absolute paths. The password file and the CA file must already exist as regular non-symlinks. The password file is at most 1026 bytes. One trailing LF or CRLF is removed. The remaining password is 1 to 1024 UTF-8 bytes and contains no NUL. If those bytes occur in the compact request, the compile refuses with `password`. The CA file is 1 to 1_048_576 bytes and must not contain the byte string `PRIVATE KEY`. The audit path is checked as a path string. The compiler does not create it. A later runner rewrites `audit_file` per trial.
 
-`binding_header` keys, all required, no others: `record`, `version`, `turn`, `max_rows`, `max_result_bytes`. `record` is `header`. `version` is `oo.benchmark.query-result-adapter/v1`. `turn` is 0. `max_rows` and `max_result_bytes` equal the statement budgets. A `columns` key on the header is `schema`. The compiler derives columns from typed gold.
+`binding_header` keys, all required, no others: `record`, `version`, `turn`, `max_rows`, `max_result_bytes`. `record` is `header`. `version` is `oo.benchmark.query-result-adapter/v1`. `turn` is 0. `max_rows` and `max_result_bytes` equal the statement budgets. A `columns` key on the header is `schema`. `empty_result` on the template header is `schema` at `/templates/{role}/binding_header/empty_result`. The compiler does not copy an operator opt-in from the template. The compiler derives columns from typed gold and adds `empty_result` only when it writes a `not_found` binding.
 
 ## Bank identity
 
@@ -142,11 +142,11 @@ Planned ids are the whole selected group, including `needs_reannotation`. `fully
 
 `table`, `scalar`, and `top_k` require a non-empty `gold_sql` of at most 65536 bytes, a `typed_gold` object whose `kind` is `rows`, and an `ordered` boolean. `ordered: true` sets `row_comparator` to `ordered`. `ordered: false` sets it to `unordered`. If `value_columns` is present, every `tolerance` must be `exact`. A `relative` tolerance is `gold`. The compiler does not rescale a decimal. It copies `typed_gold` into the gold file.
 
-`not_found` requires `gold_sql` and a `typed_gold` object whose `kind` is `not_found`. `row_comparator` is `ordered`. The binding `columns` array is empty.
+`not_found` requires `gold_sql` and a `typed_gold` object whose `kind` is `not_found`. `row_comparator` is `ordered`. The binding `columns` array is empty. That binding header sets `empty_result` to `not_found_if_complete_empty`. The gold file stays the declared `not_found` object. Every other planned question omits `empty_result`. The compiler sets that field from the question kind. It does not infer the opt-in from an empty column list on another kind.
 
 A missing `gold_sql` or `typed_gold` is `gold` for the whole group. The compiler does not skip that question.
 
-The fixed query-result adapter emits `kind` `rows` for an empty gateway result. It does not emit `kind` `not_found`. A later sql-runner trial can therefore record `mismatch` for a compiled `not_found` case. This compiler still emits that case, with the declared `not_found` gold. It does not rewrite the gold to an empty row set and it does not drop the id.
+The compiler still emits the `not_found` case. It does not rewrite the gold to an empty row set and it does not drop the id.
 
 Binding columns for a rows gold are `name`, `ordinal`, and `type`. `ordinal` is 0 through n-1 in typed-gold column order. `type` is `bool`, `int64`, `decimal`, or `text`.
 

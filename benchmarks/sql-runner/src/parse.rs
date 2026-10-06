@@ -516,6 +516,7 @@ fn load_binding(path: &str, request: &Value, pointer: &str) -> Result<Vec<u8>, C
         map,
         &[
             "columns",
+            "empty_result",
             "max_result_bytes",
             "max_rows",
             "record",
@@ -524,6 +525,12 @@ fn load_binding(path: &str, request: &Value, pointer: &str) -> Result<Vec<u8>, C
         ],
         pointer,
     )?;
+    if let Some(empty) = map.get("empty_result") {
+        match empty {
+            Value::String(text) if text == "rows" || text == "not_found_if_complete_empty" => {}
+            _ => return Err(ConfigError::at("schema", child(pointer, "empty_result"))),
+        }
+    }
     if req_str(map, "record", pointer)? != "header" {
         return Err(ConfigError::at("schema", pointer));
     }

@@ -1,0 +1,1 @@
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":0,"result_bytes":0,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"2a2160595a8f1bf3490e796801696a37254743931d81c1ed5df384b65ab1d3af","executed_sha256":"318398fcdda62ca04a749c25136553a91bc4e00811a9e61637e62199e0d77c47","stop":null,"sqlstate":null}

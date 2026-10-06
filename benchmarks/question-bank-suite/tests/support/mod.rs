@@ -459,6 +459,29 @@ fn rows_question(spec: Rows<'_>) -> Value {
     })
 }
 
+pub fn null_cell_rows(id: &str, role: &str, group: &str, as_of: &str) -> Value {
+    rows_question(Rows {
+        id,
+        role,
+        group,
+        as_of,
+        kind: "table",
+        ordered: true,
+        sql: "select note from public_receipts where desk = 'east'",
+        keys: &[],
+        values: &[("n", "exact")],
+        columns: &[("n", "text")],
+        row: vec![json!({"presence": "null"})],
+        question: "What note did the east desk leave blank?",
+        category: "metric",
+        status: "fully_approved",
+        dual: "not_declared",
+        unresolved: None,
+        annotation: None,
+        control: None,
+    })
+}
+
 pub fn tiny_rows(id: &str, role: &str, group: &str, as_of: &str) -> Value {
     rows_question(Rows {
         id,

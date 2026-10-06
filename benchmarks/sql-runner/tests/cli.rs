@@ -683,3 +683,124 @@ fn flood_partial_and_missing_completion_are_failures() {
     assert!(audit_trial["comparator_exit"].is_null());
     assert_quiet(&stdout);
 }
+
+fn note_header() -> Value {
+    serde_json::from_str(&fs::read_to_string(fixture("note-header.json")).unwrap()).unwrap()
+}
+
+fn write_binding(dir: &Path, value: &Value) -> PathBuf {
+    let path = dir.join("binding.json");
+    write_json(&path, value);
+    path
+}
+
+fn not_found_gold(dir: &Path) -> PathBuf {
+    let path = dir.join("gold-absent.json");
+    write_json(
+        &path,
+        &json!({
+            "expected": {"completion": "complete", "kind": "not_found", "warnings": []},
+            "row_comparator": "ordered"
+        }),
+    );
+    path
+}
+
+fn case_binding(request: &Path, binding: &Path, gold: &Path) -> Value {
+    json!({
+        "id": "keep",
+        "role": "desk",
+        "k": 1,
+        "annotation": "score",
+        "trial_wall_ms": 5000,
+        "request_file": request.display().to_string(),
+        "binding_file": binding.display().to_string(),
+        "gold_file": gold.display().to_string()
+    })
+}
+
+fn adapter_header_line(run: &Path) -> String {
+    let text = fs::read_to_string(run.join("case-keep/trial-0/adapter.stdin")).unwrap();
+    text.lines().next().unwrap().to_owned()
+}
+
+#[test]
+fn binding_preserves_empty_result_and_ignores_gold() {
+    let samples = [
+        (None, true),
+        (Some(json!("not_found_if_complete_empty")), false),
+        (Some(json!("rows")), true),
+    ];
+    for (field, absent_gold) in samples {
+        let dir = scratch("empty-result");
+        secrets(&dir);
+        let mut header = note_header();
+        if let Some(field) = field.clone() {
+            header
+                .as_object_mut()
+                .unwrap()
+                .insert("empty_result".to_owned(), field);
+        }
+        let binding = write_binding(&dir, &header);
+        let gold = if absent_gold {
+            not_found_gold(&dir)
+        } else {
+            fixture("gold-full.json")
+        };
+        let request = request(&dir, "SELECT note FROM dispatch.ticket /* A231-MATCH */");
+        let suite_path = write_suite(
+            &dir,
+            &suite("synthetic", vec![case_binding(&request, &binding, &gold)]),
+        );
+        let run = dir.join("run");
+        let (code, _stdout, err) = run_at(&suite_path, &run);
+        assert!(
+            code == 0 || code == 1,
+            "{} {}",
+            code,
+            String::from_utf8_lossy(&err)
+        );
+        assert!(err.is_empty());
+        let line = adapter_header_line(&run);
+        assert_eq!(line, serde_json::to_string(&header).unwrap());
+        assert!(!line.contains(&gold.display().to_string()));
+        assert!(!line.contains("\"expected\""));
+        match field {
+            None => assert!(!line.contains("empty_result")),
+            Some(value) => assert_eq!(
+                serde_json::from_str::<Value>(&line).unwrap()["empty_result"],
+                value
+            ),
+        }
+    }
+}
+
+#[test]
+fn binding_rejects_a_bad_empty_result() {
+    for field in [
+        json!(null),
+        json!(1),
+        json!(true),
+        json!({}),
+        json!([]),
+        json!(""),
+        json!("not_found"),
+        json!("ROWS"),
+    ] {
+        let dir = scratch("bad-empty");
+        secrets(&dir);
+        let mut header = note_header();
+        header
+            .as_object_mut()
+            .unwrap()
+            .insert("empty_result".to_owned(), field);
+        let binding = write_binding(&dir, &header);
+        let request = request(&dir, "SELECT note FROM dispatch.ticket /* A231-MATCH */");
+        let gold = not_found_gold(&dir);
+        assert_config(
+            &dir,
+            &suite("synthetic", vec![case_binding(&request, &binding, &gold)]),
+            "sql-runner: schema /cases/0/binding_file/empty_result\n",
+        );
+    }
+}

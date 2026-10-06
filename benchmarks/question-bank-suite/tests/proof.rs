@@ -112,8 +112,8 @@ fn sql_runner_consumes_the_generated_suite() {
     assert_eq!(report["lane"], "trusted_sql");
     assert_eq!(report["trial_count"], 10);
     assert_eq!(report["question_count"], 5);
-    assert_eq!(report["pass_count"], 6);
-    assert_eq!(report["fail_count"], 2);
+    assert_eq!(report["pass_count"], 8);
+    assert_eq!(report["fail_count"], 0);
     assert_eq!(report["reannotation_count"], 2);
     assert_eq!(report["not_run_count"], 0);
     assert_eq!(report["timeout_count"], 0);
@@ -136,9 +136,9 @@ fn sql_runner_consumes_the_generated_suite() {
                 assert_eq!(verdict, "match", "{trial}");
             }
             "pub-absent" => {
-                assert_eq!(status, "fail", "{trial}");
-                assert_eq!(reason, "mismatch", "{trial}");
-                assert_eq!(verdict, "mismatch", "{trial}");
+                assert_eq!(status, "pass", "{trial}");
+                assert_eq!(reason, "match", "{trial}");
+                assert_eq!(verdict, "match", "{trial}");
             }
             "pub-note" => {
                 assert_eq!(status, "needs_reannotation", "{trial}");
@@ -166,9 +166,14 @@ fn sql_runner_consumes_the_generated_suite() {
     assert!(table_adapter.contains(CELL_TABLE));
     let absent_adapter =
         fs::read_to_string(run_dir.join("case-pub-absent/trial-0/adapter.stdout")).unwrap();
-    assert!(absent_adapter.contains("\"kind\":\"rows\""));
-    assert!(absent_adapter.contains("\"rows\":[]"));
-    assert!(!absent_adapter.contains("not_found"));
+    assert_eq!(
+        absent_adapter,
+        "{\"kind\":\"not_found\",\"completion\":\"complete\",\"warnings\":[]}\n"
+    );
+    let absent_binding = fs::read_to_string(out.join("questions/pub-absent/binding.json")).unwrap();
+    assert!(absent_binding.contains("\"empty_result\":\"not_found_if_complete_empty\""));
+    let table_binding = fs::read_to_string(out.join("questions/pub-table/binding.json")).unwrap();
+    assert!(!table_binding.contains("empty_result"));
     let absent_gold = fs::read_to_string(out.join("questions/pub-absent/gold.json")).unwrap();
     assert!(absent_gold.contains("\"kind\":\"not_found\""));
     let audit = run_dir.join("case-pub-table/trial-0/audit.jsonl");

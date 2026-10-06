@@ -10,8 +10,8 @@ use oo_question_bank_suite::{compile, sha256_hex};
 use support::{
     AS_OF, AS_OF_OTHER, CELL_TABLE, DATASET, PASSWORD, ROLE, SQL_ABSENT, SQL_NOTE, SQL_SCALAR,
     SQL_TABLE, SQL_TOPK, SUITE, World, assert_clean, bank, document, document_with_hash, file_hash,
-    hand_bank, missing_gold_question, read_json, refuse_question, relative_question, stub_document,
-    tiny_rows,
+    hand_bank, missing_gold_question, null_cell_rows, read_json, refuse_question,
+    relative_question, stub_document, tiny_rows,
 };
 
 #[test]
@@ -126,8 +126,12 @@ fn hand_bank_keeps_every_selected_id_and_hides_gold() {
     assert_eq!(binding_json["columns"][1]["type"], "decimal");
     let absent = read_json(&out.join("questions/pub-absent/binding.json"));
     assert_eq!(absent["columns"].as_array().unwrap().len(), 0);
+    assert_eq!(absent["empty_result"], "not_found_if_complete_empty");
+    assert!(binding_json.get("empty_result").is_none());
     let absent_gold = read_json(&out.join("questions/pub-absent/gold.json"));
     assert_eq!(absent_gold["expected"]["kind"], "not_found");
+    assert!(absent_gold["expected"].get("columns").is_none());
+    assert!(absent_gold["expected"].get("rows").is_none());
 
     assert_eq!(
         fs::symlink_metadata(&out).unwrap().permissions().mode() & 0o777,
@@ -348,6 +352,39 @@ fn bad_decimal_stays_a_bank_refusal() {
 }
 
 #[test]
+fn admitted_null_cell_is_copied_and_top_level_null_is_schema() {
+    let world = World::new("null-cell");
+    let bank = bank(vec![null_cell_rows("pub-null", ROLE, "east", AS_OF)]);
+    let doc = document(&bank, &world, ROLE, AS_OF, 1);
+    let out = world.out("suite");
+    compile(&doc, &out).unwrap();
+    let gold = fs::read_to_string(out.join("questions/pub-null/gold.json")).unwrap();
+    assert!(gold.contains("\"presence\":\"null\""));
+    let binding = read_json(&out.join("questions/pub-null/binding.json"));
+    assert!(binding.get("empty_result").is_none());
+
+    let null_out = world.out("null-root");
+    let err = compile("null", &null_out).unwrap_err();
+    assert_eq!(err.token(), "schema");
+    assert_eq!(err.pointer(), Some("/"));
+    assert!(!null_out.exists());
+}
+
+#[test]
+fn template_empty_result_is_schema() {
+    let world = World::new("header-opt");
+    let mut doc: Value =
+        serde_json::from_str(&document(&hand_bank(), &world, ROLE, AS_OF, 1)).unwrap();
+    doc["templates"][ROLE]["binding_header"]["empty_result"] = json!("not_found_if_complete_empty");
+    let err = refuse(&serde_json::to_string(&doc).unwrap(), &world, "opt");
+    assert_eq!(err.token(), "schema");
+    assert_eq!(
+        err.pointer(),
+        Some("/templates/finance_east/binding_header/empty_result")
+    );
+}
+
+#[test]
 fn k_above_8_and_a_banned_mode_refuse() {
     let world = World::new("bounds");
     let doc: Value = serde_json::from_str(&document(&hand_bank(), &world, ROLE, AS_OF, 1)).unwrap();
@@ -370,14 +407,15 @@ fn assert_question(out: &std::path::Path, id: &str, sql: &str, comparator: &str,
     assert!(!request.contains(PASSWORD));
     let gold = read_json(&out.join(format!("questions/{id}/gold.json")));
     assert_eq!(gold["row_comparator"], comparator);
-    assert_eq!(
-        gold["expected"]["kind"],
-        if id == "pub-absent" {
-            "not_found"
-        } else {
-            "rows"
-        }
-    );
+    let binding = read_json(&out.join(format!("questions/{id}/binding.json")));
+    if id == "pub-absent" {
+        assert_eq!(gold["expected"]["kind"], "not_found");
+        assert_eq!(binding["empty_result"], "not_found_if_complete_empty");
+        assert!(binding["columns"].as_array().unwrap().is_empty());
+    } else {
+        assert_eq!(gold["expected"]["kind"], "rows");
+        assert!(binding.get("empty_result").is_none());
+    }
     if decimal {
         assert_eq!(gold["expected"]["rows"][0][1]["coefficient"], "120");
         assert_eq!(gold["expected"]["rows"][0][1]["scale"], 2);

@@ -60,6 +60,8 @@ A binding has `name`, `type`, and `ordinal`, and no other key. `type` is `bool`,
 
 `ordinal` is a JSON integer or JSON null. Null means the question column is not in the `query-pg` row. Every output row then has `{"presence":"missing"}` there. The integers that are present must be exactly `0 .. width-1`, each once. `width` is the number of non-null ordinals. A gap, a duplicate, or an ordinal past 63 is refused. This is the only way a cell becomes `missing`. A `query-pg` null is not missing.
 
+`empty_result` is optional. Absent means `rows`. The string `rows` is that same default. The string `not_found_if_complete_empty` is an explicit opt-in. JSON null, a number, a boolean, an object, an array, or any other string is `schema` at `/0/empty_result`. This program does not read an expected result, a gold file, or the comparator to set that field.
+
 ### Row
 
 `query-pg` row line. Keys are `record` (`row`), `turn`, and `cells`. `turn` must equal the header turn. `cells` length must equal `width`.
@@ -76,7 +78,7 @@ Keys, all required, are the `query-pg` summary keys: `record` (`summary`), `turn
 
 The row-line count must equal `returned_rows`. A difference is `rowcount`. `returned_rows` must be at most `max_rows`, and `result_bytes` must be at most `max_result_bytes`. A larger count or byte total is `budget`. Crossing 2000 row lines, 64 columns, or the typed payload cap below is also `budget`.
 
-`truncated`, `stop`, `sqlstate`, `rollback_confirmed`, and `socket_dropped` are checked and then dropped. They do not become warnings. They do not change `status`.
+`truncated`, `stop`, `sqlstate`, `rollback_confirmed`, and `socket_dropped` are checked and then dropped from the typed row result. They do not become warnings. They do not change `status` or the completion table. They do decide whether the empty-result opt-in may emit `not_found`.
 
 ## Cell mapping
 
@@ -99,7 +101,7 @@ A `bool` binding rejects an `int` or `text` cell. An `int64` binding rejects a `
 
 `decimal` is accepted only when the binding type is `decimal`. An `int` cell must already be a canonical `i64` string and becomes that integer at scale 0. A `text` cell must be an exact decimal literal: optional `-`, an integer part that is `0` or digits without a leading zero, and an optional `.` plus one or more digits. No `+`, no exponent, no spaces. The coefficient and scale come from `oo_core::ExactDecimal::parse_sql`, which keeps the lexical scale. `-0` and `-0.00` are refused rather than rewritten to unsigned zero. A bad spelling is `decimal`.
 
-`unavailable` is not produced. `not_found` is not produced. Zero row lines and `returned_rows` 0 is an empty table: `kind` is `rows` and `rows` is empty.
+`unavailable` is not produced. With `empty_result` absent or set to `rows`, zero row lines and `returned_rows` 0 is an empty table: `kind` is `rows` and `rows` is empty.
 
 ## Completion
 
@@ -114,9 +116,15 @@ A `bool` binding rejects an `int` or `text` cell. An `int64` binding rejects a `
 
 `warnings` is always an empty array. The gateway stdout has no warning records, and this adapter does not invent codes from `truncated`, `stop`, or `sqlstate`.
 
+## Empty-result opt-in
+
+`kind` `not_found` is emitted only when `empty_result` is `not_found_if_complete_empty` and every one of these holds: the row-line count is 0, `returned_rows` is 0, `max_rows` is greater than 0, `status` is `succeeded`, `end_audit_ok` is true, `rollback_confirmed` is true, `socket_dropped` is false, `stop` is JSON null, `sqlstate` is JSON null, and `truncated` is false. The output is then one object, `{"kind":"not_found","completion":"complete","warnings":[]}`. `columns` and `rows` are omitted.
+
+A nonempty row set stays `kind` `rows` and keeps the actual rows. `status` `failed`, `status` `partial`, `truncated` true, `max_rows` 0, `socket_dropped` true, `rollback_confirmed` false, a non-null `stop`, or a non-null `sqlstate` stays `kind` `rows`. `succeeded` with `end_audit_ok` false is still refusal `completion` and writes no result. This is an explicit opt-in on one header. A zero-row stream whose header omits the field stays an empty table.
+
 ## Typed result
 
-Compact JSON, one trailing newline. `kind` is `rows`. `completion` is the table above. `warnings` is `[]`. `columns` follows the header order, each object `name` then `type`. Each row follows the header order. Row order is the `query-pg` row order.
+Compact JSON, one trailing newline. `kind` is `rows`, except the opt-in object above. `completion` is the table above. `warnings` is `[]`. For `rows`, `columns` follows the header order, each object `name` then `type`. Each row follows the header order. Row order is the `query-pg` row order.
 
 A decimal cell is `{"coefficient":"120","negative":false,"presence":"value","scale":2}`. A bool, int64, or text cell is `{"presence":"value","value":...}`. A null or missing cell is `{"presence":"null"}` or `{"presence":"missing"}`.
 

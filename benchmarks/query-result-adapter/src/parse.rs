@@ -77,6 +77,13 @@ struct Header {
     max_result_bytes: u64,
     columns: Vec<Binding>,
     width: usize,
+    empty_result: EmptyResult,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EmptyResult {
+    Rows,
+    NotFoundIfCompleteEmpty,
 }
 
 struct Summary {
@@ -84,6 +91,11 @@ struct Summary {
     returned_rows: u64,
     result_bytes: u64,
     end_audit_ok: bool,
+    truncated: bool,
+    rollback_confirmed: bool,
+    socket_dropped: bool,
+    stop_null: bool,
+    sqlstate_null: bool,
 }
 
 pub(crate) fn adapt(input: &str) -> Result<String, ConfigError> {
@@ -135,6 +147,25 @@ pub(crate) fn adapt(input: &str) -> Result<String, ConfigError> {
         ("failed", _) => "failed",
         _ => return Err(ConfigError::at("schema", "/summary/status")),
     };
+    let clean_empty = header.empty_result == EmptyResult::NotFoundIfCompleteEmpty
+        && row_count == 0
+        && summary.returned_rows == 0
+        && header.max_rows > 0
+        && summary.status == "succeeded"
+        && summary.end_audit_ok
+        && summary.rollback_confirmed
+        && !summary.socket_dropped
+        && summary.stop_null
+        && summary.sqlstate_null
+        && !summary.truncated;
+    if clean_empty {
+        let result = NotFoundOut {
+            kind: "not_found",
+            completion,
+            warnings: Vec::new(),
+        };
+        return serde_json::to_string(&result).map_err(|_| ConfigError::bare("io"));
+    }
     let columns: Vec<ColumnOut> = header
         .columns
         .iter()
@@ -192,6 +223,7 @@ fn parse_header(line: &str, pointer: &str) -> Result<Header, ConfigError> {
         map,
         &[
             "columns",
+            "empty_result",
             "max_result_bytes",
             "max_rows",
             "record",
@@ -211,6 +243,7 @@ fn parse_header(line: &str, pointer: &str) -> Result<Header, ConfigError> {
         u64::try_from(MAX_ROWS).unwrap_or(0),
     )?;
     let max_result_bytes = req_bound(map, "max_result_bytes", pointer, MAX_RESULT_BYTES)?;
+    let empty_result = parse_empty_result(map, pointer)?;
     let columns = parse_columns(req(map, "columns", pointer)?, pointer)?;
     let width = columns
         .iter()
@@ -235,7 +268,19 @@ fn parse_header(line: &str, pointer: &str) -> Result<Header, ConfigError> {
         max_result_bytes,
         columns,
         width,
+        empty_result,
     })
+}
+
+fn parse_empty_result(map: &Map<String, Value>, pointer: &str) -> Result<EmptyResult, ConfigError> {
+    match map.get("empty_result") {
+        None => Ok(EmptyResult::Rows),
+        Some(Value::String(text)) if text == "rows" => Ok(EmptyResult::Rows),
+        Some(Value::String(text)) if text == "not_found_if_complete_empty" => {
+            Ok(EmptyResult::NotFoundIfCompleteEmpty)
+        }
+        Some(_) => Err(ConfigError::at("schema", child(pointer, "empty_result"))),
+    }
 }
 
 fn parse_columns(value: &Value, pointer: &str) -> Result<Vec<Binding>, ConfigError> {
@@ -476,7 +521,7 @@ fn parse_summary(
         "failed" => "failed",
         _ => return Err(ConfigError::at("schema", child(pointer, "status"))),
     };
-    let _truncated = req_bool(map, "truncated", pointer)?;
+    let truncated = req_bool(map, "truncated", pointer)?;
     let returned_rows = req_bound(
         map,
         "returned_rows",
@@ -484,45 +529,50 @@ fn parse_summary(
         u64::try_from(MAX_ROWS).unwrap_or(0),
     )?;
     let result_bytes = req_bound(map, "result_bytes", pointer, MAX_RESULT_BYTES)?;
-    let _rollback = req_bool(map, "rollback_confirmed", pointer)?;
-    let _socket = req_bool(map, "socket_dropped", pointer)?;
+    let rollback_confirmed = req_bool(map, "rollback_confirmed", pointer)?;
+    let socket_dropped = req_bool(map, "socket_dropped", pointer)?;
     let end_audit_ok = req_bool(map, "end_audit_ok", pointer)?;
     if !sha256_hex_ok(req_str(map, "original_sha256", pointer)?)
         || !sha256_hex_ok(req_str(map, "executed_sha256", pointer)?)
     {
         return Err(ConfigError::at("schema", child(pointer, "original_sha256")));
     }
-    parse_stop(req(map, "stop", pointer)?, pointer)?;
-    parse_sqlstate(req(map, "sqlstate", pointer)?, pointer)?;
+    let stop_null = parse_stop(req(map, "stop", pointer)?, pointer)?;
+    let sqlstate_null = parse_sqlstate(req(map, "sqlstate", pointer)?, pointer)?;
     Ok(Summary {
         status,
         returned_rows,
         result_bytes,
         end_audit_ok,
+        truncated,
+        rollback_confirmed,
+        socket_dropped,
+        stop_null,
+        sqlstate_null,
     })
 }
 
-fn parse_stop(value: &Value, pointer: &str) -> Result<(), ConfigError> {
+fn parse_stop(value: &Value, pointer: &str) -> Result<bool, ConfigError> {
     match value {
-        Value::Null => Ok(()),
+        Value::Null => Ok(true),
         Value::String(text) => match text.as_str() {
-            "timeout" | "canceled" | "type_refused" | "database" | "protocol" => Ok(()),
+            "timeout" | "canceled" | "type_refused" | "database" | "protocol" => Ok(false),
             _ => Err(ConfigError::at("schema", child(pointer, "stop"))),
         },
         _ => Err(ConfigError::at("schema", child(pointer, "stop"))),
     }
 }
 
-fn parse_sqlstate(value: &Value, pointer: &str) -> Result<(), ConfigError> {
+fn parse_sqlstate(value: &Value, pointer: &str) -> Result<bool, ConfigError> {
     match value {
-        Value::Null => Ok(()),
+        Value::Null => Ok(true),
         Value::String(text)
             if text.len() == 5
                 && text
                     .bytes()
                     .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit()) =>
         {
-            Ok(())
+            Ok(false)
         }
         _ => Err(ConfigError::at("schema", child(pointer, "sqlstate"))),
     }
@@ -676,6 +726,13 @@ fn child(pointer: &str, key: &str) -> String {
     } else {
         format!("{pointer}/{key}")
     }
+}
+
+#[derive(Serialize)]
+struct NotFoundOut {
+    kind: &'static str,
+    completion: &'static str,
+    warnings: Vec<WarningOut>,
 }
 
 #[derive(Serialize)]

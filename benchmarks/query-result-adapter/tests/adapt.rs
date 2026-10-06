@@ -1,7 +1,9 @@
+use std::fs;
 use std::io::Cursor;
+use std::path::PathBuf;
 
 use oo_query_result_adapter::run;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -289,4 +291,285 @@ fn refusal_does_not_echo_the_cell() {
     let (_, stderr) = err(&input);
     assert_eq!(token(&stderr), "type");
     assert!(!stderr.contains("beta-secret-cell"));
+}
+
+const EMPTY_ROWS: &str =
+    "{\"kind\":\"rows\",\"completion\":\"complete\",\"warnings\":[],\"columns\":[],\"rows\":[]}\n";
+const NOT_FOUND: &str = "{\"kind\":\"not_found\",\"completion\":\"complete\",\"warnings\":[]}\n";
+
+fn header_field(columns: &str, field: Option<Value>) -> String {
+    let mut value = json!({
+        "columns": serde_json::from_str::<Value>(columns).unwrap(),
+        "max_result_bytes": 4096,
+        "max_rows": 20,
+        "record": "header",
+        "turn": 0,
+        "version": "oo.benchmark.query-result-adapter/v1"
+    });
+    if let Some(field) = field {
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("empty_result".to_owned(), field);
+    }
+    serde_json::to_string(&value).unwrap()
+}
+
+struct Flags {
+    status: &'static str,
+    truncated: bool,
+    rollback: bool,
+    socket: bool,
+    end_ok: bool,
+    stop: &'static str,
+    sqlstate: &'static str,
+}
+
+fn summary_flags(flags: Flags) -> String {
+    format!(
+        r#"{{"record":"summary","turn":0,"status":"{status}","truncated":{truncated},"returned_rows":0,"result_bytes":0,"rollback_confirmed":{rollback},"socket_dropped":{socket},"end_audit_ok":{end_ok},"original_sha256":"{SHA}","executed_sha256":"{SHA}","stop":{stop},"sqlstate":{sqlstate}}}"#,
+        status = flags.status,
+        truncated = flags.truncated,
+        rollback = flags.rollback,
+        socket = flags.socket,
+        end_ok = flags.end_ok,
+        stop = flags.stop,
+        sqlstate = flags.sqlstate,
+    )
+}
+
+fn stdout_of(input: &str) -> String {
+    let (code, stdout, stderr) = run_text(input);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(stderr.is_empty());
+    stdout
+}
+
+#[test]
+fn omitted_and_explicit_rows_keep_the_empty_table_bytes() {
+    let clean = summary("succeeded", 0, 0, true, false);
+    let omitted = stdout_of(&stream(&header("[]"), &[], &clean));
+    let explicit = stdout_of(&stream(
+        &header_field("[]", Some(json!("rows"))),
+        &[],
+        &clean,
+    ));
+    assert_eq!(omitted, EMPTY_ROWS);
+    assert_eq!(explicit, EMPTY_ROWS);
+
+    let row = r#"{"record":"row","turn":0,"cells":[{"kind":"bool","value":true}]}"#;
+    let columns = r#"[{"name":"flag","type":"bool","ordinal":0}]"#;
+    let done = summary("succeeded", 1, 4, true, false);
+    let plain = stdout_of(&stream(&header(columns), &[row], &done));
+    let named = stdout_of(&stream(
+        &header_field(columns, Some(json!("rows"))),
+        &[row],
+        &done,
+    ));
+    let opted = stdout_of(&stream(
+        &header_field(columns, Some(json!("not_found_if_complete_empty"))),
+        &[row],
+        &done,
+    ));
+    assert_eq!(plain, named);
+    assert_eq!(plain, opted);
+    assert!(plain.contains("\"kind\":\"rows\""));
+    assert!(!plain.contains("not_found"));
+}
+
+#[test]
+fn opt_in_emits_not_found_only_for_a_clean_zero_row_result() {
+    let opt = header_field("[]", Some(json!("not_found_if_complete_empty")));
+    let clean = summary_flags(Flags {
+        status: "succeeded",
+        truncated: false,
+        rollback: true,
+        socket: false,
+        end_ok: true,
+        stop: "null",
+        sqlstate: "null",
+    });
+    let found = stdout_of(&stream(&opt, &[], &clean));
+    assert_eq!(found, NOT_FOUND);
+    let parsed: Value = serde_json::from_str(found.trim_end()).unwrap();
+    assert!(parsed.get("columns").is_none());
+    assert!(parsed.get("rows").is_none());
+    let keys: Vec<&str> = parsed
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(keys, ["completion", "kind", "warnings"]);
+
+    let with_column = header_field(
+        r#"[{"name":"id","type":"text","ordinal":0}]"#,
+        Some(json!("not_found_if_complete_empty")),
+    );
+    assert_eq!(stdout_of(&stream(&with_column, &[], &clean)), NOT_FOUND);
+
+    let cases = [
+        Flags {
+            status: "failed",
+            truncated: false,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "partial",
+            truncated: false,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "succeeded",
+            truncated: true,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "succeeded",
+            truncated: false,
+            rollback: false,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "succeeded",
+            truncated: false,
+            rollback: true,
+            socket: true,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "succeeded",
+            truncated: false,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "\"timeout\"",
+            sqlstate: "null",
+        },
+        Flags {
+            status: "succeeded",
+            truncated: false,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "\"P0002\"",
+        },
+    ];
+    for flags in cases {
+        let done = summary_flags(flags);
+        let text = stdout_of(&stream(&opt, &[], &done));
+        let value: Value = serde_json::from_str(text.trim_end()).unwrap();
+        assert_eq!(value["kind"], "rows", "{text}");
+        assert_eq!(value["rows"], json!([]), "{text}");
+        assert!(value.get("columns").is_some(), "{text}");
+        assert!(!text.contains("not_found"), "{text}");
+    }
+    let truncated = stdout_of(&stream(
+        &opt,
+        &[],
+        &summary_flags(Flags {
+            status: "succeeded",
+            truncated: true,
+            rollback: true,
+            socket: false,
+            end_ok: true,
+            stop: "null",
+            sqlstate: "null",
+        }),
+    ));
+    assert_eq!(
+        serde_json::from_str::<Value>(truncated.trim_end()).unwrap()["completion"],
+        "complete"
+    );
+
+    let mut zero_budget = header_field("[]", Some(json!("not_found_if_complete_empty")));
+    zero_budget = zero_budget.replacen("\"max_rows\":20", "\"max_rows\":0", 1);
+    let budget = stdout_of(&stream(
+        &zero_budget,
+        &[],
+        &summary("succeeded", 0, 0, true, false),
+    ));
+    assert_eq!(
+        budget,
+        "{\"kind\":\"rows\",\"completion\":\"complete\",\"warnings\":[],\"columns\":[],\"rows\":[]}\n"
+    );
+
+    let refused = stream(
+        &opt,
+        &[],
+        &summary_flags(Flags {
+            status: "succeeded",
+            truncated: false,
+            rollback: true,
+            socket: false,
+            end_ok: false,
+            stop: "null",
+            sqlstate: "null",
+        }),
+    );
+    assert_eq!(
+        err(&refused).1,
+        "query-result-adapter: completion /summary/end_audit_ok\n"
+    );
+}
+
+#[test]
+fn invalid_empty_result_is_schema() {
+    let done = summary("succeeded", 0, 0, true, false);
+    for field in [
+        json!(null),
+        json!(1),
+        json!(true),
+        json!({}),
+        json!([]),
+        json!(""),
+        json!("not_found"),
+        json!("ROWS"),
+    ] {
+        let input = stream(&header_field("[]", Some(field)), &[], &done);
+        assert_eq!(
+            err(&input).1,
+            "query-result-adapter: schema /0/empty_result\n"
+        );
+    }
+}
+
+#[test]
+fn current_fixture_headers_stay_empty_tables() {
+    for name in [
+        "desk-header.jsonl",
+        "peek-header.jsonl",
+        "count-header.jsonl",
+    ] {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("fixtures")
+            .join(name);
+        let text = fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("empty_result"), "{name}");
+        let head = text.lines().next().unwrap();
+        let input = stream(head, &[], &summary("succeeded", 0, 0, true, false));
+        let stdout = stdout_of(&input);
+        let value: Value = serde_json::from_str(stdout.trim_end()).unwrap();
+        assert_eq!(value["kind"], "rows", "{name}");
+        assert_eq!(value["rows"], json!([]), "{name}");
+        assert!(!stdout.contains("not_found"), "{name}");
+    }
 }

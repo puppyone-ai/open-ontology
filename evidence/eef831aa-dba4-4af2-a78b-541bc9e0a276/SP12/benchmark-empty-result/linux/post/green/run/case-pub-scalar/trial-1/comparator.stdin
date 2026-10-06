@@ -1,0 +1,1 @@
+{"actual":{"columns":[{"name":"qty","type":"int64"}],"completion":"complete","kind":"rows","rows":[[{"presence":"value","value":"7"}]],"warnings":[]},"expected":{"columns":[{"name":"qty","type":"int64"}],"completion":"complete","kind":"rows","rows":[[{"presence":"value","value":"7"}]],"warnings":[]},"row_comparator":"ordered","version":"oo.benchmark.result-comparison/v1"}
