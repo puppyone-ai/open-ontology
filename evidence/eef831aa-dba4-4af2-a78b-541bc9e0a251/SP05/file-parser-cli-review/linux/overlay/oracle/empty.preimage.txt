@@ -1,0 +1,13 @@
+oo.connectors.parse-file-lineage/v1
+rows=0
+fields=0
+value=0
+null=0
+empty=0
+missing=0
+first_line=0
+last_line=0
+first_byte_offset=0
+last_byte_offset=0
+raw_bytes=0
+arrow_bytes=0

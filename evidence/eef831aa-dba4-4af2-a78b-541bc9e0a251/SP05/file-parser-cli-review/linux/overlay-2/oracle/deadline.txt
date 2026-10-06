@@ -1,0 +1,7 @@
+empty_ms=8929
+busy_ms=74438
+kill_ms=32754
+kill_elapsed_ms=41599
+term_signal=Some(9)
+exit_code=None
+teardown=signal9

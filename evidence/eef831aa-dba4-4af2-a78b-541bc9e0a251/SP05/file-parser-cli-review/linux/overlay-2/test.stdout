@@ -1,0 +1,27 @@
+
+running 12 tests
+test bounded_csv_summary_matches_parent_and_hides_cells ... parent_match csv rows=4 batches=2 schema=1be80987e132338c5a958644511439d59892484f9890d348dae04670df088c21 profile=23c19f3edefc04a28f325b7e31ee8a8cf666d51e06433e78a9c2259777fdd1a3
+ok
+test bounded_empty_jsonl_matches_parent ... parent_match empty rows=0 batches=0 object=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+ok
+test bounded_jsonl_summary_matches_parent ... parent_match jsonl rows=3 batches=2 schema=4f8b3cdd04bc0bcc4650aa79b9a527570aebfcd8cfa47c63754deb470861e5fb
+ok
+test bounded_tsv_summary_matches_parent ... parent_match tsv rows=2 batches=2 schema=a7a4d5237b3037eb2aae317c084f515a978391c6df4de2556c02599d0219c368
+ok
+test help_states_the_closed_limits ... ok
+test malformed_quote_has_no_completion ... ok
+test refusal_credential_does_not_start ... ok
+test refusal_exact_header_has_no_completion ... ok
+test refusal_worker_path_does_not_hash ... ok
+test wrong_executable_hash_does_not_start ... ok
+test wrong_input_hash_has_no_completion ... ok
+test z_deadline_kills_then_the_next_call_completes ... empty_ms=8929
+busy_ms=74438
+kill_ms=32754
+kill_elapsed_ms=41599
+term_signal=Some(9) exit_code=None
+deadline_next=empty_ok teardown=signal9
+ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 224.09s
+
