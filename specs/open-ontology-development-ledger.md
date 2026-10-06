@@ -1463,3 +1463,9 @@ Correct process accounting: prior note said9handles/5development+4review, but af
 - [ ] H-D01 / E26-D0/1 frozen BEFORE code: P9 actualreleasedPi RPC stdio probe/Rustdriver/version/license/integrity; a279testing/spikes/p09-pi-rpc only, no fabricatedprotocol/no realkeys. Actual launch/send/events/abort/transcript/restore required beforeapproval; unsupportedstaysunaccepted.
 
 Frozen45/59=76.27% localchildrenonly, M1-D17/24/integration0/4/internalrelease0/6/externalgates unchanged. NewPi probe gives5development+1review/max6Rustbuilders<10/devcap12. NextUUIDa280. ONE20minute wait thenONE unified6actualhandles, no intermediate/repeatedpolling.
+
+
+ONE20minute unified6actualhandles: a26969958/a27566011/a27676818/a27719446/a27886321/a27998869 allconfirmedlive. No interim/repeatedpoll, no restart, no acceptance change. Previousgoalturn was progress (fourfixedunitacceptances/newrealPi probe); thisobservation is verifiedwait. Continue independent CDCmainline with isolatedownedpath.
+- [ ] CDC-D01 / E27-D0/1 frozen BEFORE code: actual bounded Rust normalizedPGtransaction assembler, BEGIN/DATA/END/rollback/count/hash/commitLSN and read/seen/complete vs NOTapplied; a280tools/cdc-transaction only. ActualDebezium/P2P11/fencedtargetwriter/offsetACK/durablelarge-spool remainlater requiredwork, no made-uptransactional guarantee.
+
+Frozen45/60=75% localchildrenonly; authored63/historical70/first61/reworked11=18.03%, M1-D17/24/integration0/4/internalrelease0/6 unchanged. WithnewCDCassembler6development+1review/max7builders<10/devcap12. NextUUIDa281. ONE20minute wait thenONE unified7actualhandles, no intermediate/repeatedpolling.
