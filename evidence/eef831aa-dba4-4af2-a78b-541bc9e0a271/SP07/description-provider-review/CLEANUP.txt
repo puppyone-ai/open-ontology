@@ -1,0 +1,9 @@
+Removed only a271 resources after the proof.
+
+Containers: none remained. smoke 7e301b88036ddd00eec43acca5da98071fe0eff4818e14c62c63861e02d68c63, smoke-2 f90aebde9885c47d50d7203e3d713a92088a91ea9265f4f1285e360045e12c24, and proof dfb25ef45420d29a0996d7479acfec178f67627fa4f040cff69097ae87981dbd were removed by their launch scripts. The manifest compile container 49bedf0503817df18678b38ff2a5a928950f6dd506041f715aa407c3a327bf29 was removed by linux/manifest/launch.sh.
+
+Volumes removed: oo-a271-eef831aa-cargo, oo-a271-eef831aa-target.
+Network removed: oo-a271-eef831aa-net (5153b1915fb33994fa8e7ececa321e0b62bda4c365dad4a03f2176a48b3b53c2).
+Private tmp removed: /tmp/oo-a271-eef831aa-dba4-4af2-a78b-541bc9e0a271.
+
+No prune. No other owner's containers, volumes, or networks were removed. linux/proof/containers-before.txt names oo-a274-chain and oo-a274-pg. Those were left running. The manifest capacity check recorded global=0, so they had already exited before this cleanup.
