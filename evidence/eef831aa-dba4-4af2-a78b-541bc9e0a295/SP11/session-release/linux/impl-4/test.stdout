@@ -1,0 +1,87 @@
+
+running 9 tests
+test backend::tests::cancel_return_and_socket_drop_are_not_success ... ok
+test clock::tests::budgets_match_the_release_contract ... ok
+test clock::tests::exact_budget_is_inside_and_the_next_millisecond_misses ... ok
+test model::tests::receipt_defaults_do_not_certify_or_close ... ok
+test paths::tests::missing_and_foreign_are_distinct_and_destroy_verifies_absence ... ok
+test paths::tests::symlink_inside_an_owned_tree_is_not_destroyed ... ok
+test release::tests::lowercase_uuid_and_denied_roles_fail_closed ... ok
+test release::tests::success_requires_five_fixture_steps_and_leaves_the_session_open ... ok
+test sha256::tests::known_answers ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+test blocked_query_and_slow_child_release_without_closing ... FAILED
+test cancel_cannot_treat_an_idle_transaction_as_stopped ... FAILED
+test cancel_role_is_limited_and_runtime_cannot_create ... ok
+test escaped_grandchild_and_canary_are_not_confirmed ... FAILED
+test inaccessible_postgres_does_not_spawn_or_close ... FAILED
+test missing_workspace_and_foreign_path_have_no_side_effects ... FAILED
+test noisy_transcript_is_not_confirmed_and_workspace_remains ... FAILED
+test restart_after_the_orchestrator_is_killed_does_not_signal_or_certify ... FAILED
+test revision_conflict_and_event_id_conflict_do_not_close ... FAILED
+
+failures:
+
+---- blocked_query_and_slow_child_release_without_closing stdout ----
+
+thread 'blocked_query_and_slow_child_release_without_closing' (696) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- cancel_cannot_treat_an_idle_transaction_as_stopped stdout ----
+
+thread 'cancel_cannot_treat_an_idle_transaction_as_stopped' (698) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- escaped_grandchild_and_canary_are_not_confirmed stdout ----
+
+thread 'escaped_grandchild_and_canary_are_not_confirmed' (702) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- inaccessible_postgres_does_not_spawn_or_close stdout ----
+
+thread 'inaccessible_postgres_does_not_spawn_or_close' (704) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- missing_workspace_and_foreign_path_have_no_side_effects stdout ----
+
+thread 'missing_workspace_and_foreign_path_have_no_side_effects' (706) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- noisy_transcript_is_not_confirmed_and_workspace_remains stdout ----
+
+thread 'noisy_transcript_is_not_confirmed_and_workspace_remains' (708) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- restart_after_the_orchestrator_is_killed_does_not_signal_or_certify stdout ----
+
+thread 'restart_after_the_orchestrator_is_killed_does_not_signal_or_certify' (710) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+---- revision_conflict_and_event_id_conflict_do_not_close stdout ----
+
+thread 'revision_conflict_and_event_id_conflict_do_not_close' (712) panicked at tests/live.rs:121:10:
+bootstrap: BootstrapConflict
+
+
+failures:
+    blocked_query_and_slow_child_release_without_closing
+    cancel_cannot_treat_an_idle_transaction_as_stopped
+    escaped_grandchild_and_canary_are_not_confirmed
+    inaccessible_postgres_does_not_spawn_or_close
+    missing_workspace_and_foreign_path_have_no_side_effects
+    noisy_transcript_is_not_confirmed_and_workspace_remains
+    restart_after_the_orchestrator_is_killed_does_not_signal_or_certify
+    revision_conflict_and_event_id_conflict_do_not_close
+
+test result: FAILED. 1 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s
+

@@ -1,0 +1,13 @@
+Owned resources removed after linux/impl-5 evidence was on disk.
+
+The network oo-a295-eef831aa-net had one container, oo-a295-pg.
+No foreign container was attached. Images were not removed. No prune ran.
+
+stopped_and_removed_container=oo-a295-pg
+removed_volumes=oo-a295-eef831aa-cargo oo-a295-eef831aa-pgdata oo-a295-eef831aa-target-impl oo-a295-eef831aa-target-precode
+removed_network=oo-a295-eef831aa-net
+removed_tmp=/tmp/oo-a295-eef831aa-dba4-4af2-a78b-541bc9e0a295
+removed_scratch=/tmp/oo-a295-session-release-msg.txt
+
+Afterward, docker ps -a, docker volume ls, and docker network ls filtered by label oo.owner=a295 were empty.
+The tmp directory was absent.

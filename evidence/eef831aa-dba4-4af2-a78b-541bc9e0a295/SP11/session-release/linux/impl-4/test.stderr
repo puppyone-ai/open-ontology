@@ -1,0 +1,6 @@
+   Compiling session-release v0.1.0 (/work/tools/session-release)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.16s
+     Running unittests src/lib.rs (/target/debug/deps/session_release-fb0e1e6232c7c4c4)
+     Running unittests src/main.rs (/target/debug/deps/session_release-c7d3b7e09fe84bd7)
+     Running tests/live.rs (/target/debug/deps/live-431934dc21f83da1)
+error: test failed, to rerun pass `--test live`

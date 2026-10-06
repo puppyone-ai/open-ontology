@@ -1,0 +1,22 @@
+Rust launch recipe origin
+direct_parent_commit=recorded_at_precode_launch
+direct_parent_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a275/SP11/session-store/linux/precode/launch.sh
+direct_parent_sha256=46fc53cd48dd65c97860b7bda63295f0e59909b54e9a1836925c1dd9e2e35341
+direct_parent_inside=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a275/SP11/session-store/linux/precode/inside.sh
+direct_parent_inside_sha256=4dfdb583fdace6b23be0468384e34d2cc7ba5ac53c17dd0c54996d9a1db04089
+a204_commit_recorded_by_a275=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+a204_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+a204_sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a204_inside_sha256=b7ee6d634a279b61b49badc1f497fd1a181fdae49d4e21f0fe5f2dec4db87636
+a199_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/preoverlay/launch.sh
+a199_sha256=bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+postgres_origin_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+postgres_origin_sha256=96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+postgres_wrap_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+postgres_wrap_sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+hash_tool_origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
+hash_tool_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+minimal_changes=uuid a295; fixed archive c8588faab992af1193ff58dbc489a0b117796aa0; memory 6g; cpus 1; cap_global 10; precode cargo-tests the fixed session-transition tree and session-store --lib before session-release exists; private bridge network for the locked fetch, not host and not internal; one private postgres only after this smoke; no product overlay
+fixed_source=c8588faab992af1193ff58dbc489a0b117796aa0
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres_image=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb

@@ -1,0 +1,40 @@
+
+running 1 test
+test sha256::tests::known_answers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test cli_rejects_trailing_json_and_arguments ... ok
+test cli_roundtrip_reports_the_post_state_revision ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+test cancel_then_begin_turn_is_stopped ... ok
+test changed_actor_beats_stale_and_keeps_workspace ... ok
+test full_journal_does_not_drop_and_still_replays ... ok
+test happy_path_revisions_are_hand_counted ... ok
+test identical_replay_is_idempotent_and_conflict_refuses ... ok
+test overflow_does_not_wrap ... ok
+test reason_names_and_bounds ... ok
+test releasing_stops_admission_and_close_needs_s8_absence ... ok
+test stale_revision_and_generation_leave_the_snapshot ... ok
+test takeover_heartbeat_and_turn_timeout ... ok
+test time_boundaries_refuse_at_the_exact_instant ... ok
+test tool_sixty_is_the_last_admitted_start ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

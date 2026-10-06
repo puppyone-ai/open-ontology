@@ -1,0 +1,27 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_vv_exit=0
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Linux 5e8a40660313 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+uid=0(root) gid=0(root) groups=0(root)
+/usr/bin/bash
+/usr/bin/dd
+/usr/bin/sleep
+=== signal probe ===
+direct_term_pid=16
+group_stopped=19
+group_probe_exit=0
+=== archive gate ===
+=== rustc version gate ===
+=== clippy component ===
+PHASE clippy_component_exit=0
+=== cargo test locked offline ===
+PHASE test_exit=101
+=== cargo clippy locked offline ===
+PHASE clippy_exit=101
