@@ -1,0 +1,3 @@
+/run/oo-a247/fixture/admin.pass
+/run/oo-a247/fixture/ca.crt
+/run/oo-a247/fixture/wrong-ca.crt

@@ -1,0 +1,11 @@
+ExitCode=0
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a247-eef831aa-net
+CapDrop=["ALL"]
+CapAdd=null
+Memory=6442450944
+NanoCpus=1000000000
+PortBindings={}
+Tmpfs={"/tmp":"rw,nosuid,nodev,noexec,size=1g"}
+Id=030ebf6b9eabed0f83ef1930ea10b6a8424a57d4599fe30bcbd2a6bdbe2e15a4

@@ -1,0 +1,1 @@
+clippy-review exit 101: field login_file was never read in analyze_pg_a247_review.rs. Live test, oracle, secret scan, and analyze-pg clippy had already exited 0. Harness-only fix reads the login password from that file. Product sources were not edited.
