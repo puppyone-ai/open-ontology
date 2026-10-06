@@ -1,0 +1,40 @@
+   Compiling description-provider v0.1.0 (/cargo-home/work/src/tools/description-provider)
+error[E0382]: use of partially moved value: `child`
+   --> tests/provider.rs:824:18
+    |
+821 |     let mut stdin = child.stdin.expect("stdin");
+    |                     ----------- --------------- `child.stdin` partially moved due to this method call
+    |                     |
+    |                     help: consider calling `.as_ref()` or `.as_mut()` to borrow the type's contents
+...
+824 |     let output = child.wait_with_output().expect("wait");
+    |                  ^^^^^ value used here after partial move
+    |
+note: `Option::<T>::expect` takes ownership of the receiver `self`, which moves `child.stdin`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/option.rs:968:24
+    = note: partial move occurs because `child.stdin` has type `Option<ChildStdin>`, which does not implement the `Copy` trait
+help: you could `clone` the value and consume it, if the `ChildStdin: Clone` trait bound could be satisfied
+    |
+821 |     let mut stdin = child.stdin.clone().expect("stdin");
+    |                                ++++++++
+
+error[E0716]: temporary value dropped while borrowed
+   --> tests/provider.rs:881:25
+    |
+881 |     let authorization = mock.hits()[0].one("authorization").unwrap_or("");
+    |                         ^^^^^^^^^^^                                      - temporary value is freed at the end of this statement
+    |                         |
+    |                         creates a temporary value which is freed while still in use
+...
+884 |     assert_same(authorization, &expected);
+    |                 ------------- borrow later used here
+    |
+help: consider using a `let` binding to create a longer lived value
+    |
+881 ~     let binding = mock.hits();
+882 ~     let authorization = binding[0].one("authorization").unwrap_or("");
+    |
+
+Some errors have detailed explanations: E0382, E0716.
+For more information about an error, try `rustc --explain E0382`.
+error: could not compile `description-provider` (test "provider") due to 2 previous errors

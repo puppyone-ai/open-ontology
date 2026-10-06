@@ -1,0 +1,10 @@
+Removed only a263 resources after linux/proof-7 exited 0.
+
+Containers with label oo.owner=a263: none were still running. Each proof script had already removed its container.
+Volumes removed: oo-a263-eef831aa-cargo, oo-a263-eef831aa-target.
+Network removed: oo-a263-eef831aa-net.
+Temp directory removed: /tmp/oo-a263-eef831aa-dba4-4af2-a78b-541bc9e0a263.
+
+Afterward: a263 containers 0, those volumes 0, that network 0, that temp directory absent.
+Image kept: docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5.
+No prune. No other owner's containers, volumes, or networks were removed.

@@ -1,0 +1,21 @@
+   Compiling description-provider v0.1.0 (/cargo-home/work/src/tools/description-provider)
+error[E0596]: cannot borrow `child.stdin` as mutable, as `child` is not declared as mutable
+   --> tests/provider.rs:814:9
+    |
+814 |       let child = Command::new(cli)
+    |           ^^^^^ not mutable
+...
+821 | /     child
+822 | |         .stdin
+    | |______________- cannot borrow as mutable
+...
+827 |       drop(child.stdin.take());
+    |            ----------- cannot borrow as mutable
+    |
+help: consider changing this to be mutable
+    |
+814 |     let mut child = Command::new(cli)
+    |         +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `description-provider` (test "provider") due to 1 previous error
