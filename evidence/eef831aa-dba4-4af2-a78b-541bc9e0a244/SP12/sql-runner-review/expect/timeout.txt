@@ -1,0 +1,12 @@
+passed=false
+questions=1
+trials=1
+passes=0
+fails=0
+timeouts=1
+reannotations=0
+not_runs=0
+lane=trusted_sql
+metadata=declared
+mode=synthetic
+trial slow 0 status=timeout reason=timeout query_exit=null adapter_exit=null comparator_exit=null comparator_verdict=absent end_audit_ok=null truncated=null partial=null backend_cleanup=unknown

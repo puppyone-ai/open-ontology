@@ -1,0 +1,87 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+Linux 67afd1256a6f 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PHASE rustc=0
+PHASE toolchain=0
+=== tree ===
+PHASE tree=0
+=== source hash ===
+PHASE source-check=0
+=== lock pins ===
+PHASE lock-drift=0
+PHASE lock=0
+=== fetch sql-runner ===
+PHASE sql-runner-fetch=0
+=== clippy ===
+PHASE clippy=0
+=== cargo test sql-runner ===
+PHASE sql-runner-test=0
+=== hash and review tools ===
+PHASE sha256-tool=0
+PHASE select-debs-tool=0
+PHASE tools=0
+=== libclang ===
+PHASE libclang=0
+PHASE libclang-load=0
+=== compile comparator, adapter, query-pg ===
+offline fetch missed for workspace; fetching locked
+PHASE workspace-fetch=0
+PHASE comparator-fetch=0
+PHASE comparator-build=0
+PHASE adapter-fetch=0
+PHASE adapter-build=0
+PHASE norun=0
+PHASE bins=0
+PHASE ldd=0
+=== live query-pg ===
+PHASE live=0
+kept
+withheld
+kept
+kept
+kept
+kept
+PHASE oracle=0
+=== suite documents ===
+PHASE prepare=0
+=== bounds ===
+PHASE bad-hash=0
+PHASE gold-poison=0
+=== hold table ===
+PHASE hold=0
+=== suite pass ===
+PHASE pass=0
+=== suite fail ===
+PHASE fail=1
+=== suite peek ===
+PHASE peek=1
+=== suite timeout ===
+PHASE timeout=1
+=== suite noend ===
+PHASE noend=0
+=== facts ===
+PHASE facts=0
+=== product unchanged ===
+PHASE product=0
+PHASE source-after=0
+PHASE proof=0

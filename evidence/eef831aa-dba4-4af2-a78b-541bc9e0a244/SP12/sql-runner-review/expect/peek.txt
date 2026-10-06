@@ -1,0 +1,13 @@
+passed=false
+questions=2
+trials=2
+passes=1
+fails=1
+timeouts=0
+reannotations=0
+not_runs=0
+lane=trusted_sql
+metadata=declared
+mode=synthetic
+trial notes 0 status=pass reason=match query_exit=0 adapter_exit=0 comparator_exit=0 comparator_verdict=match end_audit_ok=true truncated=false partial=false backend_cleanup=unknown
+trial hidden 0 status=fail reason=refused query_exit=6 adapter_exit=null comparator_exit=null comparator_verdict=absent end_audit_ok=null truncated=null partial=null backend_cleanup=unknown

@@ -1,0 +1,12 @@
+bind /tmp/oo-a244-eef831aa-dba4-4af2-a78b-541bc9e0a244/proof/archive /archive rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/linux/proof/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/linux/proof/extract-libclang.sh /extract-libclang.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/hand /hand rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/linux/proof /evidence rw=true
+bind /tmp/oo-a244-eef831aa-dba4-4af2-a78b-541bc9e0a244/proof/src /src rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/tools /tools rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a244/SP12/sql-runner-review/expect /expect rw=false
+bind /tmp/oo-a244-eef831aa-dba4-4af2-a78b-541bc9e0a244/secrets /run/oo-a198/fixture rw=false
+volume /var/lib/docker/volumes/oo-a244-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a244-eef831aa-target/_data /target rw=true
+

@@ -1,0 +1,1 @@
+{"row_comparator":"ordered","expected":{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"note","type":"text"}],"rows":[[{"presence":"value","value":"beta"}],[{"presence":"value","value":"\u96ea\u306e\u7968\u0301"}],[{"presence":"null"}]]}}

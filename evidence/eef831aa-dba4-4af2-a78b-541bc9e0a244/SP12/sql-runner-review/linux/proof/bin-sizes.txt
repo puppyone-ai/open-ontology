@@ -1,0 +1,5 @@
+19941472 /target/bins/query-pg
+ 1160992 /target/bins/query-result-adapter
+ 1263624 /target/bins/result-comparator
+ 1518984 /target/bins/sql-runner
+23885072 total

@@ -1,0 +1,1 @@
+Harness fill.rs shadowed the exes function (E0618). Clippy and sql-runner tests had already exited 0. No libclang or live suite ran.

@@ -1,0 +1,32 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test config_rejects_mode_tuple_and_paths ... ok
+test flood_partial_and_missing_completion_are_failures ... ok
+test help_and_usage ... ok
+test mixed_suite_keeps_every_planned_trial ... ok
+test one_match_passes_and_a_second_run_is_refused ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.94s
+
+
+running 2 tests
+test fips_180_4_abc ... ok
+test fips_180_4_empty_string ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

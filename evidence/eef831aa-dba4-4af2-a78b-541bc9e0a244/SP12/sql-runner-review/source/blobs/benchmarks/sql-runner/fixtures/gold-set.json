@@ -1,0 +1,1 @@
+{"expected":{"columns":[{"name":"note","type":"text"}],"completion":"complete","kind":"rows","rows":[[{"presence":"value","value":"full"}]],"warnings":[]},"row_comparator":"set"}
