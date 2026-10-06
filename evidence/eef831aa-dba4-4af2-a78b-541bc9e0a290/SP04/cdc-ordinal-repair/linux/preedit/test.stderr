@@ -1,0 +1,4 @@
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+    Finished `test` profile [unoptimized] target(s) in 0.23s
+     Running tests/ordinal_range.rs (/target/tool/debug/deps/ordinal_range-9ce8478300cc4efe)
+error: test failed, to rerun pass `--test ordinal_range`

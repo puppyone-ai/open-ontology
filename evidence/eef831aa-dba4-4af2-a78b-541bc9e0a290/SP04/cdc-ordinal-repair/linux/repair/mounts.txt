@@ -1,0 +1,12 @@
+bind /tmp/oo-a290-eef831aa-dba4-4af2-a78b-541bc9e0a290/repair/archive/tools/cdc-transaction /tool rw=false
+bind /tmp/oo-a290-eef831aa-dba4-4af2-a78b-541bc9e0a290/repair/work /work rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a290/SP04/cdc-ordinal-repair/oracle /oracle rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a290/SP04/cdc-ordinal-repair/tools/lock_subset.rs /tools/lock_subset.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a290/SP04/cdc-ordinal-repair/linux/repair/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a290/SP04/cdc-ordinal-repair/linux/repair /evidence rw=true
+bind /tmp/oo-a290-eef831aa-dba4-4af2-a78b-541bc9e0a290/repair/rootlock /rootlock rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a290/SP04/cdc-ordinal-repair/source/repair /repair rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a284/SP04/cdc-transaction-review/overlay /a284 rw=false
+volume /var/lib/docker/volumes/oo-a290-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a290-eef831aa-target/_data /target rw=true
+

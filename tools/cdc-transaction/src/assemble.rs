@@ -477,6 +477,10 @@ impl Assembler {
         if let Err(code) = validate_table(&data.table) {
             return Err(self.fail(code, Some(data.txn_id.clone())));
         }
+        // 32768..=65535 fit in u16 and are outside the contract.
+        if ordinal_above_contract(data) {
+            return Err(self.fail(FaultCode::OrdinalRange, Some(data.txn_id.clone())));
+        }
         if let Err(code) = validate_key(&data.key) {
             return Err(self.fail(code, Some(data.txn_id.clone())));
         }
@@ -936,6 +940,31 @@ enum SeenField {
     DuplicateBegin,
     DuplicateEnd,
     DuplicateRollback,
+}
+
+const CONTRACT_MAX_ORDINAL: u16 = 32_767;
+
+fn ordinal_above_contract(data: &Incoming) -> bool {
+    data.key
+        .iter()
+        .chain(data.payload.iter())
+        .any(|cell| cell_ordinal(cell) > CONTRACT_MAX_ORDINAL)
+        || data
+            .unavailable
+            .iter()
+            .any(|ordinal| *ordinal > CONTRACT_MAX_ORDINAL)
+}
+
+fn cell_ordinal(cell: &Cell) -> u16 {
+    match cell {
+        Cell::Null { ordinal }
+        | Cell::Unavailable { ordinal }
+        | Cell::Bool { ordinal, .. }
+        | Cell::Int { ordinal, .. }
+        | Cell::Decimal { ordinal, .. }
+        | Cell::Text { ordinal, .. }
+        | Cell::Bytes { ordinal, .. } => *ordinal,
+    }
 }
 
 fn accepted() -> ApplyOut {
