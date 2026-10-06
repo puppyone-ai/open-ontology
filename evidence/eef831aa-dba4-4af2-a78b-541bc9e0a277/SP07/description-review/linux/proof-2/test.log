@@ -1,0 +1,29 @@
+   Compiling description-review v0.1.0 (/cargo-home/work/src/tools/description-review)
+error: environment variable `CARGO_BIN_EXE_description_review` not defined at compile time
+    --> tests/review.rs:1620:50
+     |
+1620 |     let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_description_review"));
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_description_review")` instead
+
+error[E0277]: can't compare `serde_json::Value` with `&serde_json::Value`
+   --> tests/review.rs:791:5
+    |
+791 |     assert_eq!(upper_item["document"], upper);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `serde_json::Value == &serde_json::Value`
+    |
+    = help: the trait `PartialEq<&serde_json::Value>` is not implemented for `serde_json::Value`
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: can't compare `serde_json::Value` with `&serde_json::Value`
+   --> tests/review.rs:796:5
+    |
+796 |     assert_eq!(extra_item["document"], extra);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `serde_json::Value == &serde_json::Value`
+    |
+    = help: the trait `PartialEq<&serde_json::Value>` is not implemented for `serde_json::Value`
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `description-review` (test "review") due to 3 previous errors
