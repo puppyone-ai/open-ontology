@@ -25,6 +25,12 @@ fn scratch(name: &str) -> PathBuf {
     path
 }
 
+fn onboarding_bin() -> &'static str {
+    option_env!("CARGO_BIN_EXE_pg-onboarding")
+        .or(option_env!("CARGO_BIN_EXE_pg_onboarding"))
+        .expect("missing pg-onboarding executable path")
+}
+
 fn pt(fill: &str) -> String {
     format!("pt_{fill}")
 }
@@ -114,38 +120,6 @@ fn fake_compilers_cover_both_phases() {
         &[("shop", "customer"), ("shop", "order_doc")],
     );
 
-    let deadline = root.join("deadline");
-    install_bins(&child, &deadline);
-    fs::write(deadline.join("bin").join("sleep-init"), b"1").unwrap();
-    write_canned(&deadline.join("bin").join("canned"), &digest);
-    let secrets = write_secrets(&deadline);
-    let run = deadline.join("run");
-    let cfg = deadline.join("inspect.json");
-    fs::write(&cfg, inspect_config_bins(&deadline, &hash, &secrets, true, Some(200))).unwrap();
-    let err = inspect(&cfg, &run).unwrap_err();
-    assert_eq!(err.step, "init-pg");
-    assert_eq!(err.detail, "deadline");
-    let outcome: Value = serde_json::from_slice(&fs::read(run.join("outcome.json")).unwrap()).unwrap();
-    assert_eq!(outcome["status"], "failed");
-    assert_eq!(outcome["database_state"], "unchanged_by_this_tool");
-    assert_eq!(fs::read_to_string(run.join("steps").join("init-pg.exit")).unwrap(), "timeout\n");
-    assert!(run.join("steps").join("import-not-ready.stderr").is_file());
-
-    let broken = root.join("broken");
-    install_bins(&child, &broken);
-    fs::write(broken.join("bin").join("fail-catalog"), b"1").unwrap();
-    write_canned(&broken.join("bin").join("canned"), &digest);
-    let secrets = write_secrets(&broken);
-    let run = broken.join("run");
-    let cfg = broken.join("inspect.json");
-    fs::write(&cfg, inspect_config_bins(&broken, &hash, &secrets, false, None)).unwrap();
-    let err = inspect(&cfg, &run).unwrap_err();
-    assert_eq!(err.step, "catalog-pg");
-    assert!(run.join("steps").join("import-pg.stdout").is_file());
-    assert!(!run.join("captured-draft.json").exists());
-    let outcome: Value = serde_json::from_slice(&fs::read(run.join("outcome.json")).unwrap()).unwrap();
-    assert_eq!(outcome["status"], "failed");
-
     let ok = root.join("ok");
     install_bins(&child, &ok);
     write_canned(&ok.join("bin").join("canned"), &digest);
@@ -199,6 +173,205 @@ fn fake_compilers_cover_both_phases() {
     let again = apply_reviewed(&apply_cfg, &run).unwrap_err();
     assert_eq!(again.detail, "terminal");
     assert!(run.join("captured-draft.json").is_file());
+}
+
+#[test]
+fn init_deadline_failure_does_not_claim_unchanged() {
+    let root = scratch("deadline");
+    let child = compile_child(&root);
+    let hash = sha256_hex(&fs::read(&child).unwrap());
+    let digest = config_identity_hex(
+        "a261src",
+        "oo-a261-pg",
+        5432,
+        "oo_a261_src",
+        "oo_a261_reader",
+        "secret://pg/a261/reader",
+        &[("shop", "customer"), ("shop", "order_doc")],
+    );
+    install_bins(&child, &root);
+    fs::write(root.join("bin").join("sleep-init"), b"1").unwrap();
+    write_canned(&root.join("bin").join("canned"), &digest);
+    let secrets = write_secrets(&root);
+    let run = root.join("run");
+    let cfg = root.join("inspect.json");
+    fs::write(&cfg, inspect_config_bins(&root, &hash, &secrets, true, Some(200))).unwrap();
+    let err = inspect(&cfg, &run).unwrap_err();
+    assert_eq!(err.step, "init-pg");
+    assert_eq!(err.detail, "deadline");
+    let outcome: Value = serde_json::from_slice(&fs::read(run.join("outcome.json")).unwrap()).unwrap();
+    assert_eq!(outcome["status"], "failed");
+    assert_eq!(outcome["database_state"], "changes_may_have_been_applied");
+    assert_eq!(outcome["database_rollback"], false);
+    assert_eq!(outcome["database_release"], false);
+    assert_eq!(fs::read_to_string(run.join("steps").join("init-pg.exit")).unwrap(), "timeout\n");
+    assert!(run.join("steps").join("import-not-ready.stderr").is_file());
+    assert!(run.join("steps").join("init-pg.stdin").is_file());
+}
+
+#[test]
+fn catalog_failure_after_import_does_not_claim_unchanged() {
+    let root = scratch("catalog-fail");
+    let child = compile_child(&root);
+    let hash = sha256_hex(&fs::read(&child).unwrap());
+    let digest = config_identity_hex(
+        "a261src",
+        "oo-a261-pg",
+        5432,
+        "oo_a261_src",
+        "oo_a261_reader",
+        "secret://pg/a261/reader",
+        &[("shop", "customer"), ("shop", "order_doc")],
+    );
+    install_bins(&child, &root);
+    fs::write(root.join("bin").join("fail-catalog"), b"1").unwrap();
+    write_canned(&root.join("bin").join("canned"), &digest);
+    let secrets = write_secrets(&root);
+    let run = root.join("run");
+    let cfg = root.join("inspect.json");
+    fs::write(&cfg, inspect_config_bins(&root, &hash, &secrets, false, None)).unwrap();
+    let err = inspect(&cfg, &run).unwrap_err();
+    assert_eq!(err.step, "catalog-pg");
+    assert!(run.join("steps").join("import-pg.stdout").is_file());
+    assert!(!run.join("captured-draft.json").exists());
+    let outcome: Value = serde_json::from_slice(&fs::read(run.join("outcome.json")).unwrap()).unwrap();
+    assert_eq!(outcome["status"], "failed");
+    assert_eq!(outcome["database_state"], "changes_may_have_been_applied");
+    assert_eq!(outcome["database_rollback"], false);
+    assert_eq!(outcome["database_release"], false);
+}
+
+#[test]
+fn preflight_deadline_refuses_before_run_dir() {
+    let root = scratch("preflight");
+    let run = seal_inspect(&root);
+    let cfg = root.join("inspect-preflight.json");
+    let mut body = fs::read_to_string(root.join("inspect.json")).unwrap();
+    body = body.replacen(
+        "\"connect_ms\": 30000",
+        "\"connect_ms\": 30000,\n  \"deadlines_ms\": {\"import_not_ready_ms\": 0}",
+        1,
+    );
+    fs::write(&cfg, body).unwrap();
+    let fresh = root.join("preflight-run");
+    let err = inspect(&cfg, &fresh).unwrap_err();
+    assert_eq!(err.step, "config");
+    assert_eq!(err.detail, "config");
+    assert!(!fresh.exists());
+    assert!(run.join("outcome.json").is_file());
+}
+
+#[test]
+fn duplicate_manifest_refuses_before_spawn() {
+    let root = scratch("ambiguous");
+    let run = seal_inspect(&root);
+    let saved = fs::read(run.join("inspect-manifest.json")).unwrap();
+    assert!(saved.starts_with(b"{"));
+    let mut duplicated = Vec::from(&b"{\"source_cut\":48,"[..]);
+    duplicated.extend_from_slice(&saved[1..]);
+    fs::write(run.join("inspect-manifest.json"), &duplicated).unwrap();
+    fs::write(
+        run.join("inspect-manifest.json.sha256"),
+        format!("{}\n", sha256_hex(&duplicated)),
+    )
+    .unwrap();
+    let apply_cfg = root.join("apply.json");
+    let err = apply_reviewed(&apply_cfg, &run).unwrap_err();
+    assert_eq!(err.step, "manifest");
+    assert_eq!(err.detail, "shape");
+    assert!(!run.join("apply-outcome.json").exists());
+    assert!(!run.join("steps").join("review-pg-draft.stdin").exists());
+}
+
+#[test]
+fn duplicate_decisions_refuse_before_review() {
+    let root = scratch("decisions");
+    let run = seal_inspect(&root);
+    fs::write(root.join("decisions.json"), b"[{\"keep\":true,\"keep\":false}]\n").unwrap();
+    let err = apply_reviewed(&root.join("apply.json"), &run).unwrap_err();
+    assert_eq!(err.step, "decisions");
+    assert_eq!(err.detail, "shape");
+    let outcome: Value = serde_json::from_slice(&fs::read(run.join("apply-outcome.json")).unwrap()).unwrap();
+    assert_eq!(outcome["status"], "failed");
+    assert_eq!(outcome["database_state"], "unchanged_by_this_tool");
+    assert_eq!(outcome["database_rollback"], false);
+    assert_eq!(outcome["database_release"], false);
+    assert!(!run.join("steps").join("review-pg-draft.stdin").exists());
+    assert!(!run.join("steps").join("reviewed-effective-oos.stdin").exists());
+}
+
+#[test]
+fn cli_failed_child_keeps_marker_and_static_stderr() {
+    let root = scratch("cli-fail");
+    let run = seal_inspect(&root);
+    fs::write(root.join("bin").join("mark-install"), b"1").unwrap();
+    fs::write(root.join("bin").join("fail-provision"), b"1").unwrap();
+    let output = Command::new(onboarding_bin())
+        .arg("apply-reviewed")
+        .arg("--config")
+        .arg(root.join("apply.json"))
+        .arg("--run")
+        .arg(&run)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        output.stderr,
+        b"pg-onboarding: provision-mapping-reader-clerk exit\n"
+    );
+    assert!(!output.stderr.windows(b"pw-reader-a261-orange".len()).any(|window| window == b"pw-reader-a261-orange"));
+    assert!(!output.stderr.windows(b"side-effect-marker-ok".len()).any(|window| window == b"side-effect-marker-ok"));
+    let outcome_bytes = fs::read(run.join("apply-outcome.json")).unwrap();
+    assert!(!outcome_bytes.windows(b"side-effect-marker-ok".len()).any(|window| window == b"side-effect-marker-ok"));
+    assert!(!outcome_bytes.windows(b"pw-reader-a261-orange".len()).any(|window| window == b"pw-reader-a261-orange"));
+    let outcome: Value = serde_json::from_slice(&outcome_bytes).unwrap();
+    assert_eq!(outcome["status"], "failed");
+    assert_eq!(outcome["step"], "provision-mapping-reader-clerk");
+    assert_eq!(outcome["detail"], "exit");
+    assert_eq!(outcome["database_state"], "changes_may_have_been_applied");
+    assert_eq!(outcome["database_rollback"], false);
+    assert_eq!(outcome["database_release"], false);
+    assert_eq!(outcome["non_claims"]["database_rollback"], false);
+    assert_eq!(outcome["non_claims"]["database_release"], false);
+    assert_eq!(
+        fs::read(root.join("bin").join("side-effect-marker")).unwrap(),
+        b"side-effect-marker-ok\n"
+    );
+    assert!(run.join("steps").join("install-column-acl-clerk.stdout").is_file());
+    assert_eq!(
+        fs::read(run.join("steps").join("provision-mapping-reader-clerk.exit")).unwrap(),
+        b"1\n"
+    );
+    assert_eq!(
+        fs::read(run.join("steps").join("provision-mapping-reader-clerk.stderr")).unwrap(),
+        b"provision-mapping-reader: static\n"
+    );
+    assert!(run.join("captured-draft.json").is_file());
+}
+
+fn seal_inspect(root: &Path) -> PathBuf {
+    let child = compile_child(root);
+    let hash = sha256_hex(&fs::read(&child).unwrap());
+    let digest = config_identity_hex(
+        "a261src",
+        "oo-a261-pg",
+        5432,
+        "oo_a261_src",
+        "oo_a261_reader",
+        "secret://pg/a261/reader",
+        &[("shop", "customer"), ("shop", "order_doc")],
+    );
+    install_bins(&child, root);
+    write_canned(&root.join("bin").join("canned"), &digest);
+    let secrets = write_secrets(root);
+    fs::write(root.join("membership.ready"), b"ready\n").unwrap();
+    let run = root.join("run");
+    let cfg = root.join("inspect.json");
+    fs::write(&cfg, inspect_config_bins(root, &hash, &secrets, true, None)).unwrap();
+    inspect(&cfg, &run).unwrap();
+    write_operator(root, &hash);
+    run
 }
 
 fn manifest_bytes(run: &Path) -> Vec<u8> {
@@ -631,6 +804,9 @@ fn main() -> ExitCode {
             copy_out(&path, 0)
         }
         "install-column-acl" => {
+            if dir.join("mark-install").is_file() {
+                fs::write(dir.join("side-effect-marker"), b"side-effect-marker-ok\n").unwrap();
+            }
             let path = if stdin.windows(b"\"role\":\"clerk\"".len()).any(|w| w == b"\"role\":\"clerk\"") {
                 canned.join("install-clerk.stdout")
             } else {
@@ -639,6 +815,10 @@ fn main() -> ExitCode {
             copy_out(&path, 0)
         }
         "provision-mapping-reader" => {
+            if dir.join("fail-provision").is_file() {
+                let _ = io::stderr().write_all(b"provision-mapping-reader: static\n");
+                return ExitCode::from(1);
+            }
             let path = if stdin.windows(b"\"role\":\"clerk\"".len()).any(|w| w == b"\"role\":\"clerk\"") {
                 canned.join("provision-clerk.stdout")
             } else {

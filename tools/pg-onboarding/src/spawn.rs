@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
@@ -87,7 +88,7 @@ pub fn pin_binary(pin: &BinPin) -> Result<PathBuf, Stop> {
     Ok(path)
 }
 
-pub fn run_child(request: &ChildRequest) -> Result<ChildOutput, Stop> {
+pub fn run_child(request: &ChildRequest, started: &Cell<bool>) -> Result<ChildOutput, Stop> {
     let step = request.step.as_str();
     if !safe_name(step) {
         return Err(Stop::new(step, "config"));
@@ -130,11 +131,12 @@ pub fn run_child(request: &ChildRequest) -> Result<ChildOutput, Stop> {
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr));
     let mut child = command.spawn().map_err(|_| Stop::new(step, "io"))?;
-    let started = Instant::now();
+    started.set(true);
+    let started_at = Instant::now();
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status,
-            Ok(None) if started.elapsed() >= request.deadline => {
+            Ok(None) if started_at.elapsed() >= request.deadline => {
                 let _ = child.kill();
                 let status = child.wait().map_err(|_| Stop::new(step, "io"))?;
                 let _ = write_private(&exit_path, b"timeout\n");
@@ -252,7 +254,7 @@ pub fn plain_token(value: &str) -> bool {
 }
 
 pub fn parse_json_slice(bytes: &[u8], step: &str) -> Result<serde_json::Value, Stop> {
-    serde_json::from_slice(bytes).map_err(|_| Stop::new(step, "shape"))
+    crate::json_doc::parse(bytes, CAPTURE_MAX).map_err(|fault| Stop::new(step, fault.detail()))
 }
 
 pub fn text_field<'a>(value: &'a serde_json::Value, key: &str, step: &str) -> Result<&'a str, Stop> {

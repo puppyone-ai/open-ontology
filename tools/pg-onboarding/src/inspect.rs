@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -109,8 +110,8 @@ pub fn bind_generation(source_cut: i64, target_fence: i64) -> Result<i64, Stop> 
 }
 
 pub fn inspect(config_path: &Path, run_dir: &Path) -> Result<(), Stop> {
-    let cfg_bytes = fs::read(config_path).map_err(|_| Stop::new("config", "config"))?;
-    let cfg: InspectConfig = serde_json::from_slice(&cfg_bytes).map_err(|_| Stop::new("config", "config"))?;
+    let cfg_bytes = read_config_bytes(config_path)?;
+    let cfg: InspectConfig = decode_config(&cfg_bytes)?;
     validate(&cfg)?;
     if !run_dir.is_absolute() {
         return Err(Stop::new("run", "config"));
@@ -130,11 +131,37 @@ pub fn inspect(config_path: &Path, run_dir: &Path) -> Result<(), Stop> {
     }
     fs::create_dir(run_dir).map_err(|_| Stop::new("run", "run_dir"))?;
     fs::create_dir(run_dir.join("steps")).map_err(|_| Stop::new("run", "io"))?;
-    let result = inspect_in(config_path, run_dir, &cfg, &cfg_bytes, &secrets, &bins);
+    let started = Cell::new(false);
+    let result = inspect_in(config_path, run_dir, &cfg, &cfg_bytes, &secrets, &bins, &started);
     if let Err(stop) = &result {
-        let _ = outcome::write_json_new(&run_dir.join("outcome.json"), &failed_body(stop, "inspect"));
+        let _ = outcome::write_json_new(
+            &run_dir.join("outcome.json"),
+            &failed_body(stop, "inspect", started.get()),
+        );
     }
     result
+}
+
+fn read_config_bytes(path: &Path) -> Result<Vec<u8>, Stop> {
+    let max = crate::json_doc::OPERATOR_JSON_MAX;
+    let meta = fs::symlink_metadata(path).map_err(|_| Stop::new("config", "config"))?;
+    if !meta.file_type().is_file() {
+        return Err(Stop::new("config", "config"));
+    }
+    if meta.len() > max as u64 {
+        return Err(Stop::new("config", "budget"));
+    }
+    let bytes = fs::read(path).map_err(|_| Stop::new("config", "config"))?;
+    if bytes.len() > max {
+        return Err(Stop::new("config", "budget"));
+    }
+    Ok(bytes)
+}
+
+fn decode_config(bytes: &[u8]) -> Result<InspectConfig, Stop> {
+    let value = crate::json_doc::parse(bytes, crate::json_doc::OPERATOR_JSON_MAX)
+        .map_err(|fault| Stop::new("config", fault.detail()))?;
+    serde_json::from_value(value).map_err(|_| Stop::new("config", "config"))
 }
 
 fn inspect_in(
@@ -144,6 +171,7 @@ fn inspect_in(
     _cfg_bytes: &[u8],
     secrets: &[Vec<u8>],
     bins: &(PathBuf, PathBuf, PathBuf, PathBuf),
+    started: &Cell<bool>,
 ) -> Result<(), Stop> {
     let import_stdin = import_body(cfg)?;
     let not_ready = run_child(&ChildRequest {
@@ -154,7 +182,7 @@ fn inspect_in(
         run_dir: run_dir.to_path_buf(),
         deadline: millis(cfg.deadlines_ms.import_not_ready_ms, 120_000)?,
         secrets: secrets.to_vec(),
-    })?;
+    }, started)?;
     if not_ready.timed_out {
         return Err(Stop::new("import-not-ready", "deadline"));
     }
@@ -175,7 +203,7 @@ fn inspect_in(
         run_dir: run_dir.to_path_buf(),
         deadline: millis(cfg.deadlines_ms.init_ms, 120_000)?,
         secrets: secrets.to_vec(),
-    })?;
+    }, started)?;
     spawn::require_code("init-pg", &init_out, 0)?;
     check_init(&init_out.stdout)?;
     if let Some(ready) = &cfg.runtime_membership_ready_file {
@@ -189,7 +217,7 @@ fn inspect_in(
         run_dir: run_dir.to_path_buf(),
         deadline: millis(cfg.deadlines_ms.import_ms, 180_000)?,
         secrets: secrets.to_vec(),
-    })?;
+    }, started)?;
     spawn::require_code("import-pg", &imported, 0)?;
     let import_value = parse_json_slice(&imported.stdout, "import-pg")?;
     let (source_cut, target_fence) = check_import(&import_value, cfg)?;
@@ -217,7 +245,7 @@ fn inspect_in(
         run_dir: run_dir.to_path_buf(),
         deadline: millis(cfg.deadlines_ms.catalog_ms, 120_000)?,
         secrets: secrets.to_vec(),
-    })?;
+    }, started)?;
     spawn::require_code("catalog-pg", &catalog, 0)?;
     let catalog_value = parse_json_slice(&catalog.stdout, "catalog-pg")?;
     if catalog_value["protocol"] != "oo.source.pgsql/v1" {
@@ -232,7 +260,7 @@ fn inspect_in(
         run_dir: run_dir.to_path_buf(),
         deadline: millis(cfg.deadlines_ms.captured_ms, 60_000)?,
         secrets: secrets.to_vec(),
-    })?;
+    }, started)?;
     spawn::require_code("captured-pg-draft", &captured, 0)?;
     refuse_markers("captured-pg-draft", &captured.stdout, &cfg.comment_markers)?;
     let captured_value = parse_json_slice(&captured.stdout, "captured-pg-draft")?;

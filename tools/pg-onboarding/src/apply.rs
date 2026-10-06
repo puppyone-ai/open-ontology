@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -135,6 +136,7 @@ struct Prepared<'a> {
     captured: Vec<u8>,
     secrets: Vec<Vec<u8>>,
     bins: Bins,
+    child_started: Cell<bool>,
 }
 
 struct Bins {
@@ -150,23 +152,28 @@ struct Bins {
 }
 
 pub fn apply_reviewed(config_path: &Path, run_dir: &Path) -> Result<(), Stop> {
-    let cfg_bytes = fs::read(config_path).map_err(|_| Stop::new("config", "config"))?;
-    let cfg: ApplyConfig = serde_json::from_slice(&cfg_bytes).map_err(|_| Stop::new("config", "config"))?;
+    let cfg_bytes = read_config_bytes(config_path)?;
+    let cfg: ApplyConfig = decode_config(&cfg_bytes)?;
     validate_apply(&cfg)?;
     if !run_dir.is_absolute() {
         return Err(Stop::new("run", "config"));
     }
-    let manifest_bytes = fs::read(run_dir.join("inspect-manifest.json")).map_err(|_| Stop::new("manifest", "manifest"))?;
+    let manifest_bytes = read_manifest_bytes(&run_dir.join("inspect-manifest.json"))?;
     let sidecar = fs::read(run_dir.join("inspect-manifest.json.sha256")).map_err(|_| Stop::new("manifest", "manifest"))?;
     let sidecar_hex = String::from_utf8_lossy(&sidecar).trim().to_string();
     if sidecar_hex != sha256_hex(&manifest_bytes) {
         return Err(Stop::new("manifest", "manifest"));
     }
-    let manifest = parse_json_slice(&manifest_bytes, "manifest")?;
+    let manifest = crate::json_doc::parse(&manifest_bytes, crate::json_doc::OPERATOR_JSON_MAX)
+        .map_err(|fault| Stop::new("manifest", fault.detail()))?;
     if manifest["protocol"] != "oo.onboarding.inspect-manifest/v1" || manifest["phase"] != "awaiting_review" {
         return Err(Stop::new("manifest", "protocol"));
     }
-    let outcome = outcome::read_json(&run_dir.join("outcome.json"), outcome::CAPTURE_MAX)?;
+    let outcome = outcome::read_json(
+        &run_dir.join("outcome.json"),
+        crate::json_doc::OPERATOR_JSON_MAX,
+        "outcome",
+    )?;
     if outcome::status_of(&outcome)? != "awaiting_review" {
         return Err(Stop::new("outcome", "terminal"));
     }
@@ -190,12 +197,54 @@ pub fn apply_reviewed(config_path: &Path, run_dir: &Path) -> Result<(), Stop> {
         secrets,
         bins,
         manifest,
+        child_started: Cell::new(false),
     };
     let result = apply_in(run_dir, &prepared);
     if let Err(stop) = &result {
-        let _ = outcome::write_json_new(&run_dir.join("apply-outcome.json"), &failed_body(stop, "apply-reviewed"));
+        let _ = outcome::write_json_new(
+            &run_dir.join("apply-outcome.json"),
+            &failed_body(stop, "apply-reviewed", prepared.child_started.get()),
+        );
     }
     result
+}
+
+fn read_config_bytes(path: &Path) -> Result<Vec<u8>, Stop> {
+    let max = crate::json_doc::OPERATOR_JSON_MAX;
+    let meta = fs::symlink_metadata(path).map_err(|_| Stop::new("config", "config"))?;
+    if !meta.file_type().is_file() {
+        return Err(Stop::new("config", "config"));
+    }
+    if meta.len() > max as u64 {
+        return Err(Stop::new("config", "budget"));
+    }
+    let bytes = fs::read(path).map_err(|_| Stop::new("config", "config"))?;
+    if bytes.len() > max {
+        return Err(Stop::new("config", "budget"));
+    }
+    Ok(bytes)
+}
+
+fn decode_config(bytes: &[u8]) -> Result<ApplyConfig, Stop> {
+    let value = crate::json_doc::parse(bytes, crate::json_doc::OPERATOR_JSON_MAX)
+        .map_err(|fault| Stop::new("config", fault.detail()))?;
+    serde_json::from_value(value).map_err(|_| Stop::new("config", "config"))
+}
+
+fn read_manifest_bytes(path: &Path) -> Result<Vec<u8>, Stop> {
+    let max = crate::json_doc::OPERATOR_JSON_MAX;
+    let meta = fs::symlink_metadata(path).map_err(|_| Stop::new("manifest", "manifest"))?;
+    if !meta.file_type().is_file() {
+        return Err(Stop::new("manifest", "manifest"));
+    }
+    if meta.len() > max as u64 {
+        return Err(Stop::new("manifest", "budget"));
+    }
+    let bytes = fs::read(path).map_err(|_| Stop::new("manifest", "manifest"))?;
+    if bytes.len() > max {
+        return Err(Stop::new("manifest", "budget"));
+    }
+    Ok(bytes)
 }
 
 struct ManifestCut {
@@ -241,8 +290,17 @@ fn apply_in(run_dir: &Path, prep: &Prepared<'_>) -> Result<(), Stop> {
     if import_value["source_generation"] != cut.source_cut || import_value["target_generation"] != cut.target_fence {
         return Err(Stop::new("import-pg", "generation"));
     }
+    let decisions_bytes = outcome::read_capped(
+        Path::new(&prep.cfg.decisions_file),
+        crate::json_doc::OPERATOR_JSON_MAX,
+        "decisions",
+    )?;
+    let decisions_value = crate::json_doc::parse(&decisions_bytes, crate::json_doc::OPERATOR_JSON_MAX)
+        .map_err(|fault| Stop::new("decisions", fault.detail()))?;
+    if !decisions_value.is_array() {
+        return Err(Stop::new("decisions", "shape"));
+    }
     let reviewed_stdout = run_review(prep, run_dir, &captured_draft_hash, &cut.schema_hash)?;
-    let decisions_bytes = outcome::read_file(Path::new(&prep.cfg.decisions_file), outcome::CAPTURE_MAX)?;
     let effective = run_effective(prep, run_dir, &reviewed_stdout, &decisions_bytes, &cut.schema_hash)?;
     let policy_arrays = compile_policies(prep, run_dir, &reviewed_stdout, &effective, &decisions_bytes, &cut)?;
     install_roles(prep, run_dir, &policy_arrays, &import_value)?;
@@ -295,7 +353,11 @@ fn manifest_cut(manifest: &Value) -> Result<ManifestCut, Stop> {
 }
 
 fn run_review(prep: &Prepared<'_>, run_dir: &Path, captured_draft_hash: &str, schema_hash: &str) -> Result<Vec<u8>, Stop> {
-    let reviews = outcome::read_json(Path::new(&prep.cfg.reviews_file), outcome::CAPTURE_MAX)?;
+    let reviews = outcome::read_json(
+        Path::new(&prep.cfg.reviews_file),
+        crate::json_doc::OPERATOR_JSON_MAX,
+        "reviews",
+    )?;
     if !reviews.is_array() {
         return Err(Stop::new("review-pg-draft", "shape"));
     }
@@ -438,8 +500,11 @@ fn one_policy(
         return Err(Stop::new(&step, "shape"));
     }
     let array = policies_bytes(&step, &output.stdout)?;
-    let parsed: Vec<Value> = serde_json::from_slice(array).map_err(|_| Stop::new(&step, "shape"))?;
-    for policy in &parsed {
+    let parsed_value = parse_json_slice(array, &step)?;
+    let Some(parsed) = parsed_value.as_array() else {
+        return Err(Stop::new(&step, "shape"));
+    };
+    for policy in parsed {
         check_policy(
             policy,
             cut.source_cut,
@@ -494,7 +559,10 @@ fn provision_roles(prep: &Prepared<'_>, run_dir: &Path, policy_arrays: &[Vec<u8>
 
 fn provision_one(prep: &Prepared<'_>, run_dir: &Path, role: &RoleCfg, policies: &[u8]) -> Result<Value, Stop> {
     let step = format!("provision-mapping-reader-{}", role.slug);
-    let parsed: Value = serde_json::from_slice(policies).map_err(|_| Stop::new(&step, "shape"))?;
+    let parsed = parse_json_slice(policies, &step)?;
+    if !parsed.is_array() {
+        return Err(Stop::new(&step, "shape"));
+    }
     let admin = text_field(&prep.manifest["target"], "administrator", &step)?;
     let document = serde_json::to_vec(&json!({
         "protocol": "oo.gateway.provision-mapping-reader-cli/v1",
@@ -566,7 +634,11 @@ fn role_packs(prep: &Prepared<'_>, run_dir: &Path, effective_oos: &Value) -> Res
 
 fn role_pack_one(prep: &Prepared<'_>, run_dir: &Path, role: &RoleCfg, effective_oos: &Value) -> Result<PackOut, Stop> {
     let step = format!("role-pack-{}", role.slug);
-    let visibility = outcome::read_json(Path::new(&role.visibility_file), outcome::CAPTURE_MAX)?;
+    let visibility = outcome::read_json(
+        Path::new(&role.visibility_file),
+        crate::json_doc::OPERATOR_JSON_MAX,
+        &step,
+    )?;
     let command = serde_json::to_vec(&json!({
         "protocol": "oo.builder.role-pack-command/v1",
         "effective_oos": effective_oos,
@@ -624,7 +696,7 @@ fn bundle_one(prep: &Prepared<'_>, run_dir: &Path, role: &RoleCfg, pack: &PackOu
     if !output.stdout.is_empty() || !output.stderr.is_empty() {
         return Err(Stop::new(&step, "shape"));
     }
-    let bundled = outcome::read_json(&dest, outcome::CAPTURE_MAX)?;
+    let bundled = outcome::read_json(&dest, outcome::CAPTURE_MAX, &step)?;
     if bundled["protocol"] != "oo.builder.role-pack-bundle/v1" {
         return Err(Stop::new(&step, "protocol"));
     }
@@ -667,7 +739,11 @@ fn ensure_dir(path: &Path) -> Result<(), Stop> {
 }
 
 fn policies_for_query(policy_bytes: &[u8]) -> Result<Vec<Value>, Stop> {
-    let mut parsed: Vec<Value> = serde_json::from_slice(policy_bytes).map_err(|_| Stop::new("query-pg", "shape"))?;
+    let parsed_value = parse_json_slice(policy_bytes, "query-pg")?;
+    let Some(parsed) = parsed_value.as_array() else {
+        return Err(Stop::new("query-pg", "shape"));
+    };
+    let mut parsed = parsed.clone();
     for policy in &mut parsed {
         strip_null_row_filter(policy);
     }
@@ -899,7 +975,10 @@ fn check_install(
     if value["role"] != format!("oo_r_{slug}") || value["grantor"] == "oo_target_owner" || value["grantor"] != admin {
         return Err(Stop::new(step, "grantor"));
     }
-    let parsed: Vec<Value> = serde_json::from_slice(policies).map_err(|_| Stop::new(step, "shape"))?;
+    let parsed_value = parse_json_slice(policies, step)?;
+    let Some(parsed) = parsed_value.as_array() else {
+        return Err(Stop::new(step, "shape"));
+    };
     let granted = value["tables"].as_array().ok_or_else(|| Stop::new(step, "shape"))?;
     if granted.len() != parsed.len() {
         return Err(Stop::new(step, "shape"));
@@ -1028,7 +1107,7 @@ fn child(
         run_dir: run_dir.to_path_buf(),
         deadline,
         secrets: prep.secrets.clone(),
-    })
+    }, &prep.child_started)
 }
 
 fn validate_apply(cfg: &ApplyConfig) -> Result<(), Stop> {

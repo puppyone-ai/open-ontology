@@ -4,6 +4,7 @@ mod apply;
 mod config_identity;
 mod error;
 mod inspect;
+mod json_doc;
 mod outcome;
 mod sha256;
 mod spawn;

@@ -53,23 +53,41 @@ pub fn write_json_new(path: &Path, value: &Value) -> Result<(), Stop> {
     write_new(path, &bytes)
 }
 
-pub fn failed_body(stop: &Stop, phase: &str) -> Value {
+pub fn failed_body(stop: &Stop, phase: &str, child_started: bool) -> Value {
+    let database_state = if child_started {
+        "changes_may_have_been_applied"
+    } else {
+        "unchanged_by_this_tool"
+    };
     json!({
         "protocol": "oo.onboarding.outcome/v1",
         "phase": phase,
         "status": "failed",
         "step": stop.step,
         "detail": stop.detail,
-        "database_state": "unchanged_by_this_tool",
+        "database_state": database_state,
         "database_rollback": false,
         "database_release": false,
         "non_claims": non_claims(false)
     })
 }
 
-pub fn read_json(path: &Path, max: usize) -> Result<Value, Stop> {
-    let bytes = read_file(path, max)?;
-    serde_json::from_slice(&bytes).map_err(|_| Stop::new("outcome", "shape"))
+pub fn read_capped(path: &Path, max: usize, step: &str) -> Result<Vec<u8>, Stop> {
+    let meta = fs::symlink_metadata(path).map_err(|_| Stop::new(step, "io"))?;
+    if !meta.file_type().is_file() || meta.len() > max as u64 {
+        let detail = if meta.file_type().is_file() { "budget" } else { "io" };
+        return Err(Stop::new(step, detail));
+    }
+    let bytes = fs::read(path).map_err(|_| Stop::new(step, "io"))?;
+    if bytes.len() > max {
+        return Err(Stop::new(step, "budget"));
+    }
+    Ok(bytes)
+}
+
+pub fn read_json(path: &Path, max: usize, step: &str) -> Result<Value, Stop> {
+    let bytes = read_capped(path, max, step)?;
+    crate::json_doc::parse(&bytes, max).map_err(|fault| Stop::new(step, fault.detail()))
 }
 
 pub fn read_file(path: &Path, max: usize) -> Result<Vec<u8>, Stop> {
