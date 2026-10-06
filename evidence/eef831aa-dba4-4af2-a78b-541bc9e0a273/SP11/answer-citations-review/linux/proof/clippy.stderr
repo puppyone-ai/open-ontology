@@ -1,0 +1,71 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking itoa v1.0.18
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking answer-citations v0.1.0 (/src/tools/answer-citations)
+error: this `if` statement can be collapsed
+   --> tests/a273_review.rs:163:5
+    |
+163 | /     if let Some(path) = std::env::var_os("CARGO_BIN_EXE_answer_citations") {
+164 | |         if !path.is_empty() {
+165 | |             return std::path::PathBuf::from(path);
+166 | |         }
+167 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+163 ~     if let Some(path) = std::env::var_os("CARGO_BIN_EXE_answer_citations")
+164 ~         && !path.is_empty() {
+165 |             return std::path::PathBuf::from(path);
+166 ~         }
+    |
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/a273_review.rs:416:39
+    |
+416 |     let out = run(&[], &request(bind, &[body.clone()], true, &text));
+    |                                       ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&body)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+    = note: `-D clippy::cloned-ref-to-slice-refs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cloned_ref_to_slice_refs)]`
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/a273_review.rs:433:44
+    |
+433 |     let crossed = run(&[], &request(cross, &[body.clone()], true, &text));
+    |                                            ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&body)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/a273_review.rs:445:54
+    |
+445 |     let projected = run(&[], &request(other_project, &[body.clone()], true, &text));
+    |                                                      ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&body)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/a273_review.rs:678:43
+    |
+678 |     let missing = run(&[], &request(bind, &[body.clone()], true, SECRET));
+    |                                           ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&body)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/a273_review.rs:690:41
+    |
+690 |     let empty = run(&[], &request(bind, &[body.clone()], false, ""));
+    |                                         ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&body)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: could not compile `answer-citations` (test "a273_review") due to 6 previous errors

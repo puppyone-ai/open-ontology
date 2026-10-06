@@ -1,0 +1,21 @@
+owner=a273
+session=eef831aa-dba4-4af2-a78b-541bc9e0a273
+=== owned containers before ===
+list_exit=0
+absent_oo-a273-smoke
+absent_oo-a273-proof
+absent_oo-a273-proof2
+absent_oo-a273-hash
+absent_oo-a273-hash2
+oo-a273-eef831aa-net
+network_rm_exit=0
+oo-a273-eef831aa-cargo
+cargo_vol_rm_exit=0
+oo-a273-eef831aa-target
+target_vol_rm_exit=0
+tmp_rm_exit=0
+tmp_absent
+rust_image_still_exit=0
+postgres_image_still_exit=0
+=== owned containers after ===
+after_list_exit=0
