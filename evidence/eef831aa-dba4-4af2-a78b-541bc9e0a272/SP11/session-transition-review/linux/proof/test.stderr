@@ -1,0 +1,3 @@
+   Compiling session-transition v0.1.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
+     Running tests/a272_handcomputed.rs (/target/debug/deps/a272_handcomputed-eea9bed752196ee9)

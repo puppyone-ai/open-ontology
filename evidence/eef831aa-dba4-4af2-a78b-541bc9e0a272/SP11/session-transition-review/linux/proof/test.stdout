@@ -1,0 +1,16 @@
+
+running 11 tests
+test cli_malformed_and_invalid_state ... ok
+test dedup_replay_conflict_and_overflow ... ok
+test full_journal_refuses_release ... ok
+test identity_is_not_authentication ... ok
+test malformed_snapshots_refuse ... ok
+test product_sha::tests::known_answers ... ok
+test release_is_caller_declared_and_closed_is_immutable ... ok
+test sha256_known_vectors ... ok
+test supplied_revision_and_generation_are_the_cas ... ok
+test time_boundaries_and_lease_instant ... ok
+test tool_sixty_then_refusal ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
