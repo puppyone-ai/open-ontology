@@ -1414,3 +1414,13 @@ Coordinator accepts M1-D14G integerquantity aftera259fullreports/hashverified/fr
 - [ ] S5-D03 / E17-D0/1 frozen BEFORE code: actual HTTPS modelprovider adapter/privateTLSproof->capturedresponse/S5candidate boundedfailure and usage; a263standalonetools/description-provider only, no realkeys/customercalls. Aggregate39/50=78%, notglobalrate.
 
 a259433hashentries0bad/a260407hashentries0bad, rawdecisive0andowncontainersabsent confirmed beforecounting. a263actual13071 realHTTPSdescriptionprovider1builder0PG; existingconfirmedlive a26132052 onboarding/a26254137 sortingrepair. Actual3development0review, cap12dev reviewsoutside/global10builders. NextUUIDa264. ONE20minute wait thenONE unified3actualhandles.
+
+
+2026-10-06 coordinator: ONE20minute unified3handles observation: a26254137 exited0, a26132052/a26313071 live. Retire a262handle. Fulla262REPORT/FINDINGS/HANDOFF read; 248hashentries0bad; redtest101 preserved, proof/CLI/tests/Clippy0 and owncontainers absent. Source56b79136 fixes dataset order without changing cards/candidates. S5-D01/S5-D02 remain unchecked until independent combined fixed review a264; no counts from repair.
+
+Frozen BEFORE new development, three independent owned paths:
+- [ ] RT-D01 / E18-D0/1: tools/session-transition Rust deterministic session/turn reducer and CLI, identity tuple/CAS/event replay/time/tool budgets. Durable database/authentication/actual physical release remain later gates.
+- [ ] RT-D02 / E19-D0/1: tools/answer-citations actual query-pg receipt-bound answer citation validation; local operator binding explicitly declared, no authenticated audit or answer-entailment claim.
+- [ ] B-D07 / E20-D0/1: benchmarks/question-bank-suite validated public bank -> role-specific exact sql-runner suite/files; unsupported kinds refuse whole compilation, reannotation denominator preserved.
+
+Development frozen39/53=73.58%, authored57/historicalaccepted64/firstreviews56/reworked11 (19.64%) unchanged. This fraction covers frozen children only, not wholeproject. M1-D17/24, integration0/4, internalrelease0/6, externalX01-X05 separately unchanged. Development cap12, reviews outsidecap, global10builders. New task writes only its isolated standalone directory and UUID evidence; no rootmanifest/lock or existing product files. Coordinator wait ONE20minutes then ONE unified actualhandle observation; no intermediate polling.
