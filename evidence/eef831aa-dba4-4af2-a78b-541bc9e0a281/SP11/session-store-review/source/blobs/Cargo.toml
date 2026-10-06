@@ -1,0 +1,28 @@
+[package]
+name = "session-store"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "PostgreSQL durability adapter for the fixed session-transition reducer. Not an authenticator."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+session-transition = { path = "../session-transition" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+postgres-types = { version = "=0.2.14", default-features = false }
+postgres-protocol = { version = "=0.6.12", default-features = false }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+
+[dev-dependencies]
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+postgres-types = { version = "=0.2.14", default-features = false }

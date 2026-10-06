@@ -1,0 +1,28 @@
+
+running 8 tests
+test admin_runtime_split_and_declared_identity ... a281 privileges insert=42501 delete=42501 manifest=42501 other_revision=0 auth_revision=1
+ok
+test cli_hides_static_secret_marker ... a281 cli usage=1 json_marker_leaked=0 connect_marker_leaked=0 applied_revision=1 stale=2
+ok
+test fresh_sequence_one_winner_and_exact_fingerprint ... a281 bind revision=1 generation=1 journal=1 stored_now_ms=4200 server_ms=1791274290845
+a281 cas applied=1 stale=1 revision=3 journal=3 winner=ev-a281-beat
+a281 retry outcome=idempotent revision=3 journal=3
+a281 conflict reason=event_id_conflict revision=4 generation=2 journal=4 fingerprint_match=1 reconcile=durable
+ok
+test generation_column_mismatch_is_not_durable ... a281 generation_column reconcile=consistency column=7 json_generation=1 repaired=0
+ok
+test migration_hash_and_partial_schema_stay_drift ... a281 migration hash_drift=1 partial_tables=0 rebuilt=installed
+ok
+test rollback_and_lost_commit_reconcile_exact_event ... a281 commit_unknown reconcile=durable revision=1 journal=1 fingerprint_match=1 conflict_updates=0
+ok
+test row_lock_is_one_backend_transaction ... FAILED
+test stored_fingerprint_conflict_is_not_idempotent ... a281 swapped_fingerprint reconcile=durable retry=event_id_conflict revision=1 updates=0
+ok
+
+failures:
+
+failures:
+    row_lock_is_one_backend_transaction
+
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.24s
+

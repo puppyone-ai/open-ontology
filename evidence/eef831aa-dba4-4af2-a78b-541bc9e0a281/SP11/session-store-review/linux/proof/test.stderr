@@ -1,0 +1,18 @@
+   Compiling session-store v0.1.0 (/work/session-store)
+error[E0277]: the trait bound `i64: From<u64>` is not satisfied
+   --> tests/a281_session.rs:389:25
+    |
+389 |     assert!(server_ms > i64::from(takeover_now));
+    |                         ^^^ the trait `From<u64>` is not implemented for `i64`
+    |
+    = help: the following other types implement trait `From<T>`:
+              `i64` implements `From<bool>`
+              `i64` implements `From<i16>`
+              `i64` implements `From<i32>`
+              `i64` implements `From<i8>`
+              `i64` implements `From<u16>`
+              `i64` implements `From<u32>`
+              `i64` implements `From<u8>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `session-store` (test "a281_session") due to 1 previous error

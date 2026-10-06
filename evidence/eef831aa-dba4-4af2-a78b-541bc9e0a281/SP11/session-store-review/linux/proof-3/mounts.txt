@@ -1,0 +1,13 @@
+volume /var/lib/docker/volumes/oo-a281-eef831aa-cargo/_data /cargo-home rw=true
+bind /tmp/oo-a281-eef831aa-dba4-4af2-a78b-541bc9e0a281/archive /src rw=false
+bind /tmp/oo-a281-eef831aa-dba4-4af2-a78b-541bc9e0a281/work /work rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/source/blobs /blobs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/oracle /oracle rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/tools/lock_subset.rs /tools/lock_subset.rs rw=false
+bind /tmp/oo-a281-eef831aa-dba4-4af2-a78b-541bc9e0a281/fixture /run/oo-a275/fixture rw=false
+bind /tmp/oo-a281-eef831aa-dba4-4af2-a78b-541bc9e0a281/fixture /run/oo-a281/fixture rw=false
+volume /var/lib/docker/volumes/oo-a281-eef831aa-target/_data /target rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/overlay /overlay rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/linux/proof-3/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a281/SP11/session-store-review/linux/proof-3 /evidence rw=true
+
