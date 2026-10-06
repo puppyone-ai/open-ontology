@@ -1,0 +1,38 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+test changed_hash_session_field_and_budgets ... ok
+test citation_order_and_truncation_conflict ... ok
+test compiled_receipt_admits_first_citation ... FAILED
+test data_bearing_without_citation_fails ... ok
+test empty_no_data_answer_is_valid ... ok
+test pair_limit_and_eight_duplicates ... ok
+test sha256_known_vectors ... ok
+test short_bracket_is_not_a_citation ... ok
+test unknown_rejected_incomplete_cross_duplicate_and_truncated ... ok
+
+failures:
+
+---- compiled_receipt_admits_first_citation stdout ----
+
+thread 'compiled_receipt_admits_first_citation' (397) panicked at tests/api.rs:53:5:
+assertion `left == right` failed
+  left: ["admitted", "authenticated_audit", "citation_status", "citations", "declares_data", "disclosures", "entailment", "missing_citation", "project", "protocol", "receipts", "role", "session_id", "trust", "turn_id", "version", "warning_comprehension", "warnings"]
+ right: ["version", "trust", "authenticated_audit", "entailment", "warning_comprehension", "session_id", "turn_id", "role", "project", "protocol", "citation_status", "declares_data", "missing_citation", "receipts", "admitted", "citations", "warnings", "disclosures"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    compiled_receipt_admits_first_citation
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

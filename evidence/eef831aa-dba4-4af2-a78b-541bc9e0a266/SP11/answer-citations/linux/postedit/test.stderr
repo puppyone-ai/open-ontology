@@ -1,0 +1,46 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling serde_derive v1.0.229
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling answer-citations v0.1.0 (/src/tools/answer-citations)
+warning: fields `returned_rows` and `result_bytes` are never read
+  --> src/model.rs:71:9
+   |
+66 | pub struct CompleteLine {
+   |            ------------ fields in this struct
+...
+71 |     pub returned_rows: u32,
+   |         ^^^^^^^^^^^^^
+72 |     pub result_bytes: u64,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `answer-citations` (lib) generated 1 warning
+warning: variable does not need to be mutable
+  --> src/main.rs:54:9
+   |
+54 |     let mut handle = stdin.lock();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `answer-citations` (bin "answer-citations" test) generated 1 warning (run `cargo fix --bin "answer-citations" -p answer-citations --tests` to apply 1 suggestion)
+error: environment variable `CARGO_BIN_EXE_answer_citations` not defined at compile time
+  --> tests/cli.rs:85:34
+   |
+85 |     let mut child = Command::new(env!("CARGO_BIN_EXE_answer_citations"))
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_answer_citations")` instead
+
+error: could not compile `answer-citations` (test "cli") due to 1 previous error

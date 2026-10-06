@@ -1,0 +1,23 @@
+owner=a266
+session=eef831aa-dba4-4af2-a78b-541bc9e0a266
+=== owned containers before ===
+list_exit=0
+absent_oo-a266-smoke
+absent_oo-a266-proof
+absent_oo-a266-proof2
+absent_oo-a266-proof3
+absent_oo-a266-proof4
+absent_oo-a266-hash
+absent_oo-a266-hash2
+oo-a266-eef831aa-net
+network_rm_exit=0
+oo-a266-eef831aa-cargo
+cargo_vol_rm_exit=0
+oo-a266-eef831aa-target
+target_vol_rm_exit=0
+tmp_rm_exit=0
+tmp_absent
+rust_image_still_exit=0
+postgres_image_still_exit=0
+=== owned containers after ===
+after_list_exit=0
