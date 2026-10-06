@@ -1578,3 +1578,5 @@ Accepted79->83/firstunique70->74/reworked12/74=16.22%/authored75unchanged/frozen
 - [ ] FILE-D03 / E41-D0/1 frozenBEFOREcode parentSP05-W06: tools/artifact-retention actualregisteredFileHostobjects→boundedexpiry/reaper/deletionabsence/quota/accounting, noFSbypass; preciseunsupportedupstreamseams not falsecomplete, exactcardexecution/prompts/v01-artifact-retention-active.md a311.
 
 Denominator72->74 addsTWOactualcontroloffset/retentioninterfaces beforecode, frozen58/74=78.38% LOCALchildrenonly. Eightdevelopment plusa306review andreportclarificationa298 =10processes/max10Rustbuilders, devcap12reviewsoutside unchanged. NextUUIDa312. ONE20minute wait thenONE unifiedactualhandles no repeatedpoll.
+
+Confirmed dispatch a298SAMEUUIDresume28395(correct --resumeUUID no--session-id)/a309descriptionmerge47912/a310controloffset25985/a311retention72013. Existing lastobserved a30048120/a30194204/a30452696/a30544678/a30684908/a30894421 retained without repeatpoll. Eightdevelopers plusonebuilderreview/oneconclusionclarification, maximumtenbuilders, nextUUIDa312. Freeze3650715f.
