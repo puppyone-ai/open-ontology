@@ -220,7 +220,7 @@ fn apply_config(pins: &[( &'static str, String, String)], secrets: &Path, work: 
             role("peek", peek_allow(), work.join("vis-peek.json"), peek_queries())
         ],
         "analyze": {
-            "statement_timeout_ms": 60000,
+            "statement_timeout_ms": 30000,
             "lock_timeout_ms": 30000,
             "connect_ms": 30000
         }
