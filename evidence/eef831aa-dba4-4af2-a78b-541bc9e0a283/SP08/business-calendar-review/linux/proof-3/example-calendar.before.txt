@@ -1,0 +1,1 @@
+2ad3845ec287c24391168ce1e7271d743202b0b2d5cef7d6ad05537e02fcc378  examples/schema/calendar.yaml

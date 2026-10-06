@@ -1,0 +1,26 @@
+
+running 9 tests
+test compiled_cli_closure_bounds_and_redaction ... ok
+test compiled_cli_exact_honolulu_json ... ok
+test compiled_cli_new_york_sao_paulo_paris_apia ... ok
+test dsl_supported_or_refused_and_week_is_not_an_anchor ... FAILED
+test explicit_as_of_crosses_tokyo_and_los_angeles_midnight ... ok
+test fiscal_april_lists_every_core_anchor ... ok
+test fiscal_february_is_not_the_calendar_quarter ... ok
+test leap_year_boundary_and_month_to_date_clamp ... ok
+test missing_closure_is_not_today_and_hash_is_not_approval ... ok
+
+failures:
+
+---- dsl_supported_or_refused_and_week_is_not_an_anchor stdout ----
+
+thread 'dsl_supported_or_refused_and_week_is_not_an_anchor' (797) panicked at tests/a283_handcomputed.rs:46:59:
+refused calendar_invalid
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dsl_supported_or_refused_and_week_is_not_an_anchor
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+

@@ -1,0 +1,46 @@
+
+running 8 tests
+test civil::tests::fiscal_quarters_are_not_calendar_quarters ... ok
+test civil::tests::roundtrip_and_edges ... ok
+test civil::tests::unix_day_counts ... ok
+test expr::tests::day_count_is_not_a_date_and_max_is_later ... ok
+test expr::tests::month_to_date_clamp ... ok
+test fault::tests::exit_table ... ok
+test sha256::tests::known_answers ... ok
+test zone::tests::handwritten_instants ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test bounds_and_redaction ... ok
+test closure_and_expression_exits ... ok
+test help_and_usage ... ok
+test malformed_contract_and_second_value ... ok
+test resolved_stdout_is_exact ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 8 tests
+test example_calendar_shanghai_april ... ok
+test fiscal_april_and_year_boundary_and_leap_day ... ok
+test fiscal_february_is_not_the_calendar_quarter ... ok
+test missing_and_ambiguous_midnights_stay_unshifted ... ok
+test month_to_date_clamp_and_day_arithmetic ... ok
+test refusals_keep_provenance_and_do_not_substitute ... ok
+test source_does_not_read_a_clock ... ok
+test zone_date_split_and_dst_lengths ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

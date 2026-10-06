@@ -1,0 +1,3 @@
+   Compiling business-calendar v0.1.0 (/work/tree/tools/business-calendar)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running tests/a283_handcomputed.rs (/target/debug/deps/a283_handcomputed-b3026145136aa6db)
