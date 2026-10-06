@@ -1,0 +1,12 @@
+container oo-a239-smoke already absent
+container oo-a239-overlay already absent
+container oo-a239-hash already absent
+oo-a239-eef831aa-cargo
+removed volume oo-a239-eef831aa-cargo
+oo-a239-eef831aa-target
+removed volume oo-a239-eef831aa-target
+oo-a239-eef831aa-net
+removed network oo-a239-eef831aa-net
+removed /tmp/oo-a239-eef831aa-dba4-4af2-a78b-541bc9e0a239
+remaining a239 containers:
+cleanup_done
