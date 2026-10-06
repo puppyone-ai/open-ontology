@@ -1,0 +1,3 @@
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+    Finished `test` profile [unoptimized] target(s) in 0.25s
+     Running tests/a298_ordinal.rs (/target/tool/debug/deps/a298_ordinal-d08a03b807c5de82)

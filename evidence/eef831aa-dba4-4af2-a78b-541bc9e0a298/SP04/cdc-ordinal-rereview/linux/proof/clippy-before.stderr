@@ -1,0 +1,8 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking memchr v2.8.3
+    Checking itoa v1.0.18
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking cdc-transaction v0.1.0 (/work/cdc-transaction)
+    Finished `dev` profile [unoptimized] target(s) in 1.62s

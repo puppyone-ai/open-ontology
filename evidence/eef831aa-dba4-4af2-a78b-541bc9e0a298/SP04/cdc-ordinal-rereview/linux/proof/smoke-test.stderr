@@ -1,0 +1,19 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling serde_derive v1.0.229
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
+    Finished `test` profile [unoptimized] target(s) in 5.18s
+     Running unittests src/lib.rs (/target/tool/debug/deps/cdc_transaction-e0a3dcc028f573d1)
+     Running unittests src/main.rs (/target/tool/debug/deps/cdc_transaction-3a93ef4ccf23d059)
+     Running tests/cli.rs (/target/tool/debug/deps/cli-f53db10d3ac953bf)
+     Running tests/handcomputed.rs (/target/tool/debug/deps/handcomputed-ede180c55871026c)
+     Running tests/ordinal_range.rs (/target/tool/debug/deps/ordinal_range-9ce8478300cc4efe)
+   Doc-tests cdc_transaction
