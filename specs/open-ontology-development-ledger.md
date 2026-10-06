@@ -1397,3 +1397,11 @@ a254497hash0/postedit21+6+6testsClippy0/livequantitychain0/owncontainersabsent v
 - [ ] M1-D25 / E16-D0/1 frozen BEFORE code: Rusttwo-phaseinspect/apply-reviewed onboarding->actualcompiledPGCLIchain/currentmanualreview/privateTLS2tables2roles/quantity and hiddencontrols; a261standalone tools/pg-onboarding only. Ready_for_trusted_query notsemanticpublish/auth/NL/harness. Aggregate37/49=75.51%, notglobalrate; M1-D17/24 integration0/4 release0/6 unchanged.
 
 a259actual49834 integerquantity fixedreview1builder1PG; a260actual93549 questionbank fixedreview1builder0PG; a261actual32052 operatoronboarding1builder1PG. Existingconfirmedlive a25734471 S5review/a25889430 S5CLIdevelopment. Actual2development+3review/globalmax5builders, developmentcap12 reviewsoutside. M1-D25 counted ONLY E16, doesnotchange originalM1-D24 frozen denominator. NextUUIDa262; ONE20minute wait thenONE unified5actualhandles.
+
+ONE20minute unified5actualhandles: a25734471/a25889430 actualexit0 reportsinventory beforeacceptance. a25949834/a26093549/a26132052 confirmedlive. No repeatedpolling/restart or exit-onlyacceptance.
+
+a257actualterminal REQUEST_CHANGES F1 selected_datasets successpathphysnameorder differs datasetorder public.b/public.q_41; S5-D01 staysunaccepted. CodexreadFINDINGS, fullreports/hash stillpending beforemetric firstreview/rework update. a262 mandatoryminimalrepair dispatched no newunit/component; ownedbuilderdescriptionmodule/newtest only. a258authorCLIreports pendingverification.
+
+Coordinator verified fulla257REPORT/FINDINGS/HANDOFF/165hash0: actualproductcontractfailure selected_datasets sorting, proof2 independent6pass1fail/docker101, Clippy0; same-key authorfixtures hadmissedphysicalA->q_41ordering. Firstcomponentreviews54→55/rework10→11, rate11/55=20.00%. S5-D01 unaccepted,a262repaironlyno newunit/component. a258827e768b CLI119hash0/preedit2+10/proof5Clippy0/owncontainersabsent authored56→57 pending correctedlibrary+CLI fixedreview aftera262. No newacceptance: historical62/frozen37/49/M1-D17/24/integration0/4/release0/6 unchanged.
+
+a262 actual54137 minimumsortingrepair1builder0PG; existingconfirmedlive a25949834 quantityreview/a26093549 questionbankreview/a26132052 onboarding. Actual2development+2review cap12development reviewsoutside/global10builders. NextUUIDa263. ONE20minute wait thenONE unified4actualhandles, no intermediatepolling.
