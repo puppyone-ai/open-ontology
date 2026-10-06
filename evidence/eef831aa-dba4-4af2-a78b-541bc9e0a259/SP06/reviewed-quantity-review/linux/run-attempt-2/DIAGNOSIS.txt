@@ -1,0 +1,7 @@
+docker-run.exit 101 after frozen_smoke=ok.
+Phases through clippy-product, lock-hash, and overlay-member exited 0.
+build-harness exited 101. harness-build.log:
+  classify.rs:74 format!("exit {} stderr {stderr}") had a positional hole and no argument.
+  catalog.rs:67 format!("\\u{ch:04x}") — char does not implement LowerHex on rustc 1.94.0.
+The retry passes output.code into that format and formats the code point as u32.
+Product source was not edited. Frozen tests were 21, 6, and 6. Product Clippy exited 0.
