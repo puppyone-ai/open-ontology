@@ -1,0 +1,45 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+test a_hole_in_the_index_is_trials ... ok
+test a_lying_pass_count_is_schema ... ok
+test a_short_vector_is_not_padded ... ok
+test an_extra_case_is_not_dropped ... ok
+test label_budget_must_match_the_reports ... ok
+test lane_must_be_trusted_sql ... ok
+test model_none_is_required_and_a_model_name_is_refused ... ok
+test resamples_and_seed_use_the_statistics_spelling ... ok
+test swapped_case_order_is_not_realigned ... ok
+test truncated_refusal_and_reannotation_keep_their_rows ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test compiled_cli_help_and_usage ... ok
+test compiled_cli_refuses_a_partial_vector_or_a_tuple_change ... ok
+test compiled_cli_writes_statistics_input ... FAILED
+
+failures:
+
+---- compiled_cli_writes_statistics_input stdout ----
+
+thread 'compiled_cli_writes_statistics_input' (836) panicked at tests/cli.rs:52:5:
+assertion failed: stdout.windows(20).any(|window| window == b"\"model\":\"trusted_sql\"")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    compiled_cli_writes_statistics_input
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

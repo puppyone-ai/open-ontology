@@ -1,0 +1,11 @@
+Diff in /src/benchmarks/trial-report-adapter/tests/cli.rs:19:
+ }
+ 
+ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+-    haystack.windows(needle.len()).any(|window| window == needle)
++    haystack
++        .windows(needle.len())
++        .any(|window| window == needle)
+ }
+ 
+ fn binary(args: &[&str], stdin_bytes: &[u8]) -> (i32, Vec<u8>, Vec<u8>) {
