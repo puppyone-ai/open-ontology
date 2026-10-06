@@ -926,12 +926,15 @@ fn table_rls(table: &Value) -> bool {
 fn compatible(physical: &str, semantic: SemanticType) -> bool {
     match physical {
         "bool" => semantic == SemanticType::BooleanFlag,
+        // Quantity is an integer count. Money, ratio, and event time stay refused.
+        // admit_one checks the sealed current decision before this match.
         "int2" | "int4" | "int8" => matches!(
             semantic,
             SemanticType::Identifier
                 | SemanticType::ForeignKey
                 | SemanticType::Code
                 | SemanticType::StatusCode
+                | SemanticType::Quantity
         ),
         "text" => matches!(
             semantic,
