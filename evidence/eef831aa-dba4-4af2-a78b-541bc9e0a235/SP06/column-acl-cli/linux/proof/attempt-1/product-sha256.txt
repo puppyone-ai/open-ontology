@@ -1,0 +1,7 @@
+68d6a1639263f6e7083eb44244360dfd22f73897fb3eff2570052da6b508188d  crates/oo-gateway/src/policy.rs
+8a680dec57896e9a95fc8bdde7e353df8e8b770aeb67eb37d5ec34cc1faad10f  crates/oo-gateway/src/lib.rs
+0b04620fe3e65760500e8fb907b49e3fb4689dc5e10e392fed269747e9ddeee3  crates/oo-gateway/Cargo.toml
+16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock
+476cfe39d70b53bd9cf1f62f5047c757e36aa276ff13ee0b62b1600ac17b3366  contracts/gateway/column-acl-set-v1.md
+de58f632be17f5e2f77e35660fcd949cb4b0da360eff6ecce9584d7d9a0aa53b  contracts/gateway/reviewed-policy-v1.md
+431424a068a7184e71e9aa18ebf07240a03370e85e3626af2476946c3e196d11  crates/oo-gateway/src/bin/query-pg.rs

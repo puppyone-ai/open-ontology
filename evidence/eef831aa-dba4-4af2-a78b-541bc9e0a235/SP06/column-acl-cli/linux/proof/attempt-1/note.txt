@@ -1,0 +1,1 @@
+attempt 1: tests passed 12; clippy dead_code on LedgerMap entry_id and party_id. Preserved before the column assertion fix.
