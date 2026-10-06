@@ -440,7 +440,9 @@ fn build_request(admitted: Admission) -> Result<Ready, DescriptionCandidateError
         Value::String(request_sha256.clone()),
     );
     let request_text = canonical_json(&Value::Object(object));
-    let selected_datasets: Vec<String> = tables.into_iter().map(|table| table.dataset).collect();
+    // Cards above stay in (schema, name) order. Outcomes list the dataset strings.
+    let mut selected_datasets: Vec<String> = tables.into_iter().map(|table| table.dataset).collect();
+    selected_datasets.sort();
     Ok(Ready {
         request_text,
         request_sha256,
