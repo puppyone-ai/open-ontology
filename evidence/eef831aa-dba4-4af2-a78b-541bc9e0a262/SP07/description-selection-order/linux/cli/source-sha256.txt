@@ -1,0 +1,3 @@
+c392dd9ef7dfff45ea9f6298b257e8fc4bdeca04784acbfbb696ef644f884954  crates/oo-builder/src/description_candidate.rs
+c28297d86349507fff5bc67e5aa796a0f58836b8974cc9b1d7f08ade7d31798d  crates/oo-builder/src/bin/description-candidate.rs
+449b6db74c39e169fdd79b608538233ff2de9eab683b63217ac6a8b5c3d8b768  crates/oo-builder/tests/description_selection_order.rs

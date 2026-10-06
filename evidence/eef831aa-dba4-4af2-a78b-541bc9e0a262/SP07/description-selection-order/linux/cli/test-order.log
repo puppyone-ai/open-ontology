@@ -1,0 +1,9 @@
+   Compiling oo-builder v0.1.0 (/cargo-home/work/src/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.19s
+     Running tests/description_selection_order.rs (/target/debug/deps/description_selection_order-64554887956e1f1e)
+
+running 1 test
+test physical_a_and_b_sort_selected_datasets_on_every_outcome ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
