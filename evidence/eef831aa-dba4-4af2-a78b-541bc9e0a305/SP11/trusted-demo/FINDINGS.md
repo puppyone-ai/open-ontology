@@ -32,10 +32,16 @@ Those three `docker-run.exit` files are 1. Attempt 3 and smoke are 0.
 
 Apply provision effects are north `installed` and narrow `replay`. The driver does not require a particular effect string. The outcome file is the record.
 
-The in-container SHA-256 walks finished before the host wrote `hostconfig.txt`, `mounts.txt`, `tmpfs.txt`, `invocation.txt`, `docker-run.exit`, `container-removed.txt`, and the finished `console.log`. Those files are in the directories and are called out in `HANDOFF.md`. `SHA256SUMS` was produced on the host after this review text, so it includes the reports and excludes itself.
+The in-container chain walks finished before the host wrote `hostconfig.txt`, `mounts.txt`, `tmpfs.txt`, `invocation.txt`, `docker-run.exit`, `container-removed.txt`, and the finished `console.log`. Those files are in the directories and are called out in `HANDOFF.md`.
 
 The wrapper log `start-public.stdout` is one stream for attempt 3 and the smoke phase. A copy sits in both phase directories. `linux/smoke/host-log-note.txt` says so.
 
+The host `shasum` inventory is kept as `SHA256SUMS.host-2026-10-06` (489 lines). It stays historical. It is not replaced in place and it is not described as the Rust walker. The fresh walker is `sha256_manifest` from `b91b67be`, file SHA-256 `d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3`, one builder, network `none`. It rewrites `SHA256SUMS` and skips that path. This cleanup pass did not rebuild the CLI chain and did not edit `deploy/trusted-demo`.
+
+## Cleanup
+
+Stop and clean used the `b91b67be` scripts from a private copy, after the label check in `cleanup/labels-before.txt`. `stop.exit` is 0. `clean.exit` is 0. Removed: container `oo-a305-pg` (`da567a83607612931de313d0dc68ce6f0b3382e041f2f08f098e531a6bed003a`), volumes `oo-a305-eef831aa-cargo`, `oo-a305-eef831aa-pgdata`, `oo-a305-eef831aa-target`, network `oo-a305-eef831aa-net`, and `/tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305`. `oo-a300-pg` and `oo-a301-pg` remained. No foreign resource was removed.
+
 ## Not claimed
 
-No dual-architecture matrix. No runsc. No shared multitenant deployment. No model call. No natural-language loop. No parent signoff. Cleanup of the private PostgreSQL, volumes, network, and `/tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305` was not run. The containers `oo-a305-build` and `oo-a305-smoke` were removed by the launch script after they exited.
+No dual-architecture matrix. No runsc. No shared multitenant deployment. No model call. No natural-language loop. No parent signoff. No new unit. This pass does not re-accept the demonstration. The builders `oo-a305-build` and `oo-a305-smoke` had already been removed by the launch script. The hash builder is removed after it exits.

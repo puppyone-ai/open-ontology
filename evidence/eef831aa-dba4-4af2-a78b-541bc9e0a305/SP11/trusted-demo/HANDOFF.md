@@ -37,7 +37,16 @@ The in-container walker skips its output path and runs before the host finishes 
 - `linux/public-attempt-3/host.exit`
 - the same host-written names under `linux/smoke/`
 - `start-public.stdout`, `start-public.stderr`, `start-public.exit`, `start-public.state`
-- `REPORT.md`, `FINDINGS.md`, `HANDOFF.md`, `SHA256SUMS`
+- `REPORT.md`, `FINDINGS.md`, `HANDOFF.md` as they stood for the chain walks
+- the host inventory that this pass copied to `SHA256SUMS.host-2026-10-06`
+
+The fresh Rust inventory is `SHA256SUMS`, written after this handoff text by `sha256_manifest` from commit `b91b67be`. The walker skips that file. These hash-phase files are copied after the walk and are outside `SHA256SUMS`:
+
+- `linux/hash-manifest/manifest.log`
+- `linux/hash-manifest/hostconfig.txt`
+- `linux/hash-manifest/mounts.txt`
+- `linux/hash-manifest/docker-run.exit`
+- `linux/hash-manifest/container-removed.txt`
 
 ## Commands
 
@@ -55,21 +64,13 @@ That command refuses to overwrite an existing `live/run`. After a ready receipt,
 
 `--smoke` keeps the SQL, the role, and the policy id, and writes a new audit file. The receipt's `query-pg --request` path is the command that already ran. Running it again as-is fails because that audit file exists.
 
-## Still running
+## Cleanup already run
 
-`oo-a305-pg` is up. Id `da567a83607612931de313d0dc68ce6f0b3382e041f2f08f098e531a6bed003a`. Volume `oo-a305-eef831aa-pgdata`, cargo volume `oo-a305-eef831aa-cargo`, target volume `oo-a305-eef831aa-target`, network `oo-a305-eef831aa-net`, and `/tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305` are still present. Builders `oo-a305-build` and `oo-a305-smoke` were removed after they exited. Passwords and the CA private key are only under that private tmp directory.
+The product tree is owned by a later session. This pass did not read or write `deploy/trusted-demo`. It ran the `b91b67be` `stop.sh` and `clean.sh` from a private copy. `cleanup/stop.exit` is 0. `cleanup/clean.exit` is 0.
 
-Stop containers for this UUID and leave volumes, secrets, and evidence:
+Removed after the label check: `oo-a305-pg` (`da567a83607612931de313d0dc68ce6f0b3382e041f2f08f098e531a6bed003a`), volumes `oo-a305-eef831aa-cargo`, `oo-a305-eef831aa-pgdata`, and `oo-a305-eef831aa-target`, network `oo-a305-eef831aa-net`, and `/tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305` (CA and password files went with that directory). `oo-a300-pg` and `oo-a301-pg` were still running. Nothing of another owner was removed.
 
-```bash
-./deploy/trusted-demo/start.sh --stop
-```
-
-Remove this UUID's containers, labeled volumes, labeled network, and private tmp directory. This does not prune and does not touch another owner:
-
-```bash
-./deploy/trusted-demo/start.sh --clean
-```
+Do not point a new reader at the working-tree `start.sh --clean`. That file is outside this session. The script bytes that ran are recorded in `cleanup/script-sha256.txt`.
 
 ## Outside this demo
 

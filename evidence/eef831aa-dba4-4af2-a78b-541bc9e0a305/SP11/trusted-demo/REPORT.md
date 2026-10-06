@@ -86,6 +86,16 @@ No second PostgreSQL. No `docker pull`, prune, or foreign cleanup. Host `cargo`/
 
 ## Inventory
 
-Compiled binaries and their SHA-256 are `linux/public-attempt-3/bin-sha256.txt` (init-pg, oo-pipeline, analyze-pg, oo-builder, reviewed-effective-oos, role-pack-bundle, reviewed-policy, install-column-acl, provision-mapping-reader, query-pg, pg-onboarding, drive). In-container walks are `linux/public-attempt-3/manifest.sha256` (422 lines) and `linux/smoke/manifest.sha256` (453 lines). Files the host wrote after those walks are listed in `HANDOFF.md`. `SHA256SUMS` in this directory is a later host inventory of the evidence tree and is not itself a member of that list. `source/tools/pg-onboarding/` is `git archive` of the fixed commit. `source/ARCHIVE-COMMIT` is that commit.
+Compiled binaries and their SHA-256 are `linux/public-attempt-3/bin-sha256.txt` (init-pg, oo-pipeline, analyze-pg, oo-builder, reviewed-effective-oos, role-pack-bundle, reviewed-policy, install-column-acl, provision-mapping-reader, query-pg, pg-onboarding, drive). In-container walks from the chain are `linux/public-attempt-3/manifest.sha256` (422 lines) and `linux/smoke/manifest.sha256` (453 lines). `source/tools/pg-onboarding/` is `git archive` of the fixed commit. `source/ARCHIVE-COMMIT` is that commit.
+
+The first full-tree inventory, `SHA256SUMS.host-2026-10-06`, is the historical host `shasum` file. It has 489 lines. It is not the Safe Rust walker. Those bytes are unchanged.
+
+`SHA256SUMS` is rewritten by `sha256_manifest` from commit `b91b67be`, file SHA-256 `d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3`. The walker skips that output path. One private builder compiles that single file and runs it. Network mode is `none`. Limits are 6 GiB and 1 CPU. The chain is not rebuilt. `linux/hash-manifest/manifest.log`, `hostconfig.txt`, `mounts.txt`, `docker-run.exit`, and `container-removed.txt` are copied after that walk, so they are not members of `SHA256SUMS`. The log holds `files=` and the empty and `abc` self-check lines.
 
 Recipe origins and the hashes copied from a274 / a204 / a200 / a199 are `deploy/trusted-demo/ORIGIN.md`.
+
+## Cleanup
+
+`deploy/trusted-demo` is no longer this session's product tree. Stop and clean ran from `git show b91b67be:deploy/trusted-demo/linux/stop.sh` and `clean.sh`, copied to a private tmp directory. File SHA-256: stop `3e1c2a1ceb50eeb4f2e2d446fd5cd330f076139bb156b3a3a88ec59aca469210`, clean `17e1a8429fed5b20af3baa68b203146ca96fa9e71347b19ea4f7ff6fdc10c875`. Git blobs `2dff21fe2d71bd80dc89ff51d273eda3ad0a8f11` and `1a82959e007ba1bb1f55f627bae4c8934c0c0b36`. Labels were checked before removal. Every a305 container, volume, and the network `oo-a305-eef831aa-net` had `oo.owner=a305` and `oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a305`. The only network endpoint was `oo-a305-pg`.
+
+`cleanup/stop.exit` is 0. Stdout removed container `da567a836076` and printed `stopped_a305_containers`. Volumes were still present after stop. `cleanup/clean.exit` is 0. Stdout printed `stopped_a305_containers`, then removed `oo-a305-eef831aa-cargo`, `oo-a305-eef831aa-pgdata`, `oo-a305-eef831aa-target`, and `oo-a305-eef831aa-net`, then `cleaned_a305_private_resources`. `/tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305` is gone. Both stderr files are empty. `oo-a300-pg` and `oo-a301-pg` were still running after clean. No prune.

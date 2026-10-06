@@ -1,0 +1,6 @@
+script_source=git show b91b67be:deploy/trusted-demo/linux/stop.sh
+script_source=git show b91b67be:deploy/trusted-demo/linux/clean.sh
+3e1c2a1ceb50eeb4f2e2d446fd5cd330f076139bb156b3a3a88ec59aca469210  /tmp/oo-a305-cleanup-snapshot/stop.sh
+17e1a8429fed5b20af3baa68b203146ca96fa9e71347b19ea4f7ff6fdc10c875  /tmp/oo-a305-cleanup-snapshot/clean.sh
+blob_stop=2dff21fe2d71bd80dc89ff51d273eda3ad0a8f11
+blob_clean=1a82959e007ba1bb1f55f627bae4c8934c0c0b36
