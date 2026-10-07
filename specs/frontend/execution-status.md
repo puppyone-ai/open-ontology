@@ -29,3 +29,8 @@ UI 开发、实际 API 绑定、完整旅程、发行均未验收。28 卡参考
 G1 handle37146 terminal0；unit6/types/lint/contrast/生产build/Storybook已报告通过但尚未完整核验，browser库安装受APT降权限制失败。原a351收集browser-only重试实际退出，不重复绿测试。允许固定部分milestone提交并明确browser WITHHELD，未通过UI验收；shared组件/SDK/ModuleRegistration固定handoff后G2开始。G3只用预留a352。
 
 固定基础切片：2c032402ee3b58801f30dbbcefddee8733e383b1；三报告已读，94 SHA条目一致。Node24.21.0/pnpm12.10.1/Chromium153.0.8010.12 build1243，固定Nodeimage481d53bf…，单位6/TS/lint/contrast/build/Storybook0；浏览器未打开、截图0，FE-01未完成。G3 a352正式派发固定源独立浏览器/设计复审，G1原a351继续总卡公共组件/SDK/ModuleRegistration/Shell；G2a353尚等待公共接口固定。前端最多3固定会话，当前将运行G1/G3两条，开发/live/旅程/发行均未验收。
+
+
+2026-10-08：G1 M1 e61c0fd98b6c8b09c9c8e2db3a441aafaf952909、M2 a08b35769 已固定交付，三报告已读（22/28单位测试、类型/lint/build0；B01–B12仍unbound、live/journey/release false）。G3基础2c032402的APPROVE_LIMITED报告已读，实际20浏览器测试/19截图；哈希待协调核验，不勾选FE-01或M1。G3要求G1先补三级Token并修减少动效测试，原a351续接，G2a353因此暂未启动。G3a352仍唯一独立前端复审会话。
+
+运行句柄登记（一次18分钟等待后统一观测）：a358=41077、a362=54243、a364=85335（既有live保留）；a351=18247（前端G1原会话）；a360=24132、a363=86745、a361=17878（原复审会话收集/裁决）；a365=86391（新迁移修复）；a366=9979（新发布复审）。前端G2a353尚未启动，G3a352上一CLI已退出。无需同UUID另启进程。

@@ -1456,3 +1456,6 @@ ONE18min/unified9:a35773347/a35469249/a35822186/a35949558/a35535501 terminal0 re
 
 
 Fullauthora354/a355/a358three reports read closedtasks; fixedsources e5427c1a(S2S4), d22187ea(S6S8),f8626839(durableS9decisions). Authorcomponents90->93, noindependentacceptanceyet. a363fixedE49review checksactualsealedshop/cardinalityfixturechange andSpecallowedautoaccept; a364fixedE50review freshactualGatewayNDJSONgold authoronlytestreceipt preserved. a358reportknownauditorbatchmutationandpositivePackreceiptuntested: mandatoryE52completion existingunit sameowner exactpaths beforefixedindependentreview, audit/decisionTX nofalsecurated/Git/pub. a359terminalmissingpacket butexistingprooflive reported: SAMEUUIDcollectexactcurrentbuilder ratherthanrestart. No newdenominator/counts70/86/historical95/first85/rework14/full87parents16phases/integration0/4/release0/6. a357FULLWITHHOLD readalready andmanifestnowchecked, combinedPackrepaira362continuesoriginalE47scope. NextUUIDa365unused. Currentretainedactualhandles a36036324/a36194102/FEG176940/FEG397018/a36254243; newlylaunchedrecordnexttool.
+
+
+2026-10-08 调度续接：前端仅固定 a351/a353/a352；主线可新会话，总开发上限20，复审单列；一次18分钟统一等待，不轮询。新增 a365 同控制库 enum/calendar 迁移冲突修复（原验收返工，无新分母）；a366 固定9d5df65b发布协调器独立复审。E51备份原要求仍保留：两次独立dump仅marker/count检查不能证明共同静止切点，暂不勾选。G1先修G3明确的三级Token接口前置后再启G2。已接受数与全局完成率不因派发变化。
