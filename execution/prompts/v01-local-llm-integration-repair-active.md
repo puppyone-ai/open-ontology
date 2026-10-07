@@ -5,3 +5,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 Review slots outside development cap; obsolete earlier review-slot numbers do not impose development cap.
 
 LATEST HUMAN: development cap20, reviews excluded, global Rust builders10/taskmax1 remains. Existing actors keep immutable baseline and owned scope.
+
+SAMEUUID recovery: coordinatorobservedterminal0missingREPORT/FINDINGS/HANDOFF. FirstcollectALREADYrunningownedbuilder/relay/PG results, no duplicate resources; completeactualgrok4.7 request/proposal/queryortruthfulfullWITHHELDpacket. Keyprivateonly/no tokenorrawprovidererrorsecretlogs. Preserveallfailedattempts, scope andfrozencontracts; no receiptfabrication/inventory-onlysuccessclaim.
