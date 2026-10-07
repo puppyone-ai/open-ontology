@@ -1,0 +1,35 @@
+PHASE toolchain
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+PHASE tree
+PHASE overlay_present
+PHASE root_lock
+PHASE subset
+subset_ok registry=125 path=gateway-token-store
+PHASE fetch
+PHASE clippy_component
+info: downloading component clippy
+PHASE test
+   Compiling gateway-token-store v0.1.0 (/src/tools/gateway-token-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.05s
+     Running unittests src/lib.rs (/target/debug/deps/gateway_token_store-2ae8230ebfc07367)
+
+running 7 tests
+test a314_review::a314_cache_revoke_stop_and_restart ... ok
+test a314_review::a314_hash_only_random_debug_and_system_clock ... ok
+test a314_review::a314_race_does_not_resurrect ... ok
+test a314_review::a314_revoke_scopes_do_not_resurrect ... ok
+test a314_review::a314_runtime_grants_and_install_drift ... ok
+test a314_review::a314_session_and_client_deadlines ... ok
+test a314_review::a314_tuple_audience_role_claims_and_declared_transport ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 9.56s
+
+PHASE clippy
+    Checking gateway-token-store v0.1.0 (/src/tools/gateway-token-store)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.53s
+PHASE crate_manifest
+files=17
+empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+abc_sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+PHASE overlay_ok

@@ -1,0 +1,5 @@
+origin_a199_manifest_launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/manifest/launch.sh
+c59441884fcd7ce54b8e6cb11a6c632cf5dc8ba757d112145fbf20ede8d83ac3  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/manifest/launch.sh
+nearer_a304_inventory_launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a304/SP06/gateway-token-store/linux/inventory/launch.sh
+bacd3becfd8dbe6ecb636c13e137f24ed3be7442be005010fa477c4a4a33b54a  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a304/SP06/gateway-token-store/linux/inventory/launch.sh
+changes owner_a314 paths fixed_crate_recheck_before_walk binary_on_rootfs memory_6g cpus_1 cap_global_10

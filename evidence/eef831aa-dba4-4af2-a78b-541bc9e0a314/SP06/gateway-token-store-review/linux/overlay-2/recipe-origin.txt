@@ -1,0 +1,5 @@
+origin_a204_launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+origin_a304_proof_launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a304/SP06/gateway-token-store/linux/proof/launch.sh
+83762e8085075fe06760dbf3d52cb8903d4fdaae6ca4e012c7f83169e02beb6d  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a304/SP06/gateway-token-store/linux/proof/launch.sh
+changes archive_copy_only one_mod_line focused_a314_review_filter same_volumes

@@ -1,0 +1,1 @@
+harness looked up at idle-1 first, which slides idle, then expected expiry at the original idle. That acceptance matches the contract. Not a product defect.
