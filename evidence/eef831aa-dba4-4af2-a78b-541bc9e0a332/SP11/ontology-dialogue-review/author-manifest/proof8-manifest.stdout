@@ -1,0 +1,11 @@
+mismatch path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/proof-8/manifest-final.txt recorded=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 actual=cf66e41317be4c23e59512414dec3eb09946cec64d502a30870c22d0b761bef7 bytes=164
+manifest_final_recorded_is_empty=true
+manifest_final_actual_begin=files=439\nempty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nabc_sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n
+manifest_final_note=recorded digest is sha256 of the bytes at walk time; current bytes differ
+extra path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/proof-8/MANIFEST.sha256
+entries=439
+match=438
+mismatch=1
+missing=0
+extra=1
+empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

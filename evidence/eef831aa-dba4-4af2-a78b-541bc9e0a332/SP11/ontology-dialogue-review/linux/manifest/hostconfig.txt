@@ -1,0 +1,10 @@
+ExitCode=0
+OOMKilled=false
+Privileged=false
+NetworkMode=none
+CapDrop=["ALL"]
+CapAdd=null
+Memory=6442450944
+NanoCpus=1000000000
+PortBindings={}
+Id=39982cc81a18bd2291fa20267c34d827c75ada822d4b1b56eb4168c499b3f9fb
