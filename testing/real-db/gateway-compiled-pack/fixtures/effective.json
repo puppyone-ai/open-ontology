@@ -1,0 +1,53 @@
+{
+  "protocol": "oo.builder.effective-oos/v1",
+  "project": "depot",
+  "ontology_version": "ont-v1",
+  "catalog_version": "cat-v1",
+  "policy": {"id": "pol_depot", "version": "pv1"},
+  "knowledge": {"id": "know_depot", "version": "kv1"},
+  "ontology": {
+    "spec_version": "oos/v1",
+    "name": "shop",
+    "locale": "zh-CN",
+    "include_schemas": ["shop"],
+    "default_tier_preference": ["file"],
+    "publish": {"include_unreviewed": []},
+    "classification": {"auto_accept": "rule_high_confidence"},
+    "lifecycle": {"deprecation_min_releases": 2},
+    "compile": {
+      "per_role": true,
+      "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+      "sample_values": {"default": "masked", "max_per_column": 0}
+    }
+  },
+  "datasets": [{
+    "schema_version": "oos/v1",
+    "dataset": "shop.orders",
+    "source_name": "public fixture",
+    "label": "Orders",
+    "tier": "file",
+    "grain": "one row per order",
+    "primary_key": ["order_id"],
+    "columns": [
+      {
+        "name": "order_id",
+        "pii": "none",
+        "classification": {"state": "confirmed", "by": "fixture.reviewer"},
+        "review": {"state": "approved", "by": "fixture.reviewer"}
+      },
+      {
+        "name": "picker_note",
+        "pii": "none",
+        "classification": {"state": "confirmed", "by": "fixture.reviewer"},
+        "review": {"state": "approved", "by": "fixture.reviewer"}
+      },
+      {
+        "name": "auditor_phone",
+        "pii": "personal",
+        "classification": {"state": "confirmed", "by": "fixture.reviewer"},
+        "review": {"state": "approved", "by": "fixture.reviewer"}
+      },
+      {"name": "unclassified_pii"}
+    ]
+  }]
+}
