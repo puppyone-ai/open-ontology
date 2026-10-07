@@ -1,0 +1,5 @@
+pg_onboarding_help_exit=2
+install_north=0
+install_south=0
+provision_north=0
+cli_propose_equal=true

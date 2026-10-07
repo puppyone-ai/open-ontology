@@ -1,0 +1,23 @@
+fixed=96afe70fd68a56ae8eec7504bf20e09ecd3cdf65
+96afe70fd68a56ae8eec7504bf20e09ecd3cdf65
+smoke_launch=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/smoke/launch.sh
+smoke_launch_sha256=c9462dfb4c51d383adc7b27b159103eaf1b18f0ad25f9b01750e6f0c1764c5fa
+a200_launch=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+a200_launch_sha256=c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+libclang_copy=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/libclang-extract.sh
+libclang_copy_sha256=23d9cd6a4e7033f22a98afc9243c2c9dc2d7e60f5246e9ddcbc8aaa949c2c289
+libclang_origin=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a198/SP06/query-pg-cli/linux/libclang-extract.sh
+libclang_origin_sha256=23d9cd6a4e7033f22a98afc9243c2c9dc2d7e60f5246e9ddcbc8aaa949c2c289
+pg_wrap_copy=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/pg/pg-wrap.sh
+pg_wrap_copy_sha256=3e01de0bf7cea1d0d4c8591b4c40abf5e473e20ed17aa9d53699735369f4bf67
+pg_wrap_origin=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a198/SP06/query-pg-cli/pg/pg-wrap.sh
+pg_wrap_origin_sha256=3e01de0bf7cea1d0d4c8591b4c40abf5e473e20ed17aa9d53699735369f4bf67
+pg_up_origin=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a198/SP06/query-pg-cli/pg/up.sh
+pg_up_origin_sha256=75a42e46efb50666788135ecfd40c6db049332d22fd4c3de717cdeab07c203d8
+pg_up_copy=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/pg/up.sh
+pg_up_copy_sha256=0778b6ac1b7cce0c2bba877b0537661c72c452a7b9caec4b6a6c9d77f0cd87a5
+sha256_manifest_copy=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/tools/sha256_manifest.rs
+sha256_manifest_copy_sha256=1e8593e3bd3de3366644dc4b39fd08ea35915e5a99a1e04ec285b02a1456bf6b
+sha256_manifest_a261=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a261/SP11/pg-onboarding-cli/tools/sha256_manifest.rs
+sha256_manifest_a261_sha256=1e8593e3bd3de3366644dc4b39fd08ea35915e5a99a1e04ec285b02a1456bf6b
+changes=owner a300; SAN DNS:oo-a300-pg; public fixture without private keys; builder 6g/1cpu; writable fixed archive plus tools/ontology-dialogue overlay only; proof-8 hashes the 153MiB debug query-pg under a 256MiB cap

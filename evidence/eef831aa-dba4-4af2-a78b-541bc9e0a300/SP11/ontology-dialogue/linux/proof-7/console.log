@@ -1,0 +1,51 @@
+oo_task=sp11-ontology-dialogue
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a300
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+Linux 5e0c2c1b3a33 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== lock checksum subset ===
+phase_exit=0 phase=lock-check
+=== cargo fetch ontology-dialogue ===
+phase_exit=0 phase=fetch-dialogue
+=== cargo test ontology-dialogue ===
+phase_exit=0 phase=test-dialogue
+phase_exit=0 phase=clippy-component
+=== cargo clippy ontology-dialogue ===
+phase_exit=0 phase=clippy-dialogue
+=== answer-citations ===
+phase_exit=0 phase=fetch-citations
+phase_exit=0 phase=build-citations
+=== execute_approval with answer-citations ===
+phase_exit=0 phase=test-citations
+=== libclang ===
+phase_exit=0 phase=libclang
+ls: cannot access '/cargo-home/a300-clang-root/usr/lib/aarch64-linux-gnu/libclang.so*': No such file or directory
+phase_exit=0 phase=libclang-load
+=== cargo fetch workspace ===
+phase_exit=0 phase=fetch-workspace
+=== build query-pg install-column-acl provision-mapping-reader ===
+phase_exit=0 phase=build-query
+=== pg-onboarding ===
+phase_exit=0 phase=fetch-onboarding
+phase_exit=0 phase=build-onboarding
+=== live dialogue ===
+phase_exit=101 phase=test-live

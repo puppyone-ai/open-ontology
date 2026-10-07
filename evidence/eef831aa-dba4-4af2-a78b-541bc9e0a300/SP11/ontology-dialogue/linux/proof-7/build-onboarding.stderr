@@ -1,0 +1,3 @@
+   Compiling serde_json v1.0.151
+   Compiling pg-onboarding v0.1.0 (/src/tools/pg-onboarding)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.67s
