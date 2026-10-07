@@ -27,3 +27,5 @@ UI 开发、实际 API 绑定、完整旅程、发行均未验收。28 卡参考
 最新18分钟统一观测：G1 handle44149 terminal0，尚缺完整报告；Node verify2 已启动但未核验最终结果。恢复原a351收集既有proof，不重复字体/锁构建。G2/G3仍预留未启动，验收计数不变。
 
 G1 handle37146 terminal0；unit6/types/lint/contrast/生产build/Storybook已报告通过但尚未完整核验，browser库安装受APT降权限制失败。原a351收集browser-only重试实际退出，不重复绿测试。允许固定部分milestone提交并明确browser WITHHELD，未通过UI验收；shared组件/SDK/ModuleRegistration固定handoff后G2开始。G3只用预留a352。
+
+固定基础切片：2c032402ee3b58801f30dbbcefddee8733e383b1；三报告已读，94 SHA条目一致。Node24.21.0/pnpm12.10.1/Chromium153.0.8010.12 build1243，固定Nodeimage481d53bf…，单位6/TS/lint/contrast/build/Storybook0；浏览器未打开、截图0，FE-01未完成。G3 a352正式派发固定源独立浏览器/设计复审，G1原a351继续总卡公共组件/SDK/ModuleRegistration/Shell；G2a353尚等待公共接口固定。前端最多3固定会话，当前将运行G1/G3两条，开发/live/旅程/发行均未验收。
