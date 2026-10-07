@@ -1,0 +1,1 @@
+Manifest root is the review directory. sha256_manifest skips SHA256SUMS only. Proof hostconfig, reports, and this inventory's inspect files are written before the walk. On success the host does not add files after the walk.
