@@ -25,3 +25,5 @@ UI 开发、实际 API 绑定、完整旅程、发行均未验收。28 卡参考
 最新统一观测：G1 handle60396 已退出0，但尚缺完整最终报告；原 UUID 恢复时先收集已启动的 Linux/浏览器 proof，不复制资源。固定三角色不变。主线新增独立任务不占前端三角色，会话复用约束仅适用于前端。统一等待已改18分钟。
 
 最新18分钟统一观测：G1 handle44149 terminal0，尚缺完整报告；Node verify2 已启动但未核验最终结果。恢复原a351收集既有proof，不重复字体/锁构建。G2/G3仍预留未启动，验收计数不变。
+
+G1 handle37146 terminal0；unit6/types/lint/contrast/生产build/Storybook已报告通过但尚未完整核验，browser库安装受APT降权限制失败。原a351收集browser-only重试实际退出，不重复绿测试。允许固定部分milestone提交并明确browser WITHHELD，未通过UI验收；shared组件/SDK/ModuleRegistration固定handoff后G2开始。G3只用预留a352。
