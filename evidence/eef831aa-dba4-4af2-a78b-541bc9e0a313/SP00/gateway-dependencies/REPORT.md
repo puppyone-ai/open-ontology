@@ -40,6 +40,10 @@ The green loopback checks are real `127.0.0.1` HTTP/1.1: echo ignores `Authoriza
 
 Recipes are `recipes/ORIGIN.md`. Launch and report shells come from reviewed a204 / a200 / a199 files, with the command and path changes recorded there. `tools/sha256_manifest.rs` is the unmodified a204 source.
 
+## Reviews after the foundation commit
+
+Commit `773c461104729d6c289eae8640c7c2a28207c447` is the pin and the evidence above. Four review tasks then ran against that commit. Reports: `linux/review-1-pins/REPORT.md`, `linux/review-2-lockdiff/REPORT.md`, `linux/review-3-rerun/REPORT.md`, `linux/review-4-scope/REPORT.md`. The fresh-target container `83cb5ecac838c956bc82054f1219002d8804e3720eb7e693707e9b4eb6d51897` passed the same four loopback tests and clippy. Those reviews leave the baseline UNAPPROVED.
+
 ## Scope that stayed put
 
 No workspace member was added. Full `oo-arch-check` tests were not run; those tests call `cargo metadata` without `--no-deps` and would fetch the whole workspace. The boundary that did run is `cargo metadata --locked --no-deps` and `cargo check --locked --offline -p oo-arch-check`. No dual-architecture build. No JWT library. No child-lock rewrite. a207's connector commit `672129aa` remains reachable.

@@ -107,6 +107,15 @@ Green proof container `434367fb3bfdcd3b83f8cc1732acd6874ca96a0939d172d1ba050cb9a
 
 `linux/proof/SHA256SUMS` is the Rust `sha256_manifest` inventory taken inside that container before `inside_ok` was appended to `console.log` and before `launch.sh` wrote `hostconfig.txt`, `tmpfs.txt`, `mounts.txt`, `docker-run.exit`, and `container-removed.txt`. Those five files, and any file added after the hash, are outside that inventory.
 
+## Review tasks in this UUID
+
+The same session ran four review tasks after commit `773c461104729d6c289eae8640c7c2a28207c447`. They do not approve the baseline for a consumer crate.
+
+- Pins: live crates.io checksums match. Axum's newest release is still 0.8.9. matchit 0.9.2 and tower-http 0.7.1 are newer and older than 7 days, and Axum 0.8.9 does not accept them (`matchit =0.8.4`, `tower-http ^0.6.8`).
+- Lock diff, from the archived commit: `added=5`, `changed=0`, `denied=0`.
+- Fresh target volume `oo-a313-eef831aa-review-target`, container `83cb5ecac838c956bc82054f1219002d8804e3720eb7e693707e9b4eb6d51897`: 4 tests passed, clippy exit 0, `inside_ok=2026-10-07T10:52:12Z`.
+- Scope: that commit does not touch `Cargo.lock`, `rust-toolchain.toml`, crate manifests, or `supply-chain/dependency-baseline.json`. a207 commit `672129aa` remains an ancestor.
+
 ## Later consumer card
 
 A later approved archive may add `axum = { workspace = true }` on the consumer that actually serves HTTP, then `cargo fetch` so the root lock gains only the five added triples above. That card must show a lock diff with `changed=0` for every crate already in `16e6afda…`. Child locks under other evidence trees stay on the old baseline until their own cards say otherwise. This decision does not authorize that consumer edit.

@@ -36,6 +36,10 @@ UUID `eef831aa-dba4-4af2-a78b-541bc9e0a313`. These are author findings from the 
 
 `sha256_manifest` hashed `/evidence` inside the container, then copied `SHA256SUMS` into that directory. `launch.sh` afterwards wrote `hostconfig.txt`, `tmpfs.txt`, `mounts.txt`, `docker-run.exit`, and `container-removed.txt`. The `inside_ok` line was printed to stdout after the hash. Those bytes are not in `SHA256SUMS`.
 
+## F9. The archived commit re-ran cleanly
+
+`linux/review-rerun/` compiles the probe from `git archive` of `773c461104729d6c289eae8640c7c2a28207c447` on a fresh target volume. `test.exit` 0 with 4 passed. `clippy.exit` 0. `lockdiff_subset.exit` 0 repeats `added=5 changed=0 denied=0`. Live crates.io checksums in `linux/review-1-pins/` match the committed upstream JSON. The foundation commit's path list does not include a crate manifest, `Cargo.lock`, or `rust-toolchain.toml` (`linux/review-4-scope/REPORT.md`).
+
 ## F8. Approval is still open
 
 The same session wrote the pins and the probe. Consumer manifests were not updated. A later card has to approve a fixed archive before `oo-gateway` or another member takes `workspace = true` and the root lock gains the five triples. Child locks that still name the old baseline were not rewritten.
