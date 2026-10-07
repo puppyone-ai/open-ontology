@@ -1,6 +1,8 @@
 # Findings
 
-Reviewer: this session. No subagent. No product edit. Scope stayed the frozen mirror at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`.
+Verdict: **APPROVE_LIMITED** for the frozen development child CDC-D05, `tools/cdc-offset-store`, at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. Accepted scope is the receipt read, the immutable control mirror, and the contiguous compare-and-swap watermark proved below. ACK stays false. The caller flags are not a source certificate. Large segments are outside this child. Parent SP04, source acknowledgement, fenced segments, and the reject ledger stay open. This file does not verdict CDC-D04 and does not record coordinator acceptance.
+
+Reviewer: this session. No subagent. No product edit. Scope stayed the frozen mirror at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. This clarification re-ran no test.
 
 ## What the proof shows
 
@@ -24,7 +26,7 @@ After three postmaster restarts, the final one changed `pg_postmaster_start_time
 
 ## What remains parent work
 
-Source acknowledgement, a real normalizer, Valkey `XACK` and `XTRIM`, the reject ledger, and large-segment integration stay parent work. The ledger and plan checkboxes for CDC-D05 were not changed.
+The child verdict above is **APPROVE_LIMITED**. It accepts only the frozen CDC-D05 mirror. Source acknowledgement, a real normalizer, a source certificate, Valkey `XACK` and `XTRIM`, the reject ledger, and large-segment integration stay parent work and stay open. The ledger and plan checkboxes for CDC-D05 were not changed. CDC-D04 is a separate writer review and receives no verdict here.
 
 An uncommitted root `Cargo.toml` hunk for axum, tower, and tower-http was already in the worktree. This review did not write it and does not commit it. a313 remains the root writer.
 

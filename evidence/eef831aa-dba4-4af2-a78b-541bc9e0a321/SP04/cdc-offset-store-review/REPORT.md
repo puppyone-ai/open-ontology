@@ -1,12 +1,14 @@
 # CDC-D05 independent review
 
-## Scope and verdict
+Verdict: **APPROVE_LIMITED** for the frozen development child CDC-D05, `tools/cdc-offset-store`, at fixed archive `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`, tree `539aa555a721a0b87b40546b9d4dad5569e3c863`. The accepted scope is verification of an existing fenced target apply receipt, an immutable control-database mirror, and a contiguous compare-and-swap watermark. ACK stays false. Caller `source_gap` and `epoch_barrier` flags are caller inputs, and this child issues no source certificate. The single-writer unique-violation label is the `23505` conflict recorded below. Large segments, source acknowledgement, Valkey `XACK` and `XTRIM`, and the reject ledger are outside this child.
 
-This review reads `tools/cdc-offset-store` at fixed commit `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`, tree `539aa555a721a0b87b40546b9d4dad5569e3c863`. The author evidence under `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a310/SP04/cdc-offset-store/` was read and left unchanged. Product sources were not edited. `git diff` of `tools/cdc-offset-store` and of target migrations `0000` through `0003` against that commit is empty. `source/product-vs-fixed.exit` and `source/core-vs-fixed.exit` are both 0.
+Parent SP04, full source acknowledgement, fenced segments, and the reject ledger stay open. This child verdict does not accept those parents, does not close SP04-W05, does not accept AT-PL-05, and does not record a release or coordinator acceptance. This packet does not verdict CDC-D04. The writer child remains the separate a320 review. This clarification starts no builder, no PostgreSQL, and no test. Failed attempts below stay in place.
 
-The crate mirrors an existing target apply receipt into a second database and compare-and-swaps a contiguous watermark. The independent probe created receipts with `_oo.adopt_target_generation` and `_oo.commit_apply_receipt`, then called the product CLI. The mirror request carries no receipt body. Preoverlay author checks passed before that probe was added to the archive.
+## Scope
 
-Parent SP04, full source acknowledgement, fenced segments, and the reject ledger stay open. This review does not claim parent acceptance, SP04-W05 closure, AT-PL-05, or a release.
+This review reads `tools/cdc-offset-store` at that fixed commit. The author evidence under `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a310/SP04/cdc-offset-store/` was read and left unchanged. Product sources were not edited. `git diff` of `tools/cdc-offset-store` and of target migrations `0000` through `0003` against that commit is empty. `source/product-vs-fixed.exit` and `source/core-vs-fixed.exit` are both 0.
+
+The independent probe created receipts with `_oo.adopt_target_generation` and `_oo.commit_apply_receipt`, then called the product CLI. The mirror request carries no receipt body. Preoverlay author checks passed before that probe was added to the archive.
 
 ## Recipes
 
@@ -43,4 +45,6 @@ The passing assertions cover install and install replay, migration drift before 
 
 ## Inventory
 
-`linux/tools/sha256_manifest.rs` is the a199 std-only tool. It checks the empty digest and `abc`, then writes `MANIFEST.sha256` for every regular file except that manifest. `CLEANUP.txt` is written before that inventory. `linux/manifest/console.log`, `hostconfig.txt`, `docker-run.exit`, and `container-removed.txt` are written after it.
+`linux/tools/sha256_manifest.rs` is the a199 std-only tool. It checks the empty digest and `abc`, then writes `MANIFEST.sha256` for every regular file except that manifest. The Rust walk recorded 255 files. `CLEANUP.txt` is inside that walk. Excluded from the Rust walk: `MANIFEST.sha256` itself, and the four files written after it: `linux/manifest/console.log`, `linux/manifest/hostconfig.txt`, `linux/manifest/docker-run.exit`, and `linux/manifest/container-removed.txt`.
+
+This clarification edits `REPORT.md`, `FINDINGS.md`, and `HANDOFF.md` only. No builder is started to re-run the tool. After this text, those three digest lines in `MANIFEST.sha256` are replaced with SHA-256 of the edited bytes. The other 252 digest lines stay the Rust walk. The four post-walk files stay excluded.
