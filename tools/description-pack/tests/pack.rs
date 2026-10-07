@@ -1736,3 +1736,770 @@ fn run_cli(args: &[&str], stdin: &[u8]) -> std::process::Output {
     drop(child.stdin.take());
     child.wait_with_output().expect("wait")
 }
+
+const PROMPT_V2_VERSION: &str = "oo.builder.description-prompt/v2";
+const RESPONSE_V2: &str = "oo.builder.description-response/v2";
+const PARCEL_COLUMN_TEXT: &str = "Parcel column label a339";
+const PARCEL_COLUMN_BODY: &str = "Parcel column body a339";
+const PARCEL_COLUMN_TEXT_2: &str = "Parcel column label two a339";
+const PARCEL_COLUMN_BODY_2: &str = "Parcel column body two a339";
+const VAULT_COLUMN_TEXT: &str = "Vault column label a339";
+const VAULT_COLUMN_BODY: &str = "Vault column body a339";
+const SECRET_COLUMN_TEXT: &str = "Secret column label a339";
+const SECRET_COLUMN_BODY: &str = "Secret column body a339";
+const COLUMN_CAVEAT: &str = "column caveat a339 stays queued";
+const COMMENT_CANARY: &str = "COMMENT_KEY_a339_DO_NOT_LEAK";
+
+struct Phys {
+    dataset: String,
+    name: String,
+    attnum: i64,
+    card_sha: String,
+}
+
+struct ColumnWorld {
+    request: Value,
+    produced_text: String,
+    outcome_sha: String,
+    outcome: Value,
+    schema_hash: String,
+    evidence_hash: String,
+    artifact: Value,
+}
+
+fn v2_binding(artifact: &Value) -> (Value, Value, oo_builder::CapturedPgDraft) {
+    let compiled = recompile(artifact);
+    let mut command = candidate_command(&compiled, artifact);
+    command["binding"]["prompt_version"] = json!(PROMPT_V2_VERSION);
+    let bare = serde_json::to_string(&command).expect("v2 command");
+    let request_text = prepare_description_request(&bare).unwrap_or_else(|err| {
+        panic!("v2 prepare failed: {} {}", err.code, err.message);
+    });
+    let request: Value = serde_json::from_str(&request_text).expect("v2 request");
+    (command, request, compiled)
+}
+
+fn physical(request: &Value) -> Vec<Phys> {
+    let mut out = Vec::new();
+    for card in request["boundary"]["data"]["tables"].as_array().expect("cards") {
+        let dataset = card["dataset"].as_str().expect("dataset").to_owned();
+        let card_sha = card["card_sha256"].as_str().expect("card").to_owned();
+        for column in card["columns"].as_array().expect("columns") {
+            out.push(Phys {
+                dataset: dataset.clone(),
+                name: column["name"].as_str().expect("name").to_owned(),
+                attnum: column["attnum"].as_i64().expect("attnum"),
+                card_sha: card_sha.clone(),
+            });
+        }
+    }
+    out
+}
+
+fn column_input(column: &Phys, label: &str, description: &str, confidence: &str, caveats: Value) -> Value {
+    json!({
+        "attnum": column.attnum,
+        "card_sha256": column.card_sha,
+        "caveats": caveats,
+        "column": column.name,
+        "confidence": confidence,
+        "dataset": column.dataset,
+        "description": description,
+        "label": label,
+        "open_questions": []
+    })
+}
+
+fn labeled_columns(columns: &[Phys]) -> Value {
+    Value::Array(columns.iter().map(|column| {
+        if column.dataset == ORDERS && column.name == "parcel_count" {
+            column_input(column, PARCEL_COLUMN_TEXT, PARCEL_COLUMN_BODY, "0.5", json!([COLUMN_CAVEAT]))
+        } else if column.dataset == ORDERS && column.name == "vault_token" {
+            column_input(column, VAULT_COLUMN_TEXT, VAULT_COLUMN_BODY, "0", json!([]))
+        } else if column.dataset == LEDGER && column.name == "secret_note" {
+            column_input(column, SECRET_COLUMN_TEXT, SECRET_COLUMN_BODY, "0", json!([]))
+        } else {
+            column_input(column, &format!("kept {} {}", column.dataset, column.name), "kept body", "0", json!([]))
+        }
+    }).collect())
+}
+
+fn dataset_bodies(request: &Value) -> Value {
+    Value::Array(request["boundary"]["data"]["tables"].as_array().expect("cards").iter().map(|card| {
+        let dataset = card["dataset"].as_str().expect("dataset");
+        json!({
+            "card_sha256": card["card_sha256"],
+            "caveats": [],
+            "confidence": "0",
+            "dataset": dataset,
+            "description": if dataset == ORDERS { DESCRIPTION } else { LEDGER_BODY },
+            "grain": if dataset == ORDERS { GRAIN } else { "ledger grain stays out" },
+            "label": if dataset == ORDERS { LABEL } else { LEDGER_LABEL },
+            "open_questions": []
+        })
+    }).collect())
+}
+
+fn response_v2(request: &Value, candidates: Value, columns: Value) -> Value {
+    json!({
+        "budget_sha256": request["budget_sha256"],
+        "candidates": candidates,
+        "columns": columns,
+        "complete": true,
+        "evidence_hash": request["evidence_hash"],
+        "model_id": request["model_id"],
+        "prompt_sha256": request["prompt_sha256"],
+        "prompt_version": request["prompt_version"],
+        "protocol": RESPONSE_V2,
+        "request_sha256": request["request_sha256"],
+        "schema_hash": request["schema_hash"],
+        "source_id": request["source_id"]
+    })
+}
+
+fn finish_v2(command: Value, response: Value, compiled: oo_builder::CapturedPgDraft, artifact: Value) -> ColumnWorld {
+    let body = serde_json::to_string(&response).expect("response");
+    let mut command = command;
+    command["captured_response"] = json!({
+        "body": body,
+        "byte_len": body.len(),
+        "status": "complete"
+    });
+    let produced_text = serde_json::to_string(&command).expect("complete");
+    let outcome_text = complete_description_candidates(&produced_text).unwrap_or_else(|err| {
+        panic!("complete failed: {} {}", err.code, err.message);
+    });
+    let outcome: Value = serde_json::from_str(&outcome_text).expect("outcome");
+    let mut bare = command;
+    bare.as_object_mut().expect("object").remove("captured_response");
+    let bare_text = serde_json::to_string(&bare).expect("bare");
+    let request_text = prepare_description_request(&bare_text).expect("prepare");
+    let request: Value = serde_json::from_str(&request_text).expect("request");
+    ColumnWorld {
+        request,
+        outcome_sha: payload_sha256(outcome_text.as_bytes()),
+        produced_text,
+        outcome,
+        schema_hash: compiled.schema_hash,
+        evidence_hash: compiled.evidence_hash,
+        artifact,
+    }
+}
+
+fn open_v2(artifact: &Value) -> ColumnWorld {
+    let (command, request, compiled) = v2_binding(artifact);
+    let columns = physical(&request);
+    let response = response_v2(&request, dataset_bodies(&request), labeled_columns(&columns));
+    let schema_hash = compiled.schema_hash.clone();
+    let evidence_hash = compiled.evidence_hash.clone();
+    let mut world = finish_v2(command, response, compiled, artifact.clone());
+    world.schema_hash = schema_hash;
+    world.evidence_hash = evidence_hash;
+    world.request = request;
+    world
+}
+
+fn column_orders_file() -> Value {
+    let mut value = orders_file();
+    let columns = value["columns"].as_array_mut().expect("columns");
+    columns.push(json!({
+        "name": "id",
+        "label": "Id",
+        "data_type": "int4",
+        "semantic_type": "identifier",
+        "pii": "none"
+    }));
+    columns.push(json!({
+        "name": "vault_token",
+        "data_type": "text",
+        "semantic_type": "free_text",
+        "pii": "restricted",
+        "classification": {"state": "confirmed", "by": "ops.wang", "at": "2026-10-06"}
+    }));
+    dataset_file(value)
+}
+
+fn column_ledger_file() -> Value {
+    let mut value = ledger_file();
+    value["columns"].as_array_mut().expect("columns").push(json!({
+        "name": "secret_note",
+        "data_type": "text"
+    }));
+    dataset_file(value)
+}
+
+fn with_parcel_text(label: &str, description: &str) -> Value {
+    let mut value = column_orders_file();
+    let column = value["columns"].as_array_mut().expect("columns").iter_mut().find(|item| item["name"] == "parcel_count").expect("parcel");
+    column["label"] = json!(label);
+    column["description"] = json!(description);
+    dataset_file(value)
+}
+
+fn column_curated(orders: Value, ledger: Value) -> Value {
+    json!({
+        ORDERS: orders,
+        LEDGER: ledger,
+        ASIDE: aside_file(),
+    })
+}
+
+fn outcome_column<'a>(outcome: &'a Value, dataset: &str, name: &str) -> &'a Value {
+    outcome["columns"].as_array().expect("columns").iter().find(|item| item["dataset"] == dataset && item["column"] == name).unwrap_or_else(|| panic!("missing {dataset}.{name}"))
+}
+
+fn column_decision(world: &ColumnWorld, column: &Phys, kind: &str, curated_hash: &str, fields: Option<Value>) -> Value {
+    let object = outcome_column(&world.outcome, &column.dataset, &column.name);
+    let mut value = json!({
+        "attnum": column.attnum,
+        "candidate_sha256": canonical_sha(object),
+        "card_sha256": object["card_sha256"],
+        "column": column.name,
+        "curated_sha256": curated_hash,
+        "dataset": column.dataset,
+        "decision": kind,
+        "evidence_hash": world.outcome["structural_draft"]["evidence_hash"],
+        "request_sha256": world.outcome["request_sha256"],
+        "reviewer_at": REVIEWED_ON,
+        "reviewer_label": REVIEWER,
+        "schema_hash": world.outcome["structural_draft"]["schema_hash"]
+    });
+    if let Some(fields) = fields {
+        value["fields"] = fields;
+    }
+    value
+}
+
+fn dataset_decision(world: &ColumnWorld, dataset: &str, kind: &str, curated_hash: &str, fields: Option<Value>) -> Value {
+    decision(dataset, kind, &anchors(&world.outcome, dataset, curated_hash), fields)
+}
+
+fn column_review(world: &ColumnWorld, orders: &Value, ledger: &Value, decisions: Vec<Value>, columns: Vec<Value>) -> String {
+    serde_json::to_string(&json!({
+        "column_decisions": columns,
+        "command": world.produced_text,
+        "current": {"evidence_hash": world.evidence_hash, "schema_hash": world.schema_hash},
+        "curated": column_curated(orders.clone(), ledger.clone()),
+        "decisions": decisions,
+        "expected_outcome_sha256": world.outcome_sha,
+        "protocol": description_review::COMMAND_PROTOCOL
+    })).expect("column review")
+}
+
+fn pack_column(review: &str, artifact: &Value, decisions: Value, roles: Value, replace_column: bool, expected_column: Option<Value>) -> String {
+    let review_bytes = apply_description_review(review).unwrap_or_else(|err| {
+        panic!("review failed: {} {}", err.code, err.message);
+    });
+    let mut command = json!({
+        "artifact": artifact,
+        "decisions": decisions,
+        "expected_review_sha256": payload_sha256(review_bytes.as_bytes()),
+        "protocol": COMMAND_PROTOCOL,
+        "review": review,
+        "roles": roles,
+        "settings": settings()
+    });
+    if replace_column {
+        command["replace_existing_column_review"] = json!(true);
+    }
+    if let Some(expected) = expected_column {
+        command["expected_existing_column_review_sha256"] = expected;
+    }
+    serde_json::to_string(&command).expect("column pack")
+}
+
+fn allow_column_descriptions(command: &str) -> String {
+    let mut value: Value = serde_json::from_str(command).expect("command");
+    value["settings"]["ontology"]["publish"]["include_unreviewed"] =
+        json!(["column_descriptions", "dataset_descriptions"]);
+    serde_json::to_string(&value).expect("command")
+}
+
+fn find_phys<'a>(columns: &'a [Phys], dataset: &str, name: &str) -> &'a Phys {
+    columns.iter().find(|column| column.dataset == dataset && column.name == name).unwrap_or_else(|| panic!("missing {dataset}.{name}"))
+}
+
+fn parcel_fields(label: &str, description: &str) -> Value {
+    json!({
+        "description": {"overwrite": true, "current_sha256": field_sha(Some(description))},
+        "label": {"overwrite": true, "current_sha256": field_sha(Some(label))}
+    })
+}
+
+fn fill_fields() -> Value {
+    json!({
+        "description": {"overwrite": false},
+        "label": {"overwrite": false}
+    })
+}
+
+fn positive_column_review(world: &ColumnWorld) -> (String, Value, Value) {
+    let orders = column_orders_file();
+    let ledger = column_ledger_file();
+    let orders_hash = canonical_sha(&orders);
+    let ledger_hash = canonical_sha(&ledger);
+    let columns = physical(&world.request);
+    let parcel = find_phys(&columns, ORDERS, "parcel_count");
+    let vault = find_phys(&columns, ORDERS, "vault_token");
+    let secret = find_phys(&columns, LEDGER, "secret_note");
+    let orders_id = find_phys(&columns, ORDERS, "id");
+    let ledger_id = find_phys(&columns, LEDGER, "id");
+    let review = column_review(
+        world,
+        &orders,
+        &ledger,
+        vec![
+            dataset_decision(world, ORDERS, "approve", &orders_hash, Some(approve_fields())),
+            dataset_decision(world, LEDGER, "reject", &ledger_hash, None),
+        ],
+        vec![
+            column_decision(world, parcel, "approve", &orders_hash, Some(parcel_fields("Parcel count", "curated parcel note"))),
+            column_decision(world, vault, "approve", &orders_hash, Some(fill_fields())),
+            column_decision(world, secret, "approve", &ledger_hash, Some(fill_fields())),
+            column_decision(world, orders_id, "defer", &orders_hash, None),
+            column_decision(world, ledger_id, "reject", &ledger_hash, None),
+        ],
+    );
+    (review, orders, ledger)
+}
+
+fn assert_role_column_text(packed: &Value) {
+    let desk = canonical_text(&pack_for(packed, "oo_r_desk")["artifact"]);
+    let pay = canonical_text(&pack_for(packed, "oo_r_pay")["artifact"]);
+    assert!(desk.contains(PARCEL_COLUMN_TEXT), "desk lost the parcel column");
+    assert!(desk.contains(LABEL), "desk lost the dataset label");
+    assert!(!desk.contains(VAULT_COLUMN_TEXT), "desk rendered the hidden vault label");
+    assert!(!desk.contains(VAULT_COLUMN_BODY), "desk rendered the hidden vault body");
+    assert!(!desk.contains("vault_token"), "desk rendered vault_token");
+    assert!(!desk.contains(SECRET_COLUMN_TEXT), "desk rendered the secret label");
+    assert!(!desk.contains("secret_note"), "desk rendered secret_note");
+    assert!(pay.contains(PARCEL_COLUMN_TEXT), "pay lost the parcel column");
+    assert!(pay.contains(VAULT_COLUMN_TEXT), "pay lost the allowlisted vault label");
+    assert!(pay.contains(VAULT_COLUMN_BODY), "pay lost the allowlisted vault body");
+    assert!(pay.contains("vault_token"), "pay lost the allowlisted name");
+    assert!(!pay.contains(SECRET_COLUMN_TEXT), "pay rendered the secret label");
+    assert!(!pay.contains(SECRET_COLUMN_BODY), "pay rendered the secret body");
+    assert!(!pay.contains("secret_note"), "pay rendered secret_note");
+}
+
+#[test]
+fn column_text_is_resealed_and_role_filtered() {
+    let base = ready();
+    let world = open_v2(&base.artifact);
+    assert_eq!(world.outcome["outcome"], "candidates");
+    assert_eq!(world.outcome["protocol"], "oo.builder.description-candidate/v2");
+    assert_eq!(world.outcome["columns"].as_array().expect("columns").len(), 5);
+    assert!(world.outcome.get("columns").is_some());
+    let (review, _orders, _ledger) = positive_column_review(&world);
+    let reviewed = apply_description_review(&review).unwrap_or_else(|err| panic!("review {} {}", err.code, err.message));
+    let reviewed_value: Value = serde_json::from_str(&reviewed).expect("review");
+    let parcel = reviewed_value["column_decisions"].as_array().expect("columns").iter().find(|item| item["column"] == "parcel_count").expect("parcel");
+    assert_eq!(parcel["confidence_effect"], "recorded_only");
+    assert_eq!(parcel["authenticated"], false);
+    assert_eq!(parcel["candidate_confidence"], "0.5");
+    assert_eq!(parcel["applied"], true);
+    let command = allow_column_descriptions(&pack_column(&review, &world.artifact, Value::Array(classifications(&base.draft)), two_roles(), false, None));
+    let library = apply_description_pack(&command).unwrap_or_else(|err| panic!("pack {} {}", err.code, err.message));
+    let output = run_cli(&["apply"], command.as_bytes());
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, library.as_bytes());
+    assert!(output.stderr.is_empty());
+    let packed: Value = serde_json::from_str(&library).expect("pack");
+    assert_bound_hash(&library, &packed);
+    assert_eq!(packed["outcome"], "packed");
+    assert_eq!(packed["statements"]["reseal"], "compiler");
+    assert_eq!(packed["statements"]["source_artifact"], "not_mutated");
+    assert!(!library.contains("0.5"), "confidence copied into the pack");
+    assert!(!library.contains(COLUMN_CAVEAT), "column caveat copied into the pack");
+    let orders = document_of(&packed, ORDERS);
+    assert_eq!(orders["document"]["label"], LABEL);
+    assert_eq!(orders["document"]["caveats"], json!(["existing curated caveat"]));
+    assert_eq!(column_of(&orders["document"], "parcel_count")["label"], PARCEL_COLUMN_TEXT);
+    assert_eq!(column_of(&orders["document"], "parcel_count")["description"], PARCEL_COLUMN_BODY);
+    assert_eq!(column_of(&orders["document"], "parcel_count")["pii"], "personal");
+    assert_eq!(column_of(&orders["document"], "parcel_count")["status"], "deprecated");
+    assert_eq!(column_of(&orders["document"], "parcel_count")["classification"]["state"], "confirmed");
+    assert_eq!(column_of(&orders["document"], "vault_token")["label"], VAULT_COLUMN_TEXT);
+    assert_eq!(column_of(&orders["document"], "vault_token")["description"], VAULT_COLUMN_BODY);
+    assert_eq!(column_of(&orders["document"], "vault_token")["pii"], "restricted");
+    assert_eq!(column_of(&document_of(&packed, LEDGER)["document"], "secret_note")["label"], SECRET_COLUMN_TEXT);
+    assert_eq!(document_of(&packed, ASIDE)["changed"], false);
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+    let resealed = recompile(&packed["resealed_artifact"]);
+    assert_eq!(resealed.wrapper_hash, packed["resealed_wrapper_hash"]);
+    let resealed_draft: Value = serde_json::from_str(&resealed.draft).expect("draft");
+    let curated_orders = draft_dataset(&resealed_draft, "curated", ORDERS);
+    assert_eq!(column_of(curated_orders, "parcel_count")["pii"], "sensitive");
+    assert_eq!(column_of(curated_orders, "parcel_count")["semantic_type"], "free_text");
+    assert_eq!(column_of(curated_orders, "parcel_count")["status"], "draft");
+    assert_eq!(column_of(curated_orders, "parcel_count")["label"], PARCEL_COLUMN_TEXT);
+    let effective_orders = draft_dataset(&resealed_draft, "effective", ORDERS);
+    assert_eq!(column_of(effective_orders, "parcel_count")["label"], PARCEL_COLUMN_TEXT);
+    assert_eq!(column_of(effective_orders, "vault_token")["label"], VAULT_COLUMN_TEXT);
+    assert_eq!(column_of(effective_orders, "vault_token")["description"], VAULT_COLUMN_BODY);
+    assert_eq!(effective_orders["label"], LABEL);
+    assert_role_column_text(&packed);
+}
+
+#[test]
+fn column_only_approval_reseals() {
+    let base = ready();
+    let world = open_v2(&base.artifact);
+    let orders = column_orders_file();
+    let ledger = column_ledger_file();
+    let orders_hash = canonical_sha(&orders);
+    let ledger_hash = canonical_sha(&ledger);
+    let columns = physical(&world.request);
+    let review = column_review(
+        &world,
+        &orders,
+        &ledger,
+        vec![
+            dataset_decision(&world, ORDERS, "reject", &orders_hash, None),
+            dataset_decision(&world, LEDGER, "reject", &ledger_hash, None),
+        ],
+        columns.iter().map(|column| {
+            if column.name == "parcel_count" && column.dataset == ORDERS {
+                column_decision(&world, column, "approve", &orders_hash, Some(parcel_fields("Parcel count", "curated parcel note")))
+            } else {
+                let hash = if column.dataset == ORDERS { &orders_hash } else { &ledger_hash };
+                column_decision(&world, column, "reject", hash, None)
+            }
+        }).collect(),
+    );
+    let command = pack_column(&review, &world.artifact, Value::Array(classifications(&base.draft)), two_roles(), false, None);
+    let (text, packed) = apply_ok(&command);
+    assert!(!text.contains("0.5"));
+    assert!(!text.contains(COLUMN_CAVEAT));
+    assert_eq!(packed["outcome"], "packed");
+    assert!(packed["resealed_artifact"].is_object());
+    assert_eq!(document_of(&packed, ORDERS)["document"]["label"], "Orders register");
+    assert_eq!(column_of(&document_of(&packed, ORDERS)["document"], "parcel_count")["label"], PARCEL_COLUMN_TEXT);
+    let resealed = recompile(&packed["resealed_artifact"]);
+    let draft: Value = serde_json::from_str(&resealed.draft).expect("draft");
+    assert_eq!(
+        draft_dataset(&draft, "effective", ORDERS)["label"],
+        draft_dataset(&base.draft, "effective", ORDERS)["label"]
+    );
+    assert_eq!(column_of(draft_dataset(&draft, "effective", ORDERS), "parcel_count")["label"], PARCEL_COLUMN_TEXT);
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}
+
+#[test]
+fn column_defer_and_reject_do_not_reseal() {
+    let base = ready();
+    let world = open_v2(&base.artifact);
+    let orders = column_orders_file();
+    let ledger = column_ledger_file();
+    let orders_hash = canonical_sha(&orders);
+    let ledger_hash = canonical_sha(&ledger);
+    let columns = physical(&world.request);
+    let review = column_review(
+        &world,
+        &orders,
+        &ledger,
+        vec![
+            dataset_decision(&world, ORDERS, "reject", &orders_hash, None),
+            dataset_decision(&world, LEDGER, "defer", &ledger_hash, None),
+        ],
+        columns.iter().map(|column| {
+            let hash = if column.dataset == ORDERS { &orders_hash } else { &ledger_hash };
+            let kind = if column.name == "id" { "defer" } else { "reject" };
+            column_decision(&world, column, kind, hash, None)
+        }).collect(),
+    );
+    let command = pack_column(&review, &world.artifact, Value::Array(classifications(&base.draft)), two_roles(), false, None);
+    let (text, packed) = apply_ok(&command);
+    assert_eq!(packed["outcome"], "reviewed_unchanged");
+    assert!(packed["resealed_artifact"].is_null());
+    assert_eq!(packed["statements"]["reseal"], "not_required");
+    assert!(!text.contains(PARCEL_COLUMN_TEXT));
+    assert!(!text.contains(VAULT_COLUMN_TEXT));
+    assert!(!text.contains(SECRET_COLUMN_TEXT));
+    assert!(!text.contains(COLUMN_CAVEAT));
+    assert_eq!(column_of(&document_of(&packed, ORDERS)["document"], "parcel_count")["label"], "Parcel count");
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}
+
+#[test]
+fn column_stale_schema_refuses_without_a_document() {
+    let base = ready();
+    let world = open_v2(&base.artifact);
+    let (mut review, orders, ledger) = {
+        let (review, orders, ledger) = positive_column_review(&world);
+        (serde_json::from_str::<Value>(&review).expect("review"), orders, ledger)
+    };
+    let _ = (orders, ledger);
+    let columns = review["column_decisions"].as_array_mut().expect("columns");
+    let parcel = columns.iter_mut().find(|item| item["column"] == "parcel_count").expect("parcel");
+    parcel["schema_hash"] = json!("ab".repeat(32));
+    let review = serde_json::to_string(&review).expect("review");
+    let command = pack_column(&review, &world.artifact, json!([]), two_roles(), false, None);
+    let err = apply_description_pack(&command).expect_err("stale");
+    assert!(err.code.ends_with("/review.schema"), "{}", err.code);
+    assert!(!err.to_string().contains(PARCEL_COLUMN_TEXT));
+    assert!(!err.to_string().contains(VAULT_COLUMN_TEXT));
+    assert!(!err.to_string().contains(COLUMN_CAVEAT));
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}
+
+#[test]
+fn column_response_failures_do_not_reseal() {
+    let base = ready();
+    let (command, request, compiled) = v2_binding(&base.artifact);
+    let columns = physical(&request);
+    let mut commented = response_v2(&request, dataset_bodies(&request), labeled_columns(&columns));
+    commented["comment"] = json!(COMMENT_CANARY);
+    let commented_world = finish_v2(command.clone(), commented, recompile(&base.artifact), base.artifact.clone());
+    assert_eq!(commented_world.outcome["outcome"], "format_rejected");
+    assert_eq!(commented_world.outcome["candidates"], json!([]));
+    assert_eq!(commented_world.outcome["columns"], json!([]));
+    let outcome_text = complete_description_candidates(&commented_world.produced_text).unwrap();
+    assert!(!outcome_text.contains(COMMENT_CANARY));
+    assert!(!outcome_text.contains(PARCEL_COLUMN_TEXT));
+    let orders = column_orders_file();
+    let ledger = column_ledger_file();
+    let orders_hash = canonical_sha(&orders);
+    let review = column_review(
+        &commented_world,
+        &orders,
+        &ledger,
+        vec![json!({
+            "candidate_sha256": "aa".repeat(32),
+            "card_sha256": "aa".repeat(32),
+            "curated_sha256": orders_hash,
+            "dataset": ORDERS,
+            "decision": "reject",
+            "evidence_hash": compiled.evidence_hash,
+            "request_sha256": "aa".repeat(32),
+            "reviewer_at": REVIEWED_ON,
+            "reviewer_label": REVIEWER,
+            "schema_hash": compiled.schema_hash
+        })],
+        vec![json!({
+            "attnum": 2,
+            "candidate_sha256": "aa".repeat(32),
+            "card_sha256": "aa".repeat(32),
+            "column": "parcel_count",
+            "curated_sha256": orders_hash,
+            "dataset": ORDERS,
+            "decision": "reject",
+            "evidence_hash": compiled.evidence_hash,
+            "request_sha256": "aa".repeat(32),
+            "reviewer_at": REVIEWED_ON,
+            "reviewer_label": REVIEWER,
+            "schema_hash": compiled.schema_hash
+        })],
+    );
+    let packed_command = pack_column(&review, &base.artifact, json!([]), two_roles(), false, None);
+    let (text, packed) = apply_ok(&packed_command);
+    assert_eq!(packed["outcome"], "not_candidates");
+    assert!(packed.get("resealed_artifact").is_none());
+    assert!(packed.get("packs").is_none());
+    assert!(!text.contains(COMMENT_CANARY));
+    assert!(!text.contains(PARCEL_COLUMN_TEXT));
+
+    let mut partial_columns = labeled_columns(&columns);
+    partial_columns.as_array_mut().expect("columns").pop();
+    let (command, request, _) = v2_binding(&base.artifact);
+    let partial = finish_v2(command, response_v2(&request, dataset_bodies(&request), partial_columns), recompile(&base.artifact), base.artifact.clone());
+    assert_eq!(partial.outcome["outcome"], "incomplete");
+    assert_eq!(partial.outcome["candidates"], json!([]));
+    assert_eq!(partial.outcome["columns"], json!([]));
+    assert!(!complete_description_candidates(&partial.produced_text).unwrap().contains(PARCEL_COLUMN_TEXT));
+    let orders_hash = canonical_sha(&column_orders_file());
+    let partial_review = column_review(
+        &partial,
+        &column_orders_file(),
+        &column_ledger_file(),
+        vec![json!({
+            "candidate_sha256": "bb".repeat(32),
+            "card_sha256": "bb".repeat(32),
+            "curated_sha256": orders_hash,
+            "dataset": ORDERS,
+            "decision": "reject",
+            "evidence_hash": partial.evidence_hash,
+            "request_sha256": "bb".repeat(32),
+            "reviewer_at": REVIEWED_ON,
+            "reviewer_label": REVIEWER,
+            "schema_hash": partial.schema_hash
+        })],
+        vec![],
+    );
+    let (partial_text, partial_packed) = apply_ok(&pack_column(&partial_review, &base.artifact, json!([]), two_roles(), false, None));
+    assert_eq!(partial_packed["outcome"], "not_candidates");
+    assert_eq!(partial_packed["compiler_outcome"], "incomplete");
+    assert!(partial_packed.get("resealed_artifact").is_none());
+    assert!(!partial_text.contains(PARCEL_COLUMN_TEXT));
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}
+
+#[test]
+fn column_allowlist_without_classification_is_unknown_pii() {
+    let base = ready();
+    let world = open_v2(&base.artifact);
+    let (review, _orders, _ledger) = positive_column_review(&world);
+    let roles = json!([visibility("oo_r_desk", "desk_user", json!([grant(LEDGER, &["secret_note"])]))]);
+    let command = pack_column(&review, &world.artifact, Value::Array(classifications(&base.draft)), roles, false, None);
+    let err = apply_description_pack(&command).expect_err("unknown pii");
+    assert!(err.code.contains("classification.unknown_pii"), "{}", err.code);
+    assert!(!err.to_string().contains(SECRET_COLUMN_TEXT));
+    assert!(!err.to_string().contains(SECRET_COLUMN_BODY));
+    assert!(!err.to_string().contains(PARCEL_COLUMN_TEXT));
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}
+
+#[test]
+fn occupied_column_review_keeps_the_prior_cas() {
+    let base = ready();
+    let first = open_v2(&base.artifact);
+    let orders = column_orders_file();
+    let ledger = column_ledger_file();
+    let orders_hash = canonical_sha(&orders);
+    let ledger_hash = canonical_sha(&ledger);
+    let columns = physical(&first.request);
+    let review = column_review(
+        &first,
+        &orders,
+        &ledger,
+        vec![
+            dataset_decision(&first, ORDERS, "reject", &orders_hash, None),
+            dataset_decision(&first, LEDGER, "reject", &ledger_hash, None),
+        ],
+        columns.iter().map(|column| {
+            let hash = if column.dataset == ORDERS { orders_hash.as_str() } else { ledger_hash.as_str() };
+            if column.dataset == ORDERS && column.name == "parcel_count" {
+                column_decision(&first, column, "approve", hash, Some(parcel_fields("Parcel count", "curated parcel note")))
+            } else {
+                column_decision(&first, column, "reject", hash, None)
+            }
+        }).collect(),
+    );
+    let command = pack_column(&review, &first.artifact, Value::Array(classifications(&base.draft)), two_roles(), false, None);
+    let (_text, packed) = apply_ok(&command);
+    let item_id = format!("column/{ORDERS}/parcel_count");
+    let prior = review_by_id(&packed["resealed_artifact"], &item_id).clone();
+    let prior_sha = canonical_sha(&prior);
+    assert_eq!(prior["action"], "override");
+    let resealed = packed["resealed_artifact"].clone();
+    let second_orders = with_parcel_text(PARCEL_COLUMN_TEXT, PARCEL_COLUMN_BODY);
+    let second_hash = canonical_sha(&second_orders);
+    let second = open_v2(&resealed);
+    let second_columns = physical(&second.request);
+    let second_ledger_hash = canonical_sha(&ledger);
+    let second_review = column_review(
+        &second,
+        &second_orders,
+        &ledger,
+        vec![
+            dataset_decision(&second, ORDERS, "defer", &second_hash, None),
+            dataset_decision(&second, LEDGER, "reject", &second_ledger_hash, None),
+        ],
+        second_columns.iter().map(|column| {
+            let hash = if column.dataset == ORDERS { second_hash.as_str() } else { second_ledger_hash.as_str() };
+            if column.dataset == ORDERS && column.name == "parcel_count" {
+                column_decision(&second, column, "approve", hash, Some(parcel_fields(PARCEL_COLUMN_TEXT, PARCEL_COLUMN_BODY)))
+            } else {
+                column_decision(&second, column, "reject", hash, None)
+            }
+        }).collect(),
+    );
+    let absent_flag = pack_column(&second_review, &resealed, Value::Array(classifications(&base.draft)), two_roles(), false, None);
+    let (text, denied) = apply_ok(&absent_flag);
+    assert_eq!(denied["outcome"], "unsupported");
+    assert_eq!(denied["seam"], "review.column_decision_occupied");
+    assert!(denied.get("resealed_artifact").is_none());
+    assert!(!text.contains(PARCEL_COLUMN_TEXT_2));
+    let wrong = pack_column(
+        &second_review,
+        &resealed,
+        Value::Array(classifications(&base.draft)),
+        two_roles(),
+        true,
+        Some(json!({ item_id.clone(): "ab".repeat(32) })),
+    );
+    let err = apply_description_pack(&wrong).expect_err("cas");
+    assert!(err.code.ends_with("/review.occupied_cas"), "{}", err.code);
+    assert!(!err.to_string().contains(PARCEL_COLUMN_TEXT_2));
+    let unauthorized = pack_column(
+        &second_review,
+        &resealed,
+        json!([]),
+        two_roles(),
+        false,
+        Some(json!({ item_id.clone(): prior_sha })),
+    );
+    let err = apply_description_pack(&unauthorized).expect_err("flag");
+    assert!(err.code.ends_with("/schema.invalid"), "{}", err.code);
+    let (command, request, compiled) = v2_binding(&resealed);
+    let mut replaced_columns = labeled_columns(&physical(&request));
+    for item in replaced_columns.as_array_mut().expect("columns") {
+        if item["dataset"] == ORDERS && item["column"] == "parcel_count" {
+            item["label"] = json!(PARCEL_COLUMN_TEXT_2);
+            item["description"] = json!(PARCEL_COLUMN_BODY_2);
+            item["confidence"] = json!("0");
+            item["caveats"] = json!([]);
+        }
+    }
+    let replaced = finish_v2(command, response_v2(&request, dataset_bodies(&request), replaced_columns), compiled, resealed.clone());
+    let replaced_hash = canonical_sha(&with_parcel_text(PARCEL_COLUMN_TEXT, PARCEL_COLUMN_BODY));
+    let ledger_hash = canonical_sha(&ledger);
+    let replaced_review = column_review(
+        &replaced,
+        &with_parcel_text(PARCEL_COLUMN_TEXT, PARCEL_COLUMN_BODY),
+        &ledger,
+        vec![
+            dataset_decision(&replaced, ORDERS, "defer", &replaced_hash, None),
+            dataset_decision(&replaced, LEDGER, "reject", &ledger_hash, None),
+        ],
+        physical(&replaced.request).iter().map(|column| {
+            let hash = if column.dataset == ORDERS { replaced_hash.as_str() } else { ledger_hash.as_str() };
+            if column.dataset == ORDERS && column.name == "parcel_count" {
+                column_decision(
+                    &replaced,
+                    column,
+                    "approve",
+                    hash,
+                    Some(json!({
+                        "description": {"overwrite": true, "current_sha256": field_sha(Some(PARCEL_COLUMN_BODY))},
+                        "label": {"overwrite": true, "current_sha256": field_sha(Some(PARCEL_COLUMN_TEXT))}
+                    })),
+                )
+            } else {
+                column_decision(&replaced, column, "reject", hash, None)
+            }
+        }).collect(),
+    );
+    let exact = pack_column(
+        &replaced_review,
+        &resealed,
+        Value::Array(classifications(&base.draft)),
+        two_roles(),
+        true,
+        Some(json!({ item_id.clone(): prior_sha })),
+    );
+    let (text, packed) = apply_ok(&exact);
+    assert_eq!(packed["outcome"], "packed");
+    assert!(!text.contains("0.5"));
+    let row = packed["occupied_replacements"].as_array().expect("replacements").iter().find(|item| item["item_id"] == item_id).expect("column replacement");
+    assert_eq!(row["attribution"], "bridge_provenance");
+    assert_eq!(row["prior_review"], prior);
+    assert_eq!(row["prior_review_sha256"], prior_sha);
+    assert_eq!(row["compiler_review_sha256"], prior_sha);
+    assert_eq!(row["descriptive_provenance"]["authenticated"], false);
+    assert_eq!(row["descriptive_provenance"]["reviewer_label"], REVIEWER);
+    assert_eq!(row["descriptive_provenance"]["fields"], json!(["description", "label"]));
+    assert_eq!(review_by_id(&packed["resealed_artifact"], &item_id), &prior);
+    assert_eq!(column_of(&document_of(&packed, ORDERS)["document"], "parcel_count")["label"], PARCEL_COLUMN_TEXT_2);
+    assert_eq!(column_of(&document_of(&packed, ORDERS)["document"], "parcel_count")["pii"], "personal");
+    let kept = recompile(&resealed);
+    assert_eq!(kept.wrapper_hash, packed["original_wrapper_hash"]);
+    let again = recompile(&base.artifact);
+    assert_eq!(again.wrapper_hash, base.compiled_wrapper);
+}

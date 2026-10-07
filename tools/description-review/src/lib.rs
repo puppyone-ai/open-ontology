@@ -13,4 +13,6 @@ mod canonical;
 mod error;
 
 pub use apply::{apply_description_review, curated_dataset_sha256, descriptive_field_sha256};
-pub use error::{COMMAND_PROTOCOL, REVIEW_COMPILER, REVIEW_PROTOCOL, DescriptionReviewError};
+pub use error::{
+    COMMAND_PROTOCOL, REVIEW_COMPILER, REVIEW_PROTOCOL, REVIEW_PROTOCOL_V2, DescriptionReviewError,
+};

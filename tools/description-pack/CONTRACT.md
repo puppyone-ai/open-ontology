@@ -23,6 +23,8 @@ One object. Unknown fields are rejected.
 | `roles` | One to eight `oo.builder.role-visibility/v1` objects, each with a distinct `role` |
 | `replace_existing_dataset_review` | Optional boolean. Absent or false keeps the historical occupied-review refusal |
 | `expected_existing_review_sha256` | Optional object. Present only when replacement is authorized. Keys are `dataset/{qualified}`. Each value is the SHA-256 of the canonical JSON of that one existing review object |
+| `replace_existing_column_review` | Optional boolean. Absent or false keeps an occupied column review refused |
+| `expected_existing_column_review_sha256` | Optional object. Present only when column replacement is authorized. Keys are `column/{qualified}/{ident}`. Each value is the SHA-256 of that four-field compiler review object |
 
 `settings` and every role snapshot must already satisfy the upstream compilers. This bridge does not invent classification, PII, or visibility. A replacement hash without `replace_existing_dataset_review: true` is `schema.invalid`. The boolean alone does not select a review.
 
@@ -45,7 +47,10 @@ One object. Unknown fields are rejected.
 | `review.dataset_action_unsupported` | Replacement was authorized and the CAS matched, but the existing action is not `override`. The bridge does not rewrite it |
 | `review.entry_not_preserved` | A compiler result dropped or rewrote a review object the bridge did not intend to add |
 | `review.dataset_fingerprint_absent` | The compiler's unbound queue did not publish one dataset fact fingerprint |
-| `effective.field_not_applied` | A second compile did not place the approved text on the effective dataset |
+| `effective.field_not_applied` | A second compile did not place the approved dataset or column text |
+| `review.column_decision_occupied` | `column/{qualified}/{ident}` is already present and the caller did not authorize replacement |
+| `review.column_action_unsupported` | Column replacement was authorized and the CAS matched, but the existing action is not `override` |
+| `review.column_fingerprint_absent` | The compiler's unbound queue did not publish one column fact fingerprint |
 | `curated.document_absent` | An applied decision has no reviewed dataset document |
 | `curated.field_absent` | A filled or replaced field is not a string on that document |
 
@@ -72,6 +77,14 @@ The packed document then carries `occupied_replacements`, sorted by `item_id`. E
 Classification, status, PII, entity, semantic type, column rows, and extra curated dataset files stay on `curated_documents`, which is the description-review `datasets` array. Those DatasetFile-only fields are not inserted into the captured overlay. A curated dataset that is not a catalog table stays in `curated_documents` and is not forced into the seal.
 
 Reviewed-effective classification comes only from `decisions`. Curated PII and semantic fields are not copied into the effective layer. Role packs are the bytes `compile_role_pack` returns for each visibility snapshot. Dataset descriptions render only when settings include `dataset_descriptions`, and the role-pack compiler still prefixes its UNREVIEWED fence. A description that names a hidden column is omitted for that role by the existing role-pack filter. An allowlisted column with unknown PII fails the role-pack compiler; this bridge returns that error and no pack document.
+
+## Column text
+
+A v2 description review can carry `column_decisions`. The bridge reads `applied: true` rows whose `label_disposition` or `description_disposition` is `filled` or `replaced`. It copies that column's `label` and `description` from the reviewed `DatasetFile` onto the captured curated overlay, using the compiler `ident` as the column `name`. It does not copy confidence, caveats, open questions, PII, semantic type, classification, status, or unit from the decision. Caveats stay on the review record. An empty column-approval list leaves the dataset reseal path unchanged.
+
+Occupied column replacement uses `replace_existing_column_review` and `expected_existing_column_review_sha256`. The hash is the canonical four-field compiler review object. A hash without the flag is `schema.invalid`. The wrong set or hash is `review.occupied_cas`. A missing flag on an occupied column is `unsupported` seam `review.column_decision_occupied`. An action other than `override` is `review.column_action_unsupported`. A stale override is `review.occupied_stale`. Existing review objects stay. Dataset occupied CAS is unchanged and does not use column keys.
+
+`compile_reviewed_effective` still receives only the caller `decisions` array. This bridge does not invent a PII level or a semantic type and does not copy confidence into those decisions. `compile_role_pack` hides columns that are absent from that role's allowlist, including their labels and descriptions. Unknown PII on an allowlisted column fails closed with no pack document.
 
 ## Refusals
 

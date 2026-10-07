@@ -18,7 +18,9 @@ use oo_core::oos::{CivilDate, DatasetFile};
 use oo_core::text::{Label, contains_forbidden_interpolation};
 
 use crate::canonical::{canonical_json, canonical_sha256, push_string, sha256_bytes};
-use crate::error::{COMMAND_PROTOCOL, REVIEW_COMPILER, REVIEW_PROTOCOL, DescriptionReviewError};
+use crate::error::{
+    COMMAND_PROTOCOL, REVIEW_COMPILER, REVIEW_PROTOCOL, REVIEW_PROTOCOL_V2, DescriptionReviewError,
+};
 
 const OUTCOME_KEYS: &[&str] = &[
     "budget_reason",
@@ -32,6 +34,33 @@ const OUTCOME_KEYS: &[&str] = &[
     "statements",
     "structural_draft",
 ];
+const OUTCOME_KEYS_V2: &[&str] = &[
+    "budget_reason",
+    "candidates",
+    "columns",
+    "compiler",
+    "outcome",
+    "protocol",
+    "refusal",
+    "request_sha256",
+    "selected_datasets",
+    "statements",
+    "structural_draft",
+];
+const COLUMN_KEYS: &[&str] = &[
+    "attnum",
+    "card_sha256",
+    "caveats",
+    "column",
+    "confidence",
+    "dataset",
+    "description",
+    "effect",
+    "ident",
+    "label",
+    "open_questions",
+];
+const CANDIDATE_PROTOCOL_V2: &str = "oo.builder.description-candidate/v2";
 const DRAFT_KEYS: &[&str] = &[
     "config_hash",
     "draft_hash",
@@ -71,6 +100,20 @@ const STATEMENT_KEYS: &[&str] = &[
 const DECISION_KEYS: &[&str] = &[
     "candidate_sha256",
     "card_sha256",
+    "curated_sha256",
+    "dataset",
+    "decision",
+    "evidence_hash",
+    "request_sha256",
+    "reviewer_at",
+    "reviewer_label",
+    "schema_hash",
+];
+const COLUMN_DECISION_KEYS: &[&str] = &[
+    "attnum",
+    "candidate_sha256",
+    "card_sha256",
+    "column",
     "curated_sha256",
     "dataset",
     "decision",
@@ -124,9 +167,16 @@ pub fn apply_description_review(input: &str) -> Result<String, DescriptionReview
         ));
     }
     let outcome = parse_outcome(&outcome_bytes)?;
+    if !outcome.column_mode && !review.column_decisions.is_empty() {
+        return Err(error(
+            "decision.unknown",
+            "a column decision does not match a column candidate",
+        ));
+    }
     if outcome.is_candidates {
         check_effects(&outcome)?;
         check_known_decisions(&review.decisions, &outcome)?;
+        check_known_columns(&review.column_decisions, &outcome)?;
     }
     let document = build_review(&review, &curated, &outcome, &outcome_sha);
     Ok(finish_review(document))
@@ -141,6 +191,8 @@ struct CommandIn {
     current: CurrentIn,
     curated: Map<String, Value>,
     decisions: Vec<Value>,
+    #[serde(default)]
+    column_decisions: Vec<Value>,
 }
 
 #[derive(Deserialize)]
@@ -163,6 +215,15 @@ struct FieldsIn {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ColumnFieldsIn {
+    #[serde(default)]
+    label: Option<FieldIn>,
+    #[serde(default)]
+    description: Option<FieldIn>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FieldIn {
     overwrite: bool,
     #[serde(default)]
@@ -173,6 +234,7 @@ struct ReviewCommand {
     current_schema: String,
     current_evidence: String,
     decisions: Vec<Decision>,
+    column_decisions: Vec<ColumnDecision>,
 }
 
 struct Decision {
@@ -189,6 +251,23 @@ struct Decision {
     label: FieldMode,
     description: FieldMode,
     grain: FieldMode,
+}
+
+struct ColumnDecision {
+    dataset: String,
+    column: String,
+    attnum: i64,
+    kind: Kind,
+    reviewer_label: String,
+    reviewer_at: String,
+    request_sha256: String,
+    card_sha256: String,
+    schema_hash: String,
+    evidence_hash: String,
+    candidate_sha256: String,
+    curated_sha256: String,
+    label: FieldMode,
+    description: FieldMode,
 }
 
 enum Kind {
@@ -217,9 +296,26 @@ struct Outcome {
     statements: Value,
     selected: Vec<String>,
     candidates: BTreeMap<String, Candidate>,
+    columns: BTreeMap<(String, String), ColumnCandidate>,
     schema_hash: String,
     evidence_hash: String,
     is_candidates: bool,
+    column_mode: bool,
+}
+
+struct ColumnCandidate {
+    dataset: String,
+    column: String,
+    attnum: i64,
+    ident: String,
+    card_sha256: String,
+    label: String,
+    description: String,
+    confidence: String,
+    caveats: Vec<String>,
+    open_questions: Vec<String>,
+    effect: String,
+    object_sha: String,
 }
 
 struct Candidate {
@@ -237,6 +333,7 @@ struct Candidate {
 
 struct QueueItem {
     dataset: String,
+    column: Option<String>,
     kind: &'static str,
     reason: String,
 }
@@ -263,11 +360,121 @@ fn validate_command(command: &CommandIn) -> Result<ReviewCommand, DescriptionRev
         }
         decisions.push(decision);
     }
+    let mut column_seen = BTreeSet::new();
+    let mut column_decisions = Vec::with_capacity(command.column_decisions.len());
+    for item in &command.column_decisions {
+        let decision = parse_column_decision(item)?;
+        if !column_seen.insert((decision.dataset.clone(), decision.column.clone())) {
+            return Err(error(
+                "decision.duplicate",
+                "a column has more than one decision",
+            ));
+        }
+        column_decisions.push(decision);
+    }
     Ok(ReviewCommand {
         current_schema: command.current.schema_hash.clone(),
         current_evidence: command.current.evidence_hash.clone(),
         decisions,
+        column_decisions,
     })
+}
+
+fn parse_column_decision(value: &Value) -> Result<ColumnDecision, DescriptionReviewError> {
+    let map = value.as_object().ok_or_else(shape)?;
+    if !map
+        .keys()
+        .all(|key| key == "fields" || COLUMN_DECISION_KEYS.contains(&key.as_str()))
+        || COLUMN_DECISION_KEYS.iter().any(|key| !map.contains_key(*key))
+    {
+        return Err(if COLUMN_DECISION_KEYS.iter().any(|key| !map.contains_key(*key)) {
+            error(
+                "schema.invalid",
+                "the review command is missing a required field",
+            )
+        } else {
+            error("schema.invalid", "the review command has an unknown field")
+        });
+    }
+    let dataset = require_string(map, "dataset")?;
+    if !is_qualified_table(dataset) {
+        return Err(error(
+            "schema.invalid",
+            "a decision dataset is not a qualified table",
+        ));
+    }
+    let column = require_string(map, "column")?;
+    if column.is_empty() || column.contains('.') || column.contains('\0') {
+        return Err(error(
+            "schema.invalid",
+            "a decision column is not a column name",
+        ));
+    }
+    let attnum = map.get("attnum").and_then(Value::as_i64).ok_or_else(shape)?;
+    let kind = match require_string(map, "decision")? {
+        "approve" => Kind::Approve,
+        "reject" => Kind::Reject,
+        "defer" => Kind::Defer,
+        _ => {
+            return Err(error(
+                "schema.invalid",
+                "the decision is not approve, reject, or defer",
+            ));
+        }
+    };
+    let reviewer_label = require_string(map, "reviewer_label")?;
+    check_reviewer(reviewer_label)?;
+    let reviewer_at = require_string(map, "reviewer_at")?;
+    CivilDate::new(reviewer_at).map_err(|_| {
+        error("reviewer.date", "the reviewer date is not a civil date")
+    })?;
+    let (label, description) = parse_column_choice(&kind, map.get("fields"))?;
+    Ok(ColumnDecision {
+        dataset: dataset.to_owned(),
+        column: column.to_owned(),
+        attnum,
+        kind,
+        reviewer_label: reviewer_label.to_owned(),
+        reviewer_at: reviewer_at.to_owned(),
+        request_sha256: require_sha_field(map, "request_sha256")?,
+        card_sha256: require_sha_field(map, "card_sha256")?,
+        schema_hash: require_sha_field(map, "schema_hash")?,
+        evidence_hash: require_sha_field(map, "evidence_hash")?,
+        candidate_sha256: require_sha_field(map, "candidate_sha256")?,
+        curated_sha256: require_sha_field(map, "curated_sha256")?,
+        label,
+        description,
+    })
+}
+
+fn parse_column_choice(
+    kind: &Kind,
+    fields: Option<&Value>,
+) -> Result<(FieldMode, FieldMode), DescriptionReviewError> {
+    let present = fields.is_some();
+    match kind {
+        Kind::Approve if !present => {
+            return Err(error("schema.invalid", "an approval requires fields"));
+        }
+        Kind::Reject | Kind::Defer if present => {
+            return Err(error(
+                "schema.invalid",
+                "reject and defer do not take fields",
+            ));
+        }
+        Kind::Reject | Kind::Defer => return Ok((FieldMode::Omit, FieldMode::Omit)),
+        Kind::Approve => {}
+    }
+    let Some(value) = fields else {
+        return Err(error("schema.invalid", "an approval requires fields"));
+    };
+    let parsed: ColumnFieldsIn = serde_json::from_value(value.clone()).map_err(|_| {
+        error(
+            "schema.invalid",
+            "an approval field is not label or description",
+        )
+    })?;
+    Ok((field_mode(parsed.label)?, field_mode(parsed.description)?))
 }
 
 fn parse_decision(value: &Value) -> Result<Decision, DescriptionReviewError> {
@@ -460,10 +667,14 @@ fn parse_outcome(bytes: &str) -> Result<Outcome, DescriptionReviewError> {
         )
     })?;
     let map = value.as_object().ok_or_else(compiler_shape)?;
-    if !exact_keys(map, OUTCOME_KEYS) {
-        return Err(compiler_shape());
-    }
-    if map.get("protocol").and_then(Value::as_str) != Some(DESCRIPTION_CANDIDATE_PROTOCOL)
+    let protocol = map.get("protocol").and_then(Value::as_str).unwrap_or("");
+    let column_mode = match protocol {
+        DESCRIPTION_CANDIDATE_PROTOCOL => false,
+        CANDIDATE_PROTOCOL_V2 => true,
+        _ => return Err(compiler_shape()),
+    };
+    let keys = if column_mode { OUTCOME_KEYS_V2 } else { OUTCOME_KEYS };
+    if !exact_keys(map, keys)
         || map.get("compiler").and_then(Value::as_str) != Some(DESCRIPTION_CANDIDATE_COMPILER)
     {
         return Err(compiler_shape());
@@ -518,6 +729,11 @@ fn parse_outcome(bytes: &str) -> Result<Outcome, DescriptionReviewError> {
     } else if !candidates.is_empty() {
         return Err(compiler_shape());
     }
+    let columns = if column_mode {
+        parse_columns(map.get("columns"), is_candidates)?
+    } else {
+        BTreeMap::new()
+    };
     Ok(Outcome {
         name,
         refusal,
@@ -526,9 +742,52 @@ fn parse_outcome(bytes: &str) -> Result<Outcome, DescriptionReviewError> {
         statements: statements.clone(),
         selected,
         candidates,
+        columns,
         schema_hash,
         evidence_hash,
         is_candidates,
+        column_mode,
+    })
+}
+
+fn parse_columns(
+    value: Option<&Value>,
+    is_candidates: bool,
+) -> Result<BTreeMap<(String, String), ColumnCandidate>, DescriptionReviewError> {
+    let items = value.and_then(Value::as_array).ok_or_else(compiler_shape)?;
+    if !is_candidates && !items.is_empty() {
+        return Err(compiler_shape());
+    }
+    let mut out = BTreeMap::new();
+    for item in items {
+        let candidate = parse_column_candidate(item)?;
+        let key = (candidate.dataset.clone(), candidate.column.clone());
+        if out.insert(key, candidate).is_some() {
+            return Err(compiler_shape());
+        }
+    }
+    Ok(out)
+}
+
+fn parse_column_candidate(value: &Value) -> Result<ColumnCandidate, DescriptionReviewError> {
+    let map = value.as_object().ok_or_else(compiler_shape)?;
+    if !exact_keys(map, COLUMN_KEYS) {
+        return Err(compiler_shape());
+    }
+    let attnum = map.get("attnum").and_then(Value::as_i64).ok_or_else(compiler_shape)?;
+    Ok(ColumnCandidate {
+        dataset: require_string(map, "dataset")?.to_owned(),
+        column: require_string(map, "column")?.to_owned(),
+        attnum,
+        ident: require_string(map, "ident")?.to_owned(),
+        card_sha256: require_string(map, "card_sha256")?.to_owned(),
+        label: require_string(map, "label")?.to_owned(),
+        description: require_string(map, "description")?.to_owned(),
+        confidence: require_string(map, "confidence")?.to_owned(),
+        caveats: string_list(map.get("caveats"))?,
+        open_questions: string_list(map.get("open_questions"))?,
+        effect: require_string(map, "effect")?.to_owned(),
+        object_sha: canonical_sha256(value),
     })
 }
 
@@ -583,11 +842,34 @@ fn check_effects(outcome: &Outcome) -> Result<(), DescriptionReviewError> {
         .candidates
         .values()
         .any(|candidate| candidate.effect != "review_only")
+        || outcome
+            .columns
+            .values()
+            .any(|candidate| candidate.effect != "review_only")
     {
         return Err(error(
             "candidate.effect",
             "a candidate effect is not review_only",
         ));
+    }
+    Ok(())
+}
+
+fn check_known_columns(
+    decisions: &[ColumnDecision],
+    outcome: &Outcome,
+) -> Result<(), DescriptionReviewError> {
+    for decision in decisions {
+        let key = (decision.dataset.clone(), decision.column.clone());
+        match outcome.columns.get(&key) {
+            Some(candidate) if candidate.attnum == decision.attnum => {}
+            _ => {
+                return Err(error(
+                    "decision.unknown",
+                    "a column decision does not match a column candidate",
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -636,17 +918,41 @@ fn build_review(
         }
         queue.push(QueueItem {
             dataset: String::new(),
+            column: None,
             kind: "compiler",
             reason: outcome.name.clone(),
         });
     }
+    let mut column_records = Vec::new();
+    if outcome.column_mode {
+        review_columns(command, &mut docs, outcome, &mut column_records, &mut queue);
+    }
     records.sort_by(|left, right| json_dataset(left).cmp(json_dataset(right)));
+    column_records.sort_by(|left, right| {
+        (
+            json_dataset(left),
+            json_text(left, "column"),
+            json_attnum(left),
+        )
+            .cmp(&(
+                json_dataset(right),
+                json_text(right, "column"),
+                json_attnum(right),
+            ))
+    });
     queue.sort_by(|left, right| {
-        (&left.dataset, left.kind, left.reason.as_str()).cmp(&(
-            &right.dataset,
-            right.kind,
-            right.reason.as_str(),
-        ))
+        (
+            left.dataset.as_str(),
+            left.column.as_deref().unwrap_or(""),
+            left.kind,
+            left.reason.as_str(),
+        )
+            .cmp(&(
+                right.dataset.as_str(),
+                right.column.as_deref().unwrap_or(""),
+                right.kind,
+                right.reason.as_str(),
+            ))
     });
     let mut datasets = Vec::new();
     for (name, loaded) in &docs {
@@ -671,6 +977,12 @@ fn build_review(
         "datasets".to_owned(),
         Value::Array(datasets),
     );
+    if outcome.column_mode {
+        map.insert(
+            "column_decisions".to_owned(),
+            Value::Array(column_records),
+        );
+    }
     map.insert("decisions".to_owned(), Value::Array(records));
     map.insert(
         "outcome".to_owned(),
@@ -684,7 +996,17 @@ fn build_review(
         "outcome_sha256".to_owned(),
         Value::String(outcome_sha.to_owned()),
     );
-    map.insert("protocol".to_owned(), Value::String(REVIEW_PROTOCOL.to_owned()));
+    map.insert(
+        "protocol".to_owned(),
+        Value::String(
+            if outcome.column_mode {
+                REVIEW_PROTOCOL_V2
+            } else {
+                REVIEW_PROTOCOL
+            }
+            .to_owned(),
+        ),
+    );
     map.insert("queue".to_owned(), Value::Array(queue.into_iter().map(queue_value).collect()));
     map.insert(
         "request_sha256".to_owned(),
@@ -695,6 +1017,346 @@ fn build_review(
     );
     map.insert("statements".to_owned(), review_statements());
     map
+}
+
+struct ColumnDispositions {
+    label: &'static str,
+    description: &'static str,
+}
+
+const UNCHANGED_COLUMN: ColumnDispositions = ColumnDispositions {
+    label: "unchanged",
+    description: "unchanged",
+};
+
+fn review_columns(
+    command: &ReviewCommand,
+    docs: &mut BTreeMap<String, Loaded>,
+    outcome: &Outcome,
+    records: &mut Vec<Value>,
+    queue: &mut Vec<QueueItem>,
+) {
+    if !outcome.is_candidates {
+        for decision in &command.column_decisions {
+            records.push(column_record(decision, None, false, UNCHANGED_COLUMN));
+        }
+        return;
+    }
+    let keys: Vec<(String, String)> = outcome.columns.keys().cloned().collect();
+    for key in keys {
+        consider_column(command, docs, outcome, &key, records, queue);
+    }
+}
+
+fn consider_column(
+    command: &ReviewCommand,
+    docs: &mut BTreeMap<String, Loaded>,
+    outcome: &Outcome,
+    key: &(String, String),
+    records: &mut Vec<Value>,
+    queue: &mut Vec<QueueItem>,
+) {
+    let Some(candidate) = outcome.columns.get(key) else {
+        return;
+    };
+    let decision_index = command.column_decisions.iter().position(|item| {
+        item.dataset == candidate.dataset && item.column == candidate.column
+    });
+    let dataset = candidate.dataset.clone();
+    let column_name = candidate.column.clone();
+    let ident = candidate.ident.clone();
+    let missing = docs
+        .get(&dataset)
+        .and_then(|loaded| column_object(&loaded.document, &ident))
+        .is_none();
+    if missing {
+        queue.push(column_item(&dataset, &column_name, "pending", "column_missing"));
+        push_column_context(queue, candidate);
+        if let Some(index) = decision_index {
+            records.push(column_record(
+                &command.column_decisions[index],
+                Some(candidate),
+                false,
+                UNCHANGED_COLUMN,
+            ));
+        }
+        return;
+    }
+    let label_now = docs
+        .get(&dataset)
+        .and_then(|loaded| column_text(&loaded.document, &ident, "label"));
+    let description_now = docs
+        .get(&dataset)
+        .and_then(|loaded| column_text(&loaded.document, &ident, "description"));
+    let preimage = docs
+        .get(&dataset)
+        .map(|loaded| loaded.preimage.clone())
+        .unwrap_or_default();
+    let decision = decision_index.map(|index| &command.column_decisions[index]);
+    if let Some(reason) = column_stale(
+        command,
+        outcome,
+        decision,
+        candidate,
+        &preimage,
+        label_now.as_deref(),
+        description_now.as_deref(),
+    ) {
+        queue.push(column_item(&dataset, &column_name, "stale", reason));
+        push_column_context(queue, candidate);
+        if let Some(decision) = decision {
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+        }
+        return;
+    }
+    let Some(decision) = decision else {
+        queue.push(column_item(&dataset, &column_name, "pending", "decision_missing"));
+        push_column_context(queue, candidate);
+        return;
+    };
+    match decision.kind {
+        Kind::Reject => {
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+        }
+        Kind::Defer => {
+            queue.push(column_item(&dataset, &column_name, "pending", "deferred"));
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+        }
+        Kind::Approve => approve_column(
+            docs,
+            decision,
+            candidate,
+            label_now.as_deref(),
+            description_now.as_deref(),
+            records,
+            queue,
+        ),
+    }
+}
+
+fn column_stale(
+    command: &ReviewCommand,
+    outcome: &Outcome,
+    decision: Option<&ColumnDecision>,
+    candidate: &ColumnCandidate,
+    preimage: &str,
+    label_now: Option<&str>,
+    description_now: Option<&str>,
+) -> Option<&'static str> {
+    if command.current_schema != outcome.schema_hash {
+        return Some("schema");
+    }
+    if command.current_evidence != outcome.evidence_hash {
+        return Some("evidence");
+    }
+    let decision = decision?;
+    if decision.schema_hash != command.current_schema {
+        return Some("schema");
+    }
+    if decision.evidence_hash != command.current_evidence {
+        return Some("evidence");
+    }
+    if decision.request_sha256 != outcome.request_sha256.as_deref().unwrap_or("") {
+        return Some("request");
+    }
+    if decision.card_sha256 != candidate.card_sha256 {
+        return Some("card");
+    }
+    if decision.candidate_sha256 != candidate.object_sha {
+        return Some("candidate");
+    }
+    if decision.curated_sha256 != preimage {
+        return Some("curated");
+    }
+    if mismatch(&decision.label, label_now) || mismatch(&decision.description, description_now) {
+        return Some("cas");
+    }
+    None
+}
+
+fn approve_column(
+    docs: &mut BTreeMap<String, Loaded>,
+    decision: &ColumnDecision,
+    candidate: &ColumnCandidate,
+    label_now: Option<&str>,
+    description_now: Option<&str>,
+    records: &mut Vec<Value>,
+    queue: &mut Vec<QueueItem>,
+) {
+    let label = match plan_field(&decision.label, label_now, &candidate.label, FieldKind::Label) {
+        Ok(plan) => plan,
+        Err(reason) => {
+            queue.push(column_item(
+                &candidate.dataset,
+                &candidate.column,
+                "core_rejected",
+                reason,
+            ));
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+            return;
+        }
+    };
+    let description = match plan_field(
+        &decision.description,
+        description_now,
+        &candidate.description,
+        FieldKind::Description,
+    ) {
+        Ok(plan) => plan,
+        Err(reason) => {
+            queue.push(column_item(
+                &candidate.dataset,
+                &candidate.column,
+                "core_rejected",
+                reason,
+            ));
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+            return;
+        }
+    };
+    let dispositions = ColumnDispositions {
+        label: label.disposition,
+        description: description.disposition,
+    };
+    if label.write.is_none() && description.write.is_none() {
+        push_column_context(queue, candidate);
+        records.push(column_record(decision, Some(candidate), false, dispositions));
+        return;
+    }
+    let Some(loaded) = docs.get_mut(&candidate.dataset) else {
+        return;
+    };
+    match commit_column(
+        &loaded.document,
+        &candidate.ident,
+        label.write.as_deref(),
+        description.write.as_deref(),
+    ) {
+        Ok((file, document)) => {
+            loaded.file = file;
+            loaded.document = document;
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), true, dispositions));
+        }
+        Err(reason) => {
+            queue.push(column_item(
+                &candidate.dataset,
+                &candidate.column,
+                "core_rejected",
+                reason,
+            ));
+            push_column_context(queue, candidate);
+            records.push(column_record(decision, Some(candidate), false, UNCHANGED_COLUMN));
+        }
+    }
+}
+
+fn commit_column(
+    document: &Value,
+    ident: &str,
+    label: Option<&str>,
+    description: Option<&str>,
+) -> Result<(DatasetFile, Value), &'static str> {
+    let mut next = document.clone();
+    let columns = next
+        .as_object_mut()
+        .and_then(|object| object.get_mut("columns"))
+        .and_then(Value::as_array_mut)
+        .ok_or("column_missing")?;
+    let column = columns
+        .iter_mut()
+        .find(|item| item.get("name").and_then(Value::as_str) == Some(ident))
+        .and_then(Value::as_object_mut)
+        .ok_or("column_missing")?;
+    if let Some(text) = label {
+        column.insert("label".to_owned(), Value::String(text.to_owned()));
+    }
+    if let Some(text) = description {
+        column.insert("description".to_owned(), Value::String(text.to_owned()));
+    }
+    let parsed: DatasetFile = serde_json::from_value(next).map_err(|_| "core_schema")?;
+    let document = serde_json::to_value(&parsed).map_err(|_| "core_schema")?;
+    Ok((parsed, document))
+}
+
+fn column_object<'a>(document: &'a Value, ident: &str) -> Option<&'a Value> {
+    document
+        .get("columns")
+        .and_then(Value::as_array)
+        .and_then(|items| {
+            items
+                .iter()
+                .find(|item| item.get("name").and_then(Value::as_str) == Some(ident))
+        })
+}
+
+fn column_text(document: &Value, ident: &str, field: &str) -> Option<String> {
+    match column_object(document, ident)?.get(field) {
+        Some(Value::String(text)) => Some(text.clone()),
+        _ => None,
+    }
+}
+
+fn push_column_context(queue: &mut Vec<QueueItem>, candidate: &ColumnCandidate) {
+    if !candidate.caveats.is_empty() {
+        queue.push(column_item(
+            &candidate.dataset,
+            &candidate.column,
+            "pending",
+            "caveats",
+        ));
+    }
+    if !candidate.open_questions.is_empty() {
+        queue.push(column_item(
+            &candidate.dataset,
+            &candidate.column,
+            "pending",
+            "open_questions",
+        ));
+    }
+}
+
+fn column_record(
+    decision: &ColumnDecision,
+    candidate: Option<&ColumnCandidate>,
+    applied: bool,
+    dispositions: ColumnDispositions,
+) -> Value {
+    let kind = match decision.kind {
+        Kind::Approve => "approve",
+        Kind::Reject => "reject",
+        Kind::Defer => "defer",
+    };
+    serde_json::json!({
+        "applied": applied,
+        "attnum": candidate.map(|item| item.attnum).unwrap_or(decision.attnum),
+        "authenticated": false,
+        "candidate_caveats": candidate.map(|item| string_values(&item.caveats)).unwrap_or_else(|| Value::Array(Vec::new())),
+        "candidate_confidence": candidate.map(|item| Value::String(item.confidence.clone())).unwrap_or(Value::Null),
+        "candidate_description": candidate.map(|item| Value::String(item.description.clone())).unwrap_or(Value::Null),
+        "candidate_label": candidate.map(|item| Value::String(item.label.clone())).unwrap_or(Value::Null),
+        "candidate_open_questions": candidate.map(|item| string_values(&item.open_questions)).unwrap_or_else(|| Value::Array(Vec::new())),
+        "candidate_sha256": decision.candidate_sha256,
+        "card_sha256": decision.card_sha256,
+        "column": decision.column,
+        "confidence_effect": "recorded_only",
+        "curated_sha256": decision.curated_sha256,
+        "dataset": decision.dataset,
+        "decision": kind,
+        "description_disposition": dispositions.description,
+        "effect": candidate.map(|_| Value::String("review_only".to_owned())).unwrap_or(Value::Null),
+        "evidence_hash": decision.evidence_hash,
+        "ident": candidate.map(|item| Value::String(item.ident.clone())).unwrap_or(Value::Null),
+        "label_disposition": dispositions.label,
+        "request_sha256": decision.request_sha256,
+        "reviewer_at": decision.reviewer_at,
+        "reviewer_label": decision.reviewer_label,
+        "schema_hash": decision.schema_hash,
+    })
 }
 
 struct Facts<'a> {
@@ -1131,19 +1793,40 @@ fn finish_review(map: Map<String, Value>) -> String {
 }
 
 fn queue_value(item: QueueItem) -> Value {
-    serde_json::json!({
-        "dataset": item.dataset,
-        "kind": item.kind,
-        "reason": item.reason,
-    })
+    let mut map = Map::new();
+    if let Some(column) = item.column {
+        map.insert("column".to_owned(), Value::String(column));
+    }
+    map.insert("dataset".to_owned(), Value::String(item.dataset));
+    map.insert("kind".to_owned(), Value::String(item.kind.to_owned()));
+    map.insert("reason".to_owned(), Value::String(item.reason));
+    Value::Object(map)
 }
 
 fn item(dataset: &str, kind: &'static str, reason: &str) -> QueueItem {
     QueueItem {
         dataset: dataset.to_owned(),
+        column: None,
         kind,
         reason: reason.to_owned(),
     }
+}
+
+fn column_item(dataset: &str, column: &str, kind: &'static str, reason: &str) -> QueueItem {
+    QueueItem {
+        dataset: dataset.to_owned(),
+        column: Some(column.to_owned()),
+        kind,
+        reason: reason.to_owned(),
+    }
+}
+
+fn json_text<'a>(value: &'a Value, key: &str) -> &'a str {
+    value.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn json_attnum(value: &Value) -> i64 {
+    value.get("attnum").and_then(Value::as_i64).unwrap_or(0)
 }
 
 fn string_values(items: &[String]) -> Value {

@@ -138,6 +138,16 @@ Each queue item is `dataset`, `kind`, and `reason`. Compiler-wide items use an e
 | `source_artifact` | `not_mutated` |
 | `status` | `not_changed` |
 
+## Column candidates
+
+`binding.prompt_version` `oo.builder.description-prompt/v2` selects compiler outcome `oo.builder.description-candidate/v2`. That document keeps every v1 field and adds `columns`. A v1 outcome omits `columns`. A v2 failure outcome has `columns: []`. Non-empty `columns` when `outcome` is not `candidates` is `compiler.schema`.
+
+The review command may include `column_decisions`. Absent or empty leaves a v1 review byte-for-byte. A non-empty `column_decisions` array against a v1 outcome is `decision.unknown` and returns no document. A v2 review uses protocol `oo.builder.description-review/v2`, keeps compiler id `oo-builder/description-review/v1`, and always includes `column_decisions`. Dataset `decisions` and dataset queue items stay the v1 shapes. A column queue item adds `column`.
+
+A column decision names `dataset`, `column`, and `attnum`, plus the same six hashes, reviewer, and `approve` / `reject` / `defer` choice. `fields` on approve may contain only `label` and `description`. `confidence`, `caveats`, `open_questions`, `pii`, `semantic_type`, `classification`, `status`, and `unit` are `schema.invalid`. `candidate_sha256` is the canonical hash of the compiler column object, including `ident` and `effect`. `curated_sha256` is the canonical hash of the whole `DatasetFile` before the write. `current_sha256` is the canonical JSON literal of that column's current text, or the four bytes `null`.
+
+An approval writes only `label` and `description` onto the `DatasetColumn` whose `name` is the compiler `ident`. The write is a typed `DatasetFile` round trip. Nothing is truncated. Interpolation is `core_schema`. A missing ident queues `column_missing` and does not invent a column or a dataset. Column confidence stays on the decision as `confidence_effect: recorded_only`. Non-empty caveats and open questions stay on the decision and queue `caveats` or `open_questions`. They are not written onto `DatasetFile.caveats` or onto the column. `authenticated` stays false. PII, semantic type, classification, status, unit, provenance, and column review are not modified. The stale order matches a dataset decision.
+
 The captured draft inside `command` is not rewritten. Curated JSON in the input is not a file write.
 
 ## CLI

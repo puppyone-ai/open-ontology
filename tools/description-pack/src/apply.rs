@@ -70,7 +70,20 @@ pub fn apply_description_pack(input: &str) -> Result<String, DescriptionPackErro
             "a replacement hash requires authorization",
         ));
     }
+    if !command.replace_existing_column_review
+        && command.expected_existing_column_review_sha256.is_some()
+    {
+        return Err(DescriptionPackError::named(
+            "schema.invalid",
+            "a replacement hash requires authorization",
+        ));
+    }
     if let Some(map) = &command.expected_existing_review_sha256 {
+        for hash in map.values() {
+            require_sha(hash)?;
+        }
+    }
+    if let Some(map) = &command.expected_existing_column_review_sha256 {
         for hash in map.values() {
             require_sha(hash)?;
         }
@@ -113,23 +126,42 @@ pub fn apply_description_pack(input: &str) -> Result<String, DescriptionPackErro
         Err(Stop::Unsupported(seam)) => return unsupported_outcome(seam, &review_sha),
         Err(Stop::Refuse(err)) => return Err(err),
     };
-    let sealed = if approvals.is_empty() {
-        if command
+    let column_approvals = match collect_column_approvals(&review) {
+        Ok(items) => items,
+        Err(Stop::Unsupported(seam)) => return unsupported_outcome(seam, &review_sha),
+        Err(Stop::Refuse(err)) => return Err(err),
+    };
+    if approvals.is_empty()
+        && command
             .expected_existing_review_sha256
             .as_ref()
             .is_some_and(|map| !map.is_empty())
-        {
-            return Err(occupied_cas());
-        }
+    {
+        return Err(occupied_cas());
+    }
+    if column_approvals.is_empty()
+        && command
+            .expected_existing_column_review_sha256
+            .as_ref()
+            .is_some_and(|map| !map.is_empty())
+    {
+        return Err(occupied_cas());
+    }
+    let sealed = if approvals.is_empty() && column_approvals.is_empty() {
         None
     } else {
         match reseal(
             supplied,
             &original,
             &approvals,
+            &column_approvals,
             ReplaceAuth {
                 enabled: command.replace_existing_dataset_review,
                 expected: command.expected_existing_review_sha256.as_ref(),
+            },
+            ReplaceAuth {
+                enabled: command.replace_existing_column_review,
+                expected: command.expected_existing_column_review_sha256.as_ref(),
             },
         ) {
             Ok(item) => Some(item),
@@ -167,6 +199,10 @@ struct CommandIn {
     replace_existing_dataset_review: bool,
     #[serde(default)]
     expected_existing_review_sha256: Option<BTreeMap<String, String>>,
+    #[serde(default)]
+    replace_existing_column_review: bool,
+    #[serde(default)]
+    expected_existing_column_review_sha256: Option<BTreeMap<String, String>>,
 }
 
 struct ReplaceAuth<'a> {
@@ -208,6 +244,16 @@ struct Approval {
     label: Option<String>,
     description: Option<String>,
     grain: Option<String>,
+    reviewer_label: String,
+    reviewer_at: String,
+    authenticated: bool,
+}
+
+struct ColumnApproval {
+    dataset: String,
+    ident: String,
+    label: Option<String>,
+    description: Option<String>,
     reviewer_label: String,
     reviewer_at: String,
     authenticated: bool,
@@ -464,7 +510,9 @@ fn reseal(
     artifact: &Value,
     original: &OriginalSeal,
     approvals: &[Approval],
+    column_approvals: &[ColumnApproval],
     auth: ReplaceAuth<'_>,
+    column_auth: ReplaceAuth<'_>,
 ) -> Result<Reseal, Stop> {
     let mut overlay = original
         .curated
@@ -475,6 +523,7 @@ fn reseal(
         overlay = serde_json::json!({"datasets": [], "relationships": []});
     }
     write_approvals(&mut overlay, approvals).map_err(Stop::Unsupported)?;
+    write_column_approvals(&mut overlay, column_approvals).map_err(Stop::Unsupported)?;
     let overlay_text = canonical_json(&overlay);
     let reviews = review_list(artifact)?;
     let mut occupied: Vec<(&Approval, &Value)> = Vec::new();
@@ -486,12 +535,29 @@ fn reseal(
             None => fresh.push(approval),
         }
     }
+    let mut column_occupied: Vec<(&ColumnApproval, &Value)> = Vec::new();
+    let mut column_fresh: Vec<&ColumnApproval> = Vec::new();
+    for approval in column_approvals {
+        let item_id = column_item_id(&approval.dataset, &approval.ident);
+        match find_review(&reviews, &item_id)? {
+            Some(existing) => column_occupied.push((approval, existing)),
+            None => column_fresh.push(approval),
+        }
+    }
     if !occupied.is_empty() && !auth.enabled {
         return Err(Stop::Unsupported("review.dataset_decision_occupied"));
+    }
+    if !column_occupied.is_empty() && !column_auth.enabled {
+        return Err(Stop::Unsupported("review.column_decision_occupied"));
     }
     if !occupied.is_empty() {
         authorize_occupied(&occupied, auth)?;
     } else if auth.expected.is_some_and(|map| !map.is_empty()) {
+        return Err(Stop::Refuse(occupied_cas()));
+    }
+    if !column_occupied.is_empty() {
+        authorize_columns(&column_occupied, column_auth)?;
+    } else if column_auth.expected.is_some_and(|map| !map.is_empty()) {
         return Err(Stop::Refuse(occupied_cas()));
     }
     let probe = compile_captured_pg_catalog(
@@ -500,20 +566,26 @@ fn reseal(
         original.reviews.as_deref(),
     )
     .map_err(|err| Stop::Unsupported(seam_code(&err.code)))?;
-    if occupied_is_stale(&probe, &occupied) {
+    if occupied_is_stale(&probe, &occupied) || column_occupied_is_stale(&probe, &column_occupied) {
         return Err(Stop::Refuse(occupied_stale()));
     }
-    if occupied.is_empty() && fields_applied(&probe, approvals) {
+    if occupied.is_empty()
+        && column_occupied.is_empty()
+        && fields_applied(&probe, approvals)
+        && column_fields_applied(&probe, column_approvals)
+    {
         return reseal_from(probe, Vec::new());
     }
-    if fresh.is_empty() {
-        if !fields_applied(&probe, approvals) {
+    if fresh.is_empty() && column_fresh.is_empty() {
+        if !fields_applied(&probe, approvals) || !column_fields_applied(&probe, column_approvals) {
             return Err(Stop::Unsupported("effective.field_not_applied"));
         }
         if !reviews_match(&probe, original.reviews.as_deref()) {
             return Err(Stop::Unsupported("review.entry_not_preserved"));
         }
-        let replacements = replacement_rows(&probe, &occupied)?;
+        let mut replacements = replacement_rows(&probe, &occupied)?;
+        replacements.extend(column_replacement_rows(&probe, &column_occupied)?);
+        replacements.sort_by(|left, right| left.item_id.cmp(&right.item_id));
         return reseal_from(probe, replacements);
     }
     let mut next = reviews.clone();
@@ -528,6 +600,17 @@ fn reseal(
             "schema_hash": original.schema_hash,
         }));
     }
+    for approval in &column_fresh {
+        let item_id = column_item_id(&approval.dataset, &approval.ident);
+        let fingerprint = dataset_fingerprint(&probe, &item_id)
+            .ok_or(Stop::Unsupported("review.column_fingerprint_absent"))?;
+        next.push(serde_json::json!({
+            "action": "override",
+            "fact_fingerprint": fingerprint,
+            "item_id": item_id,
+            "schema_hash": original.schema_hash,
+        }));
+    }
     let reviews_text = canonical_json(&Value::Array(next));
     let compiled = compile_captured_pg_catalog(
         &original.catalog,
@@ -535,17 +618,115 @@ fn reseal(
         Some(&reviews_text),
     )
     .map_err(|err| Stop::Unsupported(seam_code(&err.code)))?;
-    if occupied_is_stale(&compiled, &occupied) {
+    if occupied_is_stale(&compiled, &occupied) || column_occupied_is_stale(&compiled, &column_occupied)
+    {
         return Err(Stop::Refuse(occupied_stale()));
     }
-    if !fields_applied(&compiled, approvals) {
+    if !fields_applied(&compiled, approvals) || !column_fields_applied(&compiled, column_approvals) {
         return Err(Stop::Unsupported("effective.field_not_applied"));
     }
     if !original_reviews_kept(&compiled, &reviews) {
         return Err(Stop::Unsupported("review.entry_not_preserved"));
     }
-    let replacements = replacement_rows(&compiled, &occupied)?;
+    let mut replacements = replacement_rows(&compiled, &occupied)?;
+    replacements.extend(column_replacement_rows(&compiled, &column_occupied)?);
+    replacements.sort_by(|left, right| left.item_id.cmp(&right.item_id));
     reseal_from(compiled, replacements)
+}
+
+fn column_item_id(dataset: &str, ident: &str) -> String {
+    format!("column/{dataset}/{ident}")
+}
+
+fn authorize_columns(
+    occupied: &[(&ColumnApproval, &Value)],
+    auth: ReplaceAuth<'_>,
+) -> Result<(), Stop> {
+    let Some(expected) = auth.expected else {
+        return Err(Stop::Refuse(occupied_cas()));
+    };
+    let needed: BTreeSet<String> = occupied
+        .iter()
+        .map(|(approval, _)| column_item_id(&approval.dataset, &approval.ident))
+        .collect();
+    let supplied: BTreeSet<String> = expected.keys().cloned().collect();
+    if supplied != needed {
+        return Err(Stop::Refuse(occupied_cas()));
+    }
+    for (approval, review) in occupied {
+        let item_id = column_item_id(&approval.dataset, &approval.ident);
+        let Some(supplied_hash) = expected.get(&item_id) else {
+            return Err(Stop::Refuse(occupied_cas()));
+        };
+        if supplied_hash != &review_sha(review) {
+            return Err(Stop::Refuse(occupied_cas()));
+        }
+        if review.get("action").and_then(Value::as_str) != Some("override") {
+            return Err(Stop::Unsupported("review.column_action_unsupported"));
+        }
+    }
+    Ok(())
+}
+
+fn column_occupied_is_stale(
+    compiled: &CapturedPgDraft,
+    occupied: &[(&ColumnApproval, &Value)],
+) -> bool {
+    occupied.iter().any(|(_, review)| {
+        let item_id = review.get("item_id").and_then(Value::as_str).unwrap_or("");
+        has_stale(compiled, item_id)
+    })
+}
+
+fn column_replacement_rows(
+    compiled: &CapturedPgDraft,
+    occupied: &[(&ColumnApproval, &Value)],
+) -> Result<Vec<Replacement>, Stop> {
+    let envelope: Value = serde_json::from_str(&compiled.evidence_envelope).map_err(|_| {
+        Stop::Refuse(DescriptionPackError::named(
+            "seal.rejected",
+            "the resealed draft is not an object",
+        ))
+    })?;
+    let Some(reviews) = envelope.get("reviews").and_then(Value::as_array) else {
+        return Err(Stop::Unsupported("review.entry_not_preserved"));
+    };
+    let mut rows = Vec::with_capacity(occupied.len());
+    for (approval, prior) in occupied {
+        let item_id = column_item_id(&approval.dataset, &approval.ident);
+        let Some(current) = reviews.iter().find(|item| {
+            item.get("item_id").and_then(Value::as_str) == Some(item_id.as_str())
+        }) else {
+            return Err(Stop::Unsupported("review.entry_not_preserved"));
+        };
+        let prior_sha = review_sha(prior);
+        let compiler_sha = review_sha(current);
+        if prior_sha != compiler_sha {
+            return Err(Stop::Unsupported("review.entry_not_preserved"));
+        }
+        rows.push(Replacement {
+            item_id,
+            prior_review: (*prior).clone(),
+            prior_sha,
+            compiler_sha,
+            reviewer_label: approval.reviewer_label.clone(),
+            reviewer_at: approval.reviewer_at.clone(),
+            authenticated: approval.authenticated,
+            fields: column_approval_fields(approval),
+        });
+    }
+    Ok(rows)
+}
+
+fn column_approval_fields(approval: &ColumnApproval) -> Vec<String> {
+    let mut fields = Vec::new();
+    if approval.description.is_some() {
+        fields.push("description".to_owned());
+    }
+    if approval.label.is_some() {
+        fields.push("label".to_owned());
+    }
+    fields
 }
 
 fn authorize_occupied(
@@ -767,6 +948,68 @@ fn write_approvals(overlay: &mut Value, approvals: &[Approval]) -> Result<(), &'
     Ok(())
 }
 
+fn write_column_approvals(overlay: &mut Value, approvals: &[ColumnApproval]) -> Result<(), &'static str> {
+    if approvals.is_empty() {
+        return Ok(());
+    }
+    let Some(object) = overlay.as_object_mut() else {
+        return Err("curated.overlay_rejected");
+    };
+    if !object.contains_key("datasets") {
+        object.insert("datasets".to_owned(), Value::Array(Vec::new()));
+    }
+    if !object.contains_key("relationships") {
+        object.insert("relationships".to_owned(), Value::Array(Vec::new()));
+    }
+    let Some(datasets) = object.get_mut("datasets").and_then(Value::as_array_mut) else {
+        return Err("curated.overlay_rejected");
+    };
+    for approval in approvals {
+        let mut index = datasets.iter().position(|item| {
+            item.get("dataset").and_then(Value::as_str) == Some(approval.dataset.as_str())
+        });
+        if index.is_none() {
+            datasets.push(serde_json::json!({
+                "columns": [],
+                "dataset": approval.dataset,
+            }));
+            index = Some(datasets.len().saturating_sub(1));
+        }
+        let Some(index) = index else {
+            return Err("curated.overlay_rejected");
+        };
+        let Some(entry) = datasets.get_mut(index).and_then(Value::as_object_mut) else {
+            return Err("curated.overlay_rejected");
+        };
+        if !entry.contains_key("columns") {
+            entry.insert("columns".to_owned(), Value::Array(Vec::new()));
+        }
+        let Some(columns) = entry.get_mut("columns").and_then(Value::as_array_mut) else {
+            return Err("curated.overlay_rejected");
+        };
+        let mut column_index = columns.iter().position(|item| {
+            item.get("name").and_then(Value::as_str) == Some(approval.ident.as_str())
+        });
+        if column_index.is_none() {
+            columns.push(serde_json::json!({"name": approval.ident}));
+            column_index = Some(columns.len().saturating_sub(1));
+        }
+        let Some(column_index) = column_index else {
+            return Err("curated.overlay_rejected");
+        };
+        let Some(column) = columns.get_mut(column_index).and_then(Value::as_object_mut) else {
+            return Err("curated.overlay_rejected");
+        };
+        if let Some(label) = &approval.label {
+            column.insert("label".to_owned(), Value::String(label.clone()));
+        }
+        if let Some(description) = &approval.description {
+            column.insert("description".to_owned(), Value::String(description.clone()));
+        }
+    }
+    Ok(())
+}
+
 fn fields_applied(compiled: &CapturedPgDraft, approvals: &[Approval]) -> bool {
     let Ok(draft) = serde_json::from_str::<Value>(&compiled.draft) else {
         return false;
@@ -787,6 +1030,38 @@ fn fields_applied(compiled: &CapturedPgDraft, approvals: &[Approval]) -> bool {
         field_eq(dataset, "label", &approval.label)
             && field_eq(dataset, "description", &approval.description)
             && field_eq(dataset, "grain", &approval.grain)
+    })
+}
+
+fn column_fields_applied(compiled: &CapturedPgDraft, approvals: &[ColumnApproval]) -> bool {
+    if approvals.is_empty() {
+        return true;
+    }
+    let Ok(draft) = serde_json::from_str::<Value>(&compiled.draft) else {
+        return false;
+    };
+    let Some(datasets) = draft
+        .get("effective")
+        .and_then(|value| value.get("datasets"))
+        .and_then(Value::as_array)
+    else {
+        return false;
+    };
+    approvals.iter().all(|approval| {
+        let Some(dataset) = datasets.iter().find(|item| {
+            item.get("dataset").and_then(Value::as_str) == Some(approval.dataset.as_str())
+        }) else {
+            return false;
+        };
+        let Some(column) = dataset.get("columns").and_then(Value::as_array).and_then(|items| {
+            items
+                .iter()
+                .find(|item| item.get("name").and_then(Value::as_str) == Some(approval.ident.as_str()))
+        }) else {
+            return false;
+        };
+        field_eq(column, "label", &approval.label)
+            && field_eq(column, "description", &approval.description)
     })
 }
 
@@ -903,6 +1178,90 @@ fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
         });
     }
     approvals.sort_by(|left, right| left.dataset.cmp(&right.dataset));
+    Ok(approvals)
+}
+
+fn collect_column_approvals(review: &Value) -> Result<Vec<ColumnApproval>, Stop> {
+    let Some(decisions) = review.get("column_decisions") else {
+        return Ok(Vec::new());
+    };
+    let decisions = decisions.as_array().ok_or_else(|| {
+        Stop::Refuse(DescriptionPackError::named(
+            "review.shape",
+            "the description review document is not an object",
+        ))
+    })?;
+    let documents = review.get("datasets").and_then(Value::as_array).ok_or_else(|| {
+        Stop::Refuse(DescriptionPackError::named(
+            "review.shape",
+            "the description review document is not an object",
+        ))
+    })?;
+    let mut approvals = Vec::new();
+    for decision in decisions {
+        if decision.get("applied").and_then(Value::as_bool) != Some(true) {
+            continue;
+        }
+        let dataset = decision.get("dataset").and_then(Value::as_str).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        let ident = decision.get("ident").and_then(Value::as_str).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        let document = documents
+            .iter()
+            .find(|item| item.get("dataset").and_then(Value::as_str) == Some(dataset))
+            .and_then(|item| item.get("document"))
+            .ok_or(Stop::Unsupported("curated.document_absent"))?;
+        let column = document
+            .get("columns")
+            .and_then(Value::as_array)
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("name").and_then(Value::as_str) == Some(ident))
+            })
+            .ok_or(Stop::Unsupported("curated.field_absent"))?;
+        let label = taken_field(decision, column, "label", "label_disposition")?;
+        let description = taken_field(decision, column, "description", "description_disposition")?;
+        if label.is_none() && description.is_none() {
+            continue;
+        }
+        let reviewer_label = decision.get("reviewer_label").and_then(Value::as_str).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        let reviewer_at = decision.get("reviewer_at").and_then(Value::as_str).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        let authenticated = decision.get("authenticated").and_then(Value::as_bool).ok_or_else(|| {
+            Stop::Refuse(DescriptionPackError::named(
+                "review.shape",
+                "the description review document is not an object",
+            ))
+        })?;
+        approvals.push(ColumnApproval {
+            dataset: dataset.to_owned(),
+            ident: ident.to_owned(),
+            label,
+            description,
+            reviewer_label: reviewer_label.to_owned(),
+            reviewer_at: reviewer_at.to_owned(),
+            authenticated,
+        });
+    }
+    approvals.sort_by(|left, right| (&left.dataset, &left.ident).cmp(&(&right.dataset, &right.ident)));
     Ok(approvals)
 }
 
@@ -1032,11 +1391,17 @@ fn queue_projection(review: &Value) -> Value {
         items
             .iter()
             .map(|item| {
-                serde_json::json!({
+                let mut projected = serde_json::json!({
                     "dataset": item.get("dataset").and_then(Value::as_str).unwrap_or(""),
                     "kind": item.get("kind").and_then(Value::as_str).unwrap_or(""),
                     "reason": item.get("reason").and_then(Value::as_str).unwrap_or(""),
-                })
+                });
+                if let Some(column) = item.get("column").and_then(Value::as_str)
+                    && let Some(object) = projected.as_object_mut()
+                {
+                    object.insert("column".to_owned(), Value::String(column.to_owned()));
+                }
+                projected
             })
             .collect(),
     )

@@ -4,6 +4,7 @@ use std::fmt;
 
 pub const COMMAND_PROTOCOL: &str = "oo.builder.description-review-command/v1";
 pub const REVIEW_PROTOCOL: &str = "oo.builder.description-review/v1";
+pub const REVIEW_PROTOCOL_V2: &str = "oo.builder.description-review/v2";
 pub const REVIEW_COMPILER: &str = "oo-builder/description-review/v1";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
