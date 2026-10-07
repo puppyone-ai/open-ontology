@@ -1,0 +1,52 @@
+fixed_commit=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+fixed_tree=539aa555a721a0b87b40546b9d4dad5569e3c863
+
+a204_preoverlay_launch
+commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256=08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+used_by=linux/preoverlay/launch.sh
+delta=owner a320, memory 6g, cpus 1, private network, archive of fixed commit 52ce234 including tools/cdc-apply-pg, no live product mount
+
+a200_pg_up
+commit=a587031c719a484830d78e493605f48e2056cae4
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+sha256=96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+used_by=pg/up.sh
+delta=names oo-a320-pg, network oo-a320-eef831aa-net, SAN DNS:oo-a320-pg, password files under this UUID tmp, labels owner a320
+
+a200_pg_wrap
+commit=a587031c719a484830d78e493605f48e2056cae4
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+used_by=pg/pg-wrap.sh
+delta=none, byte copy
+
+a199_sha256_manifest
+commit=5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+used_by=tools/sha256_manifest.rs
+delta=none, byte copy
+
+a301_lock_subset
+commit=573cc4f7864f5e633ce2bffe060119f00ed64b81
+present_at_fixed=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/lock_subset.rs
+sha256=f3b92583125a52102445cc6fec45700db491b263ed88260cd3555f5ee4b187e9
+used_by=tools/lock_subset.rs
+delta=none, byte copy of the blob at the fixed commit. The introducing commit is an ancestor of that commit. The checker counts every registry checksum in the tool lock and requires each one to be present in the fixed root, cdc-spool, or session-store lock.
+
+a301_proof_launch
+commit=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/launch.sh
+sha256=356fca89fcbdbb63e6a0b1211f65fbb12d0c022bb49a6fa138432d678f25906c
+used_by=linux/preoverlay/launch.sh and linux/overlay/launch.sh
+delta=this UUID, fixed commit archive already contains tools/cdc-apply-pg, no live workspace product mount, no lock copy back into the product tree
+
+a301_proof_inside
+commit=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/inside.sh
+sha256=f8564183a896f167f0b9e9356d338624d39b59ca3f4168de2156a557f15ab22f
+used_by=linux/preoverlay/inside.sh and linux/overlay/inside.sh
+delta=build the archived product, fetch once then locked offline tests, preoverlay runs the author suite, overlay adds only tests/a320_apply.rs

@@ -1,0 +1,19 @@
+
+running 2 tests
+test a320_fenced_writer_on_private_postgres ... phase=installed versions=physical-mapping/v1,target-bootstrap/1,target-fence-receipts/1,target-fence-receipts/3
+phase=lineage_regex function=1 constraint=1
+phase=generation_durable_before_transaction count=1 generation=1 receipt=absent qty=11
+phase=applied generation=2 receipt_fence=2 rows=2
+phase=replay generation=3 receipt_fence_unchanged=2
+phase=oo010 generation=4 receipt_fence=2 qty=9223372036854775807
+phase=delete_missing api=inserted lines=1
+phase=fence_held sqlstate=55P03 stale=OO013 display_omits_code=1 generation=7
+phase=sigkill_before_commit signal=9 generation_kept=8 resumed=inserted
+phase=sigkill_after_commit signal=9 replay_fence=10
+phase=commit_unknown then_one_row fence=14
+ok
+test a320_upfront_refuses_before_credentials ... phase=needs_segments count=200001 elapsed_ms=2579
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.15s
+
