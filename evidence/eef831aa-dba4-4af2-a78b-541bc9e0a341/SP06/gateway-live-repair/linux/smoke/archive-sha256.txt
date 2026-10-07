@@ -1,0 +1,5 @@
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /src/Cargo.lock
+d68ce8c113f9028d2dac659c332879c9eac875cc687f2fb28c7c02eaf880f5d4  /src/crates/oo-gateway/src/pack_catalog.rs
+306a4ad6137d0de687dc04437d57e8e6a526da9e14ba4e0a3c312bd607acccae  /src/crates/oo-gateway/tests/http_gateway_live.rs
+f56304b1f9314b3e5032cff538e7e4c48beb4a6034ac8a86c5695142391b7a27  /src/crates/oo-builder/src/canonical.rs
+e9349ccd9b0e4576e0b4dd712e28aba0f5e7562dba72413d431aac3d14a7d544  /src/crates/oo-builder/src/role_pack.rs

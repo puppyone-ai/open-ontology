@@ -1,0 +1,7 @@
+59e0a940f6fed9f63e7ebc0da37ddc189f287bab17e50ca794b5316eb41c9059  /overlay/http_gateway_live.rs
+d68ce8c113f9028d2dac659c332879c9eac875cc687f2fb28c7c02eaf880f5d4  /src/crates/oo-gateway/src/pack_catalog.rs
+a408755dd5c22a5cb199cb269ce01267609cf1398f92f0de0baa70bd90c86e2c  /fixture-src/src/fixture.rs
+e4665aa8800dacc7dfe0e3d8c9475508c593730a15046622d146444ac168ba4e  /fixture-src/fixtures/effective.json
+0c12e82791cf516c4eadfaa9413f379e790c9fbbefda74b1c7fa29dea9346782  /fixture-src/fixtures/visibility-picker.json
+8e47cd2ec01f443b8635db3e4f2649fa3a3d10786be9d2fb049e9f573cf281b0  /fixture-src/fixtures/visibility-auditor.json
+1e7fa57f8a9d083141ea918d48bb4e62912c5022b095e750b485febae12f0683  /fixture-src/fixtures/visibility-hidden.json

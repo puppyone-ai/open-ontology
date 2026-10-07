@@ -1,0 +1,14 @@
+Owned cleanup at 2026-10-07T18:06:40Z.
+
+Confirmed before removal:
+- container oo-a341-pg owner=a341 kind=postgres session=eef831aa-dba4-4af2-a78b-541bc9e0a341
+- network oo-a341-eef831aa-net attached container: oo-a341-pg only
+- volumes oo-a341-eef831aa-cargo kind=cargo, oo-a341-eef831aa-target kind=target, oo-a341-eef831aa-pgdata kind=postgres, all owner=a341 and this session
+
+Removed:
+- docker stop and docker rm oo-a341-pg (id 7b3f3e4548e348fcf941f50863ed8bd033f5189f9578a89f3709533051b3e791)
+- docker volume rm oo-a341-eef831aa-cargo oo-a341-eef831aa-target oo-a341-eef831aa-pgdata
+- docker network rm oo-a341-eef831aa-net
+- rm -rf /tmp/oo-a341-eef831aa-dba4-4af2-a78b-541bc9e0a341
+
+Proof container oo-a341-live-repair was already removed by launch.sh (container-removed.txt). After cleanup, a341 container, volume, and network lists were empty. No foreign container was removed. Prune was not run.

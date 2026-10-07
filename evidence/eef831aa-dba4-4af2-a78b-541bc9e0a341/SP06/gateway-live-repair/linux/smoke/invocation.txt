@@ -1,0 +1,1 @@
+docker run --name oo-a341-live-repair --platform linux/arm64 --pull never --network oo-a341-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 archive=93f5b8aea78d0d745334da0bc5352afdb86412e2 bash /inside.sh
