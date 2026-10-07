@@ -1,0 +1,1 @@
+cargo test compiled the library and stopped in bounded_in.rs: the json! macro rejected a method call on an array literal. No product guard failure. Container removed.

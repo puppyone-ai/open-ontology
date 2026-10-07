@@ -1,0 +1,29 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error[E0382]: borrow of moved value: `err`
+   --> crates/oo-gateway/tests/bounded_in.rs:296:18
+    |
+289 |         let err = refuse(&small(), sql);
+    |             ---   --------------------- this reinitialization might get skipped
+    |             |
+    |             move occurs because `err` has type `GuardError`, which does not implement the `Copy` trait
+...
+294 |             assert_eq!(construct(err), expect, "{sql}");
+    |                                  --- value moved here
+295 |         }
+296 |         assert!(!err.to_string().contains("memo"), "{sql}");
+    |                  ^^^ value borrowed here after move
+    |
+note: consider changing this parameter type in function `construct` to borrow instead if owning the value isn't necessary
+   --> crates/oo-gateway/tests/bounded_in.rs:131:19
+    |
+131 | fn construct(err: GuardError) -> &'static str {
+    |    ---------      ^^^^^^^^^^ this parameter takes ownership of the value
+    |    |
+    |    in this function
+help: consider cloning the value if the performance cost is acceptable
+    |
+294 |             assert_eq!(construct(err.clone()), expect, "{sql}");
+    |                                     ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `oo-gateway` (test "bounded_in") due to 1 previous error

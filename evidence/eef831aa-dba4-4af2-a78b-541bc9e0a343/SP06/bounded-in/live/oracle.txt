@@ -1,0 +1,6 @@
+qty_rows=3
+null_in_rows=2
+not_in_null_rows=0
+not_in_rows=2
+guard_refusals=7
+rows_unchanged=yes

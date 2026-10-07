@@ -1,0 +1,56 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.58s
+     Running tests/bounded_in.rs (/target/a343-final/debug/deps/bounded_in-bc55c5d98cc225be)
+
+running 11 tests
+test alias_and_qualified_column_rewrite_inside_in ... FAILED
+test entry_id_in_three_literals_keeps_exact_values ... FAILED
+test existing_guards_still_apply ... ok
+test hidden_column_is_not_granted_by_in ... ok
+test list_length_stops_at_the_explicit_bound ... ok
+test live_query_pg_executes_bounded_in ... ok
+test missing_operator_and_literal_type_refuse ... ok
+test null_and_not_in_stay_in_the_tree ... FAILED
+test text_and_bool_lists_use_their_literal_types ... ok
+test tight_in_spacing_deparses_the_same_integers ... FAILED
+test unsupported_in_shapes_fail_closed ... FAILED
+
+failures:
+
+---- alias_and_qualified_column_rewrite_inside_in stdout ----
+
+thread 'alias_and_qualified_column_rewrite_inside_in' (1044) panicked at crates/oo-gateway/tests/bounded_in.rs:156:5:
+SELECT e.pc_entry AS entry_id FROM _oo.pt_entry e WHERE e.pc_entry IN (0, 1, 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- entry_id_in_three_literals_keeps_exact_values stdout ----
+
+thread 'entry_id_in_three_literals_keeps_exact_values' (1045) panicked at crates/oo-gateway/tests/bounded_in.rs:156:5:
+SELECT pt_entry.pc_entry AS entry_id, pt_entry.pc_qty AS qty FROM _oo.pt_entry WHERE pt_entry.pc_entry IN (0, 1, 2) ORDER BY pt_entry.pc_entry
+
+---- null_and_not_in_stay_in_the_tree stdout ----
+
+thread 'null_and_not_in_stay_in_the_tree' (1090) panicked at crates/oo-gateway/tests/bounded_in.rs:156:5:
+SELECT pt_entry.pc_entry AS entry_id FROM _oo.pt_entry WHERE pt_entry.pc_entry IN (0, NULL, 2)
+
+---- tight_in_spacing_deparses_the_same_integers stdout ----
+
+thread 'tight_in_spacing_deparses_the_same_integers' (1092) panicked at crates/oo-gateway/tests/bounded_in.rs:156:5:
+SELECT pt_entry.pc_entry AS entry_id FROM _oo.pt_entry WHERE pt_entry.pc_entry IN (0, 1, 2)
+
+---- unsupported_in_shapes_fail_closed stdout ----
+
+thread 'unsupported_in_shapes_fail_closed' (1093) panicked at crates/oo-gateway/tests/bounded_in.rs:128:51:
+SELECT entry_id FROM shop.entry WHERE entry_id IN (-1): GuardedPlan { identity: PolicyIdentity { project: "shopfix", role: "oo_r_wide", policy_id: "policy-a343" }, original_sql: "SELECT entry_id FROM shop.entry WHERE entry_id IN (-1)", executed_sql: "SELECT pt_entry.pc_entry AS entry_id FROM _oo.pt_entry WHERE pt_entry.pc_entry IN (-1)", original_sha256: "c0d4167a4343e6a14112bbcdf5d96896952b9906589186b321dbcdd3381932c1", executed_sha256: "18739d90bb108b72cb1c078decca26b018a753d8e3c4fce1870525e18b615d54", fingerprint_hex: "444c635f449886fc", parser_version: 170007, star_expansions: [], bindings: RecognizedBindings { relations: [BoundRelation { schema: "shop", name: "entry", alias: None, physical_schema: "_oo", physical_name: "pt_entry" }], outputs: [Column(BoundOutputColumn { relation_schema: "shop", relation_name: "entry", name: "entry_id", physical_name: "pc_entry", output_name: "entry_id", type_oid: 20 })], functions: [], operators: [BoundOperator { oid: 401, procedure_oid: 501, schema: "pg_catalog", name: "=" }], null_tests: 0 } }
+
+
+failures:
+    alias_and_qualified_column_rewrite_inside_in
+    entry_id_in_three_literals_keeps_exact_values
+    null_and_not_in_stay_in_the_tree
+    tight_in_spacing_deparses_the_same_integers
+    unsupported_in_shapes_fail_closed
+
+test result: FAILED. 6 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+error: test failed, to rerun pass `-p oo-gateway --test bounded_in`

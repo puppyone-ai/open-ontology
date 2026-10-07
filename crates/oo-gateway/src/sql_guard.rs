@@ -3,8 +3,9 @@
 //! The caller supplies the project, role, and policy identity plus the visible
 //! relations, columns, and already-resolved function and operator OIDs. This
 //! module parses with `pg_query` (libpg_query), rewrites stars and logical
-//! names on that AST, and deparses. It does not authenticate, resolve OIDs
-//! from names, connect to PostgreSQL, or execute SQL.
+//! names on that AST, and deparses. A bounded literal `IN` list is admitted
+//! without rewriting the predicate into `OR` or `AND`. It does not
+//! authenticate, resolve OIDs from names, connect to PostgreSQL, or execute SQL.
 //!
 //! Names the snapshot does not list are omitted from errors. Parse failures
 //! drop the parser text. `pg_query::protobuf::ParseResult::nodes` is not the
@@ -29,6 +30,9 @@ pub const NODE_BUDGET: usize = 10_000;
 /// Maximum `Node` nesting depth. The statement node is depth 1.
 pub const DEPTH_BUDGET: usize = 128;
 
+/// Maximum explicit elements in one admitted `IN` or `NOT IN` list.
+pub const IN_LIST_LIMIT: usize = 32;
+
 /// `PG_VERSION_NUM` embedded in pg_query 6.2.1. Not a live server probe.
 pub const PINNED_PARSER_VERSION: i32 = 170007;
 
@@ -39,6 +43,9 @@ const JOIN_LEFT: i32 = pb::JoinType::JoinLeft as i32;
 const JOIN_FULL: i32 = pb::JoinType::JoinFull as i32;
 const JOIN_RIGHT: i32 = pb::JoinType::JoinRight as i32;
 const AEXPR_OP: i32 = pb::AExprKind::AexprOp as i32;
+const AEXPR_IN: i32 = pb::AExprKind::AexprIn as i32;
+const AEXPR_OP_ANY: i32 = pb::AExprKind::AexprOpAny as i32;
+const AEXPR_OP_ALL: i32 = pb::AExprKind::AexprOpAll as i32;
 const BOOL_AND: i32 = pb::BoolExprType::AndExpr as i32;
 const BOOL_OR: i32 = pb::BoolExprType::OrExpr as i32;
 const BOOL_NOT: i32 = pb::BoolExprType::NotExpr as i32;
@@ -1450,6 +1457,17 @@ fn bound_function(function: &ResolvedFunction) -> BoundFunction {
 }
 
 fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let kind = match node.node.as_ref() {
+        Some(pb::node::Node::AExpr(expr)) => expr.kind,
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "operator expression",
+            })
+        }
+    };
+    if kind == AEXPR_IN {
+        return admit_in(node, ctx);
+    }
     let (schema, name) = {
         let expr = match node.node.as_ref() {
             Some(pb::node::Node::AExpr(expr)) => expr.as_ref(),
@@ -1501,6 +1519,131 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     };
     ctx.operators.push(bound);
     Ok(ExprKind::Operator)
+}
+
+fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let token = in_token(match node.node.as_ref() {
+        Some(pb::node::Node::AExpr(expr)) => expr.name.as_slice(),
+        _ => return Err(in_predicate()),
+    })?;
+    let left_type = {
+        let left = match node.node.as_mut() {
+            Some(pb::node::Node::AExpr(expr)) => expr.lexpr.as_mut(),
+            _ => None,
+        };
+        let left = left.ok_or_else(in_predicate)?;
+        admit_in_column(left, ctx)?
+    };
+    let items = in_list(node)?;
+    for item in &items {
+        admit_in_literal(item, left_type, token, ctx)?;
+    }
+    Ok(ExprKind::Operator)
+}
+
+fn in_list(node: &pb::Node) -> Result<Vec<pb::Node>, GuardError> {
+    let right = match node.node.as_ref() {
+        Some(pb::node::Node::AExpr(expr)) => expr.rexpr.as_deref(),
+        _ => None,
+    };
+    let right = right.ok_or_else(in_predicate)?;
+    let items = match right.node.as_ref() {
+        Some(pb::node::Node::List(list)) => &list.items,
+        _ => return Err(in_predicate()),
+    };
+    if items.is_empty() || items.len() > IN_LIST_LIMIT {
+        return Err(in_predicate());
+    }
+    Ok(items.clone())
+}
+
+fn in_token(names: &[pb::Node]) -> Result<&'static str, GuardError> {
+    let fields = string_fields(names).map_err(|_| in_predicate())?;
+    match fields.as_slice() {
+        [name] if name == "=" => Ok("="),
+        [name] if name == "<>" => Ok("<>"),
+        _ => Err(in_predicate()),
+    }
+}
+
+fn admit_in_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<u32, GuardError> {
+    refuse_closed_shape(node)?;
+    if !matches!(node.node, Some(pb::node::Node::ColumnRef(_))) {
+        return Err(in_predicate());
+    }
+    match admit_column(node, ctx)? {
+        ExprKind::Column { type_oid, .. } => Ok(type_oid),
+        _ => Err(in_predicate()),
+    }
+}
+
+fn admit_in_literal(
+    node: &pb::Node,
+    left_type: u32,
+    token: &str,
+    ctx: &mut Ctx<'_>,
+) -> Result<(), GuardError> {
+    refuse_closed_shape(node)?;
+    if !matches!(node.node, Some(pb::node::Node::AConst(_))) {
+        // A column in the list is not granted, including one the snapshot hides.
+        return Err(in_predicate());
+    }
+    let ExprKind::Literal { kind, .. } = admit_const(node)? else {
+        return Err(in_predicate());
+    };
+    // NULL stays in the AST. Dropping it would make `NOT IN` true for rows
+    // PostgreSQL leaves unknown. The same-type operator only authorizes it.
+    let right_type = match kind {
+        LiteralKind::Null => left_type,
+        other => literal_type_oid(other, ctx.catalog.literal_types)
+            .ok_or(GuardError::FunctionNotAllowed)?,
+    };
+    let resolved = resolve_operator(ctx.catalog, None, token, left_type, right_type)?;
+    ctx.operators.push(BoundOperator {
+        oid: resolved.oid,
+        procedure_oid: resolved.procedure_oid,
+        schema: resolved.schema.clone(),
+        name: resolved.name.clone(),
+    });
+    Ok(())
+}
+
+fn literal_type_oid(kind: LiteralKind, types: LiteralTypes) -> Option<u32> {
+    match kind {
+        LiteralKind::Integer => types.integer,
+        LiteralKind::Text => types.text,
+        LiteralKind::Boolean => types.boolean,
+        LiteralKind::Null => None,
+    }
+}
+
+fn refuse_closed_shape(node: &pb::Node) -> Result<(), GuardError> {
+    match node.node.as_ref() {
+        Some(pb::node::Node::FuncCall(_)) => Err(unsupported("function")),
+        Some(pb::node::Node::TypeCast(_)) => Err(unsupported("cast")),
+        Some(pb::node::Node::ParamRef(_)) => Err(unsupported("parameter")),
+        Some(pb::node::Node::SubLink(_)) | Some(pb::node::Node::RangeSubselect(_)) => {
+            Err(unsupported("subquery"))
+        }
+        Some(pb::node::Node::AArrayExpr(_) | pb::node::Node::ArrayExpr(_)) => Err(in_predicate()),
+        Some(pb::node::Node::AExpr(expr))
+            if expr.kind == AEXPR_OP_ANY || expr.kind == AEXPR_OP_ALL =>
+        {
+            Err(unsupported("ANY predicate"))
+        }
+        Some(pb::node::Node::AExpr(expr)) if expr.lexpr.is_none() => {
+            Err(unsupported("unary operator"))
+        }
+        _ => Ok(()),
+    }
+}
+
+fn unsupported(construct: &'static str) -> GuardError {
+    GuardError::Unsupported { construct }
+}
+
+fn in_predicate() -> GuardError {
+    unsupported("IN predicate")
 }
 
 fn operator_form(kind: i32) -> GuardError {
