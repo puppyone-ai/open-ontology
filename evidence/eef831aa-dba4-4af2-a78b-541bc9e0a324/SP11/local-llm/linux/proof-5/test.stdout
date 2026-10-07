@@ -1,0 +1,65 @@
+
+running 16 tests
+test allow::tests::allowlist_is_exact ... ok
+test behavior::forwards_models_and_selects_on_the_client_side ... FAILED
+test behavior::listen_is_only_ipv4_loopback ... ok
+test behavior::non_loopback_upstream_is_rejected ... ok
+test behavior::oversized_response_is_dropped ... FAILED
+test behavior::post_chat_reaches_fixture_once ... FAILED
+test behavior::redirect_is_not_followed ... FAILED
+test behavior::rejects_other_paths_without_dialing ... FAILED
+test behavior::slow_upstream_stops_at_the_deadline ... ok
+test behavior::third_connection_is_busy ... FAILED
+test candidate::tests::accepts_one_stop_candidate ... ok
+test files::tests::redirect_env_absent_is_config_ok ... ok
+test grammar::tests::bearer_class_uses_dialogue_bounds ... ok
+test grammar::tests::model_id_matches_dialogue_rule ... ok
+test select::tests::selects_first_grammar_id_and_hides_the_rest ... ok
+test upstream::tests::production_upstream_is_exact ... ok
+
+failures:
+
+---- behavior::forwards_models_and_selects_on_the_client_side stdout ----
+
+thread 'behavior::forwards_models_and_selects_on_the_client_side' (282) panicked at src/behavior.rs:180:10:
+models: Fault { token: "upstream" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- behavior::oversized_response_is_dropped stdout ----
+
+thread 'behavior::oversized_response_is_dropped' (286) panicked at src/behavior.rs:272:10:
+capped: Fault { token: "upstream" }
+
+---- behavior::post_chat_reaches_fixture_once stdout ----
+
+thread 'behavior::post_chat_reaches_fixture_once' (288) panicked at src/behavior.rs:247:6:
+chat: Fault { token: "upstream" }
+
+---- behavior::redirect_is_not_followed stdout ----
+
+thread 'behavior::redirect_is_not_followed' (290) panicked at src/behavior.rs:258:10:
+status: Fault { token: "upstream" }
+
+---- behavior::rejects_other_paths_without_dialing stdout ----
+
+thread 'behavior::rejects_other_paths_without_dialing' (292) panicked at src/behavior.rs:226:54:
+tls: Custom { kind: InvalidData, error: InvalidCertificate(Other(OtherError(CaUsedAsEndEntity))) }
+
+---- behavior::third_connection_is_busy stdout ----
+
+thread 'behavior::third_connection_is_busy' (296) panicked at src/behavior.rs:301:5:
+assertion `left == right` failed
+  left: 0
+ right: 2
+
+
+failures:
+    behavior::forwards_models_and_selects_on_the_client_side
+    behavior::oversized_response_is_dropped
+    behavior::post_chat_reaches_fixture_once
+    behavior::redirect_is_not_followed
+    behavior::rejects_other_paths_without_dialing
+    behavior::third_connection_is_busy
+
+test result: FAILED. 10 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s
+

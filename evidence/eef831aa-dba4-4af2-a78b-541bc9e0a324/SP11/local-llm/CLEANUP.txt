@@ -1,0 +1,20 @@
+== before containers ==
+== before volumes ==
+oo-a324-eef831aa-cargo
+oo-a324-eef831aa-target
+== before networks ==
+oo-a324-eef831aa-net
+== remove owned containers if any remain ==
+none
+== remove owned volumes ==
+oo-a324-eef831aa-cargo
+oo-a324-eef831aa-target
+== remove owned network ==
+oo-a324-eef831aa-net
+== remove private tmp ==
+tmp_removed
+== token retained ==
+mode=600 bytes=6
+== after volumes ==
+== after networks ==
+== after owned containers ==

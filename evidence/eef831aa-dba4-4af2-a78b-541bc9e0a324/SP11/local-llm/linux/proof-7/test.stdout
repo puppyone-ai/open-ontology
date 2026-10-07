@@ -1,0 +1,31 @@
+
+running 16 tests
+test allow::tests::allowlist_is_exact ... ok
+test behavior::forwards_models_and_selects_on_the_client_side ... ok
+test behavior::listen_is_only_ipv4_loopback ... ok
+test behavior::non_loopback_upstream_is_rejected ... ok
+test behavior::oversized_response_is_dropped ... ok
+test behavior::post_chat_reaches_fixture_once ... ok
+test behavior::redirect_is_not_followed ... ok
+test behavior::rejects_other_paths_without_dialing ... ok
+test behavior::slow_upstream_stops_at_the_deadline ... ok
+test behavior::third_connection_is_busy ... ok
+test candidate::tests::accepts_one_stop_candidate ... ok
+test files::tests::redirect_env_absent_is_config_ok ... ok
+test grammar::tests::bearer_class_uses_dialogue_bounds ... ok
+test grammar::tests::model_id_matches_dialogue_rule ... ok
+test select::tests::selects_first_grammar_id_and_hides_the_rest ... ok
+test upstream::tests::production_upstream_is_exact ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

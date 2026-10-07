@@ -1,0 +1,3 @@
+    Updating crates.io index
+ Downgrading crypto-common v0.1.7 -> v0.1.6
+note: pass `--verbose` to see 9 unchanged dependencies behind latest

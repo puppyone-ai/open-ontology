@@ -1,0 +1,30 @@
+    Checking oo-local-llm v0.1.0 (/crate)
+error: returning the result of a `let` binding from a block
+  --> src/main.rs:19:5
+   |
+12 | /     let code = match run() {
+13 | |         Ok(()) => ExitCode::SUCCESS,
+14 | |         Err(fault) => {
+15 | |             eprintln!("oo-local-llm-relay: {fault}");
+...  |
+18 | |     };
+   | |______- unnecessary `let` binding
+19 |       code
+   |       ^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#let_and_return
+   = note: `-D clippy::let-and-return` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::let_and_return)]`
+help: return the expression directly
+   |
+12 ~     
+13 ~     match run() {
+14 +         Ok(()) => ExitCode::SUCCESS,
+15 +         Err(fault) => {
+16 +             eprintln!("oo-local-llm-relay: {fault}");
+17 +             ExitCode::from(1)
+18 +         }
+19 +     }
+   |
+
+error: could not compile `oo-local-llm` (bin "oo-local-llm-relay" test) due to 1 previous error

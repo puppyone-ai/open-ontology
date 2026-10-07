@@ -1,0 +1,11 @@
+    Updating crates.io index
+     Locking 173 packages to latest Rust 1.94.0 compatible versions
+      Adding cc v1.4.7 (available: v1.6.0)
+      Adding find-msvc-tools v0.1.13 (available: v0.1.14)
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding hyper-util v0.1.20 (available: v0.1.21)
+      Adding rustls-platform-verifier v0.7.0 (available: v0.7.1)
+      Adding sha2 v0.10.9 (available: v0.11.0)
+      Adding tokio v1.53.1 (available: v1.53.2)
+      Adding tokio-rustls v0.26.5 (available: v0.26.6)
+      Adding yoke-derive v0.8.2 (available: v0.8.4)

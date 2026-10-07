@@ -1,0 +1,32 @@
+   Compiling oo-local-llm v0.1.0 (/crate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running unittests src/lib.rs (/target/debug/deps/oo_local_llm-39c4990bc725ab39)
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+error: test failed, to rerun pass `--lib`

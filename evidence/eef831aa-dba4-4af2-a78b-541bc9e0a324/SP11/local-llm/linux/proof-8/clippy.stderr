@@ -1,0 +1,61 @@
+    Checking oo-local-llm v0.1.0 (/crate)
+error: this `if` statement can be collapsed
+   --> src/bin/models.rs:115:5
+    |
+115 | /     if let Some(secret) = bearer {
+116 | |         if body.windows(secret.len()).any(|window| window == secret.as_bytes()) {
+117 | |             return Err(Fault::secret());
+118 | |         }
+119 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+115 ~     if let Some(secret) = bearer
+116 ~         && body.windows(secret.len()).any(|window| window == secret.as_bytes()) {
+117 |             return Err(Fault::secret());
+118 ~         }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/bin/models.rs:166:5
+    |
+166 | /     if let Some(secret) = bearer {
+167 | |         if !secret.is_empty() && text.contains(secret) {
+168 | |             return Err(Fault::secret());
+169 | |         }
+170 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+166 ~     if let Some(secret) = bearer
+167 ~         && !secret.is_empty() && text.contains(secret) {
+168 |             return Err(Fault::secret());
+169 ~         }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/bin/models.rs:171:5
+    |
+171 | /     if let Some(parent) = path.parent() {
+172 | |         if !parent.as_os_str().is_empty() {
+173 | |             fs::create_dir_all(parent).map_err(|_| Fault::io())?;
+174 | |         }
+175 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+171 ~     if let Some(parent) = path.parent()
+172 ~         && !parent.as_os_str().is_empty() {
+173 |             fs::create_dir_all(parent).map_err(|_| Fault::io())?;
+174 ~         }
+    |
+
+error: could not compile `oo-local-llm` (bin "oo-local-llm-models" test) due to 3 previous errors

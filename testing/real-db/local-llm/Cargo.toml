@@ -1,0 +1,68 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "oo-local-llm"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Fixed loopback TLS relay to the authorized local HTTP model endpoint."
+
+[[bin]]
+name = "oo-local-llm-relay"
+path = "src/main.rs"
+
+[[bin]]
+name = "oo-local-llm-models"
+path = "src/bin/models.rs"
+
+[dependencies]
+base64 = "=0.23.1"
+httparse = "=1.10.1"
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "http2"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "net", "rt", "time", "io-util", "sync"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+# Same direct pins description-provider keeps for reqwest 0.13.5. Not relay APIs.
+hyper-util = { version = "=0.1.20", default-features = false }
+rustls-platform-verifier = { version = "=0.7.0", default-features = false }
+cc = "=1.4.7"
+find-msvc-tools = "=0.1.13"
+yoke-derive = "=0.8.2"
+# Exact transitive versions from the fixed archive. wasm-bindgen-futures 0.4.79
+# requires js-sys =0.3.106, so those crates are pinned together. Not relay APIs.
+crypto-common = { version = "=0.1.6", default-features = false }
+generic-array = { version = "=0.14.9", default-features = false }
+h2 = { version = "=0.4.19", default-features = false }
+hyper = { version = "=1.11.1", default-features = false }
+js-sys = { version = "=0.3.105", default-features = false }
+libc = "=0.2.189"
+mio = { version = "=1.2.3", default-features = false }
+quinn-proto = { version = "=0.11.18", default-features = false }
+quinn-udp = { version = "=0.5.15", default-features = false }
+smallvec = { version = "=1.16.1", default-features = false }
+want = { version = "=0.3.1", default-features = false }
+wasm-bindgen = { version = "=0.2.128", default-features = false }
+wasm-bindgen-futures = { version = "=0.4.78", default-features = false }
+wasm-bindgen-shared = { version = "=0.2.128", default-features = false }
+web-sys = { version = "=0.3.105", default-features = false }
+zeroize = { version = "=1.9.0", default-features = false }
+
+[dev-dependencies]
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "http2"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "net", "rt", "time", "io-util", "sync"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
