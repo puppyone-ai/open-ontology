@@ -1,0 +1,4 @@
+{
+  "detail": "exit 1 stderr=role-pack-bundle: oo.builder.role-pack-bundle/v1/io.parent the output parent is not a directory\n",
+  "step": "role-pack-bundle"
+}

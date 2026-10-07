@@ -1,0 +1,6 @@
+docker-run.exit 101. OOMKilled false. test-lib.exit 101.
+oo-gateway build.rs panics because sha256sum cannot read
+tools/gateway-token-store/src/cache.rs. The archive was Cargo.toml, Cargo.lock,
+rust-toolchain.toml, and crates from 21cc96241a841b47dbbcb116549030e38a643ba0.
+That commit's build script reads the token-store tree. The next archive adds
+tools/gateway-token-store from the same commit. No workspace file was copied.

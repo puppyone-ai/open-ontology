@@ -1,0 +1,32 @@
+oo_task=sp06-numeric-query-review
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a340
+oo_fixed=21cc96241a841b47dbbcb116549030e38a643ba0
+oo_platform=linux/arm64
+overlay=none
+Linux 1df88f6ed66c 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=archive-hash
+phase_exit=0 phase=libclang
+phase_exit=0 phase=libclang-load
+phase_exit=0 phase=clippy-component
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== preoverlay cargo test -p oo-gateway --lib ===
+phase_exit=0 phase=test-lib
+=== preoverlay cargo test query-pg decimal_json ===
+phase_exit=0 phase=test-query-pg
+=== preoverlay cargo test query-pg absent_row_filter_null ===
+phase_exit=0 phase=test-row-filter
+=== preoverlay cargo clippy -p oo-gateway --lib --bins ===
+phase_exit=0 phase=clippy
+=== cargo build pipeline bins ===
+phase_exit=0 phase=build-pipeline
+=== cargo build builder bins ===
+phase_exit=0 phase=build-builder
+=== cargo build gateway bins ===
+phase_exit=0 phase=build-gateway
+=== live numeric proof ===
+phase_exit=0 phase=test-live
+=== independent gold ===
+phase_exit=1 phase=gold

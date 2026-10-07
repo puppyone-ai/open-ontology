@@ -1,0 +1,1 @@
+test-live exit 101. role-pack-bundle writes /target/a327/a327-role-pack-bundle.json. That parent was absent because CARGO_TARGET_DIR is /target/a340. Preoverlay lib 43, decimal, row filter, and clippy were 0. The retry creates /target/a327 on the private target volume before the live test. Product source is unchanged.

@@ -1,0 +1,14 @@
+run_id=eef831aa-dba4-4af2-a78b-541bc9e0a340
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+container=oo-a340-hash
+label=oo.kind=hash
+memory=1g
+cpus=1
+privileged=no
+network=none
+pull=never
+phase=inventory
+tool=tools/sha256.rs
+compile=/usr/local/bin/sha256
+reason_not_tmp=tmpfs_noexec
