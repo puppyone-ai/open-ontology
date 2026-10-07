@@ -12,9 +12,9 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use pg_builder::{
-    assemble_cards, cache_hit_same, canonical_sha256, catalog_request, generate, load_config,
-    pack_pair, post_loopback, read_bearer, review_only, seal_request, scaffold_curated, store_validated,
-    GenerateIn, PackIn, ScriptedTransport,
+    assemble_cards, cache_hit_same, canonical_sha256, catalog_request, column_batch_ranges, generate,
+    load_config, pack_pair, post_loopback, read_bearer, review_only, seal_request, scaffold_curated,
+    store_validated, GenerateIn, PackIn, ScriptedTransport,
 };
 use common::{catalog_json, classifications, comments, operator_review, profile, roles, settings, DATASET};
 
@@ -196,6 +196,7 @@ fn run_generate(
         finish_reason: finish.to_owned(),
         usage: Some((12, 8, 20)),
         calls: 0,
+        bodies: Vec::new(),
         refusal,
     };
     let approved = approval(&world.cards);
@@ -210,6 +211,14 @@ fn run_generate(
         transport: &mut transport,
     })
     .unwrap_or_else(|err| panic!("generate {} {}", err.code, err.message));
+    if transport.calls > 0 {
+        let body = String::from_utf8_lossy(&transport.bodies[0]);
+        assert!(body.contains("oo.pg-builder.model-input/v2"), "{body}");
+        assert!(!body.contains("compiler_request"), "{body}");
+        assert!(!body.contains("oo.builder.description-request/v1"), "{body}");
+        assert!(!body.contains("most_common_vals"), "{body}");
+        assert!(!body.contains("histogram_bounds"), "{body}");
+    }
     (doc, transport.calls)
 }
 
@@ -244,6 +253,7 @@ fn validated_draft_caches_and_pack_omits_field_text() {
         finish_reason: "stop".to_owned(),
         usage: Some((1, 1, 2)),
         calls: 0,
+        bodies: Vec::new(),
         refusal: None,
     };
     let approved = approval(&world.cards);
@@ -348,6 +358,7 @@ fn stale_evidence_misses_and_secret_in_config_opens_no_socket() {
         finish_reason: "stop".to_owned(),
         usage: Some((1, 1, 2)),
         calls: 0,
+        bodies: Vec::new(),
         refusal: None,
     };
     let approved = approval(&stale_cards);
@@ -375,6 +386,7 @@ fn stale_evidence_misses_and_secret_in_config_opens_no_socket() {
         finish_reason: "stop".to_owned(),
         usage: None,
         calls: 0,
+        bodies: Vec::new(),
         refusal: None,
     };
     let err = generate(GenerateIn {
@@ -401,6 +413,16 @@ fn config_keeps_loopback_and_unknown_price() {
     assert!(load_config(&generate_wrong).is_err());
     let https = good.replace("http://127.0.0.1:9", "https://127.0.0.1:9");
     assert!(load_config(&https).is_err());
+    let fault_long = good.replace("\"deadline_ms\": 30000", "\"deadline_ms\": 180000");
+    assert!(load_config(&fault_long).is_err());
+    let local = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "deadline-bearer");
+    assert!(load_config(&local).is_ok());
+    let local_long = local.replace("\"deadline_ms\": 30000", "\"deadline_ms\": 180000");
+    assert!(load_config(&local_long).is_ok());
+    let local_mid = local.replace("\"deadline_ms\": 30000", "\"deadline_ms\": 30001");
+    assert!(load_config(&local_mid).is_ok());
+    let local_over = local.replace("\"deadline_ms\": 30000", "\"deadline_ms\": 180001");
+    assert!(load_config(&local_over).is_err());
     let priced = write_config(
         &dir,
         "generate",
@@ -417,6 +439,7 @@ fn config_keeps_loopback_and_unknown_price() {
         finish_reason: "stop".to_owned(),
         usage: Some((3, 5, 8)),
         calls: 0,
+        bodies: Vec::new(),
         refusal: None,
     };
     let doc = generate(GenerateIn {
@@ -495,6 +518,14 @@ fn catalog_request_has_no_password_bytes() {
     assert!(!encoded.contains("super-secret-value"));
     assert!(encoded.contains("password_file"));
     assert!(encoded.contains("oo.pipeline.catalog-pg/v1"));
+}
+
+#[test]
+fn column_batches_are_eight() {
+    assert!(column_batch_ranges(0).is_empty());
+    assert_eq!(column_batch_ranges(5), vec![(0, 5)]);
+    assert_eq!(column_batch_ranges(8), vec![(0, 8)]);
+    assert_eq!(column_batch_ranges(9), vec![(0, 8), (8, 9)]);
 }
 
 #[test]

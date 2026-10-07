@@ -8,69 +8,78 @@ Owned paths:
 - `testing/real-db/pg-builder/**`
 - `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a328/SP07/pg-builder/**`
 
-## What ran
+The first owned commit is `0d1a9e5a6c62f19cc71494e55b04d1942aa6bcf9`. This followup is a later commit of the same three prefixes. No push.
 
-The reusable CLI is `pg-builder`. Catalog capture calls the existing `oo-pipeline` binary as `catalog-pg`. Dataset candidates use the existing description-candidate compiler. Field candidates are staged in this crate because that compiler admits dataset fields only. The seam id is `description-candidate.dataset_only`. The model does not grant, certify, classify, or publish. `approve` writes `authenticated` false and `parent_auth` required.
+## What this followup changed
 
-Linux arm64 Rust 1.94 image `docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5`. PostgreSQL 17.10 image `docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb`. No image pull. One builder at a time, 6GiB, 1 CPU, pids 256, no privilege, no host network, no Docker socket. `cargo-update-invoked=no`. The nested lock was checked against the root lock that existed at build time. That root lock SHA-256 was `16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a` before and after focused-4 and the catalog container. Later actors changed the workspace `Cargo.lock`. This unit did not edit it. Its hash at report time is `b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474`.
+`CONTRACT.md` was amended before the Rust change. `deadline_ms` stays 1 to 30000 by default. A value from 30001 to 180000 is accepted only when `purpose` is `generate` and `endpoint.origin` is `http://127.0.0.1:8317`. Fault injection and every other origin keep the ceiling 30000. A value above 180000 is refused. Profile SQL still sets `statement_timeout` to 10 seconds. The catalog request still sends `connect_ms`, `statement_ms`, and `lock_ms` at 30000. This crate does not retune a parent snapshot budget.
 
-Recipe origins: a317 up script `d53018ef8ee844be825643d4cdb31c7be49cf67fdf144b7d5842f230b82ad73c`, a317 wrap `d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb`. Launch recipe hashes recorded with the smoke tree: a200 `837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163`, a204 `08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841`, a199 `c59441884fcd7ce54b8e6cb11a6c632cf5dc8ba757d112145fbf20ede8d83ac3`.
+Generation is one loopback completion per table. A table with more than eight columns is split into column batches of eight. `shop.account` has 4 columns, `shop.entry` has 5, and `shop.party` has 5, so each live table is one batch. The model input is the one-table card (`oo.pg-builder.model-input/v2`). The sealed three-table command stays on the compiler boundary. Prompt version is `oo.pg-builder.prompt/v2`. Cache keys are `oo.pg-builder.cache-key/v2` and include the table, the batch, and that table's request hash. `deadline_ms` is outside the cache key. A timeout is not stored.
 
 ## Linux proof
+
+Image `docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5`. PostgreSQL image `docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb`. No image pull. One builder at a time, 6GiB, 1 CPU, pids 256, no privilege, no host network, no Docker socket. `cargo-update-invoked=no`.
 
 | Tree | docker-run.exit | Result |
 | --- | --- | --- |
 | `linux/smoke` | 1 | Rust 1.94 image has no clippy component. Preserved. |
 | `linux/smoke-clippy` | 0 | Clippy installed inside that container only. |
 | `linux/focused` | 1 | First product compile failed in `generate.rs`. Preserved. |
-| `linux/focused-2` | 101 | Tests failed to compile; clippy warnings. Preserved. |
+| `linux/focused-2` | 101 | Tests failed to compile. Preserved. |
 | `linux/focused-3` | 101 | 10 integration tests passed; one clippy lint remained. Preserved. |
-| `linux/focused-4` | 0 | `pg-builder` tests 10 passed, `pg-fixture` tests 2 passed, clippy `-D warnings` clean. This proof is earlier than the additive `command_bytes` and `prepared_bytes` seal fields. |
-| `linux/catalog` | 0 | Same 1.94 builder compiled `oo-pipeline` and the later `pg-builder`, then ran both catalog passes. Tests were not re-run in that container. |
+| `linux/focused-4` | 0 | 10 `pg-builder` tests, 2 fixture tests, clippy clean. Earlier than `command_bytes`, `prepared_bytes`, and this deadline amendment. |
+| `linux/catalog` | 0 | Catalog chain for both passes. |
+| `linux/focused-5/attempt-mount-125` | 125 | Docker Desktop missed a new `/tmp` bind. Preserved. |
+| `linux/focused-5/attempt-stopped-prompt` | 143 | Stopped so the prompt could name every dataset-candidate key. Preserved. |
+| `linux/focused-5/attempt-clippy-101` | 101 | 11 tests passed. Clippy `needless_borrow` in `generate.rs`. Preserved. |
+| `linux/focused-5` | 0 | Current source. `pg-builder` tests 11 passed, `pg-fixture` tests 2 passed, clippy `-D warnings` exit 0. |
 
-Host `pg-builder` debug binary SHA-256 `6440afd430126e83c37e7998402e2891305306bf776c0eb7f35e994ed024ae04`. Host rustc follows the workspace 1.98.1 toolchain. The MSRV proof is the 1.94 container. The binary was removed with the private tmp tree after that hash was recorded.
+Focused-5 `rustc 1.94.0 (4a4ef493e 2026-03-02)`, host `aarch64-unknown-linux-gnu`. `hostconfig.txt`: `oom=false`, memory 6442450944, cpu 1000000000, `priv=false`, network `oo-a328-eef831aa-net`, pids 256. Lock subset: builder `registry=208 path=6 missing=0 mismatch=0`, fixture `registry=0 path=1 missing=0 mismatch=0`. The fixed archive `Cargo.lock` hash stayed `16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a` before and after that container. The workspace `Cargo.lock` at report time is `b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474`. This unit did not edit it.
 
-## Private database
+Recipe origins recorded in `linux/focused-5/recipe-origins.txt` are git hash-object ids: a200 `20b391304358e474c189203eeb525b46fc2ea194`, a204 `3737c1a8321814ff3b1070ddf8b89d6864c63f6f`, a199 `e87e21d339c8fe3c6fff4f8e945c68bd11be6426`, a263 `1407cb4f1018764e9218980d0437d217cc2ba666`.
 
-Container `oo-a328-pg` loaded the public synthetic fixture: party 2000, account 8000, entry 90000. `ANALYZE` left `reltuples` at those counts. Reader `oo_a328_reader` had `SELECT` only. `grants-before.txt` and `grants-after.txt` match (`grants_unchanged=yes`, 24 lines). Server 17.10, autovacuum off, TLS on, SAN DNS `oo-a328-pg`. No host port. Passwords were not printed and are not in this tree.
+The host debug binary was built from that focused-5 archive after the container was gone. Host rustc is 1.98.1 Homebrew. Binary SHA-256 `24916b614180249ebbbc262b6b8ebc0a3d2118b12cdc4e606e2bb1ce76cb7f05`. `live/per-table/host-meta/build.exit` is 0. The private tmp tree that held the binary was removed after this hash was copied into evidence.
 
-Catalog pass exits, both passes, for `catalog`, `profile`, `comments`, `seal`, `cards`, `curated`, and `approve`: 0.
+## Seal and profile
 
-Pass 1 evidence hash `992617a1ff52ba9509a884e63977d1256bcaae231850bcd170c2f65dd10c9b50`. Pass 2 evidence hash `2c66f95d485a9df43d08edd0c8f097c7a283ed15b4511735b6482438a764369b`. Schema hash both passes `eae55fc9a122759d06204b86b0147a1ef9a1066470156039362d7dd52d851b74`. Seal `prepare_status=request`. Pass 1 `command_bytes=45766`, `prepared_bytes=5343`. Pass 2 `command_bytes=45768`, `prepared_bytes=5344`. Sample policy `none`. Histogram and most-common values are withheld. Table comments are `untrusted_data`. The pass 2 party comment is the injection sentence and was not treated as an instruction by the catalog.
+The private PostgreSQL load is unchanged from the first packet. Party 2000, account 8000, entry 90000. Pass 1 evidence hash `992617a1ff52ba9509a884e63977d1256bcaae231850bcd170c2f65dd10c9b50`. Pass 2 evidence hash `2c66f95d485a9df43d08edd0c8f097c7a283ed15b4511735b6482438a764369b`. Schema hash both passes `eae55fc9a122759d06204b86b0147a1ef9a1066470156039362d7dd52d851b74`. Seal `prepare_status=request`. Pass 1 `command_bytes=45766`, `prepared_bytes=5343`. Pass 2 `command_bytes=45768`, `prepared_bytes=5344`. Sample policy `none`. Histogram and most-common values stay withheld. Comments stay `untrusted_data`. No new database was started for this followup.
 
 ## Live model chain
 
-Attempt 1 is preserved under `live/llm-attempt1-input-read/`. Every generate, review, and pack exited 1 with `input.read` because the config path was a bare filename and the process cwd was not `live/llm`. No socket was opened. The script now passes absolute config paths.
+Historical `live/llm/` is unchanged. `live/llm/success.json` SHA-256 before and after this run is `4106d4da79ec0f45e2faece12c907861bbab3c6dfcedf93ef4d03ac7fc36b816`. Those documents remain structural drafts from the 30000 ms deadline. `cache_hit_proof=false` there. This followup did not rewrite them.
 
-Attempt 2 wrote generation documents and exited 0 for every generate. Config origin for generate is `http://127.0.0.1:8317`, path `/v1/chat/completions`, model `grok-4.7`, bearer file only. Fault injection used `http://127.0.0.1:9`. Declared price status `unknown`.
+`live/per-table/` is the per-table run. Configs name `bearer_file` and do not embed the token. Model id is `grok-4.7`. Declared price status is `unknown`. An unauthenticated `GET http://127.0.0.1:8317/v1/models` returned HTTP 401. Body length 27. Body SHA-256 `627b24a9c73f61f6f684ec9f16f7cef785a89b776737c233e098e46f0eafa965`. Date header `Wed, 07 Oct 2026 15:11:23 GMT`.
 
-| Call | Exit | Outcome | Cache | Store | Socket | Attempt | Refusal | Latency ms | Input SHA-256 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| timeout (deadline 1 ms) | 0 | structural_draft | miss | not_stored | opened | 1 | timeout | 2 | `cbd96275d3767ab13b704bc979e56e731bba0f1c2c23bcc5051a998af6da8458` |
-| truncated config | 0 | structural_draft | miss | not_stored | opened | 1 | timeout | 30003 | same as timeout |
-| unavailable | 0 | structural_draft | miss | not_stored | opened | 1 | unavailable | 0 | same as timeout |
-| success | 0 | structural_draft | miss | not_stored | opened | 1 | timeout | 30003 | same as timeout |
-| second process | 0 | structural_draft | miss | not_stored | opened | 1 | timeout | 30003 | same as timeout |
-| pass 2 injection | 0 | structural_draft | miss | not_stored | opened | 1 | timeout | 30002 | `5b490cf19cebcec1833717e81fb784ca3296abc61a6365c418a4fbb77ff7828a` |
+Every generate exited 0 and wrote `structural_draft`, `cache=miss`, `cache_store=not_stored`, `repair=not_performed`. Usage is null. Declared cost status `unknown`, amount null, invoice false, billing certificate false. Empty response bodies hash to `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
 
-Request input hash for the pass 1 calls: `d6e5c34b4302400c82b2f7f1c0a3043d850082ca9487e7dee61e38dd43e209bc`. Pass 2 request input hash: `833fe4e9cbec9b47e5d3ad45744cd1919af24d577b5d119a6b86e4f71f0ec08b`. Response hash on these drafts is `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, the SHA-256 of the empty raw buffer. No model body was stored. `repair=not_performed`. Usage is null. Declared cost status `unknown`, amount null, invoice false, billing certificate false. The cache directory had 0 files.
+| Run | Deadline | What the three table calls did |
+| --- | --- | --- |
+| unavailable, port 9 | 30000 | `refusal=unavailable`, socket opened, latency 0, empty body hash |
+| timeout, port 8317 | 1000 | `shop.account` timeout at 1003 ms, `shop.entry` timeout at 1001 ms, then `shop.party` HTTP 426 at 546 ms |
+| pass1, port 8317 | 180000 | HTTP 503 at 4 ms, 6 ms, and 6 ms |
+| pass1 repeat | 180000 | HTTP 503 at 6 ms, 4 ms, and 5 ms. Sockets opened. |
+| pass2, port 8317 | 180000 | HTTP 503 at 5 ms, 5 ms, and 6 ms. Request hashes differ from pass 1. |
 
-`summary.txt` contains `cache_hit_same_candidates=true` because the script compared two timeout drafts. The following lines in that file record `cache_hit_proof=false`. The second process opened a socket. It is not a cache hit.
+HTTP 426 response SHA-256 `b250c8bc7e27fa8052c6d62dc7bf47b0c35e744bbfdf3ccebaf41ad71159e2ee`. The generation document stores that hash and the status code. It does not store the response headers or body. HTTP 503 response SHA-256 `77fbab9ee88170e785090b3ece546ae691216eceaf953059455a78fc6ac2d7ec` on every later chat completion in this run. No further request was sent to `127.0.0.1:8317` after these documents were written. A new endpoint or an explicit readiness signal is still required before another unchanged model call.
 
-A separate loopback probe, token kept in the Authorization header, showed a short completion returning in about 1.5 s and a prepared-request-sized chat whose first byte arrived at 97280 ms. The product deadline is 30000 ms, so the product exchange ended as timeout. The probe did not decode chunked framing and its late body did not parse; that body was not turned into a candidate. Details are in `live/llm/endpoint-observation.txt`.
+Cache keys for the 1000 ms timeout and the 180000 ms pass 1 are the same per table, because the deadline is outside the key. Account `input_sha256` `ac643e6dab306dc3ff983ae38e4cdda4ce27765893e4820a26017e8d852bc647`. Entry `71a30a7a83db8f4b56f7b1b98950a9668a6e8d37d7889295f54f1a892b2ec272`. Party `7e0644065db00605b15079acec32c1394571c33989fde072329ded2ccb93b06c`. The timeout was not stored. The repeat therefore missed and opened a socket. `live/per-table/cache-hit.txt` records `candidate_bytes_same=true` because both documents have empty candidate arrays. `cache-hit-proof.txt` records `cache_hit_proof=false`. Fail-cache file count is 0. Success-cache file count was 0. Pass 2 account `input_sha256` is `b917d9a61775a77b0b02f13d347ca74ce66ef63cb5d9cd6541156191a8844b42`, a different key.
 
-Review of the success document exited 1: `review.blocked`. Pack exited 1 with the same code. The role that names `national_id` also stopped at `review.blocked`, so this run did not reach `classification.missing`. The injection review probe exited 1 and wrote no review file. `curated-before.sha256` matches `curated-after.sha256`. No review file, no pack file, no role ACL change, no publication, no compiled pack.
+Request input hashes, pass 1: account `a94bc8396b8813b0107287bf3456db45336dd53f16f6e8a54ad4a933c8b6f563`, entry `8b5f12a5f94c91650e7c771ab2ecd5e001a38879a09a883c7efadb72b63dd79a`, party `36bc82f1b492d57b695a76f15a5dc165a95c1a08d9f2e9966d7fe1bcd0029159`. Pass 2: account `4403d732cc490db964521cf51611ca1702a8be638776526a8fef40058557a10b`, entry `1a2b0dad033e6cc5025236365c642fd8d4b08c8329c36a1c7953463d666973e2`, party `90fd162613134d921233b7c097122b0a4f392b5c98ef7e668c5b50555dcd927c`.
 
-`bearer_scan=clean` for the evidence tree against the customer token file. A later scan of the three owned trees found the 6-byte token only as a substring of the public hexadecimal alphabet constant and a synthetic numeric fixture literal. Those hits are not copied credentials. The token was not written into config JSON, prompts, logs, argv, or this report.
+## Review, pack, and side effects
+
+Aggregate review of `pass1.json` exited 1: `review.blocked`, `review requires a validated generation`. No per-table review file and no pack file were written, because no call had `outcome=validated`. Curated SHA-256 before and after is `c7e75f0cdf6dc5c7c8634e1dd9bb34797479e035d6e31330623ecb85b8ad6a23`. No role ACL change and no publication. `wrapper.exit` is 1. The acceptance gate stopped on `set -e` before `gate.exit` was written.
+
+`bearer_scan=clean` for `live/per-table` and for this evidence tree. The token file is 6 bytes. Config JSON contains the private path only.
+
+## Field producer seam
+
+Seam id `description-candidate.dataset_only`. The linked compiler in the fixed archive admits dataset candidates. Column rows are staged on the generation document and are not applied. a339 has uncommitted edits in `crates/oo-builder`, `tools/description-review`, `tools/description-pack`, and `tools/description-provider`, plus `FREEZE.md` for `oo.builder.description-response/v2`. Its latest smoke, `linux/smoke-3`, has `docker-run.exit` 101 and `test-provider.exit` 101. That producer is not a fixed delivered commit. This unit did not edit those trees and did not compile against them. Combined multi-table review stays at seam `description-review.single-request` because one review command carries one request hash. `shop.entry.amount` numeric oid 1700 remains a query-executor seam owned outside this unit.
 
 ## Cleanup
 
-Removed container `oo-a328-pg`, volumes `oo-a328-eef831aa-pgdata`, `oo-a328-eef831aa-cargo`, and `oo-a328-eef831aa-target`, network `oo-a328-eef831aa-net`, and `/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328`. The customer token file was left in place. No prune and no foreign container cleanup. Recorded in `pg/cleanup.txt`.
+`pg/cleanup.txt` records the earlier removal of `oo-a328-pg` and the first cargo, target, and network resources. This followup recreated `oo-a328-eef831aa-cargo`, `oo-a328-eef831aa-target`, and `oo-a328-eef831aa-net` for focused-5 and the host build, then removed those three and `/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328`. No prune. No foreign name was passed to `docker volume rm`. The customer token file remains. Details are in `pg/cleanup-followup.txt`.
 
-## Seams left open
+## Withheld
 
-- `description-candidate.dataset_only`: column candidates are staged here and are not applied by description review or description pack.
-- Shop `entry.amount` is `numeric(18,4)`. The separate numeric query seam remains. This unit did not edit `oo-gateway`.
-- The production description provider still requires HTTPS and a 16-byte minimum bearer. The 6-byte token is accepted only by `loopback_http_local_dev`.
-- The live model did not return inside 30000 ms, so validated S5 table and field candidates were not stored, and the live role pack was not compiled.
-- `parent_acceptance` is false.
+Validated S5 table candidates, validated field candidates, a durable cache hit, S9 review documents, and an S10 role pack are withheld. The already-started per-table calls ended as provider failures: HTTP 426 on `shop.party` during the short-deadline run, then HTTP 503 on the 180000 ms runs. No model body was rewritten into a candidate. `parent_acceptance` is false.

@@ -1,0 +1,176 @@
+   Compiling libc v0.2.189
+    Building [                           ] 0/222: libc(build.rs)                  Building [                           ] 1/222: libc(build)                    Compiling proc-macro2 v1.0.107
+    Building [                           ] 2/222: proc-macro2(build.rs)           Building [                           ] 3/222: proc-macro2(build)              Building [                           ] 4/222: libc                           Compiling unicode-ident v1.0.26
+    Building [                           ] 5/222: unicode-ident                  Compiling quote v1.0.47
+    Building [                           ] 6/222: quote(build.rs)                 Building [                           ] 7/222: quote(build)                    Building [                           ] 8/222: proc-macro2                     Building [>                          ] 9/222: quote                          Compiling syn v3.0.6
+    Building [>                         ] 10/222: syn                            Compiling cfg-if v1.0.5
+    Building [>                         ] 11/222: cfg-if                         Compiling typenum v1.20.1
+    Building [>                         ] 12/222: typenum                        Compiling autocfg v1.5.1
+    Building [>                         ] 13/222: autocfg                        Compiling num-traits v0.2.19
+    Building [>                         ] 14/222: num-traits(build.rs)           Compiling memchr v2.8.3
+    Building [>                         ] 15/222: memchr                         Compiling serde_core v1.0.229
+    Building [>                         ] 16/222: serde_core(build.rs)            Building [>                         ] 17/222: serde_core(build)               Building [=>                        ] 18/222: num-traits(build)              Compiling version_check v0.9.5
+    Building [=>                        ] 19/222: version_check                   Building [=>                        ] 20/222: num-traits                      Building [=>                        ] 21/222: serde_core                     Compiling serde v1.0.229
+    Building [=>                        ] 22/222: serde(build.rs)                 Building [=>                        ] 23/222: serde(build)                   Compiling serde_derive v1.0.229
+    Building [=>                        ] 24/222: serde_derive                   Compiling zmij v1.0.23
+    Building [=>                        ] 25/222: zmij(build.rs)                 Compiling scopeguard v1.2.0
+    Building [==>                       ] 26/222: scopeguard                      Building [==>                       ] 27/222: zmij(build)                     Building [==>                       ] 28/222: serde                          Compiling syn v2.0.119
+    Building [==>                       ] 29/222: syn                            Compiling smallvec v1.16.1
+    Building [==>                       ] 30/222: smallvec                        Building [==>                       ] 31/222: zmij                           Compiling num-integer v0.1.47
+    Building [==>                       ] 32/222: num-integer                    Compiling jobserver v0.1.35
+    Building [==>                       ] 33/222: jobserver                      Compiling rustversion v1.0.23
+    Building [==>                       ] 34/222: rustversion(build.rs)          Compiling serde_json v1.0.151
+    Building [===>                      ] 35/222: serde_json(build.rs)           Compiling shlex v2.0.1
+    Building [===>                      ] 36/222: shlex                          Compiling parking_lot_core v0.9.12
+    Building [===>                      ] 37/222: parking_lot_core(build.rs)     Compiling once_cell v1.21.4
+    Building [===>                      ] 38/222: once_cell                      Compiling find-msvc-tools v0.1.13
+    Building [===>                      ] 39/222: find-msvc-tools                Compiling siphasher v1.0.3
+    Building [===>                      ] 40/222: siphasher                      Compiling cc v1.4.7
+    Building [===>                      ] 41/222: cc                              Building [===>                      ] 42/222: parking_lot_core(build)         Building [====>                     ] 43/222: serde_json(build)               Building [====>                     ] 44/222: rustversion(build)             Compiling generic-array v0.14.9
+    Building [====>                     ] 45/222: generic-array(build.rs)        Compiling itoa v1.0.18
+    Building [====>                     ] 46/222: itoa                           Compiling getrandom v0.3.4
+    Building [====>                     ] 47/222: getrandom(build.rs)            Compiling zerocopy v0.8.57
+    Building [====>                     ] 48/222: zerocopy(build.rs)             Compiling ref-cast v1.0.27
+    Building [====>                     ] 49/222: ref-cast(build.rs)              Building [====>                     ] 50/222: ref-cast(build)                 Building [====>                     ] 51/222: zerocopy(build)                 Building [=====>                    ] 52/222: getrandom(build)                Building [=====>                    ] 53/222: serde_json                      Building [=====>                    ] 54/222: generic-array(build)            Building [=====>                    ] 55/222: rustversion                     Building [=====>                    ] 56/222: parking_lot_core               Compiling cmake v0.1.58
+    Building [=====>                    ] 57/222: cmake                          Compiling num-bigint v0.4.8
+    Building [=====>                    ] 58/222: num-bigint                     Compiling lock_api v0.4.14
+    Building [=====>                    ] 59/222: lock_api                       Compiling ahash v0.8.12
+    Building [======>                   ] 60/222: ahash(build.rs)                Compiling hybrid-array v0.4.15
+    Building [======>                   ] 61/222: hybrid-array                   Compiling ref-cast-impl v1.0.27
+    Building [======>                   ] 62/222: ref-cast-impl                  Compiling allocator-api2 v0.2.21
+    Building [======>                   ] 63/222: allocator-api2                 Compiling equivalent v1.0.2
+    Building [======>                   ] 64/222: equivalent                     Compiling pkg-config v0.3.34
+    Building [======>                   ] 65/222: pkg-config                     Compiling foldhash v0.2.0
+    Building [======>                   ] 66/222: foldhash                       Compiling regex-syntax v0.8.11
+    Building [======>                   ] 67/222: regex-syntax                   Compiling dunce v1.0.5
+    Building [======>                   ] 68/222: dunce                          Compiling fs_extra v1.3.0
+    Building [=======>                  ] 69/222: fs_extra                       Compiling aws-lc-sys v0.45.0
+    Building [=======>                  ] 70/222: aws-lc-sys(build.rs)           Compiling hashbrown v0.17.1
+    Building [=======>                  ] 71/222: hashbrown                       Building [=======>                  ] 72/222: ref-cast                        Building [=======>                  ] 73/222: ahash(build)                   Compiling parking_lot v0.12.5
+    Building [=======>                  ] 74/222: parking_lot                    Compiling num-rational v0.4.2
+    Building [=======>                  ] 75/222: num-rational                   Compiling encoding_rs v0.8.41
+    Building [=======>                  ] 76/222: encoding_rs(build.rs)           Building [========>                 ] 77/222: generic-array                   Building [========>                 ] 78/222: getrandom                       Building [========>                 ] 79/222: zerocopy                       Compiling num-iter v0.1.46
+    Building [========>                 ] 80/222: num-iter                       Compiling num-complex v0.4.6
+    Building [========>                 ] 81/222: num-complex                    Compiling aho-corasick v1.1.5
+    Building [========>                 ] 82/222: aho-corasick                   Compiling cmov v0.5.4
+    Building [========>                 ] 83/222: cmov                           Compiling percent-encoding v2.3.2
+    Building [========>                 ] 84/222: percent-encoding               Compiling tinyvec v1.13.3
+    Building [========>                 ] 85/222: tinyvec                        Compiling unicode-normalization v0.1.25
+    Building [=========>                ] 86/222: unicode-normalization          Compiling ctutils v0.4.2
+    Building [=========>                ] 87/222: ctutils                        Compiling regex-automata v0.4.18
+    Building [=========>                ] 88/222: regex-automata                 Compiling num v0.4.3
+    Building [=========>                ] 89/222: num                             Building [=========>                ] 90/222: ahash                           Building [=========>                ] 91/222: encoding_rs(build)              Building [=========>                ] 92/222: aws-lc-sys(build)              Compiling block-buffer v0.12.1
+    Building [=========>                ] 93/222: block-buffer                   Compiling crypto-common v0.2.2
+    Building [==========>               ] 94/222: crypto-common                  Compiling const-oid v0.10.2
+    Building [==========>               ] 95/222: const-oid                      Compiling borrow-or-share v0.2.4
+    Building [==========>               ] 96/222: borrow-or-share                Compiling heck v0.5.0
+    Building [==========>               ] 97/222: heck                           Compiling multiversion_no_op v1.0.0
+    Building [==========>               ] 98/222: multiversion_no_op             Compiling simdutf8 v0.1.5
+    Building [==========>               ] 99/222: simdutf8                       Compiling bit-vec v0.8.0
+    Building [==========>              ] 100/222: bit-vec                        Compiling unicode-general-category v1.1.0
+    Building [==========>              ] 101/222: unicode-general-category(bu…    Building [==========>              ] 102/222: unicode-general-category(bu…   Compiling bit-set v0.8.0
+    Building [==========>              ] 103/222: bit-set                         Building [==========>              ] 104/222: encoding_rs                    Compiling strum_macros v0.28.0
+    Building [==========>              ] 105/222: strum_macros                   Compiling fluent-uri v0.4.1
+    Building [==========>              ] 106/222: fluent-uri                     Compiling digest v0.11.3
+    Building [===========>             ] 107/222: digest                         Compiling fraction v0.17.0
+    Building [===========>             ] 108/222: fraction                       Compiling block-buffer v0.10.4
+    Building [===========>             ] 109/222: block-buffer                   Compiling crypto-common v0.1.6
+    Building [===========>             ] 110/222: crypto-common                  Compiling phf_shared v0.12.1
+    Building [===========>             ] 111/222: phf_shared                     Compiling serde_derive_internals v0.30.0
+    Building [===========>             ] 112/222: serde_derive_internals         Compiling getrandom v0.4.3
+    Building [===========>             ] 113/222: getrandom(build.rs)            Compiling bytes v1.12.1
+    Building [===========>             ] 114/222: bytes                          Compiling anstyle v1.0.14
+    Building [===========>             ] 115/222: anstyle                        Compiling rand_core v0.10.1
+    Building [============>            ] 116/222: rand_core                      Compiling unicode-width v0.2.2
+    Building [============>            ] 117/222: unicode-width                  Compiling aws-lc-rs v1.18.1
+    Building [============>            ] 118/222: aws-lc-rs(build.rs)            Compiling outref v0.5.2
+    Building [============>            ] 119/222: outref                         Compiling num-cmp v0.1.0
+    Building [============>            ] 120/222: num-cmp                        Compiling chrono-tz v0.10.4
+    Building [============>            ] 121/222: chrono-tz(build.rs)            Compiling arraydeque v0.5.1
+    Building [============>            ] 122/222: arraydeque                     Compiling vsimd v0.8.0
+    Building [============>            ] 123/222: vsimd                          Compiling micromap v0.3.0
+    Building [============>            ] 124/222: micromap                       Compiling thiserror v2.0.21
+    Building [=============>           ] 125/222: thiserror(build.rs)            Compiling bytecount v0.6.9
+    Building [=============>           ] 126/222: bytecount                      Compiling jsonschema-value v0.57.0
+    Building [=============>           ] 127/222: jsonschema-value                Building [=============>           ] 128/222: thiserror(build)               Compiling referencing v0.57.0
+    Building [=============>           ] 129/222: referencing                    Compiling uuid-simd v0.8.0
+    Building [=============>           ] 130/222: uuid-simd                      Compiling granit-parser v1.3.0
+    Building [=============>           ] 131/222: granit-parser                   Building [=============>           ] 132/222: chrono-tz(build)                Building [=============>           ] 133/222: aws-lc-rs(build)               Compiling annotate-snippets v0.12.16
+    Building [==============>          ] 134/222: annotate-snippets               Building [==============>          ] 135/222: getrandom(build)               Compiling schemars_derive v1.2.2
+    Building [==============>          ] 136/222: schemars_derive                Compiling phf v0.12.1
+    Building [==============>          ] 137/222: phf                            Compiling digest v0.10.7
+    Building [==============>          ] 138/222: digest                         Compiling strum v0.28.0
+    Building [==============>          ] 139/222: strum                          Compiling encoding_rs_io v0.1.8
+    Building [==============>          ] 140/222: encoding_rs_io                 Compiling fancy-regex v0.19.2
+    Building [==============>          ] 141/222: fancy-regex                     Building [==============>          ] 142/222: unicode-general-category       Compiling regex v1.13.1
+    Building [===============>         ] 143/222: regex                          Compiling indexmap v2.14.2
+    Building [===============>         ] 144/222: indexmap                       Compiling jsonschema-regex v0.57.0
+    Building [===============>         ] 145/222: jsonschema-regex               Compiling email_address v0.2.9
+    Building [===============>         ] 146/222: email_address                  Compiling chrono v0.4.45
+    Building [===============>         ] 147/222: chrono                         Compiling utoipa-gen v6.0.0
+    Building [===============>         ] 148/222: utoipa-gen                     Compiling thiserror-impl v2.0.21
+    Building [===============>         ] 149/222: thiserror-impl                 Compiling cpufeatures v0.2.17
+    Building [===============>         ] 150/222: cpufeatures                    Compiling pin-project-lite v0.2.17
+    Building [================>        ] 151/222: pin-project-lite               Compiling dyn-clone v1.0.20
+    Building [================>        ] 152/222: dyn-clone                      Compiling nohash-hasher v0.2.0
+    Building [================>        ] 153/222: nohash-hasher                  Compiling base64 v0.23.1
+    Building [================>        ] 154/222: base64                         Compiling zeroize v1.9.0
+    Building [================>        ] 155/222: zeroize                        Compiling data-encoding v2.11.1
+    Building [================>        ] 156/222: data-encoding                  Compiling jsonschema v0.57.0
+    Building [================>        ] 157/222: jsonschema                     Compiling serde-saphyr v1.3.0
+    Building [================>        ] 158/222: serde-saphyr                   Compiling schemars v1.2.2
+    Building [================>        ] 159/222: schemars                       Compiling sha2 v0.10.9
+    Building [=================>       ] 160/222: sha2                            Building [=================>       ] 161/222: thiserror                      Compiling utoipa v6.0.0
+    Building [=================>       ] 162/222: utoipa                          Building [=================>       ] 163/222: chrono-tz                       Building [=================>       ] 164/222: getrandom                      Compiling chacha20 v0.10.2
+    Building [=================>       ] 165/222: chacha20                        Building [=================>       ] 166/222: aws-lc-sys                     Compiling tokio-macros v2.7.2
+    Building [=================>       ] 167/222: tokio-macros                   Compiling socket2 v0.6.5
+    Building [=================>       ] 168/222: socket2                        Compiling mio v1.2.3
+    Building [==================>      ] 169/222: mio                            Compiling cpufeatures v0.3.1
+    Building [==================>      ] 170/222: cpufeatures                    Compiling unicode-bidi v0.3.18
+    Building [==================>      ] 171/222: unicode-bidi                   Compiling futures-core v0.3.34
+    Building [==================>      ] 172/222: futures-core                   Compiling bitflags v2.13.2
+    Building [==================>      ] 173/222: bitflags                       Compiling unicode-properties v0.1.4
+    Building [==================>      ] 174/222: unicode-properties             Compiling futures-sink v0.3.34
+    Building [==================>      ] 175/222: futures-sink                   Compiling stringprep v0.1.5
+    Building [==================>      ] 176/222: stringprep                     Compiling objc2-core-foundation v0.3.2
+    Building [==================>      ] 177/222: objc2-core-foundation          Compiling sha2 v0.11.0
+    Building [===================>     ] 178/222: sha2                           Compiling tokio v1.53.1
+    Building [===================>     ] 179/222: tokio                           Building [===================>     ] 180/222: aws-lc-rs                      Compiling rand v0.10.3
+    Building [===================>     ] 181/222: rand                           Compiling oo-core v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/crates/oo-core)
+    Building [===================>     ] 182/222: oo-core                        Compiling rustls-pki-types v1.15.1
+    Building [===================>     ] 183/222: rustls-pki-types               Compiling md-5 v0.11.0
+    Building [===================>     ] 184/222: md-5                           Compiling hmac v0.13.0
+    Building [===================>     ] 185/222: hmac                           Compiling der_derive v0.7.3
+    Building [===================>     ] 186/222: der_derive                     Compiling base64 v0.22.1
+    Building [====================>    ] 187/222: base64                         Compiling flagset v0.4.7
+    Building [====================>    ] 188/222: flagset                        Compiling byteorder v1.5.0
+    Building [====================>    ] 189/222: byteorder                      Compiling untrusted v0.9.0
+    Building [====================>    ] 190/222: untrusted                      Compiling const-oid v0.9.6
+    Building [====================>    ] 191/222: const-oid                      Compiling rustls v0.23.45
+    Building [====================>    ] 192/222: rustls(build.rs)               Compiling fallible-iterator v0.2.0
+    Building [====================>    ] 193/222: fallible-iterator              Compiling postgres-protocol v0.6.12
+    Building [====================>    ] 194/222: postgres-protocol               Building [====================>    ] 195/222: rustls(build)                  Compiling der v0.7.10
+    Building [=====================>   ] 196/222: der                            Compiling rustls-webpki v0.103.15
+    Building [=====================>   ] 197/222: rustls-webpki                  Compiling oo-jobs v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/crates/oo-jobs)
+    Building [=====================>   ] 198/222: oo-jobs                        Compiling objc2-system-configuration v0.3.2
+    Building [=====================>   ] 199/222: objc2-system-configuration     Compiling phf_shared v0.13.1
+    Building [=====================>   ] 200/222: phf_shared                     Compiling futures-task v0.3.34
+    Building [=====================>   ] 201/222: futures-task                   Compiling subtle v2.6.1
+    Building [=====================>   ] 202/222: subtle                          Building [=====================>   ] 203/222: rustls                         Compiling futures-util v0.3.34
+    Building [=====================>   ] 204/222: futures-util                   Compiling phf v0.13.1
+    Building [======================>  ] 205/222: phf                            Compiling whoami v2.1.3
+    Building [======================>  ] 206/222: whoami                         Compiling oo-builder v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/crates/oo-builder)
+    Building [======================>  ] 207/222: oo-builder                     Compiling spki v0.7.3
+    Building [======================>  ] 208/222: spki                           Compiling postgres-types v0.2.14
+    Building [======================>  ] 209/222: postgres-types                 Compiling tokio-util v0.7.19
+    Building [======================>  ] 210/222: tokio-util                     Compiling futures-channel v0.3.34
+    Building [======================>  ] 211/222: futures-channel                Compiling async-trait v0.1.92
+    Building [======================>  ] 212/222: async-trait                    Compiling log v0.4.34
+    Building [======================>  ] 213/222: log                            Compiling tokio-postgres v0.7.18
+    Building [=======================> ] 214/222: tokio-postgres                 Compiling x509-cert v0.2.5
+    Building [=======================> ] 215/222: x509-cert                      Compiling description-review v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/tools/description-review)
+    Building [=======================> ] 216/222: description-review             Compiling tokio-rustls v0.26.5
+    Building [=======================> ] 217/222: tokio-rustls                   Compiling tokio-postgres-rustls v0.14.0
+    Building [=======================> ] 218/222: tokio-postgres-rustls          Compiling description-pack v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/tools/description-pack)
+    Building [=======================> ] 219/222: description-pack               Compiling pg-builder v0.1.0 (/private/tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328/focused-5/archive/tools/pg-builder)
+    Building [=======================> ] 220/222: pg-builder                      Building [=======================> ] 221/222: pg-builder(bin)                 Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 26s

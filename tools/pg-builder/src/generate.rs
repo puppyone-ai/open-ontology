@@ -1,4 +1,4 @@
-//! One model call, or a cache hit that does not open a socket.
+//! One model call per table batch, or a cache hit that does not open a socket.
 
 use serde_json::{json, Value};
 
@@ -72,10 +72,12 @@ pub struct ScriptedTransport {
     pub usage: Option<(u64, u64, u64)>,
     pub calls: u32,
     pub refusal: Option<&'static str>,
+    pub bodies: Vec<Vec<u8>>,
 }
 
 impl ChatTransport for ScriptedTransport {
-    fn post(&mut self, _body: &[u8]) -> Result<RawReply, PgBuilderError> {
+    fn post(&mut self, body: &[u8]) -> Result<RawReply, PgBuilderError> {
+        self.bodies.push(body.to_vec());
         self.calls = self.calls.saturating_add(1);
         if let Some(refusal) = self.refusal {
             return Ok(RawReply {
@@ -104,64 +106,102 @@ impl ChatTransport for ScriptedTransport {
     }
 }
 
-pub fn generate(input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
+pub fn column_batch_ranges(column_count: usize) -> Vec<(usize, usize)> {
+    const BATCH: usize = 8;
+    let mut ranges = Vec::new();
+    let mut start = 0;
+    while start < column_count {
+        let end = (start + BATCH).min(column_count);
+        ranges.push((start, end));
+        start = end;
+    }
+    ranges
+}
+
+pub fn generate(mut input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
     approval_matches(input.cards, input.approval)?;
     if contains_secret(input.config_bytes, input.token) || contains_secret(PROMPT.as_bytes(), input.token) {
         return Err(PgBuilderError::new("config.secret", "the bearer is present outside its file"));
     }
-    let request_text = prepare_description_request(input.command_text).map_err(|_| {
+    let tables = input
+        .cards
+        .get("tables")
+        .and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("approval.schema", "the cards have no tables"))?
+        .clone();
+    if tables.is_empty() {
+        return Err(PgBuilderError::new("approval.schema", "the cards have no tables"));
+    }
+    if tables.len() > input.config.max_tables {
+        return Err(PgBuilderError::new("config.budget", "the card list is above the table budget"));
+    }
+    let mut docs = Vec::new();
+    for table in &tables {
+        docs.extend(generate_table(&mut input, table)?);
+    }
+    if docs.len() == 1 {
+        return Ok(docs.remove(0));
+    }
+    Ok(aggregate(input.config, &docs))
+}
+
+fn generate_table(input: &mut GenerateIn<'_>, table: &Value) -> Result<Vec<Value>, PgBuilderError> {
+    let dataset = table.get("dataset").and_then(Value::as_str).unwrap_or("");
+    let column_count = table.get("columns").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let ranges = column_batch_ranges(column_count);
+    if ranges.is_empty() {
+        return Err(PgBuilderError::new("compiler.columns", "a selected table has no columns"));
+    }
+    let command_text = command_for_table(input.command_text, dataset)?;
+    let request_text = prepare_description_request(&command_text).map_err(|_| {
         PgBuilderError::new("compiler.request", "the description request was refused")
     })?;
     let request: Value = serde_json::from_str(&request_text)
         .map_err(|_| PgBuilderError::new("compiler.request", "the description request was refused"))?;
+    let batch_count = ranges.len();
     if request.get("protocol").and_then(Value::as_str) != Some(DESCRIPTION_REQUEST_PROTOCOL) {
         let input_sha = crate::sha256_hex(request_text.as_bytes());
-        return Ok(failure_document(
+        let scope = BatchScope { table, column_from: 0, column_to: column_count, batch_index: 0, batch_count, dataset };
+        return Ok(vec![failure_document(
             input,
             &input_sha,
             &request_text,
             "budget_failure",
             Some("compiler_request"),
             "not_opened",
-        ));
+            &scope,
+        )]);
     }
     if request.get("model_id").and_then(Value::as_str) != Some(input.config.model_id.as_str()) {
         return Err(PgBuilderError::new("compiler.model", "the prepared model is not the builder model"));
     }
-    if request
-        .pointer("/statements/samples")
-        .and_then(Value::as_str)
-        != Some("not_included")
-    {
+    if request.pointer("/statements/samples").and_then(Value::as_str) != Some("not_included") {
         return Err(PgBuilderError::new("compiler.samples", "the prepared request includes samples"));
     }
-    let cards_hash = canonical_sha256(input.cards);
-    let model_input = json!({
-        "protocol": "oo.pg-builder.model-input/v1",
-        "role": "data",
-        "prompt_version": PROMPT_VERSION,
-        "prompt_sha256": prompt_sha256(),
-        "model_id": input.config.model_id,
-        "sample_policy": "none",
-        "compiler_request": request,
-        "cards": input.cards.get("tables").cloned().unwrap_or(Value::Array(Vec::new()))
-    });
+    let mut docs = Vec::new();
+    for (batch_index, (column_from, column_to)) in ranges.into_iter().enumerate() {
+        let scope = BatchScope { table, column_from, column_to, batch_index, batch_count, dataset };
+        docs.push(generate_batch(input, &command_text, &request_text, &request, &scope)?);
+    }
+    Ok(docs)
+}
+
+fn generate_batch(
+    input: &mut GenerateIn<'_>,
+    command_text: &str,
+    request_text: &str,
+    request: &Value,
+    scope: &BatchScope<'_>,
+) -> Result<Value, PgBuilderError> {
+    let model_input = model_input(input.config, request, scope)?;
     let model_input_text = canonical_json(&model_input);
     if contains_secret(model_input_text.as_bytes(), input.token) {
         return Err(PgBuilderError::new("config.secret", "the bearer is present outside its file"));
     }
-    let input_sha = input_hash(input.config, input.cards, &cards_hash, &request_text)?;
+    let input_sha = input_hash(input.config, input.cards, request, scope)?;
     let evidence_hash = input.cards.get("evidence_hash").and_then(Value::as_str).unwrap_or("");
     if let Some(cached) = read_validated(input.cache_dir, &input_sha, evidence_hash)? {
-        let mut hit = cached;
-        if let Some(map) = hit.as_object_mut() {
-            map.insert("cache".to_owned(), Value::String("hit".to_owned()));
-            if let Some(transport) = map.get_mut("transport").and_then(Value::as_object_mut) {
-                transport.insert("socket".to_owned(), Value::String("not_opened".to_owned()));
-                transport.insert("attempt".to_owned(), Value::from(0));
-            }
-        }
-        return Ok(hit);
+        return Ok(mark_hit(cached));
     }
     let chat = chat_body(input.config, &model_input_text)?;
     let chat_bytes = serde_json::to_vec(&chat)
@@ -170,52 +210,294 @@ pub fn generate(input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
         return Ok(failure_document(
             input,
             &input_sha,
-            &request_text,
+            request_text,
             "budget_failure",
             Some("request_bytes"),
             "not_opened",
+            scope,
         ));
     }
     let reply = input.transport.post(&chat_bytes)?;
     let parsed = parse_completion(input.config, input.token, &reply)?;
-    finish_generation(input, &input_sha, &request_text, &model_input_text, parsed)
+    finish_generation(input, &input_sha, command_text, &model_input_text, parsed, scope)
+}
+
+fn mark_hit(mut hit: Value) -> Value {
+    if let Some(map) = hit.as_object_mut() {
+        map.insert("cache".to_owned(), Value::String("hit".to_owned()));
+        if let Some(transport) = map.get_mut("transport").and_then(Value::as_object_mut) {
+            transport.insert("socket".to_owned(), Value::String("not_opened".to_owned()));
+            transport.insert("attempt".to_owned(), Value::from(0));
+        }
+    }
+    hit
+}
+
+struct BatchScope<'a> {
+    table: &'a Value,
+    column_from: usize,
+    column_to: usize,
+    batch_index: usize,
+    batch_count: usize,
+    dataset: &'a str,
+}
+
+fn command_for_table(command_text: &str, dataset: &str) -> Result<String, PgBuilderError> {
+    let value: Value = serde_json::from_str(command_text).map_err(|_| {
+        PgBuilderError::new("compiler.request", "the description command is not JSON")
+    })?;
+    let tables = value
+        .pointer("/selection/tables")
+        .and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("compiler.request", "the description command has no tables"))?;
+    if tables.len() == 1 {
+        let only = tables[0].get("dataset").and_then(Value::as_str).unwrap_or("");
+        if only != dataset {
+            return Err(PgBuilderError::new("compiler.request", "the description command does not name the table"));
+        }
+        return Ok(command_text.to_owned());
+    }
+    let kept: Vec<Value> = tables
+        .iter()
+        .filter(|table| table.get("dataset").and_then(Value::as_str) == Some(dataset))
+        .cloned()
+        .collect();
+    if kept.len() != 1 {
+        return Err(PgBuilderError::new("compiler.request", "the description command does not name the table"));
+    }
+    let mut narrowed = value;
+    let selection = narrowed
+        .pointer_mut("/selection/tables")
+        .ok_or_else(|| PgBuilderError::new("compiler.request", "the description command has no tables"))?;
+    *selection = Value::Array(kept);
+    Ok(canonical_json(&narrowed))
+}
+
+fn model_input(config: &Config, request: &Value, scope: &BatchScope<'_>) -> Result<Value, PgBuilderError> {
+    let columns = scope
+        .table
+        .get("columns")
+        .and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("compiler.columns", "a selected table has no columns"))?;
+    if scope.column_to > columns.len() || scope.column_from >= scope.column_to {
+        return Err(PgBuilderError::new("compiler.columns", "the column batch is outside the table"));
+    }
+    let mut minimal = Vec::new();
+    for column in &columns[scope.column_from..scope.column_to] {
+        minimal.push(json!({
+            "attnum": column.get("attnum").cloned().unwrap_or(Value::Null),
+            "correlation": column.get("correlation").cloned().unwrap_or(Value::Null),
+            "n_distinct": column.get("n_distinct").cloned().unwrap_or(Value::Null),
+            "name": column.get("name").cloned().unwrap_or(Value::Null),
+            "null_frac": column.get("null_frac").cloned().unwrap_or(Value::Null),
+            "type_name": column.get("type_name").cloned().unwrap_or(Value::Null),
+            "untrusted_comment": column.get("untrusted_comment").cloned().unwrap_or(Value::Null)
+        }));
+    }
+    Ok(json!({
+        "protocol": "oo.pg-builder.model-input/v2",
+        "role": "data",
+        "prompt_version": PROMPT_VERSION,
+        "prompt_sha256": prompt_sha256(),
+        "model_id": config.model_id,
+        "sample_policy": "none",
+        "batch": {
+            "column_from": scope.column_from,
+            "column_to": scope.column_to,
+            "count": scope.batch_count,
+            "index": scope.batch_index
+        },
+        "echo": {
+            "budget_sha256": request.get("budget_sha256").cloned().unwrap_or(Value::Null),
+            "compiler_card_sha256": request.pointer("/boundary/data/tables/0/card_sha256").cloned().unwrap_or(Value::Null),
+            "dataset": scope.dataset,
+            "evidence_card_sha256": scope.table.get("card_sha256").cloned().unwrap_or(Value::Null),
+            "evidence_hash": request.get("evidence_hash").cloned().unwrap_or(Value::Null),
+            "model_id": request.get("model_id").cloned().unwrap_or(Value::Null),
+            "prompt_sha256": request.get("prompt_sha256").cloned().unwrap_or(Value::Null),
+            "prompt_version": request.get("prompt_version").cloned().unwrap_or(Value::Null),
+            "protocol": DESCRIPTION_RESPONSE_PROTOCOL,
+            "request_sha256": request.get("request_sha256").cloned().unwrap_or(Value::Null),
+            "schema_hash": request.get("schema_hash").cloned().unwrap_or(Value::Null),
+            "source_id": request.get("source_id").cloned().unwrap_or(Value::Null)
+        },
+        "card": {
+            "columns": minimal,
+            "comment_authority": scope.table.get("comment_authority").cloned().unwrap_or(Value::Null),
+            "dataset": scope.dataset,
+            "foreign_keys": scope.table.get("foreign_keys").cloned().unwrap_or(Value::Array(Vec::new())),
+            "reltuples": scope.table.get("reltuples").cloned().unwrap_or(Value::Null),
+            "untrusted_table_comment": scope.table.get("untrusted_table_comment").cloned().unwrap_or(Value::Null)
+        }
+    }))
+}
+
+fn aggregate(config: &Config, docs: &[Value]) -> Value {
+    let all_validated = docs.iter().all(|doc| doc.get("outcome").and_then(Value::as_str) == Some("validated"));
+    let hits = docs.iter().filter(|doc| doc.get("cache").and_then(Value::as_str) == Some("hit")).count();
+    let stored = docs
+        .iter()
+        .filter(|doc| doc.get("cache_store").and_then(Value::as_str) == Some("stored"))
+        .count();
+    let cache = if hits == docs.len() {
+        "hit"
+    } else if hits == 0 {
+        "miss"
+    } else {
+        "partial"
+    };
+    let cache_store = if stored == docs.len() {
+        "stored"
+    } else if stored == 0 {
+        "not_stored"
+    } else {
+        "partial"
+    };
+    let any_opened = docs.iter().any(|doc| doc.pointer("/transport/socket").and_then(Value::as_str) == Some("opened"));
+    let all_complete = docs.iter().all(|doc| doc.pointer("/transport/status").and_then(Value::as_str) == Some("complete"));
+    let mut field_rows = Vec::new();
+    let mut table_rows = Vec::new();
+    for doc in docs {
+        if let Some(rows) = doc.pointer("/candidates/field").and_then(Value::as_array) {
+            field_rows.extend(rows.iter().cloned());
+        }
+        if let Some(rows) = doc.pointer("/candidates/table").and_then(Value::as_array) {
+            table_rows.extend(rows.iter().cloned());
+        }
+    }
+    let candidates = json!({"field": field_rows, "table": table_rows});
+    let usage = usage_sum(docs);
+    let tokens = usage.map(|(_, _, total)| total).unwrap_or(0);
+    let amount_value = if usage.is_none() {
+        Value::Null
+    } else {
+        amount(&config.price, tokens).unwrap_or(Value::Null)
+    };
+    let amount_value = if matches!(config.price, Price::Unknown) { Value::Null } else { amount_value };
+    json!({
+        "protocol": "oo.pg-builder.generation/v1",
+        "compiler": "oo.pg-builder/v1",
+        "outcome": if all_validated { "validated" } else { "structural_draft" },
+        "cache": cache,
+        "cache_store": cache_store,
+        "call_count": docs.len(),
+        "calls": docs,
+        "repair": "not_performed",
+        "complete_command": Value::Null,
+        "candidates": candidates,
+        "candidate_sha256": canonical_sha256(&candidates),
+        "field_publication_seam": field_seam(),
+        "transport": {
+            "adapter": "loopback_http_local_dev",
+            "model_id": config.model_id,
+            "endpoint_origin": config.origin,
+            "endpoint_path": config.path,
+            "namespace": "pg-builder",
+            "request_input_sha256": Value::Null,
+            "response_sha256": Value::Null,
+            "usage": usage.map(|(prompt, completion, total)| json!({
+                "prompt_tokens": prompt,
+                "completion_tokens": completion,
+                "total_tokens": total
+            })).unwrap_or(Value::Null),
+            "latency_ms": latency_sum(docs),
+            "attempt": if any_opened { 1 } else { 0 },
+            "finish_reason": Value::Null,
+            "status": if all_complete { "complete" } else { "incomplete" },
+            "http_status": Value::Null,
+            "refusal": Value::Null,
+            "budget_reason": Value::Null,
+            "socket": if any_opened { "opened" } else { "not_opened" },
+            "declared_cost": {
+                "status": match config.price {
+                    Price::Unknown => "unknown",
+                    Price::Declared { .. } => "declared_non_billing",
+                },
+                "billing_certificate": false,
+                "invoice": false,
+                "amount": amount_value,
+                "currency": match &config.price {
+                    Price::Unknown => Value::Null,
+                    Price::Declared { .. } => Value::String("USD".to_owned()),
+                },
+                "per_total_token": match &config.price {
+                    Price::Unknown => Value::Null,
+                    Price::Declared { per_total_token, .. } => Value::String(per_total_token.clone()),
+                }
+            }
+        },
+        "statements": statements()
+    })
+}
+
+fn usage_sum(docs: &[Value]) -> Option<(u64, u64, u64)> {
+    let mut prompt = 0u64;
+    let mut completion = 0u64;
+    let mut total = 0u64;
+    for doc in docs {
+        let usage = doc.pointer("/transport/usage")?;
+        if usage.is_null() {
+            return None;
+        }
+        prompt = prompt.checked_add(usage.get("prompt_tokens")?.as_u64()?)?;
+        completion = completion.checked_add(usage.get("completion_tokens")?.as_u64()?)?;
+        total = total.checked_add(usage.get("total_tokens")?.as_u64()?)?;
+    }
+    Some((prompt, completion, total))
+}
+
+fn latency_sum(docs: &[Value]) -> u64 {
+    docs.iter().fold(0u64, |sum, doc| {
+        let latency = doc.pointer("/transport/latency_ms").and_then(Value::as_u64).unwrap_or(0);
+        sum.saturating_add(latency)
+    })
 }
 
 fn finish_generation(
-    input: GenerateIn<'_>,
+    input: &GenerateIn<'_>,
     input_sha: &str,
-    request_text: &str,
+    command_text: &str,
     model_input_text: &str,
     parsed: Parsed,
+    scope: &BatchScope<'_>,
 ) -> Result<Value, PgBuilderError> {
-    let request: Value = serde_json::from_str(request_text)
-        .map_err(|_| PgBuilderError::new("compiler.request", "the description request was refused"))?;
     let raw_hash = if parsed.secret_echo {
         Value::Null
     } else {
         Value::String(crate::sha256_hex(&parsed.raw))
     };
     if parsed.status != "complete" {
-        let command = captured_command(input.command_text, parsed.status, None)?;
-        return Ok(structural_draft(&input, input_sha, model_input_text, &parsed, raw_hash, command, "not_parsed"));
+        let command = if scope.batch_index == 0 {
+            captured_command(command_text, parsed.status, None)?
+        } else {
+            String::new()
+        };
+        return Ok(structural_draft(input, exchange(input_sha, model_input_text, scope), &parsed, raw_hash, command, "not_parsed"));
     }
     let outer: Result<Value, _> = serde_json::from_slice(&parsed.raw);
     let Ok(outer) = outer else {
-        let command = captured_command(input.command_text, "complete", Some(&parsed.content))?;
-        return Ok(structural_draft(&input, input_sha, model_input_text, &parsed, raw_hash, command, "not_parsed"));
+        let command = if scope.batch_index == 0 {
+            captured_command(command_text, "complete", Some(&parsed.content))?
+        } else {
+            String::new()
+        };
+        return Ok(structural_draft(input, exchange(input_sha, model_input_text, scope), &parsed, raw_hash, command, "not_parsed"));
     };
+    if scope.batch_index > 0 {
+        return finish_field_batch(input, input_sha, model_input_text, parsed, raw_hash, &outer, scope);
+    }
     if !is_s5(&outer) {
-        let command = captured_command(input.command_text, "complete", Some(&parsed.content))?;
-        return Ok(structural_draft(&input, input_sha, model_input_text, &parsed, raw_hash, command, "rejected"));
+        let command = captured_command(command_text, "complete", Some(&parsed.content))?;
+        return Ok(structural_draft(input, exchange(input_sha, model_input_text, scope), &parsed, raw_hash, command, "rejected"));
     }
     let table_response = outer.get("table_response").cloned().unwrap_or(Value::Null);
     let table_text = canonical_json(&table_response);
-    let command = captured_command(input.command_text, "complete", Some(&table_text))?;
+    let command = captured_command(command_text, "complete", Some(&table_text))?;
     let table_outcome_text = match complete_description_candidates(&command) {
         Ok(text) => text,
         Err(_) => {
             return Ok(document(
-                &input,
+                input,
                 input_sha,
                 model_input_text,
                 Draft {
@@ -227,38 +509,110 @@ fn finish_generation(
                     table_outcome: Value::Null,
                     field_outcome: "not_parsed",
                     command,
+                    scope,
                 },
             ));
         }
     };
     let table_outcome: Value = serde_json::from_str(&table_outcome_text)
         .map_err(|_| PgBuilderError::new("compiler.complete", "the description compiler refused the captured body"))?;
-    let fields = validate_fields(input.cards, outer.get("field_candidates").unwrap_or(&Value::Null))?;
+    let fields = validate_fields(scope, outer.get("field_candidates").unwrap_or(&Value::Null))?;
     let table_ok = table_outcome.get("outcome").and_then(Value::as_str) == Some("candidates");
     let validated = table_ok && fields.0;
-    let outcome = if validated { "validated" } else { "structural_draft" };
-    let cache_dir = input.cache_dir;
-    let mut doc = document(
-        &input,
-        input_sha,
-        model_input_text,
-        Draft {
-            outcome,
-            stored: if validated { "stored" } else { "not_stored" },
-            parsed: &parsed,
+    store_draft(
+        input,
+        exchange(input_sha, model_input_text, scope),
+        Kept {
+            parsed,
             raw_hash,
+            fields_ok: fields.0,
             fields: fields.1,
             table_outcome,
-            field_outcome: if fields.0 { "validated" } else { "rejected" },
             command,
+            validated,
+        },
+    )
+}
+
+fn finish_field_batch(
+    input: &GenerateIn<'_>,
+    input_sha: &str,
+    model_input_text: &str,
+    parsed: Parsed,
+    raw_hash: Value,
+    outer: &Value,
+    scope: &BatchScope<'_>,
+) -> Result<Value, PgBuilderError> {
+    if !is_field_batch(outer) {
+        return Ok(structural_draft(
+            input,
+            exchange(input_sha, model_input_text, scope),
+            &parsed,
+            raw_hash,
+            String::new(),
+            "rejected",
+        ));
+    }
+    let fields = validate_fields(scope, outer.get("field_candidates").unwrap_or(&Value::Null))?;
+    store_draft(
+        input,
+        exchange(input_sha, model_input_text, scope),
+        Kept {
+            parsed,
+            raw_hash,
+            fields_ok: fields.0,
+            fields: fields.1,
+            table_outcome: Value::Null,
+            command: String::new(),
+            validated: fields.0,
+        },
+    )
+}
+
+struct Exchange<'a> {
+    input_sha: &'a str,
+    model_text: &'a str,
+    scope: &'a BatchScope<'a>,
+}
+
+fn exchange<'a>(input_sha: &'a str, model_text: &'a str, scope: &'a BatchScope<'a>) -> Exchange<'a> {
+    Exchange { input_sha, model_text, scope }
+}
+
+struct Kept {
+    parsed: Parsed,
+    raw_hash: Value,
+    fields_ok: bool,
+    fields: Value,
+    table_outcome: Value,
+    command: String,
+    validated: bool,
+}
+
+fn store_draft(input: &GenerateIn<'_>, exchange: Exchange<'_>, kept: Kept) -> Result<Value, PgBuilderError> {
+    let evidence_hash = input.cards.get("evidence_hash").and_then(Value::as_str).unwrap_or("");
+    let mut doc = document(
+        input,
+        exchange.input_sha,
+        exchange.model_text,
+        Draft {
+            outcome: if kept.validated { "validated" } else { "structural_draft" },
+            stored: if kept.validated { "stored" } else { "not_stored" },
+            parsed: &kept.parsed,
+            raw_hash: kept.raw_hash,
+            fields: kept.fields,
+            table_outcome: kept.table_outcome,
+            field_outcome: if kept.fields_ok { "validated" } else { "rejected" },
+            command: kept.command,
+            scope: exchange.scope,
         },
     );
-    if validated && let Some(map) = doc.as_object_mut() {
-        map.insert("evidence_hash".to_owned(), Value::String(evidence_of(&request)));
-        map.insert("input_sha256".to_owned(), Value::String(input_sha.to_owned()));
+    if kept.validated && let Some(map) = doc.as_object_mut() {
+        map.insert("evidence_hash".to_owned(), Value::String(evidence_hash.to_owned()));
+        map.insert("input_sha256".to_owned(), Value::String(exchange.input_sha.to_owned()));
     }
-    if validated {
-        store_validated(cache_dir, input_sha, &doc)?;
+    if kept.validated {
+        store_validated(input.cache_dir, exchange.input_sha, &doc)?;
     }
     Ok(doc)
 }
@@ -462,26 +816,35 @@ fn is_s5(value: &Value) -> bool {
         && map.len() == 4
 }
 
-fn validate_fields(cards: &Value, fields: &Value) -> Result<(bool, Value), PgBuilderError> {
+fn is_field_batch(value: &Value) -> bool {
+    let Some(map) = value.as_object() else {
+        return false;
+    };
+    map.get("protocol").and_then(Value::as_str) == Some("oo.pg-builder.s5-field-batch/v1")
+        && map.get("complete") == Some(&Value::Bool(true))
+        && map.get("field_candidates").is_some()
+        && map.len() == 3
+}
+
+fn validate_fields(scope: &BatchScope<'_>, fields: &Value) -> Result<(bool, Value), PgBuilderError> {
     let Some(rows) = fields.as_array() else {
         return Ok((false, Value::Array(Vec::new())));
     };
     let mut expected = Vec::new();
-    let no_tables = Vec::new();
-    let tables = cards.get("tables").and_then(Value::as_array).unwrap_or(&no_tables);
-    for table in tables {
-        let dataset = table.get("dataset").and_then(Value::as_str).unwrap_or("");
-        let card_sha = table.get("card_sha256").and_then(Value::as_str).unwrap_or("");
-        let no_columns = Vec::new();
-        let columns = table.get("columns").and_then(Value::as_array).unwrap_or(&no_columns);
-        for column in columns {
-            expected.push((
-                dataset.to_owned(),
-                column.get("name").and_then(Value::as_str).unwrap_or("").to_owned(),
-                column.get("attnum").cloned().unwrap_or(Value::Null),
-                card_sha.to_owned(),
-            ));
-        }
+    let dataset = scope.dataset;
+    let card_sha = scope.table.get("card_sha256").and_then(Value::as_str).unwrap_or("");
+    let no_columns = Vec::new();
+    let columns = scope.table.get("columns").and_then(Value::as_array).unwrap_or(&no_columns);
+    if scope.column_to > columns.len() {
+        return Ok((false, Value::Array(rows.clone())));
+    }
+    for column in &columns[scope.column_from..scope.column_to] {
+        expected.push((
+            dataset.to_owned(),
+            column.get("name").and_then(Value::as_str).unwrap_or("").to_owned(),
+            column.get("attnum").cloned().unwrap_or(Value::Null),
+            card_sha.to_owned(),
+        ));
     }
     if rows.len() != expected.len() {
         return Ok((false, Value::Array(rows.clone())));
@@ -631,11 +994,9 @@ fn captured_command(command: &str, status: &str, body: Option<&str>) -> Result<S
     Ok(canonical_json(&value))
 }
 
-fn input_hash(config: &Config, cards: &Value, cards_hash: &str, request_text: &str) -> Result<String, PgBuilderError> {
-    let request: Value = serde_json::from_str(request_text)
-        .map_err(|_| PgBuilderError::new("compiler.request", "the description request was refused"))?;
+fn input_hash(config: &Config, cards: &Value, request: &Value, scope: &BatchScope<'_>) -> Result<String, PgBuilderError> {
     let key = json!({
-        "protocol": "oo.pg-builder.cache-key/v1",
+        "protocol": "oo.pg-builder.cache-key/v2",
         "card_schema": crate::CARD_SCHEMA,
         "prompt_version": PROMPT_VERSION,
         "prompt_sha256": prompt_sha256(),
@@ -647,18 +1008,14 @@ fn input_hash(config: &Config, cards: &Value, cards_hash: &str, request_text: &s
         "namespace": "pg-builder",
         "evidence_hash": cards.get("evidence_hash").cloned().unwrap_or(Value::Null),
         "schema_hash": cards.get("schema_hash").cloned().unwrap_or(Value::Null),
-        "cards_sha256": cards_hash,
+        "dataset": scope.dataset,
+        "card_sha256": scope.table.get("card_sha256").cloned().unwrap_or(Value::Null),
+        "batch_index": scope.batch_index,
+        "column_from": scope.column_from,
+        "column_to": scope.column_to,
         "request_sha256": request.get("request_sha256").cloned().unwrap_or(Value::Null)
     });
     Ok(canonical_sha256(&key))
-}
-
-fn evidence_of(request: &Value) -> String {
-    request
-        .get("evidence_hash")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned()
 }
 
 struct Draft<'a> {
@@ -670,31 +1027,37 @@ struct Draft<'a> {
     table_outcome: Value,
     field_outcome: &'a str,
     command: String,
+    scope: &'a BatchScope<'a>,
 }
 
 fn structural_draft(
     input: &GenerateIn<'_>,
-    input_sha: &str,
-    model_input_text: &str,
+    exchange: Exchange<'_>,
     parsed: &Parsed,
     raw_hash: Value,
     command: String,
     field_outcome: &str,
 ) -> Value {
-    let table = complete_description_candidates(&command).unwrap_or_else(|_| "{}".to_owned());
+    let table = if command.is_empty() {
+        Value::Null
+    } else {
+        let text = complete_description_candidates(&command).unwrap_or_else(|_| "{}".to_owned());
+        serde_json::from_str(&text).unwrap_or(Value::Null)
+    };
     document(
         input,
-        input_sha,
-        model_input_text,
+        exchange.input_sha,
+        exchange.model_text,
         Draft {
             outcome: "structural_draft",
             stored: "not_stored",
             parsed,
             raw_hash,
             fields: Value::Null,
-            table_outcome: serde_json::from_str(&table).unwrap_or(Value::Null),
+            table_outcome: table,
             field_outcome,
             command,
+            scope: exchange.scope,
         },
     )
 }
@@ -761,23 +1124,31 @@ fn document(input: &GenerateIn<'_>, input_sha: &str, model_input_text: &str, dra
                 }
             }
         },
+        "dataset": draft.scope.dataset,
+        "batch": {
+            "index": draft.scope.batch_index,
+            "count": draft.scope.batch_count,
+            "column_from": draft.scope.column_from,
+            "column_to": draft.scope.column_to
+        },
         "candidates": candidates,
         "candidate_sha256": canonical_sha256(&candidates),
         "table_outcome": draft.table_outcome,
         "field_outcome": draft.field_outcome,
         "field_publication_seam": field_seam(),
-        "complete_command": draft.command,
+        "complete_command": if draft.command.is_empty() { Value::Null } else { Value::String(draft.command) },
         "statements": statements()
     })
 }
 
 fn failure_document(
-    input: GenerateIn<'_>,
+    input: &GenerateIn<'_>,
     input_sha: &str,
     request_text: &str,
     status: &str,
     budget_reason: Option<&str>,
     socket: &str,
+    scope: &BatchScope<'_>,
 ) -> Value {
     let parsed = Parsed {
         status: "budget_failure",
@@ -792,7 +1163,7 @@ fn failure_document(
         budget_reason: None,
     };
     let mut doc = document(
-        &input,
+        input,
         input_sha,
         request_text,
         Draft {
@@ -804,6 +1175,7 @@ fn failure_document(
             table_outcome: Value::Null,
             field_outcome: "not_parsed",
             command: String::new(),
+            scope,
         },
     );
     if let Some(map) = doc.as_object_mut()

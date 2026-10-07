@@ -1,0 +1,3 @@
+shop.account-batch0.json outcome=structural_draft cache=miss socket=opened attempt=1 status=provider_failure refusal=http_status usage=None cost_status=unknown cost_amount=None invoice=False
+shop.entry-batch0.json outcome=structural_draft cache=miss socket=opened attempt=1 status=provider_failure refusal=http_status usage=None cost_status=unknown cost_amount=None invoice=False
+shop.party-batch0.json outcome=structural_draft cache=miss socket=opened attempt=1 status=provider_failure refusal=http_status usage=None cost_status=unknown cost_amount=None invoice=False

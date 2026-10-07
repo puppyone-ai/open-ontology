@@ -119,6 +119,13 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
     if number(budget, "max_in_flight")? != 1 {
         return Err(PgBuilderError::new("config.budget", "concurrency must be one"));
     }
+    let deadline_ms = bounded(budget, "deadline_ms", 1, 180_000)?;
+    if deadline_ms > 30_000 && (purpose != Purpose::Generate || origin != "http://127.0.0.1:8317") {
+        return Err(PgBuilderError::new(
+            "config.budget",
+            "a deadline above 30000 is only allowed for the local private builder model",
+        ));
+    }
     let postgres = match map.get("postgres") {
         None => None,
         Some(value) => Some(parse_postgres(value)?),
@@ -136,7 +143,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
         model_id,
         addr,
         bearer_file,
-        deadline: Duration::from_millis(bounded(budget, "deadline_ms", 1, 30_000)?),
+        deadline: Duration::from_millis(deadline_ms),
         max_request_bytes: bounded(budget, "max_request_bytes", 1, 262_144)? as usize,
         max_response_bytes: bounded(budget, "max_response_bytes", 1, 262_144)? as usize,
         max_prompt_tokens: bounded(budget, "max_prompt_tokens", 1, 100_000)?,
