@@ -2,7 +2,11 @@
 
 Independent review of the CDC-D04 writer `tools/cdc-apply-pg` for session `eef831aa-dba4-4af2-a78b-541bc9e0a320`. Evidence is this directory. The product tree was not modified. The fixed commit is `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`, tree `539aa555a721a0b87b40546b9d4dad5569e3c863`.
 
-Limited verdict: the fenced writer passed the preoverlay author suite and `linux/overlay`. Parent acceptance is false. SP04 stays open. CDC-D04 stays open. This review does not release the crate and does not mark the parent goal done.
+Verdict: **APPROVE_LIMITED** for frozen development child CDC-D04 / E36, `tools/cdc-apply-pg`, at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. The accepted scope is the fenced apply in the green runs below.
+
+Verdict: **WITHHELD** for frozen development child CDC-D05 / E40, `tools/cdc-offset-store`. This review did not build or run that crate. A durable control mirror and a contiguous CAS watermark were not tested.
+
+Parent SP04 stays open. ACK, XACK, TRIM, source or WAL certification, segmented apply above 200000 events, a Debezium normalizer, the router, segments, customer delivery, and release stay unaccepted. This file does not edit the parent ledger and does not record coordinator acceptance. The earlier sentence "CDC-D04 stays open" mixed this child with the parent ledger. The proof was not re-run. This wording adds no review count.
 
 Green runs:
 
@@ -21,7 +25,7 @@ Supported declared types in this run were `bool`, `int2`, `int4`, `int8`, and `t
 
 The tool lock has 284 registry checksums, all present in the fixed root, cdc-spool, and session-store locks. Do not `cargo update` it. Root manifests, migrations, and `crates/oo-core` belong to a313.
 
-Still required before a caller treats a source transaction as acknowledged:
+Still unaccepted, and outside the CDC-D04 scope above, before a caller treats a source transaction as acknowledged:
 
 - ACK, XACK, TRIM, and a control-database mirror
 - segmented apply above 200000 events

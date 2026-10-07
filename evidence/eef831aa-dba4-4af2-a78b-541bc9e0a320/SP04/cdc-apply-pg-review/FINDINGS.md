@@ -2,7 +2,11 @@
 
 Session `eef831aa-dba4-4af2-a78b-541bc9e0a320`. Scope is the frozen CDC writer `tools/cdc-apply-pg` at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. No new product unit was opened. No product file was edited.
 
-Limited verdict: the fenced writer, on the fixed archive, passed the author suite and `linux/overlay`. Parent acceptance is false. SP04 stays open. CDC-D04 stays open. This review does not release the crate.
+Verdict: **APPROVE_LIMITED** for frozen development child CDC-D04 / E36, `tools/cdc-apply-pg`, at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. The accepted scope is the fenced apply proved in `linux/preoverlay` and `linux/overlay`.
+
+Verdict: **WITHHELD** for frozen development child CDC-D05 / E40, `tools/cdc-offset-store`. This review did not build or run that crate.
+
+Parent SP04 stays open. This file does not edit the parent ledger and does not record coordinator acceptance. The earlier sentence "CDC-D04 stays open" mixed this child with the parent ledger. The proof was not re-run. This wording adds no review count.
 
 ## Boundaries that held on linux/overlay
 
@@ -46,4 +50,6 @@ All 284 `checksum` entries in `tools/cdc-apply-pg/Cargo.lock` are present in the
 
 ## Still parent-required
 
-ACK, XACK, TRIM, and a control-database mirror are not in this writer. Segmented apply of 500000 events is not this child. Source and WAL cross-table certification stay false. A Debezium normalizer is not in this crate. Router, segments, customer delivery, and release stay parent-required. Full SP04 and the CDC-D04 parent goal stay open.
+ACK, XACK, TRIM, and a control-database mirror are outside the accepted CDC-D04 scope. The frozen card for this child says this writer does not ACK, XACK, TRIM, or mirror a control database. CDC-D05, `tools/cdc-offset-store`, is the frozen child for that mirror and a contiguous CAS watermark. It is **WITHHELD** because this review did not build or run it.
+
+Segmented apply above 200000 events, source or WAL cross-table certification, a Debezium normalizer, the router, segments, customer delivery, and release stay unaccepted. Parent SP04 stays open. Those open items do not withdraw the **APPROVE_LIMITED** verdict for the CDC-D04 writer at the fixed commit above.

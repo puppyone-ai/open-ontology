@@ -15,4 +15,6 @@ Named containers `oo-a320-preoverlay`, `oo-a320-overlay`, and `oo-a320-manifest`
 
 `oo-a300-pg`, `oo-a317-pg`, and `oo-a321-pg` were still running after this cleanup.
 
-This file is a post-hash record. It is not a row in `MANIFEST.sha256`. The same is true of `linux/manifest/console.log`, `linux/manifest/docker-run.exit`, `linux/manifest/hostconfig.txt`, and `linux/manifest/container-removed.txt`.
+The clarification after those removals starts no PostgreSQL and removes no foreign resource. `linux/manifest/refresh.sh` runs one pinned-image hasher and removes that container. `linux/manifest/MANIFEST-first.sha256` keeps the first inventory. The rewrite of `MANIFEST.sha256` happens after the child-verdict text. These files are copied after that rewrite and are not rows in it: `linux/manifest/refresh-console.log`, `linux/manifest/refresh-hostconfig.txt`, `linux/manifest/refresh.exit`, and `linux/manifest/refresh-removed.txt`. `MANIFEST.sha256` is the output path and is not a row of itself.
+
+The first inventory's `linux/manifest/console.log`, `docker-run.exit`, `hostconfig.txt`, and `container-removed.txt` remain. They were outside the first inventory. The clarification rewrite includes them because they already exist.

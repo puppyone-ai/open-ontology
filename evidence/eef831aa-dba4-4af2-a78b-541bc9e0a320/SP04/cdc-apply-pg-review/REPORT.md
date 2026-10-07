@@ -2,7 +2,11 @@
 
 Session `eef831aa-dba4-4af2-a78b-541bc9e0a320`. Unit CDC-D04 writer `tools/cdc-apply-pg`, contract `cdc-apply-pg-v1`. Fixed commit `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`, tree `539aa555a721a0b87b40546b9d4dad5569e3c863`. Repo head at both launches: `895864a5bf64e50cef84075d20fd7b0c9e41c264`. The fixed commit is an ancestor of that head. `linux/preoverlay/worktree-vs-fixed.txt` is empty for the product, `crates/oo-core`, the pipeline migrations, and the root lock.
 
-Limited verdict: on this fixed archive, the fenced writer passed the author suite and `linux/overlay`. Parent acceptance is false. SP04 stays open. CDC-D04 stays open. This review does not release the crate.
+Verdict: **APPROVE_LIMITED** for frozen development child CDC-D04 / E36, `tools/cdc-apply-pg`, at `52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96`. The accepted scope is the fenced apply proved below: one recovered sealed spool, the existing target installer and physical mapping, canonical `bool` / `int2` / `int4` / `int8` / `text` rows, and `apply_receipts` in one PostgreSQL transaction on one dedicated connection. That includes exact replay, `OO010`, `OO013`, fence `55P03`, both SIGKILL windows, hidden-commit reconciliation, fail-closed `commit_unknown`, row-failure rollback, generation left durable before the write transaction, and `needs_segments` before credentials above 200000 events.
+
+Verdict: **WITHHELD** for frozen development child CDC-D05 / E40, `tools/cdc-offset-store`. This review did not build or run that crate. A durable control mirror and a contiguous CAS watermark were not tested.
+
+Parent SP04 stays open. ACK, XACK, TRIM, source or WAL cross-table certification, segmented apply above 200000 events, a Debezium normalizer, the router, segments, customer delivery, and release stay unaccepted. This file does not edit the parent ledger and does not record coordinator acceptance. The earlier sentence "CDC-D04 stays open" mixed this child with the parent ledger. The proof files were not re-run for the clarification below. This wording adds no review count.
 
 `ack_allowed` stays false. `source_cross_table_consistent`, `upstream_commit_lsn_verified`, `debezium_normalizer`, `p2_verified`, `p11_verified`, and `control_lease_consulted` stay false. `commit_position_provenance` stays `caller_declared`. `db_cross_table_consistent` is true only for this process's one local transaction. Segmented 500000-event apply, source or WAL certification, a Debezium normalizer, ACK, XACK, TRIM, a control-database mirror, the router, segments, customer delivery, and release remain parent-required.
 
@@ -105,4 +109,10 @@ The author's REPORT describes proof-1 as a bool `?` and 14 lock checksums outsid
 
 ## Inventory
 
-`product.sha256` and `MANIFEST.sha256` are produced after this report, by the byte-copied a199 `tools/sha256_manifest.rs` (`d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3`), over the fixed-commit archive at `/tmp/oo-a320-eef831aa-dba4-4af2-a78b-541bc9e0a320/preoverlay/archive/tools/cdc-apply-pg`. The host writes these files after that hash, so they are raw records and are not rows in `MANIFEST.sha256`: `linux/manifest/console.log`, `linux/manifest/docker-run.exit`, `linux/manifest/hostconfig.txt`, `linux/manifest/container-removed.txt`, and `CLEANUP.md`.
+`product.sha256` and the first `MANIFEST.sha256` were produced by the byte-copied a199 `tools/sha256_manifest.rs` (`d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3`), over the fixed-commit archive at `/tmp/oo-a320-eef831aa-dba4-4af2-a78b-541bc9e0a320/preoverlay/archive/tools/cdc-apply-pg`. That archive and the private Postgres are already removed. `product.sha256` stays the 12-file product inventory from that run. `linux/manifest/MANIFEST-first.sha256` is a byte copy of the first evidence inventory, retained before this clarification.
+
+The clarification rewrites `MANIFEST.sha256` once, with the same owned tool, after this text. It repeats no test and starts no PostgreSQL. The first run's `linux/manifest/console.log`, `docker-run.exit`, `hostconfig.txt`, and `container-removed.txt` stay on disk and are rows of the rewrite. The rewrite output `MANIFEST.sha256` is not a row of itself. The host writes these files after that rewrite, so they are not rows: `linux/manifest/refresh-console.log`, `linux/manifest/refresh-hostconfig.txt`, `linux/manifest/refresh.exit`, and `linux/manifest/refresh-removed.txt`.
+
+## Clarification
+
+The proof in `linux/preoverlay` and `linux/overlay` is unchanged. Author failures under `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg` stay there. CDC-D04's frozen card leaves ACK, XACK, TRIM, and a control mirror to a later child, and it leaves a 500000-event segmented apply outside this writer. CDC-D05 is that later control-mirror child and is **WITHHELD** here. Their absence is not an unmet requirement of the accepted CDC-D04 scope.
