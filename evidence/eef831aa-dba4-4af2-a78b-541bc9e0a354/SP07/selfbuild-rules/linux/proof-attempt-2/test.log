@@ -1,0 +1,10 @@
+   Compiling selfbuild-rules v0.1.0 (/work)
+error: environment variable `CARGO_BIN_EXE_selfbuild_rules` not defined at compile time
+   --> tests/cli.rs:227:5
+    |
+227 |     env!("CARGO_BIN_EXE_selfbuild_rules")
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: Cargo sets build script variables at run time. Use `std::env::var("CARGO_BIN_EXE_selfbuild_rules")` instead
+
+error: could not compile `selfbuild-rules` (test "cli") due to 1 previous error

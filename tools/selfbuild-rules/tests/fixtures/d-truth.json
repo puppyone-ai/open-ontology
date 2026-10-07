@@ -1,0 +1,74 @@
+{
+  "protocol": "oo.selfbuild-rules.truth/v1",
+  "columns": [
+    {"stable_id": "col/demo.audit.user_id#1", "semantic_type": "unknown", "pii": "none", "state": "pending"},
+    {"stable_id": "col/demo.bad.ref_id#1", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.bridge.left_id#1", "semantic_type": "foreign_key", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.bridge.right_id#1", "semantic_type": "foreign_key", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.customer.active#4", "semantic_type": "boolean_flag", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.customer.display_name#2", "semantic_type": "person_name", "pii": "personal", "state": "pending"},
+    {"stable_id": "col/demo.customer.email#5", "semantic_type": "email", "pii": "personal", "state": "pending"},
+    {"stable_id": "col/demo.customer.id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.customer.national_id#3", "semantic_type": "unknown", "pii": "sensitive", "state": "pending"},
+    {"stable_id": "col/demo.left.id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.created_at#6", "semantic_type": "audit_time", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.customer_id#2", "semantic_type": "foreign_key", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.dh#7", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.order.id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.je#3", "semantic_type": "money", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.mystery#8", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.order.note#10", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.order.phone#9", "semantic_type": "phone", "pii": "personal", "state": "pending"},
+    {"stable_id": "col/demo.order.sl#4", "semantic_type": "quantity", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.order.zt#5", "semantic_type": "status_code", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.right.id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.sys_dict.code#2", "semantic_type": "code", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.sys_dict.kind#1", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.sys_dict.label#3", "semantic_type": "unknown", "pii": "unknown", "state": "pending"},
+    {"stable_id": "col/demo.user_a.user_id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"},
+    {"stable_id": "col/demo.user_b.user_id#1", "semantic_type": "identifier", "pii": "none", "state": "auto_accepted"}
+  ],
+  "relations": [
+    {"stable_id": "rel/demo.audit.user_id/to/demo.user_a.user_id/naming", "provenance": "naming", "cardinality": "many_to_one", "conflict": true},
+    {"stable_id": "rel/demo.audit.user_id/to/demo.user_b.user_id/naming", "provenance": "naming", "cardinality": "many_to_one", "conflict": true},
+    {"stable_id": "rel/demo.bad.ref_id/to/demo.customer.id/declared_fk", "provenance": "declared_fk", "cardinality": "many_to_one", "conflict": false},
+    {"stable_id": "rel/demo.bridge.left_id/to/demo.left.id/declared_fk", "provenance": "declared_fk", "cardinality": "many_to_one", "conflict": false},
+    {"stable_id": "rel/demo.bridge.right_id/to/demo.right.id/declared_fk", "provenance": "declared_fk", "cardinality": "many_to_one", "conflict": false},
+    {"stable_id": "rel/demo.bridge/demo.left.id/to/demo.right.id/inferred", "provenance": "inferred", "cardinality": "many_to_many", "conflict": false},
+    {"stable_id": "rel/demo.order.customer_id/to/demo.customer.id/declared_fk", "provenance": "declared_fk", "cardinality": "many_to_one", "conflict": false}
+  ],
+  "enums": [
+    {"stable_id": "enum/demo.order.zt#5", "status": "undetermined", "approved": false},
+    {"stable_id": "enum/demo.sys_dict.code#2", "status": "undetermined", "approved": false},
+    {"stable_id": "enum/demo.sys_dict.kind#1", "status": "undetermined", "approved": false},
+    {"stable_id": "enum/demo.sys_dict.label#3", "status": "undetermined", "approved": false}
+  ],
+  "dictionaries": [
+    {"stable_id": "dict/demo.sys_dict", "status": "undetermined", "approved": false, "match": "structural_only"}
+  ],
+  "conflicts": [
+    {"stable_id": "conflict/demo.audit.user_id#1"}
+  ],
+  "personal_ids": [
+    "col/demo.customer.display_name#2",
+    "col/demo.customer.email#5",
+    "col/demo.order.phone#9"
+  ],
+  "sensitive_ids": [
+    "col/demo.customer.national_id#3"
+  ],
+  "unknown_ids": [
+    "col/demo.bad.ref_id#1",
+    "col/demo.order.dh#7",
+    "col/demo.order.mystery#8",
+    "col/demo.order.note#10",
+    "col/demo.sys_dict.kind#1",
+    "col/demo.sys_dict.label#3"
+  ],
+  "forbidden_substrings": [
+    "RAWCOMMENT",
+    "13800001111",
+    "ignore previous",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ]
+}

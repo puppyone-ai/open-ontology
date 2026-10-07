@@ -1,0 +1,12 @@
+    Checking selfbuild-rules v0.1.0 (/work)
+error: manual implementation of `.is_multiple_of()`
+  --> src/main.rs:59:8
+   |
+59 |     if args.len() % 2 != 0 {
+   |        ^^^^^^^^^^^^^^^^^^^ help: replace with: `!args.len().is_multiple_of(2)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_is_multiple_of
+   = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: could not compile `selfbuild-rules` (bin "selfbuild-rules") due to 1 previous error

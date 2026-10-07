@@ -1,0 +1,115 @@
+    Checking serde_core v1.0.229
+    Checking zmij v1.0.23
+    Checking memchr v2.8.3
+    Checking itoa v1.0.18
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking selfbuild-rules v0.1.0 (/work)
+error: this `if` statement can be collapsed
+   --> src/produce.rs:839:13
+    |
+839 | /             if let Some(remote) = find_col(tables, &pair.ref_schema, &pair.ref_table, &pair.ref_name) {
+840 | |                 if remote.attnum != pair.ref_attnum {
+841 | |                     return Err(Fail::new("schema"));
+842 | |                 }
+843 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+839 ~             if let Some(remote) = find_col(tables, &pair.ref_schema, &pair.ref_table, &pair.ref_name)
+840 ~                 && remote.attnum != pair.ref_attnum {
+841 |                     return Err(Fail::new("schema"));
+842 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/produce.rs:933:13
+    |
+933 | /             if let (Some(left), Some(right)) = (&profile.reltuples, &card_rows) {
+934 | |                 if left != right {
+935 | |                     return Err(Fail::new("identity.stale"));
+936 | |                 }
+937 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+933 ~             if let (Some(left), Some(right)) = (&profile.reltuples, &card_rows)
+934 ~                 && left != right {
+935 |                     return Err(Fail::new("identity.stale"));
+936 ~                 }
+    |
+
+error: manual `RangeInclusive::contains` implementation
+    --> src/produce.rs:1164:16
+     |
+1164 |         return count >= SCALE && count <= 32 * SCALE;
+     |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(SCALE..=32 * SCALE).contains(&count)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+     = note: `-D clippy::manual-range-contains` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_range_contains)]`
+
+error: manual `RangeInclusive::contains` implementation
+    --> src/produce.rs:1178:5
+     |
+1178 |     estimate >= SCALE && estimate <= 32 * SCALE
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(SCALE..=32 * SCALE).contains(&estimate)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+
+error: manual `RangeInclusive::contains` implementation
+    --> src/produce.rs:1190:5
+     |
+1190 |     rows >= 0 && rows <= 5000 * SCALE
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(0..=5000 * SCALE).contains(&rows)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+
+error: this `if` statement can be collapsed
+  --> src/score.rs:73:5
+   |
+73 | /     if let Some(map) = actual_map {
+74 | |         if map.get("pii_leak_count").and_then(Value::as_i64) != Some(leak) {
+75 | |             mismatches.push("leak.field".to_owned());
+76 | |         }
+77 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+73 ~     if let Some(map) = actual_map
+74 ~         && map.get("pii_leak_count").and_then(Value::as_i64) != Some(leak) {
+75 |             mismatches.push("leak.field".to_owned());
+76 ~         }
+   |
+
+error: this `if` statement can be collapsed
+  --> src/score.rs:82:5
+   |
+82 | /     if let Some(map) = actual_map {
+83 | |         if let Some(Value::Array(cards)) = map.get("expert_cards") {
+84 | |             for card in cards {
+85 | |                 check_expert(card, &mut mismatches);
+...  |
+88 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+82 ~     if let Some(map) = actual_map
+83 ~         && let Some(Value::Array(cards)) = map.get("expert_cards") {
+84 |             for card in cards {
+85 |                 check_expert(card, &mut mismatches);
+86 |             }
+87 ~         }
+   |
+
+error: could not compile `selfbuild-rules` (lib) due to 7 previous errors
