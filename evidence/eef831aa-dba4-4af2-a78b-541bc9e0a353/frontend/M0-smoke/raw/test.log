@@ -1,0 +1,20 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 503[2mms[22m[39m
+ [32m✓[39m src/features/user/user-pages.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 291[2mms[22m[39m
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 166[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 196[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/styles/font-coverage.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m29 passed[39m[22m[90m (29)[39m
+[2m   Start at [22m 22:34:49
+[2m   Duration [22m 5.89s[2m (environment 50%, tests 21%, setup 16%, import 7%, transform 5%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 7 times[39m[2m · 2.74s total, 50% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
