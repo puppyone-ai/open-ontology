@@ -1,0 +1,13 @@
+Own-resource removal after the passing proof container had already been removed by linux/proof/launch.sh.
+
+Network oo-a330-eef831aa-net members before removal: oo-a330-pg only.
+Own containers before removal: e24b368e74e7 oo-a330-pg postgres.
+
+docker stop oo-a330-pg
+docker rm oo-a330-pg
+docker volume rm oo-a330-eef831aa-cargo oo-a330-eef831aa-target oo-a330-eef831aa-pgdata
+docker network rm oo-a330-eef831aa-net
+rm -rf /tmp/oo-a330-eef831aa-dba4-4af2-a78b-541bc9e0a330
+
+No prune. No foreign container, volume, or network was removed.
+After those commands, docker ps, docker volume ls, and docker network ls filtered by the oo-a330 name were empty. No rust builder with label oo.kind=rust-builder was running. The private tmp directory was gone.

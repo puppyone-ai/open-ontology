@@ -1,0 +1,2 @@
+Attempt 4. docker exit 101. OOMKilled false. Author refuse 0, clippy 0, live 0, clippy-review 0, review 101.
+The review oracle panicked at install before any shadow. oracle.txt is only oracle_start=1. The author's live had already created cluster roles. A second database is not a fresh catalog while those roles exist, so install does not bootstrap. The review_oracle.rs copied here also contains the reset added after this run; review.stderr is the executed failure. The server was reset after this attempt.

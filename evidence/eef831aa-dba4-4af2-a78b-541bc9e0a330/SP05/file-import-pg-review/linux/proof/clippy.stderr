@@ -1,0 +1,24 @@
+    Checking sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+    Checking sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-core v0.1.0 (/work/src/crates/oo-core)
+    Checking sqlx v0.9.0
+    Checking oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+    Checking oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+    Checking oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+    Checking file-import-pg v0.1.0 (/work/src/tools/file-import-pg)
+    Finished `dev` profile [unoptimized] target(s) in 5.26s

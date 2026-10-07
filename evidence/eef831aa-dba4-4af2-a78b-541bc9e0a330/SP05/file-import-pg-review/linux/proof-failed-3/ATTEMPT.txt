@@ -1,0 +1,2 @@
+Attempt 3. docker exit 101. OOMKilled false. Author refuse 0, clippy 0, live 101.
+live.rs:584 expected replay false and observed true. Attempt 2 had already committed oo_a308_file, and this run's ensure_database kept that database. The panic is in the author's test on a reused database, not a new product failure. Review oracle did not run. Container removed. The server was reset afterward; see pg/reset.txt.

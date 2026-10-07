@@ -1,0 +1,11 @@
+c0364add97366929880d0dfc6d1c7eac7108a828bd0529eea87fa272955d043c  /work/src/tools/file-import-pg/CONTRACT.md
+9874a7ff5c09b333ab1392829334d648f42340a3ba40d7db167c4690c081e89d  /work/src/tools/file-import-pg/Cargo.lock
+d49efab0376af1f8716c20e535a55475016f69017477ae5a0ce00a1db9c68a8f  /work/src/tools/file-import-pg/Cargo.toml
+da4ffc80f1e1c9f7e867ebdfd87c09689ebc766a7f69b613c7174b139a3093fb  /work/src/tools/file-import-pg/src/apply.rs
+2af04ae8d798b561d3a155cfd7cb5fc6dc6c0a52464c229a401d03c108cfb831  /work/src/tools/file-import-pg/src/digest.rs
+521bcff5d0918effbbf3b3a0fa5fb8e95881ae11feace5e3a191514910dd53b9  /work/src/tools/file-import-pg/src/lib.rs
+d6ea0b12553c232284539559c4a39fe4edac1c431873e2a24c3e2894a3bed43f  /work/src/tools/file-import-pg/src/main.rs
+e465419c3877faa14eaf5d152e1e3507022337469e3a3124143e16034f7bc75a  /work/src/tools/file-import-pg/src/project.rs
+113d3b72b39b73082c8ad9950c5fbc3535721ae510e05260b6c9ddcdca144b22  /work/src/tools/file-import-pg/src/request.rs
+ccbe0fe13361aca4c018b2979b5538f9ff3064aef46391515f7c9d5b35d0b12c  /work/src/tools/file-import-pg/tests/live.rs
+ae3c6e79b6cfbd60e93b603f1a3d15fe40a5b8865372aefaf564130ada185195  /work/src/tools/file-import-pg/tests/refuse.rs

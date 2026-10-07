@@ -1,0 +1,11 @@
+
+running 6 tests
+test closed_requests ... ok
+test copy_budgets_are_fixed ... ok
+test decimal_typmod_and_projection ... ok
+test int8_minmax_hash_and_presence ... ok
+test path_admission_does_not_open_a_database ... ok
+test token_null_and_config_digest ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
