@@ -1466,6 +1466,21 @@ mod a327_live {
         if policies.as_array().map(Vec::len).unwrap_or(0) != 1 {
             return Err(Stop::new("reviewed-policy", "table count"));
         }
+        let target = Session::open(&env, TARGET_DB, &env.admin_user, &env.admin_password).await?;
+        assert_numeric_typmods(&target.client).await?;
+        assert_mapping_grants_absent(&target.client).await?;
+        target.close().await;
+        let loose_policy = one_column_policy(&policies, "loose")?;
+        let loose = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &loose_policy)?, "provision-loose")?;
+        require_exit(&env, "provision-loose", &loose, 7)?;
+        expect_stderr(&loose, "provision-mapping-reader: policy type\n")?;
+        let over_policy = one_column_policy(&policies, "over")?;
+        let over = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &over_policy)?, "provision-over")?;
+        require_exit(&env, "provision-over", &over, 7)?;
+        expect_stderr(&over, "provision-mapping-reader: policy type\n")?;
+        let target = Session::open(&env, TARGET_DB, &env.admin_user, &env.admin_password).await?;
+        assert_mapping_grants_absent(&target.client).await?;
+        target.close().await;
         let install_in = to_vec(&json!({
             "protocol": "oo.gateway.install-column-acl-cli/v1",
             "policies": policies.clone(),
@@ -1475,15 +1490,7 @@ mod a327_live {
         }))?;
         let install = run_bin(&env, &env.install, &[], &install_in, "install-column-acl")?;
         require_exit(&env, "install-column-acl", &install, 0)?;
-        let mapping_in = to_vec(&json!({
-            "protocol": "oo.gateway.provision-mapping-reader-cli/v1",
-            "policies": policies.clone(),
-            "login": LOGIN,
-            "endpoint": admin_endpoint(&env, TARGET_DB),
-            "password_file": env.secrets[0],
-            "ca_file": "/secrets/ca.crt"
-        }))?;
-        let mapping = run_bin(&env, &env.mapping, &[], &mapping_in, "provision-mapping-reader")?;
+        let mapping = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &policies)?, "provision-mapping-reader")?;
         require_exit(&env, "provision-mapping-reader", &mapping, 0)?;
 
         let before = query_once(&env, "before-analyze", &policies, &digest, SUCCESS_SQL)?;
@@ -1529,6 +1536,10 @@ mod a327_live {
             "amounts_exit": 0,
             "amounts_rows": 6,
             "hidden_exit": 6,
+            "loose_exit": 7,
+            "over_exit": 7,
+            "mapping_grants_before_refusal": "absent",
+            "mapping_grants_after_refusal": "absent",
             "sql_in_query_output": false,
             "cells": "hand_literals",
             "parent_acceptance": false,
@@ -1553,14 +1564,14 @@ mod a327_live {
     fn fixture_sql() -> String {
         format!(
             "CREATE SCHEMA shop;\
-             CREATE TABLE shop.entry (entry_id int8 PRIMARY KEY, amount numeric(18,4), wide numeric(38,4), hidden int8 NOT NULL);\
-             INSERT INTO shop.entry (entry_id, amount, wide, hidden) VALUES\
-               (1, 12345678901234.5678, {WIDE_TEXT}, 1),\
-               (2, -12345678901234.5678, -{WIDE_TEXT}, 2),\
-               (3, 0.0001, 0.0001, 3),\
-               (4, -0.0001, -0.0001, 4),\
-               (5, 0.0000, 0.0000, 5),\
-               (6, NULL, NULL, 6);\
+             CREATE TABLE shop.entry (entry_id int8 PRIMARY KEY, amount numeric(18,4), wide numeric(38,4), hidden int8 NOT NULL, loose numeric, over numeric(39,4));\
+             INSERT INTO shop.entry (entry_id, amount, wide, hidden, loose, over) VALUES\
+               (1, 12345678901234.5678, {WIDE_TEXT}, 1, NULL, NULL),\
+               (2, -12345678901234.5678, -{WIDE_TEXT}, 2, NULL, NULL),\
+               (3, 0.0001, 0.0001, 3, NULL, NULL),\
+               (4, -0.0001, -0.0001, 4, NULL, NULL),\
+               (5, 0.0000, 0.0000, 5, NULL, NULL),\
+               (6, NULL, NULL, 6, NULL, NULL);\
              REVOKE ALL ON SCHEMA shop FROM PUBLIC;\
              REVOKE ALL ON ALL TABLES IN SCHEMA shop FROM PUBLIC;\
              GRANT USAGE ON SCHEMA shop TO {READER};\
@@ -1874,6 +1885,78 @@ mod a327_live {
         json!({"host": env.host, "port": env.port, "database": database, "user": env.admin_user})
     }
 
+    fn mapping_request(env: &Env, policies: &Value) -> Result<Vec<u8>, Stop> {
+        to_vec(&json!({
+            "protocol": "oo.gateway.provision-mapping-reader-cli/v1",
+            "policies": policies,
+            "login": LOGIN,
+            "endpoint": admin_endpoint(env, TARGET_DB),
+            "password_file": env.secrets[0],
+            "ca_file": "/secrets/ca.crt"
+        }))
+    }
+
+    fn one_column_policy(policies: &Value, column: &str) -> Result<Value, Stop> {
+        let mut policy = policies
+            .as_array()
+            .and_then(|items| items.first())
+            .cloned()
+            .ok_or_else(|| Stop::new("policy", "clone"))?;
+        let slot = policy.pointer_mut("/table/columns").ok_or_else(|| Stop::new("policy", "columns"))?;
+        *slot = json!([{
+            "name": column,
+            "status": "confirmed",
+            "semantic_type": "quantity",
+            "pii": {"class": "none"}
+        }]);
+        Ok(json!([policy]))
+    }
+
+    async fn assert_numeric_typmods(client: &Client) -> Result<(), Stop> {
+        let listed = scalar_step(
+            client,
+            "SELECT COALESCE(string_agg(DISTINCT attribute.atttypmod::text, ',' ORDER BY attribute.atttypmod::text), '') \
+             FROM pg_catalog.pg_attribute AS attribute \
+             JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid \
+             JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
+             JOIN pg_catalog.pg_type AS type_row ON type_row.oid = attribute.atttypid \
+             WHERE namespace.nspname = '_oo' AND type_row.typname = 'numeric' \
+               AND attribute.attnum > 0 AND NOT attribute.attisdropped",
+            "typmod",
+        )
+        .await?;
+        for typmod in ["-1", "1179656", "2490376", "2555912"] {
+            if !listed.split(',').any(|item| item == typmod) {
+                return Err(Stop::new("typmod", format!("missing {typmod}")));
+            }
+        }
+        Ok(())
+    }
+
+    async fn assert_mapping_grants_absent(client: &Client) -> Result<(), Stop> {
+        let listed = scalar_step(
+            client,
+            "SELECT has_schema_privilege('oo_a327_login', '_oo', 'USAGE')::text \
+             || ',' || has_table_privilege('oo_a327_login', '_oo.physical_mappings', 'SELECT')::text \
+             || ',' || has_function_privilege('oo_a327_login', '_oo.lookup_physical_mapping(text, text, bigint, text, text, text, text)', 'EXECUTE')::text",
+            "grants",
+        )
+        .await?;
+        if listed == "false,false,false" {
+            Ok(())
+        } else {
+            Err(Stop::new("grants", "mapping privileges present"))
+        }
+    }
+
+    async fn scalar_step(client: &Client, sql: &str, step: &str) -> Result<String, Stop> {
+        let row = client.query_one(sql, &[]).await.map_err(|err| {
+            let state = err.code().map(|code| code.code().to_string()).unwrap_or_else(|| "none".to_string());
+            Stop::new(step, format!("sqlstate={state}"))
+        })?;
+        row.try_get(0).map_err(|_| Stop::new(step, "scalar"))
+    }
+
     fn query_once(env: &Env, name: &str, policies: &Value, digest: &str, sql: &str) -> Result<CmdOut, Stop> {
         let audit_path = env.evidence.join(format!("audits/{name}.jsonl"));
         let audit = audit_path.to_str().ok_or_else(|| Stop::new(name, "audit path"))?;
@@ -2027,7 +2110,7 @@ mod a327_live {
     }
 
     fn stdin_is_request(name: &str) -> bool {
-        matches!(name, "catalog-pg" | "import-pg" | "import-pg-not-ready" | "init-pg" | "analyze-pg" | "install-column-acl" | "provision-mapping-reader" | "amounts" | "nan" | "pos-inf" | "neg-inf" | "hidden" | "before-analyze")
+        matches!(name, "catalog-pg" | "import-pg" | "import-pg-not-ready" | "init-pg" | "analyze-pg" | "install-column-acl" | "provision-mapping-reader" | "provision-loose" | "provision-over" | "amounts" | "nan" | "pos-inf" | "neg-inf" | "hidden" | "before-analyze")
     }
 
     fn require_exit(env: &Env, name: &str, output: &CmdOut, code: i32) -> Result<(), Stop> {

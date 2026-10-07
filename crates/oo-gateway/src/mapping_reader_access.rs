@@ -15,7 +15,7 @@ use std::fmt;
 
 use tokio_postgres::{Client, Error as PgError, Transaction};
 
-use crate::policy::catalog::SUPPORTED_TYPES;
+use crate::policy::catalog::grantable_base_type;
 use crate::policy::{compile_column_acl_set, ColumnAclPolicy, PolicyError};
 
 const LOOKUP_FN: &str = "_oo.lookup_physical_mapping(text, text, bigint, text, text, text, text)";
@@ -446,7 +446,7 @@ async fn ensure_supported_type(
 ) -> Result<(), MappingReaderError> {
     let row = tx
         .query_opt(
-            "SELECT type_row.typname::text, type_row.typtype::text \
+            "SELECT type_row.typname::text, type_row.typtype::text, attribute.atttypmod::int4 \
              FROM pg_catalog.pg_attribute AS attribute \
              JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid \
              JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
@@ -462,7 +462,8 @@ async fn ensure_supported_type(
     };
     let name: String = row.get(0);
     let kind: String = row.get(1);
-    if kind == "b" && SUPPORTED_TYPES.contains(&name.as_str()) {
+    let typmod: i32 = row.get(2);
+    if kind == "b" && grantable_base_type(&name, typmod) {
         Ok(())
     } else {
         Err(MappingReaderError::Unsupported {
