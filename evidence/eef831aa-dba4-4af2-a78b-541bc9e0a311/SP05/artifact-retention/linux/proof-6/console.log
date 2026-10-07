@@ -1,0 +1,94 @@
+oo_task=sp05-artifact-retention-proof-6
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=tools/artifact-retention
+lock_policy=walk fixed lock; one cargo metadata --offline only if --locked fails
+Linux edca8ca56246 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+RUSTUP_TOOLCHAIN=1.94.0
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+overlay_lock=present
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+lock_method=prebuilt-locked
+=== confirm locked metadata on the final lock ===
+phase_exit=0 phase=cargo_metadata_final_locked
+=== cargo fmt -p artifact-retention --check ===
+phase_exit=0 phase=cargo_fmt_check
+=== cargo test --locked --offline ===
+   Compiling artifact-retention v0.1.0 (/src/tools/artifact-retention)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running unittests src/lib.rs (/target/debug/deps/artifact_retention-be49a2c98aec2d24)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/artifact_retention-63ea326c29c14ae8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live.rs (/target/debug/deps/live-85b1739036cdb1ef)
+
+running 8 tests
+test current_tuple_refuses_the_pull_without_a_url ... ok
+test guessed_paths_and_symlink_roots_are_refused ... ok
+test kill_between_metadata_and_object_step_stays_partial ... ok
+test open_abort_does_not_claim_part_absence ... ok
+test production_clock_matches_the_process_clock ... ok
+test published_reap_does_not_fake_absence_and_keeps_quota ... ok
+test tamper_drift_symlink_and_read_error_do_not_delete ... ok
+test ttl_classes_stay_distinct_and_workspace_defaults_off ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/lock_subset.rs (/target/debug/deps/lock_subset-ccdf91d90b0374e5)
+
+running 1 test
+test registry_pins_are_a_subset_of_the_root_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests artifact_retention
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+phase_exit=0 phase=cargo_test
+=== cargo clippy --locked --offline ===
+    Checking artifact-retention v0.1.0 (/src/tools/artifact-retention)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.36s
+phase_exit=0 phase=cargo_clippy
+phase_exit=0 phase=worst
+proof=pass

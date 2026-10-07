@@ -1,0 +1,2 @@
+b4be6980edc9b91eb14e03dd4445d4cc333e10bcb03130177e3a1580072e4e6e  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/Cargo.toml
+def55c93906c23f71b9ff989fb7bef2a690722d7b707122da3ccc3f4f7e76889  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/CONTRACT.md

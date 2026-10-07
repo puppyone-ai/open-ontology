@@ -1,0 +1,23 @@
+pre-edit launch
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a311/SP05/artifact-retention/linux/pre-edit/launch.sh
+eb535b1a11e16aea9d120d5cfe8039d1b7b6354d796ba274a30c8744e822b662  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a311/SP05/artifact-retention/linux/pre-edit/launch.sh
+change container pre-edit->proof-2; overlay tools/artifact-retention; same 6g 1cpu network volumes; no second archive fetch
+proof-1 preserved
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a311/SP05/artifact-retention/linux/proof-1/console.log
+result docker-run.exit 126 because /tmp is noexec and the emitter binary was placed there
+change emitter binary path /tmp/lock_from_baseline -> /target/lock_from_baseline
+a204 launch
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+sha256 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a200 launch
+commit a587031c719a484830d78e493605f48e2056cae4
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+sha256 c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+a199 launch
+commit 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/overlay/launch.sh
+sha256 1212609e380ecea5b72033fa4eb936b61edcf33430f7fe8aa84d3549017c0537
+a209 smoke shape
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a209/SP05/download-eof-review/pre-edit/inside.sh
+sha256 b5cf6e162266a3365bd7512378cc43de36b005b16c557b1a29d7d65f00245aa9

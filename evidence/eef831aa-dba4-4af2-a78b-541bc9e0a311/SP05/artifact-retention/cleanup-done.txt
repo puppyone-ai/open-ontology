@@ -1,0 +1,18 @@
+observed_at=2026-10-07T10:58:34Z
+docker=/usr/local/bin/docker
+=== own containers before ===
+=== remove own containers ===
+own_containers_absent
+=== remove network ===
+oo-a311-eef831aa-net
+=== remove volumes ===
+oo-a311-eef831aa-cargo
+oo-a311-eef831aa-target
+=== remove tmp archive ===
+tmp_removed
+=== after ===
+network_absent
+volumes_absent
+tmp_absent
+=== foreign rust builders left ===
+prune=not_run
