@@ -1,0 +1,56 @@
+Independent review launch and hash tools for the a315 occupied-review amendment.
+PostgreSQL recipe a200 was not applied. This unit starts no database.
+The fixed archive already contains the implementation, so the overlay is test files only.
+
+a204 overlay launch
+  commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/overlay-3/launch.sh
+  git blob 03c8e15c60a376ef0a757c062ebd110063a0ffe6
+  content sha256 78c8ef8c179c59317850c1b6a9ae53d3f883b8a1b24c2567fa0d3d26f1997eee
+  change: followed through a302 proof-1, then owner a315
+
+a302 proof-1 launch, the immediate recipe
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a302/SP07/description-pack-review/linux/proof-1/launch.sh
+  content sha256 0bdb48f5446cd877a3c14f4149d1fb700bb82e14bd917623a6617c4d63f6c89b
+  change: owner a315, fixed archive 99ac19af42059a308ba9c418815619e5a081f407, 6 GiB, 1 CPU, private network and volumes, archive includes tools/description-pack, a302 overlay mounted read-only from its own directory, no pull, no prune, no PostgreSQL
+
+a302 proof-1 inside
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a302/SP07/description-pack-review/linux/proof-1/inside.sh
+  content sha256 7b50a26ef4fc98859e6698e197342ab2391d3243eb00f0de04697f51a1583e95
+  change: pre-overlay runs the archived 14 pack tests and Clippy. Post-overlay runs the unchanged a302 seven tests and the a315 five tests. Product bytes are compared after the overlay files are removed. Lock content hashes are checked. No crate replacement from the host worktree.
+
+a302 boundary file
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a302/SP07/description-pack-review/overlay/a302_sealed.rs
+  content sha256 bf043d4cecc1a23d1ced7fdb75a4a139bcf69bffa8058858f2d33bffab18d7b1
+  change: none. Mounted read-only and hashed inside the container before the copy.
+
+a309 manifest launch
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a309/SP07/description-pack-merge/linux/manifest/launch.sh
+  content sha256 83673d334980a8bb04d586baa89754dd0e6b2c6982cc82c3387a1b8840249486
+  change: owner a315. Two sequential builders after the proof container is gone. Network none. Stdout stays outside the evidence tree.
+
+a200 proof launch
+  commit a587031c719a484830d78e493605f48e2056cae4
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+  content sha256 c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541
+  change: not executed. This unit starts no PostgreSQL.
+
+a199 manifest tool
+  commit 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+  git blob f21989651570187fc286462349d59174a6a6b8ef
+  content sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  change: none. tools/sha256_manifest.rs is that file.
+
+a292 lock subset
+  path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a292/SP07/description-pack/tools/lock_subset.rs
+  content sha256 dfa03497423b1b35a427aadf6df175fd58d7355ad5c8dab7bb3364c2d31f5454
+  change: none. tools/lock_subset.rs is that file. Path count 5. Registry count 117.
+
+Fixed archive
+  99ac19af42059a308ba9c418815619e5a081f407
+  tools/description-pack tree 2b747801bdfa0de16f67c193c779f3427660198f
+  same tree at implementation ceb4be5ebe12cf581f511cc8a676050d02465c55
+  contract commit c548c8b18c4de5d75e6f8527c71569a2c311eb11 changes only CONTRACT.md and is an ancestor of the implementation
+  Cargo.lock blob 2990f901ea98a7b465f462cce8742bc5c51c13aa
+  tools/description-pack/Cargo.lock blob 028fbca1196f70ac69d90616dbc14cbca209b471

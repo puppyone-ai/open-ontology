@@ -1,0 +1,10 @@
+
+running 5 tests
+test accept_and_stale_fail_closed ... ok
+test flag_absent_and_cas_refusals_keep_the_prior_seal ... ok
+test mixed_fresh_and_occupied_approvals_reseal_once ... ok
+test occupied_override_reseals_approved_fields_only ... ok
+test reject_and_defer_leave_structural_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+

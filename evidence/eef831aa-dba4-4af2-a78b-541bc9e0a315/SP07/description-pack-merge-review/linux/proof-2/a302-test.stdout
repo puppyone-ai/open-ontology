@@ -1,0 +1,12 @@
+
+running 7 tests
+test approved_text_reseals_through_the_compiler ... ok
+test compiled_cli_matches_the_library ... ok
+test hash_tuple_cas_and_stale_field_refuse ... ok
+test incomplete_body_does_not_leak ... ok
+test occupied_dataset_review_is_unsupported ... ok
+test rejected_and_deferred_leave_the_original_seal ... ok
+test unclassified_allowlist_is_unknown_pii ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+

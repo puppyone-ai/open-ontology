@@ -1,0 +1,6 @@
+    Checking oo-core v0.1.0 (/work/tree/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/work/tree/crates/oo-jobs)
+    Checking oo-builder v0.1.0 (/work/tree/crates/oo-builder)
+    Checking description-review v0.1.0 (/work/tree/tools/description-review)
+    Checking description-pack v0.1.0 (/work/tree/tools/description-pack)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.05s

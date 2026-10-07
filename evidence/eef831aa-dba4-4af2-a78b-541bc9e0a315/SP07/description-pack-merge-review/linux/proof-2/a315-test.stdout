@@ -1,0 +1,32 @@
+
+running 5 tests
+test accept_and_stale_fail_closed ... ok
+test flag_absent_and_cas_refusals_keep_the_prior_seal ... ok
+test mixed_fresh_and_occupied_approvals_reseal_once ... FAILED
+test occupied_override_reseals_approved_fields_only ... FAILED
+test reject_and_defer_leave_structural_fields ... ok
+
+failures:
+
+---- mixed_fresh_and_occupied_approvals_reseal_once stdout ----
+
+thread 'mixed_fresh_and_occupied_approvals_reseal_once' (1114) panicked at tests/a315_sealed.rs:1108:5:
+assertion `left == right` failed
+  left: Null
+ right: "keel"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- occupied_override_reseals_approved_fields_only stdout ----
+
+thread 'occupied_override_reseals_approved_fields_only' (1116) panicked at tests/a315_sealed.rs:1108:5:
+assertion `left == right` failed
+  left: Null
+ right: "keel"
+
+
+failures:
+    mixed_fresh_and_occupied_approvals_reseal_once
+    occupied_override_reseals_approved_fields_only
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s
+

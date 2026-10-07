@@ -1,0 +1,46 @@
+
+running 5 tests
+test accept_and_stale_fail_closed ... FAILED
+test flag_absent_and_cas_refusals_keep_the_prior_seal ... FAILED
+test mixed_fresh_and_occupied_approvals_reseal_once ... FAILED
+test occupied_override_reseals_approved_fields_only ... FAILED
+test reject_and_defer_leave_structural_fields ... FAILED
+
+failures:
+
+---- accept_and_stale_fail_closed stdout ----
+
+thread 'accept_and_stale_fail_closed' (3020) panicked at tests/a315_sealed.rs:145:27:
+bound compile failed: oo.builder.catalog-evidence/v1/curated.invalid curated status must stay draft or rejected
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- flag_absent_and_cas_refusals_keep_the_prior_seal stdout ----
+
+thread 'flag_absent_and_cas_refusals_keep_the_prior_seal' (3021) panicked at tests/a315_sealed.rs:145:27:
+bound compile failed: oo.builder.catalog-evidence/v1/curated.invalid curated status must stay draft or rejected
+
+---- mixed_fresh_and_occupied_approvals_reseal_once stdout ----
+
+thread 'mixed_fresh_and_occupied_approvals_reseal_once' (3022) panicked at tests/a315_sealed.rs:145:27:
+bound compile failed: oo.builder.catalog-evidence/v1/curated.invalid curated status must stay draft or rejected
+
+---- occupied_override_reseals_approved_fields_only stdout ----
+
+thread 'occupied_override_reseals_approved_fields_only' (3023) panicked at tests/a315_sealed.rs:145:27:
+bound compile failed: oo.builder.catalog-evidence/v1/curated.invalid curated status must stay draft or rejected
+
+---- reject_and_defer_leave_structural_fields stdout ----
+
+thread 'reject_and_defer_leave_structural_fields' (3024) panicked at tests/a315_sealed.rs:145:27:
+bound compile failed: oo.builder.catalog-evidence/v1/curated.invalid curated status must stay draft or rejected
+
+
+failures:
+    accept_and_stale_fail_closed
+    flag_absent_and_cas_refusals_keep_the_prior_seal
+    mixed_fresh_and_occupied_approvals_reseal_once
+    occupied_override_reseals_approved_fields_only
+    reject_and_defer_leave_structural_fields
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

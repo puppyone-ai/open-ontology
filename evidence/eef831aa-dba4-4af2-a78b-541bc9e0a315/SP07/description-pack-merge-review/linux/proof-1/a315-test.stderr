@@ -1,0 +1,4 @@
+   Compiling description-pack v0.1.0 (/work/tree/tools/description-pack)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.42s
+     Running tests/a315_sealed.rs (/target/debug/deps/a315_sealed-0e6e444c9a4ea214)
+error: test failed, to rerun pass `--test a315_sealed`
