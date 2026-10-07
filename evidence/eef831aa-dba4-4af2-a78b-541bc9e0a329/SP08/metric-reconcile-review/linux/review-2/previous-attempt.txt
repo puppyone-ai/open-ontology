@@ -1,0 +1,9 @@
+linux/review docker-run.exit 101
+smoke 0 (sql_guard 24 passed)
+test 101 clippy 101
+cause: archive omitted examples/schema/metrics-finance.yaml
+include_str from tools/metric-reconcile/src/behavior.rs
+live skipped
+OOMKilled false
+builder removed
+postgres oo-a329-pg kept for this attempt

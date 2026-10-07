@@ -1,0 +1,1 @@
+review-2 oracle compile exited 101. error[E0382] host moved into bag.record, and report.outcome moved before record_limits. smoke.exit=0 (sql_guard 24 passed), test.exit=0 (21 passed), clippy.exit=0, live.exit=skipped. The oracle now passes those strings by reference. Product tree was not edited.

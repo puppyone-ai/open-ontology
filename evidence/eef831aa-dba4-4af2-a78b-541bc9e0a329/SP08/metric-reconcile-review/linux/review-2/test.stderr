@@ -1,0 +1,5 @@
+   Compiling metric-reconcile v0.1.0 (/src/tools/metric-reconcile)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.25s
+     Running unittests src/lib.rs (/target/a329-metric/debug/deps/metric_reconcile-c7da90e35fe57eb9)
+     Running unittests src/main.rs (/target/a329-metric/debug/deps/metric_reconcile-84c3251e9bf83d80)
+   Doc-tests metric_reconcile

@@ -1,0 +1,1 @@
+{"ca_file":"/tmp/a329-secrets/ca.crt","database":"oo_a329","host":"oo-a329-pg","max_result_bytes":8192,"password_file":"/tmp/a329-secrets/login.pass","port":5432,"statement_timeout_ms":5000,"user":"oo_a329_login"}

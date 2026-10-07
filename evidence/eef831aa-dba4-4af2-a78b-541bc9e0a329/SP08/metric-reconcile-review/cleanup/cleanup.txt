@@ -1,0 +1,10 @@
+oo-a329-pg
+pg_rm=0
+oo-a329-eef831aa-cargo
+cargo_vol=0
+oo-a329-eef831aa-target
+target_vol=0
+oo-a329-eef831aa-pgdata
+pg_vol=0
+oo-a329-eef831aa-net
+net=0

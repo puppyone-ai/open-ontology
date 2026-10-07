@@ -1,0 +1,38 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Linux 87ca7ec2d04e 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PHASE toolchain=0
+PHASE source=0
+PHASE sha256-tool=0
+PHASE select-debs-tool=0
+PHASE lock-before=0
+PHASE source-hash=0
+PHASE libclang=0
+PHASE libclang-includes=0
+=== cargo fetch workspace ===
+PHASE fetch=0
+=== author smoke sql_guard ===
+PHASE smoke=0
+PHASE lock-smoke=0
+=== metric-reconcile fetch ===
+PHASE metric-fetch=0
+=== cargo test metric-reconcile ===
+PHASE test=0
+=== cargo clippy ===
+PHASE component=0
+PHASE clippy=0
+PHASE lock-hash=0
+=== oracle ===
+PHASE oracle-lock=0
+PHASE oracle-drift=0
+PHASE oracle=0
+=== independent oracle ===
+PHASE live=0
+review_exit=0
