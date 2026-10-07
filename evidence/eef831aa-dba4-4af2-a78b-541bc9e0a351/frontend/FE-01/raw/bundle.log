@@ -1,0 +1,27 @@
+dist
+762 /src/apps/web/dist/index.html
+4301 /src/apps/web/dist/fonts/licenses/NotoSans-LICENSE
+4383 /src/apps/web/dist/fonts/licenses/Geist-OFL.txt
+16106 /src/apps/web/dist/assets/index-KC2UO08e.css
+40388 /src/apps/web/dist/fonts/NotoSansSC-300-subset.woff2
+40792 /src/apps/web/dist/fonts/NotoSansSC-400-subset.woff2
+41044 /src/apps/web/dist/fonts/NotoSansSC-500-subset.woff2
+50356 /src/apps/web/dist/fonts/GeistMono-Regular.woff2
+69652 /src/apps/web/dist/fonts/Geist-wght.woff2
+226525 /src/apps/web/dist/assets/index-BApyONEH.js
+7762252 /src/apps/web/dist/fonts/NotoSansSC-full.woff2
+gzip
+70115 gzip 226525 raw /src/apps/web/dist/assets/index-BApyONEH.js
+4117 gzip 16106 raw /src/apps/web/dist/assets/index-KC2UO08e.css
+399 gzip 762 raw /src/apps/web/dist/index.html
+fonts
+4301 /src/apps/web/public/fonts/licenses/NotoSans-LICENSE
+4383 /src/apps/web/public/fonts/licenses/Geist-OFL.txt
+40388 /src/apps/web/public/fonts/NotoSansSC-300-subset.woff2
+40792 /src/apps/web/public/fonts/NotoSansSC-400-subset.woff2
+41044 /src/apps/web/public/fonts/NotoSansSC-500-subset.woff2
+50356 /src/apps/web/public/fonts/GeistMono-Regular.woff2
+69652 /src/apps/web/public/fonts/Geist-wght.woff2
+7762252 /src/apps/web/public/fonts/NotoSansSC-full.woff2
+scan
+bundle_unexpected=0

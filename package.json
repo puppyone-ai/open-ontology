@@ -1,0 +1,22 @@
+{
+  "name": "open-ontology",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "12.10.1"
+  },
+  "scripts": {
+    "check": "pnpm --filter @open-ontology/web check",
+    "types": "pnpm --filter @open-ontology/web types",
+    "lint": "pnpm --filter @open-ontology/web lint",
+    "test": "pnpm --filter @open-ontology/web test",
+    "build": "pnpm --filter @open-ontology/web build",
+    "test:e2e": "pnpm --filter @open-ontology/web test:e2e",
+    "test:visual": "pnpm --filter @open-ontology/web test:visual",
+    "test:a11y": "pnpm --filter @open-ontology/web test:a11y",
+    "storybook": "pnpm --filter @open-ontology/web storybook",
+    "build-storybook": "pnpm --filter @open-ontology/web build-storybook"
+  }
+}

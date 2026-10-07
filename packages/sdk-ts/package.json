@@ -1,0 +1,14 @@
+{
+  "name": "@open-ontology/sdk-ts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Reserved TypeScript SDK root. FE-01 freezes the package name and compiler options. FE-03 owns the client implementation. This package exports nothing.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "12.10.1"
+  }
+}

@@ -1,0 +1,173 @@
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--oo-canvas);
+  color: var(--oo-text);
+  font-family: var(--oo-font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--oo-focus);
+  outline-offset: 2px;
+}
+
+.oo-page {
+  box-sizing: border-box;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--oo-space-page);
+}
+
+.oo-title {
+  margin: 0;
+  max-width: var(--oo-prose);
+  font-size: 1.625rem;
+  font-weight: 300;
+  line-height: 2.125rem;
+}
+
+.oo-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.625rem;
+}
+
+.oo-lede,
+.oo-body,
+.oo-secondary {
+  max-width: var(--oo-prose);
+}
+
+.oo-secondary,
+.oo-meta {
+  color: var(--oo-muted);
+}
+
+.oo-secondary {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.oo-meta {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+}
+
+.oo-code {
+  max-width: 100%;
+  overflow-x: auto;
+  font-family: var(--oo-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+}
+
+.oo-stack {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.oo-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.oo-control {
+  min-height: var(--oo-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--oo-input-border);
+  border-radius: var(--oo-radius-input);
+  background: var(--oo-surface);
+  color: var(--oo-text);
+  font: inherit;
+}
+
+.oo-button {
+  min-height: var(--oo-control-height);
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--oo-radius-input);
+  background: var(--oo-accent);
+  color: var(--oo-on-accent);
+  font: inherit;
+  font-weight: 500;
+}
+
+.oo-button:disabled {
+  cursor: not-allowed;
+}
+
+.oo-input {
+  min-height: var(--oo-control-height);
+  width: min(100%, 24rem);
+  box-sizing: border-box;
+  padding: 0 0.75rem;
+  border: 1px solid var(--oo-input-border);
+  border-radius: var(--oo-radius-input);
+  background: var(--oo-surface);
+  color: var(--oo-text);
+  font: inherit;
+}
+
+.oo-row {
+  display: flex;
+  align-items: center;
+  min-height: var(--oo-row-height);
+  padding: 0 0.75rem;
+  border-block-end: 1px solid var(--oo-border);
+  background: var(--oo-surface);
+}
+
+.oo-swatch {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: var(--oo-row-height);
+  padding: 0 0.75rem;
+  border-radius: var(--oo-radius-panel);
+}
+
+.oo-motion {
+  opacity: 1;
+  transition: opacity var(--oo-motion-hover) linear;
+}
+
+.oo-note {
+  padding: 0.75rem;
+  border-radius: var(--oo-radius-panel);
+  background: var(--oo-subtle);
+}
+
+.oo-rare {
+  font-size: 1.625rem;
+  font-weight: 400;
+  line-height: 2.125rem;
+}
+
+@media (max-width: 767px) {
+  .oo-control,
+  .oo-button,
+  .oo-input {
+    min-height: max(var(--oo-control-height), 2.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oo-motion {
+    transition-duration: 0.01ms;
+  }
+}

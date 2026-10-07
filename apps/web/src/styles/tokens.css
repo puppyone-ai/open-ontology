@@ -1,0 +1,114 @@
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --oo-canvas: #f7f8fa;
+  --oo-surface: #ffffff;
+  --oo-subtle: #f0f2f5;
+  --oo-text: #202733;
+  --oo-muted: #566170;
+  --oo-border: #dde2ea;
+  --oo-accent: #245bd6;
+  --oo-on-accent: #ffffff;
+  --oo-success: #176b47;
+  --oo-warning: #8a570a;
+  --oo-danger: #b42332;
+  --oo-success-bg: #e7f6ee;
+  --oo-warning-bg: #fbf1dc;
+  --oo-danger-bg: #fde8ea;
+  --oo-accent-bg: #e7eefb;
+  --oo-input-border: #6e7a8c;
+  --oo-focus: #245bd6;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --oo-canvas: #101318;
+  --oo-surface: #171c24;
+  --oo-subtle: #202733;
+  --oo-text: #edf0f5;
+  --oo-muted: #a8b2c2;
+  --oo-border: #364151;
+  --oo-accent: #8eb0ff;
+  --oo-on-accent: #101318;
+  --oo-success: #80d8ad;
+  --oo-warning: #f0c36c;
+  --oo-danger: #ff9ea7;
+  --oo-success-bg: #123528;
+  --oo-warning-bg: #3a2c12;
+  --oo-danger-bg: #3a1c22;
+  --oo-accent-bg: #1a2744;
+  --oo-input-border: #61758f;
+  --oo-focus: #8eb0ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --oo-canvas: #101318;
+    --oo-surface: #171c24;
+    --oo-subtle: #202733;
+    --oo-text: #edf0f5;
+    --oo-muted: #a8b2c2;
+    --oo-border: #364151;
+    --oo-accent: #8eb0ff;
+    --oo-on-accent: #101318;
+    --oo-success: #80d8ad;
+    --oo-warning: #f0c36c;
+    --oo-danger: #ff9ea7;
+    --oo-success-bg: #123528;
+    --oo-warning-bg: #3a2c12;
+    --oo-danger-bg: #3a1c22;
+    --oo-accent-bg: #1a2744;
+    --oo-input-border: #61758f;
+    --oo-focus: #8eb0ff;
+  }
+}
+
+:root,
+[data-density="comfortable"] {
+  --oo-row-height: 2.5rem;
+  --oo-control-height: 2.5rem;
+}
+
+[data-density="compact"] {
+  --oo-row-height: 2rem;
+  --oo-control-height: 2rem;
+}
+
+[data-density="roomy"] {
+  --oo-row-height: 3rem;
+  --oo-control-height: 3rem;
+}
+
+:root {
+  --oo-font-sans: Geist, "Noto Sans SC", "Noto Sans SC Full", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --oo-font-mono: "Geist Mono", "Noto Sans SC", "Noto Sans SC Full", ui-monospace, monospace;
+  --oo-space-page: 1.5rem;
+  --oo-prose: 50rem;
+  --oo-radius-input: 0.375rem;
+  --oo-radius-panel: 0.5rem;
+  --oo-z-sticky: 10;
+  --oo-z-popover: 30;
+  --oo-z-dialog: 50;
+  --oo-z-toast: 60;
+  --oo-motion-hover: 120ms;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --oo-space-page: 1rem;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--oo-canvas);
+  --color-surface: var(--oo-surface);
+  --color-subtle: var(--oo-subtle);
+  --color-ink: var(--oo-text);
+  --color-muted: var(--oo-muted);
+  --color-line: var(--oo-border);
+  --color-accent: var(--oo-accent);
+  --color-on-accent: var(--oo-on-accent);
+  --font-sans: var(--oo-font-sans);
+  --font-mono: var(--oo-font-mono);
+}

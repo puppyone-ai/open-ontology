@@ -1,0 +1,87 @@
+phase=identity
+node=v24.21.0
+arch=aarch64
+os=debian-12
+corepack=present
+Preparing pnpm@12.10.1 for immediate activation...
+pnpm=12.10.1
+baseline=absent
+phase=lock-generate
+Scope: all 3 workspace projects
+Progress: resolved 0, reused 357, downloaded 0, added 0
+Packages are copied from the content-addressable store to the virtual store.
+  Content-addressable store is at: /pnpm-store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 95, reused 475, downloaded 0, added 92
+Progress: resolved 185, reused 475, downloaded 0, added 182
+Progress: resolved 207, reused 475, downloaded 0, added 204
+Progress: resolved 280, reused 475, downloaded 0, added 277
+Progress: resolved 340, reused 475, downloaded 0, added 337
+Progress: resolved 395, reused 475, downloaded 0, added 392
+Progress: resolved 464, reused 475, downloaded 0, added 464
+Packages: +467
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 467, reused 475, downloaded 0, added 467, done
+Done in 8.8s using pnpm v12.10.1
+lock_generate_exit=0
+phase=wipe-node-modules
+phase=frozen-install
+Scope: all 3 workspace projects
+✓ Lockfile passes supply-chain policies (verified 5s ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages are copied from the content-addressable store to the virtual store.
+  Content-addressable store is at: /pnpm-store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 118, reused 118, downloaded 0, added 115
+Progress: resolved 155, reused 155, downloaded 0, added 152
+Progress: resolved 215, reused 215, downloaded 0, added 212
+Progress: resolved 262, reused 262, downloaded 0, added 259
+Progress: resolved 332, reused 332, downloaded 0, added 329
+Progress: resolved 410, reused 410, downloaded 0, added 407
+Progress: resolved 464, reused 464, downloaded 0, added 462
+Packages: +467
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 467, reused 467, downloaded 0, added 467, done
+Done in 8.8s using pnpm v12.10.1
+frozen_install_exit=0
+phase=types
+$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit
+types_exit=0
+phase=lint
+$ eslint --config config/eslint.config.mjs .
+lint_exit=0
+phase=test
+$ vitest run --config config/vitest.config.ts
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/styles/bootstrap.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 63[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 19:42:53
+[2m   Duration [22m 872ms[2m (environment 68%, setup 19%, tests 8%, import 3%, transform 2%)[22m
+
+test_exit=0
+phase=build
+$ vite build
+[36mvite v8.3.3 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 16 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.40 kB │ gzip:  0.29 kB
+dist/assets/index-B2VE6WIS.css    4.19 kB │ gzip:  1.40 kB
+dist/assets/index-BV5jrDN-.js   219.82 kB │ gzip: 68.80 kB
+
+[32m✓ built in 93ms[39m
+build_exit=0
+phase=sdk-tsc
+error TS18003: No inputs were found in config file '/src/packages/sdk-ts/tsconfig.json'. Specified 'include' paths were '["src/**/*.ts","src/**/*.tsx"]' and 'exclude' paths were '[]'.
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in /src/apps/web
+
+sdk_tsc_exit=1
+web_worst_exit=0
