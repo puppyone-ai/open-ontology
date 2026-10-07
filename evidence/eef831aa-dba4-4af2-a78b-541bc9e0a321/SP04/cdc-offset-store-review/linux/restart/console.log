@@ -1,0 +1,11 @@
+oo_task=sp04-cdc-offset-store-review-restart
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a321
+oo_fixed=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+phase=restart
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== cargo test independent_restart ===
+phase_exit=0 phase=test
+phase_exit=0 phase=clippy-component
+=== cargo clippy ===
+phase_exit=0 phase=clippy
+proof=ok independent_restart

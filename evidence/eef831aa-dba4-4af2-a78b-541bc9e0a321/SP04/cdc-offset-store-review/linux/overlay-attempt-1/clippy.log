@@ -1,0 +1,25 @@
+    Checking cdc-offset-store v0.1.0 (/cargo-home/work/src/tools/cdc-offset-store)
+error[E0599]: no function or associated item named `from_pem_slice` found for struct `rustls::pki_types::CertificateDer<'_>` in the current scope
+    --> tests/review_a321.rs:1280:39
+     |
+1280 |     let certificate = CertificateDer::from_pem_slice(&env.ca).expect("ca");
+     |                                       ^^^^^^^^^^^^^^ function or associated item not found in `rustls::pki_types::CertificateDer<'_>`
+     |
+note: if you're trying to build a new `rustls::pki_types::CertificateDer<'_>`, consider using `rustls::pki_types::CertificateDer::<'a>::from_slice` which returns `rustls::pki_types::CertificateDer<'_>`
+    --> /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/rustls-pki-types-1.15.1/src/lib.rs:680:5
+     |
+ 680 |     pub const fn from_slice(bytes: &'a [u8]) -> Self {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: items from traits can only be used if the trait is in scope
+help: trait `PemObject` which provides `from_pem_slice` is implemented but not in scope; perhaps you want to import it
+     |
+  11 + use rustls::pki_types::pem::PemObject;
+     |
+help: there is an associated function `from_slice` with a similar name
+     |
+1280 -     let certificate = CertificateDer::from_pem_slice(&env.ca).expect("ca");
+1280 +     let certificate = CertificateDer::from_slice(&env.ca).expect("ca");
+     |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `cdc-offset-store` (test "review_a321") due to 1 previous error

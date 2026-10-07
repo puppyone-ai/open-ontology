@@ -1,0 +1,34 @@
+Fixed archive commit 52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
+Fixed tree recorded by the preoverlay launch in linux/preoverlay/fixed-tree.txt
+Author development fixed commit was cab5e8e219d1924070df7336f5ab5d4ce7cf40dc.
+That commit is an ancestor. Target receipt SQL 0000-0003 is unchanged between them.
+The product at this review commit is the committed tree, not a workspace overlay.
+Root Cargo.lock at 52ce234c: 16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a
+
+Origins, measured before this review's launches:
+a204 preoverlay launch
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+  08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+  Change: a321 paths, fixed commit 52ce234c, 6g, 1 cpu, global cap 10, private postgres network, archive the committed product.
+a200 PostgreSQL up.sh
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+  96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45
+  Change: a321 names, SAN DNS:oo-a321-pg, 1g, 1 cpu, no host port.
+a200 pg-wrap.sh
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+  25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
+  Copied byte-for-byte.
+a199 sha256_manifest.rs
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/tools/sha256_manifest.rs
+  d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+  Copied byte-for-byte to linux/tools/sha256_manifest.rs.
+a310 lock_subset.rs
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a310/SP04/cdc-offset-store/linux/tools/lock_subset.rs
+  0263949d7bbd5758e3d1dbb79c9d9970c2625d4d45491b4a3fe97f2a6c33af92
+  Copied byte-for-byte. That file records its own origin as a289 calendar-store lock_subset.rs.
+a310 impl-5 inside.sh
+  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a310/SP04/cdc-offset-store/linux/impl-5/inside.sh
+  8138228d70cdd7749214856b128967deca0b04e05aae2485bedf42e9fe179102
+  Shape of the preoverlay inside script. Change: this fixed commit, a321 host, refuse the review file, require registry=128.
+
+cargo update is not invoked. The review does not edit Cargo.toml, Cargo.lock, or tools/cdc-offset-store.

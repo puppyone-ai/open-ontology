@@ -1,0 +1,10 @@
+Removed only this task's resources after the restart proof. Foreign containers were not pruned.
+
+- container oo-a321-pg, label oo.owner=a321 oo.kind=postgres
+- volume oo-a321-eef831aa-pgdata
+- volume oo-a321-eef831aa-cargo
+- volume oo-a321-eef831aa-target
+- network oo-a321-eef831aa-net, attached containers 0
+- directory /tmp/oo-a321-eef831aa-dba4-4af2-a78b-541bc9e0a321
+
+No a321 container, volume, or network remained. The pinned images were left in the local store.

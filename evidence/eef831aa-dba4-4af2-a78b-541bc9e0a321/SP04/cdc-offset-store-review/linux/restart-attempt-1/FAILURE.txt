@@ -1,0 +1,6 @@
+Harness assertion, not a product defect.
+independent_restart replayed orders/txn-1 with expected_previous null after the epoch-1 watermark had moved to txn-after position 40.
+The product returned kind=replay, checkpoint_advanced=false, watermark_hold=expected_previous_mismatch, and receipt hash 95537a00f6685831ce38aaf0b72a3bc6a3ba3f08d1c12328dbc31403cd9fa5c2.
+Receipt count, watermark count, and both epoch watermarks matched independent-counts.json before that assertion.
+Postmaster start changed from 2026-10-07 11:19:35.381771+00 to 2026-10-07 11:26:22.742032+00.
+Product source was not edited.
