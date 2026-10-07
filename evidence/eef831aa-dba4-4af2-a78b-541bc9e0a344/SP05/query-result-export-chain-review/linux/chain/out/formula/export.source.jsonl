@@ -1,0 +1,7 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"1"},{"kind":"decimal","negative":false,"coefficient":"123456789012345678","scale":4},{"kind":"decimal","negative":false,"coefficient":"12345678901234567890123456789012345678","scale":4}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"2"},{"kind":"decimal","negative":true,"coefficient":"123456789012345678","scale":4},{"kind":"decimal","negative":true,"coefficient":"12345678901234567890123456789012345678","scale":4}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"3"},{"kind":"decimal","negative":false,"coefficient":"1","scale":4},{"kind":"decimal","negative":false,"coefficient":"1","scale":4}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"4"},{"kind":"decimal","negative":true,"coefficient":"1","scale":4},{"kind":"decimal","negative":true,"coefficient":"1","scale":4}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"5"},{"kind":"decimal","negative":false,"coefficient":"0","scale":4},{"kind":"decimal","negative":false,"coefficient":"0","scale":4}]}
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"6"},{"kind":"null"},{"kind":"null"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":6,"result_bytes":162,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"466f22e579afe5252e78ae6cffca1da0a9c4630ba8cb63440a0fc9b7a9c6957a","executed_sha256":"7542ccf3a4adf8ff3784b592b0ee6b2acce0e205393c1f43cf366d179c9c1f64","stop":null,"sqlstate":null}

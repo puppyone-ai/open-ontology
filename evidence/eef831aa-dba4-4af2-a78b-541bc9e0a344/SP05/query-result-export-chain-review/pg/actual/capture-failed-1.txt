@@ -1,0 +1,1 @@
+First capture exited 1 before any target query. source-rows.txt was already the six shop.entry lines. mapping-entry.txt was already written. The checker rejected the table-level mapping row because logical_column is empty. No chain or smoke run was repeated. The script now skips a blank logical name and the capture is run again on the same private database.

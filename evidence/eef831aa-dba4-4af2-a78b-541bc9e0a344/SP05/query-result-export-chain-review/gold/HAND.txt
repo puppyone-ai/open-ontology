@@ -1,0 +1,12 @@
+Hand gold written before the a344 chain. These bytes are not copied from an earlier export receipt.
+
+Frozen producer 21cc96241a841b47dbbcb116549030e38a643ba0 fixture constants:
+
+- AMOUNT coefficient 123456789012345678, 18 digits, scale 4
+- WIDE coefficient 12345678901234567890123456789012345678, 38 digits, scale 4
+- WIDE display 1234567890123456789012345678901234.5678
+- rows: positive pair, negative pair, 0.0001, -0.0001, coefficient 0 scale 4 as 0.0000, both numeric cells null
+
+Exporter contract at 62b4afecdd377fa94310f46467c48a01e61d14db: UTF-8 CSV, no BOM, CR LF records, comma fields, null is an empty field. A typed decimal keeps its plain text, including a leading minus, and receives no apostrophe. A caller header is text, so -wide is written as '-wide. amounts.csv has no apostrophe. formula.csv has one apostrophe, on that header.
+
+amounts.csv is 208 bytes. partial.csv is the header plus the first row, 85 bytes. formula.csv is 210 bytes.

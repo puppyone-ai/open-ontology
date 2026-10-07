@@ -1,0 +1,1 @@
+image=pinned-rust-1.94 memory=6g cpus=1 network=none
