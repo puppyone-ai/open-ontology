@@ -1,0 +1,9 @@
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /src/Cargo.lock
+d68ce8c113f9028d2dac659c332879c9eac875cc687f2fb28c7c02eaf880f5d4  /src/crates/oo-gateway/src/pack_catalog.rs
+59e0a940f6fed9f63e7ebc0da37ddc189f287bab17e50ca794b5316eb41c9059  /src/crates/oo-gateway/tests/http_gateway_live.rs
+eaa2041ba9364eba6b5e1d6628b282e5053cbdfac2e2c9f532e79607b57a5762  /src/crates/oo-gateway/tests/http_gateway_pg_live.rs
+f56304b1f9314b3e5032cff538e7e4c48beb4a6034ac8a86c5695142391b7a27  /src/crates/oo-builder/src/canonical.rs
+a408755dd5c22a5cb199cb269ce01267609cf1398f92f0de0baa70bd90c86e2c  /src/testing/real-db/gateway-compiled-pack/src/fixture.rs
+e4665aa8800dacc7dfe0e3d8c9475508c593730a15046622d146444ac168ba4e  /src/testing/real-db/gateway-compiled-pack/fixtures/effective.json
+0c12e82791cf516c4eadfaa9413f379e790c9fbbefda74b1c7fa29dea9346782  /src/testing/real-db/gateway-compiled-pack/fixtures/visibility-picker.json
+8e47cd2ec01f443b8635db3e4f2649fa3a3d10786be9d2fb049e9f573cf281b0  /src/testing/real-db/gateway-compiled-pack/fixtures/visibility-auditor.json

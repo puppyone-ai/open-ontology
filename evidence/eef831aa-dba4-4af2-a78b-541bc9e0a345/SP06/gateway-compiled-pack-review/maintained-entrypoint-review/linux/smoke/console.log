@@ -1,0 +1,19 @@
+PHASE rustc_exit=0
+PHASE archive_ok
+find: '/cargo-home/a341-clang-root/usr/lib': No such file or directory
+PHASE libclang_ready
+PHASE fetch_begin
+PHASE fetch_exit=0
+PHASE smoke_default_begin
+PHASE smoke_default_exit=0
+PHASE smoke_ok
+PHASE clippy_component_begin
+PHASE clippy_begin
+PHASE clippy_exit=0
+PHASE fixture_rustc_begin
+PHASE fixture_rustc_exit=0
+PHASE bundle_begin
+PHASE bundle_exit=0
+PHASE a326_live_begin
+PHASE a326_live_exit=0
+PHASE inside_ok

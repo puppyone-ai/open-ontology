@@ -1,0 +1,6 @@
+
+running 1 test
+test issued_token_reads_its_pack_and_failures_stay_closed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.36s
+
