@@ -1,0 +1,17 @@
+cleanup_start 2026-10-07T18:00:27Z
+container_absent oo-a347-smoke
+container_absent oo-a347-final
+oo-a347-pg
+container_removed oo-a347-pg
+container_absent oo-a347-hash
+oo-a347-eef831aa-cargo
+volume_removed oo-a347-eef831aa-cargo
+oo-a347-eef831aa-target
+volume_removed oo-a347-eef831aa-target
+oo-a347-eef831aa-pgdata
+volume_removed oo-a347-eef831aa-pgdata
+oo-a347-eef831aa-net
+network_removed oo-a347-eef831aa-net
+tmp_removed /tmp/oo-a347-eef831aa-dba4-4af2-a78b-541bc9e0a347
+remaining_a347
+cleanup_done

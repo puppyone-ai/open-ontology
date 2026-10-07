@@ -1,0 +1,1 @@
+Pin comparison failed before tests. The sha256 tool listed review_bounded_in.rs third. expected-sha256.txt listed it last. Hashes matched; order did not. inside.sh now hashes the review file last. No product bytes changed.

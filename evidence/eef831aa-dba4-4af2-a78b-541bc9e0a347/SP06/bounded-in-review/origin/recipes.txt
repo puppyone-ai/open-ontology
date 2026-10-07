@@ -1,0 +1,21 @@
+Independent bounded-IN review. Product archive 6f87942f1c66ba1a9787b7d7194e58a507af63ef.
+sql_guard blob 6d7aef7bb95c9550a7e6f1bc7f3f22f7c098de4f.
+File SHA-256 fdba8d0c575fc9336bf31f01f40439e6ea2d310928be7cc93a4ce4611bb285b5.
+The review does not mount the worktree and does not run the author bounded_in tests.
+
+Byte-copied tools, measured in this directory:
+
+| Origin | Path | SHA-256 |
+| --- | --- | --- |
+| a274 sha256 tool | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/tools/sha256.rs | 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e |
+| a274 deb selector | same review, tools/select-debs.rs | 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644 |
+| a274 manifest walker | same review, tools/sha256_manifest.rs | d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3 |
+| a274 pg-wrap | same review, pg/pg-wrap.sh | d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb |
+| a274 libclang extract | same review, linux/chain/extract-libclang.sh | 982f18e430e6b8136a4cb30cb7e0711015318d0b40c0939475bfae8142e55ed4 |
+
+Shell changes from those origins are the UUID, owner a347, 6 GiB and 1 CPU, this network, and the path-limited archive of 6f87942.
+The extract script keeps the a274 package selection and changes only the cargo and evidence paths.
+Server flags stay the a274 set. The pg-wrap file is a byte copy.
+
+Rust image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+Postgres image docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb

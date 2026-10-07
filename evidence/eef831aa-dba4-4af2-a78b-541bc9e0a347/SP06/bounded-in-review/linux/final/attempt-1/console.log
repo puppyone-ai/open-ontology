@@ -1,0 +1,34 @@
+oo_task=sp06-bounded-in-review-final
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a347
+oo_fixed=6f87942f1c66ba1a9787b7d7194e58a507af63ef
+oo_platform=linux/arm64
+Linux f36d1539defe 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=toolchain
+mounted bytes differ from the review pin
+--- /evidence/linux/final/expected-sha256.txt	2026-10-07 17:51:51.397461365 +0000
++++ /evidence/linux/final/owned-sha256.txt	2026-10-07 17:51:51.695749616 +0000
+@@ -1,5 +1,6 @@
+ fdba8d0c575fc9336bf31f01f40439e6ea2d310928be7cc93a4ce4611bb285b5  crates/oo-gateway/src/sql_guard.rs
+ 17140f5e34754dea3795b14d84589c8af6fae6c80aca0250800f87b311398cc2  crates/oo-gateway/tests/bounded_in.rs
++a0e7fcd5de4625eebc120f1f9f75dab827bb83b9311972c2023b8f4bd433428f  crates/oo-gateway/tests/review_bounded_in.rs
+ 46f7a8d79af146f5199896ad0ac820fe5415e39fd9530a6a887e7dbbc8286a6d  crates/oo-gateway/src/query_executor.rs
+ 63b28a2cd5da4914b124d7eac42d7d8b815033d96208118d3fb4c94b242f4325  crates/oo-gateway/src/policy.rs
+ 1d914418d587a550984858e4f11874a80a0d0f5ea8a1b9861f9d789a4a60ca67  crates/oo-gateway/src/policy_catalog.rs
+@@ -7,4 +8,3 @@
+ b6cd2f4e5a5af9d895a6c2ab9020ca6956afc4f61dd0b799a9cc297f54c13a22  crates/oo-gateway/src/bin/query-pg.rs
+ 662cf65059b759518fa560f22f0220e5b901a68523df2064beefff746e7aa23b  crates/oo-gateway/Cargo.toml
+ b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  Cargo.lock
+-a0e7fcd5de4625eebc120f1f9f75dab827bb83b9311972c2023b8f4bd433428f  crates/oo-gateway/tests/review_bounded_in.rs
+phase_exit=1 phase=pins

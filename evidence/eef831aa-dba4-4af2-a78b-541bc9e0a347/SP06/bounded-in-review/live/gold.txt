@@ -1,0 +1,10 @@
+qty_0=-9223372036854775808
+qty_1=9223372036854775807
+qty_2=0
+null_in=0,2
+not_in_null=
+not_in=2,7
+equal_0=-9223372036854775808
+guard_refusals=8
+rows_unchanged=yes
+executed_contains_or=no

@@ -1,0 +1,21 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.71s
+     Running tests/review_bounded_in.rs (/target/a347/debug/deps/review_bounded_in-c5b2f2f8f1e6fce8)
+
+running 13 tests
+test a_hidden_column_is_not_granted_by_the_list ... ok
+test a_missing_operator_refuses_without_inserting_a_cast ... ok
+test a_signed_integer_constant_is_a_literal ... ok
+test an_admitted_in_is_a_real_r9_filter ... ok
+test literal_in_keeps_the_list_and_the_cross_type_operator ... ok
+test live_query_pg_returns_int8_extrema_for_the_exact_in_list ... ok
+test not_in_keeps_the_node_and_uses_inequality ... ok
+test null_stays_in_the_list_and_uses_the_same_type_operator ... ok
+test older_shapes_stay_where_they_were ... ok
+test subquery_cast_function_parameter_float_and_any_fail_closed ... ok
+test text_and_bool_literals_resolve_their_own_operators ... ok
+test the_byte_budget_still_applies_to_an_in_predicate ... ok
+test the_list_bound_is_one_through_thirty_two ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+
