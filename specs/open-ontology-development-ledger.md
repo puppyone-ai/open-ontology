@@ -1846,3 +1846,5 @@ Fullauthora354/a355/a358three reports read closedtasks; fixedsources e5427c1a(S2
 2026-10-08 固定E53开发验收：
 - [x] E53-D1/1 发布协调器原冻结子项：9d5df65b63d3fe6c94d92d02c41d67b2b5c8aed3，经a366 APPROVE_LIMITED。三报告完整已读；83 SHA条目0坏/0缺，源diff为空，实际13作者+13独立私有PG测试/Clippy0、restart新进程0、cleanup0；同事务CAS active_pointer+audit、失败applying恢复、角色视图与回滚成立。所有真实外部issuer/fence/replica生产证据仍缺，test_issuer只test_scope_not_production，status not_issued、production_ready=false；完整SP08及I01/I02不勾选。
 局部冻结验收73→74/86=86.05%；历史98→99；首次独立组件88→89；既有返工14/89=15.73%；作者94不变。完整87父项/16阶段、M1-D17/24、集成0/4、发行0/6、X01–X05不变。
+
+2026-10-08 BEFORE CODE freeze E54-D1/1（SP02-W05/REQ-CTL-03/AT-CTL-05身份组件）：获准issuer/client/redirect/configcommit/管理binding/SecretRef→真实HTTPS OIDC Code+PKCE+签名验证、耐久cookie会话/单次bootstrap/CSRF/Origin/最小项目角色guard与审计；私有PG+真实HTTPS测试IdP验证，不冒充客户IdP/数据授权/Agent会话。新a370 owns tools/control-identity及UUID证据，root/前端/既有产品readonly；先合同固定再实现，完整packet+独立复审后才勾选。冻结局部分母86→87，已验收74/87=85.06%；历史99/首审89/返工14/作者94不变，完整87父项及I/R/X不变。此新增子项不改变全局开发分母未冻结事实。
