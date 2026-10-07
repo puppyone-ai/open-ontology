@@ -44,3 +44,5 @@ G1 handle37146 terminal0；unit6/types/lint/contrast/生产build/Storybook已报
 G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/24 SHA核验0坏/0缺，最终类型/lint/52单位/build0，但A03–A43管理页未挂production、build未包含这些页、B01–B12 unbound、browser未执行，故不接受管理功能/live/总卡A01–A20。G3下一必要固定component复审不将独立reviewharness当publicproduction旅程。
 
 2026-10-08 句柄与证据续接：a365=27577、a370=60092、a371=65332、G3a352=88200上次统一观测live保留；G1a351=16348（原会话续接总卡路由/组件/部署及身份schema绑定）；新备份复审a372=33067、新真实selfbuildAPI开发a373=42599。a368/a369旧句柄终止0已收包，不重启。前端G2a353当前终止0保留原UUID，无第四会话；G3当前live不重复启动，M4-font-motion固定082af80b3完整三报告已读61 SHA0坏/0缺，作者浏览器焦点变化/376字体子集有实际截图但仍待G3变化复审。G2完整页生产未挂/无binding/live不计完结。所有新task必须真实依赖和固定原scope证据，nextUUIDa374未用；下一轮仍单次18分钟统一观测。
+
+2026-10-08 一次18min统一观测：G3a35288200/G1a35116348终止0；a36527577/a37060092/a37165332/a37233067/a37342599仍live，未再次轮询。G3 G2-admin完整三报告已读、83 SHA0坏/0缺，limited仅注册/未挂/抽查未接入组件；必改向导秘密输入、占位详情导航、空候选审核表单交回原G2a3533011；共享disabled理由/故事glob归原G1a35174888，先收集已启动M5真实退出再修。G3原a35252828继续固定M4聚焦复审。前端最多3固定UUID，当前3CLI同时运行，Node2/browser2全球cap仍必须排队，不能第四CLI。A16术语规范行B04→B05修正与真实API规范一致，源hashbaseline需后续规范记录而非假设原hash没变。主线开发/集成/发行计数不因UI未接入或schema合同提交改变。nextUUIDa375未用。

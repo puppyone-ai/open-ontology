@@ -27,7 +27,7 @@ v1.0；路由和页面权威。继承 [设计系统](design-system.md) 与 [API/
 | A13 | `/admin/ontology` | datasets/terms/entities/metrics等按领域检索、状态/version | B04/B05 | Knowledge |
 | A14 | `/admin/ontology/datasets/:id` | 字段、PK/FK、画像、三层overlay、label/grain/caveats/questions | B04 | Resource |
 | A15 | `/admin/ontology/relations` | 关系列表与只读局部图、from/to、基数、证据/审阅 | B04 | Graph |
-| A16 | `/admin/ontology/terms` | 术语/同义词/业务定义、映射对象、owner、审核/生命周期 | B04 | List/Form |
+| A16 | `/admin/ontology/terms` | 术语/同义词/业务定义、映射对象、owner、审核/生命周期 | B05 | List/Form |
 | A17 | `/admin/reviews` | 我的待办、类型/领域/owner/影响/不确定性、批量预览 | B04 | Review |
 | A18 | `/admin/reviews/:id` | 专家问题、可编辑候选、证据、接受/修改/拒绝/暂缓/转交 | B04 | Review |
 | A19 | `/admin/classifications` | 按表列PII/semantic_type与证据、批量确认、显式角色 | B04/B06 | Table |
