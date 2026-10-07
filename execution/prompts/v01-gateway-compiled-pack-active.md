@@ -5,3 +5,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 Review slots outside development cap; obsolete earlier review-slot numbers do not impose development cap.
 
 LATEST HUMAN: development cap20, reviews excluded, global Rust builders10/taskmax1 remains. Existing actors keep immutable baseline and owned scope.
+
+RECOVERY after handle18007 terminal0 no REPORT/FINDINGS/HANDOFF: resume SAME UUID; first collect existing actual resources/results without duplicate builder/PG. Finish original compiled Pack requirement or complete truthful withheld packet/source commit, raw exits/hashes/cleanup. Do not claim terminal0 as acceptance.
