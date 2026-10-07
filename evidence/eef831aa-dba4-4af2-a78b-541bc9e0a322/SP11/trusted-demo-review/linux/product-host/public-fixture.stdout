@@ -1,0 +1,5 @@
+postgres_ready name=oo-a322-pg alias=oo-a322-pg
+fixture_loaded
+restart_postgres
+postgres_ready name=oo-a322-pg alias=oo-a322-pg
+fixture_preserved

@@ -1,0 +1,24 @@
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=source
+=== hash frozen product and recipes ===
+phase_exit=0 phase=manifest-build
+phase_exit=0 phase=hash-deploy
+phase_exit=0 phase=hash-onboarding
+phase_exit=0 phase=hash-recipes
+=== cargo fetch workspace --locked ===
+phase_exit=0 phase=fetch-workspace
+=== cargo fetch pg-onboarding --locked ===
+phase_exit=0 phase=fetch-onboarding
+=== rustup component add clippy ===
+phase_exit=0 phase=clippy-component
+=== cargo test pg-onboarding --locked --offline ===
+phase_exit=0 phase=test
+phase_exit=0 phase=test-count
+=== cargo clippy pg-onboarding ===
+phase_exit=0 phase=clippy
+=== drive tests ===
+phase_exit=0 phase=drive-test-build
+phase_exit=0 phase=drive-test
+=== drive clippy ===
+phase_exit=0 phase=drive-clippy
+smoke=ok

@@ -1,0 +1,7 @@
+算子审阅阶段
+下列决定来自 fixture/declared-review.json。审查者标记 public-fixture 是公开夹具声明，不是人类审批，不是认证，不是授权，不是发布。
+自然语句、模型供应商和 harness 在本演示中不受支持，没有调用。
+inspect 已完成，状态 awaiting_review。指纹只从 captured-draft.json 抄录。
+pg-onboarding inspect --config /evidence/live/work/inspect.json --run /evidence/live/run
+pg-onboarding apply-reviewed --config /evidence/live/work/apply.json --run /evidence/live/run
+坏决定探针先于上述 apply，使用 bad-decisions.json，不得安装列 ACL。

@@ -1,0 +1,13 @@
+oo_task=sp11-trusted-demo
+oo_owner=a322
+oo_run=eef831aa-dba4-4af2-a78b-541bc9e0a322
+oo_fixed=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480
+phase=/evidence/linux/smoke mode=smoke
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=source
+phase_exit=0 phase=smoke-bins
+phase_exit=0 phase=drive-smoke
+phase_exit=0 phase=smoke-marker
+phase_exit=0 phase=manifest-build
+phase_exit=0 phase=manifest
+smoke=ok
