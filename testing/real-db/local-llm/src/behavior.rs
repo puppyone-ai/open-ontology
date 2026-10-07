@@ -473,6 +473,28 @@ async fn second_authorization_does_not_dial() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn public_client_version_is_fixed() {
+    let fixture = Fixture::spawn(Script::Models).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let request = format!(
+        "POST /v1/chat/completions HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-type: application/json\r\ncontent-length: 35\r\nauthorization: Bearer {CLIENT_TOKEN}\r\nx-grok-client-version: 9.9.9\r\nuser-agent: caller-controlled\r\nconnection: close\r\n\r\n{{\"model\":\"grok-4.7\",\"stream\":false}}"
+    );
+    let reply = raw_tls(relay.port, &relay.cert, request.as_bytes()).await;
+    assert!(reply.windows(3).any(|window| window == b"200"));
+    let seen = fixture.seen.lock().await.clone();
+    let lower = String::from_utf8_lossy(&seen).to_ascii_lowercase();
+    assert!(lower.contains("x-grok-client-version: 1.0.44"));
+    assert!(lower.contains("user-agent: xai-grok-workspace/1.0.44"));
+    assert!(lower.contains(&format!("authorization: bearer {UPSTREAM_TOKEN}")));
+    assert!(!lower.contains("9.9.9"));
+    assert!(!lower.contains("caller-controlled"));
+    assert!(!lower.contains("grok-4.3"));
+    assert!(lower.contains("\"model\":\"grok-4.7\""));
+    assert!(!lower.contains(&CLIENT_TOKEN.to_ascii_lowercase()));
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn upstream_426_is_not_turned_into_success() {
     let body = br#"{"error":"cli_version"}"#;
     let fixture = Fixture::spawn(Script::Raw("application/json", 426, body)).await;

@@ -25,9 +25,24 @@ The relay reads two regular non-symlink files. Neither value is an argument, an 
 
 The client token is minted by `oo-local-llm-relay --mint-client-token <path>`. The process reads 32 bytes from `/dev/urandom`, encodes them with the already-pinned `base64` standard alphabet, and writes that text with `create_new` and mode `0600`. The encoded length is 44. The process does not print the token. An existing path is `config`. The upstream file is the authorized local key. It may be shorter than dialogue's 16-byte minimum. The two tokens must differ.
 
-Every allowlisted request needs one `Authorization` header whose value is exactly `Bearer ` plus the client token. The comparison covers the whole header value. A missing header, a second header, or any other value is HTTP 401 `{"error":"client_token"}` and does not dial. The upstream request copies the caller's body and `Content-Type` and sets `Authorization` to `Bearer ` plus the upstream token only. The client token is not sent upstream. The upstream token is not returned downstream. If either token occurs in the upstream body, the body is dropped and the caller receives `{"error":"secret"}`.
+Every allowlisted request needs one `Authorization` header whose value is exactly `Bearer ` plus the client token. The comparison covers the whole header value. A missing header, a second header, or any other value is HTTP 401 `{"error":"client_token"}` and does not dial. The upstream request copies the caller's body and `Content-Type` and sets `Authorization` to `Bearer ` plus the upstream token. It also sets the two fixed public headers in the next section. The client token is not sent upstream. The upstream token is not returned downstream. If either token occurs in the upstream body, the body is dropped and the caller receives `{"error":"secret"}`.
 
-This is not an open proxy. Listen stays `127.0.0.1`. The upstream address stays `127.0.0.1:8317`. The allowlist stays `GET /v1/models` and `POST /v1/chat/completions`. No other header is forwarded. A builder may set its own endpoint origin to this relay. It does not receive this client-token file.
+This is not an open proxy. Listen stays `127.0.0.1`. The upstream address stays `127.0.0.1:8317`. The allowlist stays `GET /v1/models` and `POST /v1/chat/completions`. No caller header other than `Content-Type` is forwarded. A builder may set its own endpoint origin to this relay. It does not receive this client-token file.
+
+## Public client version
+
+Contract addition `oo.local-llm-relay.public-client-version/v1`, frozen before the code that sends it.
+
+The local proxy build pins `x-grok-client-version` to `0.2.120` and `User-Agent` to `xai-grok-workspace/0.2.120`, then applies custom headers stored on the credential. A client header is copied upstream only when that credential value is a `$` placeholder. This relay does not read, write, or search credential files, backups, or upstream keys. It does not change credential-bearing configuration.
+
+On every allowlisted upstream request the relay sets these two headers itself:
+
+| Header | Value |
+|---|---|
+| `x-grok-client-version` | `1.0.44` |
+| `User-Agent` | `xai-grok-workspace/1.0.44` |
+
+Both values are constants in this crate. A caller header with either name is ignored and cannot change the value. No other caller header is added. The request body, including `model` and `stream`, is not rewritten. A non-200 upstream status is returned with that status. There is no retry and no second model.
 
 ## Required model and the 426 diagnosis
 

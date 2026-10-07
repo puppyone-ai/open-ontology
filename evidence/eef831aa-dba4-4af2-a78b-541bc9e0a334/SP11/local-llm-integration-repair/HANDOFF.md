@@ -29,4 +29,12 @@ Recipe origins are in `linux/preoverlay/recipe-origins.txt`, `linux/proof-1/reci
 
 A later attempt needs a new proposal or an explicit decision to keep this one. This proposal's SQL is still the `COUNT(headcount)` statement. The fixed guard admits `count(*)` and refuses `count(column)`. Rewriting the model SQL locally would no longer be the model statement. A new completion would be a new request, not a retry of this one.
 
+## Follow-up
+
+The crate now also carries `oo.local-llm-relay.public-client-version/v1`. `linux/proof-3` is the green post-edit Linux evidence: 28 tests, Clippy 0, Rust `1.94.0`. `linux/proof-2` remains the pre-edit hash.
+
+The new question in `linux/chain-3` did not produce a proposal. `phases/propose.exit` is 1 and stderr is `ontology-dialogue: provider`. `upstream-426.txt` records proxy HTTP 426 for that single POST. No query receipt was created. `linux/execute-2` is the unused launch script for a later legal proposal; it was not run. Do not point it at `linux/chain-2/proposal.json`.
+
+Auth files, backups, and credential-bearing config were not read or written in this follow-up. The historical restoration in `CLEANUP.txt` still stands. Docker on this host could not bind-mount `/tmp`; follow-up private files used `/var/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334` and were removed with the follow-up cleanup. The 6-byte token file remains.
+
 Parent acceptance, a full-goal close, and a release are out of scope.

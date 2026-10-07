@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderValue};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT, HeaderValue};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::ServerConfig;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -17,6 +17,10 @@ use crate::pem;
 use crate::stream::assemble_sse;
 use crate::token::{authorization_matches, body_has_token, Boundary};
 use crate::upstream::{is_fixed_loopback, upstream_url, UPSTREAM_PORT};
+
+const PUBLIC_CLIENT_VERSION_NAME: &str = "x-grok-client-version";
+const PUBLIC_CLIENT_VERSION_VALUE: &str = "1.0.44";
+const PUBLIC_USER_AGENT: &str = "xai-grok-workspace/1.0.44";
 
 pub struct ListenIdentity {
     acceptor: TlsAcceptor,
@@ -285,7 +289,7 @@ async fn forward(
         .http1_only()
         .referer(false)
         .connection_verbose(false)
-        .user_agent("oo-local-llm-relay/v1")
+        .user_agent(PUBLIC_USER_AGENT)
         .pool_max_idle_per_host(0)
         .connect_timeout(limits.deadline)
         .timeout(limits.deadline)
@@ -304,6 +308,8 @@ async fn forward(
     let mut header = HeaderValue::from_str(&boundary.upstream_authorization).map_err(|_| Fault::config())?;
     header.set_sensitive(true);
     builder = builder.header(AUTHORIZATION, header);
+    builder = builder.header(PUBLIC_CLIENT_VERSION_NAME, PUBLIC_CLIENT_VERSION_VALUE);
+    builder = builder.header(USER_AGENT, PUBLIC_USER_AGENT);
     let response = builder.send().await.map_err(|_| Fault::upstream())?;
     if response.url() != &parsed || (300..400).contains(&response.status().as_u16()) {
         return Err(Fault::upstream());

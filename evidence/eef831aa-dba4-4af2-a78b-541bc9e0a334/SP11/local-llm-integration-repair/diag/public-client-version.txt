@@ -1,0 +1,9 @@
+Public source at CLIProxyAPI commit acdace936fa7df2905500c7f5e0a97d683138dea, the commit string in the running binary.
+
+applyXAIChatHeaders sets x-grok-client-version to 0.2.120 and User-Agent to xai-grok-workspace/0.2.120, then calls ApplyCustomHeadersFromAttrs.
+
+ApplyCustomHeadersFromAttrs copies a header only from auth attributes whose key starts with header:. A client request header is used only when that attribute value is a $ placeholder. Inbound headers are not otherwise written onto the upstream request.
+
+The xAI login writer stores an empty metadata map. Issue 6249 documents the per-auth headers object as the override and says there is no env or config surface for the pin. That auth edit is out of scope and was restored. This follow-up does not read, write, or search auth files, backups, or credential-bearing config.
+
+The relay therefore sends two fixed public headers on the ordinary upstream request: x-grok-client-version 1.0.44 and User-Agent xai-grok-workspace/1.0.44. Caller headers of those names are not forwarded. If the proxy does not honor them, the non-200 status is the result. There is no retry and no auth-file change.

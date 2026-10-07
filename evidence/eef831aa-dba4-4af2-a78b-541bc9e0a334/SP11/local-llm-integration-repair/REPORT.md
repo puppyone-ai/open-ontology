@@ -64,3 +64,15 @@ The public test literal that collided with the 6-byte local key was replaced wit
 ## Builders and cleanup
 
 Each Linux builder was 6 GiB, 1 CPU, `--cap-drop ALL`, no privilege, no host network, no Docker socket, and no host home. The execute container used pid limit 256, matching the a300 proof-8 recipe. Postgres had no host port. Cleanup exit 0 removed the relay process, `oo-a334-pg`, the four a334 volumes, the a334 network, and `/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334`. No foreign container was removed and nothing was pruned.
+
+## Follow-up
+
+The historical `COUNT(headcount)` proposal remains a failed query. This follow-up did not rewrite that SQL and did not run it again. It did not read, write, or search auth files, backups, or credential-bearing config.
+
+Contract addition `oo.local-llm-relay.public-client-version/v1` was written before the relay change. The relay now sets `x-grok-client-version: 1.0.44` and `User-Agent: xai-grok-workspace/1.0.44` on each upstream request. Caller values for those headers are not forwarded. `linux/proof-2` is the pre-edit smoke: its source hash matched the crate before this edit. `linux/proof-3` is the post-edit run: Rust `1.94.0`, 28 tests passed, Clippy exit 0, lock subset clean, docker exit 0. `linux/proof-3/attempt-1` is a Docker bind failure for `/tmp` (exit 125). The retry used `/var/tmp`.
+
+`host-2` built the Mach-O relay after a transient crates.io HTTP/2 failure preserved in `host-2/attempt-1` (fetch exit 101). A first listen failed with the static token `tls` under LibreSSL (`host-2/attempt-tls`). The retry used OpenSSL 3.6.4. Models GET was HTTP 200 with `grok-4.7` available. That listing is not a completion.
+
+One new question, `What is the stored row count of depot.counter?`, and a new pack that names `SELECT count(*) FROM depot.counter` and `SELECT headcount FROM depot.counter`, were sent once through `linux/chain-3`. Dialogue stderr is `ontology-dialogue: provider`. No proposal file was written. The proxy log for that request is HTTP 426, 1.435s, `POST /v1/chat/completions`, base URL `https://cli-chat-proxy.grok.com/v1`. The response body was not retained. There was no retry and no second model. `query-pg` was not started. `linux/execute-2` was not launched. Postgres `17.10` did start for the query that never ran; `pg-2/up.exit` is 0. `pg-2/attempt-1` records that LibreSSL rejected `x509 -ext` before the container existed.
+
+This follow-up does not produce a query receipt. Parent acceptance, a full-goal close, and a release are out of scope.

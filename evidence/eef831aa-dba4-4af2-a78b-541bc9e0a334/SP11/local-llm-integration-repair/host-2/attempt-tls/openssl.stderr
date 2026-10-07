@@ -1,0 +1,9 @@
+Generating a 2048 bit EC private key
+writing new private key to '/var/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334/host-2/cert/ca.key'
+-----
+Generating a 2048 bit EC private key
+writing new private key to '/var/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334/host-2/cert/leaf.key'
+-----
+Signature ok
+subject=/CN=127.0.0.1
+Getting CA Private Key

@@ -1,0 +1,5 @@
+a300 proof-8 launch 96afe70fd68a56ae8eec7504bf20e09ecd3cdf65 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/proof-8/launch.sh eef30611296d23afb37a70792da1889bf5fa871160eff56c32a1faf2738c3401
+a334 chain launch /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a334/SP11/local-llm-integration-repair/linux/chain/launch.sh 1ce9c3892b697e13bf04819d7695109930aa23461e0442c70de33e5488151b26
+a334 chain inside /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a334/SP11/local-llm-integration-repair/linux/chain/inside.sh 71e8c733e8276d16b300b6191b9ff62b9919f1662ba06c7c5b27418da43bc650
+fixed=63566b60aabdf29a29bfe55c4866edf3c4081cfd
+changes new-question new-pack public-client-version no-auth-store vartmp-binds no-upstream-token memory=6g cpus=1

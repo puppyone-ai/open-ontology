@@ -40,3 +40,11 @@ Passwords, the client token, and the upstream key were not copied into evidence.
 ## Cleanup check
 
 `CLEANUP.exit` is 0. After cleanup, a334 containers and volumes were 0, port 18317 was clear, the private tmp directory was gone, and `/tmp/oo-customer-demo-20261007/llm-token` remained mode `0600`, 6 bytes. The two local auth files were restored from the private backup before that directory was removed.
+
+## Follow-up
+
+The public-header path does not satisfy the running proxy. At commit `acdace936fa7df2905500c7f5e0a97d683138dea`, `applyXAIChatHeaders` sets `x-grok-client-version` to `0.2.120` and then applies auth-attribute custom headers. A client header is copied only when an attribute value is a `$` placeholder. Login writes an empty metadata map. Issue 6249 documents the per-auth `headers` object as the override and says there is no env surface. That object is credential-bearing configuration. This follow-up did not touch it.
+
+The relay still sent the two fixed public headers. The one new grok-4.7 propose returned HTTP 426 from the CLI chat-proxy route. Dialogue recorded `provider` and wrote no proposal. No approval was written and `query-pg` was not spawned. The historical guard refusal stays a separate failed query. The fixture `count(*)` receipt is still not a model receipt.
+
+`linux/proof-3` passed 28 tests, including `public_client_version_is_fixed`, and Clippy at exit 0. Preserved follow-up failures: `linux/proof-3/attempt-1/docker-run.exit` 125, `host-2/attempt-1/fetch.exit` 101, `host-2/attempt-tls/smoke.exit` 1, `linux/chain-3/phases/propose.exit` 1. `pg-2/attempt-1` is the LibreSSL `-ext` stop before any database container existed.

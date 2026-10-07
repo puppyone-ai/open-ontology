@@ -1,0 +1,1 @@
+docker bind of /tmp failed: bind source path does not exist under /host_mnt/private/tmp. The archive existed on the host. /var/tmp bind works. attempt-1 is this failure. No second builder was left running.
