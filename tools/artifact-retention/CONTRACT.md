@@ -4,11 +4,11 @@ Contract `oo.artifact-retention/v1`. Crate `artifact-retention`.
 
 This crate keeps a durable inventory of objects a real `oo_control::FileHost` has already issued, and it decides expiry against that inventory. It is not a second object store. It does not invent blobs, manifests, or object versions. It does not close SP05-W06, AT-FILE-05, or AT-SEC-03.
 
-The host API is `oo.control.local-file-hosting/v1` as approved by a209 on the fixed commit `cab5e8e219d1924070df7336f5ab5d4ce7cf40dc`. Public calls used here are `open_local`, `begin`, `put_part`, `complete`, `abort`, `read_manifest`, `read_object`, and `open_download`. `ObjectDownload` is used through those calls. There is no public list, no public head of an arbitrary key, and no public delete of a completed object.
+The host API is `oo.control.local-file-hosting/v1`. `abort` of a completed session still returns `Closed` and deletes nothing. Completed-object deletion is `FileHost::delete_completed`, frozen in `FILEHOST-DELETE-CONTRACT.md` before this source change. Public calls used here are `open_local`, `begin`, `put_part`, `complete`, `abort`, `read_manifest`, `read_object`, `open_download`, `delete_completed`, `observe_completed_absence`, and `completed_quota_release_count`. `ObjectDownload` is used through those calls. There is no public list and no public head of an arbitrary key.
 
 ## Deployment
 
-`Deployment::create` takes one directory whose final component is `eef831aa-dba4-4af2-a78b-541bc9e0a311`. The directory must be a real directory. A symlink is refused. A path whose name is not that UUID is refused, including a public user path. The process writes an owner file with the UUID and the `HostLimits` it was given, then `fsync`s the file and the directory.
+`Deployment::create(root, limits, operator)` takes an explicit operator UUID. The grammar is 8-4-4-4-12 lowercase hex. The directory's final component must be that UUID. A symlink is refused. A path whose name is not `operator`, including a public user path, is refused. `..` is refused. The process writes `owner.txt` with that UUID and the `HostLimits`, then `fsync`s the file and the directory. `Deployment::open` reads `owner.txt`, checks the same grammar, and requires the directory name to match. An older directory still opens when its name and `owner.txt` carry that same UUID.
 
 `filehost/` inside that directory is the only directory passed to `FileHost::open_local`. Upload, download, abort, and read do not take a caller filesystem path. The platform lock file beside `filehost/` belongs to FileHost. This crate does not delete it and does not replace the lock.
 
@@ -57,30 +57,26 @@ The expired set is the inventory rows whose `expiry_unix_ms <= now`. Rows that a
 
 Before any host delete call it fsyncs a pre-delete audit and a checkpoint. The audit is a bounded line record, at most 64 records, each hashed with SHA-256. Passing the bound returns `Limit` and does not delete.
 
-Observation uses `open_download` and bounded `next_chunk` reads. The running hash and `is_complete` must match the manifest, and the manifest must match the inventory row. A hash or lineage or size or session mismatch is drift. Drift does not call `abort`. A symlink, a corrupt body, or a store error is not absence. `NotFound` alone is not absence and is not success.
+Observation uses `open_download` and bounded `next_chunk` reads. The running hash and `is_complete` must match the manifest, and the manifest must match the inventory row. A hash or lineage or size or session mismatch is drift. Drift does not call `delete_completed`. A symlink, a corrupt body, or a store error is not absence. `NotFound` from `open_download` or `read_object` is not absence and is not success.
 
-The only host deletion call is `abort`.
+Published rows call `delete_completed` under the host lock. The order, the tombstone, the single quota release, and `observe_completed_absence` are in `FILEHOST-DELETE-CONTRACT.md`. This crate does not unlink store files and does not edit quota files. `FileHost::new` has no deployment lock. This crate does not use it to delete.
 
-- A completed session returns `Closed` and deletes nothing. The object, manifest, session record, idempotency pointer, and quota reservation stay. Status is `unsupported_completed_object_delete`. `deleted` is false. `absence_verified` is false. A later `read_object` is whatever the host returns. This crate does not turn that into a fabricated `NotFound`.
-- An open session can return `Ok` from `abort`. That may remove the session row, the quota reservation, the idempotency pointer, and the part objects the host itself tracks. `dest#N` staging is outside that call. There is no public API that proves the part objects are gone. Status is `aborted_parts_unverified`. Success is false. A later `NotFound` on the manifest is expected for a session that never completed, so it is not proof.
-- `FileHost::new` has no deployment lock. This crate does not use it to delete, and it does not write quota files, unlink store paths, or follow a symlink to clean it up.
+- An open session that is still open uses `abort`. That may remove the session row, the quota reservation, the idempotency pointer, and the part objects the host itself tracks. `dest#N` staging is outside that call. There is no public API that proves those open-upload parts are gone. Status is `aborted_parts_unverified`. Success is false.
+- An open registration whose object is already a completed manifest uses the live manifest's lineage and the same completed-object delete. The inventory lineage `absent` is not invented into a digest.
+- A published row succeeds only when the second `delete_completed` returns `Ok(Some)`, `observe_completed_absence` returns `Ok(true)`, and `completed_quota_release_count` is `1`. Status is `deleted`.
 
-`deletion_success` is true only when every expired row was deleted through a host API and post-observation proved the object, its manifest sidecars, and its multipart parts absent, with no store error treated as absence. That condition is not reachable with the current host API. `parent_complete` is always false. An idle reap, with nothing expired, has `deletion_success` false and `idle` true.
+`deletion_success` is true only when every expired row reached that published success. One open abort in the batch keeps it false. `parent_complete` is always false, including when `deletion_success` is true. An idle reap, with nothing expired, has `deletion_success` false and `idle` true.
 
-A checkpoint left at `pre_delete`, `metadata_api_calling`, or `metadata_api_done` makes the next reap `restarted_from_partial`. That run still cannot report success until absence is verified. The CLI can wait after `metadata_api_done` so a test can kill the process before the object step. The object step does not unlink bytes.
-
-Quota and idempotent `begin` stay on the host. This crate does not adjust them. A refused or unsupported reap of a completed object leaves the same session on replay and leaves the project reservation in place.
+A checkpoint left at `pre_delete`, `metadata_api_calling`, `metadata_api_done`, or `quota_released` makes the next reap `restarted_from_partial`. The checkpoint file keeps `absence_verified false` and `deletion_success false`. It is a cursor, not a receipt. Restart calls the host again. The tombstone decides the phase. Quota release stays one.
 
 ## Explicitly unsupported
 
 | Seam | Why |
 |---|---|
-| `filehost_completed_object_delete` | No public call deletes a completed object and its manifest under the deployment lock. `abort` returns `Closed`. |
-| `filehost_quota_release_on_completed_delete` | Quota for a completed object is released only by a host delete this API does not have. This crate does not edit quota objects. |
-| `filehost_part_absence_observation` | No public call lists or stats `staging/<session>/part/<nnnnn>` after `abort`. |
-| `filehost_dest_staging_reap` | `dest#N` leftovers are outside `abort`. The host contract leaves them. |
+| `filehost_part_absence_observation` | Open `abort` still cannot prove part absence. Five-digit parts of a verified completed delete are covered by `observe_completed_absence`. That does not retire this seam. |
+| `filehost_dest_staging_reap` | `dest#N` leftovers are outside the delete call. |
 | `filehost_object_version` | The receipt has no version. An empty local version is not recorded and is not compared. |
-| `filehost_admission_role_and_policy` | Host admission compares project and principal only. |
+| `filehost_admission_role_and_policy` | The host delete checks project, principal, and grant. Role and policy stay on the inventory row. |
 | `gateway_authenticated_url_revocation` | No HTTP transport and no authenticated download URL. |
 | `formula_safe_csv_excel` | No CSV or Excel writer in this crate. |
 | `sessions_outputs_prefix` | FileHost keys stay `uploads/<session>/<sha256>/original`. |
@@ -89,10 +85,10 @@ Quota and idempotent `begin` stay on the host. This crate does not adjust them. 
 
 ## CLI
 
-`artifact-retention reap --root <uuid-dir> [--pause-after pre_delete|metadata_api]`
+`artifact-retention reap --root <operator-uuid-dir> [--pause-after pre_delete|metadata_api|quota_released|none]`
 
-The root's final component must be the owner UUID. There is no clock flag. Exit 0 means the inventory had nothing expired. Exit 2 means a reap ran and deletion is not verified. Exit 75 means the process is waiting at a checkpoint and has not succeeded. Exit 1 is a bad root, a corrupt inventory, or a bad argument. The process prints one JSON object. It does not print a bearer URL.
+The root's final component must match `owner.txt`. There is no clock flag. Exit 0 means idle or `deletion_success`. Exit 2 means a reap ran and deletion is not verified. Exit 75 means the process is waiting at a checkpoint and has not printed success. Exit 1 is a bad root, a corrupt inventory, or a bad argument. The process prints one JSON object. `parent_complete` in that object is false. It does not print a bearer URL. Exit 0 is not parent acceptance.
 
 ## Pins
 
-Standalone workspace. The only path dependency is `../../crates/oo-control` at `=0.1.0`. Registry pins are sha2 `=0.10.9` and tokio `=1.53.1` with `macros`, `rt-multi-thread`, `time`, and `sync`. Those versions are already in the root lock. This crate adds no registry crate. a207 remains the only writer of the connector manifest and the root lock. The child lock is a checksum subset of the root lock.
+Standalone workspace. The only path dependency is `../../crates/oo-control` at `=0.1.0`. Registry pins are sha2 `=0.10.9` and tokio `=1.53.1` with `macros`, `rt-multi-thread`, `time`, and `sync`. Those versions are already in the root lock. This crate adds no registry crate and does not edit the root lock. The child lock is a checksum subset of the root lock.

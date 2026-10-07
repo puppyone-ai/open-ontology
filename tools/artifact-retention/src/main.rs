@@ -42,7 +42,7 @@ fn run() -> Result<i32, artifact_retention::Error> {
     if report.paused {
         return Ok(75);
     }
-    if report.idle {
+    if report.idle || report.deletion_success {
         return Ok(0);
     }
     Ok(2)
@@ -77,6 +77,7 @@ fn parse(args: &[String]) -> Result<Parsed, artifact_retention::Error> {
                 pause = match value.as_str() {
                     "pre_delete" => PauseAfter::PreDelete,
                     "metadata_api" => PauseAfter::MetadataApi,
+                    "quota_released" => PauseAfter::QuotaReleased,
                     "none" => PauseAfter::None,
                     _ => return Err(artifact_retention::Error::Admission),
                 };

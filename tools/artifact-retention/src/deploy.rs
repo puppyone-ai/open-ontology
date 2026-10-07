@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use oo_control::HostLimits;
 
+use crate::Error;
 use crate::text::{self, sync_dir, write_atomic};
-use crate::{Error, OWNER_UUID};
 
 #[derive(Debug)]
 pub struct Deployment {
@@ -14,8 +14,8 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    pub fn create(root: &Path, limits: HostLimits) -> Result<Self, Error> {
-        refuse_unowned(root)?;
+    pub fn create(root: &Path, limits: HostLimits, operator: &str) -> Result<Self, Error> {
+        refuse_unowned(root, operator)?;
         match fs::symlink_metadata(root) {
             Ok(meta) if meta.file_type().is_symlink() => return Err(Error::Symlink),
             Ok(meta) if !meta.is_dir() => return Err(Error::NotOwnedRoot),
@@ -26,10 +26,10 @@ impl Deployment {
             Err(_) => return Err(Error::Store),
         }
         let canonical = fs::canonicalize(root).map_err(|_| Error::Store)?;
-        if canonical.file_name().and_then(|name| name.to_str()) != Some(OWNER_UUID) {
+        if canonical.file_name().and_then(|name| name.to_str()) != Some(operator) {
             return Err(Error::NotOwnedRoot);
         }
-        let owner = owner_text(&limits);
+        let owner = owner_text(operator, &limits);
         let owner_path = root.join("owner.txt");
         match fs::symlink_metadata(&owner_path) {
             Ok(meta) if meta.file_type().is_symlink() => return Err(Error::Symlink),
@@ -71,7 +71,17 @@ impl Deployment {
     }
 
     pub fn open(root: &Path) -> Result<Self, Error> {
-        refuse_unowned(root)?;
+        if root.as_os_str().is_empty() {
+            return Err(Error::NotOwnedRoot);
+        }
+        if root.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir | std::path::Component::CurDir
+            )
+        }) {
+            return Err(Error::ForeignPath);
+        }
         let meta = fs::symlink_metadata(root).map_err(|_| Error::NotOwnedRoot)?;
         if meta.file_type().is_symlink() {
             return Err(Error::Symlink);
@@ -80,11 +90,9 @@ impl Deployment {
             return Err(Error::NotOwnedRoot);
         }
         let canonical = fs::canonicalize(root).map_err(|_| Error::Store)?;
-        if canonical.file_name().and_then(|name| name.to_str()) != Some(OWNER_UUID) {
-            return Err(Error::NotOwnedRoot);
-        }
         let stored = fs::read_to_string(canonical.join("owner.txt")).map_err(|_| Error::Corrupt)?;
-        let limits = parse_owner(&stored)?;
+        let (operator, limits) = parse_owner(&stored)?;
+        refuse_unowned(&canonical, &operator)?;
         Ok(Self {
             root: canonical,
             limits,
@@ -120,8 +128,8 @@ impl Deployment {
     }
 }
 
-fn refuse_unowned(root: &Path) -> Result<(), Error> {
-    if root.as_os_str().is_empty() {
+fn refuse_unowned(root: &Path, operator: &str) -> Result<(), Error> {
+    if !operator_ok(operator) || root.as_os_str().is_empty() {
         return Err(Error::NotOwnedRoot);
     }
     if root.components().any(|component| {
@@ -132,15 +140,39 @@ fn refuse_unowned(root: &Path) -> Result<(), Error> {
     }) {
         return Err(Error::ForeignPath);
     }
-    if root.file_name().and_then(|name| name.to_str()) != Some(OWNER_UUID) {
+    if root.file_name().and_then(|name| name.to_str()) != Some(operator) {
         return Err(Error::NotOwnedRoot);
     }
     Ok(())
 }
 
-fn owner_text(limits: &HostLimits) -> String {
+fn operator_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let groups = [8usize, 4, 4, 4, 12];
+    let mut index = 0;
+    for (group_index, group) in groups.iter().enumerate() {
+        if group_index > 0 {
+            if bytes.get(index) != Some(&b'-') {
+                return false;
+            }
+            index += 1;
+        }
+        for _ in 0..*group {
+            let Some(byte) = bytes.get(index) else {
+                return false;
+            };
+            if !byte.is_ascii_digit() && !matches!(byte, b'a'..=b'f') {
+                return false;
+            }
+            index += 1;
+        }
+    }
+    index == bytes.len()
+}
+
+fn owner_text(operator: &str, limits: &HostLimits) -> String {
     format!(
-        "oo.artifact-retention/v1\nuuid {OWNER_UUID}\nmax_object_bytes {}\nmax_part_bytes {}\nmax_part_count {}\nmax_project_bytes {}\n",
+        "oo.artifact-retention/v1\nuuid {operator}\nmax_object_bytes {}\nmax_part_bytes {}\nmax_part_count {}\nmax_project_bytes {}\n",
         limits.max_object_bytes(),
         limits.max_part_bytes(),
         limits.max_part_count(),
@@ -148,10 +180,19 @@ fn owner_text(limits: &HostLimits) -> String {
     )
 }
 
-fn parse_owner(text: &str) -> Result<HostLimits, Error> {
+fn parse_owner(text: &str) -> Result<(String, HostLimits), Error> {
     let mut lines = text.lines();
     expect(&mut lines, "oo.artifact-retention/v1")?;
-    expect(&mut lines, &format!("uuid {OWNER_UUID}"))?;
+    let Some(uuid_line) = lines.next() else {
+        return Err(Error::Corrupt);
+    };
+    let Some(operator) = uuid_line.strip_prefix("uuid ") else {
+        return Err(Error::Corrupt);
+    };
+    if !operator_ok(operator) {
+        return Err(Error::Corrupt);
+    }
+    let operator = operator.to_owned();
     let max_object_bytes = expect_u64(&mut lines, "max_object_bytes")?;
     let max_part_bytes = expect_u64(&mut lines, "max_part_bytes")?;
     let max_part_count =
@@ -160,13 +201,14 @@ fn parse_owner(text: &str) -> Result<HostLimits, Error> {
     if lines.next().is_some() {
         return Err(Error::Corrupt);
     }
-    HostLimits::try_new(
+    let limits = HostLimits::try_new(
         max_object_bytes,
         max_part_bytes,
         max_part_count,
         max_project_bytes,
     )
-    .map_err(|_| Error::Corrupt)
+    .map_err(|_| Error::Corrupt)?;
+    Ok((operator, limits))
 }
 
 fn expect<'a>(lines: &mut impl Iterator<Item = &'a str>, expected: &str) -> Result<(), Error> {

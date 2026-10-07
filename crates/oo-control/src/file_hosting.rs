@@ -6,7 +6,9 @@
 //!
 //! Object keys and session ids are generated here. Callers never supply a
 //! filesystem path for an upload, part, or read. [`FileHost::open_download`]
-//! pulls a published object in bounded ranges. [`FileHost::open_local`] is the
+//! pulls a published object in bounded ranges. [`FileHost::delete_completed`]
+//! removes one completed object under the deployment lock, releases that
+//! object's quota once, and records a tombstone. [`FileHost::open_local`] is the
 //! operator entry that binds a deployment directory to [`object_store::local::LocalFileSystem`].
 //! [`FileHost::new`] accepts any store so a later approved backend can use the
 //! same calls. A store without the local deployment lock cannot enforce a
@@ -1137,11 +1139,793 @@ impl FileHost {
             Err(_) => Err(FileHostError::Store),
         }
     }
+
+    async fn put_overwrite(&self, key: &str, bytes: &[u8]) -> Result<(), FileHostError> {
+        let path = parse_store_key(key)?;
+        let payload: PutPayload = bytes.to_vec().into();
+        self.store
+            .put(&path, payload)
+            .await
+            .map_err(|_| FileHostError::Store)?;
+        Ok(())
+    }
+
+    /// Delete one completed object under the deployment lock.
+    ///
+    /// The object key, digest, size, lineage, project, principal, and grant must
+    /// match the stored manifest. `Ok(None)` means the quota reservation was
+    /// released once and the object is still present. `Ok(Some)` means the
+    /// object, manifest, and five-digit parts were observed absent. `abort` of a
+    /// completed session is unchanged and still deletes nothing.
+    pub async fn delete_completed(
+        &self,
+        ctx: &AdmissionContext,
+        object_key: &ObjectKey,
+        object_digest: [u8; 32],
+        size: u64,
+        lineage_digest: [u8; 32],
+        stop_after_quota_release: bool,
+    ) -> Result<Option<ObjectManifest>, FileHostError> {
+        let _guard = self.lock_deployment().await?;
+        let root = self.local_root.clone().ok_or(FileHostError::Unsupported)?;
+        let target = CompletedDelete {
+            ctx,
+            object_key,
+            object_digest,
+            size,
+            lineage_digest,
+        };
+        self.delete_completed_locked(&root, &target, stop_after_quota_release)
+            .await
+    }
+
+    /// Observe whether a verified delete left the object, manifest, and
+    /// five-digit parts absent. This call writes nothing. `Ok(true)` is the
+    /// only absence proof. A store error is [`FileHostError::Store`].
+    pub async fn observe_completed_absence(
+        &self,
+        ctx: &AdmissionContext,
+        object_key: &ObjectKey,
+        object_digest: [u8; 32],
+        size: u64,
+        lineage_digest: [u8; 32],
+    ) -> Result<bool, FileHostError> {
+        let _guard = self.lock_deployment().await?;
+        let root = self.local_root.clone().ok_or(FileHostError::Unsupported)?;
+        self.observe_absence_locked(&root, ctx, object_key, object_digest, size, lineage_digest)
+            .await
+    }
+
+    /// How many times this completed delete released the object's quota key.
+    ///
+    /// The result is `0` or `1`. A missing tombstone is `0` and does not prove
+    /// that the object exists.
+    pub async fn completed_quota_release_count(
+        &self,
+        ctx: &AdmissionContext,
+        object_key: &ObjectKey,
+    ) -> Result<u8, FileHostError> {
+        let _guard = self.lock_deployment().await?;
+        let root = self.local_root.clone().ok_or(FileHostError::Unsupported)?;
+        let session_id =
+            session_id_from_object_key(object_key.as_str()).ok_or(FileHostError::NotFound)?;
+        let Some(tomb) = self.read_tombstone(&root, &session_id).await? else {
+            return Ok(0);
+        };
+        if tomb.manifest.project_id.as_str() != ctx.project_id.as_str()
+            || tomb.manifest.principal_id.as_str() != ctx.principal_id.as_str()
+            || tomb.manifest.grant_evidence.as_str() != ctx.grant_evidence.as_str()
+        {
+            return Err(FileHostError::Denied);
+        }
+        if tomb.manifest.object_key.as_str() != object_key.as_str() {
+            return Err(FileHostError::NotFound);
+        }
+        Ok(tomb.release_count)
+    }
+
+    async fn delete_completed_locked(
+        &self,
+        root: &std::path::Path,
+        target: &CompletedDelete<'_>,
+        stop_after_quota_release: bool,
+    ) -> Result<Option<ObjectManifest>, FileHostError> {
+        let session_id = require_digest_key(target.object_key, &target.object_digest)?;
+        let existing = self.read_tombstone(root, &session_id).await?;
+        let snapshot = match &existing {
+            Some(tomb) => {
+                precondition_matches(
+                    &tomb.manifest,
+                    target.ctx,
+                    target.object_key,
+                    &target.object_digest,
+                    target.size,
+                    &target.lineage_digest,
+                )?;
+                tomb.manifest.clone()
+            }
+            None => self.fresh_snapshot(root, target, &session_id).await?,
+        };
+        if let Some(manifest) = self.load_manifest_if_file(root, &session_id).await? {
+            precondition_matches(
+                &manifest,
+                target.ctx,
+                target.object_key,
+                &target.object_digest,
+                target.size,
+                &target.lineage_digest,
+            )?;
+            if manifest != snapshot {
+                return Err(FileHostError::Conflict);
+            }
+        } else if existing.is_none() {
+            return Err(FileHostError::NotFound);
+        }
+        self.session_agrees(root, &session_id, &snapshot).await?;
+        let quota_key = quota_object_key_str(snapshot.project_id.as_str(), &session_id);
+        self.quota_agrees(root, &quota_key, snapshot.size).await?;
+        let pointer = idempotency_pointer_key_str(
+            snapshot.project_id.as_str(),
+            snapshot.principal_id.as_str(),
+            snapshot.idempotency_key.as_str(),
+        )?;
+        self.pointer_agrees(root, &pointer, &session_id).await?;
+        let tomb = self
+            .ensure_quota_released(root, existing, &snapshot, &session_id, &quota_key)
+            .await?;
+        if stop_after_quota_release && tomb.phase != TombPhase::Verified {
+            return Ok(None);
+        }
+        if tomb.phase == TombPhase::Verified {
+            return self
+                .verified_result(root, &session_id, target.object_key, &tomb)
+                .await;
+        }
+        self.remove_completed_keys(root, &session_id, target.object_key, &pointer)
+            .await?;
+        if !self
+            .keys_absent(root, &session_id, target.object_key)
+            .await?
+        {
+            return Err(FileHostError::Store);
+        }
+        let verified = Tombstone {
+            phase: TombPhase::Verified,
+            manifest: snapshot.clone(),
+            quota_key,
+            quota_bytes: snapshot.size,
+            release_count: 1,
+        };
+        self.write_tombstone(&session_id, &verified).await?;
+        Ok(Some(snapshot))
+    }
+
+    async fn fresh_snapshot(
+        &self,
+        root: &std::path::Path,
+        target: &CompletedDelete<'_>,
+        session_id: &str,
+    ) -> Result<ObjectManifest, FileHostError> {
+        let Some(manifest) = self.load_manifest_if_file(root, session_id).await? else {
+            return Err(FileHostError::NotFound);
+        };
+        precondition_matches(
+            &manifest,
+            target.ctx,
+            target.object_key,
+            &target.object_digest,
+            target.size,
+            &target.lineage_digest,
+        )?;
+        Ok(manifest)
+    }
+
+    async fn ensure_quota_released(
+        &self,
+        root: &std::path::Path,
+        existing: Option<Tombstone>,
+        snapshot: &ObjectManifest,
+        session_id: &str,
+        quota_key: &str,
+    ) -> Result<Tombstone, FileHostError> {
+        if let Some(tomb) = existing {
+            if tomb.phase != TombPhase::Intent {
+                return Ok(tomb);
+            }
+            if tomb.release_count != 0 {
+                return Err(FileHostError::Corrupt);
+            }
+            self.delete_quota_once(root, quota_key).await?;
+            let released = tomb.released();
+            self.write_tombstone(session_id, &released).await?;
+            return Ok(released);
+        }
+        self.refuse_odd_tree(root, snapshot, session_id, quota_key)
+            .await?;
+        let intent = Tombstone {
+            phase: TombPhase::Intent,
+            manifest: snapshot.clone(),
+            quota_key: quota_key.to_owned(),
+            quota_bytes: snapshot.size,
+            release_count: 0,
+        };
+        self.write_tombstone(session_id, &intent).await?;
+        self.delete_quota_once(root, quota_key).await?;
+        let released = intent.released();
+        self.write_tombstone(session_id, &released).await?;
+        Ok(released)
+    }
+
+    async fn verified_result(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+        object_key: &ObjectKey,
+        tomb: &Tombstone,
+    ) -> Result<Option<ObjectManifest>, FileHostError> {
+        if tomb.release_count != 1 {
+            return Err(FileHostError::Corrupt);
+        }
+        if !self.keys_absent(root, session_id, object_key).await? {
+            return Err(FileHostError::Conflict);
+        }
+        Ok(Some(tomb.manifest.clone()))
+    }
+
+    async fn delete_quota_once(
+        &self,
+        root: &std::path::Path,
+        quota_key: &str,
+    ) -> Result<(), FileHostError> {
+        if self.key_present(root, quota_key).await? {
+            self.delete_key(quota_key).await?;
+        }
+        Ok(())
+    }
+
+    async fn remove_completed_keys(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+        object_key: &ObjectKey,
+        pointer: &str,
+    ) -> Result<(), FileHostError> {
+        let parts = self.part_keys(root, session_id).await?;
+        for key in parts {
+            self.delete_if_file(root, &key).await?;
+        }
+        self.delete_if_file(root, object_key.as_str()).await?;
+        self.delete_if_file(root, &manifest_object_key_str(session_id))
+            .await?;
+        self.delete_if_file(root, &session_object_key(session_id))
+            .await?;
+        self.delete_if_file(root, pointer).await?;
+        Ok(())
+    }
+
+    async fn delete_if_file(&self, root: &std::path::Path, key: &str) -> Result<(), FileHostError> {
+        if self.key_present(root, key).await? {
+            self.delete_key(key).await?;
+        }
+        Ok(())
+    }
+
+    async fn observe_absence_locked(
+        &self,
+        root: &std::path::Path,
+        ctx: &AdmissionContext,
+        object_key: &ObjectKey,
+        object_digest: [u8; 32],
+        size: u64,
+        lineage_digest: [u8; 32],
+    ) -> Result<bool, FileHostError> {
+        let session_id = require_digest_key(object_key, &object_digest)?;
+        let tomb = self.read_tombstone(root, &session_id).await?;
+        let manifest = self.load_manifest_if_file(root, &session_id).await?;
+        let Some(tomb) = tomb else {
+            let Some(manifest) = manifest else {
+                return Err(FileHostError::NotFound);
+            };
+            precondition_matches(
+                &manifest,
+                ctx,
+                object_key,
+                &object_digest,
+                size,
+                &lineage_digest,
+            )?;
+            self.keys_absent(root, &session_id, object_key).await?;
+            return Ok(false);
+        };
+        precondition_matches(
+            &tomb.manifest,
+            ctx,
+            object_key,
+            &object_digest,
+            size,
+            &lineage_digest,
+        )?;
+        if let Some(manifest) = manifest {
+            precondition_matches(
+                &manifest,
+                ctx,
+                object_key,
+                &object_digest,
+                size,
+                &lineage_digest,
+            )?;
+            if manifest != tomb.manifest {
+                return Err(FileHostError::Conflict);
+            }
+        }
+        let absent = self.keys_absent(root, &session_id, object_key).await?;
+        match tomb.phase {
+            TombPhase::Verified if absent && tomb.release_count == 1 => Ok(true),
+            TombPhase::Verified => Err(FileHostError::Corrupt),
+            TombPhase::Intent | TombPhase::QuotaReleased if absent => Err(FileHostError::Conflict),
+            TombPhase::Intent | TombPhase::QuotaReleased => Ok(false),
+        }
+    }
+
+    async fn keys_absent(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+        object_key: &ObjectKey,
+    ) -> Result<bool, FileHostError> {
+        let object_here = self.key_present(root, object_key.as_str()).await?;
+        let manifest_here = self
+            .key_present(root, &manifest_object_key_str(session_id))
+            .await?;
+        let parts = self.part_keys(root, session_id).await?;
+        Ok(!object_here && !manifest_here && parts.is_empty())
+    }
+
+    async fn refuse_odd_tree(
+        &self,
+        root: &std::path::Path,
+        snapshot: &ObjectManifest,
+        session_id: &str,
+        quota_key: &str,
+    ) -> Result<(), FileHostError> {
+        let pointer = idempotency_pointer_key_str(
+            snapshot.project_id.as_str(),
+            snapshot.principal_id.as_str(),
+            snapshot.idempotency_key.as_str(),
+        )?;
+        let mut keys = vec![
+            quota_key.to_owned(),
+            snapshot.object_key.as_str().to_owned(),
+            manifest_object_key_str(session_id),
+            session_object_key(session_id),
+            pointer,
+            tombstone_key(session_id),
+        ];
+        keys.extend(self.part_keys(root, session_id).await?);
+        for key in keys {
+            let _ = self.key_present(root, &key).await?;
+        }
+        Ok(())
+    }
+
+    async fn session_agrees(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+        snapshot: &ObjectManifest,
+    ) -> Result<(), FileHostError> {
+        let key = session_object_key(session_id);
+        if !self.key_present(root, &key).await? {
+            return Ok(());
+        }
+        let Some(bytes) = load_capped_bytes(self.store.as_ref(), &key, MAX_MANIFEST_BYTES).await?
+        else {
+            return Err(FileHostError::Corrupt);
+        };
+        let record = decode_session(&bytes)?;
+        if record.session_id != session_id {
+            return Err(FileHostError::Corrupt);
+        }
+        let same = record.project_id == snapshot.project_id.as_str()
+            && record.principal_id == snapshot.principal_id.as_str()
+            && record.grant_evidence == snapshot.grant_evidence.as_str()
+            && record.object_key == snapshot.object_key.as_str()
+            && record.expected_sha256 == snapshot.object_digest
+            && record.expected_size == snapshot.size;
+        if same {
+            Ok(())
+        } else {
+            Err(FileHostError::Conflict)
+        }
+    }
+
+    async fn quota_agrees(
+        &self,
+        root: &std::path::Path,
+        quota_key: &str,
+        size: u64,
+    ) -> Result<(), FileHostError> {
+        if !self.key_present(root, quota_key).await? {
+            return Ok(());
+        }
+        let Some(bytes) = load_capped_bytes(self.store.as_ref(), quota_key, 32).await? else {
+            return Err(FileHostError::Corrupt);
+        };
+        if bytes == size.to_string().as_bytes() {
+            Ok(())
+        } else {
+            Err(FileHostError::Conflict)
+        }
+    }
+
+    async fn pointer_agrees(
+        &self,
+        root: &std::path::Path,
+        pointer: &str,
+        session_id: &str,
+    ) -> Result<(), FileHostError> {
+        if !self.key_present(root, pointer).await? {
+            return Ok(());
+        }
+        let Some(bytes) = load_capped_bytes(self.store.as_ref(), pointer, 64).await? else {
+            return Err(FileHostError::Corrupt);
+        };
+        if bytes == session_id.as_bytes() {
+            Ok(())
+        } else {
+            Err(FileHostError::Conflict)
+        }
+    }
+
+    async fn load_manifest_if_file(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+    ) -> Result<Option<ObjectManifest>, FileHostError> {
+        let key = manifest_object_key_str(session_id);
+        if !self.key_present(root, &key).await? {
+            return Ok(None);
+        }
+        let Some(bytes) = load_capped_bytes(self.store.as_ref(), &key, MAX_MANIFEST_BYTES).await?
+        else {
+            return Err(FileHostError::Corrupt);
+        };
+        Ok(Some(decode_manifest(&bytes)?))
+    }
+
+    async fn part_keys(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+    ) -> Result<Vec<String>, FileHostError> {
+        let prefix = format!("staging/{session_id}/part");
+        let locations = self.list_prefix(&prefix).await?;
+        let mut keys = Vec::new();
+        for location in locations {
+            let Some(number) = part_number_from_key(&location, session_id) else {
+                continue;
+            };
+            let key = part_object_key_str(session_id, number)?;
+            if self.key_present(root, &key).await? {
+                keys.push(key);
+            }
+        }
+        Ok(keys)
+    }
+
+    async fn key_present(&self, root: &std::path::Path, key: &str) -> Result<bool, FileHostError> {
+        let local_file = local_node(root, key)?;
+        let stored = self.stored_len(key).await?.is_some();
+        match (local_file, stored) {
+            (false, false) => Ok(false),
+            (true, true) => Ok(true),
+            _ => Err(FileHostError::Corrupt),
+        }
+    }
+
+    async fn read_tombstone(
+        &self,
+        root: &std::path::Path,
+        session_id: &str,
+    ) -> Result<Option<Tombstone>, FileHostError> {
+        let key = tombstone_key(session_id);
+        if !self.key_present(root, &key).await? {
+            return Ok(None);
+        }
+        let Some(bytes) = load_capped_bytes(self.store.as_ref(), &key, MAX_MANIFEST_BYTES).await?
+        else {
+            return Err(FileHostError::Corrupt);
+        };
+        Ok(Some(decode_tombstone(&bytes)?))
+    }
+
+    async fn write_tombstone(
+        &self,
+        session_id: &str,
+        tomb: &Tombstone,
+    ) -> Result<(), FileHostError> {
+        let key = tombstone_key(session_id);
+        let root = self
+            .local_root
+            .as_deref()
+            .ok_or(FileHostError::Unsupported)?;
+        local_node(root, &key)?;
+        let bytes = encode_tombstone(tomb)?;
+        self.put_overwrite(&key, &bytes).await
+    }
 }
 
 enum PutOutcome {
     Created,
     Exists,
+}
+
+struct CompletedDelete<'a> {
+    ctx: &'a AdmissionContext,
+    object_key: &'a ObjectKey,
+    object_digest: [u8; 32],
+    size: u64,
+    lineage_digest: [u8; 32],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TombPhase {
+    Intent,
+    QuotaReleased,
+    Verified,
+}
+
+struct Tombstone {
+    phase: TombPhase,
+    manifest: ObjectManifest,
+    quota_key: String,
+    quota_bytes: u64,
+    release_count: u8,
+}
+
+impl Tombstone {
+    fn released(&self) -> Self {
+        Self {
+            phase: TombPhase::QuotaReleased,
+            manifest: self.manifest.clone(),
+            quota_key: self.quota_key.clone(),
+            quota_bytes: self.quota_bytes,
+            release_count: 1,
+        }
+    }
+}
+
+fn tombstone_key(session_id: &str) -> String {
+    format!("meta/tombstone/{session_id}")
+}
+
+fn require_digest_key(object_key: &ObjectKey, digest: &[u8; 32]) -> Result<String, FileHostError> {
+    let session_id =
+        session_id_from_object_key(object_key.as_str()).ok_or(FileHostError::NotFound)?;
+    let embedded = object_key
+        .as_str()
+        .split('/')
+        .nth(2)
+        .ok_or(FileHostError::NotFound)?;
+    if embedded == hex_encode(digest) {
+        Ok(session_id)
+    } else {
+        Err(FileHostError::NotFound)
+    }
+}
+
+fn precondition_matches(
+    manifest: &ObjectManifest,
+    ctx: &AdmissionContext,
+    object_key: &ObjectKey,
+    object_digest: &[u8; 32],
+    size: u64,
+    lineage_digest: &[u8; 32],
+) -> Result<(), FileHostError> {
+    if size == 0
+        || manifest.object_key.as_str() != object_key.as_str()
+        || manifest.object_digest != *object_digest
+        || manifest.size != size
+        || manifest.lineage_digest != *lineage_digest
+    {
+        return Err(FileHostError::NotFound);
+    }
+    if manifest.project_id.as_str() != ctx.project_id.as_str()
+        || manifest.principal_id.as_str() != ctx.principal_id.as_str()
+    {
+        return Err(FileHostError::Denied);
+    }
+    if manifest.grant_evidence.as_str() == ctx.grant_evidence.as_str() {
+        Ok(())
+    } else {
+        Err(FileHostError::Denied)
+    }
+}
+
+fn local_node(root: &std::path::Path, key: &str) -> Result<bool, FileHostError> {
+    if key.contains('\0')
+        || key
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err(FileHostError::Store);
+    }
+    let mut path = root.to_path_buf();
+    let parts: Vec<&str> = key.split('/').collect();
+    let Some((last, parents)) = parts.split_last() else {
+        return Err(FileHostError::Store);
+    };
+    for part in parents {
+        path.push(part);
+        match std::fs::symlink_metadata(&path) {
+            Ok(meta) if meta.file_type().is_symlink() => return Err(FileHostError::Corrupt),
+            Ok(meta) if meta.is_dir() => {}
+            Ok(_) => return Err(FileHostError::Corrupt),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(_) => return Err(FileHostError::Store),
+        }
+    }
+    path.push(last);
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_symlink() => Err(FileHostError::Corrupt),
+        Ok(meta) if meta.is_file() => Ok(true),
+        Ok(_) => Err(FileHostError::Corrupt),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(_) => Err(FileHostError::Store),
+    }
+}
+
+fn encode_tombstone(tomb: &Tombstone) -> Result<Vec<u8>, FileHostError> {
+    if tomb.quota_bytes != tomb.manifest.size || tomb.quota_bytes == 0 {
+        return Err(FileHostError::Corrupt);
+    }
+    let phase = match (tomb.phase, tomb.release_count) {
+        (TombPhase::Intent, 0) => "intent",
+        (TombPhase::QuotaReleased, 1) => "quota_released",
+        (TombPhase::Verified, 1) => "verified",
+        _ => return Err(FileHostError::Corrupt),
+    };
+    let content_type = tomb.manifest.content_type.as_deref().unwrap_or("-");
+    let body = format!(
+        "oo.control.local-file-hosting/v1 tombstone\nphase {phase}\nobject_key {}\nobject_digest {}\nsize {}\nlineage_digest {}\nproject {}\nprincipal {}\ngrant_hex {}\ndisplay_name {}\ncontent_type {content_type}\npart_count {}\nidempotency_key {}\nquota_key {}\nquota_bytes {}\nrelease_count {}\n",
+        tomb.manifest.object_key.as_str(),
+        hex_encode(&tomb.manifest.object_digest),
+        tomb.manifest.size,
+        hex_encode(&tomb.manifest.lineage_digest),
+        tomb.manifest.project_id.as_str(),
+        tomb.manifest.principal_id.as_str(),
+        hex_encode(tomb.manifest.grant_evidence.as_str().as_bytes()),
+        tomb.manifest.display_name,
+        tomb.manifest.part_count,
+        tomb.manifest.idempotency_key.as_str(),
+        tomb.quota_key,
+        tomb.quota_bytes,
+        tomb.release_count
+    );
+    if body.len() > MAX_MANIFEST_BYTES || body.contains('\0') {
+        return Err(FileHostError::Corrupt);
+    }
+    Ok(body.into_bytes())
+}
+
+fn decode_tombstone(bytes: &[u8]) -> Result<Tombstone, FileHostError> {
+    if bytes.len() > MAX_MANIFEST_BYTES {
+        return Err(FileHostError::Corrupt);
+    }
+    let text = std::str::from_utf8(bytes).map_err(|_| FileHostError::Corrupt)?;
+    let mut lines = text.lines();
+    let contract = lines.next().ok_or(FileHostError::Corrupt)?;
+    if contract != "oo.control.local-file-hosting/v1 tombstone" {
+        return Err(FileHostError::Corrupt);
+    }
+    let phase_text = field_value(&mut lines, "phase ")?;
+    let object_key = field_value(&mut lines, "object_key ")?;
+    let object_digest =
+        hex_decode_32(&field_value(&mut lines, "object_digest ")?).ok_or(FileHostError::Corrupt)?;
+    let size = parse_u64_token(&field_value(&mut lines, "size ")?)?;
+    let lineage_digest = hex_decode_32(&field_value(&mut lines, "lineage_digest ")?)
+        .ok_or(FileHostError::Corrupt)?;
+    let project = field_value(&mut lines, "project ")?;
+    let principal = field_value(&mut lines, "principal ")?;
+    let grant = hex_decode_text(&field_value(&mut lines, "grant_hex ")?)?;
+    let display_name = field_value(&mut lines, "display_name ")?;
+    let content_type = field_value(&mut lines, "content_type ")?;
+    let part_count = parse_u64_token(&field_value(&mut lines, "part_count ")?)?;
+    let idempotency = field_value(&mut lines, "idempotency_key ")?;
+    let quota_key = field_value(&mut lines, "quota_key ")?;
+    let quota_bytes = parse_u64_token(&field_value(&mut lines, "quota_bytes ")?)?;
+    let release_count = parse_u64_token(&field_value(&mut lines, "release_count ")?)?;
+    if lines.next().is_some() || size == 0 || size != quota_bytes || release_count > 1 {
+        return Err(FileHostError::Corrupt);
+    }
+    let phase = match (phase_text.as_str(), release_count) {
+        ("intent", 0) => TombPhase::Intent,
+        ("quota_released", 1) => TombPhase::QuotaReleased,
+        ("verified", 1) => TombPhase::Verified,
+        _ => return Err(FileHostError::Corrupt),
+    };
+    let session_id = session_id_from_object_key(&object_key).ok_or(FileHostError::Corrupt)?;
+    let embedded = object_key.split('/').nth(2).ok_or(FileHostError::Corrupt)?;
+    if embedded != hex_encode(&object_digest) {
+        return Err(FileHostError::Corrupt);
+    }
+    let expected_quota = quota_object_key_str(&project, &session_id);
+    if quota_key != expected_quota
+        || !is_hex(&idempotency, 64)
+        || !valid_display_name(&display_name)
+    {
+        return Err(FileHostError::Corrupt);
+    }
+    let content_type = if content_type == "-" {
+        None
+    } else if valid_content_type(&content_type) {
+        Some(content_type)
+    } else {
+        return Err(FileHostError::Corrupt);
+    };
+    let part_count = u32::try_from(part_count).map_err(|_| FileHostError::Corrupt)?;
+    if part_count == 0 || part_count > MAX_PART_COUNT {
+        return Err(FileHostError::Corrupt);
+    }
+    let manifest = ObjectManifest {
+        contract: CONTRACT,
+        object_key: ObjectKey::parse(object_key).map_err(|_| FileHostError::Corrupt)?,
+        session_id: SessionId::parse(session_id).map_err(|_| FileHostError::Corrupt)?,
+        project_id: ProjectId::new(project).map_err(|_| FileHostError::Corrupt)?,
+        principal_id: PrincipalId::new(principal).map_err(|_| FileHostError::Corrupt)?,
+        grant_evidence: GrantEvidence::new(grant).map_err(|_| FileHostError::Corrupt)?,
+        display_name,
+        content_type,
+        object_digest,
+        size,
+        part_count,
+        idempotency_key: IdempotencyKey(idempotency),
+        lineage_digest,
+    };
+    Ok(Tombstone {
+        phase,
+        manifest,
+        quota_key,
+        quota_bytes,
+        release_count: u8::try_from(release_count).map_err(|_| FileHostError::Corrupt)?,
+    })
+}
+
+fn field_value<'a>(
+    lines: &mut impl Iterator<Item = &'a str>,
+    prefix: &str,
+) -> Result<String, FileHostError> {
+    let line = lines.next().ok_or(FileHostError::Corrupt)?;
+    let value = line.strip_prefix(prefix).ok_or(FileHostError::Corrupt)?;
+    if value.is_empty() {
+        Err(FileHostError::Corrupt)
+    } else {
+        Ok(value.to_owned())
+    }
+}
+
+fn parse_u64_token(value: &str) -> Result<u64, FileHostError> {
+    if value.is_empty() || (value.len() > 1 && value.starts_with('0')) {
+        return Err(FileHostError::Corrupt);
+    }
+    if !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(FileHostError::Corrupt);
+    }
+    value.parse().map_err(|_| FileHostError::Corrupt)
+}
+
+fn hex_decode_text(value: &str) -> Result<String, FileHostError> {
+    if !value.len().is_multiple_of(2) || value.len() > MAX_GRANT_BYTES * 2 {
+        return Err(FileHostError::Corrupt);
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    let raw = value.as_bytes();
+    for index in (0..raw.len()).step_by(2) {
+        let hi = hex_nibble(raw[index]).ok_or(FileHostError::Corrupt)?;
+        let lo = hex_nibble(raw[index + 1]).ok_or(FileHostError::Corrupt)?;
+        bytes.push((hi << 4) | lo);
+    }
+    String::from_utf8(bytes).map_err(|_| FileHostError::Corrupt)
 }
 
 /// One bounded pull of a published object.
@@ -2547,5 +3331,57 @@ impl Parser<'_> {
                 _ => return Err(FileHostError::Corrupt),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod delete_without_lock {
+    use super::*;
+
+    fn admission() -> AdmissionContext {
+        AdmissionContext {
+            project_id: ProjectId::new("project_a").unwrap(),
+            principal_id: PrincipalId::new("user_a").unwrap(),
+            grant_evidence: GrantEvidence::new("grant-a323").unwrap(),
+        }
+    }
+
+    fn object_key() -> ObjectKey {
+        ObjectKey::parse(
+            "uploads/0123456789abcdef0123456789abcdef/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/original",
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn new_returns_unsupported_before_store_io() {
+        let dir = std::env::temp_dir().join(format!("oo-a323-nolock-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = object_store::local::LocalFileSystem::new_with_prefix(&dir).unwrap();
+        let host = FileHost::new(Arc::new(store), HostLimits::standard());
+        let ctx = admission();
+        let key = object_key();
+        let digest = [1u8; 32];
+        let lineage = [2u8; 32];
+        assert_eq!(
+            host.delete_completed(&ctx, &key, digest, 1, lineage, false)
+                .await
+                .unwrap_err(),
+            FileHostError::Unsupported
+        );
+        assert_eq!(
+            host.observe_completed_absence(&ctx, &key, digest, 1, lineage)
+                .await
+                .unwrap_err(),
+            FileHostError::Unsupported
+        );
+        assert_eq!(
+            host.completed_quota_release_count(&ctx, &key)
+                .await
+                .unwrap_err(),
+            FileHostError::Unsupported
+        );
+        assert!(std::fs::read_dir(&dir).unwrap().next().is_none());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -14,6 +14,7 @@ pub enum PauseAfter {
     None,
     PreDelete,
     MetadataApi,
+    QuotaReleased,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,6 +38,12 @@ pub struct ReapReport {
     pub outcomes: Vec<ObjectOutcome>,
 }
 
+struct Target {
+    digest: [u8; 32],
+    size: u64,
+    lineage: [u8; 32],
+}
+
 impl Deployment {
     pub async fn reap(
         &self,
@@ -47,7 +54,10 @@ impl Deployment {
         let phase = deploy::read_checkpoint(self)?;
         let restarted_from_partial = matches!(
             phase.as_deref(),
-            Some("pre_delete") | Some("metadata_api_calling") | Some("metadata_api_done")
+            Some("pre_delete")
+                | Some("metadata_api_calling")
+                | Some("metadata_api_done")
+                | Some("quota_released")
         );
         let now_ms = resolve_now(now)?;
         let rows = inventory::load(self)?;
@@ -83,8 +93,11 @@ impl Deployment {
             }
         }
         deploy::write_checkpoint(self, "observed", "none")?;
+        let deletion_success = outcomes
+            .iter()
+            .all(|item| item.deleted && item.absence_verified);
         Ok(ReapReport {
-            deletion_success: false,
+            deletion_success,
             idle: false,
             paused: false,
             restarted_from_partial,
@@ -117,7 +130,7 @@ async fn reap_one(
     let ctx = admission(row)?;
     let key = ObjectKey::parse(&row.object_key).map_err(|_| Error::Corrupt)?;
     let seen = observe(host, &ctx, &key).await;
-    if !matches!(seen, Seen::Present(_)) && !matches!(seen, Seen::NotFound) {
+    if !matches!(seen, Seen::Present(_) | Seen::NotFound) {
         let after = seen_label(&seen);
         let status = if matches!(seen, Seen::Corrupt) {
             "refused_tamper_or_symlink"
@@ -131,39 +144,64 @@ async fn reap_one(
             paused: false,
         });
     }
-    if let Seen::Present(manifest) = &seen {
-        if !manifest_matches(row, manifest) {
-            return Ok(Step {
-                outcome: outcome(row, "refused_drift", "none", "found"),
-                paused: false,
-            });
-        }
-        if row.kind == RegistrationKind::Open {
-            return Ok(Step {
-                outcome: outcome(
-                    row,
-                    "unsupported_completed_object_delete",
-                    "filehost_completed_object_delete",
-                    "found",
-                ),
-                paused: false,
-            });
-        }
-    }
-    if row.kind == RegistrationKind::Published && matches!(seen, Seen::NotFound) {
+    if let Seen::Present(manifest) = &seen
+        && !manifest_matches(row, manifest)
+    {
         return Ok(Step {
-            outcome: outcome(
-                row,
-                "observed_not_found_unverified",
-                "filehost_part_absence_observation",
-                "not_found",
-            ),
+            outcome: outcome(row, "refused_drift", "none", "found"),
             paused: false,
         });
     }
+    if row.kind == RegistrationKind::Open && !matches!(seen, Seen::Present(_)) {
+        return abort_open(deploy, host, row, &ctx, &key, pause).await;
+    }
+    let target = if let Seen::Present(manifest) = &seen {
+        target_from_manifest(manifest)
+    } else {
+        let target = target_from_row(row)?;
+        match held_absence(host, row, &ctx, &key, &target).await? {
+            Held::Done => {
+                return Ok(Step {
+                    outcome: deleted_outcome(row),
+                    paused: false,
+                });
+            }
+            Held::Continue => target,
+            Held::Stop(outcome) => {
+                return Ok(Step {
+                    outcome,
+                    paused: false,
+                });
+            }
+        }
+    };
+    if pause == PauseAfter::MetadataApi {
+        deploy::write_checkpoint(deploy, "metadata_api_calling", &row.registration_id)?;
+        deploy::write_checkpoint(deploy, "metadata_api_done", &row.registration_id)?;
+        let after = if matches!(seen, Seen::Present(_)) {
+            "found"
+        } else {
+            "not_found"
+        };
+        return Ok(Step {
+            outcome: outcome(row, "paused_after_metadata_api", "none", after),
+            paused: true,
+        });
+    }
+    delete_published(deploy, host, row, &ctx, &key, &target, pause).await
+}
+
+async fn abort_open(
+    deploy: &Deployment,
+    host: &FileHost,
+    row: &Registration,
+    ctx: &AdmissionContext,
+    key: &ObjectKey,
+    pause: PauseAfter,
+) -> Result<Step, Error> {
     let session = SessionId::parse(&row.session_id).map_err(|_| Error::Corrupt)?;
     deploy::write_checkpoint(deploy, "metadata_api_calling", &row.registration_id)?;
-    let abort = host.abort(&ctx, &session).await;
+    let abort = host.abort(ctx, &session).await;
     deploy::write_checkpoint(deploy, "metadata_api_done", &row.registration_id)?;
     if pause == PauseAfter::MetadataApi {
         return Ok(Step {
@@ -176,10 +214,19 @@ async fn reap_one(
             paused: true,
         });
     }
-    finish_after_abort(deploy, host, row, &ctx, &key, abort).await
+    if matches!(abort, Err(FileHostError::Closed)) {
+        let again = observe(host, ctx, key).await;
+        if let Seen::Present(manifest) = &again
+            && manifest_matches(row, manifest)
+        {
+            let target = target_from_manifest(manifest);
+            return delete_published(deploy, host, row, ctx, key, &target, PauseAfter::None).await;
+        }
+    }
+    finish_abort(deploy, host, row, ctx, key, abort).await
 }
 
-async fn finish_after_abort(
+async fn finish_abort(
     deploy: &Deployment,
     host: &FileHost,
     row: &Registration,
@@ -189,30 +236,8 @@ async fn finish_after_abort(
 ) -> Result<Step, Error> {
     let after = observe(host, ctx, key).await;
     let after_label = seen_label(&after);
-    match (row.kind, abort, after) {
-        (RegistrationKind::Published, Err(FileHostError::Closed), Seen::Present(manifest))
-            if manifest_matches(row, &manifest) =>
-        {
-            Ok(Step {
-                outcome: outcome(
-                    row,
-                    "unsupported_completed_object_delete",
-                    "filehost_completed_object_delete",
-                    "found",
-                ),
-                paused: false,
-            })
-        }
-        (RegistrationKind::Published, Err(FileHostError::Closed), _) => Ok(Step {
-            outcome: outcome(
-                row,
-                "unsupported_completed_object_delete",
-                "filehost_completed_object_delete",
-                after_label,
-            ),
-            paused: false,
-        }),
-        (RegistrationKind::Open, Ok(()), _) => {
+    match abort {
+        Ok(()) => {
             inventory::set_state(deploy, &row.registration_id, RowState::AbortAttempted)?;
             Ok(Step {
                 outcome: outcome(
@@ -224,7 +249,7 @@ async fn finish_after_abort(
                 paused: false,
             })
         }
-        (RegistrationKind::Open, Err(FileHostError::NotFound), _) => Ok(Step {
+        Err(FileHostError::NotFound | FileHostError::Closed) => Ok(Step {
             outcome: outcome(
                 row,
                 "aborted_parts_unverified",
@@ -233,28 +258,128 @@ async fn finish_after_abort(
             ),
             paused: false,
         }),
-        (RegistrationKind::Open, Err(FileHostError::Closed), Seen::Present(_)) => Ok(Step {
-            outcome: outcome(
-                row,
-                "unsupported_completed_object_delete",
-                "filehost_completed_object_delete",
-                "found",
-            ),
-            paused: false,
-        }),
-        (_, Err(FileHostError::Denied), _) => Ok(Step {
-            outcome: outcome(row, "refused_foreign", "none", "denied"),
-            paused: false,
-        }),
-        (_, Err(FileHostError::Store | FileHostError::Unavailable), _) => Ok(Step {
-            outcome: outcome(row, "read_error_not_absence", "none", "store_error"),
-            paused: false,
-        }),
-        _ => Ok(Step {
-            outcome: outcome(row, "read_error_not_absence", "none", after_label),
+        Err(error) => Ok(Step {
+            outcome: host_failure(row, error),
             paused: false,
         }),
     }
+}
+
+async fn delete_published(
+    deploy: &Deployment,
+    host: &FileHost,
+    row: &Registration,
+    ctx: &AdmissionContext,
+    key: &ObjectKey,
+    target: &Target,
+    pause: PauseAfter,
+) -> Result<Step, Error> {
+    deploy::write_checkpoint(deploy, "metadata_api_calling", &row.registration_id)?;
+    let stopped = host
+        .delete_completed(ctx, key, target.digest, target.size, target.lineage, true)
+        .await;
+    deploy::write_checkpoint(deploy, "metadata_api_done", &row.registration_id)?;
+    match stopped {
+        Ok(None) => {
+            deploy::write_checkpoint(deploy, "quota_released", &row.registration_id)?;
+            if pause == PauseAfter::QuotaReleased {
+                return Ok(Step {
+                    outcome: outcome(row, "paused_after_quota_release", "none", "found"),
+                    paused: true,
+                });
+            }
+        }
+        Ok(Some(_)) => {}
+        Err(error) => {
+            return Ok(Step {
+                outcome: host_failure(row, error),
+                paused: false,
+            });
+        }
+    }
+    let finished = host
+        .delete_completed(ctx, key, target.digest, target.size, target.lineage, false)
+        .await;
+    let observed = host
+        .observe_completed_absence(ctx, key, target.digest, target.size, target.lineage)
+        .await;
+    let count = host.completed_quota_release_count(ctx, key).await;
+    Ok(Step {
+        outcome: deletion_outcome(row, finished, observed, count),
+        paused: false,
+    })
+}
+
+fn deletion_outcome(
+    row: &Registration,
+    finished: Result<Option<ObjectManifest>, FileHostError>,
+    observed: Result<bool, FileHostError>,
+    count: Result<u8, FileHostError>,
+) -> ObjectOutcome {
+    match (finished, observed, count) {
+        (Ok(Some(_)), Ok(true), Ok(1)) => deleted_outcome(row),
+        (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => host_failure(row, error),
+        _ => outcome(row, "read_error_not_absence", "none", "not_found"),
+    }
+}
+
+enum Held {
+    Done,
+    Continue,
+    Stop(ObjectOutcome),
+}
+
+async fn held_absence(
+    host: &FileHost,
+    row: &Registration,
+    ctx: &AdmissionContext,
+    key: &ObjectKey,
+    target: &Target,
+) -> Result<Held, Error> {
+    match host
+        .observe_completed_absence(ctx, key, target.digest, target.size, target.lineage)
+        .await
+    {
+        Ok(true) => match host.completed_quota_release_count(ctx, key).await {
+            Ok(1) => Ok(Held::Done),
+            Ok(_) => Ok(Held::Stop(outcome(
+                row,
+                "read_error_not_absence",
+                "none",
+                "not_found",
+            ))),
+            Err(error) => Ok(Held::Stop(host_failure(row, error))),
+        },
+        Ok(false) | Err(FileHostError::Conflict) => Ok(Held::Continue),
+        Err(FileHostError::NotFound) => Ok(Held::Stop(outcome(
+            row,
+            "observed_not_found_unverified",
+            "filehost_part_absence_observation",
+            "not_found",
+        ))),
+        Err(error) => Ok(Held::Stop(host_failure(row, error))),
+    }
+}
+
+fn target_from_manifest(manifest: &ObjectManifest) -> Target {
+    Target {
+        digest: manifest.object_digest,
+        size: manifest.size,
+        lineage: manifest.lineage_digest,
+    }
+}
+
+fn target_from_row(row: &Registration) -> Result<Target, Error> {
+    Ok(Target {
+        digest: decode_digest(&row.object_digest_hex)?,
+        size: row.size,
+        lineage: decode_digest(&row.lineage_digest_hex)?,
+    })
+}
+
+fn decode_digest(hex_text: &str) -> Result<[u8; 32], Error> {
+    let bytes = hex_decode(hex_text)?;
+    bytes.try_into().map_err(|_| Error::Corrupt)
 }
 
 fn abort_seam(abort: &Result<(), FileHostError>) -> &'static str {
@@ -263,6 +388,17 @@ fn abort_seam(abort: &Result<(), FileHostError>) -> &'static str {
         Ok(()) | Err(FileHostError::NotFound) => "filehost_part_absence_observation",
         _ => "none",
     }
+}
+
+fn host_failure(row: &Registration, error: FileHostError) -> ObjectOutcome {
+    let (status, after) = match error {
+        FileHostError::Denied => ("refused_foreign", "denied"),
+        FileHostError::Corrupt => ("refused_tamper_or_symlink", "corrupt"),
+        FileHostError::NotFound => ("observed_not_found_unverified", "not_found"),
+        FileHostError::Conflict => ("refused_conflict", "found"),
+        _ => ("read_error_not_absence", "store_error"),
+    };
+    outcome(row, status, "none", after)
 }
 
 fn outcome(
@@ -278,6 +414,17 @@ fn outcome(
         filehost_after,
         absence_verified: false,
         deleted: false,
+    }
+}
+
+fn deleted_outcome(row: &Registration) -> ObjectOutcome {
+    ObjectOutcome {
+        registration_id: row.registration_id.clone(),
+        status: "deleted",
+        seam: "none",
+        filehost_after: "absent",
+        absence_verified: true,
+        deleted: true,
     }
 }
 

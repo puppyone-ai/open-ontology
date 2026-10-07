@@ -1,7 +1,7 @@
 //! Inventory and expiry for objects a `FileHost` has already issued.
 //!
-//! Completed objects are not deleted here. `FileHost::abort` leaves them in place,
-//! and this crate does not unlink store files or edit quota rows.
+//! An expired completed object is deleted by [`oo_control::FileHost::delete_completed`].
+//! This crate does not unlink store files and does not edit quota rows.
 
 #![forbid(unsafe_code)]
 
@@ -18,9 +18,6 @@ pub use reaper::{ObjectOutcome, PauseAfter, ReapReport, report_json};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Owner of every deployment this build will open.
-pub const OWNER_UUID: &str = "eef831aa-dba4-4af2-a78b-541bc9e0a311";
-
 pub const CONTRACT: &str = "oo.artifact-retention/v1";
 
 pub const FILEHOST_CONTRACT: &str = "oo.control.local-file-hosting/v1";
@@ -34,10 +31,11 @@ pub const EVAL_TTL_CAP_SECONDS: u64 = 365 * 24 * 60 * 60;
 pub const DOWNLOAD_PERMIT_TTL_CAP_SECONDS: u64 = 5 * 60;
 
 /// Host and gateway work this crate does not pretend to finish.
+///
+/// Completed-object delete and its one quota release are implemented.
+/// The names below are still open.
 pub fn required_integration() -> &'static [&'static str] {
     &[
-        "filehost_completed_object_delete",
-        "filehost_quota_release_on_completed_delete",
         "filehost_part_absence_observation",
         "filehost_dest_staging_reap",
         "filehost_object_version",

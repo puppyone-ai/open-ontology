@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.94.0"
 publish = false
 license = "Apache-2.0"
-description = "Durable inventory and expiry reaper over FileHost receipts. Completed-object delete stays unsupported until FileHost grows that API."
+description = "Durable inventory and expiry reaper. Completed objects are deleted only through FileHost."
 
 [dependencies]
 oo-control = { path = "../../crates/oo-control", version = "=0.1.0" }
