@@ -7,3 +7,5 @@ Review slots outside development cap; obsolete earlier review-slot numbers do no
 LATEST HUMAN: development cap20, reviews excluded, global Rust builders10/taskmax1 remains. Existing actors keep immutable baseline and owned scope.
 
 RECOVERY after handle18007 terminal0 no REPORT/FINDINGS/HANDOFF: resume SAME UUID; first collect existing actual resources/results without duplicate builder/PG. Finish original compiled Pack requirement or complete truthful withheld packet/source commit, raw exits/hashes/cleanup. Do not claim terminal0 as acceptance.
+
+TERMINAL RECOVERY 2026-10-08: prior CLI exited0 without new full final packet. SAME UUID first collect already-running owned proof results; do NOT duplicate resources. Finish focused failure repair/current proof and committed delivery with full reports, or explicitly emit truthful blocked packet. Model endpoint now authorized readyHTTP200; preserve that real response evidence, actual S5/cache still must be validated. No moving producer dependency consumption.
