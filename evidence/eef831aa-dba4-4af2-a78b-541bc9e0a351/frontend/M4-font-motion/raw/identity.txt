@@ -1,0 +1,18 @@
+node=v24.21.0
+pnpm=12.10.1
+aarch64
+uid=0(root) gid=0(root) groups=0(root)
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+MemTotal:       98692096 kB
+MemAvailable:   97033852 kB
+nproc=16
+73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e  /src/pnpm-lock.yaml
+total 25516
+-rw-r--r-- 1 root root     4383 Oct  7 19:43 Geist-OFL.txt
+-rw-r--r-- 1 root root    69652 Oct  7 19:43 Geist-wght.woff2
+-rw-r--r-- 1 root root    50356 Oct  7 19:43 GeistMono-Regular.woff2
+-rw-r--r-- 1 root root     4301 Oct  7 19:36 NotoSans-LICENSE
+-rw-r--r-- 1 root root 17772852 Oct  7 19:36 NotoSansSC-wght.ttf
+-rw-r--r-- 1 root root  8207303 Oct  7 19:36 geist-font-v1.7.2.zip

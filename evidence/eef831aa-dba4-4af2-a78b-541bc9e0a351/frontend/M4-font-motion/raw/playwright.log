@@ -1,0 +1,25 @@
+
+Running 2 tests using 1 worker
+·F
+
+  1) design/e2e/foundation.visual.spec.ts:132:1 › production routes use the subset and keep send disabled 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      163 |   await writeFile(join(evidence, "raw", "font-requests.json"), `${JSON.stringify(hits, null, 2)}\n`);
+      164 |   expect(hits.length).toBeGreaterThan(0);
+    > 165 |   expect(hits.every((hit) => hit.status === 200)).toBe(true);
+          |                                                   ^
+      166 |   const paths = hits.map((hit) => new URL(hit.url).pathname);
+      167 |   expect(paths.every((path) => path.startsWith("/fonts/"))).toBe(true);
+      168 |   expect(hits.every((hit) => new URL(hit.url).origin === "http://127.0.0.1:4173")).toBe(true);
+        at /src/apps/web/design/e2e/foundation.visual.spec.ts:165:51
+
+    Error Context: test-results/foundation.visual-producti-fa593-bset-and-keep-send-disabled/error-context.md
+
+  1 failed
+    design/e2e/foundation.visual.spec.ts:132:1 › production routes use the subset and keep send disabled 
+  1 passed (2.1s)

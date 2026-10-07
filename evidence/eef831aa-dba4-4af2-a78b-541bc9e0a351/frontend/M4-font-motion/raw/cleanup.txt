@@ -1,0 +1,5 @@
+removed container oo-fe01-node-m4
+removed network oo-fe01-net-m4-eef831aa
+removed container oo-fe01-node-m4b
+removed network oo-fe01-net-m4b-eef831aa
+exact name only

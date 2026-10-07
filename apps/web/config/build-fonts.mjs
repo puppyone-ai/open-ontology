@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,19 +11,34 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = process.env.FONT_SRC;
 if (!srcDir) throw new Error("FONT_SRC is required");
 
+const sources = JSON.parse(await readFile(join(root, "design/subset-sources.json"), "utf8"));
 const copy = JSON.parse(await readFile(join(root, "design/copy.json"), "utf8"));
-const rare = String(copy.rareGlyph);
-const subsetText = Object.entries(copy)
-  .filter(([key]) => key !== "rareGlyph")
-  .map(([, value]) => String(value))
-  .join("")
-  .replaceAll(rare, "");
-const subsetPoints = [...new Set([...subsetText].map((char) => char.codePointAt(0) ?? 0).filter((point) => point > 127))].sort(
-  (left, right) => left - right,
-);
-if (subsetPoints.includes(rare.codePointAt(0) ?? 0)) {
-  throw new Error("rare glyph leaked into the subset");
+const rarePoint = sources.rareCodepoint;
+const chunks = [];
+function walk(entry) {
+  const info = statSync(entry);
+  if (info.isDirectory()) {
+    for (const name of readdirSync(entry)) walk(join(entry, name));
+    return;
+  }
+  if (/\.(tsx?|css|json)$/.test(entry)) chunks.push(readFileSync(entry, "utf8"));
 }
+for (const relative of sources.roots) walk(join(root, relative));
+if (rarePoint !== 0x9f98) throw new Error(`rare codepoint must be U+9F98, got ${rarePoint}`);
+if (sources.gapCodepoints.includes(rarePoint)) throw new Error("gap list contains the rare codepoint");
+const found = new Set(sources.gapCodepoints);
+for (const chunk of chunks) {
+  for (const char of chunk) {
+    const point = char.codePointAt(0) ?? 0;
+    if (point > 127 && point !== rarePoint) found.add(point);
+  }
+}
+const subsetPoints = [...found].filter((point) => point > 127).sort((left, right) => left - right);
+if (subsetPoints.includes(rarePoint)) throw new Error("rare glyph leaked into the subset");
+for (const point of sources.gapCodepoints) {
+  if (!subsetPoints.includes(point)) throw new Error(`gap codepoint U+${point.toString(16)} missing from subset`);
+}
+const subsetText = String.fromCodePoint(...subsetPoints);
 
 function unicodeRange(points) {
   const parts = [];
@@ -65,15 +81,25 @@ for (const weight of [300, 400, 500]) {
   });
   await emit(`NotoSansSC-${weight}-subset.woff2`, subset);
 }
-const full = await subsetFont(notoSrc, undefined, {
-  keepAllGlyphs: true,
-  targetFormat: "woff2",
-});
-await emit("NotoSansSC-full.woff2", full);
-await emit("Geist-wght.woff2", await readFile(join(srcDir, "Geist-wght.woff2")));
-await emit("GeistMono-Regular.woff2", await readFile(join(srcDir, "GeistMono-Regular.woff2")));
-await writeFile(join(outDir, "licenses/Geist-OFL.txt"), await readFile(join(srcDir, "Geist-OFL.txt")));
-await writeFile(join(outDir, "licenses/NotoSans-LICENSE"), await readFile(join(srcDir, "NotoSans-LICENSE")));
+const preserved = {
+  "NotoSansSC-full.woff2": "bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b",
+  "Geist-wght.woff2": "a369fcf5628ea2aa4e1b9e2ec6a5b3624e365bda588e1f0f2f12b564f728fbb8",
+  "GeistMono-Regular.woff2": "e4507fb4fb5f832fbbb6c06aea4206274ba3083007f23fa8cbc0e87a10acf95b",
+};
+for (const [name, expected] of Object.entries(preserved)) {
+  const buffer = await readFile(join(outDir, name));
+  const sha256 = createHash("sha256").update(buffer).digest("hex");
+  if (sha256 !== expected) throw new Error(`${name} hash ${sha256} does not match the approved file`);
+  files.push({ file: `public/fonts/${name}`, bytes: buffer.length, sha256 });
+}
+const licenseHashes = {
+  "licenses/Geist-OFL.txt": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90",
+  "licenses/NotoSans-LICENSE": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+};
+for (const [name, expected] of Object.entries(licenseHashes)) {
+  const sha256 = createHash("sha256").update(await readFile(join(outDir, name))).digest("hex");
+  if (sha256 !== expected) throw new Error(`${name} hash changed`);
+}
 
 const face = (family, file, weight, extra = "") => `@font-face {
   font-family: ${family};
@@ -109,8 +135,8 @@ const manifest = {
   },
   subsetCodepoints: subsetPoints,
   unicodeRange: range,
-  rareGlyph: rare,
+  rareGlyph: copy.rareGlyph,
   files,
 };
 await writeFile(join(root, "design/font-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`subsetPoints=${subsetPoints.length} fullBytes=${full.length}`);
+console.log(`subsetPoints=${subsetPoints.length} fullBytes=${files.find((file) => file.file.endsWith("NotoSansSC-full.woff2")).bytes}`);

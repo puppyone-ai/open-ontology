@@ -1,0 +1,1 @@
+node_image_running=0

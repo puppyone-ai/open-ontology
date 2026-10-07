@@ -95,3 +95,11 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m3` 在检查前后都打印了这个值。没有安装，没有新增 registry 依赖。
 - primitive 色值没有改。`input-error` 引用已测的 `danger-text`，浅色对白底 6.507:1，深色对 `#171C24` 8.714:1。`surface-selected` 引用已测的 `accent-bg`，正文对比浅色 12.877:1，深色 12.968:1。
 - 只重跑了类型检查、改动文件的 lint，以及 `contrast.test.ts` 的 4 个测试，退出码都是 0。没有重跑整套基础测试、字体、Storybook、生产构建或浏览器。
+
+## M4 字体子集与生产减少动效（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m4` 在字体生成前后都打印了这个值，`oo-fe01-node-m4b` 在复跑浏览器前再次核对。没有安装，没有新增 registry 依赖。
+- Noto 子集从 180 个码位扩到 376 个，包含 G3 列出的 98 个路由缺口和当时的 G1 文案。U+9F98 仍只由完整字体覆盖。完整字体 sha256 仍是 `bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b`，7762252 字节。Geist 与两份许可证字节没有改。已通过的色值没有改。
+- Linux arm64 Node v24.21.0 上，字体生成、`font-coverage.test.ts` 的 3 个测试、类型检查、改动文件的 lint 和生产构建退出码都是 0。第一次 Playwright 里减少动效通过，字体请求因把 304 当成失败而失败。第二次只重跑字体请求，1 个测试通过。没有重跑 19 张基础页截图、整套单元测试、对比度报告或 Storybook。
+- 生产 JS `dist/assets/index-ppVptCPZ.js` 为 325770 字节，gzip 101884 字节。CSS `dist/assets/index-BNkIVGpf.css` 为 25712 字节，gzip 5911 字节。上一节的 5254 只描述 M3 之前的 `index-CFLc_wNN.css`。构建产物不进入 Git。
+
