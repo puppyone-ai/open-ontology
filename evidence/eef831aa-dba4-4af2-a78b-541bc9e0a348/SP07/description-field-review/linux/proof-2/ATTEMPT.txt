@@ -1,0 +1,4 @@
+proof-2 exit 101 is preserved.
+The three oracle tests passed: explicit_column_review_reseals_two_roles_without_forging_review, occupied_cas_stale_defer_and_unknown_pii_fail_closed, and v1_missing_extra_and_failures_write_nothing. Result line: 3 passed, 0 failed.
+Clippy -D warnings rejected description-pack because draft_dataset was unused. Builder and review Clippy passed. Provider Clippy and the lock subset did not run.
+No product file was edited. Container was removed. Cargo and target volumes were kept for proof-3.

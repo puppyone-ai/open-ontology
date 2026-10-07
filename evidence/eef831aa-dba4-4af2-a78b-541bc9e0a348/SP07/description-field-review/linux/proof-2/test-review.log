@@ -1,0 +1,46 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (/target/debug/deps/description_review-eddb51ee5a1dbbb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/description_review-9aa71898f50478f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/review.rs (/target/debug/deps/review-582789853fc1ea69)
+
+running 21 tests
+test a_backtick_description_is_refused_without_a_partial_write ... ok
+test a_missing_curated_file_is_not_invented ... ok
+test approve_one_dataset_and_reject_the_other ... ok
+test cas_mismatch_does_not_write_and_a_quoted_literal_does ... ok
+test cli_apply_matches_the_library_and_usage_stays_on_stderr ... ok
+test column_interpolation_is_core_schema_and_does_not_write ... ok
+test column_response_failures_emit_no_candidates ... ok
+test column_review_applies_label_and_keeps_confidence_off_the_dataset ... ok
+test column_stale_defer_reject_and_missing_do_not_write ... ok
+test decision_schema_and_candidate_hash_block_one_dataset ... ok
+test defer_and_a_missing_decision_leave_curated_text ... ok
+test duplicate_unknown_and_identity_fail_closed ... ok
+test exact_core_bounds_apply_and_a_longer_label_is_not_truncated ... ok
+test field_literals_are_independent_of_the_library_helper ... ok
+test one_stale_anchor_does_not_block_the_other_dataset ... ok
+test provider_failure_does_not_copy_the_captured_body ... ok
+test reviewer_length_is_a_command_error_and_256_is_kept ... ok
+test stale_schema_and_evidence_block_every_dataset ... ok
+test unknown_keys_do_not_echo_an_injected_token ... ok
+test v1_review_rejects_column_decisions ... ok
+test wrong_outcome_hash_and_a_compiler_error_return_no_document ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+   Doc-tests description_review
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

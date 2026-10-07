@@ -1,0 +1,20 @@
+   Compiling description-pack v0.1.0 (/work/tools/description-pack)
+warning: function `draft_dataset` is never used
+   --> tests/a348_sealed.rs:863:4
+    |
+863 | fn draft_dataset<'a>(draft: &'a Value, layer: &str, dataset: &str) -> &'a Value {
+    |    ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `description-pack` (test "a348_sealed") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.61s
+     Running tests/a348_sealed.rs (/target/debug/deps/a348_sealed-34e89f1128fd0a56)
+
+running 3 tests
+test explicit_column_review_reseals_two_roles_without_forging_review ... ok
+test occupied_cas_stale_defer_and_unknown_pii_fail_closed ... ok
+test v1_missing_extra_and_failures_write_nothing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+

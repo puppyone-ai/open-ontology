@@ -1,0 +1,28 @@
+   Compiling description-pack v0.1.0 (/work/tools/description-pack)
+warning: unused import: `REVIEW_PROTOCOL`
+  --> tests/a348_sealed.rs:12:5
+   |
+12 |     REVIEW_PROTOCOL, REVIEW_PROTOCOL_V2, apply_description_review, curated_dataset_sha256,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0382]: borrow of moved value: `outcome_text`
+   --> tests/a348_sealed.rs:102:41
+    |
+ 92 |         let (produced_text, outcome_text, outcome, request) = bind_v2(&artifact, &compiled);
+    |                             ------------ move occurs because `outcome_text` has type `std::string::String`, which does not implement the `Copy` trait
+...
+101 |             outcome_text,
+    |             ------------ value moved here
+102 |             outcome_sha: payload_sha256(outcome_text.as_bytes()),
+    |                                         ^^^^^^^^^^^^ value borrowed here after move
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+101 |             outcome_text: outcome_text.clone(),
+    |                         ++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+warning: `description-pack` (test "a348_sealed") generated 1 warning
+error: could not compile `description-pack` (test "a348_sealed") due to 1 previous error; 1 warning emitted
