@@ -8,7 +8,12 @@
 
 mod apply;
 mod canonical;
+mod combined;
 mod error;
 
 pub use apply::apply_description_pack;
-pub use error::{COMMAND_PROTOCOL, PACK_COMPILER, PACK_PROTOCOL, DescriptionPackError};
+pub use combined::apply_description_pack_combined;
+pub use error::{
+    COMBINED_COMMAND_PROTOCOL, COMBINED_PROTOCOL, COMMAND_PROTOCOL, PACK_COMPILER, PACK_PROTOCOL,
+    DescriptionPackError,
+};

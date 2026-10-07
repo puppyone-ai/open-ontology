@@ -1,0 +1,14 @@
+# Source inventory at delivery, before the commit. SHA-256 of the working tree bytes.
+
+9f8c4449212a49c31b120d13200e26d4e2a6638d731e2681fd79e8d7b22b7024  tools/description-pack/src/combined.rs
+3ae8a5b294584e9210ac0ea899ff5a5f0fc8d0fef1bade47ef8e57291b45c3a3  tools/description-pack/src/apply.rs
+8fdc88cd64ae21009849de83fc4d79375485639607c58dc8ffca43fd22c3774f  tools/description-pack/src/error.rs
+b2a4d5a4574b7aae83975d53afb2c7e1094709ca2ee0178d6ea889d365dae114  tools/description-pack/src/lib.rs
+c0b9dbb9de696d709b1371e7eaf2843ee767a8d9841eb8faf546cb2597abad42  tools/description-pack/src/main.rs
+202b354d69ec9d9b4b836781205c1f82a06a474007901a944d06f6fce6c505b6  tools/description-pack/CONTRACT.md
+647baf1d39e6c24a6fe0e26332344b7862a447b0779d630e2f12ea1deadab4e8  tools/description-pack/tests/combined.rs
+3106fa7d35a462191701ba8fa87057e82112263dc45c6be03dcb4d6320542659  tools/pg-builder/src/bridge.rs
+9b594fa0fc7452a66d04716ff547f94dee1ef322ca5b3c70e0bf76ffd6f2ad64  tools/pg-builder/src/lib.rs
+75b6366e89218e19849e4f1812f7d922512f4ea91f420a34d904347f28cb98ea  tools/pg-builder/src/main.rs
+513894fc26fcbc926c8b686b887bb7b79317ab0784303b452104043673cba916  tools/pg-builder/CONTRACT.md
+70a81e6a0c567f6978d67a0a59b67fd2f12468c0fc51b9866194a25b16b5754d  tools/pg-builder/tests/combined.rs

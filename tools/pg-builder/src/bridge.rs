@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Map, Value};
 
-use description_pack::apply_description_pack;
+use description_pack::{apply_description_pack, apply_description_pack_combined, COMBINED_COMMAND_PROTOCOL};
 use description_review::{apply_description_review, curated_dataset_sha256, descriptive_field_sha256};
 use oo_builder::{
     compile_captured_pg_catalog, prepare_description_request, DESCRIPTION_PROMPT_VERSION,
@@ -22,6 +22,16 @@ use crate::{field_seam, sha256_hex};
 
 pub struct PackIn<'a> {
     pub generation: &'a Value,
+    pub curated: &'a Value,
+    pub operator: &'a Value,
+    pub settings: &'a Value,
+    pub classifications: &'a Value,
+    pub roles: &'a Value,
+    pub hidden_columns: &'a [&'a str],
+}
+
+pub struct CombinedIn<'a> {
+    pub generations: &'a [&'a Value],
     pub curated: &'a Value,
     pub operator: &'a Value,
     pub settings: &'a Value,
@@ -358,6 +368,198 @@ fn pack_aggregate(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
             "parent_auth": "required"
         }
     }))
+}
+
+pub fn pack_combined(input: &CombinedIn<'_>) -> Result<Value, PgBuilderError> {
+    if input.generations.is_empty() || input.generations.len() > 16 {
+        return Err(PgBuilderError::new(
+            "schema.invalid",
+            "the combined command requires one to sixteen generations",
+        ));
+    }
+    let aggregates = input.generations.iter().filter(|item| is_aggregate(item)).count();
+    if aggregates > 0 && (aggregates != 1 || input.generations.len() != 1) {
+        return Err(PgBuilderError::new(
+            "review.mixed_scope",
+            "an aggregate generation is mixed with another file",
+        ));
+    }
+    let mut calls: Vec<&Value> = Vec::new();
+    if aggregates == 1 {
+        let rows = input.generations[0]
+            .get("calls")
+            .and_then(Value::as_array)
+            .ok_or_else(|| PgBuilderError::new("review.blocked", "the aggregate has no calls"))?;
+        calls.extend(rows);
+    } else {
+        calls.extend(input.generations.iter().copied());
+    }
+    if calls.is_empty() || calls.len() > 16 {
+        return Err(PgBuilderError::new(
+            "schema.invalid",
+            "the combined command requires one to sixteen generations",
+        ));
+    }
+    for call in &calls {
+        require_validated(call)?;
+    }
+    let mut rebound = Vec::with_capacity(calls.len());
+    for call in &calls {
+        let item = rebind_generation(call)?;
+        if !item.bound {
+            return Err(PgBuilderError::new("review.rebind", "the rebound body was refused"));
+        }
+        rebound.push(item);
+    }
+    let mut artifacts = Vec::with_capacity(calls.len());
+    for call in &calls {
+        artifacts.push(command_artifact(call)?);
+    }
+    if artifacts.iter().any(|item| item != &artifacts[0]) {
+        return Err(PgBuilderError::new(
+            "review.mixed_scope",
+            "the generations do not share one sealed catalog",
+        ));
+    }
+    let artifact = &artifacts[0];
+    let draft = artifact
+        .get("draft")
+        .ok_or_else(|| PgBuilderError::new("compiler.seal", "the sealed draft is missing"))?;
+    let classes = fill_classes(draft, input.classifications)?;
+    require_role_coverage(input.roles, &classes)?;
+    let mut reviews = Vec::with_capacity(rebound.len());
+    for (index, item) in rebound.iter().enumerate() {
+        let command = build_review_command(item, input.curated, input.operator, false)?;
+        let bytes = apply_description_review(&command).map_err(forward_review)?;
+        let dataset = calls[index].get("dataset").and_then(Value::as_str).unwrap_or("").to_owned();
+        reviews.push((dataset, command, sha256_hex(bytes.as_bytes()), item.provenance.clone()));
+    }
+    let schema = review_text(&reviews[0].1, "/current/schema_hash")?;
+    let evidence = review_text(&reviews[0].1, "/current/evidence_hash")?;
+    let curated_sha = canonical_sha256(input.curated);
+    let artifact_sha = canonical_sha256(artifact);
+    let prior_sha = prior_review_sha(artifact)?;
+    let command = json!({
+        "protocol": COMBINED_COMMAND_PROTOCOL,
+        "reviews": reviews.iter().map(|(_, text, hash, _)| json!({
+            "review": text,
+            "expected_review_sha256": hash
+        })).collect::<Vec<_>>(),
+        "expected_schema_hash": schema,
+        "expected_evidence_hash": evidence,
+        "expected_curated_sha256": curated_sha,
+        "expected_artifact_sha256": artifact_sha,
+        "expected_prior_review_sha256": prior_sha,
+        "settings": input.settings,
+        "decisions": classes,
+        "roles": input.roles
+    });
+    let text = serde_json::to_string(&command).map_err(|_| {
+        PgBuilderError::new("pack.schema", "the pack command could not be encoded")
+    })?;
+    let packed = apply_description_pack_combined(&text).map_err(forward_pack)?;
+    let mut document: Value = serde_json::from_str(&packed).map_err(|_| {
+        PgBuilderError::new("pack.shape", "the pack document was refused")
+    })?;
+    if let Some(tables) = document.get_mut("tables").and_then(Value::as_array_mut) {
+        for table in tables.iter_mut() {
+            let dataset = table.get("dataset").and_then(Value::as_str).unwrap_or("");
+            if let Some((_, _, _, provenance)) = reviews.iter().find(|item| item.0 == dataset)
+                && let Some(map) = table.as_object_mut()
+            {
+                map.insert("rebind".to_owned(), provenance.clone());
+            }
+        }
+    }
+    let applied = column_applied(&document);
+    let reseal_count = document.get("reseal_count").cloned().unwrap_or(Value::from(0));
+    let reseal = if reseal_count.as_u64() == Some(1) { "once" } else { "not_required" };
+    let role_text = product_role_text(document.get("product").unwrap_or(&Value::Null));
+    Ok(json!({
+        "protocol": "oo.pg-builder.pack-combined/v1",
+        "authenticated": false,
+        "parent_auth": "required",
+        "field_publication_seam": field_seam(),
+        "outcome": document.get("outcome").cloned().unwrap_or(Value::Null),
+        "reseal_count": reseal_count,
+        "product": document.get("product").cloned().unwrap_or(Value::Null),
+        "tables": document.get("tables").cloned().unwrap_or(Value::Array(Vec::new())),
+        "schema_hash": document.get("schema_hash").cloned().unwrap_or(Value::Null),
+        "evidence_hash": document.get("evidence_hash").cloned().unwrap_or(Value::Null),
+        "curated_sha256": document.get("curated_sha256").cloned().unwrap_or(Value::Null),
+        "artifact_sha256": document.get("artifact_sha256").cloned().unwrap_or(Value::Null),
+        "prior_review_sha256": document.get("prior_review_sha256").cloned().unwrap_or(Value::Null),
+        "pack_sha256": document.get("pack_sha256").cloned().unwrap_or(Value::Null),
+        "hidden_columns": hidden_report(&role_text, &role_text, input.hidden_columns),
+        "statements": {
+            "field_candidates_applied": applied,
+            "model_publication": false,
+            "authenticated": false,
+            "parent_auth": "required",
+            "pii_classification": "caller_fixture",
+            "semantic_classification": "caller_fixture",
+            "reseal": reseal
+        }
+    }))
+}
+
+fn review_text(command: &str, pointer: &str) -> Result<String, PgBuilderError> {
+    let value: Value = serde_json::from_str(command).map_err(|_| {
+        PgBuilderError::new("review.schema", "the review command could not be encoded")
+    })?;
+    value
+        .pointer(pointer)
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| PgBuilderError::new("review.anchor", "the compiler draft has no schema hash"))
+}
+
+fn prior_review_sha(artifact: &Value) -> Result<String, PgBuilderError> {
+    let reviews = artifact.pointer("/evidence_envelope/reviews");
+    let text = match reviews {
+        None | Some(Value::Null) => "[]".to_owned(),
+        Some(value) if value.is_array() => canonical_json(value),
+        Some(_) => {
+            return Err(PgBuilderError::new(
+                "review.mixed_scope",
+                "the sealed review list is not an array",
+            ));
+        }
+    };
+    Ok(sha256_hex(text.as_bytes()))
+}
+
+fn column_applied(document: &Value) -> bool {
+    document
+        .get("tables")
+        .and_then(Value::as_array)
+        .is_some_and(|tables| {
+            tables.iter().any(|table| {
+                table
+                    .get("column_decisions")
+                    .and_then(Value::as_array)
+                    .is_some_and(|rows| rows.iter().any(|row| row.get("applied").and_then(Value::as_bool) == Some(true)))
+            })
+        })
+}
+
+fn product_role_text(product: &Value) -> String {
+    let Some(packs) = product.get("packs").and_then(Value::as_array) else {
+        return String::new();
+    };
+    let mut text = String::new();
+    for pack in packs {
+        let Some(files) = pack.pointer("/artifact/files").and_then(Value::as_array) else {
+            continue;
+        };
+        for file in files {
+            if let Some(body) = file.get("text").and_then(Value::as_str) {
+                text.push_str(body);
+                text.push('\n');
+            }
+        }
+    }
+    text
 }
 
 fn is_aggregate(generation: &Value) -> bool {

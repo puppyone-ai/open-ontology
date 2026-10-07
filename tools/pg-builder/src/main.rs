@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use pg_builder::{
-    assemble_cards, canonical_json, canonical_sha256, generate, load_config, pack_pair, read_bearer,
-    read_comments, read_profile, review_only, run_catalog, scaffold_curated, seal_request, GenerateIn,
-    LoopbackTransport, PackIn, PgBuilderError,
+    assemble_cards, canonical_json, canonical_sha256, generate, load_config, pack_combined, pack_pair,
+    read_bearer, read_comments, read_profile, review_only, run_catalog, scaffold_curated, seal_request,
+    CombinedIn, GenerateIn, LoopbackTransport, PackIn, PgBuilderError,
 };
 use serde_json::{json, Value};
 
@@ -27,7 +27,7 @@ fn main() -> ExitCode {
 fn run() -> Result<u8, PgBuilderError> {
     let args: Vec<String> = env::args().skip(1).collect();
     let Some(command) = args.first() else {
-        eprintln!("pg-builder catalog|profile|comments|seal|cards|curated|approve|generate|review|pack|scan");
+        eprintln!("pg-builder catalog|profile|comments|seal|cards|curated|approve|generate|review|pack|pack-combined|scan");
         return Ok(2);
     };
     match command.as_str() {
@@ -41,9 +41,10 @@ fn run() -> Result<u8, PgBuilderError> {
         "generate" => generate_cmd(&args[1..]),
         "review" => review_cmd(&args[1..]),
         "pack" => pack_cmd(&args[1..]),
+        "pack-combined" => pack_combined_cmd(&args[1..]),
         "scan" => scan(&args[1..]),
         _ => {
-            eprintln!("pg-builder catalog|profile|comments|seal|cards|curated|approve|generate|review|pack|scan");
+            eprintln!("pg-builder catalog|profile|comments|seal|cards|curated|approve|generate|review|pack|pack-combined|scan");
             Ok(2)
         }
     }
@@ -183,6 +184,36 @@ fn pack_cmd(args: &[String]) -> Result<u8, PgBuilderError> {
     let hidden_refs: Vec<&str> = hidden.iter().map(String::as_str).collect();
     let packed = pack_pair(&PackIn {
         generation: &generation,
+        curated: &curated,
+        operator: &operator,
+        settings: &settings,
+        classifications: &classifications,
+        roles: &roles,
+        hidden_columns: &hidden_refs,
+    })?;
+    write_json(&flag(args, "--out")?, &packed)?;
+    Ok(0)
+}
+
+fn pack_combined_cmd(args: &[String]) -> Result<u8, PgBuilderError> {
+    let paths = repeated(args, "--generation");
+    if paths.is_empty() {
+        return Err(PgBuilderError::new("usage", "a required argument is missing"));
+    }
+    let mut generations = Vec::with_capacity(paths.len());
+    for path in &paths {
+        generations.push(read_json(path)?);
+    }
+    let generation_refs: Vec<&Value> = generations.iter().collect();
+    let curated = read_json(&flag(args, "--curated")?)?;
+    let operator = read_json(&flag(args, "--operator")?)?;
+    let settings = read_json(&flag(args, "--settings")?)?;
+    let classifications = read_json(&flag(args, "--classifications")?)?;
+    let roles = read_json(&flag(args, "--roles")?)?;
+    let hidden = repeated(args, "--hidden");
+    let hidden_refs: Vec<&str> = hidden.iter().map(String::as_str).collect();
+    let packed = pack_combined(&CombinedIn {
+        generations: &generation_refs,
         curated: &curated,
         operator: &operator,
         settings: &settings,

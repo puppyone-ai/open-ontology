@@ -205,26 +205,26 @@ struct CommandIn {
     expected_existing_column_review_sha256: Option<BTreeMap<String, String>>,
 }
 
-struct ReplaceAuth<'a> {
-    enabled: bool,
-    expected: Option<&'a BTreeMap<String, String>>,
+pub(crate) struct ReplaceAuth<'a> {
+    pub(crate) enabled: bool,
+    pub(crate) expected: Option<&'a BTreeMap<String, String>>,
 }
 
-struct OriginalSeal {
+pub(crate) struct OriginalSeal {
     catalog: String,
     curated: Option<String>,
     reviews: Option<String>,
-    wrapper_hash: String,
-    draft_hash: String,
+    pub(crate) wrapper_hash: String,
+    pub(crate) draft_hash: String,
     schema_hash: String,
 }
 
-struct Reseal {
-    text: String,
-    artifact: Value,
-    wrapper_hash: String,
-    draft_hash: String,
-    evidence_envelope_hash: String,
+pub(crate) struct Reseal {
+    pub(crate) text: String,
+    pub(crate) artifact: Value,
+    pub(crate) wrapper_hash: String,
+    pub(crate) draft_hash: String,
+    pub(crate) evidence_envelope_hash: String,
     replacements: Vec<Replacement>,
 }
 
@@ -239,33 +239,33 @@ struct Replacement {
     fields: Vec<String>,
 }
 
-struct Approval {
-    dataset: String,
-    label: Option<String>,
-    description: Option<String>,
-    grain: Option<String>,
+pub(crate) struct Approval {
+    pub(crate) dataset: String,
+    pub(crate) label: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) grain: Option<String>,
     reviewer_label: String,
     reviewer_at: String,
     authenticated: bool,
 }
 
-struct ColumnApproval {
-    dataset: String,
-    ident: String,
-    label: Option<String>,
-    description: Option<String>,
+pub(crate) struct ColumnApproval {
+    pub(crate) dataset: String,
+    pub(crate) ident: String,
+    pub(crate) label: Option<String>,
+    pub(crate) description: Option<String>,
     reviewer_label: String,
     reviewer_at: String,
     authenticated: bool,
 }
 
-struct Downstream {
-    effective_text: String,
-    effective: Value,
-    packs: Vec<Value>,
+pub(crate) struct Downstream {
+    pub(crate) effective_text: String,
+    pub(crate) effective: Value,
+    pub(crate) packs: Vec<Value>,
 }
 
-enum Stop {
+pub(crate) enum Stop {
     Refuse(DescriptionPackError),
     Unsupported(&'static str),
 }
@@ -373,6 +373,10 @@ fn packed_document(
     map
 }
 
+pub(crate) fn occupied_replacement_values(item: &Reseal) -> Vec<Value> {
+    item.replacements.iter().map(replacement_value).collect()
+}
+
 fn replacement_value(item: &Replacement) -> Value {
     serde_json::json!({
         "attribution": "bridge_provenance",
@@ -397,7 +401,7 @@ fn outcome_of(reseal: Option<&Reseal>) -> &'static str {
     }
 }
 
-fn statements(reseal: &str) -> Value {
+pub(crate) fn statements(reseal: &str) -> Value {
     serde_json::json!({
         "authentication": "not_claimed",
         "authorization": "not_claimed",
@@ -411,7 +415,7 @@ fn statements(reseal: &str) -> Value {
     })
 }
 
-fn reject_stale(review: &Value) -> Result<(), DescriptionPackError> {
+pub(crate) fn reject_stale(review: &Value) -> Result<(), DescriptionPackError> {
     let Some(items) = review.get("queue").and_then(Value::as_array) else {
         return Err(DescriptionPackError::named(
             "review.shape",
@@ -450,7 +454,7 @@ fn stale_error(reason: &str) -> DescriptionPackError {
     DescriptionPackError::named(name, message)
 }
 
-fn embedded_artifact(review_command: &str) -> Result<Value, DescriptionPackError> {
+pub(crate) fn embedded_artifact(review_command: &str) -> Result<Value, DescriptionPackError> {
     let review: Value = serde_json::from_str(review_command).map_err(|_| {
         DescriptionPackError::named(
             "seal.artifact",
@@ -480,7 +484,7 @@ fn embedded_artifact(review_command: &str) -> Result<Value, DescriptionPackError
     })
 }
 
-fn recompile_original(artifact: &Value) -> Result<OriginalSeal, DescriptionPackError> {
+pub(crate) fn recompile_original(artifact: &Value) -> Result<OriginalSeal, DescriptionPackError> {
     let envelope = artifact.get("evidence_envelope").ok_or_else(seal_rejected)?;
     let catalog = envelope.get("catalog").ok_or_else(seal_rejected)?;
     let curated = optional_json(envelope.get("curated"))?;
@@ -506,7 +510,7 @@ fn recompile_original(artifact: &Value) -> Result<OriginalSeal, DescriptionPackE
     })
 }
 
-fn reseal(
+pub(crate) fn reseal(
     artifact: &Value,
     original: &OriginalSeal,
     approvals: &[Approval],
@@ -1105,7 +1109,7 @@ fn review_list(artifact: &Value) -> Result<Vec<Value>, Stop> {
     }
 }
 
-fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
+pub(crate) fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
     let decisions = review.get("decisions").and_then(Value::as_array).ok_or_else(|| {
         Stop::Refuse(DescriptionPackError::named(
             "review.shape",
@@ -1181,7 +1185,7 @@ fn collect_approvals(review: &Value) -> Result<Vec<Approval>, Stop> {
     Ok(approvals)
 }
 
-fn collect_column_approvals(review: &Value) -> Result<Vec<ColumnApproval>, Stop> {
+pub(crate) fn collect_column_approvals(review: &Value) -> Result<Vec<ColumnApproval>, Stop> {
     let Some(decisions) = review.get("column_decisions") else {
         return Ok(Vec::new());
     };
@@ -1281,7 +1285,7 @@ fn taken_field(
     }
 }
 
-fn compile_downstream(
+pub(crate) fn compile_downstream(
     artifact_text: &str,
     settings: &Value,
     decisions: &Value,
@@ -1364,7 +1368,7 @@ fn command_document(compiled: &CapturedPgDraft) -> String {
     )
 }
 
-fn command_text_of(artifact: &Value) -> Result<String, DescriptionPackError> {
+pub(crate) fn command_text_of(artifact: &Value) -> Result<String, DescriptionPackError> {
     let draft = artifact.get("draft").ok_or_else(seal_rejected)?;
     let envelope = artifact.get("evidence_envelope").ok_or_else(seal_rejected)?;
     let wrapper = artifact.get("wrapper").ok_or_else(seal_rejected)?;
@@ -1383,7 +1387,7 @@ fn optional_json(value: Option<&Value>) -> Result<Option<String>, DescriptionPac
     }
 }
 
-fn queue_projection(review: &Value) -> Value {
+pub(crate) fn queue_projection(review: &Value) -> Value {
     let Some(items) = review.get("queue").and_then(Value::as_array) else {
         return Value::Array(Vec::new());
     };
@@ -1407,7 +1411,7 @@ fn queue_projection(review: &Value) -> Value {
     )
 }
 
-fn finish(map: Map<String, Value>) -> Result<String, DescriptionPackError> {
+pub(crate) fn finish(map: Map<String, Value>) -> Result<String, DescriptionPackError> {
     let unsigned = canonical_json(&Value::Object(map.clone()));
     if unsigned.len() > DOCUMENT_MAX_BYTES {
         return Err(DescriptionPackError::named(

@@ -9,16 +9,19 @@
 use std::io::{Read, Write};
 use std::process::ExitCode;
 
-use description_pack::{DescriptionPackError, apply_description_pack};
+use description_pack::{
+    DescriptionPackError, apply_description_pack, apply_description_pack_combined,
+};
 use oo_core::limits::DOCUMENT_MAX_BYTES;
 
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
     let phase = args.next();
     let extra = args.next().is_some();
-    match (phase.as_deref(), extra) {
-        (Some("apply"), false) => {}
-        (Some("apply"), true) => {
+    let combined = match (phase.as_deref(), extra) {
+        (Some("apply"), false) => false,
+        (Some("apply-combined"), false) => true,
+        (Some("apply" | "apply-combined"), true) => {
             eprintln!("description-pack: the phase takes no arguments");
             return ExitCode::from(2);
         }
@@ -26,12 +29,17 @@ fn main() -> ExitCode {
             usage();
             return ExitCode::from(2);
         }
-    }
+    };
     let text = match read_stdin() {
         Ok(text) => text,
         Err(err) => return fail(&err),
     };
-    match apply_description_pack(&text) {
+    let result = if combined {
+        apply_description_pack_combined(&text)
+    } else {
+        apply_description_pack(&text)
+    };
+    match result {
         Ok(document) => write_stdout(&document),
         Err(err) => fail(&err),
     }
@@ -39,8 +47,12 @@ fn main() -> ExitCode {
 
 fn usage() {
     eprintln!("description-pack: usage: description-pack apply");
+    eprintln!("description-pack:        description-pack apply-combined");
     eprintln!(
-        "description-pack:   apply    one oo.builder.description-pack-command/v1 document on stdin"
+        "description-pack:   apply            one oo.builder.description-pack-command/v1 document on stdin"
+    );
+    eprintln!(
+        "description-pack:   apply-combined   one oo.builder.description-pack-combined-command/v1 document on stdin"
     );
     eprintln!("description-pack: stdout is the bridge document and has no added newline");
     eprintln!(

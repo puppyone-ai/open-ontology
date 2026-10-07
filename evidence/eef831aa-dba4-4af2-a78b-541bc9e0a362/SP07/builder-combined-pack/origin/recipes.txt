@@ -1,0 +1,9 @@
+Verified 2026-10-08 with shasum -a 256. The a362 containers reused the containment flags from these recipes and used UUID-private names, volumes, and a network. The a362 launch scripts are not byte copies: they tar the worktree and mount the a328 receipts read-only.
+
+a348 proof-3 launch
+path: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a348/SP07/description-field-review/linux/proof-3/launch.sh
+sha256: ae0ac0b4da595f94eae9f7838b212f08c5431db76073824a07d40a373ca23638
+
+a328 focused-10 launch
+path: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a328/SP07/pg-builder/linux/focused-10/launch.sh
+sha256: 2fe3844e65566eb8508790482310768614d1a96ddff467a55bcd993736ed5c40

@@ -5,6 +5,8 @@ use std::fmt;
 pub const COMMAND_PROTOCOL: &str = "oo.builder.description-pack-command/v1";
 pub const PACK_PROTOCOL: &str = "oo.builder.description-pack/v1";
 pub const PACK_COMPILER: &str = "oo-builder/description-pack/v1";
+pub const COMBINED_COMMAND_PROTOCOL: &str = "oo.builder.description-pack-combined-command/v1";
+pub const COMBINED_PROTOCOL: &str = "oo.builder.description-pack-combined/v1";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DescriptionPackError {
@@ -22,6 +24,13 @@ impl DescriptionPackError {
 
     pub fn upstream(code: String, message: &'static str) -> Self {
         Self { code, message }
+    }
+
+    pub fn combined(name: &'static str, message: &'static str) -> Self {
+        Self {
+            code: format!("{COMBINED_COMMAND_PROTOCOL}/{name}"),
+            message,
+        }
     }
 }
 

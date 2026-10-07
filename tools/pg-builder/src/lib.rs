@@ -18,7 +18,10 @@ mod generate;
 mod http;
 mod profile;
 
-pub use bridge::{pack_pair, review_only, seal_request, scaffold_curated, PackIn};
+pub use bridge::{
+    pack_combined, pack_pair, review_only, seal_request, scaffold_curated, CombinedIn, PackIn,
+};
+pub use description_pack::apply_description_pack_combined;
 pub use cache::{cache_path, read_validated, store_validated};
 pub use canonical::{canonical_json, canonical_sha256, sha256_hex};
 pub use cards::{assemble_cards, approval_matches};
@@ -26,7 +29,7 @@ pub use config::{load_config, read_bearer, Config, Postgres};
 pub use error::{PgBuilderError, PROTOCOL};
 pub use generate::{
     cache_hit_same, column_batch_ranges, generate, ChatTransport, GenerateIn, LoopbackTransport,
-    ScriptedTransport,
+    RawReply, ScriptedTransport,
 };
 pub use http::{post_loopback, HttpReply};
 pub use profile::{catalog_request, read_comments, read_profile, run_catalog};
