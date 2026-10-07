@@ -1,0 +1,7 @@
+test_report=pass
+http1_echo=pass
+body_32_vs_33=pass
+timeout_408=pass
+shared_global_permit=pass
+distinct_route_permit=pass
+literal_noauth_query_echo=pass

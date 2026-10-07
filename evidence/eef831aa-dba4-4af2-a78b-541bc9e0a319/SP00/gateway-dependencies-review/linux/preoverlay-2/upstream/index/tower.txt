@@ -1,0 +1,5 @@
+name=tower
+max_stable_version=0.5.3
+newest_num=0.5.3
+newest_created_at=2026-01-12T18:43:05.227461Z
+newest_yanked=false

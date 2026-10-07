@@ -1,0 +1,12 @@
+name=tower
+version=0.5.3
+yanked=false
+license=MIT
+rust_version=1.64.0
+checksum=ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4
+created_at=2026-01-12T18:43:05.227461Z
+age_seconds=23047463
+age_ok=pass
+msrv_ok=pass
+sha_ok=pass
+pin=tower 0.5.3 2026-01-12T18:43:05.227461Z ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4 MIT

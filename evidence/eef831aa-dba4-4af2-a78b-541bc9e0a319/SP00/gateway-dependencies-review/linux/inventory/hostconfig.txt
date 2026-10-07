@@ -1,0 +1,10 @@
+Observe=running-before-hash
+Status=running
+OOMKilled=false
+Privileged=false
+NetworkMode=none
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
+Id=691564122d5c91054bf1cca450d5d665cc229d288638839588b0d8f519c76d29

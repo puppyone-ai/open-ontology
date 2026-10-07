@@ -1,0 +1,5 @@
+manifest=pass
+name=axum
+version=0.8.9
+license=MIT
+rust_version=1.80

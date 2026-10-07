@@ -1,0 +1,5 @@
+manifest=pass
+name=tower
+version=0.5.3
+license=MIT
+rust_version=1.64.0

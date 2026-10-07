@@ -1,0 +1,5 @@
+manifest=pass
+name=axum-core
+version=0.5.6
+license=MIT
+rust_version=1.78

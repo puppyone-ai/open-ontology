@@ -1,0 +1,4 @@
+bind /tools rw=false
+bind /evidence rw=true
+bind /inside.sh rw=false
+

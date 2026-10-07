@@ -1,0 +1,12 @@
+name=mime
+version=0.3.17
+yanked=false
+license=MIT OR Apache-2.0
+rust_version=undeclared
+checksum=6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a
+created_at=2023-03-20T15:05:04.272177Z
+age_seconds=111966144
+age_ok=pass
+msrv_ok=pass
+sha_ok=pass
+pin=mime 0.3.17 2023-03-20T15:05:04.272177Z 6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a MIT OR Apache-2.0

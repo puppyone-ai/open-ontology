@@ -1,0 +1,6 @@
+license_files=2
+license_expression=MIT OR Apache-2.0
+project_relies_on=Apache-2.0
+licenses=pass
+/evidence/licenses/mime-0.3.17/mime-0.3.17/LICENSE-APACHE
+/evidence/licenses/mime-0.3.17/mime-0.3.17/LICENSE-MIT

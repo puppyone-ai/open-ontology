@@ -1,0 +1,14 @@
+added=5
+axum 0.8.9 31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90
+axum-core 0.5.6 08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1
+httpdate 1.0.3 df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9
+matchit 0.8.4 47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3
+mime 0.3.17 6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a
+changed=0
+denied=0
+sbom name=axum version=0.8.9 checksum=31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90 source=registry+https://github.com/rust-lang/crates.io-index license_field=MIT published=2026-04-14T07:55:20.258398Z age_seconds=15137528
+sbom name=axum-core version=0.5.6 checksum=08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1 source=registry+https://github.com/rust-lang/crates.io-index license_field=MIT published=2025-12-27T09:19:34.014637Z age_seconds=24463674
+sbom name=httpdate version=1.0.3 checksum=df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9 source=registry+https://github.com/rust-lang/crates.io-index license_field=MIT OR Apache-2.0 published=2023-08-13T10:55:54.391658Z age_seconds=99366694
+sbom name=matchit version=0.8.4 checksum=47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3 source=registry+https://github.com/rust-lang/crates.io-index license_field=MIT AND BSD-3-Clause published=2024-07-11T07:22:03.735375Z age_seconds=70608325
+sbom name=mime version=0.3.17 checksum=6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a source=registry+https://github.com/rust-lang/crates.io-index license_field=MIT OR Apache-2.0 published=2023-03-20T15:05:04.272177Z age_seconds=111966144
+subset=pass
