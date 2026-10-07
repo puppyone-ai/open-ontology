@@ -1,5 +1,7 @@
 # FileHost completed-object deletion
 
+Superseded in part by `FILEHOST-COMPLETION-ADDENDUM.md`. Where the two disagree, the completion addendum wins. In particular, quota is not released before the bytes, sidecars, parts, and platform staging are absent; `stop_after_quota_release` is not a caller flag; an open abort can prove part absence; and `--pause-after quota_released` is rejected. The procedure below that releases quota first is the historical freeze, not the implementation.
+
 Contract `oo.control.local-file-hosting/v1` addendum, file `FILEHOST-DELETE-CONTRACT.md`.
 This file freezes the upstream deletion interface, the receipt, and the reaper reconciliation before any source change.
 It does not replace `contracts/control/local-file-hosting-v1.md`. That approved text still describes `abort` of a completed session as `Closed`.
@@ -196,16 +198,14 @@ A checkpoint of `pre_delete`, `metadata_api_calling`, `metadata_api_done`, or `q
 
 A second reap of a verified row calls the same host path. The tombstone stays `verified`, the count stays 1, and absence is checked again. A foreign project row that is not expired is not passed to delete. An unregistered object is not passed to delete.
 
-The CLI is `artifact-retention reap --root <operator-uuid-dir> [--pause-after pre_delete|metadata_api|quota_released|none]`. There is no clock flag and no bearer URL. Exit 0 means idle or `deletion_success`. Exit 2 means a reap ran and deletion is not verified. Exit 75 is the pause. Exit 1 is a bad root, a corrupt record, or a bad argument. Exit 0 is not parent acceptance.
+The CLI is `artifact-retention reap --root <operator-uuid-dir> [--pause-after pre_delete|metadata_api|data_deleting|data_absent|none]`. `quota_released` is rejected. There is no clock flag and no bearer URL. Exit 0 means idle or `deletion_success`. Exit 2 means a reap ran and deletion is not verified. Exit 75 is the pause. Exit 1 is a bad root, a corrupt record, or a bad argument. Exit 0 is not parent acceptance.
 
 ## Still unsupported
 
-`required_integration` returns these names and no longer returns `filehost_completed_object_delete` or `filehost_quota_release_on_completed_delete`:
+`required_integration` returns these names. It no longer returns `filehost_completed_object_delete`, `filehost_quota_release_on_completed_delete`, `filehost_part_absence_observation`, or `filehost_dest_staging_reap`:
 
 | Seam | Why it remains |
 |---|---|
-| `filehost_part_absence_observation` | Open `abort` still cannot prove part absence. Five-digit parts of a verified completed delete are covered by `observe_completed_absence`. That does not retire this seam. |
-| `filehost_dest_staging_reap` | `dest#N` leftovers are outside the delete call. |
 | `filehost_object_version` | The manifest has no version. An empty local version is not recorded. |
 | `filehost_admission_role_and_policy` | The host delete checks project, principal, and grant. Role and policy stay on the inventory row. |
 | `gateway_authenticated_url_revocation` | No HTTP transport and no authenticated download URL. |

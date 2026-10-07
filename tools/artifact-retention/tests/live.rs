@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -38,14 +39,14 @@ fn production_clock_matches_the_process_clock() {
     let seams = required_integration();
     assert!(!seams.contains(&"filehost_completed_object_delete"));
     assert!(!seams.contains(&"filehost_quota_release_on_completed_delete"));
-    assert!(seams.contains(&"filehost_part_absence_observation"));
-    assert!(seams.contains(&"filehost_dest_staging_reap"));
+    assert!(!seams.contains(&"filehost_part_absence_observation"));
+    assert!(!seams.contains(&"filehost_dest_staging_reap"));
     assert!(seams.contains(&"filehost_object_version"));
     assert!(seams.contains(&"filehost_admission_role_and_policy"));
     assert!(seams.contains(&"gateway_authenticated_url_revocation"));
     assert!(seams.contains(&"formula_safe_csv_excel"));
     assert!(seams.contains(&"sessions_outputs_prefix"));
-    assert_eq!(seams.len(), 7);
+    assert_eq!(seams.len(), 5);
 }
 
 #[test]
@@ -269,6 +270,18 @@ async fn published_reap_observes_absence_and_releases_quota_once() {
     let notes = part_dir.join("notes");
     std::fs::write(&dest, b"dest-leftover").unwrap();
     std::fs::write(&notes, b"not-a-part").unwrap();
+    let part_staging = part_dir.join("00001#1");
+    std::fs::write(&part_staging, b"part-staging").unwrap();
+    let object_staging = deploy
+        .filehost_dir()
+        .join(format!("{}#1", manifest.object_key.as_str()));
+    std::fs::write(&object_staging, b"object-staging").unwrap();
+    let odd_suffix = deploy
+        .filehost_dir()
+        .join(format!("{}#01", manifest.object_key.as_str()));
+    std::fs::write(&odd_suffix, b"leading-zero").unwrap();
+    let neighbor = deploy.root().join("neighbor-keep.txt");
+    std::fs::write(&neighbor, b"neighbor").unwrap();
     let early = deploy
         .reap(&host, Now::Explicit(1_000), PauseAfter::None)
         .await
@@ -315,6 +328,10 @@ async fn published_reap_observes_absence_and_releases_quota_once() {
     );
     assert_eq!(std::fs::read(&dest).unwrap(), b"dest-leftover");
     assert_eq!(std::fs::read(&notes).unwrap(), b"not-a-part");
+    assert!(!part_staging.exists());
+    assert!(!object_staging.exists());
+    assert_eq!(std::fs::read(&odd_suffix).unwrap(), b"leading-zero");
+    assert_eq!(std::fs::read(&neighbor).unwrap(), b"neighbor");
     assert_eq!(
         host.read_object(&foreign_ctx, &foreign.object_key)
             .await
@@ -593,7 +610,7 @@ async fn tamper_drift_symlink_and_read_error_do_not_delete() {
 }
 
 #[tokio::test]
-async fn open_abort_does_not_claim_part_absence() {
+async fn open_abort_proves_part_absence_and_reaps_platform_staging() {
     let (_parent, root) = scratch();
     let deploy = Deployment::create(&root, HostLimits::standard(), OPERATOR).unwrap();
     let host = open_host(&deploy);
@@ -622,6 +639,19 @@ async fn open_abort_does_not_claim_part_absence() {
         .filehost_dir()
         .join(format!("staging/{}/part/00001", row.session_id));
     assert!(part.is_file());
+    let part_staging = deploy
+        .filehost_dir()
+        .join(format!("staging/{}/part/00001#1", row.session_id));
+    std::fs::write(&part_staging, b"part-staging").unwrap();
+    let object_staging = deploy.filehost_dir().join(format!("{}#1", row.object_key));
+    if let Some(parent) = object_staging.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    std::fs::write(&object_staging, b"object-staging").unwrap();
+    let dest = deploy
+        .filehost_dir()
+        .join(format!("staging/{}/part/dest#1", row.session_id));
+    std::fs::write(&dest, b"keep-dest").unwrap();
     let keep = deploy.root().join("user-keep.txt");
     std::fs::write(&keep, b"keep").unwrap();
     let foreign_name = deploy.filehost_dir().join("notes-foreign.txt");
@@ -630,13 +660,16 @@ async fn open_abort_does_not_claim_part_absence() {
         .reap(&host, Now::Explicit(100 + 30_000), PauseAfter::None)
         .await
         .unwrap();
-    assert!(!report.deletion_success);
+    assert!(report.deletion_success);
     assert!(!report.parent_complete);
-    assert!(!report.outcomes[0].deleted);
-    assert!(!report.outcomes[0].absence_verified);
-    assert_eq!(report.outcomes[0].status, "aborted_parts_unverified");
-    assert_eq!(report.outcomes[0].seam, "filehost_part_absence_observation");
+    assert!(report.outcomes[0].deleted);
+    assert!(report.outcomes[0].absence_verified);
+    assert_eq!(report.outcomes[0].status, "aborted");
+    assert_eq!(report.outcomes[0].seam, "none");
     assert!(!part.exists());
+    assert!(!part_staging.exists());
+    assert!(!object_staging.exists());
+    assert_eq!(std::fs::read(&dest).unwrap(), b"keep-dest");
     let replay = host.begin(&ctx, &config).await.unwrap();
     assert_ne!(replay.session_id.as_str(), row.session_id);
     assert_eq!(std::fs::read(&keep).unwrap(), b"keep");
@@ -644,7 +677,7 @@ async fn open_abort_does_not_claim_part_absence() {
 }
 
 #[tokio::test]
-async fn kill_at_quota_release_restarts_without_a_second_release() {
+async fn kill_before_bytes_keeps_quota_until_restart() {
     let (_parent, root) = scratch();
     let limits = HostLimits::try_new(64, 64, 10, 64).unwrap();
     let deploy = Deployment::create(&root, limits, OPERATOR).unwrap();
@@ -662,34 +695,8 @@ async fn kill_at_quota_release_restarts_without_a_second_release() {
         .await
         .unwrap();
     drop(host);
-    let bin = retention_bin();
-    let mut child = Command::new(bin)
-        .arg("reap")
-        .arg("--root")
-        .arg(&root)
-        .arg("--pause-after")
-        .arg("quota_released")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let checkpoint = root.join("checkpoint/reap.txt");
-    let started = Instant::now();
-    loop {
-        if let Ok(text) = std::fs::read_to_string(&checkpoint)
-            && text.contains("phase quota_released\n")
-        {
-            break;
-        }
-        if started.elapsed() > Duration::from_secs(30) {
-            let _ = child.kill();
-            panic!("reaper did not reach quota_released");
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    child.kill().unwrap();
-    let killed = child.wait_with_output().unwrap();
-    assert!(!killed.status.success());
+    let killed = kill_at_checkpoint(&root, "data_deleting");
+    assert_eq!(killed.status.signal(), Some(9));
     let killed_out = String::from_utf8(killed.stdout).unwrap();
     assert!(!killed_out.contains("\"deletion_success\":true"));
     let host = open_host(&deploy);
@@ -704,25 +711,16 @@ async fn kill_at_quota_release_restarts_without_a_second_release() {
         host.completed_quota_release_count(&ctx, &manifest.object_key)
             .await
             .unwrap(),
-        1
+        0
     );
-    let probe_bytes = vec![0x42; 64];
-    let probe_config = upload("probe.txt", &probe_bytes);
-    let probe = host.begin(&ctx, &probe_config).await.unwrap();
-    assert_ne!(probe.session_id.as_str(), manifest.session_id.as_str());
     let second = upload("second.txt", &bytes);
     assert_eq!(
         host.begin(&ctx, &second).await.unwrap_err(),
         FileHostError::Quota
     );
-    host.abort(&ctx, &probe.session_id).await.unwrap();
-    assert_eq!(
-        host.completed_quota_release_count(&ctx, &manifest.object_key)
-            .await
-            .unwrap(),
-        1
-    );
     drop(host);
+    let bin = retention_bin();
+    let checkpoint = root.join("checkpoint/reap.txt");
 
     let resumed = Command::new(bin)
         .arg("reap")
@@ -795,6 +793,113 @@ async fn kill_at_quota_release_restarts_without_a_second_release() {
         .output()
         .unwrap();
     assert_eq!(rejected.status.code(), Some(1));
+    let old_pause = Command::new(bin)
+        .arg("reap")
+        .arg("--root")
+        .arg(&root)
+        .arg("--pause-after")
+        .arg("quota_released")
+        .output()
+        .unwrap();
+    assert_eq!(old_pause.status.code(), Some(1));
+}
+
+#[tokio::test]
+async fn kill_after_bytes_before_quota_releases_once() {
+    let (_parent, root) = scratch();
+    let limits = HostLimits::try_new(64, 64, 10, 64).unwrap();
+    let deploy = Deployment::create(&root, limits, OPERATOR).unwrap();
+    let host = open_host(&deploy);
+    let ctx = admission("project_a", "user_a", "grant-a311");
+    let bytes = vec![0x42; 64];
+    let config = upload("after.txt", &bytes);
+    let manifest = publish_config(&host, &ctx, &config, &bytes).await;
+    deploy
+        .register_published(
+            &host,
+            &ctx,
+            published(&manifest, RetentionClass::SessionOutput, 1, false, 0),
+        )
+        .await
+        .unwrap();
+    let quota = deploy.filehost_dir().join(format!(
+        "meta/quota/{}/{}",
+        manifest.project_id.as_str(),
+        manifest.session_id.as_str()
+    ));
+    drop(host);
+    let killed = kill_at_checkpoint(&root, "data_absent");
+    assert_eq!(killed.status.signal(), Some(9));
+    let killed_out = String::from_utf8(killed.stdout).unwrap();
+    assert!(!killed_out.contains("\"deletion_success\":true"));
+    let host = open_host(&deploy);
+    assert_eq!(
+        host.read_object(&ctx, &manifest.object_key)
+            .await
+            .unwrap_err(),
+        FileHostError::NotFound
+    );
+    assert_eq!(std::fs::read(&quota).unwrap(), b"64");
+    assert_eq!(
+        host.completed_quota_release_count(&ctx, &manifest.object_key)
+            .await
+            .unwrap(),
+        0
+    );
+    let second = upload("second.txt", &bytes);
+    assert_eq!(
+        host.begin(&ctx, &second).await.unwrap_err(),
+        FileHostError::Quota
+    );
+    drop(host);
+    let bin = retention_bin();
+    let resumed = Command::new(bin)
+        .arg("reap")
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert_eq!(resumed.status.code(), Some(0));
+    let stdout = String::from_utf8(resumed.stdout).unwrap();
+    assert!(stdout.contains("\"deletion_success\":true"));
+    assert!(stdout.contains("\"restarted_from_partial\":true"));
+    assert!(stdout.contains("\"parent_complete\":false"));
+    let host = open_host(&deploy);
+    assert!(
+        host.observe_completed_absence(
+            &ctx,
+            &manifest.object_key,
+            manifest.object_digest,
+            manifest.size,
+            manifest.lineage_digest,
+        )
+        .await
+        .unwrap()
+    );
+    assert_eq!(
+        host.completed_quota_release_count(&ctx, &manifest.object_key)
+            .await
+            .unwrap(),
+        1
+    );
+    assert!(!quota.exists());
+    let reused = host.begin(&ctx, &config).await.unwrap();
+    assert_ne!(reused.session_id.as_str(), manifest.session_id.as_str());
+    drop(host);
+    let repeated = Command::new(bin)
+        .arg("reap")
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert_eq!(repeated.status.code(), Some(0));
+    let host = open_host(&deploy);
+    assert_eq!(
+        host.completed_quota_release_count(&ctx, &manifest.object_key)
+            .await
+            .unwrap(),
+        1
+    );
 }
 
 #[tokio::test]
@@ -988,7 +1093,7 @@ async fn completed_open_registration_uses_the_live_manifest() {
 }
 
 #[tokio::test]
-async fn open_abort_keeps_batch_deletion_success_false() {
+async fn open_and_published_reap_verify_absence_parent_stays_open() {
     let (_parent, root) = scratch();
     let deploy = Deployment::create(&root, HostLimits::standard(), OPERATOR).unwrap();
     let host = open_host(&deploy);
@@ -1025,7 +1130,7 @@ async fn open_abort_keeps_batch_deletion_success_false() {
         .reap(&host, Now::Explicit(100 + 30_000), PauseAfter::None)
         .await
         .unwrap();
-    assert!(!report.deletion_success);
+    assert!(report.deletion_success);
     assert!(!report.parent_complete);
     assert!(
         report
@@ -1037,7 +1142,7 @@ async fn open_abort_keeps_batch_deletion_success_false() {
         report
             .outcomes
             .iter()
-            .any(|item| item.status == "aborted_parts_unverified" && !item.deleted)
+            .any(|item| item.status == "aborted" && item.absence_verified && item.deleted)
     );
     assert_eq!(
         host.read_object(&ctx, &manifest.object_key)
@@ -1096,6 +1201,36 @@ fn operator_uuid_is_the_directory_name() {
         Deployment::open(&root).unwrap().root().file_name().unwrap(),
         OPERATOR
     );
+}
+
+fn kill_at_checkpoint(root: &Path, phase: &str) -> std::process::Output {
+    let mut child = Command::new(retention_bin())
+        .arg("reap")
+        .arg("--root")
+        .arg(root)
+        .arg("--pause-after")
+        .arg(phase)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let checkpoint = root.join("checkpoint/reap.txt");
+    let needle = format!("phase {phase}\n");
+    let started = Instant::now();
+    loop {
+        if let Ok(text) = std::fs::read_to_string(&checkpoint)
+            && text.contains(&needle)
+        {
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(30) {
+            let _ = child.kill();
+            panic!("reaper did not reach {phase}");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    child.kill().unwrap();
+    child.wait_with_output().unwrap()
 }
 
 fn retention_bin() -> &'static str {

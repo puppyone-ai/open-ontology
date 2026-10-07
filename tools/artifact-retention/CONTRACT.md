@@ -1,10 +1,12 @@
 # artifact-retention-v1
 
+`FILEHOST-COMPLETION-ADDENDUM.md` supersedes the quota-before-bytes order and the claim that an open abort cannot prove part absence. Platform staging `{owned file}#{n}` is reaped by the host. `deletion_success` is true when every expired row has a real absence proof. `parent_complete` stays false. `--pause-after` is `pre_delete`, `metadata_api`, `data_deleting`, `data_absent`, or `none`.
+
 Contract `oo.artifact-retention/v1`. Crate `artifact-retention`.
 
 This crate keeps a durable inventory of objects a real `oo_control::FileHost` has already issued, and it decides expiry against that inventory. It is not a second object store. It does not invent blobs, manifests, or object versions. It does not close SP05-W06, AT-FILE-05, or AT-SEC-03.
 
-The host API is `oo.control.local-file-hosting/v1`. `abort` of a completed session still returns `Closed` and deletes nothing. Completed-object deletion is `FileHost::delete_completed`, frozen in `FILEHOST-DELETE-CONTRACT.md` before this source change. Public calls used here are `open_local`, `begin`, `put_part`, `complete`, `abort`, `read_manifest`, `read_object`, `open_download`, `delete_completed`, `observe_completed_absence`, and `completed_quota_release_count`. `ObjectDownload` is used through those calls. There is no public list and no public head of an arbitrary key.
+The host API is `oo.control.local-file-hosting/v1`. `abort` of a completed session still returns `Closed` and deletes nothing. Completed-object deletion is `FileHost::delete_completed`, frozen in `FILEHOST-DELETE-CONTRACT.md` before this source change. Public calls used here are `open_local`, `begin`, `put_part`, `complete`, `abort`, `read_manifest`, `read_object`, `open_download`, `delete_completed`, `observe_completed_absence`, `observe_open_absence`, and `completed_quota_release_count`. `ObjectDownload` is used through those calls. There is no public list and no public head of an arbitrary key.
 
 ## Deployment
 
@@ -61,20 +63,18 @@ Observation uses `open_download` and bounded `next_chunk` reads. The running has
 
 Published rows call `delete_completed` under the host lock. The order, the tombstone, the single quota release, and `observe_completed_absence` are in `FILEHOST-DELETE-CONTRACT.md`. This crate does not unlink store files and does not edit quota files. `FileHost::new` has no deployment lock. This crate does not use it to delete.
 
-- An open session that is still open uses `abort`. That may remove the session row, the quota reservation, the idempotency pointer, and the part objects the host itself tracks. `dest#N` staging is outside that call. There is no public API that proves those open-upload parts are gone. Status is `aborted_parts_unverified`. Success is false.
+- An open session that is still open uses `abort`, then `observe_open_absence`. Success requires `abort` `Ok` or a later `NotFound` together with `observe_open_absence` `Ok(true)`. Status is `aborted`. The host reaps platform staging. A literal `dest#1`, `notes`, and files outside the deployment stay.
 - An open registration whose object is already a completed manifest uses the live manifest's lineage and the same completed-object delete. The inventory lineage `absent` is not invented into a digest.
-- A published row succeeds only when the second `delete_completed` returns `Ok(Some)`, `observe_completed_absence` returns `Ok(true)`, and `completed_quota_release_count` is `1`. Status is `deleted`.
+- A published row succeeds only when `delete_completed` returns `Ok(Some)`, `observe_completed_absence` returns `Ok(true)`, and `completed_quota_release_count` is `1`. Status is `deleted`. The quota key stays until that absence is durable.
 
-`deletion_success` is true only when every expired row reached that published success. One open abort in the batch keeps it false. `parent_complete` is always false, including when `deletion_success` is true. An idle reap, with nothing expired, has `deletion_success` false and `idle` true.
+`deletion_success` is true only when every expired row reached one of those two proofs. `parent_complete` is always false, including when `deletion_success` is true. An idle reap, with nothing expired, has `deletion_success` false and `idle` true.
 
-A checkpoint left at `pre_delete`, `metadata_api_calling`, `metadata_api_done`, or `quota_released` makes the next reap `restarted_from_partial`. The checkpoint file keeps `absence_verified false` and `deletion_success false`. It is a cursor, not a receipt. Restart calls the host again. The tombstone decides the phase. Quota release stays one.
+A checkpoint left at `pre_delete`, `metadata_api_calling`, `metadata_api_done`, `data_deleting`, `data_absent`, or a legacy `quota_released` makes the next reap `restarted_from_partial`. The checkpoint file keeps `absence_verified false` and `deletion_success false`. It is a cursor, not a receipt. Restart calls the host again. The tombstone decides the phase. Quota release stays one. `data_deleting` returns before `delete_completed`. `data_absent` returns while the reservation is still held.
 
 ## Explicitly unsupported
 
 | Seam | Why |
 |---|---|
-| `filehost_part_absence_observation` | Open `abort` still cannot prove part absence. Five-digit parts of a verified completed delete are covered by `observe_completed_absence`. That does not retire this seam. |
-| `filehost_dest_staging_reap` | `dest#N` leftovers are outside the delete call. |
 | `filehost_object_version` | The receipt has no version. An empty local version is not recorded and is not compared. |
 | `filehost_admission_role_and_policy` | The host delete checks project, principal, and grant. Role and policy stay on the inventory row. |
 | `gateway_authenticated_url_revocation` | No HTTP transport and no authenticated download URL. |
@@ -85,7 +85,7 @@ A checkpoint left at `pre_delete`, `metadata_api_calling`, `metadata_api_done`, 
 
 ## CLI
 
-`artifact-retention reap --root <operator-uuid-dir> [--pause-after pre_delete|metadata_api|quota_released|none]`
+`artifact-retention reap --root <operator-uuid-dir> [--pause-after pre_delete|metadata_api|data_deleting|data_absent|none]`
 
 The root's final component must match `owner.txt`. There is no clock flag. Exit 0 means idle or `deletion_success`. Exit 2 means a reap ran and deletion is not verified. Exit 75 means the process is waiting at a checkpoint and has not printed success. Exit 1 is a bad root, a corrupt inventory, or a bad argument. The process prints one JSON object. `parent_complete` in that object is false. It does not print a bearer URL. Exit 0 is not parent acceptance.
 

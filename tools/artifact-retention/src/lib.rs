@@ -32,12 +32,11 @@ pub const DOWNLOAD_PERMIT_TTL_CAP_SECONDS: u64 = 5 * 60;
 
 /// Host and gateway work this crate does not pretend to finish.
 ///
-/// Completed-object delete and its one quota release are implemented.
+/// Completed-object delete releases quota only after the bytes are absent.
+/// Open abort can prove part absence, and the host reaps platform staging.
 /// The names below are still open.
 pub fn required_integration() -> &'static [&'static str] {
     &[
-        "filehost_part_absence_observation",
-        "filehost_dest_staging_reap",
         "filehost_object_version",
         "filehost_admission_role_and_policy",
         "gateway_authenticated_url_revocation",

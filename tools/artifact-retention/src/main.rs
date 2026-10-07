@@ -77,7 +77,8 @@ fn parse(args: &[String]) -> Result<Parsed, artifact_retention::Error> {
                 pause = match value.as_str() {
                     "pre_delete" => PauseAfter::PreDelete,
                     "metadata_api" => PauseAfter::MetadataApi,
-                    "quota_released" => PauseAfter::QuotaReleased,
+                    "data_deleting" => PauseAfter::DataDeleting,
+                    "data_absent" => PauseAfter::DataAbsent,
                     "none" => PauseAfter::None,
                     _ => return Err(artifact_retention::Error::Admission),
                 };

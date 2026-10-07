@@ -14,7 +14,8 @@ pub enum PauseAfter {
     None,
     PreDelete,
     MetadataApi,
-    QuotaReleased,
+    DataDeleting,
+    DataAbsent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,6 +59,8 @@ impl Deployment {
                 | Some("metadata_api_calling")
                 | Some("metadata_api_done")
                 | Some("quota_released")
+                | Some("data_deleting")
+                | Some("data_absent")
         );
         let now_ms = resolve_now(now)?;
         let rows = inventory::load(self)?;
@@ -231,31 +234,32 @@ async fn finish_abort(
     host: &FileHost,
     row: &Registration,
     ctx: &AdmissionContext,
-    key: &ObjectKey,
+    _key: &ObjectKey,
     abort: Result<(), FileHostError>,
 ) -> Result<Step, Error> {
-    let after = observe(host, ctx, key).await;
-    let after_label = seen_label(&after);
+    let session = SessionId::parse(&row.session_id).map_err(|_| Error::Corrupt)?;
     match abort {
-        Ok(()) => {
-            inventory::set_state(deploy, &row.registration_id, RowState::AbortAttempted)?;
-            Ok(Step {
-                outcome: outcome(
-                    row,
-                    "aborted_parts_unverified",
-                    "filehost_part_absence_observation",
-                    after_label,
-                ),
-                paused: false,
-            })
+        Ok(()) | Err(FileHostError::NotFound) => {
+            match host.observe_open_absence(ctx, &session).await {
+                Ok(true) => {
+                    inventory::set_state(deploy, &row.registration_id, RowState::AbortAttempted)?;
+                    Ok(Step {
+                        outcome: aborted_outcome(row),
+                        paused: false,
+                    })
+                }
+                Ok(false) | Err(FileHostError::NotFound) => Ok(Step {
+                    outcome: outcome(row, "aborted_parts_unverified", "none", "not_found"),
+                    paused: false,
+                }),
+                Err(error) => Ok(Step {
+                    outcome: host_failure(row, error),
+                    paused: false,
+                }),
+            }
         }
-        Err(FileHostError::NotFound | FileHostError::Closed) => Ok(Step {
-            outcome: outcome(
-                row,
-                "aborted_parts_unverified",
-                "filehost_part_absence_observation",
-                after_label,
-            ),
+        Err(FileHostError::Closed) => Ok(Step {
+            outcome: outcome(row, "aborted_parts_unverified", "none", "not_found"),
             paused: false,
         }),
         Err(error) => Ok(Step {
@@ -275,16 +279,23 @@ async fn delete_published(
     pause: PauseAfter,
 ) -> Result<Step, Error> {
     deploy::write_checkpoint(deploy, "metadata_api_calling", &row.registration_id)?;
+    deploy::write_checkpoint(deploy, "metadata_api_done", &row.registration_id)?;
+    if pause == PauseAfter::DataDeleting {
+        deploy::write_checkpoint(deploy, "data_deleting", &row.registration_id)?;
+        return Ok(Step {
+            outcome: outcome(row, "paused_before_bytes", "none", "found"),
+            paused: true,
+        });
+    }
     let stopped = host
         .delete_completed(ctx, key, target.digest, target.size, target.lineage, true)
         .await;
-    deploy::write_checkpoint(deploy, "metadata_api_done", &row.registration_id)?;
     match stopped {
         Ok(None) => {
-            deploy::write_checkpoint(deploy, "quota_released", &row.registration_id)?;
-            if pause == PauseAfter::QuotaReleased {
+            deploy::write_checkpoint(deploy, "data_absent", &row.registration_id)?;
+            if pause == PauseAfter::DataAbsent {
                 return Ok(Step {
-                    outcome: outcome(row, "paused_after_quota_release", "none", "found"),
+                    outcome: outcome(row, "paused_after_data_absent", "none", "not_found"),
                     paused: true,
                 });
             }
@@ -354,7 +365,7 @@ async fn held_absence(
         Err(FileHostError::NotFound) => Ok(Held::Stop(outcome(
             row,
             "observed_not_found_unverified",
-            "filehost_part_absence_observation",
+            "none",
             "not_found",
         ))),
         Err(error) => Ok(Held::Stop(host_failure(row, error))),
@@ -385,8 +396,18 @@ fn decode_digest(hex_text: &str) -> Result<[u8; 32], Error> {
 fn abort_seam(abort: &Result<(), FileHostError>) -> &'static str {
     match abort {
         Err(FileHostError::Closed) => "filehost_completed_object_delete",
-        Ok(()) | Err(FileHostError::NotFound) => "filehost_part_absence_observation",
         _ => "none",
+    }
+}
+
+fn aborted_outcome(row: &Registration) -> ObjectOutcome {
+    ObjectOutcome {
+        registration_id: row.registration_id.clone(),
+        status: "aborted",
+        seam: "none",
+        filehost_after: "absent",
+        absence_verified: true,
+        deleted: true,
     }
 }
 
