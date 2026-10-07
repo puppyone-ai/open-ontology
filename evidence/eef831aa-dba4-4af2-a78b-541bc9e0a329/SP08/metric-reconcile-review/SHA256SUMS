@@ -260,6 +260,7 @@ d448269a7392589fbe1387261bc2937c1a19a53369b11664141e6dea76b9d5c6  ./pg/server-sa
 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./pg/up.exit
 b7de72f8f309e2f05d441df561158cf3dbef99fd29641beec861ece091b6c555  ./pg/up.sh
 0b9780937562ae91c540ed7b40dd8c198253a09bdb6399ca305e1b9ca44826df  ./pg/volume-data.txt
+a29870e1ccc0524ec84ab1c10e6810dadc01426c94fa815bee5980720a884cdd  ./source/SHA256SUMS
 7d2ea612403a091339ae10369790b45875a855470596b40ebb4d162e52f3020c  ./source/blobs/tools/metric-reconcile/CONTRACT.md
 59599e433b3c025a0ec739989c0f9df74eebcc2f6cb9f9a96892523a10048948  ./source/blobs/tools/metric-reconcile/Cargo.lock
 8295f6fd45f259493a81116d733387983c690c579f96233c845d951355dbf47c  ./source/blobs/tools/metric-reconcile/Cargo.toml
