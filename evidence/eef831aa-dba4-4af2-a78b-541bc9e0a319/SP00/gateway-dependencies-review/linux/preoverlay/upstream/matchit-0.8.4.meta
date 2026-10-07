@@ -1,0 +1,12 @@
+name=matchit
+version=0.8.4
+yanked=false
+license=MIT AND BSD-3-Clause
+rust_version=undeclared
+checksum=47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3
+created_at=2024-07-11T07:22:03.735375Z
+age_seconds=70608325
+age_ok=pass
+msrv_ok=pass
+sha_ok=pass
+pin=matchit 0.8.4 2024-07-11T07:22:03.735375Z 47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3 MIT AND BSD-3-Clause

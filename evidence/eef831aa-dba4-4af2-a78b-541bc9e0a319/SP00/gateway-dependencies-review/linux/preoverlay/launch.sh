@@ -3,17 +3,19 @@
 set -u
 SRC=/Users/redux/puppy-one/open-ontology
 BASE=${SRC}/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a319/SP00/gateway-dependencies-review
-EVIDENCE=${BASE}/linux/preoverlay
-ROOT=/tmp/oo-a319-eef831aa-dba4-4af2-a78b-541bc9e0a319/preoverlay
+HARNESS=${BASE}/linux/preoverlay
+ATTEMPT_NAME=${ATTEMPT:-preoverlay}
+EVIDENCE=${BASE}/linux/${ATTEMPT_NAME}
+ROOT=/tmp/oo-a319-eef831aa-dba4-4af2-a78b-541bc9e0a319/${ATTEMPT_NAME}
 FIXED=52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96
 IMAGE=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-NAME=oo-a319-preoverlay
+NAME=${NAME:-oo-a319-preoverlay}
 NET=oo-a319-eef831aa-net
 CARGO_VOL=oo-a319-eef831aa-cargo
 TARGET_VOL=oo-a319-eef831aa-target
 PROBE=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a313/SP00/gateway-dependencies/probe
 
-chmod 755 "$EVIDENCE/inside.sh" "$EVIDENCE/launch.sh"
+chmod 755 "$HARNESS/inside.sh" "$HARNESS/launch.sh"
 if [ -f "$EVIDENCE/console.log" ]; then
   echo "refusing to overwrite preoverlay console.log" >&2
   exit 2
@@ -101,7 +103,7 @@ docker run --name "$NAME" \
   -e RUSTUP_TOOLCHAIN=1.94.0 \
   -e CARGO_TERM_COLOR=never \
   --mount "type=bind,source=${ROOT}/archive,target=/src,readonly" \
-  --mount "type=bind,source=${EVIDENCE}/inside.sh,target=/inside.sh,readonly" \
+  --mount "type=bind,source=${HARNESS}/inside.sh,target=/inside.sh,readonly" \
   --mount "type=bind,source=${BASE}/tools,target=/tools,readonly" \
   --mount "type=bind,source=${BASE}/source/blobs,target=/blobs,readonly" \
   --mount "type=bind,source=${EVIDENCE},target=/evidence" \

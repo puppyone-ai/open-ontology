@@ -1,0 +1,5 @@
+manifest=pass
+name=tower-http
+version=0.6.11
+license=MIT
+rust_version=1.64

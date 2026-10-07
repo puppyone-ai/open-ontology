@@ -1,0 +1,5 @@
+name=tower-http
+max_stable_version=0.7.1
+newest_num=0.7.1
+newest_created_at=2026-08-31T14:49:25.697237Z
+newest_yanked=false

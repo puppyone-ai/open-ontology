@@ -1,0 +1,5 @@
+manifest=pass
+name=matchit
+version=0.8.4
+license=MIT AND BSD-3-Clause
+rust_version=undeclared

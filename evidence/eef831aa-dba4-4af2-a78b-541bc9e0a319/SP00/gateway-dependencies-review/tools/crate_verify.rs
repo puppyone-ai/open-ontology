@@ -739,12 +739,33 @@ fn edge_report(root: &[Pkg], probe: &[Pkg], pins: &BTreeMap<String, Pin>) -> Res
         }
     }
     let mut added = Vec::new();
+    let mut local = Vec::new();
     for (key, pkg) in &probe_map {
-        if !root_map.contains_key(key) {
+        if root_map.contains_key(key) {
+            continue;
+        }
+        if pkg.source.starts_with("registry+") {
             added.push(pkg.clone());
+        } else if pkg.source.is_empty() && pkg.checksum.is_empty() {
+            local.push(pkg.clone());
+        } else {
+            return Err(format!(
+                "added {} {} has unexpected source {}",
+                pkg.name, pkg.version, pkg.source
+            ));
         }
     }
     added.sort();
+    local.sort();
+    if local.len() != 1
+        || local[0].name != "oo-gateway-http-baseline-probe"
+        || local[0].version != "0.0.0"
+    {
+        return Err(format!(
+            "probe lock local packages are not only the baseline probe ({})",
+            local.len()
+        ));
+    }
     if added.len() != pins.len() {
         return Err(format!("probe adds {} packages, pins {}", added.len(), pins.len()));
     }
@@ -1329,7 +1350,7 @@ fn selfcheck() -> Result<(), String> {
         return Err("denylist mismatch".to_owned());
     }
     let root = "version = 4\n\n[[package]]\nname = \"hyper\"\nversion = \"1.11.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\ndependencies = [\n \"h2\",\n]\n\n[[package]]\nname = \"kept\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"\n";
-    let probe = "version = 4\n\n[[package]]\nname = \"hyper\"\nversion = \"1.11.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\ndependencies = [\n \"httpdate\",\n]\n\n[[package]]\nname = \"httpdate\"\nversion = \"1.0.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"\n";
+    let probe = "version = 4\n\n[[package]]\nname = \"hyper\"\nversion = \"1.11.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\ndependencies = [\n \"httpdate\",\n]\n\n[[package]]\nname = \"httpdate\"\nversion = \"1.0.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"\n\n[[package]]\nname = \"oo-gateway-http-baseline-probe\"\nversion = \"0.0.0\"\n";
     let pins = parse_pins(
         "httpdate 1.0.3 2023-08-13T10:55:54.391658Z cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc MIT OR Apache-2.0\n",
     )?;
@@ -1345,6 +1366,10 @@ fn selfcheck() -> Result<(), String> {
     )?;
     if edge_report(&parse_packages(root)?, &parse_packages(probe)?, &bad_pins).is_ok() {
         return Err("wrong pin set passed the edge gate".to_owned());
+    }
+    let extra_local = format!("{probe}\n[[package]]\nname = \"other-local\"\nversion = \"0.0.0\"\n");
+    if edge_report(&parse_packages(root)?, &parse_packages(&extra_local)?, &pins).is_ok() {
+        return Err("an extra path package passed the edge gate".to_owned());
     }
     let stdout = "added=1\nhttpdate 1.0.3 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\nchanged=0\ndenied=0\nsubset=pass\n";
     let pin_text = "httpdate 1.0.3 2023-08-13T10:55:54.391658Z cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc MIT OR Apache-2.0\n";
