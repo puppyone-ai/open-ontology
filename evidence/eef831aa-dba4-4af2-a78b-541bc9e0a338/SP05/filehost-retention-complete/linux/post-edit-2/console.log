@@ -1,0 +1,195 @@
+oo_task=sp05-filehost-retention-complete-postedit2
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=none
+lock_policy=prebuilt child lock must stay a checksum subset; no rewrite
+Linux 3857a9a9058a 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+RUSTUP_TOOLCHAIN=1.94.0
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+lock_method=prebuilt-locked
+=== cargo fetch root --locked ===
+phase_exit=0 phase=cargo_fetch_root
+=== cargo fetch child --locked ===
+phase_exit=0 phase=cargo_fetch_child
+=== confirm locked metadata ===
+phase_exit=0 phase=cargo_metadata_final_locked
+=== rustfmt owned sources --check ===
+phase_exit=0 phase=cargo_fmt_check
+=== cargo test file_hosting ===
+   Compiling oo-control v0.1.0 (/src/crates/oo-control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running tests/file_hosting.rs (/target/debug/deps/file_hosting-4cdf33a8565e19e6)
+
+running 16 tests
+test abort_releases_quota_and_leaves_foreign_bytes ... ok
+test checksum_and_size_failure_leave_no_visible_object ... ok
+test concurrent_complete_and_part_keep_one_object ... ok
+test concurrent_quota_two_hosts_and_child ... ok
+test conflicting_part_and_config_do_not_overwrite ... ok
+test download_deadline_does_not_start_bytes_after_held_get ... ok
+test download_eof_rejects_flipped_bytes_and_keeps_a_clean_object ... ok
+test download_pull_memory_is_bounded ... download_bytes=8388608
+object_key=uploads/52029af1f2263f17866623f926c0bc5c/e474a45740e5efac02e9f7e0626b3f86111b293f8363e477786dfad64e98df3b/original
+download_sha256=e474a45740e5efac02e9f7e0626b3f86111b293f8363e477786dfad64e98df3b
+pattern_sha256=e474a45740e5efac02e9f7e0626b3f86111b293f8363e477786dfad64e98df3b
+file_sha256=e474a45740e5efac02e9f7e0626b3f86111b293f8363e477786dfad64e98df3b
+download_hwm_before_kib=5460
+download_hwm_after_kib=5536
+download_hwm_delta_bytes=77824
+download_rss_before_kib=5460
+download_rss_after_kib=5536
+download_vmpeak_before_kib=210948
+download_vmpeak_after_kib=210948
+download_threads_before=3
+download_threads_after=3
+download_chunk_max=8192
+download_pulled=8388608
+download_complete=1
+caller_retained_chunks=1
+fixture_object_vec=0
+download_ok=1
+
+download_bytes=33554432
+object_key=uploads/573d7e57f7fbaef9dbf217c7dfd56270/edeadec8f638055689d5be63b4bcf2654fb64bf91fb6651e9a924f052a9c7db0/original
+download_sha256=edeadec8f638055689d5be63b4bcf2654fb64bf91fb6651e9a924f052a9c7db0
+pattern_sha256=edeadec8f638055689d5be63b4bcf2654fb64bf91fb6651e9a924f052a9c7db0
+file_sha256=edeadec8f638055689d5be63b4bcf2654fb64bf91fb6651e9a924f052a9c7db0
+download_hwm_before_kib=5468
+download_hwm_after_kib=5560
+download_hwm_delta_bytes=94208
+download_rss_before_kib=5468
+download_rss_after_kib=5560
+download_vmpeak_before_kib=210948
+download_vmpeak_after_kib=210948
+download_threads_before=3
+download_threads_after=4
+download_chunk_max=8192
+download_pulled=33554432
+download_complete=1
+caller_retained_chunks=1
+fixture_object_vec=0
+download_ok=1
+
+ok
+test download_pull_refuses_other_context_and_altered_bytes ... ok
+test download_pull_verifies_identity_without_an_object_buffer ... ok
+test download_regressions_deadline_cancel_manifest_truncate_quota ... ok
+test generic_store_refuses_before_any_write ... ok
+test limits_and_names_are_refused_before_write ... ok
+test multipart_reopen_reads_manifest_and_lineage ... ok
+test streaming_complete_memory_is_bounded ... memory_bytes=8388608
+memory_hwm_before_kib=5312
+memory_hwm_after_kib=5424
+memory_hwm_delta_bytes=114688
+memory_rss_before_kib=5312
+memory_rss_after_kib=5424
+memory_vmpeak_before_kib=208796
+memory_vmpeak_after_kib=210948
+memory_vmpeak_delta_bytes=2203648
+memory_threads_before=3
+memory_threads_after=3
+write_chunk=8192
+part_gone=true
+object_sha_match=1
+memory_ok=1
+
+memory_bytes=33554432
+memory_hwm_before_kib=5292
+memory_hwm_after_kib=5428
+memory_hwm_delta_bytes=139264
+memory_rss_before_kib=5292
+memory_rss_after_kib=5428
+memory_vmpeak_before_kib=208796
+memory_vmpeak_after_kib=210948
+memory_vmpeak_delta_bytes=2203648
+memory_threads_before=3
+memory_threads_after=4
+write_chunk=8192
+part_gone=true
+object_sha_match=1
+memory_ok=1
+
+ok
+test two_contexts_deny_a_known_key ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.90s
+
+phase_exit=0 phase=file_hosting_test
+=== cargo test oo-control lib (delete_without_lock and retention_completion) ===
+   Compiling oo-control v0.1.0 (/src/crates/oo-control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (/target/debug/deps/oo_control-35878a9641e64c9c)
+
+running 6 tests
+test file_hosting::delete_without_lock::new_returns_unsupported_before_store_io ... ok
+test file_hosting::retention_completion::abort_reaps_platform_multipart_staging ... ok
+test file_hosting::retention_completion::legacy_quota_released_reconciles_without_a_second_release ... ok
+test file_hosting::retention_completion::mismatched_quota_body_writes_nothing ... ok
+test file_hosting::retention_completion::quota_stays_until_bytes_are_absent ... ok
+test file_hosting::retention_completion::symlink_staging_keeps_the_quota_and_writes_no_tombstone ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+phase_exit=0 phase=oo_control_lib
+=== cargo clippy oo-control ===
+    Checking oo-control v0.1.0 (/src/crates/oo-control)
+error: this `if` statement can be collapsed
+    --> crates/oo-control/src/file_hosting.rs:1970:9
+     |
+1970 | /         if let Some(record) = &session {
+1971 | |             if record.expected_size != receipt.expected_size
+1972 | |                 || record.expected_sha256 != receipt.expected_digest
+1973 | |                 || record.object_key != receipt.object_key
+...    |
+1980 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+     = note: `-D clippy::collapsible-if` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+     |
+1970 ~         if let Some(record) = &session
+1971 ~             && (record.expected_size != receipt.expected_size
+1972 |                 || record.expected_sha256 != receipt.expected_digest
+ ...
+1975 |                 || record.principal_id != receipt.principal
+1976 ~                 || record.grant_evidence != receipt.grant)
+1977 |             {
+1978 |                 return Err(FileHostError::Conflict);
+1979 ~             }
+     |
+
+error: could not compile `oo-control` (lib) due to 1 previous error
+phase_exit=101 phase=oo_control_clippy

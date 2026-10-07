@@ -1,0 +1,37 @@
+date=2026-10-07T15:08:44Z
+---containers-before---
+---volumes-before---
+DRIVER    VOLUME NAME
+local     oo-a338-eef831aa-cargo
+local     oo-a338-eef831aa-target
+---network-before---
+NETWORK ID     NAME                   DRIVER    SCOPE
+bdf5f38e3255   oo-a338-eef831aa-net   bridge    local
+---tmp-before---
+/tmp/oo-a338-FILEHOST-COMPLETION-ADDENDUM.md
+/tmp/oo-a338-cleanup-log.txt
+/tmp/oo-a338-commit-addendum.txt
+[1m[36m/tmp/oo-a338-eef831aa-dba4-4af2-a78b-541bc9e0a338[39;49m[0m
+/tmp/oo-a338-old-live.rs
+---rm-network---
+oo-a338-eef831aa-net
+---rm-volumes---
+oo-a338-eef831aa-cargo
+oo-a338-eef831aa-target
+---rm-tmp---
+---after---
+DRIVER    VOLUME NAME
+NETWORK ID   NAME      DRIVER    SCOPE
+/tmp/oo-a338-FILEHOST-COMPLETION-ADDENDUM.md
+/tmp/oo-a338-cleanup-log.txt
+/tmp/oo-a338-commit-addendum.txt
+---foreign-left---
+oo-a337-pg
+---own-scratch---
+/tmp/oo-a338-FILEHOST-COMPLETION-ADDENDUM.md
+/tmp/oo-a338-commit-addendum.txt
+---scratch-after---
+tmp_oo_a338_clear
+---confirm-gone---
+DRIVER    VOLUME NAME
+NETWORK ID   NAME      DRIVER    SCOPE
