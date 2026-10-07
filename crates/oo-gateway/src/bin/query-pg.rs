@@ -759,10 +759,19 @@ fn read_regular(path: &Path, max: usize) -> Result<Vec<u8>, Fail> {
 }
 
 fn reject_null(value: &Value) -> Result<(), Fail> {
+    reject_null_in(value, "")
+}
+
+/// `row_filter: null` is the absent filter reviewed-policy emits. Every other
+/// null stays a request failure.
+fn reject_null_in(value: &Value, key: &str) -> Result<(), Fail> {
     match value {
+        Value::Null if key == "row_filter" => Ok(()),
         Value::Null => Err(Fail::Request),
-        Value::Array(items) => items.iter().try_for_each(reject_null),
-        Value::Object(map) => map.values().try_for_each(reject_null),
+        Value::Array(items) => items.iter().try_for_each(|item| reject_null_in(item, "")),
+        Value::Object(map) => map
+            .iter()
+            .try_for_each(|(field, item)| reject_null_in(item, field)),
         Value::Bool(_) | Value::Number(_) | Value::String(_) => Ok(()),
     }
 }
@@ -1094,7 +1103,18 @@ mod tests {
     use oo_core::ExactDecimal;
     use oo_gateway::query_executor::Cell;
 
-    use super::out_cell;
+    use super::{out_cell, reject_null};
+
+    #[test]
+    fn absent_row_filter_null_is_optional() {
+        let policy = serde_json::json!({
+            "row_filter": null,
+            "table": {"name": "entry"}
+        });
+        assert!(reject_null(&policy).is_ok());
+        let missing_name = serde_json::json!({"table": {"name": null}});
+        assert!(reject_null(&missing_name).is_err());
+    }
 
     #[test]
     fn decimal_json_is_exact_and_existing_kinds_stay() {
