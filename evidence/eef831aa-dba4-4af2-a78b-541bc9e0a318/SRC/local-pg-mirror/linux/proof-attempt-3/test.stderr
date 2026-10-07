@@ -1,0 +1,281 @@
+   Compiling sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-core v0.1.0 (/work/src/crates/oo-core)
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+   Compiling oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+   Compiling oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+   Compiling local-pg-mirror v0.1.0 (/work/src/tools/local-pg-mirror)
+error[E0308]: mismatched types
+   --> src/main.rs:24:36
+    |
+ 24 |             let config_path = path(&mut args)?;
+    |                               ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                               |
+    |                               arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:25:34
+    |
+ 25 |             let plan_path = path(&mut args)?;
+    |                             ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                             |
+    |                             arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:26:40
+    |
+ 26 |             let source_password = path(&mut args)?;
+    |                                   ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                   |
+    |                                   arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:27:34
+    |
+ 27 |             let source_ca = path(&mut args)?;
+    |                             ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                             |
+    |                             arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:41:34
+    |
+ 41 |             let plan_path = path(&mut args)?;
+    |                             ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                             |
+    |                             arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:42:40
+    |
+ 42 |             let source_password = path(&mut args)?;
+    |                                   ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                   |
+    |                                   arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:43:34
+    |
+ 43 |             let source_ca = path(&mut args)?;
+    |                             ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                             |
+    |                             arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:44:39
+    |
+ 44 |             let admin_password = path(&mut args)?;
+    |                                  ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                  |
+    |                                  arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:45:41
+    |
+ 45 |             let runtime_password = path(&mut args)?;
+    |                                    ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                    |
+    |                                    arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:46:38
+    |
+ 46 |             let manifest_path = path(&mut args)?;
+    |                                 ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                 |
+    |                                 arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:47:43
+    |
+ 47 |             let target_config_path = path(&mut args)?;
+    |                                      ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                      |
+    |                                      arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:48:34
+    |
+ 48 |             let target_ca = path(&mut args)?;
+    |                             ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                             |
+    |                             arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:85:38
+    |
+ 85 |             let target_config = path(&mut args)?;
+    |                                 ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                 |
+    |                                 arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:86:33
+    |
+ 86 |             let manifest = path(&mut args)?;
+    |                            ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                            |
+    |                            arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:87:40
+    |
+ 87 |             let reader_password = path(&mut args)?;
+    |                                   ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                                   |
+    |                                   arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+error[E0308]: mismatched types
+   --> src/main.rs:88:27
+    |
+ 88 |             let ca = path(&mut args)?;
+    |                      ---- ^^^^^^^^^ expected `&mut Args`, found `&mut Skip<Args>`
+    |                      |
+    |                      arguments to this function are incorrect
+    |
+    = note: expected mutable reference `&mut Args`
+               found mutable reference `&mut std::iter::Skip<Args>`
+note: function defined here
+   --> src/main.rs:106:4
+    |
+106 | fn path(args: &mut std::env::Args) -> Result<PathBuf, MirrorError> {
+    |    ^^^^ -------------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `local-pg-mirror` (bin "local-pg-mirror" test) due to 16 previous errors

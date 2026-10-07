@@ -1,0 +1,37 @@
+   Compiling sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-core v0.1.0 (/work/src/crates/oo-core)
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+   Compiling oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+   Compiling oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+   Compiling local-pg-mirror v0.1.0 (/work/src/tools/local-pg-mirror)
+warning: unused import: `Connection`
+  --> tests/live.rs:13:28
+   |
+13 | use sqlx::{ConnectOptions, Connection};
+   |                            ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `local-pg-mirror` (test "live") generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 16.39s
+     Running unittests src/lib.rs (/target/tool/debug/deps/local_pg_mirror-08859300a5a822bb)
+     Running unittests src/main.rs (/target/tool/debug/deps/local_pg_mirror-ac18a16f07e98883)
+     Running tests/contract.rs (/target/tool/debug/deps/contract-cf29d55685a2c476)
+error: test failed, to rerun pass `--test contract`

@@ -1,0 +1,9 @@
+volume /var/lib/docker/volumes/oo-a318-eef831aa-target/_data /target rw=true
+bind /tmp/oo-a318-eef831aa-dba4-4af2-a78b-541bc9e0a318/proof-5/archive /fixed rw=false
+bind /Users/redux/puppy-one/open-ontology/tools/local-pg-mirror /overlay rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a318/SRC/local-pg-mirror/linux/proof-5/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a318/SRC/local-pg-mirror/linux/proof-5/lock_subset.rs /lock_subset.rs rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a318/SRC/local-pg-mirror/linux/proof-5 /evidence rw=true
+bind /tmp/oo-a318-eef831aa-dba4-4af2-a78b-541bc9e0a318/secrets /secrets rw=false
+volume /var/lib/docker/volumes/oo-a318-eef831aa-cargo/_data /cargo rw=true
+

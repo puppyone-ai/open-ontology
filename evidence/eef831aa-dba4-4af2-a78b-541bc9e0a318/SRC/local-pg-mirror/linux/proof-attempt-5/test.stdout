@@ -1,0 +1,52 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+test closed_budget_edges ... ok
+test forbidden_key_stays_off_the_output ... FAILED
+test generation_changes_the_plan_hash ... ok
+test missing_secret_is_not_a_connect ... FAILED
+test mysql_is_unsupported_before_credentials ... FAILED
+test over_budget_is_refused_before_credentials ... FAILED
+test tamper_does_not_read_a_secret ... ok
+
+failures:
+
+---- forbidden_key_stays_off_the_output stdout ----
+
+thread 'forbidden_key_stays_off_the_output' (298) panicked at tests/contract.rs:229:81:
+binary
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- missing_secret_is_not_a_connect stdout ----
+
+thread 'missing_secret_is_not_a_connect' (300) panicked at tests/contract.rs:229:81:
+binary
+
+---- mysql_is_unsupported_before_credentials stdout ----
+
+thread 'mysql_is_unsupported_before_credentials' (301) panicked at tests/contract.rs:229:81:
+binary
+
+---- over_budget_is_refused_before_credentials stdout ----
+
+thread 'over_budget_is_refused_before_credentials' (302) panicked at tests/contract.rs:229:81:
+binary
+
+
+failures:
+    forbidden_key_stays_off_the_output
+    missing_secret_is_not_a_connect
+    mysql_is_unsupported_before_credentials
+    over_budget_is_refused_before_credentials
+
+test result: FAILED. 3 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
