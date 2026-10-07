@@ -8,7 +8,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Notify};
 
+use crate::token::Boundary;
 use crate::{https_once, load_identity, serve_on, Fault, Limits};
+
+const CLIENT_TOKEN: &str = "synthetic-client-token-abcdefghijklmn";
+const UPSTREAM_TOKEN: &str = "upstream-demo-token";
 
 #[derive(Clone)]
 enum Script {
@@ -16,6 +20,7 @@ enum Script {
     Status(u16),
     Hold,
     Big,
+    Raw(&'static str, u16, &'static [u8]),
 }
 
 struct Fixture {
@@ -99,10 +104,15 @@ async fn one_hit(
         Script::Status(_) => Vec::new(),
         Script::Hold => br#"{"data":[]}"#.to_vec(),
         Script::Big => vec![b'x'; 128],
+        Script::Raw(_, _, body) => body.to_vec(),
     };
     let status = match &script {
-        Script::Status(status) => *status,
+        Script::Status(status) | Script::Raw(_, status, _) => *status,
         _ => 200,
+    };
+    let content_type = match &script {
+        Script::Raw(content_type, _, _) => *content_type,
+        _ => "application/json",
     };
     let header = if matches!(&script, Script::Status(302)) {
         format!(
@@ -111,7 +121,7 @@ async fn one_hit(
     } else {
         let len = body.len();
         format!(
-            "HTTP/1.1 {status} OK\r\ncontent-type: application/json\r\ncontent-length: {len}\r\nconnection: close\r\n\r\n"
+            "HTTP/1.1 {status} OK\r\ncontent-type: {content_type}\r\ncontent-length: {len}\r\nconnection: close\r\n\r\n"
         )
     };
     let mut bytes = header.into_bytes();
@@ -208,8 +218,12 @@ impl Relay {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("relay bind");
         let port = listener.local_addr().expect("addr").port();
         let upstream = SocketAddr::from(([127, 0, 0, 1], upstream));
+        let boundary = Boundary {
+            client_authorization: format!("Bearer {CLIENT_TOKEN}"),
+            upstream_authorization: format!("Bearer {UPSTREAM_TOKEN}"),
+        };
         let task = tokio::spawn(async move {
-            let _ = serve_on(listener, upstream, identity, limits).await;
+            let _ = serve_on(listener, upstream, identity, boundary, limits).await;
         });
         Self { port, cert: ca, task }
     }
@@ -246,18 +260,20 @@ fn limits() -> Limits {
 async fn forwards_models_and_selects_on_the_client_side() {
     let fixture = Fixture::spawn(Script::Models).await;
     let relay = Relay::spawn(fixture.port, limits()).await;
-    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, Some("synthetic-bearer-token"), None, limits())
+    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, Some(CLIENT_TOKEN), None, limits())
         .await
         .expect("models");
     assert_eq!(reply.status, 200);
     let selection = crate::select_model(&reply.body).expect("select");
     assert_eq!(selection.selected.as_deref(), Some("local-demo"));
     assert_eq!(selection.grammar_match_count, 2);
+    assert_eq!(crate::exact_model(&reply.body, crate::REQUIRED_MODEL).expect("exact"), None);
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 1);
     let seen = fixture.seen.lock().await;
     let lower = String::from_utf8_lossy(&seen).to_ascii_lowercase();
-    assert!(lower.contains("authorization: bearer synthetic-bearer-token"));
-    assert!(!reply.body.windows(b"synthetic-bearer-token".len()).any(|window| window == b"synthetic-bearer-token"));
+    assert!(lower.contains(&format!("authorization: bearer {UPSTREAM_TOKEN}")));
+    assert!(!lower.contains(&CLIENT_TOKEN.to_ascii_lowercase()));
+    assert!(!reply.body.windows(CLIENT_TOKEN.len()).any(|window| window == CLIENT_TOKEN.as_bytes()));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -310,7 +326,7 @@ async fn post_chat_reaches_fixture_once() {
         &relay.origin(),
         "/v1/chat/completions",
         &relay.cert,
-        Some("synthetic-bearer-token"),
+        Some(CLIENT_TOKEN),
         Some(body),
         limits(),
     )
@@ -324,7 +340,7 @@ async fn post_chat_reaches_fixture_once() {
 async fn redirect_is_not_followed() {
     let fixture = Fixture::spawn(Script::Status(302)).await;
     let relay = Relay::spawn(fixture.port, limits()).await;
-    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, None, None, limits())
+    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, Some(CLIENT_TOKEN), None, limits())
         .await
         .expect("status");
     assert_eq!(reply.status, 502);
@@ -338,7 +354,7 @@ async fn oversized_response_is_dropped() {
     let mut tight = limits();
     tight.max_response_bytes = 16;
     let relay = Relay::spawn(fixture.port, tight).await;
-    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, None, None, limits())
+    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, Some(CLIENT_TOKEN), None, limits())
         .await
         .expect("capped");
     assert_eq!(reply.status, 502);
@@ -358,19 +374,21 @@ async fn third_connection_is_busy() {
     let first = tokio::spawn({
         let origin = origin.clone();
         let cert = cert.clone();
-        async move { https_once(&origin, "/v1/models", &cert, None, None, tight).await }
+        async move { https_once(&origin, "/v1/models", &cert, Some(CLIENT_TOKEN), None, tight).await }
     });
     let second = tokio::spawn({
         let origin = origin.clone();
         let cert = cert.clone();
-        async move { https_once(&origin, "/v1/models", &cert, None, None, tight).await }
+        async move { https_once(&origin, "/v1/models", &cert, Some(CLIENT_TOKEN), None, tight).await }
     });
     let started = Instant::now();
     while fixture.hits.load(Ordering::SeqCst) < 2 && started.elapsed() < Duration::from_secs(2) {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 2);
-    let third = https_once(&origin, "/v1/models", &cert, None, None, tight).await.expect("busy");
+    let third = https_once(&origin, "/v1/models", &cert, Some(CLIENT_TOKEN), None, tight)
+        .await
+        .expect("busy");
     assert_eq!(third.status, 503);
     fixture.released.store(true, Ordering::SeqCst);
     fixture.release.notify_waiters();
@@ -385,7 +403,7 @@ async fn slow_upstream_stops_at_the_deadline() {
     tight.deadline = Duration::from_millis(300);
     let relay = Relay::spawn(fixture.port, tight).await;
     let started = Instant::now();
-    let result = https_once(&relay.origin(), "/v1/models", &relay.cert, None, None, Limits {
+    let result = https_once(&relay.origin(), "/v1/models", &relay.cert, Some(CLIENT_TOKEN), None, Limits {
         deadline: Duration::from_secs(2),
         ..limits()
     })
@@ -409,4 +427,116 @@ fn listen_is_only_ipv4_loopback() {
 fn non_loopback_upstream_is_rejected() {
     let remote = "8.8.8.8:8317".parse().expect("addr");
     assert!(crate::upstream_url(remote, "/v1/models").is_err());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn wrong_client_token_does_not_dial() {
+    let fixture = Fixture::spawn(Script::Models).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let reply = https_once(
+        &relay.origin(),
+        "/v1/models",
+        &relay.cert,
+        Some("not-the-client-token-abcdefghijklmn"),
+        None,
+        limits(),
+    )
+    .await
+    .expect("denied");
+    assert_eq!(reply.status, 401);
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 0);
+    assert!(!reply.body.windows(UPSTREAM_TOKEN.len()).any(|window| window == UPSTREAM_TOKEN.as_bytes()));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn missing_client_token_does_not_dial() {
+    let fixture = Fixture::spawn(Script::Models).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let reply = https_once(&relay.origin(), "/v1/models", &relay.cert, None, None, limits())
+        .await
+        .expect("denied");
+    assert_eq!(reply.status, 401);
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn second_authorization_does_not_dial() {
+    let fixture = Fixture::spawn(Script::Models).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let request = format!(
+        "GET /v1/models HTTP/1.1\r\nhost: 127.0.0.1\r\nauthorization: Bearer {CLIENT_TOKEN}\r\nauthorization: Bearer {CLIENT_TOKEN}\r\nconnection: close\r\n\r\n"
+    );
+    let reply = raw_tls(relay.port, &relay.cert, request.as_bytes()).await;
+    assert!(reply.windows(3).any(|window| window == b"401"));
+    assert!(!reply.windows(3).any(|window| window == b"200"));
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upstream_426_is_not_turned_into_success() {
+    let body = br#"{"error":"cli_version"}"#;
+    let fixture = Fixture::spawn(Script::Raw("application/json", 426, body)).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let reply = https_once(
+        &relay.origin(),
+        "/v1/chat/completions",
+        &relay.cert,
+        Some(CLIENT_TOKEN),
+        Some(br#"{"model":"grok-4.7","stream":false}"#),
+        limits(),
+    )
+    .await
+    .expect("status");
+    assert_eq!(reply.status, 426);
+    assert_eq!(reply.body, body);
+    let seen = fixture.seen.lock().await;
+    let text = String::from_utf8_lossy(&seen);
+    assert!(text.contains("\"model\":\"grok-4.7\""));
+    assert!(text.to_ascii_lowercase().contains(&format!("authorization: bearer {UPSTREAM_TOKEN}")));
+    assert!(!text.contains(CLIENT_TOKEN));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn event_stream_waits_for_finish_and_usage() {
+    let sse = concat!(
+        "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"{\\\"protocol\\\":\\\"oo.ontology-dialogue.sql-candidate/v1\\\",\\\"sql\\\":\\\"select 1\\\"}\"}}]}\n\n",
+        "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2,\"total_tokens\":6}}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let fixture = Fixture::spawn(Script::Raw("text/event-stream", 200, sse.as_bytes())).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let reply = https_once(
+        &relay.origin(),
+        "/v1/chat/completions",
+        &relay.cert,
+        Some(CLIENT_TOKEN),
+        Some(br#"{"model":"grok-4.7"}"#),
+        limits(),
+    )
+    .await
+    .expect("sse");
+    assert_eq!(reply.status, 200);
+    let value: serde_json::Value = serde_json::from_slice(&reply.body).expect("envelope");
+    assert_eq!(value["choices"][0]["finish_reason"], "stop");
+    assert_eq!(value["usage"]["total_tokens"], 6);
+    assert!(value["choices"][0]["message"]["content"].as_str().unwrap().contains("select 1"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cut_event_stream_is_not_a_success() {
+    let sse = b"data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n";
+    let fixture = Fixture::spawn(Script::Raw("text/event-stream", 200, sse)).await;
+    let relay = Relay::spawn(fixture.port, limits()).await;
+    let reply = https_once(
+        &relay.origin(),
+        "/v1/chat/completions",
+        &relay.cert,
+        Some(CLIENT_TOKEN),
+        Some(br#"{"model":"grok-4.7"}"#),
+        limits(),
+    )
+    .await
+    .expect("cut");
+    assert_eq!(reply.status, 502);
+    assert!(!reply.body.windows(b"partial".len()).any(|window| window == b"partial"));
 }

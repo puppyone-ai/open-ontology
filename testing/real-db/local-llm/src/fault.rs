@@ -58,11 +58,16 @@ impl Fault {
         Self::new("close")
     }
 
+    pub const fn client_token() -> Self {
+        Self::new("client_token")
+    }
+
     pub fn http_status(self) -> u16 {
         match self.token {
             "path" => 404,
             "request_budget" => 413,
             "busy" => 503,
+            "client_token" => 401,
             "response_budget" | "upstream" => 502,
             _ => 400,
         }

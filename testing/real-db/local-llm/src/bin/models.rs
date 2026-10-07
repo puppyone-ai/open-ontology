@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use oo_local_llm::{
-    dialogue_bearer_class, https_once, is_sql_candidate, model_id, read_regular, reject_redirect_env, select_model,
-    visible_ascii, Fault, Limits, CHAT_PATH, MODELS_PATH, SYNTHETIC_USER, SYSTEM_PROMPT,
+    dialogue_bearer_class, exact_model, https_once, is_sql_candidate, model_id, read_regular, reject_redirect_env,
+    select_model, visible_ascii, Fault, Limits, CHAT_PATH, MODELS_PATH, REQUIRED_MODEL, SYNTHETIC_USER, SYSTEM_PROMPT,
 };
 
 fn main() -> ExitCode {
@@ -63,13 +63,21 @@ async fn run() -> Result<(), Fault> {
             "fail",
         ),
     };
+    let exact = if reply.status == 200 && parse == "ok" {
+        exact_model(&reply.body, REQUIRED_MODEL).ok().flatten()
+    } else {
+        None
+    };
     let bearer_len = bearer.as_ref().map(String::len);
     let class = bearer_len.map(dialogue_bearer_class).unwrap_or("absent");
-    let selected = selection.selected.clone();
-    let document = models_document(reply.status, &selection, bearer_len, class, parse);
+    let document = models_document(reply.status, &selection, exact.as_deref(), bearer_len, class, parse);
     write_clean(&options.out, &document, bearer.as_deref())?;
     if let Some(chat_out) = &options.chat_out {
-        let chat = chat_document(&options.origin, &ca, bearer.as_deref(), selected.as_deref(), limits).await?;
+        let chat = if reply.status != 200 {
+            "{\"protocol\":\"oo.local-llm-relay.chat-status/v1\",\"skipped\":\"models_status\"}\n".to_string()
+        } else {
+            chat_document(&options.origin, &ca, bearer.as_deref(), exact.as_deref(), limits).await?
+        };
         write_clean(chat_out, &chat, bearer.as_deref())?;
     }
     Ok(())
@@ -78,19 +86,21 @@ async fn run() -> Result<(), Fault> {
 fn models_document(
     status: u16,
     selection: &oo_local_llm::Selection,
+    exact: Option<&str>,
     bearer_len: Option<usize>,
     class: &str,
     parse: &str,
 ) -> String {
-    let selected = match &selection.selected {
+    let selected = match exact {
         Some(id) => format!("\"{id}\""),
         None => "null".to_string(),
     };
+    let available = if exact.is_some() { "true" } else { "false" };
     let bearer_bytes = bearer_len.map(|len| len.to_string()).unwrap_or_else(|| "null".to_string());
     let count = selection.candidate_count;
     let grammar = selection.grammar_match_count;
     format!(
-        "{{\"protocol\":\"oo.local-llm-relay.models/v1\",\"http_status\":{status},\"selected_model_id\":{selected},\"candidate_count\":{count},\"grammar_match_count\":{grammar},\"bearer_bytes\":{bearer_bytes},\"dialogue_bearer\":\"{class}\",\"parse\":\"{parse}\"}}\n"
+        "{{\"protocol\":\"oo.local-llm-relay.models/v1\",\"http_status\":{status},\"required_model\":\"{REQUIRED_MODEL}\",\"model_available\":{available},\"selected_model_id\":{selected},\"candidate_count\":{count},\"grammar_match_count\":{grammar},\"bearer_bytes\":{bearer_bytes},\"dialogue_bearer\":\"{class}\",\"parse\":\"{parse}\"}}\n"
     )
 }
 
@@ -103,7 +113,12 @@ async fn chat_document(
 ) -> Result<String, Fault> {
     let Some(model) = model else {
         return Ok(
-            "{\"protocol\":\"oo.local-llm-relay.chat-status/v1\",\"skipped\":\"no_model\"}\n".to_string(),
+            "{\"protocol\":\"oo.local-llm-relay.chat-status/v1\",\"skipped\":\"model_unavailable\"}\n".to_string(),
+        );
+    };
+    if model != REQUIRED_MODEL {
+        return Ok(
+            "{\"protocol\":\"oo.local-llm-relay.chat-status/v1\",\"skipped\":\"model_unavailable\"}\n".to_string(),
         );
     };
     if !model_id(model) {

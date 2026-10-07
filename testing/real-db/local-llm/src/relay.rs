@@ -14,6 +14,8 @@ use crate::allow::allow;
 use crate::fault::Fault;
 use crate::limits::Limits;
 use crate::pem;
+use crate::stream::assemble_sse;
+use crate::token::{authorization_matches, body_has_token, Boundary};
 use crate::upstream::{is_fixed_loopback, upstream_url, UPSTREAM_PORT};
 
 pub struct ListenIdentity {
@@ -54,6 +56,7 @@ pub async fn serve_on(
     listener: TcpListener,
     upstream: SocketAddr,
     identity: ListenIdentity,
+    boundary: Boundary,
     limits: Limits,
 ) -> Result<(), Fault> {
     if !upstream_allowed(upstream) || limits.max_concurrency == 0 {
@@ -64,11 +67,12 @@ pub async fn serve_on(
     loop {
         let (tcp, _) = listener.accept().await.map_err(|_| Fault::io())?;
         let acceptor = acceptor.clone();
+        let boundary = boundary.clone();
         match permits.clone().try_acquire_owned() {
             Ok(permit) => {
                 tokio::spawn(async move {
                     let _permit = permit;
-                    let _ = timeout(limits.deadline, connection(tcp, acceptor, upstream, limits)).await;
+                    let _ = timeout(limits.deadline, connection(tcp, acceptor, upstream, boundary, limits)).await;
                 });
             }
             Err(_) => {
@@ -86,11 +90,17 @@ fn upstream_allowed(addr: SocketAddr) -> bool {
     is_fixed_loopback(addr) && (cfg!(test) || addr.port() == UPSTREAM_PORT)
 }
 
-async fn connection(tcp: TcpStream, acceptor: TlsAcceptor, upstream: SocketAddr, limits: Limits) {
+async fn connection(
+    tcp: TcpStream,
+    acceptor: TlsAcceptor,
+    upstream: SocketAddr,
+    boundary: Boundary,
+    limits: Limits,
+) {
     let Ok(mut tls) = acceptor.accept(tcp).await else {
         return;
     };
-    match one_request(&mut tls, upstream, limits).await {
+    match one_request(&mut tls, upstream, &boundary, limits).await {
         Ok(()) => {}
         Err(fault) if fault.token() == "close" => {}
         Err(fault) => {
@@ -99,7 +109,7 @@ async fn connection(tcp: TcpStream, acceptor: TlsAcceptor, upstream: SocketAddr,
     }
 }
 
-async fn one_request<S>(stream: &mut S, upstream: SocketAddr, limits: Limits) -> Result<(), Fault>
+async fn one_request<S>(stream: &mut S, upstream: SocketAddr, boundary: &Boundary, limits: Limits) -> Result<(), Fault>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -114,7 +124,16 @@ where
             return Err(Fault::config());
         }
     }
-    let reply = forward(&request, upstream, limits).await?;
+    let presented = request.authorization.as_deref().unwrap_or("");
+    if request.duplicate_authorization || !authorization_matches(presented, &boundary.client_authorization) {
+        return Err(Fault::client_token());
+    }
+    if body_has_token(&request.body, &boundary.client_authorization)
+        || body_has_token(&request.body, &boundary.upstream_authorization)
+    {
+        return Err(Fault::secret());
+    }
+    let reply = forward(&request, upstream, boundary, limits).await?;
     write_bytes(stream, reply.status, &reply.body).await?;
     Ok(())
 }
@@ -124,6 +143,7 @@ struct InRequest {
     path: String,
     content_type: Option<String>,
     authorization: Option<String>,
+    duplicate_authorization: bool,
     body: Vec<u8>,
 }
 
@@ -166,6 +186,7 @@ where
     let mut content_length = None;
     let mut content_type = None;
     let mut authorization = None;
+    let mut duplicate_authorization = false;
     for header in parsed.headers {
         let name = header.name;
         let value = std::str::from_utf8(header.value).map_err(|_| Fault::config())?;
@@ -186,7 +207,11 @@ where
             }
             content_type = Some(value.to_string());
         } else if name.eq_ignore_ascii_case("authorization") {
-            if authorization.is_some() || !(1..=600).contains(&value.len()) {
+            if authorization.is_some() {
+                duplicate_authorization = true;
+                continue;
+            }
+            if !(1..=600).contains(&value.len()) {
                 return Err(Fault::config());
             }
             authorization = Some(value.to_string());
@@ -225,6 +250,7 @@ where
         path,
         content_type,
         authorization,
+        duplicate_authorization,
         body,
     })
 }
@@ -245,7 +271,12 @@ struct UpstreamReply {
     body: Vec<u8>,
 }
 
-async fn forward(request: &InRequest, upstream: SocketAddr, limits: Limits) -> Result<UpstreamReply, Fault> {
+async fn forward(
+    request: &InRequest,
+    upstream: SocketAddr,
+    boundary: &Boundary,
+    limits: Limits,
+) -> Result<UpstreamReply, Fault> {
     let url = upstream_url(upstream, &request.path)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -270,11 +301,9 @@ async fn forward(request: &InRequest, upstream: SocketAddr, limits: Limits) -> R
     if let Some(content_type) = &request.content_type {
         builder = builder.header(CONTENT_TYPE, content_type);
     }
-    if let Some(authorization) = &request.authorization {
-        let mut header = HeaderValue::from_str(authorization).map_err(|_| Fault::config())?;
-        header.set_sensitive(true);
-        builder = builder.header(AUTHORIZATION, header);
-    }
+    let mut header = HeaderValue::from_str(&boundary.upstream_authorization).map_err(|_| Fault::config())?;
+    header.set_sensitive(true);
+    builder = builder.header(AUTHORIZATION, header);
     let response = builder.send().await.map_err(|_| Fault::upstream())?;
     if response.url() != &parsed || (300..400).contains(&response.status().as_u16()) {
         return Err(Fault::upstream());
@@ -283,8 +312,30 @@ async fn forward(request: &InRequest, upstream: SocketAddr, limits: Limits) -> R
     if !(100..600).contains(&status) {
         return Err(Fault::upstream());
     }
-    let body = read_upstream(response, limits).await?;
+    let content_type = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let mut body = read_upstream(response, limits).await?;
+    if body_has_token(&body, &boundary.client_authorization) || body_has_token(&body, &boundary.upstream_authorization)
+    {
+        return Err(Fault::secret());
+    }
+    if status == 200 && is_event_stream(&content_type) {
+        body = assemble_sse(&body).map_err(|_| Fault::upstream())?;
+    }
     Ok(UpstreamReply { status, body })
+}
+
+fn is_event_stream(content_type: &str) -> bool {
+    content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .eq_ignore_ascii_case("text/event-stream")
 }
 
 async fn read_upstream(mut response: reqwest::Response, limits: Limits) -> Result<Vec<u8>, Fault> {
@@ -330,6 +381,7 @@ fn reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
         400 => "Bad Request",
+        401 => "Unauthorized",
         404 => "Not Found",
         413 => "Payload Too Large",
         502 => "Bad Gateway",
@@ -346,6 +398,8 @@ fn error_body(fault: Fault) -> &'static [u8] {
         "response_budget" => br#"{"error":"response_budget"}"#,
         "busy" => br#"{"error":"busy"}"#,
         "upstream" => br#"{"error":"upstream"}"#,
+        "client_token" => br#"{"error":"client_token"}"#,
+        "secret" => br#"{"error":"secret"}"#,
         _ => br#"{"error":"config"}"#,
     }
 }

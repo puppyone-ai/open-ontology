@@ -1,0 +1,21 @@
+{
+  "http_status": 426,
+  "body_bytes_read": 150,
+  "body_may_continue": false,
+  "request_bytes": 966,
+  "request_model": "grok-4.3",
+  "request_stream": false,
+  "request_has_response_format": true,
+  "headers": {
+    "content-type": "application/json",
+    "x-cpa-trace-id": "20261007204721-dbd416264556292e-00000004",
+    "content-length": "150"
+  },
+  "summary": {
+    "json": true,
+    "keys": [
+      "error"
+    ],
+    "error": "Your Grok CLI version (0.2.120) is outdated. Please update to version 1.0.13 or later via `grok update` or the installation documentation."
+  }
+}

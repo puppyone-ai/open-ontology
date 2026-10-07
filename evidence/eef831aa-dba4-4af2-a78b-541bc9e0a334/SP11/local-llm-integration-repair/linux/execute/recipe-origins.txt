@@ -1,0 +1,5 @@
+a300 proof-8 launch 96afe70fd68a56ae8eec7504bf20e09ecd3cdf65 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/proof-8/launch.sh eef30611296d23afb37a70792da1889bf5fa871160eff56c32a1faf2738c3401
+a300 proof-8 inside /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/proof-8/inside.sh 30b9e752bbf67695c2e0b00f4c829481483c181f8826535addf6b9e92e21e0df
+a300 libclang /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue/linux/libclang-extract.sh 23d9cd6a4e7033f22a98afc9243c2c9dc2d7e60f5246e9ddcbc8aaa949c2c289
+fixed=63566b60aabdf29a29bfe55c4866edf3c4081cfd
+changes no-overlay archive-includes-dialogue memory=6g cpus=1 pids=256 no-tmpfs clang-cache-a334-name pg-host=oo-a334-pg one-approved-execute-after-live

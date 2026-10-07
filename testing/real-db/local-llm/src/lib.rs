@@ -10,6 +10,8 @@ mod limits;
 pub(crate) mod pem;
 mod relay;
 mod select;
+mod stream;
+mod token;
 mod upstream;
 
 pub use allow::{allow, Allowed};
@@ -20,7 +22,8 @@ pub use files::{read_regular, reject_redirect_env};
 pub use grammar::{dialogue_bearer_class, model_id, visible_ascii, BEARER_MAX, DIALOGUE_BEARER_MAX, DIALOGUE_BEARER_MIN};
 pub use limits::Limits;
 pub use relay::{load_identity, parse_listen, serve_on, ListenIdentity};
-pub use select::{select_model, Selection};
+pub use select::{exact_model, select_model, Selection, REQUIRED_MODEL};
+pub use token::{load_boundary, mint_client_token, Boundary};
 pub use upstream::{fixed_upstream, is_fixed_loopback, upstream_url, UPSTREAM_PORT};
 
 pub const MODELS_PATH: &str = "/v1/models";

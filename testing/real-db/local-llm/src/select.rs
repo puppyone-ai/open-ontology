@@ -20,6 +20,20 @@ struct ModelItem {
     id: Option<String>,
 }
 
+pub const REQUIRED_MODEL: &str = "grok-4.7";
+
+pub fn exact_model(body: &[u8], required: &str) -> Result<Option<String>, Fault> {
+    if !model_id(required) {
+        return Err(Fault::config());
+    }
+    let list: ModelList = serde_json::from_slice(body).map_err(|_| Fault::upstream())?;
+    if list.data.len() > 128 {
+        return Err(Fault::response_budget());
+    }
+    let found = list.data.iter().any(|item| item.id.as_deref() == Some(required));
+    Ok(found.then(|| required.to_string()))
+}
+
 pub fn select_model(body: &[u8]) -> Result<Selection, Fault> {
     let list: ModelList = serde_json::from_slice(body).map_err(|_| Fault::upstream())?;
     if list.data.len() > 128 {
@@ -56,5 +70,16 @@ mod tests {
         assert_eq!(selection.selected.as_deref(), Some("widget-local.1"));
         assert_eq!(selection.candidate_count, 3);
         assert_eq!(selection.grammar_match_count, 2);
+    }
+
+    #[test]
+    fn exact_model_accepts_only_the_required_id() {
+        let listed = br#"{"data":[{"id":"grok-4.3"},{"id":"grok-4.7"}]}"#;
+        assert_eq!(
+            super::exact_model(listed, super::REQUIRED_MODEL).expect("parse").as_deref(),
+            Some("grok-4.7")
+        );
+        let older = br#"{"data":[{"id":"grok-4.3"}]}"#;
+        assert_eq!(super::exact_model(older, super::REQUIRED_MODEL).expect("parse"), None);
     }
 }

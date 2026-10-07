@@ -1,0 +1,139 @@
+   Compiling unicode-ident v1.0.26
+    Building [                           ] 0/181: unicode-ident                  Compiling proc-macro2 v1.0.107
+    Building [                           ] 1/181: proc-macro2(build.rs)           Building [                           ] 2/181: proc-macro2(build)             Compiling quote v1.0.47
+    Building [                           ] 3/181: quote(build.rs)                 Building [                           ] 4/181: quote(build)                    Building [                           ] 5/181: proc-macro2                     Building [                           ] 6/181: quote                          Compiling syn v3.0.6
+    Building [>                          ] 7/181: syn                            Compiling libc v0.2.189
+    Building [>                          ] 8/181: libc(build.rs)                  Building [>                          ] 9/181: libc(build)                     Building [>                         ] 10/181: libc                           Compiling synstructure v0.14.0
+    Building [>                         ] 11/181: synstructure                   Compiling syn v2.0.119
+    Building [>                         ] 12/181: syn                            Compiling synstructure v0.13.2
+    Building [>                         ] 13/181: synstructure                   Compiling zerofrom-derive v0.1.8
+    Building [=>                        ] 14/181: zerofrom-derive                Compiling zerofrom v0.1.8
+    Building [=>                        ] 15/181: zerofrom                       Compiling yoke-derive v0.8.2
+    Building [=>                        ] 16/181: yoke-derive                    Compiling shlex v2.0.1
+    Building [=>                        ] 17/181: shlex                          Compiling once_cell v1.21.4
+    Building [=>                        ] 18/181: once_cell                      Compiling find-msvc-tools v0.1.13
+    Building [=>                        ] 19/181: find-msvc-tools                Compiling stable_deref_trait v1.2.1
+    Building [=>                        ] 20/181: stable_deref_trait             Compiling yoke v0.8.3
+    Building [==>                       ] 21/181: yoke                           Compiling jobserver v0.1.35
+    Building [==>                       ] 22/181: jobserver                      Compiling bytes v1.12.1
+    Building [==>                       ] 23/181: bytes                          Compiling pin-project-lite v0.2.17
+    Building [==>                       ] 24/181: pin-project-lite               Compiling cc v1.4.7
+    Building [==>                       ] 25/181: cc                             Compiling zerovec-derive v0.11.6
+    Building [==>                       ] 26/181: zerovec-derive                 Compiling zerovec v0.11.8
+    Building [==>                       ] 27/181: zerovec                        Compiling cmake v0.1.58
+    Building [===>                      ] 28/181: cmake                          Compiling displaydoc v0.2.7
+    Building [===>                      ] 29/181: displaydoc                     Compiling pkg-config v0.3.34
+    Building [===>                      ] 30/181: pkg-config                     Compiling futures-core v0.3.34
+    Building [===>                      ] 31/181: futures-core                   Compiling dunce v1.0.5
+    Building [===>                      ] 32/181: dunce                          Compiling fs_extra v1.3.0
+    Building [===>                      ] 33/181: fs_extra                       Compiling aws-lc-sys v0.45.0
+    Building [===>                      ] 34/181: aws-lc-sys(build.rs)           Compiling socket2 v0.6.5
+    Building [====>                     ] 35/181: socket2                         Building [====>                     ] 36/181: aws-lc-sys(build)              Compiling mio v1.2.3
+    Building [====>                     ] 37/181: mio                            Compiling tokio-macros v2.7.2
+    Building [====>                     ] 38/181: tokio-macros                   Compiling itoa v1.0.18
+    Building [====>                     ] 39/181: itoa                           Compiling tokio v1.53.1
+    Building [====>                     ] 40/181: tokio                          Compiling tinystr v0.8.4
+    Building [====>                     ] 41/181: tinystr                        Compiling litemap v0.8.3
+    Building [=====>                    ] 42/181: litemap                        Compiling smallvec v1.16.1
+    Building [=====>                    ] 43/181: smallvec                       Compiling cfg-if v1.0.5
+    Building [=====>                    ] 44/181: cfg-if                         Compiling aws-lc-rs v1.18.1
+    Building [=====>                    ] 45/181: aws-lc-rs(build.rs)            Compiling wasm-bindgen-shared v0.2.128
+    Building [=====>                    ] 46/181: wasm-bindgen-shared(build.r…   Compiling slab v0.4.12
+    Building [=====>                    ] 47/181: slab                           Compiling writeable v0.6.4
+    Building [=====>                    ] 48/181: writeable                      Compiling icu_locale_core v2.3.0
+    Building [======>                   ] 49/181: icu_locale_core                 Building [======>                   ] 50/181: wasm-bindgen-shared(build)      Building [======>                   ] 51/181: aws-lc-rs(build)               Compiling http v1.5.0
+    Building [======>                   ] 52/181: http                           Compiling zerotrie v0.2.5
+    Building [======>                   ] 53/181: zerotrie                       Compiling potential_utf v0.1.6
+    Building [======>                   ] 54/181: potential_utf                  Compiling icu_normalizer_data v2.3.0
+    Building [======>                   ] 55/181: icu_normalizer_data(build.r…   Compiling icu_properties_data v2.3.0
+    Building [=======>                  ] 56/181: icu_properties_data(build.r…   Compiling zeroize v1.9.0
+    Building [=======>                  ] 57/181: zeroize                        Compiling utf8_iter v1.0.4
+    Building [=======>                  ] 58/181: utf8_iter                      Compiling rustversion v1.0.23
+    Building [=======>                  ] 59/181: rustversion(build.rs)           Building [=======>                  ] 60/181: rustversion(build)             Compiling icu_collections v2.3.0
+    Building [=======>                  ] 61/181: icu_collections                 Building [=======>                  ] 62/181: icu_properties_data(build)      Building [========>                 ] 63/181: icu_normalizer_data(build)     Compiling icu_provider v2.3.1
+    Building [========>                 ] 64/181: icu_provider                    Building [========>                 ] 65/181: aws-lc-sys                     Compiling tracing-core v0.1.36
+    Building [========>                 ] 66/181: tracing-core                   Compiling version_check v0.9.5
+    Building [========>                 ] 67/181: version_check                  Compiling generic-array v0.14.9
+    Building [========>                 ] 68/181: generic-array(build.rs)        Compiling tracing v0.1.44
+    Building [========>                 ] 69/181: tracing                         Building [=========>                ] 70/181: aws-lc-rs                       Building [=========>                ] 71/181: icu_normalizer_data             Building [=========>                ] 72/181: icu_properties_data             Building [=========>                ] 73/181: rustversion                    Compiling rustls-pki-types v1.15.1
+    Building [=========>                ] 74/181: rustls-pki-types               Compiling http-body v1.1.0
+    Building [=========>                ] 75/181: http-body                       Building [=========>                ] 76/181: wasm-bindgen-shared            Compiling percent-encoding v2.3.2
+    Building [==========>               ] 77/181: percent-encoding               Compiling httparse v1.10.1
+    Building [==========>               ] 78/181: httparse(build.rs)             Compiling bumpalo v3.20.3
+    Building [==========>               ] 79/181: bumpalo                        Compiling futures-task v0.3.34
+    Building [==========>               ] 80/181: futures-task                   Compiling rustls v0.23.45
+    Building [==========>               ] 81/181: rustls(build.rs)               Compiling futures-sink v0.3.34
+    Building [==========>               ] 82/181: futures-sink                   Compiling hashbrown v0.17.1
+    Building [==========>               ] 83/181: hashbrown                      Compiling equivalent v1.0.2
+    Building [===========>              ] 84/181: equivalent                     Compiling untrusted v0.9.0
+    Building [===========>              ] 85/181: untrusted                      Compiling rustls-webpki v0.103.15
+    Building [===========>              ] 86/181: rustls-webpki                  Compiling indexmap v2.14.2
+    Building [===========>              ] 87/181: indexmap                       Compiling tokio-util v0.7.19
+    Building [===========>              ] 88/181: tokio-util                      Building [===========>              ] 89/181: rustls(build)                  Compiling futures-util v0.3.34
+    Building [===========>              ] 90/181: futures-util                   Compiling wasm-bindgen-macro-support v0.2.128
+    Building [============>             ] 91/181: wasm-bindgen-macro-support      Building [============>             ] 92/181: httparse(build)                Compiling wasm-bindgen v0.2.128
+    Building [============>             ] 93/181: wasm-bindgen(build.rs)         Compiling icu_properties v2.3.0
+    Building [============>             ] 94/181: icu_properties                 Compiling icu_normalizer v2.3.0
+    Building [============>             ] 95/181: icu_normalizer                  Building [============>             ] 96/181: generic-array(build)           Compiling fnv v1.0.7
+    Building [============>             ] 97/181: fnv                            Compiling try-lock v0.2.5
+    Building [=============>            ] 98/181: try-lock                       Compiling typenum v1.20.1
+    Building [=============>            ] 99/181: typenum                        Compiling atomic-waker v1.1.2
+    Building [============>            ] 100/181: atomic-waker                   Compiling subtle v2.6.1
+    Building [============>            ] 101/181: subtle                         Compiling core-foundation-sys v0.8.7
+    Building [=============>           ] 102/181: core-foundation-sys            Compiling rand_core v0.10.1
+    Building [=============>           ] 103/181: rand_core                      Compiling tower-service v0.3.3
+    Building [=============>           ] 104/181: tower-service                   Building [=============>           ] 105/181: rustls                         Compiling h2 v0.4.19
+    Building [=============>           ] 106/181: h2                              Building [=============>           ] 107/181: generic-array                  Compiling want v0.3.1
+    Building [=============>           ] 108/181: want                           Compiling idna_adapter v1.2.2
+    Building [==============>          ] 109/181: idna_adapter                    Building [==============>          ] 110/181: wasm-bindgen(build)             Building [==============>          ] 111/181: httparse                       Compiling wasm-bindgen-macro v0.2.128
+    Building [==============>          ] 112/181: wasm-bindgen-macro             Compiling futures-channel v0.3.34
+    Building [==============>          ] 113/181: futures-channel                Compiling serde_core v1.0.229
+    Building [==============>          ] 114/181: serde_core(build.rs)           Compiling bitflags v2.13.2
+    Building [==============>          ] 115/181: bitflags                       Compiling getrandom v0.4.3
+    Building [===============>         ] 116/181: getrandom(build.rs)             Building [===============>         ] 117/181: getrandom(build)                Building [===============>         ] 118/181: serde_core(build)              Compiling hyper v1.11.1
+    Building [===============>         ] 119/181: hyper                           Building [===============>         ] 120/181: wasm-bindgen                   Compiling idna v1.1.0
+    Building [===============>         ] 121/181: idna                           Compiling security-framework-sys v2.17.0
+    Building [===============>         ] 122/181: security-framework-sys         Compiling core-foundation v0.10.1
+    Building [===============>         ] 123/181: core-foundation                Compiling form_urlencoded v1.2.2
+    Building [================>        ] 124/181: form_urlencoded                Compiling sync_wrapper v1.0.2
+    Building [================>        ] 125/181: sync_wrapper                   Compiling thiserror v2.0.21
+    Building [================>        ] 126/181: thiserror(build.rs)            Compiling cfg_aliases v0.2.2
+    Building [================>        ] 127/181: cfg_aliases                    Compiling zmij v1.0.23
+    Building [================>        ] 128/181: zmij(build.rs)                 Compiling tower-layer v0.3.3
+    Building [================>        ] 129/181: tower-layer                    Compiling base64 v0.22.1
+    Building [================>        ] 130/181: base64                         Compiling ipnet v2.12.2
+    Building [=================>       ] 131/181: ipnet                          Compiling hyper-util v0.1.20
+    Building [=================>       ] 132/181: hyper-util                     Compiling tower v0.5.3
+    Building [=================>       ] 133/181: tower                           Building [=================>       ] 134/181: zmij(build)                    Compiling quinn-udp v0.5.15
+    Building [=================>       ] 135/181: quinn-udp(build.rs)             Building [=================>       ] 136/181: thiserror(build)               Compiling url v2.5.8
+    Building [=================>       ] 137/181: url                            Compiling security-framework v3.7.0
+    Building [==================>      ] 138/181: security-framework             Compiling js-sys v0.3.105
+    Building [==================>      ] 139/181: js-sys                          Building [==================>      ] 140/181: serde_core                      Building [==================>      ] 141/181: getrandom                      Compiling block-buffer v0.10.4
+    Building [==================>      ] 142/181: block-buffer                   Compiling crypto-common v0.1.6
+    Building [==================>      ] 143/181: crypto-common                  Compiling tokio-rustls v0.26.5
+    Building [==================>      ] 144/181: tokio-rustls                   Compiling chacha20 v0.10.2
+    Building [===================>     ] 145/181: chacha20                       Compiling thiserror-impl v2.0.21
+    Building [===================>     ] 146/181: thiserror-impl                 Compiling serde v1.0.229
+    Building [===================>     ] 147/181: serde(build.rs)                Compiling serde_json v1.0.151
+    Building [===================>     ] 148/181: serde_json(build.rs)           Compiling log v0.4.34
+    Building [===================>     ] 149/181: log                            Compiling rustls-platform-verifier v0.7.0
+    Building [===================>     ] 150/181: rustls-platform-verifier        Building [===================>     ] 151/181: serde_json(build)               Building [===================>     ] 152/181: serde(build)                    Building [====================>    ] 153/181: thiserror                      Compiling rand v0.10.3
+    Building [====================>    ] 154/181: rand                           Compiling hyper-rustls v0.27.10
+    Building [====================>    ] 155/181: hyper-rustls                   Compiling digest v0.10.7
+    Building [====================>    ] 156/181: digest                         Compiling tower-http v0.6.11
+    Building [====================>    ] 157/181: tower-http                      Building [====================>    ] 158/181: quinn-udp(build)                Building [====================>    ] 159/181: zmij                           Compiling rand_pcg v0.10.2
+    Building [=====================>   ] 160/181: rand_pcg                       Compiling http-body-util v0.1.5
+    Building [=====================>   ] 161/181: http-body-util                 Compiling cpufeatures v0.2.17
+    Building [=====================>   ] 162/181: cpufeatures                    Compiling serde_derive v1.0.229
+    Building [=====================>   ] 163/181: serde_derive                   Compiling rustc-hash v2.1.3
+    Building [=====================>   ] 164/181: rustc-hash                     Compiling memchr v2.8.3
+    Building [=====================>   ] 165/181: memchr                         Compiling base64 v0.23.1
+    Building [=====================>   ] 166/181: base64                         Compiling tinyvec v1.13.3
+    Building [======================>  ] 167/181: tinyvec                        Compiling lru-slab v0.1.3
+    Building [======================>  ] 168/181: lru-slab                       Compiling quinn-proto v0.11.18
+    Building [======================>  ] 169/181: quinn-proto                    Compiling reqwest v0.13.5
+    Building [======================>  ] 170/181: reqwest                         Building [======================>  ] 171/181: serde_json                      Building [======================>  ] 172/181: serde                          Compiling sha2 v0.10.9
+    Building [======================>  ] 173/181: sha2                            Building [=======================> ] 174/181: quinn-udp                      Compiling web-sys v0.3.105
+    Building [=======================> ] 175/181: web-sys                        Compiling wasm-bindgen-futures v0.4.78
+    Building [=======================> ] 176/181: wasm-bindgen-futures            Building [=======================> ] 177/181: cc                             Compiling oo-local-llm v0.1.0 (/Users/redux/puppy-one/open-ontology/testing/real-db/local-llm)
+    Building [=======================> ] 178/181: oo-local-llm                    Building [=======================> ] 179/181: oo-local-llm-models(bin)        Building [=======================> ] 180/181: oo-local-llm-relay(bin)         Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 47s

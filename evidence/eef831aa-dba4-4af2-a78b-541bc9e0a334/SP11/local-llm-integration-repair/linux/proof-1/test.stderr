@@ -1,0 +1,57 @@
+   Compiling oo-local-llm v0.1.0 (/crate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.00s
+     Running unittests src/lib.rs (/target/debug/deps/oo_local_llm-39c4990bc725ab39)
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+-----
+-----
+Certificate request self-signature ok
+subject=CN=127.0.0.1
+     Running unittests src/bin/models.rs (/target/debug/deps/oo_local_llm_models-555b80c5902f3b44)
+     Running unittests src/main.rs (/target/debug/deps/oo_local_llm_relay-05138e254f127e3c)

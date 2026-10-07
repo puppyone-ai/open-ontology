@@ -1,0 +1,6 @@
+a324 launch proof-10 63566b60aabdf29a29bfe55c4866edf3c4081cfd evidence/eef831aa-dba4-4af2-a78b-541bc9e0a324/SP11/local-llm/linux/proof-10/launch.sh
+a324 inside proof-10 63566b60aabdf29a29bfe55c4866edf3c4081cfd evidence/eef831aa-dba4-4af2-a78b-541bc9e0a324/SP11/local-llm/linux/proof-10/inside.sh
+a204 launch b2b3adabd05de94723d8ed13b33be0144a0de1f9 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a200 launch a587031c719a484830d78e493605f48e2056cae4 837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+a199 launch 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9 bf2a422d751db818cdd4d852d14be00436d4177cb584b85131a4774453413f55
+changes uuid=a334 fixed=63566b60 memory=6g cpus=1 snapshot=pre-edit fetch-then-test no-clippy
