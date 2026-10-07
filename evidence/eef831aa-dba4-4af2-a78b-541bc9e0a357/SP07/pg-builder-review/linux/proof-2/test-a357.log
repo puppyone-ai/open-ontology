@@ -1,0 +1,144 @@
+   Compiling pg-builder v0.1.0 (/work/tools/pg-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.74s
+     Running tests/a357_consumer.rs (/target/pg-builder/debug/deps/a357_consumer-6d3f9db707d535ff)
+
+running 6 tests
+test cache_hit_opens_no_socket_and_stale_scopes_miss ... ok
+test forged_echo_and_failure_leave_curated_and_cache_unchanged ... ok
+test rebind_copies_descriptive_bytes_and_replaces_prompt_echoes ... ok
+test separate_packs_drop_the_other_tables_approved_text ... FAILED
+test stored_three_table_receipts_keep_hashes_and_split_the_pack ... ok
+test unreviewed_mark_unknown_column_and_deferred_prose ... FAILED
+
+failures:
+
+---- separate_packs_drop_the_other_tables_approved_text stdout ----
+
+thread 'separate_packs_drop_the_other_tables_approved_text' (613) panicked at tests/a357_consumer.rs:833:5:
+threaded curated did not retain both bodies:
+# INDEX
+
+## public
+
+- `public.bin` — Register public.bin — one row
+- `public.ledger` — ledger
+- `public.shelf` — shelf
+
+# a357review
+
+ontology_version: `ont-a357`
+compiler: `oo-builder/role-pack/v1`
+locale: `en-US`
+project: `a357review`
+role: `oo_r_narrow`
+
+This file is a read-only role pack. It does not authenticate the caller and it does not grant privileges. Visibility came from a supplied policy snapshot.
+
+Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.
+
+Visible schemas: public
+
+Samples are never included. This compiler has no fixed tokenizer, does not treat byte counts as tokens, and does not claim a publish gate.
+
+# calendar
+
+The effective document has no calendar. This compiler does not substitute a civil month.
+
+-- No verified example is visible for this role.
+
+# glossary
+
+Only terms with status approved and a visible binding are included.
+
+None.
+
+{"authentication":"not_claimed","authorization":"not_claimed","catalog_version":"cat-a357","compiler":"oo-builder/role-pack/v1","domains":"unsupported","file_splitting":"unsupported","files":[{"bytes":127,"path":"INDEX.md","sha256":"21bf270a6ad4d58bdff74f259a11cd5cdc66d6cb40556a43e2f457fa9320338c"},{"bytes":542,"path":"README.md","sha256":"4b6925b0c4ff68b2e3becec24633db738477ec2b1f01f837cdac6cc3483e2e25"},{"bytes":101,"path":"calendar.md","sha256":"9a54890b25b5cca0c6bb2284260479d98b539c11a322cb16bb1961aefd7f7971"},{"bytes":49,"path":"examples/verified.sql","sha256":"340fca2c5976a0cf520dd3cfadefd1397c7bfb636bcdaa28fc3260faec908ff6"},{"bytes":87,"path":"glossary.md","sha256":"0749e7a426cc11a10865c02725e8173aa659634f28bb915129f78ea7ab49b364"},{"bytes":136,"path":"metrics.md","sha256":"9fe5d15254e0f0f98e016ce438a3d98a778a859765160fbb7ddb0c31776bb355"},{"bytes":324,"path":"relationships.md","sha256":"ad4436a27f5a8728ef603c3a3f301c5080f6c29ec68b1f8c15d7cc0083762424"},{"bytes":608,"path":"tables/public.bin.md","sha256":"b214928f016cea27caef65040c4749c6c78ce76508e5009fc1b629619c4c1669"},{"bytes":429,"path":"tables/public.ledger.md","sha256":"ae52f60dbbab1a7886cb31da16282a11b93727c0d0a4c1f93c0361af41966291"},{"bytes":477,"path":"tables/public.shelf.md","sha256":"dc0023d7f3cf85cfdb2d384a91fbf0b89a0a5574e163deb9c1be5f6a67c55b63"}],"knowledge":{"id":"know-a357","version":"1"},"mount":"not_performed","ontology_version":"ont-a357","policy":{"id":"pol-a357","version":"1"},"project":"a357review","protocol":"oo.builder.role-pack-manifest/v1","publication":"not_claimed","role":"oo_r_narrow","row_security_reproven":false,"samples":"omitted","search":"unsupported","spec_version":"oos/v1","tokens":{"estimator":"none","readme_token_budget":2000,"status":"unsupported","table_file_token_budget":3000}}
+# metrics
+
+Only certified metrics with a visible dependency set are included. Reconciliation is not executed and is not claimed.
+
+None.
+
+# relationships
+
+A relationship is included only when every endpoint column is on the allowlist and the claim is approved, source-declared, or explicitly include_unreviewed. Containment and query-log counts are never copied. Name match and type compatibility are included only when both ends allow global statistics.
+
+None.
+
+# public.bin — Register public.bin
+
+tier: `raw`
+grain: one row
+source label: public.bin
+primary key: `bin_id`
+
+Row security: none. This compiler did not query the database.
+Estimated row count is omitted.
+
+> UNREVIEWED: not an approved review, and not a grant.
+
+```text
+TABLE_BODY_a357 public.bin
+```
+
+| column | label | type | semantic | pii | notes |
+| --- | --- | --- | --- | --- | --- |
+| `bin_id` | Bin id | int8 | identifier | none | status draft UNREVIEWED: BIN_ID_BODY_a357 |
+| `label` | Bin label | text | free_text | none | status draft UNREVIEWED: BIN_LABEL_BODY_a357 |
+
+## relationships
+
+None.
+
+# public.ledger — ledger
+
+tier: `raw`
+source label: public.ledger
+primary key: `entry_id`
+
+Row security: none. This compiler did not query the database.
+Estimated row count is omitted.
+
+| column | label | type | semantic | pii | notes |
+| --- | --- | --- | --- | --- | --- |
+| `entry_id` | entry_id | int8 | identifier | none | status draft |
+| `memo` | memo | text | free_text | none | status draft |
+
+## relationships
+
+None.
+
+# public.shelf — shelf
+
+tier: `raw`
+source label: public.shelf
+primary key: `shelf_id`
+
+Row security: none. This compiler did not query the database.
+Estimated row count is omitted.
+
+| column | label | type | semantic | pii | notes |
+| --- | --- | --- | --- | --- | --- |
+| `shelf_id` | shelf_id | int4 | identifier | none | status draft |
+| `badge` | badge | text | free_text | personal | Samples are omitted because pii is personal. status draft |
+
+## relationships
+
+None.
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- unreviewed_mark_unknown_column_and_deferred_prose stdout ----
+
+thread 'unreviewed_mark_unknown_column_and_deferred_prose' (615) panicked at tests/a357_consumer.rs:1112:5:
+assertion failed: queue.contains(CAVEAT)
+
+
+failures:
+    separate_packs_drop_the_other_tables_approved_text
+    unreviewed_mark_unknown_column_and_deferred_prose
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.53s
+
+error: test failed, to rerun pass `--test a357_consumer`

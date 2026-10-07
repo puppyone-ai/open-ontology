@@ -1,0 +1,52 @@
+    Checking pg-builder v0.1.0 (/work/tools/pg-builder)
+error: this `if` statement can be collapsed
+   --> tests/a357_consumer.rs:97:9
+    |
+ 97 | /         if self.forge_prompt {
+ 98 | |             if let Some(map) = echo.as_object_mut() {
+ 99 | |                 map.insert(
+100 | |                     "prompt_sha256".to_owned(),
+...   |
+104 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+ 97 ~         if self.forge_prompt
+ 98 ~             && let Some(map) = echo.as_object_mut() {
+ 99 |                 map.insert(
+...
+102 |                 );
+103 ~             }
+    |
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> tests/a357_consumer.rs:1056:25
+     |
+1056 |     assert!(review_only(&call(&forged, SHELF), &world.curated, &operator()).is_err());
+     |                         ^^^^^^^^^^^^^^^^^^^^^ help: change this to: `call(&forged, SHELF)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_borrow
+     = note: `-D clippy::needless-borrow` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::needless_borrow)]`
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> tests/a357_consumer.rs:1064:29
+     |
+1064 |         assert!(review_only(&call(&doc, SHELF), &world.curated, &operator()).is_err());
+     |                             ^^^^^^^^^^^^^^^^^^ help: change this to: `call(&doc, SHELF)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_borrow
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> tests/a357_consumer.rs:1065:31
+     |
+1065 |         assert!(pack_call_err(&call(&doc, SHELF), &world.curated));
+     |                               ^^^^^^^^^^^^^^^^^^ help: change this to: `call(&doc, SHELF)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_borrow
+
+error: could not compile `pg-builder` (test "a357_consumer") due to 4 previous errors

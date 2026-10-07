@@ -1,0 +1,17 @@
+Owned cleanup after proof-4 and the single live call. No prune. No foreign name was passed to docker volume rm or docker network rm.
+
+a357 containers before removal: none
+volume_rm oo-a357-eef831aa-cargo exit=0
+volume_rm oo-a357-eef831aa-target exit=0
+network_rm oo-a357-eef831aa-net exit=0
+tmp_rm /tmp/oo-a357-eef831aa-dba4-4af2-a78b-541bc9e0a357 exit=0
+tmp=absent
+a357_volumes_after=0
+a357_network_after=0
+token_file=/tmp/oo-customer-demo-20261007/llm-token
+token_bytes=6
+token_file=present
+
+Observed and left in place: container oo-a358-review-rust owner eef831aa-dba4-4af2-a78b-541bc9e0a358 was Up. Container oo-a355-sbs-live owner a355 had Exited 0. Other oo-* volumes and networks were listed and were not removed.
+
+PostgreSQL was not started by this review. The postgres image was not pulled and was not removed. The rust image was not removed.

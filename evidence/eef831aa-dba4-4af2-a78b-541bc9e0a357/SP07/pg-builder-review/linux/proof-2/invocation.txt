@@ -1,0 +1,1 @@
+docker run --name oo-a357-proof2 --platform linux/arm64 --pull never --network oo-a357-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 --pids-limit 256 image=pinned-rust-1.94 bash /inside.sh

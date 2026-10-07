@@ -1,0 +1,1 @@
+visible=1 attempts=1 image=pinned-rust probe=archive-only postgres=not-started

@@ -1,0 +1,47 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+Linux 1f4ae7243787 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+uid=0(root) gid=0(root) groups=0(root)
+PHASE toolchain=0
+=== copy the fixed archive; oracle stays absent ===
+PHASE overlay-absent=0
+PHASE archive-locks=0
+=== fetch the committed builder lock ===
+PHASE fetch-builder=0
+PHASE fetch-builder-offline=0
+PHASE fetch-fixture-offline=0
+=== author pg-builder tests, before the oracle exists ===
+PHASE test-builder=0
+PHASE test-builder-clean=0
+=== author pg-fixture tests ===
+PHASE test-fixture=0
+PHASE test-fixture-ok=0
+=== clippy component ===
+PHASE clippy-component=0
+=== product clippy before the oracle ===
+PHASE clippy-builder=0
+PHASE clippy-fixture=0
+=== work-tree re-export so the integration test can name RawReply ===
+PHASE reexport=0
+=== copy the test-only oracle ===
+PHASE oracle-copy=0
+=== independent a357 oracle ===
+PHASE test-a357=0
+=== clippy including the oracle ===
+PHASE clippy-oracle=0
+=== lock subset, recorded, locks not replaced ===
+PHASE lock-compile=0
+PHASE lock-subset-builder=1
+PHASE lock-subset-fixture=1
+=== remove the oracle, restore lib.rs, compare product bytes ===
+PHASE oracle-removed=0
+PHASE product-bytes=0
+PHASE root-lock=0
+PROOF_OK

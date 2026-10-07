@@ -1,0 +1,14 @@
+   Compiling pg-builder v0.1.0 (/work/tools/pg-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.58s
+     Running tests/a357_consumer.rs (/target/pg-builder/debug/deps/a357_consumer-6d3f9db707d535ff)
+
+running 6 tests
+test cache_hit_opens_no_socket_and_stale_scopes_miss ... ok
+test forged_echo_and_failure_leave_curated_and_cache_unchanged ... ok
+test rebind_copies_descriptive_bytes_and_replaces_prompt_echoes ... ok
+test separate_packs_drop_the_other_tables_approved_text ... ok
+test stored_three_table_receipts_keep_hashes_and_split_the_pack ... ok
+test unreviewed_mark_unknown_column_and_deferred_prose ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.73s
+

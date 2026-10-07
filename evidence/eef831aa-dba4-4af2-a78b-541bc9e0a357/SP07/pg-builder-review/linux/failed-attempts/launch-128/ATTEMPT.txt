@@ -1,0 +1,11 @@
+exit=128
+container=none
+network=none
+volume=none
+console.log=absent
+docker-run.exit=absent
+cause=git rev-parse c23db28:tools/pg-builder/src/rebind.rs
+message=fatal: path 'tools/pg-builder/src/rebind.rs' exists on disk, but not in 'c23db28dc27f5cf20741dd36e8a8e88129ad1715'
+ownership=rebind.rs is consumer a13b1cc and absent at producer c23db28
+resources_left=tmp archive /tmp/oo-a357-eef831aa-dba4-4af2-a78b-541bc9e0a357/proof-1/archive
+foreign_builder=oo-a355-sbs-querypg owner=a355 not touched
