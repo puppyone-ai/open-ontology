@@ -2,6 +2,7 @@
 //!
 //! This crate is not an all-state certificate. SP14-W04 stays open.
 
+pub mod cut;
 pub mod decide;
 pub mod fixture;
 pub mod gold;

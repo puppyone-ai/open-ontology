@@ -1,6 +1,6 @@
 # pg-backup-restore/v1
 
-Status: frozen before the Rust program. This file is not a development unit and does not accept a parent goal.
+Status: cut rule amended by session `eef831aa-dba4-4af2-a78b-541bc9e0a368` after `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a368/SP14/pg-backup-quiescent-cut/CONTRACT-FREEZE.md`. This file is not a development unit and does not accept a parent goal. Fixture names stay the a356 names.
 
 Session `eef831aa-dba4-4af2-a78b-541bc9e0a356`. Fixed product archive `7a6f7eac8b8041eae215c087d1a80930437871ce`. Owned paths are `tools/pg-backup-restore/**`, `testing/real-db/pg-backup-restore/**`, and `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a356/SP14/pg-backup-restore/**`.
 
@@ -50,7 +50,11 @@ Direct exec of the Rust 1.94 binary inside that image failed before any SQL: the
 
 `pg_restore` flags: `--no-password --exit-on-error --single-transaction` plus host, port, username, and the fresh dbname. No `--clean`. No `DROP DATABASE`. No `pg_dumpall`. Role password hashes are not exported.
 
-Before the two dumps the program reads `pg_current_wal_lsn()`, the cut marker, and `count(*)` of `shop.entry`. It reads them again after the dumps. A changed marker or a changed entry count sets `history_insufficient`. WAL LSN movement alone sets `wal_moved` and `pitr_ready=false`. It does not by itself withhold a logical snapshot whose marker and counts stayed still. This is not WAL archiving and not pgBackRest.
+Before the gold `COPY` and both dumps, the program holds `SHARE` locks on every user table in `oo_a356_control` and `oo_a356_agent`. Those locks block writers, including the table owner, and they do not conflict with `pg_dump`. While they are held, a writer statement on each database must be rejected with `lock_not_available`, and the content digest of every sealed gold relation must match before and after the dumps. The manifest records `cut_mode` `writers_blocked`, the writer blocks, and the relation digests bound to the gold file hashes and the dump hashes. `history_insufficient` is false only then. `quiescent` is the opposite bit. It is not a caller field. An operator file that contains `quiescent` is refused.
+
+The cut marker and `count(*)` of `shop.entry` are read under the locks, before and after the dumps. They can withhold the seal when they move or are not `cut-a356-1|100000` and `90000`. They cannot establish a cut. A value update that leaves them unchanged is invisible to those samples. WAL LSN movement sets `wal_moved` only. `pitr_ready` stays false. This is not WAL archiving and not pgBackRest.
+
+If the locks are not acquired, or a probe is not rejected, backup returns before writing a manifest or a dump and releases the sessions. If the dumps exist and the digests, locks, marker, or count disagree, the manifest is `cut_mode` `unproven` with empty proof arrays, `history_insufficient` true, and `quiescent` false. Restore of that manifest, or of a digest that does not match its gold file, is exit 4 before `CREATE DATABASE` and before `pg_restore`. The refusal report has `replay_ready` false, `offset_published` null, and `history_insufficient` true. Unknown history is not reported as sufficient.
 
 The manifest is one JSON object written once. Its sidecar is the SHA-256 of those exact bytes. Dump files and checkpoint `COPY` files are named in the manifest with their SHA-256. A second backup into an existing manifest is refused. Missing manifest, sidecar mismatch, dump mismatch, or gold-file mismatch writes `replay_ready=false` and does not call `pg_restore`.
 
@@ -58,7 +62,7 @@ Restore creates a fenced database only when `pg_database` has no such name, usin
 
 After restore, shop `COPY` text is compared with the Rust generator for all 100000 rows. Checkpoint `COPY` text is compared with the files taken at the cut. Probes compare counts, `numeric(18,4)` text, NULL, primary keys, the comment, foreign-key orphans, the CDC position, the calendar closure, the session revision, the enum row, and the two issued keys. A row inserted after the manifest is sealed (`shop.party` `p90000`, key `k-9000`) must remain on the source and must be absent from the restore.
 
-`replay_ready` is true only when every check above passed and `history_insufficient` is false. These fields are constants even then:
+`replay_ready` is true only when every check above passed, `history_insufficient` is false, and `cut_proven` is true. `cut_proven` is true only for the writer-blocked record above. These fields are constants even then:
 
 - `all_state_certified`: false
 - `w04_gate`: `open`

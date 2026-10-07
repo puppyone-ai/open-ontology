@@ -1,0 +1,1 @@
+attempt 4: cut-check clippy rejected PathBuf, which only the tests use. product test and clippy stayed at exit 0.

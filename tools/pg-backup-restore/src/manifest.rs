@@ -5,6 +5,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+use crate::cut::{self, RelationDigest, WriterBlock};
 use crate::json::{self, escape, Value};
 use crate::protocol::{self, Operator};
 use crate::sha256::{self, is_hex64};
@@ -22,6 +23,7 @@ pub struct Manifest {
     pub pg_restore_version: String,
     pub psql_version: String,
     pub tool_dir: String,
+    pub cut_mode: String,
     pub history_insufficient: bool,
     pub wal_moved: bool,
     pub lsn_before: String,
@@ -34,6 +36,8 @@ pub struct Manifest {
     pub dumps: Vec<NamedHash>,
     pub gold: Vec<NamedHash>,
     pub schemas: Vec<NamedHash>,
+    pub relation_digests: Vec<RelationDigest>,
+    pub writer_blocks: Vec<WriterBlock>,
     pub shop_gold_sha256: String,
 }
 
@@ -41,6 +45,7 @@ const KEYS: &[&str] = &[
     "backup_finished_unix",
     "backup_started_unix",
     "caller",
+    "cut_mode",
     "dumps",
     "entry_count_after",
     "entry_count_before",
@@ -56,6 +61,7 @@ const KEYS: &[&str] = &[
     "pg_restore_version",
     "psql_version",
     "quiescent",
+    "relation_digests",
     "schemas",
     "session",
     "shop_gold_sha256",
@@ -63,6 +69,7 @@ const KEYS: &[&str] = &[
     "target_fence",
     "tool_dir",
     "wal_moved",
+    "writer_blocks",
 ];
 
 fn named_json(items: &[NamedHash]) -> String {
@@ -86,11 +93,14 @@ fn named_json(items: &[NamedHash]) -> String {
 
 pub fn to_json(manifest: &Manifest) -> String {
     format!(
-        "{{\n  \"backup_finished_unix\": {finished},\n  \"backup_started_unix\": {started},\n  \"caller\": \"{caller}\",\n  \"dumps\": {dumps},\n  \"entry_count_after\": {entry_after},\n  \"entry_count_before\": {entry_before},\n  \"gold\": {gold},\n  \"history_insufficient\": {history},\n  \"last_write_unix\": {last_write},\n  \"lineage_version\": \"{lineage}\",\n  \"lsn_after\": {lsn_after},\n  \"lsn_before\": {lsn_before},\n  \"manifest_version\": \"{manifest_version}\",\n  \"owner\": \"{owner}\",\n  \"pg_dump_version\": {dump_version},\n  \"pg_restore_version\": {restore_version},\n  \"psql_version\": {psql_version},\n  \"quiescent\": {quiescent},\n  \"schemas\": {schemas},\n  \"session\": \"{session}\",\n  \"shop_gold_sha256\": {shop},\n  \"source_cut\": \"{cut}\",\n  \"target_fence\": \"{fence}\",\n  \"tool_dir\": {tool_dir},\n  \"wal_moved\": {wal}\n}}\n",
+        "{{\n  \"backup_finished_unix\": {finished},\n  \"backup_started_unix\": {started},\n  \"caller\": \"{caller}\",\n  \"cut_mode\": {cut_mode},\n  \"dumps\": {dumps},\n  \"entry_count_after\": {entry_after},\n  \"entry_count_before\": {entry_before},\n  \"gold\": {gold},\n  \"history_insufficient\": {history},\n  \"last_write_unix\": {last_write},\n  \"lineage_version\": \"{lineage}\",\n  \"lsn_after\": {lsn_after},\n  \"lsn_before\": {lsn_before},\n  \"manifest_version\": \"{manifest_version}\",\n  \"owner\": \"{owner}\",\n  \"pg_dump_version\": {dump_version},\n  \"pg_restore_version\": {restore_version},\n  \"psql_version\": {psql_version},\n  \"quiescent\": {quiescent},\n  \"relation_digests\": {digests},\n  \"schemas\": {schemas},\n  \"session\": \"{session}\",\n  \"shop_gold_sha256\": {shop},\n  \"source_cut\": \"{cut}\",\n  \"target_fence\": \"{fence}\",\n  \"tool_dir\": {tool_dir},\n  \"wal_moved\": {wal},\n  \"writer_blocks\": {blocks}\n}}\n",
         finished = manifest.backup_finished_unix,
         started = manifest.backup_started_unix,
         caller = protocol::CALLER,
+        cut_mode = escape(&manifest.cut_mode),
         dumps = named_json(&manifest.dumps),
+        digests = digests_json(&manifest.relation_digests),
+        blocks = blocks_json(&manifest.writer_blocks),
         entry_after = manifest.entry_count_after,
         entry_before = manifest.entry_count_before,
         gold = named_json(&manifest.gold),
@@ -130,13 +140,16 @@ pub fn parse(text: &str) -> Result<Manifest, Fail> {
     }
     let history = value.bool_key("history_insufficient")?;
     let quiescent = value.bool_key("quiescent")?;
-    if quiescent == history {
-        return Err(fail(4, "manifest quiescent flag disagrees"));
-    }
+    let relation_digests = digests(value.array("relation_digests")?)?;
+    let writer_blocks = blocks(value.array("writer_blocks")?)?;
+    cut::proof_shape(value.string("cut_mode")?, history, quiescent, &writer_blocks, &relation_digests)?;
     if !is_hex64(value.string("shop_gold_sha256")?) {
         return Err(fail(4, "shop gold digest is not hex"));
     }
     Ok(Manifest {
+        cut_mode: value.string("cut_mode")?.to_string(),
+        relation_digests,
+        writer_blocks,
         pg_dump_version: value.string("pg_dump_version")?.to_string(),
         pg_restore_version: value.string("pg_restore_version")?.to_string(),
         psql_version: value.string("psql_version")?.to_string(),
@@ -155,6 +168,106 @@ pub fn parse(text: &str) -> Result<Manifest, Fail> {
         schemas: named(value.array("schemas")?)?,
         shop_gold_sha256: value.string("shop_gold_sha256")?.to_string(),
     })
+}
+
+fn digests_json(items: &[RelationDigest]) -> String {
+    let mut out = String::from("[\n");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push_str(",\n");
+        }
+        out.push_str("    {\"content_md5\": ");
+        out.push_str(&escape(&item.content_md5));
+        out.push_str(", \"database\": ");
+        out.push_str(&escape(&item.database));
+        out.push_str(", \"gold_sha256\": ");
+        out.push_str(&escape(&item.gold_sha256));
+        out.push_str(", \"relation\": ");
+        out.push_str(&escape(&item.relation));
+        out.push('}');
+    }
+    if !items.is_empty() {
+        out.push('\n');
+    }
+    out.push_str("  ]");
+    out
+}
+
+fn blocks_json(items: &[WriterBlock]) -> String {
+    let mut out = String::from("[\n");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push_str(",\n");
+        }
+        out.push_str("    {\"application_name\": ");
+        out.push_str(&escape(&item.application_name));
+        out.push_str(", \"database\": ");
+        out.push_str(&escape(&item.database));
+        out.push_str(", \"lock_mode\": ");
+        out.push_str(&escape(&item.lock_mode));
+        out.push_str(", \"probe_rejected\": ");
+        out.push_str(if item.probe_rejected { "true" } else { "false" });
+        out.push_str(", \"relations\": ");
+        out.push_str(&string_array(&item.relations));
+        out.push('}');
+    }
+    if !items.is_empty() {
+        out.push('\n');
+    }
+    out.push_str("  ]");
+    out
+}
+
+fn string_array(items: &[String]) -> String {
+    let mut out = String::from("[");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&escape(item));
+    }
+    out.push(']');
+    out
+}
+
+fn digests(items: &[Value]) -> Result<Vec<RelationDigest>, Fail> {
+    let mut out = Vec::new();
+    for item in items {
+        json::require_keys(item, &["content_md5", "database", "gold_sha256", "relation"])?;
+        out.push(RelationDigest {
+            content_md5: item.string("content_md5")?.to_string(),
+            database: item.string("database")?.to_string(),
+            gold_sha256: item.string("gold_sha256")?.to_string(),
+            relation: item.string("relation")?.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+fn blocks(items: &[Value]) -> Result<Vec<WriterBlock>, Fail> {
+    let mut out = Vec::new();
+    for item in items {
+        json::require_keys(item, &["application_name", "database", "lock_mode", "probe_rejected", "relations"])?;
+        out.push(WriterBlock {
+            application_name: item.string("application_name")?.to_string(),
+            database: item.string("database")?.to_string(),
+            lock_mode: item.string("lock_mode")?.to_string(),
+            probe_rejected: item.bool_key("probe_rejected")?,
+            relations: string_list(item.array("relations")?)?,
+        });
+    }
+    Ok(out)
+}
+
+fn string_list(items: &[Value]) -> Result<Vec<String>, Fail> {
+    let mut out = Vec::new();
+    for item in items {
+        let Value::String(text) = item else {
+            return Err(fail(4, "relation name is not a string"));
+        };
+        out.push(text.clone());
+    }
+    Ok(out)
 }
 
 fn named(items: &[Value]) -> Result<Vec<NamedHash>, Fail> {

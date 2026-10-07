@@ -5,6 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use pg_backup_restore::cut::{self, RelationDigest, WriterBlock};
 use pg_backup_restore::decide::{self, publish_offset, Report};
 use pg_backup_restore::fixture::{self, control_sql, enum_sql};
 use pg_backup_restore::gold::{self, entry_qty};
@@ -71,6 +72,7 @@ fn readiness_constants_stay_closed() {
         checkpoint_copy_ok: true,
         shop_gold_ok: true,
         counts_ok: true,
+        cut_proven: true,
         decimal_ok: true,
         null_ok: true,
         comment_ok: true,
@@ -97,13 +99,51 @@ fn readiness_constants_stay_closed() {
     assert_eq!(parsed.string("w04_gate").unwrap(), "open");
     assert_eq!(parsed.string("offset_published").unwrap(), "100000");
     assert!(parsed.bool_key("replay_ready").unwrap());
+    assert!(parsed.bool_key("cut_proven").unwrap());
+    assert!(!parsed.bool_key("history_insufficient").unwrap());
     assert!(parsed.bool_key("wal_moved").unwrap());
     assert_eq!(decide::REMAINING.len(), 15);
     let refused = decide::report_json(&Report::refused("manifest_absent"));
     let refused_value = json::parse(&refused).unwrap();
     assert!(!refused_value.bool_key("replay_ready").unwrap());
+    assert!(!refused_value.bool_key("cut_proven").unwrap());
+    assert!(refused_value.bool_key("history_insufficient").unwrap());
     assert_eq!(refused_value.string("reason").unwrap(), "manifest_absent");
     assert_eq!(refused_value.get("offset_published"), Some(&json::Value::Null));
+}
+
+#[test]
+fn an_unproven_cut_does_not_publish_readiness_or_an_offset() {
+    let mut report = Report {
+        replay_ready: true,
+        reason: String::new(),
+        reasons: Vec::new(),
+        history_insufficient: false,
+        wal_moved: false,
+        checkpoint_copy_ok: true,
+        shop_gold_ok: true,
+        counts_ok: true,
+        cut_proven: false,
+        decimal_ok: true,
+        null_ok: true,
+        comment_ok: true,
+        key_reused: false,
+        key_count: 2,
+        post_cut_absent_on_restore: true,
+        post_cut_present_on_source: true,
+        clock_anomaly: false,
+        offset_published: Some("100000".to_string()),
+        rpo_window_seconds: Some(1),
+        rto_seconds: Some(1),
+    };
+    report.seal();
+    assert!(!report.replay_ready);
+    assert!(report.history_insufficient);
+    assert_eq!(report.offset_published, None);
+    let parsed = json::parse(&decide::report_json(&report)).unwrap();
+    assert!(!parsed.bool_key("replay_ready").unwrap());
+    assert!(parsed.bool_key("history_insufficient").unwrap());
+    assert_eq!(parsed.get("offset_published"), Some(&json::Value::Null));
 }
 
 #[test]
@@ -119,6 +159,20 @@ fn manifest_round_trips_and_rejects_a_bad_quiescent_flag() {
     assert_eq!(parsed.shop_gold_sha256, manifest.shop_gold_sha256);
     let broken = body.replace("\"quiescent\": true", "\"quiescent\": false");
     assert!(manifest::parse(&broken).is_err());
+    let forged = body.replace("\"cut_mode\": \"writers_blocked\"", "\"cut_mode\": \"unproven\"");
+    assert!(manifest::parse(&forged).is_err());
+}
+
+#[test]
+fn relation_digest_must_match_the_bound_gold_hash() {
+    let manifest = sample_manifest();
+    let pairs: Vec<(&str, &str)> = manifest.gold.iter().map(|item| (item.name.as_str(), item.sha256.as_str())).collect();
+    assert!(cut::digests_bound(&manifest.relation_digests, &pairs).is_ok());
+    let mut broken = manifest.relation_digests.clone();
+    broken[0].gold_sha256 = sha256::hex(&hash(b"other"));
+    let err = cut::digests_bound(&broken, &pairs).unwrap_err();
+    assert_eq!(err.detail, "gold_hash_mismatch");
+    assert_eq!(err.exit, 4);
 }
 
 #[test]
@@ -161,6 +215,9 @@ fn operator_file_rejects_unknown_keys_and_host_package_paths() {
     let mut extra = frozen_operator("/usr/lib/postgresql/17/bin");
     extra = extra.replacen("{\n", "{\n  \"extra\": \"no\",\n", 1);
     fs::write(&path, extra).unwrap();
+    assert_eq!(load_operator(&path).unwrap_err().exit, 2);
+    let caller_cut = frozen_operator("/usr/lib/postgresql/17/bin").replacen("{\n", "{\n  \"quiescent\": true,\n", 1);
+    fs::write(&path, caller_cut).unwrap();
     assert_eq!(load_operator(&path).unwrap_err().exit, 2);
     assert!(schema_path(&root, "..").is_err());
     assert!(schema_path(&root, "a//b").is_err());
@@ -215,11 +272,12 @@ fn hash_tree_lists_regular_files_and_skips_its_output() {
 }
 
 fn sample_manifest() -> Manifest {
-    Manifest {
+    let mut manifest = Manifest {
         pg_dump_version: "pg_dump (PostgreSQL) 17.10".to_string(),
         pg_restore_version: "pg_restore (PostgreSQL) 17.10".to_string(),
         psql_version: "psql (PostgreSQL) 17.10".to_string(),
         tool_dir: "/usr/lib/postgresql/17/bin".to_string(),
+        cut_mode: cut::WRITERS_BLOCKED.to_string(),
         history_insufficient: false,
         wal_moved: true,
         lsn_before: "0/100".to_string(),
@@ -235,7 +293,50 @@ fn sample_manifest() -> Manifest {
         }],
         gold: Vec::new(),
         schemas: Vec::new(),
+        relation_digests: Vec::new(),
+        writer_blocks: Vec::new(),
         shop_gold_sha256: sha256::hex(&hash(b"shop")),
+    };
+    fill_proof(&mut manifest);
+    manifest
+}
+
+fn fill_proof(manifest: &mut Manifest) {
+    let mut digests = Vec::new();
+    let mut gold = Vec::new();
+    let mut control_relations = Vec::new();
+    let mut agent_relations = Vec::new();
+    for (database, relation, gold_file) in cut::sealed_pairs() {
+        let sha = sha256::hex(&hash(relation.as_bytes()));
+        digests.push(RelationDigest {
+            content_md5: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+            database: database.to_string(),
+            gold_sha256: sha.clone(),
+            relation: relation.to_string(),
+        });
+        gold.push(NamedHash { name: gold_file.to_string(), sha256: sha });
+        if database == protocol::CONTROL_DB {
+            control_relations.push(relation.to_string());
+        } else {
+            agent_relations.push(relation.to_string());
+        }
+    }
+    control_relations.sort();
+    agent_relations.sort();
+    digests.sort_by(|left, right| left.database.cmp(&right.database).then(left.relation.cmp(&right.relation)));
+    gold.sort_by(|left, right| left.name.cmp(&right.name));
+    manifest.relation_digests = digests;
+    manifest.gold = gold;
+    manifest.writer_blocks = vec![proof_block(protocol::CONTROL_DB, control_relations), proof_block(protocol::AGENT_DB, agent_relations)];
+}
+
+fn proof_block(database: &str, relations: Vec<String>) -> WriterBlock {
+    WriterBlock {
+        application_name: cut::application_name(database).unwrap().to_string(),
+        database: database.to_string(),
+        lock_mode: "SHARE".to_string(),
+        probe_rejected: true,
+        relations,
     }
 }
 

@@ -46,6 +46,7 @@ pub struct Report {
     pub checkpoint_copy_ok: bool,
     pub shop_gold_ok: bool,
     pub counts_ok: bool,
+    pub cut_proven: bool,
     pub decimal_ok: bool,
     pub null_ok: bool,
     pub comment_ok: bool,
@@ -65,11 +66,12 @@ impl Report {
             replay_ready: false,
             reason: reason.to_string(),
             reasons: vec![reason.to_string()],
-            history_insufficient: false,
+            history_insufficient: true,
             wal_moved: false,
             checkpoint_copy_ok: false,
             shop_gold_ok: false,
             counts_ok: false,
+            cut_proven: false,
             decimal_ok: false,
             null_ok: false,
             comment_ok: false,
@@ -96,6 +98,11 @@ impl Report {
         self.push_unless(self.post_cut_absent_on_restore, "post_cut_present");
         self.push_unless(self.post_cut_present_on_source, "post_cut_missing_on_source");
         self.push_unless(!self.clock_anomaly, "clock_anomaly");
+        if !self.cut_proven {
+            self.history_insufficient = true;
+            self.offset_published = None;
+            self.push_unless(false, "cut_unproven");
+        }
         if self.history_insufficient {
             self.offset_published = None;
             self.push_unless(false, "history_insufficient");
@@ -176,11 +183,12 @@ pub fn report_json(report: &Report) -> String {
     }
     remaining.push(']');
     format!(
-        "{{\n  \"all_state_certified\": false,\n  \"caller\": \"trusted_local_admin\",\n  \"checkpoint_copy_ok\": {checkpoint},\n  \"clock_anomaly\": {clock},\n  \"comment_ok\": {comment},\n  \"counts_ok\": {counts},\n  \"decimal_ok\": {decimal},\n  \"history_insufficient\": {history},\n  \"key_count\": {key_count},\n  \"key_reused\": {key_reused},\n  \"lineage_version\": \"pg-backup-restore/v1\",\n  \"null_ok\": {null_ok},\n  \"offset_min_used\": false,\n  \"offset_published\": {offset},\n  \"parent_acceptance\": false,\n  \"pitr_ready\": false,\n  \"post_cut_absent_on_restore\": {post_restore},\n  \"post_cut_present_on_source\": {post_source},\n  \"production_ops\": false,\n  \"production_slo_certified\": false,\n  \"reason\": {reason},\n  \"reasons\": {reasons},\n  \"remaining_state_families\": {remaining},\n  \"replay_ready\": {ready},\n  \"report_version\": \"oo-pg-backup-readiness/v1\",\n  \"rpo_window_seconds\": {rpo},\n  \"rto_seconds\": {rto},\n  \"shop_gold_ok\": {shop},\n  \"source_cut\": \"cut-a356-1\",\n  \"target_fence\": \"fence-a356-restore\",\n  \"w04_gate\": \"open\",\n  \"wal_moved\": {wal}\n}}\n",
+        "{{\n  \"all_state_certified\": false,\n  \"caller\": \"trusted_local_admin\",\n  \"checkpoint_copy_ok\": {checkpoint},\n  \"clock_anomaly\": {clock},\n  \"comment_ok\": {comment},\n  \"counts_ok\": {counts},\n  \"cut_proven\": {cut},\n  \"decimal_ok\": {decimal},\n  \"history_insufficient\": {history},\n  \"key_count\": {key_count},\n  \"key_reused\": {key_reused},\n  \"lineage_version\": \"pg-backup-restore/v1\",\n  \"null_ok\": {null_ok},\n  \"offset_min_used\": false,\n  \"offset_published\": {offset},\n  \"parent_acceptance\": false,\n  \"pitr_ready\": false,\n  \"post_cut_absent_on_restore\": {post_restore},\n  \"post_cut_present_on_source\": {post_source},\n  \"production_ops\": false,\n  \"production_slo_certified\": false,\n  \"reason\": {reason},\n  \"reasons\": {reasons},\n  \"remaining_state_families\": {remaining},\n  \"replay_ready\": {ready},\n  \"report_version\": \"oo-pg-backup-readiness/v1\",\n  \"rpo_window_seconds\": {rpo},\n  \"rto_seconds\": {rto},\n  \"shop_gold_ok\": {shop},\n  \"source_cut\": \"cut-a356-1\",\n  \"target_fence\": \"fence-a356-restore\",\n  \"w04_gate\": \"open\",\n  \"wal_moved\": {wal}\n}}\n",
         checkpoint = bool_json(report.checkpoint_copy_ok),
         clock = bool_json(report.clock_anomaly),
         comment = bool_json(report.comment_ok),
         counts = bool_json(report.counts_ok),
+        cut = bool_json(report.cut_proven),
         decimal = bool_json(report.decimal_ok),
         history = bool_json(report.history_insufficient),
         key_count = report.key_count,
