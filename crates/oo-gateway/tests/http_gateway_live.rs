@@ -244,7 +244,7 @@ fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host:
 }
 
 fn spawn_gateway(dir: &std::path::Path) -> Child {
-    let bin = env!("CARGO_BIN_EXE_oo_gateway");
+    let bin = env!("CARGO_BIN_EXE_oo-gateway");
     let _ = std::fs::remove_file(dir.join("listen.addr"));
     let stderr = std::fs::OpenOptions::new()
         .create(true)
