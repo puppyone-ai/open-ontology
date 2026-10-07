@@ -14,12 +14,135 @@ use std::process::Command;
 
 const FIXED: &str = "25dfc9022780c3deff12f37b7ad7ea4ed1fb6480";
 const SOURCE_ID: &str = "public_shop";
-const HOST: &str = "oo-a305-pg";
-const DATABASE: &str = "oo_a305_src";
-const READER: &str = "oo_a305_reader";
-const SECRET_REF: &str = "secret://pg/a305/reader";
 const MARKER: &str = "甲注评";
 const REVIEWER: &str = "public-fixture";
+
+struct Deployment {
+    owner: String,
+    run_id: String,
+}
+
+impl Deployment {
+    fn host(&self) -> String {
+        format!("oo-{}-pg", self.owner)
+    }
+
+    fn database(&self) -> String {
+        format!("oo_{}_src", self.owner)
+    }
+
+    fn dst(&self) -> String {
+        format!("oo_{}_dst", self.owner)
+    }
+
+    fn reader(&self) -> String {
+        format!("oo_{}_reader", self.owner)
+    }
+
+    fn runtime(&self) -> String {
+        format!("oo_{}_runtime", self.owner)
+    }
+
+    fn login(&self) -> String {
+        format!("oo_{}_login", self.owner)
+    }
+
+    fn secret_ref(&self) -> String {
+        format!("secret://pg/{}/reader", self.owner)
+    }
+
+    fn shard(&self) -> String {
+        format!("{}main", self.owner)
+    }
+
+    fn ont(&self) -> String {
+        format!("ont-{}", self.owner)
+    }
+
+    fn cat(&self) -> String {
+        format!("cat-{}", self.owner)
+    }
+
+    fn pol(&self) -> String {
+        format!("pol-{}", self.owner)
+    }
+
+    fn know(&self) -> String {
+        format!("know-{}", self.owner)
+    }
+}
+
+fn canonical_deployment(owner: &str, run_id: &str) -> String {
+    format!(
+        "{{\"protocol\":\"oo.deploy.trusted-demo-deployment/v1\",\"project\":\"open-ontology\",\"fixed_source\":\"{FIXED}\",\"owner\":\"{owner}\",\"run_id\":\"{run_id}\",\"source_id\":\"public_shop\"}}"
+    )
+}
+
+fn load_deployment(bytes: &[u8]) -> Result<Deployment, String> {
+    let text = std::str::from_utf8(bytes).map_err(|_| "manifest utf-8".to_owned())?;
+    let line = match text.strip_suffix('\n') {
+        Some(rest) => rest,
+        None => text,
+    };
+    if line.contains('\n') || line.contains('\r') {
+        return Err("manifest must be one line".to_owned());
+    }
+    let value = parse_slice(line.as_bytes())?;
+    let deployment = deployment_from(&value)?;
+    if line != canonical_deployment(&deployment.owner, &deployment.run_id) {
+        return Err("manifest is not canonical".to_owned());
+    }
+    Ok(deployment)
+}
+
+fn deployment_from(value: &Val) -> Result<Deployment, String> {
+    let Val::Obj(items) = value else {
+        return Err("manifest object".to_owned());
+    };
+    if items.len() != 6 {
+        return Err("manifest fields".to_owned());
+    }
+    expect_str(value, "protocol", "oo.deploy.trusted-demo-deployment/v1")?;
+    expect_str(value, "project", "open-ontology")?;
+    expect_str(value, "fixed_source", FIXED)?;
+    expect_str(value, "source_id", SOURCE_ID)?;
+    let owner = str_field(value, "owner")?.to_owned();
+    let run_id = str_field(value, "run_id")?.to_owned();
+    if !owner_token(&owner) || !uuid_lower(&run_id) || !run_id.ends_with(&owner) {
+        return Err("manifest identity".to_owned());
+    }
+    Ok(Deployment { owner, run_id })
+}
+
+fn owner_token(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 4 && bytes.iter().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn uuid_lower(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 36 {
+        return false;
+    }
+    for (index, byte) in bytes.iter().enumerate() {
+        let hyphen_slot = matches!(index, 8 | 13 | 18 | 23);
+        if hyphen_slot && *byte != b'-' {
+            return false;
+        }
+        if !hyphen_slot && (!byte.is_ascii_hexdigit() || byte.is_ascii_uppercase()) {
+            return false;
+        }
+    }
+    true
+}
+
+fn load_deployment_file(path: &Path) -> Result<Deployment, String> {
+    let bytes = fs::read(path).map_err(|_| "deployment manifest missing".to_owned())?;
+    if bytes.len() > 512 {
+        return Err("deployment manifest is too large".to_owned());
+    }
+    load_deployment(&bytes)
+}
 
 const DECISIONS: &[(&str, &str, &str, &str)] = &[
     ("shop.customer", "customer_id", "none", "identifier"),
@@ -66,14 +189,14 @@ struct Paths {
 
 fn paths() -> Result<Paths, String> {
     Ok(Paths {
-        onboarding: env_path("OO_A305_ONBOARDING")?,
-        bins: env_path("OO_A305_BINS")?,
-        secrets: env_path("OO_A305_SECRETS")?,
-        run: env_path("OO_A305_RUN")?,
-        work: env_path("OO_A305_WORK")?,
-        bad: env_path("OO_A305_BAD")?,
-        declared: env_path("OO_A305_DECLARED")?,
-        evidence: env_path("OO_A305_EVIDENCE")?,
+        onboarding: env_path("OO_DEMO_ONBOARDING")?,
+        bins: env_path("OO_DEMO_BINS")?,
+        secrets: env_path("OO_DEMO_SECRETS")?,
+        run: env_path("OO_DEMO_RUN")?,
+        work: env_path("OO_DEMO_WORK")?,
+        bad: env_path("OO_DEMO_BAD")?,
+        declared: env_path("OO_DEMO_DECLARED")?,
+        evidence: env_path("OO_DEMO_EVIDENCE")?,
     })
 }
 
@@ -88,6 +211,7 @@ fn env_path(key: &str) -> Result<PathBuf, String> {
 
 fn public_fixture() -> Result<(), String> {
     let paths = paths()?;
+    let deployment = load_deployment_file(Path::new("/deployment.json"))?;
     let fixed = fs::read_to_string("/src/.fixed-base-sha").map_err(|_| "fixed sha missing".to_owned())?;
     if fixed.trim() != FIXED {
         return Err("archive is not the fixed commit".to_owned());
@@ -101,7 +225,7 @@ fn public_fixture() -> Result<(), String> {
 
     let pins = pin_all(&paths.bins)?;
     let inspect_path = paths.work.join("inspect.json");
-    fs::write(&inspect_path, inspect_json(&pins, &paths.secrets)?).map_err(|_| "write inspect".to_owned())?;
+    fs::write(&inspect_path, inspect_json(&deployment, &pins, &paths.secrets)?).map_err(|_| "write inspect".to_owned())?;
     let inspect = run_bin(
         &paths.onboarding,
         &["inspect", "--config", inspect_path.to_str().ok_or("path")?, "--run", paths.run.to_str().ok_or("path")?],
@@ -119,8 +243,8 @@ fn public_fixture() -> Result<(), String> {
     if fence == "48" {
         return Err("target fence collided with source cut".to_owned());
     }
-    let identity = str_field(&manifest, "config_identity_sha256")?;
-    let recomputed = sha256_bytes(identity_preimage().as_bytes());
+    let identity = str_field(&manifest, "config_identity_sha256")?.to_owned();
+    let recomputed = sha256_bytes(identity_preimage(&deployment).as_bytes());
     if identity != recomputed {
         return Err("config identity mismatch".to_owned());
     }
@@ -134,13 +258,13 @@ fn public_fixture() -> Result<(), String> {
     fs::write(paths.work.join("reviews.json"), &bound.reviews).map_err(|_| "write reviews".to_owned())?;
     fs::write(paths.work.join("decisions.json"), &bound.decisions).map_err(|_| "write decisions".to_owned())?;
     fs::write(paths.work.join("bad-decisions.json"), &bound.bad_decisions).map_err(|_| "write bad decisions".to_owned())?;
-    write_visibility(&paths.work.join("vis-north.json"), "oo_r_north", true)?;
-    write_visibility(&paths.work.join("vis-narrow.json"), "oo_r_narrow", false)?;
+    write_visibility(&paths.work.join("vis-north.json"), &deployment, "oo_r_north", true)?;
+    write_visibility(&paths.work.join("vis-narrow.json"), &deployment, "oo_r_narrow", false)?;
     write_operator_stage(&paths)?;
 
     copy_tree(&paths.run, &paths.bad)?;
     let bad_apply = paths.work.join("bad-apply.json");
-    fs::write(&bad_apply, apply_json(&pins, &paths, "bad-decisions.json")?).map_err(|_| "write bad apply".to_owned())?;
+    fs::write(&bad_apply, apply_json(&deployment, &pins, &paths, "bad-decisions.json")?).map_err(|_| "write bad apply".to_owned())?;
     let bad = run_bin(
         &paths.onboarding,
         &["apply-reviewed", "--config", bad_apply.to_str().ok_or("path")?, "--run", paths.bad.to_str().ok_or("path")?],
@@ -148,7 +272,7 @@ fn public_fixture() -> Result<(), String> {
     check_bad_review(&paths.bad, &bad)?;
 
     let apply_path = paths.work.join("apply.json");
-    fs::write(&apply_path, apply_json(&pins, &paths, "decisions.json")?).map_err(|_| "write apply".to_owned())?;
+    fs::write(&apply_path, apply_json(&deployment, &pins, &paths, "decisions.json")?).map_err(|_| "write apply".to_owned())?;
     let apply = run_bin(
         &paths.onboarding,
         &[
@@ -167,15 +291,21 @@ fn public_fixture() -> Result<(), String> {
     let secrets = load_secrets(&paths.secrets)?;
     let scan_path = paths.evidence.join("secret-scan.txt");
     scan_tree(&paths.evidence, &secrets, &scan_path)?;
-    write_receipt(&paths, identity, &bound.schema_hash)?;
+    write_receipt(&paths, &deployment, &identity, &bound.schema_hash)?;
     println!("ready_for_trusted_query");
     Ok(())
 }
 
 fn smoke() -> Result<(), String> {
     let paths = paths()?;
+    let deployment = load_deployment_file(Path::new("/deployment.json"))?;
     let receipt = parse_file(&paths.evidence.join("live/receipt.json"))?;
     expect_str(&receipt, "status", "ready_for_trusted_query")?;
+    expect_str(&receipt, "fixed_commit", FIXED)?;
+    expect_str(&receipt, "project", "open-ontology")?;
+    expect_str(&receipt, "owner", &deployment.owner)?;
+    expect_str(&receipt, "run_id", &deployment.run_id)?;
+    expect_str(&receipt, "source_id", SOURCE_ID)?;
     let north = str_field(&receipt, "role_pack_north_sha256")?;
     let narrow = str_field(&receipt, "role_pack_narrow_sha256")?;
     let north_now = sha256_file(&paths.run.join("steps/role-pack-north.stdout"))?;
@@ -239,7 +369,7 @@ fn pin<'a>(pins: &'a [(&str, String, String)], name: &str) -> Result<(&'a String
         .ok_or_else(|| format!("missing pin {name}"))
 }
 
-fn inspect_json(pins: &[(&str, String, String)], secrets: &Path) -> Result<String, String> {
+fn inspect_json(deployment: &Deployment, pins: &[(&str, String, String)], secrets: &Path) -> Result<String, String> {
     let mut out = String::from("{\"protocol\":\"oo.onboarding.inspect/v1\",\"caller\":\"trusted_local_admin\",\"binaries\":{");
     push_named_pin(&mut out, "init_pg", pin(pins, "init-pg")?)?;
     out.push(',');
@@ -251,26 +381,34 @@ fn inspect_json(pins: &[(&str, String, String)], secrets: &Path) -> Result<Strin
     out.push_str("},\"source\":{\"source_id\":");
     push_string(&mut out, SOURCE_ID);
     out.push_str(",\"host\":");
-    push_string(&mut out, HOST);
+    push_string(&mut out, &deployment.host());
     out.push_str(",\"port\":5432,\"database\":");
-    push_string(&mut out, DATABASE);
+    push_string(&mut out, &deployment.database());
     out.push_str(",\"username\":");
-    push_string(&mut out, READER);
+    push_string(&mut out, &deployment.reader());
     out.push_str(",\"secret_ref\":");
-    push_string(&mut out, SECRET_REF);
+    push_string(&mut out, &deployment.secret_ref());
     out.push_str(",\"password_file\":");
     push_string(&mut out, &path_str(&secrets.join("reader.pass"))?);
     out.push_str(",\"ca_file\":");
     push_string(&mut out, &path_str(&secrets.join("ca.crt"))?);
     out.push_str(",\"tables\":[{\"schema\":\"shop\",\"table\":\"customer\"},{\"schema\":\"shop\",\"table\":\"order_doc\"}]},\"target\":{\"host\":");
-    push_string(&mut out, HOST);
-    out.push_str(",\"port\":5432,\"database\":\"oo_a305_dst\",\"administrator\":\"oo_fixture_admin\",\"runtime_principal\":\"oo_a305_runtime\",\"admin_password_file\":");
+    push_string(&mut out, &deployment.host());
+    out.push_str(",\"port\":5432,\"database\":");
+    push_string(&mut out, &deployment.dst());
+    out.push_str(",\"administrator\":\"oo_fixture_admin\",\"runtime_principal\":");
+    push_string(&mut out, &deployment.runtime());
+    out.push_str(",\"admin_password_file\":");
     push_string(&mut out, &path_str(&secrets.join("admin.pass"))?);
     out.push_str(",\"runtime_password_file\":");
     push_string(&mut out, &path_str(&secrets.join("runtime.pass"))?);
     out.push_str(",\"ca_file\":");
     push_string(&mut out, &path_str(&secrets.join("ca.crt"))?);
-    out.push_str("},\"shard\":\"a305main\",\"owner\":\"eef831aa-dba4-4af2-a78b-541bc9e0a305\",\"source_generation\":48,\"connect_ms\":30000,\"runtime_membership_ready_file\":");
+    out.push_str("},\"shard\":");
+    push_string(&mut out, &deployment.shard());
+    out.push_str(",\"owner\":");
+    push_string(&mut out, &deployment.run_id);
+    out.push_str(",\"source_generation\":48,\"connect_ms\":30000,\"runtime_membership_ready_file\":");
     push_string(&mut out, "/ready/runtime.ready");
     out.push_str(",\"membership_wait_ms\":180000,\"comment_markers\":[");
     push_string(&mut out, MARKER);
@@ -278,7 +416,7 @@ fn inspect_json(pins: &[(&str, String, String)], secrets: &Path) -> Result<Strin
     Ok(out)
 }
 
-fn apply_json(pins: &[(&str, String, String)], paths: &Paths, decisions_name: &str) -> Result<String, String> {
+fn apply_json(deployment: &Deployment, pins: &[(&str, String, String)], paths: &Paths, decisions_name: &str) -> Result<String, String> {
     let mut out = String::from("{\"protocol\":\"oo.onboarding.apply-reviewed/v1\",\"caller\":\"trusted_local_admin\",\"binaries\":{");
     let pairs = [
         ("review_pg_draft", "oo-builder"),
@@ -302,8 +440,10 @@ fn apply_json(pins: &[(&str, String, String)], paths: &Paths, decisions_name: &s
     out.push_str(",\"decisions_file\":");
     push_string(&mut out, &path_str(&paths.work.join(decisions_name))?);
     out.push_str(",\"settings\":");
-    out.push_str(SETTINGS);
-    out.push_str(",\"schema\":\"shop\",\"query_login\":{\"user\":\"oo_a305_login\",\"password_file\":");
+    out.push_str(&settings_json(deployment));
+    out.push_str(",\"schema\":\"shop\",\"query_login\":{\"user\":");
+    push_string(&mut out, &deployment.login());
+    out.push_str(",\"password_file\":");
     push_string(&mut out, &path_str(&paths.secrets.join("login.pass"))?);
     out.push_str("},\"roles\":[");
     push_role(&mut out, "north", true, &path_str(&paths.work.join("vis-north.json"))?)?;
@@ -313,7 +453,20 @@ fn apply_json(pins: &[(&str, String, String)], paths: &Paths, decisions_name: &s
     Ok(out)
 }
 
-const SETTINGS: &str = "{\"project\":\"public_shop\",\"ontology_version\":\"ont-a305\",\"catalog_version\":\"cat-a305\",\"policy\":{\"id\":\"pol-a305\",\"version\":\"1\"},\"knowledge\":{\"id\":\"know-a305\",\"version\":\"1\"},\"ontology\":{\"spec_version\":\"oos/v1\",\"name\":\"shop\",\"locale\":\"en-US\",\"include_schemas\":[\"shop\"],\"default_tier_preference\":[\"raw\"],\"publish\":{\"include_unreviewed\":[]},\"classification\":{\"auto_accept\":\"rule_high_confidence\"},\"lifecycle\":{\"deprecation_min_releases\":2},\"compile\":{\"per_role\":true,\"budgets\":{\"readme_tokens\":2000,\"table_file_tokens\":3000},\"sample_values\":{\"default\":\"masked\",\"max_per_column\":0}}}}";
+fn settings_json(deployment: &Deployment) -> String {
+    let mut out = String::from("{\"project\":");
+    push_string(&mut out, SOURCE_ID);
+    out.push_str(",\"ontology_version\":");
+    push_string(&mut out, &deployment.ont());
+    out.push_str(",\"catalog_version\":");
+    push_string(&mut out, &deployment.cat());
+    out.push_str(",\"policy\":{\"id\":");
+    push_string(&mut out, &deployment.pol());
+    out.push_str(",\"version\":\"1\"},\"knowledge\":{\"id\":");
+    push_string(&mut out, &deployment.know());
+    out.push_str(",\"version\":\"1\"},\"ontology\":{\"spec_version\":\"oos/v1\",\"name\":\"shop\",\"locale\":\"en-US\",\"include_schemas\":[\"shop\"],\"default_tier_preference\":[\"raw\"],\"publish\":{\"include_unreviewed\":[]},\"classification\":{\"auto_accept\":\"rule_high_confidence\"},\"lifecycle\":{\"deprecation_min_releases\":2},\"compile\":{\"per_role\":true,\"budgets\":{\"readme_tokens\":2000,\"table_file_tokens\":3000},\"sample_values\":{\"default\":\"masked\",\"max_per_column\":0}}}}");
+    out
+}
 
 fn push_named_pin(out: &mut String, field: &str, pin: (&String, &String)) -> Result<(), String> {
     out.push('"');
@@ -425,10 +578,18 @@ fn push_query(out: &mut String, query: &QuerySpec) {
     out.push_str(",\"max_rows\":20,\"max_result_bytes\":8192,\"wall_clock_ms\":30000}}");
 }
 
-fn write_visibility(path: &Path, role: &str, north: bool) -> Result<(), String> {
+fn write_visibility(path: &Path, deployment: &Deployment, role: &str, north: bool) -> Result<(), String> {
     let mut out = String::from("{\"protocol\":\"oo.builder.role-visibility/v1\",\"project\":\"public_shop\",\"principal\":\"fixture_operator\",\"role\":");
     push_string(&mut out, role);
-    out.push_str(",\"ontology_version\":\"ont-a305\",\"catalog_version\":\"cat-a305\",\"policy\":{\"id\":\"pol-a305\",\"version\":\"1\"},\"knowledge\":{\"id\":\"know-a305\",\"version\":\"1\"},\"issued_for_compiler\":\"oo-builder/role-pack/v1\",\"datasets\":[");
+    out.push_str(",\"ontology_version\":");
+    push_string(&mut out, &deployment.ont());
+    out.push_str(",\"catalog_version\":");
+    push_string(&mut out, &deployment.cat());
+    out.push_str(",\"policy\":{\"id\":");
+    push_string(&mut out, &deployment.pol());
+    out.push_str(",\"version\":\"1\"},\"knowledge\":{\"id\":");
+    push_string(&mut out, &deployment.know());
+    out.push_str(",\"version\":\"1\"},\"issued_for_compiler\":\"oo-builder/role-pack/v1\",\"datasets\":[");
     if north {
         out.push_str("{\"dataset\":\"shop.customer\",\"row_security\":\"none\",\"global_stats\":\"denied\",\"columns\":[\"customer_id\",\"display_name\",\"active\"]},{\"dataset\":\"shop.order_doc\",\"row_security\":\"none\",\"global_stats\":\"denied\",\"columns\":[\"order_id\",\"customer_id\",\"memo\",\"posted\",\"amount\",\"clerk_note\"]}");
     } else {
@@ -686,13 +847,21 @@ fn check_queries(run: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn write_receipt(paths: &Paths, identity: &str, schema_hash: &str) -> Result<(), String> {
+fn write_receipt(paths: &Paths, deployment: &Deployment, identity: &str, schema_hash: &str) -> Result<(), String> {
     let north = sha256_file(&paths.run.join("steps/role-pack-north.stdout"))?;
     let narrow = sha256_file(&paths.run.join("steps/role-pack-narrow.stdout"))?;
     let request = path_str(&paths.run.join("queries/north-customer.request.json"))?;
     let query_bin = path_str(&paths.bins.join("query-pg"))?;
     let mut out = String::from("{\"protocol\":\"oo.deploy.trusted-demo-receipt/v1\",\"status\":\"ready_for_trusted_query\",\"fixed_commit\":");
     push_string(&mut out, FIXED);
+    out.push_str(",\"project\":");
+    push_string(&mut out, "open-ontology");
+    out.push_str(",\"owner\":");
+    push_string(&mut out, &deployment.owner);
+    out.push_str(",\"run_id\":");
+    push_string(&mut out, &deployment.run_id);
+    out.push_str(",\"source_id\":");
+    push_string(&mut out, SOURCE_ID);
     out.push_str(",\"human_approval\":\"not_claimed\",\"authentication\":\"not_claimed\",\"authorization\":\"not_claimed\",\"semantic_publication\":\"missing\",\"natural_language\":\"unsupported\",\"model_provider\":\"unsupported\",\"harness\":\"not_performed\",\"m1_i01\":\"not_accepted\",\"m1_i02\":\"not_accepted\",\"parent_acceptance\":false,\"config_identity_sha256\":");
     push_string(&mut out, identity);
     out.push_str(",\"schema_hash\":");
@@ -721,7 +890,7 @@ fn write_receipt(paths: &Paths, identity: &str, schema_hash: &str) -> Result<(),
     push_string(&mut out, &request);
     out.push_str("],\"sql\":");
     push_string(&mut out, NORTH_QUERIES[4].sql);
-    out.push_str(",\"role\":\"oo_r_north\",\"repeat\":\"start.sh --smoke\"}}");
+    out.push_str(",\"role\":\"oo_r_north\",\"repeat\":\"start.sh --manifest <deployment> --smoke\"}}");
     let receipt = paths.evidence.join("live/receipt.json");
     if let Some(parent) = receipt.parent() {
         fs::create_dir_all(parent).map_err(|_| "receipt dir".to_owned())?;
@@ -729,19 +898,19 @@ fn write_receipt(paths: &Paths, identity: &str, schema_hash: &str) -> Result<(),
     fs::write(receipt, out).map_err(|_| "write receipt".to_owned())
 }
 
-fn identity_preimage() -> String {
+fn identity_preimage(deployment: &Deployment) -> String {
     let mut body = String::from("oo-pg-config-identity/v1\n");
     body.push_str("source_id=");
     body.push_str(SOURCE_ID);
     body.push('\n');
     body.push_str("host=");
-    body.push_str(HOST);
+    body.push_str(&deployment.host());
     body.push_str("\nport=5432\ndatabase=");
-    body.push_str(DATABASE);
+    body.push_str(&deployment.database());
     body.push_str("\nusername=");
-    body.push_str(READER);
+    body.push_str(&deployment.reader());
     body.push_str("\nsecret_ref=");
-    body.push_str(SECRET_REF);
+    body.push_str(&deployment.secret_ref());
     body.push_str("\nconnect_ms=30000\nstatement_ms=60000\nlock_ms=30000\nmax_rows=10000\nmax_bytes=8388608\n");
     body.push_str("table\tshop\tcustomer\n");
     body.push_str("table\tshop\torder_doc\n");
@@ -1489,14 +1658,63 @@ mod tests {
         assert_eq!(sha256_bytes(b"abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     }
 
+    fn historical_manifest() -> &'static str {
+        "{\"protocol\":\"oo.deploy.trusted-demo-deployment/v1\",\"project\":\"open-ontology\",\"fixed_source\":\"25dfc9022780c3deff12f37b7ad7ea4ed1fb6480\",\"owner\":\"a305\",\"run_id\":\"eef831aa-dba4-4af2-a78b-541bc9e0a305\",\"source_id\":\"public_shop\"}"
+    }
+
+    fn fresh_manifest() -> &'static str {
+        "{\"protocol\":\"oo.deploy.trusted-demo-deployment/v1\",\"project\":\"open-ontology\",\"fixed_source\":\"25dfc9022780c3deff12f37b7ad7ea4ed1fb6480\",\"owner\":\"a312\",\"run_id\":\"eef831aa-dba4-4af2-a78b-541bc9e0a312\",\"source_id\":\"public_shop\"}"
+    }
+
     #[test]
     fn identity_preimage_has_no_secret_material() {
-        let text = identity_preimage();
+        let deployment = load_deployment(historical_manifest().as_bytes()).unwrap();
+        let text = identity_preimage(&deployment);
         assert!(text.starts_with("oo-pg-config-identity/v1\n"));
         assert!(text.contains("source_id=public_shop\n"));
+        assert!(text.contains("host=oo-a305-pg\n"));
+        assert!(text.contains("database=oo_a305_src\n"));
+        assert!(text.contains("username=oo_a305_reader\n"));
+        assert!(text.contains("secret_ref=secret://pg/a305/reader\n"));
         assert!(text.contains("table\tshop\torder_doc\n"));
         assert!(!text.contains("password"));
         assert!(!text.contains("BEGIN"));
+    }
+
+    #[test]
+    fn fresh_manifest_does_not_reuse_historical_names() {
+        let historical = load_deployment(historical_manifest().as_bytes()).unwrap();
+        let fresh = load_deployment(fresh_manifest().as_bytes()).unwrap();
+        assert_eq!(fresh.host(), "oo-a312-pg");
+        assert_eq!(fresh.database(), "oo_a312_src");
+        assert_eq!(fresh.dst(), "oo_a312_dst");
+        assert_eq!(fresh.reader(), "oo_a312_reader");
+        assert_eq!(fresh.runtime(), "oo_a312_runtime");
+        assert_eq!(fresh.login(), "oo_a312_login");
+        assert_eq!(fresh.secret_ref(), "secret://pg/a312/reader");
+        assert_eq!(fresh.shard(), "a312main");
+        assert_eq!(fresh.ont(), "ont-a312");
+        assert_eq!(fresh.pol(), "pol-a312");
+        assert_ne!(fresh.host(), historical.host());
+        assert!(!identity_preimage(&fresh).contains("a305"));
+        assert!(settings_json(&historical).contains("\"ontology_version\":\"ont-a305\""));
+        assert!(settings_json(&fresh).contains("\"id\":\"pol-a312\""));
+    }
+
+    #[test]
+    fn manifest_rejects_foreign_owner_and_injection() {
+        let swapped = historical_manifest().replace(
+            "\"owner\":\"a305\",\"run_id\":\"eef831aa-dba4-4af2-a78b-541bc9e0a305\"",
+            "\"owner\":\"a305\",\"run_id\":\"eef831aa-dba4-4af2-a78b-541bc9e0a312\"",
+        );
+        assert!(load_deployment(swapped.as_bytes()).is_err());
+        let upper = historical_manifest().replace("a305", "A305");
+        assert!(load_deployment(upper.as_bytes()).is_err());
+        let extra = historical_manifest().replace('}', ",\"password_file\":\"/tmp/x\"}");
+        assert!(load_deployment(extra.as_bytes()).is_err());
+        let spaced = historical_manifest().replace(':', ": ");
+        assert!(load_deployment(spaced.as_bytes()).is_err());
+        assert!(load_deployment(b"not-json").is_err());
     }
 
     #[test]
@@ -1523,7 +1741,7 @@ mod tests {
     #[test]
     fn secret_report_omits_secret_bytes() {
         let pid = std::process::id();
-        let root = std::env::temp_dir().join(format!("a305-scan-{pid}"));
+        let root = std::env::temp_dir().join(format!("demo-scan-{pid}"));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("out")).unwrap();
         let secret = b"0123456789abcdef0123456789abcdef01234567".to_vec();

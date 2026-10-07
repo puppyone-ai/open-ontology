@@ -1,7 +1,7 @@
 #!/bin/bash
 # Host launcher for one 6 GiB builder and the owned PostgreSQL.
 # bash 3.2. Does not pull, prune, or mount the Docker socket or host home.
-# Origin: a274 chain launch, a204/a199/a200 launch shape, memory lowered to 6g and 1 CPU.
+# Origin: a274 chain launch, a204/a199/a200 launch shape. Resource names come from the manifest.
 set -eu
 set -o pipefail
 
@@ -9,15 +9,9 @@ MODE=${1:-}
 HERE=$(cd "$(dirname "$0")" && pwd)
 DEMO=$(cd "$HERE/.." && pwd)
 REPO=$(cd "$DEMO/../.." && pwd)
-RUN_ID=eef831aa-dba4-4af2-a78b-541bc9e0a305
-EVIDENCE=${REPO}/evidence/${RUN_ID}/SP11/trusted-demo
-ROOT=/tmp/oo-a305-${RUN_ID}
-FIXED=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480
+# shellcheck source=manifest.sh
+. "$HERE/manifest.sh"
 IMAGE=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-NET=oo-a305-eef831aa-net
-CARGO_VOL=oo-a305-eef831aa-cargo
-TARGET_VOL=oo-a305-eef831aa-target
-PG_NAME=oo-a305-pg
 WATCH_PID=""
 
 case "$MODE" in
@@ -27,8 +21,10 @@ case "$MODE" in
     exit 2
     ;;
 esac
-
-mkdir -p "$EVIDENCE/linux" "$ROOT"
+load_deployment "${OO_DEMO_MANIFEST:-}"
+bind_resources "$REPO"
+export PROJECT OWNER RUN_ID FIXED_SOURCE
+mkdir -p "$EVIDENCE/linux"
 if ! docker info >/dev/null 2>&1; then
   echo "docker is not available" >&2
   printf '%s\n' 1 > "$EVIDENCE/linux/docker-info.exit"
@@ -56,7 +52,7 @@ write_exit() {
 capacity_ok() {
   local phase own global host_cargo
   phase=$1
-  own=$(docker ps -q --filter label=oo.owner=a305 --filter label=oo.kind=rust-builder | sed '/^$/d' | wc -l | tr -d ' ')
+  own=$(docker ps -q --filter label=oo.owner="$OWNER" --filter label=oo.session="$RUN_ID" --filter label=oo.kind=rust-builder | sed '/^$/d' | wc -l | tr -d ' ')
   global=$(docker ps -q --filter label=oo.kind=rust-builder | sed '/^$/d' | wc -l | tr -d ' ')
   host_cargo=$(ps -axo comm= | awk '$1=="cargo" || $1=="rustc" || $1=="rustdoc" || $1=="rustup" {c++} END{print c+0}')
   printf 'own=%s global=%s host_cargo=%s cap_global=10\n' "$own" "$global" "$host_cargo" > "$phase/capacity.txt"
@@ -67,38 +63,18 @@ capacity_ok() {
   fi
 }
 
-ensure_volume() {
-  local name kind owner
-  name=$1
-  kind=$2
-  if docker volume inspect "$name" >/dev/null 2>&1; then
-    owner=$(docker volume inspect "$name" --format '{{index .Labels "oo.owner"}}')
-    if [ "$owner" != "a305" ]; then
-      echo "volume $name is not owned by a305" >&2
-      exit 2
-    fi
-    return
-  fi
-  docker volume create \
-    --label oo.project=open-ontology \
-    --label oo.owner=a305 \
-    --label oo.session="${RUN_ID}" \
-    --label oo.kind="$kind" \
-    "$name" >/dev/null
-}
-
 prepare_archive() {
   local current
   if [ -f "$ROOT/archive/.fixed-base-sha" ]; then
     current=$(tr -d '[:space:]' < "$ROOT/archive/.fixed-base-sha")
-    if [ "$current" = "$FIXED" ]; then
+    if [ "$current" = "$FIXED_SOURCE" ]; then
       return
     fi
   fi
   rm -rf "$ROOT/archive"
   mkdir -p "$ROOT/archive"
-  git -C "$REPO" archive --format=tar "$FIXED" | tar -x -C "$ROOT/archive"
-  printf '%s\n' "$FIXED" > "$ROOT/archive/.fixed-base-sha"
+  git -C "$REPO" archive --format=tar "$FIXED_SOURCE" | tar -x -C "$ROOT/archive"
+  printf '%s\n' "$FIXED_SOURCE" > "$ROOT/archive/.fixed-base-sha"
   if ! grep -q 'changes_may_have_been_applied' "$ROOT/archive/tools/pg-onboarding/src/outcome.rs"; then
     echo "archive outcome.rs is not the fixed tool" >&2
     return 2
@@ -130,6 +106,67 @@ check_mounts() {
   return 0
 }
 
+require_ours() {
+  local kind name state
+  kind=$1
+  name=$2
+  state=$(object_state "$kind" "$name")
+  case "$state" in
+    ours) ;;
+    missing)
+      echo "owned $kind $name is absent" >&2
+      exit 2
+      ;;
+    foreign)
+      echo "foreign labels on $kind $name; refusing" >&2
+      exit 2
+      ;;
+  esac
+}
+
+note_collision() {
+  local kind name state
+  kind=$1
+  name=$2
+  state=$(object_state "$kind" "$name")
+  case "$state" in
+    missing) ;;
+    ours)
+      echo "resource collision on $kind $name; refusing to overwrite" >&2
+      COLLIDED=1
+      ;;
+    foreign)
+      echo "foreign labels on $kind $name; refusing" >&2
+      COLLIDED=1
+      ;;
+  esac
+}
+
+refuse_public_collision() {
+  local COLLIDED
+  COLLIDED=0
+  if [ -d "$EVIDENCE/live/run" ]; then
+    echo "run directory already exists; refusing to overwrite" >&2
+    COLLIDED=1
+  fi
+  if [ -e "$ROOT" ]; then
+    echo "private directory already exists; refusing to overwrite" >&2
+    COLLIDED=1
+  fi
+  note_collision network "$NET"
+  note_collision volume "$PG_VOL"
+  note_collision volume "$CARGO_VOL"
+  note_collision volume "$TARGET_VOL"
+  note_collision container "$PG_NAME"
+  note_collision container "$BUILD_PUBLIC"
+  note_collision container "$BUILD_SMOKE"
+  if [ "$COLLIDED" -ne 0 ]; then
+    mkdir -p "$EVIDENCE/linux"
+    printf '%s\n' "collision $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVIDENCE/linux/collision.txt"
+    exit 2
+  fi
+}
+
 run_builder() {
   local name run_mode phase inside_phase sec run_exit mem cpus priv
   name=$1
@@ -158,12 +195,10 @@ run_builder() {
     write_exit "$phase" 2
     exit 2
   fi
-  git -C "$REPO" rev-parse "$FIXED" > "$phase/git-rev-parse.txt"
-  ensure_volume "$CARGO_VOL" cargo
-  ensure_volume "$TARGET_VOL" target
+  git -C "$REPO" rev-parse "$FIXED_SOURCE" > "$phase/git-rev-parse.txt"
   sec=$(tr -d '[:space:]' < "$EVIDENCE/pg/secrets-path.txt")
   case "$sec" in
-    /tmp/oo-a305-${RUN_ID}/secrets) ;;
+    "$ROOT/secrets") ;;
     *)
       echo "secrets path is not the private directory" >&2
       write_exit "$phase" 2
@@ -172,7 +207,7 @@ run_builder() {
   esac
   if [ "$run_mode" = "public" ]; then
     rm -f "$ROOT/ready/runtime.ready"
-    bash "$DEMO/fixture/membership-watch.sh" "$ROOT/ready/runtime.ready" > "$phase/membership-watch.log" 2>&1 &
+    bash "$DEMO/fixture/membership-watch.sh" "$ROOT/ready/runtime.ready" "$PG_NAME" > "$phase/membership-watch.log" 2>&1 &
     WATCH_PID=$!
     printf '%s\n' "$WATCH_PID" > "$ROOT/watch.pid"
   fi
@@ -195,11 +230,12 @@ run_builder() {
     -e CARGO_BUILD_JOBS=1 \
     -e RUSTUP_TOOLCHAIN=1.94.0 \
     -e CARGO_TERM_COLOR=never \
-    -e OO_A305_MODE="$run_mode" \
-    -e OO_A305_PHASE="$inside_phase" \
+    -e OO_DEMO_MODE="$run_mode" \
+    -e OO_DEMO_PHASE="$inside_phase" \
     --mount "type=bind,source=${ROOT}/archive,target=/src,readonly" \
     --mount "type=bind,source=${DEMO},target=/deploy,readonly" \
     --mount "type=bind,source=${EVIDENCE},target=/evidence" \
+    --mount "type=bind,source=${OO_DEMO_MANIFEST},target=/deployment.json,readonly" \
     --mount "type=bind,source=${sec},target=/secrets,readonly" \
     --mount "type=bind,source=${ROOT}/ready,target=/ready" \
     --mount "type=bind,source=${DEMO}/linux/inside.sh,target=/inside.sh,readonly" \
@@ -207,9 +243,10 @@ run_builder() {
     --tmpfs /tmp:rw,nosuid,nodev,noexec,size=1g \
     --mount "type=volume,source=${CARGO_VOL},target=/cargo-home" \
     --mount "type=volume,source=${TARGET_VOL},target=/target" \
-    --label oo.project=open-ontology \
-    --label oo.owner=a305 \
-    --label oo.session="${RUN_ID}" \
+    --label oo.project="$PROJECT" \
+    --label oo.owner="$OWNER" \
+    --label oo.session="$RUN_ID" \
+    --label oo.fixed="$FIXED_SOURCE" \
     --label oo.task=trusted-demo-${run_mode} \
     --label oo.toolchain=1.94.0 \
     --label oo.platform=linux/arm64 \
@@ -250,13 +287,46 @@ run_builder() {
   exit "$run_exit"
 }
 
+create_volume() {
+  local name kind state
+  name=$1
+  kind=$2
+  state=$(object_state volume "$name")
+  case "$state" in
+    missing) ;;
+    ours)
+      echo "resource collision on volume $name; refusing to overwrite" >&2
+      exit 2
+      ;;
+    foreign)
+      echo "foreign labels on volume $name; refusing" >&2
+      exit 2
+      ;;
+  esac
+  docker volume create \
+    --label oo.project="$PROJECT" \
+    --label oo.owner="$OWNER" \
+    --label oo.session="$RUN_ID" \
+    --label oo.fixed="$FIXED_SOURCE" \
+    --label oo.kind="$kind" \
+    "$name" >/dev/null
+}
+
 restart_pg() {
   local state
   echo "restart_postgres"
-  if docker container inspect "$PG_NAME" >/dev/null 2>&1; then
-    docker stop "$PG_NAME" >/dev/null
-  fi
-  if ! bash "$DEMO/pg/up.sh"; then
+  state=$(object_state container "$PG_NAME")
+  case "$state" in
+    ours)
+      docker stop "$PG_NAME" >/dev/null
+      ;;
+    missing) ;;
+    foreign)
+      echo "foreign labels on container $PG_NAME; refusing" >&2
+      exit 2
+      ;;
+  esac
+  if ! bash "$DEMO/pg/up.sh" reuse; then
     echo "postgres did not become ready after restart" >&2
     exit 1
   fi
@@ -273,15 +343,8 @@ restart_pg() {
 }
 
 if [ "$MODE" = "public" ]; then
-  if [ -d "$EVIDENCE/live/run" ]; then
-    printf '%s\n' "preserved $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVIDENCE/linux/preserved-run.txt"
-    if [ -f "$EVIDENCE/live/receipt.json" ] && grep -q '"status":"ready_for_trusted_query"' "$EVIDENCE/live/receipt.json"; then
-      echo "receipt is ready; use --smoke" >&2
-    else
-      echo "unfinished run directory is preserved" >&2
-    fi
-    exit 2
-  fi
+  refuse_public_collision
+  write_durable
   phase=$(next_phase public)
   mkdir -p "$phase"
   if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
@@ -289,7 +352,7 @@ if [ "$MODE" = "public" ]; then
     write_exit "$phase" 1
     exit 1
   fi
-  if ! bash "$DEMO/pg/up.sh"; then
+  if ! bash "$DEMO/pg/up.sh" create; then
     echo "postgres did not start" >&2
     write_exit "$phase" 1
     exit 1
@@ -308,26 +371,25 @@ if [ "$MODE" = "public" ]; then
     write_exit "$phase" 1
     exit 1
   fi
-  run_builder oo-a305-build public "$phase"
+  create_volume "$CARGO_VOL" cargo
+  create_volume "$TARGET_VOL" target
+  run_builder "$BUILD_PUBLIC" public "$phase"
 fi
 
-if [ "$MODE" = "restart-smoke" ]; then
+if [ "$MODE" = "restart-smoke" ] || [ "$MODE" = "smoke" ]; then
+  require_durable
   if [ ! -f "$EVIDENCE/live/receipt.json" ] || ! grep -q '"status":"ready_for_trusted_query"' "$EVIDENCE/live/receipt.json"; then
     echo "smoke requires a ready receipt" >&2
     exit 2
   fi
-  restart_pg
-  phase=$(next_phase smoke)
-  mkdir -p "$phase"
-  run_builder oo-a305-smoke smoke "$phase"
-fi
-
-if [ "$MODE" = "smoke" ]; then
-  if [ ! -f "$EVIDENCE/live/receipt.json" ] || ! grep -q '"status":"ready_for_trusted_query"' "$EVIDENCE/live/receipt.json"; then
-    echo "smoke requires a ready receipt" >&2
-    exit 2
+  require_ours volume "$PG_VOL"
+  require_ours volume "$CARGO_VOL"
+  require_ours volume "$TARGET_VOL"
+  require_ours network "$NET"
+  if [ "$MODE" = "restart-smoke" ]; then
+    restart_pg
   fi
   phase=$(next_phase smoke)
   mkdir -p "$phase"
-  run_builder oo-a305-smoke smoke "$phase"
+  run_builder "$BUILD_SMOKE" smoke "$phase"
 fi

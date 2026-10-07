@@ -3,12 +3,16 @@
 # Extract onto the private cargo volume. /tmp is noexec, so nothing is run from there.
 # Package selection and checksums are the Rust tools. No Python.
 # Origin: a274 extract-libclang.sh sha256 982f18e430e6b8136a4cb30cb7e0711015318d0b40c0939475bfae8142e55ed4
-# Change: a305 cargo paths and the public evidence directory.
+# Change: private cargo paths. The phase directory comes from the caller.
 set -euo pipefail
-ROOT=/cargo-home/a305-clang-root
-DEBS=/cargo-home/a305-debs
-LIST=/cargo-home/a305-Packages
-PHASE=${OO_A305_PHASE:-/evidence/linux/public}
+ROOT=/cargo-home/demo-clang-root
+DEBS=/cargo-home/demo-debs
+LIST=/cargo-home/demo-Packages
+PHASE=${OO_DEMO_PHASE:-}
+if [ -z "$PHASE" ]; then
+  echo "missing OO_DEMO_PHASE" >&2
+  exit 2
+fi
 mkdir -p "$ROOT" "$DEBS" "$PHASE"
 if [ ! -s "$LIST" ]; then
   curl -fsSL http://deb.debian.org/debian/dists/trixie/main/binary-arm64/Packages.gz | gzip -dc > "$LIST"

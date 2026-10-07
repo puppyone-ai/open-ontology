@@ -3,13 +3,19 @@
 # Onboarding smoke runs before demo binaries and before apply-reviewed.
 # No cargo update. No apt. /tmp is noexec.
 set -u
+# shellcheck source=manifest.sh
+. /deploy/linux/manifest.sh
+if ! load_deployment /deployment.json; then
+  exit 2
+fi
 echo "oo_task=sp11-trusted-demo"
-echo "oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a305"
-echo "oo_fixed=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480"
-MODE=${OO_A305_MODE:-}
-PHASE=${OO_A305_PHASE:-}
+echo "oo_owner=$OWNER"
+echo "oo_run=$RUN_ID"
+echo "oo_fixed=$FIXED_SOURCE"
+MODE=${OO_DEMO_MODE:-}
+PHASE=${OO_DEMO_PHASE:-}
 if [ -z "$PHASE" ] || [ -z "$MODE" ]; then
-  echo "missing OO_A305_MODE or OO_A305_PHASE" >&2
+  echo "missing OO_DEMO_MODE or OO_DEMO_PHASE" >&2
   exit 2
 fi
 echo "phase=$PHASE mode=$MODE"
@@ -18,7 +24,7 @@ export CARGO_HOME=/cargo-home
 export CARGO_TERM_COLOR=never
 export HOME=/tmp
 export CARGO_BUILD_JOBS=1
-mkdir -p "$PHASE/phases" /cargo-home/a305-bins /cargo-home/bin /target/onboarding
+mkdir -p "$PHASE/phases" /cargo-home/demo-bins /cargo-home/bin /target/onboarding
 cd /src
 
 record() {
@@ -40,7 +46,7 @@ esac
 record toolchain 0
 sha=$(cat /src/.fixed-base-sha)
 printf '%s\n' "$sha" > "$PHASE/fixed-base.txt"
-if [ "$sha" != "25dfc9022780c3deff12f37b7ad7ea4ed1fb6480" ]; then
+if [ "$sha" != "$FIXED_SOURCE" ]; then
   record source 2
 fi
 if ! grep -q 'changes_may_have_been_applied' /src/tools/pg-onboarding/src/outcome.rs; then
@@ -51,14 +57,14 @@ record source 0
 printf '%s\n' "no" > "$PHASE/cargo-update-invoked.txt"
 
 export_drive() {
-  export OO_A305_ONBOARDING=/cargo-home/a305-bins/pg-onboarding
-  export OO_A305_BINS=/cargo-home/a305-bins
-  export OO_A305_SECRETS=/secrets
-  export OO_A305_RUN=/evidence/live/run
-  export OO_A305_WORK=/evidence/live/work
-  export OO_A305_BAD=/evidence/live/bad-run
-  export OO_A305_DECLARED=/deploy/fixture/declared-review.json
-  export OO_A305_EVIDENCE=/evidence
+  export OO_DEMO_ONBOARDING=/cargo-home/demo-bins/pg-onboarding
+  export OO_DEMO_BINS=/cargo-home/demo-bins
+  export OO_DEMO_SECRETS=/secrets
+  export OO_DEMO_RUN=/evidence/live/run
+  export OO_DEMO_WORK=/evidence/live/work
+  export OO_DEMO_BAD=/evidence/live/bad-run
+  export OO_DEMO_DECLARED=/deploy/fixture/declared-review.json
+  export OO_DEMO_EVIDENCE=/evidence
 }
 
 write_manifest() {
@@ -69,7 +75,7 @@ write_manifest() {
 }
 
 if [ "$MODE" = "smoke" ]; then
-  if [ ! -x /cargo-home/bin/drive ] || [ ! -x /cargo-home/a305-bins/query-pg ] || [ ! -x /cargo-home/a305-bins/pg-onboarding ]; then
+  if [ ! -x /cargo-home/bin/drive ] || [ ! -x /cargo-home/demo-bins/query-pg ] || [ ! -x /cargo-home/demo-bins/pg-onboarding ]; then
     echo "smoke requires the binaries left on the cargo volume" >&2
     record smoke-bins 1
   fi
@@ -168,25 +174,25 @@ rustup run 1.94.0 rustc --edition 2021 /deploy/tools/select-debs.rs -o /cargo-ho
 record select-debs-tool $?
 export PATH="/cargo-home/bin:${PATH}"
 
-if [ ! -d /cargo-home/a305-clang-root/usr/lib ]; then
+if [ ! -d /cargo-home/demo-clang-root/usr/lib ]; then
   bash /extract-libclang.sh > "$PHASE/libclang-extract.log" 2>&1
   record libclang-extract $?
 else
   echo "libclang_root=reused" > "$PHASE/libclang-extract.log"
   record libclang-extract 0
 fi
-libdir=$(find /cargo-home/a305-clang-root/usr/lib \( -name 'libclang.so' -o -name 'libclang-*.so' \) -print -quit)
+libdir=$(find /cargo-home/demo-clang-root/usr/lib \( -name 'libclang.so' -o -name 'libclang-*.so' \) -print -quit)
 if [ -z "$libdir" ]; then
   echo "libclang shared object is absent" >&2
   record libclang 1
 fi
 libdir=$(dirname "$libdir")
-multiarch=/cargo-home/a305-clang-root/usr/lib/aarch64-linux-gnu
-llvm_inc=/cargo-home/a305-clang-root/usr/lib/llvm-19/lib/clang/19/include
+multiarch=/cargo-home/demo-clang-root/usr/lib/aarch64-linux-gnu
+llvm_inc=/cargo-home/demo-clang-root/usr/lib/llvm-19/lib/clang/19/include
 export LIBCLANG_PATH="$libdir"
 export LD_LIBRARY_PATH="${libdir}:${multiarch}"
 export BINDGEN_EXTRA_CLANG_ARGS="--target=aarch64-unknown-linux-gnu -I${llvm_inc} -I/usr/lib/gcc/aarch64-linux-gnu/14/include -I/usr/include/aarch64-linux-gnu -I/usr/include"
-export PATH="/cargo-home/bin:/cargo-home/a305-clang-root/usr/bin:${PATH}"
+export PATH="/cargo-home/bin:/cargo-home/demo-clang-root/usr/bin:${PATH}"
 record libclang 0
 export CARGO_NET_OFFLINE=true
 
@@ -196,7 +202,7 @@ build_bin() {
   CARGO_TARGET_DIR=/target cargo build --manifest-path /src/Cargo.toml --locked --offline -p "$pkg" --bin "$bin" \
     > "$PHASE/bins-build-${bin}.log" 2>&1
   record "bins-${bin}" $?
-  cp "/target/debug/${bin}" "/cargo-home/a305-bins/${bin}" || record "bins-${bin}-copy" 1
+  cp "/target/debug/${bin}" "/cargo-home/demo-bins/${bin}" || record "bins-${bin}-copy" 1
 }
 
 echo "=== workspace bins ==="
@@ -215,11 +221,11 @@ echo "=== pg-onboarding ==="
 CARGO_TARGET_DIR=/target/onboarding cargo build --manifest-path /src/tools/pg-onboarding/Cargo.toml --locked --offline --bin pg-onboarding \
   > "$PHASE/build-onboarding.log" 2>&1
 record build-onboarding $?
-cp /target/onboarding/debug/pg-onboarding /cargo-home/a305-bins/pg-onboarding || record build-onboarding-copy 1
+cp /target/onboarding/debug/pg-onboarding /cargo-home/demo-bins/pg-onboarding || record build-onboarding-copy 1
 
 {
   for bin in init-pg oo-pipeline analyze-pg oo-builder reviewed-effective-oos role-pack-bundle reviewed-policy install-column-acl provision-mapping-reader query-pg pg-onboarding; do
-    /cargo-home/bin/sha256 file "/cargo-home/a305-bins/${bin}"
+    /cargo-home/bin/sha256 file "/cargo-home/demo-bins/${bin}"
   done
   /cargo-home/bin/sha256 file /cargo-home/bin/drive
 } > "$PHASE/bin-sha256.txt"

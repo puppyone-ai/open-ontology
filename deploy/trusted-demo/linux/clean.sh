@@ -1,35 +1,44 @@
 #!/bin/bash
-# Remove this UUID's containers, volumes, network, and private tmp.
+# Remove this manifest's containers, volumes, network, and private tmp.
 # Does not prune and does not touch another owner.
 set -eu
 set -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-RUN_ID=eef831aa-dba4-4af2-a78b-541bc9e0a305
-ROOT=/tmp/oo-a305-${RUN_ID}
-NET=oo-a305-eef831aa-net
+DEMO=$(cd "$HERE/.." && pwd)
+REPO=$(cd "$DEMO/../.." && pwd)
+# shellcheck source=manifest.sh
+. "$HERE/manifest.sh"
+load_deployment "${OO_DEMO_MANIFEST:-}"
+bind_resources "$REPO"
+require_durable
 bash "$HERE/stop.sh"
-vols=$(docker volume ls -q --filter label=oo.owner=a305 --filter label=oo.session="${RUN_ID}")
+vols=$(docker volume ls -q --filter label=oo.project="$PROJECT" --filter label=oo.owner="$OWNER" --filter label=oo.session="$RUN_ID" --filter label=oo.fixed="$FIXED_SOURCE")
 if [ -n "$vols" ]; then
+  for vol in $vols; do
+    state=$(object_state volume "$vol")
+    if [ "$state" != "ours" ]; then
+      echo "foreign labels on volume $vol; refusing" >&2
+      exit 2
+    fi
+  done
   # shellcheck disable=SC2086
   docker volume rm $vols
 fi
-if docker network inspect "$NET" >/dev/null 2>&1; then
-  owner=$(docker network inspect "$NET" --format '{{index .Labels "oo.owner"}}')
-  session=$(docker network inspect "$NET" --format '{{index .Labels "oo.session"}}')
-  if [ "$owner" = "a305" ] && [ "$session" = "$RUN_ID" ]; then
-    docker network rm "$NET"
-  else
-    echo "refusing to remove network $NET" >&2
-    exit 2
-  fi
-fi
-case "$ROOT" in
-  /tmp/oo-a305-eef831aa-dba4-4af2-a78b-541bc9e0a305)
-    rm -rf "$ROOT"
-    ;;
-  *)
-    echo "refusing to remove $ROOT" >&2
+state=$(object_state network "$NET")
+case "$state" in
+  missing) ;;
+  ours) docker network rm "$NET" >/dev/null ;;
+  foreign)
+    echo "foreign labels on network $NET; refusing" >&2
     exit 2
     ;;
 esac
-echo "cleaned_a305_private_resources"
+safe="/tmp/oo-${OWNER}-${RUN_ID}"
+if [ "$ROOT" != "$safe" ]; then
+  echo "refusing to remove $ROOT" >&2
+  exit 2
+fi
+if [ -e "$ROOT" ]; then
+  rm -rf "$ROOT"
+fi
+echo "cleaned_owned_private_resources"

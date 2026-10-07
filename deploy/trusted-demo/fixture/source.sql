@@ -37,6 +37,6 @@ INSERT INTO shop.order_doc (order_id, customer_id, memo, posted, amount, clerk_n
   (703, 43, '零单', true, 0, '柜员乙');
 REVOKE ALL ON SCHEMA shop FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA shop FROM PUBLIC;
-GRANT USAGE ON SCHEMA shop TO oo_a305_reader, oo_a305_writer;
-GRANT SELECT ON shop.customer, shop.order_doc TO oo_a305_reader;
-GRANT INSERT ON shop.customer, shop.order_doc, shop.write_audit TO oo_a305_writer;
+GRANT USAGE ON SCHEMA shop TO :"reader", :"writer";
+GRANT SELECT ON shop.customer, shop.order_doc TO :"reader";
+GRANT INSERT ON shop.customer, shop.order_doc, shop.write_audit TO :"writer";
