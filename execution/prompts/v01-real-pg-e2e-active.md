@@ -6,3 +6,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 
 
 12 concurrentdevelopmentGroks excludingreviews/10 concurrentRustbuilders taskmax1, not lifetimeattemptcap.
+
+LATEST RESUME 2026-10-07: independent a340 APPROVE_LIMITED numeric producer fixed 21cc96241a841b47dbbcb116549030e38a643ba0, full reports read and 234 manifest entries verified zero mismatch by coordinator. Resume SAME UUID a317. FIRST collect existing resources/results, never duplicate a live builder/PG. Archive this exact approved product commit, keep original 100000 row fixture, review decisions and independent gold unchanged. Preserve original failures; fresh evidence under numeric-approved-rerun. Linux/MSRV smoke first then actual source import/catalog/review/effective/two-role compiled Pack/ACL/analyze/query, target typed gold/counts/guards/restart and owned cleanup. Do not substitute hand target rows or altered numeric fixture. Report any next product blocker precisely, no parent completion. Max20 dev, global10 builders, taskmax1 builder and1 privatePG; earlier lower caps obsolete. No LLM/enterprise calls.

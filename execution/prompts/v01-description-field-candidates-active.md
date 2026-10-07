@@ -5,3 +5,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 Review slots outside development cap; obsolete earlier review-slot numbers do not impose development cap.
 
 LATEST HUMAN: development cap20, reviews excluded, global Rust builders10/taskmax1 remains. Existing actors keep immutable baseline and owned scope.
+
+LATEST SAME UUID RESUME: prior handle6368 exited0 but full REPORT/FINDINGS/HANDOFF absent. First collect existing actual resources/results; do not duplicate existing builder. Finish original owned field producer, diagnose preserved smoke-3 provider failure rather than claiming delivery. Keep API compatible or explicitly freeze amendments before code. Complete focused Linux1.94 tests/Clippy, exact owned commit and full report packet/source hashes/cleanup so a328 can consume immutable delivered API. No new unit and no LLM/customer/authstore calls.
