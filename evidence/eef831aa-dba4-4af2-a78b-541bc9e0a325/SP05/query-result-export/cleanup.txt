@@ -1,0 +1,25 @@
+before_containers
+before_network
+name=oo-a325-eef831aa-net owner=a325 session=eef831aa-dba4-4af2-a78b-541bc9e0a325
+before_volumes
+oo-a325-eef831aa-cargo a325 cargo-home
+oo-a325-eef831aa-target a325 cargo-target
+rm_containers
+rm_network
+oo-a325-eef831aa-net
+rm_volumes
+oo-a325-eef831aa-cargo
+oo-a325-eef831aa-target
+rm_tmp
+tmp_removed
+after_own_builders
+0
+after_network
+absent
+left_untouched_sample
+oo-a318-pg
+oo-a322-pg
+oo-a300-pg
+running_count 3
+container_rm_note
+oo-a325-proof and oo-a325-smoke were already absent. docker rm -f wrote "No such container" for both on stderr. linux/postedit/container-removed.txt names oo-a325-proof. linux/smoke/container-removed.txt names the smoke container. No prune. Other owners' containers were left running.
