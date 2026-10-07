@@ -173,6 +173,9 @@ pub async fn batch(request: &BatchRequest) -> Result<Output, LedgerError> {
         return Err(err("schema.invalid", "a batch needs one to eight objects"));
     }
     let (control, principal) = open_caller(&request.project_id, &request.control_file, &request.credential_file, &request.postgres).await?;
+    if principal.role == "auditor" {
+        return Err(err("role.forbidden", "an auditor cannot write a review batch"));
+    }
     let mut client = connect(&request.postgres).await?;
     require_control(&mut client, &request.project_id, &control.sha256).await?;
     if batch_exists(&mut client, &request.project_id, &request.batch_id).await? {

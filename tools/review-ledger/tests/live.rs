@@ -24,7 +24,7 @@ use tokio_postgres_rustls::MakeRustlsConnect;
 #[path = "support/world.rs"]
 mod world;
 
-use world::review_fixture;
+use world::{pack_fixture, review_fixture};
 
 const PROJECT: &str = "shop";
 const PROTOCOL_CANDIDATE: &str = "oo.builder.description-candidate/v1";
@@ -42,6 +42,7 @@ struct Paths {
     auditor: String,
     review_command: String,
     pack_command: String,
+    pack_good: String,
     curated_dir: PathBuf,
 }
 
@@ -320,6 +321,56 @@ async fn private_postgres_matrix() {
     refuse(pack_receipt(&runtime, &paths, "class.b.id").await, "compiler.refused");
     assert_eq!(count_key("compiler_receipt", "class.b.id").await, 0);
 
+    let packed = pack_fixture();
+    assert!(
+        packed.outcome_name == "packed" || packed.outcome_name == "reviewed_unchanged",
+        "{}",
+        packed.outcome_name
+    );
+    let pack_source = sha256_hex(packed.command_text.as_bytes()).unwrap();
+    let pack_outcome = sha256_hex(packed.outcome_text.as_bytes()).unwrap();
+    fs::write(&paths.pack_good, packed.command_text.as_bytes()).unwrap();
+    let mut note = synthetic(0x61);
+    note.source = pack_source.clone();
+    must(put(&runtime, &paths, "column", "public.b.note", &note, None).await, "persisted");
+    must(
+        choose(
+            &runtime,
+            &paths,
+            &paths.reviewer,
+            REVIEWER,
+            "public.b.note",
+            "class.b.note",
+            "classification",
+            "confirm",
+            1,
+            &note,
+            Some(json!({"pii": "none", "semantic_type": "identifier", "state": "confirmed"})),
+        )
+        .await,
+        "persisted",
+    );
+    let pack_bound = must(pack_good_receipt(&runtime, &paths).await, "bound");
+    assert_eq!(pack_bound.kind, "bound");
+    assert!(!pack_bound.git_applied);
+    assert!(!pack_bound.published);
+    assert!(!pack_bound.curated_applied);
+    let pack_row = receipt_row("class.b.note").await;
+    assert_eq!(pack_row.compiler, "description-pack");
+    assert_eq!(pack_row.command, pack_source);
+    assert_eq!(pack_row.candidate, note.candidate);
+    assert_eq!(pack_row.outcome, pack_outcome);
+    assert_eq!(pack_row.protocol, description_pack::PACK_PROTOCOL);
+    assert!(!pack_row.git_applied);
+    assert!(!pack_row.published);
+    assert!(!pack_row.files);
+    let note_decision = decision_row("class.b.note").await;
+    assert!(!note_decision.curated_applied);
+    assert!(!note_decision.published);
+    assert_eq!(note_decision.grants, "not_authorized");
+    must(pack_good_receipt(&runtime, &paths).await, "replay");
+    assert_eq!(count_key("compiler_receipt", "class.b.note").await, 1);
+
     fs::create_dir_all(&paths.curated_dir).unwrap();
     let bound = must(review_receipt(&runtime, &paths).await, "bound");
     assert_eq!(bound.kind, "bound");
@@ -447,6 +498,49 @@ async fn private_postgres_matrix() {
     refuse(review_receipt(&runtime, &paths).await, "candidate.changed");
     assert_eq!(count_key("compiler_receipt", "label.b.1").await, 1);
 
+    let batches_before = count_project("SELECT count(*)::bigint FROM oo_review_ledger.batch WHERE project_id = $1").await;
+    let batch_items_before = count_project("SELECT count(*)::bigint FROM oo_review_ledger.batch_item WHERE project_id = $1").await;
+    let decisions_at_batch = count_project("SELECT count(*)::bigint FROM oo_review_ledger.decision WHERE project_id = $1").await;
+    let audits_before = count_project("SELECT count(*)::bigint FROM oo_review_ledger.audit_event WHERE project_id = $1").await;
+    refuse(
+        batch(&BatchRequest {
+            protocol: "oo.review-ledger.batch/v1".to_owned(),
+            project_id: PROJECT.to_owned(),
+            control_file: paths.control.clone(),
+            credential_file: paths.auditor.clone(),
+            postgres: clone_endpoint(&runtime),
+            batch_id: "bauditor".to_owned(),
+            accept_all: false,
+            items: vec![item(
+                "public.b",
+                "auditor.batch",
+                "label_description",
+                "reject",
+                &review,
+                None,
+            )],
+        })
+        .await,
+        "role.forbidden",
+    );
+    assert_eq!(
+        count_project("SELECT count(*)::bigint FROM oo_review_ledger.batch WHERE project_id = $1").await,
+        batches_before
+    );
+    assert_eq!(
+        count_project("SELECT count(*)::bigint FROM oo_review_ledger.batch_item WHERE project_id = $1").await,
+        batch_items_before
+    );
+    assert_eq!(
+        count_project("SELECT count(*)::bigint FROM oo_review_ledger.decision WHERE project_id = $1").await,
+        decisions_at_batch
+    );
+    assert_eq!(
+        count_project("SELECT count(*)::bigint FROM oo_review_ledger.audit_event WHERE project_id = $1").await,
+        audits_before
+    );
+    assert_eq!(count_key("decision", "auditor.batch").await, 0);
+
     let decisions_before = count_project("SELECT count(*)::bigint FROM oo_review_ledger.decision WHERE project_id = $1").await;
     let denied = cli(&paths, "decide", &not_grant_request(&paths, &runtime));
     assert_eq!(denied.status, 2);
@@ -456,6 +550,15 @@ async fn private_postgres_matrix() {
         decisions_before
     );
     let library = must(history(&history_request(&paths, &runtime)).await, "history");
+    let auditor_history = must(
+        history(&history_as(&paths, &runtime, &paths.auditor)).await,
+        "history",
+    );
+    assert_eq!(auditor_history.history_sha256, library.history_sha256);
+    assert_eq!(
+        count_project("SELECT count(*)::bigint FROM oo_review_ledger.audit_event WHERE project_id = $1").await,
+        audits_before
+    );
     let cli_history = cli(&paths, "history", &history_json(&paths, &runtime));
     assert_eq!(cli_history.status, 0);
     assert_eq!(cli_history.value["code"], "history");
@@ -499,7 +602,7 @@ fn write_material() -> Paths {
         "management_identity": "not_claimed",
         "principals": [
             principal(REVIEWER, "reviewer", REVIEWER, "local-operator-credential", &[
-                "public.b", "public.b.id", "public.other", "public.left", "public.right",
+                "public.b", "public.b.id", "public.b.note", "public.other", "public.left", "public.right",
             ]),
             principal(OWNER, "owner", OWNER, "ada-owner-credential", &["public.b", "public.b.id"]),
             principal("auditor", "auditor", "auditor", "auditor-credential", &["public.b"]),
@@ -516,6 +619,7 @@ fn write_material() -> Paths {
         auditor: auditor.display().to_string(),
         review_command: root.join("review-command.json").display().to_string(),
         pack_command: root.join("pack-command.json").display().to_string(),
+        pack_good: root.join("pack-good.json").display().to_string(),
         curated_dir,
     }
 }
@@ -555,11 +659,15 @@ fn clone_endpoint(endpoint: &Endpoint) -> Endpoint {
 }
 
 fn history_request(paths: &Paths, postgres: &Endpoint) -> HistoryRequest {
+    history_as(paths, postgres, &paths.reviewer)
+}
+
+fn history_as(paths: &Paths, postgres: &Endpoint, credential: &str) -> HistoryRequest {
     HistoryRequest {
         protocol: "oo.review-ledger.history/v1".to_owned(),
         project_id: PROJECT.to_owned(),
         control_file: paths.control.clone(),
-        credential_file: paths.reviewer.clone(),
+        credential_file: credential.to_owned(),
         postgres: clone_endpoint(postgres),
     }
 }
@@ -727,6 +835,23 @@ async fn review_receipt(postgres: &Endpoint, paths: &Paths) -> Result<Output, Le
     .await
 }
 
+async fn pack_good_receipt(postgres: &Endpoint, paths: &Paths) -> Result<Output, LedgerError> {
+    receipt(
+        &ReceiptRequest {
+            protocol: "oo.review-ledger.receipt/v1".to_owned(),
+            project_id: PROJECT.to_owned(),
+            control_file: paths.control.clone(),
+            credential_file: paths.reviewer.clone(),
+            postgres: clone_endpoint(postgres),
+            idempotency_key: "class.b.note".to_owned(),
+            compiler: "description-pack".to_owned(),
+            command_file: paths.pack_good.clone(),
+            required_columns: vec!["public.b.note".to_owned()],
+        },
+    )
+    .await
+}
+
 async fn pack_receipt(postgres: &Endpoint, paths: &Paths, key: &str) -> Result<Output, LedgerError> {
     receipt(
         &ReceiptRequest {
@@ -849,6 +974,38 @@ async fn decision_row(key: &str) -> DecisionRow {
         published: row.get(2),
         grants: row.get(3),
         authenticated: row.get(4),
+    }
+}
+
+struct ReceiptRow {
+    compiler: String,
+    command: String,
+    candidate: String,
+    outcome: String,
+    protocol: String,
+    git_applied: bool,
+    published: bool,
+    files: bool,
+}
+
+async fn receipt_row(key: &str) -> ReceiptRow {
+    let row = admin_query_one(
+        "SELECT compiler, command_sha256, candidate_sha256, outcome_sha256, outcome_protocol, \
+                git_applied, published, curated_files_written \
+         FROM oo_review_ledger.compiler_receipt \
+         WHERE project_id = $1 AND idempotency_key = $2 AND compiler = 'description-pack'",
+        key,
+    )
+    .await;
+    ReceiptRow {
+        compiler: row.get(0),
+        command: row.get(1),
+        candidate: row.get(2),
+        outcome: row.get(3),
+        protocol: row.get(4),
+        git_applied: row.get(5),
+        published: row.get(6),
+        files: row.get(7),
     }
 }
 

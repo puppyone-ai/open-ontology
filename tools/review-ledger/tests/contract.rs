@@ -4,8 +4,8 @@
 
 use serde_json::json;
 use review_ledger::{
-    canonical_sha, civil_date_ok, in_scope, parse_control, prepare, screen_request, sha256_hex,
-    Principal,
+    canonical_sha, civil_date_ok, err, in_scope, parse_control, prepare, screen_request, sha256_hex,
+    Output, Principal,
 };
 
 const EMPTY: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
@@ -118,6 +118,21 @@ fn approval_and_classification_fields_are_exact() {
     let error = prepare("label_description", "reject", "public.b", Some(&kept)).unwrap_err();
     assert_eq!(error.code, "schema.invalid");
     assert!(prepare("owner_certification", "record", "public.b", None).is_ok());
+}
+
+#[test]
+fn commit_unknown_is_ambiguous_and_not_a_success() {
+    let output = Output::from_error(&err(
+        "commit.unknown",
+        "the commit reply was not confirmed",
+    ));
+    assert_eq!(output.kind, "commit.unknown");
+    assert_eq!(output.code, "commit.unknown");
+    assert!(!output.authenticated);
+    assert!(!output.curated_applied);
+    assert!(!output.published);
+    assert_eq!(output.grants, "not_authorized");
+    assert!(output.history_sha256.is_none());
 }
 
 #[test]

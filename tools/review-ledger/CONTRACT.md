@@ -4,6 +4,18 @@ Contract `oo.review-ledger/v1`. Schema `oo_review_ledger`. This is the SP07-W05 
 
 Frozen before the store code. The schema name is not `jobs`, `audit`, `identity`, `oo_cdc_offset`, `oo_enum_control`, `oo_dict`, `oo_calendar_control`, `oo_session_control`, `oo_token_control`, or `_oo`.
 
+## Amendment
+
+Frozen before the code that closes the auditor batch write on `f862683945a6e5a8803e3f9450d0f51cde5a98ad`. This amendment does not accept SP07-W05 and does not add a component.
+
+`batch` authenticates the caller, then refuses `role=auditor` with `role.forbidden` before an existing-batch read, before any item decision, and before a batch row or a batch audit event. An item refusal is not a reason to insert the batch. `accept_all: true` still returns `batch.accept_all` before authentication and writes nothing.
+
+`history` is read-only for `reviewer`, `owner`, and `auditor`. The caller is a control-file principal, and that principal has a non-empty scope. History returns the project record. It does not drop rows outside that scope, and it inserts nothing. An auditor history call is not a grant, not publication, and not a batch.
+
+A description-pack receipt is stored only after `apply_description_pack` returns `packed` or `reviewed_unchanged` with unauthenticated, unpublished, and ungranted statements, and a later transaction still sees the same decision body and head candidate. The receipt stores the command-file SHA-256, the decision candidate SHA-256, and the SHA-256 of the compiler document. `git_applied`, `published`, and `curated_files_written` stay false. The compiler document is not a git apply and not a publication. A malformed command is `compiler.refused` and writes no receipt.
+
+`commit.unknown` means the commit reply was lost. The transaction may have committed or may have aborted. The library does not retry the call and does not send a second commit. The process exit is 3. A caller that retries without reading history can double-apply or hit `idempotency.conflict`. This crate does not inject a lost reply.
+
 ## Authority
 
 Public management authenticated identity is not implemented. This crate does not verify OIDC, does not accept a role from a request header, and does not accept a role from the request body.
@@ -56,7 +68,7 @@ A stored decision always has `curated_applied = false`, `published = false`, `au
 
 ## Batch
 
-`accept_all: true` is `batch.accept_all` and writes nothing. Otherwise each object is its own decision transaction. One later transaction records the batch. Status is `complete` only when every item was stored. Any refusal leaves `partial`. Neither status applies curated text or publishes. A high-risk item is not bypassed by the other items.
+`accept_all: true` is `batch.accept_all` and writes nothing. An auditor is `role.forbidden` before any item decision and before the batch row. Otherwise each object is its own decision transaction. One later transaction records the batch. Status is `complete` only when every item was stored. Any refusal leaves `partial`. Neither status applies curated text or publishes. A high-risk item is not bypassed by the other items.
 
 ## Compiler receipt
 
@@ -65,7 +77,7 @@ A stored decision always has `curated_applied = false`, `published = false`, `au
 | `compiler` | Function | Accept |
 |---|---|---|
 | `description-review` | `description_review::apply_description_review` | outcome `reviewed`, protocol `oo.builder.description-review/v1` or `v2`, compiler `oo-builder/description-review/v1`, statements unauthenticated and unpublished, and the outcome decision carries this candidate, schema, and evidence hash |
-| `description-pack` | `description_pack::apply_description_pack` | only after every `required_columns` entry has a stored `confirm` classification; outcome `packed` or `reviewed_unchanged` |
+| `description-pack` | `description_pack::apply_description_pack` | only after every `required_columns` entry has a stored `confirm` classification; outcome `packed` or `reviewed_unchanged`. The receipt binds that command hash, the decision candidate hash, and the compiler-document hash |
 
 `classification.missing` returns before the pack compiler is called and writes no receipt. A compiler error, a stale queue reason, or a hash mismatch writes no receipt. There is no pending receipt row.
 
@@ -77,7 +89,7 @@ After the compiler returns an acceptable document, a new transaction re-reads th
 
 The install role is `oo_review_ledger_admin`. The runtime login is a member of `NOLOGIN` `oo_review_ledger_runtime`. The migration does not create roles, does not create a customer grant, and does not install an audit-collector certificate.
 
-Decisions, revisions, audit events, receipts, and batches are insert-only. The head row may move forward to a higher revision. `synchronous_commit` is on for these transactions. A lost commit reply is `commit.unknown` and is not retried.
+Decisions, revisions, audit events, receipts, and batches are insert-only. The head row may move forward to a higher revision. `synchronous_commit` is on for these transactions. A lost commit reply is `commit.unknown`. The outcome is ambiguous, and the library does not retry it.
 
 ## CLI
 

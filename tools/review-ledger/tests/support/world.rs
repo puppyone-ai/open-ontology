@@ -4,6 +4,7 @@
 use std::sync::OnceLock;
 
 use serde_json::{Map, Value, json};
+use description_pack::apply_description_pack;
 use description_review::{
     COMMAND_PROTOCOL, descriptive_field_sha256, curated_dataset_sha256, apply_description_review,
 };
@@ -53,6 +54,142 @@ struct Anchors {
     evidence: String,
     candidate: String,
     curated: String,
+}
+
+pub struct PackFixture {
+    pub command_text: String,
+    pub outcome_text: String,
+    pub outcome_name: String,
+}
+
+pub fn pack_fixture() -> &'static PackFixture {
+    static FIXTURE: OnceLock<PackFixture> = OnceLock::new();
+    FIXTURE.get_or_init(build_pack)
+}
+
+fn build_pack() -> PackFixture {
+    let review = review_fixture();
+    let review_command: Value = serde_json::from_str(&review.command_text).expect("review command");
+    let inner = review_command["command"].as_str().expect("inner command");
+    let candidate: Value = serde_json::from_str(inner).expect("candidate command");
+    let artifact = candidate.get("artifact").cloned().expect("artifact");
+    let draft = &artifact["draft"];
+    let reviewed = apply_description_review(&review.command_text).expect("review document");
+    let command = serde_json::to_string(&json!({
+        "protocol": "oo.builder.description-pack-command/v1",
+        "review": review.command_text,
+        "expected_review_sha256": payload_sha256(reviewed.as_bytes()),
+        "artifact": artifact,
+        "settings": pack_settings(),
+        "decisions": column_decisions(draft),
+        "roles": [pack_role(draft)]
+    }))
+    .expect("pack command");
+    let outcome_text = apply_description_pack(&command).unwrap_or_else(|error| {
+        panic!("pack fixture failed: {} {}", error.code, error.message);
+    });
+    let outcome: Value = serde_json::from_str(&outcome_text).expect("pack json");
+    let outcome_name = outcome["outcome"].as_str().expect("outcome").to_owned();
+    assert!(
+        outcome_name == "packed" || outcome_name == "reviewed_unchanged",
+        "{outcome_name}"
+    );
+    assert_eq!(outcome["statements"]["authentication"], "not_claimed");
+    assert_eq!(outcome["statements"]["publication"], "unavailable");
+    assert_eq!(outcome["statements"]["grants"], "not_authorized");
+    assert_eq!(outcome["compiler"], "oo-builder/description-pack/v1");
+    PackFixture {
+        command_text: command,
+        outcome_text,
+        outcome_name,
+    }
+}
+
+fn pack_settings() -> Value {
+    json!({
+        "project": "shop",
+        "ontology_version": "ont-1",
+        "catalog_version": "cat-1",
+        "policy": {"id": "pol-shop", "version": "1"},
+        "knowledge": {"id": "know-shop", "version": "1"},
+        "ontology": {
+            "spec_version": "oos/v1",
+            "name": "shop",
+            "locale": "en-US",
+            "include_schemas": ["public"],
+            "default_tier_preference": ["raw"],
+            "publish": {"include_unreviewed": []},
+            "classification": {"auto_accept": "rule_high_confidence"},
+            "lifecycle": {"deprecation_min_releases": 2},
+            "compile": {
+                "per_role": true,
+                "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+                "sample_values": {"default": "masked", "max_per_column": 0}
+            }
+        }
+    })
+}
+
+fn column_decisions(draft: &Value) -> Vec<Value> {
+    let schema = draft["provenance"]["schema_hash"].as_str().expect("schema hash");
+    let mut decisions = Vec::new();
+    for item in draft["review_queue"].as_array().expect("review queue") {
+        if item["kind"] != "structural_column" {
+            continue;
+        }
+        let item_id = item["item_id"].as_str().expect("item");
+        let rest = item_id.strip_prefix("column/").expect("column item");
+        let (dataset, column) = rest.rsplit_once('/').expect("column id");
+        decisions.push(json!({
+            "dataset": dataset,
+            "column": column,
+            "schema_hash": schema,
+            "fact_fingerprint": item["fact_fingerprint"],
+            "pii": "none",
+            "semantic_type": "identifier",
+            "reviewer": {"by": "ada.owner", "at": "2026-10-06"}
+        }));
+    }
+    assert!(!decisions.is_empty());
+    decisions
+}
+
+fn pack_role(draft: &Value) -> Value {
+    let mut datasets = Map::new();
+    for item in draft["review_queue"].as_array().expect("review queue") {
+        if item["kind"] != "structural_column" {
+            continue;
+        }
+        let item_id = item["item_id"].as_str().expect("item");
+        let rest = item_id.strip_prefix("column/").expect("column item");
+        let (dataset, column) = rest.rsplit_once('/').expect("column id");
+        let columns = datasets.entry(dataset.to_owned()).or_insert_with(|| json!([]));
+        columns.as_array_mut().expect("columns").push(json!(column));
+    }
+    let datasets = datasets
+        .into_iter()
+        .map(|(dataset, columns)| {
+            json!({
+                "dataset": dataset,
+                "row_security": "none",
+                "global_stats": "permitted",
+                "columns": columns
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "protocol": "oo.builder.role-visibility/v1",
+        "project": "shop",
+        "principal": "desk_user",
+        "role": "oo_r_desk",
+        "ontology_version": "ont-1",
+        "catalog_version": "cat-1",
+        "policy": {"id": "pol-shop", "version": "1"},
+        "knowledge": {"id": "know-shop", "version": "1"},
+        "issued_for_compiler": "oo-builder/role-pack/v1",
+        "datasets": datasets,
+        "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+    })
 }
 
 pub fn review_fixture() -> &'static ReviewFixture {
