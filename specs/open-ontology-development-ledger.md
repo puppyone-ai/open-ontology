@@ -1868,3 +1868,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 2026-10-08 BEFOREcode E57-D1/1冻结：获准原typed审核命令+当前curated/config Githead/blob/evidence→重新运行已审compiler、实际私有Git对象树commit+oldSHA CAS+幂等receipt；纯Git工作树/共享index不碰、角色/Secret/无批准项不写。新a374仅tools/curated-git-apply/UUID证据，原B04API/身份/Git公共应用集成仍未完成。局部分母89→90，accepted76/90=84.44%，历史101/首审91/返工15/作者94不变；完整87父项、集成0/4发行0/6/X不变。
 
 2026-10-08 一次18min统一观测：G3a35288200/G1a35116348终止0；a36527577/a37060092/a37165332/a37233067/a37342599仍live，未再次轮询。G3 G2-admin完整三报告已读、83 SHA0坏/0缺，limited仅注册/未挂/抽查未接入组件；必改向导秘密输入、占位详情导航、空候选审核表单交回原G2a3533011；共享disabled理由/故事glob归原G1a35174888，先收集已启动M5真实退出再修。G3原a35252828继续固定M4聚焦复审。前端最多3固定UUID，当前3CLI同时运行，Node2/browser2全球cap仍必须排队，不能第四CLI。A16术语规范行B04→B05修正与真实API规范一致，源hashbaseline需后续规范记录而非假设原hash没变。主线开发/集成/发行计数不因UI未接入或schema合同提交改变。nextUUIDa375未用。
+
+新curated Git adapter a374 actual handle36873，mainline active scopeisolatedtools/curated-git-apply。a36527577/a37060092/a37165332/a37233067/a37342599 retainedlive；前端G1a35174888/G2a3533011/G3a35252828三固定CLI，Nodeglobal2/browser2须按真实容量排队。nextUUIDa375未使用。

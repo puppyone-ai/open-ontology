@@ -25,3 +25,6 @@
 | [16-references.md](../../docs/16-references.md) | `fcc817a5c0a3a66ba8d17f135348dd02380d579fcf3aa391113f23cba210a9f2` |
 | [17-rust-implementation.md](../../docs/17-rust-implementation.md) | `f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534` |
 | [README.md](../../docs/README.md) | `49e86102e763ae90f8d0f4daeb4efea8877cc4ff00692831451a6c45c7f07208` |
+
+
+2026-10-08 规范修正增量：A16术语绑定组由B04改为B05，与api-state-contracts及实际SDK登记一致；本次仅修规范行，不宣称API已实现。page-specifications.md当前SHA256：`8e3d12fa97b7d798d7c5eae56efc2d1022eabd6c937bf50162e6b57609a94c97`。上表保留原历史读取快照，不覆盖为本次源码或验收证据。
