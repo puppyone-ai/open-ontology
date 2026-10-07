@@ -1,0 +1,30 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/target/debug/deps/review_ledger-5aac70ed82266522)
+
+running 1 test
+test sha256::tests::known_answers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (/target/debug/deps/contract-9eff97036f48567f)
+
+running 8 tests
+test approval_and_classification_fields_are_exact ... ok
+test canonical_object_keys_are_sorted ... ok
+test civil_dates_follow_the_calendar ... ok
+test commit_unknown_is_ambiguous_and_not_a_success ... ok
+test control_rejects_a_second_role_and_verified_authority ... ok
+test grant_keys_are_refused_before_a_decision_is_parsed ... ok
+test scope_does_not_expand_from_a_dataset_to_a_column ... ok
+test sha256_matches_the_empty_and_abc_vectors ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live.rs (/target/debug/deps/live-c786bd13e53851af)
+
+running 1 test
+test private_postgres_matrix ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+

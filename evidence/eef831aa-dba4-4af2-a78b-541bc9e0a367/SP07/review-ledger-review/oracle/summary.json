@@ -1,0 +1,16 @@
+{
+  "auditor_batch": "role.forbidden",
+  "auditor_tuples_unchanged": true,
+  "authenticated": false,
+  "curated_files_written": false,
+  "database": "oo_a367_oracle",
+  "git_applied": false,
+  "grants": "not_authorized",
+  "pack_candidate_sha256": "6161616161616161616161616161616161616161616161616161616161616161",
+  "pack_command_sha256": "36e1e461b388e7a6eaf084109f2709b7d291865db171fb8c6a02d60ebb6b00cb",
+  "pack_outcome": "packed",
+  "pack_outcome_sha256": "2317e15eac50d9aad9ae7f958212a7390e21da21f4749e6c015976946c0fb5d3",
+  "project": "ora367",
+  "published": false,
+  "track_counts": "on"
+}

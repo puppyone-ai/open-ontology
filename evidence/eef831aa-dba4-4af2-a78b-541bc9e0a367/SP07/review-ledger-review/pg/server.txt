@@ -1,0 +1,2 @@
+postgres (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)
+/var/run/postgresql:5432 - accepting connections
