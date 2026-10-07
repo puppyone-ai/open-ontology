@@ -76,3 +76,10 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - Linux arm64 Node 24.21.0 上，类型检查、lint、6 个单元测试、对比度报告、Vite 生产构建和 Storybook 构建退出码都是 0。
 - 生产 JS `dist/assets/index-BApyONEH.js` 为 226525 字节，gzip 70115 字节。CSS gzip 4117 字节。构建产物不进入 Git。
 - Playwright Chromium 153.0.8010.12（build v1243）已下载到任务私有目录。页面截图、axe、键盘和减少动效没有执行。原因见证据 FINDINGS。
+
+## M1 公共接口（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m1` 在冻结安装前后都打印了这个值，`oo-fe01-node-m1c` 复用同一安装前再次核对。
+- 没有新增 registry 依赖。`@open-ontology/sdk-ts` 由 Vite、Vitest 和 TypeScript 的路径别名指向 `packages/sdk-ts/src/index.ts`，不写入 workspace 依赖。
+- 生产包现在包含 react-router 和 radix dialog。Linux 实测 `dist/assets/index-BFuR9aus.js` 为 320270 字节，gzip 100357 字节；`dist/assets/index-Bqdf60lJ.css` 为 21518 字节，gzip 5241 字节。上一节的 70115 只描述基础页产物 `index-BApyONEH.js`。
+- 同一容器里类型检查、lint、22 个单元测试和 Vite 生产构建退出码都是 0。两次更早的测试失败日志保留在 M1 证据里。浏览器仍未执行。对比度报告、Storybook 构建和字体没有重跑。

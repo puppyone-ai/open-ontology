@@ -1,0 +1,30 @@
+{
+  "authentication": "loopback-http",
+  "external_mtls": false,
+  "oauth": false,
+  "idp": false,
+  "project_id": "depot",
+  "principal_id": "example-principal",
+  "role": "oo_r_picker",
+  "policy_version": "example-policy",
+  "knowledge_version": "example-knowledge",
+  "audience_url": "https://example.invalid/audience",
+  "scope": "client",
+  "sandbox_id": null,
+  "session_id": null,
+  "pack_digest": "example-digest",
+  "protocol": "oo.builder.role-pack/v1",
+  "files": [
+    {
+      "path": "example/pack.json",
+      "bytes": 128,
+      "sha256": "example-sha"
+    }
+  ],
+  "columns": [
+    {
+      "table": "example_table",
+      "name": "example_column"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+image=sha256:481d53bf381928c9e3bb5cedf90687d81a78986cf4d7fe5a5fdfc8de1c5fe413
+/oo-fe01-node-m1 exit=1 status=exited mem=4294967296 swap=4294967296 cpu=1000000000 pids=2048 capdrop=["ALL"] privileged=false net=none readonly_root=false
+/oo-fe01-node-m1b exit=1 status=exited mem=4294967296 swap=4294967296 cpu=1000000000 pids=2048 capdrop=["ALL"] privileged=false net=none readonly_root=false
+/oo-fe01-node-m1c exit=0 status=exited mem=4294967296 swap=4294967296 cpu=1000000000 pids=2048 capdrop=["ALL"] privileged=false net=none readonly_root=false

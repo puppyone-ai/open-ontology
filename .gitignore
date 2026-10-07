@@ -3,3 +3,12 @@
 *.pdb
 .DS_Store
 .specstory/
+
+# JavaScript build output for the web workspace.
+# Evidence, specs, crates, and source stay visible.
+node_modules/
+apps/web/dist/
+apps/web/storybook-static/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/coverage/

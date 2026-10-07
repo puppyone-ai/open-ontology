@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.gateway.error",
+  "title": "Gateway ApiError body",
+  "description": "Copied from ApiError::body. The object is {\"error\":{code,message,hint,retryable}}. query_id is absent. OpenAPI for this envelope is absent. live false.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["code", "message", "hint", "retryable"],
+      "properties": {
+        "code": {
+          "enum": [
+            "UNAUTHENTICATED",
+            "FORBIDDEN",
+            "QUERY_NOT_ALLOWED",
+            "NOT_FOUND",
+            "METHOD_NOT_ALLOWED",
+            "SQL_UNSUPPORTED",
+            "INTERNAL"
+          ]
+        },
+        "message": { "type": "string" },
+        "hint": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    }
+  }
+}

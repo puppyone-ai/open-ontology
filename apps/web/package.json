@@ -9,7 +9,7 @@
   },
   "scripts": {
     "check": "pnpm run types && pnpm run lint && pnpm run test",
-    "types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p ../../packages/sdk-ts/tsconfig.json --noEmit",
     "lint": "eslint --config config/eslint.config.mjs .",
     "test": "vitest run --config config/vitest.config.ts",
     "build": "vite build",

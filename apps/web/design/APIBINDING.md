@@ -21,3 +21,21 @@
 | release | false |
 
 本卡不绑定 B01–B12。没有登录、审核、发布或会话请求。HTTP 200 与 mock 都不能当成业务接通。
+
+## M1 公共接口
+
+| 字段 | 值 |
+|---|---|
+| operationID | gateway.packMetadata.get |
+| method | GET |
+| path | /v1/pack/metadata |
+| service commit | 97b6a9eb9caa2b6059d82bdb98b703bf5ee202d8 |
+| schema hash | f77d55d45bfe86e237f167881a415f67304e9dc11251474c4155a3ac2a9353e3 |
+| OpenAPI | absent |
+| state | schema_frozen |
+| live | false |
+| fixture | packages/sdk-ts/src/fixtures/pack-metadata.example.json，形状示例，不是服务器捕获 |
+| journey | false |
+| release | false |
+
+POST /v1/sql 在进程里返回 501 SQL_UNSUPPORTED，登记为 unbound，不是 B09。B01–B12 其余操作仍是 unbound。登录、审核、发布和会话都没有请求。

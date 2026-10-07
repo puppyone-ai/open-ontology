@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.gateway.pack-metadata.response",
+  "title": "GET /v1/pack/metadata 200 body",
+  "description": "Copied from pack_body and session_map. This repository has no OpenAPI document for this route. bytes is a JSON number because the Rust field is u64. This schema rejects integers above 9007199254740991; the parser reports unsafe_integer instead of rounding. live false.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "authentication",
+    "external_mtls",
+    "oauth",
+    "idp",
+    "project_id",
+    "principal_id",
+    "role",
+    "policy_version",
+    "knowledge_version",
+    "audience_url",
+    "scope",
+    "sandbox_id",
+    "session_id",
+    "pack_digest",
+    "protocol",
+    "files",
+    "columns"
+  ],
+  "properties": {
+    "authentication": { "enum": ["loopback-http", "verified-certificate"] },
+    "external_mtls": { "type": "boolean" },
+    "oauth": { "const": false },
+    "idp": { "const": false },
+    "peer_workload": { "type": "string", "minLength": 1 },
+    "peer_source": { "const": "verified-certificate" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "principal_id": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "knowledge_version": { "type": "string", "minLength": 1 },
+    "audience_url": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "sandbox_id": { "type": ["string", "null"] },
+    "session_id": { "type": ["string", "null"] },
+    "pack_digest": { "type": "string", "minLength": 1 },
+    "protocol": { "const": "oo.builder.role-pack/v1" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "sha256": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["table", "name"],
+        "properties": {
+          "table": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

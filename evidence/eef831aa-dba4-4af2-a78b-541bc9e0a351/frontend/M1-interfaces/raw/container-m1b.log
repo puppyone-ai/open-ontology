@@ -1,0 +1,7 @@
+phase=identity
+node=v24.21.0
+lock_before=73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e
+reuse=types_lint_install_exit_0
+phase=test
+test_exit=1
+FAILED phase=test

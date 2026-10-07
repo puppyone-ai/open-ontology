@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "SQL_UNSUPPORTED",
+    "message": "SQL execution is not served by this process.",
+    "hint": "Untrusted SQL stays unavailable until a kernel sandbox admits it.",
+    "retryable": false
+  }
+}

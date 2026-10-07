@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Reserved TypeScript SDK root. FE-01 freezes the package name and compiler options. FE-03 owns the client implementation. This package exports nothing.",
+  "description": "Typed SDK binding registry. GET /v1/pack/metadata is schema_frozen. Other product operations stay unbound. This package does not call the network.",
   "exports": {
     ".": "./src/index.ts"
   },

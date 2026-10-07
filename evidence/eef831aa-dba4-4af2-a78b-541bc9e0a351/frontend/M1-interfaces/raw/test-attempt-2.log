@@ -1,0 +1,196 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [31m❯[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m9 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 512[2mms[22m[39m
+   [31m❯[39m shared public components [2m(9)[22m
+     [32m✓[39m keeps selection on the current page and separates empty from forbidden[32m 179[2mms[22m[39m
+     [32m✓[39m does not treat unknown or not_run as pass[32m 2[2mms[22m[39m
+[31m     [31m×[31m preserves literal diffs, NULL, and exact decimals[39m[32m 7[2mms[22m[39m
+     [32m✓[39m renders markdown as text and links only a safe citation[32m 5[2mms[22m[39m
+     [32m✓[39m does not send while an IME composition is active[32m 22[2mms[22m[39m
+     [32m✓[39m keeps an empty secret from overwriting storage[32m 183[2mms[22m[39m
+     [32m✓[39m asks for a new review decision when the evidence is stale[32m 42[2mms[22m[39m
+     [32m✓[39m requires a reason before a destructive confirmation[32m 69[2mms[22m[39m
+     [32m✓[39m shows a denied preview object instead of filtering it away[32m 2[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 159[2mms[22m[39m
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 203[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/styles/font-coverage.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/shared/shared.behavior.test.tsx[2m > [22mshared public components[2m > [22mpreserves literal diffs, NULL, and exact decimals
+[31m[1mTestingLibraryElementError[22m: Unable to find an element with the text: 条形长度是近似。表格里的数字是原文字。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"oo-stack"[31m
+      [36m>[31m
+        [36m<section>[31m
+          [36m<h2[31m
+            [33mclass[31m=[32m"oo-section-title"[31m
+          [36m>[31m
+            [0m比例[0m
+          [36m</h2>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"oo-split"[31m
+          [36m>[31m
+            [36m<p>[31m
+              [0m旧 [0m
+              [36m<span[31m
+                [33mclass[31m=[32m"oo-exact"[31m
+              [36m>[31m
+                [0m1.0[0m
+              [36m</span>[31m
+            [36m</p>[31m
+            [36m<p>[31m
+              [0m新 [0m
+              [36m<span[31m
+                [33mclass[31m=[32m"oo-exact"[31m
+              [36m>[31m
+                [0m1.00[0m
+              [36m</span>[31m
+            [36m</p>[31m
+          [36m</div>[31m
+        [36m</section>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"oo-stack"[31m
+      [36m>[31m
+        [36m<p[31m
+          [33mclass[31m=[32m"oo-code"[31m
+        [36m>[31m
+          [0m没有 query_id[0m
+        [36m</p>[31m
+        [36m<p>[31m
+          [0m没有 receipt，不能标成已完成。[0m
+        [36m</p>[31m
+        [36m<p>[31m
+          [0m这是部分结果。[0m
+        [36m</p>[31m
+        [36m<p>[31m
+          [0m结果被截断[0m
+        [36m</p>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"oo-table-wrap"[31m
+        [36m>[31m
+          [36m<table[31m
+            [33mclass[31m=[32m"oo-table"[31m
+          [36m>[31m
+            [36m<thead>[31m
+              [36m<tr>[31m
+                [36m<th>[31m
+                  [0m值[0m
+                [36m</th>[31m
+                [36m<th>[31m
+                  [0m文本[0m
+                [36m</th>[31m
+              [36m</tr>[31m
+            [36m</thead>[31m
+            [36m<tbody>[31m
+              [36m<tr>[31m
+                [36m<td>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"oo-null"[31m
+                  [36m>[31m
+                    [0mNULL[0m
+                  [36m</span>[31m
+                [36m</td>[31m
+                [36m<td>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"oo-exact"[31m
+                  [36m>[31m
+                    [0m12345678901234567890.50[0m
+                    [36m<button[31m
+                      [33mclass[31m=[32m"oo-button oo-button-ghost oo-button-sm"[31m
+                      [33mtype[31m=[32m"button"[31m
+                    [36m>[31m
+                      [0m复制[0m
+                    [36m</button>[31m
+                  [36m</span>[31m
+                [36m</td>[31m
+                [36m<td>[31m
+                  [36m<span[31m
+                    [33mclass[31m=[32m"oo-exact"[31m
+                  [36m>[31m
+                    [36m<span[31m
+                      [33maria-label[31m=[32m"空字符串"[31m
+                    [36m/>[31m
+                    [36m<button[31m
+                      [33mclass[31m=[32m"oo-button oo-button-ghost oo-button-sm"[31m
+                      [33mtype[31m=[32m"button"[31m
+                    [36m>[31m
+                      [0m复制[0m
+                      [0m空字符串[0m
+                    [36m</button>[31m
+                  [36m</span>[31m
+                [36m</td>[31m
+              [36m</tr>[31m
+            [36m</tbody>[31m
+          [36m</table>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"oo-stack"[31m
+      [36m>[31m
+        [36m<p>[31m
+          [0m单位 1。条形长度是近似。表格里的数字是原文字。[0m
+        [36m</p>[31m
+        [36m<table[31m
+          [33mclass[31m=[32m"oo-table"[31m
+        [36m>[31m
+          [36m<thead>[31m
+            [36m<tr>[31m
+              [36m<th>[31m
+                [0m标签[0m
+              [36m</th>[31m
+              [36m<th>[31m
+                [0m精确值[0m
+              [36m</th>[31m
+            [36m</tr>[31m
+          [36m</thead>[31m
+          [36m<tbody>[31m
+            [36m<tr>[31m
+              [36m<td>[31m
+                [0m样本[0m
+              [36m</td>[31m
+              [36m<td[31m
+                [33mclass[31m=[32m"oo-exact"[31m
+              [36m>[31m
+                [0m12345678901234567890.50[0m
+              [36m</td>[31m
+            [36m</tr>[31m
+          [36m</tbody>[31m
+        [36m</table>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError ../../node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/shared/shared.behavior.test.tsx:[2m99:19[22m[39m
+    [90m 97|[39m     expect(screen.getByLabelText("空字符串")).toBeTruthy();
+    [90m 98|[39m     expect(screen.getByText("没有 receipt，不能标成已完成。")).toBeTruthy();
+    [90m 99|[39m     expect(screen.getByText("条形长度是近似。表格里的数字是原文字。")).toBeTruthy();
+    [90m   |[39m                   [31m^[39m
+    [90m100|[39m     await user.click(screen.getAllByRole("button", { name: "复制" })[0]!…
+    [90m101|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m21 passed[39m[22m[90m (22)[39m
+[2m   Start at [22m 21:50:06
+[2m   Duration [22m 5.04s[2m (environment 51%, tests 19%, setup 16%, import 10%, transform 4%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 6 times[39m[2m · 2.39s total, 51% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
