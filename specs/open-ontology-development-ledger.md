@@ -1848,3 +1848,5 @@ Fullauthora354/a355/a358three reports read closedtasks; fixedsources e5427c1a(S2
 局部冻结验收73→74/86=86.05%；历史98→99；首次独立组件88→89；既有返工14/89=15.73%；作者94不变。完整87父项/16阶段、M1-D17/24、集成0/4、发行0/6、X01–X05不变。
 
 2026-10-08 BEFORE CODE freeze E54-D1/1（SP02-W05/REQ-CTL-03/AT-CTL-05身份组件）：获准issuer/client/redirect/configcommit/管理binding/SecretRef→真实HTTPS OIDC Code+PKCE+签名验证、耐久cookie会话/单次bootstrap/CSRF/Origin/最小项目角色guard与审计；私有PG+真实HTTPS测试IdP验证，不冒充客户IdP/数据授权/Agent会话。新a370 owns tools/control-identity及UUID证据，root/前端/既有产品readonly；先合同固定再实现，完整packet+独立复审后才勾选。冻结局部分母86→87，已验收74/87=85.06%；历史99/首审89/返工14/作者94不变，完整87父项及I/R/X不变。此新增子项不改变全局开发分母未冻结事实。
+
+2026-10-08 BEFOREcode E55-D1/1冻​​结（SP06-W06审计耐久组件）：现有真实DedicatedSession准入/完成→有界fsync WAL→真实mTLS receiver PG耐久三元组receipt→确认后GC；实际查询/重启/Collector故障留存/预准入fsync失败无结果/重放冲突验证。a371 owns tools/gateway-audit-wal+tools/audit-ingest only，既有gateway/control/root/FE readonly；不接受publicSQL/runsc/feedback/fullSP06。局部分母87→88，accepted74/88=84.09%（非全局完成率）；历史99/首审89/返工14/作者94不变。全87父项、集成0/4发行0/6/X不变。

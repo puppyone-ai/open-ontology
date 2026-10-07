@@ -6,3 +6,6 @@ LATEST human: max20developmentGroks; independentreviews outside mainlinecap. Fro
 
 
 SAME a365 previousCLIterminal0 missingpacket. FIRST collect existingactualPG/builder proofexit/log andresources; do not duplicate activebuilder/PG orrerun green tests. Finish necessary fix within owned twoinstaller paths/fullpacket/fixedcommit/hash/cleanup. Existingproof already running perclosedlog.
+
+
+SAME a365 terminal0 again missingpacket: FIRST collect already-running continuedproof builder/PG actualexit/log andkeepPG. Lastclosedlog says repairedworkspacearchive and fetch/tests/Clippy running. Do not duplicate resources orrerun passedphases; finish full reports/fixedcommit/hash/owncleanup, concretefailedphaseonlyrepair.
