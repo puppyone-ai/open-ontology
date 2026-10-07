@@ -226,6 +226,10 @@
   width: min(30rem, 100%);
 }
 
+.oo-chat-column {
+  width: min(760px, 100%);
+}
+
 .oo-dialog-overlay {
   position: fixed;
   inset: 0;

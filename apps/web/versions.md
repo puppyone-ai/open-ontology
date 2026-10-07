@@ -83,3 +83,9 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 没有新增 registry 依赖。`@open-ontology/sdk-ts` 由 Vite、Vitest 和 TypeScript 的路径别名指向 `packages/sdk-ts/src/index.ts`，不写入 workspace 依赖。
 - 生产包现在包含 react-router 和 radix dialog。Linux 实测 `dist/assets/index-BFuR9aus.js` 为 320270 字节，gzip 100357 字节；`dist/assets/index-Bqdf60lJ.css` 为 21518 字节，gzip 5241 字节。上一节的 70115 只描述基础页产物 `index-BApyONEH.js`。
 - 同一容器里类型检查、lint、22 个单元测试和 Vite 生产构建退出码都是 0。两次更早的测试失败日志保留在 M1 证据里。浏览器仍未执行。对比度报告、Storybook 构建和字体没有重跑。
+
+## M2 用户路由（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m2` 在类型检查前和构建后都打印了这个值。没有安装，没有新增 registry 依赖。
+- Linux arm64 Node v24.21.0 上，类型检查、lint、28 个单元测试和 Vite 生产构建退出码都是 0。浏览器没有执行。对比度报告、Storybook 构建和字体没有重跑。
+- 生产 JS `dist/assets/index-CDiTiiKo.js` 为 325770 字节，gzip 101884 字节。CSS `dist/assets/index-CFLc_wNN.css` 为 21556 字节，gzip 5254 字节。上一节的 100357 只描述 M1 产物 `index-BFuR9aus.js`。

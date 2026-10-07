@@ -1,0 +1,4 @@
+removed=oo-fe01-node-m2
+method=docker rm by exact name
+prune=no
+oo-fe01-count=0

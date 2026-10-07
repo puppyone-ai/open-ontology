@@ -1,0 +1,16 @@
+dist
+763 /src/apps/web/dist/index.html
+4301 /src/apps/web/dist/fonts/licenses/NotoSans-LICENSE
+4383 /src/apps/web/dist/fonts/licenses/Geist-OFL.txt
+21556 /src/apps/web/dist/assets/index-CFLc_wNN.css
+40388 /src/apps/web/dist/fonts/NotoSansSC-300-subset.woff2
+40792 /src/apps/web/dist/fonts/NotoSansSC-400-subset.woff2
+41044 /src/apps/web/dist/fonts/NotoSansSC-500-subset.woff2
+50356 /src/apps/web/dist/fonts/GeistMono-Regular.woff2
+69652 /src/apps/web/dist/fonts/Geist-wght.woff2
+325770 /src/apps/web/dist/assets/index-CDiTiiKo.js
+7762252 /src/apps/web/dist/fonts/NotoSansSC-full.woff2
+gzip
+/src/apps/web/dist/assets/index-CDiTiiKo.js raw=325770 gzip=101884
+/src/apps/web/dist/assets/index-CFLc_wNN.css raw=21556 gzip=5254
+/src/apps/web/dist/index.html raw=763 gzip=379
