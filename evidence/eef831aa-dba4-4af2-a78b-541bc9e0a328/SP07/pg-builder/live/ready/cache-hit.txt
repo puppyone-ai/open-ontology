@@ -1,0 +1,8 @@
+success=pass1
+outcome=validated
+hit_cache=hit
+hit_socket=not_opened
+hit_attempt=0
+candidate_bytes_same=true
+pass2_cache=miss
+pass2_socket=opened

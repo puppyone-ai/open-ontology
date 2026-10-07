@@ -22,6 +22,46 @@ const DESCRIPTION_RESPONSE_PROTOCOL: &str = "oo.builder.description-response/v1"
 
 static TEMP: AtomicU64 = AtomicU64::new(0);
 
+fn read_http_request(stream: &mut std::net::TcpStream) {
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 256];
+    let header_end = loop {
+        if let Some(pos) = buf.windows(4).position(|window| window == b"\r\n\r\n") {
+            break pos;
+        }
+        if buf.len() >= 8192 {
+            return;
+        }
+        match stream.read(&mut chunk) {
+            Ok(0) | Err(_) => return,
+            Ok(count) => buf.extend_from_slice(&chunk[..count]),
+        }
+    };
+    let mut length = 0usize;
+    for line in buf[..header_end].split(|byte| *byte == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let Some(split) = line.iter().position(|byte| *byte == b':') else {
+            continue;
+        };
+        if !line[..split].eq_ignore_ascii_case(b"content-length") {
+            continue;
+        }
+        let text = std::str::from_utf8(line[split + 1..].trim_ascii()).unwrap_or("");
+        length = text.parse().unwrap_or(0);
+    }
+    let mut have = buf.len() - (header_end + 4);
+    while have < length && buf.len() < 16384 {
+        match stream.read(&mut chunk) {
+            Ok(0) | Err(_) => return,
+            Ok(count) => {
+                have += count;
+                buf.extend_from_slice(&chunk[..count]);
+            }
+        }
+    }
+}
+
 fn temp_dir() -> PathBuf {
     let path = std::env::temp_dir().join(format!(
         "pg-builder-{}-{}",
@@ -571,8 +611,7 @@ fn loopback_timeout_redirect_and_chunked_body() {
     let redirect_port = redirect_listener.local_addr().expect("addr").port();
     let redirect_handle = std::thread::spawn(move || {
         let (mut stream, _) = redirect_listener.accept().expect("accept");
-        let mut buf = [0u8; 1024];
-        let _ = stream.read(&mut buf);
+        read_http_request(&mut stream);
         let _ = stream.write_all(b"HTTP/1.1 302 Found\r\nLocation: http://example.test/\r\nContent-Length: 0\r\n\r\n");
     });
     let redirected = runtime
@@ -593,8 +632,7 @@ fn loopback_timeout_redirect_and_chunked_body() {
     let chunk_port = chunk_listener.local_addr().expect("addr").port();
     let chunk_handle = std::thread::spawn(move || {
         let (mut stream, _) = chunk_listener.accept().expect("accept");
-        let mut buf = [0u8; 2048];
-        let _ = stream.read(&mut buf);
+        read_http_request(&mut stream);
         let body = b"5\r\nhello\r\n0\r\n\r\n";
         let header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
         let _ = stream.write_all(header.as_bytes());

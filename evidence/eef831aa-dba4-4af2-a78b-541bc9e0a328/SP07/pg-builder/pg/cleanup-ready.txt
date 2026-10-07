@@ -1,0 +1,20 @@
+date=2026-10-08
+owner=a328
+session=eef831aa-dba4-4af2-a78b-541bc9e0a328
+copied=live/ready/cache-snapshot and live/ready/host-meta before removal
+prune=no
+foreign=not_passed
+token_file=left_in_place
+=== volume rm ===
+oo-a328-eef831aa-cargo
+oo-a328-eef831aa-target
+volume_rm_exit=0
+=== network rm ===
+oo-a328-eef831aa-net
+network_rm_exit=0
+=== tmp rm ===
+tmp_rm_exit=0
+=== after ===
+tmp=absent
+token_file=present
+a328_containers=0
