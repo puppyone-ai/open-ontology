@@ -1,0 +1,4 @@
+writer_exit=0
+reader_exit=1
+reader_sqlstate=42501
+cancel_sqlstate=57014

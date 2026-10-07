@@ -1,0 +1,20 @@
+a349 independent real-pg 100k review. Product archive 6f87942f1c66ba1a9787b7d7194e58a507af63ef.
+Fixture commit f4381843c7f376f196bc30c78c18d9701dc29a6d tree 79e2ddc120b2117f90d3e79ff61571490243f23b.
+Docker resources, labels, tmp, and this evidence tree are a349-private.
+The frozen driver still uses host alias oo-a317-pg, databases oo_a317_src and oo_a317_dst, and the fixture role names.
+Container name is oo-a349-pg. Network alias and certificate SAN stay DNS:oo-a317-pg.
+membership-watch.sh is the fixture script with only the container name changed.
+
+Byte-copied reviewed tools, digest checked before this file was written:
+sha256.rs 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e
+sha256_manifest.rs d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+select-debs.rs 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644
+extract-libclang.sh 982f18e430e6b8136a4cb30cb7e0711015318d0b40c0939475bfae8142e55ed4
+pg-wrap.sh d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb
+
+pg-wrap.sh source path: /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a317/SP11/real-pg-e2e/in-approved-rerun/pg/pg-wrap.sh
+extract-libclang.sh source path: /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/linux/chain/extract-libclang.sh
+
+Adapted from /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a317/SP11/real-pg-e2e/in-approved-rerun at the moment this tree was created.
+Shell changes are the UUID, evidence directory, owner label a349, 6 GiB and 1 CPU limits, this network, and the independent oracle phase.
+Server flags stay the reviewed pg-wrap set. No cargo update. No product edit.
