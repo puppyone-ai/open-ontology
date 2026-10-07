@@ -1,20 +1,21 @@
 //! Private PostgreSQL proof for the loopback HTTP gateway.
 //!
 //! The test fails closed when `OO_A326_LIVE` is not `1`. Cargo leaves it ignored
-//! until the proof passes `--ignored`.
+//! until the proof passes `--ignored`. The packs are the raw spans from
+//! `role-pack-bundle` via the a341 fixture tool. This test does not call
+//! `fixture_artifact`.
 
 #![forbid(unsafe_code)]
 
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use oo_gateway::http_gateway::{
     harness_install, harness_issue, harness_revoke_token, CurrentTuple, Endpoint, IssueGrant, TokenKind,
 };
-use oo_gateway::pack_catalog::fixture_artifact;
 use serde_json::Value;
 use zeroize::Zeroize;
 
@@ -232,15 +233,56 @@ fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host:
         format!("{{\"host\":\"{host}\",\"port\":{port},\"database\":\"{database}\"}}\n"),
     )
     .expect("endpoint");
-    let picker = fixture_artifact("depot", "oo_r_picker", "pv1", "kv1", "orders", "picker_note").expect("picker artifact");
-    let auditor = fixture_artifact("depot", "oo_r_auditor", "pv1", "kv1", "orders", "auditor_phone").expect("auditor artifact");
-    std::fs::write(dir.join("packs/picker.json"), picker).expect("picker pack");
-    std::fs::write(dir.join("packs/auditor.json"), auditor).expect("auditor pack");
+    let packs = dir.join("packs");
+    let fixture_dir = PathBuf::from(required_env("OO_A341_FIXTURE_DIR"));
+    let (picker_text, picker_digest) = compile_pack(&packs, &fixture_dir, "visibility-picker.json", "picker.json");
+    let (auditor_text, auditor_digest) = compile_pack(&packs, &fixture_dir, "visibility-auditor.json", "auditor.json");
+    assert_ne!(picker_digest, auditor_digest, "the two roles sealed the same digest");
+    let picker_artifact: Value = serde_json::from_str(&picker_text).expect("picker artifact");
+    let auditor_artifact: Value = serde_json::from_str(&auditor_text).expect("auditor artifact");
+    assert_eq!(picker_artifact["pack_digest"].as_str(), Some(picker_digest.as_str()));
+    assert_eq!(auditor_artifact["pack_digest"].as_str(), Some(auditor_digest.as_str()));
+    std::fs::remove_file(packs.join("picker.json.digest")).expect("picker digest");
+    std::fs::remove_file(packs.join("auditor.json.digest")).expect("auditor digest");
+    let mut names = Vec::new();
+    for entry in std::fs::read_dir(&packs).expect("packs") {
+        let entry = entry.expect("pack entry");
+        names.push(entry.file_name().into_string().expect("pack name"));
+    }
+    names.sort();
+    assert_eq!(names, vec!["auditor.json".to_owned(), "picker.json".to_owned()]);
     let config = format!(
         "{{\"listen\":\"127.0.0.1:0\",\"audience\":\"{AUDIENCE}\",\"runtime_user\":\"oo_token_runtime\",\"password_file\":\"runtime.pass\",\"ca_file\":\"ca.crt\",\"endpoint_file\":\"endpoint.json\",\"pack_dir\":\"packs\",\"body_limit\":1048576,\"request_timeout_ms\":5000,\"global_concurrency\":1}}\n"
     );
     std::fs::write(dir.join("config.json"), config).expect("config");
     dir
+}
+
+fn compile_pack(work: &Path, fixture_dir: &Path, visibility: &str, output_name: &str) -> (String, String) {
+    let output = work.join(output_name);
+    let digest_path = work.join(format!("{output_name}.digest"));
+    let produced = Command::new(required_env("OO_A341_FIXTURE_BIN"))
+        .arg("compile")
+        .arg("--compiler")
+        .arg(required_env("OO_A341_ROLE_PACK_BIN"))
+        .arg("--effective")
+        .arg(fixture_dir.join("effective.json"))
+        .arg("--visibility")
+        .arg(fixture_dir.join(visibility))
+        .arg("--output")
+        .arg(&output)
+        .arg("--digest")
+        .arg(&digest_path)
+        .stdin(Stdio::null())
+        .output()
+        .expect("fixture spawn");
+    let tool_stderr = String::from_utf8_lossy(&produced.stderr).into_owned();
+    assert!(produced.status.success(), "compile {visibility} failed: {tool_stderr}");
+    let text = std::fs::read_to_string(&output).expect("compiled pack");
+    let digest = std::fs::read_to_string(&digest_path).expect("digest").trim().to_owned();
+    assert_eq!(digest.len(), 64, "compiler digest length");
+    assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    (text, digest)
 }
 
 fn spawn_gateway(dir: &std::path::Path) -> Child {
