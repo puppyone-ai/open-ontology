@@ -1,0 +1,10 @@
+[package]
+name = "pg-e2e"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Public PostgreSQL fixture driver for the archived onboarding CLIs."
+
+[workspace]

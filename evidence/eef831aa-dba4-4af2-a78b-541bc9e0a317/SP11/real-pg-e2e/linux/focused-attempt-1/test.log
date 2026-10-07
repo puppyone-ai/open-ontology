@@ -1,0 +1,95 @@
+   Compiling pg-e2e v0.1.0 (/fixture)
+error[E0106]: missing lifetime specifier
+   --> src/json.rs:314:57
+    |
+314 | pub fn string_field(value: &Value, key: &str) -> Result<&str, Fail> {
+    |                            ------       ----            ^ expected named lifetime parameter
+    |
+    = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `value` or `key`
+help: consider introducing a named lifetime parameter
+    |
+314 | pub fn string_field<'a>(value: &'a Value, key: &'a str) -> Result<&'a str, Fail> {
+    |                    ++++         ++              ++                 ++
+
+warning: unused import: `Write`
+ --> src/run.rs:6:35
+  |
+6 | use std::io::{BufRead, BufReader, Write};
+  |                                   ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0308]: mismatched types
+  --> src/run.rs:45:36
+   |
+45 |     write_table(dir, "party.copy", gold::write_party)?;
+   |     -----------                    ^^^^^^^^^^^^^^^^^ one type is more general than the other
+   |     |
+   |     arguments to this function are incorrect
+   |
+   = note: expected fn pointer `for<'a> fn(&'a mut File) -> Result<_, _>`
+                 found fn item `fn(_) -> Result<_, _> {write_party::<_>}`
+note: function defined here
+  --> src/run.rs:55:4
+   |
+55 | fn write_table(
+   |    ^^^^^^^^^^^
+...
+58 |     write: fn(&mut File) -> Result<(), Fail>,
+   |     ----------------------------------------
+
+error[E0308]: mismatched types
+  --> src/run.rs:46:38
+   |
+46 |     write_table(dir, "account.copy", gold::write_account)?;
+   |     -----------                      ^^^^^^^^^^^^^^^^^^^ one type is more general than the other
+   |     |
+   |     arguments to this function are incorrect
+   |
+   = note: expected fn pointer `for<'a> fn(&'a mut File) -> Result<_, _>`
+                 found fn item `fn(_) -> Result<_, _> {write_account::<_>}`
+note: function defined here
+  --> src/run.rs:55:4
+   |
+55 | fn write_table(
+   |    ^^^^^^^^^^^
+...
+58 |     write: fn(&mut File) -> Result<(), Fail>,
+   |     ----------------------------------------
+
+error[E0308]: mismatched types
+  --> src/run.rs:47:36
+   |
+47 |     write_table(dir, "entry.copy", gold::write_entry)?;
+   |     -----------                    ^^^^^^^^^^^^^^^^^ one type is more general than the other
+   |     |
+   |     arguments to this function are incorrect
+   |
+   = note: expected fn pointer `for<'a> fn(&'a mut File) -> Result<_, _>`
+                 found fn item `fn(_) -> Result<_, _> {write_entry::<_>}`
+note: function defined here
+  --> src/run.rs:55:4
+   |
+55 | fn write_table(
+   |    ^^^^^^^^^^^
+...
+58 |     write: fn(&mut File) -> Result<(), Fail>,
+   |     ----------------------------------------
+
+error[E0277]: can't compare `&str` with `str`
+   --> src/run.rs:219:20
+    |
+219 |         if dataset == "shop.party" && *column == "national_id" {
+    |                    ^^ no implementation for `&str == str`
+    |
+    = help: the trait `PartialEq<str>` is not implemented for `&str`
+    = note: required for `&&str` to implement `PartialEq<&str>`
+help: consider dereferencing here
+    |
+219 |         if *dataset == "shop.party" && *column == "national_id" {
+    |            +
+
+Some errors have detailed explanations: E0106, E0277, E0308.
+For more information about an error, try `rustc --explain E0106`.
+warning: `pg-e2e` (lib) generated 1 warning
+error: could not compile `pg-e2e` (lib) due to 5 previous errors; 1 warning emitted

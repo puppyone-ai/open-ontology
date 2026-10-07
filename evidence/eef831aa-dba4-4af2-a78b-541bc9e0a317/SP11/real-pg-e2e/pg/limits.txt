@@ -1,0 +1,13 @@
+name=oo-a317-pg
+id=c095dab760fa0dc3272d8ffaa5c8678ab2578456039492597dc94f796d9caf82
+image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+Memory=1073741824
+NanoCpus=1000000000
+Privileged=false
+CapDrop=["ALL"]
+CapAdd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"]
+NetworkMode=oo-a317-eef831aa-net
+PidsLimit=256
+published_ports={}
+status=running
+oom=false
