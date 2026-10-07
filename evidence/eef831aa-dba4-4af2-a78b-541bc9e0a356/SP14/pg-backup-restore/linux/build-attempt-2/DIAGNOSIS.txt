@@ -1,0 +1,1 @@
+Tests passed (11). Clippy -D warnings failed on result_unit_err, needless_borrow, collapsible_if, type_complexity, ptr_arg, manual_slice_fill, and needless_range_loop in the reviewed SHA-256 schedule. Those lints are fixed. The schedule itself is unchanged and the lint is allowed on compress.

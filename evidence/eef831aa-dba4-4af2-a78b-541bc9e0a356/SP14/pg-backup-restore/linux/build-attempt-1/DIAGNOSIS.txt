@@ -1,0 +1,1 @@
+cargo test compiled the library and failed in tests/oracle.rs: Result::unwrap_err requires Debug on Secret. pg.rs also had an unused File import. Both are fixed before the next builder. No protocol change.

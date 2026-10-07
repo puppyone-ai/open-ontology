@@ -1,0 +1,2 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a356/SP14/pg-backup-restore/linux/pre-edit-smoke /evidence rw=true
+
