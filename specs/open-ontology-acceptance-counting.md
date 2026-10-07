@@ -560,3 +560,10 @@ Fullauthora354/a355/a358three reports read closedtasks; fixedsources e5427c1a(S2
 2026-10-08 BEFORE CODE freeze E54-D1/1（SP02-W05/REQ-CTL-03/AT-CTL-05身份组件）：获准issuer/client/redirect/configcommit/管理binding/SecretRef→真实HTTPS OIDC Code+PKCE+签名验证、耐久cookie会话/单次bootstrap/CSRF/Origin/最小项目角色guard与审计；私有PG+真实HTTPS测试IdP验证，不冒充客户IdP/数据授权/Agent会话。新a370 owns tools/control-identity及UUID证据，root/前端/既有产品readonly；先合同固定再实现，完整packet+独立复审后才勾选。冻结局部分母86→87，已验收74/87=85.06%；历史99/首审89/返工14/作者94不变，完整87父项及I/R/X不变。此新增子项不改变全局开发分母未冻结事实。
 
 2026-10-08 BEFOREcode E55-D1/1冻​​结（SP06-W06审计耐久组件）：现有真实DedicatedSession准入/完成→有界fsync WAL→真实mTLS receiver PG耐久三元组receipt→确认后GC；实际查询/重启/Collector故障留存/预准入fsync失败无结果/重放冲突验证。a371 owns tools/gateway-audit-wal+tools/audit-ingest only，既有gateway/control/root/FE readonly；不接受publicSQL/runsc/feedback/fullSP06。局部分母87→88，accepted74/88=84.09%（非全局完成率）；历史99/首审89/返工14/作者94不变。全87父项、集成0/4发行0/6/X不变。
+
+
+2026-10-08 固定E52组件验收与调度：
+- [x] E52-D1/1，固定6b3a92c2e06a2e91a74393b739ec8f1c565ae17b/a367 APPROVE_LIMITED，完整三报告已读，75 SHA0坏/0缺，作者测试/Clippy/重启/独立oracle实际退出均0，源diff为空。auditor批量在connect前拒绝且tuple counters不变；决定+不可变审计事务；revision/幂等/stale/object scope；真实description-pack receipt及坏命令拒绝成立。原合同操作身份仍declared/not_verified；receipt为后续第二事务，且目前只绑定command hash/head/candidate，不证明public management identity或决定object在compiler catalog中的成员关系，完整API集成必须补对应业务绑定，不从receipt推断已apply。完整S9/S10/RBAC/Git curated apply/SP07仍开放。
+冻结局部子项74→75/88=85.23%；历史99→100；首次独立组件89→90；既有返工14/90=15.56%；作者94不变，集成0/4、发行0/6、M1D17/24、完整87父项/16阶段/X01–X05不变。
+一次18min统一观测：a367/a353/a365终止0，a368=76207、a369=16483、G1a351=44027、a370=60092仍live。a365缺最终packet，原UUID27577收集已启动proof，不复制资源。新a371=65332审计WAL+真实mTLS PG ingest开发。G3原a352=88200固定复审G2三里程碑；G2原a353当前已退出。实际前端仍固定3UUID（两个live，一条已退出），不会另开。nextUUIDa372未使用。
+G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/24 SHA核验0坏/0缺，最终类型/lint/52单位/build0，但A03–A43管理页未挂production、build未包含这些页、B01–B12 unbound、browser未执行，故不接受管理功能/live/总卡A01–A20。G3下一必要固定component复审不将独立reviewharness当publicproduction旅程。

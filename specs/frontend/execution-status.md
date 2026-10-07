@@ -40,3 +40,5 @@ G1 handle37146 terminal0；unit6/types/lint/contrast/生产build/Storybook已报
 基础G3a352 184 SHA条目、G1Token M3 20 SHA条目核验0坏/0缺；三报告完整已读。基础固定切片独立APPROVE_LIMITED成立，M1/M2用户及新版Token仍待G3固定复审；M0–M4/A01–20/FE-01不勾选。
 
 2026-10-08 一次18分钟统一观测：a362/a365/a366/a352退出0；a368=76207/a367=17572/G2a353=2137仍live。Builder be9acbc23完整三报告/前置FREEZE已读：新pack-combined经一次核心reseal在同两角色Pack保留party/account描述，9+12与6+21测试/Clippy0，存储100k真实模型证据未变，无新模型/PG；E47未验收，独立原完整范围复审a369=16483已派。a365缺最终包，原UUID=17316收集既有真实proof，不复制资源。G3 M1-M3完整报告已读，固定路由 limitedapproved，但作者motiontest打不到实际节点/98普通中文字落入大fallback，G1原a351=44027聚焦修复不改G2。a366发布复审完整包已存在待全读/哈希，E53不先勾选。下一UUIDa370尚未使用。计数73/86、历史98、首审88、返工14、作者94/集成0/4发行0/6保持；无父项完成。
+统一观测：a367/a353/a365终止0，a368=76207、a369=16483、G1a351=44027、a370=60092仍live。a365缺最终packet，原UUID27577收集已启动proof，不复制资源。新a371=65332审计WAL+真实mTLS PG ingest开发。G3原a352=88200固定复审G2三里程碑；G2原a353当前已退出。实际前端仍固定3UUID（两个live，一条已退出），不会另开。nextUUIDa372未使用。
+G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/24 SHA核验0坏/0缺，最终类型/lint/52单位/build0，但A03–A43管理页未挂production、build未包含这些页、B01–B12 unbound、browser未执行，故不接受管理功能/live/总卡A01–A20。G3下一必要固定component复审不将独立reviewharness当publicproduction旅程。
