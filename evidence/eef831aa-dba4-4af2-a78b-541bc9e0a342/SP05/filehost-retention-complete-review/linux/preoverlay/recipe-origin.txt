@@ -1,0 +1,34 @@
+a342 preoverlay launch
+fixed cd8f754c1b4db22fc962370c4b29bb846b0fccc3
+product def1f7eea53794449d3975b1987d700727cb7d60
+addendum 9cdbc625d02fca2fc3fd31b62ce8cb03692a9b81
+change archive the fixed commit itself; no review overlay; no copy-back; rustfmt check only; lib suite is the full oo-control lib
+a323 proof-3 launch
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a323/SP05/filehost-retention-delete/linux/proof-3/launch.sh
+8448a0df6061ac1faf7a17a06de9ca549cc9a413d6c705f65b91d114bb1b2c01  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a323/SP05/filehost-retention-delete/linux/proof-3/launch.sh
+a323 proof-3 inside
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a323/SP05/filehost-retention-delete/linux/proof-3/inside.sh
+15ee95cf7e18ce5965dece4a648641fbef86db56e3d98465e204228f2afd37bf  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a323/SP05/filehost-retention-delete/linux/proof-3/inside.sh
+a204 launch
+commit b2b3adabd05de94723d8ed13b33be0144a0de1f9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh
+a200 launch
+commit a587031c719a484830d78e493605f48e2056cae4
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+c57fcc9ee166c216b0d4786a2fefb1a0c3bab8dbedc9e2cba632100e516b7541  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/proof/launch.sh
+a199 launch
+commit 5b8cce62cf51e42d9029f13371da4bb4ee8cdaa9
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/overlay/launch.sh
+1212609e380ecea5b72033fa4eb936b61edcf33430f7fe8aa84d3549017c0537  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/overlay/launch.sh
+a209 smoke shape
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a209/SP05/download-eof-review/pre-edit/inside.sh
+b5cf6e162266a3365bd7512378cc43de36b005b16c557b1a29d7d65f00245aa9  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a209/SP05/download-eof-review/pre-edit/inside.sh
+a311 lock oracle
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a311/SP05/artifact-retention/linux/proof-6/lock_from_baseline.rs
+9441d4911c379715d4ccdac39e60dfe62d0a20fcc9f313a0bce7372fafd83245  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a342/SP05/filehost-retention-complete-review/linux/preoverlay/lock_from_baseline.rs
+change copied byte-for-byte; no edit
+a336 preoverlay launch
+path evidence/eef831aa-dba4-4af2-a78b-541bc9e0a336/SP05/filehost-retention-review/linux/preoverlay/launch.sh
+a9a50886591cfbcf4d63ac30587f4a3b0c9bc9dd266d38f2fd1da16bc17c39f9  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a336/SP05/filehost-retention-review/linux/preoverlay/launch.sh
+change uuid, fixed commit cd8f754, product def1f7ee, full oo-control lib, no review overlay

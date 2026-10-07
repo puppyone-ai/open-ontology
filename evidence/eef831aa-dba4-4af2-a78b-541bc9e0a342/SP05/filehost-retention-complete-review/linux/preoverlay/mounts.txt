@@ -1,0 +1,6 @@
+bind /tmp/oo-a342-eef831aa-dba4-4af2-a78b-541bc9e0a342/preoverlay-snap /src rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a342/SP05/filehost-retention-complete-review/linux/preoverlay/inside.sh /inside.sh rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a342/SP05/filehost-retention-complete-review/linux/preoverlay /evidence rw=true
+volume /var/lib/docker/volumes/oo-a342-eef831aa-cargo/_data /cargo-home rw=true
+volume /var/lib/docker/volumes/oo-a342-eef831aa-target/_data /target rw=true
+

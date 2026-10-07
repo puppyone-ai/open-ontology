@@ -1,0 +1,201 @@
+oo_task=sp05-filehost-retention-complete-review
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=tools/artifact-retention/tests/review_independent.rs
+lock_policy=prebuilt child lock must stay a checksum subset; no rewrite
+Linux 7800385e6247 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+=== rustfmt review test --check ===
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:45:
+     );
+     let canonical = filehost.join(format!("{}#1", manifest.object_key.as_str()));
+     let odd = filehost.join(format!("{}#01", manifest.object_key.as_str()));
+-    let foreign = filehost.join(format!(
+-        "uploads/{}/dest#1",
+-        manifest.session_id.as_str()
+-    ));
++    let foreign = filehost.join(format!("uploads/{}/dest#1", manifest.session_id.as_str()));
+     let part_staging = filehost.join(format!(
+         "staging/{}/part/00001#1",
+         manifest.session_id.as_str()
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:258:
+             .await
+             .unwrap()
+     );
+-    let tomb = std::fs::read_to_string(filehost.join(format!(
+-        "meta/tombstone/{}",
+-        second.session_id.as_str()
+-    )))
++    let tomb = std::fs::read_to_string(
++        filehost.join(format!("meta/tombstone/{}", second.session_id.as_str())),
++    )
+     .unwrap();
+     assert!(tomb.contains("phase data_absent\n"));
+     assert!(tomb.contains("release_count 0\n"));
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:305:
+         1
+     );
+     let reused_again = host.begin(&ctx, &again_config).await.unwrap();
+-    assert_ne!(
+-        reused_again.session_id.as_str(),
+-        second.session_id.as_str()
+-    );
++    assert_ne!(reused_again.session_id.as_str(), second.session_id.as_str());
+     assert_eq!(
+         host.begin(&ctx, &upload("one-slot.txt", &again))
+             .await
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:383:
+     plant_file(&neighbor, b"outside-root");
+     assert!(part.is_file());
+     let report = deploy
+-        .reap(&host, Now::Explicit(100 + 30_000), artifact_retention::PauseAfter::None)
++        .reap(
++            &host,
++            Now::Explicit(100 + 30_000),
++            artifact_retention::PauseAfter::None,
++        )
+         .await
+         .unwrap();
+     assert!(report.deletion_success);
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:409:
+     assert!(receipt.contains(&format!("principal {}\n", row.principal)));
+     assert!(receipt.contains(&format!("grant_hex {grant_hex}\n")));
+     assert!(receipt.contains(&format!("object_key {}\n", row.object_key)));
+-    assert!(
+-        host.observe_open_absence(&ctx, &session).await.unwrap()
+-    );
++    assert!(host.observe_open_absence(&ctx, &session).await.unwrap());
+     let wrong_grant = admission("project_a", "user_a", "grant-forged");
+     assert_eq!(
+         host.observe_open_absence(&wrong_grant, &session)
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:432:
+     );
+     assert!(host.observe_open_absence(&ctx, &session).await.unwrap());
+     let again = deploy
+-        .reap(&host, Now::Explicit(100 + 30_000), artifact_retention::PauseAfter::None)
++        .reap(
++            &host,
++            Now::Explicit(100 + 30_000),
++            artifact_retention::PauseAfter::None,
++        )
+         .await
+         .unwrap();
+     assert!(again.deletion_success);
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:486:
+     assert!(!session_path.exists());
+     assert!(!pointer.exists());
+     let grant_hex = hex_encode(ctx.grant_evidence.as_str().as_bytes());
+-    let receipt_path = root.join(format!(
+-        "meta/open-absence/{}",
+-        session.session_id.as_str()
+-    ));
++    let receipt_path = root.join(format!("meta/open-absence/{}", session.session_id.as_str()));
+     let receipt = std::fs::read_to_string(&receipt_path).unwrap();
+     assert!(receipt.contains(&format!("grant_hex {grant_hex}\n")));
+     assert!(receipt.contains(&format!("session {}\n", session.session_id.as_str())));
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:534:
+     );
+     assert_eq!(std::fs::read_to_string(&receipt_path).unwrap(), receipt);
+     assert_eq!(
+-        host.observe_open_absence(&admission("project_a", "user_a", "grant-forged"), &session.session_id)
+-            .await
+-            .unwrap_err(),
++        host.observe_open_absence(
++            &admission("project_a", "user_a", "grant-forged"),
++            &session.session_id
++        )
++        .await
++        .unwrap_err(),
+         FileHostError::Denied
+     );
+ 
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:553:
+     eprintln!("notfound_replant observe={replanted} quota_still_present={quota_still_present}");
+     assert_eq!(std::fs::read(&quota).unwrap(), saved_quota);
+     assert_eq!(
+-        host.observe_open_absence(&admission("project_a", "user_a", "grant-forged"), &session.session_id)
+-            .await
+-            .unwrap_err(),
++        host.observe_open_absence(
++            &admission("project_a", "user_a", "grant-forged"),
++            &session.session_id
++        )
++        .await
++        .unwrap_err(),
+         FileHostError::Denied
+     );
+     drop(host);
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:590:
+         .unwrap();
+     let forged_store = forged_deploy.filehost_dir();
+     let forged_canonical = forged_store.join(format!("{}#1", forged_row.object_key));
+-    let forged_dest = forged_store.join(format!(
+-        "staging/{}/part/dest#1",
+-        forged_row.session_id
+-    ));
++    let forged_dest = forged_store.join(format!("staging/{}/part/dest#1", forged_row.session_id));
+     let forged_part = forged_store.join(format!("staging/{}/part/00001", forged_row.session_id));
+     plant_file(&forged_canonical, b"platform-original-1");
+     plant_file(&forged_dest, b"foreign-dest");
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:731:
+     std::fs::rename(&object_path, &aside).unwrap();
+     std::os::unix::fs::symlink(&aside, &object_path).unwrap();
+     let linked = deploy
+-        .reap(&host, Now::Explicit(70_000), artifact_retention::PauseAfter::None)
++        .reap(
++            &host,
++            Now::Explicit(70_000),
++            artifact_retention::PauseAfter::None,
++        )
+         .await
+         .unwrap();
+     assert_eq!(linked.outcomes[0].status, "refused_tamper_or_symlink");
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:755:
+     std::fs::rename(&manifest_path, &manifest_aside).unwrap();
+     std::fs::create_dir(&manifest_path).unwrap();
+     let broken = deploy
+-        .reap(&host, Now::Explicit(70_000), artifact_retention::PauseAfter::None)
++        .reap(
++            &host,
++            Now::Explicit(70_000),
++            artifact_retention::PauseAfter::None,
++        )
+         .await
+         .unwrap();
+     assert!(!broken.outcomes[0].absence_verified);
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:779:
+ fn scratch(label: &str) -> (PathBuf, PathBuf) {
+     static N: AtomicU64 = AtomicU64::new(0);
+     let n = N.fetch_add(1, Ordering::Relaxed);
+-    let parent = std::env::temp_dir().join(format!(
+-        "oo-a342-{label}-{n}-{}",
+-        std::process::id()
+-    ));
++    let parent = std::env::temp_dir().join(format!("oo-a342-{label}-{n}-{}", std::process::id()));
+     std::fs::create_dir_all(&parent).unwrap();
+     let root = parent.join(OPERATOR);
+     (parent, root)
+phase_exit=1 phase=cargo_fmt_check
