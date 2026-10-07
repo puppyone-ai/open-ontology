@@ -48,3 +48,13 @@ The public-header path does not satisfy the running proxy. At commit `acdace936f
 The relay still sent the two fixed public headers. The one new grok-4.7 propose returned HTTP 426 from the CLI chat-proxy route. Dialogue recorded `provider` and wrote no proposal. No approval was written and `query-pg` was not spawned. The historical guard refusal stays a separate failed query. The fixture `count(*)` receipt is still not a model receipt.
 
 `linux/proof-3` passed 28 tests, including `public_client_version_is_fixed`, and Clippy at exit 0. Preserved follow-up failures: `linux/proof-3/attempt-1/docker-run.exit` 125, `host-2/attempt-1/fetch.exit` 101, `host-2/attempt-tls/smoke.exit` 1, `linux/chain-3/phases/propose.exit` 1. `pg-2/attempt-1` is the LibreSSL `-ext` stop before any database container existed.
+
+## Readiness 2026-10-08
+
+The new completion is a query receipt. `linux/chain-4/proposal.json` binds question sha256 `35d7471e3b9598d16de0f07aa99079a1e4f1719527a9eaac35f33b01cade8f01` and SQL `SELECT headcount FROM depot.counter ORDER BY headcount`. That text matches a supported catalog shape. The approval file was written after the proposal existed and was not produced by the propose container. `linux/execute-3/execute.stdout` reports `query_receipt=clean`, three typed integer rows, and an admitted citation for `q_3782300da36af286`. `original_sha256` is the proposal SQL hash. `executed_sha256` is `sha256` of the fixed guard's `pg_query` deparse (`sql_guard.rs`), recorded by the committed `query-pg`. The request SQL text is the model statement.
+
+`linux/proof-3` still covers the crate. The content hash is `de2ab0ad2b5ae483880f44a9a37005e6f0f6523a87d5afc143a6fa96f629ca77`. No relay source and no contract changed in this phase.
+
+The live oracle's `count_receipt=clean` remains the fixture suite. The same SQL text in that suite's north case produces the same fingerprint. It is a separate run from `execute.stdout`, whose binding is session `sess-a334c` and proposal `6c50244e456458c035fe4b3fd9dbca59f4dc279bae9778436b6f163184c5105b`.
+
+Preserved readiness probe: `host-3/offline-build.exit` 101, followed by fetch 0 and build 0. Historical guard exit 6 and chain-3 propose exit 1 stay. Key, client-token, and password scans of the owned tree were 0 before cleanup. `CLEANUP-readiness.exit` is 0. Auth stores were not touched.

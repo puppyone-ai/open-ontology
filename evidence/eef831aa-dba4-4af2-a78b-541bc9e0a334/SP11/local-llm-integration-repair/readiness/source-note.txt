@@ -1,0 +1,11 @@
+phase=readiness-2026-10-08
+crate_content_sha256=de2ab0ad2b5ae483880f44a9a37005e6f0f6523a87d5afc143a6fa96f629ca77
+proof3_content_sha256=de2ab0ad2b5ae483880f44a9a37005e6f0f6523a87d5afc143a6fa96f629ca77
+match=yes
+proof3_docker_run_exit=0
+proof3_test_exit=0
+proof3_clippy_exit=0
+proof3_rustc=rustc 1.94.0 (4a4ef493e 2026-03-02)
+decision=no_new_linux_builder crate_unchanged_since_proof3
+source_edits=none
+new_contract=none

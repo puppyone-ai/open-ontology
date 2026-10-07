@@ -76,3 +76,27 @@ Contract addition `oo.local-llm-relay.public-client-version/v1` was written befo
 One new question, `What is the stored row count of depot.counter?`, and a new pack that names `SELECT count(*) FROM depot.counter` and `SELECT headcount FROM depot.counter`, were sent once through `linux/chain-3`. Dialogue stderr is `ontology-dialogue: provider`. No proposal file was written. The proxy log for that request is HTTP 426, 1.435s, `POST /v1/chat/completions`, base URL `https://cli-chat-proxy.grok.com/v1`. The response body was not retained. There was no retry and no second model. `query-pg` was not started. `linux/execute-2` was not launched. Postgres `17.10` did start for the query that never ran; `pg-2/up.exit` is 0. `pg-2/attempt-1` records that LibreSSL rejected `x509 -ext` before the container existed.
 
 This follow-up does not produce a query receipt. Parent acceptance, a full-goal close, and a release are out of scope.
+
+## Readiness 2026-10-08
+
+The repaired endpoint accepted one new `grok-4.7` completion. The question was `List each visible headcount in depot.counter from smallest to largest.` Its question document sha256 is `35d7471e3b9598d16de0f07aa99079a1e4f1719527a9eaac35f33b01cade8f01`. `linux/chain-4/phases/propose.exit` is 0. The proposal SQL, unchanged, is:
+
+```text
+SELECT headcount FROM depot.counter ORDER BY headcount
+```
+
+`sql_sha256` is `beab58df6cd5599039e8b70e4f612fc12923b300479ee2563f021c1c338c4957` (54 bytes). `proposal_sha256` is `6c50244e456458c035fe4b3fd9dbca59f4dc279bae9778436b6f163184c5105b`. `pack_digest` is `29ba57598c850e6321945a0a4335b7df1416178d40fd7f13c5c0d0f40ceddbe2`. `auto_execute` is false. `model_sql` is `untrusted`. The propose config `model_id` is `grok-4.7`.
+
+That statement is the supported shape `SELECT headcount FROM depot.counter ORDER BY headcount`. After the proposal was on disk, the operator wrote `linux/chain-4/approval.json` for those four hashes. `linux/chain-4/operator-decision.txt` records `rewritten=false` and `automatic=false`.
+
+`linux/execute-3/phases/execute.exit` is 0. `execute.stdout` has `query_receipt` `clean`, `child_exit` 0, `query_id` `q_3782300da36af286`, `returned_rows` 3, `truncated` false, and typed rows `int` 1, `int` 2, `int` 3. The citation status is `ok`, session `sess-a334c`, turn `turn-a334c`, and the admitted citation uses that query id. `original_sha256` equals the proposal SQL hash. `executed_sha256` `ed6e42d0833eb27ef9fde69b26604c4c552d9efef9164708188c676937ec9b82` is the fixed guard's deparse hash. The request file still carries the model SQL text. The audit file is `linux/execute-3/audit.jsonl`.
+
+The crate content hash equals `linux/proof-3/source-after.sha256` (`de2ab0ad2b5ae483880f44a9a37005e6f0f6523a87d5afc143a6fa96f629ca77`). That run is the Linux Rust `1.94.0` evidence for this tree: test exit 0, Clippy exit 0, docker exit 0. No relay source changed, so no new Linux builder ran. `readiness/source-note.txt` records the comparison.
+
+`host-3/offline-build.exit` is 101 on the empty private cargo home. `host-3/fetch.exit` is 0 and `host-3/build.exit` is 0. Host `rustc` is 1.98.1. Smoke exit is 0. Models GET is HTTP 200 with `grok-4.7` available and `bearer_bytes` 44. That listing is not the completion. `pg-3/up.exit` is 0, server version `17.10 (Debian 17.10-1.pgdg12+1)`, SAN `DNS:oo-a334-pg`, no host port.
+
+`linux/execute-3/phases/test-live.exit` is 0 and `live/oracle.txt` ends with `live_done=1`. That suite's `count_receipt=clean` is the fixture `count(*)` case. Its north case uses the same SQL text, so the fingerprint matches `3782300da36af286`. The model receipt is `execute.stdout`. The suite also records `http_execute_called=false`, `write_exit=6`, and `south_exit=6`.
+
+The historical `COUNT(headcount)` guard refusal and the chain-3 HTTP 426 withhold stay in place. Auth files, backups, and credential-bearing config were not read or written. `CLEANUP-readiness.txt` records relay pid 94158 stopped, `oo-a334-pg` removed, the cargo, dialogue-target, and pgdata volumes removed, the task network removed, and the private `/var/tmp` tree removed. The token file remains mode `0600`, 6 bytes. `auth_store_touched=false`. Foreign Postgres `oo-a341-pg` and the proxy on `127.0.0.1:8317` were left running.
+
+Parent acceptance, a full-goal close, and a release are out of scope.

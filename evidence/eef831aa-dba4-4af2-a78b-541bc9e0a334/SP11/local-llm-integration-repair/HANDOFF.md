@@ -37,4 +37,12 @@ The new question in `linux/chain-3` did not produce a proposal. `phases/propose.
 
 Auth files, backups, and credential-bearing config were not read or written in this follow-up. The historical restoration in `CLEANUP.txt` still stands. Docker on this host could not bind-mount `/tmp`; follow-up private files used `/var/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334` and were removed with the follow-up cleanup. The 6-byte token file remains.
 
+## Readiness 2026-10-08
+
+The model receipt is `linux/execute-3/execute.stdout`. The proposal is `linux/chain-4/proposal.json`. The operator approval is `linux/chain-4/approval.json`. The audit is `linux/execute-3/audit.jsonl`. Rows are the integers 1, 2, and 3. `query_receipt` is `clean`.
+
+`linux/proof-3` remains the Linux Rust `1.94.0` proof for the unchanged crate. `readiness/source-note.txt` records the content-hash match. Do not treat `host-3/models.json` or the live oracle `count_receipt` as this receipt.
+
+`CLEANUP-readiness.exit` is 0. The relay, `oo-a334-pg`, the a334 volumes, the task network, and `/var/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334` are gone. `/tmp/oo-customer-demo-20261007/llm-token` remains mode `0600`, 6 bytes. Auth files were not touched. Historical guard-6 and 426 records stay.
+
 Parent acceptance, a full-goal close, and a release are out of scope.
