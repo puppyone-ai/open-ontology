@@ -1,0 +1,4 @@
+install-column-acl exit 7, stderr exactly "install-column-acl: policy type".
+reviewed-policy exit 0 produced one shop.entry policy: identifier, quantity, quantity.
+import-pg exit 0. The query was not started. The harness still expects decimal cells, so the test exits 101.
+The fixed archive allowlist is bool, int2, int4, int8, text. This task does not own that file.

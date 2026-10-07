@@ -1,0 +1,4 @@
+Product phases exited 0: test-lib, test-a327, test-query-pg, clippy, build-builder, build-reviewed-policy.
+query_executor_pg_live --no-run exited 101. The missing pattern is Cell::Decimal. That file was not edited.
+reviewed_policy_quantity wrong_physical_quantity_is_semantic exited 0. Its numeric column is typmod -1 with reason unbounded_or_wide_numeric, so data_type stays null and semantic is returned before the new quantity cell.
+The harness then exited 2 because it required that quantity test to fail. That expectation was wrong. The Rust results above are the post-edit run.

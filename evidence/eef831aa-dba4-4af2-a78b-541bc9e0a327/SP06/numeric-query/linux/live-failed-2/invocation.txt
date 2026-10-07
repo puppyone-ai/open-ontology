@@ -1,0 +1,15 @@
+run_id=eef831aa-dba4-4af2-a78b-541bc9e0a327
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+platform=linux/arm64
+toolchain=1.94.0
+container=oo-a327-live
+memory=6g
+cpus=1
+privileged=no
+network=oo-a327-eef831aa-net
+pull=never
+phase=live
+archive=/tmp/oo-a327-eef831aa-dba4-4af2-a78b-541bc9e0a327/archive
+work=/tmp/oo-a327-eef831aa-dba4-4af2-a78b-541bc9e0a327/live-work
+fixed=e6ebf93b5ac261c097a24d145611e0300e4f88b5
+origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query/linux/postedit/launch.sh

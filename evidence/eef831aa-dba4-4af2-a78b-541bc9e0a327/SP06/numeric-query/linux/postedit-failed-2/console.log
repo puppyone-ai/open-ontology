@@ -1,0 +1,12 @@
+oo_task=sp06-numeric-query-postedit
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a327
+oo_fixed=e6ebf93b5ac261c097a24d145611e0300e4f88b5
+oo_platform=linux/arm64
+phase=postedit
+Linux fb2a6b286904 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=overlay
+phase_exit=0 phase=libclang
+=== cargo test -p oo-gateway --lib ===
+phase_exit=101 phase=test-lib

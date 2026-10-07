@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/bin/query-pg.rs (/target/a327/debug/deps/query_pg-78e399f47b32592e)
+
+running 1 test
+test a327_live::live_numeric_proof ... 
+thread 'a327_live::live_numeric_proof' (913) panicked at crates/oo-gateway/src/bin/query-pg.rs:1331:17:
+stop step=sql detail=sqlstate=22003
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    a327_live::live_numeric_proof
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p oo-gateway --bin query-pg`

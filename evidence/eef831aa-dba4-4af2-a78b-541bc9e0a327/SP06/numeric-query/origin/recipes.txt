@@ -1,0 +1,12 @@
+a327 numeric-query recipe origins. Tool bytes keep the origin digest.
+a200 smoke launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/launch.sh 837d1b5bd28cbabf84e92a3295d90c99402029f421942fe1bacee8471be19163
+a200 smoke inside evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/inside.sh b56d83ddbf95ecb0a33ab5028f2f99c562d9f6e51d47075c2ee7584ac315a0eb
+a200 extract-libclang evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/linux/smoke/extract-libclang.sh dc0d980692091bec55d4fbc3eb12a0eda9c5aaa4b9f7d5c6eab995b2a726690d
+a204 preoverlay launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/preoverlay/launch.sh 08fa35c8c46b01c0817314c619675330f6bc46ecd8a147e7552770fab56e6841
+a199 manifest launch evidence/eef831aa-dba4-4af2-a78b-541bc9e0a199/SP05/delimited-reader-review/linux/manifest/launch.sh c59441884fcd7ce54b8e6cb11a6c632cf5dc8ba757d112145fbf20ede8d83ac3
+a317 tools/sha256.rs 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e
+a317 tools/select-debs.rs 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644
+fixed archive e6ebf93b5ac261c097a24d145611e0300e4f88b5
+rust image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+postgres image docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+changes from a200 smoke: owner a327, fixed e6ebf93, 6GiB, 1 CPU, CARGO_BUILD_JOBS=1, global cap 10, archive is Cargo.toml Cargo.lock rust-toolchain.toml crates, clang root a327.

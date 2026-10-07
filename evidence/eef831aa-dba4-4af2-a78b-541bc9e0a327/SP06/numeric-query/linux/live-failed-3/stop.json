@@ -1,0 +1,4 @@
+{
+  "detail": "exit 1 stderr=oo-pipeline: full import refused numeric_nan\n",
+  "step": "import-pg"
+}

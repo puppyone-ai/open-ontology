@@ -1,0 +1,1 @@
+tests passed; clippy component is not persisted in the image rootfs, so this container had no cargo-clippy

@@ -1,0 +1,1 @@
+lib test compile failed: PgNumericCell was not Debug, so expect_err could not be called

@@ -1,0 +1,3 @@
+docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting "/host_mnt/Users/redux/puppy-one/open-ontology/crates/oo-gateway/tests/a327_numeric.rs" to rootfs at "/src/crates/oo-gateway/tests/a327_numeric.rs": create mountpoint for /src/crates/oo-gateway/tests/a327_numeric.rs mount: make mountpoint "/src/crates/oo-gateway/tests/a327_numeric.rs": read-only file system
+
+Run 'docker run --help' for more information
