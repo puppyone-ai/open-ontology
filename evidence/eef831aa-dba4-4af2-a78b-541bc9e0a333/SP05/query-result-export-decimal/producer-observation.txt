@@ -1,0 +1,16 @@
+Observed once, before product edits. No further poll of a327.
+
+a327 evidence has no REPORT.md, no HANDOFF.md, and no query-pg stdout file.
+linux/postedit/postedit.exit=2
+linux/postedit/docker-run.exit=2
+linux/postedit/phases/test-lib.exit=0
+linux/postedit/phases/test-a327.exit=0
+linux/postedit/phases/test-query-pg.exit=0
+linux/postedit/phases/clippy.exit=0
+linux/postedit/phases/seam-query-executor-pg-live.exit=101
+linux/postedit/phases/seam-reviewed-policy-quantity.exit=2
+pg/up.exit=0
+A container named oo-a327-pg was running at this observation.
+The numeric cell contract is execution/decisions/numeric-query-contract-a327.md.
+Code commit c671a3ca is an ancestor of fixed 63566b60aabdf29a29bfe55c4866edf3c4081cfd.
+No compiled query-pg stdout was delivered. This task does not start PostgreSQL.

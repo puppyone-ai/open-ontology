@@ -1,0 +1,1 @@
+tests passed; clippy -D warnings failed on format_in_format_args in tests/api.rs

@@ -1,0 +1,5 @@
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a333/SP05/query-result-export-decimal /evidence rw=true
+volume /var/lib/docker/volumes/oo-a333-eef831aa-hashcargo/_data /cargo-home rw=true
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a333/SP05/query-result-export-decimal/tools /tools rw=false
+bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a333/SP05/query-result-export-decimal/linux/inventory/inside.sh /inside.sh rw=false
+
