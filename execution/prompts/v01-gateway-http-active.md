@@ -5,3 +5,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 Review slots outside development cap; obsolete earlier review-slot numbers do not impose development cap.
 
 LATEST HUMAN: development cap20, reviews excluded, global Rust builders10/taskmax1 remains. Existing actors keep immutable baseline and owned scope.
+
+COORDINATOR ownership clarification: a327 reserves reviewed_policy.rs, query_executor.rs, bin/query-pg.rs and tests/a327_numeric.rs ONLY. This HTTP metadata task does not write any of those files. All other gateway/rootconsumer scope remains a326. Foundation a319 now APPROVE_LIMITED; read fullreports and1404-file inventory before rootconsumer lock edit; preserve hyper existing h2/want edges, addrequiredfeature edges explicitly.

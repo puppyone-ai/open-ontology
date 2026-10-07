@@ -119,3 +119,7 @@ The same session ran four review tasks after commit `773c461104729d6c289eae8640c
 ## Later consumer card
 
 A later approved archive may add `axum = { workspace = true }` on the consumer that actually serves HTTP, then `cargo fetch` so the root lock gains only the five added triples above. That card must show a lock diff with `changed=0` for every crate already in `16e6afda…`. Child locks under other evidence trees stay on the old baseline until their own cards say otherwise. This decision does not authorize that consumer edit.
+
+## Independent approval 2026-10-07
+
+Status supersedes initial UNAPPROVED: APPROVE_LIMITED baseline only, a319 fixed52ce234c81f2e56e2f05abd43e3ce70ec5ac5a96. Full reports read; 1404 manifest entries verified zero mismatch. Four live HTTP loopback checks and Clippy passed on Rust1.94; consumer not accepted. a326 designated rootconsumer writer must preserve existing root dependency edges and add only five approved registry triples; exact version/checksum unchanged. Initial author incomplete inventory and mistaken httpdate feature attribution retained as historical findings.

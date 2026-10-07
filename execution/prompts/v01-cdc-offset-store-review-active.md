@@ -6,3 +6,5 @@ Reuse reviewed a204/a200/a199 fixed launch/report/buildrecipes; record origincom
 
 
 12 concurrentdevelopmentGroks excludingreviews/10 concurrentRustbuilders taskmax1, not lifetimeattemptcap.
+
+DOCUMENTATION-ONLY FOLLOWUP after full focused independent tests passed. NO new builder/PG/tests/product edits. Clarify explicit APPROVE_LIMITED or WITHHELD for frozen development child CDC-D04/D05 respectively, separate from full parent requirements remainingopen; current report wording childstaysopen/absentverdict ambiguous. Retain allproof/failures, explain concrete accepted scope and noACK/sourcecert/segments; refresh finalSafeRustinventory onlyusing ownedresource ifneeded and report exclusions. No newreviewcount/rework fromclarification.
