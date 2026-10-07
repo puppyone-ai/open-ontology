@@ -1,0 +1,39 @@
+error[E0106]: missing lifetime specifier
+   --> /evidence/oracle/main.rs:793:40
+    |
+793 | fn rows(doc: &Value, key: &str) -> Vec<&Value> {
+    |              ------       ----         ^ expected named lifetime parameter
+    |
+    = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `doc` or `key`
+help: consider introducing a named lifetime parameter
+    |
+793 | fn rows<'a>(doc: &'a Value, key: &'a str) -> Vec<&'a Value> {
+    |        ++++       ++              ++              ++
+
+error[E0106]: missing lifetime specifier
+   --> /evidence/oracle/main.rs:797:39
+    |
+797 | fn ids(doc: &Value, key: &str) -> Vec<&str> {
+    |             ------       ----         ^ expected named lifetime parameter
+    |
+    = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `doc` or `key`
+help: consider introducing a named lifetime parameter
+    |
+797 | fn ids<'a>(doc: &'a Value, key: &'a str) -> Vec<&'a str> {
+    |       ++++       ++              ++              ++
+
+error[E0282]: type annotations needed
+  --> /evidence/oracle/main.rs:98:26
+   |
+98 |     if enums.iter().any(|id| id.contains("bridge")) {
+   |                          ^^  -- type must be known at this point
+   |
+help: consider giving this closure parameter an explicit type
+   |
+98 |     if enums.iter().any(|id: /* Type */| id.contains("bridge")) {
+   |                            ++++++++++++
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0106, E0282.
+For more information about an error, try `rustc --explain E0106`.

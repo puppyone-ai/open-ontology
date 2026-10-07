@@ -1,0 +1,9 @@
+oo_task=sp07-selfbuild-rules-review-smoke
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a363
+oo_fixed=e5427c1a18e2ddbb480791d214c76888eb7ca998
+oo_platform=linux/arm64
+phase=smoke
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=toolchain
+phase_exit=1 phase=clippy-component

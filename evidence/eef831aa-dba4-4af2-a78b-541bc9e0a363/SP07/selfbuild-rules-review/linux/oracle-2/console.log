@@ -1,0 +1,12 @@
+oo_task=sp07-selfbuild-rules-review-oracle-2
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a363
+oo_fixed=e5427c1a18e2ddbb480791d214c76888eb7ca998
+oo_platform=linux/arm64
+phase=oracle-2
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=rlib
+phase_exit=0 phase=oracle-build
+phase_exit=0 phase=oracle
+phase_exit=0 phase=cli-oracle-bytes
+oracle_done
