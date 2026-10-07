@@ -1079,7 +1079,7 @@ async fn ensure_grantable_type(
 ) -> Result<(), PolicyError> {
     let row = tx
         .query_opt(
-            "SELECT type_row.typname::text, type_row.typtype::text \
+            "SELECT type_row.typname::text, type_row.typtype::text, attribute.atttypmod::int4 \
              FROM pg_catalog.pg_attribute AS attribute \
              JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid \
              JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
@@ -1095,7 +1095,8 @@ async fn ensure_grantable_type(
     };
     let name: String = row.get(0);
     let kind: String = row.get(1);
-    if kind == "b" && catalog::SUPPORTED_TYPES.contains(&name.as_str()) {
+    let typmod: i32 = row.get(2);
+    if kind == "b" && catalog::grantable_base_type(&name, typmod) {
         Ok(())
     } else {
         Err(PolicyError::TypeRefused {

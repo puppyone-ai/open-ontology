@@ -26,7 +26,38 @@ use crate::sql_guard::{
 use super::CompiledPolicy;
 
 /// Base types this loader can place on a visible column.
-pub const SUPPORTED_TYPES: &[&str] = &["bool", "int2", "int4", "int8", "text"];
+pub const SUPPORTED_TYPES: &[&str] = &["bool", "int2", "int4", "int8", "numeric", "text"];
+
+/// Precision ceiling for a constrained `numeric` column. Matches the builder
+/// bound that treats precision above 38 as unbounded or wide.
+const NUMERIC_MAX_PRECISION: i32 = 38;
+
+/// `true` when `name` is an allowlisted base type this loader can publish.
+///
+/// `numeric` also requires `atttypmod >= 0` and precision `1..=38`, using the
+/// same high 16 bits as the query decoder. Other allowlisted names ignore
+/// `typmod`. The caller still requires `typtype` `b`.
+pub fn grantable_base_type(name: &str, typmod: i32) -> bool {
+    if !SUPPORTED_TYPES.contains(&name) {
+        return false;
+    }
+    if name != "numeric" {
+        return true;
+    }
+    match numeric_grant_precision(typmod) {
+        Some(precision) => (1..=NUMERIC_MAX_PRECISION).contains(&precision),
+        None => false,
+    }
+}
+
+/// Precision of a constrained numeric typmod. `None` means unconstrained.
+fn numeric_grant_precision(typmod: i32) -> Option<i32> {
+    if typmod < 0 {
+        return None;
+    }
+    let adjusted = typmod.wrapping_sub(4);
+    Some((adjusted >> 16) & 0xFFFF)
+}
 
 /// Comparison and equality tokens. Arithmetic and pattern operators are absent.
 pub const COMPARISON_OPERATORS: &[&str] = &["<", "<=", "<>", "=", ">", ">="];
@@ -195,6 +226,7 @@ struct Attribute {
     attnum: i16,
     name: String,
     type_oid: u32,
+    typmod: i32,
     type_name: String,
     type_kind: String,
 }
@@ -887,7 +919,7 @@ async fn fetch_attributes(
     let rows = tx
         .query(
             "SELECT attribute.attnum, attribute.attname::text, attribute.atttypid::int4, \
-                    type_row.typname::text, type_row.typtype::text \
+                    attribute.atttypmod::int4, type_row.typname::text, type_row.typtype::text \
              FROM pg_catalog.pg_attribute AS attribute \
              JOIN pg_catalog.pg_type AS type_row ON type_row.oid = attribute.atttypid \
              WHERE attribute.attrelid = ($1::int4)::oid \
@@ -903,8 +935,9 @@ async fn fetch_attributes(
             attnum: row.get(0),
             name: row.get(1),
             type_oid: oid_from_i32(row.get(2))?,
-            type_name: row.get(3),
-            type_kind: row.get(4),
+            typmod: row.get(3),
+            type_name: row.get(4),
+            type_kind: row.get(5),
         });
     }
     Ok(attributes)
@@ -916,7 +949,8 @@ fn supported_base(attribute: &Attribute, types: &BTreeMap<String, u32>) -> bool 
     }
     match types.get(&attribute.type_name) {
         Some(oid) => {
-            *oid == attribute.type_oid && SUPPORTED_TYPES.contains(&attribute.type_name.as_str())
+            *oid == attribute.type_oid
+                && grantable_base_type(&attribute.type_name, attribute.typmod)
         }
         None => false,
     }
@@ -1163,6 +1197,28 @@ mod tests {
             role: "oo_r_clerk".to_string(),
             policy_id: "ab".repeat(32),
         }
+    }
+
+    #[test]
+    fn bounded_numeric_admits_precision_1_through_38() {
+        fn typmod(precision: i32, scale: i32) -> i32 {
+            ((precision << 16) | (scale & 0x7FF)) + 4
+        }
+        assert_eq!(typmod(18, 4), 1_179_656);
+        assert!(grantable_base_type("numeric", typmod(18, 4)));
+        assert!(grantable_base_type("numeric", typmod(38, 4)));
+        assert!(grantable_base_type("numeric", typmod(38, 0)));
+        assert!(grantable_base_type("numeric", typmod(1, 0)));
+        assert!(grantable_base_type("numeric", typmod(4, 6)));
+        assert!(grantable_base_type("numeric", typmod(18, -2)));
+        assert!(grantable_base_type("int8", -1));
+        assert!(!grantable_base_type("numeric", -1));
+        assert!(!grantable_base_type("numeric", typmod(0, 0)));
+        assert!(!grantable_base_type("numeric", typmod(39, 4)));
+        assert!(!grantable_base_type("numeric", typmod(1000, 0)));
+        assert!(!grantable_base_type("float8", typmod(18, 4)));
+        assert!(!grantable_base_type("varchar", -1));
+        assert_eq!(required_operator_count(), 54);
     }
 
     #[test]
