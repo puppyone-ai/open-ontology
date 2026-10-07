@@ -124,3 +124,23 @@ A column is grantable only when `typtype` is `b` and `grantable_base_type(typnam
 The unowned test `wrong_physical_quantity_is_semantic` uses `typmod` `-1`. It still passes, and a pass is the product result. The historical post-edit gate that treated that pass as exit 2 stays recorded. The harness expectation is corrected so a later run does not call that pass a product failure. `linux/live-failed-1` (zero tests, exit 0) stays recorded.
 
 The follow-up proof compiles from fixed archive `e6ebf93b5ac261c097a24d145611e0300e4f88b5` and its lock `16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a`, plus the recorded owned overlay and these two files. It does not take the workspace lock. The same six-row private TLS fixture must produce `query-pg` decimal stdout for the hand literals, guard exit 6 on the undecided column, and policy exit 5 before analyze. No gateway SQL is printed. a317 gold, data, and decisions stay unchanged, and this task does not re-run a317.
+
+## Addendum: mapping-reader numeric bound
+
+Frozen before the `mapping_reader_access.rs` edit. Session `eef831aa-dba4-4af2-a78b-541bc9e0a327`. This addendum does not reopen the wire decoder, the query cell JSON, the hand literals, the quantity admission, or the grant and catalog allowlist above. It does not close M1-D14B, M1-D14C, M1-I01, or M1-I02, and it does not release.
+
+`ensure_supported_type` reads `typname`, `typtype`, and `atttypmod` with the same select shape as `ensure_grantable_type`. It accepts the column only when `typtype` is `b` and `grantable_base_type(typname, atttypmod)` is true. That is the same predicate install and catalog visibility already use. `numeric` still requires precision `1..=38` from the high 16 bits. Typmod `-1`, precision `0`, and precision above `38` stay refused. `bool`, `int2`, `int4`, `int8`, and `text` still ignore typmod. Domains, enums, and every other `typtype` stay refused. Scale is not rewritten.
+
+`resolve_tables` runs that check before `grant_mapping`. A refusal returns `MappingReaderError::Unsupported`, the provision transaction rolls back, and the login does not receive `USAGE` on `_oo`, `SELECT` on `_oo.physical_mappings`, or `EXECUTE` on `_oo.lookup_physical_mapping`. Membership, role shape, exact column grants, metadata columns, public grants, and foreign grants stay as they are.
+
+The six-row fixture keeps `numeric(18,4)` and `numeric(38,4)`. Those columns still provision and the `query-pg` decimal stdout stays the hand literals. The same import also carries nullable `loose numeric` and `over numeric(39,4)` on `shop.entry`. They are not decisions and they are not in the reviewed policy. Before the mapping grant, `provision-mapping-reader` is called once for `loose` and once for `over`. Each call exits 7 with stderr `provision-mapping-reader: policy type`. The login's mapping privileges are absent before those calls and still absent after them. Then the reviewed three-column policy installs and provisions, and the six-row query is unchanged.
+
+Live consumers of `SUPPORTED_TYPES`, inspected and left as they are except the mapping-reader check above:
+
+- `grantable_base_type` is the single numeric bound. Install (`ensure_grantable_type`) and catalog visibility (`supported_base`) already call it. `supported_base` also requires the type OID to equal the `pg_catalog` base type loaded for that name.
+- `whitelist_tokens_ok` checks that each allowlisted name is a short lowercase identifier. It does not read typmod.
+- `load_types` requires one `pg_catalog` base type for each allowlisted name. It does not apply precision. A missing or duplicated builtin name fails the catalog load.
+- `COMPARISON_SIGNATURES`, `COMPARISON_OPERATORS`, and the literal and aggregate lists still omit `numeric`. A bounded numeric column can be selected. This addendum does not add a numeric comparison, literal, or aggregate.
+- Install and mapping-reader match the column's own `typname`, `typtype`, and `atttypmod`. They do not repeat the catalog OID equality check. That difference already exists for `bool`, `int2`, `int4`, `int8`, and `text`.
+
+No other live Rust file reads `SUPPORTED_TYPES`. Historical evidence blobs are not callers.
