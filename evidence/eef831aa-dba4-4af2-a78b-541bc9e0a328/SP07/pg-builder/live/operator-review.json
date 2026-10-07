@@ -1,0 +1,35 @@
+{
+  "protocol": "oo.pg-builder.operator-review/v1",
+  "authenticated": false,
+  "parent_auth": "required",
+  "decisions": [
+    {
+      "dataset": "shop.party",
+      "decision": "approve",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07",
+      "fields": {
+        "label": {"overwrite": true},
+        "description": {"overwrite": false},
+        "grain": {"overwrite": false}
+      }
+    },
+    {
+      "dataset": "shop.account",
+      "decision": "approve",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07",
+      "fields": {
+        "label": {"overwrite": true},
+        "description": {"overwrite": false},
+        "grain": {"overwrite": false}
+      }
+    },
+    {
+      "dataset": "shop.entry",
+      "decision": "defer",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07"
+    }
+  ]
+}

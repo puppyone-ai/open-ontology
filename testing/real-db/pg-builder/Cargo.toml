@@ -1,0 +1,20 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "pg-fixture"
+description = "Public synthetic PostgreSQL COPY files for the private builder fixture."
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.94.0"
+version = "0.1.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

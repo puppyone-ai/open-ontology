@@ -1,0 +1,15 @@
+    Checking pg-builder v0.1.0 (/work/tools/pg-builder)
+error: useless use of `format!`
+   --> tests/contract.rs:568:22
+    |
+568 |           let header = format!(
+    |  ______________________^
+569 | |             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+570 | |         );
+    | |_________^ help: consider using `.to_string()`: `"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n".to_string()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_format
+    = note: `-D clippy::useless-format` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_format)]`
+
+error: could not compile `pg-builder` (test "contract") due to 1 previous error

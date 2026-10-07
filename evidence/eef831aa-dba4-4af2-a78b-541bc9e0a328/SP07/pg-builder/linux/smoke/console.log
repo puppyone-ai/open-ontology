@@ -1,0 +1,9 @@
+oo_task=sp07-pg-builder-preoverlay
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a328
+oo_fixed=8c2005d5d3cc48eecfb314aa278f7b1d4f00bef8
+oo_platform=linux/arm64
+phase=preoverlay
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+phase_exit=0 phase=toolchain
+phase_exit=1 phase=clippy-component

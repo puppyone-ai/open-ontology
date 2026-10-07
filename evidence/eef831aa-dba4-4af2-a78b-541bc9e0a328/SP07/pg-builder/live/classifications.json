@@ -1,0 +1,20 @@
+{
+  "protocol": "oo.pg-builder.operator-classification/v1",
+  "authenticated": false,
+  "parent_auth": "required",
+  "decisions": [
+    {"dataset": "shop.party", "column": "party_key", "pii": "none", "semantic_type": "identifier", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.party", "column": "display_name", "pii": "personal", "semantic_type": "person_name", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.party", "column": "active", "pii": "none", "semantic_type": "boolean_flag", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.party", "column": "phone", "pii": "personal", "semantic_type": "free_text", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.account", "column": "account_id", "pii": "none", "semantic_type": "identifier", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.account", "column": "party_key", "pii": "none", "semantic_type": "foreign_key", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.account", "column": "opened", "pii": "none", "semantic_type": "boolean_flag", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.account", "column": "label", "pii": "none", "semantic_type": "free_text", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.entry", "column": "entry_id", "pii": "none", "semantic_type": "identifier", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.entry", "column": "account_id", "pii": "none", "semantic_type": "foreign_key", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.entry", "column": "qty", "pii": "none", "semantic_type": "quantity", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.entry", "column": "amount", "pii": "none", "semantic_type": "quantity", "reviewer": {"by": "local-operator", "at": "2026-10-07"}},
+    {"dataset": "shop.entry", "column": "memo", "pii": "none", "semantic_type": "free_text", "reviewer": {"by": "local-operator", "at": "2026-10-07"}}
+  ]
+}

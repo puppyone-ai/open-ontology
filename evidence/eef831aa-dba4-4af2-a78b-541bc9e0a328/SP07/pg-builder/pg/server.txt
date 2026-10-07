@@ -1,0 +1,12 @@
+CREATE ROLE
+CREATE DATABASE
+GRANT
+COPY 2000
+COPY 8000
+COPY 90000
+ANALYZE
+ANALYZE
+ANALYZE
+server_version=17.10 (Debian 17.10-1.pgdg12+1)
+autovacuum=off
+ssl=true

@@ -1,0 +1,2 @@
+COMMENT
+comment_replaced
