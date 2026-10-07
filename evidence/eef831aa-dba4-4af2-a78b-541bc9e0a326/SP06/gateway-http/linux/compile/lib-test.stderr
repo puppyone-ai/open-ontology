@@ -1,0 +1,344 @@
+    Updating crates.io index
+     Locking 5 packages to latest Rust 1.94.0 compatible versions
+      Adding axum v0.8.9
+      Adding axum-core v0.5.6
+      Adding httpdate v1.0.3
+      Adding matchit v0.8.4 (available: v0.8.6)
+      Adding mime v0.3.17
+ Downloading crates ...
+  Downloaded atomic-waker v1.1.2
+  Downloaded axum-core v0.5.6
+  Downloaded sync_wrapper v1.0.2
+  Downloaded tower-service v0.3.3
+  Downloaded tower-layer v0.3.3
+  Downloaded mime v0.3.17
+  Downloaded tracing-core v0.1.36
+  Downloaded matchit v0.8.4
+  Downloaded http-body-util v0.1.5
+  Downloaded httpdate v1.0.3
+  Downloaded httparse v1.10.1
+  Downloaded http-body v1.1.0
+  Downloaded tower-http v0.6.11
+  Downloaded hyper-util v0.1.20
+  Downloaded tracing v0.1.44
+  Downloaded http v1.5.0
+  Downloaded tower v0.5.3
+  Downloaded axum v0.8.9
+  Downloaded hyper v1.11.1
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.5
+   Compiling bytes v1.12.1
+   Compiling once_cell v1.21.4
+   Compiling typenum v1.20.1
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling serde_core v1.0.229
+   Compiling jobserver v0.1.35
+   Compiling cc v1.4.7
+   Compiling pin-project-lite v0.2.17
+   Compiling num-traits v0.2.19
+   Compiling futures-core v0.3.34
+   Compiling smallvec v1.16.1
+   Compiling equivalent v1.0.2
+   Compiling serde v1.0.229
+   Compiling cmake v0.1.58
+   Compiling hybrid-array v0.4.15
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling scopeguard v1.2.0
+   Compiling aws-lc-sys v0.45.0
+   Compiling tokio v1.53.1
+   Compiling zmij v1.0.23
+   Compiling futures-sink v0.3.34
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.2
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling num-integer v0.1.47
+   Compiling const-oid v0.10.2
+   Compiling siphasher v1.0.3
+   Compiling digest v0.11.3
+   Compiling serde_json v1.0.151
+   Compiling http v1.5.0
+   Compiling rand_core v0.10.1
+   Compiling log v0.4.34
+   Compiling aws-lc-rs v1.18.1
+   Compiling http-body v1.1.0
+   Compiling parking_lot_core v0.9.12
+   Compiling num-bigint v0.4.8
+   Compiling lock_api v0.4.14
+   Compiling allocator-api2 v0.2.21
+   Compiling tinyvec v1.13.3
+   Compiling regex-syntax v0.8.11
+   Compiling percent-encoding v2.3.2
+   Compiling foldhash v0.2.0
+   Compiling zeroize v1.9.0
+   Compiling hashbrown v0.17.1
+   Compiling unicode-normalization v0.1.25
+   Compiling indexmap v2.14.2
+   Compiling ref-cast v1.0.27
+   Compiling parking_lot v0.12.5
+   Compiling num-rational v0.4.2
+   Compiling generic-array v0.14.9
+   Compiling getrandom v0.4.3
+   Compiling zerocopy v0.8.57
+   Compiling getrandom v0.3.4
+   Compiling chacha20 v0.10.2
+   Compiling num-iter v0.1.46
+   Compiling futures-channel v0.3.34
+   Compiling num-complex v0.4.6
+   Compiling aho-corasick v1.1.5
+   Compiling libloading v0.8.9
+   Compiling cpufeatures v0.3.1
+   Compiling unicode-properties v0.1.4
+   Compiling slab v0.4.12
+   Compiling futures-task v0.3.34
+   Compiling unicode-bidi v0.3.18
+   Compiling httparse v1.10.1
+   Compiling tower-service v0.3.3
+   Compiling stringprep v0.1.5
+   Compiling futures-util v0.3.34
+   Compiling petgraph v0.7.1
+   Compiling tempfile v3.27.0
+   Compiling sha2 v0.11.0
+   Compiling clang-sys v1.9.1
+   Compiling regex-automata v0.4.18
+   Compiling num v0.4.3
+   Compiling rand v0.10.3
+   Compiling ahash v0.8.12
+   Compiling rustls-pki-types v1.15.1
+   Compiling md-5 v0.11.0
+   Compiling hmac v0.13.0
+   Compiling tokio-util v0.7.19
+   Compiling tower-layer v0.3.3
+   Compiling const-oid v0.9.6
+   Compiling base64 v0.22.1
+   Compiling byteorder v1.5.0
+   Compiling borrow-or-share v0.2.4
+   Compiling flagset v0.4.7
+   Compiling untrusted v0.9.0
+   Compiling simdutf8 v0.1.5
+   Compiling bit-vec v0.8.0
+   Compiling fallible-iterator v0.2.0
+   Compiling postgres-protocol v0.6.12
+   Compiling bit-set v0.8.0
+   Compiling encoding_rs v0.8.41
+   Compiling rustls-webpki v0.103.15
+   Compiling der v0.7.10
+   Compiling bindgen v0.66.1
+   Compiling fluent-uri v0.4.1
+   Compiling rustls v0.23.45
+   Compiling prost-build v0.13.5
+   Compiling fraction v0.17.0
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling http-body-util v0.1.5
+   Compiling phf_shared v0.13.1
+   Compiling phf_shared v0.12.1
+   Compiling tracing-core v0.1.36
+   Compiling bytecount v0.6.9
+   Compiling outref v0.5.2
+   Compiling subtle v2.6.1
+   Compiling unicode-width v0.2.2
+   Compiling atomic-waker v1.1.2
+   Compiling vsimd v0.8.0
+   Compiling arraydeque v0.5.1
+   Compiling anstyle v1.0.14
+   Compiling sync_wrapper v1.0.2
+   Compiling num-cmp v0.1.0
+   Compiling httpdate v1.0.3
+   Compiling micromap v0.3.0
+   Compiling referencing v0.57.0
+   Compiling hyper v1.11.1
+   Compiling jsonschema-value v0.57.0
+   Compiling annotate-snippets v0.12.16
+   Compiling granit-parser v1.3.0
+   Compiling uuid-simd v0.8.0
+   Compiling tracing v0.1.44
+   Compiling strum v0.28.0
+   Compiling phf v0.12.1
+   Compiling phf v0.13.1
+   Compiling digest v0.10.7
+   Compiling pg_query v6.2.1
+   Compiling unicode-general-category v1.1.0
+   Compiling spki v0.7.3
+   Compiling encoding_rs_io v0.1.8
+   Compiling fancy-regex v0.19.2
+   Compiling postgres-types v0.2.14
+   Compiling regex v1.13.1
+   Compiling jsonschema-regex v0.57.0
+   Compiling email_address v0.2.9
+   Compiling chrono v0.4.45
+   Compiling whoami v2.1.3
+   Compiling cpufeatures v0.2.17
+   Compiling nohash-hasher v0.2.0
+   Compiling dyn-clone v1.0.20
+   Compiling data-encoding v2.11.1
+   Compiling mime v0.3.17
+   Compiling base64 v0.23.1
+   Compiling either v1.18.0
+   Compiling itertools v0.10.5
+   Compiling serde-saphyr v1.3.0
+   Compiling axum-core v0.5.6
+   Compiling jsonschema v0.57.0
+   Compiling schemars v1.2.2
+   Compiling sha2 v0.10.9
+   Compiling tokio-postgres v0.7.18
+   Compiling thiserror v2.0.21
+   Compiling utoipa v6.0.0
+   Compiling thiserror v1.0.69
+   Compiling chrono-tz v0.10.4
+   Compiling x509-cert v0.2.5
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.5
+   Compiling hyper-util v0.1.20
+   Compiling prost v0.13.5
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+   Compiling matchit v0.8.4
+   Compiling bitflags v2.13.2
+   Compiling tower-http v0.6.11
+   Compiling axum v0.8.9
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-core v0.1.0 (/src/crates/oo-core)
+   Compiling getrandom v0.2.17
+warning: unused import: `error::StoreError`
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/mod.rs:18:9
+   |
+18 | pub use error::StoreError;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `CLIENT_DEFAULT_MS`, `CLIENT_MAX_MS`, `FixedWall`, `SESSION_ABSOLUTE_MS`, `SESSION_IDLE_MS`, `SystemWall`, `WaitGate`, `WallClock`, and `WallSource`
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/mod.rs:20:48
+   |
+20 |     CurrentTuple, DeclaredTransport, Endpoint, FixedWall, IssueGrant, RevokeScope, SystemWall, TokenKind, WaitGate,
+   |                                                ^^^^^^^^^                           ^^^^^^^^^^             ^^^^^^^^
+21 |     WallClock, WallSource, CLIENT_DEFAULT_MS, CLIENT_MAX_MS, SESSION_ABSOLUTE_MS, SESSION_IDLE_MS,
+   |     ^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `ControlFlags`, `InstallDisposition`, `InstallReceipt`, `IssueReceipt`, `LookupReceipt`, `RevokeDisposition`, `RevokeReceipt`, `lookup_for_test`, and `migration_sha256`
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/mod.rs:24:13
+   |
+24 |     lookup, lookup_for_test, migration_sha256, ControlFlags, InstallDisposition, InstallReceipt, IssueReceipt,
+   |             ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+25 |     LookupReceipt, LookupRequest, RevokeDisposition, RevokeReceipt,
+   |     ^^^^^^^^^^^^^                 ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused imports: `PlainToken`, `draw_32`, and `scrub`
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/mod.rs:28:17
+   |
+28 | pub use token::{draw_32, scrub, token_hash, PlainToken};
+   |                 ^^^^^^^  ^^^^^              ^^^^^^^^^^
+
+warning: constant `CONTRACT` is never used
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/mod.rs:31:11
+   |
+31 | pub const CONTRACT: &str = "gateway-token-store-v1";
+   |           ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `remaining_ms` is never used
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/cache.rs:71:12
+   |
+33 | impl LookupCache {
+   | ---------------- method in this implementation
+...
+71 |     pub fn remaining_ms(&self, hash: &str) -> Result<Option<u128>, StoreError> {
+   |            ^^^^^^^^^^^^
+
+warning: variant `Injected` is never constructed
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/model.rs:51:5
+   |
+49 | pub enum WallSource {
+   |          ---------- variant in this enum
+50 |     System,
+51 |     Injected,
+   |     ^^^^^^^^
+   |
+   = note: `WallSource` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `as_str` is never used
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/model.rs:55:12
+   |
+54 | impl WallSource {
+   | --------------- method in this implementation
+55 |     pub fn as_str(self) -> &'static str {
+   |            ^^^^^^
+
+warning: struct `FixedWall` is never constructed
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/model.rs:84:12
+   |
+84 | pub struct FixedWall(pub i64);
+   |            ^^^^^^^^^
+
+warning: variant `EgressProxy` is never constructed
+   --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/model.rs:146:5
+    |
+145 | pub enum DeclaredTransport {
+    |          ----------------- variant in this enum
+146 |     EgressProxy { sandbox_id: String, session_id: String },
+    |     ^^^^^^^^^^^
+    |
+    = note: `DeclaredTransport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Session`, `Principal`, and `Project` are never constructed
+   --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/model.rs:153:5
+    |
+151 | pub enum RevokeScope {
+    |          ----------- variants in this enum
+152 |     Token { project_id: String, token_sha256: String },
+153 |     Session { project_id: String, session_id: String },
+    |     ^^^^^^^
+154 |     Principal { project_id: String, principal_id: String },
+    |     ^^^^^^^^^
+155 |     Project { project_id: String },
+    |     ^^^^^^^
+    |
+    = note: `RevokeScope` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/store.rs:58:9
+   |
+55 | pub struct IssueReceipt {
+   |            ------------ fields in this struct
+...
+58 |     pub kind: TokenKind,
+   |         ^^^^
+59 |     pub wall: WallSource,
+   |         ^^^^
+60 |     pub issued_at_ms: i64,
+   |         ^^^^^^^^^^^^
+61 |     pub idle_deadline_ms: Option<i64>,
+   |         ^^^^^^^^^^^^^^^^
+62 |     pub absolute_deadline_ms: i64,
+   |         ^^^^^^^^^^^^^^^^^^^^
+63 |     pub revocation_floor: i64,
+   |         ^^^^^^^^^^^^^^^^
+64 |     pub flags: ControlFlags,
+   |         ^^^^^
+   |
+   = note: `IssueReceipt` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `scrub` is never used
+  --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/token.rs:52:8
+   |
+52 | pub fn scrub(value: &mut String) {
+   |        ^^^^^
+
+warning: methods `issue_for_test` and `revoke_for_test` are never used
+   --> /target/debug/build/oo-gateway-a50bd46b51c1be81/out/accepted_token_store/trusted_control.rs:77:18
+    |
+ 32 | impl TrustedControlAdapter {
+    | -------------------------- methods in this implementation
+...
+ 77 |     pub async fn issue_for_test(
+    |                  ^^^^^^^^^^^^^^
+...
+109 |     pub async fn revoke_for_test(
+    |                  ^^^^^^^^^^^^^^^
+
+warning: `oo-gateway` (lib test) generated 14 warnings (run `cargo fix --lib -p oo-gateway --tests` to apply 4 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 59s
+     Running unittests src/lib.rs (/target/debug/deps/oo_gateway-e588fdbf5df98249)

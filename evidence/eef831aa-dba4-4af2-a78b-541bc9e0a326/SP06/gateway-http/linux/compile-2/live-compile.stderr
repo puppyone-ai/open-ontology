@@ -1,0 +1,3 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.04s
+     Running tests/http_gateway_live.rs (/target/debug/deps/http_gateway_live-205b8deabe40cf04)

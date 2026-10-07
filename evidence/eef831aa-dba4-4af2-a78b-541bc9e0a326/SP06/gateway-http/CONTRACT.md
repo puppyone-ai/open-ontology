@@ -6,6 +6,8 @@ Prerequisite already read: `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a319/SP00/g
 
 This card does not claim a public production Gateway, a parent goal, or a release.
 
+Recorded after the proof, without changing the interface above: smoke attempt 2 exited 0 at `2026-10-07T12:09:32Z`. The consumer lock in commit `51d08e59ddb3c92fc0b9f2958966b56e19032b7f` adds the five approved triples and no others. Immutable proof `linux/proof-3/` exited 0 at `2026-10-07T13:15:24Z`.
+
 ## Authentication boundary
 
 The process is a loopback HTTP service. It binds `127.0.0.1` only and refuses any other listen address. It does not terminate client TLS, does not check a client certificate, does not speak OAuth, and does not call an IdP.

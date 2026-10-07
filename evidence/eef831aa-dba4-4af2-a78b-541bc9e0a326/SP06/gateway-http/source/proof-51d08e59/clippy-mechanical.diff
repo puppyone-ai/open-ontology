@@ -1,0 +1,51 @@
+diff --git a/crates/oo-gateway/src/policy.rs b/crates/oo-gateway/src/policy.rs
+index 84a86e85..43327e69 100644
+--- a/crates/oo-gateway/src/policy.rs
++++ b/crates/oo-gateway/src/policy.rs
+@@ -1399,7 +1399,7 @@ mod tests {
+         let mut hidden = one.clone();
+         hidden.table.columns = vec![column("_oo_pos", PiiClass::None)];
+         assert!(matches!(
+-            compile_column_acl_set(&[hidden.clone()]),
++            compile_column_acl_set(std::slice::from_ref(&hidden)),
+             Err(PolicyError::MetadataColumn { .. })
+         ));
+         assert!(compile_column_acl(&hidden).is_ok());
+diff --git a/crates/oo-gateway/src/policy_catalog.rs b/crates/oo-gateway/src/policy_catalog.rs
+index 9e0e4a33..636229b7 100644
+--- a/crates/oo-gateway/src/policy_catalog.rs
++++ b/crates/oo-gateway/src/policy_catalog.rs
+@@ -1209,7 +1209,7 @@ mod tests {
+         let mut wrong = identity();
+         wrong.role = "oo_r_auditor".to_string();
+         assert_eq!(
+-            refused(prepare(&wrong, &[clerk.clone()], &limits())),
++            refused(prepare(&wrong, std::slice::from_ref(&clerk), &limits())),
+             CatalogError::IdentityMismatch
+         );
+         let auditor = policy("auditor", vec!["amount"]);
+diff --git a/crates/oo-gateway/tests/column_acl_set_pg_live.rs b/crates/oo-gateway/tests/column_acl_set_pg_live.rs
+index 69897c46..8105ddc1 100644
+--- a/crates/oo-gateway/tests/column_acl_set_pg_live.rs
++++ b/crates/oo-gateway/tests/column_acl_set_pg_live.rs
+@@ -277,7 +277,7 @@ async fn refuse_before_sql(admin: &mut Client, oracle: &mut Oracle) {
+     let mut hidden = party.clone();
+     hidden.table.columns = vec![column("_oo_pos")];
+     assert!(matches!(
+-        install_column_acl_set(admin, &[hidden.clone()]).await,
++        install_column_acl_set(admin, std::slice::from_ref(&hidden)).await,
+         Err(PolicyError::MetadataColumn { .. })
+     ));
+     assert!(compile_column_acl(&hidden).is_ok());
+diff --git a/crates/oo-gateway/tests/query_executor_pg_live.rs b/crates/oo-gateway/tests/query_executor_pg_live.rs
+index c620ed3d..457d8607 100644
+--- a/crates/oo-gateway/tests/query_executor_pg_live.rs
++++ b/crates/oo-gateway/tests/query_executor_pg_live.rs
+@@ -1452,6 +1452,7 @@ fn canon_len(cell: &Cell) -> u64 {
+         Cell::Bool(true) => 4,
+         Cell::Bool(false) => 5,
+         Cell::Int(text) | Cell::Text(text) => u64::try_from(text.len()).unwrap_or(u64::MAX),
++        Cell::Decimal(value) => u64::try_from(value.to_string().len()).unwrap_or(u64::MAX),
+     }
+ }
+ 

@@ -1,0 +1,5 @@
+/tmp/oo-a326-eef831aa-dba4-4af2-a78b-541bc9e0a326/builder-fixture/admin.pass
+/tmp/oo-a326-eef831aa-dba4-4af2-a78b-541bc9e0a326/builder-fixture/ca.crt
+/tmp/oo-a326-eef831aa-dba4-4af2-a78b-541bc9e0a326/builder-fixture/token-admin.pass
+/tmp/oo-a326-eef831aa-dba4-4af2-a78b-541bc9e0a326/builder-fixture/token-runtime.pass
+/tmp/oo-a326-eef831aa-dba4-4af2-a78b-541bc9e0a326/builder-fixture/wrong.crt
