@@ -1,0 +1,53 @@
+{
+  "version": "oo.gateway.query-pg/v1",
+  "endpoint": {
+    "host": "oo-a355-pg",
+    "port": 5432,
+    "database": "oo_a355",
+    "user": "oo_a355_login"
+  },
+  "password_file": "/secrets/login.pass",
+  "ca_file": "/secrets/ca.crt",
+  "audit_file": "/tmp/oo-a355-audit-placeholder.jsonl",
+  "identity": {
+    "project": "pubfix",
+    "role": "oo_r_reviewer",
+    "policy_id": "a355a355a355a355a355a355a355a355a355a355a355a355a355a355a355a355"
+  },
+  "policies": [
+    {
+      "project": "pubfix",
+      "config_digest": "a355a355a355a355a355a355a355a355a355a355a355a355a355a355a355a355",
+      "generation": 355,
+      "role": "reviewer",
+      "login": "oo_a355_login",
+      "table": {
+        "namespace": "shop",
+        "name": "account",
+        "columns": [
+          {
+            "name": "party_key",
+            "status": "confirmed",
+            "semantic_type": "value",
+            "pii": {"class": "none"}
+          }
+        ]
+      }
+    }
+  ],
+  "catalog": {
+    "max_tables": 4,
+    "max_columns": 64,
+    "max_functions": 1,
+    "max_operators": 64,
+    "large_table_row_threshold": 1000000,
+    "unknown_rows": "refuse"
+  },
+  "statement": {
+    "source": "request",
+    "sql": "SELECT party_key FROM shop.account WHERE party_key IS NOT NULL LIMIT 1",
+    "max_rows": 20,
+    "max_result_bytes": 4096,
+    "wall_clock_ms": 30000
+  }
+}

@@ -1,0 +1,58 @@
+source=live/test.txt
+test.exit=0
+container=oo-a355-sbs-live
+container_id=f1ec86f0bf5569e6ac8ef17c99d55f68dc27d642c8ede0c274d4c72c11aeeaa6
+container_exit=0
+oom_killed=false
+rustc=1.94.0 (4a4ef493e 2026-03-02) aarch64-unknown-linux-gnu
+
+verbatim test.txt:
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test gateway_probe_is_refused_before_one_admitted_select ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.20s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+predicates the passing test executed, from tools/selfbuild-suggestions/tests/producer.rs:
+calls[0] = UPDATE shop.account SET label = label
+calls[1] = SELECT party_key FROM shop.account WHERE party_key IS NOT NULL LIMIT 1
+no call contains sum(
+gateway.probe = refused
+gateway.probe_exit = 6
+gateway.admitted = 1
+examples[0].validation = admitted
+examples[0].gateway_admitted = true
+examples[1].validation = not_run
+knowledge_verified = false on every object
+effects.auto_merge = false
+effects.curated_written = false
+effects.grants_issued = false
+effects.knowledge_verified_count = 0
+effects.metrics_certified = false
+effects.model_called = false
+effects.published = false
+effects.roles_changed = false
+effects.samples_retained = false
+effects.source_queried = false
+
+producer gate, tools/selfbuild-suggestions/src/produce.rs run_gateway:
+probe is recorded as refused with probe_exit 6 only when the child started, did not time out, exited 6, and stdout was empty.
+otherwise the command is refused with token probe and admitted stays 0.
+classify marks an example admitted only when that later child exits 0 and its NDJSON summary has status succeeded and returned_rows >= 1.
+
+query-pg NDJSON bytes were not written to this evidence directory.
+knowledge_verified stays false. Gateway admission is a separate field.

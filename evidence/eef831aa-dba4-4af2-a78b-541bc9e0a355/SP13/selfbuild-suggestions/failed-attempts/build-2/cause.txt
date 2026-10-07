@@ -1,0 +1,1 @@
+test: CARGO_BIN_EXE_selfbuild_suggestions was not a compile-time env; clippy: type_complexity and collapsible_if

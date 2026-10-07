@@ -1,0 +1,4 @@
+cargo build --offline --locked -p oo-gateway --bin query-pg exited 101.
+oo-gateway/build.rs panics: sha256sum failed for tools/gateway-token-store/src/cache.rs.
+The fixed-base archive contained Cargo.toml, Cargo.lock, and crates/ only.
+Fetch had already exited 0. The container was removed. Volumes were kept.

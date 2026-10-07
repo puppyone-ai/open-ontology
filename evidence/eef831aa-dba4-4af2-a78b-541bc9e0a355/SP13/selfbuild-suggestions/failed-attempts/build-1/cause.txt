@@ -1,0 +1,1 @@
+compile: Number::from_str_exact is not in serde_json 1.0.151; clippy and rustfmt components were absent on toolchain 1.94.0
