@@ -1399,7 +1399,7 @@ mod tests {
         let mut hidden = one.clone();
         hidden.table.columns = vec![column("_oo_pos", PiiClass::None)];
         assert!(matches!(
-            compile_column_acl_set(&[hidden.clone()]),
+            compile_column_acl_set(std::slice::from_ref(&hidden)),
             Err(PolicyError::MetadataColumn { .. })
         ));
         assert!(compile_column_acl(&hidden).is_ok());

@@ -1452,6 +1452,7 @@ fn canon_len(cell: &Cell) -> u64 {
         Cell::Bool(true) => 4,
         Cell::Bool(false) => 5,
         Cell::Int(text) | Cell::Text(text) => u64::try_from(text.len()).unwrap_or(u64::MAX),
+        Cell::Decimal(value) => u64::try_from(value.to_string().len()).unwrap_or(u64::MAX),
     }
 }
 

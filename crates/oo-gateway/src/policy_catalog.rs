@@ -1209,7 +1209,7 @@ mod tests {
         let mut wrong = identity();
         wrong.role = "oo_r_auditor".to_string();
         assert_eq!(
-            refused(prepare(&wrong, &[clerk.clone()], &limits())),
+            refused(prepare(&wrong, std::slice::from_ref(&clerk), &limits())),
             CatalogError::IdentityMismatch
         );
         let auditor = policy("auditor", vec!["amount"]);

@@ -6,12 +6,17 @@
 //! session for a trusted runtime. `parser_worker` runs the guard in a one-shot
 //! child process and kills that child at 500 ms. Kernel network, filesystem, and
 //! memory isolation are not provided, so untrusted admission stays blocked.
-//! Authentication, durable audit, and row-level security are not implemented here.
+//! `http_gateway` serves loopback HTTP from the accepted opaque token store.
+//! Durable audit and row-level security are not implemented here.
 
 #![forbid(unsafe_code)]
 
+include!(concat!(env!("OUT_DIR"), "/accepted_glue.rs"));
+
 pub mod http_error;
+pub mod http_gateway;
 pub mod mapping_reader_access;
+pub mod pack_catalog;
 pub mod parser_worker;
 pub mod policy;
 pub mod query_executor;

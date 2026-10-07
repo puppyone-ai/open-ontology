@@ -12,6 +12,12 @@ workspace = true
 
 [dependencies]
 oo-core = { path = "../oo-core" }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+# Existing registry triples. The embedded token store calls them directly.
+getrandom = { version = "=0.2.17", default-features = false }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 # Exact pins already locked by the workspace. arbitrary_precision keeps integer text exact.
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }

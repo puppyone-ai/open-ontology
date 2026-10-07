@@ -277,7 +277,7 @@ async fn refuse_before_sql(admin: &mut Client, oracle: &mut Oracle) {
     let mut hidden = party.clone();
     hidden.table.columns = vec![column("_oo_pos")];
     assert!(matches!(
-        install_column_acl_set(admin, &[hidden.clone()]).await,
+        install_column_acl_set(admin, std::slice::from_ref(&hidden)).await,
         Err(PolicyError::MetadataColumn { .. })
     ));
     assert!(compile_column_acl(&hidden).is_ok());
