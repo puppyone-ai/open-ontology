@@ -1,0 +1,1 @@
+{"host": "oo-a359-pg", "port": 5432, "database": "oo_a359", "user": "oo_release_admin", "password_file": "/secrets/admin.pass", "ca_file": "/secrets/ca.crt"}

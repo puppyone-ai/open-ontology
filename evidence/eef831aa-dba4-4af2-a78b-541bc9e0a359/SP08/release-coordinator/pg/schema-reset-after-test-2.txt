@@ -1,0 +1,1 @@
+The private test installed the schema, staged candidates, and recorded gates, then failed before activation because enter_applying was called while the candidate was still candidate_built. Dropping only schema oo_release_control in database oo_a359 so the next run can assert a fresh install. The volume, roles, certificates, and container stay.

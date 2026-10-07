@@ -1,0 +1,1 @@
+First status container exited 1 because docker run did not attach stdin, so the CLI saw an empty body and returned malformed json. Postgres had already restarted and was accepting connections. The retry attaches stdin and does not restart again.

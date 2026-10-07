@@ -1,0 +1,1 @@
+CREATE ROLE reader; CREATE ROLE reader_login; CREATE ROLE admin; CREATE DATABASE oo_a359

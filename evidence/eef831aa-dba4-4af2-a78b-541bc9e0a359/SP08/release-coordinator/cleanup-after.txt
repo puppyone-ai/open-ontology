@@ -1,0 +1,9 @@
+date=2026-10-08
+filter=name=oo-a359
+containers=0
+volumes=0
+networks=0
+secrets_dir=/tmp/oo-a359-eef831aa-dba4-4af2-a78b-541bc9e0a359
+secrets=absent
+docker_rm_rerun=no
+prune=no

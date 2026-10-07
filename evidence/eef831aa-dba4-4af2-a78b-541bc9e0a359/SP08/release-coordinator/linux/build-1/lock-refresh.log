@@ -1,0 +1,12 @@
+     Locking 211 packages to latest Rust 1.94.0 compatible versions
+      Adding encoding_rs v0.8.41 (available: v0.8.42)
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.0)
+      Adding siphasher v1.0.3 (available: v1.0.4)
+      Adding smallvec v1.16.1 (available: v1.16.2)
+      Adding tokio v1.53.1 (available: v1.53.2)
+      Adding tokio-rustls v0.26.5 (available: v0.26.6)
+      Adding utoipa-gen v6.0.0 (available: v6.0.1)
+      Adding zerocopy v0.8.57 (available: v0.8.61)
+      Adding zerocopy-derive v0.8.57 (available: v0.8.61)
+exit:0

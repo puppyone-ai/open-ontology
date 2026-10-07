@@ -1,0 +1,1 @@
+role postgres does not exist; retry uses -U oo_fixture_admin

@@ -1,0 +1,4 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+   Compiling release-coordinator v0.1.0 (/repo/tools/release-coordinator)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.00s
+BIN_OK

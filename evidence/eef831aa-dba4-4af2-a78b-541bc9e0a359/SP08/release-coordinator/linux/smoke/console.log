@@ -1,0 +1,4 @@
+bash: line 1: rustc: command not found
+bash: line 1: cargo: command not found
+bash: line 1: rustup: command not found
+aarch64
