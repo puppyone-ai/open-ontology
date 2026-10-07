@@ -40,11 +40,91 @@ both expect the current pointer to be null produce one winner and one
 Install executes `migrations/oo_enum_control_v1.sql` once, in one transaction,
 with fixed identifiers and parameterized values, and records that file's SHA-256.
 The same hash, catalog, project, and allowlist replay. A different hash or shape
-is `install_drift` and is not repaired. A pre-existing `oo_dict` schema or
+is `install_drift` and is not repaired. A foreign `oo_dict` schema or a foreign
 `oo_dict.enums` is `collision` and is not dropped. Runtime roles are an explicit
 allowlist. They are not members of `oo_enum_view`. Before activate, a runtime
 `SELECT` is `42501`. After activate, runtime `SELECT` is limited to the view.
 `oo_enum_view` can read `served` and cannot read `snapshot.enum_yaml`.
+
+## Shared `oo_dict`
+
+`oo_dict` may hold `enums` and `calendar` together. The schema owner is the
+admin who created it: `oo_enum_admin` or `oo_calendar_admin`. Adoption does
+not run `ALTER SCHEMA` and does not take ownership. A third owner is foreign.
+
+Hash recipe, unchanged file bytes:
+
+| file | digest |
+|---|---|
+| `tools/enum-store/migrations/oo_enum_control_v1.sql` | `b4ef16188fa26d731493f9d7d3422661022aa18a47840c3ca0af8ee2122ad9dd` |
+| `tools/calendar-store/migrations/oo_calendar_control_v1.sql` | `ec89628711eceb98228b754a4cf4db360427b2d9dcc9ef31ca41690de945a520` |
+
+`migration_sha256` is SHA-256 of the exact enum file bytes via this crate's
+`sha256_hex`. No byte is added, removed, or normalized.
+`install_manifest.sql_sha256` stores that digest. Replay accepts only that
+digest. Any other stored digest is `install_drift` and is not rewritten.
+The executed adoption text is not the hash input. The SQL file has no
+`IF NOT EXISTS`, no `CREATE OR REPLACE`, and no `DROP`.
+
+Both role pairs may exist before either install. This installer and the
+calendar installer take advisory lock `881275280` before their own install
+lock. `dict_create_open` and `dict_create_close` are parameterless
+`SECURITY DEFINER` SQL functions, `search_path = pg_catalog`, owned by the
+schema's creating admin. `PUBLIC` has no execute. When `oo_calendar_admin`
+already exists and is a login non-superuser without `BYPASSRLS`, `CREATEDB`,
+or `CREATEROLE`, and `oo_calendar_view` is the `NOLOGIN` view role of which
+that admin is a member and not the reverse, the enum install grants that
+admin `USAGE` on `oo_enum_control`, `SELECT` on `install_manifest` and
+`runtime_allow`, and `EXECUTE` on the two functions. The manifest grant
+exposes the migration digest only. A later appearance of those roles does not
+add the grant. A superuser or
+reversed membership is `collision` (`sibling_role`) and creates nothing.
+
+Adoption, before any enum object is created, requires all of the following.
+Otherwise the result is `collision` (`oo_dict`) and `oo_enum_control` is
+absent. A sibling manifest the caller is not permitted to read is that same
+refusal, not a query error, and it creates nothing:
+
+- `oo_dict` owner is `oo_calendar_admin`.
+- The only dictionary relation is view `calendar`, owned by `oo_calendar_view`,
+  with `security_barrier=true`, `security_invoker=false`, the calendar column
+  list, and a definition that reads `oo_calendar_control.published` and
+  `oo_calendar_control.active_pointer` and contains no clock or private
+  calendar token.
+- `PUBLIC` has no privilege on the schema or that view. PostgreSQL records
+  the schema owner's own privileges in `nspacl`; that owner entry is not
+  another grant. `oo_calendar_view` has `USAGE` and not `CREATE`. An
+  allowlisted runtime role may have `USAGE` after activate. Any other schema
+  grant, and any `CREATE` that is not the owner's, is foreign.
+- `oo_calendar_control` is owned by `oo_calendar_admin` and its manifest digest
+  is the calendar digest above.
+- The calendar adoption functions match the fixed grant and revoke bodies, and
+  `oo_enum_admin` can execute them.
+
+The open function grants `USAGE, CREATE` on `oo_dict` to `oo_enum_view`.
+The enum view is then created by `SET LOCAL ROLE oo_enum_view`. The close
+function revokes `CREATE` in the same transaction. `CREATE` does not remain.
+A wrong body is not called.
+
+When the calendar admin already exists, install also defines
+`dict_grant_runtime(text)`, owned by this admin, `SECURITY DEFINER`,
+`search_path = pg_catalog`, with no `PUBLIC` execute. It grants `USAGE` on
+`oo_dict` only to a role named in `oo_calendar_control.runtime_allow`.
+Activate calls the calendar function when this admin does not own `oo_dict`.
+The owner still grants directly. Activate stops if the runtime role still
+lacks `USAGE`. The function is absent when the calendar roles were absent
+at install.
+
+Replay with no calendar view accepts this catalog with the adoption functions
+absent. That is an install from the accepted SQL before those functions
+existed. It also accepts the functions when their owner, body, definer bit,
+and `search_path` match. Replay with the calendar view present requires the
+verified calendar catalog and exact functions on both sides. A wrong shape is
+`install_drift`. Nothing is dropped and nothing is rewritten.
+
+Install, put, activate, and read keep the `enum-store-v1` signatures. Each
+product keeps its own project binding. This shared schema does not certify
+finance, semantics, metrics, or an owner.
 
 Receipts set `database_used` true and `finance_certified`, `semantic_certified`,
 `owner_authenticated`, `metric_certified`, and `clock_used` false. The nested

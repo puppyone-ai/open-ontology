@@ -4,6 +4,7 @@
 //! See `CONTRACT.md`. This crate is not an authenticator and it does not
 //! approve a financial close.
 
+mod adopt;
 mod error;
 mod publish;
 mod role;

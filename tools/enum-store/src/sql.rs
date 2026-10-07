@@ -7,6 +7,64 @@ pub const SCHEMA: &str = "oo_enum_control";
 pub const DICT_SCHEMA: &str = "oo_dict";
 pub const VIEW: &str = "enums";
 pub const INSTALL_LOCK: i64 = 881_275_293;
+pub const DICT_LOCK: i64 = 881_275_280;
+pub const ACCEPTED_MIGRATION_SHA256: &str = "b4ef16188fa26d731493f9d7d3422661022aa18a47840c3ca0af8ee2122ad9dd";
+pub const SIBLING_MIGRATION_SHA256: &str = "ec89628711eceb98228b754a4cf4db360427b2d9dcc9ef31ca41690de945a520";
+pub const SIBLING_ADMIN: &str = "oo_calendar_admin";
+pub const SIBLING_VIEW: &str = "oo_calendar_view";
+pub const SIBLING_SCHEMA: &str = "oo_calendar_control";
+pub const SIBLING_RELATION: &str = "calendar";
+pub const DICT_CREATE: &str = "CREATE SCHEMA oo_dict;\n";
+pub const DICT_REVOKE_PUBLIC: &str = "REVOKE ALL ON SCHEMA oo_dict FROM PUBLIC;\n";
+pub const DICT_GRANT_CREATE: &str = "GRANT USAGE, CREATE ON SCHEMA oo_dict TO oo_enum_view;\n";
+pub const DICT_REVOKE_CREATE: &str = "REVOKE CREATE ON SCHEMA oo_dict FROM oo_enum_view;\n";
+pub const ADOPT_OPEN: &str = "dict_create_open";
+pub const ADOPT_CLOSE: &str = "dict_create_close";
+pub const ADOPT_OPEN_BODY: &str = "GRANT USAGE, CREATE ON SCHEMA oo_dict TO oo_calendar_view";
+pub const ADOPT_CLOSE_BODY: &str = "REVOKE CREATE ON SCHEMA oo_dict FROM oo_calendar_view";
+pub const OUR_OPEN_REG: &str = "oo_enum_control.dict_create_open()";
+pub const OUR_CLOSE_REG: &str = "oo_enum_control.dict_create_close()";
+pub const SIBLING_OPEN_REG: &str = "oo_calendar_control.dict_create_open()";
+pub const SIBLING_CLOSE_REG: &str = "oo_calendar_control.dict_create_close()";
+pub const CALL_ADOPT_OPEN: &str = "SELECT oo_calendar_control.dict_create_open();\n";
+pub const CALL_ADOPT_CLOSE: &str = "SELECT oo_calendar_control.dict_create_close();\n";
+pub const CREATE_ADOPT_FUNCTIONS: &str = "\
+CREATE FUNCTION oo_enum_control.dict_create_open() RETURNS void \
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog \
+AS $body$GRANT USAGE, CREATE ON SCHEMA oo_dict TO oo_calendar_view$body$; \
+CREATE FUNCTION oo_enum_control.dict_create_close() RETURNS void \
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog \
+AS $body$REVOKE CREATE ON SCHEMA oo_dict FROM oo_calendar_view$body$; \
+REVOKE ALL ON FUNCTION oo_enum_control.dict_create_open() FROM PUBLIC; \
+REVOKE ALL ON FUNCTION oo_enum_control.dict_create_close() FROM PUBLIC";
+pub const GRANT_ADOPT_EXECUTE: &str = "\
+GRANT USAGE ON SCHEMA oo_enum_control TO oo_calendar_admin; \
+GRANT SELECT ON TABLE oo_enum_control.install_manifest TO oo_calendar_admin; \
+GRANT SELECT ON TABLE oo_enum_control.runtime_allow TO oo_calendar_admin; \
+GRANT EXECUTE ON FUNCTION oo_enum_control.dict_create_open() TO oo_calendar_admin; \
+GRANT EXECUTE ON FUNCTION oo_enum_control.dict_create_close() TO oo_calendar_admin";
+pub const RUNTIME_GRANT_BODY: &str = "\
+BEGIN IF runtime_role IS NULL OR runtime_role !~ '^[a-z_][a-z0-9_]{0,62}$' THEN RAISE EXCEPTION 'runtime role' USING ERRCODE = '42501'; END IF; PERFORM 1 FROM oo_calendar_control.runtime_allow WHERE role_name = runtime_role; IF NOT FOUND THEN RAISE EXCEPTION 'runtime role' USING ERRCODE = '42501'; END IF; EXECUTE format('GRANT USAGE ON SCHEMA oo_dict TO %I', runtime_role); END";
+pub const SIBLING_RUNTIME_GRANT_BODY: &str = "\
+BEGIN IF runtime_role IS NULL OR runtime_role !~ '^[a-z_][a-z0-9_]{0,62}$' THEN RAISE EXCEPTION 'runtime role' USING ERRCODE = '42501'; END IF; PERFORM 1 FROM oo_enum_control.runtime_allow WHERE role_name = runtime_role; IF NOT FOUND THEN RAISE EXCEPTION 'runtime role' USING ERRCODE = '42501'; END IF; EXECUTE format('GRANT USAGE ON SCHEMA oo_dict TO %I', runtime_role); END";
+pub const CREATE_RUNTIME_GRANT_PREFIX: &str = "\
+CREATE FUNCTION oo_enum_control.dict_grant_runtime(runtime_role text) RETURNS void \
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $body$";
+pub const CREATE_RUNTIME_GRANT_SUFFIX: &str = "\
+$body$; REVOKE ALL ON FUNCTION oo_enum_control.dict_grant_runtime(text) FROM PUBLIC; \
+GRANT EXECUTE ON FUNCTION oo_enum_control.dict_grant_runtime(text) TO oo_calendar_admin";
+pub const CALL_GRANT_RUNTIME: &str = "SELECT oo_calendar_control.dict_grant_runtime($1)";
+pub const OUR_RUNTIME_REG: &str = "oo_enum_control.dict_grant_runtime(text)";
+pub const SIBLING_RUNTIME_REG: &str = "oo_calendar_control.dict_grant_runtime(text)";
+pub const RUNTIME_GRANT_FACT: &str = "\
+SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, COALESCE(p.proconfig::text, ''), \
+       l.lanname = 'plpgsql', \
+       (SELECT count(*) FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))) a WHERE a.grantee = 0) \
+FROM pg_catalog.pg_proc p \
+JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+JOIN pg_catalog.pg_language l ON l.oid = p.prolang \
+WHERE n.nspname = $1 AND p.proname = 'dict_grant_runtime' \
+  AND pg_catalog.pg_get_function_identity_arguments(p.oid) = 'runtime_role text'";
 
 pub const SET_LOCAL: &str = "\
 SET LOCAL search_path TO pg_catalog; \
@@ -38,6 +96,11 @@ SELECT project_id, finance_certified, semantic_certified, owner_authenticated, m
 FROM oo_enum_control.deployment WHERE singleton = TRUE";
 pub const INSERT_ALLOW: &str = "INSERT INTO oo_enum_control.runtime_allow (role_name) VALUES ($1)";
 pub const READ_ALLOW: &str = "SELECT role_name FROM oo_enum_control.runtime_allow ORDER BY role_name";
+pub const SIBLING_READ_ALLOW: &str = "SELECT role_name FROM oo_calendar_control.runtime_allow";
+pub const ALLOW_SELECT: &str = "\
+SELECT pg_catalog.has_table_privilege($1, 'oo_enum_control.runtime_allow', 'SELECT')";
+pub const SIBLING_ALLOW_SELECT: &str = "\
+SELECT pg_catalog.has_table_privilege($1, 'oo_calendar_control.runtime_allow', 'SELECT')";
 pub const INSERT_POINTER: &str = "\
 INSERT INTO oo_enum_control.active_pointer ( \
   singleton, project_id, snapshot_id, enum_version, as_of \
@@ -367,6 +430,112 @@ pub const EXPECTED_VIEW_GRANTS: [bool; 14] = [
 ];
 pub const EXPECTED_RUNTIME_CONTROL: [bool; 7] = [false, false, false, false, false, false, false];
 
+pub const SIBLING_MANIFEST: &str = "\
+SELECT sql_sha256 FROM oo_calendar_control.install_manifest WHERE singleton = TRUE";
+pub const FUNCTION_FACT: &str = "\
+SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, COALESCE(p.proconfig::text, '') \
+FROM pg_catalog.pg_proc p \
+JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+WHERE n.nspname = $1 AND p.proname = $2 \
+  AND pg_catalog.pg_get_function_identity_arguments(p.oid) = ''";
+pub const FUNCTION_PUBLIC: &str = "\
+SELECT count(*) FROM pg_catalog.pg_proc p \
+JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+CROSS JOIN LATERAL pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))) a \
+WHERE n.nspname = $1 AND p.proname = $2 \
+  AND pg_catalog.pg_get_function_identity_arguments(p.oid) = '' \
+  AND a.grantee = 0";
+pub const DICT_NONOWNER_GRANTS: &str = "\
+SELECT r.rolname, a.privilege_type FROM pg_catalog.pg_namespace n \
+CROSS JOIN LATERAL pg_catalog.aclexplode(n.nspacl) a \
+JOIN pg_catalog.pg_roles r ON r.oid = a.grantee \
+WHERE n.nspname = 'oo_dict' \
+  AND r.rolname <> 'oo_calendar_view' \
+  AND r.rolname <> 'oo_enum_view' \
+  AND r.oid <> n.nspowner";
+pub const SIBLING_VIEW_FACT: &str = "\
+SELECT pg_catalog.pg_get_userbyid(c.relowner), COALESCE(c.reloptions::text, ''), c.relkind::text \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = 'oo_dict' AND c.relname = 'calendar'";
+pub const SIBLING_VIEW_DEF: &str = "\
+SELECT pg_catalog.pg_get_viewdef(c.oid, true) \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = 'oo_dict' AND c.relname = 'calendar'";
+pub const SIBLING_COLUMNS_SQL: &str = "\
+SELECT a.attname FROM pg_catalog.pg_attribute a \
+JOIN pg_catalog.pg_class c ON c.oid = a.attrelid \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = 'oo_dict' AND c.relname = 'calendar' AND a.attnum > 0 AND NOT a.attisdropped \
+ORDER BY a.attnum";
+pub const SIBLING_MEMBER: &str = "\
+SELECT 1 FROM pg_catalog.pg_auth_members m \
+JOIN pg_catalog.pg_roles granted ON granted.oid = m.roleid \
+JOIN pg_catalog.pg_roles member ON member.oid = m.member \
+WHERE granted.rolname = 'oo_calendar_view' AND member.rolname = 'oo_calendar_admin'";
+pub const SIBLING_REVERSE_MEMBER: &str = "\
+SELECT 1 FROM pg_catalog.pg_auth_members m \
+JOIN pg_catalog.pg_roles granted ON granted.oid = m.roleid \
+JOIN pg_catalog.pg_roles member ON member.oid = m.member \
+WHERE granted.rolname = 'oo_calendar_admin' AND member.rolname = 'oo_calendar_view'";
+pub const SCHEMA_USAGE: &str = "SELECT pg_catalog.has_schema_privilege($1, $2, 'USAGE')";
+pub const FUNCTION_EXECUTE: &str = "SELECT pg_catalog.has_function_privilege($1, $2, 'EXECUTE')";
+pub const SIBLING_VIEW_PRIV: &str = "\
+SELECT \
+  pg_catalog.has_schema_privilege('oo_calendar_view', 'oo_dict', 'USAGE'), \
+  pg_catalog.has_schema_privilege('oo_calendar_view', 'oo_dict', 'CREATE')";
+pub const SIBLING_COLUMN_NAMES: [&str; 34] = [
+    "project_id",
+    "business_tz",
+    "as_of",
+    "calendar_version",
+    "today_date",
+    "today_midnight_status",
+    "today_midnight",
+    "month_start_date",
+    "month_start_midnight_status",
+    "month_start_midnight",
+    "prev_month_start_date",
+    "prev_month_start_midnight_status",
+    "prev_month_start_midnight",
+    "prev_month_end_date",
+    "prev_month_end_midnight_status",
+    "prev_month_end_midnight",
+    "quarter_start_date",
+    "quarter_start_midnight_status",
+    "quarter_start_midnight",
+    "prev_quarter_start_date",
+    "prev_quarter_start_midnight_status",
+    "prev_quarter_start_midnight",
+    "prev_quarter_end_date",
+    "prev_quarter_end_midnight_status",
+    "prev_quarter_end_midnight",
+    "fiscal_year_start_date",
+    "fiscal_year_start_midnight_status",
+    "fiscal_year_start_midnight",
+    "prev_fiscal_year_end_date",
+    "prev_fiscal_year_end_midnight_status",
+    "prev_fiscal_year_end_midnight",
+    "last_closed_period_end_date",
+    "last_closed_period_end_midnight_status",
+    "last_closed_period_end_midnight",
+];
+pub const SIBLING_VIEW_NEEDLES: [&str; 2] = ["oo_calendar_control.published", "oo_calendar_control.active_pointer"];
+pub const SIBLING_VIEW_FORBIDDEN: [&str; 11] = [
+    "now(",
+    "current_date",
+    "current_timestamp",
+    "clock_timestamp",
+    "date_trunc",
+    "current_setting",
+    "calendar_yaml",
+    "closure_label",
+    "report_json",
+    "config_sha256",
+    "record_sha256",
+];
+
 pub const VIEW_FORBIDDEN: [&str; 14] = [
     "now(",
     "current_date",
@@ -386,7 +555,7 @@ pub const VIEW_FORBIDDEN: [&str; 14] = [
 
 #[cfg(test)]
 mod tests {
-    use super::MIGRATION_SQL;
+    use super::{ACCEPTED_MIGRATION_SHA256, MIGRATION_SQL, SIBLING_VIEW_DEF};
 
     #[test]
     fn migration_does_not_autofix_or_read_a_clock() {
@@ -409,5 +578,9 @@ mod tests {
         let source = include_str!("sql.rs");
         let format_bang = ["format", "!"].concat();
         assert!(!source.contains(&format_bang));
+        assert_eq!(ACCEPTED_MIGRATION_SHA256.len(), 64);
+        assert!(source.contains("r.oid <> n.nspowner"));
+        assert!(!SIBLING_VIEW_DEF.contains("::regclass"));
+        assert!(SIBLING_VIEW_DEF.contains("pg_get_viewdef(c.oid"));
     }
 }

@@ -8,6 +8,7 @@ use serde::Serialize;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::{Client, Error, Transaction};
 
+use crate::adopt;
 use crate::error::{commit_error, query_error, StoreError};
 use crate::publish::{self, PublicRow};
 use crate::role::{self, ADMIN_ROLE, VIEW_ROLE};
@@ -160,7 +161,11 @@ enum CommitEnd {
 }
 
 pub fn migration_sha256() -> Result<String, StoreError> {
-    Ok(sha256_hex(sql::MIGRATION_SQL.as_bytes()))
+    let hash = sha256_hex(sql::MIGRATION_SQL.as_bytes());
+    if hash != sql::ACCEPTED_MIGRATION_SHA256 {
+        return Err(StoreError::InstallDrift { check: "migration_sha256" });
+    }
+    Ok(hash)
 }
 
 pub async fn install(request: &InstallRequest<'_>) -> Result<InstallReceipt, StoreError> {
@@ -284,20 +289,35 @@ async fn install_body(
     roles: &[String],
 ) -> Result<InstallDisposition, StoreError> {
     require_role(tx, ADMIN_ROLE).await?;
+    tx.execute(sql::LOCK_INSTALL, &[&sql::DICT_LOCK]).await.map_err(|err| query_error(&err))?;
     tx.execute(sql::LOCK_INSTALL, &[&INSTALL_LOCK]).await.map_err(|err| query_error(&err))?;
     ensure_roles(tx, roles).await?;
+    let sibling = adopt::sibling_state(tx).await?;
+    if matches!(sibling, adopt::Sibling::Hostile) {
+        return Err(StoreError::Collision { check: "sibling_role" });
+    }
     let exists = tx
         .query_opt(sql::SCHEMA_EXISTS, &[&sql::SCHEMA])
         .await
         .map_err(|err| query_error(&err))?
         .is_some();
     if !exists {
-        if tx.query_opt(sql::SCHEMA_EXISTS, &[&sql::DICT_SCHEMA]).await.map_err(|err| query_error(&err))?.is_some()
-            || tx.query_opt(sql::DICT_RELATION, &[]).await.map_err(|err| query_error(&err))?.is_some()
-        {
+        let dict_present = tx
+            .query_opt(sql::SCHEMA_EXISTS, &[&sql::DICT_SCHEMA])
+            .await
+            .map_err(|err| query_error(&err))?
+            .is_some();
+        if dict_present {
+            adopt::require_adoptable(tx).await?;
+            let script = adopt::adoption_script()?;
+            tx.batch_execute(&script).await.map_err(|err| map_migrate(&err))?;
+        } else if tx.query_opt(sql::DICT_RELATION, &[]).await.map_err(|err| query_error(&err))?.is_some() {
             return Err(StoreError::Collision { check: "oo_dict" });
+        } else {
+            tx.batch_execute(sql::MIGRATION_SQL).await.map_err(|err| map_migrate(&err))?;
+            let grant_sibling = matches!(sibling, adopt::Sibling::Safe);
+            tx.batch_execute(&adopt::fresh_tail(grant_sibling)).await.map_err(|err| map_migrate(&err))?;
         }
-        tx.batch_execute(sql::MIGRATION_SQL).await.map_err(|err| map_migrate(&err))?;
         exec_one(tx, sql::INSERT_MANIFEST, &[&hash], "manifest_insert").await?;
         exec_one(tx, sql::INSERT_DEPLOYMENT, &[&project_id], "deployment_insert").await?;
         for role in roles {
@@ -408,10 +428,23 @@ async fn activate_body(tx: &Transaction<'_>, request: &ActivateRequest<'_>) -> R
         return Err(StoreError::CasConflict);
     }
     let roles = text_column(tx, sql::READ_ALLOW, &[]).await?;
+    let dict_owner = one_text(tx, sql::SCHEMA_OWNER, &[&sql::DICT_SCHEMA]).await?;
     for role in &roles {
-        let usage = role::grant_usage_sql(role)?;
+        if dict_owner == ADMIN_ROLE {
+            let usage = role::grant_usage_sql(role)?;
+            tx.batch_execute(&usage).await.map_err(|err| query_error(&err))?;
+        } else {
+            tx.execute(sql::CALL_GRANT_RUNTIME, &[&role.as_str()]).await.map_err(|err| query_error(&err))?;
+        }
+        let granted = tx
+            .query_one(sql::SCHEMA_USAGE, &[&role.as_str(), &sql::DICT_SCHEMA])
+            .await
+            .map_err(|err| query_error(&err))?;
+        let ok: bool = granted.try_get(0).map_err(|_| StoreError::Activation)?;
+        if !ok {
+            return Err(StoreError::Activation);
+        }
         let select = role::grant_select_batch(role)?;
-        tx.batch_execute(&usage).await.map_err(|err| query_error(&err))?;
         tx.batch_execute(&select).await.map_err(|err| query_error(&err))?;
     }
     Ok(roles.len())
@@ -607,10 +640,7 @@ async fn verify_catalog(tx: &Transaction<'_>, roles: &[String]) -> Result<(), St
     if owner != ADMIN_ROLE {
         return Err(StoreError::InstallDrift { check: "control_owner" });
     }
-    let dict_owner = one_text(tx, sql::SCHEMA_OWNER, &[&sql::DICT_SCHEMA]).await?;
-    if dict_owner != ADMIN_ROLE {
-        return Err(StoreError::InstallDrift { check: "dict_owner" });
-    }
+    adopt::verify_shared(tx).await?;
     expect_list(tx, sql::RELATIONS, &[&sql::SCHEMA], &sql::EXPECTED_RELATIONS, "relations").await?;
     expect_columns(tx, "install_manifest", &sql::EXPECTED_MANIFEST_COLUMNS, "manifest_columns").await?;
     expect_columns(tx, "deployment", &sql::EXPECTED_DEPLOYMENT_COLUMNS, "deployment_columns").await?;
@@ -640,12 +670,18 @@ async fn verify_catalog(tx: &Transaction<'_>, roles: &[String]) -> Result<(), St
 
 async fn expect_view(tx: &Transaction<'_>) -> Result<(), StoreError> {
     let objects = tx.query(sql::DICT_OBJECTS, &[]).await.map_err(|err| query_error(&err))?;
-    if objects.len() != 1 {
-        return Err(StoreError::InstallDrift { check: "dict_objects" });
+    let mut found = false;
+    for object in &objects {
+        let name: String = object.try_get(0).map_err(|_| StoreError::InstallDrift { check: "dict_objects" })?;
+        let kind: String = object.try_get(1).map_err(|_| StoreError::InstallDrift { check: "dict_objects" })?;
+        if name == sql::VIEW {
+            if kind != "v" {
+                return Err(StoreError::InstallDrift { check: "dict_objects" });
+            }
+            found = true;
+        }
     }
-    let name: String = objects[0].try_get(0).map_err(|_| StoreError::InstallDrift { check: "dict_objects" })?;
-    let kind: String = objects[0].try_get(1).map_err(|_| StoreError::InstallDrift { check: "dict_objects" })?;
-    if name != sql::VIEW || kind != "v" {
+    if !found {
         return Err(StoreError::InstallDrift { check: "dict_objects" });
     }
     let fact = tx.query_one(sql::VIEW_FACT, &[]).await.map_err(|err| query_error(&err))?;

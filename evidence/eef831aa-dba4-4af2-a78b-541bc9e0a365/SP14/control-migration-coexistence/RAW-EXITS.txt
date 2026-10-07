@@ -1,0 +1,44 @@
+# Raw exits for eef831aa-dba4-4af2-a78b-541bc9e0a365 control-migration-coexistence
+# Current proof phases are exit 0. Attempt directories keep their failing exits.
+
+linux/pre-edit-smoke/inside.exit 0
+linux/pre-edit-smoke/docker-run.exit 0
+linux/smoke-attempt-1/docker-run.exit 1
+pg/up.exit 0
+proof/fetch.log.exit 0
+proof/fetch-attempt-1/fetch.log.exit 101
+proof/calendar-lib-contract.log.exit 0
+proof/enum-lib-contract.log.exit 0
+proof/calendar-store-solo.log.exit 0
+proof/solo-attempt-1/calendar-store-solo.log.exit 101
+proof/enum-roles.log.exit 0
+proof/enum-store-solo_reject.log.exit 0
+proof/solo-reject-attempt-1/enum-store-solo_reject.log.exit 101
+proof/calendar-store-solo_replay.log.exit 0
+proof/solo-replay-attempt-1/calendar-store-solo_replay.log.exit 101
+proof/solo-replay-attempt-2/calendar-store-solo_replay.log.exit 101
+proof/reset-cal-first.log.exit 0
+proof/reset-cal-first-2.log.exit 0
+proof/calendar-store-cal_first.log.exit 0
+proof/enum-store-cal_first.log.exit 0
+proof/cal-first-attempt-1/calendar-store-cal_first.log.exit 0
+proof/cal-first-attempt-1/enum-store-cal_first.log.exit 101
+proof/cal-first-attempt-2/calendar-store-cal_first.log.exit 0
+proof/cal-first-attempt-2/enum-store-cal_first.log.exit 101
+proof/cal-first-attempt-3/enum-store-cal_first.log.exit 101
+proof/cal-first-attempt-4/calendar-store-cal_first.log.exit 0
+proof/cal-first-attempt-4/enum-store-cal_first.log.exit 101
+proof/calendar-store-cal_first_replay.log.exit 0
+proof/enum-store-cal_first_replay.log.exit 0
+proof/enum-store-enum_first.log.exit 0
+proof/calendar-store-enum_first.log.exit 0
+proof/enum-store-enum_first_replay.log.exit 0
+proof/calendar-store-enum_first_replay.log.exit 0
+proof/calendar-store-hostile.log.exit 0
+proof/enum-store-hostile.log.exit 0
+proof/calendar-store-drift.log.exit 0
+proof/enum-store-drift.log.exit 0
+proof/calendar-clippy.log.exit 0
+proof/enum-clippy.log.exit 0
+proof/proof.exit 0
+proof/drivers/resume6-tail.txt DRIVER_EXIT:0

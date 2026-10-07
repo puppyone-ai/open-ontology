@@ -1,0 +1,22 @@
+   Compiling enum-store v0.1.0 (/src/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.84s
+     Running tests/coexist.rs (/target/debug/deps/coexist-f50bbb26efc79e6f)
+
+running 1 test
+test phase ... FAILED
+
+failures:
+
+---- phase stdout ----
+
+thread 'phase' (8254) panicked at tests/coexist.rs:197:10:
+read: Query { sqlstate: Some("42501") }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    phase
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+error: test failed, to rerun pass `--test coexist`

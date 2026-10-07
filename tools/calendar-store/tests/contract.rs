@@ -9,8 +9,7 @@ use calendar_store::{migration_sha256, CONTRACT};
 fn contract_name_and_migration_hash_are_fixed() {
     assert_eq!(CONTRACT, "calendar-store-v1");
     let hash = migration_sha256().expect("migration hash");
-    assert_eq!(hash.len(), 64);
-    assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert_eq!(hash, "ec89628711eceb98228b754a4cf4db360427b2d9dcc9ef31ca41690de945a520");
 }
 
 #[test]
@@ -21,6 +20,7 @@ fn sources_do_not_read_a_clock_or_publish_private_fields() {
         "src/error.rs",
         "src/publish.rs",
         "src/role.rs",
+        "src/adopt.rs",
         "src/store.rs",
         "src/tls.rs",
     ]

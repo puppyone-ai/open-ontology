@@ -1,0 +1,1 @@
+enum-store cal_first exited 101. Collision { check: "oo_dict" }. dict_grant_runtime was present and executable, but pg_get_function_identity_arguments returned "role_name text" and the lookup required "text", so the gate treated the function as absent. oo_enum_control was not created. The calendar catalog was kept.

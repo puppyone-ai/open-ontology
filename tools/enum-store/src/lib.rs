@@ -3,6 +3,7 @@
 //! Single-project PostgreSQL materialization of one `enum-history/v1` report.
 //! See `CONTRACT.md`. This crate does not certify finance, semantics, or an owner.
 
+mod adopt;
 mod error;
 mod publish;
 mod role;

@@ -9,14 +9,13 @@ use enum_store::{migration_sha256, CONTRACT};
 fn contract_name_and_migration_hash_are_fixed() {
     assert_eq!(CONTRACT, "enum-store-v1");
     let hash = migration_sha256().expect("migration hash");
-    assert_eq!(hash.len(), 64);
-    assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert_eq!(hash, "b4ef16188fa26d731493f9d7d3422661022aa18a47840c3ca0af8ee2122ad9dd");
 }
 
 #[test]
 fn sources_do_not_read_a_clock_or_repair_a_schema() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let rust = ["src/lib.rs", "src/error.rs", "src/publish.rs", "src/role.rs", "src/store.rs", "src/tls.rs"]
+    let rust = ["src/lib.rs", "src/adopt.rs", "src/error.rs", "src/publish.rs", "src/role.rs", "src/store.rs", "src/tls.rs"]
         .iter()
         .map(|path| fs::read_to_string(root.join(path)).expect(path))
         .collect::<String>();

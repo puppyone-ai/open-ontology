@@ -1,0 +1,1 @@
+calendar-store solo_replay exited 101. Query { sqlstate: 25P02 }. allow_names queried oo_enum_control.runtime_allow while that schema was absent. PostgreSQL aborted the transaction (3F000), the code treated the miss as an empty allowlist, and the next statement returned 25P02. No catalog change was committed. The fix checks pg_namespace and USAGE before reading an allowlist.
