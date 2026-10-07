@@ -27,4 +27,6 @@ Empty digest `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` 
 
 No description-review, description-pack, oo-builder, or oo-core source was edited. The live review receipt calls `description_review::apply_description_review`. The pack refusal calls `description_pack::apply_description_pack`. `tests/support/world.rs` builds one description-review command through those crates. It is not a byte copy of another file. Clippy removed one needless borrow at `serde_json::to_value`.
 
+Amendment `6b3a92c2e06a2e91a74393b739ec8f1c565ae17b` adds `pack_fixture` in the same test helper. It calls `apply_description_review` and then `apply_description_pack` on a command built from that review fixture. The live receipt stores the compiler document hash. Those compiler crates were not edited. `sha256.rs` is still the byte copy above.
+
 Candidate protocols accepted by the ledger are `oo.builder.description-candidate/v1` and `v2`. Review command `oo.builder.description-review-command/v1`. Review outcome `oo.builder.description-review/v1` and `v2`. Compiler id `oo-builder/description-review/v1`. Pack command `oo.builder.description-pack-command/v1`. Pack protocol `oo.builder.description-pack/v1`. Compiler id `oo-builder/description-pack/v1`.

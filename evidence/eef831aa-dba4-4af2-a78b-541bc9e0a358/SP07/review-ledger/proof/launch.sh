@@ -5,7 +5,7 @@ set -euo pipefail
 
 UUID=eef831aa-dba4-4af2-a78b-541bc9e0a358
 REPO=$(cd "$(dirname "$0")/../../../../.." && pwd)
-EVIDENCE="$REPO/evidence/${UUID}/SP07/review-ledger/proof"
+EVIDENCE="$REPO/evidence/${UUID}/SP07/review-ledger/proof-fix"
 PG_DIR="$REPO/deploy/trusted-demo/pg"
 SEC=/tmp/oo-a358-review-secrets
 PG_NAME=oo-a358-review-pg
@@ -204,7 +204,7 @@ run_builder() {
     -e REVIEW_LEDGER_ADMIN_PASSWORD_FILE=/secrets/ledger-admin.pass \
     -e REVIEW_LEDGER_RUNTIME_PASSWORD_FILE=/secrets/runtime.pass \
     -e REVIEW_LEDGER_STATE=/state \
-    -e REVIEW_LEDGER_MARKER=/src/evidence/${UUID}/SP07/review-ledger/proof/history.sha256 \
+    -e REVIEW_LEDGER_MARKER=/src/evidence/${UUID}/SP07/review-ledger/proof-fix/history.sha256 \
     -e REVIEW_LEDGER_PHASE="$phase" \
     -e HOST_UID="$HOST_UID" \
     -e HOST_GID="$HOST_GID" \
@@ -233,9 +233,8 @@ rustc --version
 rustc --version | grep -q "rustc 1.94.0 "
 cd /src/tools/review-ledger
 rm -rf /target/debug /target/incremental
-if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
+test -f Cargo.lock
 cargo test --locked --lib --test contract --test live -- --test-threads=1
-cargo clippy --locked --all-targets -- -D warnings
 chown -R "$HOST_UID:$HOST_GID" /src/tools/review-ledger "/src/evidence/'"${UUID}"'/SP07/review-ledger" || true'
 
 clippy_cmd='set -eu

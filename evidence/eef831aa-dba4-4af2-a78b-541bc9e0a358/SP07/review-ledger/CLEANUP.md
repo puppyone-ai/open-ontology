@@ -2,17 +2,17 @@
 
 Owned resources only. No `docker prune`. No foreign container, volume, network, or image was removed.
 
+The amendment proof recreated the same UUID-private names, then removed them after the write, Clippy, restart, and outcome reader finished. `proof-fix/cleanup-before.txt` is the owned listing taken before removal. It records the PostgreSQL mount sources `/tmp/oo-a358-review-secrets` and `deploy/trusted-demo/pg`. It does not contain passwords or keys.
+
 Removed after the label `oo.owner=eef831aa-dba4-4af2-a78b-541bc9e0a358` was checked:
 
 - container `oo-a358-review-pg` (`docker rm -f`)
-- container `oo-a358-review-rust` was already absent
+- containers `oo-a358-review-rust` and `oo-a358-fix-smoke` were already absent
 - network `oo-a358-review-net`
 - volumes `oo-a358-review-pgvol`, `oo-a358-review-cargo`, `oo-a358-review-target`, `oo-a358-review-state`
 - directory `/tmp/oo-a358-review-secrets`
 
-A name diff of the host before and after showed one removed container, four removed volumes, and one removed network, all named above. No container was added. A later search for `oo-a358` in containers, volumes, and networks printed `none`. The secrets directory was absent after `rm -rf`.
-
-`proof/cleanup-before.txt` is the owned listing taken before removal. It records the PostgreSQL mount sources `/tmp/oo-a358-review-secrets` and `deploy/trusted-demo/pg`. It does not contain passwords or keys.
+A later search for `oo-a358` in containers, volumes, and networks printed `none`. The secrets directory was absent after `rm -rf`.
 
 Images were left in the local Docker store:
 

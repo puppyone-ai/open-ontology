@@ -1,20 +1,28 @@
 # FINDINGS
 
-Bound to product commit `f862683945a6e5a8803e3f9450d0f51cde5a98ad`. A green test does not accept SP07-W05.
+Bound to amendment product commit `6b3a92c2e06a2e91a74393b739ec8f1c565ae17b`. A green test does not accept E52 or SP07-W05. The prior packet for `f862683945a6e5a8803e3f9450d0f51cde5a98ad` is still in git history. Two gaps named there are closed here. The other limits stay open.
 
-## Held by the code that was tested
+## Closed on this commit
 
-The control file must say `authority=not_verified` and `management_identity=not_claimed`. Exactly one role is stored: `reviewer`, `owner`, or `auditor`. The credential is SHA-256 of a private file, not a request header. Scope is an exact object id. `public.b` does not authorize `public.b.id`. Grant, publish, apply, role, and `auto_accept` keys are refused before the decision is parsed. The live CLI check left the decision count unchanged.
+An auditor `batch` returns `role.forbidden` before any batch row, batch item, decision, or audit insert. The live call used in-scope `public.b` and `accept_all: false`. Counts of `batch`, `batch_item`, `decision`, and `audit_event` were unchanged. Key `auditor.batch` is absent. `bauditor` is absent.
 
-A stored decision stays `curated_applied=false`, `published=false`, `authenticated=false`, and `grants=not_authorized`. `owner_certification` from the owner principal stores `record` and still does not grant. A reviewer attempt stores nothing and returns `reviewer_not_owner`.
+Auditor `history` is allowed. It returned the same project digest as the reviewer and inserted no audit row. History does not filter rows down to the auditor scope `public.b`.
 
-Label and description approvals accept only the declared fields. Classification accepts only `pii` (`none`, `personal`, `sensitive`), `semantic_type`, and `state=confirmed`. Missing or `unknown` PII returns `pii.unknown` and writes no decision. The batch partial case kept the approved object and refused the unknown-PII object. `accept_all` writes no batch row.
+The live description-pack receipt for `class.b.note` is `bound`, then `replay`, with one row. The compiler outcome of that command file is `packed`. The receipt stores the command hash, the decision candidate hash, and the compiler-document hash named in `REPORT.md`. `git_applied`, `published`, and `curated_files_written` are false. Decision `class.b.note` stays `curated_applied=false`, `published=false`, `authenticated=false`, and `grants=not_authorized`. The malformed command `{` is still `compiler.refused` and writes no receipt.
 
-The description-review receipt ran `apply_description_review` outside the decision transaction, then stored one receipt bound to the command hash, candidate hash, and outcome hash. The decision body was unchanged. The curated directory stayed empty. A later head candidate made another receipt `candidate.changed` and left the existing receipt count at 1.
+`commit.unknown` is an ambiguous lost reply. The contract test checks that `Output::from_error` uses kind and code `commit.unknown`, leaves `authenticated` and `curated_applied` and `published` false, sets `grants` to `not_authorized`, and omits `history_sha256`. There is no fault-injection test and no blind retry.
 
-The poison check inserted an audit row for `poison.1` as admin, then `decide` returned `audit.rollback`. The decision row for that key was absent. The one remaining audit row is the pre-inserted poison row. `finish` rolls the transaction back on error.
+## Still held from the tested crate
 
-Runtime `SELECT … FOR UPDATE` on `decision` required an `UPDATE` privilege. The migration grants it. The decision trigger still rejects `UPDATE` and `DELETE`. The passing install ran after the database was dropped and recreated, so the stored manifest hashes that grant. The restart used that data directory.
+The control file must say `authority=not_verified` and `management_identity=not_claimed`. Exactly one role is stored: `reviewer`, `owner`, or `auditor`. The credential is SHA-256 of a private file. Scope is an exact object id. `public.b` does not authorize `public.b.id`. Grant, publish, apply, role, and `auto_accept` keys are refused before the decision is parsed.
+
+A stored decision stays unapplied and unpublished. Label and description approvals accept only the declared fields. Classification accepts only `pii` (`none`, `personal`, `sensitive`), `semantic_type`, and `state=confirmed`. Missing or `unknown` PII returns `pii.unknown` and writes no decision. `accept_all` writes no batch row. The batch partial case keeps the approved object and refuses the unknown-PII object.
+
+The description-review receipt still runs outside the decision transaction. The curated directory stayed empty. A later head candidate made another receipt `candidate.changed` and left the existing review receipt count at 1.
+
+The poison check still returns `audit.rollback`. The decision row for `poison.1` was absent. The one remaining audit row for that key is the pre-inserted poison row.
+
+Runtime `SELECT … FOR UPDATE` on `decision` still uses the `UPDATE` grant from the unchanged migration. The decision trigger still rejects `UPDATE` and `DELETE`.
 
 ## Remaining management, HTTP, and Git work
 
@@ -28,22 +36,14 @@ These are not implemented in this crate:
 - Customer `GRANT`s and column visibility grants. A classification confirm does not make a column visible to an agent role.
 - Production role bootstrap. The migration does not create `oo_review_ledger_admin` or `oo_review_ledger_runtime`. The proof created those roles, database `oo_a358_review`, and login `oo_a358_runtime` only inside this private instance.
 
-## Limits of this proof
-
-`commit.unknown` has no fault-injection test.
+## Limits that remain
 
 `install.drift` and `control.drift` are implemented and were not given a second SQL file or a second control file in the live matrix. The live install covered same-hash replay only.
 
-A description-pack receipt that stores `packed` or `reviewed_unchanged` was not run. The live pack path stopped at `compiler.refused` for command `{`. The direct `apply_description_pack("{")` error code started with `oo.builder.description-pack-command/v1`. The ledger maps that to static `compiler.refused`.
+A receipt checks the caller's role and object scope. It does not require the caller principal to equal the decision's reviewer. The live pack receipt used the same reviewer fixture that stored the classification.
 
-`batch` does not refuse `role=auditor` before it records the batch. Item decisions from an auditor return `role.forbidden`, and `record_batch` can still insert the batch and its audit. The live matrix did not call batch as the auditor. Enqueue, decide, and receipt do refuse the auditor.
-
-A receipt checks the caller's role and object scope. It does not require the caller principal to equal the decision's reviewer. The live receipt used the same reviewer fixture that stored the decision.
-
-History was read as that reviewer. The function does not reject an auditor. An auditor history read was not in the live matrix.
-
-The root `rust-toolchain.toml` channel is `1.98.1`. The first networked builder followed it and downloaded `1.98.1 (48a229cea 2026-09-01)`. Later commands set `RUSTUP_TOOLCHAIN=1.94.0` and checked `rustc 1.94.0`. The root toolchain file was not edited.
+The root `rust-toolchain.toml` channel is `1.98.1`. Commands set `RUSTUP_TOOLCHAIN=1.94.0` and checked `rustc 1.94.0`. The root toolchain file was not edited.
 
 Clippy is not installed in the pinned Rust image. The clippy command added the `1.94.0` component inside that container. The component download is not a Docker image pull.
 
-`Cargo.lock` was generated once inside this package with Rust 1.94 and then used with `--locked`. The root manifest and root lock were not changed. `cargo update` was not run.
+`Cargo.lock` was already present. This round used `--locked` and did not generate or update it.
