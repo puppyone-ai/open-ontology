@@ -1,0 +1,16 @@
+# Owned cleanup
+
+Recorded 2026-10-07T22:19:04Z. Prune was not run. No foreign container, volume, or network was removed.
+
+Removed by the smoke launcher after exit 101: container `oo-a360-smoke`, PostgreSQL `oo-a360-pg`, volume `oo-a360-eef831aa-pgdata`, and `/tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/secrets`. Cargo volume `oo-a360-eef831aa-cargo`, target volume `oo-a360-eef831aa-target`, and network `oo-a360-eef831aa-net` were kept because that exit was not 0.
+
+Removed by `run/continue.sh` after smoke-2 exit 0: container `oo-a360-smoke-2`, PostgreSQL `oo-a360-pg` (`1192f2128aee9de4e7fe3f8c3914fa169fbe5fe6ec3a101df17c97627bc37691`), volume `oo-a360-eef831aa-pgdata`, volume `oo-a360-eef831aa-cargo`, volume `oo-a360-eef831aa-target`, network `oo-a360-eef831aa-net`, and the smoke-2 secret directory.
+
+A later check removed any remaining `/tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360` directory. After that check:
+
+- `docker ps -a` with label `oo.owner=a360`: 0
+- volumes named `oo-a360-eef831aa*`: 0
+- network `oo-a360-eef831aa-net`: absent
+- tmp path: gone
+
+Host `cargo`, `rustc`, `rustdoc`, and `rustup` were 0 before each builder. No host install was performed.

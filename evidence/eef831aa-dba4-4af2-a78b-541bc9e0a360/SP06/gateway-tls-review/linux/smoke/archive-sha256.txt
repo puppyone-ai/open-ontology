@@ -1,0 +1,6 @@
+84361da4376f75b7a7109229f3552bd568ef76a16fdad31fe37b1c01ef855abf  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/crates/oo-gateway/src/http_gateway.rs
+21508340112cc4ab719d58790c3de0d7e8aad9d1f87d3f98304d4b44479e6d48  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/crates/oo-gateway/src/bin/oo-gateway.rs
+47549b7c83e7101e6c1609663ed5ab3bae58b2bf5564b1d29fcf01904cf08d8b  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/crates/oo-gateway/tests/http_gateway_tls.rs
+662cf65059b759518fa560f22f0220e5b901a68523df2064beefff746e7aa23b  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/crates/oo-gateway/Cargo.toml
+b772f8fb4873885fcfac747eb24163559031bb9192ba99e8a8472571c75822bc  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/Cargo.toml
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /tmp/oo-a360-eef831aa-dba4-4af2-a78b-541bc9e0a360/smoke/archive/Cargo.lock

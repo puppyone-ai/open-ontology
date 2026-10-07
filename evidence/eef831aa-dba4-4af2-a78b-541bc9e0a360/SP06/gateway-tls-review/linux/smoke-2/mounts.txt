@@ -1,0 +1,8 @@
+bind /review/review_tls.rs rw=false
+bind /prior rw=false
+bind /pg-fixture rw=false
+bind /evidence rw=true
+volume /cargo-home rw=true
+volume /target rw=true
+bind /inside-continue.sh rw=false
+

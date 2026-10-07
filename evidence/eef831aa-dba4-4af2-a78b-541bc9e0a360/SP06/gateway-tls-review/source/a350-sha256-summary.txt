@@ -1,0 +1,4 @@
+entries=402
+check_exit=0
+ok=402
+bad=0
