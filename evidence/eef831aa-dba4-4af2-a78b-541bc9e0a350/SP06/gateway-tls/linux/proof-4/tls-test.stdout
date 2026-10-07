@@ -1,0 +1,29 @@
+
+running 6 tests
+test binary_exits_before_listen_when_the_tls_key_is_invalid ... ok
+test invalid_tls_material_fails_before_listen ... ok
+test loopback_config_keeps_the_historical_file_and_refuses_a_public_bind ... ok
+test loopback_refuses_proxy_headers_and_internal_routes ... FAILED
+test tls_listener_uses_the_verified_certificate_and_bounds_the_handshake ... FAILED
+test verified_peer_metadata_uses_the_compiled_pack_and_the_leaf_uri ... ignored, requires OO_A350_LIVE=1, the private PostgreSQL, and role-pack-bundle
+
+failures:
+
+---- loopback_refuses_proxy_headers_and_internal_routes stdout ----
+
+thread 'loopback_refuses_proxy_headers_and_internal_routes' (4933) panicked at crates/oo-gateway/tests/http_gateway_tls.rs:729:75:
+header terminator
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tls_listener_uses_the_verified_certificate_and_bounds_the_handshake stdout ----
+
+thread 'tls_listener_uses_the_verified_certificate_and_bounds_the_handshake' (4936) panicked at crates/oo-gateway/tests/http_gateway_tls.rs:724:75:
+tls exchange: "read"
+
+
+failures:
+    loopback_refuses_proxy_headers_and_internal_routes
+    tls_listener_uses_the_verified_certificate_and_bounds_the_handshake
+
+test result: FAILED. 3 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.28s
+

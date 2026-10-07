@@ -1,0 +1,8 @@
+attempt: proof-3
+docker-run.exit: 101
+clippy.exit: 101
+phase: clippy_exit=101
+rustc.exit: 0
+pg up.exit: 0 (container removed after clippy; cargo and target volumes kept)
+cause: clippy -D warnings on http_gateway_tls.rs only. useless_format at the forged health request, and single_match on the DNS-only leaf exchange. The library target produced no diagnostics. No loopback, TLS, or live gateway test ran. Smoke was not rerun.
+fix before proof-4: the forged request is a string literal, and the leaf exchange uses if let Ok.

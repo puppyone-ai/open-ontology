@@ -1,0 +1,21 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+error[E0308]: mismatched types
+    --> crates/oo-gateway/src/http_gateway.rs:1190:12
+     |
+1189 |     match read {
+     |           ---- this expression has type `std::result::Result<usize, std::io::Error>`
+1190 |         Ok(()) => Ok(buffer),
+     |            ^^ expected `usize`, found `()`
+
+error[E0658]: use of unstable library feature `slice_split_once`: newly added
+    --> crates/oo-gateway/src/http_gateway.rs:1205:40
+     |
+1205 |         let Some((name, value)) = line.split_once(|byte| *byte == b':') else {
+     |                                        ^^^^^^^^^^
+     |
+     = note: see issue #112811 <https://github.com/rust-lang/rust/issues/112811> for more information
+
+Some errors have detailed explanations: E0308, E0658.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `oo-gateway` (lib) due to 2 previous errors

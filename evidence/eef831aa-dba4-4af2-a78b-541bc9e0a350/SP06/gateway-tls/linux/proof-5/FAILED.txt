@@ -1,0 +1,9 @@
+attempt: proof-5
+docker-run.exit: 101
+clippy.exit: 101
+phase: clippy_exit=101
+rustc.exit: 0
+container log crates/oo-gateway/src/http_gateway.rs:
+E0308 read_to_end returns Result<usize, io::Error>, and the match arm used Ok(()).
+E0658 slice::split_once is unstable (slice_split_once). The library did not compile. No gateway test ran. Smoke was not rerun.
+fix before proof-6: Ok(_) and a position() scan for the colon.

@@ -1,0 +1,1 @@
+bf36227775bf0af367ec0bfe6e98c7ba2c81acfa7bb6b1d957c1fd0552045dd1  /tmp/oo-a350-eef831aa-dba4-4af2-a78b-541bc9e0a350/smoke/archive/crates/oo-gateway/src/http_gateway.rs

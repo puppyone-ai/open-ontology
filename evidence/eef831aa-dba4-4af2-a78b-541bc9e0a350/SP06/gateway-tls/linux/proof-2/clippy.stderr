@@ -1,0 +1,40 @@
+   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
+    Checking oo-core v0.1.0 (/src/crates/oo-core)
+error[E0277]: `oo_gateway::http_gateway::OperatorLoad` doesn't implement `std::fmt::Debug`
+  --> crates/oo-gateway/tests/http_gateway_tls.rs:45:43
+   |
+45 |     assert_eq!(load_operator_dir(&public).expect_err("public loopback"), "listen");
+   |                                           ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::http_gateway::OperatorLoad`
+   |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::http_gateway::OperatorLoad` doesn't implement `std::fmt::Debug`
+  --> crates/oo-gateway/tests/http_gateway_tls.rs:49:42
+   |
+49 |     assert_eq!(load_operator_dir(&named).expect_err("tls name on loopback"), "config");
+   |                                          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::http_gateway::OperatorLoad`
+   |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::http_gateway::OperatorLoad` doesn't implement `std::fmt::Debug`
+  --> crates/oo-gateway/tests/http_gateway_tls.rs:53:42
+   |
+53 |     assert_eq!(load_operator_dir(&other).expect_err("other transport"), "transport");
+   |                                          ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::http_gateway::OperatorLoad`
+   |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+error[E0277]: `oo_gateway::http_gateway::OperatorLoad` doesn't implement `std::fmt::Debug`
+  --> crates/oo-gateway/tests/http_gateway_tls.rs:82:44
+   |
+82 |         assert_eq!(load_operator_dir(&dir).expect_err(name), reason, "{name}");
+   |                                            ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `oo_gateway::http_gateway::OperatorLoad`
+   |
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `oo-gateway` (test "http_gateway_tls") due to 4 previous errors

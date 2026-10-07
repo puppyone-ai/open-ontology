@@ -1,0 +1,38 @@
+    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
+error: useless use of `format!`
+   --> crates/oo-gateway/tests/http_gateway_tls.rs:191:18
+    |
+191 |       let forged = format!(
+    |  __________________^
+192 | |         "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nX-OO-Workload: forged-workload-marker\r\nX-Forwarded-Client-Cert: forwarded-c...
+193 | |     );
+    | |_____^ help: consider using `.to_string()`: `"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nX-OO-Workload: forged-workload-marker\r\nX-Forwarded-Client-Cert: forwarded-cert-marker\r\nConnection: close\r\n\r\n".to_string()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#useless_format
+    = note: `-D clippy::useless-format` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_format)]`
+
+error: you seem to be trying to use `match` for destructuring a single pattern. Consider using `if let`
+   --> crates/oo-gateway/tests/http_gateway_tls.rs:222:5
+    |
+222 | /     match plain {
+223 | |         Ok(bytes) => {
+224 | |             assert!(!bytes.windows(12).any(|window| window == b"HTTP/1.1 200"));
+225 | |             assert!(!body_has(&bytes, "peer_workload"));
+226 | |         }
+227 | |         Err(_) => {}
+228 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#single_match
+    = note: `-D clippy::single-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::single_match)]`
+help: try
+    |
+222 ~     if let Ok(bytes) = plain {
+223 +         assert!(!bytes.windows(12).any(|window| window == b"HTTP/1.1 200"));
+224 +         assert!(!body_has(&bytes, "peer_workload"));
+225 +     }
+    |
+
+error: could not compile `oo-gateway` (test "http_gateway_tls") due to 2 previous errors
