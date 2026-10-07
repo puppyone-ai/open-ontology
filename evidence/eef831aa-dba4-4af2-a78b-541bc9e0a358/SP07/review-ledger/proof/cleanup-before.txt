@@ -1,0 +1,9 @@
+before-owned-containers
+oo-a358-review-pg Up 4 minutes desktop.docker.io/mounts/0/Source=/tmp/oo-a358-review-secrets,desktop.docker.io/mounts/0/SourceKind=hostFile,desktop.docker.io/mounts/0/Target=/secrets,desktop.docker.io/mounts/1/Source=/tmp/oo-a358-review-secrets,desktop.docker.io/mounts/1/SourceKind=hostFile,desktop.docker.io/mounts/1/Target=/tls-in,desktop.docker.io/mounts/3/Source=/Users/redux/puppy-one/open-ontology/deploy/trusted-demo/pg,desktop.docker.io/mounts/3/SourceKind=hostFile,desktop.docker.io/mounts/3/Target=/fixture,desktop.docker.io/ports.scheme=v2,oo.kind=postgres,oo.owner=eef831aa-dba4-4af2-a78b-541bc9e0a358,oo.session=a358,oo.task=review-ledger
+before-owned-volumes
+oo-a358-review-cargo
+oo-a358-review-pgvol
+oo-a358-review-state
+oo-a358-review-target
+before-network
+name=oo-a358-review-net owner=eef831aa-dba4-4af2-a78b-541bc9e0a358

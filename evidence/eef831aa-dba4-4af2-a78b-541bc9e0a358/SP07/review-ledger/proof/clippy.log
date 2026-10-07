@@ -1,0 +1,4 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+info: downloading component clippy
+    Checking review-ledger v0.1.0 (/src/tools/review-ledger)
+    Finished `dev` profile [unoptimized] target(s) in 0.67s

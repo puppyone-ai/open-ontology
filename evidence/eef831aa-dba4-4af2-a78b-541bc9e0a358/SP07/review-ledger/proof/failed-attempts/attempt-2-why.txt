@@ -1,0 +1,1 @@
+Runtime SELECT succeeded and SELECT FOR UPDATE did not. PostgreSQL requires UPDATE to lock a row. The migration now grants UPDATE on decision; the immutable trigger still rejects changes. The database is recreated so install hashes the new migration.

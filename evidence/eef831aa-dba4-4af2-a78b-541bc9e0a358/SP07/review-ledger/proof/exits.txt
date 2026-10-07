@@ -1,0 +1,17 @@
+smoke docker-run.exit=0
+smoke hostconfig OOMKilled=false NetworkMode=none Memory=6442450944 CapDrop=ALL
+attempt-1 inspect exit=101 oom=false memory=6442450944 nano=1000000000
+attempt-1 rustup downloaded 1.98.1 (48a229cea 2026-09-01); contract compile failed E0277
+attempt-2 rustc 1.94.0 (4a4ef493e 2026-03-02); contract 7 passed; live FAILED database.refused; cargo exit 101
+attempt-3 write.log rustc 1.94.0; unit 1 passed; contract 7 passed; live 1 passed in 1.42s; container exit=1 clippy missing
+attempt-4 clippy exit=101 collapsible_if and too_many_arguments
+attempt-5 clippy exit=101 needless_borrows_for_generic_args in tests/support/world.rs
+clippy-inspect exit=0 oom=false memory=6442450944 nano=1000000000 CapDrop=ALL
+restart-inspect exit=0 oom=false memory=6442450944 nano=1000000000 CapDrop=ALL
+write-inspect exit=1 oom=false memory=6442450944 nano=1000000000 CapDrop=ALL
+pg-inspect status=running oom=false privileged=false memory=1073741824 nano=1000000000
+pg-ports {}
+pg-image sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb os=linux arch=arm64
+rust-image sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 os=linux arch=arm64
+history.sha256 da28bce2e8b4a697cd0589fa2ac2e47a9c1055e911ac32394ce4034ffd4833e6
+ca.sha256 9b0a25ad6e753648cc741428c470381250be150c5de22c394de4dde5c8fe0d63

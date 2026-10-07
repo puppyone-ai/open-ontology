@@ -1,0 +1,10 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+   Compiling review-ledger v0.1.0 (/src/tools/review-ledger)
+    Finished `test` profile [unoptimized] target(s) in 2.67s
+     Running tests/live.rs (/target/debug/deps/live-ade8d47f0756bd7c)
+
+running 1 test
+test private_postgres_matrix ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
