@@ -12,9 +12,17 @@ describe("admin registrations", () => {
   });
 
   it("matches navigation to the registrations", () => {
-    expect(ADMIN_NAV.map((item) => item.id)).toEqual(ADMIN_FEATURE_MODULES.map((item) => item.routeId));
-    expect(ADMIN_NAV.map((item) => item.label)).toEqual(ADMIN_FEATURE_MODULES.map((item) => item.title));
-    expect(ADMIN_NAV.map((item) => item.to)).toEqual(ADMIN_FEATURE_MODULES.map((item) => item.path));
+    const detailRouteIds = ["A06", "A08", "A10", "A12", "A14", "A18", "A20", "A23", "A24", "A30", "A38", "A40"];
+    const linked = ADMIN_FEATURE_MODULES.filter((item) => !item.path.includes(":"));
+    expect(ADMIN_NAV.map((item) => item.id)).toEqual(linked.map((item) => item.routeId));
+    expect(ADMIN_NAV.map((item) => item.label)).toEqual(linked.map((item) => item.title));
+    expect(ADMIN_NAV.map((item) => item.to)).toEqual(linked.map((item) => item.path));
+    expect(ADMIN_NAV.some((item) => item.to.includes(":"))).toBe(false);
+    expect(detailRouteIds).toHaveLength(12);
+    for (const routeId of detailRouteIds) {
+      expect(ADMIN_FEATURE_MODULES.some((item) => item.routeId === routeId && item.path.includes(":"))).toBe(true);
+      expect(ADMIN_NAV.some((item) => item.id === routeId)).toBe(false);
+    }
   });
 
   it("keeps every consumed operation unbound", async () => {

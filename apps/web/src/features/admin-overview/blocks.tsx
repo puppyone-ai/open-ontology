@@ -1,6 +1,5 @@
 import { GateList, type GateItem } from "../../components/shared/gate-list";
 import { JobTimeline } from "../../components/shared/job-timeline";
-import { ReviewDecisionForm } from "../../components/shared/review-decision-form";
 import { StatusBadge } from "../../components/shared/status-badge";
 import { Wizard, type WizardStep } from "../../components/shared/wizard";
 import { EvidencePanel } from "../../components/shared/evidence-panel";
@@ -28,10 +27,7 @@ const SOURCE_STEPS: readonly WizardStep[] = [
   {
     id: "connect",
     title: "连接",
-    fields: [
-      { id: "name", label: "数据源名称", kind: "text" },
-      { id: "secret", label: "Secret", kind: "secret" },
-    ],
+    fields: [{ id: "name", label: "数据源名称", kind: "text" }],
   },
   { id: "inspect", title: "体检", fields: [] },
   { id: "tables", title: "选表", fields: [] },
@@ -84,7 +80,7 @@ export function RecoveryWizard() {
 export function ReviewDesk() {
   return (
     <>
-      <ReviewDecisionForm candidateId="没有候选" revision="没有修订" disabled onSubmit={() => undefined} />
+      <p>没有候选</p>
       <EvidencePanel items={[]} state="empty" />
     </>
   );

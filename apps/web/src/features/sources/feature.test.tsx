@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import * as pages from "./pages";
@@ -52,13 +51,10 @@ describe("sources", () => {
         expect(screen.queryByText("secret-token")).toBeNull();
       }
       if (item.extra === "SourceWizard") {
-        const user = userEvent.setup();
-        const secret = screen.getByLabelText("Secret");
-        await user.type(secret, "super-secret");
-        await user.click(screen.getByRole("button", { name: "离开" }));
-        await user.click(screen.getByRole("button", { name: "放弃输入" }));
-        expect(screen.getByLabelText("Secret")).toHaveValue("");
-        expect(screen.queryByDisplayValue("super-secret")).toBeNull();
+        expect(screen.getByText("步骤 1 / 6：连接")).toBeTruthy();
+        expect(screen.getByLabelText("数据源名称")).toBeTruthy();
+        expect(screen.queryByLabelText("Secret")).toBeNull();
+        expect(document.querySelector("input[type='password']")).toBeNull();
       }
       expect(fetchSpy).not.toHaveBeenCalled();
       view.unmount();

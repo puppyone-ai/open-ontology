@@ -43,7 +43,10 @@ describe("reviews", () => {
         expect(screen.queryByText("secret-token")).toBeNull();
       }
       if (item.extra === "ReviewDesk") {
-        expect(screen.getByRole("button", { name: "提交决定" })).toBeDisabled();
+        expect(screen.getByText("没有候选")).toBeTruthy();
+        expect(screen.getByText("没有可显示的证据。")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "提交决定" })).toBeNull();
+        expect(screen.queryByLabelText("理由")).toBeNull();
       }
       expect(fetchSpy).not.toHaveBeenCalled();
       view.unmount();
