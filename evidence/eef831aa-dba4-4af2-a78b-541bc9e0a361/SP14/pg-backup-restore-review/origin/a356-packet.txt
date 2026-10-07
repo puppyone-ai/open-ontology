@@ -1,0 +1,7 @@
+packet=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a356/SP14/pg-backup-restore/SHA256SUMS
+lines=166
+shasum_exit=0
+ok=166
+bad=0
+checker=host shasum -a 256 -c
+note=verification of the author packet only; this file is the a361 record

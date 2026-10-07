@@ -1,0 +1,4 @@
+	linux-vdso.so.1 (0x0000ffff8e97a000)
+	libgcc_s.so.1 => /var/lib/postgresql/a361-glibc/libgcc_s.so.1 (0x0000ffff8e830000)
+	libc.so.6 => /var/lib/postgresql/a361-glibc/libc.so.6 (0x0000ffff8e670000)
+	/lib/ld-linux-aarch64.so.1 => /var/lib/postgresql/a361-glibc/ld-linux-aarch64.so.1 (0x0000ffff8e930000)

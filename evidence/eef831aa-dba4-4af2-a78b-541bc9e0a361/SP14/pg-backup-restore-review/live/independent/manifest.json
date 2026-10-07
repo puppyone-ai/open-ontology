@@ -1,0 +1,51 @@
+{
+  "backup_finished_unix": 1791409516,
+  "backup_started_unix": 1791409516,
+  "caller": "trusted_local_admin",
+  "dumps": [
+    {"name": "oo_a356_agent.dump", "sha256": "2339d9010b24be44d69badc06cecc5cae1ad3e2dd51ab2aebede2ad77341180f"},
+    {"name": "oo_a356_control.dump", "sha256": "69aaf6c9e3365b62b00710b416b176243818000327adddac73175de5efe72fc8"}
+  ],
+  "entry_count_after": 90000,
+  "entry_count_before": 90000,
+  "gold": [
+    {"name": "calendar-install.copy", "sha256": "409f7b56b381e3564416d34a87fcef364805f3df910eddf688e5173604667fce"},
+    {"name": "calendar-published.copy", "sha256": "c9ecfde323097c32ce4690e19edd4e2753db2c31e70b46f2b9dea54cc1ac9659"},
+    {"name": "calendar-snapshot.copy", "sha256": "2025180ca1e46999ca94fa0476d6e88ac0ec27deb01282e5b656507714554902"},
+    {"name": "cdc-install.copy", "sha256": "e6ce936f5a0756843d13a5f64c3887b5bed823dd29c055dacd0c22a0a4629eef"},
+    {"name": "cdc-receipt.copy", "sha256": "5df45499050695a0f5a3e2fe05ad56d606244223c825d6ead91064bf7121d4f5"},
+    {"name": "cdc-watermark.copy", "sha256": "52a1e16d9d801a6db5bc04ae67f654666cc8aa0c15989aa5f3e9c8ec48460c9f"},
+    {"name": "enum-install.copy", "sha256": "81fbe09b04941375105c50877af35070916b3c3d3473900eeedec09c76dad998"},
+    {"name": "enum-published.copy", "sha256": "4703c603bdf0f93cc372aca076407e1fb7606e2559e917b67ea2f2591b566fc1"},
+    {"name": "key-cut.copy", "sha256": "45afae9c06388c846554cddd365d5cff4b6be017b87ad251248f53980e69fa35"},
+    {"name": "key-issued.copy", "sha256": "92b70cde11225f670ff19073734d250035843b11ef634969d85599280bfd84e9"},
+    {"name": "key-negative.copy", "sha256": "babc9793053227cdb3e0987cb7523b51ca02dfdefdeaa776e6038087ba834c9b"},
+    {"name": "session-head.copy", "sha256": "600f7dbf8607714d03ac0c36212e9abac267356a20cda385956fe97cbc9fa992"},
+    {"name": "shop-account.copy", "sha256": "fef89f25c29e9ed5b9c36d0bf37f3056433c33ade60b90978d4f91e7c0c7a958"},
+    {"name": "shop-entry.copy", "sha256": "a11369572ab597c2211d47df03b92c2a1b2da88451bfb5439c1d7ecf2cb10450"},
+    {"name": "shop-party.copy", "sha256": "62230764135b6d717fe792dffa77d776d0e7cdc7ff2123fd049ce4f56f06fa5b"}
+  ],
+  "history_insufficient": false,
+  "last_write_unix": 1791409515,
+  "lineage_version": "pg-backup-restore/v1",
+  "lsn_after": "0/2B41638",
+  "lsn_before": "0/2B41638",
+  "manifest_version": "oo-pg-backup-manifest/v1",
+  "owner": "a356",
+  "pg_dump_version": "pg_dump (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
+  "pg_restore_version": "pg_restore (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
+  "psql_version": "psql (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
+  "quiescent": true,
+  "schemas": [
+    {"name": "calendar-store-v1", "sha256": "ec89628711eceb98228b754a4cf4db360427b2d9dcc9ef31ca41690de945a520"},
+    {"name": "cdc-offset-store-v1", "sha256": "74d333dd7567132ff19f22db2d2ce97af9e91c3a148ee0cac9249ababdb0ec1f"},
+    {"name": "enum-store-v1", "sha256": "b4ef16188fa26d731493f9d7d3422661022aa18a47840c3ca0af8ee2122ad9dd"},
+    {"name": "session-store-v1", "sha256": "7b1baab3bbe350765e58e72a802f332e83198517b3dde8503849c604ed6758a2"}
+  ],
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a356",
+  "shop_gold_sha256": "225c88a436be7735f2df8fddaedc372728c4bd05f07616371e4ca8017d2993d1",
+  "source_cut": "cut-a356-1",
+  "target_fence": "fence-a356-restore",
+  "tool_dir": "/usr/bin",
+  "wal_moved": false
+}

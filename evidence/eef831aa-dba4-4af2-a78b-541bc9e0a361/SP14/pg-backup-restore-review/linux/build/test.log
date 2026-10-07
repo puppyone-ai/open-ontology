@@ -1,0 +1,36 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/review/debug/deps/pg_backup_restore-a466680c37e5d801)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/review/debug/deps/pg_backup_restore-7567ace29be9f15c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oracle.rs (target/review/debug/deps/oracle-598facfbb1b3aeb3)
+
+running 11 tests
+test checkpoint_sql_mentions_the_frozen_rows ... ok
+test hash_tree_lists_regular_files_and_skips_its_output ... ok
+test issued_keys_are_reused_only_when_the_identity_repeats ... ok
+test manifest_round_trips_and_rejects_a_bad_quiescent_flag ... ok
+test offset_is_never_the_minimum_and_history_withholds_it ... ok
+test operator_file_rejects_unknown_keys_and_host_package_paths ... ok
+test password_file_must_be_a_private_regular_file ... ok
+test readiness_constants_stay_closed ... ok
+test sealed_manifest_refuses_a_changed_sidecar ... ok
+test sha256_matches_the_reviewed_vectors ... ok
+test shop_lines_follow_the_public_fixture ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+   Doc-tests pg_backup_restore
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

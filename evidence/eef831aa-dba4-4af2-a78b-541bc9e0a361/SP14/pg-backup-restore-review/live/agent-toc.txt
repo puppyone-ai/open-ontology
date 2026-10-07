@@ -1,0 +1,66 @@
+;
+; Archive created at 2026-10-07 21:45:16 UTC
+;     dbname: oo_a356_agent
+;     TOC Entries: 55
+;     Compression: gzip
+;     Dump Version: 1.16-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 17.10 (Debian 17.10-1.pgdg12+1)
+;     Dumped by pg_dump version: 17.10 (Debian 17.10-1.pgdg12+1)
+;
+;
+; Selected TOC Entries:
+;
+7; 2615 16729 SCHEMA - oo_dict oo_a356_admin
+3490; 0 0 ACL - SCHEMA oo_dict oo_a356_admin
+6; 2615 16613 SCHEMA - oo_enum_control oo_a356_admin
+3491; 0 0 ACL - SCHEMA oo_enum_control oo_a356_admin
+8; 2615 16734 SCHEMA - shop oo_a356_admin
+3492; 0 0 ACL - SCHEMA shop oo_a356_admin
+226; 1259 16699 TABLE oo_enum_control served oo_a356_admin
+3493; 0 0 ACL oo_enum_control TABLE served oo_a356_admin
+228; 1259 16730 VIEW oo_dict enums oo_enum_view
+227; 1259 16717 TABLE oo_enum_control active_pointer oo_a356_admin
+221; 1259 16623 TABLE oo_enum_control deployment oo_a356_admin
+220; 1259 16614 TABLE oo_enum_control install_manifest oo_a356_admin
+224; 1259 16662 TABLE oo_enum_control notice oo_a356_admin
+225; 1259 16679 TABLE oo_enum_control published oo_a356_admin
+222; 1259 16633 TABLE oo_enum_control runtime_allow oo_a356_admin
+223; 1259 16641 TABLE oo_enum_control snapshot oo_a356_admin
+230; 1259 16742 TABLE shop account oo_a356_admin
+3494; 0 0 ACL shop TABLE account oo_a356_admin
+231; 1259 16754 TABLE shop entry oo_a356_admin
+3495; 0 0 ACL shop TABLE entry oo_a356_admin
+229; 1259 16735 TABLE shop party oo_a356_admin
+3496; 0 0 COMMENT shop TABLE party oo_a356_admin
+3497; 0 0 ACL shop TABLE party oo_a356_admin
+3480; 0 16717 TABLE DATA oo_enum_control active_pointer oo_a356_admin
+3474; 0 16623 TABLE DATA oo_enum_control deployment oo_a356_admin
+3473; 0 16614 TABLE DATA oo_enum_control install_manifest oo_a356_admin
+3477; 0 16662 TABLE DATA oo_enum_control notice oo_a356_admin
+3478; 0 16679 TABLE DATA oo_enum_control published oo_a356_admin
+3475; 0 16633 TABLE DATA oo_enum_control runtime_allow oo_a356_admin
+3479; 0 16699 TABLE DATA oo_enum_control served oo_a356_admin
+3476; 0 16641 TABLE DATA oo_enum_control snapshot oo_a356_admin
+3482; 0 16742 TABLE DATA shop account oo_a356_admin
+3483; 0 16754 TABLE DATA shop entry oo_a356_admin
+3481; 0 16735 TABLE DATA shop party oo_a356_admin
+3315; 2606 16728 CONSTRAINT oo_enum_control active_pointer active_pointer_pk oo_a356_admin
+3301; 2606 16632 CONSTRAINT oo_enum_control deployment deployment_pk oo_a356_admin
+3299; 2606 16622 CONSTRAINT oo_enum_control install_manifest install_manifest_pk oo_a356_admin
+3309; 2606 16673 CONSTRAINT oo_enum_control notice notice_pk oo_a356_admin
+3311; 2606 16693 CONSTRAINT oo_enum_control published published_pk oo_a356_admin
+3303; 2606 16640 CONSTRAINT oo_enum_control runtime_allow runtime_allow_pk oo_a356_admin
+3313; 2606 16711 CONSTRAINT oo_enum_control served served_pk oo_a356_admin
+3305; 2606 16661 CONSTRAINT oo_enum_control snapshot snapshot_identity_uq oo_a356_admin
+3307; 2606 16659 CONSTRAINT oo_enum_control snapshot snapshot_pk oo_a356_admin
+3319; 2606 16748 CONSTRAINT shop account account_pkey oo_a356_admin
+3321; 2606 16760 CONSTRAINT shop entry entry_pkey oo_a356_admin
+3317; 2606 16741 CONSTRAINT shop party party_pkey oo_a356_admin
+3322; 2606 16674 FK CONSTRAINT oo_enum_control notice notice_snapshot_fk oo_a356_admin
+3323; 2606 16694 FK CONSTRAINT oo_enum_control published published_snapshot_fk oo_a356_admin
+3324; 2606 16712 FK CONSTRAINT oo_enum_control served served_published_fk oo_a356_admin
+3325; 2606 16749 FK CONSTRAINT shop account account_party_fk oo_a356_admin
+3326; 2606 16761 FK CONSTRAINT shop entry entry_account_fk oo_a356_admin
