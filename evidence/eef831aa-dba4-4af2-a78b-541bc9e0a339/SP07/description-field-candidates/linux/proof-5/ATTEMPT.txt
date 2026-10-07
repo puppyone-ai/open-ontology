@@ -1,0 +1,8 @@
+Post-edit proof-5. Preserved. docker-run.exit 101.
+Focused tests passed. oo-builder Clippy passed.
+PHASE clippy-review=101.
+description-review lib Clippy -D warnings: column_stale has 8 arguments, limit 7.
+Host fix drops the separate request string. The comparison reads outcome.request_sha256.
+Container oo-a339-proof5 was removed by launch.sh.
+OOMKilled false. Memory 6442450944. NanoCpus 1000000000. CapDrop ALL.
+No a339 builder remained. Foreign builders were not removed.

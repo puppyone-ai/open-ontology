@@ -1,0 +1,28 @@
+owner=a339
+session=eef831aa-dba4-4af2-a78b-541bc9e0a339
+
+containers_removed_by_launch=oo-a339-proof1 oo-a339-proof2 oo-a339-proof3 oo-a339-proof4 oo-a339-proof5 oo-a339-proof6 oo-a339-proof7
+containers_at_cleanup=0
+network=oo-a339-eef831aa-net
+network_attached=0
+network_rm_exit=0
+
+volume=oo-a339-eef831aa-cargo
+cargo_volume_rm_exit=0
+volume=oo-a339-eef831aa-target
+target_volume_rm_exit=0
+
+tmp=/tmp/oo-a339-eef831aa-dba4-4af2-a78b-541bc9e0a339
+tmp_removed_before_manifest=yes
+tmp_rm_exit=0
+
+networks_after=0
+volumes_after=0
+containers_after=0
+image_present=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+docker_prune=not_run
+postgres=not_started
+foreign_owners=not_touched
+manifest_bin=/tmp/oo-a339-sha256_manifest
+manifest_bin_removed_after=yes
+manifest_compiler=host rustc 1.98.1 edition 2024, std-only, no cargo

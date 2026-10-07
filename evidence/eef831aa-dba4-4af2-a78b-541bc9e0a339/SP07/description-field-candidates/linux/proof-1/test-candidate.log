@@ -1,0 +1,20 @@
+   Compiling oo-builder v0.1.0 (/work/crates/oo-builder)
+error[E0382]: borrow of moved value: `digest`
+   --> crates/oo-builder/src/description_candidate.rs:465:53
+    |
+460 |         let digest = canonical_sha256(&card);
+    |             ------ move occurs because `digest` has type `std::string::String`, which does not implement the `Copy` trait
+...
+464 |         card_hashes.insert(table.dataset.clone(), digest);
+    |                                                   ------ value moved here
+465 |         index_card_columns(&object, &table.dataset, &digest, &mut sealed_columns)?;
+    |                                                     ^^^^^^^ value borrowed here after move
+    |
+    = note: borrow occurs due to deref coercion to `str`
+help: consider cloning the value if the performance cost is acceptable
+    |
+464 |         card_hashes.insert(table.dataset.clone(), digest.clone());
+    |                                                         ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `oo-builder` (lib) due to 1 previous error

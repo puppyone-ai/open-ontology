@@ -1,0 +1,27 @@
+   Compiling description-review v0.1.0 (/work/tools/description-review)
+   Compiling description-pack v0.1.0 (/work/tools/description-pack)
+error[E0308]: mismatched types
+    --> tests/pack.rs:1875:39
+     |
+1875 |           request: serde_json::from_str(prepare_description_request(&serde_json::to_string(&{
+     |  __________________--------------------_^
+     | |                  |
+     | |                  arguments to this function are incorrect
+1876 | |             let mut bare = command.clone();
+1877 | |             bare.as_object_mut().expect("object").remove("captured_response");
+1878 | |             bare
+1879 | |         }).expect("bare")).expect("prepare")).expect("request"),
+     | |____________________________________________^ expected `&str`, found `String`
+     |
+note: function defined here
+    --> /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/de.rs:2709:8
+     |
+2709 | pub fn from_str<'a, T>(s: &'a str) -> Result<T>
+     |        ^^^^^^^^
+help: consider borrowing here
+     |
+1875 |         request: serde_json::from_str(&prepare_description_request(&serde_json::to_string(&{
+     |                                       +
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `description-pack` (test "pack") due to 1 previous error

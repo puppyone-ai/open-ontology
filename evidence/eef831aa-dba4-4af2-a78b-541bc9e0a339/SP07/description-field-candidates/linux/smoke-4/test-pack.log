@@ -1,0 +1,39 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (/target/smoke/debug/deps/description_pack-855846af08979180)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/smoke/debug/deps/description_pack-44ceafc4f894aa06)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pack.rs (/target/smoke/debug/deps/pack-a124517b89b1544d)
+
+running 14 tests
+test approved_text_is_resealed_and_packed_per_role ... ok
+test cli_matches_the_library ... ok
+test incomplete_compiler_does_not_leak_candidate_text ... ok
+test occupied_accept_is_not_rewritten ... ok
+test occupied_cas_conflict_preserves_the_seal ... ok
+test occupied_dataset_review_is_unsupported ... ok
+test occupied_defer_and_reject_leave_structural_overrides ... ok
+test occupied_override_approve_reseals_two_roles ... ok
+test occupied_override_without_authorization_stays_unsupported ... ok
+test occupied_stale_override_is_refused ... ok
+test reject_and_defer_leave_the_original_seal ... ok
+test review_hash_and_artifact_mismatch_refuse ... ok
+test stale_schema_and_cas_refuse_without_a_document ... ok
+test unclassified_allowlist_is_unknown_pii ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
+
+   Doc-tests description_pack
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

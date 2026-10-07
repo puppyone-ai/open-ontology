@@ -1,0 +1,53 @@
+   Compiling oo-builder v0.1.0 (/work/crates/oo-builder)
+   Compiling description-provider v0.1.0 (/work/tools/description-provider)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.82s
+     Running unittests src/lib.rs (/target/smoke/debug/deps/description_provider-89eac070692e8900)
+
+running 3 tests
+test chat::tests::sample_keys_are_refused_before_a_socket ... ok
+test chat::tests::v1_chat_body_keeps_the_v1_schema_and_v2_selects_columns ... ok
+test price::tests::multiplies_without_rounding ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/smoke/debug/deps/description_provider-b01d8dc52749cdac)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/provider.rs (/target/smoke/debug/deps/provider-cdf3962ddafee468)
+
+running 23 tests
+test a_secret_in_the_command_opens_no_socket ... ok
+test binary_ignores_proxy_env_and_keeps_the_token_out_of_argv ... ok
+test chunk_cap_rejects_the_second_chunk ... ok
+test deadline_is_a_timeout_after_headers ... ok
+test malformed_content_is_format_rejected ... ok
+test malformed_envelope_is_provider_failure ... ok
+test model_mismatch_does_not_open_a_socket ... ok
+test null_finish_reason_is_incomplete ... ok
+test oversize_body_is_a_response_byte_budget ... ok
+test partial_body_is_incomplete ... ok
+test prepare_budget_is_copied_without_a_socket ... ok
+test provider_4xx_and_5xx_emit_no_body_and_do_not_retry ... ok
+test provider_table_cap_does_not_open_a_socket ... ok
+test redirect_is_not_followed ... ok
+test request_byte_cap_does_not_open_a_socket ... ok
+test residency_sample_temperature_and_unknown_fields_fail_closed ... ok
+test secret_echo_in_a_header_admits_no_candidate ... ok
+test secret_echo_in_the_body_admits_no_candidate ... ok
+test stop_over_tokens_is_a_token_budget ... ok
+test truncated_ignores_content_and_reports_consistent_usage ... ok
+test truncated_over_tokens_stays_truncated ... ok
+test valid_response_is_review_only_and_matches_the_cli ... ok
+test wrong_ca_keeps_the_draft_and_opens_no_http ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.06s
+
+   Doc-tests description_provider
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

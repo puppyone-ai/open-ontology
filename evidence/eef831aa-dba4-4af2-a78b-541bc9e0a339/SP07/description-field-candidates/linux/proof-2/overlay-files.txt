@@ -1,0 +1,10 @@
+crates/oo-builder/src/description_candidate.rs
+tools/description-provider/src/chat.rs
+tools/description-review/CONTRACT.md
+tools/description-review/src/apply.rs
+tools/description-review/src/error.rs
+tools/description-review/src/lib.rs
+tools/description-review/tests/review.rs
+tools/description-pack/CONTRACT.md
+tools/description-pack/src/apply.rs
+tools/description-pack/tests/pack.rs

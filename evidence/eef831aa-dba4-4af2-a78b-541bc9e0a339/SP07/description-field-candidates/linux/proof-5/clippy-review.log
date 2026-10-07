@@ -1,0 +1,21 @@
+    Checking oo-core v0.1.0 (/work/crates/oo-core)
+    Checking oo-jobs v0.1.0 (/work/crates/oo-jobs)
+    Checking oo-builder v0.1.0 (/work/crates/oo-builder)
+    Checking description-review v0.1.0 (/work/tools/description-review)
+error: this function has too many arguments (8/7)
+    --> src/apply.rs:1141:1
+     |
+1141 | / fn column_stale(
+1142 | |     command: &ReviewCommand,
+1143 | |     outcome: &Outcome,
+1144 | |     decision: Option<&ColumnDecision>,
+...    |
+1149 | |     description_now: Option<&str>,
+1150 | | ) -> Option<&'static str> {
+     | |_________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+     = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: could not compile `description-review` (lib) due to 1 previous error

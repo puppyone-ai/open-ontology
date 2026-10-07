@@ -1,0 +1,10 @@
+   Compiling oo-builder v0.1.0 (/work/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.69s
+     Running unittests src/lib.rs (/target/smoke/debug/deps/oo_builder-43061a3ef0c52471)
+
+running 2 tests
+test description_candidate::tests::hidden_note_schema_hash_is_locked ... ok
+test description_candidate::tests::prompt_version_is_the_sealed_constant ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.00s
+
