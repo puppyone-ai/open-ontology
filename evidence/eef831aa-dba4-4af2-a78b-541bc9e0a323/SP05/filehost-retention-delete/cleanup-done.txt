@@ -1,0 +1,17 @@
+date=2026-10-07T12:19:21Z
+inspect_before: network oo-a323-eef831aa-net had no containers
+inspect_before: no container with label oo.owner=a323 oo.kind=rust-builder
+---- docker network rm ----
+oo-a323-eef831aa-net
+---- docker volume rm ----
+oo-a323-eef831aa-cargo
+oo-a323-eef831aa-target
+---- rm session tmp ----
+removed /tmp/oo-a323-eef831aa-dba4-4af2-a78b-541bc9e0a323
+---- after ----
+network-absent
+cargo-volume-absent
+target-volume-absent
+tmp-absent
+prune=not-run
+foreign_cleanup=not-run

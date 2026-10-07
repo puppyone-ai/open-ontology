@@ -1,0 +1,5 @@
+37452198c850a3c836ebfe61f2a6bc28bf499fedcd1c862278b52f2613988016  /Users/redux/puppy-one/open-ontology/crates/oo-control/src/file_hosting.rs
+19b10bc0838ea8d345d232fd4e36ff44383086a62c9f477999fe584e71302601  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/Cargo.toml
+41ae41f864e1dc1a6089b3ef70a649949744273fe887056b4fa2cb57828cfc70  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/Cargo.lock
+3302e4ef75b280f28b874b7a5d77c114289f25987a59b3038e84141d75b675de  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/CONTRACT.md
+593a95108727836d15a701bcfaf207cf50204941b698c438ecc516cad691bb31  /Users/redux/puppy-one/open-ontology/tools/artifact-retention/FILEHOST-DELETE-CONTRACT.md
