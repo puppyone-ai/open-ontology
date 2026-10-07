@@ -1,0 +1,5 @@
+edge hyper 1.11.1 +httpdate
+edge tower 0.5.3 +tokio-util
+edge tower 0.5.3 +tracing
+edge tower-http 0.6.11 +http-body-util
+edge tower-http 0.6.11 +tokio

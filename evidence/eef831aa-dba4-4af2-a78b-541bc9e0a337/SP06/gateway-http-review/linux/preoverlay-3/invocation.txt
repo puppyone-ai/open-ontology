@@ -1,0 +1,1 @@
+docker run --name oo-a337-preoverlay-3 --platform linux/arm64 --pull never --network oo-a337-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 archive=51d08e59ddb3c92fc0b9f2958966b56e19032b7f bash /inside.sh

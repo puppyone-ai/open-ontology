@@ -1,0 +1,30 @@
+executor_name=0
+operator_pack=not_compiler
+gateway=up
+health=200
+ready=not_probed
+probe_routes=404
+picker_metadata=200
+revoke=committed
+warm_hit=200
+revoked_after_deadline=401
+restart_revoked=401
+auditor_metadata=200
+outage_warm=200
+outage_after_deadline=401
+outage_restart=401
+restored=200
+forged_header=403
+session_binding=401
+query=400
+sql=501
+sql_without_bearer=501
+secret_channels=clean
+tamper_file_sha=refused
+pack_digest_check=declared
+foreign_listen=refused
+body_limit=501/413
+stall=408 elapsed_ms=805
+concurrency_held=1 health=200 wait_ms=604
+waiter_cut=0
+completed=1
