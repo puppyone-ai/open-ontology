@@ -1,0 +1,23 @@
+# 前端统一执行台账
+
+唯一派发依据：[总任务卡](master-task.md)。Codex 唯一维护；旧 28 卡仅为范围参考，不再逐卡派遣或追加状态。更新：2026-10-08，Asia/Shanghai。
+
+| 固定角色 | 固定 UUID | 实际 handle / 状态 | 已交付 source / review | 唯一所有权 / 前置 |
+|---|---|---|---|---|
+| G1 基础与用户端 | eef831aa-dba4-4af2-a78b-541bc9e0a351 | 60396，最近一次工具确认 live | 尚无固定交付或完整报告 | master G1 路径；当前基础 milestone，JS lock/Token/shared/SDK/router 唯一 owner |
+| G2 管理端 | eef831aa-dba4-4af2-a78b-541bc9e0a353 | 预留，未启动，无 handle | 未交付 | master G2 features；等待 G1 固定公共组件/SDK/ModuleRegistration 接口后启动 |
+| G3 独立复审与验收 | eef831aa-dba4-4af2-a78b-541bc9e0a352 | 预留，未启动，无 handle | 未审阅 | 只写 master 指定 review/tests/evidence；等待固定产品提交 |
+
+前端固定会话上限 3，包含 G3；不会创建第四个前端会话。当前实际一个。非前端 Grok 开发上限 20，审阅按主线规则；全局 Rust 构建 10，每任务最多一个 Rust builder/一个 PG。Node 构建全局 2、浏览器全局 2，任务各最多一个；Node4GiB/1CPU。Node/pnpm/browser/font 精确版本等待 G1 实测锁定，不猜测填写。
+
+基线：2069a8ae 前端规范入 Git；G1 原产品基线 cb5c93cf736577637f99cda4f132f34b1fb44299。G1 总卡切换提示已写入原 prompt；其 CLI 仍 live，不启动同 UUID 第二进程，当前基础 milestone 到交付边界后原会话承接完整 G1 范围。G2/G3 不伪造为已运行。
+
+## TODO 与分层验收
+
+- [ ] M0：完整总卡接管，固定三角色/范围/资源，G1 当前基础工作收集交付。
+- [ ] M1：公共基座、字体/Token、组件、SDK、Shell/身份、管理基础接口固定并独立复审。
+- [ ] M2：真实接入→构建→S9/S10→发布→Agent 问答→关闭纵切。
+- [ ] M3：全部 50 页面、B01–B12 与 C01–C20 完整覆盖。
+- [ ] M4：A01–A20、真实十万行 Web 旅程、部署及适用发行门槛验收。
+
+UI 开发、实际 API 绑定、完整旅程、发行均未验收。28 卡参考开发 0/28；不并入主线后端 81 子项分母。未实现身份/发布/harness/释放只记录依赖，不用 mock/本地鉴权/伪 receipt 替代完成。所有固定 source、独立 review、证据入口和原始退出在交付后写入此台账。主 Spec/完整 Plan 包括 SP14 的标准不变。

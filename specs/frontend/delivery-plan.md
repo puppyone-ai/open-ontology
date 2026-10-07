@@ -1,5 +1,7 @@
 # OO-FE-DELIVERY-001 前端实施依赖与所有权
 
+> 2026-10-08执行方式更新：统一使用 [完整前端总任务卡](master-task.md)；最多三个固定Grok CLI会话（含复审/验收），先核对复用已有会话。下文28卡/旧分工/旧并发数保留历史或细节参考，不再作为逐卡派发指令；主进程已有台账记录和证据不删除。
+
 ## 1. 领取原则
 
 本包在现有完整Plan内拆解28个前端交付单元，不是新28个已完成父项。当前未启动代码开发；所有卡planned。主协调在派发前填固定base/sourceowner/independentreviewer/UUID、绑定真实后端operation和资源预算。功能开发、API live、集成、发行分别统计，不能将28卡数量混入现有80冻结分母。
@@ -70,3 +72,7 @@ UI开发可以在publicfixture+固定Schema上完成；真实auth/publish/runsc/
 | FE-02 | planned，未派发 | 待指定 | 待 FE-01/04 固定提交 | 待指定 | Shell 与 centralrouter 唯一 owner | 未验收 / 未验收 / 未验收 |
 
 FE 开发验收 0/28，实际 API 绑定与旅程尚未验收；28 卡不混入主后端冻结分母。FE-01 唯一 JS 依赖/锁 owner；前端其他卡不能改公共 Token/SDK/router。Node 构建全局 2、浏览器全局 2，每卡各最多 1；开发 Grok20、审阅不占槽、Rust10及PG每卡1继续。主线优先 S0–S10，完整范围至 SP14，前端两入口随真实契约推进，无 mock 完成替代。
+
+## 最新执行覆盖
+
+用户改为 [master-task.md](master-task.md) 唯一派发入口，最多 G1/G2/G3 三个固定会话（含 review），旧波次与 28 卡不再逐张派发。实际状态唯一维护于 [execution-status.md](execution-status.md)，本文件保留依赖/参考覆盖，不再作为重复动态台账。原 a351 基础会话复用为 G1；其他角色按总卡与固定接口依赖启动。
