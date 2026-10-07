@@ -1,0 +1,60 @@
+    Checking cdc-offset-store v0.1.0 (/cargo-home/work/src/tools/cdc-offset-store)
+error: this function has too many arguments (8/7)
+  --> tests/contract.rs:66:1
+   |
+66 | / fn binding(
+67 | |     expected: Option<CheckpointRef>,
+68 | |     tables: &[&str],
+69 | |     txn: &str,
+...  |
+74 | |     epoch_barrier: bool,
+75 | | ) -> OrderBinding {
+   | |_________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#too_many_arguments
+   = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/contract.rs:155:30
+    |
+155 |         checkpoint(&partial, &[partial.clone()], None, &partial_binding).unwrap(),
+    |                              ^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&partial)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+    = note: `-D clippy::cloned-ref-to-slice-refs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cloned_ref_to_slice_refs)]`
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/contract.rs:161:31
+    |
+161 |         checkpoint(&complete, &[complete.clone()], None, &missing).unwrap(),
+    |                               ^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&complete)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/contract.rs:178:28
+    |
+178 |         checkpoint(&later, &[later.clone()], Some(&stored), &gap).unwrap(),
+    |                            ^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&later)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/contract.rs:194:29
+    |
+194 |         checkpoint(&epoch2, &[epoch2.clone()], Some(&stored), &barrier).unwrap(),
+    |                             ^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&epoch2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> tests/contract.rs:210:27
+    |
+210 |         checkpoint(&next, &[next.clone()], Some(&stored), &cas).unwrap(),
+    |                           ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&next)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#cloned_ref_to_slice_refs
+
+error: could not compile `cdc-offset-store` (test "contract") due to 6 previous errors

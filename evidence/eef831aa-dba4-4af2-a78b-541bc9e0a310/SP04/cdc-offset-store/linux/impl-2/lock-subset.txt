@@ -1,0 +1,2 @@
+path cdc-offset-store 0.1.0
+registry=128 path=1 missing=0 mismatch=0 names=true

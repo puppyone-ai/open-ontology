@@ -1,0 +1,19 @@
+   Compiling cdc-offset-store v0.1.0 (/cargo-home/work/src/tools/cdc-offset-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.51s
+     Running tests/contract.rs (/target/debug/deps/contract-712da4f00fb5e004)
+
+running 11 tests
+test caller_cannot_supply_a_receipt_body ... ok
+test checkpoint_holds_and_never_maxes_a_hole ... ok
+test control_sql_is_immutable_and_has_no_max ... ok
+test invalid_json_exits_refused ... ok
+test migration_constants_match_the_fixed_scripts ... ok
+test output_does_not_certify_ack_or_fence ... ok
+test position_order_is_numeric_text ... ok
+test receipt_document_is_stable ... ok
+test same_database_on_one_host_is_refused ... ok
+test same_hash_replays_and_a_different_hash_conflicts ... ok
+test sha256_known_answers ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

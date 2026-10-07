@@ -1,0 +1,1 @@
+recreated after impl-2 live_chain created roles and both databases, then adopt failed on uuid ToSql. Volume oo-a310-eef831aa-pgdata removed. Foreign containers were not touched.

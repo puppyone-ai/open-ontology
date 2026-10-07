@@ -1,0 +1,86 @@
+   Compiling cdc-offset-store v0.1.0 (/cargo-home/work/src/tools/cdc-offset-store)
+warning: unused import: `PROVENANCE`
+  --> src/store.rs:16:5
+   |
+16 |     PROVENANCE,
+   |     ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0596]: cannot borrow `*client` as mutable, as it is behind a `&` reference
+   --> src/store.rs:108:14
+    |
+108 |     let tx = client.transaction().await.map_err(|_| "target_read")?;
+    |              ^^^^^^ `client` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider specifying this binding's type
+    |
+103 | async fn read_target(client: &mut tokio_postgres::Client: &Client, request: &Request) -> Result<Read, &'static str> {
+    |                            +++++++++++++++++++++++++++++
+
+error[E0596]: cannot borrow `*client` as mutable, as it is behind a `&` reference
+   --> src/store.rs:192:14
+    |
+192 |     let tx = client.transaction().await.map_err(|_| ())?;
+    |              ^^^^^^ `client` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider specifying this binding's type
+    |
+186 |     client: &mut tokio_postgres::Client: &Client,
+    |           +++++++++++++++++++++++++++++
+
+error[E0277]: `?` couldn't convert the error to `()`
+   --> src/store.rs:364:15
+    |
+358 |       let row = client
+    |  _______________-
+359 | |         .query_opt(
+360 | |             "SELECT receipt_hash FROM oo_cdc_offset.mirrored_receipt \
+361 | |              WHERE source = $1 AND table_generation = $2 AND txn_or_batch_id = $3",
+...   |
+364 | |         .await?;
+    | |              -^ the trait `From<tokio_postgres::Error>` is not implemented for `()`
+    | |______________|
+    |                this can't be annotated with `?` because it has type `Result<_, tokio_postgres::Error>`
+    |
+    = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+help: the trait `From<tokio_postgres::Error>` is not implemented for `()`
+      but trait `From<aws_lc_rs::error::Unspecified>` is implemented for it
+   --> /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/aws-lc-rs-1.18.1/src/error.rs:197:1
+    |
+197 | impl From<Unspecified> for () {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for that trait implementation, expected `aws_lc_rs::error::Unspecified`, found `tokio_postgres::Error`
+
+error[E0277]: `?` couldn't convert the error to `()`
+   --> src/store.rs:372:72
+    |
+372 |     let watermark = load_watermark_client(&client, &read.receipt).await?;
+    |                     ---------------------------------------------------^ the trait `From<tokio_postgres::Error>` is not implemented for `()`
+    |                     |
+    |                     this can't be annotated with `?` because it has type `Result<_, tokio_postgres::Error>`
+    |
+    = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+help: the trait `From<tokio_postgres::Error>` is not implemented for `()`
+      but trait `From<aws_lc_rs::error::Unspecified>` is implemented for it
+   --> /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/aws-lc-rs-1.18.1/src/error.rs:197:1
+    |
+197 | impl From<Unspecified> for () {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for that trait implementation, expected `aws_lc_rs::error::Unspecified`, found `tokio_postgres::Error`
+
+error[E0596]: cannot borrow `*client` as mutable, as it is behind a `&` reference
+   --> src/store.rs:523:14
+    |
+523 |     let tx = client.transaction().await.map_err(|_| "control_write")?;
+    |              ^^^^^^ `client` is a `&` reference, so it cannot be borrowed as mutable
+    |
+help: consider specifying this binding's type
+    |
+519 | async fn install_tx(client: &mut tokio_postgres::Client: &Client, hash: &str) -> Result<&'static str, &'static str> {
+    |                           +++++++++++++++++++++++++++++
+
+Some errors have detailed explanations: E0277, E0596.
+For more information about an error, try `rustc --explain E0277`.
+warning: `cdc-offset-store` (lib) generated 1 warning
+error: could not compile `cdc-offset-store` (lib) due to 5 previous errors; 1 warning emitted
