@@ -1,0 +1,1 @@
+{"host":"oo-a366-pg","port":5432,"database":"oo_a366","user":"oo_release_admin","password_file":"/secrets/release-admin.pass","ca_file":"/secrets/ca.crt"}

@@ -1,0 +1,12 @@
+pg-wrap origin a274 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/pg/pg-wrap.sh d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb
+up flags origin a274 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/pg/up.sh ec1dd1087fddfebfe22c89ee21677ed6c81eba75f7ba4e6a55b2d867daa02c76
+up flags reviewed copy a361 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a361/SP14/pg-backup-restore-review/pg/up.sh
+product commit 9d5df65b63d3fe6c94d92d02c41d67b2b5c8aed3
+rust image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+pg image docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+lock subset awk adapted from a359 linux/harness/oo-a359-inside.sh
+a366 resources are private. The pg-wrap bytes match the a274 hash. The up.sh names are a366.
+a366 pg-wrap sha256 d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb
+a366 up.sh sha256 d4742d4341e170d046bb652b425b30f43a927cc2ba2866d42f374dc62e663edd
+child lock sha256 19daa69f41a5aed2cdf5348e48dad389a5e5bc4ef1bca5273b31604c2b54c5ab
+archive tar sha256 2ba23f2a22c4503993394e31a21c855c58c46eb6935fb4450d3c4cdadf7d4870

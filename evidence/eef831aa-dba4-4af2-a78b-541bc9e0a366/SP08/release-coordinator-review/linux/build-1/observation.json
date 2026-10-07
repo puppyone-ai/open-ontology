@@ -1,0 +1,12 @@
+{
+  "activation_certificate_class": "test_scope_not_production",
+  "candidate_id": "rev-d",
+  "full_sp08_accepted": false,
+  "manifest_sha256": "45ef429ea22edc9f6278c2b3fa8038a6813845c57c009501bb2f58f2296ec5bd",
+  "pack_digest": "349b660592d39933061064221839869545e5ddaf0d40a83bbc8d84355dfcbfd1",
+  "pointer_version": "rv-d",
+  "production_ready_certificate": false,
+  "source_hash": "85d3bdcf6a63f11868d40422868a92948c56392f28c771f4fa5e8dd79c960766",
+  "status_certificate_class": "not_issued",
+  "version": "rv-d"
+}
