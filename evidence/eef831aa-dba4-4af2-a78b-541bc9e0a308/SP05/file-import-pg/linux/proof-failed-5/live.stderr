@@ -1,0 +1,23 @@
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling file-import-pg v0.1.0 (/work/src/tools/file-import-pg)
+    Finished `test` profile [unoptimized] target(s) in 1.56s
+     Running tests/live.rs (/target/file-import/debug/deps/live-153af93e82ce3ad8)
+
+thread 'live_replace_import' (467) panicked at tests/live.rs:49:9:
+install failed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test live`

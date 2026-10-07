@@ -1,0 +1,27 @@
+     Locking 256 packages to latest Rust 1.94.0 compatible versions
+      Adding sha2 v0.10.9 (available: v0.11.0)
+   Compiling sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling oo-core v0.1.0 (/work/src/crates/oo-core)
+   Compiling sqlx v0.9.0
+   Compiling oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+   Compiling oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+   Compiling oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+   Compiling file-import-pg v0.1.0 (/work/src/tools/file-import-pg)
+    Finished `test` profile [unoptimized] target(s) in 12.06s
+     Running tests/refuse.rs (/target/file-import/debug/deps/refuse-3997f3b7b38a49cc)

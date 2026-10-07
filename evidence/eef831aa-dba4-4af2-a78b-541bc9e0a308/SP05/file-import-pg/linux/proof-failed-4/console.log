@@ -1,0 +1,49 @@
+=== identity ===
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+rustc_vv_exit=0
+cargo 1.94.0 (85eff7c80 2026-01-15)
+cargo_v_exit=0
+Default host: aarch64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.94.0-aarch64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.94.0-aarch64-unknown-linux-gnu
+active because: overridden by environment variable RUSTUP_TOOLCHAIN
+installed targets:
+  aarch64-unknown-linux-gnu
+Linux 7e8d542f2580 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+uid=0(root) gid=0(root) groups=0(root)
+=== rustc version gate ===
+PHASE version=0
+=== fixed archive ===
+PHASE source=0
+=== sha256 tool ===
+PHASE sha256-tool=0
+=== worker ===
+PHASE worker-build=0
+PHASE worker-hash=0
+=== refuse (writes the tool lock) ===
+PHASE refuse=0
+PHASE lock-present=0
+=== lock subset compiler ===
+PHASE lock-subset-rustc=0
+=== lock subset ===
+PHASE lock-subset=0
+=== clippy component ===
+PHASE clippy-add=0
+=== clippy ===
+PHASE clippy=0
+=== live ===
+PHASE live=101
+PHASE lock-stable=0

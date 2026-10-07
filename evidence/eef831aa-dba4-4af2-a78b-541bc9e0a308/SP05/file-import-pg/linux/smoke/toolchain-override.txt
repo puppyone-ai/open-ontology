@@ -1,0 +1,1 @@
+archive rust-toolchain.toml channel is 1.98.1; smoke forces RUSTUP_TOOLCHAIN=1.94.0

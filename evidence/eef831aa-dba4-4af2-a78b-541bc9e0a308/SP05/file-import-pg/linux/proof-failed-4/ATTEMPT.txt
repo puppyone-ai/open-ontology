@@ -1,0 +1,4 @@
+Attempt 4. refuse 0. clippy 0. lock subset 0. lock-stable 0.
+live 101 at tests/live.rs:138. The import committed. bool::text is true/false, not t/f.
+Numeric 1.50 and 0.00, int8 min/max, nulls, quoted text, and JSON text matched.
+The database is dropped before the next attempt so the committed CSV run does not become a replay.

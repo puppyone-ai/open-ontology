@@ -1,0 +1,36 @@
+Proof recipes for UUID eef831aa-dba4-4af2-a78b-541bc9e0a308, owner a308.
+Fixed product commit 72dc9e2db841de4de368216bbbe13d738f850ea9.
+Smoke was not relaunched. fetch-offline exit 101 from that smoke is preserved.
+
+Immediate origins and their sha256 at the time these scripts were written:
+f8564183a896f167f0b9e9356d338624d39b59ca3f4168de2156a557f15ab22f  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/inside.sh
+356fca89fcbdbb63e6a0b1211f65fbb12d0c022bb49a6fa138432d678f25906c  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/launch.sh
+f3b92583125a52102445cc6fec45700db491b263ed88260cd3555f5ee4b187e9  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/linux/proof/lock_subset.rs
+2c565f74ab0d109fbc3e922f09738757c63a559725a672ce245850a2ac8ad928  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/pg/up.sh
+9dabd85649a8b1860febac30c33b324ae0208c2c044ab00e5b0b3b5521ddfd73  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a301/SP04/cdc-apply-pg/pg/pg-wrap.sh
+bb7865b4c1f0899ee957032c11d4ce3e8757d4aa71e0a570026368354644e4bd  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/linux/smoke/launch.sh
+bc72d37f97e2edccbf5686c5fd1db247209f37a2f3b7b50435204af99d136480  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/linux/smoke/inside.sh
+55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/tools/sha256.rs
+
+a301 inside.sh records a291 impl-7 inside sha256 9529fe516e5d1eaddca29bd0939d5140aa36d37e2df784a33da3509e8a4d7a52.
+a301 launch.sh records a291 impl-7 launch sha256 20e69ee43bd38d377a82de8367747d01d9aadc4af6a4c15697b6590b2a68e15d.
+a301 pg/up.sh records a200 blob 96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45.
+a301 pg/pg-wrap.sh records a200 blob 25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f.
+
+This child's scripts:
+a9abf3e0fd3e9cece76eaedcb75e7ba1646bf870f603091fe6a278676068eef6  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/linux/proof/inside.sh
+bc7ce00340fc30d95dc519ae1aed6a080d78dbaf79884721f6851ad3787f7d89  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/linux/proof/launch.sh
+88062d17ecba7ba818a852eb9104a7d29efc835b5cae667690388165079aec23  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/linux/proof/lock_subset.rs
+2d2711d7e28a9ab705d20359d87a3e6c81e65e8934e69e84a805933b11b187ac  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/pg/up.sh
+70acf4033c88538a7fed1fadf439b903edff54efef2d2cb68c139a7247743965  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a308/SP05/file-import-pg/pg/pg-wrap.sh
+
+Deltas from a301:
+- Names, network, volumes, and labels are a308. Fixed archive is the existing smoke archive of 72dc9e2. It is not re-created.
+- Cargo volume oo-a308-eef831aa-cargo is mounted at /cargo-home, matching the smoke that filled it. It is not mounted at /cargo.
+- The tool has no Cargo.lock yet. inside.sh does not refuse a fresh resolve. The first offline refuse test writes the tool lock. Subset check is that lock against the root Cargo.lock only.
+- lock_subset.rs takes TOOL and ROOT. Spool and session locks are not inputs.
+- Worker binary oo-file-parser-worker is built from the fixed archive with the root lock before the tool tests. Tool cargo target is /target/file-import.
+- PostgreSQL adds agent.pass and SAN DNS:oo-a308-pg. Secrets are reused when the set already exists. The proof mount is client-secrets only: ca.crt and three password files. ca.key and server.key stay out of the builder.
+- Roles and database oo_a308_file are created by tests/live.rs, not by up.sh.
+- Builder memory is 6g and cpus is 1. PostgreSQL memory stays 1g, from the a301 recipe. One private postgres is required before the builder starts.
+- The tool lock is copied into tools/file-import-pg only when docker exits 0.
