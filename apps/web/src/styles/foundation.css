@@ -101,8 +101,8 @@ body {
   padding: 0 1rem;
   border: 0;
   border-radius: var(--oo-radius-input);
-  background: var(--oo-accent);
-  color: var(--oo-on-accent);
+  background: var(--oo-button-primary-bg);
+  color: var(--oo-button-primary-fg);
   font: inherit;
   font-weight: 500;
 }

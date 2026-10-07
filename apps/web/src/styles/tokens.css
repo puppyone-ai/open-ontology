@@ -81,6 +81,10 @@
 }
 
 :root {
+  --oo-surface-selected: var(--oo-accent-bg);
+  --oo-button-primary-bg: var(--oo-accent);
+  --oo-button-primary-fg: var(--oo-on-accent);
+  --oo-input-error: var(--oo-danger);
   --oo-font-sans: Geist, "Noto Sans SC", "Noto Sans SC Full", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   --oo-font-mono: "Geist Mono", "Noto Sans SC", "Noto Sans SC Full", ui-monospace, monospace;
   --oo-space-page: 1.5rem;

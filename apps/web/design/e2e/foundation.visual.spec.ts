@@ -87,6 +87,7 @@ test("reduced motion removes the sample transition", async ({ page }) => {
   const duration = await page.locator("[data-motion-sample]").evaluate((element) => {
     return getComputedStyle(element).transitionDuration;
   });
-  expect(duration).toBe("0.01ms");
+  const milliseconds = duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
+  expect(milliseconds).toBeCloseTo(0.01, 5);
   await shoot(page, "reduced-motion-1280x800-light.png");
 });

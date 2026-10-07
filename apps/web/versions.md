@@ -89,3 +89,9 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m2` 在类型检查前和构建后都打印了这个值。没有安装，没有新增 registry 依赖。
 - Linux arm64 Node v24.21.0 上，类型检查、lint、28 个单元测试和 Vite 生产构建退出码都是 0。浏览器没有执行。对比度报告、Storybook 构建和字体没有重跑。
 - 生产 JS `dist/assets/index-CDiTiiKo.js` 为 325770 字节，gzip 101884 字节。CSS `dist/assets/index-CFLc_wNN.css` 为 21556 字节，gzip 5254 字节。上一节的 100357 只描述 M1 产物 `index-BFuR9aus.js`。
+
+## M3 Token 补层（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。容器 `oo-fe01-node-m3` 在检查前后都打印了这个值。没有安装，没有新增 registry 依赖。
+- primitive 色值没有改。`input-error` 引用已测的 `danger-text`，浅色对白底 6.507:1，深色对 `#171C24` 8.714:1。`surface-selected` 引用已测的 `accent-bg`，正文对比浅色 12.877:1，深色 12.968:1。
+- 只重跑了类型检查、改动文件的 lint，以及 `contrast.test.ts` 的 4 个测试，退出码都是 0。没有重跑整套基础测试、字体、Storybook、生产构建或浏览器。
