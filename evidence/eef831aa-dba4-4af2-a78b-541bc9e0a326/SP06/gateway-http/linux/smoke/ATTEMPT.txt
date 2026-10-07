@@ -1,0 +1,1 @@
+attempt=1 exit=101 cause=pg_query bindgen could not find libclang; oo-arch-check exit 0; archive e8d297f; container removed; console.log not overwritten

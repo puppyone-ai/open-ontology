@@ -10,6 +10,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod http_error;
 pub mod mapping_reader_access;
 pub mod parser_worker;
 pub mod policy;
