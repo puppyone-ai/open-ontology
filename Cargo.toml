@@ -38,6 +38,13 @@ dbg_macro = "deny"
 todo = "deny"
 unimplemented = "deny"
 
+# Gateway HTTP foundation. UNAPPROVED until independent review.
+# No member depends on these yet. Default features off. No JWT, OIDC, query, or form.
+[workspace.dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "tokio"] }
+tower = { version = "=0.5.3", default-features = false, features = ["limit", "make", "timeout", "util"] }
+tower-http = { version = "=0.6.11", default-features = false, features = ["limit", "timeout"] }
+
 # Modified upstream artifacts: crates.io sqlx-core 0.9.0 and sqlx-postgres
 # 0.9.0 plus the hunks, license bodies, and compile-time feature guard in
 # crates/oo-connectors/vendor/PATCH.md. SBOM identity is this patched tree

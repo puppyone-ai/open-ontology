@@ -1,0 +1,9 @@
+ExitCode=1
+OOMKilled=false
+Privileged=false
+NetworkMode=oo-a313-eef831aa-net
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
+Id=b089e517d57938f7389b72388d6196e27209394db908788d85772aab3817eadc
