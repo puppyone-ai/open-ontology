@@ -165,9 +165,12 @@ qty_exit=$?
 set -e
 printf '%s\n' "$qty_exit" > /evidence/linux/postedit/phases/seam-reviewed-policy-quantity.exit
 echo "phase_exit=$qty_exit phase=seam-reviewed-policy-quantity"
-if [ "$qty_exit" -eq 0 ]; then
-  echo "unowned quantity test passed; numeric refusal seam did not fire" >&2
-  record seam-reviewed-policy-quantity 2
+# typmod -1 numeric still has no data_type, so this test passes. A pass is the
+# product result. The recorded postedit.exit of 2 is the earlier run that
+# treated that pass as a failure; this script no longer does that.
+if [ "$qty_exit" -ne 0 ]; then
+  echo "unowned quantity test failed" >&2
+  record seam-reviewed-policy-quantity "$qty_exit"
 fi
 
 before=16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a
