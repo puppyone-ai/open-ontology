@@ -1,0 +1,1 @@
+bash -lc replaced the image PATH, so rustc and rustup were not found. Exit 127. No product files were edited. The next attempt uses bash -c and the image PATH.

@@ -1,0 +1,2 @@
+{"record":"row","turn":0,"cells":[{"kind":"int","value":"3"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":1,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"e64bbbbcf907b816c6842f3abbc0e2c35a5fe7c9f611f2933a8175ce65f6a209","executed_sha256":"159fd80fe254826b4c76b28d3b49d988bb456761e05fdf0672102ea2202219c5","stop":null,"sqlstate":null}

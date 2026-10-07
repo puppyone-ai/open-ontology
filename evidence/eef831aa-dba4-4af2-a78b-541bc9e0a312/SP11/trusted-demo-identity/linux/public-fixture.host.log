@@ -1,0 +1,9 @@
+start_utc=2026-10-07T10:34:31Z
+head=54e8f8ea1def6ef351e8f6a0957c242315283c63
+manifest=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a312/SP11/trusted-demo-identity/operator-manifest.json
+postgres_ready name=oo-a312-pg alias=oo-a312-pg
+fixture_loaded
+restart_postgres
+postgres_ready name=oo-a312-pg alias=oo-a312-pg
+fixture_preserved
+end_utc=2026-10-07T10:43:17Z exit=0

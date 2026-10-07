@@ -1,0 +1,1 @@
+{"protocol":"oo.pipeline.catalog-pg/v1","source":{"ca_file":"/secrets/ca.crt","database":"oo_a312_src","host":"oo-a312-pg","password_file":"/secrets/reader.pass","port":5432,"secret_ref":"secret://pg/a312/reader","source_id":"public_shop","tables":[{"schema":"shop","table":"customer"},{"schema":"shop","table":"order_doc"}],"username":"oo_a312_reader"}}

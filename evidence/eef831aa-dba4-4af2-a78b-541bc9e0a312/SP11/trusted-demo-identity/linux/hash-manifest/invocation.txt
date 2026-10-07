@@ -1,0 +1,1 @@
+docker run --name oo-a312-hashevidence --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6442450944 --cpus 1 image=pinned-rust-1.94 bash -c

@@ -1,0 +1,15 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+info: downloading component clippy
+
+running 7 tests
+test tests::declared_binding_uses_captured_fingerprint_only ... ok
+test tests::duplicate_key_and_unicode_escape ... ok
+test tests::fresh_manifest_does_not_reuse_historical_names ... ok
+test tests::identity_preimage_has_no_secret_material ... ok
+test tests::manifest_rejects_foreign_owner_and_injection ... ok
+test tests::secret_report_omits_secret_bytes ... ok
+test tests::sha256_abc_and_empty ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+POST_EDIT_DRIVE_OK

@@ -1,0 +1,1 @@
+historical_manifest was marked as a test and returned &str. rustc 1.94.0 rejected it with E0277 because &str does not implement Termination. Exit 1. The container and the postedit network were removed. No product network, volume, or PostgreSQL was created.
