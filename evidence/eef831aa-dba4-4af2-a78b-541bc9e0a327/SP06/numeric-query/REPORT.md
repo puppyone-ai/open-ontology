@@ -92,4 +92,40 @@ The live filter that produced cells is `--exact a327_live::live_numeric_proof` w
 
 ## Ownership
 
-Edited only the reserved paths, plus `policy_catalog.rs` and `policy.rs` after those two files were transferred for the bounded allowlist. Manifests, the lock, `lib.rs`, gateway HTTP, root consumers, and a317 data were not modified. `mapping_reader_access.rs` has no diff against `e6ebf93` and was not mounted as an overlay.
+Edited only the reserved paths, plus `policy_catalog.rs` and `policy.rs` after those two files were transferred for the bounded allowlist. Manifests, the lock, `lib.rs`, gateway HTTP, root consumers, and a317 data were not modified. The live-3 packet left `mapping_reader_access.rs` on the archive copy. The mapping-reader section below records the later owned edit.
+
+## Mapping-reader bound, live-4
+
+Addendum `9183e79082341a1a2bd7d3b1a2ae3e8764735d0e` froze the bound before this source edit. Product commit `21cc96241a841b47dbbcb116549030e38a643ba0` changes `mapping_reader_access.rs` and the existing `a327_live` harness in `query-pg.rs`. Parent of that commit is `e7fb67e27bcffcdeec10ad84463b4854bef6eed0`. `9183e790` is an ancestor. Other tasks committed between the addendum and the product commit.
+
+`ensure_supported_type` selects `typname`, `typtype`, and `atttypmod` and accepts the column when `typtype` is `b` and `grantable_base_type` admits the pair. That is the same predicate install already uses. Precision `1..=38` stays the numeric bound. The check runs inside `resolve_tables`, before `grant_mapping`. A refusal rolls the provision transaction back.
+
+`linux/smoke-map/smoke.exit` is 0. That run compiled the frozen tree on Rust 1.94 before the edit. `mapping_reader_access.rs` in that tree still used `SUPPORTED_TYPES.contains`. Lib tests: 31 passed. Lock before and after `16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a`. Two earlier launches, `linux/smoke-map-failed-1` and `linux/smoke-map-failed-2`, exited 125 because Docker Desktop would not bind the recreated sibling directory. The successful smoke and live-4 use `.a327-work` inside this workspace. `private_root_reason=recreated_sibling_unbindable_workspace_child_binds`.
+
+`linux/live-4` then compiled the seven-file overlay and ran the same six-row proof. `docker-run.exit` is 0. `live.exit` is 0. `outcome.txt` is `numeric_query_recorded`. Hostconfig: `ExitCode=0`, `OOMKilled=false`, `Privileged=false`, `NetworkMode=oo-a327-eef831aa-net`, `CapDrop=["ALL"]`, `Memory=6442450944`, `NanoCpus=1000000000`. `pg/live-4/up.exit` is 0. Server `17.10 (Debian 17.10-1.pgdg12+1)`, `ssl` true. Host cargo at launch was 0. `builders-before.txt` names the foreign builder `oo-a337-preoverlay-3`. This task's own rust builder was `oo-a327-live4`.
+
+Phases, all exit 0: toolchain, overlay, libclang, libclang-load, clippy-component, fetch, test-lib (31 passed), test-query-pg, test-row-filter, clippy `--lib --bins -D warnings` (`Finished` in `clippy.log`), build-pipeline, build-builder, build-gateway, test-live (`a327_live::live_numeric_proof ... ok`, 1 passed), lock-hash. `cargo-update-invoked=no`.
+
+The source table kept the six decided rows and added nullable `loose numeric` and `over numeric(39,4)`. Those columns are not decisions. Before install, numeric typmods on `_oo` included `-1`, `1179656`, `2490376`, and `2555912`. `provision-loose` and `provision-over` each exited 7 with stderr exactly `provision-mapping-reader: policy type\n` (38 bytes). Login mapping privileges were absent before those calls and still absent after them. `install-column-acl` then exited 0 and `provision-mapping-reader` exited 0.
+
+| Step | Exit |
+| --- | --- |
+| provision-loose | 7, stderr `provision-mapping-reader: policy type` |
+| provision-over | 7, stderr `provision-mapping-reader: policy type` |
+| install-column-acl | 0 |
+| provision-mapping-reader | 0 |
+| before-analyze | 5, stderr exactly `query-pg: policy\n` |
+| hidden | 6, stderr exactly `query-pg: guard\n` |
+| amounts | 0 |
+
+`amounts.stdout` is the same six decimal rows as live-3. Summary `returned_rows` 6, `result_bytes` 162, `original_sha256` `466f22e579afe5252e78ae6cffca1da0a9c4630ba8cb63440a0fc9b7a9c6957a`, `executed_sha256` `b7def2bb9721b0f643ba1e37bd6d4e5767b258d6e2ad4886bb0634a115d8adbc`. `schema_hash` is `d64749d8fe1c9934a424dab4f296daadbf6f6d9918bab626e160babb3d66a8b0`. `config_digest` is `e51342d9f0fd173507b70469d999e7b5beeb2b045ff9be3f0a3c9f46aaac86b4`.
+
+Live `SUPPORTED_TYPES` readers after this edit:
+
+- `grantable_base_type` is the numeric precision bound. Install, catalog visibility (`supported_base`), and mapping-reader call it.
+- `whitelist_tokens_ok` checks the allowlisted name syntax. It does not read typmod.
+- `load_types` requires one `pg_catalog` base type for each allowlisted name. It does not apply precision.
+- `supported_base` also requires the type OID to equal the loaded `pg_catalog` base type. Install and mapping-reader match the column's own `typname`, `typtype`, and `atttypmod`. That OID difference already exists for `bool`, `int2`, `int4`, `int8`, and `text`.
+- `COMPARISON_SIGNATURES`, operators, literals, and aggregates still omit `numeric`. A bounded numeric column can be selected. This edit does not add a comparison, a literal, or an aggregate. `required_operator_count` stays 54.
+
+No other live Rust file reads `SUPPORTED_TYPES`. This task did not re-run a317. No M1-I01, M1-I02, parent acceptance, or release claim.

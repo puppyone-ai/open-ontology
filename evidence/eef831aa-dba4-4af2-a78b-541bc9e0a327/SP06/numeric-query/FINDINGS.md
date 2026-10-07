@@ -36,11 +36,13 @@ An unbounded numeric column still has no `data_type`. `column_spec` returns sema
 
 The decoder fail-closes those wires in unit tests: `numeric_nan`, `numeric_infinity`, and `numeric_neg_infinity`. Live-3 did not select those values.
 
-## Mapping-reader seam, unowned
+## Mapping-reader bound
 
-`crates/oo-gateway/src/mapping_reader_access.rs` `ensure_supported_type` still accepts `typtype` `b` when the type name is in `SUPPORTED_TYPES`. It does not read `atttypmod`. The file has no diff against `e6ebf93` and was not edited.
+Live-3 recorded `ensure_supported_type` as a name-only check. `9183e79082341a1a2bd7d3b1a2ae3e8764735d0e` froze the addendum. `21cc96241a841b47dbbcb116549030e38a643ba0` then selects `atttypmod` and calls `grantable_base_type`.
 
-After `numeric` is on the list, `provision-mapping-reader` admits unconstrained numeric and precision above 38. The six-row columns are `numeric(18,4)` and `numeric(38,4)`, so provision exited 0. Bounding that check needs a later owned change. This task stops at the report of the seam.
+`linux/live-4` imported nullable `loose numeric` (typmod `-1`) and `over numeric(39,4)` (typmod `2555912`) on the same `shop.entry` as the six decided rows. Before the mapping grant, `provision-loose` and `provision-over` each exited 7. Stderr is exactly `provision-mapping-reader: policy type\n`. The login still lacked `USAGE` on `_oo`, `SELECT` on `_oo.physical_mappings`, and `EXECUTE` on `_oo.lookup_physical_mapping(text, text, bigint, text, text, text, text)`. The reviewed three-column policy then installed and provisioned. The amount stdout matches live-3, including `result_bytes` 162 and both summary hashes.
+
+`supported_base` still adds the `pg_catalog` OID equality check. Install and mapping-reader do not. Comparison signatures still omit `numeric`. Domains and enums stay refused. Negative declared scale with precision `1..=38` stays admitted. `whitelist_tokens_ok` and `load_types` still do not apply precision.
 
 ## Earlier false green
 
