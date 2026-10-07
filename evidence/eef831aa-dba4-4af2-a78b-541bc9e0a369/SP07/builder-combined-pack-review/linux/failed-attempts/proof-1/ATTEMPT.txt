@@ -1,0 +1,1 @@
+test-oracle exit 101. The stored test compared canonical JSON of curated.json with the raw file SHA-256. Those digests differ. The file pin c7e75f0c was already checked. Fixture tests and pre-oracle combined tests and Clippy had exited 0. No product edit.

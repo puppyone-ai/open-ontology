@@ -1,0 +1,13 @@
+Verified 2026-10-08 with shasum -a 256. The a369 launch reuses the containment flags from the a362 proof-4 recipe and uses UUID-private names, volumes, and a network. It is not a byte copy: the source is git archive of the full 40-character commit be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba, and the review oracle is injected only after the pre-oracle smoke.
+
+a362 proof-4 launch
+path: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a362/SP07/builder-combined-pack/linux/proof-4/launch.sh
+sha256: d69865d6b3a1a4cea942d83656eabb63e25dab1c29d12db04a9f5b2419f16683
+
+a357 proof-4 launch
+path: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a357/SP07/pg-builder-review/linux/proof-4/launch.sh
+sha256: e6f7622ef647863b69003ffc210bea703e684bb31603668d1ba6721bff31c0e0
+
+a348 proof-3 launch
+path: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a348/SP07/description-field-review/linux/proof-3/launch.sh
+sha256: ae0ac0b4da595f94eae9f7838b212f08c5431db76073824a07d40a373ca23638

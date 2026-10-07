@@ -1,0 +1,11 @@
+   Compiling pg-builder v0.1.0 (/work/tools/pg-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.65s
+     Running tests/a369_review.rs (/target/a369-review/debug/deps/a369_review-04169524a6169cff)
+
+running 3 tests
+test fixture_combined_keeps_both_bodies_and_per_table_pack_does_not ... ok
+test fixture_refusals_leave_curated_and_cache_unchanged ... ok
+test stored_party_and_account_share_one_core_sealed_pack ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.57s
+

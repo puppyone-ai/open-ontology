@@ -1,0 +1,31 @@
+# Content SHA-256 of git show be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba:PATH. Product bytes. This review did not edit them.
+# The fourteen hashes that a362 recorded in its MANIFEST.sha256 match this list.
+# testing/real-db/pg-builder tree is 17668deacecdd51215352f10cb9f828a9dbb2f7e at a13b1cc and at this commit.
+# generate.rs, cache.rs, rebind.rs, http.rs, error.rs, and tests/contract.rs git blobs match a13b1cc80ed66c07199a41d47b31fd42530f2be9.
+# tools/description-pack/tests/pack.rs blob matches a13b1cc. That file was not executed here.
+# apply.rs differs from a13b1cc by pub(crate) visibility and occupied_replacement_values.
+
+9f8c4449212a49c31b120d13200e26d4e2a6638d731e2681fd79e8d7b22b7024  tools/description-pack/src/combined.rs
+3ae8a5b294584e9210ac0ea899ff5a5f0fc8d0fef1bade47ef8e57291b45c3a3  tools/description-pack/src/apply.rs
+8fdc88cd64ae21009849de83fc4d79375485639607c58dc8ffca43fd22c3774f  tools/description-pack/src/error.rs
+b2a4d5a4574b7aae83975d53afb2c7e1094709ca2ee0178d6ea889d365dae114  tools/description-pack/src/lib.rs
+c0b9dbb9de696d709b1371e7eaf2843ee767a8d9841eb8faf546cb2597abad42  tools/description-pack/src/main.rs
+202b354d69ec9d9b4b836781205c1f82a06a474007901a944d06f6fce6c505b6  tools/description-pack/CONTRACT.md
+647baf1d39e6c24a6fe0e26332344b7862a447b0779d630e2f12ea1deadab4e8  tools/description-pack/tests/combined.rs
+180fbeb07a008cba3d6b24a3cda50da6bc8a2f8b76937f6042e40e854762b9da  tools/description-pack/tests/pack.rs
+85e75020190ce8e56b32756a14c93229e44a34b085db3c960ab6012db5cf212f  tools/description-pack/Cargo.toml
+2d1a39b212f23ce27461c1ada0b8f8406de538b2fd781d37f0d9674246a8619d  tools/description-pack/Cargo.lock
+3106fa7d35a462191701ba8fa87057e82112263dc45c6be03dcb4d6320542659  tools/pg-builder/src/bridge.rs
+9b594fa0fc7452a66d04716ff547f94dee1ef322ca5b3c70e0bf76ffd6f2ad64  tools/pg-builder/src/lib.rs
+75b6366e89218e19849e4f1812f7d922512f4ea91f420a34d904347f28cb98ea  tools/pg-builder/src/main.rs
+4b4768492b8c69f636e4677b39cb4cd9c940fc2e21780879ee43c353c3a9c6c9  tools/pg-builder/src/generate.rs
+d73a55eb16d3b1d01efd630399d81fe61814677e428488c31f3db059bab75696  tools/pg-builder/src/cache.rs
+903e5040b3a921f9a6877a38851754b133b45116a9a3754f3421b562de05a11d  tools/pg-builder/src/rebind.rs
+c875d36e87893cdbd28df464c5ad2fc357d1402970ba6bc364e3779b2f142819  tools/pg-builder/src/http.rs
+f89f5f569e3030aaed8ba03418185ee9d2f680fe345d54f2a52afdb6137b642a  tools/pg-builder/src/error.rs
+513894fc26fcbc926c8b686b887bb7b79317ab0784303b452104043673cba916  tools/pg-builder/CONTRACT.md
+70a81e6a0c567f6978d67a0a59b67fd2f12468c0fc51b9866194a25b16b5754d  tools/pg-builder/tests/combined.rs
+95bf075e56b53f64b9e585211a03cae36c01f14eb05faf4b032b6f80ec5abe64  tools/pg-builder/tests/contract.rs
+9a963a866bb59309fb0fa6999b62816f9ea8303a8c37ff4908f457b6be6be199  tools/pg-builder/Cargo.toml
+eeed52b1cf0f5b7aff7faa223ffda09f12c02bbdeb32e29a045e5b30a1fc27ca  tools/pg-builder/Cargo.lock
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  Cargo.lock
