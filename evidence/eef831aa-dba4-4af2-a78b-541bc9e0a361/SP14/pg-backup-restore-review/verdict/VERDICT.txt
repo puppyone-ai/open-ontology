@@ -1,0 +1,12 @@
+verdict=WITHHOLD
+subject=original frozen E51
+commit=1d88fe8ad9fa4a113c105e1df4d0903e517fc9a9
+scope_waiver=false
+reason=marker_count_lsn_across_two_dumps_does_not_prove_one_cut
+history_insufficient_false_certifies_quiescence=false
+oracle_101_rerun=false
+enum_calendar_owner=a365
+enum_calendar_patched_here=false
+product_edited=false
+w04_gate=open
+parent_acceptance=false

@@ -2,15 +2,49 @@
 
 Source is `1d88fe8ad9fa4a113c105e1df4d0903e517fc9a9`. Live numbers are from this a361 cluster, not from the a356 packet.
 
-## Quiescence is two dumps and two counters
+## Verdict on the frozen backup
 
-`ops.rs` `backup` samples `pg_current_wal_lsn()` on `oo_a356_control` only, reads the cut marker on the control database, and counts `shop.entry` on the agent database. It then COPY-exports the gold files, then runs `pg_dump` on the control database and again on the agent database, then repeats the LSN, marker, and entry-count reads.
+`WITHHOLD`. The original E51 backup does not establish one quiescent cut. The 101-check oracle was not rerun and is not a substitute for that cut.
 
-Each dump is `pg_dump --format=custom --no-password --serializable-deferrable --lock-wait-timeout=15000 --encoding=UTF8` (`pg.rs`). There is no single snapshot that covers both databases. Restore is `pg_restore --no-password --exit-on-error --single-transaction`. The argument list has no `--clean`, no `DROP DATABASE`, and no `pg_dumpall`.
+## Two sequential dumps are not one cut
 
-`history_insufficient` is true when the marker is not `cut-a356-1|100000`, when the marker changes across the window, or when the entry count is not 90000 on both reads. `quiescent` is the opposite flag. Gold COPY happens before the dumps. The seal hashes the dump files. It does not treat the gold bytes as the dump. A write that leaves the marker and the entry count unchanged can still seal `history_insufficient=false`. This review did not run that mutation.
+`ops.rs` `backup` does this, in order:
 
-On this cut the marker held, both entry counts were 90000, `history_insufficient` was false, and `quiescent` was true. LSN before and after were both `0/2B41638`.
+1. Read `pg_current_wal_lsn()` on `oo_a356_control`, the cut marker `source_cut || '|' || entry_count` from `oo_key_fixture.cut_marker`, and `count(*)` of `shop.entry` on `oo_a356_agent`.
+2. `COPY` the gold files, one statement at a time, including shop rows from the agent database and checkpoint rows from the control database.
+3. `pg_dump` `oo_a356_control`.
+4. `pg_dump` `oo_a356_agent`.
+5. Read the control LSN, the cut marker, and the entry count again.
+
+Each dump is `pg_dump --format=custom --no-password --serializable-deferrable --lock-wait-timeout=15000 --encoding=UTF8`. Each call has its own snapshot. Nothing holds a lock that blocks writers on both databases from the first gold `COPY` through the second dump. Restore flags are unchanged: `pg_restore --no-password --exit-on-error --single-transaction`, no `--clean`, no `DROP DATABASE`, no `pg_dumpall`.
+
+`history_insufficient` is true only when the marker is not `cut-a356-1|100000`, when the marker changes, or when the entry count is not 90000 on both reads (`ops.rs`). `manifest.rs` sets `quiescent` to the opposite of that flag. `decide.rs` `seal` withholds the published offset and appends reason `history_insufficient` only when the flag is true. Otherwise `replay_ready` becomes true when the other row checks passed.
+
+`CONTRACT.md` line 53 states the same rule and adds that WAL LSN movement does not by itself withhold a logical snapshot whose marker and counts stayed still. Line 61 then sets `replay_ready` only when `history_insufficient` is false. That is the frozen claim under review.
+
+A value update that leaves the marker row and `count(*)` of `shop.entry` unchanged is invisible to the flag. These writes do that:
+
+- `UPDATE shop.entry SET amount = ...` or `SET memo = ...` (the count stays 90000).
+- `UPDATE` or `INSERT` on `shop.party` or `shop.account` (the entry count is untouched).
+- `UPDATE` of a control row that is not `oo_key_fixture.cut_marker`, including watermark columns other than that marker.
+- A commit on the database that has not been dumped yet, between step 3 and step 4.
+
+The control LSN does not observe an agent-only write, so `wal_moved` can stay false while the agent dump differs from the gold `COPY`. An LSN change on the control database does not say which dump contains the new bytes, and the contract says that change does not withhold the seal. Marker equality, entry-count equality, and the control LSN therefore do not establish that the two dumps and the gold files are the same cut.
+
+On the live run the marker held, both entry counts were 90000, both LSNs were `0/2B41638`, and the tool wrote `history_insufficient=false` and `quiescent=true`. Nobody wrote during that window. A quiet window is not the proof the flag claims. `history_insufficient=false` cannot certify unproven quiescence.
+
+## Mandatory backup correction
+
+The product tree stays readonly. The author of the backup must change the seal before this E51 can be approved. No narrower reading of the same contract is accepted.
+
+`history_insufficient` must stay true, `quiescent` must stay false, the published offset must stay withheld, and `replay_ready` must stay false, unless the backup has one cut that covers every sealed relation in both databases. Marker and count samples may remain as extra signals. They are not that cut.
+
+One of these must be true for the whole interval from the first gold `COPY` through the second dump, and the manifest must record which one:
+
+- Writers are blocked on both `oo_a356_control` and `oo_a356_agent` for that interval, and the manifest records that both databases rejected user writes until both dumps finished.
+- Or both dumps and the gold `COPY` files are taken from one coordinated snapshot that both databases share, and each sealed relation's digest is captured inside that snapshot and bound to the dump hashes.
+
+Until that record exists, sealing `history_insufficient=false` on a still marker is the defect. SP14-W04 requires insufficient history to hide replay and to go through a reviewed resnapshot, not to publish the stored offset. This slice does not implement that parent rule, and this verdict does not close W04.
 
 ## WAL movement is recorded and does not certify PITR
 
@@ -30,17 +64,15 @@ On this cut the marker held, both entry counts were 90000, `history_insufficient
 
 `publish_offset` takes `stored` and `_other` and publishes `stored` when history is sufficient. `offset_min_used` is constant false. The live call is `publish_offset(manifest.history_insufficient, &core.offset_stored, Some("1"))`. The ignored argument is `"1"`. The stored watermark position is `100000`. `declared_next_pos` is `100001`. The happy report published `100000` with `offset_min_used` false. The minimum of `"1"` and `100000` is `1`, and that value was not published. The minimum of the stored position and `declared_next_pos` would also be `100000`, so those two numbers alone do not show the function. The ignored `"1"` does.
 
-## Enum and calendar cannot share one database
+## Enum and calendar stay with author a365
 
-`tools/calendar-store/migrations/oo_calendar_control_v1.sql` creates schema `oo_dict` and view `oo_dict.calendar`. `tools/enum-store/migrations/oo_enum_control_v1.sql` creates schema `oo_dict` and view `oo_dict.enums`. The operator fixture applies the calendar file to `oo_a356_control` and the enum file to `oo_a356_agent`. Separate databases hide the name collision, and the author's 11 tests do not apply both files to one database.
-
-One probe database, `oo_a361_schema_probe`, received the calendar file (exit 0) and then the enum file (exit 3). stderr:
+`tools/calendar-store/migrations/oo_calendar_control_v1.sql` creates schema `oo_dict` and view `oo_dict.calendar`. `tools/enum-store/migrations/oo_enum_control_v1.sql` creates schema `oo_dict` and view `oo_dict.enums`. The E51 fixture applies calendar on `oo_a356_control` and enum on `oo_a356_agent`, so the two `CREATE SCHEMA` statements never meet. On `oo_a361_schema_probe` the calendar file exited 0 and the enum file exited 3:
 
 ```
 psql:/schemas/tools/enum-store/migrations/oo_enum_control_v1.sql:252: ERROR:  schema "oo_dict" already exists
 ```
 
-The family `enum_calendar_same_database` remains in `remaining_state_families`. No other pair was loaded.
+That is the integration gap. No other pair was loaded. Author session a365 owns the schema correction. This review does not patch either migration, the fixture, or the product. The collision is not the mandatory backup correction above, and it is not a reason to waive the quiescence withhold. The family `enum_calendar_same_database` stays in `remaining_state_families`.
 
 ## Cluster roles, WAL archives, and pgBackRest stay open
 
@@ -62,4 +94,4 @@ Happy report `rpo_window_seconds` is 1 and `rto_seconds` is 1. Those equal `back
 
 ## Gate
 
-`w04_gate` remains `open`. This evidence does not accept the parent goal.
+Verdict `WITHHOLD` on original frozen E51. `w04_gate` remains `open`. The 101 oracle passes stay as recorded and were not rerun. This evidence does not accept the parent goal.

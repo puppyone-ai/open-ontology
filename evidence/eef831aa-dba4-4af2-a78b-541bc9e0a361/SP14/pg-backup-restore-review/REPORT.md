@@ -4,9 +4,15 @@ Reviewer session `eef831aa-dba4-4af2-a78b-541bc9e0a361`. Fixed source `1d88fe8ad
 
 ## Verdict
 
-The private PostgreSQL 17.10 logical backup restored into fresh databases, and the independent oracle matched every restored shop row plus the checkpoint, key, calendar, enum, and history probes. `live/independent/verdict.txt` says `failed=0` and `ok=true` (101 passes).
+`WITHHOLD` for the original frozen E51 at `1d88fe8ad9fa4a113c105e1df4d0903e517fc9a9`. Scope is not waived. `verdict/VERDICT.txt` repeats that token.
 
-That slice does not close SP14-W04 or AT-OPS-06. The happy readiness report keeps `w04_gate` at `open`, `all_state_certified` false, `production_slo_certified` false, `production_ops` false, `parent_acceptance` false, `pitr_ready` false, and `offset_min_used` false. Parent acceptance is not claimed.
+`tools/pg-backup-restore/CONTRACT.md` lines 53 and 61 make `history_insufficient=false` the gate for a logical snapshot and for `replay_ready`. The program sets that flag from the cut marker and `count(*)` of `shop.entry`, sampled before and after two sequential `pg_dump` calls, plus a control-database LSN that does not withhold the seal. A value update that leaves the marker and the entry count unchanged can land between those dumps. `history_insufficient=false` and `quiescent=true` do not certify that both dumps are one cut. Approving a quieter subset of the same contract would drop that gate. This review does not do that.
+
+The earlier independent oracle file `live/independent/verdict.txt` still says `failed=0` and `ok=true` (101 passes). Those checks were not rerun. They show that one undisturbed restore matched the review formulas. They do not prove quiescence. The line `pass manifest_history_sufficient` only records that the tool wrote `history_insufficient=false` and `quiescent=true` on that quiet run.
+
+SP14-W04 and AT-OPS-06 stay open. `w04_gate` stays `open`. `all_state_certified`, `production_slo_certified`, `production_ops`, `parent_acceptance`, `pitr_ready`, and `offset_min_used` stay false. Parent acceptance is not claimed.
+
+The enum and calendar `oo_dict` collision is recorded below and is not patched. Author session a365 owns that schema fix. It is not this backup correction.
 
 ## What ran
 
@@ -53,7 +59,7 @@ Calendar SQL and enum SQL each execute `CREATE SCHEMA oo_dict` (calendar migrati
 psql:/schemas/tools/enum-store/migrations/oo_enum_control_v1.sql:252: ERROR:  schema "oo_dict" already exists
 ```
 
-The probe database was dropped. It is absent from `live/databases.txt`. No other schema pair was attempted.
+The probe database was dropped. It is absent from `live/databases.txt`. No other schema pair was attempted. Author a365 owns the schema fix. This review does not patch the migrations.
 
 ## Still open
 
