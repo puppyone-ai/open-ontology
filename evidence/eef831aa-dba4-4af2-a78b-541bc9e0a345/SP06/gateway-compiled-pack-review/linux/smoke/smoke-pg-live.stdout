@@ -1,0 +1,6 @@
+
+running 1 test
+test compiled_role_pack_metadata_hides_unclassified_pii ... ignored, requires OO_A341_LIVE=1, the private PostgreSQL, and role-pack-bundle
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,20 @@
+Proved archive commit 6001e18ee15d7f6a12d7e5f9c9cd89c8cd8a7b5c.
+Working tree HEAD at the proof was 73e63d261615111dcdefa98c25b17b1afb4d88f3.
+git diff of the paths below against 6001e18e was empty.
+The archive was `git archive` of that commit. Dirty workspace files outside the archive were not mounted.
+
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  Cargo.lock
+d68ce8c113f9028d2dac659c332879c9eac875cc687f2fb28c7c02eaf880f5d4  crates/oo-gateway/src/pack_catalog.rs
+306a4ad6137d0de687dc04437d57e8e6a526da9e14ba4e0a3c312bd607acccae  crates/oo-gateway/tests/http_gateway_live.rs
+eaa2041ba9364eba6b5e1d6628b282e5053cbdfac2e2c9f532e79607b57a5762  crates/oo-gateway/tests/http_gateway_pg_live.rs
+f8aa1fa0992c83514b6c4b9332bdbf604914c0ad678d78675c9de6b3b7716075  crates/oo-gateway/tests/http_gateway_loopback.rs
+f56304b1f9314b3e5032cff538e7e4c48beb4a6034ac8a86c5695142391b7a27  crates/oo-builder/src/canonical.rs
+6fe5448908e1ab1686342ee5d728ba75732bf4b41c55766149d95d46c87f1729  testing/real-db/gateway-compiled-pack/CONTRACT.md
+a408755dd5c22a5cb199cb269ce01267609cf1398f92f0de0baa70bd90c86e2c  testing/real-db/gateway-compiled-pack/src/fixture.rs
+
+Review oracle copied into the work tree only after the archive smoke:
+5adb82963765dd17132b35b687f89c74e98e84186d3b855ee06fed816c33a167  tools/review_pack.rs
+
+Canonical writer comparison: source/canonical-compare.txt
+Author evidence recheck: source/a341-manifest-check.txt (188 entries, 0 mismatches)
+AGENTS.md is not in the repository.

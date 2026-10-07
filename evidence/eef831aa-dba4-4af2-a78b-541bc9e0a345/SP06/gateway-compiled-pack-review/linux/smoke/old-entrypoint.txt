@@ -1,0 +1,3 @@
+17:use oo_gateway::pack_catalog::fixture_artifact;
+235:    let picker = fixture_artifact("depot", "oo_r_picker", "pv1", "kv1", "orders", "picker_note").expect("picker artifact");
+236:    let auditor = fixture_artifact("depot", "oo_r_auditor", "pv1", "kv1", "orders", "auditor_phone").expect("auditor artifact");

@@ -1,0 +1,14 @@
+picker_digest=match
+auditor_digest=match
+picker_role=oo_r_picker
+auditor_role=oo_r_auditor
+project=depot
+policy=pol_depot@pv1
+knowledge=know_depot@kv1
+hidden_absent=1
+compiler_process=refused
+file_process=refused
+binding_process=refused
+compiler_reason=compiler
+file_reason=source_digest
+binding_reason=binding
