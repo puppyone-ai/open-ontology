@@ -1,0 +1,14 @@
+The crate walk writes source/CRATE-SHA256SUMS first. The evidence walk then writes SHA256SUMS at the rerun root and includes the crate manifest. The walker skips its output path, so SHA256SUMS itself is absent from SHA256SUMS.
+
+Host files written after the walker returns are absent from SHA256SUMS:
+
+- linux/inventory/console.log
+- linux/inventory/hostconfig.txt
+- linux/inventory/mounts.txt
+- linux/inventory/docker-run.exit
+- linux/inventory/container-removed.txt
+- cleanup.log
+
+`linux/inventory/capacity.txt`, `image.txt`, and `invocation.txt` are written before the container starts, so the walker includes them.
+
+cleanup.sh is in the walk when it is present before the walker starts. cleanup.log is produced when owned resources are removed.

@@ -1,0 +1,34 @@
+phase=apply
+parent_exit=1
+parent_stderr=pg-onboarding: query-wide-qty exit
+parent_stdout_bytes=0
+child=query-wide-qty
+child_exit=6
+child_stderr=query-pg: guard
+child_stdout_bytes=0
+child_stdin_bytes=0
+audit_file_absent=live/run/audit/wide-qty.jsonl
+apply_outcome_status=failed
+apply_outcome_step=query-wide-qty
+apply_outcome_detail=exit
+apply_database_state=changes_may_have_been_applied
+database_rollback=false
+database_release=false
+
+Frozen SQL in testing/real-db/pg-e2e/src/run.rs and in live/run/queries/wide-qty.request.json:
+SELECT entry_id, qty FROM shop.entry WHERE entry_id IN (0, 1, 2) ORDER BY entry_id
+Expected exit on that statement remains 0. It was not edited after this result.
+
+Archive crates/oo-gateway/src/sql_guard.rs blob 1db8f3ed11a2d816d485bdd2865f37aff3e5cbed.
+admit_op returns operator_form when A_Expr.kind is not AEXPR_OP.
+operator_form maps AexprIn to GuardError::Unsupported { construct: "IN predicate" }.
+scan_tree descends A_Expr and List and does not reject this shape.
+admit_where calls admit_expr before admit_sort, so the ORDER BY key is not the first refusal.
+large_relation runs only after admit_where returns. shop.entry estimated_rows is 90000. The catalog threshold is 1000000.
+
+query_executor.rs blob fc3a65254881c62f8321bc01e405d6b3d45dabb1 wraps every guard_select error as ExecError::Guard.
+query-pg.rs blob f404eb1879cdfbbcc3c3a64547c10a40939402ed maps Fail::Guard to exit 6 and the static stderr query-pg: guard. The construct string is discarded. No audit line is written because the guard returns before execution.
+
+Observed exits that already passed the same guard: query-wide-count exit 0 returned int 90000; query-wide-null exit 0 returned p00000, null, true. Those statements use count(*) and an equality filter. entry_id and qty are on the wide allow list in the qty request.
+
+reviewed-policy-wide and reviewed-policy-narrow exited 0 on this archive. base_type admits numeric. compatible admits numeric only with Quantity. The earlier semantic refusal of shop.entry.amount is cleared on this commit. The numeric probe, target COPY compare, fresh query, and restart were not reached because apply stopped at query-wide-qty.

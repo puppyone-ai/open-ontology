@@ -1,0 +1,17 @@
+oo_task=sp11-real-pg-e2e-nr-smoke
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a317
+phase=smoke
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=overlay
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== cargo test --locked --offline ===
+phase_exit=0 phase=test
+phase_exit=0 phase=test-count
+phase_exit=0 phase=live-ignored
+=== rustup component add clippy ===
+phase_exit=0 phase=clippy-component
+=== cargo clippy --locked --offline ===
+phase_exit=0 phase=clippy
+phase_exit=0 phase=cargo-update-text
+smoke=ok
