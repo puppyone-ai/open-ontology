@@ -1,0 +1,18 @@
+# One handle snapshot before owned cleanup
+# Containers present:
+name=oo-a364-pg status=Up 11 minutes image=3aac91d19d5b
+name=oo-a064-rust194-contract2 status=Exited (0) 5 days ago image=0f24958fa693
+name=oo-a064-rust194-contract status=Exited (101) 5 days ago image=0f24958fa693
+name=oo-a064-pg1710-jobs status=Exited (0) 5 days ago image=3aac91d19d5b
+name=oo-a064-rust194-smoke status=Exited (0) 5 days ago image=0f24958fa693
+# a364 network oo-a364-sbs-net containers: oo-a364-pg
+# own rust builders: 0
+# global rust builders: 0
+# a364 volumes present:
+oo-a364-gw-target
+oo-a364-pgdata
+oo-a364-sbs-cargo
+oo-a364-sbs-target
+# Other named volumes were listed and left in place, including oo-a355-sbs-cargo, oo-a355-sbs-gw-target, oo-a355-sbs-pgdata, oo-a355-sbs-target, and the oo-a064, oo-a108, oo-a133, oo-a318, oo-a354, oo-a360, oo-a362, and oo-a363 volumes.
+# oo-a361-pg and oo-a359-pg were not in this snapshot.
+# Secret scan of the evidence tree against /tmp/oo-a364-sbs-secrets admin.pass and login.pass: password_hits 0, pem_blocks 0.

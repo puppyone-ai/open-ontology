@@ -1,0 +1,1 @@
+oracle.rs used a let-chain while rustc was invoked with --edition 2021. sha256 tool compiled. produce was not started. No NDJSON was written.

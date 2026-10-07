@@ -1,0 +1,1 @@
+{"record":"row","turn":0,"cells":[{"kind":"text","value":"a364-mapped-row"}]}

@@ -1,0 +1,1 @@
+mem=1073741824 swap=1073741824 cpus=1000000000 pids=256 privileged=false capdrop=[ALL] capadd=[CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETGID CAP_SETUID] network=oo-a364-sbs-net ports={} readonly_root=false security=["no-new-privileges:true"] image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb

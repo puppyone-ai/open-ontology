@@ -1,0 +1,3 @@
+   Compiling selfbuild-suggestions v0.1.0 (/tmp/sbs-review)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/independent.rs (/target/debug/deps/independent-097be623eb6ed0f2)

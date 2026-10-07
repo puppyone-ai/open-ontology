@@ -1,0 +1,11 @@
+
+running 6 tests
+test duplicate_relationship_and_feedback_collapse_once ... ok
+test emit_live_command_when_requested ... ok
+test graph_metric_and_partial_validation_keep_the_second_example_unrun ... ok
+test negative_weak_key_does_not_merge_certify_or_publish ... ok
+test scope_refuses_other_model_scope_and_missing_authorization ... ok
+test seal_mismatch_and_candidate_preimage_are_independent ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

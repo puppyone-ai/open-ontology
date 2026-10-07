@@ -1,0 +1,17 @@
+    Checking typenum v1.20.1
+    Checking generic-array v0.14.9
+    Checking libc v0.2.189
+    Checking serde_core v1.0.229
+    Checking crypto-common v0.1.6
+    Checking block-buffer v0.10.4
+    Checking digest v0.10.7
+    Checking cpufeatures v0.2.17
+    Checking zmij v1.0.23
+    Checking memchr v2.8.3
+    Checking itoa v1.0.18
+    Checking cfg-if v1.0.5
+    Checking sha2 v0.10.9
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking selfbuild-suggestions v0.1.0 (/work/tools/selfbuild-suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.30s
