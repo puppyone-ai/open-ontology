@@ -9,4 +9,11 @@ export const ADMIN_NAV: readonly ShellNavItem[] = [
   { id: "A08", label: "文件", to: "/admin/files/:id" },
   { id: "A09", label: "任务", to: "/admin/jobs" },
   { id: "A10", label: "任务详情", to: "/admin/jobs/:id" },
+  { id: "A11", label: "构建", to: "/admin/builds" },
+  { id: "A12", label: "构建详情", to: "/admin/builds/:id" },
+  { id: "A17", label: "审核", to: "/admin/reviews" },
+  { id: "A18", label: "审核决定", to: "/admin/reviews/:id" },
+  { id: "A19", label: "分类", to: "/admin/classifications" },
+  { id: "A29", label: "发布", to: "/admin/releases" },
+  { id: "A30", label: "发布详情", to: "/admin/releases/:id" },
 ];
