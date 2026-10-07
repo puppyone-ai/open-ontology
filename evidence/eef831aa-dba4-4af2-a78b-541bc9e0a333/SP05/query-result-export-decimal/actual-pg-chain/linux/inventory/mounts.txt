@@ -1,0 +1,5 @@
+bind /evidence rw=true
+volume /cargo-home rw=true
+bind /tools/sha256.rs rw=false
+bind /inside.sh rw=false
+

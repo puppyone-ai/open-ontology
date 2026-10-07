@@ -1,0 +1,20 @@
+a333 actual PG chain. Frozen before the smoke and before any chain build.
+
+Exporter product commit 62b4afecdd377fa94310f46467c48a01e61d14db
+Parent of that commit 74e81391682c46002e62093c0fbb412bc03f5a26
+Subject query-result-export: accept canonical decimal cells
+Worktree tools/query-result-export matches that commit. The chain builds a git archive of that commit. It does not mount the moving worktree.
+
+Cargo.lock content sha256 cc614d3de29ee73fb29ed7bfa9761102f9a3fe26d27244e8e76000016a791d22
+Cargo.toml content sha256 b17cb555e0f20e5fcd7853c584e2dd0a1c0414140e5cad533a3e6f885e7cd1f4
+git blob Cargo.lock 28821b6eef8935f7239cb1527d27f2dbae67dd16
+
+Producer commit 21cc96241a841b47dbbcb116549030e38a643ba0
+Subject numeric-query: bound mapping-reader numeric by typmod
+Independent approval a340 APPROVE_LIMITED. 234 SHA256SUMS entries matched at that review.
+Producer Cargo.lock content sha256 b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474
+The chain builds a git archive of 21cc9624. It does not mount the moving worktree and does not edit the producer.
+
+Hand gold CSV files are written in gold/ before either container. They are the plain-text display of the a327 six-row fixture, including the negative, the 38-digit coefficient, zero, and null. They are not generated from query-pg JSON.
+
+Unit-only evidence at the parent of this directory stays in place, including the a331 withhold record inside REPORT.md. This chain does not rewrite those files.

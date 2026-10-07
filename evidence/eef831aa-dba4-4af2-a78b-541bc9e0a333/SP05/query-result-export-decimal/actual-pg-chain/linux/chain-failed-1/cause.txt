@@ -1,0 +1,1 @@
+chain-oracle.rs did not compile: str::contains does not accept String on this toolchain. Live proof, builds, and query-pg stdout from this run are preserved here. The retry fixes the oracle and runs again on the same private database.

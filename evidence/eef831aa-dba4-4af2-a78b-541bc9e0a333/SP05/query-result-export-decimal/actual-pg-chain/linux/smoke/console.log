@@ -1,0 +1,13 @@
+oo_task=sp05-query-result-export-decimal-actual-smoke
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a333
+oo_exporter=62b4afecdd377fa94310f46467c48a01e61d14db
+oo_platform=linux/arm64
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=sha256-tool
+phase_exit=0 phase=exporter-hash
+phase_exit=0 phase=exporter-stable
+phase_exit=0 phase=clippy-component
+phase_exit=0 phase=test
+phase_exit=0 phase=clippy
+smoke_done
