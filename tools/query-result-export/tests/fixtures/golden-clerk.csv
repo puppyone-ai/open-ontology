@@ -1,0 +1,4 @@
+order_id,customer_id,memo,posted,amount,clerk_note
+701,41,首单,true,-9223372036854775808,柜员甲
+702,41,,false,9223372036854775807,
+703,43,零单,true,0,柜员乙

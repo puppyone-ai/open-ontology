@@ -1,0 +1,14 @@
+query-clerk-order_doc-star.stdout
+source=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a226/SP11/reviewed-pg-composition/live/steps/query-clerk-order_doc-star.stdout
+sha256=54cabda641bf1a2128e0246a78eb1a761895a0aa5a4226d136ad8aec399ad6eb
+bytes=1027
+columns=order_id,customer_id,memo,posted,amount,clerk_note
+This file is the compiled query-pg stdout. It is not a schema invented for this crate.
+
+golden-clerk.csv
+sha256=9c7c1562db84359e654e50f7f836465062759af12d84f36d52aa6f845c1607f1
+bytes=171
+Hand-written RFC 4180 bytes for that stdout. Null memo and null clerk_note are empty fields. The int8 minimum stays unprefixed.
+
+hand-formula.jsonl
+Hand-authored query-pg grammar. Not a compiled receipt. result_bytes 128 is the producer cell-byte sum of the decoded cells.
