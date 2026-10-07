@@ -5,6 +5,7 @@ pub enum Json {
     Null,
     Bool(bool),
     Number(u64),
+    NegInt(u64),
     String(String),
     Array(Vec<Json>),
     Object(Vec<(String, Json)>),
@@ -70,6 +71,7 @@ impl<'a> Parser<'a> {
                 Ok(Json::Null)
             }
             b'0'..=b'9' => Ok(Json::Number(self.number()?)),
+            b'-' => Ok(Json::NegInt(self.neg_int()?)),
             _ => Err(JsonError::Syntax),
         }
     }
@@ -213,6 +215,17 @@ impl<'a> Parser<'a> {
             value = (value << 4) | u16::from(digit);
         }
         Ok(value)
+    }
+
+    fn neg_int(&mut self) -> Result<u64, JsonError> {
+        self.bump()?;
+        let Some(first) = self.peek() else {
+            return Err(JsonError::Syntax);
+        };
+        if !(b'1'..=b'9').contains(&first) {
+            return Err(JsonError::Syntax);
+        }
+        self.number()
     }
 
     fn number(&mut self) -> Result<u64, JsonError> {

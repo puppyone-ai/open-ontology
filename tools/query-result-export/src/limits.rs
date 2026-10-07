@@ -7,6 +7,7 @@ pub const MAX_COLUMNS: usize = 512;
 pub const MAX_COLUMN_NAME_BYTES: usize = 256;
 pub const MAX_JSON_DEPTH: usize = 8;
 pub const MAX_JSON_NODES: usize = 8192;
+pub const MAX_COEFFICIENT_DIGITS: usize = 8192;
 
 pub const SOURCE_NAME: &str = "export.source.jsonl";
 pub const CSV_NAME: &str = "export.csv";

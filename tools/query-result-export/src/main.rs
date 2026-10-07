@@ -15,10 +15,13 @@ Usage:
 The request is oo.query-result-export/v1. source_file is one query-pg
 stdout. output_dir receives export.csv, export.sidecar.json, and
 export.source.jsonl. columns are the caller header. query-pg cells are
-null, bool, int, or text. int stays canonical decimal text, including a
-leading minus. text that starts with = + - @ after Unicode whitespace or
-a control character is prefixed with U+0027 APOSTROPHE. xlsx is
-unsupported. http_auth is false. The stdout has no query_id.
+null, bool, int, text, or decimal. int stays the integer kind and its
+canonical base-10 text, including a leading minus. decimal carries a
+coefficient and a scale and is copied as canonical plain text, including
+a leading minus, with no apostrophe. text that starts with = + - @ after
+Unicode whitespace, a control character, or U+FEFF is prefixed with
+U+0027 APOSTROPHE. xlsx is unsupported. http_auth is false. The stdout
+has no query_id.
 
 Exit 0 writes a complete export. Exit 1 partial writes an incomplete
 export and does not call it complete. Exit 1 io is a write failure.

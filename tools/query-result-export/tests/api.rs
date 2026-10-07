@@ -95,7 +95,7 @@ fn inconsistent_row_count_writes_nothing_in_render() {
 }
 
 #[test]
-fn decimal_kind_and_noncanonical_ints_are_source_failures() {
+fn value_shaped_decimal_and_noncanonical_ints_are_source_failures() {
     assert_eq!(render(&one_cell("decimal", "\"1.50\""), &["n"]).unwrap_err(), Fault::source());
     assert_eq!(render(&one_cell("int", "\"01\""), &["n"]).unwrap_err(), Fault::source());
     assert_eq!(render(&one_cell("int", "\"-0\""), &["n"]).unwrap_err(), Fault::source());
@@ -203,6 +203,143 @@ fn export_to_refuses_symlink_and_existing_names() {
 }
 
 #[test]
+fn frozen_decimal_cells_keep_plain_text_and_the_int_kind() {
+    let cells = format!(
+        "[{},{},{},{},{},{{\"kind\":\"int\",\"value\":\"-1\"}},{{\"kind\":\"text\",\"value\":\"-1\"}}]",
+        dec(false, "123456789012345678", 4),
+        dec(true, "123456789012345678", 4),
+        dec(false, "1", 4),
+        dec(true, "1", 4),
+        dec(false, "0", 4),
+    );
+    let source = row_source(&cells, 1, 62, false);
+    let columns = ["p", "n", "s", "ns", "z", "i", "t"];
+    let export = render(source.as_bytes(), &columns).expect("frozen decimal");
+    assert!(export.complete);
+    let csv = b"p,n,s,ns,z,i,t\r\n12345678901234.5678,-12345678901234.5678,0.0001,-0.0001,0.0000,-1,'-1\r\n";
+    assert_eq!(export.csv, csv);
+    assert!(export.csv.windows(20).any(|window| window == b"-12345678901234.5678"));
+    assert!(std::str::from_utf8(&export.csv).unwrap().contains("0.0000,-1,'-1"));
+    let side = String::from_utf8(export.sidecar).unwrap();
+    assert!(side.contains(&format!("\"source_sha256\":\"{}\"", sha256_hex(source.as_bytes()))));
+    assert!(side.contains("\"kind\":\"int\""));
+    assert!(side.contains("\"text\":\"-1\""));
+    assert!(side.contains("\"decimal_count\":5"));
+    assert!(side.contains("\"int_count\":1"));
+    assert!(side.contains(
+        "\"decimal_cells\":[{\"row\":0,\"column\":0,\"negative\":false,\"coefficient\":\"123456789012345678\",\"scale\":4,\"text\":\"12345678901234.5678\"},{\"row\":0,\"column\":1,\"negative\":true,\"coefficient\":\"123456789012345678\",\"scale\":4,\"text\":\"-12345678901234.5678\"},{\"row\":0,\"column\":2,\"negative\":false,\"coefficient\":\"1\",\"scale\":4,\"text\":\"0.0001\"},{\"row\":0,\"column\":3,\"negative\":true,\"coefficient\":\"1\",\"scale\":4,\"text\":\"-0.0001\"},{\"row\":0,\"column\":4,\"negative\":false,\"coefficient\":\"0\",\"scale\":4,\"text\":\"0.0000\"}]"
+    ));
+    assert!(side.contains("\"formula_prefixed\":1"));
+    assert!(side.contains("\"formula_cells\":[[0,6]]"));
+    assert!(side.starts_with("{\"version\":\"oo.query-result-export/v1\""));
+}
+
+#[test]
+fn negative_scale_plain_text_is_zeros_and_not_an_apostrophe() {
+    let source = row_source(&format!("[{}]", dec(false, "12", -2)), 1, 4, false);
+    let export = render(source.as_bytes(), &["n"]).expect("scale");
+    assert_eq!(export.csv, b"n\r\n1200\r\n");
+    let side = String::from_utf8(export.sidecar).unwrap();
+    assert!(side.contains("\"scale\":-2"));
+    assert!(side.contains("\"text\":\"1200\""));
+    assert!(side.contains("\"coefficient\":\"12\""));
+    assert!(!export.csv.contains(&b'\''));
+}
+
+#[test]
+fn null_may_mix_with_decimal_and_int_may_not() {
+    let null_row = r#"{"record":"row","turn":0,"cells":[{"kind":"null"}]}"#;
+    let decimal_row = format!(
+        "{{\"record\":\"row\",\"turn\":0,\"cells\":[{}]}}",
+        dec(false, "0", 4)
+    );
+    let source = format!("{null_row}\n{decimal_row}\n{}", summary(2, 6, false));
+    let export = render(source.as_bytes(), &["amt"]).expect("mix null");
+    assert_eq!(export.csv, b"amt\r\n\r\n0.0000\r\n");
+    let side = String::from_utf8(export.sidecar).unwrap();
+    assert!(side.contains("\"kind\":\"decimal\""));
+    assert!(side.contains("\"null_cells\":[[0,0]]"));
+    let both_row = format!(
+        "{{\"record\":\"row\",\"turn\":0,\"cells\":[{}, {{\"kind\":\"int\",\"value\":\"1\"}}]}}",
+        dec(false, "1", 0)
+    );
+    let both = format!("{both_row}\n{}", summary(1, 2, false));
+    let both_export = render(both.as_bytes(), &["a", "b"]).expect("int stays int");
+    assert_eq!(both_export.csv, b"a,b\r\n1,1\r\n");
+    let both_side = String::from_utf8(both_export.sidecar).unwrap();
+    assert!(both_side.contains("\"kind\":\"decimal\""));
+    assert!(both_side.contains("\"kind\":\"int\""));
+    assert!(both_side.contains("\"int_count\":1"));
+    assert!(both_side.contains("\"decimal_count\":1"));
+    let decimal_only = format!(
+        "{{\"record\":\"row\",\"turn\":0,\"cells\":[{}]}}",
+        dec(false, "1", 0)
+    );
+    let int_row = r#"{"record":"row","turn":0,"cells":[{"kind":"int","value":"1"}]}"#;
+    let same = format!("{decimal_only}\n{int_row}\n{}", summary(2, 2, false));
+    assert_eq!(render(same.as_bytes(), &["a"]).unwrap_err(), Fault::source());
+}
+
+#[test]
+fn noncanonical_decimal_cells_are_source_failures() {
+    let bad = [
+        dec(true, "0", 4),
+        dec(false, "01", 0),
+        dec(false, "1.5", 0),
+        dec(false, "", 0),
+        "{\"kind\":\"decimal\",\"negative\":false,\"coefficient\":\"1\",\"scale\":4,\"value\":\"1\"}".to_string(),
+        "{\"kind\":\"decimal\",\"negative\":false,\"coefficient\":\"1\",\"scale\":\"4\"}".to_string(),
+        "{\"kind\":\"decimal\",\"negative\":false,\"coefficient\":\"1\",\"scale\":-0}".to_string(),
+        dec(false, "1", 8193),
+        dec(false, "1", -8193),
+        dec(false, &"9".repeat(8193), 0),
+    ];
+    for cell in bad {
+        let source = row_source(&format!("[{cell}]"), 1, 1, false);
+        assert_eq!(render(source.as_bytes(), &["n"]).unwrap_err(), Fault::source(), "{cell}");
+    }
+}
+
+#[test]
+fn coefficient_at_the_digit_budget_is_copied() {
+    let coefficient = "9".repeat(8192);
+    let source = row_source(&format!("[{}]", dec(false, &coefficient, 0)), 1, 8192, false);
+    let export = render(source.as_bytes(), &["n"]).expect("budget edge");
+    assert!(export.complete);
+    assert!(export.csv.windows(8192).any(|window| window == coefficient.as_bytes()));
+    assert!(!export.csv.contains(&b'\''));
+}
+
+#[test]
+fn fef_before_equals_is_the_one_prefixed_gold_cell() {
+    let source = row_source(
+        r#"[{"kind":"text","value":"\uFEFF=1+1"}]"#,
+        1,
+        7,
+        false,
+    );
+    let export = render(source.as_bytes(), &["note"]).expect("feff");
+    assert!(!export.csv.starts_with(&[0xEF, 0xBB, 0xBF]));
+    assert_eq!(export.csv, "note\r\n'\u{FEFF}=1+1\r\n".as_bytes());
+    let side = String::from_utf8(export.sidecar).unwrap();
+    assert!(side.contains("\"formula_prefixed\":1"));
+    assert!(side.contains("\"formula_cells\":[[0,0]]"));
+}
+
+#[test]
+fn truncated_decimal_row_stays_partial_and_keeps_the_plain_text() {
+    let source = row_source(&format!("[{}]", dec(true, "1", 4)), 1, 7, true);
+    let export = render(source.as_bytes(), &["n"]).expect("partial decimal");
+    assert!(!export.complete);
+    assert_eq!(export.csv, b"n\r\n-0.0001\r\n");
+    let side = String::from_utf8(export.sidecar).unwrap();
+    assert!(side.contains("\"complete\":false"));
+    assert!(side.contains("\"partial\":true"));
+    assert!(side.contains("\"truncated\":true"));
+    assert!(side.contains(&format!("\"source_sha256\":\"{}\"", sha256_hex(source.as_bytes()))));
+}
+
+#[test]
 fn export_to_writes_the_exact_source_bytes() {
     let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
     let dir = scratch();
@@ -239,7 +376,7 @@ fn clerk_sidecar(source: &[u8], csv: &[u8]) -> String {
     out.push_str("{\"row\":2,\"column\":0,\"text\":\"703\"},");
     out.push_str("{\"row\":2,\"column\":1,\"text\":\"43\"},");
     out.push_str("{\"row\":2,\"column\":4,\"text\":\"0\"}");
-    out.push_str("],\"csv_sha256\":\"");
+    out.push_str("],\"decimal_count\":0,\"decimal_cells\":[],\"csv_sha256\":\"");
     out.push_str(&sha256_hex(csv));
     out.push_str("\",\"csv_bytes\":171}\n");
     out
@@ -291,6 +428,22 @@ fn push_row(out: &mut Vec<u8>, fields: &[&[u8]]) {
         out.extend_from_slice(field);
     }
     out.extend_from_slice(b"\r\n");
+}
+
+fn dec(negative: bool, coefficient: &str, scale: i32) -> String {
+    format!(
+        "{{\"kind\":\"decimal\",\"negative\":{},\"coefficient\":\"{}\",\"scale\":{}}}",
+        if negative { "true" } else { "false" },
+        coefficient,
+        scale
+    )
+}
+
+fn row_source(cells: &str, rows: u32, bytes: u64, truncated: bool) -> String {
+    format!(
+        "{{\"record\":\"row\",\"turn\":0,\"cells\":{cells}}}\n{}",
+        summary(rows, bytes, truncated)
+    )
 }
 
 fn one_cell(kind: &str, value_json: &str) -> Vec<u8> {

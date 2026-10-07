@@ -67,6 +67,7 @@ pub fn render(source: &[u8], columns: &[&str]) -> Result<Export, Fault> {
         null_cells: &scanned.null_cells,
         empty_text_cells: &scanned.empty_text_cells,
         int_cells: &scanned.int_cells,
+        decimal_cells: &scanned.decimal_cells,
     })
     .map_err(|()| Fault::source())?;
     if sidecar.len() > MAX_SIDECAR_BYTES {
@@ -162,6 +163,7 @@ fn build_csv(columns: &[&str], parsed: &Parsed) -> Result<Vec<u8>, Fault> {
                 Cell::Bool(true) => write_field(&mut csv, "true"),
                 Cell::Bool(false) => write_field(&mut csv, "false"),
                 Cell::Int(text) => write_field(&mut csv, text),
+                Cell::Decimal(cell) => write_field(&mut csv, &cell.text),
                 Cell::Text(text) => {
                     let escaped = escape_text(text);
                     write_field(&mut csv, &escaped);
@@ -185,6 +187,7 @@ struct Scan {
     null_cells: Vec<[u32; 2]>,
     empty_text_cells: Vec<[u32; 2]>,
     int_cells: Vec<[u32; 2]>,
+    decimal_cells: Vec<[u32; 2]>,
 }
 
 fn scan(columns: &[&str], parsed: &Parsed) -> Result<Scan, Fault> {
@@ -201,6 +204,7 @@ fn scan(columns: &[&str], parsed: &Parsed) -> Result<Scan, Fault> {
     let mut null_cells = Vec::new();
     let mut empty_text_cells = Vec::new();
     let mut int_cells = Vec::new();
+    let mut decimal_cells = Vec::new();
     for (row_index, row) in parsed.rows.iter().enumerate() {
         let row_u = u32::try_from(row_index).map_err(|_| Fault::budget())?;
         for (column_index, cell) in row.iter().enumerate() {
@@ -218,6 +222,10 @@ fn scan(columns: &[&str], parsed: &Parsed) -> Result<Scan, Fault> {
                 Cell::Int(_) => {
                     set_kind(&mut stat.kind, ObservedKind::Int)?;
                     int_cells.push([row_u, column_u]);
+                }
+                Cell::Decimal(_) => {
+                    set_kind(&mut stat.kind, ObservedKind::Decimal)?;
+                    decimal_cells.push([row_u, column_u]);
                 }
                 Cell::Text(text) => {
                     set_kind(&mut stat.kind, ObservedKind::Text)?;
@@ -238,6 +246,7 @@ fn scan(columns: &[&str], parsed: &Parsed) -> Result<Scan, Fault> {
         null_cells,
         empty_text_cells,
         int_cells,
+        decimal_cells,
     })
 }
 

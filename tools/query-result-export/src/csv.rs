@@ -1,5 +1,7 @@
 pub fn formula_prone(text: &str) -> bool {
-    let rest = text.trim_start_matches(|ch: char| ch.is_whitespace() || ch.is_control());
+    let rest = text.trim_start_matches(|ch: char| {
+        ch.is_whitespace() || ch.is_control() || ch == '\u{FEFF}'
+    });
     matches!(rest.chars().next(), Some('=' | '+' | '-' | '@'))
 }
 

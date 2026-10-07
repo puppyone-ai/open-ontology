@@ -9,6 +9,7 @@ pub enum ObservedKind {
     Int,
     Bool,
     Text,
+    Decimal,
 }
 
 impl ObservedKind {
@@ -19,6 +20,7 @@ impl ObservedKind {
             Self::Int => "int",
             Self::Bool => "bool",
             Self::Text => "text",
+            Self::Decimal => "decimal",
         }
     }
 }
@@ -40,6 +42,7 @@ pub struct SidecarParts<'a> {
     pub null_cells: &'a [[u32; 2]],
     pub empty_text_cells: &'a [[u32; 2]],
     pub int_cells: &'a [[u32; 2]],
+    pub decimal_cells: &'a [[u32; 2]],
 }
 
 pub fn sidecar_bytes(parts: &SidecarParts<'_>) -> Result<Vec<u8>, ()> {
@@ -195,6 +198,43 @@ pub fn sidecar_bytes(parts: &SidecarParts<'_>) -> Result<Vec<u8>, ()> {
     }
     out.push(']');
     push_sep(&mut out);
+    push_key(&mut out, "decimal_count");
+    push_u64(&mut out, parts.decimal_cells.len() as u64);
+    push_sep(&mut out);
+    push_key(&mut out, "decimal_cells");
+    out.push('[');
+    for (index, pair) in parts.decimal_cells.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        let row = usize::try_from(pair[0]).map_err(|_| ())?;
+        let column = usize::try_from(pair[1]).map_err(|_| ())?;
+        let cell = match parts.parsed.rows.get(row).and_then(|cells| cells.get(column)) {
+            Some(crate::parse::Cell::Decimal(cell)) => cell,
+            _ => return Err(()),
+        };
+        out.push('{');
+        push_key(&mut out, "row");
+        push_u64(&mut out, u64::from(pair[0]));
+        push_sep(&mut out);
+        push_key(&mut out, "column");
+        push_u64(&mut out, u64::from(pair[1]));
+        push_sep(&mut out);
+        push_key(&mut out, "negative");
+        push_bool(&mut out, cell.negative);
+        push_sep(&mut out);
+        push_key(&mut out, "coefficient");
+        push_string(&mut out, &cell.coefficient);
+        push_sep(&mut out);
+        push_key(&mut out, "scale");
+        push_i32(&mut out, cell.scale);
+        push_sep(&mut out);
+        push_key(&mut out, "text");
+        push_string(&mut out, &cell.text);
+        out.push('}');
+    }
+    out.push(']');
+    push_sep(&mut out);
     push_key(&mut out, "csv_sha256");
     push_string(&mut out, &sha256_hex(parts.csv));
     push_sep(&mut out);
@@ -234,6 +274,10 @@ fn push_bool(out: &mut String, value: bool) {
 }
 
 fn push_u64(out: &mut String, value: u64) {
+    out.push_str(&value.to_string());
+}
+
+fn push_i32(out: &mut String, value: i32) {
     out.push_str(&value.to_string());
 }
 

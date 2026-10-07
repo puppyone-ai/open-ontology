@@ -1,6 +1,14 @@
 use crate::fault::Fault;
 use crate::json::{self, Json, JsonError};
-use crate::limits::MAX_ROWS;
+use crate::limits::{MAX_COEFFICIENT_DIGITS, MAX_ROWS};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DecimalCell {
+    pub negative: bool,
+    pub coefficient: String,
+    pub scale: i32,
+    pub text: String,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cell {
@@ -8,6 +16,7 @@ pub enum Cell {
     Bool(bool),
     Int(String),
     Text(String),
+    Decimal(DecimalCell),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -182,10 +191,71 @@ fn parse_cell(value: Json) -> Result<Cell, Fault> {
             Cell::Int(text)
         }
         "text" => Cell::Text(take_string(&mut fields, "value")?),
+        "decimal" => parse_decimal(&mut fields)?,
         _ => return Err(Fault::source()),
     };
     finish(&fields)?;
     Ok(cell)
+}
+
+fn parse_decimal(fields: &mut Vec<(String, Json)>) -> Result<Cell, Fault> {
+    let negative = take_bool(fields, "negative")?;
+    let coefficient = take_string(fields, "coefficient")?;
+    let scale = take_i32(fields, "scale")?;
+    if !canonical_decimal(negative, &coefficient, scale) {
+        return Err(Fault::source());
+    }
+    let text = plain_decimal(negative, &coefficient, scale);
+    Ok(Cell::Decimal(DecimalCell {
+        negative,
+        coefficient,
+        scale,
+        text,
+    }))
+}
+
+pub fn plain_decimal(negative: bool, coefficient: &str, scale: i32) -> String {
+    let mut out = String::new();
+    if negative {
+        out.push('-');
+    }
+    if scale == 0 {
+        out.push_str(coefficient);
+        return out;
+    }
+    if scale < 0 {
+        out.push_str(coefficient);
+        out.extend(std::iter::repeat_n('0', scale.unsigned_abs() as usize));
+        return out;
+    }
+    let scale_us = scale as usize;
+    if coefficient.len() > scale_us {
+        let split = coefficient.len() - scale_us;
+        out.push_str(&coefficient[..split]);
+        out.push('.');
+        out.push_str(&coefficient[split..]);
+    } else {
+        out.push_str("0.");
+        out.extend(std::iter::repeat_n('0', scale_us - coefficient.len()));
+        out.push_str(coefficient);
+    }
+    out
+}
+
+fn canonical_decimal(negative: bool, coefficient: &str, scale: i32) -> bool {
+    if coefficient.is_empty()
+        || coefficient.len() > MAX_COEFFICIENT_DIGITS
+        || !coefficient.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return false;
+    }
+    if coefficient.len() > 1 && coefficient.as_bytes()[0] == b'0' {
+        return false;
+    }
+    if scale.unsigned_abs() as usize > MAX_COEFFICIENT_DIGITS {
+        return false;
+    }
+    !(coefficient == "0" && negative)
 }
 
 fn parse_summary(fields: &mut Vec<(String, Json)>) -> Result<Summary, Fault> {
@@ -229,6 +299,7 @@ pub fn cell_bytes(cell: &Cell) -> u64 {
         Cell::Bool(true) => 4,
         Cell::Bool(false) => 5,
         Cell::Int(text) | Cell::Text(text) => u64::try_from(text.len()).unwrap_or(u64::MAX),
+        Cell::Decimal(cell) => u64::try_from(cell.text.len()).unwrap_or(u64::MAX),
     }
 }
 
@@ -277,6 +348,17 @@ fn take_u32(fields: &mut Vec<(String, Json)>, key: &str) -> Result<u32, Fault> {
 fn take_u64(fields: &mut Vec<(String, Json)>, key: &str) -> Result<u64, Fault> {
     match take(fields, key)? {
         Json::Number(value) => Ok(value),
+        _ => Err(Fault::source()),
+    }
+}
+
+fn take_i32(fields: &mut Vec<(String, Json)>, key: &str) -> Result<i32, Fault> {
+    match take(fields, key)? {
+        Json::Number(value) => i32::try_from(value).map_err(|_| Fault::source()),
+        Json::NegInt(value) => {
+            let magnitude = i32::try_from(value).map_err(|_| Fault::source())?;
+            Ok(-magnitude)
+        }
         _ => Err(Fault::source()),
     }
 }
