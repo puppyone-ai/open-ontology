@@ -1,0 +1,2 @@
+ERROR:  57014: canceling statement due to user request
+LOCATION:  ProcessInterrupts, postgres.c:3426

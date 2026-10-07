@@ -1,0 +1,3 @@
+probe_exit=0
+probe_stdout=row
+numeric_cell_set=null_bool_int_text
