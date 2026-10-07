@@ -1,0 +1,39 @@
+    Checking sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+    Checking sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+    Checking oo-core v0.1.0 (/work/src/crates/oo-core)
+    Checking sqlx v0.9.0
+    Checking oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+    Checking oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+    Checking oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+    Checking cdc-spool v0.1.0 (/work/src/tools/cdc-spool)
+    Checking cdc-apply-pg v0.1.0 (/work/src/tools/cdc-apply-pg)
+error: this pattern reimplements `Result::unwrap_or`
+  --> src/main.rs:14:16
+   |
+14 |       let code = match runtime() {
+   |  ________________^
+15 | |         Ok(code) => code,
+16 | |         Err(()) => 1,
+17 | |     };
+   | |_____^ help: replace with: `runtime().unwrap_or(1)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_unwrap_or
+   = note: `-D clippy::manual-unwrap-or` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::manual_unwrap_or)]`
+
+error: could not compile `cdc-apply-pg` (bin "cdc-apply-pg" test) due to 1 previous error

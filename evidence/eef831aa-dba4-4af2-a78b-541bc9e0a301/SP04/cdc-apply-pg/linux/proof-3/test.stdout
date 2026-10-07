@@ -1,0 +1,30 @@
+
+running 2 tests
+test tls::tests::commit_message_is_the_simple_query ... ok
+test tls::tests::source_has_no_plaintext_connector ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test fenced_writer_on_private_postgres ... FAILED
+
+failures:
+
+---- fenced_writer_on_private_postgres stdout ----
+
+thread 'fenced_writer_on_private_postgres' (341) panicked at tests/live.rs:640:31:
+drift failed: error returned from database: schema migration rows are immutable at line 3897
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fenced_writer_on_private_postgres
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+

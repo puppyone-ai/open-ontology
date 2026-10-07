@@ -1,0 +1,42 @@
+[package]
+name = "cdc-apply-pg"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Fenced PostgreSQL writer for one sealed normalized CDC spool. Not an ACK, a control mirror, or a segmented loader."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+cdc-spool = { path = "../cdc-spool" }
+oo-core = { path = "../../crates/oo-core" }
+oo-pipeline = { path = "../../crates/oo-pipeline" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+postgres-types = { version = "=0.2.14", default-features = false }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+
+[dev-dependencies]
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+
+[patch.crates-io]
+sqlx-core = { path = "../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../crates/oo-connectors/vendor/sqlx-postgres" }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

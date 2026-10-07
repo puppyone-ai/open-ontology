@@ -1,0 +1,687 @@
+    Updating crates.io index
+     Locking 291 packages to latest Rust 1.94.0 compatible versions
+      Adding cc v1.4.7 (available: v1.6.0)
+      Adding crypto-common v0.1.6 (available: v0.1.7)
+      Adding ctutils v0.4.2 (available: v0.4.3)
+      Adding encoding_rs v0.8.41 (available: v0.8.42)
+      Adding find-msvc-tools v0.1.13 (available: v0.1.14)
+      Adding generic-array v0.14.9 (available: v1.4.5)
+      Adding js-sys v0.3.105 (available: v0.3.106)
+      Adding libc v0.2.189 (available: v0.2.190)
+      Adding mio v1.2.3 (available: v1.2.4)
+      Adding siphasher v1.0.3 (available: v1.0.4)
+      Adding smallvec v1.16.1 (available: v1.16.2)
+      Adding tokio v1.53.1 (available: v1.53.2)
+      Adding tokio-rustls v0.26.5 (available: v0.26.6)
+      Adding utoipa-gen v6.0.0 (available: v6.0.1)
+      Adding wasm-bindgen v0.2.128 (available: v0.2.129)
+      Adding wasm-bindgen-macro v0.2.128 (available: v0.2.129)
+      Adding wasm-bindgen-macro-support v0.2.128 (available: v0.2.129)
+      Adding wasm-bindgen-shared v0.2.128 (available: v0.2.129)
+      Adding web-sys v0.3.105 (available: v0.3.106)
+      Adding yoke-derive v0.8.2 (available: v0.8.4)
+      Adding zerocopy v0.8.57 (available: v0.8.60)
+      Adding zerocopy-derive v0.8.57 (available: v0.8.60)
+ Downloading crates ...
+  Downloaded wasm-bindgen-shared v0.2.128
+  Downloaded crypto-common v0.1.6
+  Downloaded find-msvc-tools v0.1.13
+  Downloaded synstructure v0.13.2
+  Downloaded generic-array v0.14.9
+  Downloaded wasm-bindgen-macro v0.2.128
+  Downloaded ctutils v0.4.2
+  Downloaded yoke-derive v0.8.2
+  Downloaded wasm-bindgen v0.2.128
+  Downloaded libc v0.2.189
+  Downloaded cc v1.4.7
+  Downloaded mio v1.2.3
+  Downloaded wasm-bindgen-macro-support v0.2.128
+  Downloaded js-sys v0.3.105
+  Downloaded bumpalo v3.20.3
+  Downloaded web-sys v0.3.105
+   Compiling libc v0.2.189
+   Compiling syn v2.0.119
+   Compiling find-msvc-tools v0.1.13
+   Compiling jobserver v0.1.35
+   Compiling cc v1.4.7
+   Compiling synstructure v0.13.2
+   Compiling yoke-derive v0.8.2
+   Compiling yoke v0.8.3
+   Compiling zerocopy-derive v0.8.57
+   Compiling zerovec v0.11.8
+   Compiling zerocopy v0.8.57
+   Compiling cmake v0.1.58
+   Compiling aws-lc-sys v0.45.0
+   Compiling ctutils v0.4.2
+   Compiling parking_lot_core v0.9.12
+   Compiling generic-array v0.14.9
+   Compiling digest v0.11.3
+   Compiling parking_lot v0.12.5
+   Compiling getrandom v0.3.4
+   Compiling tinystr v0.8.4
+   Compiling ring v0.17.14
+   Compiling aws-lc-rs v1.18.1
+   Compiling icu_locale_core v2.3.0
+   Compiling ahash v0.8.12
+   Compiling zerotrie v0.2.5
+   Compiling potential_utf v0.1.6
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.3
+   Compiling icu_collections v2.3.0
+   Compiling tokio v1.53.1
+   Compiling icu_provider v2.3.1
+   Compiling getrandom v0.2.17
+   Compiling getrandom v0.4.3
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling hmac v0.13.0
+   Compiling cpufeatures v0.3.1
+   Compiling wasm-bindgen-shared v0.2.128
+   Compiling rustls v0.23.45
+   Compiling sha2 v0.11.0
+   Compiling digest v0.10.7
+   Compiling rand v0.10.3
+   Compiling rustls-webpki v0.103.15
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling md-5 v0.11.0
+   Compiling half v2.7.1
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling arrow-buffer v60.0.0
+   Compiling idna_adapter v1.2.2
+   Compiling arrow-data v60.0.0
+   Compiling strum_macros v0.28.0
+   Compiling idna v1.1.0
+   Compiling tracing-attributes v0.1.31
+   Compiling whoami v2.1.3
+   Compiling bumpalo v3.20.3
+   Compiling jsonschema-value v0.57.0
+   Compiling referencing v0.57.0
+   Compiling tracing v0.1.44
+   Compiling url v2.5.8
+   Compiling strum v0.28.0
+   Compiling arrow-array v60.0.0
+   Compiling tokio-stream v0.1.19
+   Compiling futures-intrusive v0.5.0
+   Compiling jsonschema v0.57.0
+   Compiling sqlx-core v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-core)
+   Compiling arrow-cmp v60.0.0
+   Compiling wasm-bindgen-macro-support v0.2.128
+   Compiling hkdf v0.13.0
+   Compiling wasm-bindgen v0.2.128
+   Compiling der_derive v0.7.3
+   Compiling postgres-protocol v0.6.12
+   Compiling sqlx-postgres v0.9.0 (/work/src/crates/oo-connectors/vendor/sqlx-postgres)
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/flush.rs:11:10
+   |
+11 | #[expect(dead_code)]
+   |          ^^^^^^^^^
+   |
+   = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+warning: this lint expectation is unfulfilled
+  --> /work/src/crates/oo-connectors/vendor/sqlx-postgres/src/message/mod.rs:76:14
+   |
+76 |     #[expect(dead_code)]
+   |              ^^^^^^^^^
+
+warning: `sqlx-postgres` (lib) generated 2 warnings
+   Compiling der v0.7.10
+   Compiling wasm-bindgen-macro v0.2.128
+   Compiling oo-core v0.1.0 (/work/src/crates/oo-core)
+   Compiling arrow-select v60.0.0
+   Compiling arrow-ipc v60.0.0
+   Compiling spki v0.7.3
+   Compiling sqlx v0.9.0
+   Compiling postgres-types v0.2.14
+   Compiling tokio-util v0.7.19
+   Compiling tokio-postgres v0.7.18
+   Compiling oo-connectors v0.1.0 (/work/src/crates/oo-connectors)
+   Compiling x509-cert v0.2.5
+   Compiling js-sys v0.3.105
+   Compiling oo-jobs v0.1.0 (/work/src/crates/oo-jobs)
+   Compiling tokio-rustls v0.26.5
+   Compiling syn v3.0.6
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-pipeline v0.1.0 (/work/src/crates/oo-pipeline)
+   Compiling web-sys v0.3.105
+   Compiling cdc-spool v0.1.0 (/work/src/tools/cdc-spool)
+   Compiling cdc-apply-pg v0.1.0 (/work/src/tools/cdc-apply-pg)
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:145:33
+    |
+145 |     assert_eq!(bare_out.0, 2, "{bare_out.1:?}");
+    |                                 ^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+145 -     assert_eq!(bare_out.0, 2, "{bare_out.1:?}");
+145 +     assert_eq!(bare_out.0, 2, "{0:?}", bare_out.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:183:34
+    |
+183 |     assert_eq!(drift_out.0, 2, "{drift_out.1:?}");
+    |                                  ^^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+183 -     assert_eq!(drift_out.0, 2, "{drift_out.1:?}");
+183 +     assert_eq!(drift_out.0, 2, "{0:?}", drift_out.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:225:36
+    |
+225 |     assert_eq!(missing_out.0, 2, "{missing_out.1:?}");
+    |                                    ^^^^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+225 -     assert_eq!(missing_out.0, 2, "{missing_out.1:?}");
+225 +     assert_eq!(missing_out.0, 2, "{0:?}", missing_out.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:276:32
+    |
+276 |     assert_eq!(applied.0, 0, "{applied.1:?}");
+    |                                ^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+276 -     assert_eq!(applied.0, 0, "{applied.1:?}");
+276 +     assert_eq!(applied.0, 0, "{0:?}", applied.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:308:31
+    |
+308 |     assert_eq!(replay.0, 0, "{replay.1:?}");
+    |                               ^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+308 -     assert_eq!(replay.0, 0, "{replay.1:?}");
+308 +     assert_eq!(replay.0, 0, "{0:?}", replay.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:345:35
+    |
+345 |     assert_eq!(conflicted.0, 2, "{conflicted.1:?}");
+    |                                   ^^^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+345 -     assert_eq!(conflicted.0, 2, "{conflicted.1:?}");
+345 +     assert_eq!(conflicted.0, 2, "{0:?}", conflicted.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:377:32
+    |
+377 |     assert_eq!(refused.0, 2, "{refused.1:?}");
+    |                                ^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+377 -     assert_eq!(refused.0, 2, "{refused.1:?}");
+377 +     assert_eq!(refused.0, 2, "{0:?}", refused.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:407:32
+    |
+407 |     assert_eq!(blocked.0, 2, "{blocked.1:?}");
+    |                                ^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+407 -     assert_eq!(blocked.0, 2, "{blocked.1:?}");
+407 +     assert_eq!(blocked.0, 2, "{0:?}", blocked.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:442:31
+    |
+442 |     assert_eq!(failed.0, 2, "{failed.1:?}");
+    |                               ^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+442 -     assert_eq!(failed.0, 2, "{failed.1:?}");
+442 +     assert_eq!(failed.0, 2, "{0:?}", failed.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:473:32
+    |
+473 |     assert_eq!(resumed.0, 0, "{resumed.1:?}");
+    |                                ^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+473 -     assert_eq!(resumed.0, 0, "{resumed.1:?}");
+473 +     assert_eq!(resumed.0, 0, "{0:?}", resumed.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:505:33
+    |
+505 |     assert_eq!(replayed.0, 0, "{replayed.1:?}");
+    |                                 ^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+505 -     assert_eq!(replayed.0, 0, "{replayed.1:?}");
+505 +     assert_eq!(replayed.0, 0, "{0:?}", replayed.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:538:35
+    |
+538 |     assert_eq!(hidden_out.0, 0, "{hidden_out.1:?}");
+    |                                   ^^^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+538 -     assert_eq!(hidden_out.0, 0, "{hidden_out.1:?}");
+538 +     assert_eq!(hidden_out.0, 0, "{0:?}", hidden_out.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:575:36
+    |
+575 |     assert_eq!(unknown_out.0, 3, "{unknown_out.1:?}");
+    |                                    ^^^^^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+575 -     assert_eq!(unknown_out.0, 3, "{unknown_out.1:?}");
+575 +     assert_eq!(unknown_out.0, 3, "{0:?}", unknown_out.1);
+    |
+
+error: invalid format string: tuple index access isn't supported
+   --> tests/live.rs:580:32
+    |
+580 |     assert_eq!(settled.0, 0, "{settled.1:?}");
+    |                                ^^^^^^^^^ not supported in format string
+    |
+help: consider using a positional formatting argument instead
+    |
+580 -     assert_eq!(settled.0, 0, "{settled.1:?}");
+580 +     assert_eq!(settled.0, 0, "{0:?}", settled.1);
+    |
+
+error[E0382]: use of moved value: `ns`
+   --> tests/live.rs:836:24
+    |
+790 |           let ns = quote_physical_name(
+    |  _____________--___-
+    | |             |
+    | |             move occurs because `ns` has type `std::string::String`, which does not implement the `Copy` trait
+791 | |             &plan_physical_mapping(&mapping("billing", table, Level::Namespace, "", ""))
+792 | |                 .expect("ns")
+793 | |                 .physical_name,
+794 | |         )
+795 | |         .expect("quote ns");
+    | |___________________________- this reinitialization might get skipped
+...
+829 |               orders_ns = ns;
+    |                           -- value moved here
+...
+836 |               lines_ns = ns;
+    |                          ^^ value used here after move
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+829 |             orders_ns = ns.clone();
+    |                           ++++++++
+
+error[E0382]: use of moved value: `relation`
+   --> tests/live.rs:837:27
+    |
+796 |           let relation = quote_physical_name(
+    |  _____________--------___-
+    | |             |
+    | |             move occurs because `relation` has type `std::string::String`, which does not implement the `Copy` trait
+797 | |             &plan_physical_mapping(&mapping("billing", table, Level::Table, &table.table, ""))
+798 | |                 .expect("table")
+799 | |                 .physical_name,
+800 | |         )
+801 | |         .expect("quote table");
+    | |______________________________- this reinitialization might get skipped
+...
+830 |               orders_table = relation;
+    |                              -------- value moved here
+...
+837 |               lines_table = relation;
+    |                             ^^^^^^^^ value used here after move
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+830 |             orders_table = relation.clone();
+    |                                    ++++++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+   --> tests/live.rs:999:21
+    |
+999 |                 row.try_get(0).expect("id"),
+    |                     ^^^^^^^
+    |
+   ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+    |
+112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+    |        ------- the method is available for `PgRow` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use sqlx::Row;
+    |
+help: there is a method `try_get_raw` with a similar name
+    |
+999 |                 row.try_get_raw(0).expect("id"),
+    |                            ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1000:21
+     |
+1000 |                 row.try_get(1).expect("qty"),
+     |                     ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1000 |                 row.try_get_raw(1).expect("qty"),
+     |                            ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1001:21
+     |
+1001 |                 row.try_get(2).expect("note"),
+     |                     ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1001 |                 row.try_get_raw(2).expect("note"),
+     |                            ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1018:25
+     |
+1018 |         .map(|row| (row.try_get(0).expect("id"), row.try_get(1).expect("amount")))
+     |                         ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1018 |         .map(|row| (row.try_get_raw(0).expect("id"), row.try_get(1).expect("amount")))
+     |                                ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1018:54
+     |
+1018 |         .map(|row| (row.try_get(0).expect("id"), row.try_get(1).expect("amount")))
+     |                                                      ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1018 |         .map(|row| (row.try_get(0).expect("id"), row.try_get_raw(1).expect("amount")))
+     |                                                             ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1048:31
+     |
+1048 |         fence_generation: row.try_get(0).expect("gen"),
+     |                               ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1048 |         fence_generation: row.try_get_raw(0).expect("gen"),
+     |                                      ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1049:24
+     |
+1049 |         commit_at: row.try_get(1).expect("at"),
+     |                        ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1049 |         commit_at: row.try_get_raw(1).expect("at"),
+     |                               ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1050:20
+     |
+1050 |         cross: row.try_get(2).expect("cross"),
+     |                    ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1050 |         cross: row.try_get_raw(2).expect("cross"),
+     |                           ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1051:22
+     |
+1051 |         partial: row.try_get(3).expect("partial"),
+     |                      ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1051 |         partial: row.try_get_raw(3).expect("partial"),
+     |                             ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1052:23
+     |
+1052 |         complete: row.try_get(4).expect("complete"),
+     |                       ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1052 |         complete: row.try_get_raw(4).expect("complete"),
+     |                              ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1053:27
+     |
+1053 |         segment_null: row.try_get(5).expect("segment"),
+     |                           ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1053 |         segment_null: row.try_get_raw(5).expect("segment"),
+     |                                  ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1054:25
+     |
+1054 |         bitmap_len: row.try_get(6).expect("bitmap"),
+     |                         ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1054 |         bitmap_len: row.try_get_raw(6).expect("bitmap"),
+     |                                ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1055:22
+     |
+1055 |         payload: row.try_get(7).expect("payload"),
+     |                      ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1055 |         payload: row.try_get_raw(7).expect("payload"),
+     |                             ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1056:26
+     |
+1056 |         applied_pos: row.try_get(8).expect("pos"),
+     |                          ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1056 |         applied_pos: row.try_get_raw(8).expect("pos"),
+     |                                 ++++
+
+error[E0599]: no method named `try_get` found for struct `PgRow` in the current scope
+    --> tests/live.rs:1067:9
+     |
+1067 |     row.try_get(0).expect("generation")
+     |         ^^^^^^^
+     |
+    ::: /work/src/crates/oo-connectors/vendor/sqlx-core/src/row.rs:112:8
+     |
+ 112 |     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+     |        ------- the method is available for `PgRow` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `Row` which provides `try_get` is implemented but not in scope; perhaps you want to import it
+     |
+   1 + use sqlx::Row;
+     |
+help: there is a method `try_get_raw` with a similar name
+     |
+1067 |     row.try_get_raw(0).expect("generation")
+     |                ++++
+
+Some errors have detailed explanations: E0382, E0599.
+For more information about an error, try `rustc --explain E0382`.
+error: could not compile `cdc-apply-pg` (test "live") due to 31 previous errors
