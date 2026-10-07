@@ -911,7 +911,7 @@ fn physical_type(
 }
 
 fn base_type(name: &str) -> bool {
-    matches!(name, "bool" | "int2" | "int4" | "int8" | "text")
+    matches!(name, "bool" | "int2" | "int4" | "int8" | "text" | "numeric")
 }
 
 fn table_rls(table: &Value) -> bool {
@@ -950,6 +950,9 @@ fn compatible(physical: &str, semantic: SemanticType) -> bool {
                 | SemanticType::PersonName
                 | SemanticType::FreeText
         ),
+        // Quantity is the documented semantic for a numeric amount.
+        // Money stays refused. Measure and amount are not enum variants.
+        "numeric" => semantic == SemanticType::Quantity,
         _ => false,
     }
 }
@@ -1150,4 +1153,63 @@ fn push_string(out: &mut String, value: &str) {
         }
     }
     out.push('"');
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn catalog(type_name: &str, typtype: &str) -> Value {
+        serde_json::json!({
+            "evidence_envelope": {
+                "catalog": {
+                    "tables": [{
+                        "schema_ident": "shop",
+                        "name_ident": "entry",
+                        "rls_enabled": false,
+                        "rls_forced": false,
+                        "policies": [],
+                        "columns": [{
+                            "name_ident": "amount",
+                            "typtype": typtype,
+                            "type_name": type_name
+                        }]
+                    }]
+                }
+            }
+        })
+    }
+
+    #[test]
+    fn numeric_quantity_is_the_only_new_admission() {
+        assert!(base_type("numeric"));
+        assert!(base_type("int8"));
+        assert!(!base_type("float4"));
+        assert!(!base_type("float8"));
+        assert!(!base_type("date"));
+        assert!(!base_type("varchar"));
+        assert!(!base_type("numeric(18,4)"));
+        assert!(compatible("numeric", SemanticType::Quantity));
+        assert!(!compatible("numeric", SemanticType::Money));
+        assert!(!compatible("numeric", SemanticType::Identifier));
+        assert!(!compatible("numeric", SemanticType::Ratio));
+        assert!(compatible("int8", SemanticType::Quantity));
+        assert!(compatible("int2", SemanticType::Quantity));
+        assert!(compatible("int4", SemanticType::Quantity));
+        assert!(!compatible("bool", SemanticType::Quantity));
+        assert!(!compatible("text", SemanticType::Quantity));
+        assert!(!compatible("float4", SemanticType::Quantity));
+        assert!(!compatible("float8", SemanticType::Quantity));
+        assert!(!compatible("date", SemanticType::Quantity));
+        let admitted = physical_type(&catalog("numeric", "b"), "shop", "entry", "amount", "numeric");
+        assert_eq!(admitted, Ok("numeric".to_string()));
+        assert!(physical_type(&catalog("numeric", "b"), "shop", "entry", "amount", "numeric(18,4)").is_err());
+        assert!(physical_type(&catalog("numeric", "d"), "shop", "entry", "amount", "numeric").is_err());
+        assert!(physical_type(&catalog("float8", "b"), "shop", "entry", "amount", "float8").is_err());
+        assert!(physical_type(&catalog("float4", "b"), "shop", "entry", "amount", "float4").is_err());
+        assert!(physical_type(&catalog("date", "b"), "shop", "entry", "amount", "date").is_err());
+        assert!(physical_type(&catalog("bool", "b"), "shop", "entry", "amount", "bool").is_ok());
+        assert!(physical_type(&catalog("text", "b"), "shop", "entry", "amount", "text").is_ok());
+        assert!(physical_type(&catalog("int8", "b"), "shop", "entry", "amount", "int8").is_ok());
+    }
 }

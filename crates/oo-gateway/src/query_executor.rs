@@ -58,16 +58,19 @@
 //!
 //! Result objects are built here. Another crate cannot construct
 //! [`QuerySummary`]. Cell text is the driver's typed value for int2, int4,
-//! int8, text, bool, and null. Every other result OID is refused before the
-//! portal is executed.
+//! int8, text, bool, and null. Numeric OID 1700 is an [`ExactDecimal`].
+//! Every other result OID is refused before the portal is executed.
 
+use std::error::Error as StdError;
 use std::fmt;
 use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
+use postgres_types::FromSql;
 use tokio::sync::{mpsc, oneshot, watch, Notify};
 use tokio::task::JoinHandle;
+use tokio_postgres::types::Type;
 use tokio_postgres::{Client, Error as PgError, IsolationLevel, Row, Transaction};
 
 use crate::policy::TlsConnection;
@@ -75,6 +78,8 @@ use crate::sql_guard::{
     guard_select, GuardError, GuardedPlan, PolicyCatalog, PolicyIdentity,
 };
 use oo_core::api::ErrorCode;
+use oo_core::limits::CANONICAL_MAX_COEFFICIENT_DIGITS;
+use oo_core::{DecimalError, ExactDecimal};
 
 /// Largest accepted whole-query budget. One deadline, not a per-page reset.
 pub const MAX_QUERY_WALL: Duration = Duration::from_secs(30);
@@ -95,6 +100,12 @@ const OID_INT8: u32 = 20;
 const OID_INT2: u32 = 21;
 const OID_INT4: u32 = 23;
 const OID_TEXT: u32 = 25;
+const OID_NUMERIC: u32 = 1700;
+const NUMERIC_SIGN_POS: u16 = 0x0000;
+const NUMERIC_SIGN_NEG: u16 = 0x4000;
+const NUMERIC_SIGN_NAN: u16 = 0xC000;
+const NUMERIC_SIGN_PINF: u16 = 0xD000;
+const NUMERIC_SIGN_NINF: u16 = 0xF000;
 const TIMEOUT_MARGIN: Duration = Duration::from_millis(250);
 
 /// One cleanup deadline shared by observe, cancel transport, the pinned
@@ -403,6 +414,7 @@ impl CompletionStatus {
 }
 
 /// One decoded cell. Integers are canonical decimal text from the typed value.
+/// Numeric is an exact decimal, not a float and not driver text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cell {
     /// SQL NULL.
@@ -413,6 +425,8 @@ pub enum Cell {
     Int(String),
     /// `text` only. `varchar` is refused before decode.
     Text(String),
+    /// PostgreSQL `numeric` as an exact decimal. The coefficient has no exponent.
+    Decimal(ExactDecimal),
 }
 
 /// Failure from the executor. Display text has no SQL and no password.
@@ -1931,12 +1945,17 @@ fn allowed_result_types(statement: &tokio_postgres::Statement) -> Result<(), Exe
 fn decode_row(row: &Row) -> Result<Vec<Cell>, ExecError> {
     let mut cells = Vec::with_capacity(row.len());
     for (index, column) in row.columns().iter().enumerate() {
-        cells.push(decode_cell(row, index, column.type_().oid())?);
+        cells.push(decode_cell(
+            row,
+            index,
+            column.type_().oid(),
+            column.type_modifier(),
+        )?);
     }
     Ok(cells)
 }
 
-fn decode_cell(row: &Row, index: usize, oid: u32) -> Result<Cell, ExecError> {
+fn decode_cell(row: &Row, index: usize, oid: u32, typmod: i32) -> Result<Cell, ExecError> {
     match oid {
         OID_BOOL => match row
             .try_get::<_, Option<bool>>(index)
@@ -1964,8 +1983,32 @@ fn decode_cell(row: &Row, index: usize, oid: u32) -> Result<Cell, ExecError> {
             None => Ok(Cell::Null),
             Some(value) => Ok(Cell::Text(value)),
         },
+        OID_NUMERIC => decode_numeric_cell(row, index, typmod),
         other => Err(ExecError::TypeRefused { oid: other }),
     }
+}
+
+fn decode_numeric_cell(row: &Row, index: usize, typmod: i32) -> Result<Cell, ExecError> {
+    match row.try_get::<_, Option<PgNumericCell>>(index) {
+        Ok(None) => Ok(Cell::Null),
+        Ok(Some(cell)) => {
+            let exact = apply_numeric_typmod(cell.0, typmod)?;
+            Ok(Cell::Decimal(exact))
+        }
+        Err(err) => Err(ExecError::Protocol {
+            step: numeric_error_step(&err),
+        }),
+    }
+}
+
+fn numeric_error_step(err: &PgError) -> &'static str {
+    err.source()
+        .and_then(numeric_reject_step)
+        .unwrap_or("decode")
+}
+
+fn numeric_reject_step(err: &(dyn StdError + 'static)) -> Option<&'static str> {
+    err.downcast_ref::<NumericReject>().map(|reject| reject.step)
 }
 
 fn int_cell<T>(value: Option<T>) -> Result<Cell, ExecError>
@@ -2379,7 +2422,270 @@ fn quote_role(role: &str) -> Result<String, ExecError> {
 }
 
 fn oid_allowed(oid: u32) -> bool {
-    matches!(oid, OID_BOOL | OID_INT8 | OID_INT2 | OID_INT4 | OID_TEXT)
+    matches!(
+        oid,
+        OID_BOOL | OID_INT8 | OID_INT2 | OID_INT4 | OID_TEXT | OID_NUMERIC
+    )
+}
+
+#[derive(Debug)]
+struct NumericReject {
+    step: &'static str,
+}
+
+impl fmt::Display for NumericReject {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.step)
+    }
+}
+
+impl StdError for NumericReject {}
+
+#[derive(Debug)]
+struct PgNumericCell(ExactDecimal);
+
+impl<'a> FromSql<'a> for PgNumericCell {
+    fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn StdError + Sync + Send>> {
+        if ty.oid() != OID_NUMERIC {
+            return Err(Box::new(NumericReject {
+                step: "numeric_payload",
+            }));
+        }
+        decode_numeric_payload(raw)
+            .map(PgNumericCell)
+            .map_err(|step| Box::new(NumericReject { step }) as _)
+    }
+
+    fn accepts(ty: &Type) -> bool {
+        ty.oid() == OID_NUMERIC
+    }
+}
+
+fn apply_numeric_typmod(exact: ExactDecimal, typmod: i32) -> Result<ExactDecimal, ExecError> {
+    let Some((precision, scale)) = numeric_typmod_parts(typmod) else {
+        return Ok(exact);
+    };
+    if exact.scale() != scale {
+        return Err(ExecError::Protocol {
+            step: "numeric_scale",
+        });
+    }
+    let width = usize::try_from(precision).map_err(|_| ExecError::Protocol {
+        step: "numeric_precision",
+    })?;
+    if exact.coefficient().len() > width {
+        return Err(ExecError::Protocol {
+            step: "numeric_precision",
+        });
+    }
+    Ok(exact)
+}
+
+/// PostgreSQL's 11-bit signed numeric typmod. `None` means unconstrained.
+fn numeric_typmod_parts(typmod: i32) -> Option<(i32, i32)> {
+    if typmod < 0 {
+        return None;
+    }
+    let adjusted = typmod.wrapping_sub(4);
+    let precision = (adjusted >> 16) & 0xFFFF;
+    let raw = adjusted & 0x7FF;
+    let scale = (raw ^ 0x400) - 0x400;
+    Some((precision, scale))
+}
+
+fn decode_numeric_payload(raw: &[u8]) -> Result<ExactDecimal, &'static str> {
+    if raw.len() < 8 {
+        return Err("numeric_payload");
+    }
+    let ndigits = i16::from_be_bytes([raw[0], raw[1]]);
+    let weight = i16::from_be_bytes([raw[2], raw[3]]);
+    let sign = u16::from_be_bytes([raw[4], raw[5]]);
+    let dscale = i16::from_be_bytes([raw[6], raw[7]]);
+    if ndigits < 0 || dscale < 0 {
+        return Err("numeric_payload");
+    }
+    let count = usize::try_from(ndigits).map_err(|_| "numeric_payload")?;
+    let body = count.checked_mul(2).ok_or("numeric_payload")?;
+    let expected = body.checked_add(8).ok_or("numeric_payload")?;
+    if raw.len() != expected {
+        return Err("numeric_payload");
+    }
+    match sign {
+        NUMERIC_SIGN_NAN => return Err("numeric_nan"),
+        NUMERIC_SIGN_PINF => return Err("numeric_infinity"),
+        NUMERIC_SIGN_NINF => return Err("numeric_neg_infinity"),
+        NUMERIC_SIGN_POS | NUMERIC_SIGN_NEG => {}
+        _ => return Err("numeric_payload"),
+    }
+    let scale = usize::try_from(dscale).map_err(|_| "numeric_payload")?;
+    if scale > CANONICAL_MAX_COEFFICIENT_DIGITS {
+        return Err("numeric_precision");
+    }
+    let point = i32::from(weight)
+        .checked_add(1)
+        .and_then(|value| value.checked_mul(4))
+        .ok_or("numeric_precision")?;
+    if point > i32::try_from(CANONICAL_MAX_COEFFICIENT_DIGITS).unwrap_or(i32::MAX) {
+        return Err("numeric_precision");
+    }
+    let mut groups = Vec::with_capacity(count);
+    for index in 0..count {
+        let off = 8 + index * 2;
+        let digit = i16::from_be_bytes([raw[off], raw[off + 1]]);
+        if !(0..=9_999).contains(&digit) {
+            return Err("numeric_payload");
+        }
+        groups.push(digit as u16);
+    }
+    if groups.is_empty() || groups.iter().all(|digit| *digit == 0) {
+        return ExactDecimal::zero(i32::from(dscale)).map_err(decimal_step);
+    }
+    let (int_part, frac_part) = split_numeric(weight, scale, &groups)?;
+    let coefficient = numeric_coefficient(&int_part, &frac_part)?;
+    ExactDecimal::new(sign == NUMERIC_SIGN_NEG, coefficient, i32::from(dscale)).map_err(decimal_step)
+}
+
+fn decimal_step(err: DecimalError) -> &'static str {
+    match err {
+        DecimalError::Budget => "numeric_precision",
+        _ => "numeric_payload",
+    }
+}
+
+fn numeric_coefficient(int_part: &str, frac_part: &str) -> Result<String, &'static str> {
+    let trimmed_int = int_part.trim_start_matches('0');
+    let coefficient = if trimmed_int.is_empty() {
+        let trimmed_frac = frac_part.trim_start_matches('0');
+        if trimmed_frac.is_empty() {
+            "0".to_string()
+        } else {
+            trimmed_frac.to_string()
+        }
+    } else {
+        let mut combined = String::with_capacity(trimmed_int.len() + frac_part.len());
+        combined.push_str(trimmed_int);
+        combined.push_str(frac_part);
+        combined
+    };
+    if coefficient.len() > CANONICAL_MAX_COEFFICIENT_DIGITS {
+        return Err("numeric_precision");
+    }
+    Ok(coefficient)
+}
+
+fn split_numeric(
+    weight: i16,
+    dscale: usize,
+    groups: &[u16],
+) -> Result<(String, String), &'static str> {
+    let mut int_part = String::new();
+    let mut frac_part = String::new();
+    if weight < 0 {
+        let lead_groups = i32::from(weight)
+            .checked_neg()
+            .and_then(|value| value.checked_sub(1))
+            .ok_or("numeric_precision")?;
+        if lead_groups < 0 {
+            return Err("numeric_payload");
+        }
+        let lead_digits = usize::try_from(lead_groups)
+            .ok()
+            .and_then(|value| value.checked_mul(4))
+            .ok_or("numeric_precision")?;
+        if lead_digits >= dscale {
+            if groups.iter().any(|digit| *digit != 0) {
+                return Err("numeric_scale");
+            }
+            int_part.push('0');
+            frac_part.push_str(&"0".repeat(dscale));
+            return Ok((int_part, frac_part));
+        }
+        frac_part.push_str(&"0".repeat(lead_digits));
+        for digit in groups {
+            push_numeric_group(&mut frac_part, *digit, dscale, "numeric_scale")?;
+        }
+        int_part.push('0');
+    } else {
+        for (index, digit) in groups.iter().enumerate() {
+            let group_weight = i32::from(weight) - i32::try_from(index).unwrap_or(i32::MAX);
+            if group_weight >= 0 {
+                push_numeric_group(
+                    &mut int_part,
+                    *digit,
+                    CANONICAL_MAX_COEFFICIENT_DIGITS,
+                    "numeric_precision",
+                )?;
+            } else {
+                push_numeric_group(&mut frac_part, *digit, dscale, "numeric_scale")?;
+            }
+        }
+        let count = i32::try_from(groups.len()).map_err(|_| "numeric_precision")?;
+        let last = i32::from(weight) - count + 1;
+        if last > 0 {
+            let zeros = usize::try_from(last)
+                .ok()
+                .and_then(|value| value.checked_mul(4))
+                .ok_or("numeric_precision")?;
+            if int_part.len().saturating_add(zeros) > CANONICAL_MAX_COEFFICIENT_DIGITS {
+                return Err("numeric_precision");
+            }
+            int_part.push_str(&"0".repeat(zeros));
+        }
+        if int_part.is_empty() {
+            int_part.push('0');
+        }
+    }
+    if frac_part.len() < dscale {
+        let pad = dscale - frac_part.len();
+        frac_part.push_str(&"0".repeat(pad));
+    }
+    if int_part.len() > CANONICAL_MAX_COEFFICIENT_DIGITS
+        || frac_part.len() > CANONICAL_MAX_COEFFICIENT_DIGITS
+    {
+        return Err("numeric_precision");
+    }
+    Ok((int_part, frac_part))
+}
+
+fn push_numeric_group(
+    out: &mut String,
+    digit: u16,
+    limit: usize,
+    overflow: &'static str,
+) -> Result<(), &'static str> {
+    let text = group_digits(digit);
+    if out.len() >= limit {
+        if text.iter().any(|byte| *byte != b'0') {
+            return Err(overflow);
+        }
+        return Ok(());
+    }
+    let room = limit - out.len();
+    if room >= text.len() {
+        push_ascii(out, &text);
+        return Ok(());
+    }
+    if text[room..].iter().any(|byte| *byte != b'0') {
+        return Err(overflow);
+    }
+    push_ascii(out, &text[..room]);
+    Ok(())
+}
+
+fn push_ascii(out: &mut String, bytes: &[u8]) {
+    for byte in bytes {
+        out.push(char::from(*byte));
+    }
+}
+
+fn group_digits(digit: u16) -> [u8; 4] {
+    let mut text = [b'0'; 4];
+    let mut value = u32::from(digit);
+    for slot in text.iter_mut().rev() {
+        *slot = b'0' + (value % 10) as u8;
+        value /= 10;
+    }
+    text
 }
 
 fn canonical_int_text(text: &str) -> bool {
@@ -2402,6 +2708,7 @@ fn cell_bytes(cell: &Cell) -> u64 {
         Cell::Bool(true) => 4,
         Cell::Bool(false) => 5,
         Cell::Int(text) | Cell::Text(text) => u64::try_from(text.len()).unwrap_or(u64::MAX),
+        Cell::Decimal(value) => u64::try_from(value.to_string().len()).unwrap_or(u64::MAX),
     }
 }
 
@@ -2417,6 +2724,7 @@ fn stop_before_append(
 
 #[cfg(test)]
 mod tests {
+    use postgres_types::FromSql;
     use tokio_postgres::types::Type;
 
     use super::*;
@@ -2560,11 +2868,27 @@ mod tests {
         assert_eq!(Type::INT2.oid(), OID_INT2);
         assert_eq!(Type::INT4.oid(), OID_INT4);
         assert_eq!(Type::TEXT.oid(), OID_TEXT);
+        assert_eq!(Type::NUMERIC.oid(), OID_NUMERIC);
         assert!(oid_allowed(Type::BOOL.oid()));
         assert!(oid_allowed(Type::INT8.oid()));
+        assert!(oid_allowed(Type::NUMERIC.oid()));
         assert!(!oid_allowed(Type::VARCHAR.oid()));
-        assert!(!oid_allowed(Type::NUMERIC.oid()));
+        assert!(!oid_allowed(Type::FLOAT4.oid()));
+        assert!(!oid_allowed(Type::FLOAT8.oid()));
+        assert!(!oid_allowed(Type::DATE.oid()));
         assert!(!oid_allowed(705));
+        assert_eq!(
+            stop_class(&ExecError::TypeRefused {
+                oid: Type::FLOAT4.oid()
+            }),
+            StopClass::TypeRefused
+        );
+        assert_eq!(
+            stop_class(&ExecError::Protocol {
+                step: "numeric_nan"
+            }),
+            StopClass::Protocol
+        );
         assert_eq!(PORTAL_PAGE_ROWS, 1);
         assert_eq!(UNTRUSTED_ADMISSION, UntrustedAdmission::Blocked);
     }
@@ -2687,5 +3011,156 @@ mod tests {
         assert!(!guard.accepting_cancel);
         assert!(guard.cancel_reserved.is_none());
         assert!(*guard.destroy.borrow());
+    }
+
+    fn numeric_wire(weight: i16, sign: u16, dscale: i16, digits: &[u16]) -> Vec<u8> {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(&i16::try_from(digits.len()).unwrap().to_be_bytes());
+        raw.extend_from_slice(&weight.to_be_bytes());
+        raw.extend_from_slice(&sign.to_be_bytes());
+        raw.extend_from_slice(&dscale.to_be_bytes());
+        for digit in digits {
+            raw.extend_from_slice(&i16::try_from(*digit).unwrap().to_be_bytes());
+        }
+        raw
+    }
+
+    fn numeric_typmod(precision: i32, scale: i32) -> i32 {
+        ((precision << 16) | (scale & 0x7FF)) + 4
+    }
+
+    #[test]
+    fn numeric_wire_matches_the_reviewed_vectors() {
+        let wide = decode_numeric_payload(&numeric_wire(4, NUMERIC_SIGN_POS, 2, &[100, 0, 0, 0, 0, 100]))
+            .expect("wide");
+        assert_eq!(wide.to_string(), "1000000000000000000.01");
+        assert_eq!(wide.scale(), 2);
+        assert!(!wide.is_negative());
+        let one = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("1.01");
+        assert_eq!(one.to_string(), "1.01");
+        let cent = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 2, &[100])).expect("0.01");
+        assert_eq!(cent.to_string(), "0.01");
+        let zero = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[])).expect("zero");
+        assert_eq!(zero.to_string(), "0.00");
+        assert!(!zero.is_negative());
+        let neg = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 2, &[1, 100])).expect("-1.01");
+        assert_eq!(neg.to_string(), "-1.01");
+        let tiny = decode_numeric_payload(&numeric_wire(-2, NUMERIC_SIGN_POS, 6, &[100])).expect("tiny");
+        assert_eq!(tiny.to_string(), "0.000001");
+        let padded = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
+        assert_eq!(padded.to_string(), "1.0000");
+        assert_eq!(padded.coefficient(), "10000");
+        assert_eq!(padded.scale(), 4);
+    }
+
+    #[test]
+    fn numeric_hand_literals_keep_scale_and_reject_specials() {
+        let positive = decode_numeric_payload(&numeric_wire(
+            3,
+            NUMERIC_SIGN_POS,
+            4,
+            &[12, 3456, 7890, 1234, 5678],
+        ))
+        .expect("positive");
+        assert!(!positive.is_negative());
+        assert_eq!(positive.coefficient(), "123456789012345678");
+        assert_eq!(positive.scale(), 4);
+        assert_eq!(positive.to_string(), "12345678901234.5678");
+        let negative = decode_numeric_payload(&numeric_wire(
+            3,
+            NUMERIC_SIGN_NEG,
+            4,
+            &[12, 3456, 7890, 1234, 5678],
+        ))
+        .expect("negative");
+        assert!(negative.is_negative());
+        assert_eq!(negative.coefficient(), "123456789012345678");
+        assert_eq!(negative.to_string(), "-12345678901234.5678");
+        let small = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 4, &[1])).expect("small");
+        assert_eq!(small.coefficient(), "1");
+        assert_eq!(small.scale(), 4);
+        assert_eq!(small.to_string(), "0.0001");
+        let small_neg = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_NEG, 4, &[1])).expect("small neg");
+        assert!(small_neg.is_negative());
+        assert_eq!(small_neg.coefficient(), "1");
+        assert_eq!(small_neg.to_string(), "-0.0001");
+        let zeros = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[])).expect("zeros");
+        assert!(!zeros.is_negative());
+        assert_eq!(zeros.coefficient(), "0");
+        assert_eq!(zeros.scale(), 4);
+        assert_eq!(zeros.to_string(), "0.0000");
+        let neg_zero = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 4, &[])).expect("neg zero");
+        assert!(!neg_zero.is_negative());
+        assert_eq!(neg_zero.coefficient(), "0");
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 1, &[1, 100])),
+            Err("numeric_scale")
+        );
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NAN, 0, &[])),
+            Err("numeric_nan")
+        );
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_PINF, 0, &[])),
+            Err("numeric_infinity")
+        );
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NINF, 0, &[])),
+            Err("numeric_neg_infinity")
+        );
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 0, &[10_000])),
+            Err("numeric_payload")
+        );
+        assert_eq!(decode_numeric_payload(&[0, 1]), Err("numeric_payload"));
+        let mut negative_count = numeric_wire(0, NUMERIC_SIGN_POS, 0, &[]);
+        negative_count[0] = 0xFF;
+        negative_count[1] = 0xFF;
+        assert_eq!(decode_numeric_payload(&negative_count), Err("numeric_payload"));
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(0, 0x0001, 0, &[])),
+            Err("numeric_payload")
+        );
+    }
+
+    #[test]
+    fn numeric_typmod_checks_scale_and_coefficient_length() {
+        assert_eq!(numeric_typmod(18, 4), 1_179_656);
+        let amount = decode_numeric_payload(&numeric_wire(
+            3,
+            NUMERIC_SIGN_POS,
+            4,
+            &[12, 3456, 7890, 1234, 5678],
+        ))
+        .expect("amount");
+        let admitted = apply_numeric_typmod(amount, 1_179_656).expect("18,4");
+        assert_eq!(admitted.coefficient(), "123456789012345678");
+        let narrow = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
+        assert!(apply_numeric_typmod(narrow, numeric_typmod(4, 4)).is_err());
+        let fraction = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 6, &[12, 3400])).expect("fraction");
+        assert_eq!(fraction.coefficient(), "1234");
+        assert_eq!(fraction.scale(), 6);
+        assert_eq!(fraction.to_string(), "0.001234");
+        assert!(fraction.storage_precision() > 4);
+        let kept = apply_numeric_typmod(fraction.clone(), numeric_typmod(4, 6)).expect("coeff width");
+        assert_eq!(kept.coefficient(), "1234");
+        assert!(apply_numeric_typmod(fraction, numeric_typmod(4, 4)).is_err());
+        let unconstrained = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("free");
+        assert!(apply_numeric_typmod(unconstrained, -1).is_ok());
+        assert_eq!(decode_numeric_payload(&numeric_wire(2_048, NUMERIC_SIGN_POS, 0, &[1])), Err("numeric_precision"));
+        let budget = decode_numeric_payload(&numeric_wire(2_047, NUMERIC_SIGN_POS, 4, &[1]));
+        assert_eq!(budget, Err("numeric_precision"));
+        let nan = PgNumericCell::from_sql(&Type::NUMERIC, &numeric_wire(0, NUMERIC_SIGN_NAN, 0, &[]));
+        let err = nan.expect_err("nan");
+        assert_eq!(
+            err.downcast_ref::<NumericReject>().map(|item| item.step),
+            Some("numeric_nan")
+        );
+        assert!(!PgNumericCell::accepts(&Type::FLOAT8));
+        assert!(PgNumericCell::accepts(&Type::NUMERIC));
+        let cell = Cell::Decimal(ExactDecimal::new(false, "10000", 4).expect("cell"));
+        assert_eq!(cell_bytes(&cell), 6);
+        let negative_cell = Cell::Decimal(ExactDecimal::new(true, "101", 2).expect("neg"));
+        assert_eq!(cell_bytes(&negative_cell), 5);
     }
 }

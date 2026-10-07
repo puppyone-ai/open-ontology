@@ -337,6 +337,11 @@ fn out_cell(cell: &Cell) -> OutCell {
         Cell::Text(value) => OutCell::Text {
             value: value.clone(),
         },
+        Cell::Decimal(value) => OutCell::Decimal {
+            negative: value.is_negative(),
+            coefficient: value.coefficient().to_string(),
+            scale: value.scale(),
+        },
     }
 }
 
@@ -988,6 +993,12 @@ enum OutCell {
     Int { value: String },
     #[serde(rename = "text")]
     Text { value: String },
+    #[serde(rename = "decimal")]
+    Decimal {
+        negative: bool,
+        coefficient: String,
+        scale: i32,
+    },
 }
 
 #[derive(Serialize)]
@@ -1077,3 +1088,55 @@ This command does not install permissions, does not read a source database,
 and does not accept an HTTP request. File-permission deployment is outside
 this command.
 "#;
+
+#[cfg(test)]
+mod tests {
+    use oo_core::ExactDecimal;
+    use oo_gateway::query_executor::Cell;
+
+    use super::out_cell;
+
+    #[test]
+    fn decimal_json_is_exact_and_existing_kinds_stay() {
+        let positive = Cell::Decimal(ExactDecimal::new(false, "123456789012345678", 4).unwrap());
+        assert_eq!(
+            serde_json::to_string(&out_cell(&positive)).unwrap(),
+            r#"{"kind":"decimal","negative":false,"coefficient":"123456789012345678","scale":4}"#
+        );
+        let negative = Cell::Decimal(ExactDecimal::new(true, "123456789012345678", 4).unwrap());
+        assert_eq!(
+            serde_json::to_string(&out_cell(&negative)).unwrap(),
+            r#"{"kind":"decimal","negative":true,"coefficient":"123456789012345678","scale":4}"#
+        );
+        let zero = Cell::Decimal(ExactDecimal::new(true, "0", 4).unwrap());
+        assert_eq!(
+            serde_json::to_string(&out_cell(&zero)).unwrap(),
+            r#"{"kind":"decimal","negative":false,"coefficient":"0","scale":4}"#
+        );
+        let small = Cell::Decimal(ExactDecimal::new(false, "1", 4).unwrap());
+        assert_eq!(
+            serde_json::to_string(&out_cell(&small)).unwrap(),
+            r#"{"kind":"decimal","negative":false,"coefficient":"1","scale":4}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&out_cell(&Cell::Null)).unwrap(),
+            r#"{"kind":"null"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&out_cell(&Cell::Bool(true))).unwrap(),
+            r#"{"kind":"bool","value":true}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&out_cell(&Cell::Bool(false))).unwrap(),
+            r#"{"kind":"bool","value":false}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&out_cell(&Cell::Int("-9223372036854775808".to_string()))).unwrap(),
+            r#"{"kind":"int","value":"-9223372036854775808"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&out_cell(&Cell::Text("alpha".to_string()))).unwrap(),
+            r#"{"kind":"text","value":"alpha"}"#
+        );
+    }
+}

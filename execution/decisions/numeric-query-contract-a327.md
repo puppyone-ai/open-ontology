@@ -96,7 +96,7 @@ Reviewed wire vectors, plain text after `Display`:
 ## Seams that this task does not edit
 
 - `crates/oo-gateway/tests/query_executor_pg_live.rs` `canon_len` matches `Cell` exhaustively and will not compile once `Cell::Decimal` exists.
-- `crates/oo-gateway/tests/reviewed_policy_quantity.rs` expects quantity on physical `numeric` to exit 11 `reviewed-policy: semantic`. After this cell that case is accepted, so the test fails on the numeric assertion. `float4`, `float8`, `date`, `bool`, and `text` stay refused and are covered by owned tests.
+- `crates/oo-gateway/tests/reviewed_policy_quantity.rs` builds its `numeric` column with `typmod` `-1` and classifier reason `unbounded_or_wide_numeric`. The draft leaves `data_type` null for that column, so `column_spec` still returns `semantic` before this cell. That test still passes. It does not cover `numeric(18,4)`. Owned tests cover bounded `numeric` plus `quantity`. `float4`, `float8`, `date`, `bool`, and `text` stay refused there and in the owned tests.
 - `benchmarks/query-result-adapter/src/parse.rs` rejects an unknown `kind`, including `decimal`.
 - `crates/oo-gateway/tests/query_pg_cli.rs` `row_canonical_bytes` panics on an unknown JSON kind. Existing fixtures are not decimal, so that file still compiles.
 - `testing/real-db/pg-e2e` records the probe label `numeric_cell_set=null_bool_int_text`. This task does not change that driver.
