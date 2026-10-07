@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.selfbuild-control-api/error/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "error", "management_identity", "published", "active", "data_grants", "compiled_pack"],
+  "properties": {
+    "contract": {"const": "oo.selfbuild-control-api/v1"},
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {
+          "enum": [
+            "malformed",
+            "unauthenticated",
+            "forbidden",
+            "origin.rejected",
+            "csrf.rejected",
+            "revision.conflict",
+            "idempotency.conflict",
+            "not_found",
+            "method.not_allowed",
+            "dependency.not_ready",
+            "membership.refused",
+            "classification.incomplete",
+            "pii.unknown",
+            "batch.accept_all",
+            "commit.unknown",
+            "resume.uncertain"
+          ]
+        },
+        "message": {"type": "string", "minLength": 1, "maxLength": 160},
+        "retryable": {"type": "boolean"}
+      }
+    },
+    "management_identity": {"enum": ["verified", "not_verified"]},
+    "published": {"const": false},
+    "active": {"const": false},
+    "data_grants": {"const": "none"},
+    "compiled_pack": {"const": "not_published"}
+  }
+}

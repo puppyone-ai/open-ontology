@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.selfbuild-control-api/build/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "build_id", "project_id", "status", "stage", "identity_revision", "input_sha256", "stages", "management_identity", "published", "active", "data_grants", "compiled_pack"],
+  "properties": {
+    "contract": {"const": "oo.selfbuild-control-api/v1"},
+    "operation": {"enum": ["createBuild", "getBuild", "listBuilds", "cancelBuild"]},
+    "build_id": {"type": "string", "pattern": "^b_[0-9a-f]{32}$"},
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "status": {"enum": ["queued", "running", "succeeded", "failed", "cancel_requested", "canceled"]},
+    "stage": {"type": "string"},
+    "identity_revision": {"type": "integer", "minimum": 1},
+    "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "failure_code": {"type": ["string", "null"]},
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "status"],
+        "properties": {
+          "stage": {"enum": ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"]},
+          "status": {"enum": ["pending", "running", "succeeded", "failed", "refused", "awaiting"]},
+          "output_sha256": {"type": ["string", "null"]},
+          "detail_code": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "management_identity": {"const": "verified"},
+    "published": {"const": false},
+    "active": {"const": false},
+    "data_grants": {"const": "none"},
+    "compiled_pack": {"const": "not_published"}
+  }
+}

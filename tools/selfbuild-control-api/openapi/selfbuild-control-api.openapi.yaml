@@ -1,0 +1,596 @@
+openapi: 3.0.3
+info:
+  title: oo.selfbuild-control-api
+  version: 1.0.0
+  description: >
+    Authenticated self-build and review API for B04, plus the combined role
+    pack read and compile operations used by B05. Not publication, not an
+    active release, not a data grant, and not a customer IdP. Operation IDs
+    in this file are frozen. Identity authority is getIdentityCurrent on the
+    pinned control-identity service at 089b00d7f70da1bc42f7e201dfa070748c651d5b.
+servers:
+  - url: "{https_origin}"
+    variables:
+      https_origin:
+        default: https://control.invalid
+security: []
+paths:
+  /control/v1/builds:
+    post:
+      operationId: createBuild
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/create-build.request.schema.json
+      responses:
+        "202":
+          description: Queued build operation. Not a completed build.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/build.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listBuilds
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 50}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        "200":
+          description: Builds in the caller's verified projects.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildList"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/builds/{build_id}:
+    get:
+      operationId: getBuild
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+      responses:
+        "200":
+          description: Stage progress for one build.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/build.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/builds/{build_id}/cancel:
+    post:
+      operationId: cancelBuild
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevisionBody"
+      responses:
+        "202":
+          description: Cancel requested. Canceled only after the child exits.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/build.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/builds/{build_id}/cards:
+    get:
+      operationId: getBuildCards
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+      responses:
+        "200":
+          description: Server cards for the current generation. No samples.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cards"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/builds/{build_id}/candidates:
+    get:
+      operationId: getBuildCandidates
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+      responses:
+        "200":
+          description: Server candidates. S6–S8 stay generated and unmerged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Candidates"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/reviews:
+    get:
+      operationId: listReviewItems
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      responses:
+        "200":
+          description: Review items bound to the server generation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewList"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/reviews/preview:
+    post:
+      operationId: previewReviewBatch
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewPreview"
+      responses:
+        "200":
+          description: Preview only. No decision row and no audit of a decision.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/reviews/{item_id}:
+    get:
+      operationId: getReviewItem
+      parameters:
+        - $ref: "#/components/parameters/itemId"
+      responses:
+        "200":
+          description: One review item and its stored decision, if any.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewItem"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/reviews/{item_id}/decision:
+    post:
+      operationId: decideReviewItem
+      parameters:
+        - $ref: "#/components/parameters/itemId"
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDecision"
+      responses:
+        "200":
+          description: Durable decision. Ledger authenticated stays false.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/classifications:
+    get:
+      operationId: listClassifications
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      responses:
+        "200":
+          description: Visible columns and stored classifications. Unknown stays hidden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassificationList"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/classifications/preview:
+    post:
+      operationId: previewClassifications
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassificationBody"
+      responses:
+        "200":
+          description: Preview only. No grant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/classifications/confirm:
+    post:
+      operationId: confirmClassifications
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassificationBody"
+      responses:
+        "200":
+          description: Stored classification. Does not GRANT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/builds/{build_id}/pack:
+    post:
+      operationId: compileBuildPack
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackCompile"
+      responses:
+        "200":
+          description: One combined role pack. Not published and not active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackEnvelope"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: getBuildPack
+      parameters:
+        - $ref: "#/components/parameters/buildId"
+      responses:
+        "200":
+          description: Stored pack envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackEnvelope"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    csrf:
+      name: X-OO-CSRF
+      in: header
+      required: true
+      schema: {type: string, pattern: "^[A-Za-z0-9_-]{43}$"}
+    origin:
+      name: Origin
+      in: header
+      required: true
+      schema: {type: string, format: uri}
+    projectId:
+      name: project_id
+      in: query
+      required: true
+      schema: {type: string, pattern: "^[a-z][a-z0-9_]{0,62}$"}
+    buildId:
+      name: build_id
+      in: path
+      required: true
+      schema: {type: string, pattern: "^b_[0-9a-f]{32}$"}
+    itemId:
+      name: item_id
+      in: path
+      required: true
+      schema: {type: string, pattern: "^[a-z][a-z0-9_]{0,62}(\\.[a-z][a-z0-9_]{0,62}){1,2}$"}
+  responses:
+    Error:
+      description: Error. Not a successful identity, job, or pack.
+      content:
+        application/json:
+          schema:
+            $ref: ../schema/error.schema.json
+  schemas:
+    RevisionBody:
+      type: object
+      additionalProperties: false
+      required: [identity_revision]
+      properties:
+        identity_revision: {type: integer, minimum: 1}
+    BuildList:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, builds, management_identity, published, active, data_grants, compiled_pack]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: listBuilds}
+        builds:
+          type: array
+          items:
+            $ref: ../schema/build.schema.json
+        next_cursor: {type: string}
+        management_identity: {const: verified}
+        published: {const: false}
+        active: {const: false}
+        data_grants: {const: none}
+        compiled_pack: {const: not_published}
+    Cards:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, build_id, sample_policy, management_identity, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: getBuildCards}
+        build_id: {type: string}
+        sample_policy: {const: none}
+        cards: {type: object}
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+    Candidates:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, build_id, suggestions, management_identity, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: getBuildCandidates}
+        build_id: {type: string}
+        generation: {type: object}
+        suggestions:
+          type: object
+          description: S6–S8 generated candidates. Unmerged and uncertified.
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+    ReviewList:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, items, management_identity, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: listReviewItems}
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewItem"
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+    ReviewItem:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, item_id, project_id, candidate_sha256, source_sha256, management_identity, ledger_authenticated, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: getReviewItem}
+        item_id: {type: string}
+        project_id: {type: string}
+        build_id: {type: string}
+        candidate_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        source_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        schema_sha256: {type: string}
+        evidence_sha256: {type: string}
+        decision: {type: object, nullable: true}
+        management_identity: {const: verified}
+        ledger_authenticated: {const: false}
+        published: {const: false}
+        data_grants: {const: none}
+    ReviewPreview:
+      type: object
+      additionalProperties: false
+      required: [project_id, identity_revision, items]
+      properties:
+        project_id: {type: string}
+        identity_revision: {type: integer, minimum: 1}
+        accept_all: {type: boolean}
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewDecision"
+    ReviewDecision:
+      type: object
+      additionalProperties: false
+      required: [build_id, identity_revision, expected_revision, idempotency_key, decision_kind, choice, candidate_sha256]
+      properties:
+        build_id: {type: string}
+        identity_revision: {type: integer, minimum: 1}
+        expected_revision: {type: integer, minimum: 1}
+        idempotency_key: {type: string, pattern: "^[A-Za-z0-9_-]{16,128}$"}
+        decision_kind: {enum: [label_description]}
+        choice: {enum: [approve, reject, defer]}
+        candidate_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        fields: {type: object}
+    DecisionResult:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, code, ledger_authenticated, management_identity, published, data_grants, grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {type: string}
+        code: {type: string}
+        revision: {type: integer}
+        ledger_authenticated: {const: false}
+        ledger_management_identity: {const: not_claimed}
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+        grants: {const: not_authorized}
+    ClassificationList:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, columns, management_identity, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {const: listClassifications}
+        columns: {type: array, items: {type: object}}
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+    ClassificationBody:
+      type: object
+      additionalProperties: false
+      required: [project_id, build_id, identity_revision, idempotency_key, items]
+      properties:
+        project_id: {type: string}
+        build_id: {type: string}
+        identity_revision: {type: integer, minimum: 1}
+        idempotency_key: {type: string}
+        accept_all: {type: boolean}
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [object_id, pii, semantic_type]
+            properties:
+              object_id: {type: string}
+              pii: {enum: [none, personal, sensitive, unknown]}
+              semantic_type: {type: string}
+    PreviewResult:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, wrote, items, management_identity, published, data_grants]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {type: string}
+        wrote: {const: false}
+        items: {type: array, items: {type: object}}
+        management_identity: {const: verified}
+        published: {const: false}
+        data_grants: {const: none}
+    PackCompile:
+      type: object
+      additionalProperties: false
+      required: [identity_revision, idempotency_key]
+      properties:
+        identity_revision: {type: integer, minimum: 1}
+        idempotency_key: {type: string, pattern: "^[A-Za-z0-9_-]{16,128}$"}
+    PackEnvelope:
+      type: object
+      additionalProperties: false
+      required: [contract, operation, build_id, output_sha256, producer_authenticated, management_identity, published, active, data_grants, compiled_pack]
+      properties:
+        contract: {const: oo.selfbuild-control-api/v1}
+        operation: {enum: [compileBuildPack, getBuildPack]}
+        build_id: {type: string}
+        output_sha256: {type: string, pattern: "^[0-9a-f]{64}$"}
+        producer:
+          type: object
+          description: Unmodified pg-builder pack-combined document. review.state is not forged.
+        producer_authenticated: {const: false}
+        management_identity: {const: verified}
+        published: {const: false}
+        active: {const: false}
+        data_grants: {const: none}
+        compiled_pack: {const: not_published}

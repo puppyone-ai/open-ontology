@@ -1,0 +1,14 @@
+{
+  "contract": "oo.selfbuild-control-api/capability-map/v1",
+  "identity_commit": "089b00d7f70da1bc42f7e201dfa070748c651d5b",
+  "from_capability": {
+    "project.admin": ["build.create", "build.read", "build.cancel", "cards.read", "candidates.read", "review.read", "classification.read", "classification.preview", "pack.compile", "pack.read"],
+    "ontology.draft": ["build.read", "cards.read", "candidates.read", "review.read", "classification.read", "classification.preview"],
+    "review.decide": ["build.read", "cards.read", "candidates.read", "review.read", "review.decide"],
+    "audit.read": ["build.read", "cards.read", "candidates.read", "review.read", "classification.read", "pack.read"],
+    "business.record": ["review.read", "classification.read", "classification.preview", "classification.confirm"],
+    "identity.current": [],
+    "binding.read": [],
+    "session.revoke": []
+  }
+}

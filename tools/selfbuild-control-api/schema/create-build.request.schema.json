@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.selfbuild-control-api/create-build/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "identity_revision", "config_commit", "source_ref", "allowance_id", "llm_secret_ref", "idempotency_key"],
+  "properties": {
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "identity_revision": {"type": "integer", "minimum": 1},
+    "config_commit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "allowance_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "llm_secret_ref": {"type": "string", "pattern": "^secret://[A-Za-z0-9_./-]{1,128}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"}
+  }
+}
