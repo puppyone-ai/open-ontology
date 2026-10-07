@@ -1,0 +1,4 @@
+a332 preoverlay launch /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a332/SP11/ontology-dialogue-review/linux/preoverlay/launch.sh 9a0c8b053cd09328d428cdc7925befd8c84be8515905c27908bb8b2799d703f7
+a332 preoverlay inside /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a332/SP11/ontology-dialogue-review/linux/preoverlay/inside.sh 0fbdaf8c7aa49dd0ea362eb80dabf9cdde1ec50889a1db851232009414235d68
+fixed=63566b60aabdf29a29bfe55c4866edf3c4081cfd
+changes owner a346 private volumes network memory=6g cpus=1 no-pg no-live no-model

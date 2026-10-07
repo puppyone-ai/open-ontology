@@ -1,0 +1,2 @@
+a334 host-3 smoke /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a334/SP11/local-llm-integration-repair/host-3/smoke.sh d14c8dff22fd9bdc9bf4ffb4b876f9f3abd03f4940011cd0209b315ed49af43b
+changes ports 18446 relay and 18447 observer models-get-only no-chat-out

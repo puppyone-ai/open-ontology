@@ -1,0 +1,1 @@
+awk split mode=600 bytes=6 into mode="600 bytes" before any relay, mint, or model call. openssl exit 0. no listener. no client token.

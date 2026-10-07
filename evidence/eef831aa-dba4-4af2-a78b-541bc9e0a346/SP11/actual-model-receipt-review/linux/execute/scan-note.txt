@@ -1,0 +1,3 @@
+The execute container's final scan removed inside.sh and left inside.sh.redacted.
+The script contains the marker text it searches for. The remaining execute outputs scanned clean against the client-token file, the upstream-token file, and both database password files.
+inside.sh was restored from the text that the container ran. The execute was not repeated.

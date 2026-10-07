@@ -1,0 +1,12 @@
+phase=a346-actual-model
+read_proposal=linux/propose/proposal.json
+request_model=grok-4.7
+served_model=grok-4.7-build
+sql=SELECT count(*) FROM depot.counter
+sql_bytes=34
+sql_sha256=59ca6630b8b78897caf64197a191d6dd2466427df2ebd84d8de4cf7edb032b36
+catalog_shape=exact
+rewritten=false
+approved=true
+automatic=false
+approval_file=linux/propose/approval.json

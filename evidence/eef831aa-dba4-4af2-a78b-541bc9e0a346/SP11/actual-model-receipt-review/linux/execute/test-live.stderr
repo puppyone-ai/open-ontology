@@ -1,0 +1,7 @@
+   Compiling tokio-rustls v0.26.5
+   Compiling hyper-rustls v0.27.10
+   Compiling reqwest v0.13.5
+   Compiling ontology-dialogue v0.1.0 (/src/tools/ontology-dialogue)
+   Compiling tokio-postgres-rustls v0.14.0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.40s
+     Running tests/live.rs (/target/debug/deps/live-89d6369fbc4b243d)
