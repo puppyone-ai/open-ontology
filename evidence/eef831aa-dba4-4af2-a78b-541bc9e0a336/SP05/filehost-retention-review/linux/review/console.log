@@ -1,0 +1,56 @@
+oo_task=sp05-filehost-retention-review
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=tools/artifact-retention/tests/review_independent.rs
+lock_policy=prebuilt child lock must stay a checksum subset; no rewrite
+Linux 7a3b3f4db9d9 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+=== rustfmt review test --check ===
+phase_exit=0 phase=cargo_fmt_check
+=== cargo test review_independent ===
+   Compiling artifact-retention v0.1.0 (/src/tools/artifact-retention)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.15s
+     Running tests/review_independent.rs (/target/debug/deps/review_independent-3bdf86ec14e4091c)
+
+running 7 tests
+test drift_symlink_tuple_and_read_error_do_not_delete ... ok
+test incomplete_pull_does_not_become_complete ... ok
+test lifecycle_reap_proves_public_absence_and_keeps_parent_open ... ok
+test open_abort_and_dest_staging_stay_unsupported ... ok
+test quota_release_before_bytes_admits_one_new_reservation ... quota_window old_bytes=64 reserved=64 max=64 reservation_within_max=true bytes_plus_reservation_exceeds_max=true
+ok
+test quota_release_then_symlink_is_not_absence ... ok
+test sigkill_at_quota_released_restarts_once ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+phase_exit=0 phase=review_independent
+=== cargo clippy artifact-retention ===
+    Checking artifact-retention v0.1.0 (/src/tools/artifact-retention)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
+phase_exit=0 phase=artifact_retention_clippy
+phase_exit=0 phase=worst
+review=pass

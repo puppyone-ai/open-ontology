@@ -1,0 +1,165 @@
+oo_task=sp05-filehost-retention-review
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=tools/artifact-retention/tests/review_independent.rs
+lock_policy=prebuilt child lock must stay a checksum subset; no rewrite
+Linux 49accfbb9a1b 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+=== rustfmt review test --check ===
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:11:
+ use std::time::{Duration, Instant};
+ 
+ use artifact_retention::{
+-    Deployment, Now, PauseAfter, RegisterOpen, RegisterPublished, RegistrationKind,
+-    required_integration, RetentionClass,
++    Deployment, Now, PauseAfter, RegisterOpen, RegisterPublished, RegistrationKind, RetentionClass,
++    required_integration,
+ };
+ use oo_control::{
+-    AdmissionContext, FileHost, FileHostError, GrantEvidence, HostLimits, ObjectKey, ObjectManifest,
+-    PrincipalId, ProjectId, SessionId, UploadConfig,
++    AdmissionContext, FileHost, FileHostError, GrantEvidence, HostLimits, ObjectKey,
++    ObjectManifest, PrincipalId, ProjectId, SessionId, UploadConfig,
+ };
+ use sha2::{Digest, Sha256};
+ 
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:65:
+         FileHostError::Closed
+     );
+     assert_eq!(
+-        host.read_object(&ctx, &manifest.object_key).await.unwrap().bytes,
++        host.read_object(&ctx, &manifest.object_key)
++            .await
++            .unwrap()
++            .bytes,
+         bytes
+     );
+ 
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:138:
+     let foreign_quota = quota_path(&deploy, "project_b", foreign.session_id.as_str());
+     let foreign_quota_body = std::fs::read(&foreign_quota).unwrap();
+ 
+-    let part_dir = deploy.filehost_dir().join(format!(
+-        "staging/{}/part",
+-        manifest.session_id.as_str()
+-    ));
++    let part_dir = deploy
++        .filehost_dir()
++        .join(format!("staging/{}/part", manifest.session_id.as_str()));
+     std::fs::create_dir_all(&part_dir).unwrap();
+     let owned_part = part_dir.join("00001");
+     let dest = part_dir.join("dest#1");
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:174:
+     assert!(report.outcomes[0].absence_verified);
+     assert_eq!(report.outcomes[0].status, "deleted");
+     assert_eq!(
+-        host.read_object(&ctx, &manifest.object_key).await.unwrap_err(),
++        host.read_object(&ctx, &manifest.object_key)
++            .await
++            .unwrap_err(),
+         FileHostError::NotFound
+     );
+     assert!(
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:198:
+     assert!(tomb.contains("phase verified\n"));
+     assert!(tomb.contains("part_count 2\n"));
+     assert!(tomb.contains("release_count 1\n"));
+-    assert!(!owned_part.exists(), "five-digit owned part name was not deleted");
++    assert!(
++        !owned_part.exists(),
++        "five-digit owned part name was not deleted"
++    );
+     assert_eq!(std::fs::read(&dest).unwrap(), b"dest-leftover");
+     assert_eq!(std::fs::read(&notes).unwrap(), b"not-a-part");
+     assert_eq!(std::fs::read(&outside).unwrap(), b"keep-outside-filehost");
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:504:
+     assert!(!killed_out.contains("\"deletion_success\":true"));
+     let host = open_host(&deploy);
+     assert_eq!(
+-        host.read_object(&ctx, &manifest.object_key).await.unwrap().bytes,
++        host.read_object(&ctx, &manifest.object_key)
++            .await
++            .unwrap()
++            .bytes,
+         bytes
+     );
+     assert_eq!(
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:703:
+         .unwrap_err(),
+         FileHostError::NotFound
+     );
+-    assert_eq!(host.read_object(&ctx, &manifest.object_key).await.unwrap().bytes, bytes);
+     assert_eq!(
++        host.read_object(&ctx, &manifest.object_key)
++            .await
++            .unwrap()
++            .bytes,
++        bytes
++    );
++    assert_eq!(
+         host.completed_quota_release_count(&ctx, &manifest.object_key)
+             .await
+             .unwrap(),
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:748:
+     assert!(!linked.outcomes[0].deleted);
+     assert!(!linked.outcomes[0].absence_verified);
+     assert_eq!(linked.outcomes[0].status, "refused_tamper_or_symlink");
+-    assert!(std::fs::symlink_metadata(&object).unwrap().file_type().is_symlink());
++    assert!(
++        std::fs::symlink_metadata(&object)
++            .unwrap()
++            .file_type()
++            .is_symlink()
++    );
+     assert_eq!(std::fs::read(&aside).unwrap(), bytes);
+     std::fs::remove_file(&object).unwrap();
+     std::fs::rename(&aside, &object).unwrap();
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:755:
+ 
+-    let manifest_path = deploy.filehost_dir().join(format!(
+-        "meta/manifest/{}",
+-        manifest.session_id.as_str()
+-    ));
++    let manifest_path = deploy
++        .filehost_dir()
++        .join(format!("meta/manifest/{}", manifest.session_id.as_str()));
+     let manifest_aside = manifest_path.with_extension("aside");
+     std::fs::rename(&manifest_path, &manifest_aside).unwrap();
+     std::fs::create_dir(&manifest_path).unwrap();
+Diff in /src/tools/artifact-retention/tests/review_independent.rs:864:
+ fn scratch(label: &str) -> (PathBuf, PathBuf) {
+     static N: AtomicU64 = AtomicU64::new(0);
+     let n = N.fetch_add(1, Ordering::Relaxed);
+-    let parent = std::env::temp_dir().join(format!(
+-        "oo-a336-review-{label}-{n}-{}",
+-        std::process::id()
+-    ));
++    let parent =
++        std::env::temp_dir().join(format!("oo-a336-review-{label}-{n}-{}", std::process::id()));
+     std::fs::create_dir_all(&parent).unwrap();
+     let root = parent.join(OPERATOR);
+     (parent, root)
+phase_exit=1 phase=cargo_fmt_check

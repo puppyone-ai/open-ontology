@@ -1,0 +1,46 @@
+oo_task=sp05-filehost-retention-review-preoverlay
+oo_toolchain_request=1.94.0
+oo_platform=linux/arm64
+airgap_claim=no
+postgres=none
+overlay=none
+lock_policy=prebuilt child lock must stay a checksum subset; no rewrite
+Linux bf8344f26346 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+RUSTUP_TOOLCHAIN=1.94.0
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+=== rustup component add rustfmt --toolchain 1.94.0 ===
+info: downloading component rustfmt
+phase_exit=0 phase=rustup_component_add_rustfmt
+=== rustup component add clippy --toolchain 1.94.0 ===
+info: downloading component clippy
+phase_exit=0 phase=rustup_component_add_clippy
+=== rustc lock_from_baseline ===
+phase_exit=0 phase=rustc_lock_from_baseline
+=== check prebuilt child lock ===
+check_ok registry_pins=185 packages=189
+phase_exit=0 phase=check_prebuilt
+lock_method=prebuilt-locked
+=== confirm locked metadata ===
+error: no matching package named `tokio` found
+location searched: crates.io index
+required by package `artifact-retention v0.1.0 (/src/tools/artifact-retention)`
+As a reminder, you're using offline mode (--offline) which can sometimes cause surprising resolution failures, if this error is too confusing you may wish to retry without `--offline`.
+phase_exit=101 phase=cargo_metadata_final_locked

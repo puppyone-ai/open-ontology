@@ -1,0 +1,22 @@
+date=2026-10-07T13:15:22Z
+---- inspect before ----
+containers_labeled:
+0
+network_containers:
+
+---- docker network rm ----
+oo-a336-eef831aa-net
+---- docker volume rm ----
+oo-a336-eef831aa-cargo
+oo-a336-eef831aa-target
+---- rm session tmp ----
+removed /tmp/oo-a336-eef831aa-dba4-4af2-a78b-541bc9e0a336
+---- after ----
+network-absent
+cargo-volume-absent
+target-volume-absent
+tmp-absent
+prune=not-run
+foreign_cleanup=not-run
+---- foreign still present sample ----
+non_a336_containers=7
