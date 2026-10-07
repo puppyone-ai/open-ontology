@@ -1,0 +1,1 @@
+54cabda641bf1a2128e0246a78eb1a761895a0aa5a4226d136ad8aec399ad6eb  tools/query-result-export/tests/fixtures/query-clerk-order_doc-star.stdout

@@ -1,0 +1,1 @@
+{"version":"oo.query-result-export/v1","source_file":"/src/tools/query-result-export/tests/fixtures/hand-formula.jsonl","output_dir":"/evidence/linux/proof/oracle-out/formula","columns":["lo","hi","zero","neg","eq","plus","minus","at","sp","tab","cr","lf","soh","nbsp","ideo","quote","nl","uni","empty","nil","flag","safe","apos","digits"]}

@@ -1,0 +1,1 @@
+{"version":"oo.query-result-export/v1","source_file":"/evidence/linux/proof/oracle-out/partial-source.jsonl","output_dir":"/evidence/linux/proof/oracle-out/partial","columns":["order_id","customer_id","memo","posted","amount","clerk_note"]}
