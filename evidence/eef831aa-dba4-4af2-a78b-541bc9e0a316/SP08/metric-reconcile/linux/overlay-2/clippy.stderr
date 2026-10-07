@@ -1,0 +1,131 @@
+    Checking metric-reconcile v0.1.0 (/src/tools/metric-reconcile)
+error: unused variable: `values`
+   --> src/lib.rs:398:23
+    |
+398 |         .map(|(index, values)| TestReport {
+    |                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_values`
+    |
+    = note: `-D unused-variables` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_variables)]`
+
+error: manual `!RangeInclusive::contains` implementation
+   --> src/decimal_cmp.rs:109:8
+    |
+109 |     if zeros < 0 || zeros > 16_384 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `!(0..=16_384).contains(&zeros)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#manual_range_contains
+    = note: `-D clippy::manual-range-contains` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_range_contains)]`
+
+error: this `if` statement can be collapsed
+   --> src/enums.rs:99:9
+    |
+ 99 | /         if let (Some(from), Some(to)) = (&value.valid_from, &value.valid_to) {
+100 | |             if from.as_str() >= to.as_str() {
+101 | |                 return Err("enum_document");
+102 | |             }
+103 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+ 99 ~         if let (Some(from), Some(to)) = (&value.valid_from, &value.valid_to)
+100 ~             && from.as_str() >= to.as_str() {
+101 |                 return Err("enum_document");
+102 ~             }
+    |
+
+error: this `if` has identical blocks
+  --> src/template.rs:38:40
+   |
+38 |                   } else if byte == b'$' {
+   |  ________________________________________^
+39 | |                     return Err(TemplateError::Unsupported);
+40 | |                 } else if is_escape_string(bytes, index) {
+   | |_________________^
+   |
+note: same as this
+  --> src/template.rs:40:58
+   |
+40 |                   } else if is_escape_string(bytes, index) {
+   |  __________________________________________________________^
+41 | |                     return Err(TemplateError::Unsupported);
+42 | |                 } else if byte == b':' {
+   | |_________________^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#if_same_then_else
+   = note: `-D clippy::if-same-then-else` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::if_same_then_else)]`
+
+error: this `if` has identical blocks
+   --> src/template.rs:144:79
+    |
+144 |                   } else if byte == b'<' && bytes.get(index + 1) == Some(&b'>') {
+    |  _______________________________________________________________________________^
+145 | |                     return true;
+146 | |                 } else if byte == b'!' && bytes.get(index + 1) == Some(&b'=') {
+    | |_________________^
+    |
+note: same as this
+   --> src/template.rs:146:79
+    |
+146 |                   } else if byte == b'!' && bytes.get(index + 1) == Some(&b'=') {
+    |  _______________________________________________________________________________^
+147 | |                     return true;
+148 | |                 } else if word_not_in(bytes, index) {
+    | |_________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#if_same_then_else
+
+error: this `if` has identical blocks
+   --> src/template.rs:146:79
+    |
+146 |                   } else if byte == b'!' && bytes.get(index + 1) == Some(&b'=') {
+    |  _______________________________________________________________________________^
+147 | |                     return true;
+148 | |                 } else if word_not_in(bytes, index) {
+    | |_________________^
+    |
+note: same as this
+   --> src/template.rs:148:53
+    |
+148 |                   } else if word_not_in(bytes, index) {
+    |  _____________________________________________________^
+149 | |                     return true;
+150 | |                 } else {
+    | |_________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#if_same_then_else
+
+error: the `Err`-variant returned from this function is very large
+   --> src/lib.rs:318:37
+    |
+318 | fn analyze(request: &RequestDoc) -> Result<Analysis, Report> {
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^ the `Err`-variant is at least 1152 bytes
+    |
+    = help: try reducing the size of `report::Report`, for example by boxing large elements or replacing it with `Box<report::Report>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#result_large_err
+    = note: `-D clippy::result-large-err` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::result_large_err)]`
+
+error: this `if` statement can be collapsed
+   --> src/lib.rs:642:13
+    |
+642 | /             if let Some(kind) = kind_of.get(name) {
+643 | |                 if matches!(kind, Kind::Int2 | Kind::Int4 | Kind::Int8) && parse_int(text, integer_oid).is_err() {
+644 | |                     return Err("parameter_value");
+645 | |                 }
+646 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+642 ~             if let Some(kind) = kind_of.get(name)
+643 ~                 && matches!(kind, Kind::Int2 | Kind::Int4 | Kind::Int8) && parse_int(text, integer_oid).is_err() {
+644 |                     return Err("parameter_value");
+645 ~                 }
+    |
+
+error: could not compile `metric-reconcile` (lib) due to 8 previous errors

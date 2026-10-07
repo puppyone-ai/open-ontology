@@ -1,0 +1,36 @@
+
+running 21 tests
+test behavior::compile_keeps_certification_closed ... ok
+test behavior::description_and_scale_do_not_require_review ... ok
+test behavior::evaluate_reads_credentials_from_files_only ... ok
+test behavior::finance_group_by_is_refused_before_execute ... ok
+test behavior::local_refusals_keep_their_tokens ... ok
+test behavior::same_path_and_string_literal_angles ... ok
+test decimal_cmp::tests::scale_and_hand_literal ... ok
+test decimal_cmp::tests::tolerance_and_is_stricter ... ok
+test decimal_cmp::tests::zero_control_relative ... ok
+test live::hand_literal_independent_control ... ok
+test lock_subset::registry_pins_are_a_subset_of_the_root_lock ... ok
+test numeric::tests::hand_literal_decodes ... ok
+test numeric::tests::int_min_is_exact ... ok
+test numeric::tests::numeric_oid_is_1700 ... ok
+test numeric::tests::small_layouts ... ok
+test numeric::tests::weight_and_dscale_edges ... ok
+test report::tests::receipt_is_the_empty_field_hash ... ok
+test template::tests::binds_in_first_seen_order_and_ignores_casts_comments_and_strings ... ok
+test template::tests::negative_codes_stay_outside_strings ... ok
+test template::tests::unsupported_forms ... ok
+test tests::malformed_request_stays_empty ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
