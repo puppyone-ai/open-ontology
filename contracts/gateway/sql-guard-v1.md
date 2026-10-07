@@ -80,7 +80,7 @@ Not implemented, and refused rather than guessed when one of these appears in SQ
 - set-returning functions, window functions, `GROUP BY`, `DISTINCT`, set operations
 - `WITH` / CTE scope, subqueries, `LATERAL`
 - `NATURAL` and `JOIN USING`, including their merged columns
-- `LIKE`, `ILIKE`, `SIMILAR`, `IN`, `BETWEEN`, `ANY`, and `ALL`
+- `LIKE`, `ILIKE`, `SIMILAR`, `BETWEEN`, `ANY`, and `ALL`
 - `ORDER BY` an output alias or an ordinal
 - float and bit-string literals
 - volatile-function policy beyond "the OID must already be in the snapshot"
@@ -89,3 +89,7 @@ Not implemented, and refused rather than guessed when one of these appears in SQ
 `count(*)` can be admitted when the snapshot has that aggregate OID. A column-level `GRANT` without table `SELECT` may still reject `count(*)` at execution (`42501`). Admission is not that privilege check.
 
 Publication of a read API in front of this function is open. No release is claimed here.
+
+## Bounded literal IN amendment (2026-10-08, pending independent review)
+
+Source `6f87942f1c66ba1a9787b7d7194e58a507af63ef` adds `IN` and `NOT IN` for one authorized scalar column and 1–32 integer, text, boolean or NULL literals. Literal types and equality/inequality operators must resolve through the existing catalog admission. The AST predicate is retained; PostgreSQL evaluates NULL semantics. Hidden columns, subqueries, ANY/ALL, functions, casts, parameters, float literals and lists beyond the bound remain refused. An admitted IN counts as an R9 filter; adjacent OR true still folds true. See `testing/real-db/bounded-in/CONTRACT.md`. This amendment records authored behavior, not independent acceptance or completion of SP06-W02.
