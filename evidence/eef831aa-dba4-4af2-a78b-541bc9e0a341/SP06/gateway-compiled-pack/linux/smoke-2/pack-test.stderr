@@ -1,0 +1,31 @@
+   Compiling oo-gateway v0.1.0 (/target/work/crates/oo-gateway)
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-gateway/src/pack_catalog.rs:838:22
+    |
+653 |     fn readme(project: &str, role: &str) -> String {
+    |     ---------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+826 |         let readme = readme("depot", "oo_r_auditor");
+    |             ------ `readme` has type `std::string::String`
+...
+838 |         let readme = readme("depot", "oo_r_picker");
+    |                      ^^^^^^------------------------
+    |                      |
+    |                      call expression requires function
+
+error[E0618]: expected function, found `std::string::String`
+   --> crates/oo-gateway/src/pack_catalog.rs:839:21
+    |
+659 |     fn table(column: &str, pii: &str) -> String {
+    |     ------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+827 |         let table = table("picker_note", "none");
+    |             ----- `table` has type `std::string::String`
+...
+839 |         let table = table("picker_note", "unknown");
+    |                     ^^^^^--------------------------
+    |                     |
+    |                     call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `oo-gateway` (lib test) due to 2 previous errors

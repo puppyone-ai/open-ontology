@@ -1,0 +1,11 @@
+
+running 6 tests
+test pack_catalog::tests::declared_digest_tamper_is_refused ... ok
+test pack_catalog::tests::duplicate_identity_refuses_startup ... ok
+test pack_catalog::tests::manifest_file_list_mismatch_is_source_digest ... ok
+test pack_catalog::tests::operator_fixture_is_legacy_unsupported ... ok
+test pack_catalog::tests::sealed_shape_keeps_the_named_column_and_recomputed_digest ... ok
+test pack_catalog::tests::source_digest_path_budget_and_role_failures ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.01s
+

@@ -1,0 +1,47 @@
+PHASE rustc_exit=0
+find: '/cargo-home/a341-clang-root/usr/lib': No such file or directory
+PHASE libclang_ready
+PHASE fetch_begin
+PHASE fetch_exit=0
+PHASE baseline_pack_begin
+PHASE baseline_pack_exit=0
+PHASE baseline_loopback_begin
+PHASE baseline_loopback_exit=0
+PHASE overlay_ok
+error[E0716]: temporary value dropped while borrowed
+   --> /overlay/gateway-compiled-pack/src/fixture.rs:116:31
+    |
+116 |     let effective = one_json(&fs::read_to_string(effective).map_err(|_| "effective read".to_owned())?)?;
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  - temporary value is freed at the end of this statement
+    |                               |
+    |                               creates a temporary value which is freed while still in use
+...
+119 |         "{{\"effective_oos\":{effective},\"protocol\":\"oo.builder.role-pack-command/v1\",\"visibility\":{visibility}}}"
+    |                               --------- borrow later used here
+    |
+help: consider using a `let` binding to create a longer lived value
+    |
+116 ~     let binding = fs::read_to_string(effective).map_err(|_| "effective read".to_owned())?;
+117 ~     let effective = one_json(&binding)?;
+    |
+
+error[E0716]: temporary value dropped while borrowed
+   --> /overlay/gateway-compiled-pack/src/fixture.rs:117:32
+    |
+117 |     let visibility = one_json(&fs::read_to_string(visibility).map_err(|_| "visibility read".to_owned())?)?;
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  - temporary value is freed at the end of this statement
+    |                                |
+    |                                creates a temporary value which is freed while still in use
+118 |     Ok(format!(
+119 |         "{{\"effective_oos\":{effective},\"protocol\":\"oo.builder.role-pack-command/v1\",\"visibility\":{visibility}}}"
+    |                                                                                                           ---------- borrow later used here
+    |
+help: consider using a `let` binding to create a longer lived value
+    |
+117 ~     let binding = fs::read_to_string(visibility).map_err(|_| "visibility read".to_owned())?;
+118 ~     let visibility = one_json(&binding)?;
+    |
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0716`.

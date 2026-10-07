@@ -1,0 +1,18 @@
+{
+  "protocol": "oo.builder.role-visibility/v1",
+  "project": "depot",
+  "principal": "auditor-user",
+  "role": "oo_r_auditor",
+  "ontology_version": "ont-v1",
+  "catalog_version": "cat-v1",
+  "policy": {"id": "pol_depot", "version": "pv1"},
+  "knowledge": {"id": "know_depot", "version": "kv1"},
+  "issued_for_compiler": "oo-builder/role-pack/v1",
+  "datasets": [{
+    "dataset": "shop.orders",
+    "row_security": "none",
+    "global_stats": "permitted",
+    "columns": ["order_id", "auditor_phone"]
+  }],
+  "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
+}

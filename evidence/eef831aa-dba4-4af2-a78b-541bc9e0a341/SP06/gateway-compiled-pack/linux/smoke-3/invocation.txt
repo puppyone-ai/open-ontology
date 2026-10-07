@@ -1,0 +1,1 @@
+docker run --name oo-a341-proof-3 --platform linux/arm64 --pull never --network oo-a341-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 archive=cd8f754c1b4db22fc962370c4b29bb846b0fccc3 bash /inside.sh

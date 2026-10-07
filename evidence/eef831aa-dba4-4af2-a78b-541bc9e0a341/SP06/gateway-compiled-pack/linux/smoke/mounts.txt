@@ -1,0 +1,12 @@
+bind /tools rw=false
+bind /overlay/gateway-compiled-pack rw=false
+volume /cargo-home rw=true
+volume /target rw=true
+bind /src rw=false
+bind /inside.sh rw=false
+bind /extract-libclang.sh rw=false
+bind /overlay/pack_catalog.rs rw=false
+bind /overlay/http_gateway_pg_live.rs rw=false
+bind /evidence rw=true
+bind /fixture rw=false
+
