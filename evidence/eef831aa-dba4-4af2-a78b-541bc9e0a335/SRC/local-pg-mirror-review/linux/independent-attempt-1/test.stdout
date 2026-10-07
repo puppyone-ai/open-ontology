@@ -1,0 +1,18 @@
+
+running 1 test
+test independent_local_copy ... FAILED
+
+failures:
+
+---- independent_local_copy stdout ----
+
+thread 'independent_local_copy' (251) panicked at tests/independent.rs:449:81:
+mirror bin
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    independent_local_copy
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

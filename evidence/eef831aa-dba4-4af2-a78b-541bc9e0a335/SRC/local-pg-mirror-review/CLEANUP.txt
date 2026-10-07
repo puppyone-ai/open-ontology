@@ -1,0 +1,20 @@
+inspect oo-a335-pg owner=a335 kind=postgres
+oo-a335-pg
+absent container oo-a335-smoke
+absent container oo-a335-preoverlay
+absent container oo-a335-independent
+absent container oo-a335-sha256
+volume oo-a335-eef831aa-pgdata owner=a335
+oo-a335-eef831aa-pgdata
+volume oo-a335-eef831aa-cargo owner=a335
+oo-a335-eef831aa-cargo
+volume oo-a335-eef831aa-target owner=a335
+oo-a335-eef831aa-target
+network owner=a335
+oo-a335-eef831aa-net
+secrets_removed=1
+--- remaining a335 ---
+--- other builders left untouched ---
+oo-a326-proof a326
+oo-a329-review-2 a329
+oo-a332-live a332
