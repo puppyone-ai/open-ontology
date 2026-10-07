@@ -1,0 +1,26 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 209[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 104[2mms[22m[39m
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 451[2mms[22m[39m
+ [32m✓[39m src/features/sources/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 295[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/modules.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 249[2mms[22m[39m
+ [32m✓[39m src/features/user/user-pages.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m src/features/files/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 109[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/features/jobs/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/styles/font-coverage.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m      Tests [22m [1m[32m37 passed[39m[22m[90m (37)[39m
+[2m   Start at [22m 22:48:49
+[2m   Duration [22m 10.33s[2m (environment 53%, tests 21%, setup 16%, import 7%, transform 3%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 13 times[39m[2m · 4.91s total, 53% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+

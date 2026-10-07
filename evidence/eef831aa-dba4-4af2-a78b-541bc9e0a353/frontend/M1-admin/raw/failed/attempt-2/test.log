@@ -1,0 +1,71 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 615[2mms[22m[39m
+ [32m✓[39m src/features/sources/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 322[2mms[22m[39m
+   [32m✓[39m sources [2m(1)[22m
+     [33m[2m✓[22m[39m renders every page unbound and does not call fetch[33m 322[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/modules.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 269[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 214[2mms[22m[39m
+ [31m❯[39m src/app/router.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/features/files/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m src/features/jobs/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 94[2mms[22m[39m
+ [31m❯[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/styles/font-coverage.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/app/router.test.tsx[2m [ src/app/router.test.tsx ][22m
+[31m[1mError[22m: Failed to resolve import "../features/auth/admin-login-page" from "src/app/router.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36m/src/apps/web/src/app/router.tsx[39m:3:31
+[33m  1  |  import { Navigate } from "react-router";
+  2  |  import { ADMIN_MODULES, routesFromModules } from "./module-registration";
+  3  |  import { AdminLoginPage } from "../features/auth/admin-login-page";
+     |                                  ^
+  4  |  import { BootstrapPage } from "../features/auth/bootstrap-page";
+  5  |  import { ForbiddenPage, NotFoundPage, RouteFailure, UnsupportedPage } from "../features/auth/error-pages";[39m
+[90m [2m❯[22m TransformPluginContext._formatLog ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8766:39[22m[39m
+[90m [2m❯[22m TransformPluginContext.error ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8763:14[22m[39m
+[90m [2m❯[22m normalizeUrl ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26593:18[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26663:30[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26629:4[22m[39m
+[90m [2m❯[22m EnvironmentPluginContainer.transform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8545:14[22m[39m
+[90m [2m❯[22m loadAndTransform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m20157:26[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/features/admin-overview/production-route.test.tsx[2m [ src/features/admin-overview/production-route.test.tsx ][22m
+[31m[1mError[22m: Failed to resolve import "../features/auth/admin-login-page" from "src/app/router.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36m/src/apps/web/src/app/router.tsx[39m:3:31
+[33m  1  |  import { Navigate } from "react-router";
+  2  |  import { ADMIN_MODULES, routesFromModules } from "./module-registration";
+  3  |  import { AdminLoginPage } from "../features/auth/admin-login-page";
+     |                                  ^
+  4  |  import { BootstrapPage } from "../features/auth/bootstrap-page";
+  5  |  import { ForbiddenPage, NotFoundPage, RouteFailure, UnsupportedPage } from "../features/auth/error-pages";[39m
+[90m [2m❯[22m TransformPluginContext._formatLog ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8766:39[22m[39m
+[90m [2m❯[22m TransformPluginContext.error ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8763:14[22m[39m
+[90m [2m❯[22m normalizeUrl ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26593:18[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26663:30[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m26629:4[22m[39m
+[90m [2m❯[22m EnvironmentPluginContainer.transform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m8545:14[22m[39m
+[90m [2m❯[22m loadAndTransform ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m20157:26[22m[39m
+[90m [2m❯[22m fetchModule ../../node_modules/.pnpm/vite@8.3.3_@types+node@24.19.1_esbuild@0.28.2_jiti@2.7.0/node_modules/vite/dist/node/chunks/node.js:[2m36109:15[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m10 passed[39m[22m[90m (12)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 22:48:17
+[2m   Duration [22m 9.60s[2m (environment 53%, tests 20%, setup 18%, import 6%, transform 2%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 12 times[39m[2m · 4.65s total, 53% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
