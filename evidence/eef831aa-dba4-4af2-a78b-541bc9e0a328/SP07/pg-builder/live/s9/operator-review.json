@@ -1,0 +1,51 @@
+{
+  "protocol": "oo.pg-builder.operator-review/v1",
+  "authenticated": false,
+  "parent_auth": "required",
+  "decisions": [
+    {
+      "dataset": "shop.party",
+      "decision": "approve",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07",
+      "fields": {
+        "label": {"overwrite": true},
+        "description": {"overwrite": false},
+        "grain": {"overwrite": false}
+      }
+    },
+    {
+      "dataset": "shop.account",
+      "decision": "approve",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07",
+      "fields": {
+        "label": {"overwrite": true},
+        "description": {"overwrite": false},
+        "grain": {"overwrite": false}
+      }
+    },
+    {
+      "dataset": "shop.entry",
+      "decision": "defer",
+      "reviewer_label": "local-operator",
+      "reviewer_at": "2026-10-07"
+    }
+  ],
+  "column_decisions": [
+    {"dataset": "shop.party", "column": "party_key", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.party", "column": "display_name", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.party", "column": "active", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.party", "column": "phone", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.party", "column": "national_id", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"},
+    {"dataset": "shop.account", "column": "account_id", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.account", "column": "party_key", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.account", "column": "opened", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.account", "column": "label", "decision": "approve", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07", "fields": {"label": {"overwrite": true}, "description": {"overwrite": true}}},
+    {"dataset": "shop.entry", "column": "entry_id", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"},
+    {"dataset": "shop.entry", "column": "account_id", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"},
+    {"dataset": "shop.entry", "column": "qty", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"},
+    {"dataset": "shop.entry", "column": "amount", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"},
+    {"dataset": "shop.entry", "column": "memo", "decision": "defer", "reviewer_label": "local-operator", "reviewer_at": "2026-10-07"}
+  ]
+}

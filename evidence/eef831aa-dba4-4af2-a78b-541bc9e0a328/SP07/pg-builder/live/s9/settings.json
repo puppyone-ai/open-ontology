@@ -1,0 +1,22 @@
+{
+  "project": "a328builder",
+  "ontology_version": "ont-a328",
+  "catalog_version": "cat-a328",
+  "policy": {"id": "pol-a328", "version": "1"},
+  "knowledge": {"id": "know-a328", "version": "1"},
+  "ontology": {
+    "spec_version": "oos/v1",
+    "name": "a328builder",
+    "locale": "en-US",
+    "include_schemas": ["shop"],
+    "default_tier_preference": ["raw"],
+    "publish": {"include_unreviewed": ["dataset_descriptions", "column_descriptions"]},
+    "classification": {"auto_accept": "rule_high_confidence"},
+    "lifecycle": {"deprecation_min_releases": 2},
+    "compile": {
+      "per_role": true,
+      "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+      "sample_values": {"default": "masked", "max_per_column": 0}
+    }
+  }
+}

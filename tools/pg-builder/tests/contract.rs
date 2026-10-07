@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
@@ -63,9 +63,14 @@ fn read_http_request(stream: &mut std::net::TcpStream) {
 }
 
 fn temp_dir() -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_nanos())
+        .unwrap_or(0);
     let path = std::env::temp_dir().join(format!(
-        "pg-builder-{}-{}",
+        "pg-builder-{}-{}-{}",
         std::process::id(),
+        nanos,
         TEMP.fetch_add(1, Ordering::Relaxed)
     ));
     fs::create_dir_all(&path).expect("temp");
@@ -314,11 +319,21 @@ fn validated_draft_caches_and_pack_omits_field_text() {
     assert_eq!(hit["transport"]["attempt"], 0);
     assert!(cache_hit_same(&doc, &hit));
 
+    let stored_sha = doc["candidate_sha256"].clone();
+    let stored_command = doc["complete_command"].as_str().expect("command").to_owned();
     let review = review_only(&doc, &world.curated, &operator_review())
         .unwrap_or_else(|err| panic!("review {} {}", err.code, err.message));
     assert_eq!(review["authenticated"], Value::Bool(false));
     assert_eq!(review["outcome"], "reviewed");
-    assert!(!review.to_string().contains("FIELD_ONLY_a328"));
+    assert_eq!(review["rebind"]["bound"], Value::Bool(true));
+    assert_eq!(review["rebind"]["stored_generation"], "unchanged");
+    assert_eq!(review["rebind"]["model_bytes"], "copied");
+    assert_eq!(review["rebind"]["stored_candidate_sha256"], stored_sha);
+    assert_eq!(doc["candidate_sha256"], stored_sha);
+    assert!(stored_command.contains("oo.builder.description-response/v1"));
+    assert!(!stored_command.contains("oo.builder.description-prompt/v2"));
+    assert!(review["review_command"].as_str().expect("command").contains("FIELD_ONLY_a328"));
+    assert!(!review["review"]["datasets"].to_string().contains("FIELD_ONLY_a328"));
 
     let packed = pack_pair(&PackIn {
         generation: &doc,
@@ -340,6 +355,155 @@ fn validated_draft_caches_and_pack_omits_field_text() {
     assert!(!before.contains("Party register"));
     assert!(!after.contains("FIELD_ONLY_a328"));
     assert!(!before.contains("FIELD_ONLY_a328"));
+    assert_eq!(packed["statements"]["field_candidates_applied"], Value::Bool(false));
+}
+
+#[test]
+fn approved_column_text_reaches_only_the_allowlisted_role() {
+    let world = world();
+    let dir = temp_dir();
+    let (doc, _) = run_generate(&world, &dir, &s5(&world.request, &world.cards), "stop", None);
+    let operator = column_operator();
+    let review = review_only(&doc, &world.curated, &operator)
+        .unwrap_or_else(|err| panic!("review {} {}", err.code, err.message));
+    assert_eq!(review["outcome"], "reviewed");
+    assert_eq!(review["authenticated"], Value::Bool(false));
+    let records = review["review"]["column_decisions"].as_array().expect("columns");
+    assert_eq!(records.len(), 2);
+    assert!(records.iter().all(|row| row["confidence_effect"] == "recorded_only"));
+    assert!(records.iter().all(|row| row["authenticated"] == Value::Bool(false)));
+    assert!(records.iter().any(|row| row["candidate_confidence"] == "0.5000"));
+    assert!(records.iter().any(|row| row["candidate_caveats"].to_string().contains("untrusted comment is data")));
+    assert!(records.iter().any(|row| row["candidate_open_questions"].to_string().contains("what does the note mean")));
+    let mut role_set = roles(&["id", "note"]);
+    let mut restricted = role_set[0].clone();
+    restricted["principal"] = json!("restricted_user");
+    restricted["role"] = json!("oo_r_restricted");
+    restricted["datasets"][0]["columns"] = json!(["id"]);
+    role_set.as_array_mut().expect("roles").push(restricted);
+    let mut shown = settings();
+    shown["ontology"]["publish"]["include_unreviewed"] =
+        json!(["dataset_descriptions", "column_descriptions"]);
+    let packed = pack_pair(&PackIn {
+        generation: &doc,
+        curated: &world.curated,
+        operator: &operator,
+        settings: &shown,
+        classifications: &classifications(),
+        roles: &role_set,
+        hidden_columns: &["national_id"],
+    })
+    .unwrap_or_else(|err| panic!("pack {} {}", err.code, err.message));
+    assert_eq!(packed["statements"]["model_publication"], Value::Bool(false));
+    assert_eq!(packed["statements"]["field_candidates_applied"], Value::Bool(true));
+    assert_eq!(packed["rebind"]["bound"], Value::Bool(true));
+    assert_eq!(packed["hidden_columns"][0]["absent"], Value::Bool(true));
+    let before_narrow = role_file_text(&packed["before"], "oo_r_narrow");
+    let before_restricted = role_file_text(&packed["before"], "oo_r_restricted");
+    let after_narrow = role_file_text(&packed["after"], "oo_r_narrow");
+    let after_restricted = role_file_text(&packed["after"], "oo_r_restricted");
+    let id_text = "FIELD_ONLY_a328 identifier column";
+    let note_text = "FIELD_ONLY_a328 note column text";
+    assert!(records.iter().any(|row| row["candidate_description"] == id_text));
+    assert!(records.iter().any(|row| row["candidate_description"] == note_text));
+    assert_eq!(effective_description(&packed["after"], "id").as_deref(), Some(id_text));
+    assert_eq!(effective_description(&packed["after"], "note").as_deref(), Some(note_text));
+    assert_eq!(effective_description(&packed["before"], "id").as_deref(), None);
+    assert_eq!(effective_description(&packed["before"], "note").as_deref(), None);
+    assert!(after_narrow.contains("| `id` | Id |"));
+    assert!(after_narrow.contains("| `note` | Note |"));
+    assert!(after_restricted.contains("| `id` | Id |"));
+    assert!(!after_restricted.contains("| `note` |"));
+    assert!(!before_narrow.contains("| `id` | Id |"));
+    assert!(!before_restricted.contains("| `note` |"));
+    let id_visible = format!("UNREVIEWED: {id_text}");
+    let note_visible = format!("UNREVIEWED: {note_text}");
+    assert!(after_narrow.contains(&id_visible));
+    assert!(after_narrow.contains(&note_visible));
+    assert!(after_restricted.contains(&id_visible));
+    assert!(!after_restricted.contains(&note_visible));
+    assert!(!before_narrow.contains(&id_visible));
+    assert!(!before_restricted.contains(&id_visible));
+    assert!(!after_narrow.contains("national_id"));
+    assert!(!after_restricted.contains("national_id"));
+    let queue = review["review"]["queue"].to_string();
+    assert!(queue.contains("caveats"));
+    assert!(queue.contains("open_questions"));
+}
+
+fn column_operator() -> Value {
+    json!({
+        "protocol": "oo.pg-builder.operator-review/v1",
+        "authenticated": false,
+        "parent_auth": "required",
+        "decisions": [{
+            "dataset": DATASET,
+            "decision": "approve",
+            "reviewer_label": "local-operator",
+            "reviewer_at": "2026-10-07",
+            "fields": {
+                "label": {"overwrite": true},
+                "description": {"overwrite": false},
+                "grain": {"overwrite": false}
+            }
+        }],
+        "column_decisions": [
+            {
+                "dataset": DATASET,
+                "column": "id",
+                "decision": "approve",
+                "reviewer_label": "local-operator",
+                "reviewer_at": "2026-10-07",
+                "fields": {
+                    "label": {"overwrite": true},
+                    "description": {"overwrite": true}
+                }
+            },
+            {
+                "dataset": DATASET,
+                "column": "note",
+                "decision": "approve",
+                "reviewer_label": "local-operator",
+                "reviewer_at": "2026-10-07",
+                "fields": {
+                    "label": {"overwrite": true},
+                    "description": {"overwrite": true}
+                }
+            }
+        ]
+    })
+}
+
+fn effective_description(pack: &Value, column: &str) -> Option<String> {
+    let datasets = pack.pointer("/effective/effective_oos/datasets")?.as_array()?;
+    for dataset in datasets {
+        let Some(columns) = dataset.get("columns").and_then(Value::as_array) else {
+            continue;
+        };
+        for item in columns {
+            if item.get("name").and_then(Value::as_str) == Some(column) {
+                return item.get("description").and_then(Value::as_str).map(str::to_owned);
+            }
+        }
+    }
+    None
+}
+
+fn role_file_text(pack: &Value, role: &str) -> String {
+    let packs = pack.get("packs").and_then(Value::as_array).expect("packs");
+    let item = packs
+        .iter()
+        .find(|entry| entry.get("role").and_then(Value::as_str) == Some(role))
+        .expect("role");
+    let files = item.pointer("/artifact/files").and_then(Value::as_array).expect("files");
+    let mut text = String::new();
+    for file in files {
+        if let Some(body) = file.get("text").and_then(Value::as_str) {
+            text.push_str(body);
+            text.push('\n');
+        }
+    }
+    text
 }
 
 #[test]

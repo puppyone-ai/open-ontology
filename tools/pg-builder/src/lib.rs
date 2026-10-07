@@ -1,14 +1,15 @@
 //! PostgreSQL builder integration.
 //!
 //! Catalog capture is the existing `catalog-pg` command. Dataset candidates
-//! are the existing description-candidate compiler. Field candidates are
-//! staged here because that compiler admits dataset fields only.
-//! See `CONTRACT.md`. This crate does not grant, classify, certify, or publish.
+//! are the existing description-candidate compiler. A validated draft is
+//! rebound onto description prompt v2 before review. See `CONTRACT.md`.
+//! This crate does not grant, classify, certify, or publish.
 
 #![forbid(unsafe_code)]
 
 mod bridge;
 mod cache;
+mod rebind;
 mod canonical;
 mod cards;
 mod config;
@@ -60,12 +61,15 @@ pub fn prompt_sha256() -> String {
 
 pub fn field_seam() -> serde_json::Value {
     serde_json::json!({
-        "id": "description-candidate.dataset_only",
+        "id": "description-candidate.column-v2",
+        "producer": "c23db28dc27f5cf20741dd36e8a8e88129ad1715",
         "compiler": "oo-builder/description-candidate/v1",
         "review": "oo-builder/description-review/v1",
         "pack": "oo-builder/description-pack/v1",
-        "required": "Admit column candidates with label, description, confidence, caveats, and open_questions, and apply them only through an explicit review.",
-        "current": "Description candidates are dataset objects. A column key is format_rejected. Description review writes dataset label, description, and grain only. Description pack copies those three dataset fields.",
-        "owned_staging": "validated_generated_only"
+        "prompt_version": "oo.builder.description-prompt/v2",
+        "response_protocol": "oo.builder.description-response/v2",
+        "candidate_protocol": "oo.builder.description-candidate/v2",
+        "review_protocol": "oo.builder.description-review/v2",
+        "current": "A validated v1 generation is rebound into one v2 captured body per table. Review and pack then apply explicit caller column decisions. Stored model bytes stay in place."
     })
 }

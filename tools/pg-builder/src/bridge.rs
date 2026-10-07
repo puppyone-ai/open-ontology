@@ -1,9 +1,9 @@
 //! Dataset review and role-pack bridge.
 //!
-//! Field candidates stay in the generation document. This module does not
-//! copy them into curated files, the resealed artifact, or a role pack.
+//! A validated generation is rebound onto description prompt v2. Column text
+//! is written only by an explicit caller decision. See CONTRACT.md.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Map, Value};
 
@@ -17,6 +17,7 @@ use oo_core::oos::DatasetFile;
 
 use crate::canonical::{canonical_json, canonical_sha256, object};
 use crate::error::PgBuilderError;
+use crate::rebind::{rebind_generation, Rebound};
 use crate::{field_seam, sha256_hex};
 
 pub struct PackIn<'a> {
@@ -168,16 +169,88 @@ pub fn scaffold_curated(catalog: &Value) -> Result<Value, PgBuilderError> {
 }
 
 pub fn review_only(generation: &Value, curated: &Value, operator: &Value) -> Result<Value, PgBuilderError> {
-    require_validated(generation)?;
-    let command = build_review_command(generation, curated, operator, false)?;
+    if is_aggregate(generation) {
+        return review_aggregate(generation, curated, operator);
+    }
+    review_one(generation, curated, operator)
+}
+
+pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
+    if is_aggregate(input.generation) {
+        return pack_aggregate(input);
+    }
+    pack_one(input)
+}
+
+fn review_one(generation: &Value, curated: &Value, operator: &Value) -> Result<Value, PgBuilderError> {
+    let rebound = rebind_generation(generation)?;
+    if !rebound.bound {
+        return Ok(json!({
+            "protocol": "oo.pg-builder.review-bridge/v1",
+            "authenticated": false,
+            "parent_auth": "required",
+            "outcome": "rebind_refused",
+            "rebind": rebound.provenance,
+            "field_publication_seam": field_seam(),
+            "statements": {
+                "field_candidates_applied": false,
+                "publication": "unavailable",
+                "authenticated": false,
+                "parent_auth": "required"
+            }
+        }));
+    }
+    let command = build_review_command(&rebound, curated, operator, false)?;
     let bytes = apply_description_review(&command).map_err(forward_review)?;
     let review: Value = serde_json::from_str(&bytes).map_err(|_| {
         PgBuilderError::new("review.shape", "the description review document was refused")
     })?;
-    Ok(bridge_document("oo.pg-builder.review-bridge/v1", &bytes, command, review))
+    let mut document = bridge_document("oo.pg-builder.review-bridge/v1", &bytes, command, review);
+    if let Some(map) = document.as_object_mut() {
+        map.insert("rebind".to_owned(), rebound.provenance);
+    }
+    Ok(document)
 }
 
-pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
+fn review_aggregate(generation: &Value, curated: &Value, operator: &Value) -> Result<Value, PgBuilderError> {
+    let calls = generation
+        .get("calls")
+        .and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("review.blocked", "the aggregate has no calls"))?;
+    let any_validated = calls.iter().any(|call| {
+        call.get("outcome").and_then(Value::as_str) == Some("validated")
+    });
+    if !any_validated {
+        return Err(PgBuilderError::new(
+            "review.blocked",
+            "review requires a validated generation",
+        ));
+    }
+    let mut tables = Vec::new();
+    for call in calls {
+        if call.get("outcome").and_then(Value::as_str) == Some("validated") {
+            tables.push(review_one(call, curated, operator)?);
+        } else {
+            tables.push(json!({
+                "protocol": "oo.pg-builder.review-bridge/v1",
+                "dataset": call.get("dataset").cloned().unwrap_or(Value::Null),
+                "outcome": "blocked",
+                "authenticated": false,
+                "parent_auth": "required"
+            }));
+        }
+    }
+    let reviewed = tables.iter().all(|table| table.get("outcome").and_then(Value::as_str) == Some("reviewed"));
+    Ok(json!({
+        "protocol": "oo.pg-builder.review-bridge/v1",
+        "authenticated": false,
+        "parent_auth": "required",
+        "outcome": if reviewed { "reviewed" } else { "partial" },
+        "tables": tables
+    }))
+}
+
+fn pack_one(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
     require_validated(input.generation)?;
     let artifact = command_artifact(input.generation)?;
     let draft = artifact
@@ -185,8 +258,12 @@ pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
         .ok_or_else(|| PgBuilderError::new("compiler.seal", "the sealed draft is missing"))?;
     let classes = fill_classes(draft, input.classifications)?;
     require_role_coverage(input.roles, &classes)?;
-    let after_command = build_review_command(input.generation, input.curated, input.operator, false)?;
-    let before_command = build_review_command(input.generation, input.curated, input.operator, true)?;
+    let rebound = rebind_generation(input.generation)?;
+    if !rebound.bound {
+        return Err(PgBuilderError::new("review.rebind", "the rebound body was refused"));
+    }
+    let after_command = build_review_command(&rebound, input.curated, input.operator, false)?;
+    let before_command = build_review_command(&rebound, input.curated, input.operator, true)?;
     let after_review = apply_description_review(&after_command).map_err(forward_review)?;
     let before_review = apply_description_review(&before_command).map_err(forward_review)?;
     let after_pack = apply_pack(&after_command, &after_review, &artifact, input.settings, &classes, input.roles)?;
@@ -194,12 +271,14 @@ pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
     let before_text = canonical_json(&before_pack);
     let after_text = canonical_json(&after_pack);
     let field_text_absent = field_text_absent(input.generation, &before_text, &after_text);
+    let applied = column_text_applied(input.generation, &before_text, &after_text);
     let hidden = hidden_report(&before_text, &after_text, input.hidden_columns);
     Ok(json!({
         "protocol": "oo.pg-builder.pack-bridge/v1",
         "authenticated": false,
         "parent_auth": "required",
         "field_publication_seam": field_seam(),
+        "rebind": rebound.provenance,
         "before": before_pack,
         "after": after_pack,
         "diff": {
@@ -212,7 +291,7 @@ pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
         "field_text_absent": field_text_absent,
         "hidden_columns": hidden,
         "statements": {
-            "field_candidates_applied": false,
+            "field_candidates_applied": applied,
             "model_publication": false,
             "authenticated": false,
             "parent_auth": "required",
@@ -220,6 +299,70 @@ pub fn pack_pair(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
             "semantic_classification": "caller_fixture"
         }
     }))
+}
+
+fn pack_aggregate(input: &PackIn<'_>) -> Result<Value, PgBuilderError> {
+    let calls = input
+        .generation
+        .get("calls")
+        .and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("review.blocked", "the aggregate has no calls"))?;
+    let mut tables = Vec::new();
+    let mut packed = 0u32;
+    for call in calls {
+        if call.get("outcome").and_then(Value::as_str) != Some("validated") {
+            tables.push(json!({
+                "dataset": call.get("dataset").cloned().unwrap_or(Value::Null),
+                "outcome": "blocked",
+                "authenticated": false,
+                "parent_auth": "required"
+            }));
+            continue;
+        }
+        let one = PackIn {
+            generation: call,
+            curated: input.curated,
+            operator: input.operator,
+            settings: input.settings,
+            classifications: input.classifications,
+            roles: input.roles,
+            hidden_columns: input.hidden_columns,
+        };
+        match pack_one(&one) {
+            Ok(document) => {
+                packed = packed.saturating_add(1);
+                tables.push(document);
+            }
+            Err(err) if err.code.ends_with("review.rebind") => {
+                tables.push(json!({
+                    "dataset": call.get("dataset").cloned().unwrap_or(Value::Null),
+                    "outcome": "rebind_refused",
+                    "authenticated": false,
+                    "parent_auth": "required"
+                }));
+            }
+            Err(err) => return Err(err),
+        }
+    }
+    if packed == 0 {
+        return Err(PgBuilderError::new("review.blocked", "review requires a validated generation"));
+    }
+    Ok(json!({
+        "protocol": "oo.pg-builder.pack-bridge/v1",
+        "authenticated": false,
+        "parent_auth": "required",
+        "tables": tables,
+        "statements": {
+            "model_publication": false,
+            "authenticated": false,
+            "parent_auth": "required"
+        }
+    }))
+}
+
+fn is_aggregate(generation: &Value) -> bool {
+    generation.get("calls").and_then(Value::as_array).is_some()
+        && generation.get("complete_command").and_then(Value::as_str).is_none()
 }
 
 fn apply_pack(
@@ -247,25 +390,18 @@ fn apply_pack(
 }
 
 fn build_review_command(
-    generation: &Value,
+    rebound: &Rebound,
     curated: &Value,
     operator: &Value,
     force_defer: bool,
 ) -> Result<String, PgBuilderError> {
-    let complete = generation
-        .get("complete_command")
-        .and_then(Value::as_str)
-        .ok_or_else(|| PgBuilderError::new("review.blocked", "the generation has no complete command"))?;
-    let outcome_bytes = oo_builder::complete_description_candidates(complete).map_err(|_| {
-        PgBuilderError::new("compiler.complete", "the description compiler refused the captured body")
-    })?;
-    let outcome: Value = serde_json::from_str(&outcome_bytes).map_err(|_| {
-        PgBuilderError::new("compiler.complete", "the description compiler refused the captured body")
-    })?;
+    let outcome = &rebound.outcome;
     if outcome.get("outcome").and_then(Value::as_str) != Some("candidates") {
         return Err(PgBuilderError::new("review.blocked", "review requires description candidates"));
     }
-    let decisions = build_decisions(&outcome, curated, operator, force_defer)?;
+    let operator = filter_operator(operator, outcome)?;
+    let decisions = build_decisions(outcome, curated, &operator, force_defer)?;
+    let column_decisions = build_column_decisions(outcome, curated, &operator, force_defer)?;
     let schema = outcome
         .pointer("/structural_draft/schema_hash")
         .and_then(Value::as_str)
@@ -276,11 +412,12 @@ fn build_review_command(
         .ok_or_else(|| PgBuilderError::new("review.anchor", "the compiler draft has no evidence hash"))?;
     let command = json!({
         "protocol": description_review::COMMAND_PROTOCOL,
-        "command": complete,
-        "expected_outcome_sha256": sha256_hex(outcome_bytes.as_bytes()),
+        "command": rebound.command,
+        "expected_outcome_sha256": sha256_hex(rebound.outcome_bytes.as_bytes()),
         "current": {"schema_hash": schema, "evidence_hash": evidence},
         "curated": curated,
-        "decisions": decisions
+        "decisions": decisions,
+        "column_decisions": column_decisions
     });
     serde_json::to_string(&command).map_err(|_| PgBuilderError::new("review.schema", "the review command could not be encoded"))
 }
@@ -292,7 +429,12 @@ fn build_decisions(
     force_defer: bool,
 ) -> Result<Vec<Value>, PgBuilderError> {
     let map = require_declared(operator, "review.schema")?;
-    require_exact(map, &["authenticated", "decisions", "parent_auth", "protocol"], "review.schema")?;
+    if !operator_root_keys(map) {
+        return Err(PgBuilderError::new(
+            "review.schema",
+            "the object has an unknown or missing field",
+        ));
+    }
     if map.get("protocol").and_then(Value::as_str) != Some("oo.pg-builder.operator-review/v1") {
         return Err(PgBuilderError::new("review.schema", "the operator review protocol is wrong"));
     }
@@ -359,6 +501,198 @@ fn decision_keys(map: &Map<String, Value>) -> bool {
     let required = ["dataset", "decision", "reviewer_at", "reviewer_label"];
     required.iter().all(|key| map.contains_key(*key))
         && map.keys().all(|key| required.contains(&key.as_str()) || key == "fields")
+}
+
+fn operator_root_keys(map: &Map<String, Value>) -> bool {
+    let required = ["authenticated", "decisions", "parent_auth", "protocol"];
+    required.iter().all(|key| map.contains_key(*key))
+        && map.keys().all(|key| required.contains(&key.as_str()) || key == "column_decisions")
+}
+
+fn filter_operator(operator: &Value, outcome: &Value) -> Result<Value, PgBuilderError> {
+    let mut selected = BTreeSet::new();
+    if let Some(rows) = outcome.get("selected_datasets").and_then(Value::as_array) {
+        for row in rows {
+            if let Some(name) = row.as_str() {
+                selected.insert(name.to_owned());
+            }
+        }
+    }
+    let mut copy = operator.clone();
+    let map = copy
+        .as_object_mut()
+        .ok_or_else(|| PgBuilderError::new("review.schema", "the operator review is not an object"))?;
+    if let Some(rows) = map.get_mut("decisions").and_then(Value::as_array_mut) {
+        rows.retain(|row| {
+            row.get("dataset")
+                .and_then(Value::as_str)
+                .is_some_and(|dataset| selected.contains(dataset))
+        });
+    }
+    if let Some(rows) = map.get_mut("column_decisions").and_then(Value::as_array_mut) {
+        rows.retain(|row| {
+            row.get("dataset")
+                .and_then(Value::as_str)
+                .is_some_and(|dataset| selected.contains(dataset))
+        });
+    }
+    Ok(copy)
+}
+
+fn build_column_decisions(
+    outcome: &Value,
+    curated: &Value,
+    operator: &Value,
+    force_defer: bool,
+) -> Result<Vec<Value>, PgBuilderError> {
+    let map = object(operator, "review.schema")?;
+    let Some(rows) = map.get("column_decisions") else {
+        return Ok(Vec::new());
+    };
+    let rows = rows
+        .as_array()
+        .ok_or_else(|| PgBuilderError::new("review.schema", "column decisions are not an array"))?;
+    let outcome_columns = outcome.get("columns").and_then(Value::as_array).ok_or_else(|| {
+        PgBuilderError::new("review.anchor", "the compiler outcome has no columns")
+    })?;
+    let mut by_key: BTreeMap<(String, String), &Value> = BTreeMap::new();
+    for row in rows {
+        let item = object(row, "review.schema")?;
+        if !column_decision_keys(item) {
+            return Err(PgBuilderError::new(
+                "review.schema",
+                "the operator column decision shape is wrong",
+            ));
+        }
+        let dataset = required_text(item, "dataset", "review.schema")?;
+        let column = required_text(item, "column", "review.schema")?;
+        if by_key.insert((dataset, column), row).is_some() {
+            return Err(PgBuilderError::new("review.column", "a column has more than one decision"));
+        }
+    }
+    if by_key.len() != outcome_columns.len() {
+        return Err(PgBuilderError::new(
+            "review.column",
+            "column decisions do not cover the compiler columns",
+        ));
+    }
+    let mut decisions = Vec::new();
+    for column in outcome_columns {
+        let dataset = column
+            .get("dataset")
+            .and_then(Value::as_str)
+            .ok_or_else(|| PgBuilderError::new("review.anchor", "a compiler column has no dataset"))?;
+        let name = column
+            .get("column")
+            .and_then(Value::as_str)
+            .ok_or_else(|| PgBuilderError::new("review.anchor", "a compiler column has no name"))?;
+        let row = by_key.get(&(dataset.to_owned(), name.to_owned())).ok_or_else(|| {
+            PgBuilderError::new("review.column", "column decisions do not cover the compiler columns")
+        })?;
+        let item = object(row, "review.schema")?;
+        let mut kind = required_text(item, "decision", "review.schema")?;
+        let reviewer_label = required_text(item, "reviewer_label", "review.schema")?;
+        let reviewer_at = required_text(item, "reviewer_at", "review.schema")?;
+        let mut fields = item.get("fields").cloned();
+        if force_defer {
+            kind = "defer".to_owned();
+            fields = None;
+        }
+        let approve = kind == "approve";
+        if approve {
+            if fields.is_none() {
+                return Err(PgBuilderError::new("review.schema", "an approval requires fields"));
+            }
+        } else if kind == "reject" || kind == "defer" {
+            if item.get("fields").is_some() && !force_defer {
+                return Err(PgBuilderError::new("review.schema", "reject and defer do not take fields"));
+            }
+            fields = None;
+        } else {
+            return Err(PgBuilderError::new(
+                "review.schema",
+                "the decision is not approve, reject, or defer",
+            ));
+        }
+        let ident = column
+            .get("ident")
+            .and_then(Value::as_str)
+            .ok_or_else(|| PgBuilderError::new("review.anchor", "a compiler column has no ident"))?;
+        let curated_file = curated.get(dataset).ok_or_else(|| {
+            PgBuilderError::new("curated.missing", "a decision dataset has no curated file")
+        })?;
+        let parsed: DatasetFile = serde_json::from_value(curated_file.clone()).map_err(|_| {
+            PgBuilderError::new("curated.schema", "a curated dataset is not a core dataset file")
+        })?;
+        let attnum = column
+            .get("attnum")
+            .and_then(Value::as_i64)
+            .ok_or_else(|| PgBuilderError::new("review.anchor", "a compiler column has no attnum"))?;
+        let mut decision = json!({
+            "attnum": attnum,
+            "candidate_sha256": canonical_sha256(column),
+            "card_sha256": column.get("card_sha256").cloned().unwrap_or(Value::Null),
+            "column": name,
+            "curated_sha256": curated_dataset_sha256(&parsed),
+            "dataset": dataset,
+            "decision": kind,
+            "evidence_hash": outcome.pointer("/structural_draft/evidence_hash").cloned().unwrap_or(Value::Null),
+            "request_sha256": outcome.get("request_sha256").cloned().unwrap_or(Value::Null),
+            "reviewer_at": reviewer_at,
+            "reviewer_label": reviewer_label,
+            "schema_hash": outcome.pointer("/structural_draft/schema_hash").cloned().unwrap_or(Value::Null)
+        });
+        if approve {
+            decision["fields"] = column_approve_fields(fields.as_ref().unwrap_or(&Value::Null), curated_file, ident)?;
+        }
+        decisions.push(decision);
+    }
+    Ok(decisions)
+}
+
+fn column_decision_keys(map: &Map<String, Value>) -> bool {
+    let required = ["column", "dataset", "decision", "reviewer_at", "reviewer_label"];
+    required.iter().all(|key| map.contains_key(*key))
+        && map.keys().all(|key| required.contains(&key.as_str()) || key == "fields")
+}
+
+fn column_approve_fields(fields: &Value, curated_file: &Value, ident: &str) -> Result<Value, PgBuilderError> {
+    let map = object(fields, "review.schema")?;
+    require_exact(map, &["description", "label"], "review.schema")?;
+    Ok(json!({
+        "label": column_field_mode(map.get("label").unwrap_or(&Value::Null), curated_file, ident, "label")?,
+        "description": column_field_mode(map.get("description").unwrap_or(&Value::Null), curated_file, ident, "description")?
+    }))
+}
+
+fn column_field_mode(
+    value: &Value,
+    curated_file: &Value,
+    ident: &str,
+    field: &str,
+) -> Result<Value, PgBuilderError> {
+    let map = object(value, "review.schema")?;
+    require_exact(map, &["overwrite"], "review.schema")?;
+    let overwrite = map
+        .get("overwrite")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| PgBuilderError::new("review.schema", "overwrite is not a boolean"))?;
+    if overwrite {
+        Ok(json!({
+            "overwrite": true,
+            "current_sha256": descriptive_field_sha256(curated_column_text(curated_file, ident, field))
+        }))
+    } else {
+        Ok(json!({"overwrite": false}))
+    }
+}
+
+fn curated_column_text<'a>(file: &'a Value, ident: &str, field: &str) -> Option<&'a str> {
+    let columns = file.get("columns")?.as_array()?;
+    let column = columns
+        .iter()
+        .find(|item| item.get("name").and_then(Value::as_str) == Some(ident))?;
+    column.get(field).and_then(Value::as_str)
 }
 
 fn approve_fields(fields: &Value, curated_file: &Value) -> Result<Value, PgBuilderError> {
@@ -575,6 +909,18 @@ fn pack_hashes(packed: &Value) -> Value {
             })
             .collect(),
     )
+}
+
+fn column_text_applied(generation: &Value, before: &str, after: &str) -> bool {
+    let Some(fields) = generation.pointer("/candidates/field").and_then(Value::as_array) else {
+        return false;
+    };
+    fields.iter().any(|field| {
+        let Some(description) = field.get("description").and_then(Value::as_str) else {
+            return false;
+        };
+        description.chars().count() >= 12 && after.contains(description) && !before.contains(description)
+    })
 }
 
 fn field_text_absent(generation: &Value, before: &str, after: &str) -> bool {
