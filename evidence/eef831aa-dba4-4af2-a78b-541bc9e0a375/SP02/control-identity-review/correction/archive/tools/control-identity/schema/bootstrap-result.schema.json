@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/bootstrap-result/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "outcome", "install_state", "fixture_class",
+    "customer_owner", "owner_certification", "data_grants", "agent_session",
+    "harness_session", "gateway_token", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.control-identity/v1"},
+    "operation": {"const": "consumeBootstrapToken"},
+    "outcome": {"const": "consumed"},
+    "install_state": {"const": "initialized"},
+    "fixture_class": {"const": "explicit_test_fixture"},
+    "customer_owner": {"const": false},
+    "owner_certification": {"const": "not_issued"},
+    "data_grants": {"const": "none"},
+    "agent_session": {"const": "not_issued"},
+    "harness_session": {"const": "not_issued"},
+    "gateway_token": {"const": "not_issued"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

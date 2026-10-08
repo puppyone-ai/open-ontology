@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/error/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "error", "authority", "data_grants", "owner_certification", "agent_session", "harness_session", "gateway_token", "customer_integration"],
+  "properties": {
+    "contract": {"const": "oo.control-identity/v1"},
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {
+          "enum": [
+            "malformed",
+            "unauthenticated",
+            "forbidden",
+            "origin.rejected",
+            "csrf.rejected",
+            "revision.conflict",
+            "state.rejected",
+            "nonce.rejected",
+            "pkce.rejected",
+            "redirect.rejected",
+            "issuer.rejected",
+            "audience.rejected",
+            "token.expired",
+            "token.rejected",
+            "kid.unknown",
+            "kid.ambiguous",
+            "alg.rejected",
+            "jwks.rejected",
+            "discovery.rejected",
+            "bootstrap.expired",
+            "bootstrap.replay",
+            "bootstrap.rejected",
+            "bootstrap.subject_mismatch",
+            "bootstrap.unavailable",
+            "commit.unknown",
+            "unavailable",
+            "not_found",
+            "method.not_allowed"
+          ]
+        },
+        "message": {"type": "string", "minLength": 1, "maxLength": 160},
+        "retryable": {"type": "boolean"}
+      }
+    },
+    "authority": {"const": "management_session"},
+    "data_grants": {"const": "none"},
+    "owner_certification": {"const": "not_issued"},
+    "agent_session": {"const": "not_issued"},
+    "harness_session": {"const": "not_issued"},
+    "gateway_token": {"const": "not_issued"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

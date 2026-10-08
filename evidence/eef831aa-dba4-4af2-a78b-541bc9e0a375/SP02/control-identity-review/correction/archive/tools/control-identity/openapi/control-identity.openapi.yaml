@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: oo.control-identity
+  version: 1.0.0
+  description: >
+    Management OIDC session for B01. Auth-only. Not an agent session, harness
+    session, Gateway token, data grant, or customer IdP signoff. The server
+    implements only the operations in this document.
+servers:
+  - url: "{https_origin}"
+    variables:
+      https_origin:
+        default: https://control.invalid
+security: []
+paths:
+  /control/v1/auth/login:
+    get:
+      operationId: startAuthorizationCodeLogin
+      parameters:
+        - $ref: "#/components/parameters/returnTo"
+        - $ref: "#/components/parameters/bootstrapTokenQuery"
+      responses:
+        "302":
+          description: Redirect to the pinned IdP authorization endpoint. Sets __Host-oo-login.
+          headers:
+            Location:
+              schema: {type: string, format: uri}
+            Set-Cookie:
+              schema: {type: string}
+            Cache-Control:
+              schema: {type: string}
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+  /control/v1/auth/callback:
+    get:
+      operationId: completeAuthorizationCodeCallback
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: {type: string}
+        - name: state
+          in: query
+          required: false
+          schema: {type: string}
+        - name: error
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        "302":
+          description: >
+            Same-origin path with no query. Sets __Host-oo-session and clears
+            __Host-oo-login. Bootstrap tokens are not present.
+          headers:
+            Location:
+              schema: {type: string, format: uri}
+            Set-Cookie:
+              schema: {type: string}
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+  /control/v1/identity/current:
+    get:
+      operationId: getIdentityCurrent
+      responses:
+        "200":
+          description: Server-side identity, projects, capabilities, and CSRF token.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/current.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /control/v1/auth/logout:
+    post:
+      operationId: logoutManagementSession
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      responses:
+        "200":
+          description: Session revoked and audited in one transaction.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/logout.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
+  /control/v1/auth/bootstrap/consume:
+    post:
+      operationId: consumeBootstrapToken
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/bootstrap-consume.schema.json
+      responses:
+        "200":
+          description: Bootstrap consumed. Fixture binding only.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/bootstrap-result.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    returnTo:
+      name: return_to
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    bootstrapTokenQuery:
+      name: bootstrap_token
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 43
+        maxLength: 43
+    csrf:
+      name: X-OO-CSRF
+      in: header
+      required: true
+      schema: {type: string}
+    origin:
+      name: Origin
+      in: header
+      required: true
+      schema: {type: string, format: uri}
+  responses:
+    Error:
+      description: Safe error envelope. No secret, token, verifier, or cookie value.
+      content:
+        application/json:
+          schema:
+            $ref: ../schema/error.schema.json

@@ -1,0 +1,8 @@
+Removed only resources labeled or named for this correction.
+
+docker rm -f oo-a375c-proof oo-a375c-pg
+docker volume rm oo-a375c-cargo oo-a375c-work oo-a375c-eef831aa-pgdata
+docker network rm oo-a375c-eef831aa-net
+rm -rf /tmp/oo-a375c-eef831aa-dba4-4af2-a78b-541bc9e0a375
+
+Afterward, docker ps -a and docker volume ls with label oo.owner=a375c were empty, network oo-a375c-eef831aa-net was gone, and the /tmp secret directory was gone. oo-a373-pg was still running. No prune.

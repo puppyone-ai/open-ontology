@@ -1,0 +1,24 @@
+{
+  "agent_session": "not_issued",
+  "authority": "management_session",
+  "config_commit": "6bfd6bd542fb6e1ce559c01aa97438786eb503aaaff53613436e5dac897a2a00",
+  "contract": "oo.control-identity/v1",
+  "csrf_token": "REDACTED",
+  "customer_integration": "not_claimed",
+  "data_grants": "none",
+  "gateway_token": "not_issued",
+  "harness_session": "not_issued",
+  "install_state": "uninitialized",
+  "issuer": "https://127.0.0.1:43589",
+  "operation": "getIdentityCurrent",
+  "owner_certification": "not_issued",
+  "projects": [],
+  "revision": 7,
+  "session": {
+    "absolute_expires_at": "2026-10-08T05:05:39.254153Z",
+    "idle_expires_at": "2026-10-08T04:15:39.255050Z",
+    "revoked": false
+  },
+  "session_class": "management_cookie",
+  "subject": "fixture-admin"
+}
