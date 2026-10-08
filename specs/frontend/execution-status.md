@@ -78,3 +78,5 @@ M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组
 当前G1原83401统一confirmedlive，G2原94804/G3原11230新续接confirmedrunning；实际B04/发布未绑定不算完成。真实docs主链要求由403编排与现有373/392/397实现，FE保持三会话与fixedcontract消费。
 
 当前fixedG1a35126801/G2a35385668/G3a35211844启动confirmedrunning，M13只实际B04list/get两个GET，剩余13动作仍未真实验收，完整总卡/OC主链不能签。读取对应docs/Plan再推进，每个producer/interface固定后真实绑定。
+
+用户最新优先级：完整admin/multiuser权限/扩展管理API保留TODO延后；当前短目标真实数据库→Selfbuild本地Pack→Pi经ooSQLGateway问答。默认Pi不需MCP。原G1/G2/G3已运行可收安全固定交付，不追加无关admincampaign；完整M0–M4仍未完成，不删除已实现代码。

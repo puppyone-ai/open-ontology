@@ -137,3 +137,5 @@ Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–1
 补位9实际启动confirmedrunning：39762006/38367519/3886286/G1a35126801/G2a35385668/G3a35211844/40340782/39962996/37471262，加7统一confirmedlive共16。原37359356/39239012保持只卡片追加next接口要求不并发启动；402唯一identitywriter/374唯一Gitwriter/399唯一compatwriter/403唯一lifecycle，其他固定消费不冲突。Rust10/task1 Node2/browser2保留，79/90计数不涨。
 
 用户调整当前短期goal：specs/minimal-product-loop-plan.md MP01–06，接database配置→真实Selfbuild→本地Packfolder→Pi read/bash oo CLI SQL→实际Gateway答案→close。docs09§6.2默认不依赖MCP，多用户权限/admin/扩展API保留P2TODO；完整Plan/OC主链定义未变。新增405唯一最小流程编排，383373397399389为P0，不用管理API未ready阻塞直接真实producer。未支持任意数据库不假兼容，首先PG真实100k。79/90不称本短目标完成率。
+
+P0实际启动confirmedrunning：40515366/38310843/39720426/38930440；原selfbuild37359356上一统一confirmedlive不重启，短目标要求已追加下一指导。旧P2管理API/FE已有运行不强杀，可安全固定当前交付后不续新功能；核心资源向P0排优先。nextUUID406，暂无新增review。
