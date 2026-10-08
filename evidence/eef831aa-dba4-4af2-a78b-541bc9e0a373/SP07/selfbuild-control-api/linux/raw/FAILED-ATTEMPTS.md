@@ -17,3 +17,7 @@ The passing joint, contract, and clippy exits are the siblings of this directory
 | Pack with stored semantic tokens | 101 | Child stderr: `decision.invalid` / `classification decision is not a bound PII and semantic input`. Tokens were `name`, `flag`, `label`, `amount`, and `text`. |
 | Pack after mapping `amount` to `money` | 101 | Child stderr: `oos.invalid` / `effective OOS validation failed`. `money` requires a unit. The sealed amount column has none. |
 | Pack 200 without an `UNREVIEWED` banner | 101 | Two role packs were stored. Descriptions and caveats are empty, so the renderer emitted no banner. The assertion now records that fact and requires the source-declared not-a-grant mark. |
+| Clippy before the convergence tests compiled | 101 | `collapsible_if` and `too_many_arguments` in `ledger.rs`, `worker.rs`, and `tests/workflow_100k.rs`. Fixed before the green run. |
+| Second build `shopconvkey0000002` | 101 | S5 `generate.failed`, outcome `structural_draft` on `shop.entry`. A new catalog `captured_at` changed the seal request hash, so stored receipts missed. Log: `workflow-100k/failed-s5-second-structural/`. |
+| Replay of the finished convergence job | 101 | The test still required S9 and S10 to be awaiting. Log: `workflow-100k/failed-resume-awaiting/`. |
+| Cancel `shopcancelkey000002` | 101 | Job `b_5e56408295b05027bcf38663369df7fb` reached `failed` at S1 `profile.failed` while cancel returned 202. A killed child was recorded as a stage failure. Log: `workflow-100k/failed-cancel-profile/`. |

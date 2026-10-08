@@ -158,6 +158,8 @@ fn resume_does_not_replay_an_uncertain_model_stage() {
     assert_eq!(stages::resume_action("S5", "succeeded", Some("ab")), Resume::Skip);
     assert_eq!(stages::resume_action("S0", "failed", None), Resume::Failed);
     assert_eq!(stages::resume_action("S9", "awaiting", None), Resume::Await);
+    assert_eq!(stages::resume_action("S9", "succeeded", None), Resume::Skip);
+    assert_eq!(stages::resume_action("S10", "succeeded", None), Resume::Skip);
     assert!(!may_mark_canceled(false));
     assert!(may_mark_canceled(true));
 }

@@ -410,14 +410,9 @@ pub async fn claim(client: &Client, owner: &str) -> Result<Option<BuildRow>, Api
                    AND (b.lease_until IS NULL OR b.lease_until < now())
                    AND NOT (
                        b.status = 'running'
-                       AND EXISTS (
-                           SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
-                           WHERE s.build_id = b.build_id AND s.stage = 'S9' AND s.status = 'awaiting'
-                       )
                        AND NOT EXISTS (
                            SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
                            WHERE s.build_id = b.build_id
-                             AND s.stage IN ('S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8')
                              AND s.status IN ('pending', 'running', 'failed', 'refused')
                        )
                    )
@@ -521,6 +516,18 @@ pub async fn set_stage(
         )
         .await
         .map_err(|_| ApiError::not_ready())?;
+    if count == 1 {
+        let job_params: [&(dyn ToSql + Sync); 2] = [&build_id, &stage];
+        client
+            .execute(
+                "UPDATE oo_selfbuild_api.build_job
+                 SET stage = $2, updated_at = now()
+                 WHERE build_id = $1 AND status IN ('queued', 'running', 'cancel_requested')",
+                &job_params,
+            )
+            .await
+            .map_err(|_| ApiError::not_ready())?;
+    }
     Ok(count == 1)
 }
 
@@ -538,6 +545,65 @@ pub async fn set_job(
             "UPDATE oo_selfbuild_api.build_job
              SET status = $2, stage = $3, failure_code = $4, updated_at = now()
              WHERE build_id = $1 AND input_sha256 = $5",
+            &params,
+        )
+        .await
+        .map_err(|_| ApiError::not_ready())?;
+    Ok(count == 1)
+}
+
+pub async fn finish_reviewed_client(client: &Client, build: &BuildRow) -> Result<bool, ApiError> {
+    let params: [&(dyn ToSql + Sync); 2] = [&build.build_id, &build.input_sha256];
+    let count = client
+        .execute(
+            "UPDATE oo_selfbuild_api.build_job AS j
+             SET status = 'succeeded', stage = 'S10', failure_code = NULL, updated_at = now()
+             WHERE j.build_id = $1
+               AND j.input_sha256 = $2
+               AND j.status = 'running'
+               AND EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
+                   WHERE s.build_id = j.build_id AND s.stage = 'S9' AND s.status = 'succeeded'
+               )
+               AND EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
+                   WHERE s.build_id = j.build_id AND s.stage = 'S10' AND s.status = 'succeeded'
+               )
+               AND EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.pack_record p WHERE p.build_id = j.build_id
+               )",
+            &params,
+        )
+        .await
+        .map_err(|_| ApiError::not_ready())?;
+    Ok(count == 1)
+}
+
+pub async fn finish_reviewed(endpoint: &Endpoint, build: &BuildRow) -> Result<bool, ApiError> {
+    let client = connect(endpoint).await?;
+    finish_reviewed_client(&client, build).await
+}
+
+pub async fn note_waiting_pack(client: &Client, build: &BuildRow) -> Result<bool, ApiError> {
+    let params: [&(dyn ToSql + Sync); 2] = [&build.build_id, &build.input_sha256];
+    let count = client
+        .execute(
+            "UPDATE oo_selfbuild_api.build_job AS j
+             SET stage = 'S10', updated_at = now()
+             WHERE j.build_id = $1
+               AND j.input_sha256 = $2
+               AND j.status = 'running'
+               AND EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
+                   WHERE s.build_id = j.build_id AND s.stage = 'S9' AND s.status = 'succeeded'
+               )
+               AND EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.stage_checkpoint s
+                   WHERE s.build_id = j.build_id AND s.stage = 'S10' AND s.status = 'succeeded'
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.pack_record p WHERE p.build_id = j.build_id
+               )",
             &params,
         )
         .await
@@ -738,11 +804,11 @@ pub async fn insert_decision(endpoint: &Endpoint, write: &DecisionWrite) -> Resu
     tx.commit().await.map_err(|_| ApiError::commit_unknown())
 }
 
-pub async fn note_label_stage(endpoint: &Endpoint, build: &BuildRow) -> Result<(), ApiError> {
+pub async fn note_label_stage(endpoint: &Endpoint, build: &BuildRow, hidden: &[String]) -> Result<(), ApiError> {
     let client = connect(endpoint).await?;
     let decisions: i64 = client
         .query_one(
-            "SELECT count(*) FROM oo_selfbuild_api.decision_record
+            "SELECT count(DISTINCT object_id) FROM oo_selfbuild_api.decision_record
              WHERE build_id = $1 AND decision_kind = 'label_description'",
             &[&build.build_id],
         )
@@ -757,14 +823,54 @@ pub async fn note_label_stage(endpoint: &Endpoint, build: &BuildRow) -> Result<(
         .await
         .map_err(|_| ApiError::not_ready())?
         .get(0);
-    if members > 0 && decisions >= members && !set_stage(&client, &build.build_id, "S9", "succeeded", &build.input_sha256, None, None).await? {
+    if members == 0 || decisions < members {
+        return Ok(());
+    }
+    if !set_stage(&client, &build.build_id, "S9", "succeeded", &build.input_sha256, None, None).await? {
         return Err(ApiError::not_ready());
+    }
+    let columns = client
+        .query(
+            "SELECT object_id FROM oo_selfbuild_api.member
+             WHERE build_id = $1 AND object_kind = 'column'",
+            &[&build.build_id],
+        )
+        .await
+        .map_err(|_| ApiError::not_ready())?;
+    let classes = client
+        .query(
+            "SELECT DISTINCT object_id FROM oo_selfbuild_api.decision_record
+             WHERE build_id = $1 AND decision_kind = 'classification'",
+            &[&build.build_id],
+        )
+        .await
+        .map_err(|_| ApiError::not_ready())?;
+    let classified: Vec<String> = classes.into_iter().map(|row| row.get(0)).collect();
+    let open = columns.into_iter().any(|row| {
+        let object_id: String = row.get(0);
+        !hidden.iter().any(|item| item == &object_id) && !classified.iter().any(|item| item == &object_id)
+    });
+    if !open {
+        set_stage(&client, &build.build_id, "S10", "succeeded", &build.input_sha256, None, None).await?;
     }
     Ok(())
 }
 
 pub async fn mark_stage(endpoint: &Endpoint, build: &BuildRow, stage: &str) -> Result<(), ApiError> {
     let client = connect(endpoint).await?;
+    if stage == "S10" {
+        let status: Option<String> = client
+            .query_opt(
+                "SELECT status FROM oo_selfbuild_api.stage_checkpoint WHERE build_id = $1 AND stage = 'S9'",
+                &[&build.build_id],
+            )
+            .await
+            .map_err(|_| ApiError::not_ready())?
+            .map(|row| row.get(0));
+        if status.as_deref() != Some("succeeded") {
+            return Ok(());
+        }
+    }
     if !set_stage(&client, &build.build_id, stage, "succeeded", &build.input_sha256, None, None).await? {
         return Err(ApiError::not_ready());
     }
@@ -825,7 +931,7 @@ pub async fn our_decisions(endpoint: &Endpoint, build_id: &str) -> Result<Vec<Ou
     let rows = client
         .query(
             "SELECT object_id, decision_kind, choice FROM oo_selfbuild_api.decision_record
-             WHERE build_id = $1 ORDER BY object_id, decision_kind",
+             WHERE build_id = $1 ORDER BY created_at, idempotency_key",
             &[&build_id],
         )
         .await

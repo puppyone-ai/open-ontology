@@ -1,0 +1,19 @@
+   Compiling selfbuild-control-api v0.1.0 (/src/tools/selfbuild-control-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.90s
+     Running tests/contract.rs (/target/debug/deps/contract-16dfd8e9accb45cf)
+
+running 11 tests
+test caller_json_is_never_authority ... ok
+test canonical_known_vector ... ok
+test catalog_budget_and_suggestion_command_shape ... ok
+test classification_preview_hides_unknown_and_refuses_accept_all ... ok
+test duplicate_keys_and_trailing_bytes_are_malformed ... ok
+test membership_and_pack_do_not_forge_review_state ... ok
+test migration_does_not_grant_or_create_a_role ... ok
+test missing_cookie_is_401_and_closed_identity_is_503 ... ok
+test origin_pin_rejects_user_urls ... ok
+test resume_does_not_replay_an_uncertain_model_stage ... ok
+test scope_map_matches_the_frozen_matrix ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

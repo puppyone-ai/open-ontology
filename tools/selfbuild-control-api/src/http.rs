@@ -419,6 +419,16 @@ async fn decide_review(State(state): State<Arc<AppState>>, headers: HeaderMap, P
     if choice != "approve" && fields.is_some() {
         return json_err(true, &ApiError::malformed());
     }
+    if choice == "approve"
+        && state
+            .config
+            .projects
+            .iter()
+            .find(|item| item.project_id == row.project_id)
+            .is_some_and(|project| project.hidden_columns.iter().any(|hidden| hidden == &item_id))
+    {
+        return json_err(true, &ApiError::membership());
+    }
     if !crate::config::regular_file(&state.config.binaries.review_ledger) {
         return json_err(true, &ApiError::not_ready());
     }

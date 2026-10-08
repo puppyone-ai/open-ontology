@@ -11,7 +11,7 @@ use std::time::Duration;
 use serde_json::{json, Value};
 use zeroize::Zeroize;
 
-use crate::canonical::sha256_hex;
+use crate::canonical::{descriptive_field_sha256, sha256_hex};
 use crate::config::{AppConfig, Endpoint, PrincipalCfg};
 use crate::error::ApiError;
 use crate::membership::Member;
@@ -41,6 +41,7 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
     let principal = principal_for(config, input.subject, &input.member.object_id)?;
     if let Some(existing) = store::find_decision(&config.postgres, &input.build.project_id, input.idempotency_key).await? {
         if existing.body_sha256 == input.body_sha256 {
+            note_label(config, &input).await;
             return Ok(result(input.operation, "replay", None));
         }
         return Err(ApiError::idempotency());
@@ -128,7 +129,12 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
         "curated_sha256": bound["curated_sha256"],
         "source_sha256": bound["source_sha256"]
     });
-    if let Some(fields) = &input.fields {
+    let bound_fields = if input.decision_kind == "label_description" && input.choice == "approve" {
+        Some(bind_approval_fields(config, input.build, &input.member.object_id, input.fields.as_ref())?)
+    } else {
+        input.fields.clone()
+    };
+    if let Some(fields) = &bound_fields {
         decide_body["fields"] = fields.clone();
     }
     let outcome = run_json(
@@ -160,10 +166,74 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
         },
     )
     .await?;
-    if input.decision_kind == "label_description" {
-        let _ = store::note_label_stage(&config.postgres, input.build).await;
-    }
+    note_label(config, &input).await;
     Ok(result(input.operation, code, Some(stored_revision)))
+}
+
+async fn note_label(config: &AppConfig, input: &DecisionIn<'_>) {
+    if input.decision_kind != "label_description" {
+        return;
+    }
+    let hidden = config
+        .projects
+        .iter()
+        .find(|item| item.project_id == input.build.project_id)
+        .map(|item| item.hidden_columns.as_slice())
+        .unwrap_or(&[]);
+    let _ = store::note_label_stage(&config.postgres, input.build, hidden).await;
+}
+
+fn bind_approval_fields(config: &AppConfig, build: &BuildRow, object_id: &str, fields: Option<&Value>) -> Result<Value, ApiError> {
+    let Some(fields) = fields.and_then(Value::as_object) else {
+        return Err(ApiError::malformed());
+    };
+    let path = PathBuf::from(&config.work_dir).join("builds").join(&build.build_id).join("curated.json");
+    if !path.is_file() {
+        return Err(ApiError::not_ready());
+    }
+    let bytes = std::fs::read(&path).map_err(|_| ApiError::not_ready())?;
+    let curated: Value = serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())?;
+    let mut parts = object_id.split('.');
+    let schema = parts.next().unwrap_or("");
+    let table = parts.next().unwrap_or("");
+    let column = parts.next();
+    let dataset = format!("{schema}.{table}");
+    let Some(file) = curated.get(&dataset) else {
+        return Err(ApiError::not_ready());
+    };
+    let mut out = serde_json::Map::new();
+    for (key, value) in fields {
+        let Some(field) = value.as_object() else {
+            return Err(ApiError::malformed());
+        };
+        let Some(overwrite) = field.get("overwrite").and_then(Value::as_bool) else {
+            return Err(ApiError::malformed());
+        };
+        if !overwrite {
+            if field.contains_key("current_sha256") {
+                return Err(ApiError::malformed());
+            }
+            out.insert(key.clone(), json!({"overwrite": false}));
+            continue;
+        }
+        let expected = descriptive_field_sha256(curated_text(file, column, key));
+        if let Some(given) = field.get("current_sha256").and_then(Value::as_str)
+            && given != expected
+        {
+            return Err(ApiError::membership());
+        }
+        out.insert(key.clone(), json!({"overwrite": true, "current_sha256": expected}));
+    }
+    Ok(Value::Object(out))
+}
+
+fn curated_text<'a>(file: &'a Value, column: Option<&str>, field: &str) -> Option<&'a str> {
+    if let Some(name) = column {
+        let columns = file.get("columns")?.as_array()?;
+        let row = columns.iter().find(|item| item.get("name").and_then(Value::as_str) == Some(name))?;
+        return row.get(field).and_then(Value::as_str);
+    }
+    file.get(field).and_then(Value::as_str)
 }
 
 fn same_binding(head: &store::QueueHead, member: &Member, input_sha256: &str) -> bool {

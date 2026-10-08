@@ -23,6 +23,18 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     out
 }
 
+/// SHA-256 of one descriptive field. Absent text hashes the four bytes `null`.
+pub fn descriptive_field_sha256(value: Option<&str>) -> String {
+    match value {
+        None => sha256_hex(b"null"),
+        Some(text) => {
+            let mut literal = String::new();
+            push_string(&mut literal, text);
+            sha256_hex(literal.as_bytes())
+        }
+    }
+}
+
 fn write_value(out: &mut String, value: &Value) {
     match value {
         Value::Null => out.push_str("null"),

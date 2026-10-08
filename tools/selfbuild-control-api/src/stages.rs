@@ -17,9 +17,9 @@ pub enum Resume {
 
 pub fn resume_action(stage: &str, status: &str, output_sha256: Option<&str>) -> Resume {
     match status {
-        "succeeded" if output_sha256.is_some() => Resume::Skip,
-        "running" if output_sha256.is_some() => Resume::Skip,
         "running" if stage == "S5" && output_sha256.is_none() => Resume::Uncertain,
+        "succeeded" => Resume::Skip,
+        "running" if output_sha256.is_some() => Resume::Skip,
         "running" => Resume::Run,
         "failed" | "refused" => Resume::Failed,
         "awaiting" => Resume::Await,

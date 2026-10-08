@@ -3,7 +3,7 @@
 //! The producer document is stored as returned. `review.state` is not inserted.
 //! `compiled_pack` stays `not_published`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::Arc;
@@ -34,9 +34,24 @@ pub async fn load_stored(config: &AppConfig, build_id: &str) -> Result<Value, Ap
 
 pub async fn compile(config: &AppConfig, build: &BuildRow, subject: &str, body_sha256: &str) -> Result<Value, ApiError> {
     if store::find_pack(&config.postgres, &build.build_id).await?.is_some() {
+        let _ = store::finish_reviewed(&config.postgres, build).await;
         let mut loaded = load_stored(config, &build.build_id).await?;
         loaded["operation"] = json!("compileBuildPack");
         return Ok(loaded);
+    }
+    let stages = store::stages(&config.postgres, &build.build_id).await?;
+    let stage_status = |name: &str| {
+        stages
+            .iter()
+            .find(|row| row.stage == name)
+            .map(|row| row.status.as_str())
+            .unwrap_or("")
+    };
+    if stage_status("S9") != "succeeded" {
+        return Err(ApiError::membership());
+    }
+    if stage_status("S10") != "succeeded" {
+        return Err(ApiError::classification_incomplete());
     }
     let project = config
         .projects
@@ -116,6 +131,9 @@ pub async fn compile(config: &AppConfig, build: &BuildRow, subject: &str, body_s
     let hash = sha256_hex(&bytes);
     let reseal = producer.get("reseal_count").and_then(Value::as_i64);
     store::insert_pack(&config.postgres, build, subject, &hash, reseal, body_sha256).await?;
+    if !store::finish_reviewed(&config.postgres, build).await? {
+        return Err(ApiError::not_ready());
+    }
     Ok(envelope("compileBuildPack", &build.build_id, &producer))
 }
 
@@ -134,8 +152,14 @@ fn accept_producer(value: &Value) -> Result<(), ApiError> {
 }
 
 fn operator_document(ours: &[OurDecision], ledger: &[LedgerDecision]) -> Result<Value, ApiError> {
-    let mut decisions = Vec::new();
+    // Omitting column_decisions makes the producer treat the list as empty. Coverage still requires every compiler column.
+    let mut latest: BTreeMap<&str, &OurDecision> = BTreeMap::new();
     for row in ours.iter().filter(|row| row.decision_kind == "label_description") {
+        latest.insert(row.object_id.as_str(), row);
+    }
+    let mut decisions = Vec::new();
+    let mut column_decisions = Vec::new();
+    for row in latest.values() {
         let matched = match_ledger(ledger, &row.object_id, &row.decision_kind, &row.choice)?;
         let mut item = json!({
             "dataset": dataset_of(&row.object_id)?,
@@ -144,18 +168,39 @@ fn operator_document(ours: &[OurDecision], ledger: &[LedgerDecision]) -> Result<
             "reviewer_at": &matched.reviewer_at
         });
         if row.choice == "approve" {
-            item["fields"] = parse_exact(matched.fields_json.as_bytes())?;
+            item["fields"] = overwrite_only(&matched.fields_json)?;
         }
-        if row.object_id.split('.').count() == 2 {
-            decisions.push(item);
+        match row.object_id.split('.').count() {
+            2 => decisions.push(item),
+            3 => {
+                item["column"] = json!(row.object_id.rsplit('.').next().unwrap_or(""));
+                column_decisions.push(item);
+            }
+            _ => return Err(ApiError::malformed()),
         }
     }
     Ok(json!({
         "protocol": "oo.pg-builder.operator-review/v1",
         "authenticated": false,
         "parent_auth": "required",
-        "decisions": decisions
+        "decisions": decisions,
+        "column_decisions": column_decisions
     }))
+}
+
+fn overwrite_only(fields_json: &str) -> Result<Value, ApiError> {
+    let value = parse_exact(fields_json.as_bytes())?;
+    let Some(object) = value.as_object() else {
+        return Err(ApiError::malformed());
+    };
+    let mut out = serde_json::Map::new();
+    for (key, field) in object {
+        let Some(overwrite) = field.get("overwrite").and_then(Value::as_bool) else {
+            return Err(ApiError::malformed());
+        };
+        out.insert(key.clone(), json!({"overwrite": overwrite}));
+    }
+    Ok(Value::Object(out))
 }
 
 fn classification_document(project: &ProjectCfg, ours: &[OurDecision], ledger: &[LedgerDecision]) -> Result<Value, ApiError> {

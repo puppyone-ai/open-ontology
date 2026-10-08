@@ -3,7 +3,7 @@
 Contract `oo.selfbuild-control-api/v1` in `tools/selfbuild-control-api/`.
 OpenAPI `tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml`.
 
-This file records the operation IDs. It does not say the service is live, and it does not bind the frontend SDK. G1 owns that binding. State stays `schema_frozen` until a fixed identity service and a fixed service commit are exercised.
+This file records the operation IDs. It does not bind the frontend SDK. G1 owns that binding. Operation IDs, OpenAPI, JSON schemas, and the migration stayed frozen through the shop run.
 
 | operationId | Group | Method and path |
 |---|---|---|
@@ -27,4 +27,4 @@ Session cookie is `__Host-oo-session`. Mutations send `Origin` and `X-OO-CSRF`. 
 
 `compiled_pack` is `not_published`. `published` and `active` are false. Classification does not grant.
 
-Identity contract and schemas stay `089b00d7f70da1bc42f7e201dfa070748c651d5b`. The joint decide path was exercised against private archive `a6f92da8a0bf872f8a30efb116c2c7b14463505b` (audience repair). That identity product is unaccepted. A missing identity server still returns `503` `dependency.not_ready`. G1 operation IDs in this file are unchanged.
+Identity contract and schemas stay `089b00d7f70da1bc42f7e201dfa070748c651d5b`. The shop run called the fixed identity service `a6f92da8a0bf872f8a30efb116c2c7b14463505b`. That implementation is independently accepted. This run does not claim a customer IdP certificate. A missing identity server still returns `503` `dependency.not_ready`. G1 operation IDs in this file are unchanged.

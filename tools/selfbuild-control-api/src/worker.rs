@@ -92,9 +92,15 @@ async fn drive(
                     cancel.store(true, Ordering::SeqCst);
                 }
                 if !run_stage(client, config, project, &job, &row.stage, &dir, &cancel).await {
-                    if fresh_cancel(client, &job.build_id).await {
-                        let _ = store::mark_child_exited(client, &job.build_id).await;
-                        let _ = store::finish_canceled(client, &job.build_id).await;
+                    let _ = store::mark_child_exited(client, &job.build_id).await;
+                    if cancel.load(Ordering::SeqCst) || fresh_cancel(client, &job.build_id).await {
+                        // The cancel request commits the status after the flag. Do not record a stage failure over it.
+                        for _ in 0..40 {
+                            if store::finish_canceled(client, &job.build_id).await.unwrap_or(false) {
+                                return Ok(());
+                            }
+                            tokio::time::sleep(Duration::from_millis(50)).await;
+                        }
                         return Ok(());
                     }
                     let _ = store::set_job(client, &job.build_id, "failed", &row.stage, Some("stage.failed"), &job.input_sha256).await;
@@ -103,7 +109,8 @@ async fn drive(
             }
         }
     }
-    let _ = store::set_job(client, &job.build_id, "succeeded", "S8", None, &job.input_sha256).await;
+    let _ = store::finish_reviewed_client(client, &job).await;
+    let _ = store::note_waiting_pack(client, &job).await;
     Ok(())
 }
 
@@ -178,11 +185,16 @@ async fn s0(
         return false;
     }
     let _ = store::mark_child_exited(client, &job.build_id).await;
-    if output.killed || output.secret_leak || output.exit != Some(0) {
+    if output.killed {
+        return false;
+    }
+    if output.secret_leak || output.exit != Some(0) {
         return fail(client, job, "S0", "catalog.failed").await;
     }
     let catalog_path = dir.join("catalog.json");
-    if write_private(&catalog_path, &output.stdout).is_err() {
+    // captured_at is the only volatile catalog field. Reuse a prior capture of the same schema so the seal request hash stays stable.
+    let catalog_bytes = stable_catalog(&config.model_cache_dir, &output.stdout);
+    if write_private(&catalog_path, &catalog_bytes).is_err() {
         return fail(client, job, "S0", "catalog.write").await;
     }
     let comments = dir.join("comments.json");
@@ -198,6 +210,9 @@ async fn s0(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if comments_out.killed {
+        return false;
+    }
     if comments_out.exit != Some(0) || comments_out.secret_leak {
         return fail(client, job, "S0", "comments.failed").await;
     }
@@ -212,10 +227,13 @@ async fn s0(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if seal_out.killed {
+        return false;
+    }
     if seal_out.exit != Some(0) || seal_out.secret_leak {
         return fail(client, job, "S0", "seal.failed").await;
     }
-    let hash = sha256_hex(&output.stdout);
+    let hash = sha256_hex(&catalog_bytes);
     bind_visible(client, project, job, &hash).await;
     store::set_stage(client, &job.build_id, "S0", "succeeded", &job.input_sha256, Some(&hash), None)
         .await
@@ -243,6 +261,9 @@ async fn s1(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if output.killed {
+        return false;
+    }
     if output.exit != Some(0) || output.secret_leak {
         return fail(client, job, "S1", "profile.failed").await;
     }
@@ -272,6 +293,9 @@ async fn s1(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if output.killed {
+        return false;
+    }
     if output.exit != Some(0) || output.secret_leak {
         return fail(client, job, "S1", "cards.failed").await;
     }
@@ -298,6 +322,9 @@ async fn rules(
     );
     let output = spawn(config, &config.binaries.rules, args, Vec::new(), Duration::from_secs(60), &cancel, project).await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if output.killed {
+        return false;
+    }
     if output.exit != Some(0) || output.secret_leak {
         return fail(client, job, "S2", "rules.failed").await;
     }
@@ -351,11 +378,15 @@ async fn s5(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if output.killed {
+        return false;
+    }
     if output.exit != Some(0) || output.secret_leak {
         return fail(client, job, "S5", "approval.failed").await;
     }
     let cache = dir.join("cache");
     let _ = std::fs::create_dir_all(&cache);
+    import_model_cache(&config.model_cache_dir, &cache, &dir.join("cards.json"));
     let generation = dir.join("generation.json");
     let output = spawn(
         config,
@@ -383,7 +414,10 @@ async fn s5(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
-    if output.secret_leak || output.killed || output.exit != Some(0) {
+    if output.killed {
+        return false;
+    }
+    if output.secret_leak || output.exit != Some(0) {
         note_stderr(dir, "S5", &output);
         return fail(client, job, "S5", "generate.failed").await;
     }
@@ -391,6 +425,32 @@ async fn s5(
     let parsed = serde_json::from_slice::<serde_json::Value>(&bytes).unwrap_or(serde_json::Value::Null);
     if parsed.get("outcome").and_then(serde_json::Value::as_str) != Some("validated") {
         return fail(client, job, "S5", "generate.failed").await;
+    }
+    publish_model_cache(&config.model_cache_dir, &cache, &dir.join("cards.json"));
+    publish_stable_catalog(&config.model_cache_dir, dir);
+    let curated = dir.join("curated.json");
+    let curated_out = spawn(
+        config,
+        &config.binaries.pg_builder,
+        vec![
+            "curated".to_owned(),
+            "--catalog".to_owned(),
+            path_str(&dir.join("catalog.json")),
+            "--out".to_owned(),
+            path_str(&curated),
+        ],
+        Vec::new(),
+        Duration::from_secs(60),
+        &cancel,
+        project,
+    )
+    .await;
+    let _ = store::mark_child_exited(client, &job.build_id).await;
+    if curated_out.killed {
+        return false;
+    }
+    if curated_out.exit != Some(0) || curated_out.secret_leak || !curated.is_file() {
+        return fail(client, job, "S5", "curated.failed").await;
     }
     let hash = sha256_hex(&bytes);
     store::set_stage(client, &job.build_id, "S5", "succeeded", &job.input_sha256, Some(&hash), None)
@@ -438,6 +498,9 @@ async fn suggestions(
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
+    if output.killed {
+        return false;
+    }
     if output.exit != Some(0) || output.secret_leak {
         note_stderr(dir, "S6", &output);
         return fail(client, job, "S6", "suggestions.failed").await;
@@ -454,13 +517,13 @@ async fn suggestions(
             return false;
         }
     }
-    let _ = store::set_stage(client, &job.build_id, "S9", "awaiting", &job.input_sha256, None, None).await;
     let _ = store::set_stage(client, &job.build_id, "S10", "awaiting", &job.input_sha256, None, None).await;
+    let _ = store::set_stage(client, &job.build_id, "S9", "awaiting", &job.input_sha256, None, None).await;
     true
 }
 
 async fn bind_visible(client: &Client, project: &ProjectCfg, job: &BuildRow, source_sha256: &str) {
-    for column in &project.visible_columns {
+    for column in project.visible_columns.iter().chain(project.hidden_columns.iter()) {
         let mut parts = column.split('.');
         let Some(schema_name) = parts.next() else { continue };
         let Some(table_name) = parts.next() else { continue };
@@ -475,7 +538,6 @@ async fn bind_visible(client: &Client, project: &ProjectCfg, job: &BuildRow, sou
             "source_sha256": source_sha256,
             "table": table_name
         });
-        let candidate = crate::canonical::canonical_sha256(&record);
         let member = Member {
             project_id: project.project_id.clone(),
             object_id: column.clone(),
@@ -483,13 +545,159 @@ async fn bind_visible(client: &Client, project: &ProjectCfg, job: &BuildRow, sou
             schema_name: schema_name.to_owned(),
             table_name: table_name.to_owned(),
             column_name: Some(column_name.to_owned()),
-            candidate_sha256: candidate,
+            candidate_sha256: crate::canonical::canonical_sha256(&record),
             source_sha256: source_sha256.to_owned(),
             schema_sha256: source_sha256.to_owned(),
             evidence_sha256: source_sha256.to_owned(),
             generation_sha256: source_sha256.to_owned(),
         };
         let _ = store::insert_member(client, &job.build_id, &member).await;
+    }
+    for (schema_name, table_name) in &project.source.tables {
+        let record = serde_json::json!({
+            "project_id": project.project_id,
+            "schema": schema_name,
+            "source_sha256": source_sha256,
+            "table": table_name
+        });
+        let member = Member {
+            project_id: project.project_id.clone(),
+            object_id: format!("{schema_name}.{table_name}"),
+            object_kind: "dataset".to_owned(),
+            schema_name: schema_name.clone(),
+            table_name: table_name.clone(),
+            column_name: None,
+            candidate_sha256: crate::canonical::canonical_sha256(&record),
+            source_sha256: source_sha256.to_owned(),
+            schema_sha256: source_sha256.to_owned(),
+            evidence_sha256: source_sha256.to_owned(),
+            generation_sha256: source_sha256.to_owned(),
+        };
+        let _ = store::insert_member(client, &job.build_id, &member).await;
+    }
+}
+
+fn stable_catalog(cache_root: &str, fresh: &[u8]) -> Vec<u8> {
+    if cache_root.is_empty() {
+        return fresh.to_vec();
+    }
+    let Some(stored) = read_regular(PathBuf::from(cache_root).join("catalog.json"), 2_000_000) else {
+        return fresh.to_vec();
+    };
+    if catalogs_same_schema(&stored, fresh) {
+        stored
+    } else {
+        fresh.to_vec()
+    }
+}
+
+fn catalogs_same_schema(stored: &[u8], fresh: &[u8]) -> bool {
+    let Ok(mut left) = serde_json::from_slice::<serde_json::Value>(stored) else {
+        return false;
+    };
+    let Ok(mut right) = serde_json::from_slice::<serde_json::Value>(fresh) else {
+        return false;
+    };
+    let left_schema = left.get("schema_hash").and_then(serde_json::Value::as_str).map(str::to_owned);
+    let right_schema = right.get("schema_hash").and_then(serde_json::Value::as_str).map(str::to_owned);
+    if left_schema.is_none() || left_schema != right_schema {
+        return false;
+    }
+    if let Some(map) = left.as_object_mut() {
+        map.insert("captured_at".to_owned(), serde_json::Value::Null);
+    } else {
+        return false;
+    }
+    if let Some(map) = right.as_object_mut() {
+        map.insert("captured_at".to_owned(), serde_json::Value::Null);
+    } else {
+        return false;
+    }
+    left == right
+}
+
+fn publish_stable_catalog(cache_root: &str, dir: &Path) {
+    if cache_root.is_empty() {
+        return;
+    }
+    let dest = PathBuf::from(cache_root).join("catalog.json");
+    if std::fs::symlink_metadata(&dest).is_ok() {
+        return;
+    }
+    let Some(bytes) = read_regular(dir.join("catalog.json"), 2_000_000) else {
+        return;
+    };
+    let _ = write_private(&dest, &bytes);
+}
+
+fn read_regular(path: PathBuf, limit: u64) -> Option<Vec<u8>> {
+    if path.as_os_str().is_empty() {
+        return None;
+    }
+    let meta = std::fs::symlink_metadata(&path).ok()?;
+    if !meta.file_type().is_file() || meta.len() > limit {
+        return None;
+    }
+    std::fs::read(&path).ok()
+}
+
+fn cards_evidence(path: &Path) -> Option<String> {
+    let bytes = std::fs::read(path).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    value.get("evidence_hash").and_then(serde_json::Value::as_str).map(str::to_owned)
+}
+
+fn import_model_cache(source_root: &str, cache_dir: &Path, cards: &Path) {
+    copy_matching_cache(source_root, &cache_dir.join("pg-builder"), cards);
+}
+
+fn publish_model_cache(source_root: &str, cache_dir: &Path, cards: &Path) {
+    if source_root.is_empty() {
+        return;
+    }
+    copy_matching_cache(cache_dir.to_str().unwrap_or(""), &PathBuf::from(source_root).join("pg-builder"), cards);
+}
+
+fn copy_matching_cache(source_root: &str, dest_dir: &Path, cards: &Path) {
+    if source_root.is_empty() {
+        return;
+    }
+    let Some(evidence) = cards_evidence(cards) else {
+        return;
+    };
+    let src = PathBuf::from(source_root).join("pg-builder");
+    let Ok(entries) = std::fs::read_dir(&src) else {
+        return;
+    };
+    let _ = std::fs::create_dir_all(dest_dir);
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if !meta.file_type().is_file() || meta.len() > 2_000_000 {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+            continue;
+        };
+        if value.get("outcome").and_then(serde_json::Value::as_str) != Some("validated") {
+            continue;
+        }
+        if value.get("evidence_hash").and_then(serde_json::Value::as_str) != Some(evidence.as_str()) {
+            continue;
+        }
+        let Some(name) = path.file_name() else {
+            continue;
+        };
+        let target = dest_dir.join(name);
+        if std::fs::symlink_metadata(&target).is_ok() {
+            continue;
+        }
+        let _ = write_private(&target, &bytes);
     }
 }
 

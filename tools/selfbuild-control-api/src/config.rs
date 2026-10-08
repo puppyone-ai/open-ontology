@@ -17,6 +17,7 @@ pub struct AppConfig {
     pub identity: IdentityCfg,
     pub postgres: Endpoint,
     pub work_dir: String,
+    pub model_cache_dir: String,
     pub binaries: Binaries,
     pub projects: Vec<ProjectCfg>,
     pub ledger: Endpoint,
@@ -110,6 +111,8 @@ struct FileConfig {
     identity: FileIdentity,
     postgres: FileEndpoint,
     work_dir: String,
+    #[serde(default)]
+    model_cache_dir: String,
     binaries: FileBinaries,
     projects: Vec<FileProject>,
     ledger: FileEndpoint,
@@ -240,6 +243,7 @@ fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
         || !absolute_path(&file.listen.cert_file)
         || !absolute_path(&file.listen.key_file)
         || !absolute_path(&file.identity.ca_file)
+        || (!file.model_cache_dir.is_empty() && !absolute_path(&file.model_cache_dir))
     {
         return Err(ApiError::malformed());
     }
@@ -278,6 +282,7 @@ fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
         },
         postgres,
         work_dir: file.work_dir,
+        model_cache_dir: file.model_cache_dir,
         binaries,
         projects,
         ledger,
