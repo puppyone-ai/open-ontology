@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 优先且最终验收约束：本卡验收覆盖Plan SP09-W05完整本地DuckDB/Arrow分析及CSV/Excel/中文图表、lineage、取消；依赖缺失应按现有依赖批准规范提供可审变更方案，不得用仅CSV/SVG能力缩小本卡完成定义。
 
 NEXT complete capability: 原22914terminal0，当前CSV/SVG仅部分，Clippy缺component1不通过，DuckDB/Arrow/Parquet/Excel都3不是完成。继续原完整SP09-W05，读DEPENDENCY-PROPOSAL，按官方版本/license/MSRV证据冻结独立child精确deps，native使用固定digest+可审完整manifest，本卡范围授权实现所需依赖但不改root、不假audited owner审批。安装Clippy在私有builder，真实PGexport→Parquet/Arrow→DuckDB analysis→Excel/中文图表/meta与cancel完整验收；不要继续仅返回unsupported交付。
+
+USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。

@@ -19,3 +19,5 @@ NEXT complete capability: 原7769terminal0，M7真实B01 loop交付但lint4来�
 NEXT complete closure: 原18470terminal0 M8 role receipt，消费G1 M10 fixed67suite/lint修复，不重复旧ac873归档lint失败。继续管理真实注册catalog/buildreviewclassification/release流程，fixedSDK新增operations交付才绑定，未就绪可完整交互状态与与真实contract验证但是不mock验收。前端只三UUID，G1shared与原G3live不改。
 
 NEXT product closure: 原71120terminal0 fixedG1M10自测67passed，当前15schemaonly行仍未真实B04。继续总卡完整管理真实current/初始化/退出可用接口与M11client合法输入，不交付单目录行当完成，等source/build/release固定producer和G1HTTPclientready接完整数据流程。没有API的rolebinding保持未完成。
+
+USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
