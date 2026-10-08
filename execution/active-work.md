@@ -50,3 +50,19 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 2026-10-08：闭环派发规范生效。新能力作者负责从实际输入、真实依赖调用、持久状态、成功/必要失败、可复现启动到固定提交/完整证据，自述CLI0或helper/schema不计交付；独立复审仅检验固定交付。新增a383源接入catalog API、a384 Secret写入轮换、a385反馈接收至审核队列、a386完整本地分析、a387本人会话至真实S1–S11关闭、a388官方rmcp stdio至Gateway、a389十万行真实模型benchmark；原Plan对应SP03/05、SP02-W04/W06、SP09-W05、SP11-W01/02、SP13-W01、SP12。完整卡AC需作者实施前冻结，未完成不计开发，现76/90分母不因派发数量变化；全量Plan范围不缩。G1/G2/G3仅原三会话续接；备份a377原卡继续完整sequence切点与成功restore，不接受仅拒绝模式完成。主线开发cap20、Rustglobal10/task1、Node2/browser2保持，资源不足排队而非重复builder。外部门槛单列，禁止mock替代完成。
 
 新卡a383–389及前端三续接/备份句柄启动后记录；nextUUID a390。a374作者SHA256SUMS缺失，暂不签收，a381独立复审需核对source并保留证据缺项。
+
+## 闭环工作线实际启动
+
+- a383: handle 73258，启动工具确认running，禁止重复启动。
+- a384: handle 94406，启动工具确认running，禁止重复启动。
+- a385: handle 59533，启动工具确认running，禁止重复启动。
+- a386: handle 22914，启动工具确认running，禁止重复启动。
+- a387: handle 19418，启动工具确认running，禁止重复启动。
+- a388: handle 65101，启动工具确认running，禁止重复启动。
+- a389: handle 76805，启动工具确认running，禁止重复启动。
+- a351: handle 95178，启动工具确认running，禁止重复启动。
+- a353: handle 52996，启动工具确认running，禁止重复启动。
+- a352: handle 92248，启动工具确认running，禁止重复启动。
+- a377: handle 46898，启动工具确认running，禁止重复启动。
+
+既有a37922340/a38072955/a38193531/a38264115/a37383407保留，上次启动live。本轮11条新启动，连同既有5条待统一观测共16条（开发12、主线复审3、前端G3复审1）；实际Rust最多10、Node最多2/browser2，超出仅排队。独立复审不占主线开发20上限，前端仍恰好三个固定UUID。一次18分钟等待后统一16句柄观测，不根据数量虚签验收。已核验M6 80SHA、G3guard69、WAL23 source、OIDCreview129、backup255、searchpath99全部0坏；a374作者缺SHA留待补齐。
