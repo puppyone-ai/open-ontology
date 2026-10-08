@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/bootstrap-consume/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["token"],
+  "properties": {
+    "token": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"}
+  }
+}

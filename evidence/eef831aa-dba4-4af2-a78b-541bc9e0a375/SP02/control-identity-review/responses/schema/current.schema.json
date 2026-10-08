@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/current/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "subject", "issuer", "config_commit", "revision",
+    "install_state", "projects", "csrf_token", "session", "authority",
+    "session_class", "data_grants", "owner_certification", "agent_session",
+    "harness_session", "gateway_token", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.control-identity/v1"},
+    "operation": {"const": "getIdentityCurrent"},
+    "subject": {"type": "string", "minLength": 1, "maxLength": 256},
+    "issuer": {"type": "string", "minLength": 8},
+    "config_commit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "install_state": {"enum": ["uninitialized", "initialized"]},
+    "projects": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/project"}
+    },
+    "csrf_token": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idle_expires_at", "absolute_expires_at", "revoked"],
+      "properties": {
+        "idle_expires_at": {"type": "string", "format": "date-time"},
+        "absolute_expires_at": {"type": "string", "format": "date-time"},
+        "revoked": {"const": false}
+      }
+    },
+    "authority": {"const": "management_session"},
+    "session_class": {"const": "management_cookie"},
+    "data_grants": {"const": "none"},
+    "owner_certification": {"const": "not_issued"},
+    "agent_session": {"const": "not_issued"},
+    "harness_session": {"const": "not_issued"},
+    "gateway_token": {"const": "not_issued"},
+    "customer_integration": {"const": "not_claimed"}
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "role", "capabilities"],
+      "properties": {
+        "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "role": {"enum": ["admin", "reviewer", "steward", "auditor", "business_owner"]},
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "audit.read",
+              "binding.read",
+              "business.record",
+              "identity.current",
+              "ontology.draft",
+              "project.admin",
+              "review.decide",
+              "session.revoke"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

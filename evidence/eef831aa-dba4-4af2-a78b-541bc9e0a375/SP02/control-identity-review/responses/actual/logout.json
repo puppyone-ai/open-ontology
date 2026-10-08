@@ -1,0 +1,12 @@
+{
+  "agent_session": "not_issued",
+  "authority": "management_session",
+  "contract": "oo.control-identity/v1",
+  "customer_integration": "not_claimed",
+  "data_grants": "none",
+  "gateway_token": "not_issued",
+  "harness_session": "not_issued",
+  "operation": "logoutManagementSession",
+  "outcome": "revoked",
+  "owner_certification": "not_issued"
+}

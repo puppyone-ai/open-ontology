@@ -1,0 +1,10 @@
+{
+  "contract": "oo.control-identity/capability-matrix/v1",
+  "roles": {
+    "admin": ["binding.read", "identity.current", "project.admin", "session.revoke"],
+    "auditor": ["audit.read", "identity.current"],
+    "business_owner": ["business.record", "identity.current"],
+    "reviewer": ["identity.current", "review.decide"],
+    "steward": ["identity.current", "ontology.draft"]
+  }
+}

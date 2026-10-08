@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/logout/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "outcome", "authority", "data_grants",
+    "owner_certification", "agent_session", "harness_session", "gateway_token",
+    "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.control-identity/v1"},
+    "operation": {"const": "logoutManagementSession"},
+    "outcome": {"const": "revoked"},
+    "authority": {"const": "management_session"},
+    "data_grants": {"const": "none"},
+    "owner_certification": {"const": "not_issued"},
+    "agent_session": {"const": "not_issued"},
+    "harness_session": {"const": "not_issued"},
+    "gateway_token": {"const": "not_issued"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}
