@@ -239,7 +239,7 @@ fi
 if [ -x /cargo-home/bin/oo-a389-prep ] && [ -f "$RUN/bundles/wide.json" ] && [ -x /cargo-home/bin/ontology-dialogue ]; then
   run_log pack /cargo-home/bin/oo-a389-prep pack "$RUN/bundles/wide.json" "$BENCH/wide-pack.json"
   printf '%s\n' "{\"protocol\":\"oo.ontology-dialogue.question/v1\",\"text\":\"${QUESTION}\"}" > "$BENCH/question.json"
-  run_log propose-config /cargo-home/bin/oo-a389-prep propose-config "$BENCH/wide-pack.json" "$BENCH/question.json" /relay/cert.pem "$BEARER" grok-4.7 https://127.0.0.1:8443 "$BENCH/dialogue-config.json"
+  run_log propose-config /cargo-home/bin/oo-a389-prep propose-config "$BENCH/wide-pack.json" "$BENCH/question.json" /relay/cert.pem "$BEARER" grok-4.7 https://127.0.0.1:8443 "$RUN/queries/wide-count.request.json" "$BENCH/dialogue-config.json"
   if [ -s "$BENCH/dialogue-config.json" ]; then
     cp "$BENCH/dialogue-config.json" "$SCORE/dialogue-config.json"
   fi

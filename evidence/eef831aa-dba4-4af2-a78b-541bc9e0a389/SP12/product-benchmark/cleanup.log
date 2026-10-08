@@ -18,3 +18,21 @@ oo-a389-eef831aa-net
 network_removed oo-a389-eef831aa-net
 tmp_removed /tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389
 cleanup_done 2026-10-08T04:58:27Z
+cleanup_start 2026-10-08T05:32:52Z
+container_absent oo-a389-smoke
+container_absent oo-a389-focused
+container_absent oo-a389-chain
+container_absent oo-a389-bench
+container_absent oo-a389-hit
+container_absent oo-a389-pg
+oo-a389-propose
+container_removed oo-a389-propose
+oo-a389-eef831aa-cargo
+volume_removed oo-a389-eef831aa-cargo
+oo-a389-eef831aa-target
+volume_removed oo-a389-eef831aa-target
+volume_absent oo-a389-eef831aa-pgdata
+oo-a389-eef831aa-net
+network_removed oo-a389-eef831aa-net
+tmp_removed /tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389
+cleanup_done 2026-10-08T05:32:52Z

@@ -5,6 +5,14 @@ pg/up.exit=0
 bench.exit=1
 generate-third.exit=0
 score-third.exit=1
+propose-approved.exit=3
+score-approved.exit=1
+linux/propose/focused.exit=0
+linux/propose/phases/test.exit=0
+linux/propose/phases/clippy.exit=0
+linux/propose/phases/propose-config.exit=0
+linux/propose/phases/propose-approved.exit=3
+linux/propose/phases/build-dialogue.exit=0
 
 ## chain phases
 apply-config=0

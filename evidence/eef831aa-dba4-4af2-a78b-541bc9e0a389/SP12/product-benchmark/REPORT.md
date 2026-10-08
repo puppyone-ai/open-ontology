@@ -2,7 +2,7 @@
 
 Session `eef831aa-dba4-4af2-a78b-541bc9e0a389`. `benchmark_loop_pass` is false. `integration_passed` is false. `parent_acceptance` is false.
 
-The 100000-row chain, the grok-4.7 meter, the cache hit, and the three failure controls were measured. The loop stays false because `ontology-dialogue propose` exited 3 with stderr `ontology-dialogue: config` before any dialogue model call and before `execute`. This card does not accept SP12, a parent unit, public authentication, the harness, WAL, runsc, semantic publication, or customer UAT.
+The 100000-row chain and the grok-4.7 meter stay the measured ones. The runner now binds the approved query policy id `e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e`. A new `ontology-dialogue propose` on pin `e31635b213911c725159a23dbccc8463cc45cdd7` still exited 3 with stderr `ontology-dialogue: config` before HTTP and before `execute`. `benchmark_loop_pass` stays false. Whole-product keys stay `notrun`. This card does not accept integration, SP12, or a parent unit.
 
 ## Frozen inputs
 
@@ -14,7 +14,7 @@ Import result rows: `shop.party` 2000, `shop.account` 8000, `shop.entry` 90000, 
 
 ## Scorer proof
 
-`linux/focused-4/focused.exit` is 0. `linux/focused-4/test-count.txt` is `passed=7 failed=0 ignored=0`. `linux/focused-4/phases/clippy.exit` is 0. Toolchain `rustc 1.94.0 (4a4ef493e 2026-03-02)`. Clippy `0.1.94`.
+`linux/focused-4/focused.exit` is 0. `linux/propose/focused.exit` is 0 after the binding change. `linux/propose/test-count.txt` is `passed=7 failed=0 ignored=0`. `linux/propose/phases/clippy.exit` is 0. Toolchain `rustc 1.94.0 (4a4ef493e 2026-03-02)`.
 
 Preserved failures: `linux/focused/focused.exit` 101 (score compare), `linux/focused-2/focused.exit` 101 (`needless_range_loop`), `linux/focused-3/focused.exit` 101 (`bool_comparison`).
 
@@ -38,24 +38,28 @@ First document `score-input/builder-first.json`: top cache `miss`, three opened 
 
 Second document `live/builder/second-partial.json`: calls 0 and 2 were cache hits with socket `not_opened`. Call 1 opened a socket, HTTP 200, completion 3413, total 5896, outcome validated, and was stored. Top cache `partial`.
 
-Third document `score-input/builder-hit.json`: `generate-third.exit` is 0. Top cache `hit`, cache store `stored`, socket `not_opened`. All three calls are `hit` / `not_opened` / HTTP 200 / `grok-4.7` / cost `unknown`. The scorer records `cache_first=miss`, `cache_hit=hit`, `cache_socket=not_opened`. `http_200_alone_is_e2e_pass` is false.
+Third document `score-input/builder-hit.json`: `generate-third.exit` is 0. Top cache `hit`, cache store `stored`, socket `not_opened`. All three calls are `hit` / `not_opened` / HTTP 200 / `grok-4.7` / cost `unknown`. That hit does not replace the opened calls. The scorer reads the fresh meter from `builder-first.json`: `fresh_socket=opened`, `cache_first=miss`, HTTP 200, input SHA-256 `8b4c803d7f0676057150097f68271205aea1777970682f9ee846efa9e089ed2b`. It reads the cache meter from `builder-hit.json`: `cache_hit=hit`, `cache_socket=not_opened`. `http_200_alone_is_e2e_pass` is false. The call list is also in `model-http.json`. The three generation documents were not regenerated.
 
 ## Failure controls
 
-`q-wrong-model` verdict `fail`. `wrong-model.exit` is 1. Stderr: `oo.pg-builder/v1/config.endpoint the endpoint path or model is not the builder endpoint`.
+`q-wrong-model` verdict `pass`. The frozen class is `must_fail`. `wrong-model.exit` is 1. Stderr: `oo.pg-builder/v1/config.endpoint the endpoint path or model is not the builder endpoint`. The refusal matches the freeze, so the question score is pass.
 
-`q-hidden` verdict `fail`. The chain `query-wide-hidden` exit is 6 and stdout is empty.
+`q-hidden` verdict `pass`. The chain `query-wide-hidden` exit is 6 and stdout is empty, which is the frozen expectation.
 
-`q-citation-false` verdict `fail`. `citation-invalid.exit` is 1. `citation_status` is `invalid`, `missing_citation` is true. `authenticated_audit` false remains on that report and is the producer's standing field.
+`q-citation-false` verdict `pass`. `citation-invalid.exit` is 1. `citation_status` is `invalid`, `missing_citation` is true. `authenticated_audit` false remains on that report and is the producer's standing field. The invalid status is the frozen expectation.
 
 Fixture cells for null, qty, fk, phone, narrow party, and party count match the freeze. Wide count summary `end_audit_ok` is true. Review is unauthenticated. Hidden column `shop.party.national_id` reason `classification.absent`. Wide installed and narrow replay are present.
 
 ## Dialogue
 
-`propose` exit 3, stderr `ontology-dialogue: config`. The live wide pack role is `oo_r_wide`, project `pubfix`, policy id `pol-a317` (8 characters), knowledge id `know-a317`. The producer requires a 64-character lowercase hex policy id and a slug knowledge id before it reads the bearer or opens a socket. No `dialogue-execution.json` was written. `q-entry-count` verdict is `fail`.
+The first propose bound the role-pack label `pol-a317`. That config is preserved at `live/builder/dialogue-config.pol-a317.json`. Exit `bench/phases/propose.pol-a317.exit` is 3.
+
+The runner now copies `identity.policy_id` from `live/run/queries/wide-count.request.json`. `live/builder/dialogue-config.approved.json` and `score-input/dialogue-config.json` bind policy id `e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e`, role `oo_r_wide`, project `pubfix`, knowledge id `know-a317`. `linux/propose/phases/propose-config.exit` is 0. `linux/propose/phases/propose-approved.exit` is 3. Stderr `ontology-dialogue: config`. `linux/propose/bearer-file-bytes.txt` is 6. The producer checks the binding before it reads the bearer, so the 6-byte file was not the fault this run reached.
+
+Dialogue `parse_config` requires `binding.policy_id` to be 64 lowercase hex and `binding.knowledge_id` to be a slug with no hyphen, then requires both to equal the pack manifest. The pack manifest still has policy id `pol-a317` and knowledge id `know-a317`. The knowledge id fails the slug check first. The role-pack compiler accepts a hyphen and rejects an id longer than 63 bytes, so it cannot emit this query digest. query-pg requires `identity.policy_id` to equal the policy `config_digest`, which is that digest. No `dialogue-execution.json` was written. `q-entry-count` verdict is `fail`. The 100k chain was not loaded again and pg-builder was not called again.
 
 ## Whole product
 
 `public_auth`, `session_close_api`, `natural_language_harness`, `runsc`, `wal`, `semantic_publication`, and `customer_uat` are `notrun`.
 
-Machine report: `report/report.json`. Readable copy: `report/report.md`. Score exit after the cache hit: `bench/phases/score-third.exit` is 1, which is the loop failure.
+Machine report: `report/report.json`. Readable copy: `report/report.md`. The report from commit `6cec19fa15932fd5e2ee94070857ead464887f97` is `report/report.before-approved-binding.json`. `bench/phases/score-third.exit` is 1. `bench/phases/score-approved.exit` is 1. `bench.exit` is 1. Seven whole-product keys remain `notrun`, so integration is not accepted and the product loop is not closed.

@@ -5,14 +5,16 @@ The card is not accepted. `report/report.json` has `benchmark_loop_pass` false, 
 What is measured:
 
 - Chain `linux/chain/chain.exit` 0 on archive `6f87942f1c66ba1a9787b7d7194e58a507af63ef`, rows 2000 / 8000 / 90000.
-- pg-builder `be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba` against grok-4.7. Final score input `score-input/builder-hit.json` is a three-call cache hit with socket `not_opened`. The miss and the partial documents remain `score-input/builder-first.json` and `live/builder/second-partial.json`.
-- Wrong-model, hidden-query, and citation-false controls are `fail` verdicts.
-- Dialogue producer `e31635b213911c725159a23dbccc8463cc45cdd7` refused the real wide pack at config validation. Exit 3. Stderr `ontology-dialogue: config`.
+- pg-builder `be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba` against grok-4.7. Fresh HTTP is `score-input/builder-first.json` (three sockets opened) and the second stored call in `live/builder/second-partial.json` (one socket opened). `score-input/builder-hit.json` is the later cache hit and does not replace those calls.
+- Wrong-model, hidden-query, and citation-false controls match the freeze, so their question verdicts are `pass`.
+- The runner binds the approved query policy id `e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e`. Dialogue propose on that config exited 3, token `config`, before HTTP. The pack knowledge id `know-a317` fails the dialogue slug rule. The wide bundle was not rewritten.
 
-What remains for a later card, on a pack the dialogue grammar can load:
+What remains before this card can pass the loop:
 
-- `policy.id` must be 64 lowercase hex and `knowledge.id` must be a slug, and both must be the pack's own ids. This run did not rewrite `live/run/bundles/wide.json`.
+- A pack whose policy id is the approved query digest and whose knowledge id is a dialogue slug, produced by a compiler that can emit both. The current role-pack compiler cannot emit a 64-byte policy id. This run did not invent one.
+- The bearer file is 6 bytes. Dialogue accepts 16 to 256 bytes and reports that as `config`. This propose did not reach that read.
 - After a proposal exits 0, execute must return cells `[[{kind:int,value:90000}]]` for `q-entry-count` with citation status `ok`. HTTP 200 remains insufficient.
+- Seven whole-product records are `notrun`. Integration stays false until those services exist. This card does not call the loop closed.
 
 Relay pin `bde5e4772bb83407de5e9a50f12c120ce5eca30e` forwards the caller bearer and has no client-token mint. Dialogue never reached HTTP, so that relay did not change the propose result.
 

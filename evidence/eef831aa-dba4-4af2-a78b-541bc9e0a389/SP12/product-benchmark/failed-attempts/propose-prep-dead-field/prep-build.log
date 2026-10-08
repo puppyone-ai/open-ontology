@@ -1,0 +1,14 @@
+error: field `policy_id` is never read
+   --> /crate/linux/bench/prep.rs:252:5
+    |
+249 | struct Bound {
+    |        ----- field in this struct
+...
+252 |     policy_id: String,
+    |     ^^^^^^^^^
+    |
+    = note: `-D dead-code` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: aborting due to 1 previous error
+

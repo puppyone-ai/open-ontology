@@ -6,7 +6,7 @@ SESSION=eef831aa-dba4-4af2-a78b-541bc9e0a389
 ROOT=/tmp/oo-a389-${SESSION}
 REVIEW=/Users/redux/puppy-one/open-ontology/evidence/${SESSION}/SP12/product-benchmark
 LOG=${REVIEW}/cleanup.log
-exec > >(tee "$LOG") 2>&1
+exec > >(tee -a "$LOG") 2>&1
 echo "cleanup_start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 remove_container() {
@@ -32,6 +32,7 @@ remove_container oo-a389-chain
 remove_container oo-a389-bench
 remove_container oo-a389-hit
 remove_container oo-a389-pg
+remove_container oo-a389-propose
 
 for id in $(docker ps -aq --filter label=oo.owner=${OWNER} --filter label=oo.session=${SESSION}); do
   name=$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')

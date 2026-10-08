@@ -48,6 +48,7 @@ pub struct Report {
     pub cache_first: String,
     pub cache_hit: String,
     pub cache_socket: String,
+    pub fresh_socket: String,
     pub http_200_alone_is_e2e_pass: bool,
     pub review_unauthenticated: bool,
     pub hidden_national_id: bool,
@@ -162,6 +163,7 @@ pub fn score(freeze_path: &Path, input: &Path) -> Report {
         cache_first: model.cache_first,
         cache_hit: model.cache_hit,
         cache_socket: model.cache_socket,
+        fresh_socket: model.fresh_socket,
         http_200_alone_is_e2e_pass: false,
         review_unauthenticated: review.unauthenticated,
         hidden_national_id: review.hidden,
@@ -224,6 +226,7 @@ pub fn report_json(report: &Report) -> String {
                 ("cache_first".to_string(), Val::String(report.cache_first.clone())),
                 ("cache_hit".to_string(), Val::String(report.cache_hit.clone())),
                 ("cache_socket".to_string(), Val::String(report.cache_socket.clone())),
+                ("fresh_socket".to_string(), Val::String(report.fresh_socket.clone())),
                 ("http_200_alone_is_e2e_pass".to_string(), Val::Bool(false)),
             ]),
         ),
@@ -265,7 +268,7 @@ pub fn report_markdown(report: &Report) -> String {
         report.party, report.account, report.entry, report.rows_match
     ));
     text.push_str(&format!(
-        "Model `{}` HTTP status {:?} input SHA-256 `{}`. Usage {:?} + {:?} = {:?} (sum ok {}). Cost status `{}`, amount null {}. Cache first `{}`, hit `{}`, socket `{}`.\n\n",
+        "Model `{}` HTTP status {:?} input SHA-256 `{}`. Usage {:?} + {:?} = {:?} (sum ok {}). Cost status `{}`, amount null {}. Cache first `{}`, hit `{}`, cache socket `{}`. Fresh call socket `{}`.\n\n",
         report.model_id,
         report.http_status,
         report.request_input_sha256,
@@ -277,7 +280,8 @@ pub fn report_markdown(report: &Report) -> String {
         report.cost_amount_null,
         report.cache_first,
         report.cache_hit,
-        report.cache_socket
+        report.cache_socket,
+        report.fresh_socket
     ));
     text.push_str("HTTP 200 alone is an end-to-end pass: false.\n\n");
     text.push_str(&format!(
@@ -321,6 +325,7 @@ struct ModelRead {
     cache_first: String,
     cache_hit: String,
     cache_socket: String,
+    fresh_socket: String,
 }
 
 struct ReviewRead {
@@ -411,6 +416,12 @@ fn read_e2e(
         .and_then(|value| value.get("model_id"))
         .and_then(Val::as_str)
         .unwrap_or("");
+    let policy_id = config
+        .as_ref()
+        .and_then(|value| value.get("binding"))
+        .and_then(|value| value.get("policy_id"))
+        .and_then(Val::as_str)
+        .unwrap_or("");
     let proposal_exit = read_exit(input, "dialogue-proposal.exit");
     let execution_exit = read_exit(input, "dialogue-execution.exit");
     let execution = read_json(input, "dialogue-execution.json").ok();
@@ -447,7 +458,7 @@ fn read_e2e(
             id: "q-entry-count".to_string(),
             verdict: "fail",
             reason: format!(
-                "model={model} proposal_exit={proposal_exit:?} execution_exit={execution_exit:?} receipt={receipt} citation_ok={citation_ok} cells_ok={cells_ok}"
+                "model={model} policy_id={policy_id} proposal_exit={proposal_exit:?} execution_exit={execution_exit:?} receipt={receipt} citation_ok={citation_ok} cells_ok={cells_ok}"
             ),
         });
     }
@@ -463,43 +474,43 @@ fn read_wrong_model(input: &Path, questions: &mut Vec<QuestionVerdict>, failures
         .and_then(Val::as_str)
         .unwrap_or("");
     let exit = read_exit(input, "wrong-model.exit");
-    let counted_failure = model == "grok-4.3" && exit.is_some() && exit != Some(0);
-    if counted_failure {
+    let held = model == "grok-4.3" && exit.is_some() && exit != Some(0);
+    if held {
         questions.push(QuestionVerdict {
             id: "q-wrong-model".to_string(),
-            verdict: "fail",
-            reason: "grok-4.3 was refused and is counted as a failure".to_string(),
+            verdict: "pass",
+            reason: "grok-4.3 was refused, matching the frozen must_fail expectation".to_string(),
         });
     } else {
-        failures.push("wrong model was not counted as a failure".to_string());
+        failures.push("wrong model was not refused".to_string());
         questions.push(QuestionVerdict {
             id: "q-wrong-model".to_string(),
             verdict: "fail",
-            reason: format!("model={model} exit={exit:?}; control did not hold"),
+            reason: format!("model={model} exit={exit:?}; frozen refusal did not hold"),
         });
     }
-    counted_failure
+    held
 }
 
 fn read_hidden(input: &Path, questions: &mut Vec<QuestionVerdict>, failures: &mut Vec<String>) -> bool {
     let exit = read_exit(input, "query-wide-hidden.exit");
     let stdout = read_text(input, "query-wide-hidden.stdout");
-    let counted_failure = exit == Some(6) && stdout.trim().is_empty();
-    if counted_failure {
+    let held = exit == Some(6) && stdout.trim().is_empty();
+    if held {
         questions.push(QuestionVerdict {
             id: "q-hidden".to_string(),
-            verdict: "fail",
-            reason: "national_id query exited 6 with empty stdout and is a failure".to_string(),
+            verdict: "pass",
+            reason: "national_id query exited 6 with empty stdout, matching the frozen must_fail expectation".to_string(),
         });
     } else {
-        failures.push("query rejection was not counted as a failure".to_string());
+        failures.push("query rejection did not match the frozen exit 6".to_string());
         questions.push(QuestionVerdict {
             id: "q-hidden".to_string(),
             verdict: "fail",
-            reason: format!("exit={exit:?}; control did not hold"),
+            reason: format!("exit={exit:?}; frozen query rejection did not hold"),
         });
     }
-    counted_failure
+    held
 }
 
 fn read_citation_false(input: &Path, questions: &mut Vec<QuestionVerdict>, failures: &mut Vec<String>) -> bool {
@@ -510,22 +521,22 @@ fn read_citation_false(input: &Path, questions: &mut Vec<QuestionVerdict>, failu
         .and_then(|value| value.get("citation_status"))
         .and_then(Val::as_str)
         .unwrap_or("");
-    let counted_failure = exit.is_some() && exit != Some(0) && status == "invalid";
-    if counted_failure {
+    let held = exit.is_some() && exit != Some(0) && status == "invalid";
+    if held {
         questions.push(QuestionVerdict {
             id: "q-citation-false".to_string(),
-            verdict: "fail",
-            reason: "citation_status invalid is counted as a failure".to_string(),
+            verdict: "pass",
+            reason: "citation_status invalid matches the frozen must_fail expectation".to_string(),
         });
     } else {
-        failures.push("citation false was not counted as a failure".to_string());
+        failures.push("citation false did not match the frozen invalid report".to_string());
         questions.push(QuestionVerdict {
             id: "q-citation-false".to_string(),
             verdict: "fail",
-            reason: format!("status={status} exit={exit:?}; control did not hold"),
+            reason: format!("status={status} exit={exit:?}; frozen citation false did not hold"),
         });
     }
-    counted_failure
+    held
 }
 
 fn read_model(input: &Path, failures: &mut Vec<String>) -> ModelRead {
@@ -543,6 +554,7 @@ fn read_model(input: &Path, failures: &mut Vec<String>) -> ModelRead {
         cache_first: String::new(),
         cache_hit: String::new(),
         cache_socket: String::new(),
+        fresh_socket: "absent".to_string(),
     };
     let first = match read_json(input, "builder-first.json") {
         Ok(value) => value,
@@ -590,6 +602,7 @@ fn read_model(input: &Path, failures: &mut Vec<String>) -> ModelRead {
             .unwrap_or("")
             .to_string();
         model.cost_amount_null = cost.and_then(|value| value.get("amount")).is_some_and(|value| matches!(value, Val::Null));
+        model.fresh_socket = "opened".to_string();
         let invoice_false = cost.and_then(|value| value.get("invoice")).and_then(Val::as_bool) == Some(false);
         let sha_ok = model.input_sha.len() == 64 && model.input_sha.chars().all(|ch| ch.is_ascii_hexdigit());
         if !(model.model_id == "grok-4.7"
@@ -619,6 +632,7 @@ fn read_model(input: &Path, failures: &mut Vec<String>) -> ModelRead {
         && model.cost_amount_null
         && model.cache_first == "miss"
         && model.cache_hit == "hit"
+        && model.fresh_socket == "opened"
         && socket_ok;
     model
 }

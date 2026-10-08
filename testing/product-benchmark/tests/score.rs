@@ -123,16 +123,17 @@ fn full_synthetic_loop_passes_without_integration() {
     assert_eq!(report.http_status, Some(200));
     assert_eq!(report.cache_hit, "hit");
     assert_eq!(report.cache_socket, "not_opened");
+    assert_eq!(report.fresh_socket, "opened");
     assert_eq!(report.cost_status, "unknown");
     assert!(report.cost_amount_null);
     assert!(report.usage_sum_ok);
     assert_eq!(report.session_close_api, "notrun");
     let wrong = report.questions.iter().find(|item| item.id == "q-wrong-model").expect("wrong");
-    assert_eq!(wrong.verdict, "fail");
+    assert_eq!(wrong.verdict, "pass");
     let hidden = report.questions.iter().find(|item| item.id == "q-hidden").expect("hidden");
-    assert_eq!(hidden.verdict, "fail");
+    assert_eq!(hidden.verdict, "pass");
     let citation = report.questions.iter().find(|item| item.id == "q-citation-false").expect("citation");
-    assert_eq!(citation.verdict, "fail");
+    assert_eq!(citation.verdict, "pass");
     let _ = fs::remove_dir_all(&dir);
 }
 

@@ -10,12 +10,14 @@ Tree `testing/product-benchmark`. SHA-256 of the bytes committed with this card.
 - `linux/bench/forward.rs` 39fe5435ea29944f2be9672e03f910138aec2f9e7ce33f54fdda0a34abb62acb 1175
 - `linux/bench/hit-inside.sh` 05e1efec0670d356098e413fb99c7495eb16a14a4fc242323b14a68af3fa60d7 1323
 - `linux/bench/hit.sh` 2103daf5f3c7b5832e4a5e47f95ea8382202cba62f8028ad5f786ad06db6f7b1 2995
-- `linux/bench/inside.sh` 7f1c961401879f3fbd13f1313d224b2a80786394a90bc8528592dbcba9ff421e 14333
-- `linux/bench/prep.rs` 3e5c96c320a7c409bad9b4f6b91b6989478ed654f57103f18d0782e630a2fa8a 11246
+- `linux/bench/inside.sh` 5862bd2c26a68ffce48886cbd4cae63a234694672250c9b768cb3380e75d7584 14372
+- `linux/bench/prep.rs` 570ccde91dffecfe6a6e6c51b053002c7319ef9e5172dec32e4a37883ce89071 11789
 - `linux/bench/resume.sh` 0bf5583c1e3ffdea67e3c0e84cf8ad044430534283636ee37fc64025906907c1 5876
 - `linux/chain/launch.sh` eb93aa39b6ee41fd6553ef210322e384f6b5d9a2d927bb7340f9d975525ecf39 10429
 - `linux/focused/inside.sh` 83700999c269ac3e017a6900b918c0035b5898403454d08025ffbe84879ccaf7 3388
 - `linux/focused/launch.sh` b329f466ea29dbea2dbb3b1b681cbe85c7d126005cd9f8e31efc1cc8fde936a3 5458
+- `linux/propose/inside.sh` 6a3f157e22f23c46e3b8696efdba745ebba35616b2f98ba0eebda5a1c4b2bca8 6953
+- `linux/propose/launch.sh` 5d3c34e6ae8eaf67fb293e6246133b59fd6784102e7be8b0a35d7da573b8f011 5337
 - `linux/smoke/inside.sh` 0681fa15356f12ee072c1e832759601440c4f9816a6391470911938f6f3e9775 1056
 - `linux/smoke/launch.sh` c74fcaa1ff66aeab403bade4526624b46f0a25558a48a6e851e7f0a9343b9570 4445
 - `replay/ORIGIN.txt` 41f211452d4bae342a4010420355ba06db053f8a0c615e5f8776f8b3886c0a81 1658
@@ -33,6 +35,6 @@ Tree `testing/product-benchmark`. SHA-256 of the bytes committed with this card.
 - `src/json.rs` 06ce25eb1cd687358c50c392e3fb76498ef443b0cfbf7450714d5a35e2c875f9 9264
 - `src/lib.rs` 4ddfafb104c5509fd09c9116561fe84f42b70120a34937d415844e130ce62995 152
 - `src/main.rs` f44f5d45c100eab0f9566f0a04443a938ce7388ec2aa0b52a1ee7c2bd33c8011 1935
-- `src/score.rs` c3061991c5240a71ff4c85ebd59a9d2b2dc6f767be333bb8a82a0fbe5660df46 29664
+- `src/score.rs` 1da3038a2b2952604b635b0b270effddd81f36f0f74d28bc05f6c2de0d7e9b0c 30262
 - `src/sha256.rs` 541f612c29832bb0681ed83f0e783649bc0762b74aa7549b7b4bdd8303bb12e1 4417
-- `tests/score.rs` 173948ddf734eb14776713b910106df6c516d11d32298358d53e6ed2078d443b 8752
+- `tests/score.rs` 6851ac1fbf8c3aac23dedb43b7b83d4594b649f938a14238a6fe3b3f25a52a1a 8799

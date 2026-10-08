@@ -17,9 +17,9 @@ fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("pack") if args.len() == 3 => pack(&args[1], &args[2]),
-        Some("propose-config") if args.len() == 8 => {
-            propose_config(&args[1], &args[2], &args[3], &args[4], &args[5], &args[6], &args[7])
-        }
+        Some("propose-config") if args.len() == 9 => propose_config(
+            &args[1], &args[2], &args[3], &args[4], &args[5], &args[6], &args[7], &args[8],
+        ),
         Some("approval") if args.len() == 3 => approval(&args[1], &args[2]),
         Some("request") if args.len() == 6 => request(&args[1], &args[2], &args[3], &args[4], &args[5]),
         Some("cite") if args.len() == 5 => cite(&args[1], &args[2], &args[3], &args[4]),
@@ -51,9 +51,11 @@ fn propose_config(
     bearer_path: &str,
     model: &str,
     origin: &str,
+    approved_request: &str,
     out_path: &str,
 ) -> Result<(), &'static str> {
     let bound = binding(pack_path)?;
+    let policy_id = approved_policy(approved_request)?;
     let value = Val::Object(vec![
         ("protocol".to_string(), strv("oo.ontology-dialogue.propose-config/v1")),
         ("question_file".to_string(), strv(question_path)),
@@ -63,7 +65,7 @@ fn propose_config(
             Val::Object(vec![
                 ("role".to_string(), strv(&bound.role)),
                 ("project".to_string(), strv(&bound.project)),
-                ("policy_id".to_string(), strv(&bound.policy_id)),
+                ("policy_id".to_string(), strv(&policy_id)),
                 ("policy_version".to_string(), strv(&bound.policy_version)),
                 ("knowledge_id".to_string(), strv(&bound.knowledge_id)),
                 ("knowledge_version".to_string(), strv(&bound.knowledge_version)),
@@ -247,10 +249,26 @@ fn whole(out_path: &str) -> Result<(), &'static str> {
 struct Bound {
     role: String,
     project: String,
-    policy_id: String,
     policy_version: String,
     knowledge_id: String,
     knowledge_version: String,
+}
+
+fn approved_policy(request_path: &str) -> Result<String, &'static str> {
+    let doc = read_json(request_path)?;
+    let identity = doc.get("identity").ok_or("policy")?;
+    let policy_id = owned(identity.get("policy_id"))?;
+    if !hex64(&policy_id) {
+        return Err("policy");
+    }
+    Ok(policy_id)
+}
+
+fn hex64(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn binding(pack_path: &str) -> Result<Bound, &'static str> {
@@ -264,10 +282,10 @@ fn binding(pack_path: &str) -> Result<Bound, &'static str> {
     let doc = json::parse(text).map_err(|_| "pack")?;
     let policy = doc.get("policy").ok_or("pack")?;
     let knowledge = doc.get("knowledge").ok_or("pack")?;
+    let _ = owned(policy.get("id"))?;
     Ok(Bound {
         role: owned(doc.get("role"))?,
         project: owned(doc.get("project"))?,
-        policy_id: owned(policy.get("id"))?,
         policy_version: owned(policy.get("version"))?,
         knowledge_id: owned(knowledge.get("id"))?,
         knowledge_version: owned(knowledge.get("version"))?,
