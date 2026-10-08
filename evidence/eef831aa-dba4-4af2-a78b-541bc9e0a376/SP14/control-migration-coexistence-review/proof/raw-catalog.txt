@@ -1,0 +1,20 @@
+# oo_a376_raw_auto namespaces
+oo_calendar_control|oo_calendar_admin
+oo_dict|oo_calendar_admin
+oo_enum_control|oo_enum_admin
+# oo_a376_raw_auto oo_dict
+calendar|v|oo_calendar_admin
+# oo_a376_raw_auto oo_enum_control relations
+active_pointer|r
+deployment|r
+install_manifest|r
+notice|r
+published|r
+runtime_allow|r
+served|r
+snapshot|r
+# oo_a376_raw_tx namespaces
+oo_calendar_control|oo_calendar_admin
+oo_dict|oo_calendar_admin
+# oo_a376_raw_tx oo_dict
+calendar|v|oo_calendar_view

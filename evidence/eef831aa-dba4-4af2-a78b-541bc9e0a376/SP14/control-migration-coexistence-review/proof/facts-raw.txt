@@ -1,0 +1,14 @@
+raw_tx|second|42P06
+raw_tx|calendar_view_owner|oo_calendar_view
+raw_auto|calendar_view_owner|oo_calendar_admin
+raw_auto|calendar_warning|25P01
+raw_tx|oo_calendar_control|1
+raw_tx|oo_enum_control|0
+raw_tx|oo_dict|1
+raw_auto|oo_enum_control|1
+raw_auto|oo_calendar_control|1
+raw_auto|oo_dict|1
+raw_auto|dual|1
+raw_auto|second_exit|3
+raw_auto|first_exit|0
+raw_tx|first_exit|0

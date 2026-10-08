@@ -1,0 +1,10 @@
+role|oo_calendar_admin|t|f|f|f|f
+role|oo_calendar_view|f|f|f|f|f
+role|oo_enum_admin|t|f|f|f|f
+role|oo_enum_view|f|f|f|f|f
+role|oo_r_calendar|t|f|f|f|f
+role|oo_r_enum|t|f|f|f|f
+runtime_membership|0
+before|oo_a365_cal_first|0
+before|oo_a365_enum_first|0
+before|oo_a365_hostile|0

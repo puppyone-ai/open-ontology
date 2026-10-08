@@ -1,0 +1,1 @@
+docker run one rust builder 6g 1cpu and one postgres 1g 1cpu on oo-a376-eef831aa-net; alias oo-a365-pg; no host network; no published port

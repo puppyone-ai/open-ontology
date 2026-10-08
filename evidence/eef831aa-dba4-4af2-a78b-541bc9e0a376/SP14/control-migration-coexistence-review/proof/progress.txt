@@ -1,0 +1,43 @@
+00:35:20 started
+00:35:20 fetch
+00:35:26 calendar-lib
+00:36:59 enum-lib
+00:37:05 calendar-store-solo
+00:37:08 enum-roles
+00:37:08 roles-before
+00:37:09 enum-store-solo_reject
+00:37:11 calendar-store-solo_replay
+00:37:11 calendar-store-cal_first
+00:37:11 enum-store-cal_first
+00:37:12 calendar-store-cal_first_replay
+00:37:12 enum-store-cal_first_replay
+00:37:13 enum-store-enum_first
+00:37:13 calendar-store-enum_first
+00:37:13 enum-store-enum_first_replay
+00:37:14 calendar-store-enum_first_replay
+00:37:14 facts-green
+00:37:15 deny
+00:37:15 pathdrift
+00:37:16 calendar-store-hostile
+00:37:16 enum-store-hostile
+00:37:16 calendar-store-drift
+00:37:17 enum-store-drift
+00:37:17 facts-refuse
+00:37:17 raw-psql
+00:52:43 continue-start
+00:52:43 deny-retry
+00:52:44 raw-create-retry
+00:52:44 raw-tx-retry
+00:52:44 raw-auto-retry
+00:52:44 facts-raw
+00:52:45 clippy-calendar
+00:53:49 clippy-enum
+00:53:50 oracle
+00:53:50 continue-done oracle=1 clippy=0/0
+00:57:02 continue-start
+00:57:02 clippy-calendar
+00:57:02 kept calendar-clippy.log
+00:57:02 clippy-enum
+00:57:02 kept enum-clippy.log
+00:57:02 oracle
+00:57:02 continue-done oracle=0 clippy=0/0
