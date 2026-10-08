@@ -1,62 +1,69 @@
 # Dependency proposal for SP09-W05
 
-Status: proposal only. `audited` is false. This file does not edit `supply-chain/dependency-baseline.json`, root `Cargo.toml`, or root `Cargo.lock`. It does not admit a crate, a binary, a font, or an image.
+Status: proposal with the fields this card could verify. `audited` is false. `reviewers_assigned` is empty. `exception` is null. This file does not edit `supply-chain/dependency-baseline.json`, root `Cargo.toml`, or root `Cargo.lock`. It does not appoint a reviewer and it does not close SP09-W05.
 
-Authority for the shape: `supply-chain/policy.md` sections 1, 2, 4, and 9, and `.github/ISSUE_TEMPLATE/dependency.yml`. The machine-readable copy is `dependency-proposal.json`. Empty required fields mean the row is not admissible. Nobody is appointed while `OWNER_PENDING` remains, so a seven-day security exception cannot be used.
+Adoption instant for the age arithmetic below: `2026-10-08T05:14:59Z` (the private builder fetched the CLI and the font). Age days are `floor(elapsed_seconds / 86400)`. Seven days is `604800` seconds. No security-fix exception is requested. `OWNER_PENDING` would make one invalid.
 
-The card completion definition stays Plan SP09-W05: authorized Parquet, local DuckDB and Arrow, Chinese charts, formula-safe CSV, Excel, source manifest, native resource limits, and a killable native exit. This proposal is what is missing. It is not permission to call CSV and SVG a completed card.
+`scan_recorded` is false. No `cargo audit`, `cargo deny`, or native advisory scanner was run. A missing scan is not `no-known-advisories`.
 
-## Why these rows are blocked
+The child crate is `tools/local-analysis`. Its lock is its own. The rust `duckdb` crate is not a dependency.
 
-`supply-chain/dependency-baseline.md` records candidate compiles. A compile is not admission. The workspace lock still has no `duckdb`, `arrow`, `parquet`, or `calamine` package. The same file says `oo-analysis` cannot depend on the rust `duckdb` crate, and that a later sandbox DuckDB CLI is not a crate dependency. `docs/17-rust-implementation.md` says Arrow and Parquet stay on one series, and DuckDB's own Arrow series crosses that boundary only as Arrow IPC. It also says Excel export uses a reviewed Rust writer or an established CLI, and that a CJK font is fixed in the tool image rather than downloaded at runtime.
+## Direct crates
 
-No digest, LICENSE file, NOTICE file, advisory scan, or RFC3339 publication time was re-established by this card. Those fields stay null. Null is not a pass.
+| Package | Version | crates.io published | elapsed_s | age_days | MSRV | Features | Digest |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| arrow | =60.0.0 | 2026-09-15T15:31:03Z | 1950236 | 22 | 1.88 | default off, `ipc` | 234ce58e76c04e8162c2e4bc3fe53fa7c2418ef5fba7bb2838b8531b7d4fbf14 |
+| parquet | =60.0.0 | 2026-09-15T15:32:03Z | 1950176 | 22 | 1.88 | default off, `arrow`, `snap` | 8af83d2940bc0510f9aef86d865f56fdc6095f87ab115ac885a80b7c5226d3ba |
+| rust_xlsxwriter | =0.99.1 | 2026-09-14T07:22:55Z | 2065924 | 23 | 1.88.0 | default off, `zlib` not enabled | 34f2d2cda7223168a14fb86bc7411dbc3379bd7d49749ecc53b91ed98585b6b0 |
+| zip | =8.3.0 | 2026-03-19T16:19:08Z | 17499351 | 202 | 1.88 | dev-only, default off, `deflate` | 4a243cfad17427fc077f529da5a95abe4e94fd2bfdb601611870a6557cc67657 |
 
-## Row A — DuckDB CLI, not duckdb-rs
+`zip` is a dev-dependency so the formula test can read the xlsx. The same version is what `rust_xlsxwriter` 0.99.1 resolves when the requirement `^8.3` is pinned. Its `deflate` feature selects flate2's `zlib-rs` backend, not C zlib.
 
-| Field | Value |
-| --- | --- |
-| Ecosystem | native or image |
-| Name | DuckDB CLI, engine patch recorded separately from any crate version |
-| Version | Not selected. Baseline compiled crate `duckdb` 1.10505.0 feature `bundled` and refused 1.10506.0 for age. That crate must not be added to `oo-analysis` or to `tools/local-analysis`. |
-| Source | Not copied here. Official CLI build would have to name the upstream repository and the exact engine patch. |
-| Manifest | None. A future manifest would be an image digest or a pinned binary path, not a new root Cargo dependency, until reviewers say otherwise. |
-| Publication and adoption | Not established as RFC3339. Seven-day rule is not met by this proposal. |
-| MSRV | Not a Rust crate if the CLI is the artifact. The forbidden `duckdb` crate path is not proposed. |
-| Features | CLI must disable extension auto-install and auto-load, reject remote URIs, and read only the authorized input directory. `default_features_disabled` is not applicable to a CLI and is stated as `not a Cargo crate`. |
-| License | Baseline names MIT for DuckDB and duckdb-rs. This proposal does not attach a LICENSE file, so the SPDX field is null. |
-| Native transitive | The bundled engine is C++. Its LICENSE and NOTICE are not in this proposal. Unknown native licenses mean the row is unfinished. |
-| Digest | None. A floating tag is not a digest. |
-| Advisory | `scan_recorded` false. No `cargo audit`, `cargo deny`, or native scanner was run. |
-| Seven-day exception | Not requested. `OWNER_PENDING` would make it invalid anyway. |
+License evidence:
 
-Intended use after admission, not in this card: spawn that fixed CLI as a child with a private temp directory, no network, no extension install, CPU and memory limits, and kill the child on cancel. Arrow IPC is the boundary if the CLI's Arrow series is not series 60. Do not cast DuckDB Arrow memory into the Rust Arrow 60 types.
+- Arrow and Parquet: Apache-2.0. `https://github.com/apache/arrow-rs/blob/60.0.0/LICENSE.txt`. Repository `https://github.com/apache/arrow-rs`. Series 60 is not resolved with the refused rust `duckdb` crate.
+- `rust_xlsxwriter`: `MIT OR Apache-2.0`. This project relies on Apache-2.0. Both texts are in the tag: `LICENSE_Apache2.0` and `LICENSE_MIT` at `https://github.com/jmcnamara/rust_xlsxwriter/blob/v0.99.1/`. Obligation kept: retain the copyright and license notices.
+- `zip`: MIT. `https://github.com/zip-rs/zip2/blob/v8.3.0/LICENSE`. Obligation kept: retain the copyright notice.
 
-## Row B — Arrow and Parquet series 60
+Enabled features are not a security configuration by themselves. Defaults are off so the C compression stacks on Parquet (brotli, zstd, lz4, flate2) and the C `zlib` feature on the Excel crate stay out.
+
+## DuckDB CLI
+
+Not a Cargo crate. Official asset `duckdb_cli-linux-arm64.gz` from tag `v1.5.6`.
 
 | Field | Value |
 | --- | --- |
-| Ecosystem | cargo |
-| Name | `arrow` and `parquet`, same series |
-| Version | Baseline candidate 60.0.0. Not in the workspace lock. |
-| Source | crates.io, repository not re-read for this proposal |
-| Manifest | Would be a reviewed manifest. This card must not edit the root lock. |
-| Features | Not selected. Default features are not a security configuration and are not declared off, because the row is not filled. |
-| Series rule | Do not force series 60 into the same resolve as `duckdb` 1.10505.0, which resolved Arrow 58.4.0 in the baseline probe. |
-| License, digest, advisory, publication | Null. Not admissible. |
+| Archive URL | `https://github.com/duckdb/duckdb/releases/download/v1.5.6/duckdb_cli-linux-arm64.gz` |
+| Archive updated | 2026-09-28T13:36:15Z |
+| Archive bytes | 19200830 |
+| Archive SHA-256 | `1af0541e649a3ae34eb20eec2ca564308bf0e8993e5d6dba6be77bfb289a2718` |
+| Unpacked bytes | 54304672 |
+| Unpacked SHA-256 | `c0ac0b79e243ee312b3af29c34ac0b94e518aa44c4345036d5d96c1c042c9d48` |
+| Version string | `v1.5.6 (Variegata) 069cc9f9b5` |
+| License | MIT. `https://github.com/duckdb/duckdb/blob/v1.5.6/LICENSE` |
+| Age | elapsed 833924 seconds, 9 days |
+| MSRV | not a Rust crate |
 
-## Row C — Excel writer
+The binary is the upstream build. This card does not compile DuckDB's C++ tree. The tool refuses any other unpacked digest. Runtime SQL sets one thread, a 256MB memory limit, disables extension auto-install and auto-load, allowlists only the private temp directory, sets `enable_external_access` false, then locks configuration. A probe on 2026-10-08 showed `enable_external_access` false without the allowlist cannot `read_parquet`, and the same setting with the allowlist can. The child environment is cleared. Cancel kills the child.
 
-`calamine` 0.36.1 is a baseline read candidate. It does not write xlsx. This proposal does not name an unreviewed writer crate as the selection. A writer still needs every policy section 1 field, including native ZIP transitive licenses if the crate vendors them. Until that record is audited, `local-analysis` exits `xlsx` and writes no workbook. Formula safety for Excel remains an unmet AT-API-04 check. The CSV apostrophe rule is not an Excel implementation.
+## CJK font
 
-## Row D — CJK font
+Noto Sans CJK SC, tag Sans2.004. Not a Rust crate. Not linked into the binary. The chart copies the verified Regular OTF next to the SVG.
 
-The chart text is UTF-8 because the SVG is generated in Rust. No font file is shipped. A future image row would name Noto CJK or Source Han Sans with an immutable digest, a LICENSE file, and an offline package list. Publication time is not established here. The SVG `font-family` string is not that package.
+| Field | Value |
+| --- | --- |
+| Archive URL | `https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/08_NotoSansCJKsc.zip` |
+| Archive updated | 2022-03-20T06:35:14Z |
+| Archive bytes | 94523633 |
+| Archive SHA-256 | `a927e56f53bd6c3b920bc139c0b94aa36c7d9ad0cf009b159437a1a003581140` |
+| File | `NotoSansCJKsc-Regular.otf` |
+| File bytes | 16437364 |
+| File SHA-256 | `2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b` |
+| License | OFL-1.1 |
+| Age | elapsed 143678385 seconds, 1662 days |
 
-## What a reviewer would still have to do
+OFL-1.1 obligations that still apply: keep the copyright and license with the font, do not sell the font by itself, and do not use the reserved font name for a modified font. This card does not modify the font. `audited` stays false.
 
-Fill every null field from the package's own LICENSE, NOTICE, checksum, and an advisory scan. Set `audited` true only after that evidence exists. Appointed owners are required for any seven-day exception. This card does not set `audited` and does not assign reviewers.
+## What this record is not
 
-## What this card built instead
-
-`tools/local-analysis` has no registry dependency. Its lock is the package itself. That is independent work while these rows are open. The manifest field `closes_sp09_w05` is false.
+It is not owner approval. It is not a baseline edit. `closes_sp09_w05` stays false. Transitive crate checksums beyond the four direct pins are the child `Cargo.lock` produced by one `cargo generate-lockfile` in the private builder, then `--locked`. That is not `cargo update` and it is not a root lock change.

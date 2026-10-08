@@ -1,0 +1,12 @@
+{
+  "name": "duckdb-cli",
+  "version": "1.5.6",
+  "target": "linux-arm64-glibc",
+  "archive_url": "https://github.com/duckdb/duckdb/releases/download/v1.5.6/duckdb_cli-linux-arm64.gz",
+  "archive_sha256": "1af0541e649a3ae34eb20eec2ca564308bf0e8993e5d6dba6be77bfb289a2718",
+  "archive_bytes": 19200830,
+  "archive_updated_at": "2026-09-28T13:36:15Z",
+  "unpacked_sha256": "c0ac0b79e243ee312b3af29c34ac0b94e518aa44c4345036d5d96c1c042c9d48",
+  "license": "MIT",
+  "audited": false
+}

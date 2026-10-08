@@ -129,7 +129,7 @@ pub fn load_export(dir: &Path) -> Result<Export, Fault> {
         && end_audit_ok
         && facts.rollback_confirmed
         && !facts.socket_dropped;
-    if complete != clean || partial != !complete {
+    if complete != clean || partial == complete {
         return Err(Fault::source());
     }
     Ok(Export {

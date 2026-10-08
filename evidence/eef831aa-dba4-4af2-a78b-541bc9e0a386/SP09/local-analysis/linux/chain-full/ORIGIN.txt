@@ -1,0 +1,3 @@
+Continuation of linux/chain. That directory keeps the rust_exact run and the exit-3 refusals.
+This directory is the live PostgreSQL export through Parquet, Arrow, DuckDB, Excel, and the Chinese chart.
+Scripts are the reviewed chain with the analysis tail replaced. Native CLI and font come from the pinned volume.

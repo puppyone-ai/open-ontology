@@ -1,0 +1,12 @@
+{
+  "name": "Noto Sans CJK SC",
+  "version": "Sans2.004",
+  "file_name": "NotoSansCJKsc-Regular.otf",
+  "archive_url": "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/08_NotoSansCJKsc.zip",
+  "archive_bytes": 94523633,
+  "archive_updated_at": "2022-03-20T06:35:14Z",
+  "archive_sha256": "a927e56f53bd6c3b920bc139c0b94aa36c7d9ad0cf009b159437a1a003581140",
+  "otf_sha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+  "license": "OFL-1.1",
+  "audited": false
+}

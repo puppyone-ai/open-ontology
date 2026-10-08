@@ -4,56 +4,46 @@ UUID `eef831aa-dba4-4af2-a78b-541bc9e0a386`. Plan item SP09-W05.
 
 ## Verdict
 
-The card stays incomplete. `closes_sp09_w05` is false in every manifest this run wrote. This card does not accept itself, and it does not accept SP09, AT-API-04, or the parent goal. Codex updates the ledger. The ledger was not edited.
+This card ran the local path from a fresh private PostgreSQL export through Parquet, Arrow IPC, the pinned DuckDB CLI, formula-safe CSV, Excel written as text, a Chinese SVG with the pinned font, a source manifest, early cancel, and a missing-CLI failure. `closes_sp09_w05` is false in every manifest. `audited` is false. `reviewers_assigned` is empty. This card does not sign itself, and it does not accept SP09, AT-API-04, or the parent goal. Codex updates the ledger. The ledger was not edited.
 
-What ran is the `rust_exact` loop: a fresh private PostgreSQL 17.10 query, the frozen `query-pg` and `query-result-export` producers, hash and lineage binding, exact decimal group sums, formula-safe CSV, a native Chinese SVG, a source manifest, cooperative cancel, and refusals for DuckDB, xlsx, and parquet. DuckDB CLI, Arrow, Parquet, an Excel writer, a bundled CJK font file, and a kill of a native child remain unmet. `tools/local-analysis/DEPENDENCY-PROPOSAL.md` is a proposal with `audited` false. It admits nothing.
+`tools/local-analysis/DEPENDENCY-PROPOSAL.md` records the pinned child dependencies. It is a proposal. It is not an owner audit and it does not edit `supply-chain/dependency-baseline.json`.
+
+`linux/chain/` keeps the earlier `rust_exact` run, whose `analysis-exits.txt` ends `parquet=3 xlsx=3 engine=3`. That record is unchanged. `linux/chain-full/` is the later run that writes the real files.
 
 ## Producers
 
-Producer commit `21cc96241a841b47dbbcb116549030e38a643ba0`. Exporter commit `62b4afecdd377fa94310f46467c48a01e61d14db`. Both were `git archive` inputs. Root lock before and after the chain is `b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474`.
+Producer commit `21cc96241a841b47dbbcb116549030e38a643ba0`. Exporter commit `62b4afecdd377fa94310f46467c48a01e61d14db`. Both were `git archive` inputs. Root lock before and after both chains is `b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474`.
 
-Recipe origins are the comments in `pg/up.sh`, `linux/chain/launch.sh`, and `linux/chain/inside.sh`. The a344 chain script SHA-256 cited there is `292a700bb0a323de575e51738f46158f108c41dd676378b0121319e2631171a9`. The PG script origin SHA-256 is `9ddc412a92f5c96dbcaaf8871d284f0a4fcccf5f05be330396b395bd2ab89d78`. This card changed owner labels to `oo.owner=a386`, resource names, the request host `oo-a386-pg`, and appended the local-analysis phase.
+The child lock is `tools/local-analysis/Cargo.lock`. `linux/full-test/generate-lockfile.exit` is 0. It was not regenerated afterward. Direct checksums match the proposal: arrow `234ce58e76c04e8162c2e4bc3fe53fa7c2418ef5fba7bb2838b8531b7d4fbf14`, parquet `8af83d2940bc0510f9aef86d865f56fdc6095f87ab115ac885a80b7c5226d3ba`, rust_xlsxwriter `34f2d2cda7223168a14fb86bc7411dbc3379bd7d49749ecc53b91ed98585b6b0`, zip `4a243cfad17427fc077f529da5a95abe4e94fd2bfdb601611870a6557cc67657`. Features stay `arrow` ipc, `parquet` arrow+snap, `rust_xlsxwriter` with default features off, and dev `zip` 8.3.0 deflate. No brotli, zstd, lz4, or C zlib feature is enabled.
+
+DuckDB is the upstream CLI 1.5.6 linux-arm64 glibc asset, archive SHA-256 `1af0541e649a3ae34eb20eec2ca564308bf0e8993e5d6dba6be77bfb289a2718`, unpacked SHA-256 `c0ac0b79e243ee312b3af29c34ac0b94e518aa44c4345036d5d96c1c042c9d48`. The font is Noto Sans CJK SC Regular from Sans2.004, OTF SHA-256 `2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b`. Those binaries live on the private volume and are not in git. The chart copy’s digest is in this report and in `SHA256SUMS`. The 16 MiB file is gitignored.
 
 ## Private PostgreSQL
 
-`pg/up.exit` is 0. Server version `17.10 (Debian 17.10-1.pgdg12+1)`. Container `oo-a386-pg`, id `42b2fa236b839fa3d95d39cc9f1ed5394947d40a8f933e215483280496a2720e`. Memory 1073741824, NanoCpus 1000000000, privileged false, network `oo-a386-eef831aa-net`, published ports `{}`. CapDrop ALL, with CHOWN, DAC_OVERRIDE, FOWNER, SETGID, and SETUID added back for the database entrypoint. Certificate SAN is `DNS:oo-a386-pg`. Secrets stayed under `/tmp/oo-a386-eef831aa-dba4-4af2-a78b-541bc9e0a386/secrets`. A scan of this evidence tree found none of those secret bytes.
+The second `pg/up.exit` is 0. Server version `17.10 (Debian 17.10-1.pgdg12+1)`. Container `oo-a386-pg`, id `29fe08709fa2a61f249265a4a4b817b4eba58243d69067bd0942b474c257ef1d`. Memory 1073741824, NanoCpus 1000000000, privileged false, network `oo-a386-eef831aa-net`, no published port. CapDrop ALL, with CHOWN, DAC_OVERRIDE, FOWNER, SETGID, and SETUID added for the database entrypoint. SAN `DNS:oo-a386-pg`. The first container id `42b2fa236b839fa3d95d39cc9f1ed5394947d40a8f933e215483280496a2720e` is in `pg/first-run/`. Secrets stayed under `/tmp/oo-a386-eef831aa-dba4-4af2-a78b-541bc9e0a386/secrets` until cleanup. A scan of this evidence tree found no password or private-key bytes. The public SAN template in `pg/up.sh` is the text that script writes to `san.cnf`.
 
-## Chain
+## Focused Rust run
 
-`linux/chain/docker-run.exit` is 0. `linux/chain/chain.exit` is 0. Launch elapsed about 375 seconds. HostConfig: ExitCode 0, OOMKilled false, Privileged false, NetworkMode `oo-a386-eef831aa-net`, CapDrop ALL, Memory 6442450944, NanoCpus 1000000000. Container `oo-a386-chain` was removed. Capacity recorded before the run: host cargo 0, rust builders 2 (`oo-g3-a352-m7-rust`, `oo-a389-chain`), own builder 0. Those other containers were not touched.
+`linux/full-test/test.exit` is 0. `linux/full-test/clippy.exit` is 0. `linux/full-test/fetch.exit` is 0. `components.txt` lists `clippy-aarch64-unknown-linux-gnu`. The suite is 8 library tests, 8 API tests, and 3 CLI tests, including the pinned DuckDB sum and `prove_native_cancel`. HostConfig for `oo-a386-full-test`: ExitCode 0, OOMKilled false, Privileged false, NetworkMode `oo-a386-eef831aa-net`, CapDrop ALL, Memory 6442450944, NanoCpus 1000000000. The native volume mount was read-only.
 
-`linux/chain/test-live.log` records `test a327_live::live_numeric_proof ... ok`. Phase exits under `linux/chain/phases/` are 0, including `fetch`, `build-pipeline`, `build-builder`, `build-gateway`, `build-exporter`, `test-live`, `export`, `gold-complete`, `gold-partial`, `gold-formula`, `lock-hash`, `lineage-complete`, `lineage-partial`, and `analysis-proof`.
+Earlier attempts stay in `linux/full-test/failed-attempt-1` (offline test before fetch, exit 101) and `failed-attempt-2` (`Cursor` is not a Parquet `ChunkReader`, plus Clippy `-D warnings`). `linux/test/clippy.exit` remains 1 from the image that had no Clippy component.
 
-This run's complete stdout is 1527 bytes, SHA-256 `15ba2ac4a9ac5e86218741a119cb944e0098f88137c4292eb6aceeed2f5b4001`. The reviewed a344 stdout of the same length hashed to `20623e7dc575b618223ac383ceb1b2e9a9e3f9efc1695c58ea2373bcaff4b3eb`. The bytes differ. The exported CSV is 208 bytes, SHA-256 `f5b287fff0d197d55a1d67893178ff7e68ed5a1338830d24ea8fe0f11db2ca3d`, the same digest as that reviewed CSV, and `gold-complete.txt` says `gold_match=1`. Partial stdout is 616 bytes, SHA-256 `dde246f432828b2179176c58644688ec1cdb01efb7cb3b5449fd25f0b69c5b04`. The unit-test fixture copy was not the input of this chain.
+## Live chain
 
-Audit `audits/amounts.jsonl` is 1044 bytes, SHA-256 `654c199a101fc0a864c211b7df6a838f4457776c554f308c3a7dd2dcfa6f82b2`. `lineage-file` embedded those exact bytes. Derived query id is `q_49b26b99a4752eca`. Role `oo_r_clerk`. Project `a327num`. Original SQL SHA-256 `466f22e579afe5252e78ae6cffca1da0a9c4630ba8cb63440a0fc9b7a9c6957a`. Executed SHA-256 `034855baad1325ac740d6706f83a42f02549f26096fb37a14aabe0af328f0d9a`. Authorization in the manifest is `not_claimed`. Authenticated is false.
+`linux/chain-full/docker-run.exit` is 0. `linux/chain-full/chain.exit` is 0. `linux/chain-full/analysis-proof.txt` is `ok`. `linux/chain-full/clippy.exit` is 0. The successful launch took about 24 seconds on the warm cargo and target volumes. HostConfig: ExitCode 0, OOMKilled false, Privileged false, NetworkMode `oo-a386-eef831aa-net`, CapDrop ALL, Memory 6442450944, NanoCpus 1000000000. Capacity before launch: host cargo 0, rust builders 0. `test-live.log` records `test a327_live::live_numeric_proof ... ok`. Phase exits under `linux/chain-full/phases/` are 0.
 
-## Analysis results
-
-Binary `/target/debug/local-analysis`, SHA-256 `8958cd849cba266be4c1b26e2041dfa1a0f3226f8b4f51dd0cf5eac853983d6a`, the binary built by the earlier locked unit test. `analysis-exits.txt`:
+`analysis-exits.txt`:
 
 ```
-amount=0 wide=0 partial=1 cancel=1 parquet=3 xlsx=3 engine=3
+amount=0 wide=0 partial=1 cancel=1 engine=3
 ```
 
-`analysis-proof.txt` is `ok`.
+Amount is the full request: `engine=duckdb`, `parquet=true`, `xlsx=true`, pinned CLI `/native/duckdb`, pinned font. Stdout and stderr for that command are empty. CSV SHA-256 `2edb40e84bc45e0391474c745933839d410282614c337b164ce66f53476a9a8a` (95 bytes), the same bytes as the earlier exact sum. SVG SHA-256 `c30c555c31a51c5c2eef7eb1aa9faf7e9f085a21a1d2d218ea1796fb3a42ffb1`. It contains `数值已核对`, `DuckDB合计与精确十进制一致`, `字体已校验`, and one `http` URL, the SVG namespace. Parquet starts with `PAR1`, SHA-256 `6aa8df17972af47011a70b3740d54b29b59b0a6744ccb4ae1ea9b2f7d62bbdd6`. Arrow contains `ARROW1`, SHA-256 `710459e4473d5b282d841a2f01b1652903b17d1b57f9f70b553ce4269efbe462`. Workbook SHA-256 `004ea50935522fd618546e3b7d70eaf61202464046c407d2559777e8885361c0`. `xlsx-scan.exit` is 0 and `xlsx-scan.txt` is `xlsx_scan_ok`: the inflated XML contains `12345678901234.5678` and contains no `<f>` formula element. Manifest SHA-256 `91301d61c94bc872558bc18feeb592683b6bf26fe49b4b6adf641555cc8f0c80`. Query id `q_49b26b99a4752eca`. Engine `duckdb`. Statuses `pinned_unaudited`. `audited` false. `closes_sp09_w05` false. DuckDB binary SHA-256 in the manifest is the unpacked CLI digest above.
 
-Amount sum CSV is 95 bytes, SHA-256 `2edb40e84bc45e0391474c745933839d410282614c337b164ce66f53476a9a8a`, six CRLF records, no BOM, no apostrophe. Groups 1 through 5 keep `12345678901234.5678`, the leading minus on group 2, `0.0001`, `-0.0001`, and `0.0000`. Group 6 is omitted. Manifest `null_values` is 1 and `null_groups` is 0. The SVG is 1930 bytes, SHA-256 `1cda8f30081343928ec59d69dc63e68d3e3bdc175640bc0a3f1ffb6f627a5ebf`, title `金额`, desc `数值已核对。DuckDB、Arrow、Excel未准入。字体未随包提供。` Bar widths are 400, 400, 1, 1, and 0. The only `http://` URL is the SVG namespace. No `script`, `foreignObject`, or `href`.
+Wide stays `rust_exact` and keeps the 38-digit values. Partial stderr is `local-analysis: uncited`. Cancel stderr is `local-analysis: canceled` and the cancel directory has no files. A DuckDB request without a CLI exits 3 with `local-analysis: engine` and leaves `keep.txt`.
 
-Wide sum CSV is 133 bytes, SHA-256 `813f62ae845d4acf058403b60dcdb70e4e9af32ede60d850db045e555afbbb3f`. It keeps `1234567890123456789012345678901234.5678` and the same text with a leading minus, with no apostrophe. The chart title is `宽金额`.
+The first `linux/chain-full` launch exited 1 after about 358 seconds. Every producer phase was 0 and the five analysis commands had already returned `amount=0 wide=0 partial=1 cancel=1 engine=3`. The proof stopped at `xlsx-amount` because `grep` cannot see DEFLATE XML. That console and the small outputs are in `linux/chain-full/failed-attempt-1/`.
 
-The truncated export wrote an analysis and exited 1. Stderr is exactly `local-analysis: uncited`. The SVG contains `不可引用` and does not contain `数值已核对`. Manifest `citable` is false and `closes_sp09_w05` is false.
+This run’s complete stdout is 1527 bytes, SHA-256 `15ba2ac4a9ac5e86218741a119cb944e0098f88137c4292eb6aceeed2f5b4001`. Export CSV is 208 bytes, SHA-256 `f5b287fff0d197d55a1d67893178ff7e68ed5a1338830d24ea8fe0f11db2ca3d`. `gold-complete.txt` says `gold_match=1 kind=complete`. Audit `audits/amounts.jsonl` is 1044 bytes, SHA-256 `b0579351099153df2a5076c4744018f6fe3d71bbfb7dfe590aee3289e3307bb5`. The binary is `/target/la/debug/local-analysis`, SHA-256 `0ddd38f7bb1f0cf73eaa75abab77ccc07f0b09b2689d3948186ce773e587f5ea`.
 
-Cancel exited 1. Stderr is exactly `local-analysis: canceled`. `out/analysis-cancel` received no file. Parquet, xlsx, and DuckDB exited 3 with stderr `parquet`, `xlsx`, and `engine`. Each refusal directory still contains only `keep.txt`. No `analysis.*` name was created there. Successful directories contain no `.partial` residue.
-
-## Unit tests and Clippy
-
-Smoke `linux/smoke/smoke.exit` is 0 before product edits. Locked offline `cargo test --all-targets` in `linux/test` passed 7 library tests, 0 binary tests, 6 API tests, and 3 CLI tests. `test.exit` is 0. The pinned image has no Clippy component. `cargo clippy` exited 1 with `cargo-clippy is not installed` for `1.94.0-aarch64-unknown-linux-gnu`. `clippy.exit` is 1 and `docker-run.exit` is 1 for that reason. No component was installed. Clippy is not claimed.
-
-## Failed attempts kept
-
-- `linux/smoke/failed-attempt-1`: tmpfs `noexec` and a missing `pipefail` made the first smoke look successful while the probe did not run.
-- `linux/test/failed-attempt-1`: `svg.rs` borrow error E0502. Exit 101.
-- `linux/test/failed-attempt-2`: `Staged` lacked `Debug`, and `Export.turn` was unread. Exit 101.
-
-The chain had no failed attempt.
+Charts to open: `linux/chain-full/out/analysis/analysis.svg` and `linux/chain-full/out/analysis-wide/analysis.svg`. The font file beside the first chart is `NotoSansCJKsc-Regular.otf`.

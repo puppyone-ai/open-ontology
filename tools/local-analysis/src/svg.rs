@@ -9,21 +9,29 @@ pub struct Chart {
     pub label_omitted: bool,
 }
 
-pub fn render(title: &str, query_id: &str, citable: bool, groups: &[Group]) -> Result<Chart, Fault> {
+pub fn render(
+    title: &str,
+    query_id: &str,
+    citable: bool,
+    groups: &[Group],
+    duckdb: bool,
+    font: bool,
+) -> Result<Chart, Fault> {
     let (title_xml, title_omitted) = xml_text(title);
     let (id_xml, id_omitted) = xml_text(query_id);
     let mut omitted = title_omitted || id_omitted;
-    let desc = if citable {
-        "数值已核对。DuckDB、Arrow、Excel未准入。字体未随包提供。"
-    } else {
-        "不可引用。DuckDB、Arrow、Excel未准入。字体未随包提供。"
-    };
+    let desc = describe(citable, duckdb, font);
     let height = 72 + groups.len().max(1) * 36;
     let mut body = String::new();
     body.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     body.push_str(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1280\" height=\"{height}\" viewBox=\"0 0 1280 {height}\">\n"
     ));
+    if font {
+        body.push_str(
+            "<style>@font-face{font-family:'Noto Sans CJK SC';src:url('NotoSansCJKsc-Regular.otf') format('opentype');}</style>\n",
+        );
+    }
     body.push_str("<rect width=\"1280\" height=\"100%\" fill=\"#f7f4ef\"/>\n");
     body.push_str(&format!("<title>{title_xml}</title>\n<desc>{desc}</desc>\n"));
     body.push_str(&format!(
@@ -71,6 +79,19 @@ pub fn render(title: &str, query_id: &str, citable: bool, groups: &[Group]) -> R
         bytes: body.into_bytes(),
         label_omitted: omitted,
     })
+}
+
+fn describe(citable: bool, duckdb: bool, font: bool) -> &'static str {
+    match (citable, duckdb, font) {
+        (true, false, false) => "数值已核对。本运行未调用DuckDB。字体未随包提供。",
+        (false, false, false) => "不可引用。本运行未调用DuckDB。字体未随包提供。",
+        (true, true, true) => "数值已核对。DuckDB合计与精确十进制一致。字体已校验。",
+        (false, true, true) => "不可引用。DuckDB合计与精确十进制一致。字体已校验。",
+        (true, false, true) => "数值已核对。本运行未调用DuckDB。字体已校验。",
+        (false, false, true) => "不可引用。本运行未调用DuckDB。字体已校验。",
+        (true, true, false) => "数值已核对。DuckDB合计与精确十进制一致。字体未随包提供。",
+        (false, true, false) => "不可引用。DuckDB合计与精确十进制一致。字体未随包提供。",
+    }
 }
 
 fn scaled_coefficients(groups: &[Group]) -> Result<Vec<String>, Fault> {

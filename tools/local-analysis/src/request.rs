@@ -21,6 +21,8 @@ pub struct Request {
     pub parquet: bool,
     pub xlsx: bool,
     pub duckdb: bool,
+    pub duckdb_cli: Option<String>,
+    pub font_file: Option<String>,
 }
 
 pub fn load_request(path: &Path) -> Result<Request, Fault> {
@@ -61,6 +63,8 @@ pub fn load_request(path: &Path) -> Result<Request, Fault> {
     };
     let xlsx = take_bool(&mut fields, "xlsx")?;
     let parquet = take_bool(&mut fields, "parquet")?;
+    let duckdb_cli = take_optional_string(&mut fields, "duckdb_cli")?;
+    let font_file = take_optional_string(&mut fields, "font_file")?;
     json::finish(&fields).map_err(|()| Fault::request())?;
     Ok(Request {
         export_dir,
@@ -76,7 +80,20 @@ pub fn load_request(path: &Path) -> Result<Request, Fault> {
         parquet,
         xlsx,
         duckdb,
+        duckdb_cli,
+        font_file,
     })
+}
+
+fn take_optional_string(fields: &mut Vec<(String, Json)>, key: &str) -> Result<Option<String>, Fault> {
+    if !fields.iter().any(|(name, _)| name == key) {
+        return Ok(None);
+    }
+    match json::take(fields, key).map_err(|()| Fault::request())? {
+        Json::Null => Ok(None),
+        Json::String(text) if !text.is_empty() => Ok(Some(text)),
+        _ => Err(Fault::request()),
+    }
 }
 
 fn label(text: &str) -> Result<(), Fault> {

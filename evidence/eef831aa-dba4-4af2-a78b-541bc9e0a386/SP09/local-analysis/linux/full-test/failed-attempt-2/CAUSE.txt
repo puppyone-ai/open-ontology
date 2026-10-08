@@ -1,0 +1,3 @@
+fetch.exit 0. Dependencies compiled. lib test failed: ParquetRecordBatchReaderBuilder::try_new requires ChunkReader, and Cursor<Vec<u8>> does not implement it (File and bytes::Bytes do).
+clippy.exit 101 from -D warnings: unused Columns.scale, manual_range_contains, collapsible_if in sha256.rs and lib.rs, nonminimal_bool in source.rs.
+The product library typechecked aside from that unused field.

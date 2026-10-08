@@ -1,9 +1,12 @@
 removed container oo-a386-pg
-removed volumes oo-a386-eef831aa-cargo oo-a386-eef831aa-pgdata oo-a386-eef831aa-target
+removed container oo-a386-full-test
+removed volumes oo-a386-eef831aa-cargo oo-a386-eef831aa-target oo-a386-eef831aa-native oo-a386-eef831aa-pgdata
 removed network oo-a386-eef831aa-net
 removed /tmp/oo-a386-eef831aa-dba4-4af2-a78b-541bc9e0a386
-oo-a386-chain was already removed by linux/chain/launch.sh
-after: no oo.owner=a386 container, volume, or network
+oo-a386-chain-full was already removed by linux/chain-full/launch.sh
+after: own_containers=0 own_volumes=0 own_networks=0
 secrets_removed
-left running and untouched: oo-a384-pg, oo-a389-pg, oo-a373-pg
+non_template_secret_hits=0
+san.cnf overlap is the public template inside pg/up.sh
+left untouched: oo-a373-pg, oo-a383-pg, oo-a395-build, oo-a373-rust, oo-a383-rust, oo-a064-pg1710-jobs, oo-a064-rust194-contract, oo-a064-rust194-contract2, oo-a064-rust194-smoke
 no prune

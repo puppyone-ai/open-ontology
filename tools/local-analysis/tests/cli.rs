@@ -55,39 +55,31 @@ fn help_is_exit_zero_and_other_shapes_are_usage() {
 }
 
 #[test]
-fn admission_flags_refuse_before_paths_and_keep_parquet_first() {
+fn duckdb_without_a_cli_is_engine_before_paths_exist() {
     let dir = scratch("flags");
     let common = r#""export_dir":"missing","lineage_file":"missing","output_dir":"missing","operation":"sum","group_column":0,"value_column":1,"group_header":"g","value_header":"v","chart_title":"t","cancel_file":null"#;
-    let parquet = request(
+    let engine = request(
         &dir,
         &format!(
             r#"{{"version":"oo.local-analysis/v1",{common},"engine":"duckdb","xlsx":true,"parquet":true}}"#
         ),
     );
     assert_status(
-        Command::new(bin()).arg("--request").arg(&parquet).output().unwrap(),
-        3,
-        Some("parquet"),
-    );
-    let xlsx = request(
-        &dir,
-        &format!(
-            r#"{{"version":"oo.local-analysis/v1",{common},"engine":"duckdb","xlsx":true,"parquet":false}}"#
-        ),
-    );
-    assert_status(
-        Command::new(bin()).arg("--request").arg(&xlsx).output().unwrap(),
-        3,
-        Some("xlsx"),
-    );
-    let engine = request(
-        &dir,
-        &format!(
-            r#"{{"version":"oo.local-analysis/v1",{common},"engine":"duckdb","xlsx":false,"parquet":false}}"#
-        ),
-    );
-    assert_status(
         Command::new(bin()).arg("--request").arg(&engine).output().unwrap(),
+        3,
+        Some("engine"),
+    );
+    let wrong = dir.join("not-the-cli");
+    fs::write(&wrong, b"not a duckdb binary").unwrap();
+    let mismatch = request(
+        &dir,
+        &format!(
+            r#"{{"version":"oo.local-analysis/v1",{common},"engine":"duckdb","xlsx":true,"parquet":true,"duckdb_cli":"{}","font_file":null}}"#,
+            wrong.display()
+        ),
+    );
+    assert_status(
+        Command::new(bin()).arg("--request").arg(&mismatch).output().unwrap(),
         3,
         Some("engine"),
     );

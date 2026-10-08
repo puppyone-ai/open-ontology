@@ -58,7 +58,8 @@ openssl x509 -req -in "$SEC/server.csr" -CA "$SEC/ca.crt" -CAkey "$SEC/ca.key" -
 chmod 600 "$SEC"/*
 chmod 644 "$SEC/ca.crt" "$SEC/server.crt"
 chmod 600 "$SEC/server.key" "$SEC/ca.key" "$SEC/admin.pass" "$SEC/reader.pass" "$SEC/runtime.pass" "$SEC/login.pass"
-openssl x509 -in "$SEC/server.crt" -noout -subject -ext subjectAltName > "$OUT/server-san.txt"
+# LibreSSL x509 has no -ext. Record the SAN from the text form.
+openssl x509 -in "$SEC/server.crt" -noout -subject -text | awk 'BEGIN{p=0} /Subject Alternative Name/{p=1} p{print} /^$/{if(p) exit}' > "$OUT/server-san.txt"
 printf '%s\n' "$SEC" > "$OUT/secrets-path.txt"
 
 if docker volume inspect "$DATAVOL" >/dev/null 2>&1; then

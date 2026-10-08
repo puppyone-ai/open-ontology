@@ -1,0 +1,4 @@
+Permission Error: Cannot access file "/work/p/in.parquet" - file system operations are disabled by configuration
+
+LINE 1: ...) AS VARCHAR) AS amount FROM read_parquet('/work/p/in.parquet') GROUP BY group_key ORDER BY MIN(ordinal);
+                                                                         ^

@@ -22,3 +22,10 @@ pub const SIDECAR_NAME: &str = "export.sidecar.json";
 pub const OUT_CSV: &str = "analysis.csv";
 pub const OUT_SVG: &str = "analysis.svg";
 pub const OUT_MANIFEST: &str = "analysis.manifest.json";
+pub const OUT_PARQUET: &str = "analysis.parquet";
+pub const OUT_ARROW: &str = "analysis.arrow";
+pub const OUT_XLSX: &str = "analysis.xlsx";
+pub const OUT_FONT: &str = "NotoSansCJKsc-Regular.otf";
+
+pub const MAX_CLI_BYTES: usize = 100_000_000;
+pub const MAX_FONT_BYTES: usize = 64_000_000;

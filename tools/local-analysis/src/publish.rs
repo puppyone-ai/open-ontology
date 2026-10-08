@@ -3,38 +3,20 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use crate::fault::Fault;
-use crate::limits::{OUT_CSV, OUT_MANIFEST, OUT_SVG};
 use crate::path;
 
-pub fn ensure_available(dir: &Path) -> Result<(), Fault> {
+pub fn ensure_available(dir: &Path, names: &[&str]) -> Result<(), Fault> {
     let dir = path::require_dir(dir)?;
-    for path in names(&dir).iter().chain(partials(&dir).iter()) {
-        path::require_absent(path)?;
+    for name in names {
+        path::require_absent(&dir.join(name))?;
+        path::require_absent(&dir.join(format!("{name}.partial")))?;
     }
     Ok(())
 }
 
-pub fn publish(
-    dir: &Path,
-    csv: &[u8],
-    svg: &[u8],
-    manifest: &[u8],
-    cancel: Option<&Path>,
-) -> Result<(), Fault> {
-    let staged = stage(dir, csv, svg, manifest, true)?;
+pub fn publish(dir: &Path, files: &[(&str, &[u8])], cancel: Option<&Path>) -> Result<(), Fault> {
+    let staged = stage(dir, files, true)?;
     commit(staged, cancel)
-}
-
-fn names(dir: &Path) -> [PathBuf; 3] {
-    [dir.join(OUT_CSV), dir.join(OUT_SVG), dir.join(OUT_MANIFEST)]
-}
-
-fn partials(dir: &Path) -> [PathBuf; 3] {
-    [
-        dir.join(format!("{OUT_CSV}.partial")),
-        dir.join(format!("{OUT_SVG}.partial")),
-        dir.join(format!("{OUT_MANIFEST}.partial")),
-    ]
 }
 
 #[derive(Debug)]
@@ -43,24 +25,20 @@ struct Staged {
     finals: Vec<PathBuf>,
 }
 
-fn stage(
-    dir: &Path,
-    csv: &[u8],
-    svg: &[u8],
-    manifest: &[u8],
-    precheck: bool,
-) -> Result<Staged, Fault> {
+fn stage(dir: &Path, files: &[(&str, &[u8])], precheck: bool) -> Result<Staged, Fault> {
     let dir = path::require_dir(dir)?;
-    let finals = names(&dir);
-    let partials = partials(&dir);
+    let finals: Vec<PathBuf> = files.iter().map(|(name, _)| dir.join(name)).collect();
+    let partials: Vec<PathBuf> = files
+        .iter()
+        .map(|(name, _)| dir.join(format!("{name}.partial")))
+        .collect();
     if precheck {
         for path in finals.iter().chain(partials.iter()) {
             path::require_absent(path)?;
         }
     }
-    let payloads = [csv, svg, manifest];
     let mut created = Vec::new();
-    for (path, bytes) in partials.iter().zip(payloads) {
+    for (path, (_, bytes)) in partials.iter().zip(files) {
         let mut file = match OpenOptions::new().write(true).create_new(true).open(path) {
             Ok(file) => file,
             Err(err) => {
@@ -74,10 +52,7 @@ fn stage(
             return Err(fault);
         }
     }
-    Ok(Staged {
-        partials: partials.to_vec(),
-        finals: finals.to_vec(),
-    })
+    Ok(Staged { partials, finals })
 }
 
 fn commit(staged: Staged, cancel: Option<&Path>) -> Result<(), Fault> {
@@ -134,20 +109,25 @@ mod tests {
     use std::path::PathBuf;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "oo-a386-publish-{name}-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("oo-a386-publish-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    fn files<'a>(csv: &'a [u8], svg: &'a [u8], manifest: &'a [u8]) -> [(&'a str, &'a [u8]); 3] {
+        [
+            ("analysis.csv", csv),
+            ("analysis.svg", svg),
+            ("analysis.manifest.json", manifest),
+        ]
     }
 
     #[test]
     fn precheck_leaves_an_existing_final_and_creates_nothing() {
         let dir = scratch("precheck");
         fs::write(dir.join("analysis.csv"), b"keep").unwrap();
-        let err = publish(&dir, b"a", b"b", b"c", None).unwrap_err();
+        let err = publish(&dir, &files(b"a", b"b", b"c"), None).unwrap_err();
         assert_eq!(err, Fault::path());
         assert_eq!(fs::read(dir.join("analysis.csv")).unwrap(), b"keep");
         assert!(!dir.join("analysis.csv.partial").exists());
@@ -161,7 +141,7 @@ mod tests {
     fn blocked_later_create_removes_only_the_name_this_call_made() {
         let dir = scratch("residue");
         fs::create_dir(dir.join("analysis.svg.partial")).unwrap();
-        let err = stage(&dir, b"csv", b"svg", b"manifest", false).unwrap_err();
+        let err = stage(&dir, &files(b"csv", b"svg", b"manifest"), false).unwrap_err();
         assert_eq!(err, Fault::path());
         assert!(!dir.join("analysis.csv.partial").exists());
         assert!(dir.join("analysis.svg.partial").is_dir());
@@ -173,7 +153,7 @@ mod tests {
     fn cancel_after_partials_removes_them_before_rename() {
         let dir = scratch("cancel");
         let cancel = dir.join("stop");
-        let staged = stage(&dir, b"csv\r\n", b"<svg/>\n", b"{}\n", true).unwrap();
+        let staged = stage(&dir, &files(b"csv\r\n", b"<svg/>\n", b"{}\n"), true).unwrap();
         fs::write(&cancel, b"ignored").unwrap();
         let err = commit(staged, Some(cancel.as_path())).unwrap_err();
         assert_eq!(err, Fault::canceled());

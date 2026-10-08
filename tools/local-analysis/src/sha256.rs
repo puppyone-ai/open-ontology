@@ -58,10 +58,10 @@ pub fn hex(bytes: &[u8]) -> String {
 }
 
 pub fn is_lower_hex(text: &str, exact: Option<usize>) -> bool {
-    if let Some(len) = exact {
-        if text.len() != len {
-            return false;
-        }
+    if let Some(len) = exact
+        && text.len() != len
+    {
+        return false;
     }
     !text.is_empty()
         && text

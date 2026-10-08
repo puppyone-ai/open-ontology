@@ -62,6 +62,25 @@ pub fn cancel_requested(path: &Path) -> Result<bool, Fault> {
     }
 }
 
+pub fn read_capped(path: &Path, max: usize) -> Result<Vec<u8>, Fault> {
+    let resolved = walk(path)?;
+    let meta = fs::symlink_metadata(&resolved).map_err(|_| Fault::path())?;
+    if meta.file_type().is_symlink() || !meta.is_file() {
+        return Err(Fault::path());
+    }
+    let limit = u64::try_from(max).unwrap_or(u64::MAX);
+    if meta.len() == 0 || meta.len() > limit {
+        return Err(Fault::budget());
+    }
+    let mut file = File::open(&resolved).map_err(|_| Fault::io())?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).map_err(|_| Fault::io())?;
+    if bytes.len() > max {
+        return Err(Fault::budget());
+    }
+    Ok(bytes)
+}
+
 fn walk(path: &Path) -> Result<PathBuf, Fault> {
     if path.as_os_str().is_empty() {
         return Err(Fault::path());

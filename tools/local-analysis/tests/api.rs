@@ -70,6 +70,8 @@ struct Ask<'a> {
     engine: &'a str,
     xlsx: bool,
     parquet: bool,
+    duckdb_cli: Option<&'a str>,
+    font_file: Option<&'a str>,
 }
 
 fn write_request(dir: &Path, ask: &Ask<'_>) -> PathBuf {
@@ -93,6 +95,19 @@ fn write_request(dir: &Path, ask: &Ask<'_>) -> PathBuf {
         if ask.xlsx { "true" } else { "false" },
         if ask.parquet { "true" } else { "false" },
     );
+    let cli = match ask.duckdb_cli {
+        Some(path) => format!(r#","duckdb_cli":{}"#, esc(path)),
+        None => String::new(),
+    };
+    let font = match ask.font_file {
+        Some(path) => format!(r#","font_file":{}"#, esc(path)),
+        None => String::new(),
+    };
+    let mut body = body;
+    body.pop();
+    body.push_str(&cli);
+    body.push_str(&font);
+    body.push('}');
     let path = dir.join("request.json");
     fs::write(&path, body).unwrap();
     path
@@ -128,6 +143,10 @@ fn assert_closed(dir: &Path) {
         "analysis.csv.partial",
         "analysis.svg.partial",
         "analysis.manifest.json.partial",
+        "analysis.parquet",
+        "analysis.arrow",
+        "analysis.xlsx",
+        "NotoSansCJKsc-Regular.otf",
     ] {
         assert!(!dir.join(name).exists(), "{name}");
     }
@@ -254,6 +273,8 @@ fn ask<'a>(prep: &'a Synthetic, operation: &'a str, title: &'a str) -> Ask<'a> {
         engine: "rust_exact",
         xlsx: false,
         parquet: false,
+        duckdb_cli: None,
+        font_file: None,
     }
 }
 
@@ -289,6 +310,8 @@ fn reviewed_amount_export_sums_exact_decimals_and_draws_chinese() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     let output_run = Command::new(bin())
@@ -315,7 +338,7 @@ entry_id,amount\r\n\
     assert!(svg.contains("金额"));
     assert!(svg.contains(QUERY_ID));
     assert!(svg.contains("数值已核对"));
-    assert!(svg.contains("DuckDB、Arrow、Excel未准入"));
+    assert!(svg.contains("本运行未调用DuckDB"));
     assert!(svg.contains("字体未随包提供"));
     assert!(!svg.contains("不可引用"));
     assert_eq!(svg.matches("http").count(), 1);
@@ -332,16 +355,16 @@ entry_id,amount\r\n\
     let manifest = fs::read_to_string(output.join("analysis.manifest.json")).unwrap();
     assert!(manifest.ends_with('\n'));
     assert!(manifest.starts_with(
-        "{\"version\":\"oo.local-analysis/v1\",\"closes_sp09_w05\":false,\"citable\":true,\"authorization\":\"not_claimed\",\"authenticated\":false,\"trust\":\"local_operator_declared\",\"lineage\":\"bound\""
+        "{\"version\":\"oo.local-analysis/v1\",\"closes_sp09_w05\":false,\"audited\":false,\"citable\":true,\"authorization\":\"not_claimed\",\"authenticated\":false,\"trust\":\"local_operator_declared\",\"lineage\":\"bound\""
     ));
     assert!(manifest.contains(&format!("\"query_id\":\"{QUERY_ID}\"")));
     assert!(manifest.contains("\"role\":\"oo_r_clerk\""));
     assert!(manifest.contains("\"project\":\"a327num\""));
     assert!(manifest.contains("\"engine\":\"rust_exact\""));
-    assert!(manifest.contains("\"duckdb\":\"not_admitted\""));
-    assert!(manifest.contains("\"arrow\":\"not_admitted\""));
-    assert!(manifest.contains("\"parquet\":\"not_admitted\""));
-    assert!(manifest.contains("\"xlsx\":\"not_admitted\""));
+    assert!(manifest.contains("\"duckdb\":\"not_invoked\""));
+    assert!(manifest.contains("\"arrow\":\"not_written\""));
+    assert!(manifest.contains("\"parquet\":\"not_written\""));
+    assert!(manifest.contains("\"xlsx\":\"not_written\""));
     assert!(manifest.contains("\"svg\":\"rust_native\""));
     assert!(manifest.contains("\"cjk_font\":\"not_bundled\""));
     assert!(manifest.contains(&format!("\"source_sha256\":\"{SOURCE_SHA}\"")));
@@ -356,7 +379,7 @@ entry_id,amount\r\n\
         "\"export_complete\":true,\"truncated\":false,\"operation\":\"sum\",\"group_column\":0,\"value_column\":1,\"group_count\":5,\"null_groups\":0,\"null_values\":1"
     ));
     assert!(manifest.contains(
-        "\"warnings\":[\"duckdb_not_admitted\",\"arrow_not_admitted\",\"xlsx_not_admitted\",\"cjk_font_not_bundled\",\"null_value\"]"
+        "\"warnings\":[\"admission_not_audited\",\"duckdb_not_invoked\",\"arrow_not_written\",\"parquet_not_written\",\"xlsx_not_written\",\"cjk_font_not_bundled\",\"null_value\"]"
     ));
     assert!(manifest.contains(
         "\"key\":\"2\",\"text\":\"-12345678901234.5678\",\"negative\":true,\"coefficient\":\"123456789012345678\",\"scale\":4"
@@ -387,6 +410,8 @@ fn wide_column_keeps_thirty_eight_digits() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     assert_eq!(run(&request).unwrap(), Written::Citable);
@@ -430,6 +455,8 @@ fn truncated_producer_export_is_written_uncited() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     let output_run = Command::new(bin())
@@ -484,6 +511,8 @@ fn hash_query_and_source_disagreements_write_nothing() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     let err = run(&request).unwrap_err();
@@ -517,6 +546,8 @@ fn hash_query_and_source_disagreements_write_nothing() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     assert_eq!(run(&request_id).unwrap_err(), Fault::lineage());
@@ -543,6 +574,8 @@ fn hash_query_and_source_disagreements_write_nothing() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     assert_eq!(run(&request_line).unwrap_err(), Fault::lineage());
@@ -575,6 +608,8 @@ fn hash_query_and_source_disagreements_write_nothing() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     assert_eq!(run(&request_src).unwrap_err(), Fault::source());
@@ -765,6 +800,8 @@ fn cancel_beats_a_missing_export_and_an_existing_output_is_kept() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     let err = run(&request).unwrap_err();
@@ -808,6 +845,8 @@ fn cancel_beats_a_missing_export_and_an_existing_output_is_kept() {
             engine: "rust_exact",
             xlsx: false,
             parquet: false,
+        duckdb_cli: None,
+        font_file: None,
         },
     );
     assert_eq!(run(&request).unwrap_err(), Fault::path());
@@ -815,4 +854,136 @@ fn cancel_beats_a_missing_export_and_an_existing_output_is_kept() {
     let _ = fs::remove_dir_all(&work);
     let _ = fs::remove_dir_all(&kept.work);
     let _ = fs::remove_dir_all(&link_parent);
+}
+
+#[test]
+fn parquet_arrow_and_xlsx_are_real_files_and_excel_has_no_formula() {
+    let (work, output, lineage) = produced("a344-complete", "amounts.jsonl", "columns");
+    let request = write_request(
+        &work,
+        &Ask {
+            export_dir: &fixture("a344-complete"),
+            lineage: &lineage,
+            output: &output,
+            operation: "sum",
+            group_column: 0,
+            value_column: 1,
+            group_header: "=金额",
+            value_header: "amount",
+            chart_title: "金额",
+            cancel_file: None,
+            engine: "rust_exact",
+            xlsx: true,
+            parquet: true,
+            duckdb_cli: None,
+            font_file: None,
+        },
+    );
+    assert_eq!(run(&request).unwrap(), Written::Citable);
+    let parquet = fs::read(output.join("analysis.parquet")).unwrap();
+    let arrow = fs::read(output.join("analysis.arrow")).unwrap();
+    let xlsx = fs::read(output.join("analysis.xlsx")).unwrap();
+    assert!(parquet.starts_with(b"PAR1"));
+    assert!(arrow.windows(6).any(|window| window == b"ARROW1"));
+    let xml = xlsx_xml(&xlsx);
+    assert!(!xml.contains("<f>"));
+    assert!(!xml.contains("<f "));
+    assert!(xml.contains("'=金额"));
+    assert!(xml.contains("-12345678901234.5678"));
+    assert!(!xml.contains(">=金额"));
+    let manifest = fs::read_to_string(output.join("analysis.manifest.json")).unwrap();
+    assert!(manifest.contains("\"audited\":false"));
+    assert!(manifest.contains("\"closes_sp09_w05\":false"));
+    assert!(manifest.contains("\"engine\":\"rust_exact\""));
+    assert!(manifest.contains("\"duckdb\":\"not_invoked\""));
+    assert!(manifest.contains("\"parquet\":\"pinned_unaudited\""));
+    assert!(manifest.contains("\"arrow\":\"pinned_unaudited\""));
+    assert!(manifest.contains("\"xlsx\":\"pinned_unaudited\""));
+    assert!(!manifest.contains("\"parquet_not_written\""));
+    let _ = fs::remove_dir_all(&work);
+}
+
+fn xlsx_xml(bytes: &[u8]) -> String {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut out = String::new();
+    for index in 0..archive.len() {
+        let mut file = archive.by_index(index).unwrap();
+        if !file.name().ends_with(".xml") {
+            continue;
+        }
+        let mut xml = String::new();
+        std::io::Read::read_to_string(&mut file, &mut xml).unwrap();
+        out.push_str(&xml);
+    }
+    out
+}
+
+#[test]
+fn pinned_duckdb_matches_the_exact_sum_and_cancel_kills_the_child() {
+    let Some(cli) = std::env::var_os("OO_A386_DUCKDB") else {
+        assert!(std::env::var_os("OO_A386_REQUIRE_DUCKDB").is_none());
+        return;
+    };
+    let Some(font) = std::env::var_os("OO_A386_FONT") else {
+        panic!("OO_A386_FONT");
+    };
+    let cli = PathBuf::from(cli);
+    let font = PathBuf::from(font);
+    let (work, output, lineage) = produced("a344-complete", "amounts.jsonl", "duck");
+    let request = write_request(
+        &work,
+        &Ask {
+            export_dir: &fixture("a344-complete"),
+            lineage: &lineage,
+            output: &output,
+            operation: "sum",
+            group_column: 0,
+            value_column: 1,
+            group_header: "entry_id",
+            value_header: "amount",
+            chart_title: "金额",
+            cancel_file: None,
+            engine: "duckdb",
+            xlsx: true,
+            parquet: true,
+            duckdb_cli: cli.to_str(),
+            font_file: font.to_str(),
+        },
+    );
+    assert_eq!(run(&request).unwrap(), Written::Citable);
+    let csv = fs::read_to_string(output.join("analysis.csv")).unwrap();
+    assert_eq!(
+        csv,
+        "\
+entry_id,amount\r\n\
+1,12345678901234.5678\r\n\
+2,-12345678901234.5678\r\n\
+3,0.0001\r\n\
+4,-0.0001\r\n\
+5,0.0000\r\n"
+    );
+    let svg = fs::read_to_string(output.join("analysis.svg")).unwrap();
+    assert!(svg.contains("数值已核对"));
+    assert!(svg.contains("DuckDB合计与精确十进制一致"));
+    assert!(svg.contains("字体已校验"));
+    assert!(svg.contains("NotoSansCJKsc-Regular.otf"));
+    assert_eq!(svg.matches("http").count(), 1);
+    assert!(output.join("NotoSansCJKsc-Regular.otf").is_file());
+    let manifest = fs::read_to_string(output.join("analysis.manifest.json")).unwrap();
+    assert!(manifest.contains("\"engine\":\"duckdb\""));
+    assert!(manifest.contains("\"duckdb\":\"pinned_unaudited\""));
+    assert!(manifest.contains("\"audited\":false"));
+    assert!(manifest.contains("\"closes_sp09_w05\":false"));
+    assert!(manifest.contains("\"cjk_font\":\"pinned_unaudited\""));
+    let cancel_dir = scratch("duck-cancel");
+    let cancel = cancel_dir.join("stop");
+    let cancel_write = cancel.clone();
+    let waiter = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        fs::write(cancel_write, b"stop").unwrap();
+    });
+    local_analysis::prove_native_cancel(&cli, &cancel).unwrap();
+    waiter.join().unwrap();
+    let _ = fs::remove_dir_all(&work);
+    let _ = fs::remove_dir_all(&cancel_dir);
 }

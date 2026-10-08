@@ -5,13 +5,21 @@ edition = "2024"
 rust-version = "1.94.0"
 publish = false
 license = "Apache-2.0"
-description = "Bounded exact analysis of one verified query-result-export. Does not admit DuckDB, Arrow, or Excel."
+description = "Bounded local analysis of one verified query-result-export. Child deps are pinned and unaudited."
 
 [workspace]
 
 [[bin]]
 name = "local-analysis"
 path = "src/main.rs"
+
+[dependencies]
+arrow = { version = "=60.0.0", default-features = false, features = ["ipc"] }
+parquet = { version = "=60.0.0", default-features = false, features = ["arrow", "snap"] }
+rust_xlsxwriter = { version = "=0.99.1", default-features = false }
+
+[dev-dependencies]
+zip = { version = "=8.3.0", default-features = false, features = ["deflate"] }
 
 [lints.rust]
 unsafe_code = "forbid"

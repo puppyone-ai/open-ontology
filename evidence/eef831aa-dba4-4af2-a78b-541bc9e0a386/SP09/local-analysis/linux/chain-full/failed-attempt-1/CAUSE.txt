@@ -1,0 +1,4 @@
+Product commands succeeded: amount=0 wide=0 partial=1 cancel=1 engine=3.
+The proof stopped at xlsx-amount because grep cannot see DEFLATE XML inside the xlsx zip.
+Inflating the same workbook shows the amount text and no formula element.
+The harness now builds examples/xlsx_scan and reads the XML. This directory is that failed proof, not a product failure.

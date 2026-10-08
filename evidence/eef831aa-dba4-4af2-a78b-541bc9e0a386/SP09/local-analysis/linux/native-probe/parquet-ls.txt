@@ -1,0 +1,1 @@
+-rw-r--r-- 1 root root 532 Oct  8 05:15 in.parquet
