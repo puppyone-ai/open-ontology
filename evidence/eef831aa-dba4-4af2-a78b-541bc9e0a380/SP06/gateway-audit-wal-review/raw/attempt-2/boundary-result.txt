@@ -1,0 +1,2 @@
+untrusted=blocked
+product_sha=ok

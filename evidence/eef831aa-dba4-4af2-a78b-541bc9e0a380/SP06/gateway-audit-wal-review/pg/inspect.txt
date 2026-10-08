@@ -1,0 +1,1 @@
+id=b64d0915eaa724eb6441d796674c42f620e82a46b0d4a3b761f8f29934a4f98a status=running privileged=false network=oo-a380-net memory=1073741824 cpus=1000000000 pids=256

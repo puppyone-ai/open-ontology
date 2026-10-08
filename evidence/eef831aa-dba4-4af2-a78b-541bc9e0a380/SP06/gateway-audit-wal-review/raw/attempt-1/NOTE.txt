@@ -1,0 +1,1 @@
+Attempt 1: author tests, clippy, and ingest build exited 0. The independent boundary did not compile. expect_err requires Debug on SelectStream. Product files were not edited. Volumes and the secret directory were kept for the retry.

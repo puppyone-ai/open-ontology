@@ -1,0 +1,1 @@
+Attempt 2: boundary compiled. Source oracle rejected the whole ingest file because a unit test string contains x-project. handle() does not. Product files were not edited.

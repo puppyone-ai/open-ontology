@@ -1,0 +1,56 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (/target/debug/deps/gateway_audit_wal-70e79d625366b92c)
+
+running 10 tests
+test deliver::tests::caller_ack_flag_is_rejected ... ok
+test frame::tests::round_trip_hides_sql ... ok
+test frame::tests::sql_shaped_project_is_rejected ... ok
+test store::tests::ack_hash_is_immutable_and_gc_skips_partial ... ok
+test store::tests::lock_blocks_a_second_writer ... ok
+test store::tests::quota_does_not_write ... ok
+test store::tests::refusal_bytes_have_no_sql ... ok
+test store::tests::single_frame_reopen_stays_admitted ... ok
+test store::tests::sync_fault_rolls_back_the_frame ... ok
+test store::tests::torn_tail_keeps_the_frame_and_corruption_fails_closed ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/wal_inspect.rs (/target/debug/deps/wal_inspect-a5970db0f3bb8b56)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/wal_send.rs (/target/debug/deps/wal_send-66b91aad47293a6b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (/target/debug/deps/contract-4ee6b897655e541b)
+
+running 1 test
+test untrusted_admission_stays_blocked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live.rs (/target/debug/deps/live-ee4c38bfca81c595)
+
+running 1 test
+test dedicated_session_audit_is_durable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lock_subset.rs (/target/debug/deps/lock_subset-004bf616fca07718)
+
+running 1 test
+test child_locks_are_root_checksum_subsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gateway_audit_wal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

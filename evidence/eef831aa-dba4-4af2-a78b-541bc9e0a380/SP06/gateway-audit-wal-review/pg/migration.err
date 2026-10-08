@@ -1,0 +1,3 @@
+NOTICE:  schema "oo_audit_ingest" already exists, skipping
+NOTICE:  relation "event" already exists, skipping
+NOTICE:  relation "receipt" already exists, skipping

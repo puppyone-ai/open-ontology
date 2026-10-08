@@ -1,0 +1,36 @@
+   Compiling gateway-audit-wal v0.1.0 (/tmp/oo-a380-src/tools/gateway-audit-wal)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.44s
+     Running tests/boundary.rs (/target/debug/deps/boundary-ca86e089c266a84b)
+
+running 1 test
+test independent_e55_boundary ... untrusted=blocked
+product_sha=ok
+source_order=ok
+privileges=ok
+admission_before_row=ok
+query=ok
+reader_restart=ok
+completion_retained=ok
+offline=75
+gc_before_ack=0
+project=shop
+event_receipt_equal=ok
+dedup=ok
+restart_collector=ok
+conflict=409
+stranger=403
+force_project=retained
+header_ignored=ok
+bad_hash_gc=closed
+gc_after_ack=1
+caller_ack_ignored=ok
+guard=ok
+fsync=ok
+quota=ok
+enospc=ok
+mode=ok
+boundary=ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
