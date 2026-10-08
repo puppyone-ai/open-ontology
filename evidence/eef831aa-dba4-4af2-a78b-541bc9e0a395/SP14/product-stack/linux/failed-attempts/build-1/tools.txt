@@ -1,0 +1,4 @@
+/usr/bin/curl
+/usr/bin/openssl
+/usr/bin/wget
+/usr/bin/python3

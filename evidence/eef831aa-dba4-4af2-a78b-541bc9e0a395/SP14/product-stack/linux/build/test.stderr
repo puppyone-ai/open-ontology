@@ -1,0 +1,5 @@
+   Compiling oo-product-stack v0.1.0 (/src/deploy/product-stack)
+    Finished `test` profile [unoptimized] target(s) in 0.58s
+     Running unittests src/lib.rs (/target/debug/deps/oo_product_stack-f9f3a9f3ba0bd436)
+     Running unittests src/main.rs (/target/debug/deps/oo_product_stack-0228d82bcc65b567)
+     Running tests/oracle.rs (/target/debug/deps/oracle-dfdc0048e091ee8a)

@@ -1,0 +1,29 @@
+
+running 2 tests
+test json::tests::duplicate_key_is_rejected ... ok
+test sha256::tests::empty_and_abc ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+test complete_dev_journey_is_ready_and_does_not_accept_the_parent ... ok
+test dev_is_localprocess_and_not_production ... ok
+test fabricated_production_signature_is_malformed ... ok
+test identity_commit_matches_the_canonical_preimage ... ok
+test listen_line_is_not_a_closed_session ... ok
+test minimal_does_not_claim_a_physical_replica ... ok
+test observability_without_pinned_images_is_refused ... ok
+test repeat_drift_and_foreign_cleanup_are_refused ... ok
+test sbom_keeps_recipe_only_units_unlocked ... ok
+test secret_mode_must_be_owner_only ... ok
+test standard_without_runsc_fails_closed_and_does_not_substitute_runc ... ok
+test tcp_probe_is_not_ready ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

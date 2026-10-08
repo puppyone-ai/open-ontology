@@ -1,0 +1,222 @@
+# Local product stack. dev is localprocess and is not production.
+# standard and minimal include a runsc sandbox gate. They do not fall back to runc.
+# source-fixed and release-fixed stay off until those services have a locked image.
+# No host ports, host network, privileged mode, or Docker socket.
+
+name: oo-a395
+
+networks:
+  edge:
+    name: oo-a395-edge
+    external: true
+  ctl:
+    name: oo-a395-ctl
+    external: true
+  pipe:
+    name: oo-a395-pipe
+    external: true
+  data_ro:
+    name: oo-a395-data-ro
+    external: true
+
+volumes:
+  pgdata:
+    name: oo-a395-eef831aa-pgdata
+    external: true
+  session_state:
+    name: oo-a395-eef831aa-session
+    external: true
+
+services:
+  control-db:
+    profiles: ["dev", "minimal", "standard"]
+    image: docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
+    platform: linux/arm64
+    pull_policy: never
+    container_name: oo-a395-control-db
+    hostname: control-db
+    entrypoint: ["/ops/pg-wrap.sh"]
+    environment:
+      POSTGRES_PASSWORD_FILE: /secrets/fixture-admin.pass
+      POSTGRES_USER: oo_fixture_admin
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: --data-checksums
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - ${OO_A395_STATE}/secrets:/secrets:ro
+      - ${OO_A395_STATE}/secrets:/tls-in:ro
+      - ${OO_A395_STATE}/secrets/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+      - ${OO_A395_ROOT}/deploy/product-stack/ops/pg-wrap.sh:/ops/pg-wrap.sh:ro
+    networks: [ctl]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.project: open-ontology
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: postgres
+
+  control-identity:
+    profiles: ["identity"]
+    image: ${OO_A395_IDENTITY_IMAGE:-oo-a395-identity:absent}
+    container_name: oo-a395-identity
+    platform: linux/arm64
+    pull_policy: never
+    hostname: control-identity
+    command: ["serve", "--config", "/config/identity.json"]
+    volumes:
+      - ${OO_A395_STATE}/config:/config:ro
+      - ${OO_A395_STATE}/secrets:/secrets:ro
+    networks: [ctl]
+    depends_on: [control-db]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.project: open-ontology
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: service
+      oo.service: control-identity
+
+  audit-ingest:
+    profiles: ["audit"]
+    image: ${OO_A395_AUDIT_IMAGE:-oo-a395-audit:absent}
+    container_name: oo-a395-audit
+    platform: linux/arm64
+    pull_policy: never
+    hostname: audit-ingest
+    command: ["--config", "/config/audit.conf"]
+    volumes:
+      - ${OO_A395_STATE}/config:/config:ro
+      - ${OO_A395_STATE}/secrets:/secrets:ro
+    networks: [ctl]
+    depends_on: [control-db]
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.25
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.project: open-ontology
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: service
+      oo.service: audit-ingest
+
+  session-control-api:
+    profiles: ["session"]
+    image: ${OO_A395_SESSION_IMAGE:-oo-a395-session:absent}
+    container_name: oo-a395-session
+    platform: linux/arm64
+    pull_policy: never
+    hostname: session-control-api
+    entrypoint: ["/bin/bash", "/config/session-serve.sh"]
+    volumes:
+      - ${OO_A395_STATE}/config:/config:ro
+      - session_state:/state
+    networks: [ctl]
+    depends_on: [control-db]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.project: open-ontology
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: service
+      oo.service: session-control-api
+      oo.deployment: localprocess
+      oo.production: "false"
+
+  selfbuild-control-api:
+    profiles: ["selfbuild"]
+    image: ${OO_A395_SELFBUILD_IMAGE:-oo-a395-selfbuild:absent}
+    platform: linux/arm64
+    pull_policy: never
+    networks: [ctl]
+    mem_limit: 512m
+    cpus: 0.5
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.project: open-ontology
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: service
+      oo.service: selfbuild-control-api
+
+  source-control-api:
+    profiles: ["source-fixed"]
+    image: ${OO_A395_SOURCE_IMAGE:-oo-a395-source:absent}
+    platform: linux/arm64
+    pull_policy: never
+    networks: [ctl]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.service: source-control-api
+      oo.status: recipe_only
+
+  release-control-api:
+    profiles: ["release-fixed"]
+    image: ${OO_A395_RELEASE_IMAGE:-oo-a395-release:absent}
+    platform: linux/arm64
+    pull_policy: never
+    networks: [ctl]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.service: release-control-api
+      oo.status: recipe_only
+
+  sandbox-gate:
+    profiles: ["standard", "minimal"]
+    image: docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+    platform: linux/arm64
+    pull_policy: never
+    runtime: runsc
+    command: ["rustc", "--version"]
+    networks: [edge]
+    mem_limit: 256m
+    cpus: 0.25
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    privileged: false
+    restart: "no"
+    labels:
+      oo.owner: a395
+      oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: sandbox-gate
+      oo.runtime: runsc

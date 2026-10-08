@@ -1,0 +1,16 @@
+observed_at=2026-10-08T08:24:46Z
+own_containers=0
+own_volumes=0
+own_networks=0
+state=absent
+oracle_tmp=absent
+own_pg=0
+own_rust_builders=0
+images_not_pushed=local_tags_only
+[oo-a395-identity:local] sha256:adef401ef8fc5d7d03c55c7a02e6c2b53311f1fa86cf645092c285c156a2680d created=2026-10-08T08:15:04.356334631Z
+[oo-a395-audit:local] sha256:29a1b858d4d83dc4ee1aebd72bda081e3a35eb54402eee04771f138b9826b2c7 created=2026-10-08T08:15:04.965724089Z
+[oo-a395-session:local] sha256:0da76da3332ac39090140eeab9c5460de6f8cb4dceced451b2bf6122138f6eeb created=2026-10-08T08:15:05.571240923Z
+[oo-a395-selfbuild:local] sha256:1776de64ef45d3c0b48d3ac86dbbd38b5162ad838a29d18a04db9214128efbb2 created=2026-10-08T08:15:06.067086298Z
+foreign_pg_oo-a373-pg=Up 8 hours
+foreign_containers_not_removed=true
+prune=not_run

@@ -1,0 +1,5 @@
+Rust smoke recipe origin
+direct_parent_path=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/linux/impl/launch.sh
+direct_parent_sha256=c522fe7bd898d640bbf9d9b4047d2bec74bb18c81e3c04fd7c75d1448bf8b88e
+minimal_changes=uuid a395; version probe only; network none; no source mount; no cargo cache
+image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5

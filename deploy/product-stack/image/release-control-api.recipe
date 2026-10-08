@@ -1,0 +1,8 @@
+name=release-control-api
+owner=a392
+status=recipe_only
+reason=Cargo.lock is absent and the tree is not a fixed commit. cargo generate-lockfile is refused.
+image=not_built
+health=an active release body must carry contract oo.release-control-api/v1, production_ready false, full_sp08_accepted false, certificate_class test_scope_not_production, customer_gate_verified false, runsc_verified false. TCP is not ready.
+profile=release-fixed
+do_not_mock=true

@@ -1,0 +1,35 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 376B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/2] FROM docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+#4 resolve docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 done
+#4 CACHED
+
+#5 [internal] load build context
+#5 transferring context: 7.74MB 0.1s done
+#5 DONE 0.1s
+
+#6 [2/2] COPY session-control-api /usr/local/bin/service
+#6 DONE 0.0s
+
+#7 exporting to image
+#7 exporting layers
+#7 exporting layers 0.2s done
+#7 exporting manifest sha256:c5feaf3e2a2464a27939872899ad16182571f9f3df756d4383a7585e0abb60ea
+#7 exporting manifest sha256:c5feaf3e2a2464a27939872899ad16182571f9f3df756d4383a7585e0abb60ea done
+#7 exporting config sha256:6c46de0c1a28deefa741ec4a31fafb9e9ab540f502bd6c5f4c0f6baf606efb24 done
+#7 exporting attestation manifest sha256:c31f690f3be3d0cfe88ecf1a62bae8965cc8856c707bb477e9c7d36d7a9beb46 done
+#7 exporting manifest list sha256:0da76da3332ac39090140eeab9c5460de6f8cb4dceced451b2bf6122138f6eeb done
+#7 naming to docker.io/library/oo-a395-session:local done
+#7 unpacking to docker.io/library/oo-a395-session:local 0.0s done
+#7 DONE 0.2s

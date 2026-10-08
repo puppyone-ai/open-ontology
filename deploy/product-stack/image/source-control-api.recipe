@@ -1,0 +1,8 @@
+name=source-control-api
+owner=a383
+status=recipe_only
+reason=Cargo.lock is absent and the tree is not a fixed commit. cargo generate-lockfile is refused.
+image=not_built
+health=GET /control/v1/sources/{source_ref}/catalog must return contract oo.source-control.exchange/v1 with catalog.rows 100000, published false, build_review not_claimed, release not_claimed. TCP is not ready. A missing process is not_started.
+profile=source-fixed
+do_not_mock=true

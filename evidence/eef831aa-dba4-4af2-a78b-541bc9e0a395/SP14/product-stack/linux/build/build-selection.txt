@@ -1,0 +1,6 @@
+OO_BUILD_IDENTITY=0
+OO_BUILD_AUDIT=0
+OO_BUILD_SESSION=0
+OO_BUILD_SELFBUILD=0
+source=recipe_only
+release=recipe_only

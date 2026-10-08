@@ -1,0 +1,1 @@
+{"name": "pack", "http": 0, "tcp_only": false, "body": "{\"error\":\"not_started\",\"service\":\"selfbuild-control-api\",\"reason\":\"producer_binaries_absent\"}"}

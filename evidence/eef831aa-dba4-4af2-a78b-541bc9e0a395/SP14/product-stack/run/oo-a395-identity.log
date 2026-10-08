@@ -1,0 +1,2 @@
+{"addr":"0.0.0.0:8443","agent_session":"not_issued","contract":"oo.control-identity/v1","customer_integration":"not_claimed","data_grants":"none","gateway_token":"not_issued","harness_session":"not_issued","outcome":"listening","owner_certification":"not_issued"}
+{"addr":"0.0.0.0:8443","agent_session":"not_issued","contract":"oo.control-identity/v1","customer_integration":"not_claimed","data_grants":"none","gateway_token":"not_issued","harness_session":"not_issued","outcome":"listening","owner_certification":"not_issued"}
