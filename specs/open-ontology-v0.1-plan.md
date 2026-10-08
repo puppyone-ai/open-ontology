@@ -1525,3 +1525,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 - [x] E51-D1/1：原冻结十万行PG17私有operator一致逻辑backup→hash/checkpoints→fresh restore全typedgold与普通sequence/cat验证（a391固定独立验收，父项不签）。
 
 反馈队列a393全三报告已读取122SHA0坏0缺，固定3be6264f独立APPROVE_LIMITED，真实HTTPSmTLS/PGreceipt与review读取/重启重放/权限隔离证明；作者a385137SHA0坏已核验。新卡未进入旧90冻结分母，能力独立证明记录但不擅自扩大计数，等全新增AC冻结inventory统一对账。
+
+2026-10-08额度中断后的只读证据推进：a381完整三报告读取，独立MANIFEST205SHA0坏0缺，原E57 fixed576e4764independent+9authorcases/Clippy0；作者a374仍缺必需SHA256SUMS，完整证据条件缺失保持E57未验收，不把reviewlimited绕过交付规则。a389实际报告loopfalse：q-entry-count config校验前失败，knowledge slug/64policy digest/shortlocalbearer契约不一致；真实model fresh sockets opened与缓存hitnot_opened有区分，costunknown不能发明金额；七wholeproductnotrun不签集成。已将具体恢复任务写原卡，禁止手写Pack/改gold/关生产bearer要求。Grok13个402终止为首次连续外阻后第二turn，本turn有证据/卡片/台账进展，goal不标blocked，无码执行授权替代。当前CLI0，额度恢复需从原会话收已有后台phase资源；不反复试402，不假15live。
