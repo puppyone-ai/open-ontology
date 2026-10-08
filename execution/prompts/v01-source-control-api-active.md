@@ -7,3 +7,5 @@ NEXT unified18min closure: 原73258 terminal1 Internal error。先盘点原资�
 USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
 
 NEXT original closed CLI: 原86855terminal0，actualbuilder101、launchinspect newline误判断已保留。FIRST收真正phase compile错误/现有PG资源，不重建secret/PG或并开builder；继续真实注册导入catalog100k完整卡，必须固定OpenAPI发布供G1/B04而非movingtree。
+
+PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。

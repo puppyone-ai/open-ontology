@@ -48,3 +48,5 @@ NEXT complete closure: 原39862terminal0 fixedM10 combo67/lint0已交。继续�
 NEXT product closure: 原74689terminal0 M11 legal client仍拒绝任何nonnullorigin/notfetch，不能把schema-onlyprepareCall作为所派真实client完整交付。继续原总卡：注册部署者配置可信sameorigin真实HTTP传输，带current CSRF/Origin，validateactualschema与error，真实B01五role现可用立刻驱动；B04二进制待fixed373可等待但完善真实client不能永久not_connected。G3指出CONTROL_IDENTITY_NOTE只旧M7 admin/reviewer需更新5角色固定receipt，eslintmjs globals在M10已修不反复改。严格只G1owner，OpenAPI未fixed不擅自冻结他人movingtree。
 
 USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
+
+PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。
