@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 NEXT unified18min closure: 原73258 terminal1 Internal error。先盘点原资源/已运行phase/所有已写产物，不重复现有builder/PG；继续原完整接入catalog API卡，交付真实成功路径完整证据。
 
 USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
+
+NEXT original closed CLI: 原86855terminal0，actualbuilder101、launchinspect newline误判断已保留。FIRST收真正phase compile错误/现有PG资源，不重建secret/PG或并开builder；继续真实注册导入catalog100k完整卡，必须固定OpenAPI发布供G1/B04而非movingtree。
