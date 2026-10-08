@@ -1,0 +1,47 @@
+Pager usage is off.
+=== review-once row ===
+ state | attempt | generation | owner_cleared | last_error 
+-------+---------+------------+---------------+------------
+(0 rows)
+
+=== lease span ===
+ lease_span_seconds | generation | owner 
+--------------------+------------+-------
+(0 rows)
+
+=== effect rows for review-once ===
+ seq | generation | owner | txid 
+-----+------------+-------+------
+(0 rows)
+
+=== tables touched ===
+            rel            | n_tup_ins | n_tup_upd 
+---------------------------+-----------+-----------
+ jobs.leases               |         0 |         0
+ jobs.migration_lock       |         1 |         0
+ jobs.schedule_occurrences |         0 |         0
+ jobs.schedules            |         0 |         0
+ jobs.schema_migrations    |         4 |         0
+ jobs.task_events          |         0 |         0
+ jobs.tasks                |         0 |         0
+ jw.beats                  |         0 |         0
+ jw.checkpoints            |         0 |         0
+ jw.claims                 |         0 |         0
+ jw.effects                |         0 |         0
+ jw.install                |         1 |         0
+ jw.intents                |         0 |         0
+ jw.observations           |         0 |         0
+ jw.schedule_payloads      |         0 |         0
+(15 rows)
+
+=== repeat complete ===
+ repeat_complete 
+-----------------
+(0 rows)
+
+=== effect txids ===
+ effect_rows | effect_txids 
+-------------+--------------
+           0 |            0
+(1 row)
+

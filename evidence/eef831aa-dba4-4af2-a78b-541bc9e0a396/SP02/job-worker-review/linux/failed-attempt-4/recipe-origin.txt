@@ -1,0 +1,11 @@
+fixed_source=1c4797e2f846da7744565c0f95103b68c1d01846
+launch_origin=tools/job-worker/ops/launch.sh
+launch_commit=1c4797e2f846da7744565c0f95103b68c1d01846
+launch_path=tools/job-worker/ops/launch.sh
+pg_wrap_origin=tools/job-worker/ops/pg-wrap.sh
+pg_wrap_sha256=57cefcd0ca6bb2a0eb0398bb6de430b65fa8de2e742dbd796199e014929dfa0d
+pg_wrap_deviation=max_connections=128 copied unchanged from the product file; fixture capacity only
+reviewed_pg_wrap=deploy/trusted-demo/pg/pg-wrap.sh
+reviewed_pg_wrap_commit=10b78993641c88154c75c22219c79c1566e2cecd
+reviewed_pg_wrap_sha256=05e7a4469b63096ddf444c4420410558dd251168cf1510c29779f08ec18ed42a
+secrets_path=/tmp/oo-a396-eef831aa-dba4-4af2-a78b-541bc9e0a396/stage-1791448875/secrets

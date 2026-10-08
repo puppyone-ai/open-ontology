@@ -1,0 +1,10 @@
+ max_connections 
+-----------------
+ 128
+(1 row)
+
+ shared_buffers 
+----------------
+ 64MB
+(1 row)
+

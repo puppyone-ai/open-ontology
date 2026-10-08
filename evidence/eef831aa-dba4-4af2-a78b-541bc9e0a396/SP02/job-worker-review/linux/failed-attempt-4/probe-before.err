@@ -1,0 +1,1 @@
+psql:/oracle/catalog-def.sql:27: ERROR:  invalid regular expression: invalid repetition count(s)
