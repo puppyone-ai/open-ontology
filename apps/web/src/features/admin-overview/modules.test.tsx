@@ -7,8 +7,12 @@ import { ADMIN_FEATURE_MODULES, ADMIN_PAGE_OPERATIONS } from "./catalog";
 import { ADMIN_NAV } from "./nav";
 
 describe("admin registrations", () => {
-  it("does not write G1's mount list", () => {
-    expect(ADMIN_MODULES).toEqual([]);
+  it("registers forty-one feature modules for the guard", () => {
+    expect(ADMIN_MODULES).toBe(ADMIN_FEATURE_MODULES);
+    expect(ADMIN_MODULES).toHaveLength(41);
+    expect(ADMIN_MODULES.map((item) => item.routeId)).toEqual(ADMIN_FEATURE_MODULES.map((item) => item.routeId));
+    expect(ADMIN_MODULES.map((item) => item.path)).toEqual(ADMIN_FEATURE_MODULES.map((item) => item.path));
+    expect(ADMIN_MODULES.some((item) => item.path === "/admin/login" || item.path === "/admin/bootstrap")).toBe(false);
   });
 
   it("matches navigation to the registrations", () => {

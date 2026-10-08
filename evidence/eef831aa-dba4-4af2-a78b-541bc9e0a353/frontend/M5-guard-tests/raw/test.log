@@ -1,0 +1,94 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [31m❯[39m src/styles/font-coverage.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 40[2mms[22m[39m
+   [31m❯[39m font coverage [2m(3)[22m
+     [32m✓[39m subsets every non-ascii copy character except the rare probe[32m 1[2mms[22m[39m
+[31m     [31m×[31m covers the reviewed gap and the registered source text[39m[32m 32[2mms[22m[39m
+     [32m✓[39m keeps font faces local with swap and a full fallback family[32m 7[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/modules.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 822[2mms[22m[39m
+   [32m✓[39m admin registrations [2m(3)[22m
+     [33m[2m✓[22m[39m keeps every consumed operation unbound[33m 819[2mms[22m[39m
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 468[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 451[2mms[22m[39m
+   [32m✓[39m guarded admin routes [2m(1)[22m
+     [33m[2m✓[22m[39m shows login for every registered module and does not load it[33m 450[2mms[22m[39m
+ [32m✓[39m src/features/user/user-pages.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 247[2mms[22m[39m
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 248[2mms[22m[39m
+ [32m✓[39m src/features/sources/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 155[2mms[22m[39m
+ [32m✓[39m src/features/audit-sessions/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 128[2mms[22m[39m
+ [32m✓[39m src/features/ontology-catalog/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 160[2mms[22m[39m
+ [32m✓[39m src/features/permissions/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m src/features/reviews/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 122[2mms[22m[39m
+ [32m✓[39m src/features/settings-integrations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/features/metrics/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32m✓[39m src/features/evaluations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 149[2mms[22m[39m
+ [32m✓[39m src/features/builds/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 133[2mms[22m[39m
+ [32m✓[39m src/features/files/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 109[2mms[22m[39m
+ [32m✓[39m src/features/models-secrets/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/features/jobs/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 131[2mms[22m[39m
+ [32m✓[39m src/features/releases/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 119[2mms[22m[39m
+ [32m✓[39m src/features/enums-calendar/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m src/features/examples/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m src/features/operations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32m✓[39m src/features/entities-terms/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m src/features/classifications/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 193[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/app/runtime-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/styles/font-coverage.test.ts[2m > [22mfont coverage[2m > [22mcovers the reviewed gap and the registered source text
+[31m[1mAssertionError[22m: expected [ 183, 8594, 12289, 12290, …(502) ] to deeply equal [ 183, 8594, 12289, 12290, …(500) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -46,10 +46,11 @@[39m
+[2m    20363,[22m
+[2m    20379,[22m
+[2m    20381,[22m
+[2m    20445,[22m
+[2m    20449,[22m
+[31m+   20462,[39m
+[2m    20505,[22m
+[2m    20540,[22m
+[2m    20559,[22m
+[2m    20570,[22m
+[2m    20572,[22m
+[33m@@ -403,10 +404,11 @@[39m
+[2m    35282,[22m
+[2m    35302,[22m
+[2m    35328,[22m
+[2m    35686,[22m
+[2m    35745,[22m
+[31m+   35746,[39m
+[2m    35748,[22m
+[2m    35760,[22m
+[2m    35774,[22m
+[2m    35777,[22m
+[2m    35780,[22m
+
+[36m [2m❯[22m src/styles/font-coverage.test.ts:[2m67:39[22m[39m
+    [90m 65|[39m     expect(manifest.rareGlyph).toBe("龘");
+    [90m 66|[39m     expect(manifest.subsetCodepoints).not.toContain(0x9f98);
+    [90m 67|[39m     expect(manifest.subsetCodepoints).toEqual(coveredPoints());
+    [90m   |[39m                                       [31m^[39m
+    [90m 68|[39m     for (const point of [...sources.gapCodepoints, ...routePoints]) {
+    [90m 69|[39m       expect(manifest.subsetCodepoints).toContain(point);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m28 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m58 passed[39m[22m[90m (59)[39m
+[2m   Start at [22m 00:56:21
+[2m   Duration [22m 31.49s[2m (environment 55%, setup 20%, tests 18%, import 6%, transform 2%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 29 times[39m[2m · 15.84s total, 55% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
