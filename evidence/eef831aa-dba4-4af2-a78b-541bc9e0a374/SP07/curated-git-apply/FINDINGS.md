@@ -20,6 +20,10 @@ Two requests with the same expected head and different idempotency keys: one `up
 
 The harness Git sets `core.hooksPath` to an empty directory so the fixture commit that plants a gitlink does not run `reference-transaction`. The product still points `core.hooksPath` at its own empty directory, clears the child environment, and disables signing, fsmonitor, and protocol. The hook marker stayed absent.
 
+## Evidence hashes
+
+The first evidence commit listed nine files and no `SHA256SUMS`. The supplement hashes those files, the walker, the source pin, and the hash log with `linux/hash-oracle/main.rs`. Product sources are not edited. The green Git tests are not rerun.
+
 ## Scope that this run does not claim
 
 No model call, no Postgres, no customer, no publication, no grant, and no authenticated reviewer. `description-pack` is pinned and not called. `tools/selfbuild-control-api` was not modified. The root manifest and root lock were not modified.

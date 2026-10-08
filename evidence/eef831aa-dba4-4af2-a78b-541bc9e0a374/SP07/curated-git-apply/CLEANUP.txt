@@ -1,0 +1,13 @@
+Owned cleanup for eef831aa-dba4-4af2-a78b-541bc9e0a374 curated-git-apply.
+
+This file is written before the hash and is not edited after it.
+
+The hash launcher removes only:
+- container cga-eef831aa-hash
+- container cga-eef831aa-hash2
+- /tmp/cga-hash-eef831aa
+
+No docker prune. No volume prune. No foreign container, volume, or network is removed.
+The product tree tools/curated-git-apply is not modified.
+The green Git tests are not rerun.
+Postgres is not started.

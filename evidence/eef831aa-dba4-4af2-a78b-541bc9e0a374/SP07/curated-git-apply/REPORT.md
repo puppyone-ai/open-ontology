@@ -46,3 +46,7 @@ Subcommand exits are in `raw/exits.txt`. They name the Git subcommand and the st
 `apply_curated_git` re-runs `description_review::apply_description_review` on the original command bytes. It writes only compiler-approved dataset `label`, `description`, and `grain`, and v2 column `label` and `description`. Other semantic fields and unrelated paths stay byte-identical. The commit is built with a private `GIT_INDEX_FILE` (`read-tree`, `hash-object --no-filters`, `update-index --cacheinfo`, `write-tree`, `commit-tree`) and published with `update-ref --no-deref` old-SHA compare-and-swap. A mismatch leaves the ref in place. A lost reply is recovered by reading the ref and the commit message before another update. The service author is `oo-curated-git-apply <curated-git-apply@open-ontology.invalid>` at `1791417600 +0000`. The reviewer label stays declared provenance.
 
 This is not parent SP02 or SP07 acceptance, and it is not goal acceptance.
+
+## Hash supplement
+
+The nine-file evidence commit had no `SHA256SUMS`. This supplement does not change product bytes and does not rerun the green Git tests. `linux/hash-oracle/main.rs` is the Safe Rust walker. `source/pin.txt` records the implementation commit, tool tree, and reviewed dependency trees. `source/SHA256SUMS` is that walker over the implementation tree of `tools/curated-git-apply`. `SHA256SUMS` is that walker over this evidence directory. `SHA256SUMS.sha256` is the sidecar. Raw hash exits are `linux/hash/`. Cleanup is `CLEANUP.txt`.
