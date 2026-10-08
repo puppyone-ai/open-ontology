@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { bindingById, invokeOperation } from "@open-ontology/sdk-ts";
+import { bindingById, invokeOperation, SELFBUILD_HTTP } from "@open-ontology/sdk-ts";
 import { ADMIN_MODULES } from "../../app/module-registration";
 import { ADMIN_FEATURE_MODULES, ADMIN_PAGE_OPERATIONS } from "./catalog";
 import { ADMIN_NAV } from "./nav";
@@ -29,9 +29,21 @@ describe("admin registrations", () => {
     }
   });
 
-  it("keeps every consumed operation unbound", async () => {
+  it("keeps placeholder operations unbound and frozen contract operations unsent", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
+    const frozenIds = new Set<string>(SELFBUILD_HTTP.map((item) => item[0]));
+    const shown = new Set(Object.values(ADMIN_PAGE_OPERATIONS).flat());
+    expect(SELFBUILD_HTTP).toHaveLength(15);
+    for (const [operationId] of SELFBUILD_HTTP) {
+      expect(shown.has(operationId)).toBe(true);
+      expect(bindingById(operationId)?.state).toBe("schema_frozen");
+      expect(bindingById(operationId)?.live).toBe(false);
+    }
+    for (const operationId of ["registerSource", "getSourceCatalog", "createRelease", "rollbackRelease", "getActiveRolePack"]) {
+      expect(bindingById(operationId)).toBeNull();
+      expect(shown.has(operationId)).toBe(false);
+    }
     const seen = new Set<string>();
     for (const module of ADMIN_FEATURE_MODULES) {
       expect(seen.has(module.routeId)).toBe(false);
@@ -41,8 +53,12 @@ describe("admin registrations", () => {
       const operationIds = ADMIN_PAGE_OPERATIONS[module.routeId];
       expect(operationIds && operationIds.length > 0).toBe(true);
       for (const operationId of operationIds ?? []) {
-        expect(bindingById(operationId)?.state).toBe("unbound");
-        expect(invokeOperation(operationId)).toEqual({ ok: false, reason: "not_connected", operationId });
+        if (frozenIds.has(operationId)) {
+          expect(invokeOperation(operationId)).toEqual({ ok: false, reason: "schema_only", operationId });
+        } else {
+          expect(bindingById(operationId)?.state).toBe("unbound");
+          expect(invokeOperation(operationId)).toEqual({ ok: false, reason: "not_connected", operationId });
+        }
       }
       const loaded = await module.load();
       const Page = loaded.default;
@@ -51,6 +67,15 @@ describe("admin registrations", () => {
       const view = render(<RouterProvider router={router} />);
       expect(screen.getByRole("heading", { name: module.title })).toBeTruthy();
       expect(screen.queryByText("审核决定已保存；尚未发布。")).toBeNull();
+      for (const operationId of operationIds ?? []) {
+        if (frozenIds.has(operationId)) {
+          expect(screen.getByText(`${operationId} 状态 schema_frozen，调用 schema_only`)).toBeTruthy();
+        }
+      }
+      if (module.routeId === "A18") {
+        expect(screen.getByText("没有候选")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "接受" })).toBeNull();
+      }
       expect(fetchSpy).not.toHaveBeenCalled();
       view.unmount();
     }

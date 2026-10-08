@@ -8,5 +8,13 @@
 | B04.cards | B04 | A12 | unbound | false | false | false |
 | B04.candidates | B04 | A12 | unbound | false | false | false |
 | B03.jobs | B03 | A12 | unbound | false | false | false |
+| createBuild | selfbuild | A11 | schema_frozen | false | false | false |
+| listBuilds | selfbuild | A11 | schema_frozen | false | false | false |
+| getBuild | selfbuild | A12 | schema_frozen | false | false | false |
+| cancelBuild | selfbuild | A12 | schema_frozen | false | false | false |
+| getBuildCards | selfbuild | A12 | schema_frozen | false | false | false |
+| getBuildCandidates | selfbuild | A12 | schema_frozen | false | false | false |
+| compileBuildPack | selfbuild | A12 | schema_frozen | false | false | false |
+| getBuildPack | selfbuild | A12 | schema_frozen | false | false | false |
 
-live、journey、release 都是 false。没有 fixture_verified。
+占位行仍是 unbound，`invokeOperation` 返回 `not_connected`。合同 operation 来自 SDK 的 `SELFBUILD_HTTP`，状态 `schema_frozen`，合同提交 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。`invokeOperation` 返回 `schema_only`，不发请求。运行构建和重试保持禁用。这不是构建完成，也不是 compiled pack 已发布。

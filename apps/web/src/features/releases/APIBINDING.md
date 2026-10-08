@@ -11,3 +11,5 @@
 | B03.jobs | B03 | A30 | unbound | false | false | false |
 
 live、journey、release 都是 false。没有 fixture_verified。
+
+`createRelease`、`rollbackRelease` 与 `getActiveRolePack` 不在 SDK。release-control 合同还没有进入固定提交。页面不增加这些 id，也不制造发布或回滚结果。

@@ -6,5 +6,8 @@
 |---|---|---|---|---|---|---|
 | B04.classifications | B04 | A19 | unbound | false | false | false |
 | B06.roles | B06 | A19 | unbound | false | false | false |
+| listClassifications | selfbuild | A19 | schema_frozen | false | false | false |
+| previewClassifications | selfbuild | A19 | schema_frozen | false | false | false |
+| confirmClassifications | selfbuild | A19 | schema_frozen | false | false | false |
 
-live、journey、release 都是 false。没有 fixture_verified。
+占位行仍是 unbound。合同 operation 是 `schema_frozen`，`invokeOperation` 返回 `schema_only`，不发请求。批量确认保持禁用。这不是分类完成。
