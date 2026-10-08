@@ -59,6 +59,7 @@ pub fn catalog_stdin(project: &ProjectCfg) -> Vec<u8> {
 }
 
 pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
+    // One local model call may exceed 30s. Three calls still fit the 300s child budget.
     let tables: Vec<Value> = project
         .source
         .tables
@@ -79,7 +80,7 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
         },
         "secret": {"bearer_file": project.llm.bearer_file},
         "budget": {
-            "deadline_ms": 30000,
+            "deadline_ms": 90000,
             "max_completion_tokens": 8192,
             "max_in_flight": 1,
             "max_prompt_tokens": 100000,

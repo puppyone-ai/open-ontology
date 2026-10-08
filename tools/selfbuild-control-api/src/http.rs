@@ -516,19 +516,15 @@ async fn class_body(state: &AppState, headers: &HeaderMap, body: &[u8], confirm:
             let Some(pii) = item.get("pii").and_then(Value::as_str) else {
                 return json_err(true, &ApiError::malformed());
             };
-            if confirm {
-                let Some(principal) = state.config.principals.iter().find(|principal| principal.subject == identity.subject) else {
-                    return json_err(true, &ApiError::forbidden());
-                };
-                if principal.ledger_role != "owner" || !principal.object_scope.iter().any(|scope| scope == object_id) {
-                    return json_err(true, &ApiError::forbidden());
-                }
-            }
             items.push((object_id.to_owned(), pii.to_owned()));
         }
     }
-    match preview_classification(&project.visible_columns, &project.hidden_columns, &items, accept_all) {
-        Ok(preview) if !confirm => json_ok(
+    let preview = match preview_classification(&project.visible_columns, &project.hidden_columns, &items, accept_all) {
+        Ok(preview) => preview,
+        Err(error) => return json_err(true, &error),
+    };
+    if !confirm {
+        return json_ok(
             200,
             &json!({
                 "contract": CONTRACT,
@@ -539,10 +535,17 @@ async fn class_body(state: &AppState, headers: &HeaderMap, body: &[u8], confirm:
                 "published": false,
                 "data_grants": "none"
             }),
-        ),
-        Ok(_) => confirm_stored(state, &identity, project_id, &value).await,
-        Err(error) => json_err(true, &error),
+        );
     }
+    let Some(principal) = state.config.principals.iter().find(|principal| principal.subject == identity.subject) else {
+        return json_err(true, &ApiError::forbidden());
+    };
+    if principal.ledger_role != "owner"
+        || items.iter().any(|(object_id, _)| !principal.object_scope.iter().any(|scope| scope == object_id))
+    {
+        return json_err(true, &ApiError::forbidden());
+    }
+    confirm_stored(state, &identity, project_id, &value).await
 }
 
 async fn confirm_stored(state: &AppState, identity: &VerifiedIdentity, project_id: &str, value: &Value) -> Response {

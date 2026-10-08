@@ -13,6 +13,7 @@ pub fn command(project_id: &str, catalog: &Value, profile: &Value) -> Result<Val
     if profile.get("protocol").and_then(Value::as_str) != Some("oo.pg-builder.profile/v1") {
         return Err(ApiError::malformed());
     }
+    let source_id = catalog.get("source_id").and_then(Value::as_str).ok_or(ApiError::malformed())?;
     let projected = project_profile(profile)?;
     let relationships = json!({
         "schema": "oo.selfbuild-suggestions.relationships/v1",
@@ -30,7 +31,14 @@ pub fn command(project_id: &str, catalog: &Value, profile: &Value) -> Result<Val
     document.insert("schema".to_owned(), json!("oo.selfbuild-suggestions.command/v1"));
     document.insert(
         "scope".to_owned(),
-        json!({"project_id": project_id, "evidence": catalog_hash}),
+        json!({
+            "project": project_id,
+            "role": "oo_r_draft",
+            "evidence_sha256": catalog_hash,
+            "source_id": source_id,
+            "schema_version": "oos/v1",
+            "model_scope": "none"
+        }),
     );
     document.insert(
         "authorization".to_owned(),
@@ -62,25 +70,49 @@ fn project_profile(profile: &Value) -> Result<Value, ApiError> {
     for table in tables {
         let schema = table.get("schema").and_then(Value::as_str).ok_or(ApiError::malformed())?;
         let name = table.get("name").and_then(Value::as_str).ok_or(ApiError::malformed())?;
-        let reltuples = table.get("reltuples").cloned().unwrap_or(Value::Null);
         let columns = table.get("columns").and_then(Value::as_array).ok_or(ApiError::malformed())?;
         let mut names = Vec::new();
         for column in columns {
             let column_name = column.get("name").and_then(Value::as_str).ok_or(ApiError::malformed())?;
             names.push(json!({"name": column_name}));
         }
-        projected.push(json!({
-            "schema": schema,
-            "name": name,
-            "reltuples": reltuples,
-            "columns": names
-        }));
+        let mut projected_table = Map::new();
+        projected_table.insert("schema".to_owned(), json!(schema));
+        projected_table.insert("name".to_owned(), json!(name));
+        if let Some(text) = table.get("reltuples").and_then(Value::as_str)
+            && reltuples_ok(text)
+        {
+            projected_table.insert("reltuples".to_owned(), json!(text));
+        }
+        projected_table.insert("columns".to_owned(), Value::Array(names));
+        projected.push(Value::Object(projected_table));
     }
     Ok(json!({
         "schema": "oo.selfbuild-suggestions.profile/v1",
         "sample_policy": "none",
         "tables": projected
     }))
+}
+
+fn reltuples_ok(text: &str) -> bool {
+    if text.is_empty() || text.len() > 32 {
+        return false;
+    }
+    let mut parts = text.split('.');
+    let Some(whole) = parts.next() else {
+        return false;
+    };
+    let fraction = parts.next();
+    if parts.next().is_some() || whole.is_empty() || !whole.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    if whole.len() > 1 && whole.starts_with('0') {
+        return false;
+    }
+    match fraction {
+        None => true,
+        Some(fraction) => !fraction.is_empty() && fraction.bytes().all(|byte| byte.is_ascii_digit()),
+    }
 }
 
 pub fn candidate_id(project_id: &str, kind: &str, key: &str) -> String {

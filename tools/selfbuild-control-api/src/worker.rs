@@ -92,6 +92,11 @@ async fn drive(
                     cancel.store(true, Ordering::SeqCst);
                 }
                 if !run_stage(client, config, project, &job, &row.stage, &dir, &cancel).await {
+                    if fresh_cancel(client, &job.build_id).await {
+                        let _ = store::mark_child_exited(client, &job.build_id).await;
+                        let _ = store::finish_canceled(client, &job.build_id).await;
+                        return Ok(());
+                    }
                     let _ = store::set_job(client, &job.build_id, "failed", &row.stage, Some("stage.failed"), &job.input_sha256).await;
                     return Err(());
                 }
@@ -371,16 +376,22 @@ async fn s5(
             path_str(&generation),
         ],
         Vec::new(),
-        Duration::from_secs(40),
+        // Three serial model calls share the 300s snapshot budget.
+        Duration::from_secs(300),
         &cancel,
         project,
     )
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
-    if output.killed || output.secret_leak || output.exit != Some(0) {
+    if output.secret_leak || output.killed || output.exit != Some(0) {
+        note_stderr(dir, "S5", &output);
         return fail(client, job, "S5", "generate.failed").await;
     }
     let bytes = std::fs::read(&generation).unwrap_or_default();
+    let parsed = serde_json::from_slice::<serde_json::Value>(&bytes).unwrap_or(serde_json::Value::Null);
+    if parsed.get("outcome").and_then(serde_json::Value::as_str) != Some("validated") {
+        return fail(client, job, "S5", "generate.failed").await;
+    }
     let hash = sha256_hex(&bytes);
     store::set_stage(client, &job.build_id, "S5", "succeeded", &job.input_sha256, Some(&hash), None)
         .await
@@ -428,6 +439,7 @@ async fn suggestions(
     .await;
     let _ = store::mark_child_exited(client, &job.build_id).await;
     if output.exit != Some(0) || output.secret_leak {
+        note_stderr(dir, "S6", &output);
         return fail(client, job, "S6", "suggestions.failed").await;
     }
     if write_private(&dir.join("suggestions.json"), &output.stdout).is_err() {
@@ -520,6 +532,17 @@ fn secret_needles(project: &ProjectCfg) -> Vec<Vec<u8>> {
 async fn fail(client: &Client, job: &BuildRow, stage: &str, detail: &str) -> bool {
     let _ = store::set_stage(client, &job.build_id, stage, "failed", &job.input_sha256, None, Some(detail)).await;
     false
+}
+
+fn note_stderr(dir: &Path, stage: &str, output: &crate::spawn::ChildOutput) {
+    if output.secret_leak || output.stderr.is_empty() {
+        return;
+    }
+    let mut text = String::from_utf8_lossy(&output.stderr).replace(['\n', '\r'], " ");
+    if text.len() > 240 {
+        text.truncate(240);
+    }
+    let _ = write_private(&dir.join(format!("{stage}.err")), text.as_bytes());
 }
 
 fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {

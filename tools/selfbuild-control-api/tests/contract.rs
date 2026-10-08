@@ -171,7 +171,7 @@ fn catalog_budget_and_suggestion_command_shape() {
     assert_eq!(value["source"]["budget"]["lock_ms"], 1000);
     assert_eq!(value["source"]["budget"]["statement_ms"], 30000);
     assert_eq!(value["source"]["budget"]["connect_ms"], 30000);
-    let catalog = json!({"protocol": "oo.source.pgsql/v1", "tables": []});
+    let catalog = json!({"protocol": "oo.source.pgsql/v1", "source_id": "shop_src", "tables": []});
     let profile = json!({
         "protocol": "oo.pg-builder.profile/v1",
         "tables": [{
@@ -185,6 +185,12 @@ fn catalog_budget_and_suggestion_command_shape() {
     let keys: Vec<&str> = command.as_object().unwrap().keys().map(String::as_str).collect();
     assert_eq!(keys, COMMAND_KEYS);
     assert_eq!(command["authorization"]["authorized"], true);
+    assert_eq!(command["scope"]["project"], "demo");
+    assert_eq!(command["scope"]["role"], "oo_r_draft");
+    assert_eq!(command["scope"]["source_id"], "shop_src");
+    assert_eq!(command["scope"]["schema_version"], "oos/v1");
+    assert_eq!(command["scope"]["model_scope"], "none");
+    assert_eq!(command["scope"]["evidence_sha256"], command["authorization"]["catalog_sha256"]);
     assert!(command["profile"].get("semantic").is_none());
     assert!(stages::suggestions_args() == vec!["produce".to_owned()]);
     let rules = stages::rules_args("/c", "/p", "/d", "none");

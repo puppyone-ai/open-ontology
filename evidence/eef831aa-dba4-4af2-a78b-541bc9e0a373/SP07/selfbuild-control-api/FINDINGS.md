@@ -14,14 +14,16 @@ Private archive only: `a6f92da8a0bf872f8a30efb116c2c7b14463505b`, evidence `dc43
 
 Debug binary SHA-256: `84a71a2e2c1964b460f01ac1bf7d7ad5ad40de5eefc26e115041bc3c5093628c` for `control-identity`. `96f66f97bf26fd7bc4a449efb7afe5b94450bc9ec41f85df2c394a347be58ecf` for `review-ledger` from `6b3a92c2e06a2e91a74393b739ec8f1c565ae17b`. The ledger receipt remains a command hash, not semantic membership proof. The joint decision left `ledger_authenticated` false.
 
-## Model and 100k
+## Shop 100k
 
-No producer binary for `oo-pipeline`, `pg-builder`, `selfbuild-rules`, or `selfbuild-suggestions` is in the target volume. The 100k COPY files were not loaded. `oo_identity`, `oo_selfbuild`, and `oo_review` were not dropped.
+The final builder reused the existing producer binaries. `oo_identity`, `oo_selfbuild`, `oo_review`, `oo_fixture`, `oo_selfbuild_shop`, and `oo_review_shop` were not dropped. The 100k fixture was already loaded and was not copied again.
 
-`cli-proxy` listens on host `127.0.0.1:8317`. Inside the bridge network, `127.0.0.1:8317` is connection refused and `host.docker.internal:8317` accepts a TCP connection. The service config and the generated pg-builder endpoint require origin `http://127.0.0.1:8317`. Host networking was not used.
+`cli-proxy` listens on host `127.0.0.1:8317`. Inside the bridge network that loopback address is refused and `host.docker.internal:8317` accepts TCP. Product config and the generated builder endpoint keep origin `http://127.0.0.1:8317`. The success phase forwards that address inside the builder. The failure phase runs first and records `generate.failed`.
 
-## Other limits
+Stored confirm tokens stay in the ledger. The compiler file maps `flag` to `boolean_flag`, `label` and `text` to `free_text`, and `name` to `person_name`. `amount` maps to `quantity` because semantic type `money` requires a column unit and the sealed `shop.entry.amount` column has none. A unit is not written. Unknown tokens return `malformed`. `generation.json` and `pack.json` are parsed without the 65536-byte HTTP body cap.
 
-The profile producer sets `statement_timeout` to 10s and does not set `lock_timeout` to 1s. The 300s snapshot bound is the child deadline. One ledger database stays bound to one project. Column-level label decisions are omitted from the operator review document unless a complete column set is sent. Pack settings stay structural. A job whose S9 and S10 are already succeeded is still marked succeeded at stage `S8` by the worker. That path was not run here.
+Column label decisions are omitted from `operator.json`. The producer rejects a partial `column_decisions` array, and defer or approve is not invented for the other columns. `field_candidates_applied` is false. `reseal_count` is 0. Outcome is `reviewed_unchanged`. Effective columns carry the bound semantic types and confirmed classification. Descriptions and caveats are empty, so the role renderer has no prose to mark `UNREVIEWED`. Declared foreign keys render as source-declared and not a grant. Hidden `phone` and `national_id` are absent from both role texts. `compiled_pack` stays `not_published`.
 
-Operation IDs, OpenAPI, JSON schemas, and the migration were not changed.
+S9 remains `awaiting` on `b_f36a05605491fe53429435921539158c`. The job row stays `running`. Cancel of a later build, `b_ad9189fb55129fb4447c4743584be58f`, reached `canceled` at S0 after status `running` was observed. Its pack GET is 403.
+
+Operation IDs, OpenAPI, JSON schemas, and the migration were not changed. One ledger database stays bound to one project. The profile producer still sets `statement_timeout` to 10s. The child snapshot deadline is the stage bound.

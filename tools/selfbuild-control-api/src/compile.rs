@@ -3,6 +3,7 @@
 //! The producer document is stored as returned. `review.state` is not inserted.
 //! `compiled_pack` stays `not_published`.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::Arc;
@@ -26,7 +27,7 @@ pub async fn load_stored(config: &AppConfig, build_id: &str) -> Result<Value, Ap
     if sha256_hex(&bytes) != head.output_sha256 {
         return Err(ApiError::not_ready());
     }
-    let producer = parse_exact(&bytes)?;
+    let producer = serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())?;
     accept_producer(&producer)?;
     Ok(envelope("getBuildPack", build_id, &producer))
 }
@@ -83,14 +84,7 @@ pub async fn compile(config: &AppConfig, build: &BuildRow, subject: &str, body_s
     write_private(&class_path, &serde_json::to_vec(&classes).map_err(|_| ApiError::not_ready())?)?;
     write_private(
         &settings_path,
-        &serde_json::to_vec(&json!({
-            "authenticated": false,
-            "parent_auth": "required",
-            "project_id": &project.project_id,
-            "config_commit": &project.config_commit,
-            "published": false
-        }))
-        .map_err(|_| ApiError::not_ready())?,
+        &serde_json::to_vec(&compiler_settings(&roles_value)?).map_err(|_| ApiError::not_ready())?,
     )?;
     let mut args = vec![
         "pack-combined".to_owned(),
@@ -117,7 +111,7 @@ pub async fn compile(config: &AppConfig, build: &BuildRow, subject: &str, body_s
     }
     run_builder(config, project, args).await?;
     let bytes = std::fs::read(&out_path).map_err(|_| ApiError::not_ready())?;
-    let producer = parse_exact(&bytes)?;
+    let producer = serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())?;
     accept_producer(&producer)?;
     let hash = sha256_hex(&bytes);
     let reseal = producer.get("reseal_count").and_then(Value::as_i64);
@@ -176,7 +170,7 @@ fn classification_document(project: &ProjectCfg, ours: &[OurDecision], ledger: &
         if pii == "unknown" || pii.is_empty() {
             return Err(ApiError::pii_unknown());
         }
-        let semantic = fields.get("semantic_type").and_then(Value::as_str).unwrap_or("");
+        let semantic = bound_semantic(fields.get("semantic_type").and_then(Value::as_str).unwrap_or(""))?;
         let mut parts = row.object_id.split('.');
         let schema = parts.next().unwrap_or("");
         let table = parts.next().unwrap_or("");
@@ -204,6 +198,22 @@ fn classification_document(project: &ProjectCfg, ours: &[OurDecision], ledger: &
         "parent_auth": "required",
         "decisions": decisions
     }))
+}
+
+/// The stored confirm token stays in the ledger. The compiler file uses its closed enum.
+fn bound_semantic(token: &str) -> Result<String, ApiError> {
+    let bound = match token {
+        "flag" => "boolean_flag",
+        "label" | "text" => "free_text",
+        // `money` requires a column unit. The sealed draft has none, and a unit is not invented here.
+        "amount" => "quantity",
+        "name" => "person_name",
+        "identifier" | "foreign_key" | "entity_name" | "code" | "status_code" | "category"
+        | "boolean_flag" | "money" | "quantity" | "ratio" | "event_time" | "date" | "audit_time"
+        | "geo" | "address" | "phone" | "email" | "person_name" | "free_text" | "json" | "system" => token,
+        _ => return Err(ApiError::malformed()),
+    };
+    Ok(bound.to_owned())
 }
 
 fn match_ledger<'a>(
@@ -235,7 +245,67 @@ fn pack_path(config: &AppConfig, build_id: &str) -> PathBuf {
 
 fn read_json(path: &Path) -> Result<Value, ApiError> {
     let bytes = std::fs::read(path).map_err(|_| ApiError::not_ready())?;
-    parse_exact(&bytes).map_err(|_| ApiError::not_ready())
+    serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())
+}
+
+fn compiler_settings(roles: &Value) -> Result<Value, ApiError> {
+    let rows = roles.as_array().ok_or_else(ApiError::membership)?;
+    let first = rows.first().and_then(Value::as_object).ok_or_else(ApiError::membership)?;
+    let project = required_text(first, "project")?;
+    let ontology_version = required_text(first, "ontology_version")?;
+    let catalog_version = required_text(first, "catalog_version")?;
+    let policy = first.get("policy").cloned().ok_or_else(ApiError::membership)?;
+    let knowledge = first.get("knowledge").cloned().ok_or_else(ApiError::membership)?;
+    let mut schemas = BTreeSet::new();
+    for row in rows {
+        let object = row.as_object().ok_or_else(ApiError::membership)?;
+        if required_text(object, "project")? != project
+            || required_text(object, "ontology_version")? != ontology_version
+            || required_text(object, "catalog_version")? != catalog_version
+            || object.get("policy") != Some(&policy)
+            || object.get("knowledge") != Some(&knowledge)
+        {
+            return Err(ApiError::membership());
+        }
+        let datasets = object.get("datasets").and_then(Value::as_array).ok_or_else(ApiError::membership)?;
+        for dataset in datasets {
+            let name = dataset.get("dataset").and_then(Value::as_str).ok_or_else(ApiError::membership)?;
+            let schema = name.split('.').next().ok_or_else(ApiError::membership)?;
+            if !crate::ids::ident_ok(schema) {
+                return Err(ApiError::membership());
+            }
+            schemas.insert(schema.to_owned());
+        }
+    }
+    if schemas.is_empty() {
+        return Err(ApiError::membership());
+    }
+    Ok(json!({
+        "project": project,
+        "ontology_version": ontology_version,
+        "catalog_version": catalog_version,
+        "policy": policy,
+        "knowledge": knowledge,
+        "ontology": {
+            "spec_version": "oos/v1",
+            "name": project,
+            "locale": "en-US",
+            "include_schemas": schemas.into_iter().collect::<Vec<_>>(),
+            "default_tier_preference": ["raw"],
+            "publish": {"include_unreviewed": ["dataset_descriptions", "column_descriptions", "caveats"]},
+            "classification": {"auto_accept": "not_authorized"},
+            "lifecycle": {"deprecation_min_releases": 2},
+            "compile": {
+                "per_role": true,
+                "budgets": {"readme_tokens": 2000, "table_file_tokens": 3000},
+                "sample_values": {"default": "masked", "max_per_column": 0}
+            }
+        }
+    }))
+}
+
+fn required_text(object: &serde_json::Map<String, Value>, key: &str) -> Result<String, ApiError> {
+    object.get(key).and_then(Value::as_str).filter(|text| !text.is_empty()).map(str::to_owned).ok_or_else(ApiError::membership)
 }
 
 async fn run_builder(config: &AppConfig, project: &ProjectCfg, args: Vec<String>) -> Result<(), ApiError> {
@@ -262,6 +332,13 @@ async fn run_builder(config: &AppConfig, project: &ProjectCfg, args: Vec<String>
     })
     .await;
     if output.secret_leak || !output.child_exited || output.killed || output.exit != Some(0) {
+        if !output.secret_leak {
+            let mut text = String::from_utf8_lossy(&output.stderr).replace(['\n', '\r'], " ");
+            if text.len() > 240 {
+                text.truncate(240);
+            }
+            let _ = write_private(&PathBuf::from(&config.work_dir).join("pack-child.err"), text.as_bytes());
+        }
         return Err(ApiError::membership());
     }
     Ok(())

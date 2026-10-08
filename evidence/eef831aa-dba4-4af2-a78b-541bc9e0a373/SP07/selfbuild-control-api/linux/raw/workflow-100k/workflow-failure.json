@@ -1,0 +1,92 @@
+{
+  "allowance_binding": 403,
+  "allowance_code": "forbidden",
+  "anon_code": "unauthenticated",
+  "anon_status": 401,
+  "auditor_write": 403,
+  "build_id": "b_c8b4a42a5484fd235a0a9a7e9e6bd88f",
+  "compiled_pack": "not_published",
+  "create_status": 202,
+  "cross_project": 403,
+  "customer_idp": false,
+  "failure_code": "stage.failed",
+  "final_status": "failed",
+  "idempotency_replay": 202,
+  "identity": "unaccepted_test_issuer",
+  "pack_after_failure": 503,
+  "pack_after_failure_code": "dependency.not_ready",
+  "phase": "failure",
+  "published": false,
+  "reviewer_create": 403,
+  "revision_code": "revision.conflict",
+  "revision_conflict": 409,
+  "s5": "failed",
+  "stages": [
+    {
+      "detail_code": null,
+      "output_sha256": "5e0c026dccbf8e7734e210d39947f2942e64fef5a7398eeb11a6d0898aab2580",
+      "stage": "S0",
+      "status": "succeeded"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": "eb8c87b73a969cd7d0ffc8e5d2913b41e1eb5b51d44104220d2eb02f0055cde0",
+      "stage": "S1",
+      "status": "succeeded"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": null,
+      "stage": "S10",
+      "status": "awaiting"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": "9737b430044f0111b11f08110b54c25cf40d216d692d1a4ee365b5d384760e74",
+      "stage": "S2",
+      "status": "succeeded"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": "9737b430044f0111b11f08110b54c25cf40d216d692d1a4ee365b5d384760e74",
+      "stage": "S3",
+      "status": "succeeded"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": "9737b430044f0111b11f08110b54c25cf40d216d692d1a4ee365b5d384760e74",
+      "stage": "S4",
+      "status": "succeeded"
+    },
+    {
+      "detail_code": "generate.failed",
+      "output_sha256": null,
+      "stage": "S5",
+      "status": "failed"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": null,
+      "stage": "S6",
+      "status": "pending"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": null,
+      "stage": "S7",
+      "status": "pending"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": null,
+      "stage": "S8",
+      "status": "pending"
+    },
+    {
+      "detail_code": null,
+      "output_sha256": null,
+      "stage": "S9",
+      "status": "awaiting"
+    }
+  ]
+}

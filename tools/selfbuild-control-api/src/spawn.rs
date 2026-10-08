@@ -26,6 +26,7 @@ pub struct ChildSpec {
 pub struct ChildOutput {
     pub exit: Option<i32>,
     pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
     pub killed: bool,
     pub child_exited: bool,
     pub secret_leak: bool,
@@ -65,6 +66,7 @@ fn run_blocking(spec: ChildSpec) -> ChildOutput {
         return ChildOutput {
             exit: None,
             stdout: Vec::new(),
+            stderr: Vec::new(),
             killed: true,
             child_exited,
             secret_leak: false,
@@ -97,17 +99,19 @@ fn run_blocking(spec: ChildSpec) -> ChildOutput {
         }
     }
     let mut out = out_thread.join().unwrap_or_default();
-    let err = err_thread.join().unwrap_or_default();
+    let mut err = err_thread.join().unwrap_or_default();
     let secret_leak = spec
         .needles
         .iter()
         .any(|needle| !needle.is_empty() && (contains(&out, needle) || contains(&err, needle)));
     if secret_leak {
         out.clear();
+        err.clear();
     }
     ChildOutput {
         exit,
         stdout: out,
+        stderr: err,
         killed,
         child_exited,
         secret_leak,
@@ -131,6 +135,7 @@ fn failed() -> ChildOutput {
     ChildOutput {
         exit: None,
         stdout: Vec::new(),
+        stderr: Vec::new(),
         killed: false,
         child_exited: false,
         secret_leak: false,
