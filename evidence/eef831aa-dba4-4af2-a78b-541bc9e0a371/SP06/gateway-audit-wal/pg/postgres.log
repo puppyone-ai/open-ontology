@@ -1,0 +1,40 @@
+
+PostgreSQL Database directory appears to contain a database; Skipping initialization
+
+2026-10-08 01:03:31.717 UTC [7] LOG:  starting PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-08 01:03:31.717 UTC [7] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-08 01:03:31.717 UTC [7] LOG:  listening on IPv6 address "::", port 5432
+2026-10-08 01:03:31.719 UTC [7] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-08 01:03:31.721 UTC [34] LOG:  database system was interrupted; last known up at 2026-10-08 00:53:18 UTC
+2026-10-08 01:03:31.756 UTC [41] FATAL:  the database system is starting up
+2026-10-08 01:03:31.767 UTC [34] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-10-08 01:03:31.768 UTC [34] LOG:  redo starts at 0/1FFE9A8
+2026-10-08 01:03:31.768 UTC [34] LOG:  invalid record length at 0/200EF68: expected at least 24, got 0
+2026-10-08 01:03:31.768 UTC [34] LOG:  redo done at 0/200EF40 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-10-08 01:03:31.769 UTC [32] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-10-08 01:03:31.776 UTC [32] LOG:  checkpoint complete: wrote 18 buffers (0.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.003 s, sync=0.003 s, total=0.008 s; sync files=17, longest=0.002 s, average=0.001 s; distance=65 kB, estimate=65 kB; lsn=0/200EF68, redo lsn=0/200EF68
+2026-10-08 01:03:31.777 UTC [7] LOG:  database system is ready to accept connections
+2026-10-08 01:05:36.318 UTC [88] ERROR:  permission denied for table event
+2026-10-08 01:05:36.318 UTC [88] STATEMENT:  UPDATE oo_audit_ingest.event SET project = project
+2026-10-08 01:05:36.319 UTC [88] ERROR:  permission denied for table pg_authid
+2026-10-08 01:05:36.319 UTC [88] STATEMENT:  SELECT rolpassword FROM pg_authid
+2026-10-08 01:05:36.351 UTC [89] FATAL:  permission denied for database "oo_query"
+2026-10-08 01:05:36.351 UTC [89] DETAIL:  User does not have CONNECT privilege.
+2026-10-08 01:05:36.384 UTC [90] FATAL:  permission denied for database "oo_audit"
+2026-10-08 01:05:36.384 UTC [90] DETAIL:  User does not have CONNECT privilege.
+2026-10-08 01:05:36.384 UTC [88] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:36.384 UTC [87] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:36.423 UTC [91] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.084 UTC [93] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.168 UTC [94] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.168 UTC [92] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.306 UTC [96] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.346 UTC [97] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.384 UTC [98] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.673 UTC [99] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.674 UTC [95] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.710 UTC [100] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.747 UTC [101] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.781 UTC [102] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.882 UTC [103] LOG:  could not receive data from client: Connection reset by peer
+2026-10-08 01:05:37.883 UTC [86] LOG:  could not receive data from client: Connection reset by peer

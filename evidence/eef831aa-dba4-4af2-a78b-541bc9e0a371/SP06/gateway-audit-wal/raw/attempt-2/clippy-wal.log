@@ -1,0 +1,41 @@
+   Compiling bindgen v0.66.1
+   Compiling pg_query v6.2.1
+    Checking tower v0.5.3
+    Checking tokio-rustls v0.26.5
+    Checking hyper-util v0.1.21
+    Checking prost v0.13.5
+    Checking matchit v0.8.4
+    Checking bitflags v2.13.2
+    Checking tower-http v0.6.11
+    Checking axum v0.8.9
+    Checking tokio-postgres-rustls v0.14.0
+    Checking oo-core v0.1.0 (/repo/crates/oo-core)
+    Checking getrandom v0.2.17
+    Checking oo-gateway v0.1.0 (/repo/crates/oo-gateway)
+    Checking gateway-audit-wal v0.1.0 (/repo/tools/gateway-audit-wal)
+error[E0382]: borrow of moved value: `lock`
+   --> src/store.rs:135:21
+    |
+117 |         let lock = OpenOptions::new()
+    |             ---- move occurs because `lock` has type `std::fs::File`, which does not implement the `Copy` trait
+...
+134 |             lock,
+    |             ---- value moved here
+135 |             active: lock.try_clone().map_err(WalError::Io)?,
+    |                     ^^^^ value borrowed here after move
+    |
+    = note: you can use `File::try_clone` to duplicate a `File` instance
+
+error: variable does not need to be mutable
+   --> src/store.rs:369:25
+    |
+369 |                     let mut file = OpenOptions::new().read(true).write(true).open(&path).map_err(WalError::Io)?;
+    |                         ----^^^^
+    |                         |
+    |                         help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `gateway-audit-wal` (lib) due to 2 previous errors

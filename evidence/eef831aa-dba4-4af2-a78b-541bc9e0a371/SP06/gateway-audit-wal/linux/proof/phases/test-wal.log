@@ -1,0 +1,91 @@
+   Compiling either v1.18.0
+   Compiling tokio v1.53.1
+   Compiling itertools v0.14.0
+   Compiling prost-derive v0.13.5
+   Compiling parking_lot_core v0.9.12
+   Compiling prost v0.13.5
+   Compiling parking_lot v0.12.5
+   Compiling getrandom v0.4.3
+   Compiling getrandom v0.3.4
+   Compiling tempfile v3.27.0
+   Compiling which v4.4.2
+   Compiling clang-sys v1.9.1
+   Compiling ahash v0.8.12
+   Compiling prost-types v0.13.5
+   Compiling tokio-util v0.7.19
+   Compiling bindgen v0.66.1
+   Compiling prost-build v0.13.5
+   Compiling hyper v1.11.1
+   Compiling jsonschema-value v0.57.0
+   Compiling referencing v0.57.0
+   Compiling rustls v0.23.45
+   Compiling pg_query v6.2.1
+   Compiling itertools v0.10.5
+   Compiling jsonschema v0.57.0
+   Compiling tokio-postgres v0.7.18
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.5
+   Compiling hyper-util v0.1.20
+   Compiling axum v0.8.9
+   Compiling tower-http v0.6.11
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-core v0.1.0 (/repo/crates/oo-core)
+   Compiling getrandom v0.2.17
+   Compiling oo-gateway v0.1.0 (/repo/crates/oo-gateway)
+   Compiling gateway-audit-wal v0.1.0 (/repo/tools/gateway-audit-wal)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 00s
+     Running unittests src/lib.rs (/target/debug/deps/gateway_audit_wal-70e79d625366b92c)
+
+running 10 tests
+test deliver::tests::caller_ack_flag_is_rejected ... ok
+test frame::tests::round_trip_hides_sql ... ok
+test frame::tests::sql_shaped_project_is_rejected ... ok
+test store::tests::ack_hash_is_immutable_and_gc_skips_partial ... ok
+test store::tests::lock_blocks_a_second_writer ... ok
+test store::tests::quota_does_not_write ... ok
+test store::tests::refusal_bytes_have_no_sql ... ok
+test store::tests::single_frame_reopen_stays_admitted ... ok
+test store::tests::sync_fault_rolls_back_the_frame ... ok
+test store::tests::torn_tail_keeps_the_frame_and_corruption_fails_closed ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/wal_inspect.rs (/target/debug/deps/wal_inspect-a5970db0f3bb8b56)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/wal_send.rs (/target/debug/deps/wal_send-66b91aad47293a6b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (/target/debug/deps/contract-4ee6b897655e541b)
+
+running 1 test
+test untrusted_admission_stays_blocked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live.rs (/target/debug/deps/live-ee4c38bfca81c595)
+
+running 1 test
+test dedicated_session_audit_is_durable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
+
+     Running tests/lock_subset.rs (/target/debug/deps/lock_subset-004bf616fca07718)
+
+running 1 test
+test child_locks_are_root_checksum_subsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gateway_audit_wal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

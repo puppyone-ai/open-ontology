@@ -1,0 +1,1 @@
+Kept PG volume already held two receipts from the prior delivered=2 run. The next live query inserted two more. receipts() counted the whole table (4) instead of this spool (2). Filter is ($1::text)::uuid on spool_id. Clippy and ingest tests were exit 0 on this run. ENOSPC was not reached.

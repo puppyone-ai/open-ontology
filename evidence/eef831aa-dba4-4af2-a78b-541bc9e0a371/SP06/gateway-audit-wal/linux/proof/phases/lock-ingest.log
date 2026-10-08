@@ -1,0 +1,7 @@
+    Updating crates.io index
+     Locking 135 packages to latest Rust 1.94.0 compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.0)
+      Adding tokio v1.53.1 (available: v1.53.2)
+      Adding tokio-rustls v0.26.5 (available: v0.26.6)
+      Adding zeroize v1.9.0 (available: v1.9.1)

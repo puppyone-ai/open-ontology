@@ -1,0 +1,60 @@
+   Compiling gateway-audit-wal v0.1.0 (/repo/tools/gateway-audit-wal)
+warning: field `lock` is never read
+  --> src/store.rs:91:5
+   |
+88 | pub struct DiskWal {
+   |            ------- field in this struct
+...
+91 |     lock: File,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `gateway-audit-wal` (lib) generated 1 warning
+error[E0277]: `SelectStream` doesn't implement `std::fmt::Debug`
+   --> tests/live.rs:556:80
+    |
+556 |     let err = session.execute_trusted_select(request(&owned, &sql), wal).await.expect_err("guard");
+    |                                                                                ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `SelectStream`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/result.rs:1291:4
+
+error[E0277]: `SelectStream` doesn't implement `std::fmt::Debug`
+   --> tests/live.rs:567:82
+    |
+567 |     let err = session.execute_trusted_select(request(&owned, hidden), wal).await.expect_err("hidden");
+    |                                                                                  ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `SelectStream`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/result.rs:1291:4
+
+error[E0277]: `SelectStream` doesn't implement `std::fmt::Debug`
+   --> tests/live.rs:580:79
+    |
+580 |     let err = session.execute_trusted_select(request(&owned, SQL), wal).await.expect_err("fsync");
+    |                                                                               ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `SelectStream`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/result.rs:1291:4
+
+error[E0277]: `SelectStream` doesn't implement `std::fmt::Debug`
+   --> tests/live.rs:594:79
+    |
+594 |     let err = session.execute_trusted_select(request(&owned, SQL), wal).await.expect_err("quota");
+    |                                                                               ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `SelectStream`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/result.rs:1291:4
+
+error[E0277]: `SelectStream` doesn't implement `std::fmt::Debug`
+   --> tests/live.rs:626:79
+    |
+626 |     let err = session.execute_trusted_select(request(&owned, SQL), wal).await.expect_err("enospc");
+    |                                                                               ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `SelectStream`
+    |
+note: required by a bound in `Result::<T, E>::expect_err`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/result.rs:1291:4
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `gateway-audit-wal` (test "live") due to 5 previous errors

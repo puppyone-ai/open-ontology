@@ -1,0 +1,1 @@
+Attempt 3 builder exit 1. audit-ingest tests passed. gateway-audit-wal live test did not compile because expect_err needs Debug on SelectStream. Clippy rejected an unread lock field and a nested if.

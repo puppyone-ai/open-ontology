@@ -1,0 +1,1 @@
+First collector delivery succeeded (delivered=2). Live then failed at tests/live.rs:643 because last-fault.txt was empty. fs::write truncates the token file before the write, and a full tmpfs has no free page. Fix reserves one page at open and overwrites the token in place.
