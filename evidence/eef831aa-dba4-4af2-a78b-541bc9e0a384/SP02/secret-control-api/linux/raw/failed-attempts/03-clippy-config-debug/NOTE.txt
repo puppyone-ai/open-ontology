@@ -1,0 +1,4 @@
+Same-PG resume. cargo-clippy.exit 101. cargo-test-focused skipped because clippy failed.
+Sole error: tests/contract.rs:96 load_config(...).expect_err("kms") needs Config: Debug.
+Config stays Clone-only because it holds the master key and the database password.
+Library compiled. Live HTTP and PG restart did not run. phase.txt absent.

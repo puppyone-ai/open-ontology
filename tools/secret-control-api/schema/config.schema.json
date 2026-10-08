@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.secret-control/config/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "https_origin",
+    "listen_host",
+    "management_port",
+    "component_port",
+    "tls_cert_file",
+    "tls_key_file",
+    "client_ca_file",
+    "identity_origin",
+    "identity_ca_file",
+    "deployment",
+    "key_source",
+    "master_key_file",
+    "pg"
+  ],
+  "properties": {
+    "https_origin": {"type": "string", "minLength": 9, "maxLength": 256},
+    "listen_host": {"type": "string", "minLength": 2, "maxLength": 128},
+    "management_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+    "component_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+    "tls_cert_file": {"type": "string", "minLength": 1, "maxLength": 512},
+    "tls_key_file": {"type": "string", "minLength": 1, "maxLength": 512},
+    "client_ca_file": {"type": "string", "minLength": 1, "maxLength": 512},
+    "identity_origin": {"type": "string", "minLength": 9, "maxLength": 256},
+    "identity_ca_file": {"type": "string", "minLength": 1, "maxLength": 512},
+    "deployment": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$"},
+    "key_source": {"enum": ["file", "kms"]},
+    "master_key_file": {"type": "string", "minLength": 1, "maxLength": 512},
+    "pg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "port", "database", "user", "password_file", "ca_file"],
+      "properties": {
+        "host": {"type": "string", "minLength": 1, "maxLength": 253},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "database": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "user": {"const": "oo_secret_admin"},
+        "password_file": {"type": "string", "minLength": 1, "maxLength": 512},
+        "ca_file": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    }
+  }
+}

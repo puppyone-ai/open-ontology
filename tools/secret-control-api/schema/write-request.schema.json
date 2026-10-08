@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.secret-control/write-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["identity_revision", "idempotency_key", "workload", "value"],
+  "properties": {
+    "identity_revision": {"type": "integer", "minimum": 1},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "workload": {"type": "string", "pattern": "^urn:oo:workload:[A-Za-z0-9_.:-]{1,128}$"},
+    "value": {"type": "string", "minLength": 1, "maxLength": 4096}
+  }
+}

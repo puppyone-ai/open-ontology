@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.secret-control/metadata/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "secret_ref", "version", "namespace", "project_id", "workload", "state", "customer_kms", "mtls_ca"],
+  "properties": {
+    "contract": {"const": "oo.secret-control/v1"},
+    "operation": {"enum": ["putSecret", "rotateSecret", "revokeSecret"]},
+    "secret_ref": {"type": "string", "pattern": "^secret://[a-z0-9][a-z0-9_-]{0,62}/[a-z][a-z0-9_]{0,62}/[a-z][a-z0-9_]{0,62}/[a-z][a-z0-9_]{0,62}$"},
+    "version": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "namespace": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "workload": {"type": "string", "pattern": "^urn:oo:workload:[A-Za-z0-9_.:-]{1,128}$"},
+    "state": {"enum": ["active", "revoked"]},
+    "customer_kms": {"const": "external_gate"},
+    "mtls_ca": {"const": "not_issued"}
+  }
+}

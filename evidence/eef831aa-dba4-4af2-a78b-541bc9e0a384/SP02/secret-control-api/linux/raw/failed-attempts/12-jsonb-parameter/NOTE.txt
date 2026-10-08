@@ -1,0 +1,1 @@
+Attempt 12. Driver rejected idempotency insert: String parameter was described as jsonb. The statement now casts text to jsonb. No plaintext in this log.

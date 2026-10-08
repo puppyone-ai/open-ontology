@@ -1,0 +1,9 @@
+origin_commit=a587031c719a484830d78e493605f48e2056cae4
+origin_subject=evidence: record the a200 policy catalog review
+25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
+96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
+d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3  deploy/trusted-demo/tools/sha256_manifest.rs
+pg-wrap.sh in this packet is the same bytes.
+sha256_manifest.rs in this packet is the same bytes.
+up.sh keeps the image digest, capability set, memory, cpu, private bridge, and secret-file entrypoint. Resource names are a384-private. It also creates /tmp state/master.key mode 0600 and does not regenerate that file when it already exists. init-roles.sh follows the a375 identity role script and adds oo_secret_runtime, oo_secret_admin, and the secret database. It does not TRUNCATE.
+The Rust builder uses the same image digest, cap-drop ALL, no-new-privileges, and no host mount as the reviewed launch shape, at the task limit of 6 GiB and 1 CPU.

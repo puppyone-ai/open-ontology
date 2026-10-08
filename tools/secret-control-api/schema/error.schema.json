@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.secret-control/error/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "error", "customer_kms", "mtls_ca"],
+  "properties": {
+    "contract": {"const": "oo.secret-control/v1"},
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {
+          "enum": [
+            "malformed",
+            "unauthenticated",
+            "forbidden",
+            "origin.rejected",
+            "csrf.rejected",
+            "namespace.rejected",
+            "workload.rejected",
+            "aead.rejected",
+            "not_found",
+            "method.not_allowed",
+            "revision.conflict",
+            "version.conflict",
+            "version.retired",
+            "idempotency.conflict",
+            "revoked",
+            "dependency.not_ready",
+            "commit.unknown",
+            "kms.external"
+          ]
+        },
+        "message": {"type": "string", "minLength": 1, "maxLength": 160},
+        "retryable": {"type": "boolean"}
+      }
+    },
+    "customer_kms": {"const": "external_gate"},
+    "mtls_ca": {"const": "not_issued"}
+  }
+}

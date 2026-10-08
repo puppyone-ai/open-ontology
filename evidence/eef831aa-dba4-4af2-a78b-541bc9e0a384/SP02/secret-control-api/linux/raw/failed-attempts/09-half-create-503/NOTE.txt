@@ -1,0 +1,3 @@
+Attempt 09. Clippy exit 0. Contract tests passed. Live half_write PUT returned 503, expected 201.
+Identity audit recorded one bootstrap.rejected. Secret version count stayed 0. No PostgreSQL ERROR was logged.
+The CSRF probe reached identity. The 503 is dependency.not_ready before a committed secret row.

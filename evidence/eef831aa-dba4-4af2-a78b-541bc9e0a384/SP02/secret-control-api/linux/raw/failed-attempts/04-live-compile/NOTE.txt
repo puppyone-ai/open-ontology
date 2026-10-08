@@ -1,0 +1,5 @@
+Same-PG resume after the Config Debug fix. cargo-clippy.exit 101. Tests skipped.
+14 errors in tests/live/main.rs only. The library compiled.
+- absent() received String where &str was required (7 sites).
+- https_only() in reqwest 0.13.5 requires a bool.
+- prove_race held format/rotate_body temporaries across tokio::join.
