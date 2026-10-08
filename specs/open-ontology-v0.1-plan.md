@@ -1503,3 +1503,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 新独立身份a375=89681、迁移a376=24509；前端原G1=45339/G2=84790/G3=15136三固定CLI已恢复旧scope，新增细节只排其下次continuation、不另启同UUIDCLI。三新task初始prompt组装Python语法错导致CLI启动exit1未读卡；脚本修正及卡已写后重新启动相同预留UUID，保留失败日志，未记录任何代码/test完成。nextUUIDa378未使用。a373真实B04服务依赖可用固定身份35bd生产者包现已交付，可准备真实测试IdP集成，最终验收仍需a375独立结果；不凭schema_only/declaredoperator身份签publicauth。
 
 2026-10-08：闭环派发规范生效。新能力作者负责从实际输入、真实依赖调用、持久状态、成功/必要失败、可复现启动到固定提交/完整证据，自述CLI0或helper/schema不计交付；独立复审仅检验固定交付。新增a383源接入catalog API、a384 Secret写入轮换、a385反馈接收至审核队列、a386完整本地分析、a387本人会话至真实S1–S11关闭、a388官方rmcp stdio至Gateway、a389十万行真实模型benchmark；原Plan对应SP03/05、SP02-W04/W06、SP09-W05、SP11-W01/02、SP13-W01、SP12。完整卡AC需作者实施前冻结，未完成不计开发，现76/90分母不因派发数量变化；全量Plan范围不缩。G1/G2/G3仅原三会话续接；备份a377原卡继续完整sequence切点与成功restore，不接受仅拒绝模式完成。主线开发cap20、Rustglobal10/task1、Node2/browser2保持，资源不足排队而非重复builder。外部门槛单列，禁止mock替代完成。
+
+- [ ] SP02-W01-b完整Rust jobs运行时闭环：a390工具模块唯一路径；真实100worker领取/续租/副作用去重/重启/旧generation/cancel验收，原目标不变；未计开发完成，不新增已验收数。
