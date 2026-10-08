@@ -4,3 +4,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
 
 NEXT unified closure: 11380terminal0真实作者交付待核验，合同CSRFsamecurrent不可实现与bootstrapconsumeprobe有副作用不一致不能报告说明后不改契约。FIRST看原冻结CONTRACT与actuala6f92currentCSRF轮换，提出最小真实身份verify不修改foreignidentity（402唯一writer）接口缺口给协调；本服务采用合法固定实际校验绑定，不靠失败bootstrap产生额外audit当无副作用验证。完整发布rollback+active真实Pack要过原卡，contract/实现明确一致后固定commit，不重跑已绿不变campaign。
+
+NEXT OC01–06 closure: LIVE不重启。a403 HANDOFF OC04接口缺口：真实evaluateGatesFromGit注册Gitcommit读取immutablecandidate，不接受callerpack/gates自证；G1–G13实际各必需执行证据与rolefence/replay/CAS active，testscope实证notproduction，缺外department不造owner/customer/runscclaim。读取对应docs/Plan而非仅 marker schema检查。

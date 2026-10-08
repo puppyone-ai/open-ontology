@@ -17,3 +17,5 @@ NEXT original closed CLI: 原62533terminal0，attempt8 clippy-protocol101临时t
 PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。
 
 NEXT unified closure: 22685terminal0，差分retry20s退出，FIRST收该次真实phase，修必要compile借用原三卷，协议/Gateway已0不重复全绿campaign；真实差分原卡未完成不能只停报告。
+
+NEXT OC01–06 closure: 原7802terminal0，actual差分exit0待phase/marker/lockhash核实，FIRST收现有成功结果写完整packetfixedcommit。协议/差分全绿不无理由复跑；不能仅报告将检查phase就退出交付。

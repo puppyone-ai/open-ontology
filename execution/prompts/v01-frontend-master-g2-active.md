@@ -27,3 +27,5 @@ NEXT original closed CLI: 原97842terminal0，原总卡继续真实模块绑定�
 PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。
 
 NEXT unified closure: 87867terminal0 stageinventory不是新产品能力完成。G1仍83401live正在actualclient，等固定SDK/selfbuild373 API成功binaryhandOff；source393/发布392真实contractfixed获取后接完整管理不是只测no-fetch占位；保持总卡原19features所有权。
+
+NEXT OC01–06 closure: 原94804terminal0，G1M13实际list/getBuild fixedclient已交，先完整读取其reports获取fixedSHA/interface，接真实列表/detail/next审核分类owner，剩余13动作需真实373不能testResponse代替。原总卡不缩scope。
