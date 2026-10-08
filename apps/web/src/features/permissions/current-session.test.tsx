@@ -103,6 +103,7 @@ describe("permission current session", () => {
     expect(screen.getByText("项目 alpha 角色 admin 能力 binding.read identity.current project.admin session.revoke")).toBeTruthy();
     expect(screen.getByText("fixture-admin · alpha · admin")).toBeTruthy();
     expect(screen.getByText("B06.roles 状态 unbound，调用 not_connected")).toBeTruthy();
+    expect(screen.queryByText("claims")).toBeNull();
     expect(screen.getByRole("button", { name: "应用" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "退出" }));
     expect(await screen.findByRole("heading", { name: "管理登录" })).toBeTruthy();
@@ -139,6 +140,7 @@ describe("permission current session", () => {
     );
     expect(await screen.findByRole("heading", { name: "身份绑定" })).toBeTruthy();
     expect(screen.getByText("B01.projectRoleBinding 状态 unbound，调用 not_connected")).toBeTruthy();
+    expect(screen.getByText("这里不列出人、组或 claims。")).toBeTruthy();
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "退出" }));
     expect(await screen.findByText("这一步没有完成。")).toBeTruthy();

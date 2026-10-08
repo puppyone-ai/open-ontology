@@ -1,0 +1,14 @@
+
+/src/apps/web/deploy/b01-adapter.mjs
+  262:19  error  'Buffer' is not defined  no-undef
+  273:19  error  'Buffer' is not defined  no-undef
+  321:16  error  'URL' is not defined     no-undef
+
+/src/apps/web/deploy/b01-adapter.test.mjs
+   12:45  error  'URL' is not defined     no-undef
+   13:38  error  'URL' is not defined     no-undef
+  281:15  error  'Buffer' is not defined  no-undef
+  296:36  error  'Buffer' is not defined  no-undef
+
+✖ 7 problems (7 errors, 0 warnings)
+

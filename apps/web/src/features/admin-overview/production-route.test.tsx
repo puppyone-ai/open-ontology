@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { bindingById, invokeOperation } from "@open-ontology/sdk-ts";
+import { bindingById, CONTROL_IDENTITY_FIXTURE_RECEIPT, invokeOperation } from "@open-ontology/sdk-ts";
 import { parseManagementSession } from "../../api/identity-session";
 import { adminSessionReady } from "../../app/admin-gate";
 import { IdentityProvider } from "../../app/identity-context";
@@ -87,11 +87,21 @@ describe("guarded admin routes", () => {
     expect(bindingById("B04.builder")?.state).toBe("unbound");
     expect(bindingById("createBuild")?.state).toBe("schema_frozen");
     expect(bindingById("createBuild")?.live).toBe(false);
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.provedRoles).toEqual(["admin", "reviewer", "steward", "auditor", "business_owner"]);
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.provedProject).toBe("alpha");
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.live).toBe(false);
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.customerIntegration).toBe("not_claimed");
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.evidence).toBe(
+      "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M9-b01-roles/raw/browser-receipt.json",
+    );
+    for (const operationId of ["registerSource", "getSourceCatalog", "createRelease", "rollbackRelease", "getActiveRolePack"]) {
+      expect(bindingById(operationId)).toBeNull();
+    }
     const uninitialized = parseManagementSession(envelope({ install_state: "uninitialized", projects: [] }));
     const reviewer = parseManagementSession(
       envelope({
         subject: "fixture-reviewer",
-        projects: [{ project_id: "beta", role: "reviewer", capabilities: ["identity.current", "review.decide"] }],
+        projects: [{ project_id: "alpha", role: "reviewer", capabilities: ["identity.current", "review.decide"] }],
       }),
     );
     if (!uninitialized || !reviewer) {
@@ -107,6 +117,9 @@ describe("guarded admin routes", () => {
       expect(invokeOperation(operationId)).toEqual({ ok: false, reason: "not_connected", operationId });
     }
     expect(invokeOperation("createBuild")).toEqual({ ok: false, reason: "schema_only", operationId: "createBuild" });
+    for (const operationId of ["registerSource", "getSourceCatalog", "createRelease", "rollbackRelease", "getActiveRolePack"]) {
+      expect(invokeOperation(operationId)).toEqual({ ok: false, reason: "unknown_operation", operationId });
+    }
     const loads = ADMIN_MODULES.map((module) => vi.spyOn(module, "load"));
     try {
       for (const module of ADMIN_MODULES) {
@@ -143,14 +156,31 @@ describe("guarded admin routes", () => {
         path: "/admin",
         heading: "初始化",
       },
-      {
+      ...[
+        ["fixture-reviewer", "reviewer", ["identity.current", "review.decide"]],
+        ["fixture-steward", "steward", ["identity.current", "ontology.draft"]],
+        ["fixture-auditor", "auditor", ["audit.read", "identity.current"]],
+        ["fixture-owner", "business_owner", ["business.record", "identity.current"]],
+      ].map(([subject, role, capabilities]) => ({
         status: 200,
         body: envelope({
-          subject: "fixture-reviewer",
-          projects: [{ project_id: "beta", role: "reviewer", capabilities: ["identity.current", "review.decide"] }],
+          subject,
+          projects: [{ project_id: CONTROL_IDENTITY_FIXTURE_RECEIPT.provedProject, role, capabilities }],
         }),
-        path: "/admin",
+        path: "/admin/permissions/roles",
         heading: "没有权限",
+      })),
+      {
+        status: 200,
+        body: { authorized: true, claims: ["project.admin"], subject: "caller", role: "admin" },
+        path: "/admin/permissions/roles",
+        heading: "管理登录",
+      },
+      {
+        status: 200,
+        body: envelope({ claims: ["project.admin"] }),
+        path: "/admin/permissions/bindings",
+        heading: "管理登录",
       },
     ];
     for (const item of cases) {
@@ -165,6 +195,11 @@ describe("guarded admin routes", () => {
       try {
         expect(await screen.findByRole("heading", { name: item.heading })).toBeTruthy();
         expect(screen.queryByRole("heading", { name: "总览" })).toBeNull();
+        expect(screen.queryByRole("heading", { name: "角色" })).toBeNull();
+        expect(screen.queryByText("caller")).toBeNull();
+        if (item.heading === "没有权限") {
+          expect(screen.getByText("当前身份没有执行此操作的权限。")).toBeTruthy();
+        }
         if (item.path.includes("route-sample")) {
           expect(screen.queryByText("route-sample")).toBeNull();
         }
