@@ -87,3 +87,23 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 ## M8 部署路由
 
 示例配置的上游仍是 null。null 不是正在运行的边缘，也不是 A20 或发布。适配器在部署填入 TLS、身份上游和静态上游之后执行固定路由：`/control` 进身份服务；没有网关上游时 `/v1` 与 `/api` 返回 `api_unbound`；OIDC 发现路径返回 `oidc_unbound`；WebSocket 返回 `ws_unbound`。这些响应不是 `index.html`。页面深链才回退到 `/index.html`。运行时 origin 仍是 null。五个身份 operation 仍是 `fixture_verified`，服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。
+
+## M9 五个角色与本人账户
+
+| 字段 | 值 |
+|---|---|
+| operationID | startAuthorizationCodeLogin、completeAuthorizationCodeCallback、getIdentityCurrent、logoutManagementSession、consumeBootstrapToken |
+| service commit | a6f92da8a0bf872f8a30efb116c2c7b14463505b |
+| contract commit | 089b00d7f70da1bc42f7e201dfa070748c651d5b |
+| state | fixture_verified |
+| customer integration | not_claimed |
+| origin | null |
+| reachable | false |
+| live | false |
+| journey | false |
+| release | false |
+| proved roles | admin、reviewer、steward、auditor、business_owner，项目都是 alpha |
+| config commit | ec801f46456d62b23679c05e87f45e23cedd710bd3aedb1992d69477a2748152 |
+| evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M9-b01-roles/raw/browser-receipt.json |
+
+账户页显示签名会话里的主体、角色和能力。只有 `project.admin` 出现管理入口。reviewer、steward、auditor、business_owner 看到「没有管理能力。」，`/admin` 显示「没有权限」。这是测试发行方，不是客户 IdP。`invokeOperation` 仍不发送请求。B04 仍是 `schema_frozen`，合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。a373 交接写明实现二进制未交付、E56 未验收，所以 B04 没有进入 `fixture_verified`。占位 `B01.*` 与 `B04.*` 仍是 unbound。

@@ -6,7 +6,7 @@
 - 字体从同源 `/fonts` 提供。构建不请求外部字体地址。
 - 不写入 `VITE_` 密钥。HTML 不烘入 API 地址。`runtimeConfig.apiBakedIntoHtml` 为 false。
 - Storybook 不进入生产包。`runtimeConfig.storybookDeployed` 为 false。
-- `runtimeConfig.controlIdentity.origin` 保持 null。五个身份 operation 的状态是 `fixture_verified`，服务提交 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`，合同提交 `089b00d7f70da1bc42f7e201dfa070748c651d5b`。这是已销毁的本地测试发行方，不是客户 IdP。`live`、`journey`、`release` 为 false，`reachable` 为 false。
+- `runtimeConfig.controlIdentity.origin` 保持 null。五个身份 operation 的状态是 `fixture_verified`，服务提交 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`，合同提交 `089b00d7f70da1bc42f7e201dfa070748c651d5b`。这是已销毁的本地测试发行方，不是客户 IdP。项目 `alpha` 上证明过 admin、reviewer、steward、auditor、business_owner。只有 admin 带有 `project.admin`。客户集成是 `not_claimed`。`live`、`journey`、`release` 为 false，`reachable` 为 false。
 - `b01-adapter.mjs` 是可配置的同源适配器。浏览器只访问页面自己的源。部署时必须填 TLS 证书、https 身份上游和静态上游。`pageOrigin` 保持 null。
 - `/control` 转发到身份上游，并用该上游的 CA 校验 TLS。身份上游失败时返回 502，正文是 `identity_unreachable`。
 - `/v1` 和 `/api` 在填写了网关上游时转发到网关。没有网关上游时返回 502，正文是 `api_unbound`。当前没有可绑定的网关服务，示例里的网关上游是 null。

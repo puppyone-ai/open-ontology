@@ -34,7 +34,7 @@ test("the committed example has no origin and no destroyed proof host", () => {
   assert.equal(example.pageOrigin, null);
   assert.equal(example.identity.upstream, null);
   assert.equal(example.static.upstream, null);
-  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg"]) {
+  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg"]) {
     assert.equal(exampleText.includes(host), false);
   }
   assert.throws(() => readAdapterConfig(example), /identity\.upstream is required/);
@@ -56,6 +56,10 @@ test("refuses plaintext identity, certificate bypass, and destroyed hosts", () =
     /destroyed proof host/,
   );
   assert.throws(
+    () => readAdapterConfig({ ...base, identity: { ...base.identity, upstream: "https://oo-fe01-m9-proof:7443" } }),
+    /destroyed proof host/,
+  );
+  assert.throws(
     () => readAdapterConfig({ ...base, identity: { ...base.identity, servername: "other.internal" } }),
     /servername/,
   );
@@ -65,6 +69,10 @@ test("refuses plaintext identity, certificate bypass, and destroyed hosts", () =
   );
   assert.throws(
     () => readAdapterConfig({ ...base, gateway: { upstream: "https://oo-fe01-edge:7443", caFile: "/secrets/ca.crt" } }),
+    /destroyed proof host/,
+  );
+  assert.throws(
+    () => readAdapterConfig({ ...base, gateway: { upstream: "https://oo-fe01-m9-edge:7443", caFile: "/secrets/ca.crt" } }),
     /destroyed proof host/,
   );
 });

@@ -58,12 +58,14 @@ export const CONTROL_IDENTITY_FIXTURE_RECEIPT = {
   release: false,
   serviceCommit: CONTROL_IDENTITY_SERVICE_COMMIT,
   contractCommit: CONTROL_IDENTITY_COMMIT,
-  evidence: "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M7-b01-adapter/raw/browser-receipt.json",
+  evidence: "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M9-b01-roles/raw/browser-receipt.json",
   provedSubject: "fixture-admin",
   provedProject: "alpha",
   provedRole: "admin",
   provedDeniedSubject: "fixture-reviewer",
   provedDeniedRole: "reviewer",
+  provedRoles: ["admin", "reviewer", "steward", "auditor", "business_owner"],
+  configCommit: "ec801f46456d62b23679c05e87f45e23cedd710bd3aedb1992d69477a2748152",
 } as const;
 export const CONTROL_IDENTITY_OPENAPI = "tools/control-identity/openapi/control-identity.openapi.yaml";
 

@@ -1,0 +1,1 @@
+Memory=6442450944 NanoCpus=1000000000 CapDrop=["ALL"] Network=oo-fe01-net-m9-eef831aa Privileged=false

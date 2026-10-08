@@ -1,0 +1,17 @@
+(node:2630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ splits identity, api, oidc, ws, assets, and pages [90m(0.726708ms)[39m[39m
+[32m✔ the committed example has no origin and no destroyed proof host [90m(0.220875ms)[39m[39m
+[32m✔ refuses plaintext identity, certificate bypass, and destroyed hosts [90m(0.607125ms)[39m[39m
+[32m✔ forwards /control/ to identity and does not fall through to the static page [90m(295.594333ms)[39m[39m
+[32m✔ falls back to index.html only for page deep links [90m(127.843333ms)[39m[39m
+[34mℹ tests 5[39m
+[34mℹ suites 0[39m
+[34mℹ pass 5[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 542.905708[39m

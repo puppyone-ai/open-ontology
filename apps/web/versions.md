@@ -135,3 +135,12 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 同源适配器不再把 `/control` 以外的路径都交给静态上游。`/v1` 与 `/api` 没有网关上游时返回 `api_unbound`；填了网关上游才转发。`/.well-known`、`/oauth`、`/oidc` 返回 `oidc_unbound`。WebSocket 返回 `ws_unbound`。这些正文都不是 `index.html`。
 - 页面深链只在静态 404 且请求接受 HTML 时回退一次 `/index.html`。字体和带后缀的资源保持 404。示例里的上游仍是 null。null 不是正在运行的边缘。运行时 origin 仍是 null。`live`、`journey`、`release` 仍是 false。
 
+## M9 五个管理角色与本人账户（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑字体，没有重跑 M8 的 63 个测试，没有重跑 1440、1280、768、390 视口矩阵。
+- 五个控制身份 operation 仍是 `fixture_verified`。服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。合同提交仍是 `089b00d7f70da1bc42f7e201dfa070748c651d5b`。浏览器对着这个测试发行方走完 admin、reviewer、steward、auditor、business_owner。项目都是 `alpha`。配置提交是 `ec801f46456d62b23679c05e87f45e23cedd710bd3aedb1992d69477a2748152`。客户集成是 `not_claimed`。
+- 只有 admin 进入总览。其余四个角色的账户页显示本人主体、角色和能力，并显示「没有管理能力。」打开 `/admin` 时显示「没有权限」。`live`、`journey`、`release` 仍是 false。运行时 origin 仍是 null。
+- `invokeOperation` 对这五个 id 仍返回 `not_connected`，不调用 fetch。B04 仍是 `schema_frozen`，合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。实现提交 `2d7c2a5cd9c3193a7fd3d3124642da194ef8683f` 还在历史上，a373 的交接写明二进制未交付、E56 未验收，所以没有把 B04 标成完成，也没有伪造响应。占位的 `B01.*` 和 `B04.*` 仍是 unbound。
+- 证明用的主机 `oo-fe01-m9-edge`、`oo-fe01-m9-proof`、`oo-fe01-m9-idp`、`oo-fe01-m9-pg` 已随容器销毁，并写进适配器的拒绝名单。示例上游仍是 null。
+- 容器里的 Vite 日志写着 `dist/assets/index-UTjtgt1_.js` 342.22 kB、gzip 106.87 kB，`dist/assets/index-B4C0dAhr.css` 25.94 kB、gzip 6.04 kB。归档基线是 `3be6264f18811b2ad88eedf986c342b15bdd0a16`。构建产物不进入 Git。
+

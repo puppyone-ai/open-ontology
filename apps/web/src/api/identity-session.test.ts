@@ -50,4 +50,23 @@ describe("management session parser", () => {
     expect(adminGateDecision({ status: "session", session: admin! })).toBe("allow");
     expect(admin?.customerIntegration).toBe("not_claimed");
   });
+
+  it("forbids steward, auditor, and business_owner without project.admin", () => {
+    const roles = [
+      ["steward", ["identity.current", "ontology.draft"]],
+      ["auditor", ["audit.read", "identity.current"]],
+      ["business_owner", ["business.record", "identity.current"]],
+    ] as const;
+    for (const [role, capabilities] of roles) {
+      const session = parseManagementSession(
+        current({
+          subject: role === "business_owner" ? "fixture-owner" : `fixture-${role}`,
+          projects: [{ project_id: "alpha", role, capabilities }],
+        }),
+      );
+      expect(session?.projects[0]?.role).toBe(role);
+      expect(session?.projects[0]?.capabilities.includes("project.admin")).toBe(false);
+      expect(adminGateDecision({ status: "session", session: session! })).toBe("forbidden");
+    }
+  });
 });

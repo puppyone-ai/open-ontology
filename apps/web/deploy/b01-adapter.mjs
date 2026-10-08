@@ -4,7 +4,7 @@ import https from "node:https";
 import net from "node:net";
 import { pathToFileURL } from "node:url";
 
-const DESTROYED_HOSTS = new Set(["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg"]);
+const DESTROYED_HOSTS = new Set(["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg"]);
 
 export const ROUTE_POLICY = {
   identity: ["/control", "/control/"],

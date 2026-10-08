@@ -1,0 +1,11 @@
+f7d408624a8d23c83de585677380ef782693938b913294069d38355d5f718409  apps/web/deploy/README.md
+7090988e400aedb0203ec05f87d9ccb3d15b526799568edb8fac1f189135f238  apps/web/deploy/b01-adapter.example.json
+bc86e84baaf800bc7ad6f292aa7be7cd4cd384ceb574e51e8284a617db461cb9  apps/web/deploy/b01-adapter.mjs
+67e061bf33c4ffd15eef1d41c0e554bf4423fa82961b2541e94e7027544adbce  apps/web/deploy/b01-adapter.test.mjs
+63b4b89775fc197f77633580c65082a88938b3ab7dc2e0c64672af53c7bf8060  apps/web/design/APIBINDING.md
+be59283ea9a5f4f138f51aa2144055282b995eff902fc70150d328fc1b219d34  apps/web/design/e2e/b01.roles.spec.ts
+3e3dbe04152eed022b4e59dfbdde21ddb31f9f13621e4a7bdbabbe04275ff905  apps/web/playwright.b01-roles.config.ts
+24aa4a8041b23a84d1bd33f3b39fba5dc74999330af1d167cec41d281b96489b  apps/web/src/api/identity-session.ts
+9d41f3942cb1e0b0578f8d2514e9eb2461ea88c27974de8283862412503333e4  apps/web/src/api/identity-session.test.ts
+c3470686f5ae0b255b0604a4b2e42357ed1043419d5a60fcb69f8809c2778f0b  apps/web/versions.md
+4f2bd98efea8149c8f385d1815a3bd04ee4043f97e2517e6874f9e8194fd1e9c  packages/sdk-ts/src/bindings.ts
