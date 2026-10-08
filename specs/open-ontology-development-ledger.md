@@ -1910,3 +1910,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 用户要求Self-build全阶段尽快收敛：新增specs/selfbuild-convergence-exit-plan.md明确SB01–11完整成功/失败/审核compiler真实应用/终态一致/部署与证据作者退出条件。唯一a373完整原E56继续，不把S9awaiting/jobrunning/字段未apply当交付；CLI工具中断与delivery退回/独立review返工分开统计，避免把context续接算实现返工或修改分母。当前统计79/90不变，完整SP07仍未签。
 
 - [ ] SP02-W05/B01真实项目管理绑定读写闭环：a402当前verifiedadmin预览→受审configGit/CAS→PGbinding/currentrevision与撤销→restart，管理role不自动授数据角色；a401独立验完整localanalysis，不用Selfbuild优先串行阻塞无冲突卡。
+
+用户强调完整主链：标准YAML→审核overlay→Git版本→发布→AgentPack必须全部真实证明；新增退出标准OC01–06（docs06§3.1、SP07W01/W05/W06、SP02W02、SP08W04）及唯一集成owner a403 tools/ontology-lifecycle。原S0–S10 E56编译Pack不能替代主链完成。每卡工作前读对应当前docs/Plan并记录requirements-map，缺接口精确交原owner、固定交付消费，不mock/手写产物/假Gate。79/90原局部计数不变；主链未签。

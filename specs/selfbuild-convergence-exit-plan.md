@@ -62,3 +62,18 @@
 - 中断续接：额度/工具/上下文导致 CLI 退出且未声明 delivery_ready，单独统计；不作为代码完成或返工。
 - 独立复审返工：固定提交发现真实缺陷后修复，沿现有唯一组件口径。
 - 本卡完成不等于完整 SP07/发布/Agent/发行。那些工作继续原 Plan，不用本文件放宽最终目标。
+
+## 不可遗漏的产品主链：标准 YAML → 审核 overlay → Git 版本 → 发布 → Agent Pack
+
+依据 docs/02-technology-stack.md 的 OOS 真相源决定、docs/06-ontology-layer.md §3.1–3.3、主 Plan SP07-W01/W05/W06、SP02-W02、SP08-W04。每次开工必须读取对应 docs/Plan 当前段落、记录 requirement→接口→真实测试→证据映射，不从已有代码推断完成范围。
+
+| ID | 主链验收 | 必须保留的证据 |
+|---|---|---|
+| OC-01 | catalog/profile/rules/LLM生成 schema-valid 标准 OOS YAML，ontology.yaml与generated目录真实落盘；JSON/Markdown仅编译产物 | YAML字节/hash/schema版本/来源seal；禁止只有临时JSON/S5响应 |
+| OC-02 | 真实权限审核写 reviews/decisions.yaml及curated overlay，编译effective | approve/reject/defer真实人/版本/证据；fieldmerge/列表stableidentity/rejected移除/staleoverride；再次Builder不覆盖curated |
+| OC-03 | 审核overlay/config成为实际Git不可变commit | 审核receipt→oldHEAD CAS→commit/tree/blob/配置hash；restart读取同版本，冲突不覆盖；无假commit字符串 |
+| OC-04 | 同一Git版本产生immutable release candidate，通过必需G1–G13/角色fence/replay/CAS active | 每G实际结果/生产与privatefixture分离、ACL/角色副本屏障和操作审计；缺安全gate不发布，不把compiled_pack改published |
+| OC-05 | Agent实际取得当前active发布版本的对应角色Pack | Pack manifest/sourceGit/release/policy/knowledge/contenthash闭合；缓存tuple/隐藏字段裁剪与撤权；实际Agent工具查询引用此Pack |
+| OC-06 | 同一真实十万行旅程贯通，必要失败/重启闭环 | YAML→decisions→curatedGit→candidate→active→AgentPack每边hash对应；模型失败不改审核/Git/发布、CAS冲突不换版本、stale/撤权拒绝 |
+
+S0–S10 E56作者退出仍需SB-01–11，不能将E56 compiled_pack称完整主链。完整主链新增独立集成owner a403，消费固定a373/curated-git-apply/发布API/Agent入口；各原模块owner负责自身真实接口。a403拥有新lifecycle编排模块及证据，不改别人的模块；接口缺口须精确交owner修，不用手写YAML或预置gate等mock通过。OC-01–06没有全部真实证明，主链与完整SP07/08产品能力保持未完成。
