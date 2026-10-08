@@ -55,8 +55,16 @@ A mismatch is `seal.rejected` at `/artifact`. The compiler does not repair a has
 |---|---|
 | `project` | `^[a-z][a-z0-9_-]{0,62}$` |
 | `ontology_version`, `catalog_version` | `^[A-Za-z0-9._+-]{1,64}$` |
-| `policy`, `knowledge` | `{id, version}` with the same id and version patterns |
+| `policy.id` | the project slug, or exactly 64 lowercase hex digits `[0-9a-f]{64}` |
+| `policy.version`, `knowledge.version` | `^[A-Za-z0-9._+-]{1,64}$` |
+| `knowledge.id` | the project slug |
 | `ontology` | one existing `OntologyFile` (`oos/v1`) |
+
+`policy.id` matches when it is the project slug, or when its length is 64 and every byte is an ASCII digit or `a` through `f`. The compiler stores those bytes unchanged. Uppercase hex, a digest length other than 64, a non-hex byte, `/`, a space, a newline, or a control character is `settings.invalid` at `/settings/policy/id`. The static message is `settings are outside the explicit version binding`.
+
+`knowledge.id` uses only the project slug. A hyphen stays legal. The compiler copies `know-a317` unchanged.
+
+`ontology-dialogue` requires the 64-lowercase-hex form for `binding.policy_id` (`tools/ontology-dialogue/CONTRACT.md`). That form is the digest `query-pg` requires on `identity.policy_id` (`contracts/gateway/query-pg-cli-v1.md`). One approved digest this rule accepts is `e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e`. A slug-only policy id remains legal in these settings and is refused as a dialogue config. A dialogue knowledge slug contains no hyphen, so `know-a317` is dialogue `config` before any socket. An id both this compiler and dialogue accept is a dialogue slug such as `know_a317`.
 
 `ontology.compile.per_role` must be true. `ontology.compile.sample_values.default` must not be `raw`. `include_schemas` must be non-empty and unique. Every effective dataset schema must be one of those names. A failure is `settings.invalid` or `settings.schema`. `auto_accept` is stored because `OntologyFile` requires it. It classifies nothing.
 

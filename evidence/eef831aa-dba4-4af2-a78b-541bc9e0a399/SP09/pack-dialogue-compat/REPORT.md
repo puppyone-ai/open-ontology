@@ -6,7 +6,7 @@ UUID eef831aa-dba4-4af2-a78b-541bc9e0a399. Rust 1.94.0, linux/arm64. This is the
 
 A legal policy id is the existing slug or exactly 64 lowercase hex digits. Uppercase, the wrong length, non-hex, and path or control characters still fail. Knowledge stays on the existing slug. The compiler copies `know-a317` and `know_a317` unchanged. Dialogue accepts only its no-hyphen slug, so `know-a317` is still `config` before any socket. The intersection id used in the live pack is `know_a317`.
 
-`endpoint.transport` defaults to production: HTTPS and a bearer of 16 to 256 visible ASCII bytes. The value `development_local` is the only mode that calls `http://127.0.0.1:<port>` and may use a bearer of exactly 6 bytes. Lengths 1–5 and 7–15 stay illegal. `contracts/builder/role-pack-v1.md` and `contracts/builder/reviewed-effective-oos-v1.md` were not edited.
+`endpoint.transport` defaults to production: HTTPS and a bearer of 16 to 256 visible ASCII bytes. The value `development_local` is the only mode that calls `http://127.0.0.1:<port>` and may use a bearer of exactly 6 bytes. Lengths 1–5 and 7–15 stay illegal. `contracts/builder/role-pack-v1.md` and `contracts/builder/reviewed-effective-oos-v1.md` now state the policy-id rule above. The document correction did not re-run the tests or the live loop.
 
 ## Live loop
 
@@ -20,7 +20,7 @@ The provider body names model `grok-4.7-build`. Usage is prompt_tokens 2461, com
 
 ## Tests
 
-Smoke docker exit 0. Focused attempt 1 compiled the product tests that were mounted: pack compat 3, reviewed-effective integration 5, role-pack 11, and builder clippy `-D warnings` exit 0. The lib golden failed because `examples/ontology-draft` was not mounted (35 passed, 1 failed). Dialogue tests failed the same way on the missing TLS fixtures. Focused-2 mounted those trees: lib 36, the same integration counts, dialogue execute_approval 3, identity_compat 5, propose 6, all exit 0. Its clippy failed because the component lives in the image layer. Focused-3 reinstalled clippy 0.1.94 and `ontology-dialogue --all-targets -D warnings` exited 0. No `cargo update`. Root `Cargo.toml` and `Cargo.lock` were not changed.
+Smoke docker exit 0. Focused attempt 1 compiled the product tests that were mounted: pack compat 3, reviewed-effective integration 5, role-pack 11, and builder clippy `-D warnings` exit 0. The lib golden failed because `examples/ontology-draft` was not mounted (35 passed, 1 failed). Dialogue tests failed the same way on the missing TLS fixtures. Focused-2 mounted those trees: lib 36, the same integration counts, dialogue execute_approval 3, identity_compat 5, propose 6, all exit 0. Its clippy failed because the component lives in the image layer. Focused-3 reinstalled clippy 0.1.94 and `ontology-dialogue --all-targets -D warnings` exited 0. No `cargo update`. Root `Cargo.toml` and `Cargo.lock` were not changed. Those exits belong to commit `b9f1e4fc30f144d1cf7dc61aa7765f58164a9caa`. The contract-document correction did not re-run them.
 
 ## Failed attempts kept
 

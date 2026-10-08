@@ -25,9 +25,16 @@ Identity tokens:
 
 | Field | Pattern |
 |---|---|
-| project, principal, policy id, knowledge id | `^[a-z][a-z0-9_-]{0,62}$` (length 1..=63) |
+| project, principal, knowledge id | `^[a-z][a-z0-9_-]{0,62}$` (length 1..=63) |
+| policy id | that slug, or exactly 64 lowercase hex digits `[0-9a-f]{64}` |
 | role | `^oo_r_[a-z][a-z0-9_]{0,57}$` and length <= 63 |
 | versions, including a statistics-proof `ref` | `^[A-Za-z0-9._+-]{1,64}$` |
+
+A policy id matches the slug, or its length is 64 and every byte is an ASCII digit or `a` through `f`. The compiler copies those bytes into the manifest. It emits the accepted bytes unchanged. Uppercase hex, a digest length other than 64, a non-hex byte, `/`, a space, a newline, or a control character is `identity.invalid` at `/policy/id`. The static message is `an identity token is outside the accepted pattern`. The code is `oo.builder.role-pack/v1/identity.invalid`.
+
+Knowledge stays on the slug in the table. A hyphen stays legal. `know-a317` is copied unchanged.
+
+`ontology-dialogue` uses a narrower config, in `tools/ontology-dialogue/CONTRACT.md`. `binding.policy_id` must be the 64-lowercase-hex form. That value is the digest `query-pg` requires on `identity.policy_id` (`contracts/gateway/query-pg-cli-v1.md`). One approved digest this rule accepts is `e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e`. A slug-only policy id remains a legal role pack and is refused as a dialogue config. A dialogue knowledge slug is one ASCII lowercase letter or `_`, then lowercase letters, digits, or `_`, length 1..=63, and it contains no hyphen. `know-a317` remains a legal pack knowledge id and is dialogue `config` before any socket. An id both this compiler and dialogue accept is that dialogue slug, for example `know_a317`.
 
 `compile.per_role` must be true (`compile.per_role`). `compile.sample_values.default: raw` refuses the pack (`sample.raw_refused`). `masked` and `none` continue, and no sample is emitted either way. `include_schemas` must be non-empty and unique. `include_unreviewed` accepts only `column_descriptions`, `dataset_descriptions`, `caveats`, and `relationships`, each once.
 

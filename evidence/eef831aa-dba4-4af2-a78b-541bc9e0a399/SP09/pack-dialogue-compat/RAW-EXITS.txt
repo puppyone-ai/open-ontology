@@ -25,3 +25,4 @@ failed pg-query first gateway exit 101 (stdbool.h)
 failed gateway-token-store mount exit 101
 failed focused mount gap exit 101
 failed psql semicolon on the first fixture load; recreated volume then count 90000
+contract-doc correction: tests not re-run; live loop remains propose.exit 0 execute.exit 0 cell int 90000 citation_status ok from b9f1e4fc30f144d1cf7dc61aa7765f58164a9caa

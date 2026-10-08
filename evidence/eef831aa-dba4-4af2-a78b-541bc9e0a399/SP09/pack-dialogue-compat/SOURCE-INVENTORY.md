@@ -14,6 +14,13 @@ Owned source. SHA-256 of the file bytes and the git blob id.
 | tools/ontology-dialogue/CONTRACT.md | c5f4498d204e940ea31f000364e53ba38bb05f26d726ef6b2131a6e2705b94dc | 01941b3f06ffca4e5cded532c2ff613d7aee6355 |
 | tools/ontology-dialogue/tests/identity_compat.rs | 78172819b6b658b9f7616ae04cafbdfcd6deef91f458a6953a50f45bce2a31fe | 5e0f96c2fdafbbc75151eb4a9a68bfeae6f6cc54 |
 
-Read-only and unchanged by this commit: root Cargo.toml, Cargo.lock, contracts/builder/role-pack-v1.md, contracts/builder/reviewed-effective-oos-v1.md, tools/pg-builder, a389 evidence, and every other crate and frontend path.
+Contract documents brought into line with the compilers. SHA-256 of the file bytes and the git blob id.
+
+| Path | SHA-256 | git blob |
+| --- | --- | --- |
+| contracts/builder/role-pack-v1.md | d670e107f6fff95ccf3d191543415290074156a3c5f7fb55b391f7a06449400a | b79b9d29a0d0e0951731f169de183d989e62309a |
+| contracts/builder/reviewed-effective-oos-v1.md | 19601973dba3ae8c5aa29759a2c0cde32e451de7ffd3a34c46d3658346df4eaf | 9f78f226266139bc748ce353325f1d4c37d4d928 |
+
+Read-only and unchanged: root Cargo.toml, Cargo.lock, tools/pg-builder, a389 evidence, the compiler sources above, and every other crate and frontend path. The contract-document correction did not re-run tests.
 
 Evidence for this UUID is `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a399/SP09/pack-dialogue-compat/`. `SHA256SUMS` lists those evidence bytes. The private token file and the fixture password files are not in the tree. A byte scan of this evidence directory found zero copies of the token.
