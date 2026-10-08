@@ -1,0 +1,1 @@
+docker run --name oo-a386-analysis --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 cargo test --locked --offline and cargo clippy --locked --offline

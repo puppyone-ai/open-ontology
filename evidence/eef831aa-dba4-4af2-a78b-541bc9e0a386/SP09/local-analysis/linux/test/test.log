@@ -1,0 +1,42 @@
+   Compiling local-analysis v0.1.0 (/src/local-analysis)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running unittests src/lib.rs (/target/debug/deps/local_analysis-5883b5bfa5af6035)
+
+running 7 tests
+test decimal::tests::aligns_scales_and_keeps_zeros ... ok
+test decimal::tests::negative_result_and_exact_zero ... ok
+test decimal::tests::rejects_a_sum_past_the_digit_budget ... ok
+test publish::tests::blocked_later_create_removes_only_the_name_this_call_made ... ok
+test publish::tests::cancel_after_partials_removes_them_before_rename ... ok
+test publish::tests::precheck_leaves_an_existing_final_and_creates_nothing ... ok
+test sha256::tests::empty_vector ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/local_analysis-e1585f3428bb4d0e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/api.rs (/target/debug/deps/api-712330b7cf102d8f)
+
+running 6 tests
+test cancel_beats_a_missing_export_and_an_existing_output_is_kept ... ok
+test hash_query_and_source_disagreements_write_nothing ... ok
+test reviewed_amount_export_sums_exact_decimals_and_draws_chinese ... ok
+test scale_alignment_formula_prefix_count_and_budgets ... ok
+test truncated_producer_export_is_written_uncited ... ok
+test wide_column_keeps_thirty_eight_digits ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/cli.rs (/target/debug/deps/cli-1b608ae9ef08b84e)
+
+running 3 tests
+test admission_flags_refuse_before_paths_and_keep_parquet_first ... ok
+test help_is_exit_zero_and_other_shapes_are_usage ... ok
+test unknown_field_budget_and_empty_request_have_stable_tokens ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

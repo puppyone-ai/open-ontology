@@ -1,0 +1,23 @@
+[package]
+name = "local-analysis"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Bounded exact analysis of one verified query-result-export. Does not admit DuckDB, Arrow, or Excel."
+
+[workspace]
+
+[[bin]]
+name = "local-analysis"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

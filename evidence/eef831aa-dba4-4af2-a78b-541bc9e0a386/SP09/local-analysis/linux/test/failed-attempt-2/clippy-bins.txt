@@ -1,0 +1,2 @@
+/usr/local/cargo/bin/clippy-driver
+/usr/local/cargo/bin/cargo-clippy

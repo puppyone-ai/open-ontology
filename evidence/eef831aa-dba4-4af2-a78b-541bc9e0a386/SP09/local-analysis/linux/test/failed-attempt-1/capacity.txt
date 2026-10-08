@@ -1,0 +1,1 @@
+own=0 host_cargo=0 rust_builders=0 cap_global=10 cap_own=1

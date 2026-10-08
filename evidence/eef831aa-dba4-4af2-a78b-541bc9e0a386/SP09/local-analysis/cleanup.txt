@@ -1,0 +1,9 @@
+removed container oo-a386-pg
+removed volumes oo-a386-eef831aa-cargo oo-a386-eef831aa-pgdata oo-a386-eef831aa-target
+removed network oo-a386-eef831aa-net
+removed /tmp/oo-a386-eef831aa-dba4-4af2-a78b-541bc9e0a386
+oo-a386-chain was already removed by linux/chain/launch.sh
+after: no oo.owner=a386 container, volume, or network
+secrets_removed
+left running and untouched: oo-a384-pg, oo-a389-pg, oo-a373-pg
+no prune
