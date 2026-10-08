@@ -1,0 +1,7 @@
+POST /v1/admin HTTP/1.1
+Host: feedback.local
+Content-Length: 2
+Connection: close
+Content-Type: application/json
+
+{}

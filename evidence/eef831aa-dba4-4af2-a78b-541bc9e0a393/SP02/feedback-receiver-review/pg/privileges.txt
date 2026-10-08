@@ -1,0 +1,27 @@
+      rolname      | rolsuper | rolcreatedb | rolcreaterole | rolinherit | rolcanlogin | rolbypassrls | rolreplication 
+-------------------+----------+-------------+---------------+------------+-------------+--------------+----------------
+ audit_ingest      | f        | f           | f             | f          | t           | f            | f
+ feedback_receiver | f        | f           | f             | f          | t           | f            | f
+(2 rows)
+
+   datname   
+-------------
+ oo_audit
+ oo_feedback
+(2 rows)
+
+      grantee      |     table_schema     |  table_name   | privilege_type 
+-------------------+----------------------+---------------+----------------
+ feedback_receiver | oo_feedback_receiver | candidate     | INSERT
+ feedback_receiver | oo_feedback_receiver | candidate     | SELECT
+ feedback_receiver | oo_feedback_receiver | feedback_item | INSERT
+ feedback_receiver | oo_feedback_receiver | feedback_item | SELECT
+ feedback_receiver | oo_feedback_receiver | receipt       | INSERT
+ feedback_receiver | oo_feedback_receiver | receipt       | SELECT
+(6 rows)
+
+ feedback_on_audit | audit_on_feedback | can_insert | can_select | can_update | can_delete | can_truncate 
+-------------------+-------------------+------------+------------+------------+------------+--------------
+ f                 | f                 | t          | t          | f          | f          | f
+(1 row)
+

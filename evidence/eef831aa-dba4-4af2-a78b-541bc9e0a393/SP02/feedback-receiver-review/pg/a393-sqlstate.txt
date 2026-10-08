@@ -1,0 +1,6 @@
+update=42501
+delete=42501
+truncate=42501
+pg_authid=42501
+oo_r_reviewer=0
+published_insert=23514

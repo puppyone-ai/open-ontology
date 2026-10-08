@@ -1,0 +1,2 @@
+904aed7ed10156576252da4be7ad828832aefe4628d15f67c1436f475cad9bff  /tmp/oo-a393-eef831aa-dba4-4af2-a78b-541bc9e0a393/src/deploy/trusted-demo/pg/up.sh
+05e7a4469b63096ddf444c4420410558dd251168cf1510c29779f08ec18ed42a  /tmp/oo-a393-eef831aa-dba4-4af2-a78b-541bc9e0a393/src/deploy/trusted-demo/pg/pg-wrap.sh

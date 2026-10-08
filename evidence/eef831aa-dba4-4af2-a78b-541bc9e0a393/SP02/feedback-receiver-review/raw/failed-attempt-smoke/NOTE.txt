@@ -1,0 +1,1 @@
+attempt 0: pre-edit try_lock on docker --tmpfs /tmp. rustc 1.94.0 aarch64 printed, then bash exit 126: /tmp/try_lock: Permission denied. The tmpfs was not executable. No product edit. The retry without that tmpfs is preedit-smoke.txt and exited 0.
