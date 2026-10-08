@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 NEXT closure: 原76805terminal0但真实100k chain仍up/fetch，FIRST收oo-a389-chain已有真实phase/exit而非重复资源，继续完整实际模型benchmark闭环报告。
 
 NEXT complete capability: 原26582terminal0，100k chain0已完成不可重复；现有oo-a389-bench继续真实modelcall，FIRST收既有score/phases完整结果，缺结果续原资源，不复跑链或并开builder。完整modelcache/cost/failure实际测才签本卡。
+
+NEXT complete closure: 原79702terminal0，fixed6cec19fa15932fd5e2ee94070857ead464887f97报告benchmark_loop_passfalse/bench1，不能作为任务完成。完整read frozen题目定义：q-entry-count policy pol-a317真实失败定位配置/producer契约，修runner合法绑定正确approvedpolicy并真实跑原正例；wrongmodel/hidden/falsecitation负例应按冻结期望评分而不是把预期拒绝当失败，禁止事后改gold/阈值。三modelcalls socketnot_opened cachehit不能替代实际modelfresh证明，检验前两stored实际HTTPcall证据并保留。7整产品notrun仍不集成验收，等固定service必要依赖可继续本卡集成，不能宣称已闭环。复用既有100k已审chain和有效cache，不无理由重跑模型。

@@ -5,3 +5,5 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 优先且最终验收约束：本卡必须官方rmcp真实实现，root无锁依赖时先提供精确版本/许可/MSRV/schema与最小独立child锁审批证据，不以手写协议替代框架要求。
 
 NEXT complete capability: 原65101terminal0，现有proof退出请收实际phase。rmcp3.5已锁真实dependencies后继续原官方stdio完整实际PG/Gateway差分闭环，不重复builder/PG、不半成品交付，公开许可/MSRV风险证明，root未改。
+
+NEXT complete closure: 原1853terminal0实际Clippy组件失败，先收原始错误/现有资源不重复PG，按照已review私有1.94组件安装配方解决，后续真实官方rmcp protocol/Gateway差分完整自测交付，不仅报告dependencyready。
