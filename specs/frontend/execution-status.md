@@ -62,3 +62,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组合test包含G2+adapter5通过，尚待固定G3独立复审；null deployment示例/API/ws unbound不签A20/FE/live。B01后端a6f92原E54已独立验收，客户IdP仍pending；可供真实前端/自构建服务稳定绑定。
 
 当前覆盖旧句柄：G1原a35139862/G2原a35318470/G3原a35246149启动confirmedrunning。M9五角色已作者交付待完整读hash，G2adapter lint4归G1修，G3fixed新M8/M9 delta复审；真实B04尚待a373完整，禁止mock完成。
+
+当前G1a35174689/G2a35371120启动confirmedrunning，G3a35246149统一confirmedlive。M10作者67suite/lint0待完整证据核验；B02/B04/B07等待固定SDK与真实producer，mock/schema不作完成。新stack395只写后端deploy/product-stack，G1web部署所有权不变。

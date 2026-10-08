@@ -92,3 +92,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 补位实际启动confirmedrunning：a38459102/a3865084/a3881853/a38979702/G1a35139862/G2a35318470/G3a35246149/a39359985；连同7统一confirmedlive共15，Rust10/task1 Node2/browser2保持。新作者feedback包和FE角色包待完整证据核验不涨验收。当前78/90历史103/首次93/返工16，原全量集成发行未过。
 
 单次18min统一15：a38762843/a38156762/a3881853/a38979702/G1a35139862/G2a35318470terminal0；9confirmedlive保持：a39051488/a37393577/a38342717/a38459102/a3865084/a39124465/a39230009/G3a35246149/a39359985。a387原真实localprocess闭环包待独立394验证资源真撤销，a381完整review待全读hash，benchmark389false不可验收。续原388/389/G1/G2，新增394session独立review和395完整stack开发，nextUUIDa396。
+
+补位工具确认running：a38895212/a3894246/G1a35174689/G2a35371120/a39445515/a39518259，加9本轮confirmedlive共15。所有原资源优先收取不复制；当前78/90未因authorclosed/benchfalse涨数。frontend G3原46149live保留，三固定UUID不变。
