@@ -54,7 +54,11 @@ describe("font coverage", () => {
     expect(covered.has(rare ?? -1)).toBe(false);
   });
 
-  it("covers the reviewed gap and the current G1 source text", () => {
+  it("covers the reviewed gap and the registered source text", () => {
+    expect(sources.g2Snapshot).toBe("d416874eee65e5f30ad9858cef4429f608066c7a");
+    expect(sources.roots).toContain("src/features/admin-overview");
+    expect(sources.roots).toContain("src/features/sources");
+    expect(sources.roots).toContain("src/features/operations");
     expect(sources.rareCodepoint).toBe(0x9f98);
     expect(sources.gapCodepoints).toHaveLength(98);
     expect(sources.gapCodepoints).not.toContain(0x9f98);

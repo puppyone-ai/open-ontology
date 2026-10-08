@@ -103,3 +103,11 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - Linux arm64 Node v24.21.0 上，字体生成、`font-coverage.test.ts` 的 3 个测试、类型检查、改动文件的 lint 和生产构建退出码都是 0。第一次 Playwright 里减少动效通过，字体请求因把 304 当成失败而失败。第二次只重跑字体请求，1 个测试通过。没有重跑 19 张基础页截图、整套单元测试、对比度报告或 Storybook。
 - 生产 JS `dist/assets/index-ppVptCPZ.js` 为 325770 字节，gzip 101884 字节。CSS `dist/assets/index-BNkIVGpf.css` 为 25712 字节，gzip 5911 字节。上一节的 5254 只描述 M3 之前的 `index-CFLc_wNN.css`。构建产物不进入 Git。
 
+## M5 管理模块守卫与 B04 schema（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖。
+- Noto 子集从 376 个码位扩到 506 个，加入固定提交 `d416874eee65e5f30ad9858cef4429f608066c7a` 的 19 个管理目录文案。U+9F98 仍不在子集里。完整字体 sha256 仍是 `bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b`，7762252 字节。Geist 与两份许可证没有改。色值没有改。
+- 未登录访问 `/admin` 和 `/admin/sources` 仍落到管理登录。模块的 `load()` 在 `getIdentityCurrent` 变成 `live_verified` 之前不会被调用。当前该状态是 `schema_frozen`。
+- B01 的五个 HTTP operation 和 B04 的十五个 HTTP operation 只登记为 `schema_frozen`。`invokeOperation` 返回 `schema_only`，不调用 fetch。占位的 `B01.*` 和 `B04.*` 仍是 unbound。两个 origin 都是 null。
+- 最终生产 JS `dist/assets/index-NShXIz5d.js` 为 344710 字节，gzip 108337 字节。CSS `dist/assets/index-DYD7xV9p.css` 为 28241 字节，gzip 6278 字节。`index.html` 不预加载管理页分块。构建产物不进入 Git。
+

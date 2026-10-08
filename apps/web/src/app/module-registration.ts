@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { ADMIN_FEATURE_MODULES } from "../features/admin-overview/catalog";
 
 /** G2 implements this shape in its own module.ts. G1 is the only router writer. */
 export type ModuleRegistration = {
@@ -15,8 +16,12 @@ export type MountedModuleRoute = {
   lazy: () => Promise<{ Component: ComponentType }>;
 };
 
-/** Production stays empty until a fixed G2 module is appended by G1. */
-export const ADMIN_MODULES: readonly ModuleRegistration[] = [];
+/**
+ * Fixed G2 snapshot d416874eee65e5f30ad9858cef4429f608066c7a.
+ * The router mounts these paths behind GuardedAdminModule.
+ * routesFromModules calls load(); production must not use it while the session is unbound.
+ */
+export const ADMIN_MODULES: readonly ModuleRegistration[] = ADMIN_FEATURE_MODULES;
 
 export function routesFromModules(modules: readonly ModuleRegistration[]): MountedModuleRoute[] {
   return modules.map((module) => ({

@@ -1,7 +1,8 @@
 /**
  * Public binding registry. OpenAPI for the product groups is absent.
  * GET /v1/pack/metadata is schema_frozen against the gateway source blobs below.
- * Nothing in this module calls fetch, and live stays false.
+ * Five control-identity operations are schema_frozen against commit 089b00d7f.
+ * That service is not reachable from this module. Nothing here calls fetch, and live stays false.
  */
 
 export type BindingState = "unbound" | "schema_frozen" | "fixture_verified" | "live_verified";
@@ -15,7 +16,7 @@ export type BindingRecord = {
   live: false;
   journey: false;
   release: false;
-  openApi: "absent";
+  openApi: string;
   presentInProcess: boolean;
   serviceCommit: string | null;
   sourceBlobs: Readonly<Record<string, string>> | null;
@@ -46,6 +47,68 @@ export const GATEWAY_SOURCE = {
 
 export const PACK_METADATA_SCHEMA_SHA256 = "f77d55d45bfe86e237f167881a415f67304e9dc11251474c4155a3ac2a9353e3";
 export const GATEWAY_ERROR_SCHEMA_SHA256 = "0839b3e4798ece2ceaddee80ae2c71d54fd491f919d2025616884b97cbc8b5f2";
+
+export const CONTROL_IDENTITY_COMMIT = "089b00d7f70da1bc42f7e201dfa070748c651d5b";
+export const CONTROL_IDENTITY_OPENAPI = "tools/control-identity/openapi/control-identity.openapi.yaml";
+
+/** Git blob ids of the frozen contract. The working tree matched this commit when pinned. */
+export const CONTROL_IDENTITY_BLOBS = {
+  "tools/control-identity/CONTRACT.md": "e6752453758114d9408569674b38e8bfeb999bcb",
+  "tools/control-identity/openapi/control-identity.openapi.yaml": "3fdeef6b0d22a3be9646520f82275edcb2e3f037",
+  "tools/control-identity/schema/current.schema.json": "189ea2499037408ea3ff8693406a698699a5e551",
+  "tools/control-identity/schema/logout.schema.json": "120db0995972a2570c302e7d2f82e11009668e9b",
+  "tools/control-identity/schema/bootstrap-consume.schema.json": "3ef727d8eca68be03603dd7945e0cbb8eac9f674",
+  "tools/control-identity/schema/bootstrap-result.schema.json": "5b43963c1e5e62cb2afc45d9eb4199865de226bb",
+  "tools/control-identity/schema/error.schema.json": "7703135c0ab53bf3f8d3ffd789760755eb94d5d9",
+} as const;
+
+export const SELFBUILD_COMMIT = "7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9";
+export const SELFBUILD_OPENAPI = "tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml";
+
+/** Git blob ids of the frozen B04 contract. The working tree matched this commit when pinned. */
+export const SELFBUILD_BLOBS = {
+  "tools/selfbuild-control-api/CONTRACT.md": "8b149c46f1be207bb08e558b0c9abb5347a347c8",
+  "tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml": "8f94655da2d765ed0de75d002e6ff7b736c44b32",
+  "tools/selfbuild-control-api/schema/build.schema.json": "350d09161728ed0dee16d513bf7d6a84c7c2c84b",
+  "tools/selfbuild-control-api/schema/create-build.request.schema.json": "5fb4d8a04a9b7cc087c103eb705e2d54dee72c0a",
+  "tools/selfbuild-control-api/schema/error.schema.json": "92a331049ca3b1a009125089acb27eed96c8312f",
+  "tools/selfbuild-control-api/schema/capability-map.json": "b02eff865c600b118bcda272be76ccdf9db215b4",
+} as const;
+
+export const SELFBUILD_SCHEMA_SHA256 = {
+  openapi: "4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0",
+  build: "1943d0ca62d2bc6ee93aba53cb4e1b9f818e5a7a8bd93e26bc35aa5fd8a35acd",
+  createBuildRequest: "7514429cde7d6d2442fa0efd369ca69586e1d330d801af47fc18f8330f76d7da",
+  error: "ab989b7de7c402f3bfe44a08e87053b296901ec172914ebc8d2a48518efd08fe",
+  capabilityMap: "553fbeda604d502eb4773bc7d8d7eda1d6f3645bb86a1374d8474abacf4f48fb",
+} as const;
+
+export const SELFBUILD_HTTP = [
+  ["createBuild", "POST", "/control/v1/builds", "build"],
+  ["listBuilds", "GET", "/control/v1/builds", "openapi"],
+  ["getBuild", "GET", "/control/v1/builds/{build_id}", "build"],
+  ["cancelBuild", "POST", "/control/v1/builds/{build_id}/cancel", "build"],
+  ["getBuildCards", "GET", "/control/v1/builds/{build_id}/cards", "openapi"],
+  ["getBuildCandidates", "GET", "/control/v1/builds/{build_id}/candidates", "openapi"],
+  ["listReviewItems", "GET", "/control/v1/reviews", "openapi"],
+  ["getReviewItem", "GET", "/control/v1/reviews/{item_id}", "openapi"],
+  ["previewReviewBatch", "POST", "/control/v1/reviews/preview", "openapi"],
+  ["decideReviewItem", "POST", "/control/v1/reviews/{item_id}/decision", "openapi"],
+  ["listClassifications", "GET", "/control/v1/classifications", "openapi"],
+  ["previewClassifications", "POST", "/control/v1/classifications/preview", "openapi"],
+  ["confirmClassifications", "POST", "/control/v1/classifications/confirm", "openapi"],
+  ["compileBuildPack", "POST", "/control/v1/builds/{build_id}/pack", "openapi"],
+  ["getBuildPack", "GET", "/control/v1/builds/{build_id}/pack", "openapi"],
+] as const;
+
+export const CONTROL_IDENTITY_SCHEMA_SHA256 = {
+  openapi: "d49bec8cd3ef59bce78e8f8123fd8ea58be7bedac6d84108a13a2c197bd0f040",
+  current: "ffd32c86bd4f5188fb08adcbba49d46231c9cadaaf8530031b5055922e7823cb",
+  logout: "3c66428d1c325d45d8d96fcde5e8d1ac9cd53531eecf7c4932f2e6744cfc2064",
+  bootstrapConsume: "dcbbe3c79f86b14e621c17c340a470011763d4c8ee1698c5fc59f21759831697",
+  bootstrapResult: "42da8ab161dbf673d748b9e9c519c2af2ad75892c2bdc41f89f7bda407748e0d",
+  error: "1a6725385580d9d1ec668f84f71d6c441a05fcbe54d07b88046bfdaf98d26238",
+} as const;
 
 const NOT_CONNECTED = "OpenAPI 不存在，没有冻结的 HTTP schema，不能调用。";
 
@@ -182,6 +245,64 @@ const GROUP_OPERATIONS: readonly (readonly [string, string, string])[] = [
   ["B12", "recovery", "恢复"],
 ];
 
+const SELFBUILD_NOTE =
+  "schema_frozen。B04 合同提交 7bb2da3cc 已冻结。这里不发送请求，不生成 CSRF，也不把钉住的身份 JSON 当成登录成功。live、journey、release 都为 false。占位的 B04.* 操作仍是 unbound。";
+
+function selfbuild(
+  operationId: string,
+  method: "GET" | "POST",
+  path: string,
+  schemaKey: "build" | "openapi",
+): BindingRecord {
+  return {
+    operationId,
+    group: "selfbuild",
+    method,
+    path,
+    state: "schema_frozen",
+    live: false,
+    journey: false,
+    release: false,
+    openApi: SELFBUILD_OPENAPI,
+    presentInProcess: false,
+    serviceCommit: SELFBUILD_COMMIT,
+    sourceBlobs: SELFBUILD_BLOBS,
+    schemaSha256: schemaKey === "build" ? SELFBUILD_SCHEMA_SHA256.build : SELFBUILD_SCHEMA_SHA256.openapi,
+    capability: "构建",
+    revision: null,
+    publicFixture: null,
+    note: SELFBUILD_NOTE,
+  };
+}
+
+function controlIdentity(
+  operationId: string,
+  method: "GET" | "POST",
+  path: string,
+  schemaSha256: string,
+  note: string,
+): BindingRecord {
+  return {
+    operationId,
+    group: "control-identity",
+    method,
+    path,
+    state: "schema_frozen",
+    live: false,
+    journey: false,
+    release: false,
+    openApi: CONTROL_IDENTITY_OPENAPI,
+    presentInProcess: false,
+    serviceCommit: CONTROL_IDENTITY_COMMIT,
+    sourceBlobs: CONTROL_IDENTITY_BLOBS,
+    schemaSha256,
+    capability: "身份",
+    revision: null,
+    publicFixture: null,
+    note,
+  };
+}
+
 const metadata: BindingRecord = {
   operationId: "gateway.packMetadata.get",
   group: "gateway",
@@ -202,8 +323,47 @@ const metadata: BindingRecord = {
   note: "schema_frozen。响应形状来自 pack_body，错误信封来自 ApiError::body。示例夹具不是服务器捕获，fixture_verified 与 live 都为 false。这不是 B01 身份，也不是 B09 查询。",
 };
 
+const CONTROL_IDENTITY_NOTE =
+  "schema_frozen。合同提交 089b00d7f 已冻结，a370 服务尚未作为可达实现绑定。不读取会话，不发送请求。live、journey、release 都为 false。占位的 B01.* 操作仍是 unbound。";
+
 export const OPERATIONS: readonly BindingRecord[] = [
   metadata,
+  controlIdentity(
+    "startAuthorizationCodeLogin",
+    "GET",
+    "/control/v1/auth/login",
+    CONTROL_IDENTITY_SCHEMA_SHA256.openapi,
+    `${CONTROL_IDENTITY_NOTE} 响应是 302，没有成功 JSON。schemaSha256 是 OpenAPI 文档。`,
+  ),
+  controlIdentity(
+    "completeAuthorizationCodeCallback",
+    "GET",
+    "/control/v1/auth/callback",
+    CONTROL_IDENTITY_SCHEMA_SHA256.openapi,
+    `${CONTROL_IDENTITY_NOTE} 响应是 302，没有成功 JSON。schemaSha256 是 OpenAPI 文档。`,
+  ),
+  controlIdentity(
+    "getIdentityCurrent",
+    "GET",
+    "/control/v1/identity/current",
+    CONTROL_IDENTITY_SCHEMA_SHA256.current,
+    `${CONTROL_IDENTITY_NOTE} schemaSha256 是 current.schema.json。没有身份夹具。`,
+  ),
+  controlIdentity(
+    "logoutManagementSession",
+    "POST",
+    "/control/v1/auth/logout",
+    CONTROL_IDENTITY_SCHEMA_SHA256.logout,
+    `${CONTROL_IDENTITY_NOTE} schemaSha256 是 logout.schema.json。需要 CSRF 与 Origin，本模块不生成它们。`,
+  ),
+  controlIdentity(
+    "consumeBootstrapToken",
+    "POST",
+    "/control/v1/auth/bootstrap/consume",
+    CONTROL_IDENTITY_SCHEMA_SHA256.bootstrapResult,
+    `${CONTROL_IDENTITY_NOTE} schemaSha256 是响应 bootstrap-result.schema.json。请求体是 bootstrap-consume.schema.json，哈希 ${CONTROL_IDENTITY_SCHEMA_SHA256.bootstrapConsume}。`,
+  ),
+  ...SELFBUILD_HTTP.map(([operationId, method, path, schemaKey]) => selfbuild(operationId, method, path, schemaKey)),
   presentRoute(
     "gateway.sql.post",
     "POST",

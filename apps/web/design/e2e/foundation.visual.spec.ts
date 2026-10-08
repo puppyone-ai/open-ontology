@@ -43,13 +43,14 @@ for (const size of sizes) {
       test(`${size.name} ${theme.name} ${density.name}`, async ({ page }) => {
         await page.setViewportSize({ width: size.width, height: size.height });
         await page.emulateMedia({ colorScheme: theme.name, reducedMotion: "no-preference" });
-        await page.goto("/");
+        await page.goto("/login");
+        await expect(page).toHaveURL(/\/login$/);
         await page.getByRole("radio", { name: theme.label }).check();
         await page.getByRole("radio", { name: density.label }).check();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme.name);
         await expect(page.locator("html")).toHaveAttribute("data-density", density.name);
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText("设计基线");
-        await shoot(page, `${size.name}-${theme.name}-${density.name}.png`);
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText("登录");
+        await shoot(page, `login-${size.name}-${theme.name}-${density.name}.png`);
       });
     }
   }
@@ -59,26 +60,36 @@ for (const theme of themes) {
   test(`1280x800 ${theme.name} roomy`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.emulateMedia({ colorScheme: theme.name, reducedMotion: "no-preference" });
-    await page.goto("/");
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/login$/);
     await page.getByRole("radio", { name: theme.label }).check();
     await page.getByRole("radio", { name: "宽松" }).check();
     await expect(page.locator("html")).toHaveAttribute("data-density", "roomy");
-    await shoot(page, `1280x800-${theme.name}-roomy.png`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("登录");
+    await shoot(page, `login-1280x800-${theme.name}-roomy.png`);
   });
 }
 
-test("keyboard focus at 1280 light", async ({ page }) => {
+test("keyboard changes the login theme at 1280 light", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
-  await page.goto("/");
-  await page.keyboard.press("Tab");
-  await expect(page.locator("input[name='theme']:focus")).toHaveCount(1);
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("登录");
+  let focused = false;
+  for (let step = 0; step < 8; step += 1) {
+    await page.keyboard.press("Tab");
+    if ((await page.locator("input[name='oo-theme']:focus").count()) === 1) {
+      focused = true;
+      break;
+    }
+  }
+  expect(focused).toBe(true);
   await page.keyboard.press("ArrowRight");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.keyboard.press("Space");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  expect(await page.evaluate(() => localStorage.length)).toBe(0);
-  await shoot(page, "keyboard-focus-1280x800-dark.png");
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).toEqual(["oo.pref.theme"]);
+  expect(keys.every((key) => key === "oo.pref.theme" || key === "oo.pref.density" || key === "oo.pref.lang")).toBe(true);
+  await shoot(page, "login-keyboard-1280x800-dark.png");
 });
 
 function toMilliseconds(duration: string) {

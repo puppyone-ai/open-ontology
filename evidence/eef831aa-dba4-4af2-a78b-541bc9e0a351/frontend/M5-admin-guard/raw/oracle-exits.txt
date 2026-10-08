@@ -1,0 +1,52 @@
+admin_oracle_tail
+    "/admin/evaluations/:id",
+    "/admin/sessions/:id"
+  ],
+  "failures": [
+    "ADMIN_MODULES is not an empty constant",
+    "production /admin does not redirect to /admin/login"
+  ],
+  "gaps": [
+    {
+      "id": "A16-group",
+      "message": "page-specifications lists A16 under binding group B04. api-state-contracts puts terms in B05, and the catalog consumes B05.terms. No B04 terms operation exists."
+    },
+    {
+      "id": "nav-pattern",
+      "message": "ADMIN_NAV publishes 12 detail patterns as links: /admin/sources/:id, /admin/files/:id, /admin/jobs/:id, /admin/builds/:id, /admin/reviews/:id, /admin/releases/:id, /admin/ontology/datasets/:id, /admin/ontology/enums/:id, /admin/ontology/metrics/:id, /admin/ontology/entities/:id, /admin/evaluations/:id, /admin/sessions/:id. AppShell renders every nav item, including while identity is null."
+    },
+    {
+      "id": "source-secret-field",
+      "message": "SOURCE_STEPS includes a secret field. Shared Wizard renders it as an enabled password input while canSubmit is false and planVersion is null. The value stays in component state. Model and secret pages do not render an input."
+    },
+    {
+      "id": "review-reason",
+      "message": "ReviewDesk passes disabled. The decision radios are inside a disabled fieldset and submit cannot fire. The reason textarea only follows readOnly, so it still accepts text."
+    },
+    {
+      "id": "shell-nav",
+      "message": "AppShell links ADMIN_NAV even when identity is null. Detail patterns are therefore visible in the unmounted component. This is not a production route until G1 appends the modules."
+    }
+  ]
+}
+slices_oracle_tail
+        "ok": false,
+        "reason": "not_connected",
+        "operationId": "B01.identity"
+      },
+      "missing": {
+        "ok": false,
+        "reason": "unknown_operation",
+        "operationId": "missing.operation"
+      }
+    },
+    "safeReturnTo": {
+      "query": "/account",
+      "protocol": null,
+      "network": null,
+      "slash": null,
+      "empty": null
+    },
+    "unsafeInteger": "unsafe_integer"
+  }
+}

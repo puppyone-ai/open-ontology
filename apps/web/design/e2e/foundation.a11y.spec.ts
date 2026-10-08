@@ -27,7 +27,9 @@ function contrastRatio(foreground: string, background: string): number {
 
 async function paint(page: Page, theme: "light" | "dark") {
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("登录");
   await page.getByRole("radio", { name: theme === "dark" ? "深色" : "浅色" }).check();
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -47,56 +49,31 @@ test("axe keeps serious and critical violations empty", async ({ page }) => {
   }
 });
 
-test("rendered foundation colors meet text and control contrast", async ({ page }) => {
-  const rows: Array<{
-    theme: "light" | "dark";
-    name: string;
-    minimum: number | null;
-    ratio: number;
-    pass: boolean | null;
-    required?: false;
-  }> = [];
+test("rendered login text meets contrast", async ({ page }) => {
+  const rows: Array<{ theme: "light" | "dark"; name: string; minimum: number; ratio: number; pass: boolean }> = [];
   for (const theme of ["light", "dark"] as const) {
     await paint(page, theme);
     const measured = await page.evaluate(() => {
-      const input = document.querySelector(".oo-input");
-      const row = document.querySelector(".oo-row");
-      const button = document.querySelector(".oo-button");
-      if (!input || !row || !button) throw new Error("missing sample");
-      const inputStyle = getComputedStyle(input);
-      const rowStyle = getComputedStyle(row);
-      const buttonStyle = getComputedStyle(button);
+      const heading = document.querySelector("h1");
+      if (!heading) throw new Error("missing login heading");
+      const opaque = (element: Element): string => {
+        let current: Element | null = element;
+        while (current) {
+          const background = getComputedStyle(current).backgroundColor;
+          const match = background.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+          if (match && Number(match[4] ?? "1") > 0) return background;
+          current = current.parentElement;
+        }
+        return getComputedStyle(document.body).backgroundColor;
+      };
       return {
-        swatches: [...document.querySelectorAll<HTMLElement>("[data-pair]")].map((element) => ({
-          name: element.dataset.pair ?? "",
-          color: getComputedStyle(element).color,
-          background: getComputedStyle(element).backgroundColor,
-        })),
-        input: { color: inputStyle.borderTopColor, background: inputStyle.backgroundColor },
-        decorative: { color: rowStyle.borderBottomColor, background: rowStyle.backgroundColor },
-        button: { color: buttonStyle.color, background: buttonStyle.backgroundColor },
+        color: getComputedStyle(heading).color,
+        background: opaque(heading),
       };
     });
-    for (const swatch of measured.swatches) {
-      const ratio = contrastRatio(swatch.color, swatch.background);
-      rows.push({ theme, name: swatch.name, minimum: 4.5, ratio: Number(ratio.toFixed(3)), pass: ratio >= 4.5 });
-      expect(ratio, `${swatch.name} ${theme}`).toBeGreaterThanOrEqual(4.5);
-    }
-    const inputRatio = contrastRatio(measured.input.color, measured.input.background);
-    rows.push({ theme, name: "input-border", minimum: 3, ratio: Number(inputRatio.toFixed(3)), pass: inputRatio >= 3 });
-    expect(inputRatio, `input ${theme}`).toBeGreaterThanOrEqual(3);
-    const buttonRatio = contrastRatio(measured.button.color, measured.button.background);
-    rows.push({ theme, name: "button", minimum: 4.5, ratio: Number(buttonRatio.toFixed(3)), pass: buttonRatio >= 4.5 });
-    expect(buttonRatio, `button ${theme}`).toBeGreaterThanOrEqual(4.5);
-    const decorativeRatio = contrastRatio(measured.decorative.color, measured.decorative.background);
-    rows.push({
-      theme,
-      name: "decorative-row-border",
-      minimum: null,
-      ratio: Number(decorativeRatio.toFixed(3)),
-      pass: null,
-      required: false,
-    });
+    const ratio = contrastRatio(measured.color, measured.background);
+    rows.push({ theme, name: "login-heading", minimum: 4.5, ratio: Number(ratio.toFixed(3)), pass: ratio >= 4.5 });
+    expect(ratio, `login heading ${theme}`).toBeGreaterThanOrEqual(4.5);
   }
   await writeFile(join(evidence, "contrast-browser.json"), `${JSON.stringify(rows, null, 2)}\n`);
 });

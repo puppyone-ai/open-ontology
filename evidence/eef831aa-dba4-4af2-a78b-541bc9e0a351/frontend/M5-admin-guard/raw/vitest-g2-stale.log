@@ -1,0 +1,719 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [31m❯[39m src/features/admin-overview/modules.test.tsx [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 912[2mms[22m[39m
+   [31m❯[39m admin registrations [2m(3)[22m
+[31m     [31m×[31m does not write G1's mount list[39m[32m 6[2mms[22m[39m
+     [32m✓[39m matches navigation to the registrations[32m 1[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps every consumed operation unbound[33m 905[2mms[22m[39m
+ [31m❯[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 73[2mms[22m[39m
+   [31m❯[39m G1 still owns the admin mount [2m(1)[22m
+[31m     [31m×[31m keeps /admin on the login redirect and an empty module list[39m[32m 73[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/features/admin-overview/modules.test.tsx[2m > [22madmin registrations[2m > [22mdoes not write G1's mount list
+[31m[1mAssertionError[22m: expected [ { routeId: 'A03', …(5) }, …(40) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A03",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin",[39m
+[31m+     "routeId": "A03",[39m
+[31m+     "title": "总览",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A04",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources",[39m
+[31m+     "routeId": "A04",[39m
+[31m+     "title": "数据源",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A05",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources/new",[39m
+[31m+     "routeId": "A05",[39m
+[31m+     "title": "新建数据源",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A06",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources/:id",[39m
+[31m+     "routeId": "A06",[39m
+[31m+     "title": "数据源详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A07",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/files/new",[39m
+[31m+     "routeId": "A07",[39m
+[31m+     "title": "上传文件",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A08",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/files/:id",[39m
+[31m+     "routeId": "A08",[39m
+[31m+     "title": "文件",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A09",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/jobs",[39m
+[31m+     "routeId": "A09",[39m
+[31m+     "title": "任务",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A10",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/jobs/:id",[39m
+[31m+     "routeId": "A10",[39m
+[31m+     "title": "任务详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A11",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/builds",[39m
+[31m+     "routeId": "A11",[39m
+[31m+     "title": "构建",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A12",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/builds/:id",[39m
+[31m+     "routeId": "A12",[39m
+[31m+     "title": "构建详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A17",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/reviews",[39m
+[31m+     "routeId": "A17",[39m
+[31m+     "title": "审核",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A18",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/reviews/:id",[39m
+[31m+     "routeId": "A18",[39m
+[31m+     "title": "审核决定",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A19",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/classifications",[39m
+[31m+     "routeId": "A19",[39m
+[31m+     "title": "分类",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A29",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/releases",[39m
+[31m+     "routeId": "A29",[39m
+[31m+     "title": "发布",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A30",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/releases/:id",[39m
+[31m+     "routeId": "A30",[39m
+[31m+     "title": "发布详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A13",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology",[39m
+[31m+     "routeId": "A13",[39m
+[31m+     "title": "本体",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A14",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/datasets/:id",[39m
+[31m+     "routeId": "A14",[39m
+[31m+     "title": "数据集",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A15",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/relations",[39m
+[31m+     "routeId": "A15",[39m
+[31m+     "title": "关系",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A16",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/terms",[39m
+[31m+     "routeId": "A16",[39m
+[31m+     "title": "术语",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A20",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/enums/:id",[39m
+[31m+     "routeId": "A20",[39m
+[31m+     "title": "码表",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A21",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/calendars",[39m
+[31m+     "routeId": "A21",[39m
+[31m+     "title": "业务日历",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A22",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/metrics",[39m
+[31m+     "routeId": "A22",[39m
+[31m+     "title": "指标",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A23",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/metrics/:id",[39m
+[31m+     "routeId": "A23",[39m
+[31m+     "title": "指标详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A24",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/entities/:id",[39m
+[31m+     "routeId": "A24",[39m
+[31m+     "title": "实体",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A25",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/examples",[39m
+[31m+     "routeId": "A25",[39m
+[31m+     "title": "示例",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A26",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/roles",[39m
+[31m+     "routeId": "A26",[39m
+[31m+     "title": "角色",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A27",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/bindings",[39m
+[31m+     "routeId": "A27",[39m
+[31m+     "title": "身份绑定",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A28",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/preview",[39m
+[31m+     "routeId": "A28",[39m
+[31m+     "title": "权限预览",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A31",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/models",[39m
+[31m+     "routeId": "A31",[39m
+[31m+     "title": "模型",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A33",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/secrets",[39m
+[31m+     "routeId": "A33",[39m
+[31m+     "title": "Secret",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A32",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/agent",[39m
+[31m+     "routeId": "A32",[39m
+[31m+     "title": "Agent",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A34",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/deployment",[39m
+[31m+     "routeId": "A34",[39m
+[31m+     "title": "部署",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A35",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/clients",[39m
+[31m+     "routeId": "A35",[39m
+[31m+     "title": "外部客户端",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A36",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/channels",[39m
+[31m+     "routeId": "A36",[39m
+[31m+     "title": "渠道",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A37",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/evaluations",[39m
+[31m+     "routeId": "A37",[39m
+[31m+     "title": "评测",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A38",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/evaluations/:id",[39m
+[31m+     "routeId": "A38",[39m
+[31m+     "title": "评测详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A39",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sessions",[39m
+[31m+     "routeId": "A39",[39m
+[31m+     "title": "会话",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A40",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sessions/:id",[39m
+[31m+     "routeId": "A40",[39m
+[31m+     "title": "会话详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A41",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/audit",[39m
+[31m+     "routeId": "A41",[39m
+[31m+     "title": "审计",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A42",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/operations",[39m
+[31m+     "routeId": "A42",[39m
+[31m+     "title": "运维",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A43",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/operations/recovery",[39m
+[31m+     "routeId": "A43",[39m
+[31m+     "title": "恢复",[39m
+[31m+   },[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/features/admin-overview/modules.test.tsx:[2m11:27[22m[39m
+    [90m  9|[39m describe("admin registrations", () => {
+    [90m 10|[39m   it("does not write G1's mount list", () => {
+    [90m 11|[39m     expect(ADMIN_MODULES).toEqual([]);
+    [90m   |[39m                           [31m^[39m
+    [90m 12|[39m   });
+    [90m 13|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/features/admin-overview/production-route.test.tsx[2m > [22mG1 still owns the admin mount[2m > [22mkeeps /admin on the login redirect and an empty module list
+[31m[1mAssertionError[22m: expected [ { routeId: 'A03', …(5) }, …(40) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A03",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin",[39m
+[31m+     "routeId": "A03",[39m
+[31m+     "title": "总览",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A04",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources",[39m
+[31m+     "routeId": "A04",[39m
+[31m+     "title": "数据源",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A05",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources/new",[39m
+[31m+     "routeId": "A05",[39m
+[31m+     "title": "新建数据源",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A06",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sources/:id",[39m
+[31m+     "routeId": "A06",[39m
+[31m+     "title": "数据源详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A07",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/files/new",[39m
+[31m+     "routeId": "A07",[39m
+[31m+     "title": "上传文件",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A08",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/files/:id",[39m
+[31m+     "routeId": "A08",[39m
+[31m+     "title": "文件",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A09",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/jobs",[39m
+[31m+     "routeId": "A09",[39m
+[31m+     "title": "任务",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A10",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/jobs/:id",[39m
+[31m+     "routeId": "A10",[39m
+[31m+     "title": "任务详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A11",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/builds",[39m
+[31m+     "routeId": "A11",[39m
+[31m+     "title": "构建",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A12",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/builds/:id",[39m
+[31m+     "routeId": "A12",[39m
+[31m+     "title": "构建详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A17",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/reviews",[39m
+[31m+     "routeId": "A17",[39m
+[31m+     "title": "审核",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A18",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/reviews/:id",[39m
+[31m+     "routeId": "A18",[39m
+[31m+     "title": "审核决定",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A19",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/classifications",[39m
+[31m+     "routeId": "A19",[39m
+[31m+     "title": "分类",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A29",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/releases",[39m
+[31m+     "routeId": "A29",[39m
+[31m+     "title": "发布",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A30",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/releases/:id",[39m
+[31m+     "routeId": "A30",[39m
+[31m+     "title": "发布详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A13",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology",[39m
+[31m+     "routeId": "A13",[39m
+[31m+     "title": "本体",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A14",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/datasets/:id",[39m
+[31m+     "routeId": "A14",[39m
+[31m+     "title": "数据集",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A15",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/relations",[39m
+[31m+     "routeId": "A15",[39m
+[31m+     "title": "关系",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A16",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/terms",[39m
+[31m+     "routeId": "A16",[39m
+[31m+     "title": "术语",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A20",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/enums/:id",[39m
+[31m+     "routeId": "A20",[39m
+[31m+     "title": "码表",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A21",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/calendars",[39m
+[31m+     "routeId": "A21",[39m
+[31m+     "title": "业务日历",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A22",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/metrics",[39m
+[31m+     "routeId": "A22",[39m
+[31m+     "title": "指标",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A23",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/metrics/:id",[39m
+[31m+     "routeId": "A23",[39m
+[31m+     "title": "指标详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A24",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/entities/:id",[39m
+[31m+     "routeId": "A24",[39m
+[31m+     "title": "实体",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A25",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/ontology/examples",[39m
+[31m+     "routeId": "A25",[39m
+[31m+     "title": "示例",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A26",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/roles",[39m
+[31m+     "routeId": "A26",[39m
+[31m+     "title": "角色",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A27",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/bindings",[39m
+[31m+     "routeId": "A27",[39m
+[31m+     "title": "身份绑定",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A28",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/permissions/preview",[39m
+[31m+     "routeId": "A28",[39m
+[31m+     "title": "权限预览",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A31",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/models",[39m
+[31m+     "routeId": "A31",[39m
+[31m+     "title": "模型",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A33",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/secrets",[39m
+[31m+     "routeId": "A33",[39m
+[31m+     "title": "Secret",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A32",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/agent",[39m
+[31m+     "routeId": "A32",[39m
+[31m+     "title": "Agent",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A34",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/settings/deployment",[39m
+[31m+     "routeId": "A34",[39m
+[31m+     "title": "部署",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A35",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/clients",[39m
+[31m+     "routeId": "A35",[39m
+[31m+     "title": "外部客户端",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A36",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/channels",[39m
+[31m+     "routeId": "A36",[39m
+[31m+     "title": "渠道",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A37",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/evaluations",[39m
+[31m+     "routeId": "A37",[39m
+[31m+     "title": "评测",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A38",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/evaluations/:id",[39m
+[31m+     "routeId": "A38",[39m
+[31m+     "title": "评测详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A39",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sessions",[39m
+[31m+     "routeId": "A39",[39m
+[31m+     "title": "会话",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A40",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/sessions/:id",[39m
+[31m+     "routeId": "A40",[39m
+[31m+     "title": "会话详情",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A41",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/audit",[39m
+[31m+     "routeId": "A41",[39m
+[31m+     "title": "审计",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A42",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/operations",[39m
+[31m+     "routeId": "A42",[39m
+[31m+     "title": "运维",[39m
+[31m+   },[39m
+[31m+   {[39m
+[31m+     "capability": "admin.A43",[39m
+[31m+     "layout": "admin",[39m
+[31m+     "load": [Function anonymous],[39m
+[31m+     "path": "/admin/operations/recovery",[39m
+[31m+     "routeId": "A43",[39m
+[31m+     "title": "恢复",[39m
+[31m+   },[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/features/admin-overview/production-route.test.tsx:[2m13:27[22m[39m
+    [90m 11|[39m     expect(await screen.findByRole("heading", { name: "管理登录" })).toBeT…
+    [90m 12|[39m     expect(screen.queryByRole("heading", { name: "总览" })).toBeNull();
+    [90m 13|[39m     expect(ADMIN_MODULES).toEqual([]);
+    [90m   |[39m                           [31m^[39m
+    [90m 14|[39m   });
+    [90m 15|[39m });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 23:50:37
+[2m   Duration [22m 2.74s[2m (tests 38%, environment 35%, setup 16%, transform 7%, import 4%)[22m
+
+[2m    Isolate [22m [33m2 workers spawned[39m[2m · ~529ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~529ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

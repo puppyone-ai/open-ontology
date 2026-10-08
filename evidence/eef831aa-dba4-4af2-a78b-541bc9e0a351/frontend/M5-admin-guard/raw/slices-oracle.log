@@ -1,0 +1,65 @@
+{
+  "failures": [
+    "router missing path: \"/admin\"",
+    "unauthenticated / or /admin does not redirect to its login route",
+    "ADMIN_MODULES is not an empty readonly array",
+    "schema_frozen operations are gateway.packMetadata.get,startAuthorizationCodeLogin,completeAuthorizationCodeCallback,getIdentityCurrent,logoutManagementSession,consumeBootstrapToken"
+  ],
+  "notes": [
+    "author visual spec still opens / and reads [data-motion-sample]; production / does not mount that node"
+  ],
+  "contrast": {
+    "input-error light": 6.507,
+    "input-error dark": 8.714,
+    "surface-selected light": 12.877,
+    "surface-selected dark": 12.968,
+    "button light": 5.928,
+    "button dark": 8.689
+  },
+  "schemaHashes": {
+    "pack": "f77d55d45bfe86e237f167881a415f67304e9dc11251474c4155a3ac2a9353e3",
+    "error": "0839b3e4798ece2ceaddee80ae2c71d54fd491f919d2025616884b97cbc8b5f2"
+  },
+  "lock": "73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e",
+  "sdk": {
+    "operations": 93,
+    "frozen": [
+      "gateway.packMetadata.get",
+      "startAuthorizationCodeLogin",
+      "completeAuthorizationCodeCallback",
+      "getIdentityCurrent",
+      "logoutManagementSession",
+      "consumeBootstrapToken"
+    ],
+    "invoke": {
+      "metadata": {
+        "ok": false,
+        "reason": "schema_only",
+        "operationId": "gateway.packMetadata.get"
+      },
+      "sql": {
+        "ok": false,
+        "reason": "not_connected",
+        "operationId": "gateway.sql.post"
+      },
+      "identity": {
+        "ok": false,
+        "reason": "not_connected",
+        "operationId": "B01.identity"
+      },
+      "missing": {
+        "ok": false,
+        "reason": "unknown_operation",
+        "operationId": "missing.operation"
+      }
+    },
+    "safeReturnTo": {
+      "query": "/account",
+      "protocol": null,
+      "network": null,
+      "slash": null,
+      "empty": null
+    },
+    "unsafeInteger": "unsafe_integer"
+  }
+}

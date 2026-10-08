@@ -1,0 +1,13 @@
+node=v24.21.0
+pnpm=12.10.1
+aarch64
+uid=0(root) gid=0(root) groups=0(root)
+memory.max=4294967296
+cpu.max=100000 100000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+MemTotal:       98692096 kB
+MemAvailable:   96452956 kB
+nproc=16
+73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e  /src/pnpm-lock.yaml

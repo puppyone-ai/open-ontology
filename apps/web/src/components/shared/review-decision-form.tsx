@@ -89,7 +89,13 @@ export function ReviewDecisionForm({
           </label>
         ))}
       </fieldset>
-      <TextArea label="理由" value={reason} onChange={(event) => setReason(event.target.value)} readOnly={readOnly} />
+      <TextArea
+        label="理由"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+        disabled={disabled || readOnly}
+        readOnly={readOnly || disabled}
+      />
       <Button
         type="submit"
         disabled={!canSubmit}

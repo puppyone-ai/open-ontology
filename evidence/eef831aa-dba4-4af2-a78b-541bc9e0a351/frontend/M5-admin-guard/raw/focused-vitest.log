@@ -1,0 +1,15 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/app/runtime-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 23:58:27
+[2m   Duration [22m 2.87s[2m (environment 50%, tests 17%, setup 15%, import 13%, transform 5%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~498ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~996ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

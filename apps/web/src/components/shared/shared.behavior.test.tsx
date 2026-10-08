@@ -150,6 +150,62 @@ describe("shared public components", () => {
     setItem.mockRestore();
   });
 
+  it("keeps an unbound secret from calling replace", () => {
+    const onReplace = vi.fn();
+    const onClear = vi.fn();
+    render(
+      <SecretInput
+        configured
+        refLabel="secret-ref"
+        canWrite
+        connection="unbound"
+        onReplace={onReplace}
+        onClear={onClear}
+      />,
+    );
+    expect(screen.getByText("此能力尚未接入。依赖 B07。")).toBeTruthy();
+    expect(screen.queryByText("当前身份没有执行此操作的权限。")).toBeNull();
+    expect(screen.queryByText("当前身份没有写入权限。")).toBeNull();
+    const field = screen.getByLabelText("新的 Secret");
+    expect(field).toBeDisabled();
+    expect(screen.getByRole("button", { name: "替换" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "清除" })).toBeDisabled();
+    const form = field.closest("form");
+    expect(form).toBeTruthy();
+    fireEvent.submit(form as HTMLFormElement);
+    expect(onReplace).not.toHaveBeenCalled();
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it("uses the permission sentence only for an explicit forbidden connection", () => {
+    render(
+      <SecretInput
+        configured
+        refLabel="secret-ref"
+        canWrite
+        connection="forbidden"
+        onReplace={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText("当前身份没有执行此操作的权限。").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/此能力尚未接入/)).toBeNull();
+    expect(screen.getByLabelText("新的 Secret")).toBeDisabled();
+  });
+
+  it("blocks the reason field when the review form is disabled", () => {
+    const onSubmit = vi.fn();
+    render(<ReviewDecisionForm candidateId="candidate" revision="1" disabled onSubmit={onSubmit} />);
+    const reason = screen.getByLabelText("理由");
+    expect(reason).toBeDisabled();
+    expect(reason).toHaveAttribute("readonly");
+    expect(screen.getByRole("radio", { name: "拒绝" })).toBeDisabled();
+    const form = reason.closest("form");
+    expect(form).toBeTruthy();
+    fireEvent.submit(form as HTMLFormElement);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("asks for a new review decision when the evidence is stale", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

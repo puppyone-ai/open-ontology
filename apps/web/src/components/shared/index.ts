@@ -25,6 +25,7 @@ export type { Citation } from "./safe-markdown";
 export { ChatComposer } from "./chat-composer";
 export type { ComposerState } from "./chat-composer";
 export { SecretInput } from "./secret-input";
+export type { SecretConnection } from "./secret-input";
 export { StatePanel } from "./state-panel";
 export type { StateKind } from "./state-panel";
 export { VersionStrip } from "./version-strip";

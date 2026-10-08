@@ -1,0 +1,7 @@
+lock=0
+vitest=0
+lint=0
+build=0
+bundle=0
+apt=0
+playwright=0

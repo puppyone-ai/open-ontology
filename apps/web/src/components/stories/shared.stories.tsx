@@ -302,6 +302,19 @@ export const C14ReadOnly = () => (
   </Demo>
 );
 
+export const C14Unbound = () => (
+  <Demo>
+    <SecretInput
+      configured={false}
+      refLabel={null}
+      canWrite
+      connection="unbound"
+      onReplace={() => undefined}
+      onClear={() => undefined}
+    />
+  </Demo>
+);
+
 export const C15States = () => (
   <Demo>
     <StatePanel kind="notConnected" dependency="B01" />
