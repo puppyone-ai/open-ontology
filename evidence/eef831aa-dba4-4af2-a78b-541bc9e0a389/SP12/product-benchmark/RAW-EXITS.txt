@@ -136,3 +136,24 @@ producer_role_pack=1327bad464fe8f510cc7baf8566ad71e3d00df2f
 dialogue_grammar=d753913cf81afe2c97f02c555a26c1a7eb65ba92
 dialogue_propose=7d614158e0ecf8ea40d81198e2a0ae2baefb4fbf
 dialogue_pin_match=true
+
+## producer re-read 2026-10-08T09:50:22Z
+a389_containers=0
+a389_volumes=0
+a389_networks=0
+launch=not_started
+chain.exit=0
+bench.exit=1
+propose-approved.exit=3
+benchmark_loop_pass=false
+integration_passed=false
+parent_acceptance=false
+producer_commit=b9f1e4fc30f144d1cf7dc61aa7765f58164a9caa
+producer_reviewed_effective=b30207b6b3a0fec04a41b83663362889c44abaac
+producer_role_pack=51d000f11e0190df38e81141102d8d88c45e90f6
+dialogue_grammar=294c620bfd4cfc1d0ad27af234d783d5b71a2c58
+dialogue_propose=4266388aea3996d0788edef6b3492c487bb449f1
+knowledge_rewritten=false
+wide_policy=pol-a317
+wide_knowledge=know-a317
+development_local_reached=false

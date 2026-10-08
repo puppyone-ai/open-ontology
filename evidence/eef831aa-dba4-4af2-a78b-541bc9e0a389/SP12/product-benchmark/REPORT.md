@@ -71,3 +71,11 @@ At 2026-10-08T07:46:38Z this session collected its own leftovers and read the pr
 `reviewed_effective.rs` blob `7345b036685401d543e174a45a414e0e0db19613` and `role_pack.rs` blob `1327bad464fe8f510cc7baf8566ad71e3d00df2f` still use `check_slug` with a 63-byte cap. Dialogue `grammar.rs` blob `d753913cf81afe2c97f02c555a26c1a7eb65ba92` and `propose.rs` blob `7d614158e0ecf8ea40d81198e2a0ae2baefb4fbf` match pin `e31635b213911c725159a23dbccc8463cc45cdd7`. The approved query digest is 64 hex characters. `know-a317` contains a hyphen. The bearer rule is still 16 to 256 bytes, and this propose never reached it. The wide manifest was left as `pol-a317` / `know-a317`.
 
 The 100k chain, the stored grok-4.7 documents, and the cache hit were not run again. No builder was started. `benchmark_loop_pass` stays false.
+
+## Producer re-read
+
+At 2026-10-08T09:50:22Z this session read `specs/minimal-product-loop-plan.md` and docs/09 §6.2, then re-read the producer. The plan names a389 as the P0 100k question benchmark. a405 owns the user-flow command. Pi calls `oo` through bash and does not require MCP. Admin, multi-user APIs, publication, customer UAT, and production runsc stay `notrun` and unsigned. The seven whole-product keys are unchanged. Integration stays false.
+
+Commit `b9f1e4fc30f144d1cf7dc61aa7765f58164a9caa` accepts a policy id that is already a slug or 64 lowercase hex. Current blobs are reviewed-effective `b30207b6b3a0fec04a41b83663362889c44abaac`, role-pack `51d000f11e0190df38e81141102d8d88c45e90f6`, dialogue grammar `294c620bfd4cfc1d0ad27af234d783d5b71a2c58`, and dialogue propose `4266388aea3996d0788edef6b3492c487bb449f1`. The compiler copies knowledge unchanged. `know-a317` remains a legal compiler slug and an illegal dialogue slug. `development_local` is the only bearer exception: length 6 is accepted only with origin `http://127.0.0.1:<port>`. Production stays 16 to 256 bytes. The stored propose config has knowledge `know-a317`, origin `https://127.0.0.1:8443`, and no transport field, so `parse_config` still fails before HTTP.
+
+Own a389 resources are absent. The positive example was not launched. `live/run/bundles/wide.json` is still `pol-a317` / `know-a317`. The 100k chain and the stored model documents were not rerun. `benchmark_loop_pass` stays false.
