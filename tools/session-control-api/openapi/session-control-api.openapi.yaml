@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: session-control-api-v1
+  version: 0.1.0
+  description: >
+    Own-session create, event, and localprocess close. production_signed is always false.
+    A releasing response is incomplete. 200 on cancel or terminate requires phase closed,
+    deployment localprocess, eleven steps, and S8 actual_absence.
+servers:
+  - url: http://127.0.0.1
+paths:
+  /control/v1/entry/session/consume:
+    post:
+      operationId: consumeEntrySession
+      summary: Consume one operator grant into an oo-entry cookie.
+  /control/v1/entry/session/current:
+    get:
+      operationId: getEntryCurrent
+  /control/v1/conversations:
+    get:
+      operationId: listConversations
+    post:
+      operationId: createConversation
+  /control/v1/conversations/{id}:
+    get:
+      operationId: getConversation
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+  /control/v1/conversations/{id}/events:
+    get:
+      operationId: listEvents
+      description: after plus limit. limit is 1 through 50. The sequence cap is 256.
+  /control/v1/conversations/{id}/turns:
+    post:
+      operationId: beginTurn
+  /control/v1/conversations/{id}/cancel:
+    post:
+      operationId: cancelConversation
+      description: 200 only when the close receipt is acceptable. 409 is incomplete and retryable.
+  /control/v1/conversations/{id}/terminate:
+    post:
+      operationId: terminateConversation
+      description: Requires capability session.terminate. The reducer identity stays the owner tuple.
+  /control/v1/conversations/{id}/outputs/{name}:
+    get:
+      operationId: getOutput
+      description: name is outputs or transcript. Current binding must still match the bound tuple.
+components:
+  parameters:
+    ConversationId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string

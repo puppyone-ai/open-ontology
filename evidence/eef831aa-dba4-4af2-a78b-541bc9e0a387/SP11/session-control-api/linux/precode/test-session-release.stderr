@@ -1,0 +1,4 @@
+   Compiling session-store v0.1.0 (/work/tools/session-store)
+   Compiling session-release v0.1.0 (/work/tools/session-release)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.13s
+     Running unittests src/lib.rs (/target/debug/deps/session_release-fb0e1e6232c7c4c4)

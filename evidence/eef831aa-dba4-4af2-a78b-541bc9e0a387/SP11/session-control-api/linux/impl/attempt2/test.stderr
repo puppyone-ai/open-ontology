@@ -1,0 +1,20 @@
+   Compiling session-control-api v0.1.0 (/src/tools/session-control-api)
+warning: field `physical_release_certified` is never read
+   --> src/lifecycle.rs:256:9
+    |
+253 | pub(crate) struct Applied {
+    |                   ------- field in this struct
+...
+256 |     pub physical_release_certified: bool,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `session-control-api` (lib) generated 1 warning
+warning: `session-control-api` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.32s
+     Running unittests src/lib.rs (/target/debug/deps/session_control_api-cd6d80d55900a7b0)
+     Running unittests src/main.rs (/target/debug/deps/session_control_api-2596210978a8de3b)
+     Running tests/contract.rs (/target/debug/deps/contract-8249682a54a56cba)
+     Running tests/live.rs (/target/debug/deps/live-fc6cfb1088f94dfa)
+     Running tests/lock_subset.rs (/target/debug/deps/lock_subset-010e0b3828e9dc9f)

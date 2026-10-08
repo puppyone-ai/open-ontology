@@ -1,0 +1,15 @@
+    Checking session-control-api v0.1.0 (/src/tools/session-control-api)
+error: you seem to be trying to use `match` for destructuring a single pattern. Consider using `if let`
+  --> tests/lock_subset.rs:17:9
+   |
+17 | /         match allowed.insert(key.clone(), checksum.clone()) {
+18 | |             Some(previous) => assert_eq!(previous, checksum, "store/token pin drift {} {}", key.0, key.1),
+19 | |             None => {}
+20 | |         }
+   | |_________^ help: try: `if let Some(previous) = allowed.insert(key.clone(), checksum.clone()) { assert_eq!(previous, checksum, "store/token pin drift {} {}", key.0, key.1) }`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#single_match
+   = note: `-D clippy::single-match` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::single_match)]`
+
+error: could not compile `session-control-api` (test "lock_subset") due to 1 previous error
