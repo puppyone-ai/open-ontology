@@ -88,3 +88,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 - [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。
 
 最新一次18min15句柄：a38494406/a38559533/a38622914/a38865101/a38926582/G1a35150656/G2a3537769/G3a35262155terminal0；a39051488/a37393577/a38342717/a38762843/a38156762/a39124465/a39230009共7confirmedlive。续原7终止会话收实际builder资源完成卡，新a393反馈固定独立复审替代已交a385，不凭退出码签收。nextUUIDa394。
+
+补位实际启动confirmedrunning：a38459102/a3865084/a3881853/a38979702/G1a35139862/G2a35318470/G3a35246149/a39359985；连同7统一confirmedlive共15，Rust10/task1 Node2/browser2保持。新作者feedback包和FE角色包待完整证据核验不涨验收。当前78/90历史103/首次93/返工16，原全量集成发行未过。
