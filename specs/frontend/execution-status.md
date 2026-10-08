@@ -52,3 +52,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 2026-10-08 当前证据：a376三报告146SHA一致，但宽化search_path被错误接受，新增a378 handle44280按原契约修复，不新增计数。G2固定0c3caa184三报告43SHA一致，真实41路由守卫测试通过；整套58/59，G1字体清单多出修/订两字仍失败。G3 M5三报告72SHA一致，ENOENT缺tools archive及Router fetch符号扫描属于自身harness问题；原会话67076纠正并复审固定G2，不屏蔽字体失败。G1仍42805，下一指导已追加原卡，禁止并发启动同UUID。M0–M4及live旅程未签。
 
 当前覆盖旧句柄：G1原a35195178、G2原a35352996、G3原a35292248启动工具确认running。G1真实可配置B01部署adapter/字体与组合suite、G2消费固定97909a4b7并完整管理接口路径、G3独立固定M6真实IdP delta。M6三报告80SHA一致、G3M5-G2三报告69SHA一致；font失败保留，真实客户IdP/完整M0–M4/A01–20不勾选。
+
+最新统一观测：G1a35195178/G3a35292248confirmedlive，G2a35352996terminal0，M6-fixture-guard新包尚待完整核验（自述62/63，font失败），总卡管理能力仍未完成；等待真实producer，不能编造B04完成。

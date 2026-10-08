@@ -68,3 +68,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 既有a37922340/a38072955/a38193531/a38264115/a37383407保留，上次启动live。本轮11条新启动，连同既有5条待统一观测共16条（开发12、主线复审3、前端G3复审1）；实际Rust最多10、Node最多2/browser2，超出仅排队。独立复审不占主线开发20上限，前端仍恰好三个固定UUID。一次18分钟等待后统一16句柄观测，不根据数量虚签验收。已核验M6 80SHA、G3guard69、WAL23 source、OIDCreview129、backup255、searchpath99全部0坏；a374作者缺SHA留待补齐。
 
 最新单次18min统一16句柄：a37922340/a38264115/a37383407/G2a35352996terminal0，其余12句柄confirmedlive，保持原句柄不重复启动。a379修复fixed evidence dc434a4a6，a382报告limited尚待完整核验，不增加验收；G2新版63测试62pass/font1失败、B04未接，不能完成。a373真实archive workspace补齐后仍builder101，原会话修具体失败。新增a390完整SP02-W01-b Rust100worker job运行时闭环，原a375重审固定audience correction，nextUUIDa391。
+
+实际补位启动：a39051488、a37393577、a37567327工具均确认running；加12刚统一确认live共15实际工作线（开发11+review4），不凭未启动卡片计并发。G2此刻idle，前端仅G1/G3live仍三固定UUID。下一轮单次18min等待再统一15handle。
