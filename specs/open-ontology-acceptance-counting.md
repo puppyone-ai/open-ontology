@@ -574,3 +574,9 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 新增E56-D1/1 BEFOREcode冻结（SP07真实管理API）：已登记真实OIDC身份+sourceRef/configcommit/approvedcards/reviewrevision→耐久S0-S10构建操作/候选/决定分类/实际combinedRolePack；a373仅tools/selfbuild-control-api/UUID证据，真实身份依赖a370固定服务，未ready不可mock完结。局部分母88→89，76/89=85.39%，其他计数不变。全部完整计划门槛仍保留。a372固定20f065096备份cut独立复审，无新单元；a368完整包156 SHA0坏/0缺，尚未独立验收。
 
 2026-10-08 BEFOREcode E57-D1/1冻结：获准原typed审核命令+当前curated/config Githead/blob/evidence→重新运行已审compiler、实际私有Git对象树commit+oldSHA CAS+幂等receipt；纯Git工作树/共享index不碰、角色/Secret/无批准项不写。新a374仅tools/curated-git-apply/UUID证据，原B04API/身份/Git公共应用集成仍未完成。局部分母89→90，accepted76/90=84.44%，历史101/首审91/返工15/作者94不变；完整87父项、集成0/4发行0/6/X不变。
+
+
+2026-10-08 第二次单次18min统一观测：a36527577/a37060092/a37233067/G1a35174888/G2a3533011/G3a35252828退出0；a37165332/a37342599/a37436873仍live。完整a365/a370/a372/G1M5/G2M4三报告已读，SHA分别172/24/416/0/24且已读取条目0坏/0缺；G1M5为ZERO-BYTE MANIFEST且未固定源码，0条不构成核验，未签收，原G1先补SHA/ownedcommit。G3M4报告待全读/hash，不能提前勾选。
+实际新固定源：a365 be4b596481d83435df2ede8abd9ebb2a8647c706（两顺序真实install/putactivate/read及拒绝drift、SQL原文件不改、rawpsql仍不支持）；a370 35bd6b8157cecd89f2ae085b012b4b0137562ddb（B01真实RS256 HTTPS IdP、11library+live/Clippy0，contract089b不改，客户IdP/数据/owner/harness均未claim）。独特作者组件94→95（实际身份service交付），其他acceptance计数不变76/90、历史101/首审91/返工15/完整87父项/集成0of4发行0of6。
+a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期间COMMENT已有view、CREATEschema/table/sequence/view/nextval成功且被收入restore，dump inventory却不bind它们，cut_proven/replay_ready及offset100000仍真。不是PITR外部门槛，不移到parent掩盖。新a377=86777原E51 catalog/exportedsnapshot+真实sequencefence修复，不新分母；原a361/a372缺陷证据保留。
+新独立身份a375=89681、迁移a376=24509；前端原G1=45339/G2=84790/G3=15136三固定CLI已恢复旧scope，新增细节只排其下次continuation、不另启同UUIDCLI。三新task初始prompt组装Python语法错导致CLI启动exit1未读卡；脚本修正及卡已写后重新启动相同预留UUID，保留失败日志，未记录任何代码/test完成。nextUUIDa378未使用。a373真实B04服务依赖可用固定身份35bd生产者包现已交付，可准备真实测试IdP集成，最终验收仍需a375独立结果；不凭schema_only/declaredoperator身份签publicauth。

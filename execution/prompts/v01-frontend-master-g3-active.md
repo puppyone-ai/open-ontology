@@ -7,3 +7,6 @@ SAME G3 a352 fixed G2 review queue: f67a87b0a76b9f8d863957a7d41509e462e1c1da,715
 
 
 NEXT SAME G3 a352 after current88200 terminalconfirmed: existing G2-admin fullpacket read hash89? coordinatorprintsactualcount pending; findingsG2givenown353 and G1sharedfinding. Continue fixedM4 082af80b3(font/motion) independentlyfocusedactualproductionroutefontno7.76MBfullfallback andapprovedmetadata/rare fallback/motion testtarget; do NOTrepeatunchanged19baseline screenshots. G1M5 newfuturepacket notready do notreviewmovingworkspace, G2fixfuturepending. Fullreports/hash/rawexits/cleanup; nofourthFECLI.
+
+
+NEXT originalG3 after15136 terminal only: M4packetpendingcoordread. FixedG2correction e090131ed9df0f3b4d39f126ddfc389c2d129722 necessary3regressions only, no41page/all52suite rerun. G1M5oldpacketSHAzero/uncommitted doNOTreviewmovingtree untilfixedsource/handoff, then focusedguard+schemaregistry+disabledreason/storyfont changes. Oldemptyregistry/literalNavigate/oracles obsolete underrealguard, updateindependentmeaningfulbehavior notdeletingrequirements, preserveoldfixedruns. Max3FEincludingreview, full3reports/SHA/cleanup.
