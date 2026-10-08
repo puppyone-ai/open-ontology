@@ -590,3 +590,8 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 2026-10-08 Codex接受原E54-D1/1真实OIDC管理身份组件：a375 closure三报告完整读取，correction96+closure7SHA0坏0缺，原68case129SHA已核验，diff逐AC复用证明+独立signedHTTPS split-audience六腿替换唯一失效旧结果，固定a6f92da8，不重跑无关68campaign。原WITHHOLD不改，客户IdP不claim/fullSP02不签。局部冻结77→78/90=86.67%；历史102→103，首次独立92→93，E54原独立WITHHOLD后修复计唯一返工15→16/93=17.20%。作者inventory待总对账原95不推测。集成0/4、发行0/6、87父项16阶段/X门槛不变。
 - [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。
+
+2026-10-08 Codex完整读取a391三报告并核验289SHA0坏0缺，按原BEFOREcode E51 actual100k frozenfixture范围接受固定95c33fca的完整逻辑PGbackup/hashmanifest/checkpoints→freshrestore typedgold/RPO窗口/RTO记录/readiness。独立actual普通sequence cachednextval/setval55P03、OWNED BY同值不改sequence state、完整catalog/views/comments snapshot/newobjects排除、corruptbeforeCREATEDB拒绝及freshrestore0证明；无schema/tablefilter、不用身份sequence范围替换原fixture。身份sequence添加时0A000/refuse为明确未支持能力，任意PG/全状态PITR/Git/object/Secret/production仍未验收；真实dumpfixture superuser不是生产最小权限验收。E51原withhold→repair记一个唯一返工，78→79/90=87.78%局部；历史103→104，首次独立93→94，返工16→17/94=18.09%；作者待inventory对账，集成0/4发行0/6不变。
+- [x] E51-D1/1：原冻结十万行PG17私有operator一致逻辑backup→hash/checkpoints→fresh restore全typedgold与普通sequence/cat验证（a391固定独立验收，父项不签）。
+
+反馈队列a393全三报告已读取122SHA0坏0缺，固定3be6264f独立APPROVE_LIMITED，真实HTTPSmTLS/PGreceipt与review读取/重启重放/权限隔离证明；作者a385137SHA0坏已核验。新卡未进入旧90冻结分母，能力独立证明记录但不擅自扩大计数，等全新增AC冻结inventory统一对账。

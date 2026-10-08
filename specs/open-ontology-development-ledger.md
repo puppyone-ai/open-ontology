@@ -1897,3 +1897,8 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 - [ ] SP10/11真实Agent入口：a397 verifiedprincipal+显式数据role+publishedPack→真实Pi模型工具Gateway查询→引用事件→关闭全链，无预写SQL/proposal/mock替代。
 - [ ] SP11-W03当前权限对象下载：a398真实completedexport/hash→加密托管→本人当前tuple下载→撤权/TTL/restart全链；a396原完整jobs独立复审，未验收不计完成。
+
+2026-10-08 Codex完整读取a391三报告并核验289SHA0坏0缺，按原BEFOREcode E51 actual100k frozenfixture范围接受固定95c33fca的完整逻辑PGbackup/hashmanifest/checkpoints→freshrestore typedgold/RPO窗口/RTO记录/readiness。独立actual普通sequence cachednextval/setval55P03、OWNED BY同值不改sequence state、完整catalog/views/comments snapshot/newobjects排除、corruptbeforeCREATEDB拒绝及freshrestore0证明；无schema/tablefilter、不用身份sequence范围替换原fixture。身份sequence添加时0A000/refuse为明确未支持能力，任意PG/全状态PITR/Git/object/Secret/production仍未验收；真实dumpfixture superuser不是生产最小权限验收。E51原withhold→repair记一个唯一返工，78→79/90=87.78%局部；历史103→104，首次独立93→94，返工16→17/94=18.09%；作者待inventory对账，集成0/4发行0/6不变。
+- [x] E51-D1/1：原冻结十万行PG17私有operator一致逻辑backup→hash/checkpoints→fresh restore全typedgold与普通sequence/cat验证（a391固定独立验收，父项不签）。
+
+反馈队列a393全三报告已读取122SHA0坏0缺，固定3be6264f独立APPROVE_LIMITED，真实HTTPSmTLS/PGreceipt与review读取/重启重放/权限隔离证明；作者a385137SHA0坏已核验。新卡未进入旧90冻结分母，能力独立证明记录但不擅自扩大计数，等全新增AC冻结inventory统一对账。

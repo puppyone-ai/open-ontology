@@ -98,3 +98,10 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 一次18min统一15：a39051488/a39124465/a39359985/a38895212/G1a35174689/G2a35371120/G3a35246149terminal0；8confirmedlive a37393577/a38342717/a38459102/a3865084/a39230009/a3894246/a39445515/a39518259。新396jobs独立review、397真实Agent问答闭环、398当前权限artifactdownload；原MCP与前端三续接，不复启已交反馈/备份/jobs作者。独占新tools/agent-entry与artifact-control-api不冲现有写者，nextUUIDa399。
 
 补位实际工具confirmedrunning：a38816513/G1a35123892/G2a35320565/G3a35273812/a39663228/a3971792/a39858504，加8confirmedlive共15，Rust10/task1 Node2/browser2仍排队不超限。feedback作者137SHA/前端M9作者65SHA0坏已核验但未签新增能力；其独立包需完整读才验收。当前78/90/103/93/16保持。
+
+2026-10-08 Codex完整读取a391三报告并核验289SHA0坏0缺，按原BEFOREcode E51 actual100k frozenfixture范围接受固定95c33fca的完整逻辑PGbackup/hashmanifest/checkpoints→freshrestore typedgold/RPO窗口/RTO记录/readiness。独立actual普通sequence cachednextval/setval55P03、OWNED BY同值不改sequence state、完整catalog/views/comments snapshot/newobjects排除、corruptbeforeCREATEDB拒绝及freshrestore0证明；无schema/tablefilter、不用身份sequence范围替换原fixture。身份sequence添加时0A000/refuse为明确未支持能力，任意PG/全状态PITR/Git/object/Secret/production仍未验收；真实dumpfixture superuser不是生产最小权限验收。E51原withhold→repair记一个唯一返工，78→79/90=87.78%局部；历史103→104，首次独立93→94，返工16→17/94=18.09%；作者待inventory对账，集成0/4发行0/6不变。
+- [x] E51-D1/1：原冻结十万行PG17私有operator一致逻辑backup→hash/checkpoints→fresh restore全typedgold与普通sequence/cat验证（a391固定独立验收，父项不签）。
+
+反馈队列a393全三报告已读取122SHA0坏0缺，固定3be6264f独立APPROVE_LIMITED，真实HTTPSmTLS/PGreceipt与review读取/重启重放/权限隔离证明；作者a385137SHA0坏已核验。新卡未进入旧90冻结分母，能力独立证明记录但不擅自扩大计数，等全新增AC冻结inventory统一对账。
+
+最新一次18min统一15句柄全terminal：13条exit1确认402 Grok Build usage balance exhausted（a373/383/384/386/392/394/395/351/353/352/396/397/398）；a3894246/a38816513terminal0但可能仍有后台builder资源/未交最终卡，不称资源全stop。当前liveCLI=0。禁止quota未恢复重复launch；恢复后优先原a373实际100kbuilder/源383/secret384/Agent397/stack395以及三FE会话先收已有phase/owned资源再继续，不能复制现有builder/PG。台账保存所有UUID/handle和原输出日志，nexta399未用。
