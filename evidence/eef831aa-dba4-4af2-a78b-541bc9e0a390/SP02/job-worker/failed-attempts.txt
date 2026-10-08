@@ -1,0 +1,64 @@
+session=eef831aa-dba4-4af2-a78b-541bc9e0a390
+passing_phase=linux/run-attempt-5
+
+linux/smoke-before
+  when=before source edits
+  rustc.exit=0
+  cargo.exit=0
+  rustc=1.94.0 (4a4ef493e 2026-03-02) aarch64-unknown-linux-gnu
+
+linux/run
+  clippy.exit=101
+  docker-run.exit=101
+  pg.exit=0
+  metadata.exit=0
+  cause=edition 2024 reserves the identifier gen in cmd.rs; serde_json json! hit the default recursion limit in report.rs
+  fix=renamed the local to held_generation; lib.rs recursion_limit 512
+
+linux/run-attempt-1
+  clippy.exit=101
+  docker-run.exit=101
+  pg.exit=0
+  metadata.exit=0
+  cause=Client::transaction needs &mut Client; wait() had unused_mut; schedule held the client while a transaction was live; NOTIFY passed &str where ToSql requires &str behind a reference
+  fix=mutable client on the two install functions; Occurrence::Repair runs after the transaction drops; notify parameter is &[&project_id]
+
+linux/run-attempt-2
+  clippy.exit=101
+  docker-run.exit=101
+  pg.exit=0
+  metadata.exit=0
+  cause=clippy manual_range_contains on the dedupe key length check
+  fix=range contains checks on the same length bounds
+
+linux/run-attempt-3
+  clippy.exit=0
+  test.exit=0
+  closed-loop.exit=101
+  docker-run.exit=101
+  pg.exit=0
+  metadata.exit=0
+  cause=prepare failed with "error serializing parameter 0"; $1::uuid expects the uuid protocol type and &str is text
+  fix=casts are $N::text::uuid and $N::text::timestamptz; no uuid crate added
+
+linux/run-attempt-4
+  clippy.exit=0
+  test.exit=0
+  closed-loop.exit=101
+  docker-run.exit=101
+  pg.exit=0
+  metadata.exit=0
+  prepare=due=100 xact=27
+  cause=beat wait returned sqlstate 42803; min(observed_at) was subtracted from an unaggregated claimed_at; Error display was only "db error"
+  fix=min(observed_at) - min(claimed_at); Error::sql records DbError message and detail
+
+linux/run-attempt-5
+  clippy.exit=0
+  test.exit=0
+  closed-loop.exit=0
+  docker-run.exit=0
+  pg.exit=0
+  metadata.exit=0
+  closed_loop_seconds=92.31
+  serve1=unix_wait_status(9)
+  serve2=unix_wait_status(0)

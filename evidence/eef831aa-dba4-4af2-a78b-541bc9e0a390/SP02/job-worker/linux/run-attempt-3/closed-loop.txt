@@ -1,0 +1,35 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (/target/debug/deps/job_worker-6a20f32463b32a22)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/target/debug/deps/job_worker-bd92c0b2b3981fff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/closed_loop.rs (/target/debug/deps/closed_loop-35cef47bedc80ab2)
+
+running 1 test
+test closed_loop ... FAILED
+
+failures:
+
+---- closed_loop stdout ----
+
+thread 'closed_loop' (2836) panicked at tests/closed_loop.rs:346:9:
+prepare failed ExitStatus(unix_wait_status(256))
+error=sql error serializing parameter 0
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closed_loop
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+error: test failed, to rerun pass `--test closed_loop`

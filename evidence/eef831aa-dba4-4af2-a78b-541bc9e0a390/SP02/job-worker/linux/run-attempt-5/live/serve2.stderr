@@ -1,0 +1,4 @@
+event=serve workers=100
+event=claimed worker=w-020 task=3ff9ba96-eb2e-4ecf-8eb7-3d5337d03e06 generation=2
+event=complete status=succeeded task=3ff9ba96-eb2e-4ecf-8eb7-3d5337d03e06 generation=2
+event=serve_stop
