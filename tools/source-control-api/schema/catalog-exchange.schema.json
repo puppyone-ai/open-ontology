@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control.exchange/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "project_id", "source_ref", "revision", "kind", "state",
+    "catalog_sha256", "profile_sha256", "catalog", "profile",
+    "published", "build_review", "release", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.source-control.exchange/v1"},
+    "operation": {"const": "getSourceCatalog"},
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "source_ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "kind": {"enum": ["pg_local", "file_local"]},
+    "state": {"enum": ["registered", "importing", "awaiting_review", "failed", "canceled"]},
+    "catalog_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "catalog": {"type": "object"},
+    "profile": {"type": "object"},
+    "published": {"const": false},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  },
+  "description": "source_ref is the token a373 createBuild.source_ref already accepts. The secret stays in the operator file. This object has no password and no filesystem path."
+}

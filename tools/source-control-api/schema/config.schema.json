@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/config/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol", "https_origin", "listen_host", "listen_port", "tls_cert_file", "tls_key_file",
+    "identity_origin", "identity_ca_file", "deployment_origins", "pg", "admitted_hosts",
+    "secrets", "upload_max_bytes", "object_dir", "run_dir", "owner", "comment_markers",
+    "producers", "target"
+  ],
+  "properties": {
+    "protocol": {"const": "oo.source-control-api/v1"},
+    "https_origin": {"type": "string", "pattern": "^https://[^/]+$"},
+    "listen_host": {"type": "string", "minLength": 1},
+    "listen_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "tls_cert_file": {"type": "string", "minLength": 1},
+    "tls_key_file": {"type": "string", "minLength": 1},
+    "identity_origin": {"type": "string", "pattern": "^https://[^/?#]+$"},
+    "identity_ca_file": {"type": "string", "minLength": 1},
+    "deployment_origins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^https://[^/]+$"}
+    },
+    "pg": {"$ref": "#/$defs/pg"},
+    "admitted_hosts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,253}$"}
+    },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["secret_ref", "file"],
+        "properties": {
+          "secret_ref": {"type": "string", "pattern": "^secret://[A-Za-z0-9_./-]{1,128}$"},
+          "file": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "upload_max_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+    "object_dir": {"type": "string", "minLength": 1},
+    "run_dir": {"type": "string", "minLength": 1},
+    "owner": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "comment_markers": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}},
+    "producers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pg_onboarding", "file_import", "init_pg", "pipeline", "builder", "worker"],
+      "properties": {
+        "pg_onboarding": {"$ref": "#/$defs/pin"},
+        "file_import": {"$ref": "#/$defs/pin"},
+        "init_pg": {"$ref": "#/$defs/pin"},
+        "pipeline": {"$ref": "#/$defs/pin"},
+        "builder": {"$ref": "#/$defs/pin"},
+        "worker": {"$ref": "#/$defs/pin"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host", "port", "pg_database", "file_database", "administrator",
+        "runtime_principal", "admin_password_file", "runtime_password_file", "ca_file"
+      ],
+      "properties": {
+        "host": {"type": "string"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "pg_database": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "file_database": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "administrator": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "runtime_principal": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "admin_password_file": {"type": "string"},
+        "runtime_password_file": {"type": "string"},
+        "ca_file": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "pg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "port", "database", "user", "password_file", "ca_file"],
+      "properties": {
+        "host": {"type": "string"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "database": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "user": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "password_file": {"type": "string"},
+        "ca_file": {"type": "string"}
+      }
+    },
+    "pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

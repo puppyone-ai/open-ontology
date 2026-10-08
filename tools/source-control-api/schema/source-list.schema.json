@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/source-list/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "project_id", "sources", "build_review", "release", "customer_integration"],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "operation": {"const": "listSources"},
+    "project_id": {"type": "string"},
+    "sources": {"type": "array", "items": {"$ref": "source.schema.json"}},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

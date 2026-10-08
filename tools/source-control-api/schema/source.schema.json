@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/source/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "project_id", "source_ref", "kind", "revision", "state",
+    "published", "build_review", "release", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "operation": {"enum": ["registerSource", "getSource", "listSources"]},
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "source_ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "kind": {"enum": ["pg_local", "file_local"]},
+    "revision": {"type": "integer", "minimum": 1},
+    "state": {"enum": ["registered", "importing", "awaiting_review", "failed", "canceled"]},
+    "host": {"type": "string"},
+    "database": {"type": "string"},
+    "username": {"type": "string"},
+    "tables": {"type": "array"},
+    "published": {"const": false},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

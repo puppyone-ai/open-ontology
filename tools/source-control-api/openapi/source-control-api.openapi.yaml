@@ -1,0 +1,311 @@
+openapi: 3.0.3
+info:
+  title: oo.source-control-api
+  version: v1
+  description: >
+    Authenticated local PostgreSQL and bounded file import.
+    Not build review, not publication, not an enterprise source connector.
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: 127.0.0.1:8445
+paths:
+  /control/v1/connectors:
+    get:
+      operationId: getConnectorMatrix
+      responses:
+        "200":
+          description: Supported connectors
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/connector-matrix.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/sources:
+    get:
+      operationId: listSources
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      responses:
+        "200":
+          description: Sources in the verified project
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/source-list.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: registerSource
+      parameters:
+        - $ref: "#/components/parameters/origin"
+        - $ref: "#/components/parameters/csrf"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/source-register.request.schema.json
+      responses:
+        "201":
+          description: Registered source
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/source.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /control/v1/sources/{source_ref}:
+    get:
+      operationId: getSource
+      parameters:
+        - $ref: "#/components/parameters/source_ref"
+      responses:
+        "200":
+          description: Source detail
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/source.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+  /control/v1/sources/{source_ref}/catalog:
+    get:
+      operationId: getSourceCatalog
+      parameters:
+        - $ref: "#/components/parameters/source_ref"
+      responses:
+        "200":
+          description: Exchange catalog
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/catalog-exchange.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /control/v1/sources/{source_ref}/objects:
+    post:
+      operationId: uploadSourceObject
+      parameters:
+        - $ref: "#/components/parameters/source_ref"
+        - $ref: "#/components/parameters/origin"
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/identity_revision"
+        - $ref: "#/components/parameters/idempotency"
+        - $ref: "#/components/parameters/sha256"
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Stored object
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/object.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "413":
+          $ref: "#/components/responses/Error"
+  /control/v1/imports:
+    get:
+      operationId: listImports
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      responses:
+        "200":
+          description: Imports in the verified project
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/import-list.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createImport
+      parameters:
+        - $ref: "#/components/parameters/origin"
+        - $ref: "#/components/parameters/csrf"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/import-create.request.schema.json
+      responses:
+        "202":
+          description: Queued import
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/import.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /control/v1/imports/{operation_id}:
+    get:
+      operationId: getImport
+      parameters:
+        - $ref: "#/components/parameters/operation_id"
+      responses:
+        "200":
+          description: Import detail
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/import.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+  /control/v1/imports/{operation_id}/cancel:
+    post:
+      operationId: cancelImport
+      parameters:
+        - $ref: "#/components/parameters/operation_id"
+        - $ref: "#/components/parameters/origin"
+        - $ref: "#/components/parameters/csrf"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/import-action.request.schema.json
+      responses:
+        "202":
+          description: Cancel accepted
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/import.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /control/v1/imports/{operation_id}/restart:
+    post:
+      operationId: restartImport
+      parameters:
+        - $ref: "#/components/parameters/operation_id"
+        - $ref: "#/components/parameters/origin"
+        - $ref: "#/components/parameters/csrf"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/import-action.request.schema.json
+      responses:
+        "202":
+          description: Restart queued
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/import.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    project_id:
+      name: project_id
+      in: query
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9_]{0,62}$"
+    source_ref:
+      name: source_ref
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9_]{0,62}$"
+    operation_id:
+      name: operation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^op_[0-9a-f]{32}$"
+    origin:
+      name: Origin
+      in: header
+      required: true
+      schema:
+        type: string
+    csrf:
+      name: X-OO-CSRF
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{43}$"
+    identity_revision:
+      name: X-OO-Identity-Revision
+      in: header
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    idempotency:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{16,128}$"
+    sha256:
+      name: X-OO-SHA256
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: ../schema/error.schema.json

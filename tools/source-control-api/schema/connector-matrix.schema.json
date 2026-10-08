@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/connector-matrix/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "connectors", "not_claimed", "build_review", "release", "customer_integration"],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "operation": {"const": "getConnectorMatrix"},
+    "connectors": {"type": "array"},
+    "not_claimed": {"type": "array", "items": {"type": "string"}},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

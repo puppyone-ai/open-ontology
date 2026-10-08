@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/object/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "project_id", "source_ref", "sha256", "byte_len",
+    "published", "build_review", "release", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "operation": {"const": "uploadSourceObject"},
+    "project_id": {"type": "string"},
+    "source_ref": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "byte_len": {"type": "integer", "minimum": 0},
+    "published": {"const": false},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

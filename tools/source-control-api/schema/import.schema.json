@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/import/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "operation_id", "project_id", "source_ref", "kind",
+    "status", "attempt", "published", "build_review", "release", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "operation": {
+      "enum": ["createImport", "getImport", "listImports", "cancelImport", "restartImport"]
+    },
+    "operation_id": {"type": "string", "pattern": "^op_[0-9a-f]{32}$"},
+    "project_id": {"type": "string"},
+    "source_ref": {"type": "string"},
+    "kind": {"enum": ["pg_inspect", "file_replace"]},
+    "status": {
+      "enum": [
+        "queued", "running", "awaiting_review", "failed",
+        "canceled", "cancel_requested", "resume_uncertain"
+      ]
+    },
+    "attempt": {"type": "integer", "minimum": 1},
+    "rows": {"type": ["integer", "null"], "minimum": 0},
+    "producer_code": {"type": ["string", "null"]},
+    "producer_detail": {"type": ["string", "null"]},
+    "child_started": {"type": "boolean"},
+    "catalog_sha256": {"type": ["string", "null"]},
+    "profile_sha256": {"type": ["string", "null"]},
+    "published": {"const": false},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/source-register/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "identity_revision", "source_ref", "kind", "idempotency_key"],
+  "properties": {
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "identity_revision": {"type": "integer", "minimum": 1},
+    "source_ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "kind": {"enum": ["pg_local", "file_local"]},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "secret_ref": {"type": "string", "pattern": "^secret://[A-Za-z0-9_./-]{1,128}$"},
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "port", "database", "username"],
+      "properties": {
+        "host": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,253}$"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "database": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+        "username": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"}
+      }
+    },
+    "tables": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema", "table"],
+        "properties": {
+          "schema": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+          "table": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"}
+        }
+      }
+    }
+  }
+}

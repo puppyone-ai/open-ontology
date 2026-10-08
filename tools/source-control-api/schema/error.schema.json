@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/error/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "code", "detail", "build_review", "release", "customer_integration"],
+  "properties": {
+    "contract": {"const": "oo.source-control-api/v1"},
+    "code": {
+      "enum": [
+        "unauthenticated",
+        "forbidden",
+        "origin.rejected",
+        "csrf.rejected",
+        "malformed",
+        "closed_input",
+        "revision.conflict",
+        "idempotency.conflict",
+        "conflict",
+        "source.not_admitted",
+        "secret.unknown",
+        "payload.too_large",
+        "dependency.not_ready",
+        "not_found",
+        "method.not_allowed"
+      ]
+    },
+    "detail": {"type": "string", "pattern": "^[a-z0-9_.]+$", "maxLength": 64},
+    "build_review": {"const": "not_claimed"},
+    "release": {"const": "not_claimed"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

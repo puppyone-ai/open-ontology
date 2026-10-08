@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/import-create/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id", "identity_revision", "source_ref", "kind",
+    "idempotency_key", "expected_source_revision"
+  ],
+  "properties": {
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "identity_revision": {"type": "integer", "minimum": 1},
+    "source_ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "kind": {"enum": ["pg_inspect", "file_replace"]},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "expected_source_revision": {"type": "integer", "minimum": 1},
+    "object_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile": {"type": "object"},
+    "budget": {"type": "object"}
+  }
+}
