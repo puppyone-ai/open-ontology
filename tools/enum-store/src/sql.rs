@@ -57,7 +57,7 @@ pub const CALL_GRANT_RUNTIME: &str = "SELECT oo_calendar_control.dict_grant_runt
 pub const OUR_RUNTIME_REG: &str = "oo_enum_control.dict_grant_runtime(text)";
 pub const SIBLING_RUNTIME_REG: &str = "oo_calendar_control.dict_grant_runtime(text)";
 pub const RUNTIME_GRANT_FACT: &str = "\
-SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, COALESCE(p.proconfig::text, ''), \
+SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, p.proconfig, \
        l.lanname = 'plpgsql', \
        (SELECT count(*) FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))) a WHERE a.grantee = 0) \
 FROM pg_catalog.pg_proc p \
@@ -433,7 +433,7 @@ pub const EXPECTED_RUNTIME_CONTROL: [bool; 7] = [false, false, false, false, fal
 pub const SIBLING_MANIFEST: &str = "\
 SELECT sql_sha256 FROM oo_calendar_control.install_manifest WHERE singleton = TRUE";
 pub const FUNCTION_FACT: &str = "\
-SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, COALESCE(p.proconfig::text, '') \
+SELECT pg_catalog.pg_get_userbyid(p.proowner), p.prosecdef, p.prosrc, p.proconfig \
 FROM pg_catalog.pg_proc p \
 JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
 WHERE n.nspname = $1 AND p.proname = $2 \

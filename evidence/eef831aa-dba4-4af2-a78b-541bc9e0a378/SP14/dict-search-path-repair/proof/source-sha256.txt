@@ -1,0 +1,10 @@
+redactedca41690de945a520  tools/calendar-store/migrations/oo_calendar_control_v1.sql
+redacteda0af8ee2122ad9dd  tools/enum-store/migrations/oo_enum_control_v1.sql
+redacted56db4d24db1cbe44  tools/calendar-store/Cargo.lock
+redacted1b2f0bc45970c923  tools/enum-store/Cargo.lock
+redacted4c4951a86ee01783  tools/calendar-store/src/adopt.rs
+redacted4f3fc1f4246656c9  tools/calendar-store/src/sql.rs
+redacted0b7a3dabeb826706  tools/enum-store/src/adopt.rs
+redactedf5788cc1d2763ce4  tools/enum-store/src/sql.rs
+redacted08f7279c098fdc16  tools/calendar-store/tests/search_path.rs
+redactedf614a5e9b9987847  tools/enum-store/tests/search_path.rs

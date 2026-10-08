@@ -1,0 +1,24 @@
+   Compiling enum-history v0.1.0 (/src/tools/enum-history)
+   Compiling enum-store v0.1.0 (/src/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.82s
+     Running unittests src/lib.rs (/target/debug/deps/enum_store-aae5c711c041f67e)
+
+running 7 tests
+test adopt::tests::adoption_preserves_the_accepted_file_and_skips_create_schema ... ok
+test adopt::tests::pinned_search_path_is_exact_pg_catalog_only ... ok
+test publish::tests::historical_report_digest_is_the_hand_literal ... ok
+test publish::tests::unknown_code_is_unexplained_with_a_null_class_and_deprecated_is_not_rewritten ... ok
+test role::tests::role_grammar_rejects_injection_and_fixed_roles ... ok
+test sha256::tests::known_answers ... ok
+test sql::tests::migration_does_not_autofix_or_read_a_clock ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/contract.rs (/target/debug/deps/contract-a351f821a592661b)
+
+running 2 tests
+test contract_name_and_migration_hash_are_fixed ... ok
+test sources_do_not_read_a_clock_or_repair_a_schema ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

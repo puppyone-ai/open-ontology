@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+running 1 test
+test phase ...      Running tests/search_path.rs (/target/debug/deps/search_path-6ab4c9ad3b3def55)
+RESULT replay
+RESULT restore_replay
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+

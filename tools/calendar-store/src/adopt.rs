@@ -282,6 +282,40 @@ fn sibling_close_body() -> &'static str {
     "REVOKE CREATE ON SCHEMA oo_dict FROM oo_calendar_view"
 }
 
+fn proconfig_is_pinned_pg_catalog(config: Option<&[String]>) -> bool {
+    let Some(items) = config else {
+        return false;
+    };
+    let [only] = items else {
+        return false;
+    };
+    let Some((name, value)) = only.split_once('=') else {
+        return false;
+    };
+    name == "search_path" && search_path_is_only_pg_catalog(value)
+}
+
+fn search_path_is_only_pg_catalog(value: &str) -> bool {
+    let mut parts = value.split(',');
+    let Some(first) = parts.next() else {
+        return false;
+    };
+    if parts.next().is_some() {
+        return false;
+    }
+    unquoted_identifier(first.trim()) == "pg_catalog"
+}
+
+fn unquoted_identifier(item: &str) -> &str {
+    let Some(inner) = item.strip_prefix('"').and_then(|rest| rest.strip_suffix('"')) else {
+        return item;
+    };
+    if inner.is_empty() || inner.contains('"') {
+        return item;
+    }
+    inner
+}
+
 async fn function_state(
     tx: &Transaction<'_>,
     schema: &str,
@@ -295,14 +329,14 @@ async fn function_state(
     let found_owner: String = row.try_get(0).map_err(|_| drift("adopt_function"))?;
     let definer: bool = row.try_get(1).map_err(|_| drift("adopt_function"))?;
     let source: String = row.try_get(2).map_err(|_| drift("adopt_function"))?;
-    let config: String = row.try_get(3).map_err(|_| drift("adopt_function"))?;
+    let config: Option<Vec<String>> = row.try_get(3).map_err(|_| drift("adopt_function"))?;
     let public: i64 = tx
         .query_one(sql::FUNCTION_PUBLIC, &[&schema, &name])
         .await
         .map_err(|err| query_error(&err))?
         .try_get(0)
         .map_err(|_| drift("adopt_function"))?;
-    if found_owner == owner && definer && source == body && config.contains("search_path=pg_catalog") && public == 0 {
+    if found_owner == owner && definer && source == body && proconfig_is_pinned_pg_catalog(config.as_deref()) && public == 0 {
         Ok(FnState::Exact)
     } else {
         Ok(FnState::Wrong)
@@ -316,10 +350,10 @@ async fn runtime_grant_state(tx: &Transaction<'_>, schema: &str, owner: &str, bo
     let found_owner: String = row.try_get(0).map_err(|_| drift("adopt_function"))?;
     let definer: bool = row.try_get(1).map_err(|_| drift("adopt_function"))?;
     let source: String = row.try_get(2).map_err(|_| drift("adopt_function"))?;
-    let config: String = row.try_get(3).map_err(|_| drift("adopt_function"))?;
+    let config: Option<Vec<String>> = row.try_get(3).map_err(|_| drift("adopt_function"))?;
     let plpgsql: bool = row.try_get(4).map_err(|_| drift("adopt_function"))?;
     let public: i64 = row.try_get(5).map_err(|_| drift("adopt_function"))?;
-    if found_owner == owner && definer && plpgsql && source == body && config.contains("search_path=pg_catalog") && public == 0 {
+    if found_owner == owner && definer && plpgsql && source == body && proconfig_is_pinned_pg_catalog(config.as_deref()) && public == 0 {
         Ok(FnState::Exact)
     } else {
         Ok(FnState::Wrong)
@@ -506,5 +540,41 @@ mod tests {
         assert_ne!(super::sibling_open_body(), sql::ADOPT_OPEN_BODY);
         assert!(super::sibling_open_body().contains("oo_calendar_view"));
         assert!(super::sibling_close_body().contains("oo_calendar_view"));
+    }
+
+    #[test]
+    fn pinned_search_path_is_exact_pg_catalog_only() {
+        let accept = [
+            Some(vec!["search_path=pg_catalog".to_owned()]),
+            Some(vec!["search_path=\"pg_catalog\"".to_owned()]),
+            Some(vec!["search_path=pg_catalog ".to_owned()]),
+            Some(vec!["search_path= pg_catalog".to_owned()]),
+        ];
+        for config in accept {
+            assert!(super::proconfig_is_pinned_pg_catalog(config.as_deref()), "{config:?}");
+        }
+        let reject = [
+            None,
+            Some(vec![]),
+            Some(vec!["{search_path=pg_catalog}".into()]),
+            Some(vec!["search_path=pg_catalog, public".into()]),
+            Some(vec!["search_path=public, pg_catalog".into()]),
+            Some(vec!["search_path=pg_catalog, pg_temp".into()]),
+            Some(vec!["search_path=pg_temp, pg_catalog".into()]),
+            Some(vec!["search_path=pg_catalog,pg_temp".into()]),
+            Some(vec!["search_path=pg_catalog_extra".into()]),
+            Some(vec!["search_path=pg_catalogfoo".into()]),
+            Some(vec!["search_path=pg_catalog".into(), "work_mem=4MB".into()]),
+            Some(vec!["work_mem=4MB".into()]),
+            Some(vec!["search_path=".into()]),
+            Some(vec!["search_path=\"pg_catalog\", public".into()]),
+            Some(vec!["search_path=PG_CATALOG".into()]),
+            Some(vec!["search_path=pg_catalog, pg_catalog".into()]),
+            Some(vec!["{\"search_path=pg_catalog, public\"}".into()]),
+            Some(vec!["search_path =pg_catalog".into()]),
+        ];
+        for config in reject {
+            assert!(!super::proconfig_is_pinned_pg_catalog(config.as_deref()), "{config:?}");
+        }
     }
 }
