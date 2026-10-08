@@ -1,0 +1,15 @@
+   Compiling session-control-api v0.1.0 (/src/tools/session-control-api)
+warning: field `checkpoint_pid` is never read
+   --> tests/a394_oracle.rs:551:5
+    |
+540 | struct Shot {
+    |        ---- field in this struct
+...
+551 |     checkpoint_pid: Option<i64>,
+    |     ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `session-control-api` (test "a394_oracle") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.11s
+     Running tests/a394_oracle.rs (/target/debug/deps/a394_oracle-a14ffc97eacc7600)

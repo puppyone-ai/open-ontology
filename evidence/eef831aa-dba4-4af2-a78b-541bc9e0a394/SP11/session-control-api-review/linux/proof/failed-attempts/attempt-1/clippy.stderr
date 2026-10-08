@@ -1,0 +1,283 @@
+    Checking libc v0.2.189
+   Compiling jobserver v0.1.35
+    Checking cfg-if v1.0.5
+   Compiling cc v1.4.7
+    Checking typenum v1.20.1
+    Checking hybrid-array v0.4.15
+   Compiling cmake v0.1.58
+   Compiling aws-lc-sys v0.45.0
+    Checking cmov v0.5.4
+    Checking ctutils v0.4.2
+    Checking crypto-common v0.2.2
+    Checking block-buffer v0.12.1
+    Checking const-oid v0.10.2
+    Checking digest v0.11.3
+    Checking rand_core v0.10.1
+    Checking bytes v1.12.1
+   Compiling aws-lc-rs v1.18.1
+    Checking memchr v2.8.3
+    Checking pin-project-lite v0.2.17
+    Checking zeroize v1.9.0
+    Checking tinyvec v1.13.3
+    Checking unicode-normalization v0.1.25
+    Checking getrandom v0.4.3
+    Checking chacha20 v0.10.2
+    Checking cpufeatures v0.3.1
+    Checking mio v1.2.3
+    Checking socket2 v0.6.5
+    Checking futures-sink v0.3.34
+    Checking unicode-properties v0.1.4
+    Checking futures-core v0.3.34
+    Checking unicode-bidi v0.3.18
+    Checking stringprep v0.1.5
+    Checking tokio v1.53.1
+    Checking sha2 v0.11.0
+    Checking rand v0.10.3
+    Checking rustls-pki-types v1.15.1
+    Checking hmac v0.13.0
+    Checking md-5 v0.11.0
+    Checking base64 v0.22.1
+    Checking flagset v0.4.7
+    Checking untrusted v0.9.0
+    Checking const-oid v0.9.6
+    Checking smallvec v1.16.1
+    Checking siphasher v1.0.3
+    Checking byteorder v1.5.0
+    Checking scopeguard v1.2.0
+    Checking fallible-iterator v0.2.0
+    Checking postgres-protocol v0.6.12
+    Checking lock_api v0.4.14
+    Checking phf_shared v0.13.1
+    Checking parking_lot_core v0.9.12
+   Compiling rustls v0.23.45
+    Checking der v0.7.10
+    Checking rustls-webpki v0.103.15
+    Checking subtle v2.6.1
+    Checking once_cell v1.21.4
+    Checking futures-task v0.3.34
+    Checking futures-util v0.3.34
+    Checking serde_core v1.0.229
+    Checking spki v0.7.3
+    Checking parking_lot v0.12.5
+    Checking phf v0.13.1
+    Checking postgres-types v0.2.14
+    Checking tokio-util v0.7.19
+    Checking futures-channel v0.3.34
+    Checking whoami v2.1.3
+    Checking log v0.4.34
+    Checking percent-encoding v2.3.2
+    Checking tokio-postgres v0.7.18
+    Checking x509-cert v0.2.5
+    Checking zmij v1.0.23
+    Checking tokio-rustls v0.26.5
+    Checking itoa v1.0.18
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking tokio-postgres-rustls v0.14.0
+    Checking session-transition v0.1.0 (/src/tools/session-transition)
+    Checking session-store v0.1.0 (/src/tools/session-store)
+    Checking getrandom v0.2.17
+    Checking gateway-token-store v0.1.0 (/src/tools/gateway-token-store)
+    Checking session-release v0.1.0 (/src/tools/session-release)
+    Checking session-control-api v0.1.0 (/src/tools/session-control-api)
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:883:24
+    |
+883 |             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+    |                        ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+878 |         let mut e: i32 = state[4];
+    |                  +++++
+
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:883:44
+    |
+883 |             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+    |                                            ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+878 |         let mut e: i32 = state[4];
+    |                  +++++
+
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:883:65
+    |
+883 |             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+    |                                                                 ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+878 |         let mut e: i32 = state[4];
+    |                  +++++
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:885:27
+    |
+885 |             let temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[index]).wrapping_add(word[index]);
+    |                           ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+881 |         let mut h: i32 = state[7];
+    |                  +++++
+
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:886:24
+    |
+886 |             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+    |                        ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+874 |         let mut a: i32 = state[0];
+    |                  +++++
+
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:886:44
+    |
+886 |             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+    |                                            ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+874 |         let mut a: i32 = state[0];
+    |                  +++++
+
+error[E0689]: can't call method `rotate_right` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:886:65
+    |
+886 |             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+    |                                                                 ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+874 |         let mut a: i32 = state[0];
+    |                  +++++
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:892:19
+    |
+892 |             e = d.wrapping_add(temp1);
+    |                   ^^^^^^^^^^^^
+    |
+help: you must specify a type for this binding, like `i32`
+    |
+877 |         let mut d: i32 = state[3];
+    |                  +++++
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:898:29
+    |
+898 |         state[0] = state[0].wrapping_add(a);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:899:29
+    |
+899 |         state[1] = state[1].wrapping_add(b);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:900:29
+    |
+900 |         state[2] = state[2].wrapping_add(c);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:901:29
+    |
+901 |         state[3] = state[3].wrapping_add(d);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:902:29
+    |
+902 |         state[4] = state[4].wrapping_add(e);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:903:29
+    |
+903 |         state[5] = state[5].wrapping_add(f);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:904:29
+    |
+904 |         state[6] = state[6].wrapping_add(g);
+    |                             ^^^^^^^^^^^^
+
+error[E0689]: can't call method `wrapping_add` on ambiguous numeric type `{integer}`
+   --> tests/a394_oracle.rs:905:29
+    |
+905 |         state[7] = state[7].wrapping_add(h);
+    |                             ^^^^^^^^^^^^
+
+error[E0599]: no method named `to_be_bytes` found for reference `&{integer}` in the current scope
+   --> tests/a394_oracle.rs:909:62
+    |
+909 |         out[index * 4..index * 4 + 4].copy_from_slice(&value.to_be_bytes());
+    |                                                              ^^^^^^^^^^^
+    |
+help: there is a method `to_le_bytes` with a similar name
+    |
+909 -         out[index * 4..index * 4 + 4].copy_from_slice(&value.to_be_bytes());
+909 +         out[index * 4..index * 4 + 4].copy_from_slice(&value.to_le_bytes());
+    |
+
+error[E0382]: borrow of moved value: `conversation`
+   --> tests/a394_oracle.rs:363:76
+    |
+157 |     let conversation = created_body["conversation_id"].as_str().unwrap().to_owned();
+    |         ------------ move occurs because `conversation` has type `std::string::String`, which does not implement the `Copy` trait
+...
+297 |     let closed = tokio::task::spawn_blocking(move || {
+    |                                              ------- value moved into closure here
+298 |         http(port, "POST", &format!("/control/v1/conversations/{conversation}/cancel"), &alice.cookie, &alice.csrf, "{}")
+    |                                                                 ------------ variable moved due to use in closure
+...
+363 |     let still_out = http(port, "GET", &format!("/control/v1/conversations/{conversation}/outputs/transcript"), &alice.cookie, "", "");
+    |                                                                            ^^^^^^^^^^^^ value borrowed here after move
+    |
+    = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider cloning the value before moving it into the closure
+    |
+297 ~     let value = conversation.clone();
+298 ~     let closed = tokio::task::spawn_blocking(move || {
+299 ~         http(port, "POST", &format!("/control/v1/conversations/{value}/cancel"), &alice.cookie, &alice.csrf, "{}")
+    |
+
+error[E0382]: borrow of moved value: `alice.cookie`
+   --> tests/a394_oracle.rs:363:112
+    |
+297 |     let closed = tokio::task::spawn_blocking(move || {
+    |                                              ------- value moved into closure here
+298 |         http(port, "POST", &format!("/control/v1/conversations/{conversation}/cancel"), &alice.cookie, &alice.csrf, "{}")
+    |                                                                                          ------------ variable moved due to use in closure
+...
+363 |     let still_out = http(port, "GET", &format!("/control/v1/conversations/{conversation}/outputs/transcript"), &alice.cookie, "", "");
+    |                                                                                                                ^^^^^^^^^^^^^ value borrowed here after move
+    |
+    = note: move occurs because `alice.cookie` has type `std::string::String`, which does not implement the `Copy` trait
+    = note: borrow occurs due to deref coercion to `str`
+
+error[E0382]: borrow of moved value: `alice.csrf`
+   --> tests/a394_oracle.rs:366:113
+    |
+297 |     let closed = tokio::task::spawn_blocking(move || {
+    |                                              ------- value moved into closure here
+298 |         http(port, "POST", &format!("/control/v1/conversations/{conversation}/cancel"), &alice.cookie, &alice.csrf, "{}")
+    |                                                                                                         ---------- variable moved due to use in closure
+...
+366 |     let replay = http(port, "POST", &format!("/control/v1/conversations/{conversation}/cancel"), &alice.cookie, &alice.csrf, "{}");
+    |                                                                                                                 ^^^^^^^^^^^ value borrowed here after move
+    |
+    = note: move occurs because `alice.csrf` has type `std::string::String`, which does not implement the `Copy` trait
+    = note: borrow occurs due to deref coercion to `str`
+
+Some errors have detailed explanations: E0382, E0599, E0689.
+For more information about an error, try `rustc --explain E0382`.
+error: could not compile `session-control-api` (test "a394_oracle") due to 20 previous errors

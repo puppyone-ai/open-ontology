@@ -1,0 +1,24 @@
+fixed_commit=53017ed29c98c49fb44a7eb18d5df6d5de273046
+archive=archive/tree
+crate_files=18
+mismatches=0
+source=archive/inventory-check.txt
+sha256  bytes  path  status
+585ffd88b57d725a62571693ab8df3d809ded9d7af0c713f3bda786c55afe61a  5940  tools/session-control-api/CONTRACT.md  ok
+9f2b32d46c5bf4abe81c573f9947a67b4dedc25d2b5bd4ddd0220e303489d681  30867  tools/session-control-api/Cargo.lock  ok
+974fdf05c4a3905b35b25e47df528e95c6bd4eb0affe743c5499ee6d1ae59c01  1458  tools/session-control-api/Cargo.toml  ok
+06c479260b04f2e5dc058474a72618753def39fa15cb0a711ee6a1c03a8990a4  6639  tools/session-control-api/migrations/oo_session_api_v1.sql  ok
+e7e5158b9d79a16faa7b1f4a87f17ab2bf8ccf033dcf321b2d5bf4ff5cb73cd0  1829  tools/session-control-api/openapi/session-control-api.openapi.yaml  ok
+ae952b6b2d22126387b1c01c8e7d128645ee68f4c152a2b62a139cac2c128bf0  30258  tools/session-control-api/src/close.rs  ok
+98f991db290acab4f3e3b5ac1a7ce9f97d679d89a019fc95adec93fa597234bc  5233  tools/session-control-api/src/config.rs  ok
+7d4add34a140859057f87322e506eb63a9db04ee14520bd9e52813eba5677822  1167  tools/session-control-api/src/error.rs  ok
+a8f79711e6a948bf178b8cb910800432f24aad4dcc2e6a2000f7a2242a97fe68  19706  tools/session-control-api/src/http.rs  ok
+851d8d909adf879ab6e0756f65736c4cb3ab8d581cd5af1a5026fcfc5e713e13  4344  tools/session-control-api/src/lib.rs  ok
+82b3d22fe06da3784283f61ad92452f07496aa28b0675bf4dabf3cae48121bdd  17360  tools/session-control-api/src/lifecycle.rs  ok
+cb491c6c4f962fce2bd6a84bd3b34c2473d9f90e026a45efaeb471027c1764e6  2085  tools/session-control-api/src/main.rs  ok
+eac61aa8d9d0eebe935be0d438b6877b40845656601c4c5a8180edd97963f037  4472  tools/session-control-api/src/sha256.rs  ok
+da069c5f8f981f03c88bd6c7619f0171f7cf104d41a4c74f937fa893ed71a950  836  tools/session-control-api/src/sql.rs  ok
+b635371b31bb26d2da9206c65baffbd5ae44cd58d1ed6b00305f36f53840dd31  23016  tools/session-control-api/src/store.rs  ok
+8b4da2e896ffdb11ef34b56471e2aff6bd9d1ab5f5ce1d528ea81ceff7ae802e  1966  tools/session-control-api/tests/contract.rs  ok
+dc21eed7b55d9459b0dd658062d41e4adf70cbd9ecd3948625f9936c090b9047  20996  tools/session-control-api/tests/live.rs  ok
+ae2878f1da0c35765ca38c0d01c1c1f1cd8f1bd42b699196772ffaade453ec8b  4995  tools/session-control-api/tests/lock_subset.rs  ok

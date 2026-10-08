@@ -1,0 +1,1 @@
+attempt 3: cleaned Sample dead fields and Phase borrows. Oracle exited 0 again. Clippy exited 101 because Shot.checkpoint_pid was stored and never read. That field is now removed. This directory does not replace the lint-run oracle report.

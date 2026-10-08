@@ -1,0 +1,13 @@
+Owned cleanup after the clippy-final run. No docker prune. No foreign container, volume, or network was removed.
+
+Removed:
+- container oo-a394-pg (label oo.owner=a394, oo.kind=postgres)
+- volume oo-a394-eef831aa-pgdata
+- volume oo-a394-eef831aa-cargo
+- volume oo-a394-eef831aa-target
+- network oo-a394-eef831aa-net (only oo-a394-pg was attached)
+- /tmp/oo-a394-eef831aa-dba4-4af2-a78b-541bc9e0a394 (secrets, fixture, keys)
+
+Proof containers oo-a394-smoke and oo-a394-review were already removed by their launch scripts. container-removed.txt in linux/smoke, linux/proof, linux/proof/lint-run, and linux/proof/clippy-final says removed.
+
+After this cleanup, docker ps -a and docker volume ls filtered by oo.owner=a394 were empty, and the a394 network was gone. Foreign postgres containers oo-a383-pg, oo-a386-pg, and oo-a373-pg were still running.

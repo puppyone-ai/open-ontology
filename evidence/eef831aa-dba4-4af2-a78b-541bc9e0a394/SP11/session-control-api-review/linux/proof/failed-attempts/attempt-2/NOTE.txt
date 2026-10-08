@@ -1,0 +1,1 @@
+attempt 2: lib, contract, lock_subset, live, and a394_oracle exited 0. Clippy exited 101 on unread Sample fields and needless borrows of Phase. docker-run.exit=1. The oracle report in this directory is that green run. The following lint-run repeats only the oracle and Clippy on the cleaned source. Product tests were not repeated.

@@ -1,0 +1,1 @@
+attempt 1 failed before the oracle ran. session-control-api lib, contract, lock_subset, and live exited 0. a394_oracle and clippy exited 101: SHA-256 state was an unconstrained integer, and the cancel closure moved conversation, cookie, and csrf. docker-run.exit=1. Container was removed. Postgres was left running.
