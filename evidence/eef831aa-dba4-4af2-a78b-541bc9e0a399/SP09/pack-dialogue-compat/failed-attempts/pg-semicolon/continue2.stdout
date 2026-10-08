@@ -1,0 +1,10 @@
+ full_import_bind_session 
+--------------------------
+ 
+(1 row)
+
+ set_config 
+------------
+ 3min
+(1 row)
+

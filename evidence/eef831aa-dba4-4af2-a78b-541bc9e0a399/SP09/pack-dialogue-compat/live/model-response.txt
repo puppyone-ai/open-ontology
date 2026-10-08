@@ -1,0 +1,7 @@
+headers:
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Cpa-Trace-Id: 20261008170426-dbd416264556292e-00000046
+
+body:
+{"id":"6f0771d4-069e-9fa1-9276-328e2e5205c3","object":"chat.completion","created":1791450267,"model":"grok-4.7-build","choices":[{"index":0,"message":{"role":"assistant","content":"{\"protocol\":\"oo.ontology-dialogue.sql-candidate/v1\",\"sql\":\"SELECT COUNT(*) AS row_count FROM public.entry;\"}","reasoning_content":"I need to return a JSON object with only the protocol and sql keys.","tool_calls":null},"finish_reason":"stop","native_finish_reason":"stop"}],"service_tier":"default","usage":{"completion_tokens":256,"total_tokens":2717,"prompt_tokens":2461,"prompt_tokens_details":{"cached_tokens":1152},"completion_tokens_details":{"reasoning_tokens":224}}}

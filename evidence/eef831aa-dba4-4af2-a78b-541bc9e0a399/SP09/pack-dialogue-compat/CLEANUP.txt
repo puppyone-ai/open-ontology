@@ -1,0 +1,9 @@
+removed container oo-a399-pg
+removed container oo-a399-build (before the loop)
+removed container oo-a399-loop (launch.sh)
+removed volumes oo-a399-eef831aa-cargo oo-a399-eef831aa-target oo-a399-eef831aa-pgdata
+removed network oo-a399-eef831aa-net
+removed /tmp/oo-a399-eef831aa-dba4-4af2-a78b-541bc9e0a399
+token file left in place, mode 600, size 6, contents not printed
+no prune, no foreign container, volume, or network removed
+remaining oo.owner=a399 containers, volumes, and networks: none

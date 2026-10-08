@@ -92,6 +92,19 @@ pub fn endpoint_path(value: &str) -> bool {
         && !value.split('/').any(|segment| segment == "..")
 }
 
+pub fn development_local_origin(value: &str) -> bool {
+    let Some(rest) = value.strip_prefix("http://127.0.0.1:") else {
+        return false;
+    };
+    if rest.is_empty() || rest.len() > 5 || rest.as_bytes()[0] == b'0' {
+        return false;
+    }
+    if !rest.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    matches!(rest.parse::<u16>(), Ok(port) if port != 0)
+}
+
 pub fn origin_ok(value: &str) -> bool {
     let Some(rest) = value.strip_prefix("https://") else {
         return false;

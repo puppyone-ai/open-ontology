@@ -1,0 +1,12 @@
+bind /host_mnt/Users/redux/puppy-one/open-ontology/examples/ontology-draft /work/examples/ontology-draft rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a399/SP09/pack-dialogue-compat /evidence rw=true
+volume /var/lib/docker/volumes/oo-a399-eef831aa-target/_data /target rw=true
+bind /host_mnt/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a399/SP09/pack-dialogue-compat/linux/focused-2/inside.sh /inside.sh rw=false
+volume /var/lib/docker/volumes/oo-a399-eef831aa-cargo/_data /cargo-home rw=true
+bind /host_mnt/Users/redux/puppy-one/open-ontology/Cargo.toml /work/Cargo.toml rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/crates /work/crates rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/tools/ontology-dialogue /work/tools/ontology-dialogue rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/tools/answer-citations /work/tools/answer-citations rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/Cargo.lock /work/Cargo.lock rw=false
+bind /host_mnt/Users/redux/puppy-one/open-ontology/contracts /work/contracts rw=false
+

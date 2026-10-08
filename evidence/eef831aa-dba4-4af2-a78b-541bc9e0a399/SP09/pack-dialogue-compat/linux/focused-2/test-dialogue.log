@@ -1,0 +1,34 @@
+   Compiling ontology-dialogue v0.1.0 (/work/tools/ontology-dialogue)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.58s
+     Running tests/execute_approval.rs (/target/debug/deps/execute_approval-d07f78f1c6586aa0)
+
+running 3 tests
+test approved_child_receipt_uses_the_citations_module ... ok
+test guard_refusal_has_no_query_id ... ok
+test stale_pack_sql_tamper_and_bad_binary_do_not_spawn ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+     Running tests/identity_compat.rs (/target/debug/deps/identity_compat-74cafefea6a2e7cc)
+
+running 5 tests
+test development_local_rejects_other_hosts_and_short_production_bearers ... ok
+test help_names_the_development_local_exception ... ok
+test identity_mismatches_are_config_before_any_socket ... ok
+test provider_failure_writes_no_proposal_and_does_not_execute ... ok
+test six_byte_development_local_returns_one_sql_candidate ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+     Running tests/propose.rs (/target/debug/deps/propose-605e353462192702)
+
+running 6 tests
+test a_pack_for_another_role_is_refused_before_https ... ok
+test bearer_in_the_question_does_not_open_a_socket ... ok
+test help_and_usage ... ok
+test https_proxy_is_not_used ... ok
+test propose_binds_the_question_pack_and_sql_and_matches_the_cli ... ok
+test provider_failures_do_not_write_a_proposal ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+

@@ -1,0 +1,1 @@
+docker run --name oo-a399-focused2 --platform linux/arm64 --pull never --network oo-a399-eef831aa-net --user 0:0 --security-opt no-new-privileges --cap-drop ALL --memory 6g --memory-swap 6g --cpus 1 --pids-limit 512 image=pinned-rust-1.94 bash /inside.sh

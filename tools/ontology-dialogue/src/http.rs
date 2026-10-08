@@ -1,4 +1,6 @@
-//! One HTTPS POST. No proxy, no redirect, no retry, no second endpoint.
+//! One model POST. No proxy, no redirect, no retry, no second endpoint.
+//! Production uses HTTPS and the pinned CA bundle. `development_local` is a
+//! separate client: HTTP, host exactly `127.0.0.1`, and no platform roots.
 
 use std::time::{Duration, Instant};
 
@@ -41,6 +43,48 @@ pub async fn post_once(
         .timeout(deadline)
         .build()
         .map_err(|_| Fault::config())?;
+    dispatch(client, parsed, bearer, body, deadline, max_bytes, max_chunks).await
+}
+
+/// HTTP only, and only when the URL host is exactly `127.0.0.1`.
+/// `https_only` stays false on this client alone.
+pub async fn post_development_local(
+    url: &str,
+    bearer: &str,
+    body: &[u8],
+    deadline: Duration,
+    max_bytes: usize,
+    max_chunks: usize,
+) -> Result<ChatReply, Fault> {
+    let parsed = reqwest::Url::parse(url).map_err(|_| Fault::config())?;
+    if parsed.scheme() != "http" || parsed.host_str() != Some("127.0.0.1") {
+        return Err(Fault::config());
+    }
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .retry(reqwest::retry::never())
+        .no_proxy()
+        .https_only(false)
+        .http1_only()
+        .referer(false)
+        .connection_verbose(false)
+        .user_agent(USER_AGENT)
+        .connect_timeout(deadline)
+        .timeout(deadline)
+        .build()
+        .map_err(|_| Fault::config())?;
+    dispatch(client, parsed, bearer, body, deadline, max_bytes, max_chunks).await
+}
+
+async fn dispatch(
+    client: reqwest::Client,
+    parsed: reqwest::Url,
+    bearer: &str,
+    body: &[u8],
+    deadline: Duration,
+    max_bytes: usize,
+    max_chunks: usize,
+) -> Result<ChatReply, Fault> {
     let mut authorization = HeaderValue::from_str(&format!("Bearer {bearer}")).map_err(|_| Fault::config())?;
     authorization.set_sensitive(true);
     let started = Instant::now();

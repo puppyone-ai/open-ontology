@@ -2,7 +2,7 @@
 
 Contract `oo.ontology-dialogue/v1`. Binary `ontology-dialogue`.
 
-This is one trusted-operator command on this machine. It has two phases, `propose` and `execute`. `propose` sends one natural-language question and one role Pack's public files to one approved HTTPS OpenAI-compatible chat completion. `execute` runs only after a separate local approval file names the exact proposal hash, SQL hash, tuple hash, and Pack digest. The model SQL is untrusted. This command never calls `execute_trusted_select`. It never starts `query-pg` from `propose`. It never treats the approval file as authenticated authentication.
+This is one trusted-operator command on this machine. It has two phases, `propose` and `execute`. `propose` sends one natural-language question and one role Pack's public files to one approved OpenAI-compatible chat completion. The default transport is production HTTPS. `execute` runs only after a separate local approval file names the exact proposal hash, SQL hash, tuple hash, and Pack digest. The model SQL is untrusted. This command never calls `execute_trusted_select`. It never starts `query-pg` from `propose`. It never treats the approval file as authenticated authentication.
 
 `query-pg` remains the local operator CLI in `contracts/gateway/query-pg-cli-v1.md`. Its request file is the operator document that CLI already trusts. Unknown parser-worker admission stays blocked inside that CLI. This command does not open that admission. Full hosted Gateway authentication, `runsc`, and the natural-language harness stay parent work.
 
@@ -36,24 +36,31 @@ Hashes are SHA-256, 64 lowercase hex digits, of the exact UTF-8 bytes named belo
 | `pack_file` | one `oo.builder.role-pack/v1` artifact |
 | `binding.role` | `oo_r_` plus a slug, length at most 63 |
 | `binding.project` | slug, 1 to 63 bytes |
-| `binding.policy_id` | 64 lowercase hex digits |
+| `binding.policy_id` | 64 lowercase hex digits, the Gateway request config digest |
 | `binding.policy_version` | 1 to 64 bytes of ASCII letters, digits, `.`, `_`, `+`, `-` |
-| `binding.knowledge_id` | same slug rule as `project` |
+| `binding.knowledge_id` | dialogue slug, 1 to 63 bytes |
 | `binding.knowledge_version` | same rule as `policy_version` |
 | `binding.as_of` | `YYYY-MM-DDThh:mm:ssZ` |
-| `endpoint.origin` | `https` URL, host present, no user, password, query, fragment, or path other than `/` |
+| `endpoint.transport` | omitted or `production`, or the exact token `development_local` |
+| `endpoint.origin` | production: `https` URL below. `development_local`: `http://127.0.0.1:<port>` below |
 | `endpoint.path` | absolute path, 1 to 256 bytes, no `//`, `..`, `\`, `?`, or `#` |
 | `endpoint.model_id` | 1 to 128 bytes of ASCII letters, digits, `.`, `_`, `+`, `-` |
-| `trust.ca_file` | PEM certificate bundle, at most 65536 bytes, at least one certificate |
+| `trust.ca_file` | production: PEM bundle below. `development_local`: present in JSON and not read |
 | `trust.residency_approved` | boolean `true` |
 | `secret.bearer_file` | bearer token file, at most 512 bytes |
 | `budget` | the ranges below |
 
-A slug is one ASCII lowercase letter or `_`, then lowercase letters, digits, or `_`. `oo_r_` plus the rest is at most 63 bytes, and the part after `oo_r_` is 1 to 58 bytes and starts with a lowercase letter or `_`.
+A dialogue slug is one ASCII lowercase letter or `_`, then lowercase letters, digits, or `_`. `oo_r_` plus the rest is at most 63 bytes, and the part after `oo_r_` is 1 to 58 bytes and starts with a lowercase letter or `_`. A hyphen is outside this slug. `know-a317` is `config` before any socket. The role-pack compiler keeps its own slug, which still allows a hyphen, and it does not rewrite the identifier. A knowledge id both the compiler and this command accept is the dialogue slug, for example `know_a317`.
 
-`residency_approved: true` is the caller's declaration that this origin is approved. It is not a residency certificate. The CA file is not a private key. A PEM window containing `PRIVATE KEY` is `config`. The client trusts that bundle and no platform roots.
+`binding.policy_id` is 64 lowercase hex digits. That value is the digest `query-pg` requires on `identity.policy_id`. Uppercase hex, any other length, a non-hex byte, a slash, or a control character is `config`. The role-pack compiler also accepts its existing slug as a policy id and does not rewrite a digest. A slug-only policy id can still be a legal role pack. This command accepts the digest form in `binding.policy_id`.
 
-The bearer is the file bytes without one optional trailing newline. It is 16 to 256 bytes of visible ASCII (`0x21` through `0x7e`) and contains no whitespace. If those bytes occur in the config, the question file, the Pack bytes, or the chat body, the call is `secret` and no socket is opened. The token is placed only in the `Authorization` header.
+`residency_approved: true` is the caller's declaration that this origin is approved. It is not a residency certificate. On the production client the CA file is not a private key. A PEM window containing `PRIVATE KEY` is `config`. That client trusts that bundle and no platform roots.
+
+The bearer is the file bytes without one optional trailing newline. It is visible ASCII (`0x21` through `0x7e`) and contains no whitespace. Production length is 16 to 256 bytes. `development_local` also accepts a length of exactly 6 bytes. Lengths 1 to 5 and 7 to 15 are `config` in both modes. If the bearer bytes occur in the config, the question file, the Pack bytes, or the chat body, the call is `secret` and no socket is opened. The token is placed only in the `Authorization` header.
+
+### Development local
+
+`endpoint.transport` must be the exact string `development_local`. The origin must be `http://127.0.0.1:<port>`: port 1 to 65535, one to five digits, no leading zero, no user, password, path, query, or fragment. `localhost`, any other host, `https`, and a trailing slash are `config`. This mode uses a separate HTTP client with `https_only(false)`, no CA bundle, and no platform roots. The production client is unchanged: `https_only(true)` and `tls_certs_only` on the pinned bundle. An omitted transport and the token `production` both use that production client. Any other transport token is `config`.
 
 There is no field that names `query-pg`, a database password, a source catalog, or a second Pack.
 
@@ -74,7 +81,7 @@ A number outside the range is `budget`.
 | `max_total_tokens` | 1 to 100000 |
 | `max_sql_bytes` | 1 to 65536 |
 
-`deadline_ms` bounds the HTTPS call from the start of the connection attempt through the last accepted body chunk.
+`deadline_ms` bounds the one model call from the start of the connection attempt through the last accepted body chunk.
 
 ## Pack and public context
 
@@ -84,9 +91,9 @@ The Pack is the role-pack artifact. This command does not compile it and does no
 
 File text that contains `secret://`, `postgres://`, `mysql://`, or `password=` is `pack` and is not sent. The public context is every remaining file, in path order. The model message is only that context plus the question text. It does not include the bearer, the query request, a password file, a control config, a raw source catalog, or another Pack.
 
-## HTTPS
+## Model call
 
-One POST to `origin` plus `path`. reqwest `0.13.5` with `default-features = false` and features `rustls` and `http2`. The builder uses `redirect(Policy::none)`, `retry(retry::never())`, `no_proxy`, `https_only(true)`, `http1_only`, `tls_certs_only`, `referer(false)`, and `connection_verbose(false)`. The body is read with `Response::chunk` under the chunk and byte caps. The client does not read `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `OPENAI_API_KEY`, or `OPENAI_BASE_URL`. There is one attempt and one URL. A redirect is not followed.
+One POST to `origin` plus `path`. reqwest `0.13.5` with `default-features = false` and features `rustls` and `http2`. Both clients use `redirect(Policy::none)`, `retry(retry::never())`, `no_proxy`, `http1_only`, `referer(false)`, and `connection_verbose(false)`. The production client also uses `https_only(true)` and `tls_certs_only`. The `development_local` client uses `https_only(false)` and does not install a CA or platform roots. The body is read with `Response::chunk` under the chunk and byte caps. The client does not read `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `OPENAI_API_KEY`, or `OPENAI_BASE_URL`. There is one attempt and one URL. A redirect is not followed. A non-200 status, including HTTP 500, is `provider` and writes no proposal.
 
 The chat body is one JSON object: `model`, `temperature` `0`, `stream` `false`, `max_completion_tokens`, two messages, and `response_format.type` `json_schema`. The system message is the fixed sentence in the source constant `SYSTEM_PROMPT`. The user message is `question:\n`, the question text, `\n\ncontext:\n`, then each public file as `path\n` plus its text and `\n`. No second message is added.
 

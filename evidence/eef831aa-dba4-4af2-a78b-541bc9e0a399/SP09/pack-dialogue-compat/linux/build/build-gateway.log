@@ -1,0 +1,8 @@
+   Compiling oo-gateway v0.1.0 (/work/crates/oo-gateway)
+   Compiling axum v0.8.9
+   Compiling tower-http v0.6.11
+   Compiling pg_query v6.2.1
+   Compiling tokio-postgres-rustls v0.14.0
+   Compiling oo-core v0.1.0 (/work/crates/oo-core)
+   Compiling getrandom v0.2.17
+    Finished `dev` profile [unoptimized] target(s) in 18.93s

@@ -5,7 +5,10 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::error::Fault;
-use crate::grammar::{self, as_of, hex64, in_range, model_id, origin_ok, role_name, slug, version_token};
+use crate::grammar::{
+    self, as_of, development_local_origin, hex64, in_range, model_id, origin_ok, role_name, slug,
+    version_token,
+};
 use crate::http;
 use crate::json::{self, JsonError};
 use crate::pack::{self, BoundPack};
@@ -50,6 +53,8 @@ struct Endpoint {
     origin: String,
     path: String,
     model_id: String,
+    #[serde(default)]
+    transport: String,
 }
 
 #[derive(Deserialize)]
@@ -156,13 +161,21 @@ pub fn propose(config_text: &str) -> Result<Vec<u8>, Fault> {
     if context_bytes > usize_budget(config.budget.max_context_bytes)? {
         return Err(Fault::budget());
     }
-    let ca = read_named(&config.trust.ca_file, CA_MAX, Fault::config)?;
-    if ca.windows(b"PRIVATE KEY".len()).any(|window| window == b"PRIVATE KEY")
-        || !ca.windows(b"BEGIN CERTIFICATE".len()).any(|window| window == b"BEGIN CERTIFICATE")
-    {
-        return Err(Fault::config());
-    }
-    let bearer = read_bearer(&config.secret.bearer_file)?;
+    let development_local = endpoint_mode(&config.endpoint)?;
+    let ca = if development_local {
+        Vec::new()
+    } else {
+        let ca = read_named(&config.trust.ca_file, CA_MAX, Fault::config)?;
+        if ca.windows(b"PRIVATE KEY".len()).any(|window| window == b"PRIVATE KEY")
+            || !ca
+                .windows(b"BEGIN CERTIFICATE".len())
+                .any(|window| window == b"BEGIN CERTIFICATE")
+        {
+            return Err(Fault::config());
+        }
+        ca
+    };
+    let bearer = read_bearer(&config.secret.bearer_file, development_local)?;
     if contains_bytes(config_text.as_bytes(), bearer.as_bytes())
         || contains_bytes(&question_bytes, bearer.as_bytes())
         || contains_bytes(&pack_bytes, bearer.as_bytes())
@@ -179,15 +192,26 @@ pub fn propose(config_text: &str) -> Result<Vec<u8>, Fault> {
     }
     let url = grammar::join_origin(&config.endpoint.origin, &config.endpoint.path);
     let deadline = Duration::from_millis(config.budget.deadline_ms);
-    let reply = block_on(http::post_once(
-        &url,
-        &ca,
-        &bearer,
-        &body,
-        deadline,
-        usize_budget(config.budget.max_response_bytes)?,
-        usize_budget(config.budget.max_response_chunks)?,
-    ))?;
+    let reply = if development_local {
+        block_on(http::post_development_local(
+            &url,
+            &bearer,
+            &body,
+            deadline,
+            usize_budget(config.budget.max_response_bytes)?,
+            usize_budget(config.budget.max_response_chunks)?,
+        ))?
+    } else {
+        block_on(http::post_once(
+            &url,
+            &ca,
+            &bearer,
+            &body,
+            deadline,
+            usize_budget(config.budget.max_response_bytes)?,
+            usize_budget(config.budget.max_response_chunks)?,
+        ))?
+    };
     if reply.status != 200 {
         return Err(Fault::provider());
     }
@@ -211,12 +235,12 @@ fn parse_config(text: &str) -> Result<ProposeConfig, Fault> {
         || !slug(&config.binding.knowledge_id, 63)
         || !version_token(&config.binding.knowledge_version)
         || !as_of(&config.binding.as_of)
-        || !origin_ok(&config.endpoint.origin)
         || !grammar::endpoint_path(&config.endpoint.path)
         || !model_id(&config.endpoint.model_id)
     {
         return Err(Fault::config());
     }
+    endpoint_mode(&config.endpoint)?;
     let budget = &config.budget;
     if !budget_ranges(budget) {
         return Err(Fault::budget());
@@ -478,7 +502,25 @@ pub(crate) fn proposal_preimage_sha(parts: &HashParts<'_>, tuple_sha256: &str) -
     canonical_sha256(&Value::Object(map))
 }
 
-fn read_bearer(path: &str) -> Result<String, Fault> {
+fn endpoint_mode(endpoint: &Endpoint) -> Result<bool, Fault> {
+    let development_local = match endpoint.transport.as_str() {
+        "" | "production" => false,
+        "development_local" => true,
+        _ => return Err(Fault::config()),
+    };
+    let origin_matches = if development_local {
+        development_local_origin(&endpoint.origin)
+    } else {
+        origin_ok(&endpoint.origin)
+    };
+    if origin_matches {
+        Ok(development_local)
+    } else {
+        Err(Fault::config())
+    }
+}
+
+fn read_bearer(path: &str, development_local: bool) -> Result<String, Fault> {
     let bytes = read_named(path, read::BEARER_FILE_MAX, Fault::config)?;
     let mut text = std::str::from_utf8(&bytes).map_err(|_| Fault::config())?.to_string();
     if text.ends_with("\r\n") {
@@ -487,7 +529,15 @@ fn read_bearer(path: &str) -> Result<String, Fault> {
         text.pop();
     }
     let bytes = text.as_bytes();
-    if !(16..=256).contains(&bytes.len())
+    // Six bytes are legal only in development_local. Lengths 1–5 and 7–15
+    // stay config. pg-builder's loopback reader allows 1..=256; this command
+    // keeps the narrower exception and leaves that reader unchanged.
+    let length_ok = if development_local {
+        bytes.len() == 6 || (16..=256).contains(&bytes.len())
+    } else {
+        (16..=256).contains(&bytes.len())
+    };
+    if !length_ok
         || !bytes.iter().all(|byte| (0x21..=0x7e).contains(byte))
         || bytes.iter().any(u8::is_ascii_whitespace)
     {

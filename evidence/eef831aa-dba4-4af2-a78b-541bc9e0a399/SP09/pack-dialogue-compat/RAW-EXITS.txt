@@ -1,0 +1,27 @@
+smoke docker-run.exit 0
+focused docker-run.exit 101
+focused test-builder: pack_dialogue_compat 3, reviewed_effective 5, role_pack 11, exit 0
+focused test-lib: 35 passed, 1 failed (examples/ontology-draft not mounted)
+focused clippy-builder.exit 0
+focused-2 docker-run.exit 1
+focused-2 test-lib 36 passed exit 0
+focused-2 test-builder exit 0
+focused-2 test-dialogue: execute_approval 3, identity_compat 5, propose 6, exit 0
+focused-2 clippy: cargo-clippy not installed
+focused-3 docker-run.exit 0
+focused-3 clippy-dialogue.exit 0
+build container-4 exit 0 oom false
+build phases: extract-clang 0, build-gateway 0, build-pack 0, build-dialogue 0, build-tools 0
+pg up.exit 0
+live docker-run.exit 0 oom false
+live bundle.exit 0
+live propose.exit 0
+live install.exit 0
+live provision.exit 0
+live execute.exit 0
+live execute-invoked yes
+live approval-written yes
+failed pg-query first gateway exit 101 (stdbool.h)
+failed gateway-token-store mount exit 101
+failed focused mount gap exit 101
+failed psql semicolon on the first fixture load; recreated volume then count 90000

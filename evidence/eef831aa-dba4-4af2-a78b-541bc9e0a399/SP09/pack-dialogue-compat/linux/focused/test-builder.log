@@ -1,0 +1,39 @@
+   Compiling oo-builder v0.1.0 (/work/crates/oo-builder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.28s
+     Running tests/pack_dialogue_compat.rs (/target/debug/deps/pack_dialogue_compat-c4df78747a43d3bb)
+
+running 3 tests
+test approved_digest_and_intersection_knowledge_are_emitted_unchanged ... ok
+test dangerous_policy_ids_fail_before_a_pack_exists ... ok
+test hyphenated_knowledge_still_compiles_and_is_not_rewritten ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/reviewed_effective.rs (/target/debug/deps/reviewed_effective-6b72fa94f36162b9)
+
+running 5 tests
+test curated_pii_is_not_copied_and_money_needs_an_existing_unit ... ok
+test rejected_column_leaves_the_effective_draft_and_the_decision_is_unknown ... ok
+test shop_review_classifies_into_two_role_packs_and_keeps_email_hidden ... ok
+test stale_unknown_duplicate_invalid_and_renamed_stay_explicit ... ok
+test usage_scanner_and_settings_failures_do_not_echo_the_body ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests/role_pack.rs (/target/debug/deps/role_pack-14a8b73f8946b72f)
+
+running 11 tests
+test analyst_pack_redacts_hidden_dependencies ... ok
+test bindings_and_policy_inputs_refuse ... ok
+test budgets_refuse ... ok
+test closure_keeps_visible_text_and_omits_hidden_references ... ok
+test escaped_sql_label_distinct_and_name_closure ... ok
+test hashes_match_an_independent_oracle ... ok
+test paths_reject_traversal ... ok
+test principal_changes_only_the_cache_key ... ok
+test repeated_compiles_match ... ok
+test support_pack_is_a_separate_project_artifact ... ok
+test unreviewed_text_needs_an_explicit_token ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+

@@ -1,0 +1,9 @@
+focused attempt 1 is a mount gap, not an identity failure.
+
+test-builder.exit is 0. pack_dialogue_compat 3 passed. role_pack 11 passed. reviewed_effective integration 5 passed. The lib test approved_digest_is_a_legal_policy_id_and_is_not_rewritten passed.
+
+test-lib.exit is 101 because draft::tests::checked_in_goldens_match_compiler_bytes reads examples/ontology-draft, which was not mounted. 35 other lib tests passed.
+
+test-dialogue.exit is 101 because tests/common/mod.rs include_str reads contracts/sdk/json-query/fixtures/tls, which was not mounted. The dialogue crate itself had already compiled.
+
+fetch, rustc 1.94.0, and the clippy component completed before those tests. Cargo update was not invoked.

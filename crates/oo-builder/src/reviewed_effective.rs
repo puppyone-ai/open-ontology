@@ -503,9 +503,9 @@ fn check_settings(settings: &SettingsIn) -> Result<(), ReviewedEffectiveError> {
     check_slug(&settings.project, "/settings/project")?;
     check_version(&settings.ontology_version, "/settings/ontology_version")?;
     check_version(&settings.catalog_version, "/settings/catalog_version")?;
-    check_slug(&settings.policy.id, "/settings/policy/id")?;
+    check_policy_id(&settings.policy.id, "/settings/policy/id")?;
     check_version(&settings.policy.version, "/settings/policy/version")?;
-    check_slug(&settings.knowledge.id, "/settings/knowledge/id")?;
+    check_knowledge_id(&settings.knowledge.id, "/settings/knowledge/id")?;
     check_version(&settings.knowledge.version, "/settings/knowledge/version")?;
     if !settings.ontology.compile.per_role {
         return Err(ReviewedEffectiveError::new(
@@ -525,14 +525,7 @@ fn check_settings(settings: &SettingsIn) -> Result<(), ReviewedEffectiveError> {
 }
 
 fn check_slug(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
-    let bytes = value.as_bytes();
-    let ok = !bytes.is_empty()
-        && bytes.len() <= 63
-        && bytes[0].is_ascii_lowercase()
-        && bytes[1..].iter().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
-        });
-    if ok {
+    if slug_ok(value) {
         Ok(())
     } else {
         Err(ReviewedEffectiveError::new(
@@ -541,6 +534,46 @@ fn check_slug(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
             BINDING_MESSAGE,
         ))
     }
+}
+
+fn check_policy_id(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
+    if policy_id_ok(value) {
+        Ok(())
+    } else {
+        Err(ReviewedEffectiveError::new(
+            "settings.invalid",
+            path,
+            BINDING_MESSAGE,
+        ))
+    }
+}
+
+fn check_knowledge_id(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
+    // Knowledge stays on the existing slug. Dialogue still rejects a hyphen.
+    // This compiler does not rewrite the identifier.
+    check_slug(value, path)
+}
+
+fn policy_id_ok(value: &str) -> bool {
+    slug_ok(value) || digest64(value)
+}
+
+fn slug_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes[0].is_ascii_lowercase()
+        && bytes[1..].iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
+        })
+}
+
+fn digest64(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 64
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 }
 
 fn check_version(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
@@ -1112,10 +1145,18 @@ mod tests {
     }
 
     fn run(artifact: &Value, decisions: Value) -> Result<Value, ReviewedEffectiveError> {
+        run_with(artifact, decisions, settings())
+    }
+
+    fn run_with(
+        artifact: &Value,
+        decisions: Value,
+        settings: Value,
+    ) -> Result<Value, ReviewedEffectiveError> {
         let command = json!({
             "protocol": REVIEWED_EFFECTIVE_COMMAND_PROTOCOL,
             "artifact": artifact,
-            "settings": settings(),
+            "settings": settings,
             "decisions": decisions,
         });
         let text = compile_reviewed_effective(&serde_json::to_string(&command).unwrap())?;
@@ -1259,6 +1300,49 @@ mod tests {
             "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn approved_digest_is_a_legal_policy_id_and_is_not_rewritten() {
+        const DIGEST: &str = "e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e";
+        let (artifact, draft) = compile_named("contact");
+        let schema = draft["provenance"]["schema_hash"].as_str().unwrap().to_string();
+        let contact_fingerprint = fingerprint(&draft, "contact");
+        let mut bound = settings();
+        bound["policy"]["id"] = json!(DIGEST);
+        bound["knowledge"]["id"] = json!("know_a317");
+        let fresh = run_with(
+            &artifact,
+            json!([decision(
+                "public.customer",
+                "contact",
+                &schema,
+                &contact_fingerprint
+            )]),
+            bound.clone(),
+        )
+        .expect("digest policy");
+        assert_eq!(fresh["effective_oos"]["policy"]["id"], DIGEST);
+        assert_eq!(fresh["effective_oos"]["knowledge"]["id"], "know_a317");
+        let mut snap: Value = serde_json::from_str(&visibility(&["contact"])).unwrap();
+        snap["policy"]["id"] = json!(DIGEST);
+        snap["knowledge"]["id"] = json!("know_a317");
+        let pack = compile_role_pack(
+            &canonical_json(&fresh["effective_oos"]),
+            &serde_json::to_string(&snap).unwrap(),
+        )
+        .expect("compiler pack");
+        let manifest: Value = serde_json::from_str(pack.file("manifest.json").unwrap()).unwrap();
+        assert_eq!(manifest["policy"]["id"], DIGEST);
+        assert_eq!(manifest["knowledge"]["id"], "know_a317");
+
+        bound["policy"]["id"] = json!(DIGEST.to_ascii_uppercase());
+        let upper = run_with(&artifact, json!([]), bound).expect_err("uppercase digest");
+        assert_eq!(
+            upper.code,
+            "oo.builder.reviewed-effective-oos/v1/settings.invalid"
+        );
+        assert_eq!(upper.path, "/settings/policy/id");
     }
 
     #[test]

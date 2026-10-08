@@ -20,7 +20,9 @@ Usage:
 
 propose sends one natural-language question and one role Pack's public files to one
 approved HTTPS chat completion. The model SQL is untrusted. propose does not start
-query-pg.
+query-pg. endpoint.transport development_local is explicit. That mode calls only
+http://127.0.0.1 and may use a 6-byte bearer. The default transport is production:
+HTTPS, with a bearer of 16 to 256 bytes.
 
 execute starts query-pg only after a local approval file names the current proposal
 hash, SQL hash, tuple hash, and Pack digest. That file is a declaration by the local

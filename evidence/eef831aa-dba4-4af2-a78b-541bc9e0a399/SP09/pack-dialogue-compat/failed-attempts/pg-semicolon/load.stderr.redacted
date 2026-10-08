@@ -1,0 +1,3 @@
+ERROR:  syntax error at or near "SELECT"
+LINE 2: SELECT format('ANALYZE _oo.%I', 'pt_a4ecc1e299446959b965a75b...
+        ^

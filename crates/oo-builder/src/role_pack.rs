@@ -424,13 +424,13 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
     check_version(&visibility.ontology_version, "/ontology_version")?;
     check_version(&effective.catalog_version, "/catalog_version")?;
     check_version(&visibility.catalog_version, "/catalog_version")?;
-    check_slug(&effective.policy.id, "/policy/id")?;
+    check_policy_id(&effective.policy.id, "/policy/id")?;
     check_version(&effective.policy.version, "/policy/version")?;
-    check_slug(&visibility.policy.id, "/policy/id")?;
+    check_policy_id(&visibility.policy.id, "/policy/id")?;
     check_version(&visibility.policy.version, "/policy/version")?;
-    check_slug(&effective.knowledge.id, "/knowledge/id")?;
+    check_knowledge_id(&effective.knowledge.id, "/knowledge/id")?;
     check_version(&effective.knowledge.version, "/knowledge/version")?;
-    check_slug(&visibility.knowledge.id, "/knowledge/id")?;
+    check_knowledge_id(&visibility.knowledge.id, "/knowledge/id")?;
     check_version(&visibility.knowledge.version, "/knowledge/version")?;
     same(
         &effective.project,
@@ -2841,14 +2841,7 @@ fn same(
 }
 
 fn check_slug(value: &str, path: &str) -> Result<(), RolePackError> {
-    let bytes = value.as_bytes();
-    let ok = !bytes.is_empty()
-        && bytes.len() <= 63
-        && bytes[0].is_ascii_lowercase()
-        && bytes[1..]
-            .iter()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-');
-    if ok {
+    if slug_ok(value) {
         Ok(())
     } else {
         Err(RolePackError::new(
@@ -2857,6 +2850,47 @@ fn check_slug(value: &str, path: &str) -> Result<(), RolePackError> {
             "an identity token is outside the accepted pattern",
         ))
     }
+}
+
+fn check_policy_id(value: &str, path: &str) -> Result<(), RolePackError> {
+    if policy_id_ok(value) {
+        Ok(())
+    } else {
+        Err(RolePackError::new(
+            "identity.invalid",
+            path,
+            "an identity token is outside the accepted pattern",
+        ))
+    }
+}
+
+fn check_knowledge_id(value: &str, path: &str) -> Result<(), RolePackError> {
+    // The role-pack slug is the existing knowledge token. A hyphen stays
+    // legal here and illegal in ontology-dialogue. This compiler does not
+    // rewrite `know-a317` or any other identifier.
+    check_slug(value, path)
+}
+
+fn policy_id_ok(value: &str) -> bool {
+    slug_ok(value) || digest64(value)
+}
+
+fn slug_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes[0].is_ascii_lowercase()
+        && bytes[1..].iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
+        })
+}
+
+fn digest64(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 64
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 }
 
 fn check_role(value: &str) -> Result<(), RolePackError> {
