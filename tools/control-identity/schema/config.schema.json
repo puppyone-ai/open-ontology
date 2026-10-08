@@ -51,7 +51,17 @@
     "absolute_seconds": {"type": "integer", "minimum": 5, "maximum": 86400},
     "oauth_ttl_seconds": {"type": "integer", "minimum": 5, "maximum": 600},
     "bootstrap_ttl_seconds": {"type": "integer", "minimum": 5, "maximum": 1800},
-    "clock_skew_seconds": {"type": "integer", "minimum": 0, "maximum": 120}
+    "clock_skew_seconds": {"type": "integer", "minimum": 0, "maximum": 120},
+    "binding_git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary", "root", "reference"],
+      "properties": {
+        "binary": {"type": "string", "minLength": 1},
+        "root": {"type": "string", "minLength": 1},
+        "reference": {"const": "refs/heads/management"}
+      }
+    }
   },
   "$defs": {
     "binding": {
@@ -65,5 +75,5 @@
       }
     }
   },
-  "description": "config_commit is SHA-256 of canonical JSON with sorted object keys and no insignificant whitespace. The preimage object is protocol oo.control-identity/config-commit/v1, revision, issuer, audience, client_id, sorted redirect_uris, bindings sorted by project_id then subject then role as objects with keys project_id, role, subject, and bootstrap as customer_owner false, fixture_class explicit_test_fixture, project_id, role, subject. Secret file paths and PEM bytes are not in the preimage. absolute_seconds must be greater than or equal to idle_seconds. The bootstrap subject, project, and role must also appear in bindings. One subject has one role per project."
+  "description": "config_commit is SHA-256 of canonical JSON with sorted object keys and no insignificant whitespace. The preimage object is protocol oo.control-identity/config-commit/v1, revision, issuer, audience, client_id, sorted redirect_uris, bindings sorted by project_id then subject then role as objects with keys project_id, role, subject, and bootstrap as customer_owner false, fixture_class explicit_test_fixture, project_id, role, subject. Secret file paths, PEM bytes, and binding_git are not in the preimage. binding_git is optional. When it is absent, binding preview and approve return binding.unavailable. absolute_seconds must be greater than or equal to idle_seconds. The bootstrap subject, project, and role must also appear in bindings. One subject has one role per project."
 }

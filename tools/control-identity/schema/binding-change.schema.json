@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/binding-change/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["effect", "project_id", "subject", "expected_revision", "expected_config_commit", "expected_git_head", "idempotency_key"],
+  "properties": {
+    "effect": {"enum": ["grant", "revoke"]},
+    "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "subject": {"type": "string", "minLength": 1, "maxLength": 256},
+    "role": {"enum": ["admin", "reviewer", "steward", "auditor", "business_owner"]},
+    "expected_revision": {"type": "integer", "minimum": 1},
+    "expected_config_commit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_git_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$"}
+  }
+}

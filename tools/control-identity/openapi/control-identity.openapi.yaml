@@ -127,6 +127,62 @@ paths:
           $ref: "#/components/responses/Error"
         "500":
           $ref: "#/components/responses/Error"
+  /control/v1/identity/bindings/preview:
+    post:
+      operationId: previewManagementBinding
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/binding-change.schema.json
+      responses:
+        "200":
+          description: Plan only. No PostgreSQL write, Git write, or audit.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/binding-preview.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /control/v1/identity/bindings/approve:
+    post:
+      operationId: approveManagementBinding
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/binding-approve.schema.json
+      responses:
+        "200":
+          description: Git object verified and the management role, audit, and idempotency row committed together.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/binding-receipt.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     returnTo:

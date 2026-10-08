@@ -134,6 +134,30 @@ impl Fault {
     pub const fn method() -> Self {
         Self::new("method.not_allowed", "the method is not served", 405, 2)
     }
+
+    pub const fn binding_unavailable() -> Self {
+        Self::new("binding.unavailable", "binding git is not configured", 403, 2)
+    }
+
+    pub const fn elevation() -> Self {
+        Self::new("binding.elevation", "a subject cannot change their own management role", 403, 2)
+    }
+
+    pub const fn frozen() -> Self {
+        Self::new("binding.frozen", "the bootstrap binding is frozen", 403, 2)
+    }
+
+    pub const fn idempotency() -> Self {
+        Self::new("idempotency.conflict", "the idempotency key was reused for a different request", 409, 2)
+    }
+
+    pub const fn git_cas() -> Self {
+        Self::new("git.cas", "the config git head did not match", 409, 2)
+    }
+
+    pub const fn git_rejected() -> Self {
+        Self::new("git.rejected", "the config git commit was rejected", 403, 2)
+    }
 }
 
 pub fn error_body(fault: &Fault) -> Value {

@@ -17,6 +17,8 @@ These are the only HTTP operations. Anything else is `not_found` or `method.not_
 | `getIdentityCurrent` | `GET /control/v1/identity/current` | 200 current envelope |
 | `logoutManagementSession` | `POST /control/v1/auth/logout` | 200 after a durable revoke |
 | `consumeBootstrapToken` | `POST /control/v1/auth/bootstrap/consume` | 200 after a one-time consume |
+| `previewManagementBinding` | `POST /control/v1/identity/bindings/preview` | 200 plan, no write |
+| `approveManagementBinding` | `POST /control/v1/identity/bindings/approve` | 200 after Git verify and one PostgreSQL commit |
 
 OpenAPI and the JSON schemas in this directory are the machine contract. Error bodies use `schema/error.schema.json`.
 
@@ -70,7 +72,7 @@ JWKS cache maximum age is 60 seconds. An unknown `kid` forces at most one more f
 
 A session row binds `subject`, `issuer`, `config_commit`, and `revision`, plus idle and absolute expiry. Restarting the process does not drop the row. Logout sets `revoked_at` and inserts one audit event in the same transaction. If that commit fails, the outcome is `commit.unknown` and the session stays usable. A second logout of a revoked session is `unauthenticated`.
 
-`getIdentityCurrent` lists projects from the operator config bindings for that subject and issuer. Before bootstrap consume, `install_state` is `uninitialized` and `projects` is empty. After consume, each binding contributes one role. One subject has at most one role in one project.
+`getIdentityCurrent` lists projects from the PostgreSQL management bindings for that subject. Install seeds those rows from the operator file. After an approved binding change, current presents the new role and its capabilities. Before bootstrap consume, `install_state` is `uninitialized` and `projects` is empty. One subject has at most one role in one project. A session stamped with an older revision receives `revision.conflict` and does not slide idle. Logout still accepts that session's CSRF token.
 
 | Role | Capabilities |
 |---|---|
@@ -84,7 +86,23 @@ No role's set contains another role's set. None of these capabilities is an `oo_
 
 `VerifiedSession` is built only from the session cookie and the database. `VerifiedSession::try_from_caller_json` always fails, including on `{"authorized": true}`. `authorize(session, project_id, capability, expected_revision)` checks the project binding, the capability, `install_state=initialized`, and the revision. A stale revision is `revision.conflict` and does not slide the idle timer.
 
-`config_commit` is SHA-256 of the canonical JSON defined in `schema/config.schema.json`. The file's `config_commit` must equal the recomputed value. Secrets are not part of the preimage.
+`config_commit` is SHA-256 of the canonical JSON defined in `schema/config.schema.json`. The file's `config_commit` must equal the recomputed value. Secrets and `binding_git` are not part of the preimage. `authorize` remains a pure check of the process file snapshot. HTTP current and binding approval read the PostgreSQL head.
+
+## Management binding
+
+Public binding changes require the current verified admin session for that project, the expected revision, `X-OO-CSRF`, and `Origin` equal to `https_origin`. Caller JSON and ID Token role or group claims do not grant authority. Preview does not write PostgreSQL, Git, or audit, and it does not rotate CSRF. Approve is the only writer.
+
+The optional `binding_git` object names an absolute Git binary, an absolute repository root, and `refs/heads/management`. When it is absent, preview and approve return `binding.unavailable` after the session check. The provider reads that repository. It does not push, and it does not run Git commands other than `rev-parse`, `cat-file`, and `ls-tree`.
+
+A grant or revoke of another subject is `planned`. The same row again is `unchanged` and does not bump the revision. The caller cannot change their own row (`binding.elevation`). The bootstrap subject and project are frozen (`binding.frozen`). A caller who is not admin of that project is `forbidden`. At most 64 bindings are kept. The bootstrap row must remain.
+
+Approve locks the binding head, then applies the idempotency record before the revision check. The same key and same request hash returns the stored receipt with `disposition=replayed` and no second audit. The same key and a different request hash is `idempotency.conflict` and writes nothing. A new key whose revision or config commit is stale is `revision.conflict` and writes nothing. The request hash does not cover the resulting Git commit, so a replay can omit `git_commit`.
+
+A planned change requires `git_commit`. The ref must already be that commit. Its parent is `expected_git_head`, its author and committer are `oo-identity-binding <identity-binding@open-ontology.invalid> 1791417600 +0000`, and its message is `oo.identity-binding/v1 <idempotency_key> <document_sha256>`. The tree is exactly `100644 blob management/bindings.json` with the canonical document bytes. The first planned change also requires that blob at `expected_git_head` to equal the current document and the stored `git_commit` to be empty. A later change requires the stored `git_commit` to equal `expected_git_head`. The head update, the one binding row, the `binding_applied` audit, and the idempotency insert commit in one transaction. A losing revision update writes none of them.
+
+The canonical document is compact JSON: `bindings` sorted by `project_id`, `subject`, then `role`, plus `protocol` `oo.identity-binding/document/v1`. Receipt hash protocol is `oo.control-identity/binding-receipt/v1` over `config_commit`, `document_sha256`, `git_commit`, operation `approveManagementBinding`, `outcome`, and `revision`. `outcome` is `applied` or `unchanged`. Disposition is not in the hash.
+
+These roles do not grant data permissions, owner certification, a harness session, or a Gateway token. `customer_integration` stays `not_claimed`.
 
 ## Bootstrap
 
@@ -96,7 +114,9 @@ The login-query token and `POST /control/v1/auth/bootstrap/consume` share that c
 
 ## PostgreSQL
 
-`migrations/oo_identity_control_v1.sql` runs once inside one transaction. The manifest stores that file's SHA-256. The same hash replays. A different hash is install drift and is not repaired. The script does not `GRANT` data roles and does not create a customer principal. Audit rows are insert-only: a trigger rejects `UPDATE` and `DELETE`.
+`migrations/oo_identity_control_v1.sql` runs once inside one transaction. The manifest stores that file's SHA-256. The same hash replays. A different hash is install drift and is not repaired. The install report `sql_sha256` is that v1 hash even when v2 is applied in the same transaction. The script does not `GRANT` data roles and does not create a customer principal. Audit rows are insert-only: a trigger rejects `UPDATE` and `DELETE`.
+
+`migrations/oo_identity_control_v2.sql` creates the binding head, management bindings, and idempotency table, and adds audit action `binding_applied`. Its hash is stored in `binding_manifest`. The first install applies it and seeds bindings from the operator file. A replay does not reseed. v1 without v2, or a different v2 hash, is drift and is not repaired. Grants go only to `oo_identity_runtime`.
 
 The login role is `oo_identity_admin`, a member of `NOLOGIN` `oo_identity_runtime`. The password and the PostgreSQL CA come from files named by the config. TLS is required. `synchronous_commit` is on for these transactions.
 

@@ -32,7 +32,7 @@ impl Role {
         }
     }
 
-    fn parse(value: &str) -> Result<Self, Fault> {
+    pub(crate) fn parse(value: &str) -> Result<Self, Fault> {
         Ok(match value {
             "admin" => Self::Admin,
             "reviewer" => Self::Reviewer,
@@ -79,6 +79,14 @@ pub struct Config {
     pub oauth_ttl_seconds: i64,
     pub bootstrap_ttl_seconds: i64,
     pub clock_skew_seconds: i64,
+    pub binding_git: Option<BindingGit>,
+}
+
+#[derive(Clone, Debug)]
+pub struct BindingGit {
+    pub binary: PathBuf,
+    pub root: PathBuf,
+    pub reference: String,
 }
 
 impl fmt::Debug for Config {
@@ -117,6 +125,16 @@ struct FileConfig {
     oauth_ttl_seconds: i64,
     bootstrap_ttl_seconds: i64,
     clock_skew_seconds: i64,
+    #[serde(default)]
+    binding_git: Option<FileBindingGit>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileBindingGit {
+    binary: String,
+    root: String,
+    reference: String,
 }
 
 #[derive(Deserialize)]
@@ -190,6 +208,10 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
     let pg_ca_pem = read_pem(&resolve(directory, &file.pg.ca_file), "CERTIFICATE")?;
     let client_secret = Zeroizing::new(read_secret(&resolve(directory, &file.client_secret_file))?);
     let pg_password = Zeroizing::new(read_secret(&resolve(directory, &file.pg.password_file))?);
+    let binding_git = match file.binding_git {
+        None => None,
+        Some(git) => Some(binding_git(&git)?),
+    };
     Ok(Config {
         https_origin,
         listen_host,
@@ -218,7 +240,30 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
         oauth_ttl_seconds: file.oauth_ttl_seconds,
         bootstrap_ttl_seconds: file.bootstrap_ttl_seconds,
         clock_skew_seconds: file.clock_skew_seconds,
+        binding_git,
     })
+}
+
+fn binding_git(file: &FileBindingGit) -> Result<BindingGit, Fault> {
+    if file.reference != "refs/heads/management" {
+        return Err(Fault::malformed());
+    }
+    let binary = PathBuf::from(&file.binary);
+    let root = PathBuf::from(&file.root);
+    if !binary.is_absolute() || !root.is_absolute() || file.binary.chars().any(char::is_whitespace) || file.root.chars().any(char::is_whitespace) {
+        return Err(Fault::malformed());
+    }
+    Ok(BindingGit { binary, root, reference: file.reference.clone() })
+}
+
+pub fn management_document(bindings: &[Binding]) -> Result<String, Fault> {
+    let mut rows = bindings.to_vec();
+    rows.sort_by(|left, right| (&left.project_id, &left.subject, left.role.as_str()).cmp(&(&right.project_id, &right.subject, right.role.as_str())));
+    let value = json!({
+        "bindings": rows.iter().map(binding_value).collect::<Vec<_>>(),
+        "protocol": "oo.identity-binding/document/v1"
+    });
+    serde_json::to_string(&value).map_err(|_| Fault::malformed())
 }
 
 pub fn canonical_commit(

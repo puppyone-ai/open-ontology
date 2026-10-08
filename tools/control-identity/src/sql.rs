@@ -1,6 +1,7 @@
 //! Schema-qualified statements. Callers set `search_path` to `pg_catalog`.
 
 pub const MIGRATION: &str = include_str!("../migrations/oo_identity_control_v1.sql");
+pub const MIGRATION_V2: &str = include_str!("../migrations/oo_identity_control_v2.sql");
 pub const INSTALL_LOCK: i64 = 5_481_003_541;
 
 pub const SET_LOCAL: &str = "\
@@ -105,6 +106,62 @@ pub const INSERT_AUDIT: &str = "\
 INSERT INTO oo_identity_control.audit_event (action, code, subject, session_hash) \
 VALUES ($1::text, $2::text, $3::text, $4::text)";
 
+pub const V2_PRESENT: &str = "\
+SELECT COUNT(*)::bigint FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = 'oo_identity_control' AND c.relname = 'binding_manifest'";
+
+pub const READ_V2: &str = "\
+SELECT sql_sha256 FROM oo_identity_control.binding_manifest WHERE singleton";
+
+pub const INSERT_V2: &str = "\
+INSERT INTO oo_identity_control.binding_manifest (singleton, sql_sha256) VALUES (TRUE, $1::text)";
+
+pub const INSERT_HEAD: &str = "\
+INSERT INTO oo_identity_control.binding_head (singleton, revision, config_commit, git_commit, document_sha256) \
+VALUES (TRUE, $1::bigint, $2::text, $3::text, $4::text)";
+
+pub const INSERT_BINDING: &str = "\
+INSERT INTO oo_identity_control.management_binding (project_id, subject, role) \
+VALUES ($1::text, $2::text, $3::text)";
+
+pub const READ_HEAD_SHARE: &str = "\
+SELECT revision, config_commit, git_commit, document_sha256 \
+FROM oo_identity_control.binding_head WHERE singleton FOR SHARE";
+
+pub const LOCK_HEAD: &str = "\
+SELECT revision, config_commit, git_commit, document_sha256 \
+FROM oo_identity_control.binding_head WHERE singleton FOR UPDATE";
+
+pub const READ_BINDINGS: &str = "\
+SELECT project_id, subject, role FROM oo_identity_control.management_binding";
+
+pub const READ_IDEMPOTENCY: &str = "\
+SELECT request_sha256, revision, config_commit, git_commit, document_sha256, receipt_sha256 \
+FROM oo_identity_control.binding_idempotency WHERE idempotency_key = $1::text";
+
+pub const UPDATE_HEAD: &str = "\
+UPDATE oo_identity_control.binding_head \
+SET revision = $1::bigint, config_commit = $2::text, git_commit = $3::text, document_sha256 = $4::text \
+WHERE singleton AND revision = $5::bigint AND config_commit = $6::text";
+
+pub const UPSERT_BINDING: &str = "\
+INSERT INTO oo_identity_control.management_binding (project_id, subject, role) \
+VALUES ($1::text, $2::text, $3::text) \
+ON CONFLICT (project_id, subject) DO UPDATE SET role = EXCLUDED.role";
+
+pub const DELETE_BINDING: &str = "\
+DELETE FROM oo_identity_control.management_binding WHERE project_id = $1::text AND subject = $2::text";
+
+pub const INSERT_IDEMPOTENCY: &str = "\
+INSERT INTO oo_identity_control.binding_idempotency ( \
+    idempotency_key, request_sha256, revision, config_commit, git_commit, document_sha256, receipt_sha256 \
+) VALUES ($1::text, $2::text, $3::bigint, $4::text, $5::text, $6::text, $7::text)";
+
 pub fn migration_sha256() -> String {
     crate::crypto::sha256_hex(MIGRATION.as_bytes())
+}
+
+pub fn migration_v2_sha256() -> String {
+    crate::crypto::sha256_hex(MIGRATION_V2.as_bytes())
 }

@@ -4,10 +4,12 @@
 
 #![forbid(unsafe_code)]
 
+mod binding;
 mod config;
 mod cookie;
 mod crypto;
 mod error;
+mod git;
 mod guard;
 mod http;
 mod oidc;
@@ -15,7 +17,7 @@ mod sql;
 mod store;
 mod tls;
 
-pub use config::{canonical_commit, load_config, Binding, Config, Role};
+pub use config::{canonical_commit, load_config, management_document, Binding, Config, Role};
 pub use crypto::{pkcs8_rsa_public, sha256_hex};
 pub use error::{error_body, Fault, CONTRACT};
 pub use guard::{authorize, capabilities_for, VerifiedSession};

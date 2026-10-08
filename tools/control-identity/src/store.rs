@@ -11,11 +11,12 @@ use tokio_postgres::config::SslMode;
 use tokio_postgres::Transaction;
 use zeroize::Zeroizing;
 
-use crate::config::Config;
+use crate::binding::{receipt_sha256, request_sha256, Change, Plan};
+use crate::config::{management_document, Binding, Config, Role};
 use crate::cookie::session_hash;
 use crate::crypto::{b64, hashes_equal, opaque_token, pkce_challenge, sha256_hex};
 use crate::error::{Fault, CONTRACT};
-use crate::guard::VerifiedSession;
+use crate::guard::{projects_from, ProjectView, VerifiedSession};
 use crate::sql;
 use crate::tls::pg_tls;
 
@@ -63,6 +64,33 @@ pub struct CurrentRecord {
     pub csrf: String,
     pub idle_expires_at: String,
     pub absolute_expires_at: String,
+    pub projects: Vec<ProjectView>,
+}
+
+pub struct PreviewReport {
+    pub outcome: &'static str,
+    pub effect: String,
+    pub project_id: String,
+    pub subject: String,
+    pub role: Option<Role>,
+    pub revision: i64,
+    pub config_commit: String,
+    pub document: String,
+    pub document_sha256: String,
+}
+
+pub struct ApproveReport {
+    pub disposition: &'static str,
+    pub outcome: &'static str,
+    pub effect: String,
+    pub project_id: String,
+    pub subject: String,
+    pub role: Option<Role>,
+    pub revision: i64,
+    pub config_commit: String,
+    pub git_commit: String,
+    pub document_sha256: String,
+    pub receipt_sha256: String,
 }
 
 struct OauthRow {
@@ -122,7 +150,7 @@ impl Store {
 
     pub async fn install(config: &Config) -> Result<InstallReport, Fault> {
         let store = Self::connect(config).await?;
-        store.install_once().await
+        store.install_once(config).await
     }
 
     pub async fn issue_bootstrap(config: &Config, out: &Path) -> Result<IssueReport, Fault> {
@@ -143,10 +171,13 @@ impl Store {
         if read_manifest(&transaction).await?.is_none() {
             return Err(Fault::drift());
         }
+        if !v2_matches(&transaction).await? {
+            return Err(Fault::drift());
+        }
         commit(transaction).await
     }
 
-    async fn install_once(&self) -> Result<InstallReport, Fault> {
+    async fn install_once(&self, config: &Config) -> Result<InstallReport, Fault> {
         let mut client = self.client.lock().await;
         let transaction = client.transaction().await.map_err(db)?;
         set_local(&transaction).await?;
@@ -155,12 +186,15 @@ impl Store {
         let disposition = if schema_count(&transaction).await? == 0 {
             transaction.batch_execute(sql::MIGRATION).await.map_err(db)?;
             transaction.execute(sql::INSERT_MANIFEST, &[&hash]).await.map_err(db)?;
+            transaction.batch_execute(sql::MIGRATION_V2).await.map_err(db)?;
+            let hash_v2 = sql::migration_v2_sha256();
+            transaction.execute(sql::INSERT_V2, &[&hash_v2]).await.map_err(db)?;
+            seed_bindings(&transaction, config).await?;
             "committed"
         } else {
             match read_manifest(&transaction).await? {
-                Some((stored, _)) if hashes_equal(&stored, &hash) => "replayed",
-                Some(_) => return Err(Fault::drift()),
-                None => return Err(Fault::drift()),
+                Some((stored, _)) if hashes_equal(&stored, &hash) && v2_matches(&transaction).await? => "replayed",
+                _ => return Err(Fault::drift()),
             }
         };
         commit(transaction).await?;
@@ -300,7 +334,14 @@ impl Store {
                 if let Some(hash) = bootstrap_hash {
                     consume_for_login(&transaction, config, hash, subject, &cookie_hash).await?;
                 }
-                insert_session(&transaction, config, &cookie_hash, &csrf_hash, subject, idle, absolute).await?;
+                let head = read_head(&transaction, sql::READ_HEAD_SHARE).await?;
+                transaction
+                    .execute(
+                        sql::INSERT_SESSION,
+                        &[&cookie_hash, &csrf_hash, &subject, &config.issuer, &head.config_commit, &head.revision, &idle, &absolute],
+                    )
+                    .await
+                    .map_err(db)?;
                 audit(&transaction, "login_completed", "ok", subject, &cookie_hash).await?;
                 commit(transaction).await.map(|_| ())
             }
@@ -333,18 +374,20 @@ impl Store {
         if row.issuer != config.issuer {
             return Err(Fault::issuer());
         }
-        if row.config_commit != config.config_commit || row.revision != config.revision {
+        let head = read_head(&transaction, sql::READ_HEAD_SHARE).await?;
+        if row.config_commit != head.config_commit || row.revision != head.revision {
             return Err(Fault::revision());
         }
         let updated = transaction.query_opt(sql::SLIDE_SESSION, &[&cookie_hash, &csrf_hash, &idle]).await.map_err(db)?;
         let Some(updated) = updated else {
             return Err(Fault::unauthenticated());
         };
+        let bindings = read_binding_rows(&transaction).await?;
         let idle_expires_at: String = updated.get("idle_at");
         let absolute_expires_at: String = updated.get("absolute_at");
         commit(transaction).await?;
         Ok(CurrentRecord {
-            subject: row.subject,
+            subject: row.subject.clone(),
             issuer: row.issuer,
             config_commit: row.config_commit,
             revision: row.revision,
@@ -352,7 +395,40 @@ impl Store {
             csrf,
             idle_expires_at,
             absolute_expires_at,
+            projects: projects_from(&bindings, &row.subject, initialized),
         })
+    }
+
+    pub async fn preview_binding(&self, config: &Config, cookie_hash: &str, origin_ok: bool, csrf: &str, change: &Change) -> Result<PreviewReport, Fault> {
+        let mut client = self.client.lock().await;
+        let transaction = client.transaction().await.map_err(db)?;
+        set_local(&transaction).await?;
+        let caller = bind_caller(&transaction, config, cookie_hash, origin_ok, csrf).await?;
+        if config.binding_git.is_none() {
+            return Err(Fault::binding_unavailable());
+        }
+        let head = read_head(&transaction, sql::READ_HEAD_SHARE).await?;
+        let bindings = read_binding_rows(&transaction).await?;
+        let planned = crate::binding::plan(config, &caller.subject, &bindings, head.revision, &head.config_commit, change)?;
+        commit(transaction).await?;
+        Ok(preview_from(&planned))
+    }
+
+    pub async fn approve_binding(
+        &self,
+        config: &Config,
+        cookie_hash: &str,
+        origin_ok: bool,
+        csrf: &str,
+        change: &Change,
+        git_commit: Option<&str>,
+    ) -> Result<ApproveReport, Fault> {
+        let mut client = self.client.lock().await;
+        let transaction = client.transaction().await.map_err(db)?;
+        set_local(&transaction).await?;
+        let report = approve_in(&transaction, config, cookie_hash, origin_ok, csrf, change, git_commit).await?;
+        commit(transaction).await?;
+        Ok(report)
     }
 
     pub async fn logout(&self, cookie_hash: &str, origin_ok: bool, csrf: &str) -> Result<(), Fault> {
@@ -564,23 +640,272 @@ fn oauth_decision(row: &OauthRow, state: Option<&str>, verifier: &str, redirect_
     })
 }
 
-async fn insert_session(
+struct HeadRow {
+    revision: i64,
+    config_commit: String,
+    git_commit: String,
+    document_sha256: String,
+}
+
+struct IdempotentRow {
+    request_sha256: String,
+    revision: i64,
+    config_commit: String,
+    git_commit: String,
+    document_sha256: String,
+    receipt_sha256: String,
+}
+
+async fn seed_bindings(transaction: &Transaction<'_>, config: &Config) -> Result<(), Fault> {
+    let document = management_document(&config.bindings)?;
+    let document_sha256 = sha256_hex(document.as_bytes());
+    transaction
+        .execute(sql::INSERT_HEAD, &[&config.revision, &config.config_commit, &"", &document_sha256])
+        .await
+        .map_err(db)?;
+    for binding in &config.bindings {
+        transaction.execute(sql::INSERT_BINDING, &[&binding.project_id, &binding.subject, &binding.role.as_str()]).await.map_err(db)?;
+    }
+    Ok(())
+}
+
+async fn v2_matches(transaction: &Transaction<'_>) -> Result<bool, Fault> {
+    let count = transaction.query_one(sql::V2_PRESENT, &[]).await.map_err(db)?;
+    let present: i64 = count.get(0);
+    if present == 0 {
+        return Ok(false);
+    }
+    let row = transaction.query_opt(sql::READ_V2, &[]).await.map_err(db)?;
+    let Some(row) = row else {
+        return Ok(false);
+    };
+    let stored: String = row.get(0);
+    Ok(hashes_equal(&stored, &sql::migration_v2_sha256()))
+}
+
+async fn read_head(transaction: &Transaction<'_>, statement: &str) -> Result<HeadRow, Fault> {
+    let row = transaction.query_opt(statement, &[]).await.map_err(db)?;
+    let Some(row) = row else {
+        return Err(Fault::unavailable());
+    };
+    Ok(HeadRow { revision: row.get(0), config_commit: row.get(1), git_commit: row.get(2), document_sha256: row.get(3) })
+}
+
+async fn read_binding_rows(transaction: &Transaction<'_>) -> Result<Vec<Binding>, Fault> {
+    let rows = transaction.query(sql::READ_BINDINGS, &[]).await.map_err(db)?;
+    let mut bindings = Vec::with_capacity(rows.len());
+    for row in rows {
+        let project_id: String = row.get(0);
+        let subject: String = row.get(1);
+        let role: String = row.get(2);
+        bindings.push(Binding { project_id, subject, role: Role::parse(&role)? });
+    }
+    Ok(bindings)
+}
+
+async fn bind_caller(transaction: &Transaction<'_>, config: &Config, cookie_hash: &str, origin_ok: bool, csrf: &str) -> Result<SessionRow, Fault> {
+    let initialized = lock_initialized(transaction).await?;
+    let Some(row) = lock_session(transaction, cookie_hash).await? else {
+        return Err(Fault::unauthenticated());
+    };
+    if row.dead {
+        return Err(Fault::unauthenticated());
+    }
+    if row.issuer != config.issuer {
+        return Err(Fault::issuer());
+    }
+    if !origin_ok {
+        return Err(Fault::origin());
+    }
+    if !hashes_equal(&sha256_hex(csrf.as_bytes()), &row.csrf_hash) {
+        return Err(Fault::csrf());
+    }
+    if !initialized {
+        return Err(Fault::forbidden());
+    }
+    Ok(row)
+}
+
+fn preview_from(planned: &Plan) -> PreviewReport {
+    PreviewReport {
+        outcome: planned.outcome,
+        effect: planned.effect.clone(),
+        project_id: planned.project_id.clone(),
+        subject: planned.subject.clone(),
+        role: planned.role,
+        revision: planned.next_revision,
+        config_commit: planned.next_config_commit.clone(),
+        document: planned.document.clone(),
+        document_sha256: planned.document_sha256.clone(),
+    }
+}
+
+struct Applied<'a> {
+    disposition: &'static str,
+    outcome: &'static str,
+    revision: i64,
+    config_commit: &'a str,
+    git_commit: &'a str,
+    document_sha256: &'a str,
+    receipt_sha256: &'a str,
+}
+
+fn approve_from(change: &Change, applied: Applied<'_>) -> ApproveReport {
+    ApproveReport {
+        disposition: applied.disposition,
+        outcome: applied.outcome,
+        effect: change.effect.clone(),
+        project_id: change.project_id.clone(),
+        subject: change.subject.clone(),
+        role: change.role,
+        revision: applied.revision,
+        config_commit: applied.config_commit.to_string(),
+        git_commit: applied.git_commit.to_string(),
+        document_sha256: applied.document_sha256.to_string(),
+        receipt_sha256: applied.receipt_sha256.to_string(),
+    }
+}
+
+async fn approve_in(
     transaction: &Transaction<'_>,
     config: &Config,
     cookie_hash: &str,
-    csrf_hash: &str,
-    subject: &str,
-    idle: i32,
-    absolute: i32,
-) -> Result<(), Fault> {
-    transaction
+    origin_ok: bool,
+    csrf: &str,
+    change: &Change,
+    git_commit: Option<&str>,
+) -> Result<ApproveReport, Fault> {
+    let caller = bind_caller(transaction, config, cookie_hash, origin_ok, csrf).await?;
+    let Some(git) = config.binding_git.as_ref() else {
+        return Err(Fault::binding_unavailable());
+    };
+    let head = read_head(transaction, sql::LOCK_HEAD).await?;
+    let bindings = read_binding_rows(transaction).await?;
+    let request_hash = request_sha256(change)?;
+    if let Some(stored) = read_idempotency(transaction, &change.idempotency_key).await? {
+        if !hashes_equal(&stored.request_sha256, &request_hash) {
+            return Err(Fault::idempotency());
+        }
+        let outcome = if stored.revision != change.expected_revision { "applied" } else { "unchanged" };
+        let receipt = receipt_sha256(outcome, stored.revision, &stored.config_commit, &stored.git_commit, &stored.document_sha256)?;
+        if !hashes_equal(&receipt, &stored.receipt_sha256) {
+            return Err(Fault::unavailable());
+        }
+        return Ok(approve_from(
+            change,
+            Applied {
+                disposition: "replayed",
+                outcome,
+                revision: stored.revision,
+                config_commit: &stored.config_commit,
+                git_commit: &stored.git_commit,
+                document_sha256: &stored.document_sha256,
+                receipt_sha256: &receipt,
+            },
+        ));
+    }
+    let planned = crate::binding::plan(config, &caller.subject, &bindings, head.revision, &head.config_commit, change)?;
+    if planned.outcome == "unchanged" {
+        if head.document_sha256 != planned.document_sha256 {
+            return Err(Fault::git_rejected());
+        }
+        let actual = crate::git::read_head(git)?;
+        if actual != change.expected_git_head {
+            return Err(Fault::git_cas());
+        }
+        let outcome = "unchanged";
+        let receipt = receipt_sha256(outcome, head.revision, &head.config_commit, &head.git_commit, &head.document_sha256)?;
+        transaction
+            .execute(
+                sql::INSERT_IDEMPOTENCY,
+                &[&change.idempotency_key, &request_hash, &head.revision, &head.config_commit, &head.git_commit, &head.document_sha256, &receipt],
+            )
+            .await
+            .map_err(db)?;
+        return Ok(approve_from(
+            change,
+            Applied {
+                disposition: "unchanged",
+                outcome,
+                revision: head.revision,
+                config_commit: &head.config_commit,
+                git_commit: &head.git_commit,
+                document_sha256: &head.document_sha256,
+                receipt_sha256: &receipt,
+            },
+        ));
+    }
+    let Some(provided) = git_commit.filter(|value| crate::binding::hex40(value)) else {
+        return Err(Fault::malformed());
+    };
+    let git_commit = provided.to_string();
+    let current_document = management_document(&bindings)?;
+    crate::git::verify_new_commit(git, &change.expected_git_head, &git_commit, planned.document.as_bytes(), &change.idempotency_key, &planned.document_sha256)?;
+    if head.git_commit.is_empty() {
+        crate::git::verify_tree_blob(git, &change.expected_git_head, current_document.as_bytes())?;
+    } else if head.git_commit != change.expected_git_head {
+        return Err(Fault::git_cas());
+    }
+    let updated = transaction
         .execute(
-            sql::INSERT_SESSION,
-            &[&cookie_hash, &csrf_hash, &subject, &config.issuer, &config.config_commit, &config.revision, &idle, &absolute],
+            sql::UPDATE_HEAD,
+            &[&planned.next_revision, &planned.next_config_commit, &git_commit, &planned.document_sha256, &head.revision, &head.config_commit],
         )
         .await
         .map_err(db)?;
-    Ok(())
+    if updated != 1 {
+        return Err(Fault::revision());
+    }
+    match change.effect.as_str() {
+        "grant" => {
+            let role = change.role.ok_or_else(Fault::malformed)?;
+            let wrote = transaction.execute(sql::UPSERT_BINDING, &[&change.project_id, &change.subject, &role.as_str()]).await.map_err(db)?;
+            if wrote != 1 {
+                return Err(Fault::unavailable());
+            }
+        }
+        "revoke" => {
+            let wrote = transaction.execute(sql::DELETE_BINDING, &[&change.project_id, &change.subject]).await.map_err(db)?;
+            if wrote != 1 {
+                return Err(Fault::malformed());
+            }
+        }
+        _ => return Err(Fault::malformed()),
+    }
+    audit(transaction, "binding_applied", "ok", &change.subject, cookie_hash).await?;
+    let outcome = "applied";
+    let receipt = receipt_sha256(outcome, planned.next_revision, &planned.next_config_commit, &git_commit, &planned.document_sha256)?;
+    transaction
+        .execute(
+            sql::INSERT_IDEMPOTENCY,
+            &[&change.idempotency_key, &request_hash, &planned.next_revision, &planned.next_config_commit, &git_commit, &planned.document_sha256, &receipt],
+        )
+        .await
+        .map_err(db)?;
+    Ok(approve_from(
+        change,
+        Applied {
+            disposition: "committed",
+            outcome,
+            revision: planned.next_revision,
+            config_commit: &planned.next_config_commit,
+            git_commit: &git_commit,
+            document_sha256: &planned.document_sha256,
+            receipt_sha256: &receipt,
+        },
+    ))
+}
+
+async fn read_idempotency(transaction: &Transaction<'_>, key: &str) -> Result<Option<IdempotentRow>, Fault> {
+    let row = transaction.query_opt(sql::READ_IDEMPOTENCY, &[&key]).await.map_err(db)?;
+    Ok(row.map(|row| IdempotentRow {
+        request_sha256: row.get(0),
+        revision: row.get(1),
+        config_commit: row.get(2),
+        git_commit: row.get(3),
+        document_sha256: row.get(4),
+        receipt_sha256: row.get(5),
+    }))
 }
 
 async fn schema_count(transaction: &Transaction<'_>) -> Result<i64, Fault> {

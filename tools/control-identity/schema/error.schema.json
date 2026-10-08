@@ -40,7 +40,13 @@
             "commit.unknown",
             "unavailable",
             "not_found",
-            "method.not_allowed"
+            "method.not_allowed",
+            "binding.unavailable",
+            "binding.elevation",
+            "binding.frozen",
+            "idempotency.conflict",
+            "git.cas",
+            "git.rejected"
           ]
         },
         "message": {"type": "string", "minLength": 1, "maxLength": 160},

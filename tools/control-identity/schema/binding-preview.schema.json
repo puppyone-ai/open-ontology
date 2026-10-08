@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.control-identity/binding-preview/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "outcome", "effect", "project_id", "subject", "role",
+    "revision", "config_commit", "document", "document_sha256", "authority",
+    "data_grants", "owner_certification", "agent_session", "harness_session",
+    "gateway_token", "customer_integration"
+  ],
+  "properties": {
+    "contract": {"const": "oo.control-identity/v1"},
+    "operation": {"const": "previewManagementBinding"},
+    "outcome": {"enum": ["planned", "unchanged"]},
+    "effect": {"enum": ["grant", "revoke"]},
+    "project_id": {"type": "string"},
+    "subject": {"type": "string"},
+    "role": {"type": ["string", "null"]},
+    "revision": {"type": "integer", "minimum": 1},
+    "config_commit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "document": {"type": "string", "minLength": 2},
+    "document_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authority": {"const": "management_session"},
+    "data_grants": {"const": "none"},
+    "owner_certification": {"const": "not_issued"},
+    "agent_session": {"const": "not_issued"},
+    "harness_session": {"const": "not_issued"},
+    "gateway_token": {"const": "not_issued"},
+    "customer_integration": {"const": "not_claimed"}
+  }
+}

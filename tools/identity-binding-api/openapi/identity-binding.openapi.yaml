@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: oo.identity-binding
+  version: 1.0.0
+  description: >
+    Client of control-identity management binding preview and approve.
+    Caller JSON does not grant authority. git_commit is not a request field.
+servers:
+  - url: "{https_origin}"
+    variables:
+      https_origin:
+        default: https://binding.invalid
+paths:
+  /binding/v1/preview:
+    post:
+      operationId: previewManagementBinding
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/change.schema.json
+      responses:
+        "200":
+          description: Forwarded plan. No Git write.
+        "400":
+          description: Malformed change.
+        "401":
+          description: No session cookie.
+        "403":
+          description: Origin, CSRF, or identity refusal.
+        "409":
+          description: Stale revision.
+  /binding/v1/approve:
+    post:
+      operationId: approveManagementBinding
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/change.schema.json
+      responses:
+        "200":
+          description: Identity receipt after a Git compare-and-swap when the plan changed a row.
+        "400":
+          description: Malformed change.
+        "401":
+          description: No session cookie.
+        "403":
+          description: Origin, CSRF, elevation, frozen binding, or Git rejection.
+        "409":
+          description: Revision, idempotency, or Git compare-and-swap conflict.
+components:
+  parameters:
+    csrf:
+      name: X-OO-CSRF
+      in: header
+      required: true
+      schema: {type: string, pattern: "^[A-Za-z0-9_-]{43}$"}
+    origin:
+      name: Origin
+      in: header
+      required: true
+      schema: {type: string}

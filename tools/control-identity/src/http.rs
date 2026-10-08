@@ -1,4 +1,5 @@
-//! The five B01 routes. No review, publish, grant, or secret-read route.
+//! B01 routes. The original five operations stay. Binding preview and approve are additive.
+//! No review, publish, data-grant, or secret-read route.
 
 use std::sync::Arc;
 
@@ -13,15 +14,15 @@ use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 
-use crate::config::Config;
+use crate::binding::{hex40, Change};
+use crate::config::{Config, Role};
 use crate::cookie::{
     clear_cookie, cookie_value, percent_decode, return_path, session_hash, set_cookie, LoginCookie, LOGIN_COOKIE, SESSION_COOKIE,
 };
 use crate::crypto::{opaque_token, pkce_challenge, random_32, token_shape};
 use crate::error::{error_body, Fault, CONTRACT};
-use crate::guard::projects_for;
 use crate::oidc::{authorization_url, Oidc};
-use crate::store::{CurrentRecord, Store};
+use crate::store::{ApproveReport, CurrentRecord, PreviewReport, Store};
 use crate::tls::{server_config, TlsListener};
 
 #[derive(Clone)]
@@ -46,6 +47,36 @@ struct CallbackQuery {
 #[serde(deny_unknown_fields)]
 struct ConsumeBody {
     token: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ChangeBody {
+    effect: String,
+    project_id: String,
+    subject: String,
+    #[serde(default)]
+    role: Option<String>,
+    expected_revision: i64,
+    expected_config_commit: String,
+    expected_git_head: String,
+    idempotency_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApproveBody {
+    effect: String,
+    project_id: String,
+    subject: String,
+    #[serde(default)]
+    role: Option<String>,
+    expected_revision: i64,
+    expected_config_commit: String,
+    expected_git_head: String,
+    idempotency_key: String,
+    #[serde(default)]
+    git_commit: Option<String>,
 }
 
 pub async fn listen(config: &Config) -> Result<TcpListener, Fault> {
@@ -81,6 +112,8 @@ fn router(app: App) -> Router {
         .route("/control/v1/identity/current", get(current).fallback(method_not_allowed))
         .route("/control/v1/auth/logout", post(logout).fallback(method_not_allowed))
         .route("/control/v1/auth/bootstrap/consume", post(consume).fallback(method_not_allowed))
+        .route("/control/v1/identity/bindings/preview", post(preview_binding).fallback(method_not_allowed))
+        .route("/control/v1/identity/bindings/approve", post(approve_binding).fallback(method_not_allowed))
         .fallback(not_found)
         .with_state(app)
 }
@@ -125,6 +158,24 @@ async fn consume(State(app): State<App>, request: Request) -> Response {
         Err(fault) => return fault_response(fault, &[]),
     };
     app.consume(&headers, body).await
+}
+
+async fn preview_binding(State(app): State<App>, request: Request) -> Response {
+    let headers = request.headers().clone();
+    let body = match json_body_limit(request, 4096).await {
+        Ok(body) => body,
+        Err(fault) => return fault_response(fault, &[]),
+    };
+    app.preview(&headers, body).await
+}
+
+async fn approve_binding(State(app): State<App>, request: Request) -> Response {
+    let headers = request.headers().clone();
+    let body = match json_body_limit(request, 4096).await {
+        Ok(body) => body,
+        Err(fault) => return fault_response(fault, &[]),
+    };
+    app.approve(&headers, body).await
 }
 
 async fn method_not_allowed() -> Response {
@@ -234,7 +285,70 @@ impl App {
             Ok(record) => record,
             Err(fault) => return fault_response(fault, &[]),
         };
-        json_response(200, current_body(&record, &self.config), &[])
+        json_response(200, current_body(&record), &[])
+    }
+
+    async fn preview(&self, headers: &HeaderMap, body: Value) -> Response {
+        let change = match change_from(body) {
+            Ok(change) => change,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let cookie_hash = match session_cookie_hash(headers) {
+            Ok(hash) => hash,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let origin_ok = match one_header(headers, "origin") {
+            Ok(value) => value == Some(self.config.https_origin.as_str()),
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let csrf = match csrf_header(headers) {
+            Ok(csrf) => csrf,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        match self.store.preview_binding(&self.config, &cookie_hash, origin_ok, &csrf, &change).await {
+            Ok(report) => json_response(200, preview_body(&report), &[]),
+            Err(fault) => fault_response(fault, &[]),
+        }
+    }
+
+    async fn approve(&self, headers: &HeaderMap, body: Value) -> Response {
+        let parsed: ApproveBody = match serde_json::from_value(body) {
+            Ok(parsed) => parsed,
+            Err(_) => return fault_response(Fault::malformed(), &[]),
+        };
+        if parsed.git_commit.as_ref().is_some_and(|value| !hex40(value)) {
+            return fault_response(Fault::malformed(), &[]);
+        }
+        let git_commit = parsed.git_commit;
+        let change = match change_from_parts(ChangeBody {
+            effect: parsed.effect,
+            project_id: parsed.project_id,
+            subject: parsed.subject,
+            role: parsed.role,
+            expected_revision: parsed.expected_revision,
+            expected_config_commit: parsed.expected_config_commit,
+            expected_git_head: parsed.expected_git_head,
+            idempotency_key: parsed.idempotency_key,
+        }) {
+            Ok(change) => change,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let cookie_hash = match session_cookie_hash(headers) {
+            Ok(hash) => hash,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let origin_ok = match one_header(headers, "origin") {
+            Ok(value) => value == Some(self.config.https_origin.as_str()),
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        let csrf = match csrf_header(headers) {
+            Ok(csrf) => csrf,
+            Err(fault) => return fault_response(fault, &[]),
+        };
+        match self.store.approve_binding(&self.config, &cookie_hash, origin_ok, &csrf, &change, git_commit.as_deref()).await {
+            Ok(report) => json_response(200, approve_body(&report), &[]),
+            Err(fault) => fault_response(fault, &[]),
+        }
     }
 
     async fn revoke(&self, headers: &HeaderMap) -> Response {
@@ -283,8 +397,8 @@ impl App {
     }
 }
 
-fn current_body(record: &CurrentRecord, config: &Config) -> Value {
-    let projects = projects_for(config, &record.subject, record.initialized);
+fn current_body(record: &CurrentRecord) -> Value {
+    let projects = &record.projects;
     json!({
         "contract": CONTRACT,
         "operation": "getIdentityCurrent",
@@ -293,7 +407,7 @@ fn current_body(record: &CurrentRecord, config: &Config) -> Value {
         "config_commit": record.config_commit,
         "revision": record.revision,
         "install_state": if record.initialized { "initialized" } else { "uninitialized" },
-        "projects": projects.into_iter().map(|item| json!({
+        "projects": projects.iter().map(|item| json!({
             "project_id": item.project_id,
             "role": item.role.as_str(),
             "capabilities": item.capabilities
@@ -312,6 +426,79 @@ fn current_body(record: &CurrentRecord, config: &Config) -> Value {
         "harness_session": "not_issued",
         "gateway_token": "not_issued",
         "customer_integration": "not_claimed"
+    })
+}
+
+fn preview_body(report: &PreviewReport) -> Value {
+    denial(json!({
+        "contract": CONTRACT,
+        "operation": "previewManagementBinding",
+        "outcome": report.outcome,
+        "effect": report.effect,
+        "project_id": report.project_id,
+        "subject": report.subject,
+        "role": role_json(report.role),
+        "revision": report.revision,
+        "config_commit": report.config_commit,
+        "document": report.document,
+        "document_sha256": report.document_sha256
+    }))
+}
+
+fn approve_body(report: &ApproveReport) -> Value {
+    denial(json!({
+        "contract": CONTRACT,
+        "operation": "approveManagementBinding",
+        "disposition": report.disposition,
+        "outcome": report.outcome,
+        "effect": report.effect,
+        "project_id": report.project_id,
+        "subject": report.subject,
+        "role": role_json(report.role),
+        "revision": report.revision,
+        "config_commit": report.config_commit,
+        "git_commit": report.git_commit,
+        "document_sha256": report.document_sha256,
+        "receipt_sha256": report.receipt_sha256
+    }))
+}
+
+fn role_json(role: Option<Role>) -> Value {
+    role.map(|role| Value::String(role.as_str().to_string())).unwrap_or(Value::Null)
+}
+
+fn denial(mut body: Value) -> Value {
+    if let Some(object) = body.as_object_mut() {
+        object.insert("authority".to_string(), json!("management_session"));
+        object.insert("data_grants".to_string(), json!("none"));
+        object.insert("owner_certification".to_string(), json!("not_issued"));
+        object.insert("agent_session".to_string(), json!("not_issued"));
+        object.insert("harness_session".to_string(), json!("not_issued"));
+        object.insert("gateway_token".to_string(), json!("not_issued"));
+        object.insert("customer_integration".to_string(), json!("not_claimed"));
+    }
+    body
+}
+
+fn change_from(body: Value) -> Result<Change, Fault> {
+    let parsed: ChangeBody = serde_json::from_value(body).map_err(|_| Fault::malformed())?;
+    change_from_parts(parsed)
+}
+
+fn change_from_parts(parsed: ChangeBody) -> Result<Change, Fault> {
+    let role = match parsed.role.as_deref() {
+        None => None,
+        Some(value) => Some(Role::parse(value)?),
+    };
+    Ok(Change {
+        effect: parsed.effect,
+        project_id: parsed.project_id,
+        subject: parsed.subject,
+        role,
+        expected_revision: parsed.expected_revision,
+        expected_config_commit: parsed.expected_config_commit,
+        expected_git_head: parsed.expected_git_head,
+        idempotency_key: parsed.idempotency_key,
     })
 }
 
@@ -441,6 +628,10 @@ async fn empty_body(request: Request) -> Result<(), Fault> {
 }
 
 async fn json_body(request: Request) -> Result<Value, Fault> {
+    json_body_limit(request, 1024).await
+}
+
+async fn json_body_limit(request: Request, limit: usize) -> Result<Value, Fault> {
     let content_type = one_header(request.headers(), "content-type")?;
     let Some(content_type) = content_type else {
         return Err(Fault::malformed());
@@ -448,7 +639,7 @@ async fn json_body(request: Request) -> Result<Value, Fault> {
     if content_type.split(';').next().unwrap_or("").trim() != "application/json" {
         return Err(Fault::malformed());
     }
-    let bytes = axum::body::to_bytes(request.into_body(), 1024).await.map_err(|_| Fault::malformed())?;
+    let bytes = axum::body::to_bytes(request.into_body(), limit).await.map_err(|_| Fault::malformed())?;
     serde_json::from_slice(&bytes).map_err(|_| Fault::malformed())
 }
 

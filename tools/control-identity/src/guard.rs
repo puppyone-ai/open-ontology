@@ -66,12 +66,11 @@ pub fn authorize(session: &VerifiedSession, config: &Config, project_id: &str, c
     if capabilities.contains(&capability) { Ok(()) } else { Err(Fault::forbidden()) }
 }
 
-pub fn projects_for(config: &Config, subject: &str, initialized: bool) -> Vec<ProjectView> {
+pub fn projects_from(bindings: &[crate::config::Binding], subject: &str, initialized: bool) -> Vec<ProjectView> {
     if !initialized {
         return Vec::new();
     }
-    let mut rows: Vec<_> = config
-        .bindings
+    let mut rows: Vec<_> = bindings
         .iter()
         .filter(|item| item.subject == subject)
         .map(|item| ProjectView {
