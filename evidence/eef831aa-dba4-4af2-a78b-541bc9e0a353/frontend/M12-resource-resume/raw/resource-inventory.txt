@@ -1,0 +1,4 @@
+node_like_running=0
+a353_containers=0
+own_builder=absent
+own_pg=absent
