@@ -5,7 +5,8 @@ use std::net::{Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::time::Duration;
 
-use crate::assess::{assess_root, claims_success, to_json, Assessment};
+use crate::assess::{claims_success, to_json, Assessment};
+use crate::execute::{execute, Plan};
 
 const MAX_HEADERS: usize = 8 * 1024;
 const MAX_BODY: usize = 4 * 1024;
@@ -91,7 +92,7 @@ fn handle(stream: &mut TcpStream, peer: SocketAddr, root: &Path) -> std::io::Res
     }
     match (method, path) {
         ("GET", "/control/v1/lifecycle/assessment") | ("POST", "/control/v1/lifecycle/runs") => {
-            let assessment = assess_root(root).unwrap_or_else(|_| refusal());
+            let assessment = execute(root, &Plan::default()).unwrap_or_else(|_| refusal());
             write_response(stream, 409, &to_json(&assessment))?;
             Ok(assessment)
         }
@@ -176,6 +177,7 @@ fn refusal() -> Assessment {
         compiled_pack_is_publication: false,
         parent_acceptance: false,
         children_spawned: 0,
+        producer_calls: 0,
         gaps: Vec::new(),
     }
 }

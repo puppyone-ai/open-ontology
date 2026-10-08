@@ -1,26 +1,13 @@
 # Findings
 
-## Product gaps, still open
+OC-01 and OC-02 stay on `tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml` SHA-256 `4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0`. The pinned bytes do not require `ontology_yaml_sha256`, `generated_files`, `source_seal_sha256`, `spec_version`, and `table_row_counts` together, and they do not require `decisions_yaml_sha256`, `curated_overlay_sha256`, `effective_yaml_sha256`, and `reseal_count` together. `compiled_pack` const `not_published` and `ledger_authenticated` const false still disqualify the operations that carry them.
 
-1. OC-01, owner a373. `tools/selfbuild-control-api` and `pg-builder` emit JSON. There is no `operationId: exportGeneratedOos` line in the pinned OpenAPI. Schema-valid `ontology.yaml` and `generated/` YAML are not on disk.
-2. OC-02, owner a373. `decideReviewItem` can store approve, reject, and defer, and the result keeps `ledger_authenticated` false, `published` false, and `grants` `not_authorized`. There is no `operationId: exportReviewDecisions` and no `operationId: compileEffectiveYaml`. `pg-builder approve` sets `authenticated` false. That is not the curated overlay, not stable-identity merge, and not a reseal.
-3. OC-03, owner a374. Curated Git apply commits description fields for one review command. There is no `operationId: applyReviewedTree`. Receipts stay `authenticated: false`. A description commit is not `reviews/decisions.yaml` plus the overlay.
-4. OC-04, owner a392. `createRelease` reads an operator pack file and a gates file. There is no `operationId: evaluateGatesFromGit`. `production_ready` is false. `certificate_class` is `not_issued` or `test_scope_not_production`. This card did not write a gates file and does not call a private fixture a production release.
-5. OC-05, owner a397. Agent entry compares a local directory with `published_path`. The contract says pack bytes are `private_fixed` and release-control-api is not edited. There is no `operationId: bindActiveReleasePack`. A compiled pack with `published` false does not pass OC-05.
-6. OC-06 stays `blocked`. Model failure, CAS conflict, restart, stale override, and revoke were not executed, so this card does not claim those side-effect results.
+OC-03 was re-read at `tools/curated-git-apply/CONTRACT.md` SHA-256 `e27f397f36fe220dd4cd0f25b66499c7d36f5fca9a1bc87e13c62dd87546b9a4`, commit `d04da89ff696b45a4938dd59523821b5268b055f`. Request schema `d2b63c5f81fbcdbb47c6d27cd4128e52b1e0240e3637fabaaadd36f3e635c7ac`. Receipt schema `e657b1274f1003d8e6b44d271ffd8649237cc5e23674ac692fc88564add098c5`. The reviewed-tree operation is CLI `apply-reviewed-tree`. The receipt requires `authenticated` const true, `new_commit` (40 hex or null), `new_tree`, `old_commit`, `old_tree`, `ontology_blob`, and `decisions_blob`. `expected_head` is a request field. Curated ids are `blobs[]`. `new_commit` null is outcome unchanged. The contract has no `method:`, `path:`, or `required_response:` line. The E57 sections in the same file still contain `authenticated: false`. The forbid is per heading, so those sections cannot hide a later heading that does declare a success response. Dirty `src/git.rs`, `src/lib.rs`, and untracked `src/reviewed.rs` were not read as the contract. The edge is `schema_missing`. This crate does not spawn the binary.
 
-`chain_closed` becomes true only when every gap status is `executed`. A marker line in a file whose SHA-256 is not the pin is `unpinned` and is not executed. A marker in the pinned bytes would be `present_unexecuted` and would still leave the chain open. This build never emits `executed`.
+OC-04 stays on `tools/release-control-api/openapi/release-control-api.openapi.yaml` SHA-256 `de281a35aa6f6a75e2a6c4cb8e1a9fb3d2f76dc20799db164c024d1bd4239946`. `tools/release-coordinator/src/decide.rs` SHA-256 `439aa2112925934c7f448f98a220fb889b708cb27fd1c7aa214b21a4d75496f4` still has `production_admissible` false. The success schema for G1 through G13, including G5a and G5b, plus `source_commit`, `gate_results`, `role_fence`, `replay`, and `active_cas`, is absent. This crate does not upload `gates.json` and does not relabel production as `test_scope`.
 
-## Compile failures, fixed before the green run
+OC-05 `tools/agent-entry/CONTRACT.md` is untracked. A read during the edit was SHA-256 `1484189f995e8404d3c2fc381c258418a31e2c4a819135f7ba227b61be001aba`. The re-read before this report is SHA-256 `51876a007ec288e0e8c094445e895e38bc9663e0eeaf3840e6acbf842a10063e`. The gap text is the same: a line `operationId: bindActiveReleasePack`, a 201 description that names `pack_sha256`, and `POST /v1/query` as `private_fixed`. The success schema does not require `active_release_id`, `pack_sha256`, `source_commit`, `policy_sha256`, `knowledge_sha256`, and `content_sha256` together. The pin stays `3634c0a0f580770d5cf24d29d4e4c6d56f3028acfd9ddc0fbcb5554abafd06bf`, so the edge is `unpinned` and is not called.
 
-Attempt 1: Cargo treated the new package as a member of the root workspace, and the 1.94 image had no Clippy component. Exit 1. Fixed by an empty `[workspace]` table in the tool manifest, which does not edit the root manifest, and by `rustup component add clippy` inside the disposable container.
+OC-06 is blocked. `execute` forces `chain_closed` false. The pure rule `chain_proven` is not consulted by `execute`. This build writes no failure-loop lines.
 
-Attempt 2: `loopback_port` received a `PathBuf`, and Clippy rejected a range loop in SHA-256. Exit 1.
-
-Attempt 3: tests passed, 10 of 10. Clippy rejected two nested `if` blocks. Exit 1.
-
-Attempt 4: tests 10 passed, Clippy exit 0, container exit 0. Logs are under `linux/focused-4/` and `linux/failed-attempts/`.
-
-## Not claimed
-
-No full parent acceptance. No SP07 acceptance. No SP08 acceptance. No customer release. The 100000-row fixture was not opened.
+`pg-builder` `src/main.rs` remains SHA-256 `75b6366e89218e19849e4f1812f7d922512f4ea91f420a34d904347f28cb98ea` and is not the YAML export.

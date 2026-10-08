@@ -1,0 +1,27 @@
+info: syncing channel updates for 1.94.0-aarch64-unknown-linux-gnu
+info: latest update on 2026-03-05 for version 1.94.0 (4a4ef493e 2026-03-02)
+info: downloading 6 components
+info: component clippy is up to date
+   Compiling ontology-lifecycle v0.1.0 (/src/tools/ontology-lifecycle)
+error: lifetime may not live long enough
+   --> src/execute.rs:208:21
+    |
+207 |     fn edge<'a>(id: &'a str, response: &'a str, prior: &'a str) -> EdgeProof {
+    |             -- lifetime `'a` defined here
+208 |         EdgeProof { id, response_sha256: response, prior_sha256: prior }
+    |                     ^^ this usage requires that `'a` must outlive `'static`
+
+error[E0382]: borrow of moved value: `loops`
+   --> src/execute.rs:237:36
+    |
+225 |         let loops = [
+    |             ----- move occurs because `loops` has type `[LoopProof; 5]`, which does not implement the `Copy` trait
+...
+234 |         let mut broken = loops;
+    |                          ----- value moved here
+...
+237 |         assert!(!chain_proven(&[], &loops));
+    |                                    ^^^^^^ value borrowed here after move
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `ontology-lifecycle` (lib test) due to 2 previous errors

@@ -1,0 +1,10 @@
+info: downloading component clippy
+   Compiling ontology-lifecycle v0.1.0 (/src/tools/ontology-lifecycle)
+error: expected one of `.`, `?`, `]`, or an operator, found `:`
+   --> src/discover.rs:173:52
+    |
+173 |             return Some(&text[start.expect("start"):offset]);
+    |                                                    ^ expected one of `.`, `?`, `]`, or an operator
+
+error: could not compile `ontology-lifecycle` (lib) due to 1 previous error
+test_exit:101

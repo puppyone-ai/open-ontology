@@ -1,63 +1,41 @@
 # Handoff
 
-a403 is waiting on fixed producer commits. This card does not poll. The coordinator's single observation window is separate from this process. When the markers below exist as whole lines in the named files, re-read those files, record the new SHA-256, and only then implement the calls. Do not satisfy a marker by writing YAML, a commit, a gates file, or a pack inside `tools/ontology-lifecycle`.
+Coordinator and owners. Names of operations are free. A new `operationId` line is not the delivery. The success schema must require the fields below, on a fixed git commit, with no disqualifying const. This crate calls `127.0.0.1` only, after `GET /control/v1/identity/current` returns the same CSRF and `authenticated` true, and only on a path under `/control/`.
 
-## a373 — selfbuild-control-api
+## a373 — OC-01 and OC-02
 
-Add these OpenAPI operations. Input and output are the OC-01 and OC-02 rows in `tools/ontology-lifecycle/REQUIREMENTS-MAP.json`.
+Input for OC-01: verified `__Host-oo-session`, `X-OO-CSRF`, and `Origin`. Server source seal. No caller YAML and no caller pack. Body may name `shop.party`, `shop.account`, and `shop.entry`.
 
-- `operationId: exportGeneratedOos`
-- `operationId: exportReviewDecisions`
-- `operationId: compileEffectiveYaml`
+Output: `ontology_yaml_sha256`, `generated_files`, `source_seal_sha256`, `spec_version` `oos/v1`, and `table_row_counts`. The approved private fixture is shop.party 2000, shop.account 8000, shop.entry 90000. The sum 100000 is not a per-file `row_count`.
 
-`exportGeneratedOos` writes `ontology/ontology.yaml` (`spec_version: oos/v1`) and `ontology/generated/**/*.yaml` (`schema_version: oos/v1`) from the approved private source. Parsers are `oo_core::oos::parse_ontology_yaml` and `parse_dataset_yaml`. Each file carries sha256, schema hash, evidence hash, and `row_count` 100000 for the 2000/8000/90000 fixture. JSON and Markdown stay compile products.
+Input for OC-02: approve, reject, and defer, each bound to the candidate, the source, and the identity revision. Then the effective compile for that build.
 
-`exportReviewDecisions` writes `ontology/reviews/decisions.yaml` from real `review.decide` sessions: one approve, one reject, one defer, each bound to `candidate_sha256`, `source_sha256`, the verified subject, and the revision. `parse_decisions_yaml` must accept it. Reject and defer do not enter curated.
+Output: `decisions_yaml_sha256`, `curated_overlay_sha256`, `effective_yaml_sha256`, and `reseal_count` at least 1. The body contains approve, reject, and defer. `ledger_authenticated` false is refused. `compiled_pack` const `not_published` is not this edge.
 
-`compileEffectiveYaml` merges generated and curated by stable identity (`name`, `id`, `code`, `term`, `metric`, `dataset`, `entity`, or `item`), curated field wins, `status: rejected` drops the effective item, and a changed upstream fact under a curated override becomes a stale review item. `field_candidates_applied` is true and `reseal_count` is at least 1. A later builder run does not change curated hashes.
+Current pin `4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0` does not contain that success schema. Status `blocked_contract`.
 
-Current pin: `tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml` SHA-256 `4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0`.
+## a374 — OC-03
 
-## a374 — curated-git-apply
+The committed CLI contract and the two JSON schemas were read. They are not yet a loopback success response.
 
-Add `operationId: applyReviewedTree`.
+Still required: `method` and `path` under `/control/`, and a success body with `authenticated` true, a non-null commit id (`commit` or `new_commit`), a tree id (`tree` or `new_tree`), the previous head (`expected_head` or `old_commit`), `ontology_blob`, `decisions_blob`, and the curated blob ids (`curated_blob` or `blobs` / `new_blob`). `new_commit` null is outcome unchanged and is refused. The E57 receipt with `authenticated` false is a different operation.
 
-Input: `expected_head`, idempotency key, and blob ids of `ontology.yaml`, `reviews/decisions.yaml`, and the curated YAML from OC-02. The parent is the verified session. `authenticated: false` is refused.
+This crate will not spawn `curated-git-apply` or git. Dirty `src/git.rs`, `src/lib.rs`, and untracked `src/reviewed.rs` are not a fixed archive. Status after the contract pin move is `blocked_contract` / `schema_missing`.
 
-Output: one `update-ref` compare-and-swap commit. Receipt has old commit, new commit, tree, and blob hashes. Restart reads that commit. A mismatched `expected_head` does not move the ref. No push.
+## a392 — OC-04
 
-Current pin: `tools/curated-git-apply/CONTRACT.md` SHA-256 `4b9f84f013554cee19dcb40209181b0276135a88d098c7261331dc6a7fab740c`.
+Input: the OC-03 commit id, one role, scope `test_scope` or `production`, and the verified session. The caller uploads neither gates nor pack bytes.
 
-## a392 — release-control-api
+Output: `source_commit`, `gate_results` covering G1 through G13 including G5a and G5b, `role_fence`, `replay`, and `active_cas`. A test-scope activation is `certificate_class` `test_scope_not_production` and `scope` `test_scope`. `production_ready` true and `certificate_class` `production` are refused. `production_admissible` stays false until the external gates are real.
 
-Add `operationId: evaluateGatesFromGit`.
+Current OpenAPI pin `de281a35aa6f6a75e2a6c4cb8e1a9fb3d2f76dc20799db164c024d1bd4239946` does not contain that success schema. Status `blocked_contract`.
 
-Input: the OC-03 commit, one role, scope `test_scope` or `production`, and the verified session. The caller does not upload pack bytes or `gates.json`.
+## a397 — OC-05
 
-Output: one result each for G1, G2, G3, G4, G5a, G5b, G6, G7, G8, G9, G10, G11, G12, and G13, plus the role fence, replay, and active CAS. Missing `credential`, `integrity`, `authenticated_owner`, `customer`, or `runsc` keeps production inadmissible. `production` is not rewritten to `test_scope`. A test-scope activation is `certificate_class` `test_scope_not_production`. `compiled_pack` stays `not_published`.
+Put the contract in a git commit. The success body needs `active_release_id`, `pack_sha256`, `source_commit`, `policy_sha256`, `knowledge_sha256`, and `content_sha256`, with `active` true. `compiled_pack` `published`, `compiled_pack` `not_published`, and `private_fixed` are refused. A 409 `pack_unpublished` is not the active pack.
 
-Current pin: `tools/release-control-api/openapi/release-control-api.openapi.yaml` SHA-256 `de281a35aa6f6a75e2a6c4cb8e1a9fb3d2f76dc20799db164c024d1bd4239946`. `decide.rs` SHA-256 `439aa2112925934c7f448f98a220fb889b708cb27fd1c7aa214b21a4d75496f4` returns `production_admissible` false.
+The worktree file is untracked. Observed SHA-256 at the pre-commit re-read is `51876a007ec288e0e8c094445e895e38bc9663e0eeaf3840e6acbf842a10063e`. The pin was not moved. Status `unpinned`. It is not called.
 
-## a397 — agent-entry
+## a403 — after those four commits
 
-Add `operationId: bindActiveReleasePack`.
-
-Input: active release operation id, role, pack sha256, source git commit, policy, knowledge, and content hash from `getActiveRolePack`.
-
-Output: `createSession` `pack_sha256` equals that digest. The query audit names that pack. The other role's hidden columns stay absent. Revocation changes the digest and refuses the old pack. A compiled pack that is not the active release is HTTP 409 `pack_unpublished`.
-
-Current pin: `tools/agent-entry/CONTRACT.md` SHA-256 `3634c0a0f580770d5cf24d29d4e4c6d56f3028acfd9ddc0fbcb5554abafd06bf`. That file was not a git commit at this pin.
-
-## Commands already reproducible
-
-```text
-ontology-lifecycle inspect --source-root ROOT
-ontology-lifecycle run --source-root ROOT --guard EMPTY_DIR
-ontology-lifecycle serve --bind 127.0.0.1:PORT --source-root ROOT --once
-```
-
-`GET /control/v1/lifecycle/assessment` and `POST /control/v1/lifecycle/runs` with `{}` return 409. A body that claims publication returns 400. Exit 2 means the chain is open. Exit 0 is reserved for `executed` on every gap, which this build does not emit.
-
-## a403 after those commits
-
-Re-pin the delivered files. Call the five operations in order on the same private 100000-row source. Record YAML, decision, git, candidate, active, and agent hashes on each edge. Prove model failure, CAS conflict, restart, stale override, and revoke without forbidden side effects. Keep production unsigned while the external gates are unmet. Do not mark OC-05 from a compiled pack.
+Re-read each file, record the new pin, then run the five operations on one private 100k source and record the hashes. Prove model failure, CAS conflict, restart, stale override, and revoke with no review, Git, or publish side effects. Keep the full release unsigned while external production gates are unmet. That journey is OC-06. It is not this commit.

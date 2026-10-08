@@ -1,25 +1,63 @@
-//! Read pinned producer contracts. A matching line is not a closed chain.
+//! Classify pinned producer contracts. A matching schema is not a closed chain.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::discover::{self, Operation};
 use crate::sha256::{hex, sha256};
 
 pub const CONTRACT: &str = "oo.ontology-lifecycle/v1";
-pub const SOURCE_HEAD: &str = "fbd0467617a3c1514e7ffbef52f1138e20416ac6";
+pub const SOURCE_HEAD: &str = "9c084b58d65f63229355fe6c20fd2f0285d6f29a";
 const MAX_BYTES: u64 = 2_000_000;
 
+#[derive(Clone, Copy)]
 struct Need {
     id: &'static str,
     owner: &'static str,
     producer: &'static str,
     path: &'static str,
     pin: &'static str,
-    markers: &'static [&'static str],
+    required: &'static [&'static str],
+    evidence: &'static [&'static str],
+    forbid: &'static [(&'static str, &'static str)],
     input: &'static str,
     output: &'static str,
     acceptance: &'static str,
 }
+
+const GENERATED: &[&str] = &[
+    "ontology_yaml_sha256",
+    "generated_files",
+    "source_seal_sha256",
+    "spec_version",
+    "table_row_counts",
+];
+const REVIEW: &[&str] = &[
+    "decisions_yaml_sha256",
+    "curated_overlay_sha256",
+    "effective_yaml_sha256",
+    "reseal_count",
+];
+const GIT: &[&str] = &[
+    "commit",
+    "tree",
+    "expected_head",
+    "ontology_blob",
+    "decisions_blob",
+    "curated_blob",
+];
+const RELEASE: &[&str] = &["source_commit", "gate_results", "role_fence", "replay", "active_cas"];
+const GATES: &[&str] = &[
+    "G1", "G2", "G3", "G4", "G5a", "G5b", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G13",
+];
+const AGENT: &[&str] = &[
+    "active_release_id",
+    "pack_sha256",
+    "source_commit",
+    "policy_sha256",
+    "knowledge_sha256",
+    "content_sha256",
+];
 
 const NEEDS: &[Need] = &[
     Need {
@@ -28,10 +66,12 @@ const NEEDS: &[Need] = &[
         producer: "tools/selfbuild-control-api",
         path: "tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml",
         pin: "4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0",
-        markers: &["operationId: exportGeneratedOos"],
-        input: "Verified management session, build_id, and the server source seal. No caller YAML and no caller pack bytes.",
-        output: "ontology/ontology.yaml with spec_version oos/v1, plus generated dataset, relationship, enum, and candidate YAML with schema_version oos/v1. Each file has sha256, the oo-core parser name, schema hash, evidence hash, and row_count 100000.",
-        acceptance: "parse_ontology_yaml and parse_dataset_yaml accept the bytes. A second read returns the same hashes.",
+        required: GENERATED,
+        evidence: &[],
+        forbid: &[("compiled_pack", "not_published")],
+        input: "Verified __Host-oo-session, X-OO-CSRF, and Origin. The server source seal. No caller YAML and no caller pack bytes.",
+        output: "ontology/ontology.yaml with spec_version oos/v1 and generated YAML with schema_version oos/v1. Each file has its own sha256, schema hash, and evidence hash. table_row_counts names each table. The approved private fixture is shop.party 2000, shop.account 8000, and shop.entry 90000. Their sum is 100000. That sum is not a row_count on every file.",
+        acceptance: "parse_ontology_yaml and parse_dataset_yaml accept the bytes. A second read returns the same hashes. The operation name may differ from any earlier marker.",
     },
     Need {
         id: "OC-02",
@@ -39,12 +79,11 @@ const NEEDS: &[Need] = &[
         producer: "tools/selfbuild-control-api",
         path: "tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml",
         pin: "4a7a155d801e47590f3c60927abf6035da4fc2ca118d318f7f8204330f149cf0",
-        markers: &[
-            "operationId: exportReviewDecisions",
-            "operationId: compileEffectiveYaml",
-        ],
-        input: "Three decideReviewItem calls with choice approve, reject, and defer. Each binds candidate_sha256, source_sha256, identity revision, and the verified subject. Then compileEffectiveYaml for that build only.",
-        output: "reviews/decisions.yaml, curated overlay YAML, and effective YAML. Approve text is visible. Reject is removed. Defer is not in curated. A stale override is a review item. field_candidates_applied is true and reseal_count is at least 1. A later builder run does not change curated hashes.",
+        required: REVIEW,
+        evidence: &[],
+        forbid: &[("ledger_authenticated", "false")],
+        input: "Three authenticated decisions, approve, reject, and defer, each bound to candidate_sha256, source_sha256, and the identity revision. Then the effective compile for that build only.",
+        output: "reviews/decisions.yaml, curated overlay YAML, and effective YAML. Approve text is visible. Reject is removed. Defer is not in curated. A stale override is a review item. reseal_count is at least 1. A later builder run does not change curated hashes.",
         acceptance: "List identity is name, id, code, term, metric, dataset, entity, or item. Array index is not identity. Curated wins field by field. status rejected removes the effective item. Generated bytes do not overwrite curated bytes.",
     },
     Need {
@@ -52,11 +91,13 @@ const NEEDS: &[Need] = &[
         owner: "a374",
         producer: "tools/curated-git-apply",
         path: "tools/curated-git-apply/CONTRACT.md",
-        pin: "4b9f84f013554cee19dcb40209181b0276135a88d098c7261331dc6a7fab740c",
-        markers: &["operationId: applyReviewedTree"],
-        input: "expected_head, an idempotency key, and the blob ids of ontology.yaml, reviews/decisions.yaml, and the curated YAML from OC-02. The parent is the verified session. authenticated false is refused.",
-        output: "A commit from update-ref compare-and-swap. The receipt has the old commit, new commit, tree, and blob hashes. Restart reads that same commit. A mismatched expected_head leaves the ref in place.",
-        acceptance: "No push, no fake commit, and no overwrite on conflict.",
+        pin: "e27f397f36fe220dd4cd0f25b66499c7d36f5fca9a1bc87e13c62dd87546b9a4",
+        required: GIT,
+        evidence: &[],
+        forbid: &[("authenticated", "false")],
+        input: "A loopback method and path under /control/. The body carries expected_head, an idempotency key, ontology_blob, decisions_blob, and curated dataset blob ids from the prior edge. No raw YAML, no caller approval, and no process spawn.",
+        output: "update-ref compare-and-swap. The success body has authenticated true, a non-null commit id, a tree id, the previous head, ontology_blob, decisions_blob, and the curated blob ids. new_commit null is not a commit. Restart reads that same commit.",
+        acceptance: "No push and no overwrite on conflict. The E57 receipt stays authenticated false and is not this edge. A CLI stdin process is not this edge.",
     },
     Need {
         id: "OC-04",
@@ -64,7 +105,9 @@ const NEEDS: &[Need] = &[
         producer: "tools/release-control-api",
         path: "tools/release-control-api/openapi/release-control-api.openapi.yaml",
         pin: "de281a35aa6f6a75e2a6c4cb8e1a9fb3d2f76dc20799db164c024d1bd4239946",
-        markers: &["operationId: evaluateGatesFromGit"],
+        required: RELEASE,
+        evidence: GATES,
+        forbid: &[],
         input: "The OC-03 commit id, one role, scope test_scope or production, and the verified session. The caller uploads neither gates nor pack bytes.",
         output: "A result for G1 through G13, including G5a and G5b, plus the role fence, replay, and the active pointer CAS. Unmet external gates stay not production. A test-scope activation is certificate_class test_scope_not_production.",
         acceptance: "production is not rewritten to test_scope. A missing safety gate does not move the active pointer. compiled_pack is not publication.",
@@ -75,10 +118,12 @@ const NEEDS: &[Need] = &[
         producer: "tools/agent-entry",
         path: "tools/agent-entry/CONTRACT.md",
         pin: "3634c0a0f580770d5cf24d29d4e4c6d56f3028acfd9ddc0fbcb5554abafd06bf",
-        markers: &["operationId: bindActiveReleasePack"],
-        input: "The active release operation id, role, pack sha256, source git commit, policy, knowledge, and content hash returned by getActiveRolePack.",
-        output: "createSession pack_sha256 equals that active digest. The query audit names that pack. Columns hidden for the other role stay absent. Revocation changes the digest and the old pack is refused.",
-        acceptance: "published false or a missing active release is HTTP 409 pack_unpublished.",
+        required: AGENT,
+        evidence: &[],
+        forbid: &[("compiled_pack", "not_published")],
+        input: "The active release id, role, pack sha256, source git commit, policy, knowledge, and content hash returned by the active role pack read.",
+        output: "The session pack_sha256 equals that active digest. The query audit names that pack. Columns hidden for the other role stay absent. Revocation changes the digest and the old pack is refused.",
+        acceptance: "A compiled pack that is not the active release does not pass. private_fixed bytes are not this edge.",
     },
 ];
 
@@ -92,7 +137,12 @@ pub struct Gap {
     pub actual_sha256: String,
     pub status: String,
     pub detail: String,
-    pub markers: Vec<String>,
+    pub operation: String,
+    pub method: String,
+    pub route: String,
+    pub request_sha256: String,
+    pub response_sha256: String,
+    pub required_fields: Vec<String>,
     pub input: String,
     pub output: String,
     pub acceptance: String,
@@ -106,6 +156,7 @@ pub struct Assessment {
     pub compiled_pack_is_publication: bool,
     pub parent_acceptance: bool,
     pub children_spawned: u32,
+    pub producer_calls: u32,
     pub gaps: Vec<Gap>,
 }
 
@@ -127,7 +178,7 @@ pub fn assess_texts(files: &[(&str, &str)]) -> Assessment {
     for need in NEEDS {
         let text = files.iter().find(|(path, _)| *path == need.path).map(|(_, text)| *text);
         gaps.push(match text {
-            Some(text) => from_text(need, text),
+            Some(text) => from_bytes(need, text.as_bytes(), &[]),
             None => missing(need),
         });
     }
@@ -136,14 +187,14 @@ pub fn assess_texts(files: &[(&str, &str)]) -> Assessment {
 }
 
 fn finish(gaps: Vec<Gap>) -> Assessment {
-    let chain_closed = gaps.iter().all(|gap| gap.status == "executed");
     Assessment {
-        chain_closed,
-        execution: "not_delivered",
+        chain_closed: false,
+        execution: "blocked_contract",
         production_signed: false,
         compiled_pack_is_publication: false,
         parent_acceptance: false,
         children_spawned: 0,
+        producer_calls: 0,
         gaps,
     }
 }
@@ -166,7 +217,47 @@ fn one(root: &Path, need: &Need) -> Gap {
         Ok(bytes) => bytes,
         Err(_) => return missing(need),
     };
-    from_bytes(need, &bytes)
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let owned = referenced_schemas(root, need.path, &text);
+    let schemas: Vec<(&str, &str)> = owned.iter().map(|(key, body)| (key.as_str(), body.as_str())).collect();
+    from_bytes(need, &bytes, &schemas)
+}
+
+fn referenced_schemas(root: &Path, rel: &str, text: &str) -> Vec<(String, String)> {
+    let Some(prefix) = producer_prefix(rel) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for reference in discover::file_refs(text) {
+        let Some(joined) = discover::lexical_join(rel, &reference) else {
+            continue;
+        };
+        if !joined.starts_with(&prefix) {
+            continue;
+        }
+        let path = rooted(root, &joined);
+        let Ok(meta) = fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.file_type().is_symlink() || !meta.is_file() || meta.len() > MAX_BYTES {
+            continue;
+        }
+        let Ok(bytes) = fs::read(&path) else {
+            continue;
+        };
+        out.push((reference, String::from_utf8_lossy(&bytes).into_owned()));
+    }
+    out
+}
+
+fn producer_prefix(rel: &str) -> Option<String> {
+    let mut parts = rel.split('/');
+    let tools = parts.next()?;
+    let name = parts.next()?;
+    if tools != "tools" {
+        return None;
+    }
+    Some(format!("tools/{name}/"))
 }
 
 fn rooted(root: &Path, rel: &str) -> PathBuf {
@@ -177,30 +268,33 @@ fn rooted(root: &Path, rel: &str) -> PathBuf {
     path
 }
 
-fn from_text(need: &Need, text: &str) -> Gap {
-    from_bytes(need, text.as_bytes())
-}
-
-fn from_bytes(need: &Need, bytes: &[u8]) -> Gap {
+fn from_bytes(need: &Need, bytes: &[u8], schemas: &[(&str, &str)]) -> Gap {
     let actual = hex(&sha256(bytes));
-    let (status, detail) = decision(need.pin, bytes, need.markers);
+    let (status, detail, operation) = judge(need, &actual, bytes, schemas);
     Gap {
         actual_sha256: actual,
         status: status.to_owned(),
         detail: detail.to_owned(),
+        operation: operation.as_ref().map(|item| item.id.clone()).unwrap_or_default(),
+        method: operation.as_ref().map(|item| item.method.clone()).unwrap_or_default(),
+        route: operation.as_ref().map(|item| item.path.clone()).unwrap_or_default(),
         ..shell(need)
     }
 }
 
-fn decision(pin: &str, bytes: &[u8], markers: &[&str]) -> (&'static str, &'static str) {
-    if hex(&sha256(bytes)) != pin {
-        return ("unpinned", "hash_mismatch");
+fn judge(need: &Need, actual: &str, bytes: &[u8], schemas: &[(&str, &str)]) -> (&'static str, &'static str, Option<Operation>) {
+    if actual != need.pin {
+        return ("unpinned", "hash_mismatch", None);
     }
     let text = String::from_utf8_lossy(bytes);
-    if markers.iter().all(|marker| has_marker(&text, marker)) {
-        ("present_unexecuted", "marker_without_execution")
+    let found = if need.path.ends_with(".yaml") || need.path.ends_with(".yml") {
+        discover::matching_operation(&text, schemas, need.required, need.evidence, need.forbid)
     } else {
-        ("absent", "marker_absent")
+        discover::matching_contract(&text, need.required, need.evidence, need.forbid)
+    };
+    match found {
+        Some(operation) => ("ready_uncalled", "schema_matched_not_called", Some(operation)),
+        None => ("blocked_contract", "schema_missing", None),
     }
 }
 
@@ -223,15 +317,19 @@ fn shell(need: &Need) -> Gap {
         actual_sha256: String::new(),
         status: String::new(),
         detail: String::new(),
-        markers: need.markers.iter().map(|marker| (*marker).to_owned()).collect(),
+        operation: String::new(),
+        method: String::new(),
+        route: String::new(),
+        request_sha256: String::new(),
+        response_sha256: String::new(),
+        required_fields: need.required.iter().map(|field| (*field).to_owned()).collect(),
         input: need.input.to_owned(),
         output: need.output.to_owned(),
         acceptance: need.acceptance.to_owned(),
     }
 }
 
-fn journey(gaps: &[Gap]) -> Gap {
-    let ready = gaps.iter().all(|gap| gap.status == "executed");
+fn journey(_gaps: &[Gap]) -> Gap {
     Gap {
         id: "OC-06".to_owned(),
         owner: "a403".to_owned(),
@@ -239,17 +337,18 @@ fn journey(gaps: &[Gap]) -> Gap {
         path: String::new(),
         pinned_sha256: String::new(),
         actual_sha256: String::new(),
-        status: if ready { "executed".to_owned() } else { "blocked".to_owned() },
+        status: "blocked".to_owned(),
         detail: "waiting_on_oc01_through_oc05".to_owned(),
-        markers: vec!["OC-01 through OC-05 executed on one source seal".to_owned()],
-        input: "The same private source with 2000, 8000, and 90000 rows. No enterprise source.".to_owned(),
+        operation: String::new(),
+        method: String::new(),
+        route: String::new(),
+        request_sha256: String::new(),
+        response_sha256: String::new(),
+        required_fields: vec!["linked edge hashes".to_owned(), "quiet failure loops".to_owned()],
+        input: "The same private source. shop.party has 2000 rows, shop.account has 8000, and shop.entry has 90000. No enterprise source.".to_owned(),
         output: "The YAML hash, decision hash, git commit, candidate hash, active release, and agent pack hash match on every edge.".to_owned(),
-        acceptance: "Model failure does not change review, Git, or publication. A CAS conflict does not move the ref. Stale input and revocation are refused.".to_owned(),
+        acceptance: "Model failure does not change review, Git, or publication. A CAS conflict does not move the ref. Stale input and revocation are refused. A schema match or a 409 does not close this edge.".to_owned(),
     }
-}
-
-fn has_marker(text: &str, marker: &str) -> bool {
-    text.lines().any(|line| line.trim() == marker)
 }
 
 pub fn to_json(assessment: &Assessment) -> String {
@@ -262,7 +361,11 @@ pub fn to_json(assessment: &Assessment) -> String {
     out.push_str(if assessment.chain_closed { "true" } else { "false" });
     out.push_str(",\"execution\":\"");
     out.push_str(assessment.execution);
-    out.push_str("\",\"production_signed\":false,\"compiled_pack_is_publication\":false,\"parent_acceptance\":false,\"children_spawned\":0,\"certificate_class\":\"not_issued\",\"gaps\":[");
+    out.push_str("\",\"production_signed\":false,\"compiled_pack_is_publication\":false,\"parent_acceptance\":false,\"children_spawned\":");
+    out.push_str(&assessment.children_spawned.to_string());
+    out.push_str(",\"producer_calls\":");
+    out.push_str(&assessment.producer_calls.to_string());
+    out.push_str(",\"certificate_class\":\"not_issued\",\"gaps\":[");
     for (index, gap) in assessment.gaps.iter().enumerate() {
         if index > 0 {
             out.push(',');
@@ -290,13 +393,23 @@ fn push_gap(out: &mut String, gap: &Gap) {
     field(out, "status", &gap.status);
     out.push(',');
     field(out, "detail", &gap.detail);
-    out.push_str(",\"markers\":[");
-    for (index, marker) in gap.markers.iter().enumerate() {
+    out.push(',');
+    field(out, "operation", &gap.operation);
+    out.push(',');
+    field(out, "method", &gap.method);
+    out.push(',');
+    field(out, "route", &gap.route);
+    out.push(',');
+    field(out, "request_sha256", &gap.request_sha256);
+    out.push(',');
+    field(out, "response_sha256", &gap.response_sha256);
+    out.push_str(",\"required_fields\":[");
+    for (index, field_name) in gap.required_fields.iter().enumerate() {
         if index > 0 {
             out.push(',');
         }
         out.push('"');
-        push_escaped(out, marker);
+        push_escaped(out, field_name);
         out.push('"');
     }
     out.push_str("],");
@@ -341,63 +454,61 @@ pub fn claims_success(body: &str) -> bool {
         "\"force\": true",
         "\"compiled_pack\":\"published\"",
         "\"compiled_pack\": \"published\"",
+        "\"chain_proven\":true",
+        "\"chain_proven\": true",
     ];
     CLAIMS.iter().any(|claim| body.contains(claim))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{assess_texts, claims_success, decision, has_marker};
+    use super::{assess_texts, claims_success, GENERATED};
+    use crate::discover::matching_operation;
     use crate::sha256::{hex, sha256};
 
+    fn judge_pin(pin: &str, bytes: &[u8]) -> &'static str {
+        if hex(&sha256(bytes)) != pin {
+            return "unpinned";
+        }
+        let text = String::from_utf8_lossy(bytes);
+        if matching_operation(&text, &[], GENERATED, &[], &[("compiled_pack", "not_published")]).is_some() {
+            "ready_uncalled"
+        } else {
+            "blocked_contract"
+        }
+    }
+
     #[test]
-    fn a_comment_is_not_the_operation() {
-        let text = "This file does not declare\noperationId: exportGeneratedOos is absent\n";
-        assert!(!has_marker(text, "operationId: exportGeneratedOos"));
+    fn a_marker_line_does_not_make_the_pinned_bytes_ready() {
+        let bytes = b"operationId: exportGeneratedOos\n";
+        let pin = hex(&sha256(bytes));
+        assert_eq!(judge_pin(&pin, bytes), "blocked_contract");
+        assert_eq!(judge_pin(&pin, b"operationId: exportGeneratedOos is absent\n"), "unpinned");
     }
 
     #[test]
     fn a_declared_marker_does_not_close_the_chain() {
-        let yaml = "operationId: exportGeneratedOos\noperationId: exportReviewDecisions\noperationId: compileEffectiveYaml\n";
-        let git = "operationId: applyReviewedTree\n";
-        let release = "operationId: evaluateGatesFromGit\n";
-        let agent = "operationId: bindActiveReleasePack\n";
+        let yaml = "operationId: exportGeneratedOos\n";
         let assessment = assess_texts(&[
-            (
-                "tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml",
-                yaml,
-            ),
-            ("tools/curated-git-apply/CONTRACT.md", git),
-            (
-                "tools/release-control-api/openapi/release-control-api.openapi.yaml",
-                release,
-            ),
-            ("tools/agent-entry/CONTRACT.md", agent),
+            ("tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml", yaml),
+            ("tools/curated-git-apply/CONTRACT.md", "operationId: applyReviewedTree\n"),
+            ("tools/release-control-api/openapi/release-control-api.openapi.yaml", "operationId: evaluateGatesFromGit\n"),
+            ("tools/agent-entry/CONTRACT.md", "operationId: bindActiveReleasePack\n"),
         ]);
         assert!(!assessment.chain_closed);
-        assert_eq!(assessment.execution, "not_delivered");
+        assert_eq!(assessment.execution, "blocked_contract");
         assert!(!assessment.production_signed);
-        assert!(!assessment.compiled_pack_is_publication);
-        assert_eq!(assessment.children_spawned, 0);
+        assert_eq!(assessment.producer_calls, 0);
         assert!(assessment.gaps.iter().any(|gap| gap.id == "OC-01" && gap.status == "unpinned"));
         assert!(assessment.gaps.iter().any(|gap| gap.id == "OC-06" && gap.status == "blocked"));
-    }
-
-    #[test]
-    fn the_pinned_bytes_of_a_marker_are_still_not_executed() {
-        let bytes = b"operationId: exportGeneratedOos\n";
-        let pin = hex(&sha256(bytes));
-        let (status, detail) = decision(&pin, bytes, &["operationId: exportGeneratedOos"]);
-        assert_eq!(status, "present_unexecuted");
-        assert_eq!(detail, "marker_without_execution");
-        let (status, _) = decision(&pin, b"operationId: exportGeneratedOos is absent\n", &["operationId: exportGeneratedOos"]);
-        assert_eq!(status, "unpinned");
+        assert!(!assessment.gaps.iter().any(|gap| gap.output.contains("row_count 100000")));
     }
 
     #[test]
     fn caller_success_claims_are_rejected() {
         assert!(claims_success("{\"published\":true}"));
         assert!(claims_success("{\"compiled_pack\":\"published\"}"));
+        assert!(claims_success("{\"chain_proven\":true}"));
         assert!(!claims_success("{}"));
         assert!(!claims_success("{\"published\":false}"));
     }
