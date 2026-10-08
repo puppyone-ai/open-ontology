@@ -8,11 +8,12 @@
 | E56 Self-build API a373 | 56260 | 原42599退出0但无报告；原会话收现有retest并接真实身份 | tools/selfbuild-control-api、自身证据 |
 | E57 curated Git a374 | 36873 | 统一观测live；合同9d33bfc06，未交最终包 | tools/curated-git-apply、自身证据 |
 | E54 OIDC独立复审 a375 | 89681 | 统一观测live，固定35bd6b815/合同089b | 自身证据；产品只读 |
-| 同库迁移复审 a376 | 81711 | 原24509退出0缺包；原会话收现有proof，固定be4b59648 | 自身证据；产品只读 |
+| 同库迁移复审 a376 | terminal 0 | 三报告/146SHA一致；exact search_path契约缺陷交a378，不签修复完成 | 自身证据；产品只读 |
+| 严格search_path修复 a378 | 44280 | 已启动；固定be4b59648，禁止重复启动 | tools/calendar-store、tools/enum-store、自身证据 |
 | E51 全dump切点返工 a377 | 86777 | 统一观测live；旧20f065096被a372 WITHHOLD | tools/pg-backup-restore、自身证据 |
 | 前端G1 a351 | 42805 | 原45339退出0，M5固定1fce257f41；下一真实B01接入 | 总卡G1；JS lock/SDK/shared/router/deploy唯一owner |
-| 前端G2 a353 | 18275 | 原84790退出0；固定M4e090131ed，修自身过期守卫测试 | 总卡19管理features/自身tests；G1只读 |
-| 前端G3 a352 | 18655 | 原15136退出0，M4字体独立包已读；固定M5/G2变化复审 | 总卡review/tests/evidence；产品只读 |
+| 前端G2 a353 | terminal 0 | 固定0c3caa184，三报告/43SHA一致；58/59整体测试，字体失败归G1 | 总卡19管理features/自身tests；G1只读 |
+| 前端G3 a352 | 67076 | 原18655退出1；M5三报告/72SHA一致；修自身archive与network扫描并复审固定G2 | 总卡review/tests/evidence；产品只读 |
 
 主线开发上限20，独立复审不占主线开发槽；前端总共仅上述三个固定会话（含G3），禁止第四会话。Rust全局10/task1含host/helper/hashbuild，6GiB/1CPU；PG task1 1GiB/1CPU；Node全局2/task1 4GiB/1CPU；browser全局2/task1，实际满则排队。
 
@@ -30,4 +31,4 @@
 
 后端局部冻结76/90，历史验收101，首次独立组件91，唯一返工15/91；作者95。全量开发分母未冻结。完整87父项/16阶段仍未全签；M1-D17/24；集成0/4；发行0/6；X01–X05真实owner/客户范围/保护CI/runsc/UAT独立pending。企业源连接其他信息未收到，未经配置不能连接；所有实际产品试验本地PG，不使用企业只读账号做直接E2E。
 
-下一未用UUID a378。任务退出先收已有真实资源/phase exit/完整三报告/source/SHA/cleanup，缺报告不能凭CLI0验收、不重复启动现有builder/PG。所有源码/测试/自动化/审阅由Grok4.7 xhigh执行；Codex写规范/卡片/台账、核验证据、精确Git提交。
+下一未用UUID a379。任务退出先收已有真实资源/phase exit/完整三报告/source/SHA/cleanup，缺报告不能凭CLI0验收、不重复启动现有builder/PG。所有源码/测试/自动化/审阅由Grok4.7 xhigh执行；Codex写规范/卡片/台账、核验证据、精确Git提交。

@@ -5,8 +5,8 @@
 | 固定角色 | 固定 UUID | 实际 handle / 状态 | 已交付 source / review | 唯一所有权 / 前置 |
 |---|---|---|---|---|
 | G1 基础与用户端 | eef831aa-dba4-4af2-a78b-541bc9e0a351 | 42805，新续接；原45339已退出0 | M5 1fce257f41 / 106SHA一致；独立复审待G3 | master G1；当前真实B01绑定，JS lock/SDK/shared/router/deploy唯一owner |
-| G2 管理端 | eef831aa-dba4-4af2-a78b-541bc9e0a353 | 18275，新续接；原84790已退出0 | M4 e090131ed；局部修正自测包24SHA一致 | master G2；当前自身过期空数组守卫测试修正，G1只读 |
-| G3 独立复审与验收 | eef831aa-dba4-4af2-a78b-541bc9e0a352 | 18655，新续接；原15136已退出0 | M4字体独立APPROVE_LIMITED/73SHA一致；当前M5/G2变化复审 | master review/tests/evidence；产品只读，复审占前端3会话上限 |
+| G2 管理端 | eef831aa-dba4-4af2-a78b-541bc9e0a353 | 18275已退出0；当前idle | M5测试0c3caa184；三报告43SHA一致；整体58/59，字体失败 | master G2；当前自身过期空数组守卫测试修正，G1只读 |
+| G3 独立复审与验收 | eef831aa-dba4-4af2-a78b-541bc9e0a352 | 67076续接；原18655已退出1 | M5守卫limited/72SHA一致；自身harness修正与固定G2变化复审 | master review/tests/evidence；产品只读，复审占前端3会话上限 |
 
 前端固定会话上限 3，包含 G3；不会创建第四个前端会话。当前实际一个。非前端 Grok 开发上限 20，审阅按主线规则；全局 Rust 构建 10，每任务最多一个 Rust builder/一个 PG。Node 构建全局 2、浏览器全局 2，任务各最多一个；Node4GiB/1CPU。Node/pnpm/browser/font 精确版本等待 G1 实测锁定，不猜测填写。
 
@@ -48,3 +48,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 2026-10-08 一次18min统一观测：G3a35288200/G1a35116348终止0；a36527577/a37060092/a37165332/a37233067/a37342599仍live，未再次轮询。G3 G2-admin完整三报告已读、83 SHA0坏/0缺，limited仅注册/未挂/抽查未接入组件；必改向导秘密输入、占位详情导航、空候选审核表单交回原G2a3533011；共享disabled理由/故事glob归原G1a35174888，先收集已启动M5真实退出再修。G3原a35252828继续固定M4聚焦复审。前端最多3固定UUID，当前3CLI同时运行，Node2/browser2全球cap仍必须排队，不能第四CLI。A16术语规范行B04→B05修正与真实API规范一致，源hashbaseline需后续规范记录而非假设原hash没变。主线开发/集成/发行计数不因UI未接入或schema合同提交改变。nextUUIDa375未用。
 
 2026-10-08 G1M5三报告已读，但SHA256SUMS空且源码未固定，不能验收；原45339先收证/补固定commit，M5G2旧2emptyregistry测试未通过被作者跳过，须G2自身修订真实guard测试后在组合树验证，不能当整套测试绿。G2M4e090三报告已读24hash0，针对三处具体G3发现已修，原84790下一步等G1固定接口后改自己的旧测试。G3原15136独立复审固定切片，不第四会话。B01 backend35bd实际作者testissuer服务已交付，G1下一阶段可实际登录绑定；仅schema_frozen不是live。
+
+2026-10-08 当前证据：a376三报告146SHA一致，但宽化search_path被错误接受，新增a378 handle44280按原契约修复，不新增计数。G2固定0c3caa184三报告43SHA一致，真实41路由守卫测试通过；整套58/59，G1字体清单多出修/订两字仍失败。G3 M5三报告72SHA一致，ENOENT缺tools archive及Router fetch符号扫描属于自身harness问题；原会话67076纠正并复审固定G2，不屏蔽字体失败。G1仍42805，下一指导已追加原卡，禁止并发启动同UUID。M0–M4及live旅程未签。
