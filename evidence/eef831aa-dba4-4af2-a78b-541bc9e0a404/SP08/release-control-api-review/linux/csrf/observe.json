@@ -1,0 +1,49 @@
+{
+  "candidate_file_count": 81,
+  "candidate_file_policies": 0,
+  "candidate_file_rls": false,
+  "identity_audit": [
+    {
+      "action": "bootstrap_consumed",
+      "code": "ok",
+      "n": 1
+    },
+    {
+      "action": "bootstrap_issued",
+      "code": "ok",
+      "n": 1
+    },
+    {
+      "action": "bootstrap_rejected",
+      "code": "bootstrap.rejected",
+      "n": 16
+    },
+    {
+      "action": "login_completed",
+      "code": "ok",
+      "n": 5
+    },
+    {
+      "action": "login_started",
+      "code": "ok",
+      "n": 5
+    }
+  ],
+  "publication_columns": [
+    "version",
+    "candidate_id",
+    "source_hash",
+    "pack_digest",
+    "manifest_sha256",
+    "production_ready_certificate",
+    "full_sp08_accepted",
+    "public_deployment_claimed",
+    "customer_ownership_claimed",
+    "standby_configured"
+  ],
+  "publication_has_project_id": false,
+  "publication_view": " SELECT version,\n    candidate_id,\n    source_hash,\n    pack_digest,\n    manifest_sha256,\n    false AS production_ready_certificate,\n    false AS full_sp08_accepted,\n    false AS public_deployment_claimed,\n    false AS customer_ownership_claimed,\n    false AS standby_configured\n   FROM oo_release_control.active_pointer\n  WHERE singleton;",
+  "reader_full_sp08_accepted": false,
+  "reader_production_ready_certificate": false,
+  "reader_version": "ver-restart"
+}

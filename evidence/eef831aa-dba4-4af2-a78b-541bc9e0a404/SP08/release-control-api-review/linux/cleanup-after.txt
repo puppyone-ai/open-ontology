@@ -1,0 +1,8 @@
+removed container oo-a404-pg
+removed volumes oo-a404-eef831aa-pg oo-a404-eef831aa-cargo oo-a404-eef831aa-target
+removed network oo-a404-eef831aa-net
+removed tmp /tmp/oo-a404-eef831aa-dba4-4af2-a78b-541bc9e0a404
+builder oo-a404-build already removed by the build script
+name filter oo-a404 empty after cleanup
+images kept
+no prune

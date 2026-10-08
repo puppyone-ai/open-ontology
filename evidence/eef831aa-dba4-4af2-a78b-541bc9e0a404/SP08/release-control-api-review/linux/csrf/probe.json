@@ -1,0 +1,50 @@
+{
+  "audit": [
+    {
+      "action": "bootstrap_consumed",
+      "code": "ok",
+      "n": 1
+    },
+    {
+      "action": "bootstrap_issued",
+      "code": "ok",
+      "n": 1
+    },
+    {
+      "action": "bootstrap_rejected",
+      "code": "bootstrap.rejected",
+      "n": 1
+    },
+    {
+      "action": "login_completed",
+      "code": "ok",
+      "n": 1
+    }
+  ],
+  "bootstrap_states": [
+    "consumed"
+  ],
+  "burned_audit_delta": 0,
+  "burned_code": "csrf.rejected",
+  "burned_status": 403,
+  "consume_audit_delta": 1,
+  "consume_code": "bootstrap.rejected",
+  "consume_status": 403,
+  "current_after_consume_differs": true,
+  "current_rotated": true,
+  "origin_audit_delta": 0,
+  "origin_code": "origin.rejected",
+  "origin_status": 403,
+  "pinned_identity": "a6f92da8a0bf872f8a30efb116c2c7b14463505b",
+  "session_still_current": true,
+  "stale_audit_delta": 0,
+  "stale_code": "csrf.rejected",
+  "stale_status": 403,
+  "stored_hash_is_second_token": true,
+  "stored_hash_matches_presented": true,
+  "stored_hash_matches_rotated": true,
+  "stored_hash_unchanged_on_consume": true,
+  "stored_hash_unchanged_on_origin": true,
+  "stored_hash_unchanged_on_stale": true,
+  "unknown_token": "43-A"
+}
