@@ -1,0 +1,9 @@
+ExitCode=126
+OOMKilled=false
+Privileged=false
+NetworkMode=none
+CapDrop=["ALL"]
+Memory=6442450944
+NanoCpus=1000000000
+ReadonlyRootfs=false
+Id=bf8529330e01ad5b014e6aaf84c19a1bee70078d17678dce75cfe90154688e2a

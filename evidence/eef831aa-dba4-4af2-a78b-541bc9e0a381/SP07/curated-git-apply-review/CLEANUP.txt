@@ -1,0 +1,17 @@
+Owned cleanup for eef831aa-dba4-4af2-a78b-541bc9e0a381. No prune. No foreign containers.
+
+Removed containers, recorded in the proof directories:
+- oo-a381-smoke
+- oo-a381-proof
+- oo-a381-proof2
+
+Removed volumes:
+- oo-a381-eef831aa-cargo
+- oo-a381-eef831aa-target
+
+Removed network:
+- oo-a381-eef831aa-net
+
+Removed container oo-a381-manifest after the noexec failure. Its removal file is linux/manifest/container-removed.txt. No MANIFEST.sha256 was written by that run.
+
+The retry container oo-a381-manifest2 is removed by linux/manifest-2/launch.sh after MANIFEST.sha256 is written. That removal file is created after the hash, so it is not a line inside MANIFEST.sha256.

@@ -1,0 +1,22 @@
+smoke docker-run 0
+smoke rustc 0
+proof1 docker-run 101
+proof1 test 101
+proof1 clippy 101
+proof1 container oo-a381-proof removed
+proof2 fetch-offline 0
+proof2 fetch-online skipped
+proof2 rustc 0
+proof2 clippy-component 0
+proof2 test 101
+proof2 clippy 0
+proof2 docker-run 101
+proof2 container oo-a381-proof2 removed
+proof2 independent a381_review 4 passed
+proof2 library json 1 passed
+proof2 bin unit 0 tests
+proof2 author apply.rs 1 passed 9 failed 1 filtered
+manifest1 docker-run 126
+manifest1 rustc 0
+manifest1 container oo-a381-manifest removed
+manifest1 reason work tmpfs noexec permission denied

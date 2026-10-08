@@ -1,0 +1,11 @@
+   Compiling curated-git-apply v0.1.0 (/src/tools/curated-git-apply)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.67s
+     Running unittests src/lib.rs (/target/debug/deps/curated_git_apply-bdd470490c96e45f)
+     Running unittests src/main.rs (/target/debug/deps/curated_git_apply-1de76dbe02307d06)
+     Running tests/a381_review.rs (/target/debug/deps/a381_review-4e4e398e41d9a902)
+     Running tests/apply.rs (/target/debug/deps/apply-4cccbc71262d752c)
+
+thread 'accepted_review_writes_one_dataset_and_leaves_roles_and_hooks' (913) panicked at tests/apply.rs:388:5:
+source git dir
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test apply`
