@@ -1,0 +1,1 @@
+No container, volume, network, or /tmp secret was created for this closure. Nothing was removed. Foreign containers were left as they were.
