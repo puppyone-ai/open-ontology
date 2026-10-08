@@ -14,7 +14,7 @@
 - WebSocket 升级和 `/ws` 在没有 ws 上游时返回 502，正文是 `ws_unbound`。当前没有可绑定的 ws 服务。
 - 页面深链只在静态上游对 GET 或 HEAD 返回 404、且请求接受 HTML 时，回退一次 `/index.html`。字体、`/assets` 和带文件后缀的资源保持上游状态码，404 不改写成页面。
 - 上述 `api_unbound`、`oidc_unbound`、`ws_unbound` 都是纯文本，不是 `index.html`。
-- 提交的 `b01-adapter.example.json` 把上游留成 null。null 不是正在运行的边缘，也不是部署完成。已销毁的证明主机不能作为默认值。路由策略是固定的，不能把 API、OIDC 或 WebSocket 改到静态页。
+- 提交的 `b01-adapter.example.json` 把监听地址、端口、TLS 和全部上游留成 null。进程不会补 `127.0.0.1`，也不会补证明主机。null 不是正在运行的边缘，也不是部署完成。部署者用 `OO_B01_ADAPTER_CONFIG` 填入实际值。已销毁的证明主机不能作为默认值。路由策略是固定的，不能把 API、OIDC 或 WebSocket 改到静态页。
 - 适配器拒绝 `rejectUnauthorized: false`，拒绝明文身份上游，并要求 `servername` 与上游主机一致。
 - `runtimeConfig.selfbuild.origin` 是 null。B04 仍是提交 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9` 的 `schema_frozen`。
 - 性能预算、边缘节点和 FE-28 验收都不在这里声称完成。

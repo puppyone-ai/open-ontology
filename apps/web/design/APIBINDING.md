@@ -107,3 +107,7 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 | evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M9-b01-roles/raw/browser-receipt.json |
 
 账户页显示签名会话里的主体、角色和能力。只有 `project.admin` 出现管理入口。reviewer、steward、auditor、business_owner 看到「没有管理能力。」，`/admin` 显示「没有权限」。这是测试发行方，不是客户 IdP。`invokeOperation` 仍不发送请求。B04 仍是 `schema_frozen`，合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。a373 交接写明实现二进制未交付、E56 未验收，所以 B04 没有进入 `fixture_verified`。占位 `B01.*` 与 `B04.*` 仍是 unbound。
+
+## M10 显式部署配置
+
+提交的 `b01-adapter.example.json` 不带监听地址、端口、TLS 或上游。这些字段都是 null。读取配置时，缺少 `listen.host` 会拒绝，进程不补 `127.0.0.1`，也不补已销毁的证明主机。能跑起来的配置只来自部署者填写的 `OO_B01_ADAPTER_CONFIG`。身份状态、B04 合同和运行时 origin 与 M9 相同。a373 的交接没有变成可绑定交付，所以这一轮没有接 B04 的 HTTP。

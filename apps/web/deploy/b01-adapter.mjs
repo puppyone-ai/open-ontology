@@ -57,8 +57,12 @@ export function readAdapterConfig(value) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("listen.port is required");
   }
+  const host = value.listen?.host;
+  if (typeof host !== "string" || host.length === 0) {
+    throw new Error("listen.host is required");
+  }
   return {
-    listenHost: value.listen?.host ?? "127.0.0.1",
+    listenHost: host,
     listenPort: port,
     certFile: value.tls?.certFile,
     keyFile: value.tls?.keyFile,

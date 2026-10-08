@@ -1,6 +1,6 @@
 {
   "pageOrigin": null,
-  "listen": { "host": "127.0.0.1", "port": 8443 },
+  "listen": { "host": null, "port": null },
   "tls": { "certFile": null, "keyFile": null },
   "identity": { "upstream": null, "caFile": null, "servername": null },
   "static": { "upstream": null },
@@ -14,5 +14,5 @@
     "assets": ["/fonts/", "/assets/"],
     "spaFallback": "page-deep-link-only"
   },
-  "note": "Null upstreams are not a running edge. Deploy fills tls, the https identity upstream, and the static upstream. API, OIDC, and WebSocket stay off index.html. Destroyed proof hosts are not defaults."
+  "note": "Nothing here is a default deployment. listen host, listen port, tls, and every upstream stay null until the deployer fills them. The process does not substitute 127.0.0.1 or a proof host. API, OIDC, and WebSocket stay off index.html."
 }

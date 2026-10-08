@@ -21,6 +21,9 @@ export default tseslint.config(
       globals: {
         console: "readonly",
         process: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        structuredClone: "readonly",
       },
     },
   },

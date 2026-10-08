@@ -32,8 +32,12 @@ test("splits identity, api, oidc, ws, assets, and pages", () => {
 
 test("the committed example has no origin and no destroyed proof host", () => {
   assert.equal(example.pageOrigin, null);
+  assert.equal(example.listen.host, null);
+  assert.equal(example.listen.port, null);
   assert.equal(example.identity.upstream, null);
   assert.equal(example.static.upstream, null);
+  assert.equal(example.gateway.upstream, null);
+  assert.equal(example.ws.upstream, null);
   for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg"]) {
     assert.equal(exampleText.includes(host), false);
   }
@@ -48,6 +52,8 @@ test("refuses plaintext identity, certificate bypass, and destroyed hosts", () =
     static: { upstream: "http://127.0.0.1:4173" },
   };
   assert.equal(readAdapterConfig(base).pageOrigin, null);
+  assert.equal(readAdapterConfig(base).listenHost, "127.0.0.1");
+  assert.throws(() => readAdapterConfig({ ...base, listen: { port: 0 } }), /listen\.host is required/);
   assert.throws(() => readAdapterConfig({ ...base, identity: { ...base.identity, upstream: "http://identity.internal:7443" } }), /https/);
   assert.throws(() => readAdapterConfig({ ...base, rejectUnauthorized: false }), /bypass/);
   assert.throws(() => readAdapterConfig({ ...base, pageOrigin: "https://oo-fe01-edge:8443" }), /pageOrigin/);

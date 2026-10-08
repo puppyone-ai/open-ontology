@@ -144,3 +144,11 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 证明用的主机 `oo-fe01-m9-edge`、`oo-fe01-m9-proof`、`oo-fe01-m9-idp`、`oo-fe01-m9-pg` 已随容器销毁，并写进适配器的拒绝名单。示例上游仍是 null。
 - 容器里的 Vite 日志写着 `dist/assets/index-UTjtgt1_.js` 342.22 kB、gzip 106.87 kB，`dist/assets/index-B4C0dAhr.css` 25.94 kB、gzip 6.04 kB。归档基线是 `3be6264f18811b2ad88eedf986c342b15bdd0a16`。构建产物不进入 Git。
 
+## M10 适配器 lint 与显式部署配置（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑字体，没有重跑浏览器。
+- `apps/web/config/eslint.config.mjs` 给 `.mjs` 补上 Node 里真实存在的 `Buffer`、`URL` 和 `structuredClone`。G2 在 `9c75d686b` 上看到的 4 个 `no-undef` 因此消失。没有改 G3 的 oracle 源文件。
+- 示例配置的监听地址、端口、TLS 和全部上游都是 null。`readAdapterConfig` 在缺少 `listen.host` 时拒绝，不再补 `127.0.0.1`。部署者必须用 `OO_B01_ADAPTER_CONFIG` 填入实际值。
+- Linux Node v24.21.0 上，三份 `tsc`、eslint、5 个适配器测试和 Vitest 都是 0。Vitest 是 31 个文件、67 个测试，包含 `production-route.test.tsx` 和 `modules.test.tsx`。没有跳过。
+- B04 仍是 `schema_frozen`。a373 交接仍写明二进制未交付、E56 未验收。五个身份 operation 仍是 `fixture_verified`，服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。`live`、`journey`、`release` 仍是 false。运行时 origin 仍是 null。
+
