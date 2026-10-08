@@ -1,0 +1,185 @@
+{
+  "protocol": "oo.product-benchmark.freeze/v1",
+  "session": "eef831aa-dba4-4af2-a78b-541bc9e0a389",
+  "frozen_before_implementation": true,
+  "parent_acceptance": false,
+  "integration_claim_allowed": false,
+  "producers": {
+    "fixture_commit": "f4381843c7f376f196bc30c78c18d9701dc29a6d",
+    "fixture_tree": "79e2ddc120b2117f90d3e79ff61571490243f23b",
+    "fixture_contract": "testing/real-db/pg-e2e/CONTRACT.md",
+    "product_archive": "6f87942f1c66ba1a9787b7d7194e58a507af63ef",
+    "pg_builder_commit": "be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba",
+    "pg_builder_tree": "10b5375dc0356116322ce98b363118924e03c591",
+    "ontology_dialogue_commit": "e31635b213911c725159a23dbccc8463cc45cdd7",
+    "query_pg_archive": "6f87942f1c66ba1a9787b7d7194e58a507af63ef",
+    "model_id": "grok-4.7",
+    "loopback_origin": "http://127.0.0.1:8317",
+    "loopback_path": "/v1/chat/completions",
+    "bearer_file": "/tmp/oo-customer-demo-20261007/llm-token"
+  },
+  "rows": {
+    "party": 2000,
+    "account": 8000,
+    "entry": 90000,
+    "total": 100000
+  },
+  "metrics": {
+    "http_200_alone_is_e2e_pass": false,
+    "wrong_model_is_failure": true,
+    "query_rejection_is_failure": true,
+    "citation_false_is_failure": true,
+    "authenticated_audit_false_is_not_citation_failure": true,
+    "entailment_not_judged_is_not_citation_failure": true,
+    "missing_whole_product_api": "notrun",
+    "integration_passed_if_any_notrun": false,
+    "declared_cost_unknown_is_not_an_invoice": true,
+    "cache_hit_requires_socket_not_opened": true,
+    "parent_sp12_not_accepted": true
+  },
+  "citation_false_means": [
+    "citation_status_is_not_ok",
+    "missing_citation_is_true",
+    "a_boolean_field_named_ok_is_false"
+  ],
+  "citation_false_does_not_mean": [
+    "authenticated_audit_false",
+    "auto_execute_false",
+    "parent_acceptance_false"
+  ],
+  "questions": [
+    {
+      "id": "q-entry-count",
+      "class": "positive_e2e",
+      "role": "oo_r_wide",
+      "text": "Count the rows in shop.entry. The only statement that matches this question is SELECT count(*) FROM shop.entry.",
+      "expected_sql": "SELECT count(*) FROM shop.entry",
+      "gold_rows": [[{"kind": "int", "value": "90000"}]],
+      "cells_exact": true
+    },
+    {
+      "id": "q-party-null",
+      "class": "fixture_query",
+      "role": "oo_r_wide",
+      "sql": "SELECT party_key, display_name, active FROM shop.party WHERE party_key = 'p00000'",
+      "gold_rows": [[{"kind": "text", "value": "p00000"}, {"kind": "null"}, {"kind": "bool", "value": true}]]
+    },
+    {
+      "id": "q-qty",
+      "class": "fixture_query",
+      "role": "oo_r_wide",
+      "sql": "SELECT entry_id, qty FROM shop.entry WHERE entry_id IN (0, 1, 2) ORDER BY entry_id",
+      "gold_rows": [
+        [{"kind": "int", "value": "0"}, {"kind": "int", "value": "-9223372036854775808"}],
+        [{"kind": "int", "value": "1"}, {"kind": "int", "value": "9223372036854775807"}],
+        [{"kind": "int", "value": "2"}, {"kind": "int", "value": "0"}]
+      ]
+    },
+    {
+      "id": "q-fk",
+      "class": "fixture_query",
+      "role": "oo_r_wide",
+      "sql": "SELECT account_id, party_key FROM shop.account WHERE account_id = 0",
+      "gold_rows": [[{"kind": "int", "value": "0"}, {"kind": "text", "value": "p00000"}]]
+    },
+    {
+      "id": "q-phone",
+      "class": "fixture_query",
+      "role": "oo_r_wide",
+      "sql": "SELECT phone FROM shop.party WHERE party_key = 'p00001'",
+      "gold_rows": [[{"kind": "text", "value": "tel-00001"}]]
+    },
+    {
+      "id": "q-narrow-party",
+      "class": "fixture_query",
+      "role": "oo_r_narrow",
+      "sql": "SELECT party_key, display_name FROM shop.party WHERE party_key = 'p00001'",
+      "gold_rows": [[{"kind": "text", "value": "p00001"}, {"kind": "text", "value": "n00001"}]]
+    },
+    {
+      "id": "q-party-count",
+      "class": "fixture_query",
+      "role": "oo_r_wide",
+      "sql": "SELECT count(*) FROM shop.party",
+      "gold_rows": [[{"kind": "int", "value": "2000"}]]
+    },
+    {
+      "id": "q-wrong-model",
+      "class": "must_fail",
+      "model_id": "grok-4.3",
+      "reason": "wrong_model"
+    },
+    {
+      "id": "q-hidden",
+      "class": "must_fail",
+      "role": "oo_r_wide",
+      "sql": "SELECT national_id FROM shop.party",
+      "expected_exit": 6,
+      "reason": "query_rejection"
+    },
+    {
+      "id": "q-citation-false",
+      "class": "must_fail",
+      "reason": "citation_false"
+    }
+  ],
+  "model_fields_required": [
+    "model_id",
+    "http_status",
+    "request_input_sha256",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens",
+    "declared_cost.status",
+    "declared_cost.amount",
+    "cache",
+    "socket"
+  ],
+  "whole_product_notrun": [
+    "public_auth",
+    "session_close_api",
+    "natural_language_harness",
+    "runsc",
+    "wal",
+    "semantic_publication",
+    "customer_uat"
+  ],
+  "review_role_close": {
+    "review_authenticated_must_be_false": true,
+    "hidden_column": "shop.party.national_id",
+    "query_close_field": "end_audit_ok",
+    "product_session_close": "notrun"
+  },
+  "score_inputs": [
+    "import-result.json",
+    "query-wide-count.stdout",
+    "query-wide-count.exit",
+    "query-wide-null.stdout",
+    "query-wide-null.exit",
+    "query-wide-qty.stdout",
+    "query-wide-qty.exit",
+    "query-wide-fk.stdout",
+    "query-wide-fk.exit",
+    "query-wide-phone.stdout",
+    "query-wide-phone.exit",
+    "query-narrow-party.stdout",
+    "query-narrow-party.exit",
+    "query-party-count.stdout",
+    "query-party-count.exit",
+    "query-wide-hidden.stdout",
+    "query-wide-hidden.exit",
+    "builder-first.json",
+    "builder-hit.json",
+    "dialogue-config.json",
+    "dialogue-proposal.json",
+    "dialogue-proposal.exit",
+    "dialogue-execution.json",
+    "dialogue-execution.exit",
+    "wrong-model-config.json",
+    "wrong-model.exit",
+    "citation-invalid.json",
+    "citation-invalid.exit",
+    "apply-outcome.json",
+    "whole-product.json"
+  ]
+}

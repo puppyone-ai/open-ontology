@@ -1,0 +1,39 @@
+oo_task=sp12-product-benchmark-bench
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a389
+phase=bench
+phase_exit=0 phase=copy-chain
+phase_exit=0 phase=prep-build
+phase_exit=0 phase=forward-build
+phase_exit=0 phase=forward-start
+phase_exit=0 phase=fetch-pg-builder
+phase_exit=0 phase=build-pg-builder
+phase_exit=0 phase=fetch-dialogue
+phase_exit=0 phase=build-dialogue
+phase_exit=0 phase=fetch-citations
+phase_exit=0 phase=build-citations
+phase_exit=0 phase=fetch-relay
+phase_exit=0 phase=build-relay
+phase_exit=0 phase=build-score
+phase_exit=0 phase=relay-start
+phase_exit=0 phase=catalog
+phase_exit=0 phase=profile
+phase_exit=0 phase=comments
+phase_exit=0 phase=seal
+phase_exit=0 phase=cards
+phase_exit=0 phase=curated
+phase_exit=0 phase=approve
+phase_exit=0 phase=generate-first
+phase_exit=0 phase=generate-hit
+phase_exit=1 phase=wrong-model
+phase_exit=0 phase=bearer-scan
+phase_exit=0 phase=party-request
+phase_exit=0 phase=party-count
+phase_exit=0 phase=pack
+phase_exit=0 phase=propose-config
+phase_exit=3 phase=propose
+phase_exit=1 phase=execute
+phase_exit=0 phase=cite-input
+phase_exit=1 phase=citation
+phase_exit=0 phase=whole
+phase_exit=1 phase=score
+bench_exit=1

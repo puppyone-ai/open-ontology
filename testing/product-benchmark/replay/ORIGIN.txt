@@ -1,0 +1,13 @@
+# Recipe origins for a389. Byte copies keep the source digest. Adapted scripts change owner, UUID, and evidence path only.
+
+byte chain/extract-libclang.sh from evidence a349 linux/chain/extract-libclang.sh sha256 982f18e430e6b8136a4cb30cb7e0711015318d0b40c0939475bfae8142e55ed4
+byte pg/pg-wrap.sh from evidence a349 pg/pg-wrap.sh sha256 d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb
+byte tools/sha256.rs from evidence a349 tools/sha256.rs sha256 55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e
+byte tools/sha256_manifest.rs from evidence a349 tools/sha256_manifest.rs sha256 d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
+byte tools/select-debs.rs from evidence a349 tools/select-debs.rs sha256 54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644
+byte oracle/oracle.rs from evidence a349 oracle/oracle.rs sha256 1d42bc5f1f56f0def72ce78672ef698a710eba06fd95c521c855852342f045f8
+adapted chain/inside.sh from evidence a349 linux/chain/inside.sh origin sha256 d2be3c8c586145339c79a419982b8f618265e525d3e6b556150fd2102695b2a5
+adapted chain/watch.sh from evidence a349 linux/chain/watch.sh origin sha256 e4d3a2027ff13f5223449c365dc270d7d7176036c5ea3438c366a00e597ad39d
+adapted chain/load.sh from evidence a349 linux/chain/load.sh origin sha256 ba0048bdc574810b1712cb196803e73d65de3f9ab98305d6ccfde0934ac24704
+adapted chain/membership-watch.sh from evidence a349 linux/chain/membership-watch.sh origin sha256 ade7cc3c6ec0f7214dc3ca7668c0d0005d6eff13eb866f99133c24e899981f2a
+adapted pg/up.sh from evidence a349 pg/up.sh origin sha256 9645b7b3123657ea68091248495d469f11f04cc7b872eaefbc18dd49c974fa9c

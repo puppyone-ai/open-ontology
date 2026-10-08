@@ -1,0 +1,61 @@
+# SP12 product benchmark
+
+Session `eef831aa-dba4-4af2-a78b-541bc9e0a389`. `benchmark_loop_pass` is false. `integration_passed` is false. `parent_acceptance` is false.
+
+The 100000-row chain, the grok-4.7 meter, the cache hit, and the three failure controls were measured. The loop stays false because `ontology-dialogue propose` exited 3 with stderr `ontology-dialogue: config` before any dialogue model call and before `execute`. This card does not accept SP12, a parent unit, public authentication, the harness, WAL, runsc, semantic publication, or customer UAT.
+
+## Frozen inputs
+
+Freeze SHA-256 `f500dda158ea5220c190c92adfbbfa4687ccfb644b0a86961e3858c6f14fa268`. `freeze_unchanged` is true.
+
+Product archive `6f87942f1c66ba1a9787b7d7194e58a507af63ef`. pg-builder `be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba`. ontology-dialogue `e31635b213911c725159a23dbccc8463cc45cdd7`. local-llm relay `bde5e4772bb83407de5e9a50f12c120ce5eca30e`. Fixture commit `f4381843c7f376f196bc30c78c18d9701dc29a6d`.
+
+Import result rows: `shop.party` 2000, `shop.account` 8000, `shop.entry` 90000, total 100000. `rows.match` is true.
+
+## Scorer proof
+
+`linux/focused-4/focused.exit` is 0. `linux/focused-4/test-count.txt` is `passed=7 failed=0 ignored=0`. `linux/focused-4/phases/clippy.exit` is 0. Toolchain `rustc 1.94.0 (4a4ef493e 2026-03-02)`. Clippy `0.1.94`.
+
+Preserved failures: `linux/focused/focused.exit` 101 (score compare), `linux/focused-2/focused.exit` 101 (`needless_range_loop`), `linux/focused-3/focused.exit` 101 (`bool_comparison`).
+
+## Chain
+
+`linux/chain/chain.exit` is 0. `linux/chain/phases/oracle.exit` is 0. `pg/up.exit` is 0. The chain container `oo-a389-chain` (`4a1c0e1adb3e`) later exited 143, OOMKilled false, after `chain=ok` and during the first bench. That log is `failed-attempts/bench-sigterm-143/`. The database stayed up. The chain was not loaded again.
+
+PostgreSQL container `oo-a389-pg` (`324a35c8a12c`), alias `oo-a317-pg`, image `docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb`. Rust image `docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5`.
+
+## Model meter
+
+pg-builder generate used `grok-4.7` at `http://127.0.0.1:8317/v1/chat/completions`. Declared price status `unknown`, amount null, invoice false.
+
+First document `score-input/builder-first.json`: top cache `miss`, three opened calls, HTTP 200.
+
+| call | request SHA-256 | prompt | completion | total | outcome |
+| --- | --- | --- | --- | --- | --- |
+| 0 | `8b4c803d7f0676057150097f68271205aea1777970682f9ee846efa9e089ed2b` | 2438 | 2621 | 5059 | validated, stored |
+| 1 | `75064fbfe230b57d038862a904e050113cb3d4974942c643f5d8b69dd3a41353` | 2483 | 3518 | 6001 | structural_draft, not stored |
+| 2 | `d3cda9a2b656aa7d8170dc244ab3ab6ef4e7da43427f454e1e37e49783a72bac` | 2497 | 4447 | 6944 | validated, stored |
+
+Second document `live/builder/second-partial.json`: calls 0 and 2 were cache hits with socket `not_opened`. Call 1 opened a socket, HTTP 200, completion 3413, total 5896, outcome validated, and was stored. Top cache `partial`.
+
+Third document `score-input/builder-hit.json`: `generate-third.exit` is 0. Top cache `hit`, cache store `stored`, socket `not_opened`. All three calls are `hit` / `not_opened` / HTTP 200 / `grok-4.7` / cost `unknown`. The scorer records `cache_first=miss`, `cache_hit=hit`, `cache_socket=not_opened`. `http_200_alone_is_e2e_pass` is false.
+
+## Failure controls
+
+`q-wrong-model` verdict `fail`. `wrong-model.exit` is 1. Stderr: `oo.pg-builder/v1/config.endpoint the endpoint path or model is not the builder endpoint`.
+
+`q-hidden` verdict `fail`. The chain `query-wide-hidden` exit is 6 and stdout is empty.
+
+`q-citation-false` verdict `fail`. `citation-invalid.exit` is 1. `citation_status` is `invalid`, `missing_citation` is true. `authenticated_audit` false remains on that report and is the producer's standing field.
+
+Fixture cells for null, qty, fk, phone, narrow party, and party count match the freeze. Wide count summary `end_audit_ok` is true. Review is unauthenticated. Hidden column `shop.party.national_id` reason `classification.absent`. Wide installed and narrow replay are present.
+
+## Dialogue
+
+`propose` exit 3, stderr `ontology-dialogue: config`. The live wide pack role is `oo_r_wide`, project `pubfix`, policy id `pol-a317` (8 characters), knowledge id `know-a317`. The producer requires a 64-character lowercase hex policy id and a slug knowledge id before it reads the bearer or opens a socket. No `dialogue-execution.json` was written. `q-entry-count` verdict is `fail`.
+
+## Whole product
+
+`public_auth`, `session_close_api`, `natural_language_harness`, `runsc`, `wal`, `semantic_publication`, and `customer_uat` are `notrun`.
+
+Machine report: `report/report.json`. Readable copy: `report/report.md`. Score exit after the cache hit: `bench/phases/score-third.exit` is 1, which is the loop failure.

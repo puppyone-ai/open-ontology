@@ -1,0 +1,479 @@
+[
+    {
+        "Id": "4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b",
+        "Created": "2026-10-08T04:18:50.337203417Z",
+        "Path": "bash",
+        "Args": [
+            "/entry.sh"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 143,
+            "Error": "",
+            "StartedAt": "2026-10-08T04:18:50.469084376Z",
+            "FinishedAt": "2026-10-08T04:29:14.896746471Z"
+        },
+        "Image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+        "ResolvConfPath": "/var/lib/docker/containers/4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b/hostname",
+        "HostsPath": "/var/lib/docker/containers/4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b/hosts",
+        "LogPath": "/var/lib/docker/containers/4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b/4a1c0e1adb3edd949cd851fb0342550a34fd048dd4b185bbce3db0b0a970321b-json.log",
+        "Name": "/oo-a389-chain",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "oo-a389-eef831aa-net",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [
+                "host.docker.internal:host-gateway"
+            ],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "no-new-privileges"
+            ],
+            "Tmpfs": {
+                "/tmp": "rw,nosuid,nodev,noexec,size=1g"
+            },
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 6442450944,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 6442450944,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 4096,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/archive",
+                    "Target": "/src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/real-db/pg-e2e",
+                    "Target": "/fixture",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/tools",
+                    "Target": "/tools",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a389/SP12/product-benchmark",
+                    "Target": "/evidence"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/secrets",
+                    "Target": "/secrets",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/ready",
+                    "Target": "/ready"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/chain/inside.sh",
+                    "Target": "/inside.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/chain/extract-libclang.sh",
+                    "Target": "/extract-libclang.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/linux/bench/entry.sh",
+                    "Target": "/entry.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/linux/bench/inside.sh",
+                    "Target": "/bench-inside.sh",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark",
+                    "Target": "/crate",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/pg-builder",
+                    "Target": "/pg-builder-src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/dialogue",
+                    "Target": "/dialogue-src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/llm",
+                    "Target": "/llm-src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/relay",
+                    "Target": "/relay",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/oo-customer-demo-20261007/llm-token",
+                    "Target": "/run/llm-token",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a389-eef831aa-cargo",
+                    "Target": "/cargo-home"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-a389-eef831aa-target",
+                    "Target": "/target"
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/real-db/pg-e2e",
+                "Destination": "/fixture",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a389/SP12/product-benchmark",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/secrets",
+                "Destination": "/secrets",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/chain/extract-libclang.sh",
+                "Destination": "/extract-libclang.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/dialogue",
+                "Destination": "/dialogue-src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/archive",
+                "Destination": "/src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/ready",
+                "Destination": "/ready",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/chain/inside.sh",
+                "Destination": "/inside.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark",
+                "Destination": "/crate",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/relay",
+                "Destination": "/relay",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/pg-builder",
+                "Destination": "/pg-builder-src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-a389-eef831aa-dba4-4af2-a78b-541bc9e0a389/llm",
+                "Destination": "/llm-src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-customer-demo-20261007/llm-token",
+                "Destination": "/run/llm-token",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a389-eef831aa-cargo",
+                "Source": "/var/lib/docker/volumes/oo-a389-eef831aa-cargo/_data",
+                "Destination": "/cargo-home",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/replay/tools",
+                "Destination": "/tools",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/linux/bench/entry.sh",
+                "Destination": "/entry.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/product-benchmark/linux/bench/inside.sh",
+                "Destination": "/bench-inside.sh",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-a389-eef831aa-target",
+                "Source": "/var/lib/docker/volumes/oo-a389-eef831aa-target/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "4a1c0e1adb3e",
+            "Domainname": "",
+            "User": "0:0",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "RUSTUP_TOOLCHAIN=1.94.0",
+                "CARGO_TERM_COLOR=never",
+                "HOME=/tmp",
+                "CARGO_HOME=/cargo-home",
+                "CARGO_BUILD_JOBS=1",
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "RUST_VERSION=1.94.0"
+            ],
+            "Cmd": [
+                "bash",
+                "/entry.sh"
+            ],
+            "Image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "Labels": {
+                "oo.kind": "rust-builder",
+                "oo.owner": "a389",
+                "oo.platform": "linux/arm64",
+                "oo.project": "open-ontology",
+                "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a389",
+                "oo.task": "product-benchmark-chain",
+                "oo.toolchain": "1.94.0",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "oo-a389-eef831aa-net": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "8640786102dff25018adf43fbdc02b276229f17d4b927f1eb50d8ffd9e1eb7d8",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "oo-a389-chain",
+                        "4a1c0e1adb3e"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "size": 1936,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            }
+        }
+    }
+]

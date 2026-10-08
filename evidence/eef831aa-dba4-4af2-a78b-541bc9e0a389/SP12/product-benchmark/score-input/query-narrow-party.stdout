@@ -1,0 +1,2 @@
+{"record":"row","turn":0,"cells":[{"kind":"text","value":"p00001"},{"kind":"text","value":"n00001"}]}
+{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":12,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"e0cbe6608293932e58bb08ad57ddfc9ce1a934811703bead969162c81e3f40b9","executed_sha256":"70b0ad3ac65bfb5f68cb3f4b9a5eec6fa4aca4815d07d5b68621a272ac1a1024","stop":null,"sqlstate":null}

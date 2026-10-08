@@ -1,0 +1,12 @@
+    Checking product-benchmark v0.1.0 (/crate)
+error: equality checks against false can be replaced by a negation
+   --> tests/score.rs:120:13
+    |
+120 |     assert!(report.http_200_alone_is_e2e_pass == false);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `!report.http_200_alone_is_e2e_pass`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#bool_comparison
+    = note: `-D clippy::bool-comparison` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::bool_comparison)]`
+
+error: could not compile `product-benchmark` (test "score") due to 1 previous error
