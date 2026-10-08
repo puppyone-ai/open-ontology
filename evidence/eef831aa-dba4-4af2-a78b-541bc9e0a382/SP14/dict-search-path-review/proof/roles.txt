@@ -1,0 +1,6 @@
+oo_calendar_admin|t|f|f|f|f
+oo_calendar_view|f|f|f|f|f
+oo_enum_admin|t|f|f|f|f
+oo_enum_view|f|f|f|f|f
+oo_r_calendar|t|f|f|f|f
+oo_r_enum|t|f|f|f|f

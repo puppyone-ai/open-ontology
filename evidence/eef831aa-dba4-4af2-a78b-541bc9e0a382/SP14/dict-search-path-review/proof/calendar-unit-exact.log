@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (/target/debug/deps/calendar_store-ee2a825807eb562f)
+
+running 1 test
+test adopt::tests::pinned_search_path_is_exact_pg_catalog_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+

@@ -1,0 +1,17 @@
+03:35:18 started
+03:35:18 fetch
+03:35:36 source-sha
+03:35:36 calendar-unit
+03:37:23 enum-unit
+03:37:28 calendar-store-baseline
+03:37:33 calendar-store-reject_widened
+03:37:33 enum-store-adopt_collision
+03:37:38 calendar-store-restore_replay
+03:37:38 enum-store-shared_baseline
+03:37:39 enum-store-reject_widened
+03:37:40 calendar-store-sibling_drift
+03:37:40 enum-store-restore_replay
+03:37:40 calendar-store-sibling_replay
+03:37:40 calendar-clippy
+03:38:46 enum-clippy
+03:38:48 proof_ok

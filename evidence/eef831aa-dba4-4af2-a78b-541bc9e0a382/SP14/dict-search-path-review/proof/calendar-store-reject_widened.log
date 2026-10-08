@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/search_path.rs (/target/debug/deps/search_path-782f269319197dc8)
+
+running 1 test
+test phase ... RESULT widened dict_create_open() proconfig=Some(["search_path=pg_catalog, public"])
+RESULT install_drift adopt_function mutated=false
+RESULT replay
+RESULT widened dict_create_close() proconfig=Some(["search_path=pg_catalog_extra"])
+RESULT install_drift adopt_function mutated=false
+RESULT replay
+RESULT widened dict_grant_runtime(text) proconfig=Some(["search_path=pg_catalog, pg_temp"])
+RESULT install_drift adopt_function mutated=false
+RESULT replay
+RESULT unexpected proconfig=["search_path=pg_catalog", "work_mem=4MB"]
+RESULT install_drift adopt_function mutated=false
+RESULT replay
+RESULT leave_widened calendar
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+

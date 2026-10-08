@@ -1,0 +1,1 @@
+docker run --name oo-a382-smoke --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 pinned-rust-1.94 bash /smoke-inside.sh

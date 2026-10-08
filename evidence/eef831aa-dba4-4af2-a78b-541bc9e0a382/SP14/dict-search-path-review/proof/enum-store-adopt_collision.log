@@ -1,0 +1,13 @@
+   Compiling enum-store v0.1.0 (/src/tools/enum-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.49s
+     Running tests/search_path.rs (/target/debug/deps/search_path-6ab4c9ad3b3def55)
+
+running 1 test
+test phase ... RESULT calendar_open=Some(["search_path=pg_catalog, public"])
+RESULT calendar_close=Some(["search_path=pg_temp, pg_catalog"])
+RESULT calendar_grant=Some(["search_path=pg_catalog, pg_temp"])
+RESULT collision oo_dict mutated=false enum_schema=absent
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
