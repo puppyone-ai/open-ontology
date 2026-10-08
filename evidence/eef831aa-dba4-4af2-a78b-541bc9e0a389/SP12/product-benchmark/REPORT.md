@@ -63,3 +63,11 @@ Dialogue `parse_config` requires `binding.policy_id` to be 64 lowercase hex and 
 `public_auth`, `session_close_api`, `natural_language_harness`, `runsc`, `wal`, `semantic_publication`, and `customer_uat` are `notrun`.
 
 Machine report: `report/report.json`. Readable copy: `report/report.md`. The report from commit `6cec19fa15932fd5e2ee94070857ead464887f97` is `report/report.before-approved-binding.json`. `bench/phases/score-third.exit` is 1. `bench/phases/score-approved.exit` is 1. `bench.exit` is 1. Seven whole-product keys remain `notrun`, so integration is not accepted and the product loop is not closed.
+
+## Quota-restored recheck
+
+At 2026-10-08T07:46:38Z this session collected its own leftovers and read the producer sources. No container, volume, or network with label `oo.owner=a389` was present. `chain.exit` is still 0. `bench.exit` is still 1. `propose-approved.exit` is still 3. `score-approved.exit` is still 1. `linux/propose/focused.exit` is still 0. Question verdicts are unchanged, including `q-entry-count` fail and the three frozen `must_fail` passes.
+
+`reviewed_effective.rs` blob `7345b036685401d543e174a45a414e0e0db19613` and `role_pack.rs` blob `1327bad464fe8f510cc7baf8566ad71e3d00df2f` still use `check_slug` with a 63-byte cap. Dialogue `grammar.rs` blob `d753913cf81afe2c97f02c555a26c1a7eb65ba92` and `propose.rs` blob `7d614158e0ecf8ea40d81198e2a0ae2baefb4fbf` match pin `e31635b213911c725159a23dbccc8463cc45cdd7`. The approved query digest is 64 hex characters. `know-a317` contains a hyphen. The bearer rule is still 16 to 256 bytes, and this propose never reached it. The wide manifest was left as `pol-a317` / `know-a317`.
+
+The 100k chain, the stored grok-4.7 documents, and the cache hit were not run again. No builder was started. `benchmark_loop_pass` stays false.

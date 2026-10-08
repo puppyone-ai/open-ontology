@@ -116,3 +116,23 @@ focused=101
 focused-2=101
 focused-3=101
 focused-4=0
+
+## quota-restored recheck 2026-10-08T07:46:38Z
+a389_containers=0
+a389_volumes=0
+a389_networks=0
+launch=not_started
+chain.exit=0
+pg/up.exit=0
+bench.exit=1
+propose-approved.exit=3
+score-approved.exit=1
+linux/propose/focused.exit=0
+benchmark_loop_pass=false
+integration_passed=false
+parent_acceptance=false
+producer_reviewed_effective=7345b036685401d543e174a45a414e0e0db19613
+producer_role_pack=1327bad464fe8f510cc7baf8566ad71e3d00df2f
+dialogue_grammar=d753913cf81afe2c97f02c555a26c1a7eb65ba92
+dialogue_propose=7d614158e0ecf8ea40d81198e2a0ae2baefb4fbf
+dialogue_pin_match=true
