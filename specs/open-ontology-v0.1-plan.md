@@ -1529,3 +1529,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 2026-10-08额度中断后的只读证据推进：a381完整三报告读取，独立MANIFEST205SHA0坏0缺，原E57 fixed576e4764independent+9authorcases/Clippy0；作者a374仍缺必需SHA256SUMS，完整证据条件缺失保持E57未验收，不把reviewlimited绕过交付规则。a389实际报告loopfalse：q-entry-count config校验前失败，knowledge slug/64policy digest/shortlocalbearer契约不一致；真实model fresh sockets opened与缓存hitnot_opened有区分，costunknown不能发明金额；七wholeproductnotrun不签集成。已将具体恢复任务写原卡，禁止手写Pack/改gold/关生产bearer要求。Grok13个402终止为首次连续外阻后第二turn，本turn有证据/卡片/台账进展，goal不标blocked，无码执行授权替代。当前CLI0，额度恢复需从原会话收已有后台phase资源；不反复试402，不假15live。
 
 - [ ] 实际Pack→对话→批准Gatewaypolicy一致修复：a399唯一两个builder模块及ontology-dialogue；真实compiler emit，不修改sealedfixture/gold，productionauth要求不变，显式localdev短key；原389positive需90000/citationok才过，400独立验真实Secret原卡。
+
+用户要求Self-build全阶段尽快收敛：新增specs/selfbuild-convergence-exit-plan.md明确SB01–11完整成功/失败/审核compiler真实应用/终态一致/部署与证据作者退出条件。唯一a373完整原E56继续，不把S9awaiting/jobrunning/字段未apply当交付；CLI工具中断与delivery退回/独立review返工分开统计，避免把context续接算实现返工或修改分母。当前统计79/90不变，完整SP07仍未签。
