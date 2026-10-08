@@ -38,3 +38,5 @@ NEXT G1 continuation ONLYaftercurrent42805 exits (do NOT duplicate liveCLI): FUL
 NEXT CLOSED-LOOP DISPATCH: 原42805 terminal0。M6 97909a4b7完整三报告/80SHA已核验。按总卡继续：真实可配置sameorigin B01 adapter部署接口，修fixedtree字体manifest506/roots504实际错配，不添加dummy文案。全套组合测试包含G2最新tests不得skip，稳定发布SDK供G2。a379独占RustOIDC修复，消费fixedcommit不要改生产者。完成真实登录→初始化→管理→logout→拒绝访问闭环并完整证据；非客户IdP。
 
 NEXT unified18min closure: 原95178terminal0，fixed9c75d686b字体/真实adapter已交付，但改pin后的Vitest只读EROFS1。先收现有结果，在私有可写归档重跑必要组合suite63测试，不能跳过G2；不重跑先前绿整浏览器矩阵。修本卡所有真实deployment条件，不留adapter仅示例 null当完整产品完成。完整固定报告供G3，遵总卡。
+
+NEXT closure: 原26083terminal0，fixed96489b1c M8 writable63test+adapter5已交付。按总卡推进真实B04绑定，先读a373已冻结contract7bb与service当前固定可用交付状态；无固定实现则不能mock完成，先完成production可配置控制adapter部署与真实B01全角色守卫/本人account并现有真实issuer验证，固定完整证据供G3。G3仍62155live不得重启。

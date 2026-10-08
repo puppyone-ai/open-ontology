@@ -1887,3 +1887,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 2026-10-08 Codex接受原冻结E55-D1/1：a380固定1078d69e8独立APPROVE_LIMITED三报告完整读取，108SHA0坏0缺，实际DedicatedSession准入fsync在首行前、Collector故障留存/独立reader重启、mTLS项目绑定、PG同事务event/receipt、重复与冲突、ack hash后GC、fsync/quota/私有ENOSPC无query，Rust1.94 focused+Clippy0，ownedcleanup已证。作者测试某live skip并未作为验收，独立boundary实际运行通过。只签原E55审计耐久组件，不签publicSQL/feedback/fullSP06/runsc。局部冻结76→77/90=85.56%；历史101→102，首次独立91→92，唯一返工15/92=16.30%；作者待新交付inventory总对账不推测，原记录95保留。集成0/4、发行0/6、完整87父项16阶段/X门槛不变。
 - [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。
+
+- [ ] SP08/B07真实发布回滚API闭环：a392 tools/release-control-api；真实verifiedcurrent+编译审核Pack/G门禁→持久发布指针CAS/审计→角色Pack可读→权限保守rollback，缺外部批准不发生产。卡AC实施前冻结，完整实际验收前不计完成。a391独立验原E51普通sequence切点新实现，不以author成功自签。
