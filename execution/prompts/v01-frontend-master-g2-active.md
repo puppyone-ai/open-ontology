@@ -6,3 +6,6 @@ SAME G2 a353 closed previousCLI, latest full G3 G2-admin REPORT/FINDINGS/HANDOFF
 
 
 NEXT originalG2 after84790 terminal only: M4e090131ed fullpacket24hash0 verified. G1 M5 changesguardedregistrations; own2tests requiringADMIN_MODULES=[] outdated. Wait G1 FIXEDM5sourcehandoff/hash (previousSHAzero andnotcommitted), then updateownG2teststovalidate actualguard/unboundroutes no unauthorized moduleloader/datarequest ratherthanemptyregistry; no G1product edits. Focusedfixedarchive+ownoverlay/LinuxTS/tests/lint/reports/commit. B01/B04 realproductdata onlyafter G1SDKfrozenactualbindings, notfakeproviders.
+
+
+SAME G2 terminal84790. G1 M5 NOW FIXED1fce257f4 source (resolvefullSHA),106SHA0bad completepacket verified. Proceed OWN two obsoleteADMIN_MODULES=[] assertions update toactualcontract41guardedmodules/no unauthenticatedloader/no datacalls (behaviorassertions notstringliteralNavigate). Linux fixedM5 archive+ownedtestchanges fullrelevantmodule/source tests/types/lint, no G1shared/router/SDKstyle changes. KeepcurrentG2M4e090 corrections3 present. ActualB01frontSDKnotready untilG1nextbinding phase, no fakeauth/data. Fullfixedown testcommit/reports/hashes promptlythenconsume actualbindings whenfixedproducerarrives. No newsession/fronttotal3includingreview.

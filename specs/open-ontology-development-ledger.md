@@ -15,7 +15,7 @@
 
 ## 当前分层进度
 
-冻结规则见[验收计数附录](open-ontology-acceptance-counting.md)。M1-D开发17/24（70.83%）；M1集成0/4；内部发行包0/6；外部X01–X05单列待核验。全量开发分母尚未冻结，不能把87父项未退出当作开发0%。历史吞吐35交付组件/41验收子项/首次返工10of34独立记录。
+冻结规则见[验收计数附录](open-ontology-acceptance-counting.md)。M1-D开发17/24（70.83%）；M1集成0/4；内部发行包0/6；外部X01–X05单列待核验。全量开发分母尚未冻结，不能把87父项未退出当作开发0%。当前局部冻结76/90、作者95组件、历史101验收子项、首次独立91组件、唯一返工15/91（16.48%）。这些是局部吞吐，不代表完整产品完成率。当前句柄/依赖/边界见[简明执行板](../execution/active-work.md)，下文追加记录保留历史。
 
 ## 1. 写入边界与冲突规约
 
@@ -1876,3 +1876,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 实际新固定源：a365 be4b596481d83435df2ede8abd9ebb2a8647c706（两顺序真实install/putactivate/read及拒绝drift、SQL原文件不改、rawpsql仍不支持）；a370 35bd6b8157cecd89f2ae085b012b4b0137562ddb（B01真实RS256 HTTPS IdP、11library+live/Clippy0，contract089b不改，客户IdP/数据/owner/harness均未claim）。独特作者组件94→95（实际身份service交付），其他acceptance计数不变76/90、历史101/首审91/返工15/完整87父项/集成0of4发行0of6。
 a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期间COMMENT已有view、CREATEschema/table/sequence/view/nextval成功且被收入restore，dump inventory却不bind它们，cut_proven/replay_ready及offset100000仍真。不是PITR外部门槛，不移到parent掩盖。新a377=86777原E51 catalog/exportedsnapshot+真实sequencefence修复，不新分母；原a361/a372缺陷证据保留。
 新独立身份a375=89681、迁移a376=24509；前端原G1=45339/G2=84790/G3=15136三固定CLI已恢复旧scope，新增细节只排其下次continuation、不另启同UUIDCLI。三新task初始prompt组装Python语法错导致CLI启动exit1未读卡；脚本修正及卡已写后重新启动相同预留UUID，保留失败日志，未记录任何代码/test完成。nextUUIDa378未使用。a373真实B04服务依赖可用固定身份35bd生产者包现已交付，可准备真实测试IdP集成，最终验收仍需a375独立结果；不凭schema_only/declaredoperator身份签publicauth。
+
+2026-10-08 一次18min统一9：a37342599/a37624509/前端45339/15136/84790退出0；a37165332/a37436873/a37589681/a37786777仍live。G1M5新完整REPORT已读106SHA0bad固定1fce；G3M4完整三报告已读73SHA0bad，限普通生产字体/动效，不签FE-01/M1。原a37356260/a37681711收既有builderproof/PG，不重复资源；G1原42805接真实B01、G2原18275改自己过期tests、G3原18655复审固定变化。精简当前执行板正式提供owner/source/状态，避免历史尾注被当现状。计数/父项验收不变。

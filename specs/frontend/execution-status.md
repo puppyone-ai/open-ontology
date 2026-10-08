@@ -4,9 +4,9 @@
 
 | 固定角色 | 固定 UUID | 实际 handle / 状态 | 已交付 source / review | 唯一所有权 / 前置 |
 |---|---|---|---|---|
-| G1 基础与用户端 | eef831aa-dba4-4af2-a78b-541bc9e0a351 | 60396，最近一次工具确认 live | 尚无固定交付或完整报告 | master G1 路径；当前基础 milestone，JS lock/Token/shared/SDK/router 唯一 owner |
-| G2 管理端 | eef831aa-dba4-4af2-a78b-541bc9e0a353 | 预留，未启动，无 handle | 未交付 | master G2 features；等待 G1 固定公共组件/SDK/ModuleRegistration 接口后启动 |
-| G3 独立复审与验收 | eef831aa-dba4-4af2-a78b-541bc9e0a352 | 预留，未启动，无 handle | 未审阅 | 只写 master 指定 review/tests/evidence；等待固定产品提交 |
+| G1 基础与用户端 | eef831aa-dba4-4af2-a78b-541bc9e0a351 | 42805，新续接；原45339已退出0 | M5 1fce257f41 / 106SHA一致；独立复审待G3 | master G1；当前真实B01绑定，JS lock/SDK/shared/router/deploy唯一owner |
+| G2 管理端 | eef831aa-dba4-4af2-a78b-541bc9e0a353 | 18275，新续接；原84790已退出0 | M4 e090131ed；局部修正自测包24SHA一致 | master G2；当前自身过期空数组守卫测试修正，G1只读 |
+| G3 独立复审与验收 | eef831aa-dba4-4af2-a78b-541bc9e0a352 | 18655，新续接；原15136已退出0 | M4字体独立APPROVE_LIMITED/73SHA一致；当前M5/G2变化复审 | master review/tests/evidence；产品只读，复审占前端3会话上限 |
 
 前端固定会话上限 3，包含 G3；不会创建第四个前端会话。当前实际一个。非前端 Grok 开发上限 20，审阅按主线规则；全局 Rust 构建 10，每任务最多一个 Rust builder/一个 PG。Node 构建全局 2、浏览器全局 2，任务各最多一个；Node4GiB/1CPU。Node/pnpm/browser/font 精确版本等待 G1 实测锁定，不猜测填写。
 
