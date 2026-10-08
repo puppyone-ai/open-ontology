@@ -55,7 +55,9 @@ describe("font coverage", () => {
   });
 
   it("covers the reviewed gap and the registered source text", () => {
-    expect(sources.g2Snapshot).toBe("d416874eee65e5f30ad9858cef4429f608066c7a");
+    expect(sources.g2Snapshot).toBe("0c3caa184c93bcd0af91c5d2aa75bc4ee96416d8");
+    expect(manifest.sourceBinding.g2Snapshot).toBe(sources.g2Snapshot);
+    expect(manifest.sourceBinding.roots).toEqual(sources.roots);
     expect(sources.roots).toContain("src/features/admin-overview");
     expect(sources.roots).toContain("src/features/sources");
     expect(sources.roots).toContain("src/features/operations");

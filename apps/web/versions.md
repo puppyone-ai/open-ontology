@@ -119,3 +119,13 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 管理页是否挂载看解析后的会话和 `project.admin`，不看目录状态。没有目录记录时 `adminSessionReady()` 仍是 false。
 - 目录改动之后的生产 JS `dist/assets/index-DI6Dg6fG.js` 为 342199 字节，`gzip -c` 为 105906 字节。CSS 仍是 `dist/assets/index-DYD7xV9p.css`，28241 字节，`gzip -c` 为 6276 字节。浏览器截图来自改目录之前的 `index-BvHQ7Fvw.js`。构建产物不进入 Git。
 
+## M7 同源适配器与测试发行方闭环（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖。
+- Noto 子集从 506 个码位收到 504 个。来源钉在 `0c3caa184c93bcd0af91c5d2aa75bc4ee96416d8`，27 个根。U+4FEE、U+8BA2、U+9F98 不在子集里。完整字体 sha256 仍是 `bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b`，7762252 字节。
+- 五个控制身份 operation 仍是 `fixture_verified`。当前服务提交是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。合同提交仍是 `089b00d7f70da1bc42f7e201dfa070748c651d5b`。`CONTRACT.md` 的 blob 是 `fab0fe4e1fc52976af11faedf5653478f28a956d`。OpenAPI 与 schema blob 仍是 089b 公布的那一组。M6 记录的 `35bd6b8157cecd89f2ae085b012b4b0137562ddb` 留在当时的包里，不再是当前钉。
+- 浏览器对着这个服务完成了登录、初始化、管理总览、退出，以及 `fixture-reviewer` 的拒绝访问。客户集成是 `not_claimed`。`live`、`journey`、`release` 仍是 false。运行时 origin 仍是 null，`reachable` 是 false。
+- `invokeOperation` 对这五个 id 仍返回 `not_connected`，不调用 fetch。B04 仍是 `schema_frozen`。占位的 `B01.*` 和 `B04.*` 仍是 unbound。
+- 同源适配器在 `apps/web/deploy/b01-adapter.mjs`。提交的示例把 `pageOrigin` 和两个上游留成 null。证明用的主机已经随容器销毁。
+- 容器里的 Vite 日志写着 `dist/assets/index-D1qkCcpU.js` 342.19 kB、gzip 106.86 kB，`dist/assets/index-DxLGl__k.css` 28.22 kB、gzip 6.48 kB。构建产物不进入 Git。主机上没有再量精确字节。
+

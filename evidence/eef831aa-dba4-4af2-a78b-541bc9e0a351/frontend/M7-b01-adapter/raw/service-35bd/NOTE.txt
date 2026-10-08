@@ -1,0 +1,1 @@
+This directory is the first closed loop. It ran against service commit 35bd6b8157cecd89f2ae085b012b4b0137562ddb while tools/control-identity HEAD was already a6f92da8a0bf872f8a30efb116c2c7b14463505b. The archived receipt and screenshots are real. They are not the consumed service. The relaunch uses a6f92da8.

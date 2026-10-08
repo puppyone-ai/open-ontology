@@ -1,0 +1,47 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/features/admin-overview/modules.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 814[2mms[22m[39m
+   [32m✓[39m admin registrations [2m(3)[22m
+     [33m[2m✓[22m[39m keeps every consumed operation unbound[33m 811[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 601[2mms[22m[39m
+   [32m✓[39m guarded admin routes [2m(3)[22m
+     [33m[2m✓[22m[39m keeps the fixture catalog closed and does not load a module[33m 535[2mms[22m[39m
+ [32m✓[39m src/components/shared/shared.behavior.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 476[2mms[22m[39m
+ [32m✓[39m src/features/sources/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 235[2mms[22m[39m
+ [32m✓[39m src/features/user/user-pages.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 297[2mms[22m[39m
+ [32m✓[39m src/features/settings-integrations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 151[2mms[22m[39m
+ [32m✓[39m src/features/ontology-catalog/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m src/features/permissions/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m src/features/reviews/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 139[2mms[22m[39m
+ [32m✓[39m src/features/enums-calendar/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/features/audit-sessions/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m src/styles/foundation.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32m✓[39m src/features/builds/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m src/features/jobs/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m src/features/files/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/features/metrics/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m src/features/classifications/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m src/features/operations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/features/models-secrets/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 111[2mms[22m[39m
+ [32m✓[39m src/features/evaluations/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 125[2mms[22m[39m
+ [32m✓[39m src/features/releases/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 137[2mms[22m[39m
+ [32m✓[39m src/features/entities-terms/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 95[2mms[22m[39m
+ [32m✓[39m src/features/examples/feature.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/styles/font-coverage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/styles/contrast.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/api/identity-session.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/app/runtime-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m30 passed[39m[22m[90m (30)[39m
+[2m      Tests [22m [1m[32m63 passed[39m[22m[90m (63)[39m
+[2m   Start at [22m 03:46:37
+[2m   Duration [22m 26.04s[2m (environment 54%, tests 22%, setup 17%, import 5%, transform 2%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 30 times[39m[2m · 12.66s total, 54% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+

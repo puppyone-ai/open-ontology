@@ -1,0 +1,11 @@
+{
+  "pageOrigin": null,
+  "listen": { "host": "0.0.0.0", "port": 8443 },
+  "tls": { "certFile": "/secrets/edge.crt", "keyFile": "/secrets/edge.key" },
+  "identity": {
+    "upstream": "https://oo-fe01-m7-proof:7443",
+    "caFile": "/secrets/ca.crt",
+    "servername": "oo-fe01-m7-proof"
+  },
+  "static": { "upstream": "http://127.0.0.1:4173" }
+}

@@ -24,6 +24,7 @@ function walk(entry) {
   if (/\.(tsx?|css|json)$/.test(entry)) chunks.push(readFileSync(entry, "utf8"));
 }
 for (const relative of sources.roots) walk(join(root, relative));
+if (!/^[0-9a-f]{40}$/.test(sources.g2Snapshot)) throw new Error("g2Snapshot must be the fixed 40-character source commit");
 if (rarePoint !== 0x9f98) throw new Error(`rare codepoint must be U+9F98, got ${rarePoint}`);
 if (sources.gapCodepoints.includes(rarePoint)) throw new Error("gap list contains the rare codepoint");
 const found = new Set(sources.gapCodepoints);
@@ -120,6 +121,11 @@ ${face('"Noto Sans SC Full"', "NotoSansSC-full.woff2", "100 900")}
 await writeFile(join(root, "src/styles/fonts.css"), css);
 const zip = await readFile(join(srcDir, "geist-font-v1.7.2.zip"));
 const manifest = {
+  sourceBinding: {
+    g2Snapshot: sources.g2Snapshot,
+    roots: sources.roots,
+    gapCommit: sources.gapCommit,
+  },
   notoSource: {
     repository: "notofonts/noto-cjk",
     path: "google-fonts/NotoSansSC[wght].ttf",

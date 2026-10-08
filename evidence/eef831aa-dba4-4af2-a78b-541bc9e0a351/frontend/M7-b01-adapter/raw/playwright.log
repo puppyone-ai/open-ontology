@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 design/e2e/b01.closed-loop.spec.ts:10:1 › test issuer logs in, initializes, opens admin, logs out, then denies a reviewer (1.7s)
+
+  1 passed (2.7s)

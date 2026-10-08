@@ -1,0 +1,32 @@
+✔ routes only the control prefix to identity (0.352959ms)
+✔ the committed example has no origin and no destroyed proof host (0.230708ms)
+✔ refuses plaintext identity, certificate bypass, and destroyed hosts (0.168917ms)
+✖ forwards /control/ to identity and does not fall through to the static page (335.586792ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 399.720584
+
+✖ failing tests:
+
+test at deploy/b01-adapter.test.mjs:53:1
+✖ forwards /control/ to identity and does not fall through to the static page (335.586792ms)
+  Error: Certificate request self-signature ok
+  subject=CN = adapter
+  /tmp/oo-b01-adapter-i4y6pL/ca.srl: No such file or directory
+  2030F09DFFFF0000:error:80000002:system library:BIO_new_file:No such file or directory:../crypto/bio/bss_file.c:67:calling fopen(/tmp/oo-b01-adapter-i4y6pL/ca.srl, r)
+  2030F09DFFFF0000:error:10000080:BIO routines:BIO_new_file:no such file:../crypto/bio/bss_file.c:75:
+  
+      at run (file:///src/apps/web/deploy/b01-adapter.test.mjs:103:13)
+      at writeCerts (file:///src/apps/web/deploy/b01-adapter.test.mjs:111:5)
+      at TestContext.<anonymous> (file:///src/apps/web/deploy/b01-adapter.test.mjs:55:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

@@ -1,0 +1,1 @@
+{"ok":true,"origin":"https://oo-fe01-m7-edge:8443","issuer":"https://oo-fe01-m7-idp:9443","customer_integration":"not_claimed","subjects":["fixture-admin","fixture-reviewer"],"config_commit":"4b5fda29f333586dbf4357179d5e24b825b490c7725fb353dcb510a24c82ffaf","service_commit":"35bd6b8157cecd89f2ae085b012b4b0137562ddb","contract_commit":"089b00d7f70da1bc42f7e201dfa070748c651d5b"}

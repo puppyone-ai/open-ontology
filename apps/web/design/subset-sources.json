@@ -2,7 +2,7 @@
   "gapEvidence": "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a352/frontend/M1-M3/raw/subset-gap.txt",
   "gapCommit": "866cd4e2ba2571d73428f6303e175d2ef85c78ca",
   "rareCodepoint": 40856,
-  "g2Snapshot": "d416874eee65e5f30ad9858cef4429f608066c7a",
+  "g2Snapshot": "0c3caa184c93bcd0af91c5d2aa75bc4ee96416d8",
   "roots": [
     "design/copy.json",
     "src/api",

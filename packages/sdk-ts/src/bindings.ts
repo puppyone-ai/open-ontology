@@ -49,7 +49,7 @@ export const PACK_METADATA_SCHEMA_SHA256 = "f77d55d45bfe86e237f167881a415f67304e
 export const GATEWAY_ERROR_SCHEMA_SHA256 = "0839b3e4798ece2ceaddee80ae2c71d54fd491f919d2025616884b97cbc8b5f2";
 
 export const CONTROL_IDENTITY_COMMIT = "089b00d7f70da1bc42f7e201dfa070748c651d5b";
-export const CONTROL_IDENTITY_SERVICE_COMMIT = "35bd6b8157cecd89f2ae085b012b4b0137562ddb";
+export const CONTROL_IDENTITY_SERVICE_COMMIT = "a6f92da8a0bf872f8a30efb116c2c7b14463505b";
 export const CONTROL_IDENTITY_FIXTURE_RECEIPT = {
   kind: "test_issuer",
   customerIntegration: "not_claimed",
@@ -58,16 +58,18 @@ export const CONTROL_IDENTITY_FIXTURE_RECEIPT = {
   release: false,
   serviceCommit: CONTROL_IDENTITY_SERVICE_COMMIT,
   contractCommit: CONTROL_IDENTITY_COMMIT,
-  evidence: "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M6-b01-session/raw/browser-receipt.json",
+  evidence: "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M7-b01-adapter/raw/browser-receipt.json",
   provedSubject: "fixture-admin",
   provedProject: "alpha",
   provedRole: "admin",
+  provedDeniedSubject: "fixture-reviewer",
+  provedDeniedRole: "reviewer",
 } as const;
 export const CONTROL_IDENTITY_OPENAPI = "tools/control-identity/openapi/control-identity.openapi.yaml";
 
-/** Git blob ids of the frozen contract. The working tree matched this commit when pinned. */
+/** Schema and OpenAPI blobs remain the 089b publication. CONTRACT.md is the sentence at the consumed service commit. */
 export const CONTROL_IDENTITY_BLOBS = {
-  "tools/control-identity/CONTRACT.md": "e6752453758114d9408569674b38e8bfeb999bcb",
+  "tools/control-identity/CONTRACT.md": "fab0fe4e1fc52976af11faedf5653478f28a956d",
   "tools/control-identity/openapi/control-identity.openapi.yaml": "3fdeef6b0d22a3be9646520f82275edcb2e3f037",
   "tools/control-identity/schema/current.schema.json": "189ea2499037408ea3ff8693406a698699a5e551",
   "tools/control-identity/schema/logout.schema.json": "120db0995972a2570c302e7d2f82e11009668e9b",
@@ -338,7 +340,7 @@ const metadata: BindingRecord = {
 };
 
 const CONTROL_IDENTITY_NOTE =
-  "fixture_verified。本地测试发行方，不是客户 IdP。服务提交 35bd6b8157cecd89f2ae085b012b4b0137562ddb，合同提交 089b00d7f70da1bc42f7e201dfa070748c651d5b。页响应在 browser-receipt.json：login 302、callback 302、current 200、consume 200、logout 200。同一测试断言错误 CSRF 的 logout 为 403，且会话未被撤销。客户集成 not_claimed。live、journey、release 都为 false。运行时 origin 是 null。本模块不发送请求。占位的 B01.* 仍是 unbound。";
+  "fixture_verified。本地测试发行方，不是客户 IdP。服务提交 a6f92da8a0bf872f8a30efb116c2c7b14463505b，合同提交 089b00d7f70da1bc42f7e201dfa070748c651d5b。ID Token 的 aud 必须包含 client_id。页响应在 M7 browser-receipt.json：管理员 login、callback、current、consume、logout，以及 reviewer 的 login、current 和 logout。错误 CSRF 的 logout 断言为 403。客户集成 not_claimed。live、journey、release 都为 false。运行时 origin 是 null。本模块不发送请求。占位的 B01.* 仍是 unbound。";
 
 export const OPERATIONS: readonly BindingRecord[] = [
   metadata,

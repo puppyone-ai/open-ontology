@@ -60,3 +60,26 @@ U02 `/` 在没有会话时仍进入 `/login`。U03、U04、U05、U06 只渲染�
 | evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M6-b01-session/raw/browser-receipt.json |
 
 证明范围只有主体 `fixture-admin`、项目 `alpha`、角色 `admin`。reviewer、steward、auditor、business_owner 和客户 IdP 没有证明。B04 仍是 schema_frozen。占位 B01.* 与 B04.* 仍是 unbound。`invokeOperation` 不发送请求。
+
+上面这张表是 M6 当时的登记。当前服务提交见下一节。
+
+## M7 同源适配器与拒绝访问
+
+| 字段 | 值 |
+|---|---|
+| operationID | startAuthorizationCodeLogin、completeAuthorizationCodeCallback、getIdentityCurrent、logoutManagementSession、consumeBootstrapToken |
+| service commit | a6f92da8a0bf872f8a30efb116c2c7b14463505b |
+| contract commit | 089b00d7f70da1bc42f7e201dfa070748c651d5b |
+| CONTRACT.md blob | fab0fe4e1fc52976af11faedf5653478f28a956d |
+| state | fixture_verified |
+| customer integration | not_claimed |
+| origin | null |
+| reachable | false |
+| live | false |
+| journey | false |
+| release | false |
+| proved subject | fixture-admin，项目 alpha，角色 admin |
+| proved denial | fixture-reviewer，项目 alpha，角色 reviewer |
+| evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M7-b01-adapter/raw/browser-receipt.json |
+
+ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089b 公布的内容。`invokeOperation` 不发送请求，这五个 id 返回 `not_connected`。steward、auditor、business_owner 和客户 IdP 没有证明。B04 仍是 `schema_frozen`，合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。占位 `B01.*` 与 `B04.*` 仍是 unbound。

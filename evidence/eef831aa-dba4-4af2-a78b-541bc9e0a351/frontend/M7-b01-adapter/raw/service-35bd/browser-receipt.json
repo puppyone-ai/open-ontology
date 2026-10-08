@@ -1,0 +1,88 @@
+{
+  "customer_integration": "not_claimed",
+  "live": false,
+  "journey": false,
+  "release": false,
+  "proved_roles": [
+    "admin",
+    "reviewer"
+  ],
+  "operations": [
+    {
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/auth/bootstrap/consume",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "path": "/control/v1/identity/current",
+      "status": 401
+    }
+  ]
+}

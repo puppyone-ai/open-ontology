@@ -1,0 +1,8 @@
+{
+  "pageOrigin": null,
+  "listen": { "host": "127.0.0.1", "port": 8443 },
+  "tls": { "certFile": null, "keyFile": null },
+  "identity": { "upstream": null, "caFile": null, "servername": null },
+  "static": { "upstream": null },
+  "note": "Deploy fills the upstreams. The destroyed proof hosts are not defaults. /control/ must not fall through to index.html."
+}
