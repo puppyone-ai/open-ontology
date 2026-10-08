@@ -1505,3 +1505,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 2026-10-08：闭环派发规范生效。新能力作者负责从实际输入、真实依赖调用、持久状态、成功/必要失败、可复现启动到固定提交/完整证据，自述CLI0或helper/schema不计交付；独立复审仅检验固定交付。新增a383源接入catalog API、a384 Secret写入轮换、a385反馈接收至审核队列、a386完整本地分析、a387本人会话至真实S1–S11关闭、a388官方rmcp stdio至Gateway、a389十万行真实模型benchmark；原Plan对应SP03/05、SP02-W04/W06、SP09-W05、SP11-W01/02、SP13-W01、SP12。完整卡AC需作者实施前冻结，未完成不计开发，现76/90分母不因派发数量变化；全量Plan范围不缩。G1/G2/G3仅原三会话续接；备份a377原卡继续完整sequence切点与成功restore，不接受仅拒绝模式完成。主线开发cap20、Rustglobal10/task1、Node2/browser2保持，资源不足排队而非重复builder。外部门槛单列，禁止mock替代完成。
 
 - [ ] SP02-W01-b完整Rust jobs运行时闭环：a390工具模块唯一路径；真实100worker领取/续租/副作用去重/重启/旧generation/cancel验收，原目标不变；未计开发完成，不新增已验收数。
+
+2026-10-08 Codex完整读取a379/a382各三报告并核验SHA：56/102条0坏0缺。a382固定9a7940ba5独立APPROVE_LIMITED，实际PG widened public/pg_temp/prefix/extraGUC拒绝且catalog不变、恢复精确配置replay，Rust1.94 focusedunit/Clippy/实际proof0；接受search_path原缺陷修复，不新增开发单元或计数，不把raw双psql/SEM父项/SP14/E51标完成。a379固定a6f92da8a0bf872f8a30efb116c2c7b14463505b真实signedIdP audience/client_id修复作者已交付，56SHA一致；E54仍待原a37567327独立复审，尚不验收。
