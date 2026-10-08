@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.curated-git-apply/reviewed-tree/v1/request",
+  "title": "Reviewed tree apply request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project_root",
+    "ref",
+    "expected_head",
+    "idempotency_key",
+    "project_id",
+    "revision",
+    "csrf",
+    "review_scope",
+    "ontology_blob",
+    "decisions_blob",
+    "curated"
+  ],
+  "properties": {
+    "protocol": { "const": "oo.curated-git-apply/reviewed-tree/v1" },
+    "project_root": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "ref": { "const": "refs/heads/curated" },
+    "expected_head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+    "revision": { "type": "integer" },
+    "csrf": { "type": "string", "minLength": 43, "maxLength": 43, "pattern": "^[A-Za-z0-9_-]{43}$" },
+    "review_scope": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+    "ontology_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "decisions_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "curated": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dataset", "blob"],
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$"
+          },
+          "blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.curated-git-apply/reviewed-tree/v1/receipt",
+  "title": "Reviewed tree apply receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "approved_count",
+    "authenticated",
+    "authority",
+    "author_email",
+    "author_is_customer",
+    "author_is_reviewer",
+    "author_name",
+    "blobs",
+    "checkout",
+    "compiler",
+    "customer_integration",
+    "decisions_blob",
+    "grants",
+    "idempotency_key",
+    "new_commit",
+    "new_tree",
+    "old_commit",
+    "old_tree",
+    "ontology_blob",
+    "operationId",
+    "outcome",
+    "parent_auth",
+    "project_id",
+    "protocol",
+    "receipt_sha256",
+    "ref",
+    "request_sha256",
+    "review_scope",
+    "revision",
+    "statements",
+    "subject_sha256",
+    "worktree",
+    "worktree_dirty"
+  ],
+  "properties": {
+    "approved_count": { "type": "integer", "minimum": 1 },
+    "authenticated": { "const": true },
+    "authority": { "const": "management_session" },
+    "author_email": { "const": "curated-git-apply@open-ontology.invalid" },
+    "author_is_customer": { "const": false },
+    "author_is_reviewer": { "const": false },
+    "author_name": { "const": "oo-curated-git-apply" },
+    "blobs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blob" }
+    },
+    "checkout": { "const": "require_fresh_checkout" },
+    "compiler": { "const": "oo-curated-git-apply/reviewed-tree/v1" },
+    "customer_integration": { "const": "not_claimed" },
+    "decisions_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "grants": { "const": "none" },
+    "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "new_commit": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        { "type": "null" }
+      ]
+    },
+    "new_tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "old_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "old_tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "ontology_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "operationId": { "const": "applyReviewedTree" },
+    "outcome": { "enum": ["committed", "unchanged"] },
+    "parent_auth": { "const": "verified" },
+    "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+    "protocol": { "const": "oo.curated-git-apply/reviewed-tree/v1" },
+    "receipt_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ref": { "const": "refs/heads/curated" },
+    "request_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "review_scope": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+    "revision": { "type": "integer" },
+    "statements": { "$ref": "#/$defs/statements" },
+    "subject_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "worktree": { "const": "not_updated" },
+    "worktree_dirty": { "type": "boolean" }
+  },
+  "$defs": {
+    "blob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["new_blob", "old_blob", "path"],
+      "properties": {
+        "new_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "old_blob": {
+          "anyOf": [
+            { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            { "type": "null" }
+          ]
+        },
+        "path": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "statements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authentication",
+        "caller_blob",
+        "classification",
+        "customer_integration",
+        "grants",
+        "hooks",
+        "identity_file",
+        "index",
+        "network",
+        "parent_auth",
+        "publication",
+        "push",
+        "roles",
+        "secrets",
+        "worktree"
+      ],
+      "properties": {
+        "authentication": { "const": "management_session" },
+        "caller_blob": { "const": "not_trusted" },
+        "classification": { "const": "not_applied" },
+        "customer_integration": { "const": "not_claimed" },
+        "grants": { "const": "none" },
+        "hooks": { "const": "not_executed" },
+        "identity_file": { "const": "not_read" },
+        "index": { "const": "private" },
+        "network": { "const": "not_used" },
+        "parent_auth": { "const": "verified" },
+        "publication": { "const": "not_performed" },
+        "push": { "const": "not_performed" },
+        "roles": { "const": "not_written" },
+        "secrets": { "const": "not_written" },
+        "worktree": { "const": "not_updated" }
+      }
+    }
+  }
+}
