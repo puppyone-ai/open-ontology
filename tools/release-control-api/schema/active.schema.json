@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.release-control-api/active/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "project_id", "version", "candidate_id", "source_hash",
+    "pack_digest", "manifest_sha256", "certificate_class", "production_ready",
+    "customer_gate_verified", "owner_authenticated", "runsc_verified",
+    "full_sp08_accepted", "public_deployment_claimed", "customer_ownership_claimed",
+    "standby_configured", "half_published", "reader"
+  ],
+  "properties": {
+    "contract": {"const": "oo.release-control-api/v1"},
+    "operation": {"const": "getActiveRelease"},
+    "project_id": {"type": "string"},
+    "version": {"type": ["string", "null"]},
+    "candidate_id": {"type": ["string", "null"]},
+    "source_hash": {"type": ["string", "null"]},
+    "pack_digest": {"type": ["string", "null"]},
+    "manifest_sha256": {"type": ["string", "null"]},
+    "certificate_class": {"enum": ["not_issued", "test_scope_not_production"]},
+    "production_ready": {"const": false},
+    "customer_gate_verified": {"const": false},
+    "owner_authenticated": {"const": false},
+    "runsc_verified": {"const": false},
+    "full_sp08_accepted": {"const": false},
+    "public_deployment_claimed": {"const": false},
+    "customer_ownership_claimed": {"const": false},
+    "standby_configured": {"const": false},
+    "half_published": {"const": false},
+    "reader": {"const": "oo_release_reader"}
+  }
+}

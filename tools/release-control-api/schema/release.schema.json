@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.release-control-api/release/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "operation_id", "project_id", "status", "kind",
+    "certificate_class", "production_ready", "customer_gate_verified",
+    "owner_authenticated", "runsc_verified", "full_sp08_accepted", "half_published",
+    "replay"
+  ],
+  "properties": {
+    "contract": {"const": "oo.release-control-api/v1"},
+    "operation": {"enum": ["createRelease", "getRelease", "listReleases", "rollbackRelease"]},
+    "operation_id": {"type": "string", "pattern": "^op_[0-9a-f]{32}$"},
+    "project_id": {"type": "string"},
+    "status": {
+      "enum": ["queued", "running", "succeeded", "failed", "refused", "resume_uncertain"]
+    },
+    "kind": {"enum": ["publish", "rollback"]},
+    "scope": {"enum": ["test_scope", "production", null]},
+    "version": {"type": ["string", "null"]},
+    "candidate_id": {"type": ["string", "null"]},
+    "role": {"type": ["string", "null"]},
+    "config_commit": {"type": ["string", "null"]},
+    "source_hash": {"type": ["string", "null"]},
+    "pack_digest": {"type": ["string", "null"]},
+    "producer_outcome": {"type": ["string", "null"]},
+    "producer_reason": {"type": ["string", "null"]},
+    "certificate_class": {"enum": ["not_issued", "test_scope_not_production"]},
+    "production_ready": {"const": false},
+    "customer_gate_verified": {"const": false},
+    "owner_authenticated": {"const": false},
+    "runsc_verified": {"const": false},
+    "full_sp08_accepted": {"const": false},
+    "half_published": {"const": false},
+    "replay": {"type": "boolean"},
+    "gates": {"type": "array"}
+  }
+}

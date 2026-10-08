@@ -1,0 +1,83 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+1.94.0-aarch64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+info: downloading component clippy
+    Checking release-control-api v0.1.0 (/repo/tools/release-control-api)
+error: multiple variants are never constructed
+  --> tests/live/idp.rs:27:5
+   |
+25 | pub enum Mode {
+   |          ---- variants in this enum
+26 |     Ok,
+27 |     AlgNone,
+   |     ^^^^^^^
+28 |     Hs256,
+   |     ^^^^^
+29 |     WrongIssuer,
+   |     ^^^^^^^^^^^
+30 |     WrongAudience,
+   |     ^^^^^^^^^^^^^
+31 |     ConfiguredAudienceOnly,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+32 |     WrongAzp,
+   |     ^^^^^^^^
+33 |     MultiAud,
+   |     ^^^^^^^^
+34 |     MultiAudAzp,
+   |     ^^^^^^^^^^^
+35 |     SingleAudNoAzp,
+   |     ^^^^^^^^^^^^^^
+36 |     BadNonce,
+   |     ^^^^^^^^
+37 |     Expired,
+   |     ^^^^^^^
+38 |     FutureIat,
+   |     ^^^^^^^^^
+39 |     UnknownKid,
+   |     ^^^^^^^^^^
+40 |     RotateKid,
+   |     ^^^^^^^^^
+41 |     Ambiguous,
+   |     ^^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: this `if` statement can be collapsed
+   --> tests/live/main.rs:524:9
+    |
+524 | /         if send_cookie {
+525 | |             if let Some(cookie) = self.cookie_header() {
+526 | |                 request = request.header("cookie", cookie);
+527 | |             }
+528 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+524 ~         if send_cookie
+525 ~             && let Some(cookie) = self.cookie_header() {
+526 |                 request = request.header("cookie", cookie);
+527 ~             }
+    |
+
+error: used `assert_eq!` with a literal bool
+   --> tests/live/main.rs:940:9
+    |
+940 |         assert_eq!(row.get::<_, bool>(index), false);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#bool_assert_comparison
+    = note: `-D clippy::bool-assert-comparison` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::bool_assert_comparison)]`
+help: replace it with `assert!(..)`
+    |
+940 -         assert_eq!(row.get::<_, bool>(index), false);
+940 +         assert!(!row.get::<_, bool>(index));
+    |
+
+error: could not compile `release-control-api` (test "live") due to 3 previous errors

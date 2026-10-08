@@ -1,0 +1,6 @@
+containers=0
+volumes=0
+networks=0
+secrets=absent
+name_filter=oo-a392
+owner_label=a392

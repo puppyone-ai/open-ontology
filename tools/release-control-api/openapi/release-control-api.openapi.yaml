@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: oo.release-control-api
+  version: 1.0.0
+  description: >
+    Authenticated publish and rollback for one project. Test-scope activation
+    is not a production certificate. Customer, owner, and runsc evidence are
+    not issued by this service. B05.publish, B05.pack, and B05.gates bind the
+    operationIds below.
+servers:
+  - url: "{https_origin}"
+    variables:
+      https_origin:
+        default: https://control.invalid
+paths:
+  /control/v1/releases:
+    post:
+      operationId: createRelease
+      parameters:
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/create-release.request.schema.json
+      responses:
+        "202":
+          description: Operation queued. The pointer is unchanged until the producer commits activation.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/release.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listReleases
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      responses:
+        "200":
+          description: Operations in the verified project.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [contract, operation, project_id, releases, production_ready, full_sp08_accepted]
+                properties:
+                  contract: {const: oo.release-control-api/v1}
+                  operation: {const: listReleases}
+                  project_id: {type: string}
+                  releases:
+                    type: array
+                    items:
+                      $ref: ../schema/release.schema.json
+                  production_ready: {const: false}
+                  full_sp08_accepted: {const: false}
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/releases/active:
+    get:
+      operationId: getActiveRelease
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      responses:
+        "200":
+          description: Reader view of the active pointer. False production claims are columns.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/active.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/releases/active/pack:
+    get:
+      operationId: getActiveRolePack
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - name: role
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Sealed role pack paths and hashes. File text is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/role-pack.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/releases/{operation_id}:
+    get:
+      operationId: getRelease
+      parameters:
+        - $ref: "#/components/parameters/operationId"
+      responses:
+        "200":
+          description: One operation, including stored gate dispositions.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/release.schema.json
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /control/v1/releases/{operation_id}/rollback:
+    post:
+      operationId: rollbackRelease
+      parameters:
+        - $ref: "#/components/parameters/operationId"
+        - $ref: "#/components/parameters/csrf"
+        - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schema/rollback.request.schema.json
+      responses:
+        "202":
+          description: Rollback queued after the conservative permission check.
+          content:
+            application/json:
+              schema:
+                $ref: ../schema/release.schema.json
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    csrf:
+      name: X-OO-CSRF
+      in: header
+      required: true
+      schema: {type: string}
+    origin:
+      name: Origin
+      in: header
+      required: true
+      schema: {type: string}
+    projectId:
+      name: project_id
+      in: query
+      required: true
+      schema: {type: string}
+    operationId:
+      name: operation_id
+      in: path
+      required: true
+      schema: {type: string, pattern: "^op_[0-9a-f]{32}$"}
+  responses:
+    Error:
+      description: Safe error envelope. No cookie, CSRF token, password, or path.
+      content:
+        application/json:
+          schema:
+            $ref: ../schema/error.schema.json

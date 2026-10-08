@@ -1,0 +1,57 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+1.94.0-aarch64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+info: downloading component clippy
+    Checking release-control-api v0.1.0 (/repo/tools/release-control-api)
+error[E0425]: cannot find function `reply_from` in this scope
+   --> tests/live/main.rs:540:9
+    |
+540 |         reply_from(response).await
+    |         ^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `reply_from` in this scope
+   --> tests/live/main.rs:545:9
+    |
+545 |         reply_from(response).await
+    |         ^^^^^^^^^^ not found in this scope
+
+error[E0308]: mismatched types
+    --> tests/live/main.rs:44:18
+     |
+  44 |     proof.forbid("fixture-client-secret-a392");
+     |           ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `String`, found `&str`
+     |           |
+     |           arguments to this method are incorrect
+     |
+note: method defined here
+    --> tests/live/main.rs:1018:8
+     |
+1018 |     fn forbid(&mut self, value: String) {
+     |        ^^^^^^            -------------
+help: try using a conversion method
+     |
+  44 |     proof.forbid("fixture-client-secret-a392".to_string());
+     |                                              ++++++++++++
+
+error[E0599]: no function or associated item named `start` found for struct `idp::Idp` in the current scope
+  --> tests/live/main.rs:96:20
+   |
+96 |     let idp = Idp::start(idp_listener, IdpParts {
+   |                    ^^^^^ function or associated item not found in `idp::Idp`
+   |
+  ::: tests/live/idp.rs:58:1
+   |
+58 | pub struct Idp {
+   | -------------- function or associated item `start` not found for this struct
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following traits define an item `start`, perhaps you need to implement one of them:
+           candidate #1: `arraydeque::range::RangeArgument`
+           candidate #2: `regex_syntax::ast::visitor::Visitor`
+           candidate #3: `regex_syntax::hir::visitor::Visitor`
+           candidate #4: `tokio_rustls::rustls::crypto::SupportedKxGroup`
+           candidate #5: `tokio_rustls::rustls::crypto::hash::Hash`
+
+Some errors have detailed explanations: E0308, E0425, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `release-control-api` (test "live") due to 4 previous errors

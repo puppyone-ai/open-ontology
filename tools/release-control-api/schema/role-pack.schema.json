@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.release-control-api/role-pack/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "project_id", "role", "version", "candidate_id",
+    "pack_digest", "manifest_sha256", "files", "certificate_class",
+    "production_ready", "customer_gate_verified", "owner_authenticated",
+    "runsc_verified", "replica_production_admissible", "full_sp08_accepted",
+    "half_published"
+  ],
+  "properties": {
+    "contract": {"const": "oo.release-control-api/v1"},
+    "operation": {"const": "getActiveRolePack"},
+    "project_id": {"type": "string"},
+    "role": {"type": "string"},
+    "version": {"type": ["string", "null"]},
+    "candidate_id": {"type": ["string", "null"]},
+    "pack_digest": {"type": ["string", "null"]},
+    "manifest_sha256": {"type": ["string", "null"]},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "certificate_class": {"enum": ["not_issued", "test_scope_not_production"]},
+    "production_ready": {"const": false},
+    "customer_gate_verified": {"const": false},
+    "owner_authenticated": {"const": false},
+    "runsc_verified": {"const": false},
+    "replica_production_admissible": {"const": false},
+    "full_sp08_accepted": {"const": false},
+    "half_published": {"const": false}
+  }
+}

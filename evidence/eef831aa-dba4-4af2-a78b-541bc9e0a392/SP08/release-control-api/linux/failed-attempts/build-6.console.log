@@ -1,0 +1,52 @@
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+1.94.0-aarch64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+info: downloading component clippy
+    Checking release-control-api v0.1.0 (/repo/tools/release-control-api)
+error[E0277]: `pack::Prepared` doesn't implement `std::fmt::Debug`
+   --> src/pack.rs:421:62
+    |
+421 |         let refused = load_pack(&dir, &commit, "oo_r_clerk").expect_err("unreviewed");
+    |                                                              ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pack::Prepared`
+    |
+    = note: add `#[derive(Debug)]` to `pack::Prepared` or manually `impl std::fmt::Debug for pack::Prepared`
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `pack::Prepared` with `#[derive(Debug)]`
+    |
+ 58 + #[derive(Debug)]
+ 59 | pub struct Prepared {
+    |
+
+error[E0277]: `pack::Prepared` doesn't implement `std::fmt::Debug`
+   --> src/pack.rs:425:64
+    |
+425 |         let published = load_pack(&dir, &commit, "oo_r_clerk").expect_err("published");
+    |                                                                ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pack::Prepared`
+    |
+    = note: add `#[derive(Debug)]` to `pack::Prepared` or manually `impl std::fmt::Debug for pack::Prepared`
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `pack::Prepared` with `#[derive(Debug)]`
+    |
+ 58 + #[derive(Debug)]
+ 59 | pub struct Prepared {
+    |
+
+error[E0277]: `pack::Prepared` doesn't implement `std::fmt::Debug`
+   --> src/pack.rs:429:63
+    |
+429 |         let compiled = load_pack(&dir, &commit, "oo_r_clerk").expect_err("compiled");
+    |                                                               ^^^^^^^^^^ the trait `std::fmt::Debug` is not implemented for `pack::Prepared`
+    |
+    = note: add `#[derive(Debug)]` to `pack::Prepared` or manually `impl std::fmt::Debug for pack::Prepared`
+note: required by a bound in `std::result::Result::<T, E>::expect_err`
+   --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1293:4
+help: consider annotating `pack::Prepared` with `#[derive(Debug)]`
+    |
+ 58 + #[derive(Debug)]
+ 59 | pub struct Prepared {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `release-control-api` (lib test) due to 3 previous errors

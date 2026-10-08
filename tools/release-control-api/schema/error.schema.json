@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.release-control-api/error/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "code", "detail", "production_ready", "full_sp08_accepted"],
+  "properties": {
+    "contract": {"const": "oo.release-control-api/v1"},
+    "code": {"type": "string", "minLength": 1, "maxLength": 64},
+    "detail": {"type": "string", "minLength": 1, "maxLength": 64},
+    "production_ready": {"const": false},
+    "full_sp08_accepted": {"const": false}
+  }
+}
