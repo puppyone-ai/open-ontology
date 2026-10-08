@@ -1507,3 +1507,6 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 - [ ] SP02-W01-b完整Rust jobs运行时闭环：a390工具模块唯一路径；真实100worker领取/续租/副作用去重/重启/旧generation/cancel验收，原目标不变；未计开发完成，不新增已验收数。
 
 2026-10-08 Codex完整读取a379/a382各三报告并核验SHA：56/102条0坏0缺。a382固定9a7940ba5独立APPROVE_LIMITED，实际PG widened public/pg_temp/prefix/extraGUC拒绝且catalog不变、恢复精确配置replay，Rust1.94 focusedunit/Clippy/实际proof0；接受search_path原缺陷修复，不新增开发单元或计数，不把raw双psql/SEM父项/SP14/E51标完成。a379固定a6f92da8a0bf872f8a30efb116c2c7b14463505b真实signedIdP audience/client_id修复作者已交付，56SHA一致；E54仍待原a37567327独立复审，尚不验收。
+
+2026-10-08 Codex接受原冻结E55-D1/1：a380固定1078d69e8独立APPROVE_LIMITED三报告完整读取，108SHA0坏0缺，实际DedicatedSession准入fsync在首行前、Collector故障留存/独立reader重启、mTLS项目绑定、PG同事务event/receipt、重复与冲突、ack hash后GC、fsync/quota/私有ENOSPC无query，Rust1.94 focused+Clippy0，ownedcleanup已证。作者测试某live skip并未作为验收，独立boundary实际运行通过。只签原E55审计耐久组件，不签publicSQL/feedback/fullSP06/runsc。局部冻结76→77/90=85.56%；历史101→102，首次独立91→92，唯一返工15/92=16.30%；作者待新交付inventory总对账不推测，原记录95保留。集成0/4、发行0/6、完整87父项16阶段/X门槛不变。
+- [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。

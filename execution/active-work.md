@@ -76,3 +76,6 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 单次18min统一15句柄：a38193531/G1a35195178/G3a35292248/a37567327terminal0；a38373258/a38719418/a37746898terminal1 Internal error。其余8confirmedlive（a38072955/a38494406/a38559533/a38622914/a38865101/a38976805/a39051488/a37393577）。8终止原会话续接只收既有资源/固定证据再推进，严禁复制builder；G2 idle原UUID消费固定9c75。下一UUID仍a391。
 
 实际原会话补位启动确认running：a38342717/a38762843/a37730117/a38157162/G1a35126083/G2a3537769/G3a35262155/a37564094；加8刚观测live共16工作线。所有writer原路径不变；Rust10/Node2/browser2配额排队。下一轮单次18min统一16handle。
+
+2026-10-08 Codex接受原冻结E55-D1/1：a380固定1078d69e8独立APPROVE_LIMITED三报告完整读取，108SHA0坏0缺，实际DedicatedSession准入fsync在首行前、Collector故障留存/独立reader重启、mTLS项目绑定、PG同事务event/receipt、重复与冲突、ack hash后GC、fsync/quota/私有ENOSPC无query，Rust1.94 focused+Clippy0，ownedcleanup已证。作者测试某live skip并未作为验收，独立boundary实际运行通过。只签原E55审计耐久组件，不签publicSQL/feedback/fullSP06/runsc。局部冻结76→77/90=85.56%；历史101→102，首次独立91→92，唯一返工15/92=16.30%；作者待新交付inventory总对账不推测，原记录95保留。集成0/4、发行0/6、完整87父项16阶段/X门槛不变。
+- [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。
