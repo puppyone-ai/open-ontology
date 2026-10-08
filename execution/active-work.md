@@ -121,3 +121,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–11完整退出条件。上一统一观测其他live仍a39211380/a39558908/a39768103/a39860322/a39990868/a40017820；383/386/351/396/388/353/352/374原CLIterminal0保留，其资源/证据待后续一次收，不重复launch。此次用户优先selfbuild退出标准，尚未补其他新卡/实际并发不伪称15；nexta401未用。
 
 用户要求其他任务并行≥15。补原383/388/G1/G2/G3/396（原CLIterminal），新增401本地分析独立复审、402真实管理角色绑定读写；Selfbuild37359356及既有6live不重复启动。402独占tools/control-identity和新bindingAPI，原只读消费者固定归档不冲突。nextUUIDa403，global资源不提升，待实际句柄确认后报告并发。
+
+补位8原/新会话启动工具confirmedrunning：a3835424/a38822685/G1a35183401/G2a35387867/G3a35288570/a39647498/a40146761/a40268266。加原a37359356及上次live a39211380/a39558908/a39768103/a39860322/a39990868/a40017820共15目标句柄，老7本轮尚未重新观测，不伪称同时15confirmedlive。补完上次被用户打断的18min剩余等待后统一15一次观测，terminal先收现有proof不重复builder。

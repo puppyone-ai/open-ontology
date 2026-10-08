@@ -72,3 +72,5 @@ M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组
 用户确认额度恢复后，固定G1a35191029/G2a35397842/G3a35282686实际续接工具confirmedrunning，先收已有proof资源，不第四会话；原402历史保留，完整frontendTODO仍未签。
 
 当前G1a35191029统一confirmedlive；G2a3533033/G3a3526454原会话续接confirmedrunning，最多三fixedUUID。来源接口B02和B04仍待fixed真实实现，source/MCP编译失败不标完成；backendpackcompat399独占后端模块不改FE。
+
+当前原G1a35183401/G2a35387867/G3a35288570续接工具confirmedrunning，仍只有三fixedUUID。402后端binding唯一controlidentity writer，前端/其他backend只读fixed归档；真实HTTP与生产者到达后接闭环，schemaonly不计完成。
