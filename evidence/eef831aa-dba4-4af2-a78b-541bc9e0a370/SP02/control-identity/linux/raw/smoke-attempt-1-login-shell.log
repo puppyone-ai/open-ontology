@@ -1,0 +1,5 @@
+ARCH=aarch64
+bash: line 1: rustc: command not found
+bash: line 1: cargo: command not found
+OpenSSL 3.5.5 27 Jan 2026 (Library: OpenSSL 3.5.5 27 Jan 2026)
+bash: line 1: rustc: command not found

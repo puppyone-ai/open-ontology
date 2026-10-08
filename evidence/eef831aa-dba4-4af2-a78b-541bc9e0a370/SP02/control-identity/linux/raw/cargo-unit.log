@@ -1,0 +1,34 @@
+   Compiling control-identity v0.1.0 (/src)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.38s
+     Running unittests src/lib.rs (/target/debug/deps/control_identity-16d540b1b2dca126)
+
+running 11 tests
+test config::tests::canonical_preimage_is_sorted_compact_json ... ok
+test cookie::tests::cookie_attributes_are_host_only ... ok
+test cookie::tests::login_cookie_round_trip_keeps_the_verifier ... ok
+test cookie::tests::return_paths_reject_off_site_targets ... ok
+test crypto::tests::alg_none_and_hs256_are_rejected_before_trust ... ok
+test crypto::tests::ring_signed_token_verifies_and_rejects_a_tampered_claim ... ...+..........+++++++++++++++++++++++++++++++++++++++*........+....+..+...+.......+...+.........+..+...+.+.........+...........+.+.....+..................+...+............+.......+++++++++++++++++++++++++++++++++++++++*.........+...+..........+..+...+...+....+...+...+...+..+.........+.+..+.......+..............+....+...........+...............+......+...+......+....+...........+....+......+.................+.......+.....+.+......+........+.+..+....+........+.+......+......+.....+....+........+...+...+.+.....+......+.......+..+.+...+...........+....+..+...+.......+........+...........................+....+...+...+........+.+...+..+......+...+.......+...+.........+.....+.......+...........+.......+...+..............+.........+....+..+.+..+...+...+......+....+...............+......+........+.+............+.................+............+..........++++++
+.....+.+........+......+.+++++++++++++++++++++++++++++++++++++++*.+++++++++++++++++++++++++++++++++++++++*.....+..+...+.+..........................+...............+.++++++
+ok
+test crypto::tests::sha256_hex_matches_the_empty_and_abc_vectors ... ok
+test guard::tests::caller_json_is_never_a_session ... ok
+test guard::tests::matrix_matches_the_frozen_file_and_is_disjoint ... ok
+test http::tests::login_query_rejects_a_foreign_redirect ... ok
+test oidc::tests::authorization_url_is_s256_and_does_not_carry_bootstrap_material ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/main.rs (/target/debug/deps/control_identity-c1e3bb26150d621b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (/target/debug/deps/cli-eddc35fc3de49ba7)
+
+running 1 test
+test usage_is_silent ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
