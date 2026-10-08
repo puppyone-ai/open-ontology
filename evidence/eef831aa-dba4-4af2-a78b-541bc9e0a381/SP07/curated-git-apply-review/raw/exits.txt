@@ -20,3 +20,12 @@ manifest1 docker-run 126
 manifest1 rustc 0
 manifest1 container oo-a381-manifest removed
 manifest1 reason work tmpfs noexec permission denied
+author9 archive 0
+author9 bytes 843 mismatch 0
+author9 fetch-offline 101
+author9 fetch-online 0
+author9 test 0
+author9 docker-run 0
+author9 container oo-a381-author9 removed
+author9 apply.rs 9 passed 2 filtered
+author9 hostile-env child 1 passed

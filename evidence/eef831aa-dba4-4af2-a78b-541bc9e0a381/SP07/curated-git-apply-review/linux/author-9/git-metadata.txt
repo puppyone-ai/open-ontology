@@ -1,0 +1,4 @@
+git_dir=/tmp/a381-eef831aa-archive-author9/.git
+init=unborn
+head=unborn
+workspace_git_not_target=yes

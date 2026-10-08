@@ -14,4 +14,12 @@ Removed network:
 
 Removed container oo-a381-manifest after the noexec failure. Its removal file is linux/manifest/container-removed.txt. No MANIFEST.sha256 was written by that run.
 
-The retry container oo-a381-manifest2 is removed by linux/manifest-2/launch.sh after MANIFEST.sha256 is written. That removal file is created after the hash, so it is not a line inside MANIFEST.sha256.
+The retry container oo-a381-manifest2 was removed after the first MANIFEST.sha256. That file is replaced after the author-9 reports.
+
+Removed after the nine-case rerun, recorded in linux/author-9:
+- container oo-a381-author9
+- volume oo-a381-author9-cargo
+- volume oo-a381-author9-target
+- network oo-a381-author9-net
+
+linux/manifest-3 replaces MANIFEST.sha256. Its container-removed file is written after the hash, so it is not a line inside MANIFEST.sha256.

@@ -1,0 +1,6 @@
+bind /inside.sh rw=false
+bind /evidence rw=true
+volume /cargo-home rw=true
+volume /target rw=true
+bind /src rw=false
+

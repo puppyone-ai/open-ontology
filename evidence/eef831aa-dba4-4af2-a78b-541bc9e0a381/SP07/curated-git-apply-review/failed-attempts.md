@@ -24,7 +24,7 @@ Container `oo-a381-proof`, id `f044de163575fe21d7f6454ffea35f61344c79cf82f224729
 
 Container `oo-a381-proof2`, id `2fe4c8b32864804eedc0a70e9fbcafbc067adbf9f71fdd473584a8d9470801e6`, started only after `oo-a381-proof` was removed.
 
-`tests/a381_review.rs`: 4 passed. Clippy exit 0. `cargo test` still exited 101 because `tests/apply.rs` asserts a source `.git` directory and the archive has none. Nine author tests panic with `source git dir`. The hostile-env re-exec reports `hostile-env rerun exit 101`. `cli_usage_and_unknown_field` passed. `pinned_trees_match_the_reviewed_commit` was skipped. This was not rerun. The independent result and the Clippy result are already in this directory. The author failure is the missing source Git directory, recorded in `linux/proof-2/test.stdout`.
+`tests/a381_review.rs`: 4 passed. Clippy exit 0. `cargo test` still exited 101 because `tests/apply.rs` asserts a source `.git` directory and the archive has none. Nine author tests panic with `source git dir`. The hostile-env re-exec reports `hostile-env rerun exit 101`. `cli_usage_and_unknown_field` passed. `pinned_trees_match_the_reviewed_commit` was skipped. This directory was not overwritten. The nine cases were rerun in `linux/author-9` after a private unborn `.git` was added. That rerun passed. The independent four and Clippy were not repeated.
 
 ## linux/manifest
 
