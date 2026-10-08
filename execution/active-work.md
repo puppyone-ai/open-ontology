@@ -113,3 +113,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 恢复后15条原UUID实际启动工具confirmedrunning：a373=56759, a383=86855, a384=88503, a386=75598, a392=11380, a394=58015, a395=58908, a351=91029, a353=97842, a352=82686, a396=29409, a397=68103, a398=60322, a388=62533, a389=30275。无新增会话、无重复原CLI；globalRust10/Node2/browser2满时排队。一次18min等待后统一这15handle，禁止中间重复日志/资源轮询。
 
 一次18min统一15：a38386855/a38488503/a39458015/G2a35397842/G3a35282686/a38862533/a38930275terminal0；8confirmedlive a37356759/a38675598/a39211380/a39558908/G1a35191029/a39629409/a39768103/a39860322。原383388G2G3续接、399唯一Packdialogue producerfix（两个builder模块原档消费不动其他writer）、400Secretfixedreview、374只补证据共7补位，nextUUIDa401。当前79/90计数不先变，待full新包读核验。
+
+补位工具confirmedrunning：a38331537/a3887627/G2a3533033/G3a3526454/a37417377/a39990868/a40017820，加8刚confirmedlive共15实际线。所有既有producerconsumers必须immutablefixedarchive；399 owns仅role_pack.rs/reviewed_effective.rs两模块+ontology-dialogue，其余root/工具只读，未和373/397共享写入。global10Rust task1/Node2/browser2不变，nextone18min统一15。

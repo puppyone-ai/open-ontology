@@ -70,3 +70,5 @@ M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组
 最新统一观测G1a35123892/G2a35320565/G3a35273812全部terminal1，实证402 Grok Build usage balance exhausted；当前前端liveCLI0而非3。所有原UUID保留，额度恢复再续，后台phase待收不当完成；不新增第四会话。
 
 用户确认额度恢复后，固定G1a35191029/G2a35397842/G3a35282686实际续接工具confirmedrunning，先收已有proof资源，不第四会话；原402历史保留，完整frontendTODO仍未签。
+
+当前G1a35191029统一confirmedlive；G2a3533033/G3a3526454原会话续接confirmedrunning，最多三fixedUUID。来源接口B02和B04仍待fixed真实实现，source/MCP编译失败不标完成；backendpackcompat399独占后端模块不改FE。
