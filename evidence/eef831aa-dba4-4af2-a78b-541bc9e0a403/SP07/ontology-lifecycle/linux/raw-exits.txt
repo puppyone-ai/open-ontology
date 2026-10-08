@@ -1,0 +1,5 @@
+pre-edit docker_exit=0 rustc=1.94.0
+attempt-1 docker_exit=1 test_exit=101 clippy_exit=1 reason=workspace_membership_and_clippy_component
+attempt-2 docker_exit=1 test_exit=101 clippy_exit=101 reason=bind_type_and_range_loop
+attempt-3 docker_exit=1 test_exit=0 clippy_exit=101 reason=collapsible_if
+focused-4 docker_exit=0 test_exit=0 clippy_exit=0 tests=10

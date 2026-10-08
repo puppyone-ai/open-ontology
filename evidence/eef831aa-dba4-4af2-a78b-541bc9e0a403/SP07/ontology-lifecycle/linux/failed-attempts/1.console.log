@@ -1,0 +1,21 @@
+phase=focused
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+cargo 1.94.0 (85eff7c80 2026-01-15)
+--- test ---
+error: current package believes it's in a workspace when it's not:
+current:   /src/tools/ontology-lifecycle/Cargo.toml
+workspace: /src/Cargo.toml
+
+this may be fixable by adding `tools/ontology-lifecycle` to the `workspace.members` array of the manifest located at: /src/Cargo.toml
+Alternatively, to keep it out of the workspace, add the package to the `workspace.exclude` array, or add an empty `[workspace]` table to the package's manifest.
+test_exit=101
+--- clippy ---
+error: 'cargo-clippy' is not installed for the toolchain '1.94.0-aarch64-unknown-linux-gnu'.
+help: run `rustup component add clippy` to install it
+clippy_exit=1
