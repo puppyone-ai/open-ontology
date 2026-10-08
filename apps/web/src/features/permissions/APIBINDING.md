@@ -17,3 +17,5 @@ M9 回执是 `CONTROL_IDENTITY_FIXTURE_RECEIPT`，证据 `evidence/eef831aa-dba4
 页面在已解析的管理会话上显示 `getIdentityCurrent` 的主体、初始化状态、项目、角色和能力。管理壳的「退出」调用 `logoutManagementSession`。这两条走同源 `/control/v1/`，目录状态是 `fixture_verified`，`invokeOperation` 仍返回 `not_connected` 且不发请求。引导令牌仍由 `/admin/bootstrap` 的 `consumeBootstrapToken` 提交。`B01.projectRoleBinding` 没有写入接口，应用、保存和预览保持禁用。客户集成 `not_claimed`。live、journey、release 仍是 false。
 
 `prepareCall` 对 `B06.roles`、`B01.projectRoleBinding`、`B06.bindings`、`B06.permissionPreview`、`B05.pack` 返回 `not_precise`。页面预检传入的 current 是 null，不制造角色绑定请求。`logoutManagementSession` 与 `consumeBootstrapToken` 在有合法 current 时预检是 `not_connected`，这个结果不代替同源退出和初始化调用。
+
+固定源 `b12b5b41924754d1683c92d5a34ec1f49767839f` 的 `callOperation` 在登记同源 https 传输之后发送 fetch。产品页面不传入 `fetchImpl`。`listBuilds` 的 404 是 `invalid_schema`，不是构建完成。`registerSource` 与 `B01.projectRoleBinding` 仍是 `not_precise`，不发请求。角色绑定没有写入接口。
