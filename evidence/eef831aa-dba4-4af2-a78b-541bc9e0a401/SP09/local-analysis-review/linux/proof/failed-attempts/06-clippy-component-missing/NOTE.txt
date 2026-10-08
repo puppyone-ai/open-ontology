@@ -1,0 +1,1 @@
+Attempt 6 reran the focused tests: 7 passed. Clippy was not installed in the new container because rustup component add from the previous container does not persist in the image. Network was none, so the component could not be added. The next resume adds the component on the private bridge and does not mount secrets.

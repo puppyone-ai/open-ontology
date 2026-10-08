@@ -1,0 +1,72 @@
+    Checking libm v0.2.16
+    Checking cfg-if v1.0.5
+    Checking num-traits v0.2.19
+    Checking zerocopy v0.8.61
+    Checking num-integer v0.1.47
+    Checking hashbrown v0.17.1
+    Checking num-bigint v0.5.1
+    Checking libc v0.2.190
+    Checking half v2.7.1
+    Checking bytes v1.12.1
+    Checking arrow-buffer v60.0.0
+    Checking getrandom v0.3.4
+    Checking iana-time-zone v0.1.65
+    Checking once_cell v1.21.4
+    Checking arrow-schema v60.0.0
+    Checking arrow-data v60.0.0
+    Checking ahash v0.8.12
+    Checking chrono v0.4.45
+    Checking num-complex v0.4.6
+    Checking arrow-array v60.0.0
+    Checking arrow-cmp v60.0.0
+    Checking lexical-util v1.0.7
+    Checking memchr v2.8.3
+    Checking arrow-select v60.0.0
+    Checking aho-corasick v1.1.5
+    Checking lexical-parse-integer v1.0.6
+    Checking lexical-write-integer v1.0.6
+    Checking regex-syntax v0.8.11
+    Checking bitflags v2.13.2
+    Checking flatbuffers v25.12.19
+    Checking regex-automata v0.4.18
+    Checking lexical-write-float v1.0.6
+    Checking lexical-parse-float v1.0.6
+    Checking crc32fast v1.5.2
+    Checking bumpalo v3.20.3
+    Checking base64 v0.23.1
+    Checking log v0.4.34
+    Checking zlib-rs v0.6.8
+    Checking equivalent v1.0.2
+    Checking simd-adler32 v0.3.10
+    Checking zopfli v0.8.3
+    Checking indexmap v2.14.2
+    Checking flate2 v1.1.10
+    Checking lexical-core v1.0.6
+    Checking regex v1.13.1
+    Checking arrow-ipc v60.0.0
+    Checking arrow-ord v60.0.0
+    Checking atoi v3.1.0
+    Checking typed-path v0.12.3
+    Checking ryu v1.0.23
+    Checking arrow-cast v60.0.0
+    Checking zip v8.3.0
+    Checking arrow-string v60.0.0
+    Checking snap v1.1.2
+    Checking arrow-row v60.0.0
+    Checking arrow-arith v60.0.0
+    Checking twox-hash v2.1.5
+    Checking parquet v60.0.0
+    Checking arrow v60.0.0
+    Checking rust_xlsxwriter v0.99.1
+    Checking local-analysis v0.1.0 (/local-analysis)
+error: the borrowed expression implements the required traits
+   --> tests/a401_bounds.rs:436:24
+    |
+436 |     let csv = fs::read(&amount_out.join("analysis.csv")).expect("amount csv");
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: change this to: `amount_out.join("analysis.csv")`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#needless_borrows_for_generic_args
+    = note: `-D clippy::needless-borrows-for-generic-args` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_borrows_for_generic_args)]`
+
+error: could not compile `local-analysis` (test "a401_bounds") due to 1 previous error

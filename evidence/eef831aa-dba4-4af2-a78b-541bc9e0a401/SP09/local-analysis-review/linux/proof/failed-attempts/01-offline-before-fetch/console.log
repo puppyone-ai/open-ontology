@@ -1,0 +1,42 @@
+oo_task=sp09-w05-local-analysis-review
+oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a401
+oo_producer=21cc96241a841b47dbbcb116549030e38a643ba0
+oo_exporter=62b4afecdd377fa94310f46467c48a01e61d14db
+oo_platform=linux/arm64
+overlay=tests/a401_bounds.rs,examples/extract_otf.rs
+Linux eff8ef07b949 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+phase_exit=0 phase=toolchain
+phase_exit=0 phase=archive-hash
+phase_exit=0 phase=exporter-hash
+phase_exit=0 phase=libclang
+phase_exit=0 phase=libclang-load
+=== cargo fetch --locked ===
+phase_exit=0 phase=fetch
+=== cargo build pipeline bins ===
+phase_exit=0 phase=build-pipeline
+=== cargo build builder bins ===
+phase_exit=0 phase=build-builder
+=== cargo build gateway bins ===
+phase_exit=0 phase=build-gateway
+=== live numeric proof ===
+phase_exit=0 phase=test-live
+=== frozen exporter binary ===
+phase_exit=0 phase=build-exporter
+=== partial query-pg max_rows 1 ===
+phase_exit=0 phase=oracle-build
+phase_exit=0 phase=partial-request
+phase_exit=0 phase=query-partial
+=== export requests ===
+phase_exit=0 phase=export-requests
+=== exporter complete, partial, formula header ===
+phase_exit=0 phase=export
+=== hand gold ===
+phase_exit=0 phase=gold-complete
+phase_exit=0 phase=gold-partial
+phase_exit=0 phase=gold-formula
+phase_exit=0 phase=lock-hash
+=== local-analysis on this run's export ===
+oo_task_tail=sp09-w05-local-analysis
+phase_exit=0 phase=lineage-file-build
+phase_exit=101 phase=build-local-analysis

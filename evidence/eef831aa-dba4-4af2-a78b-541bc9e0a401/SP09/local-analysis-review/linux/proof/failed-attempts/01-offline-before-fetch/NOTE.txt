@@ -1,0 +1,5 @@
+Attempt 1 exited 101 at phase build-local-analysis.
+cargo build --locked --offline for tools/local-analysis searched the producer cargo registry and did not find parquet.
+The producer fetch had completed. The local-analysis lockfile was not fetched.
+Query, export, and gold checks had already exited 0. Those artifacts were removed by the retry cleanup inside the next run.
+No cargo update and no lockfile change.
