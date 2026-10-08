@@ -19,3 +19,5 @@ SAME G3 after18655 terminal: M5full3reportsread coordinator, product1fce partial
 NEXT CLOSED-LOOP DISPATCH: 原67076 terminal0，M5-G2三报告/69SHA已核验，fontfailure保留。固定97909a4b7 M6独立真实testissuer登录初始化currentlogout/CSRF/未认证guarddelta复审，不重跑无关19截图矩阵。读取作者完整三报告，原B01 backend35bd存在aud缺陷a379修，明确原E54WITHHOLD不自签其完整身份。G1下一fixedfont/adapter交付后原会话完整组合验收，最多3固定会话，禁止第四。
 
 NEXT unified18min closure: 原92248terminal0，M6固定97909报告仅limited且font失败；下一固定9c75d686b已修字体/adapter/a6f92身份pin。FIRST读取全作者M7报告并取实际fixed SHA；修改自身过时oracle376字/35bd pin按真实声明roots+fixedsource推导，不弱化测试。先等待G1可写组合suite报告，必要独立真实TLS sameorigin adapter/browser登录bootstrapguardlogout/CSRF及字体delta，不重跑无关19截图。独立证据全三报告/SHA，前端仅原三UUID。
+
+NEXT complete capability: 原62155terminal0，M7固定9c75 review旧陈述E54withhold/M8未writable不是当前：后端E54已a375closure原完整APPROVE_LIMITED，G1fixed96489 M8可写63+5测试与M9真实五角色已交付，读取FULL新包/固定SHA再必要delta复审。不要重跑无关19截图，全rolecurrent/guard/CSRF/退出及adapterroutes/lint真实fullcombined固定证据，旧历史保留。

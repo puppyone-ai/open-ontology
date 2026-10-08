@@ -40,3 +40,5 @@ NEXT CLOSED-LOOP DISPATCH: 原42805 terminal0。M6 97909a4b7完整三报告/80SH
 NEXT unified18min closure: 原95178terminal0，fixed9c75d686b字体/真实adapter已交付，但改pin后的Vitest只读EROFS1。先收现有结果，在私有可写归档重跑必要组合suite63测试，不能跳过G2；不重跑先前绿整浏览器矩阵。修本卡所有真实deployment条件，不留adapter仅示例 null当完整产品完成。完整固定报告供G3，遵总卡。
 
 NEXT closure: 原26083terminal0，fixed96489b1c M8 writable63test+adapter5已交付。按总卡推进真实B04绑定，先读a373已冻结contract7bb与service当前固定可用交付状态；无固定实现则不能mock完成，先完成production可配置控制adapter部署与真实B01全角色守卫/本人account并现有真实issuer验证，固定完整证据供G3。G3仍62155live不得重启。
+
+NEXT complete capability: 原50656terminal0，M9五角色浏览器交付待核验。G2反馈与9c75相同adapter lint URL/Buffer4no-undef属于G1，请按真实Nodeglobals配置最小修复，完整组合suite/lint/types而非skip。继续真实B04绑定待固定373交付，部署真实prod-adapter配置明确无伪默认。原M8 writable63组合已经在96489通过，G3旧报告说未跑是固定早提交事实，不额外重复。
