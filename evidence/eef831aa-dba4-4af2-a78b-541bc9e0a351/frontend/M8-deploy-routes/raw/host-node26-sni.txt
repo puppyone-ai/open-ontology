@@ -1,0 +1,1 @@
+Host sanity run before the Linux suite. Node on the host rejected TLS ServerName 127.0.0.1 with ERR_INVALID_ARG_VALUE. The adapter now omits SNI when the upstream host is an IP and still checks the certificate. DNS names still send SNI. This file is not the Linux proof. The Linux proof is raw/adapter-test.log and raw/vitest.log.

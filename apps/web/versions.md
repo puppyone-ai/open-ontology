@@ -129,3 +129,9 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 同源适配器在 `apps/web/deploy/b01-adapter.mjs`。提交的示例把 `pageOrigin` 和两个上游留成 null。证明用的主机已经随容器销毁。
 - 容器里的 Vite 日志写着 `dist/assets/index-D1qkCcpU.js` 342.19 kB、gzip 106.86 kB，`dist/assets/index-DxLGl__k.css` 28.22 kB、gzip 6.48 kB。构建产物不进入 Git。主机上没有再量精确字节。
 
+## M8 部署路由与改钉后的组合测试（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑浏览器。
+- 同源适配器不再把 `/control` 以外的路径都交给静态上游。`/v1` 与 `/api` 没有网关上游时返回 `api_unbound`；填了网关上游才转发。`/.well-known`、`/oauth`、`/oidc` 返回 `oidc_unbound`。WebSocket 返回 `ws_unbound`。这些正文都不是 `index.html`。
+- 页面深链只在静态 404 且请求接受 HTML 时回退一次 `/index.html`。字体和带后缀的资源保持 404。示例里的上游仍是 null。null 不是正在运行的边缘。运行时 origin 仍是 null。`live`、`journey`、`release` 仍是 false。
+

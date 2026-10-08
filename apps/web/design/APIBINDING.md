@@ -83,3 +83,7 @@ U02 `/` 在没有会话时仍进入 `/login`。U03、U04、U05、U06 只渲染�
 | evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M7-b01-adapter/raw/browser-receipt.json |
 
 ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089b 公布的内容。`invokeOperation` 不发送请求，这五个 id 返回 `not_connected`。steward、auditor、business_owner 和客户 IdP 没有证明。B04 仍是 `schema_frozen`，合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。占位 `B01.*` 与 `B04.*` 仍是 unbound。
+
+## M8 部署路由
+
+示例配置的上游仍是 null。null 不是正在运行的边缘，也不是 A20 或发布。适配器在部署填入 TLS、身份上游和静态上游之后执行固定路由：`/control` 进身份服务；没有网关上游时 `/v1` 与 `/api` 返回 `api_unbound`；OIDC 发现路径返回 `oidc_unbound`；WebSocket 返回 `ws_unbound`。这些响应不是 `index.html`。页面深链才回退到 `/index.html`。运行时 origin 仍是 null。五个身份 operation 仍是 `fixture_verified`，服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。

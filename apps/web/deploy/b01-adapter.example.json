@@ -4,5 +4,15 @@
   "tls": { "certFile": null, "keyFile": null },
   "identity": { "upstream": null, "caFile": null, "servername": null },
   "static": { "upstream": null },
-  "note": "Deploy fills the upstreams. The destroyed proof hosts are not defaults. /control/ must not fall through to index.html."
+  "gateway": { "upstream": null },
+  "ws": { "upstream": null },
+  "routing": {
+    "identity": ["/control", "/control/"],
+    "api": ["/v1", "/v1/", "/api", "/api/"],
+    "oidc": ["/.well-known", "/.well-known/", "/oauth", "/oauth/", "/oidc", "/oidc/"],
+    "ws": ["/ws", "/ws/"],
+    "assets": ["/fonts/", "/assets/"],
+    "spaFallback": "page-deep-link-only"
+  },
+  "note": "Null upstreams are not a running edge. Deploy fills tls, the https identity upstream, and the static upstream. API, OIDC, and WebSocket stay off index.html. Destroyed proof hosts are not defaults."
 }

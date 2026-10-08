@@ -1,0 +1,6 @@
+29654d107515cff1b8661ccb2bc7477a47fb4ebbbc2c574bb4547473fc753d11  apps/web/deploy/README.md
+7090988e400aedb0203ec05f87d9ccb3d15b526799568edb8fac1f189135f238  apps/web/deploy/b01-adapter.example.json
+3606ce634a6b37233fb4b6911b7ae92cfd92577758b06e74219e5cdce45f118e  apps/web/deploy/b01-adapter.mjs
+5c264b16c357abf17b16708d21efa9bc44ff7628eb72820852c5adfb3e377312  apps/web/deploy/b01-adapter.test.mjs
+de87d3380a6a783916573c48ce2e63850d639d62acdfe0a91f1f12514ffb27cf  apps/web/design/APIBINDING.md
+eaf89decdecabd1ca26b7616e15c8ee31992e5dd3fabc9f2e096339d3aa70795  apps/web/versions.md
