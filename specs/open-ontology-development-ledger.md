@@ -1914,3 +1914,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 用户强调完整主链：标准YAML→审核overlay→Git版本→发布→AgentPack必须全部真实证明；新增退出标准OC01–06（docs06§3.1、SP07W01/W05/W06、SP02W02、SP08W04）及唯一集成owner a403 tools/ontology-lifecycle。原S0–S10 E56编译Pack不能替代主链完成。每卡工作前读对应当前docs/Plan并记录requirements-map，缺接口精确交原owner、固定交付消费，不mock/手写产物/假Gate。79/90原局部计数不变；主链未签。
 
 用户调整当前短期goal：specs/minimal-product-loop-plan.md MP01–06，接database配置→真实Selfbuild→本地Packfolder→Pi read/bash oo CLI SQL→实际Gateway答案→close。docs09§6.2默认不依赖MCP，多用户权限/admin/扩展API保留P2TODO；完整Plan/OC主链定义未变。新增405唯一最小流程编排，383373397399389为P0，不用管理API未ready阻塞直接真实producer。未支持任意数据库不假兼容，首先PG真实100k。79/90不称本短目标完成率。
+
+用户确认短期goal默认Pi链路：stdioRPC/read本地KnowledgePack/bash ooCLI/HTTP固定proxy注入凭证+mTLS/真实Gateway/query_id答案/close。已追加specs/minimal-product-loop-plan.md MP03/05完整证据，MCP排P2非依赖；保留原SP13TODO与代码，不重复启动a388新功能。核心405/397/395原owner卡追加next指导不并发重启live会话，79/90未变，整个短目标未验收。

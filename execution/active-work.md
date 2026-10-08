@@ -139,3 +139,5 @@ Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–1
 用户调整当前短期goal：specs/minimal-product-loop-plan.md MP01–06，接database配置→真实Selfbuild→本地Packfolder→Pi read/bash oo CLI SQL→实际Gateway答案→close。docs09§6.2默认不依赖MCP，多用户权限/admin/扩展API保留P2TODO；完整Plan/OC主链定义未变。新增405唯一最小流程编排，383373397399389为P0，不用管理API未ready阻塞直接真实producer。未支持任意数据库不假兼容，首先PG真实100k。79/90不称本短目标完成率。
 
 P0实际启动confirmedrunning：40515366/38310843/39720426/38930440；原selfbuild37359356上一统一confirmedlive不重启，短目标要求已追加下一指导。旧P2管理API/FE已有运行不强杀，可安全固定当前交付后不续新功能；核心资源向P0排优先。nextUUID406，暂无新增review。
+
+用户确认短期goal默认Pi链路：stdioRPC/read本地KnowledgePack/bash ooCLI/HTTP固定proxy注入凭证+mTLS/真实Gateway/query_id答案/close。已追加specs/minimal-product-loop-plan.md MP03/05完整证据，MCP排P2非依赖；保留原SP13TODO与代码，不重复启动a388新功能。核心405/397/395原owner卡追加next指导不并发重启live会话，79/90未变，整个短目标未验收。

@@ -6,3 +6,5 @@ USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均termin
 NEXT OC01–06 closure: 原68103terminal0，先收已有同PG Clippyretrybuilder结果不要重建PG。完成真实Pi modeltool/Gateway闭环，OC05需要bindActiveReleasePack从实际getActiveRolePack读取绑定而非caller selfassertdigest；未发布Pack拒绝，queryaudit固定activepackhash/两角色隔离与revocation，原卡真正NL工具不能manualsql替代。
 
 LATEST USER PRIORITY: 完整读specs/minimal-product-loop-plan.md。当前先单用户真实接库→Selfbuild标准YAML/Packfolder→Pi read/bash oo SQL→真正Gateway→答案/close。management/admin/multiuserAPI依赖排后，不因此阻塞已有真实CLI/lib闭环；无mock/no自动LLMapproved/no伪productionpub，明确draftdevelopment预览。a405唯一用户流程编排消费固定producer，各ownerpaths不变。docs09§6.2明确Pi不依赖MCP。原完整Plan/OC主链保留Todo，不签未实现部分。
+
+USER CONFIRMED DEFAULT PI PATH: 当前短期goal必须实现入口stdioRPC→真实Pi read Packfolder→bash ooCLI模型自己SQL→HTTP固定出口proxy注入会话token/mTLS→真实Gateway→query_id答案→close。MP03不能以directDB/新fakegateway/人工proposal/预写SQL替代。Pi不拿数据库密码/可复用会话token，proxy管理凭证；devlocal明确非production，原production门槛不降。MCP排后，不作为依赖；读specs/minimal-product-loop-plan.md新默认Pi必做节与docs09§5/6.2再工作。

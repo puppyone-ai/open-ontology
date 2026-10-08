@@ -37,3 +37,15 @@ P1：最小可运行打包、取消/释放与复现证据。前端只在该路�
 P2保留：多用户权限/管理角色API/admin完整页面/发布控制API/Secret管理控制台/外部MCP OAuth/完整运营与发行审批。正在运行的这些任务允许收当前安全固定交付，不启动重复的新功能；没有用户数据的工作不得因优先级降后被删除。
 
 完整主Plan与OC01–06仍待完成；当前验收不改变其完成定义。当前局部79/90不是本里程碑完成率。
+
+## 用户确认的默认 Pi 路径（短期必做）
+
+用户于2026-10-08明确确认：先完成默认Pi，不先做MCP。
+
+实际调用链：入口 stdio RPC → Pi read /knowledge/README.md 与表/关系/指标文件 → Pi bash 调 oo CLI提交模型自行生成的只读SQL → oo HTTP到固定出口代理 → 代理注入会话凭证并mTLS到真实Gateway → Gateway校验/预算/只读执行/审计 → 精确结果、warnings、truncation、query_id → Pi答案引用 → cancel/close释放。
+
+代理持有Gateway会话token与模型SecretRef，Pi与CLI不获得数据库密码或可复用会话token。development本地部署边界须明示，不能因为MCP延后省略真实Gateway/parser/guard、查询审计和取消；生产runsc等门槛保留原Plan。
+
+MP-03额外证据：真实Pi read与bash工具事件、oo CLI真实HTTP、代理request关联/注入及mTLS记录（无密钥）、Gateway实际query_id/SQL审计、模型答案引用同query_id；直接数据库驱动/假Gateway/预写SQL/人工proposal均不满足。MP-05包括proxy会话映射与凭证失效/资源关闭的实际证明，缺资源不得伪closed。
+
+MCP stdio/StreamableHTTP/OAuth相关开发与复审延期到P2，不作为短期依赖。当前a388若仍有自己构建可收安全固定成果，不再重复启动MCP新功能；代码与原SP13验收TODO保留。
