@@ -1,0 +1,6 @@
+types 0
+types-node 0
+types-sdk 0
+lint 1
+test 0
+docker 1

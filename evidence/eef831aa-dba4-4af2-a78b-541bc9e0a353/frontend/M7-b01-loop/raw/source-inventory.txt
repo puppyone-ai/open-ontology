@@ -1,0 +1,7 @@
+overlay:
+981e56509abc06a4ee2a3583ff90d990b1df50c151c86023339190ee0d2dbe36  /tmp/oo-a353-m7/src/apps/web/src/features/admin-overview/admin-frame.tsx
+1284d95a1508dc204d6dfb5da168ee05ab40a40fc77cfa1d08fdd4c24063eeb3  /tmp/oo-a353-m7/src/apps/web/src/features/permissions/pages.tsx
+53b75ce3796354cec7939a58e83a23777b7d491375e952b6370d72a61b9028ee  /tmp/oo-a353-m7/src/apps/web/src/features/permissions/current-session.test.tsx
+22fae03a81a244ee692b735b79cb9e15b931092380caaf6bfdc42cd16b07ab5a  /tmp/oo-a353-m7/src/apps/web/src/features/permissions/APIBINDING.md
+tools=38
+web_src=171
