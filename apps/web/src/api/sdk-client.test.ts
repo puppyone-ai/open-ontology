@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTROL_IDENTITY_ERROR_CODES,
   GROUP_PUBLICATION,
@@ -9,12 +9,17 @@ import {
   SELFBUILD_COMMIT,
   SELFBUILD_ERROR_CODES,
   SELFBUILD_HTTP,
+  callOperation,
+  clearSameOriginTransport,
   createRuntimeRegistry,
   csrfFromCurrent,
+  invokeOperation,
   parseControlIdentityError,
+  parseLogoutResult,
   parseSelfbuildError,
   prepareCall,
   registerRuntime,
+  registerSameOriginTransport,
 } from "@open-ontology/sdk-ts";
 
 const csrf = "a".repeat(43);
@@ -203,5 +208,123 @@ describe("legal client", () => {
     expect(sources).toMatchObject({ accepted: false, state: "unbound", reason: "unpublished", serviceCommit: null, live: false });
     expect(secrets).toMatchObject({ accepted: false, state: "unbound", reason: "unpublished", live: false, journey: false, release: false });
     expect(prepareCall({ operationId: "decideReviewItem", registration: sources, current: current() }).reason).toBe("registration_refused");
+  });
+});
+
+function logoutBody() {
+  return {
+    contract: "oo.control-identity/v1",
+    operation: "logoutManagementSession",
+    outcome: "revoked",
+    authority: "management_session",
+    data_grants: "none",
+    owner_certification: "not_issued",
+    agent_session: "not_issued",
+    harness_session: "not_issued",
+    gateway_token: "not_issued",
+    customer_integration: "not_claimed",
+  };
+}
+
+describe("same-origin transport", () => {
+  afterEach(() => {
+    clearSameOriginTransport();
+  });
+
+  it("fetches a trusted https origin with one CSRF and one Origin", async () => {
+    const seen: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const registered = registerSameOriginTransport({
+      origin: "https://edge.example",
+      pageOrigin: "https://edge.example",
+      fetchImpl: async (input, init) => {
+        seen.push({ url: String(input), init });
+        return new Response(JSON.stringify(logoutBody()), { status: 200, headers: { "content-type": "application/json" } });
+      },
+    });
+    expect(registered.ok).toBe(true);
+    const result = await callOperation({ operationId: "logoutManagementSession", current: current() });
+    expect(result).toMatchObject({
+      ok: true,
+      operationId: "logoutManagementSession",
+      status: 200,
+      fetched: true,
+      live: false,
+      journey: false,
+      release: false,
+      customerIntegration: "not_claimed",
+    });
+    expect(JSON.stringify(result).includes(csrf)).toBe(false);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.url).toBe("https://edge.example/control/v1/auth/logout");
+    const headers = new Headers(seen[0]?.init?.headers);
+    expect(headers.get("origin")).toBe("https://edge.example");
+    expect(headers.get("x-oo-csrf")).toBe(csrf);
+    expect(seen[0]?.init?.method).toBe("POST");
+    expect(prepareCall({ operationId: "logoutManagementSession", registration: null, current: current() }).reason).toBe("not_connected");
+    expect(invokeOperation("getIdentityCurrent")).toEqual({ ok: false, reason: "not_connected", operationId: "getIdentityCurrent" });
+    expect(seen).toHaveLength(1);
+  });
+
+  it("rejects http, a destroyed host, a mismatched page, and a bad success body", async () => {
+    const fetchImpl = vi.fn(async () => new Response("nope", { status: 200 }));
+    expect(registerSameOriginTransport({ origin: "http://edge.example", pageOrigin: "http://edge.example", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
+    expect(registerSameOriginTransport({ origin: "https://oo-fe01-m9-edge:8443", pageOrigin: "https://oo-fe01-m9-edge:8443", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
+    expect(registerSameOriginTransport({ origin: "https://oo-fe01-m12-edge:8443", pageOrigin: "https://oo-fe01-m12-edge:8443", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
+    expect(registerSameOriginTransport({ origin: "https://edge.example/app", pageOrigin: "https://edge.example/app", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
+    expect(registerSameOriginTransport({ origin: "https://edge.example", pageOrigin: "https://other.example", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
+    expect(await callOperation({ operationId: "getIdentityCurrent" })).toMatchObject({ ok: false, reason: "origin_rejected", fetched: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    registerSameOriginTransport({ origin: "https://edge.example", pageOrigin: "https://edge.example" });
+    const pageFetch = vi.spyOn(globalThis, "fetch");
+    const blocked = await callOperation({ operationId: "getIdentityCurrent" });
+    expect(blocked).toMatchObject({ ok: false, reason: "origin_rejected", fetched: false });
+    expect(pageFetch).not.toHaveBeenCalled();
+    pageFetch.mockRestore();
+
+    const bad = registerSameOriginTransport({
+      origin: "https://edge.example",
+      pageOrigin: "https://edge.example",
+      fetchImpl: async () => new Response("{", { status: 200, headers: { "content-type": "application/json" } }),
+    });
+    expect(bad.ok).toBe(true);
+    const invalid = await callOperation({ operationId: "getIdentityCurrent" });
+    expect(invalid).toMatchObject({ ok: false, reason: "invalid_schema", fetched: true, status: 200, live: false });
+    expect(parseLogoutResult({ outcome: "revoked" })).toEqual({ ok: false, reason: "invalid_schema" });
+  });
+
+  it("parses a fetched selfbuild error instead of staying not_connected", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(selfbuildError()), { status: 503, headers: { "content-type": "application/json" } }));
+    registerSameOriginTransport({ origin: "https://edge.example", pageOrigin: "https://edge.example", fetchImpl });
+    const result = await callOperation({ operationId: "listBuilds" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      ok: false,
+      operationId: "listBuilds",
+      reason: "http_error",
+      status: 503,
+      errorCode: "dependency.not_ready",
+      fetched: true,
+      live: false,
+      journey: false,
+      release: false,
+      customerIntegration: "not_claimed",
+    });
+    expect(prepareCall({ operationId: "listBuilds", registration: null, current: null }).reason).toBe("registration_refused");
   });
 });

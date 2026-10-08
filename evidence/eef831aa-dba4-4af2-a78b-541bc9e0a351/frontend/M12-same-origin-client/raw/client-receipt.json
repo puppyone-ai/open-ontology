@@ -1,0 +1,206 @@
+{
+  "customer_integration": "not_claimed",
+  "live": false,
+  "journey": false,
+  "release": false,
+  "fixture_class": "explicit_test_fixture",
+  "proved_roles": [
+    "admin",
+    "reviewer",
+    "steward",
+    "auditor",
+    "business_owner"
+  ],
+  "proved_project": "alpha",
+  "proved_subject": "fixture-admin",
+  "service_commit": "a6f92da8a0bf872f8a30efb116c2c7b14463505b",
+  "contract_commit": "089b00d7f70da1bc42f7e201dfa070748c651d5b",
+  "config_commit": "e24a947d3f4aec69e2c00d35e3cd132e42f4712bbdb6753a8cc583295c1536c9",
+  "ready_config_commit": "e24a947d3f4aec69e2c00d35e3cd132e42f4712bbdb6753a8cc583295c1536c9",
+  "b04": "schema_frozen",
+  "b04_list_builds": {
+    "fetched": true,
+    "ok": false,
+    "status": 404,
+    "reason": "invalid_schema",
+    "errorCode": null
+  },
+  "wrong_csrf_status": 403,
+  "operations": [
+    {
+      "operationId": "startAuthorizationCodeLogin",
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "operationId": "completeAuthorizationCodeCallback",
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "consumeBootstrapToken",
+      "path": "/control/v1/auth/bootstrap/consume",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 403
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "operationId": "startAuthorizationCodeLogin",
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "operationId": "completeAuthorizationCodeCallback",
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "operationId": "startAuthorizationCodeLogin",
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "operationId": "completeAuthorizationCodeCallback",
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "operationId": "startAuthorizationCodeLogin",
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "operationId": "completeAuthorizationCodeCallback",
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "operationId": "startAuthorizationCodeLogin",
+      "path": "/control/v1/auth/login",
+      "status": 302
+    },
+    {
+      "operationId": "completeAuthorizationCodeCallback",
+      "path": "/control/v1/auth/callback",
+      "status": 302
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 200
+    },
+    {
+      "operationId": "logoutManagementSession",
+      "path": "/control/v1/auth/logout",
+      "status": 200
+    },
+    {
+      "operationId": "getIdentityCurrent",
+      "path": "/control/v1/identity/current",
+      "status": 401
+    },
+    {
+      "operationId": "listBuilds",
+      "path": "/control/v1/builds",
+      "status": 404
+    }
+  ]
+}

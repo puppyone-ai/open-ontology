@@ -125,3 +125,15 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 | 运行时注册 | `createRuntimeRegistry` / `registerRuntime`。origin 不是 null、ready 为 true、合同提交不匹配，都会拒绝。登记结果的 origin 仍是 null |
 | 调用 | `prepareCall` 在 CSRF 绑定之后仍返回 `schema_only` 或 `not_connected`。它不发送 fetch，也不把 token 放进返回值 |
 | 服务 | a373 交接仍写明 E56 未验收、生产者二进制未交付、身份产品读取未验收。构建、审核、分类、发布、用户问答和全旅程都还没有真实调用 |
+
+## M12 同源传输
+
+| 字段 | 值 |
+|---|---|
+| 传输 | `registerSameOriginTransport`。origin 与 pageOrigin 必须是同一个 https origin，不能带用户信息、路径、查询或已销毁的证明主机。烘焙的运行时 origin 仍是 null |
+| 调用 | `callOperation` 在登记之后发送 fetch。浏览器页用相对路径，不手写 Origin。Node 证明把 Origin 设成传输 origin 一次。POST 的 `X-OO-CSRF` 只来自 current 信封 |
+| 未登记调用 | `invokeOperation` 仍不发送请求。五个身份 id 仍是 `not_connected`。`prepareCall` 仍不发送请求。`registerRuntime` 仍拒绝非 null origin |
+| 五角色 | 测试发行方。admin、reviewer、steward、auditor、business_owner 都完成 login、current、logout。admin 完成 bootstrap consume。错误 CSRF 的 logout 是 403，会话仍在。回执 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M12-same-origin-client/raw/client-receipt.json` |
+| 这次发行方的 config commit | `e24a947d3f4aec69e2c00d35e3cd132e42f4712bbdb6753a8cc583295c1536c9`。M9 回执里的 `ec801f46456d62b23679c05e87f45e23cedd710bd3aedb1992d69477a2748152` 保持不动 |
+| B04 | `listBuilds` 实际打到边缘，HTTP 404，响应不符合已提交的 selfbuild error schema，结果是 `invalid_schema`。没有把它当成构建成功。合同仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`，ready 仍是 false |
+| 范围 | 客户集成 not_claimed。live、journey、release 都是 false。服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`，合同仍是 `089b00d7f70da1bc42f7e201dfa070748c651d5b` |

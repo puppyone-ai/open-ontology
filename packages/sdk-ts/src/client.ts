@@ -1,7 +1,9 @@
 /**
  * Legal client for published operation strings.
  * B04 is schema_frozen at the 7bb contract. B02 and B07 have no committed OpenAPI.
- * CSRF comes only from a typed getIdentityCurrent body. This module does not call fetch.
+ * CSRF comes only from a typed getIdentityCurrent body.
+ * invokeOperation and prepareCall do not call fetch.
+ * callOperation fetches only after a deployer registers a trusted same-origin transport.
  */
 
 import { SELFBUILD_COMMIT, SELFBUILD_HTTP, SELFBUILD_OPENAPI, bindingById } from "./bindings";
@@ -121,7 +123,7 @@ export const GROUP_PUBLICATION: { readonly B02: GroupPublication; readonly B04: 
     live: false,
     journey: false,
     release: false,
-    note: "schema_frozen。合同 7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9。a373 交接写明 E56 未验收，生产者二进制未交付，身份产品读取未验收。origin 保持 null。本模块不发送请求。",
+    note: "schema_frozen。合同 7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9。a373 交接写明 E56 未验收，生产者二进制未交付，身份产品读取未验收。登记 origin 保持 null。callOperation 可以发送请求；没有验收过的成功响应不会被当成构建完成。ready、live、journey、release 都是 false。",
   },
   B07: {
     group: "B07",
@@ -375,6 +377,265 @@ export function prepareCall(input: { operationId: string; registration: RuntimeR
   return refusal(input.operationId, "not_precise", false);
 }
 
+const DESTROYED_TRANSPORT_HOSTS = new Set([
+  "oo-fe01-edge",
+  "oo-fe01-proof",
+  "oo-fe01-idp",
+  "oo-fe01-pg",
+  "oo-fe01-m7-edge",
+  "oo-fe01-m7-proof",
+  "oo-fe01-m7-idp",
+  "oo-fe01-m7-pg",
+  "oo-fe01-m9-edge",
+  "oo-fe01-m9-proof",
+  "oo-fe01-m9-idp",
+  "oo-fe01-m9-pg",
+  "oo-fe01-m12-edge",
+  "oo-fe01-m12-proof",
+  "oo-fe01-m12-idp",
+  "oo-fe01-m12-pg",
+]);
+
+const CALL_FLAGS = {
+  live: false,
+  journey: false,
+  release: false,
+  customerIntegration: "not_claimed",
+} as const;
+
+const LOGOUT_KEYS = [
+  "agent_session",
+  "authority",
+  "contract",
+  "customer_integration",
+  "data_grants",
+  "gateway_token",
+  "harness_session",
+  "operation",
+  "outcome",
+  "owner_certification",
+];
+
+const BOOTSTRAP_KEYS = [
+  "agent_session",
+  "contract",
+  "customer_integration",
+  "customer_owner",
+  "data_grants",
+  "fixture_class",
+  "gateway_token",
+  "harness_session",
+  "install_state",
+  "operation",
+  "outcome",
+  "owner_certification",
+];
+
+const QUERY_KEYS: Readonly<Record<string, readonly string[]>> = {
+  startAuthorizationCodeLogin: ["return_to"],
+  completeAuthorizationCodeCallback: ["code", "state", "error"],
+  listBuilds: ["project_id", "limit", "cursor"],
+};
+
+export type SameOriginTransport = {
+  origin: string;
+  pageOrigin: string;
+  live: false;
+  journey: false;
+  release: false;
+  customerIntegration: "not_claimed";
+};
+
+export type TransportRegistration = { ok: true; transport: SameOriginTransport } | { ok: false; reason: "origin_rejected" };
+
+export type CallSuccess = {
+  ok: true;
+  operationId: string;
+  status: number;
+  body: unknown;
+  location: string | null;
+  fetched: true;
+  live: false;
+  journey: false;
+  release: false;
+  customerIntegration: "not_claimed";
+};
+
+export type CallFailure = {
+  ok: false;
+  operationId: string;
+  reason: "origin_rejected" | "not_precise" | "csrf_required" | "invalid_schema" | "http_error" | "transport_failed";
+  status: number | null;
+  errorCode: string | null;
+  fetched: boolean;
+  live: false;
+  journey: false;
+  release: false;
+  customerIntegration: "not_claimed";
+};
+
+export type CallResult = CallSuccess | CallFailure;
+
+export type LogoutParse = { ok: true; outcome: "revoked"; customerIntegration: "not_claimed" } | { ok: false; reason: "invalid_schema" };
+
+export type BootstrapParse =
+  | {
+      ok: true;
+      outcome: "consumed";
+      installState: "initialized";
+      fixtureClass: "explicit_test_fixture";
+      customerOwner: false;
+      customerIntegration: "not_claimed";
+    }
+  | { ok: false; reason: "invalid_schema" };
+
+type ActiveTransport = {
+  origin: string;
+  pageOrigin: string;
+  fetchImpl: typeof fetch | null;
+};
+
+let activeTransport: ActiveTransport | null = null;
+
+export function registerSameOriginTransport(input: { origin: string; pageOrigin: string; fetchImpl?: typeof fetch }): TransportRegistration {
+  const origin = httpsOrigin(input.origin);
+  const pageOrigin = httpsOrigin(input.pageOrigin);
+  if (!origin || !pageOrigin || origin !== pageOrigin) {
+    return { ok: false, reason: "origin_rejected" };
+  }
+  activeTransport = { origin, pageOrigin, fetchImpl: input.fetchImpl ?? null };
+  return { ok: true, transport: publicTransport(activeTransport) };
+}
+
+export function clearSameOriginTransport(): void {
+  activeTransport = null;
+}
+
+export function registeredTransport(): SameOriginTransport | null {
+  return activeTransport ? publicTransport(activeTransport) : null;
+}
+
+export function parseLogoutResult(value: unknown): LogoutParse {
+  if (!isRecord(value) || !sameKeys(value, LOGOUT_KEYS)) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  if (
+    value.contract !== "oo.control-identity/v1" ||
+    value.operation !== "logoutManagementSession" ||
+    value.outcome !== "revoked" ||
+    value.authority !== "management_session" ||
+    value.data_grants !== "none" ||
+    value.owner_certification !== "not_issued" ||
+    value.agent_session !== "not_issued" ||
+    value.harness_session !== "not_issued" ||
+    value.gateway_token !== "not_issued" ||
+    value.customer_integration !== "not_claimed"
+  ) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  return { ok: true, outcome: "revoked", customerIntegration: "not_claimed" };
+}
+
+export function parseBootstrapResult(value: unknown): BootstrapParse {
+  if (!isRecord(value) || !sameKeys(value, BOOTSTRAP_KEYS)) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  if (
+    value.contract !== "oo.control-identity/v1" ||
+    value.operation !== "consumeBootstrapToken" ||
+    value.outcome !== "consumed" ||
+    value.install_state !== "initialized" ||
+    value.fixture_class !== "explicit_test_fixture" ||
+    value.customer_owner !== false ||
+    value.owner_certification !== "not_issued" ||
+    value.data_grants !== "none" ||
+    value.agent_session !== "not_issued" ||
+    value.harness_session !== "not_issued" ||
+    value.gateway_token !== "not_issued" ||
+    value.customer_integration !== "not_claimed"
+  ) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  return {
+    ok: true,
+    outcome: "consumed",
+    installState: "initialized",
+    fixtureClass: "explicit_test_fixture",
+    customerOwner: false,
+    customerIntegration: "not_claimed",
+  };
+}
+
+/** Sends one published operation through the registered same-origin transport. */
+export async function callOperation(input: {
+  operationId: string;
+  query?: Record<string, string>;
+  params?: Record<string, string>;
+  body?: unknown;
+  current?: unknown;
+}): Promise<CallResult> {
+  const operation = bindingById(input.operationId);
+  if (!operation || !PRECISE_IDS.has(input.operationId) || operation.method === null || operation.path === null) {
+    return callFailure(input.operationId, "not_precise", null, null, false);
+  }
+  if (!activeTransport) {
+    return callFailure(input.operationId, "origin_rejected", null, null, false);
+  }
+  const transport = activeTransport;
+  const inBrowser = transport.fetchImpl === null && typeof window !== "undefined" && typeof window.location?.origin === "string";
+  if (inBrowser && window.location.origin !== transport.origin) {
+    return callFailure(input.operationId, "origin_rejected", null, null, false);
+  }
+  const path = fillPath(operation.path, input.params);
+  if (!path) {
+    return callFailure(input.operationId, "not_precise", null, null, false);
+  }
+  const query = checkedQuery(input.operationId, input.query);
+  if (!query.ok) {
+    return callFailure(input.operationId, query.reason, null, null, false);
+  }
+  const mutation = operation.method === "POST";
+  const csrf = mutation ? csrfFromCurrent(input.current) : null;
+  if (mutation && (!csrf || !csrf.ok)) {
+    return callFailure(input.operationId, "csrf_required", null, null, false);
+  }
+  if (input.operationId === "consumeBootstrapToken" && !validBootstrapBody(input.body)) {
+    return callFailure(input.operationId, "invalid_schema", null, null, false);
+  }
+  if (input.operationId === "logoutManagementSession" && input.body !== undefined) {
+    return callFailure(input.operationId, "invalid_schema", null, null, false);
+  }
+  if (!mutation && input.body !== undefined) {
+    return callFailure(input.operationId, "invalid_schema", null, null, false);
+  }
+  const url = `${inBrowser ? "" : transport.origin}${path}${queryString(query.query)}`;
+  const headers = new Headers();
+  headers.set("accept", "application/json");
+  if (input.body !== undefined) {
+    headers.set("content-type", "application/json");
+  }
+  if (csrf && csrf.ok) {
+    headers.set("x-oo-csrf", csrf.token);
+  }
+  if (!inBrowser) {
+    headers.set("origin", transport.origin);
+  }
+  const fetchFn = transport.fetchImpl ?? globalThis.fetch;
+  let response: Response;
+  try {
+    response = await fetchFn(url, {
+      method: operation.method,
+      headers,
+      body: input.body === undefined ? undefined : JSON.stringify(input.body),
+      credentials: "include",
+      redirect: "manual",
+    });
+  } catch {
+    return callFailure(input.operationId, "transport_failed", null, null, false);
+  }
+  return classifyResponse(input.operationId, operation.group, response);
+}
+
 function refused(group: GroupName, reason: RuntimeRegistration["reason"]): RuntimeRegistration {
   const publication = GROUP_PUBLICATION[group];
   return {
@@ -449,4 +710,155 @@ function codePoints(value: string): number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function publicTransport(active: ActiveTransport): SameOriginTransport {
+  return { origin: active.origin, pageOrigin: active.pageOrigin, ...CALL_FLAGS };
+}
+
+function httpsOrigin(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.username !== "" || url.password !== "") {
+    return null;
+  }
+  if ((url.pathname !== "/" && url.pathname !== "") || url.search !== "" || url.hash !== "") {
+    return null;
+  }
+  if (url.hostname.length === 0 || DESTROYED_TRANSPORT_HOSTS.has(url.hostname)) {
+    return null;
+  }
+  return url.origin;
+}
+
+function fillPath(template: string, params: Record<string, string> | undefined): string | null {
+  const names = [...template.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map((match) => match[1] ?? "");
+  let path = template;
+  for (const name of names) {
+    const value = params?.[name];
+    if (!value || value.includes("/") || value.includes("?") || value.includes("#")) {
+      return null;
+    }
+    path = path.replace(`{${name}}`, encodeURIComponent(value));
+  }
+  return path.includes("{") || path.includes("}") ? null : path;
+}
+
+function checkedQuery(
+  operationId: string,
+  query: Record<string, string> | undefined,
+): { ok: true; query: Record<string, string> } | { ok: false; reason: "not_precise" | "invalid_schema" } {
+  const entries = Object.entries(query ?? {});
+  if (entries.some(([key]) => key === "bootstrap_token")) {
+    return { ok: false, reason: "not_precise" };
+  }
+  const allowed = QUERY_KEYS[operationId];
+  if (!allowed) {
+    return entries.length === 0 ? { ok: true, query: {} } : { ok: false, reason: "not_precise" };
+  }
+  const next: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (!allowed.includes(key)) {
+      return { ok: false, reason: "not_precise" };
+    }
+    if (key === "return_to" && !validReturnTo(value)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
+    if ((key === "code" || key === "state" || key === "error") && !validQueryToken(value)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
+    if (key === "project_id" && !/^[a-z][a-z0-9_]{0,62}$/.test(value)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
+    if (key === "limit" && !/^(?:[1-9]|[1-4][0-9]|50)$/.test(value)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
+    if (key === "cursor" && (value.length < 1 || value.length > 256)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
+    next[key] = value;
+  }
+  return { ok: true, query: next };
+}
+
+function validReturnTo(value: string): boolean {
+  if (value.length < 1 || value.length > 128 || !value.startsWith("/")) {
+    return false;
+  }
+  if (value.includes("//") || value.includes("\\") || value.includes("?") || value.includes("#") || value.includes("..")) {
+    return false;
+  }
+  return [...value].every((char) => /[A-Za-z0-9/._-]/.test(char));
+}
+
+function validQueryToken(value: string): boolean {
+  return value.length > 0 && value.length <= 4096 && !/\s/.test(value);
+}
+
+function validBootstrapBody(value: unknown): boolean {
+  return isRecord(value) && sameKeys(value, ["token"]) && typeof value.token === "string" && /^[A-Za-z0-9_-]{43}$/.test(value.token);
+}
+
+function queryString(query: Record<string, string>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    params.append(key, value);
+  }
+  const text = params.toString();
+  return text.length === 0 ? "" : `?${text}`;
+}
+
+function callFailure(
+  operationId: string,
+  reason: CallFailure["reason"],
+  status: number | null,
+  errorCode: string | null,
+  fetched: boolean,
+): CallFailure {
+  return { ok: false, operationId, reason, status, errorCode, fetched, ...CALL_FLAGS };
+}
+
+function callSuccess(operationId: string, status: number, body: unknown, location: string | null): CallSuccess {
+  return { ok: true, operationId, status, body, location, fetched: true, ...CALL_FLAGS };
+}
+
+async function classifyResponse(operationId: string, group: string, response: Response): Promise<CallResult> {
+  const location = response.headers.get("location");
+  const text = await response.text();
+  if ((operationId === "startAuthorizationCodeLogin" || operationId === "completeAuthorizationCodeCallback") && response.status === 302 && location) {
+    return callSuccess(operationId, 302, null, location);
+  }
+  const parsed = parseJsonText(text);
+  if (!parsed.ok) {
+    return callFailure(operationId, "invalid_schema", response.status, null, true);
+  }
+  if (response.status === 200 && operationId === "getIdentityCurrent" && csrfFromCurrent(parsed.value).ok) {
+    return callSuccess(operationId, 200, parsed.value, location);
+  }
+  if (response.status === 200 && operationId === "logoutManagementSession" && parseLogoutResult(parsed.value).ok) {
+    return callSuccess(operationId, 200, parsed.value, location);
+  }
+  if (response.status === 200 && operationId === "consumeBootstrapToken" && parseBootstrapResult(parsed.value).ok) {
+    return callSuccess(operationId, 200, parsed.value, location);
+  }
+  const error = group === "selfbuild" ? parseSelfbuildError(parsed.value) : parseControlIdentityError(parsed.value);
+  if (error.ok) {
+    return callFailure(operationId, "http_error", response.status, error.code, true);
+  }
+  return callFailure(operationId, "invalid_schema", response.status, null, true);
+}
+
+function parseJsonText(text: string): { ok: true; value: unknown } | { ok: false } {
+  if (text.length === 0) {
+    return { ok: true, value: null };
+  }
+  try {
+    return { ok: true, value: JSON.parse(text) as unknown };
+  } catch {
+    return { ok: false };
+  }
 }

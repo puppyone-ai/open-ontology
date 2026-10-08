@@ -159,3 +159,11 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 变更类 operation 的 CSRF 只来自 current schema 的 `csrf_token`。`prepareCall` 不发送请求。运行时 origin 仍是 null。`live`、`journey`、`release` 仍是 false。a373 交接仍写明服务未验收，所以构建、审核、分类、发布和用户问答没有进入真实调用。
 - Linux Node v24.21.0 上，三份 `tsc` 退出码是 0。第一次 Vitest 因 OpenAPI 与 `SELFBUILD_HTTP` 的顺序差异失败，断言改为按 operationId 集合比较后，`sdk-client.test.ts` 4 个测试通过。没有重跑 M10 的 67 个测试。证据在 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M11-legal-client/`。
 
+## M12 同源传输（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑字体，没有重跑 M9 的浏览器截图，没有重跑 M10 的 67 个测试。
+- `registerSameOriginTransport` 接受部署者给出的 https origin。`callOperation` 发送请求，并用 current 信封里的 CSRF 与同源 Origin。`invokeOperation` 和 `prepareCall` 仍不发送请求。`registerRuntime` 仍拒绝非 null origin。
+- 五个测试发行方角色通过这个客户端完成 login、current、logout。admin 完成 bootstrap consume。错误 CSRF 的 logout 是 403。`listBuilds` 得到 HTTP 404，按 schema 失败记录，没有当成 B04 成功。
+- 证明主机在驱动结束后写入拒绝名单。Linux Node v24.21.0 上，拒绝名单变更后的 SDK `tsc`、eslint，以及 4 个文件 16 个测试退出码是 0。证据在 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M12-same-origin-client/`。
+- 客户集成 not_claimed。live、journey、release 仍是 false。M9 的 config commit 常量没有改。这次私有发行方的 config commit 是 `e24a947d3f4aec69e2c00d35e3cd132e42f4712bbdb6753a8cc583295c1536c9`。
+

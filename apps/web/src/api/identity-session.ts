@@ -1,5 +1,7 @@
 /** Same-origin B01 client. A caller JSON object is not a session. */
 
+import { callOperation, csrfFromCurrent, registeredTransport } from "@open-ontology/sdk-ts";
+
 export const MANAGEMENT_CAPABILITIES = [
   "audit.read",
   "binding.read",
@@ -160,7 +162,26 @@ export function parseManagementSession(value: unknown): ManagementSession | null
   };
 }
 
+function browserTransportReady(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const transport = registeredTransport();
+  return transport !== null && transport.origin === window.location.origin;
+}
+
 export async function fetchIdentityCurrent(): Promise<IdentityView> {
+  if (browserTransportReady()) {
+    const result = await callOperation({ operationId: "getIdentityCurrent" });
+    if (!result.ok && result.status === 401) {
+      return { status: "anonymous" };
+    }
+    if (!result.ok) {
+      return { status: "absent" };
+    }
+    const session = parseManagementSession(result.body);
+    return session ? { status: "session", session } : { status: "absent" };
+  }
   let response: Response;
   try {
     response = await fetch("/control/v1/identity/current", {
@@ -187,6 +208,18 @@ export async function fetchIdentityCurrent(): Promise<IdentityView> {
 }
 
 export async function logoutManagementSession(csrfToken: string): Promise<"revoked" | "rejected"> {
+  if (browserTransportReady()) {
+    const current = await callOperation({ operationId: "getIdentityCurrent" });
+    if (!current.ok) {
+      return "rejected";
+    }
+    const csrf = csrfFromCurrent(current.body);
+    if (!csrf.ok || csrf.token !== csrfToken) {
+      return "rejected";
+    }
+    const result = await callOperation({ operationId: "logoutManagementSession", current: current.body });
+    return result.ok ? "revoked" : "rejected";
+  }
   let response: Response;
   try {
     response = await fetch("/control/v1/auth/logout", {
@@ -213,6 +246,22 @@ export async function logoutManagementSession(csrfToken: string): Promise<"revok
 }
 
 export async function consumeBootstrapToken(csrfToken: string, token: string): Promise<"consumed" | "rejected"> {
+  if (browserTransportReady()) {
+    const current = await callOperation({ operationId: "getIdentityCurrent" });
+    if (!current.ok) {
+      return "rejected";
+    }
+    const csrf = csrfFromCurrent(current.body);
+    if (!csrf.ok || csrf.token !== csrfToken) {
+      return "rejected";
+    }
+    const result = await callOperation({
+      operationId: "consumeBootstrapToken",
+      current: current.body,
+      body: { token },
+    });
+    return result.ok ? "consumed" : "rejected";
+  }
   let response: Response;
   try {
     response = await fetch("/control/v1/auth/bootstrap/consume", {

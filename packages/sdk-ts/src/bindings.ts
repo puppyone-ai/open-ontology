@@ -342,7 +342,7 @@ const metadata: BindingRecord = {
 };
 
 const CONTROL_IDENTITY_NOTE =
-  "fixture_verified。本地测试发行方，不是客户 IdP。服务提交 a6f92da8a0bf872f8a30efb116c2c7b14463505b，合同提交 089b00d7f70da1bc42f7e201dfa070748c651d5b。ID Token 的 aud 必须包含 client_id。页响应在 M7 browser-receipt.json：管理员 login、callback、current、consume、logout，以及 reviewer 的 login、current 和 logout。错误 CSRF 的 logout 断言为 403。客户集成 not_claimed。live、journey、release 都为 false。运行时 origin 是 null。本模块不发送请求。占位的 B01.* 仍是 unbound。";
+  "fixture_verified。本地测试发行方，不是客户 IdP。服务提交 a6f92da8a0bf872f8a30efb116c2c7b14463505b，合同提交 089b00d7f70da1bc42f7e201dfa070748c651d5b。ID Token 的 aud 必须包含 client_id。页响应在 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a352/frontend/M9-b01-roles/raw/browser-receipt.json：admin、reviewer、steward、auditor、business_owner 的 login、current、logout，以及 admin 的 bootstrap consume。错误 CSRF 的 logout 为 403。客户集成 not_claimed。live、journey、release 都为 false。烘焙的运行时 origin 保持 null。callOperation 只在部署者登记同源传输之后发送请求。占位的 B01.* 仍是 unbound。";
 
 export const OPERATIONS: readonly BindingRecord[] = [
   metadata,

@@ -1,0 +1,19 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/api/sdk-client.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/features/admin-overview/production-route.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 718[2mms[22m[39m
+   [32m✓[39m guarded admin routes [2m(3)[22m
+     [33m[2m✓[22m[39m keeps the fixture catalog closed and does not load a module[33m 554[2mms[22m[39m
+ [32m✓[39m src/features/permissions/current-session.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 285[2mms[22m[39m
+ [32m✓[39m src/api/identity-session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 07:58:38
+[2m   Duration [22m 4.84s[2m (environment 51%, tests 23%, setup 16%, transform 6%, import 3%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 4 times[39m[2m · 2.30s total, 51% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
