@@ -127,3 +127,5 @@ Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–1
 用户强调完整主链：标准YAML→审核overlay→Git版本→发布→AgentPack必须全部真实证明；新增退出标准OC01–06（docs06§3.1、SP07W01/W05/W06、SP02W02、SP08W04）及唯一集成owner a403 tools/ontology-lifecycle。原S0–S10 E56编译Pack不能替代主链完成。每卡工作前读对应当前docs/Plan并记录requirements-map，缺接口精确交原owner、固定交付消费，不mock/手写产物/假Gate。79/90原局部计数不变；主链未签。
 
 完整主链a403 handle10719实际启动confirmedrunning，独占新lifecycle模块，与原15目标工作线并行（不是16已重观测live的声明）；nextUUIDa404。原被打断18min累计等待593.5s，尚余486.5s后一次统一16句柄；不重启原live或重复中间观测。
+
+补完中断累计18min统一16：39211380/39558908/40017820/39990868/3835424/38822685/G2a35387867/G3a35288570/39647498terminal0；7confirmedlive37359356/39768103/39860322/G1a35183401/40146761/40268266/40310719保留。续7原closed卡各先收资源，新增404发布独立复审，400/396已交review不重启。目标15真实句柄启动后记录；nextUUIDa405。79/90未因partial交付变，OC主链未证仍未完成。

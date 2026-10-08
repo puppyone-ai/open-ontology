@@ -25,3 +25,5 @@ USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均termin
 NEXT original closed CLI: 原97842terminal0，原总卡继续真实模块绑定，G1 actualHTTPclient仍91029live勿改shared。a383/373/392接口未fixed不mock，真实可用B01current/初始化/退出完整真实例先推进，其他页面依赖到达立即接。
 
 PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。
+
+NEXT unified closure: 87867terminal0 stageinventory不是新产品能力完成。G1仍83401live正在actualclient，等固定SDK/selfbuild373 API成功binaryhandOff；source393/发布392真实contractfixed获取后接完整管理不是只测no-fetch占位；保持总卡原19features所有权。

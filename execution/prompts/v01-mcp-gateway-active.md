@@ -15,3 +15,5 @@ USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均termin
 NEXT original closed CLI: 原62533terminal0，attempt8 clippy-protocol101临时tool_list借用错误已明，先修必要生命周期再用现有三卷收真正compile/test，Clippycomponent已0不重复安装campaign；成功后真实PGGateway差分。
 
 PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本卡。原CLI上一统一观测terminal0，恢复原UUID先收已启动builder/PG/phase真实exit，禁止重复已有资源；完整原卡成功失败部署证据固定提交才作者交付。Rustglobal10/task1 Node2/browser2/task1满时排队，selfbuild373仅其路径，其他owner不越界。前端三固定UUID/总卡唯一，现后端E54已验，等待fixedB04缺条件不mock。
+
+NEXT unified closure: 22685terminal0，差分retry20s退出，FIRST收该次真实phase，修必要compile借用原三卷，协议/Gateway已0不重复全绿campaign；真实差分原卡未完成不能只停报告。
