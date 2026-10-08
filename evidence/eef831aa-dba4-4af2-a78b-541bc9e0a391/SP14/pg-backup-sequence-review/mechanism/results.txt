@@ -1,0 +1,35 @@
+pg_source=postgres/postgres REL_17_10 src/backend/commands/sequence.c
+alter_lock=ShareRowExclusiveLock at AlterSequence RangeVarGetRelidExtended
+owned_by_skips_need_seq_rewrite=init_params owned_by branch does not set the flag
+rewrite_comment=OWNED BY must not change relfilenumber, lines 1248-1254
+identity_sqlstate=0A000 cannot change ownership of identity sequence, process_owned_by
+cache_lock=init_sequence calls lock_and_open_sequence before dispensing SeqTable cache
+pass create_db exit=0
+pass setup exit=0
+before plain|16391|41|f|0|xmin|742 owned|16392|41|f|0|xmin|743 
+pass owned_by_plain_data_unchanged data=16391|41|f|0 during=16391|41|f|0 after=16391|41|f|0
+pass owned_by_column_data_unchanged data=16392|41|f|0 during=16392|41|f|0 after=16392|41|f|0
+catalog_xmin plain before=742 during=757 after=742
+catalog_xmin owned before=743 during=757 after=743
+pass cache_rewrites_relfilenode before=16391 during=16402
+pass cache_rollback_restores before=16391 after=16391
+pass increment_rewrites_relfilenode before=16391 during=16403
+pass increment_rollback_restores after=16391 data=data-after|41|f|0
+pass lock_table_42809 42809
+pass identity_owned_by_0A000 0A000
+pass stranger_cannot_alter 42501
+pass operator_not_super rolsuper=f operator-user|oo_a391_operator|f
+pass operator_owned_by_unchanged operator-state|16391|41|f|0 expected=16391|41|f|0
+grant_superuser_role exit=0
+grant_superuser_role revoked exit=0
+pass cache_prime primed|1 disk|10|t|32
+pass share_row_exclusive_visible RowExclusiveLock|t ShareRowExclusiveLock|t 
+pass cached_nextval_blocked stderr-has-55P03
+pass cached_setval_blocked stderr-has-55P03
+pass cached_disk_unchanged before=disk|10|t|32 during=during|10|t|32
+pass release_keeps_disk still|10|t|32
+pass release_nextval_usable usable|11
+pass plain_still_41 plain-still|41|f|0
+pass dump_lock_visible count=1
+pass dump_during_lock exit=0 table=yes setval=yes
+assert_exit=0

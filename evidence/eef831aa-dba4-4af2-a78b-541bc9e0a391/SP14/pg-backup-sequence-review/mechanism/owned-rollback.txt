@@ -1,0 +1,4 @@
+during-plain|16391|41|f|0|xmin|757
+during-owned|16392|41|f|0|xmin|757
+after-plain|16391|41|f|0|xmin|742
+after-owned|16392|41|f|0|xmin|743

@@ -1,0 +1,11 @@
+35:CREATE SEQUENCE mech.cached
+53:CREATE TABLE mech.ident_row (
+78:CREATE TABLE mech.item (
+89:CREATE SEQUENCE mech.owned
+100:-- Name: owned; Type: SEQUENCE OWNED BY; Schema: mech; Owner: oo_a391_owner
+103:ALTER SEQUENCE mech.owned OWNED BY mech.item.id;
+110:CREATE SEQUENCE mech.plain
+140:SELECT pg_catalog.setval('mech.cached', 20, true);
+147:SELECT pg_catalog.setval('mech.ident_row_id_seq', 1, false);
+154:SELECT pg_catalog.setval('mech.owned', 41, false);
+161:SELECT pg_catalog.setval('mech.plain', 41, false);

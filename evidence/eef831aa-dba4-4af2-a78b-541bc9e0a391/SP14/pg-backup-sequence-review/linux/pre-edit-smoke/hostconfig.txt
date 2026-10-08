@@ -1,0 +1,1 @@
+oom=false privileged=false network=oo-a391-eef831aa-net memory=6442450944 nano=1000000000
