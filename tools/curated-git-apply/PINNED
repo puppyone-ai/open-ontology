@@ -1,0 +1,6 @@
+commit be9acbc23a9e4c477b9cf6bd4b19ad22fad3abba
+crates/oo-core 769dd0e8f7ee77a29017fb3e0f9d90917b0a8194
+crates/oo-builder 40f74d7e9aac9c13e95d1da3d61d689184773c77
+crates/oo-jobs ca228d7c648e554675cdf31ae828320e9d05cd9e
+tools/description-review a60b6d82e5b114430a66d82f91de4d3a7f3647c4
+tools/description-pack 9d99fe90ecf87c09b4bb33e46e89bd078c10586b

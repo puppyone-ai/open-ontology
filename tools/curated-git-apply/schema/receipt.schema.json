@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.curated-git-apply/v1/receipt",
+  "title": "Curated Git apply receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "compiler",
+    "outcome",
+    "authenticated",
+    "parent_auth",
+    "identity",
+    "ref",
+    "old_commit",
+    "new_commit",
+    "old_tree",
+    "new_tree",
+    "command_sha256",
+    "request_sha256",
+    "review_sha256",
+    "outcome_sha256",
+    "schema_hash",
+    "evidence_hash",
+    "idempotency_key",
+    "author_name",
+    "author_email",
+    "author_is_reviewer",
+    "author_is_customer",
+    "checkout",
+    "worktree",
+    "worktree_dirty",
+    "decisions",
+    "blobs",
+    "statements",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "protocol": { "const": "oo.curated-git-apply/v1" },
+    "compiler": { "const": "oo-curated-git-apply/v1" },
+    "outcome": { "enum": ["committed", "unchanged"] },
+    "authenticated": { "const": false },
+    "parent_auth": { "const": "required" },
+    "identity": { "const": "declared_only" },
+    "ref": { "const": "refs/heads/curated" },
+    "old_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "new_commit": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        { "type": "null" }
+      ]
+    },
+    "old_tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "new_tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "command_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "request_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "review_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "outcome_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "schema_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "evidence_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "author_name": { "const": "oo-curated-git-apply" },
+    "author_email": { "const": "curated-git-apply@open-ontology.invalid" },
+    "author_is_reviewer": { "const": false },
+    "author_is_customer": { "const": false },
+    "checkout": { "const": "require_fresh_checkout" },
+    "worktree": { "const": "not_updated" },
+    "worktree_dirty": { "type": "boolean" },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "blobs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blob" }
+    },
+    "statements": { "$ref": "#/$defs/statements" },
+    "receipt_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applied",
+        "attnum",
+        "authenticated",
+        "column",
+        "dataset",
+        "decision",
+        "reviewer_at",
+        "reviewer_label"
+      ],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "attnum": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "authenticated": { "const": false },
+        "column": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "dataset": { "type": "string" },
+        "decision": { "enum": ["approve", "reject", "defer"] },
+        "reviewer_at": { "type": "string" },
+        "reviewer_label": { "type": "string" }
+      }
+    },
+    "blob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "new_blob", "old_blob", "path"],
+      "properties": {
+        "dataset": { "type": "string" },
+        "new_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "old_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "path": {
+          "type": "string",
+          "pattern": "^ontology/curated/datasets/[a-z][a-z0-9_]{0,62}/[A-Za-z_][A-Za-z0-9_]{0,127}\\.yaml$"
+        }
+      }
+    },
+    "statements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authentication",
+        "classification",
+        "grants",
+        "hooks",
+        "index",
+        "network",
+        "parent_auth",
+        "publication",
+        "roles",
+        "secrets",
+        "worktree"
+      ],
+      "properties": {
+        "authentication": { "const": "not_claimed" },
+        "classification": { "const": "not_applied" },
+        "grants": { "const": "not_authorized" },
+        "hooks": { "const": "not_executed" },
+        "index": { "const": "private" },
+        "network": { "const": "not_used" },
+        "parent_auth": { "const": "required" },
+        "publication": { "const": "not_performed" },
+        "roles": { "const": "not_written" },
+        "secrets": { "const": "not_written" },
+        "worktree": { "const": "not_updated" }
+      }
+    }
+  }
+}

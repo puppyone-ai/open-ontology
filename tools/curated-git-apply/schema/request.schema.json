@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.curated-git-apply/v1/request",
+  "title": "Curated Git apply request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project_root",
+    "ref",
+    "expected_head",
+    "idempotency_key",
+    "expected_schema_hash",
+    "expected_evidence_hash",
+    "review_command",
+    "bindings"
+  ],
+  "properties": {
+    "protocol": { "const": "oo.curated-git-apply/v1" },
+    "project_root": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "ref": { "const": "refs/heads/curated" },
+    "expected_head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "expected_schema_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "expected_evidence_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "review_command": { "type": "string", "minLength": 2, "maxLength": 1048576 },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/binding" }
+    }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "expected_blob"],
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,127}$"
+        },
+        "expected_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "columns": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+          }
+        }
+      }
+    }
+  }
+}
