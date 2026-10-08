@@ -1,0 +1,4 @@
+The passing Playwright test asserted that POST /control/v1/auth/logout with a 43-character CSRF that is not the session token returns 403.
+page.on("response") does not observe Playwright APIRequestContext, so browser-receipt.json has no 403 row.
+The same test then still saw subject fixture-admin, then the real logout returned 200 and the next current calls were 401.
+That 200 and those 401s are in browser-receipt.json.

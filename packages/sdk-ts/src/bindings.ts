@@ -1,8 +1,8 @@
 /**
  * Public binding registry. OpenAPI for the product groups is absent.
  * GET /v1/pack/metadata is schema_frozen against the gateway source blobs below.
- * Five control-identity operations are schema_frozen against commit 089b00d7f.
- * That service is not reachable from this module. Nothing here calls fetch, and live stays false.
+ * Five control-identity operations are fixture_verified against a destroyed local test issuer.
+ * The contract commit stays 089b00d7f. Nothing here calls fetch, and live stays false.
  */
 
 export type BindingState = "unbound" | "schema_frozen" | "fixture_verified" | "live_verified";
@@ -49,6 +49,20 @@ export const PACK_METADATA_SCHEMA_SHA256 = "f77d55d45bfe86e237f167881a415f67304e
 export const GATEWAY_ERROR_SCHEMA_SHA256 = "0839b3e4798ece2ceaddee80ae2c71d54fd491f919d2025616884b97cbc8b5f2";
 
 export const CONTROL_IDENTITY_COMMIT = "089b00d7f70da1bc42f7e201dfa070748c651d5b";
+export const CONTROL_IDENTITY_SERVICE_COMMIT = "35bd6b8157cecd89f2ae085b012b4b0137562ddb";
+export const CONTROL_IDENTITY_FIXTURE_RECEIPT = {
+  kind: "test_issuer",
+  customerIntegration: "not_claimed",
+  live: false,
+  journey: false,
+  release: false,
+  serviceCommit: CONTROL_IDENTITY_SERVICE_COMMIT,
+  contractCommit: CONTROL_IDENTITY_COMMIT,
+  evidence: "evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M6-b01-session/raw/browser-receipt.json",
+  provedSubject: "fixture-admin",
+  provedProject: "alpha",
+  provedRole: "admin",
+} as const;
 export const CONTROL_IDENTITY_OPENAPI = "tools/control-identity/openapi/control-identity.openapi.yaml";
 
 /** Git blob ids of the frozen contract. The working tree matched this commit when pinned. */
@@ -287,13 +301,13 @@ function controlIdentity(
     group: "control-identity",
     method,
     path,
-    state: "schema_frozen",
+    state: "fixture_verified",
     live: false,
     journey: false,
     release: false,
     openApi: CONTROL_IDENTITY_OPENAPI,
     presentInProcess: false,
-    serviceCommit: CONTROL_IDENTITY_COMMIT,
+    serviceCommit: CONTROL_IDENTITY_SERVICE_COMMIT,
     sourceBlobs: CONTROL_IDENTITY_BLOBS,
     schemaSha256,
     capability: "身份",
@@ -324,7 +338,7 @@ const metadata: BindingRecord = {
 };
 
 const CONTROL_IDENTITY_NOTE =
-  "schema_frozen。合同提交 089b00d7f 已冻结，a370 服务尚未作为可达实现绑定。不读取会话，不发送请求。live、journey、release 都为 false。占位的 B01.* 操作仍是 unbound。";
+  "fixture_verified。本地测试发行方，不是客户 IdP。服务提交 35bd6b8157cecd89f2ae085b012b4b0137562ddb，合同提交 089b00d7f70da1bc42f7e201dfa070748c651d5b。页响应在 browser-receipt.json：login 302、callback 302、current 200、consume 200、logout 200。同一测试断言错误 CSRF 的 logout 为 403，且会话未被撤销。客户集成 not_claimed。live、journey、release 都为 false。运行时 origin 是 null。本模块不发送请求。占位的 B01.* 仍是 unbound。";
 
 export const OPERATIONS: readonly BindingRecord[] = [
   metadata,

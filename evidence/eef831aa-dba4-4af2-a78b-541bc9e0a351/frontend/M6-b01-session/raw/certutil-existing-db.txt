@@ -1,0 +1,7 @@
+attempt=4 node container oo-fe01-node-m6
+command=certutil -N -d sql:/home/fe01/.pki/nssdb --empty-password
+result=loop
+cause=home bind already had cert9.db and key4.db from 00:57. -N on an existing database prompts for a password. --empty-password applies only when creating a new database. Closed stdin then printed "Invalid password" and "Error opening input terminal for read".
+fresh_dir_probe=certutil --empty-password -N -d sql:/tmp/nssA exited 0. certutil -A of the CA on that new database exited 0 with trust C,,.
+fix=rm -rf the nssdb, create it with --empty-password, add the CA, and timeout 20 so a prompt cannot loop.
+no_cert_bypass=1

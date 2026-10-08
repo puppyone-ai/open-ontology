@@ -43,3 +43,20 @@ POST /v1/sql 在进程里返回 501 SQL_UNSUPPORTED，登记为 unbound，不是
 ## M2 用户路由
 
 U02 `/` 在没有会话时仍进入 `/login`。U03、U04、U05、U06 只渲染未接入状态。这些路由没有新的 operationID，也不发请求。B01–B12 仍是 unbound。live、journey、release 仍是 false。
+
+## M6 测试发行方
+
+| 字段 | 值 |
+|---|---|
+| operationID | startAuthorizationCodeLogin、completeAuthorizationCodeCallback、getIdentityCurrent、logoutManagementSession、consumeBootstrapToken |
+| service commit | 35bd6b8157cecd89f2ae085b012b4b0137562ddb |
+| contract commit | 089b00d7f70da1bc42f7e201dfa070748c651d5b |
+| state | fixture_verified |
+| customer integration | not_claimed |
+| origin | null |
+| live | false |
+| journey | false |
+| release | false |
+| evidence | evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M6-b01-session/raw/browser-receipt.json |
+
+证明范围只有主体 `fixture-admin`、项目 `alpha`、角色 `admin`。reviewer、steward、auditor、business_owner 和客户 IdP 没有证明。B04 仍是 schema_frozen。占位 B01.* 与 B04.* 仍是 unbound。`invokeOperation` 不发送请求。

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 design/e2e/b01.session.spec.ts:10:1 › test-issuer code login, bootstrap, capability guard, and logout (1.8s)
+
+  1 passed (3.2s)

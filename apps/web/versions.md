@@ -111,3 +111,11 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - B01 的五个 HTTP operation 和 B04 的十五个 HTTP operation 只登记为 `schema_frozen`。`invokeOperation` 返回 `schema_only`，不调用 fetch。占位的 `B01.*` 和 `B04.*` 仍是 unbound。两个 origin 都是 null。
 - 最终生产 JS `dist/assets/index-NShXIz5d.js` 为 344710 字节，gzip 108337 字节。CSS `dist/assets/index-DYD7xV9p.css` 为 28241 字节，gzip 6278 字节。`index.html` 不预加载管理页分块。构建产物不进入 Git。
 
+## M6 测试发行方会话（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖。
+- 五个控制身份 operation 从 `schema_frozen` 改为 `fixture_verified`。服务提交是 `35bd6b8157cecd89f2ae085b012b4b0137562ddb`，合同提交仍是 `089b00d7f70da1bc42f7e201dfa070748c651d5b`。这是销毁后的本地测试发行方，不是客户 IdP。`live`、`journey`、`release` 仍是 false。运行时 origin 仍是 null，`reachable` 是 false。
+- `invokeOperation` 对这五个 id 返回 `not_connected`，不调用 fetch。B04 的十五个 HTTP operation 仍是 `schema_frozen`。占位的 `B01.*` 和 `B04.*` 仍是 unbound。
+- 管理页是否挂载看解析后的会话和 `project.admin`，不看目录状态。没有目录记录时 `adminSessionReady()` 仍是 false。
+- 目录改动之后的生产 JS `dist/assets/index-DI6Dg6fG.js` 为 342199 字节，`gzip -c` 为 105906 字节。CSS 仍是 `dist/assets/index-DYD7xV9p.css`，28241 字节，`gzip -c` 为 6276 字节。浏览器截图来自改目录之前的 `index-BvHQ7Fvw.js`。构建产物不进入 Git。
+

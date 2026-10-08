@@ -1,0 +1,5 @@
+
+Certificate Nickname                                         Trust Attributes
+                                                             SSL,S/MIME,JAR/XPI
+
+fe01ca                                                       C,,  

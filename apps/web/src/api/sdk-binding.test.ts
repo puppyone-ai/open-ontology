@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { OPERATIONS, bindingById, invokeOperation } from "@open-ontology/sdk-ts";
 import {
-  CONTROL_IDENTITY_COMMIT,
+  CONTROL_IDENTITY_FIXTURE_RECEIPT,
+  CONTROL_IDENTITY_SERVICE_COMMIT,
   CONTROL_IDENTITY_SCHEMA_SHA256,
   PACK_METADATA_SCHEMA_SHA256,
   GATEWAY_ERROR_SCHEMA_SHA256,
@@ -23,18 +24,24 @@ describe("sdk binding registry", () => {
     const frozen = OPERATIONS.filter((item) => item.state === "schema_frozen");
     expect(frozen.map((item) => item.operationId)).toEqual([
       "gateway.packMetadata.get",
+      ...SELFBUILD_HTTP.map(([operationId]) => operationId),
+    ]);
+    const fixture = OPERATIONS.filter((item) => item.state === "fixture_verified");
+    expect(fixture.map((item) => item.operationId)).toEqual([
       "startAuthorizationCodeLogin",
       "completeAuthorizationCodeCallback",
       "getIdentityCurrent",
       "logoutManagementSession",
       "consumeBootstrapToken",
-      ...SELFBUILD_HTTP.map(([operationId]) => operationId),
     ]);
+    expect(fixture.every((item) => item.live === false && item.serviceCommit === CONTROL_IDENTITY_SERVICE_COMMIT)).toBe(true);
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.customerIntegration).toBe("not_claimed");
+    expect(CONTROL_IDENTITY_FIXTURE_RECEIPT.live).toBe(false);
     expect(frozen[0]?.live).toBe(false);
     expect(frozen[0]?.openApi).toBe("absent");
-    expect(bindingById("getIdentityCurrent")?.state).toBe("schema_frozen");
+    expect(bindingById("getIdentityCurrent")?.state).toBe("fixture_verified");
     expect(bindingById("getIdentityCurrent")?.live).toBe(false);
-    expect(bindingById("getIdentityCurrent")?.serviceCommit).toBe(CONTROL_IDENTITY_COMMIT);
+    expect(bindingById("getIdentityCurrent")?.serviceCommit).toBe(CONTROL_IDENTITY_SERVICE_COMMIT);
     expect(bindingById("getIdentityCurrent")?.publicFixture).toBeNull();
     expect(bindingById("getIdentityCurrent")?.presentInProcess).toBe(false);
     expect(bindingById("gateway.sql.post")?.state).toBe("unbound");
@@ -64,8 +71,13 @@ describe("sdk binding registry", () => {
     });
     expect(invokeOperation("getIdentityCurrent")).toEqual({
       ok: false,
-      reason: "schema_only",
+      reason: "not_connected",
       operationId: "getIdentityCurrent",
+    });
+    expect(invokeOperation("consumeBootstrapToken")).toEqual({
+      ok: false,
+      reason: "not_connected",
+      operationId: "consumeBootstrapToken",
     });
     expect(invokeOperation("createBuild")).toEqual({
       ok: false,

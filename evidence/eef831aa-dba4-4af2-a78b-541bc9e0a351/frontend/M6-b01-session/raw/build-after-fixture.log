@@ -1,0 +1,31 @@
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 169 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                    0.76 kB │ gzip:   0.37 kB
+dist/assets/index-DYD7xV9p.css    28.24 kB │ gzip:   6.48 kB
+dist/assets/pages-DSU37U_3.js      0.42 kB │ gzip:   0.38 kB
+dist/assets/pages-BLryLSrM.js      0.46 kB │ gzip:   0.40 kB
+dist/assets/pages-BZqnOEKD.js      0.47 kB │ gzip:   0.42 kB
+dist/assets/pages-6kqiCvEl.js      0.51 kB │ gzip:   0.43 kB
+dist/assets/pages-CQ2PaF22.js      0.73 kB │ gzip:   0.52 kB
+dist/assets/pages-Czf9yDGN.js      0.77 kB │ gzip:   0.52 kB
+dist/assets/pages-Cx3xakQp.js      0.81 kB │ gzip:   0.56 kB
+dist/assets/pages-BNjuWzwS.js      0.81 kB │ gzip:   0.56 kB
+dist/assets/pages-jsthrBOV.js      0.82 kB │ gzip:   0.57 kB
+dist/assets/pages-CyLBp259.js      0.83 kB │ gzip:   0.57 kB
+dist/assets/pages-o4atZiqT.js      0.85 kB │ gzip:   0.58 kB
+dist/assets/pages-DsceJ3ZC.js      0.86 kB │ gzip:   0.59 kB
+dist/assets/pages-CbyH9g3H.js      0.87 kB │ gzip:   0.59 kB
+dist/assets/pages-DFSuxEx_.js      0.98 kB │ gzip:   0.59 kB
+dist/assets/pages-K_27e1NU.js      0.99 kB │ gzip:   0.65 kB
+dist/assets/pages-B-7iF2Zm.js      1.00 kB │ gzip:   0.62 kB
+dist/assets/pages-CnwT1W7C.js      1.25 kB │ gzip:   0.70 kB
+dist/assets/pages-BzvM9081.js      1.25 kB │ gzip:   0.75 kB
+dist/assets/pages-B-WCmnPL.js      1.26 kB │ gzip:   0.72 kB
+dist/assets/blocks-DK6Y0GLY.js     6.86 kB │ gzip:   2.49 kB
+dist/assets/surface-DghnjpBP.js   13.23 kB │ gzip:   5.59 kB
+dist/assets/index-DI6Dg6fG.js    342.19 kB │ gzip: 106.86 kB
+
+✓ built in 372ms

@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [32m✓[39m src/app/router.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/api/identity-session.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/app/runtime-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 01:32:04
+[2m   Duration [22m 3.56s[2m (environment 60%, setup 22%, tests 9%, transform 6%, import 2%)[22m
+
+[2m    Isolate [22m [33m4 workers spawned[39m[2m · ~569ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.71s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
