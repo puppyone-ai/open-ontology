@@ -82,48 +82,46 @@ pub fn backup(operator: &Operator) -> Result<(), Fail> {
     let versions = client.versions()?;
     let started = unix_now()?;
     let mut barrier = cut::Barrier::acquire(&client)?;
+    let cut_started_unix = unix_now()?;
     if !cut::probes_rejected(&client)? {
         return Err(fail(1, "writer probe was not rejected"));
     }
-    let digests_before = cut::content_digests(&client)?;
+    let pairs = barrier.snapshot_pairs();
+    let digests_before = cut::content_digests(&client, &pairs)?;
     let lsn_before = scalar(&client, CONTROL_DB, "SELECT pg_current_wal_lsn()::text")?;
     let marker_before = scalar(&client, CONTROL_DB, "SELECT source_cut || '|' || entry_count::text FROM oo_key_fixture.cut_marker")?;
     let count_before = scalar(&client, AGENT_DB, "SELECT count(*)::text FROM shop.entry")?;
-    let gold_dir = operator.backup_dir.join("gold");
-    fs::create_dir_all(&gold_dir).map_err(|err| fail(1, format!("gold dir: {err}")))?;
-    let mut gold = Vec::new();
-    for spec in copies() {
-        let path = gold_dir.join(spec.file_name);
-        client.copy_to(spec.source_db, spec.select_sql, &path)?;
-        if spec.shop {
-            let fresh = operator.work_dir.join("rust-gold").join(spec.file_name);
-            write_rust_shop(&fresh, spec.file_name)?;
-            require_same(spec.file_name, &path, &fresh)?;
-        }
-        gold.push(NamedHash { name: spec.file_name.to_string(), sha256: hash_path(&path)? });
-    }
+    let mut gold = copy_sealed_gold(&client, operator, &barrier)?;
     let mut schemas = Vec::new();
     for schema in protocol::SCHEMAS {
         schemas.push(NamedHash { name: schema.0.to_string(), sha256: file_hash(operator, schema.2)? });
     }
     let control_dump = operator.backup_dir.join("oo_a356_control.dump");
     let agent_dump = operator.backup_dir.join("oo_a356_agent.dump");
-    client.dump(CONTROL_DB, &control_dump)?;
-    client.dump(AGENT_DB, &agent_dump)?;
-    let digests_after = cut::content_digests(&client)?;
+    client.dump(CONTROL_DB, &control_dump, barrier.snapshot_id(CONTROL_DB)?)?;
+    client.dump(AGENT_DB, &agent_dump, barrier.snapshot_id(AGENT_DB)?)?;
+    let digests_after = cut::content_digests(&client, &pairs)?;
     let locks_held = barrier.still_held(&client)?;
+    barrier.confirm_sequence_locks(&client)?;
+    barrier.reread_sequences()?;
+    let cut_finished_unix = unix_now()?;
     let lsn_after = scalar(&client, CONTROL_DB, "SELECT pg_current_wal_lsn()::text")?;
     let marker_after = scalar(&client, CONTROL_DB, "SELECT source_cut || '|' || entry_count::text FROM oo_key_fixture.cut_marker")?;
     let count_after = scalar(&client, AGENT_DB, "SELECT count(*)::text FROM shop.entry")?;
     let signals = cut::Signals {
         marker_stable: marker_before == CUT_EXPECT && marker_after == marker_before,
         count_stable: count_before == "90000" && count_after == count_before,
-        locks_held,
+        locks_held: locks_held && barrier.inventory_matches(),
         probes_rejected: true,
         digests_stable: cut::same_content(&digests_before, &digests_after),
+        snapshots_bound: barrier.snapshots_bound(),
+        sequence_fence_held: barrier.sequence_fence_held(),
     };
     let cut_proven = cut::proven(&signals);
-    let writer_blocks = if cut_proven { barrier.blocks() } else { Vec::new() };
+    let writer_blocks = barrier.blocks();
+    let sequence_fence = barrier.sequence_fence();
+    let snapshots = barrier.snapshots().to_vec();
+    let catalog_body = barrier.catalog_text().to_string();
     barrier.release()?;
     let history_insufficient = !cut_proven;
     let wal_moved = lsn_before != lsn_after;
@@ -131,13 +129,18 @@ pub fn backup(operator: &Operator) -> Result<(), Fail> {
     let finished = unix_now()?;
     sort_names(&mut gold)?;
     sort_names(&mut schemas)?;
-    let relation_digests = if cut_proven { bind_digests(&digests_before, &gold)? } else { Vec::new() };
+    let relation_digests = bind_digests(&digests_before, &gold)?;
+    fs::write(operator.backup_dir.join("catalog.txt"), &catalog_body).map_err(|err| fail(1, format!("catalog: {err}")))?;
+    let catalog_sha256 = sha256::hex(&sha256::hash(catalog_body.as_bytes()));
     let manifest = Manifest {
         pg_dump_version: versions.pg_dump,
         pg_restore_version: versions.pg_restore,
         psql_version: versions.psql,
         tool_dir: operator.tool_dir.display().to_string(),
+        catalog_sha256,
+        cut_finished_unix,
         cut_mode: if cut_proven { cut::WRITERS_BLOCKED.to_string() } else { cut::UNPROVEN.to_string() },
+        cut_started_unix,
         history_insufficient,
         wal_moved,
         lsn_before,
@@ -154,6 +157,8 @@ pub fn backup(operator: &Operator) -> Result<(), Fail> {
         gold,
         schemas,
         relation_digests,
+        sequence_fence,
+        snapshots,
         writer_blocks,
         shop_gold_sha256: gold::shop_bundle_sha256(),
     };
@@ -196,26 +201,29 @@ pub fn restore(operator: &Operator) -> Result<u8, Fail> {
         }
         Err(err) => return Err(err),
     };
-    if let Err(err) = cut::proof_shape(
-        &manifest.cut_mode,
-        manifest.history_insufficient,
-        !manifest.history_insufficient,
-        &manifest.writer_blocks,
-        &manifest.relation_digests,
-    ) {
+    if let Err(err) = cut::proof_shape(&cut::CutProof {
+        blocks: &manifest.writer_blocks,
+        catalog_sha256: &manifest.catalog_sha256,
+        cut_mode: &manifest.cut_mode,
+        digests: &manifest.relation_digests,
+        fence: &manifest.sequence_fence,
+        history_insufficient: manifest.history_insufficient,
+        quiescent: !manifest.history_insufficient,
+        snapshots: &manifest.snapshots,
+    }) {
         if err.exit == 4 {
             return refuse(operator, "cut_unproven");
         }
         return Err(err);
-    }
-    if manifest.history_insufficient || manifest.cut_mode != cut::WRITERS_BLOCKED {
-        return refuse(operator, "cut_unproven");
     }
     if let Err(err) = verify_names(operator, &manifest) {
         if err.exit == 4 {
             return refuse(operator, reason_code(&err.detail));
         }
         return Err(err);
+    }
+    if manifest.history_insufficient || manifest.cut_mode != cut::WRITERS_BLOCKED {
+        return refuse(operator, "cut_unproven");
     }
     if let Err(err) = ensure_restore_db(&client, RESTORE_CONTROL_DB) {
         return refuse_or(operator, err);
@@ -325,6 +333,23 @@ pub fn hash_tree(root: &Path, out: &Path) -> Result<(), Fail> {
     let side = PathBuf::from(format!("{}.sha256", out.display()));
     fs::write(&side, format!("{digest}\n")).map_err(|err| fail(1, format!("hash tree sidecar: {err}")))?;
     Ok(())
+}
+
+fn copy_sealed_gold(client: &Client, operator: &Operator, barrier: &cut::Barrier) -> Result<Vec<NamedHash>, Fail> {
+    let gold_dir = operator.backup_dir.join("gold");
+    fs::create_dir_all(&gold_dir).map_err(|err| fail(1, format!("gold dir: {err}")))?;
+    let mut gold = Vec::new();
+    for spec in copies() {
+        let path = gold_dir.join(spec.file_name);
+        client.copy_in_snapshot(spec.source_db, barrier.snapshot_id(spec.source_db)?, spec.select_sql, &path)?;
+        if spec.shop {
+            let fresh = operator.work_dir.join("rust-gold").join(spec.file_name);
+            write_rust_shop(&fresh, spec.file_name)?;
+            require_same(spec.file_name, &path, &fresh)?;
+        }
+        gold.push(NamedHash { name: spec.file_name.to_string(), sha256: hash_path(&path)? });
+    }
+    Ok(gold)
 }
 
 fn refuse(operator: &Operator, reason: &str) -> Result<u8, Fail> {
@@ -662,6 +687,7 @@ fn verify_names(operator: &Operator, manifest: &Manifest) -> Result<(), Fail> {
     if manifest.shop_gold_sha256 != gold::shop_bundle_sha256() {
         return Err(fail(4, "gold_hash_mismatch"));
     }
+    match_hash(&operator.backup_dir.join("catalog.txt"), &manifest.catalog_sha256, "manifest_shape")?;
     let pairs: Vec<(&str, &str)> = manifest.gold.iter().map(|item| (item.name.as_str(), item.sha256.as_str())).collect();
     cut::digests_bound(&manifest.relation_digests, &pairs)?;
     Ok(())

@@ -31,7 +31,9 @@ CREATE TABLE oo_key_fixture.cut_marker (
     CONSTRAINT cut_marker_count CHECK (entry_count = 100000),
     CONSTRAINT cut_marker_cut CHECK (source_cut = 'cut-a356-1')
 );
+CREATE SEQUENCE oo_key_fixture.cut_seq AS bigint START WITH 41 INCREMENT BY 1;
 REVOKE ALL ON ALL TABLES IN SCHEMA oo_key_fixture FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA oo_key_fixture FROM PUBLIC;
 ";
 
 pub const SHOP_DDL: &str = "\
@@ -58,9 +60,11 @@ CREATE TABLE shop.entry (
     memo text,
     CONSTRAINT entry_account_fk FOREIGN KEY (account_id) REFERENCES shop.account (account_id)
 );
+CREATE SEQUENCE shop.cut_seq AS bigint START WITH 41 INCREMENT BY 1;
 COMMENT ON TABLE shop.party IS '甲注评名录';
 REVOKE ALL ON SCHEMA shop FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA shop FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA shop FROM PUBLIC;
 GRANT USAGE ON SCHEMA shop TO oo_a356_reader, oo_a356_writer;
 GRANT SELECT ON shop.party, shop.account, shop.entry TO oo_a356_reader;
 GRANT INSERT ON shop.party TO oo_a356_writer;

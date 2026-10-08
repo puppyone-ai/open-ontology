@@ -1,0 +1,1 @@
+pg_dump (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)

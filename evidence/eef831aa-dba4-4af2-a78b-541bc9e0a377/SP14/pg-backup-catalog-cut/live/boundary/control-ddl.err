@@ -1,0 +1,14 @@
+psql:/run-in/q-control-ddl.sql:10: NOTICE:  00000: step comment ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:17: NOTICE:  00000: step schema ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:24: NOTICE:  00000: step table ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:31: NOTICE:  00000: step insert ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:38: NOTICE:  00000: step sequence ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:45: NOTICE:  00000: step nextval ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-control-ddl.sql:52: NOTICE:  00000: step view ok
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

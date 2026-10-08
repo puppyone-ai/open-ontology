@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pg_backup_restore::cut::{self, RelationDigest, WriterBlock};
+use pg_backup_restore::snapshot::{SequenceFence, SequenceLock, SnapshotBind};
 use pg_backup_restore::decide::{self, publish_offset, Report};
 use pg_backup_restore::fixture::{self, control_sql, enum_sql};
 use pg_backup_restore::gold::{self, entry_qty};
@@ -164,6 +165,53 @@ fn manifest_round_trips_and_rejects_a_bad_quiescent_flag() {
 }
 
 #[test]
+fn a_refused_sequence_fence_is_recorded_and_is_not_a_cut() {
+    let mut manifest = sample_manifest();
+    manifest.history_insufficient = true;
+    manifest.cut_mode = cut::UNPROVEN.to_string();
+    manifest.sequence_fence.held = false;
+    manifest.sequence_fence.sequences.push(SequenceLock {
+        database: protocol::AGENT_DB.to_string(),
+        held: false,
+        relation: "shop.cut_seq".to_string(),
+        sqlstate: "42809".to_string(),
+    });
+    manifest.sequence_fence.sequences.push(SequenceLock {
+        database: protocol::CONTROL_DB.to_string(),
+        held: false,
+        relation: "oo_key_fixture.cut_seq".to_string(),
+        sqlstate: "42809".to_string(),
+    });
+    let parsed = manifest::parse(&manifest::to_json(&manifest)).unwrap();
+    assert!(parsed.history_insufficient);
+    assert_eq!(parsed.cut_mode, cut::UNPROVEN);
+    assert!(!parsed.sequence_fence.held);
+    assert_eq!(parsed.snapshots.len(), 2);
+    assert_ne!(parsed.snapshots[0].id, parsed.snapshots[1].id);
+    assert!(!parsed.writer_blocks.is_empty());
+    assert!(!parsed.relation_digests.is_empty());
+
+    let mut sealed = sample_manifest();
+    sealed.sequence_fence.held = false;
+    sealed.sequence_fence.sequences.push(SequenceLock {
+        database: protocol::AGENT_DB.to_string(),
+        held: false,
+        relation: "shop.cut_seq".to_string(),
+        sqlstate: "42809".to_string(),
+    });
+    assert!(manifest::parse(&manifest::to_json(&sealed)).is_err());
+
+    let mut same = sample_manifest();
+    same.snapshots[1].id = same.snapshots[0].id.clone();
+    assert!(manifest::parse(&manifest::to_json(&same)).is_err());
+
+    let mut downgraded = sample_manifest();
+    downgraded.history_insufficient = true;
+    downgraded.cut_mode = cut::UNPROVEN.to_string();
+    assert!(manifest::parse(&manifest::to_json(&downgraded)).is_err());
+}
+
+#[test]
 fn relation_digest_must_match_the_bound_gold_hash() {
     let manifest = sample_manifest();
     let pairs: Vec<(&str, &str)> = manifest.gold.iter().map(|item| (item.name.as_str(), item.sha256.as_str())).collect();
@@ -250,6 +298,10 @@ fn checkpoint_sql_mentions_the_frozen_rows() {
     let enumerated = enum_sql(&digest).unwrap();
     assert!(enumerated.contains("'confirmed'"));
     assert!(enumerated.contains("'approved'"));
+    assert!(control.contains("oo_key_fixture.cut_seq"));
+    assert!(!control.contains("nextval"));
+    assert!(fixture::SHOP_DDL.contains("shop.cut_seq"));
+    assert!(!fixture::SHOP_DDL.contains("nextval"));
     assert_eq!(fixture::ROLES.len(), 7);
     assert_eq!(protocol::SCHEMAS.len(), 4);
     assert_eq!(protocol::copies().len(), 15);
@@ -277,7 +329,10 @@ fn sample_manifest() -> Manifest {
         pg_restore_version: "pg_restore (PostgreSQL) 17.10".to_string(),
         psql_version: "psql (PostgreSQL) 17.10".to_string(),
         tool_dir: "/usr/lib/postgresql/17/bin".to_string(),
+        catalog_sha256: sha256::hex(&hash(b"catalog")),
+        cut_finished_unix: 12,
         cut_mode: cut::WRITERS_BLOCKED.to_string(),
+        cut_started_unix: 11,
         history_insufficient: false,
         wal_moved: true,
         lsn_before: "0/100".to_string(),
@@ -294,6 +349,24 @@ fn sample_manifest() -> Manifest {
         gold: Vec::new(),
         schemas: Vec::new(),
         relation_digests: Vec::new(),
+        sequence_fence: SequenceFence {
+            held: true,
+            lock_mode: "SHARE".to_string(),
+            method: "lock_table_share".to_string(),
+            sequences: Vec::new(),
+        },
+        snapshots: vec![
+            SnapshotBind {
+                database: protocol::AGENT_DB.to_string(),
+                id: "00000002-00000002-1".to_string(),
+                isolation: "REPEATABLE READ".to_string(),
+            },
+            SnapshotBind {
+                database: protocol::CONTROL_DB.to_string(),
+                id: "00000001-00000001-1".to_string(),
+                isolation: "REPEATABLE READ".to_string(),
+            },
+        ],
         writer_blocks: Vec::new(),
         shop_gold_sha256: sha256::hex(&hash(b"shop")),
     };

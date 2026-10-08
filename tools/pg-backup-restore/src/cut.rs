@@ -1,14 +1,17 @@
 //! Writer-blocked cut. Marker and entry-count samples cannot establish it.
 //!
 //! SHARE locks block writers, including the table owner, and stay compatible
-//! with pg_dump's ACCESS SHARE. The sessions are disconnected on drop so a
-//! failed backup does not leave either database read-only.
+//! with pg_dump's ACCESS SHARE. Each database also exports its own REPEATABLE
+//! READ snapshot. Sequence values are not MVCC, so a sequence lock attempt is
+//! recorded and a refused lock withholds the cut. The sessions are disconnected
+//! on drop so a failed backup does not leave either database read-only.
 
 use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::pg::{checked_relation, Client, HeldLock};
 use crate::protocol::{AGENT_DB, CONTROL_DB};
+use crate::snapshot::{self, Capture, FenceAttempt, SeqState, SequenceFence, SequenceLock, SnapshotBind};
 use crate::{fail, Fail};
 
 pub const WRITERS_BLOCKED: &str = "writers_blocked";
@@ -52,6 +55,14 @@ WHERE n.nspname <> 'pg_catalog' \
   AND n.nspname <> 'information_schema' \
   AND c.relkind IN ('r','p')";
 
+const USER_SEQUENCES: &str = "\
+SELECT n.nspname || '.' || c.relname \
+FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname <> 'pg_catalog' \
+  AND n.nspname <> 'information_schema' \
+  AND c.relkind = 'S'";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelationDigest {
     pub content_md5: String,
@@ -84,11 +95,18 @@ pub struct Signals {
     pub locks_held: bool,
     pub probes_rejected: bool,
     pub digests_stable: bool,
+    pub snapshots_bound: bool,
+    pub sequence_fence_held: bool,
 }
 
 pub struct Barrier {
     holds: Vec<HeldLock>,
     records: Vec<LockRecord>,
+    snapshots: Vec<SnapshotBind>,
+    catalog_text: String,
+    state_moved: bool,
+    sequence_shares_held: bool,
+    inventory_matches: bool,
 }
 
 struct LockRecord {
@@ -96,12 +114,15 @@ struct LockRecord {
     database: String,
     pid: String,
     relations: Vec<String>,
+    fence: Vec<FenceAttempt>,
+    sequence_names: Vec<String>,
+    sequence_state: Vec<SeqState>,
 }
 
 /// Marker and count stability do not establish a cut. They can only withhold one.
 pub fn proven(signals: &Signals) -> bool {
     let blocked = signals.locks_held && signals.probes_rejected && signals.digests_stable;
-    blocked && signals.marker_stable && signals.count_stable
+    blocked && signals.marker_stable && signals.count_stable && signals.snapshots_bound && signals.sequence_fence_held
 }
 
 pub fn application_name(database: &str) -> Option<&'static str> {
@@ -116,20 +137,42 @@ pub fn sealed_pairs() -> Vec<(&'static str, &'static str, &'static str)> {
     SEALED.iter().map(|item| (item.database, item.relation, item.gold_file)).collect()
 }
 
-pub fn proof_shape(cut_mode: &str, history_insufficient: bool, quiescent: bool, blocks: &[WriterBlock], digests: &[RelationDigest]) -> Result<(), Fail> {
-    if quiescent == history_insufficient {
+pub struct CutProof<'a> {
+    pub blocks: &'a [WriterBlock],
+    pub catalog_sha256: &'a str,
+    pub cut_mode: &'a str,
+    pub digests: &'a [RelationDigest],
+    pub fence: &'a SequenceFence,
+    pub history_insufficient: bool,
+    pub quiescent: bool,
+    pub snapshots: &'a [SnapshotBind],
+}
+
+pub fn proof_shape(proof: &CutProof<'_>) -> Result<(), Fail> {
+    if proof.quiescent == proof.history_insufficient {
         return Err(fail(4, "manifest quiescent flag disagrees"));
     }
-    if history_insufficient {
-        if cut_mode != UNPROVEN || quiescent || !blocks.is_empty() || !digests.is_empty() {
+    sealed_blocks(proof.blocks)?;
+    sealed_digests(proof.digests)?;
+    snapshot_shape(proof.snapshots)?;
+    fence_shape(proof.fence)?;
+    if !is_sha256(proof.catalog_sha256) {
+        return Err(fail(4, "catalog digest is not hex"));
+    }
+    if proof.history_insufficient {
+        if proof.cut_mode != UNPROVEN || proof.quiescent || proof.fence.held {
             return Err(fail(4, "unproven cut has a seal"));
         }
         return Ok(());
     }
-    if cut_mode != WRITERS_BLOCKED || !quiescent {
+    if proof.cut_mode != WRITERS_BLOCKED || !proof.quiescent || !proof.fence.held {
         return Err(fail(4, "quiescent cut is not writers_blocked"));
     }
-    if blocks.len() != SESSIONS.len() || digests.len() != SEALED.len() {
+    Ok(())
+}
+
+fn sealed_blocks(blocks: &[WriterBlock]) -> Result<(), Fail> {
+    if blocks.len() != SESSIONS.len() {
         return Err(fail(4, "cut proof is incomplete"));
     }
     for (database, application) in SESSIONS {
@@ -153,6 +196,13 @@ pub fn proof_shape(cut_mode: &str, history_insufficient: bool, quiescent: bool, 
             }
         }
     }
+    Ok(())
+}
+
+fn sealed_digests(digests: &[RelationDigest]) -> Result<(), Fail> {
+    if digests.len() != SEALED.len() {
+        return Err(fail(4, "cut proof is incomplete"));
+    }
     let mut seen = Vec::new();
     for digest in digests {
         if !is_md5(&digest.content_md5) || !is_sha256(&digest.gold_sha256) {
@@ -175,6 +225,57 @@ pub fn proof_shape(cut_mode: &str, history_insufficient: bool, quiescent: bool, 
     Ok(())
 }
 
+fn snapshot_shape(snapshots: &[SnapshotBind]) -> Result<(), Fail> {
+    if snapshots.len() != SESSIONS.len() {
+        return Err(fail(4, "cut snapshots are not two databases"));
+    }
+    let mut ids = Vec::new();
+    for (database, _) in SESSIONS {
+        let Some(item) = snapshots.iter().find(|item| item.database == *database) else {
+            return Err(fail(4, "cut snapshot is missing a database"));
+        };
+        if item.isolation != "REPEATABLE READ" {
+            return Err(fail(4, "cut snapshot isolation is refused"));
+        }
+        if snapshot::valid_id(&item.id).is_err() {
+            return Err(fail(4, "cut snapshot id is refused"));
+        }
+        ids.push(item.id.clone());
+    }
+    if ids[0] == ids[1] {
+        return Err(fail(4, "cut snapshots are not distinct"));
+    }
+    Ok(())
+}
+
+fn fence_shape(fence: &SequenceFence) -> Result<(), Fail> {
+    if fence.lock_mode != "SHARE" || fence.method != "lock_table_share" {
+        return Err(fail(4, "sequence fence is not a share lock"));
+    }
+    let mut seen = Vec::new();
+    for row in &fence.sequences {
+        if row.database != CONTROL_DB && row.database != AGENT_DB {
+            return Err(fail(4, "sequence fence database is refused"));
+        }
+        checked_relation(&row.relation)?;
+        if row.sqlstate.len() != 5 || !row.sqlstate.bytes().all(|byte| byte.is_ascii_digit() || byte.is_ascii_uppercase()) {
+            return Err(fail(4, "sequence fence sqlstate is refused"));
+        }
+        if row.held != (row.sqlstate == "00000") {
+            return Err(fail(4, "sequence fence held flag disagrees"));
+        }
+        let key = format!("{} {}", row.database, row.relation);
+        if seen.contains(&key) {
+            return Err(fail(4, "sequence fence repeats"));
+        }
+        seen.push(key);
+    }
+    if fence.held && fence.sequences.iter().any(|row| !row.held) {
+        return Err(fail(4, "sequence fence is not held"));
+    }
+    Ok(())
+}
+
 pub fn digests_bound(digests: &[RelationDigest], gold: &[(&str, &str)]) -> Result<(), Fail> {
     for digest in digests {
         let Some(file_name) = sealed_gold(&digest.database, &digest.relation) else {
@@ -192,24 +293,146 @@ impl Barrier {
     pub fn acquire(client: &Client) -> Result<Self, Fail> {
         let mut holds = Vec::new();
         let mut records = Vec::new();
+        let mut snapshots = Vec::new();
+        let mut catalog = Vec::new();
+        let mut inventory_matches = true;
         for (database, application) in SESSIONS {
             let relations = user_tables(client, database)?;
+            let sequences = user_sequences(client, database)?;
             for sealed in SEALED.iter().filter(|item| item.database == *database) {
                 if !relations.iter().any(|relation| relation == sealed.relation) {
                     return Err(fail(1, format!("sealed relation missing: {}", sealed.relation)));
                 }
             }
-            let held = client.hold_share_locks(database, application, &relations)?;
+            let held = client.open_cut(database, application, &relations, &sequences)?;
             holds.push(held);
-            let pid = wait_held(holds.last_mut().expect("hold was pushed"), client, database, application, &relations)?;
-            records.push(LockRecord {
-                application_name: (*application).to_string(),
+            let captured = holds.last().expect("hold was pushed").captured.clone();
+            let parsed = snapshot::parse_capture(&captured)?;
+            if parsed.tables != relations {
+                inventory_matches = false;
+            }
+            catalog.extend(snapshot::catalog_lines(database, &parsed)?);
+            snapshots.push(SnapshotBind {
                 database: (*database).to_string(),
-                pid,
-                relations,
+                id: parsed.snapshot_id.clone(),
+                isolation: "REPEATABLE READ".to_string(),
             });
+            let pid = wait_held(holds.last_mut().expect("hold was pushed"), client, database, application, &relations)?;
+            records.push(lock_record(application, database, pid, relations, parsed));
         }
-        Ok(Self { holds, records })
+        catalog.sort();
+        if catalog.windows(2).any(|pair| pair[0] == pair[1]) {
+            return Err(fail(1, "catalog line repeats"));
+        }
+        Ok(Self {
+            holds,
+            records,
+            snapshots,
+            catalog_text: snapshot::catalog_text(&catalog),
+            state_moved: false,
+            sequence_shares_held: false,
+            inventory_matches,
+        })
+    }
+
+    pub fn snapshot_id(&self, database: &str) -> Result<&str, Fail> {
+        self.snapshots
+            .iter()
+            .find(|item| item.database == database)
+            .map(|item| item.id.as_str())
+            .ok_or_else(|| fail(1, "cut snapshot is missing"))
+    }
+
+    pub fn snapshot_pairs(&self) -> Vec<(String, String)> {
+        self.snapshots.iter().map(|item| (item.database.clone(), item.id.clone())).collect()
+    }
+
+    pub fn snapshots(&self) -> &[SnapshotBind] {
+        &self.snapshots
+    }
+
+    pub fn catalog_text(&self) -> &str {
+        &self.catalog_text
+    }
+
+    pub fn inventory_matches(&self) -> bool {
+        self.inventory_matches
+    }
+
+    pub fn snapshots_bound(&self) -> bool {
+        snapshot_shape(&self.snapshots).is_ok()
+    }
+
+    pub fn sequence_fence_held(&self) -> bool {
+        if self.state_moved || !self.sequence_shares_held {
+            return false;
+        }
+        for record in &self.records {
+            for name in &record.sequence_names {
+                let Some(row) = record.fence.iter().find(|row| row.relation == *name) else {
+                    return false;
+                };
+                if !row.granted {
+                    return false;
+                }
+            }
+            for state in &record.sequence_state {
+                if !record.sequence_names.iter().any(|name| name == &state.relation) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    pub fn sequence_fence(&self) -> SequenceFence {
+        let mut sequences = Vec::new();
+        for record in &self.records {
+            for row in &record.fence {
+                sequences.push(SequenceLock {
+                    database: record.database.clone(),
+                    held: row.granted,
+                    relation: row.relation.clone(),
+                    sqlstate: row.sqlstate.clone(),
+                });
+            }
+        }
+        sequences.sort_by(|left, right| left.database.cmp(&right.database).then(left.relation.cmp(&right.relation)));
+        SequenceFence {
+            held: self.sequence_fence_held(),
+            lock_mode: "SHARE".to_string(),
+            method: "lock_table_share".to_string(),
+            sequences,
+        }
+    }
+
+    pub fn confirm_sequence_locks(&mut self, client: &Client) -> Result<(), Fail> {
+        let mut ok = true;
+        for record in &self.records {
+            let locked = lines(client, &record.database, &sequence_locks_sql(&record.application_name, &record.database))?;
+            for row in &record.fence {
+                if row.granted && !locked.iter().any(|name| name == &row.relation) {
+                    ok = false;
+                }
+            }
+        }
+        self.sequence_shares_held = ok;
+        Ok(())
+    }
+
+    pub fn reread_sequences(&mut self) -> Result<(), Fail> {
+        let scripts: Vec<String> = self.records.iter().map(|record| snapshot::reread_sql(&record.sequence_state)).collect();
+        let mut moved = false;
+        for (index, script) in scripts.iter().enumerate() {
+            let text = self.holds[index].push_sql(script, "seq2done|1")?;
+            if snapshot::state_moved(&self.records[index].sequence_state, &text) {
+                moved = true;
+            }
+        }
+        if moved {
+            self.state_moved = true;
+        }
+        Ok(())
     }
 
     pub fn still_held(&mut self, client: &Client) -> Result<bool, Fail> {
@@ -282,11 +505,14 @@ pub fn probes_rejected(client: &Client) -> Result<bool, Fail> {
     Ok(agent && control)
 }
 
-pub fn content_digests(client: &Client) -> Result<Vec<ContentDigest>, Fail> {
+pub fn content_digests(client: &Client, snapshots: &[(String, String)]) -> Result<Vec<ContentDigest>, Fail> {
     let mut out = Vec::new();
     for item in SEALED {
         let sql = digest_sql(item)?;
-        let content_md5 = text_line(client, item.database, &sql)?.ok_or_else(|| fail(1, "relation digest is empty"))?;
+        let Some(snapshot) = snapshots.iter().find(|pair| pair.0 == item.database).map(|pair| pair.1.as_str()) else {
+            return Err(fail(1, "cut snapshot is missing"));
+        };
+        let content_md5 = client.query_in_snapshot(item.database, snapshot, &sql)?;
         if !is_md5(&content_md5) {
             return Err(fail(1, "relation digest is not md5"));
         }
@@ -343,6 +569,30 @@ fn user_tables(client: &Client, database: &str) -> Result<Vec<String>, Fail> {
     Ok(relations)
 }
 
+fn user_sequences(client: &Client, database: &str) -> Result<Vec<String>, Fail> {
+    let mut relations = lines(client, database, USER_SEQUENCES)?;
+    if relations.len() > 128 {
+        return Err(fail(1, "cut relation list is refused"));
+    }
+    for relation in &relations {
+        checked_relation(relation)?;
+    }
+    relations.sort();
+    Ok(relations)
+}
+
+fn lock_record(application: &str, database: &str, pid: String, relations: Vec<String>, parsed: Capture) -> LockRecord {
+    LockRecord {
+        application_name: application.to_string(),
+        database: database.to_string(),
+        pid,
+        relations,
+        fence: parsed.fence,
+        sequence_names: parsed.sequence_names,
+        sequence_state: parsed.sequences,
+    }
+}
+
 fn digest_sql(item: &Sealed) -> Result<String, Fail> {
     for column in item.columns.iter().chain(item.order.iter()) {
         if !column_ok(column) {
@@ -380,6 +630,21 @@ fn locks_sql(application: &str, database: &str) -> String {
            AND l.granted \
            AND l.mode = 'ShareLock' \
            AND c.relkind IN ('r','p')"
+    )
+}
+
+fn sequence_locks_sql(application: &str, database: &str) -> String {
+    format!(
+        "SELECT n.nspname || '.' || c.relname \
+         FROM pg_catalog.pg_locks l \
+         JOIN pg_catalog.pg_class c ON c.oid = l.relation \
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+         JOIN pg_catalog.pg_stat_activity a ON a.pid = l.pid \
+         WHERE a.application_name = '{application}' \
+           AND a.datname = '{database}' \
+           AND l.granted \
+           AND l.mode = 'ShareLock' \
+           AND c.relkind = 'S'"
     )
 }
 
@@ -452,12 +717,18 @@ mod tests {
             locks_held: false,
             probes_rejected: false,
             digests_stable: true,
+            snapshots_bound: true,
+            sequence_fence_held: true,
         };
         assert!(!proven(&stable));
         let blocked = Signals { locks_held: true, probes_rejected: true, digests_stable: true, ..stable };
         assert!(proven(&blocked));
         let drifted = Signals { marker_stable: false, ..blocked };
         assert!(!proven(&drifted));
+        let unfenced = Signals { sequence_fence_held: false, ..blocked };
+        assert!(!proven(&unfenced));
+        let unbound = Signals { snapshots_bound: false, ..blocked };
+        assert!(!proven(&unbound));
     }
 
     #[test]

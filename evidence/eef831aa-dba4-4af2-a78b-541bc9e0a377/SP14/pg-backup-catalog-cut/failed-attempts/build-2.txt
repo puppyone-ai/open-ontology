@@ -1,0 +1,1 @@
+build-2: tests passed; clippy exit 101 manual_is_multiple_of snapshot.rs:348

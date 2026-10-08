@@ -12,6 +12,7 @@ pub mod ops;
 pub mod pg;
 pub mod protocol;
 pub mod sha256;
+pub mod snapshot;
 
 pub const EXIT_TOOL: u8 = 1;
 pub const EXIT_USAGE: u8 = 2;

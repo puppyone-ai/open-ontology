@@ -1,0 +1,10 @@
+2026-10-08 01:10:23.192 UTC [377] ERROR:  canceling statement due to lock timeout at character 33
+2026-10-08 01:10:23.192 UTC [377] STATEMENT:  SET lock_timeout = '1s'; UPDATE shop.entry SET amount = amount WHERE entry_id = 3
+2026-10-08 01:10:24.210 UTC [546] ERROR:  canceling statement due to lock timeout at character 33
+2026-10-08 01:10:24.210 UTC [546] STATEMENT:  SET lock_timeout = '1s'; UPDATE oo_key_fixture.negative_decision SET operator_label = operator_label WHERE left_key = 'k-0001' AND right_key = 'k-0002'
+2026-10-08 01:12:25.925 UTC [706] ERROR:  canceling statement due to lock timeout at character 8
+2026-10-08 01:12:25.925 UTC [706] STATEMENT:  UPDATE shop.entry SET amount = amount WHERE entry_id = 3;
+2026-10-08 01:15:17.201 UTC [70] LOG:  checkpoint starting: time
+2026-10-08 01:19:47.053 UTC [70] LOG:  checkpoint complete: wrote 3088 buffers (37.7%); 0 WAL file(s) added, 0 removed, 1 recycled; write=269.824 s, sync=0.023 s, total=269.852 s; sync files=719, longest=0.002 s, average=0.001 s; distance=20600 kB, estimate=20600 kB; lsn=0/2B4B900, redo lsn=0/2B4B870
+2026-10-08 01:25:17.070 UTC [70] LOG:  checkpoint starting: time
+2026-10-08 01:25:17.284 UTC [70] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.211 s, sync=0.002 s, total=0.214 s; sync files=2, longest=0.002 s, average=0.001 s; distance=12 kB, estimate=18541 kB; lsn=0/2B4EA50, redo lsn=0/2B4E9F8

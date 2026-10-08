@@ -191,12 +191,13 @@ impl Client {
         Ok(())
     }
 
-    pub fn dump(&self, database: &str, file: &Path) -> Result<(), Fail> {
+    pub fn dump(&self, database: &str, file: &Path, snapshot: &str) -> Result<(), Fail> {
         self.authorize(database)?;
+        crate::snapshot::valid_id(snapshot)?;
         let args = vec![
             "--format=custom".to_string(),
             "--no-password".to_string(),
-            "--serializable-deferrable".to_string(),
+            format!("--snapshot={snapshot}"),
             "--lock-wait-timeout=15000".to_string(),
             "--encoding=UTF8".to_string(),
             format!("--file={}", file.display()),
@@ -211,6 +212,33 @@ impl Client {
         ];
         self.reject_secret(&args)?;
         let _ = self.run("pg_dump", &args)?;
+        Ok(())
+    }
+
+    pub fn query_in_snapshot(&self, database: &str, snapshot: &str, statement: &str) -> Result<String, Fail> {
+        self.authorize(database)?;
+        crate::snapshot::valid_id(snapshot)?;
+        if statement.contains(';') || statement.contains('\n') || statement.contains('\r') {
+            return Err(fail(1, "snapshot statement is refused"));
+        }
+        let script = format!(
+            "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET TRANSACTION SNAPSHOT '{snapshot}';\n{statement};\nCOMMIT;\n"
+        );
+        let (stdout, _) = self.script_stdin(database, &script, true)?;
+        Ok(stdout.trim().to_string())
+    }
+
+    pub fn copy_in_snapshot(&self, database: &str, snapshot: &str, select_sql: &str, path: &Path) -> Result<(), Fail> {
+        self.authorize(database)?;
+        crate::snapshot::valid_id(snapshot)?;
+        if select_sql.contains('\'') || select_sql.contains('\n') || select_sql.contains('\r') || select_sql.contains(';') {
+            return Err(fail(1, "copy statement is refused"));
+        }
+        let path = sql_path(path)?;
+        let script = format!(
+            "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET TRANSACTION SNAPSHOT '{snapshot}';\n\\copy ({select_sql}) TO '{path}'\nCOMMIT;\n"
+        );
+        let _ = self.script_stdin(database, &script, false)?;
         Ok(())
     }
 
@@ -248,6 +276,29 @@ impl Client {
         args.push("-c".to_string());
         args.push(statement.to_string());
         self.run("psql", &args)
+    }
+
+    fn script_stdin(&self, database: &str, script: &str, tuples: bool) -> Result<(String, String), Fail> {
+        let args = self.psql_prefix(database, tuples);
+        let mut command = self.prepare("psql", &args)?;
+        command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = command.spawn().map_err(|err| fail(1, format!("psql failed to start: {err}")))?;
+        let mut stdin = match child.stdin.take() {
+            Some(stdin) => stdin,
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(fail(1, "psql has no stdin"));
+            }
+        };
+        if let Err(err) = stdin.write_all(script.as_bytes()) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(fail(1, format!("psql script: {err}")));
+        }
+        drop(stdin);
+        let output = child.wait_with_output().map_err(|err| fail(1, format!("psql script: {err}")))?;
+        self.finish("psql", output)
     }
 
     fn psql_prefix(&self, database: &str, tuples: bool) -> Vec<String> {
@@ -320,29 +371,19 @@ impl Client {
         self.finish(program, output)
     }
 
-    /// Hold SHARE locks until `commit` or drop. Drop disconnects the session, which releases the locks.
-    pub fn hold_share_locks(&self, database: &str, application_name: &str, relations: &[String]) -> Result<HeldLock, Fail> {
+    /// Open the cut transaction, export its snapshot, and hold the locks until `commit` or drop.
+    pub fn open_cut(&self, database: &str, application_name: &str, relations: &[String], sequences: &[String]) -> Result<HeldLock, Fail> {
         self.authorize(database)?;
         if !application_ok(application_name) {
             return Err(fail(1, "cut application name is refused"));
         }
-        if relations.is_empty() || relations.len() > 128 {
-            return Err(fail(1, "cut relation list is refused"));
-        }
-        let mut names = Vec::new();
-        for relation in relations {
-            names.push(checked_relation(relation)?);
-        }
-        let lock_sql = format!(
-            "BEGIN;\nSET lock_timeout = '15s';\nSET idle_in_transaction_session_timeout = 0;\nLOCK TABLE {list} IN SHARE MODE;\n",
-            list = names.join(", ")
-        );
+        let lock_sql = crate::snapshot::cut_script(relations, sequences)?;
         let args = self.psql_prefix(database, true);
         let mut command = self.prepare("psql", &args)?;
         command.env("PGAPPNAME", application_name);
         command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = command.spawn().map_err(|err| fail(1, format!("cut session failed to start: {err}")))?;
-        let mut stdin = match child.stdin.take() {
+        let stdin = match child.stdin.take() {
             Some(stdin) => stdin,
             None => {
                 let _ = child.kill();
@@ -350,13 +391,6 @@ impl Client {
                 return Err(fail(1, "cut session has no stdin"));
             }
         };
-        if let Err(err) = stdin.write_all(lock_sql.as_bytes()).and_then(|()| stdin.flush()) {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(fail(1, format!("cut lock: {err}")));
-        }
-        let stderr_buf = Arc::new(Mutex::new(String::new()));
-        let stderr_collect = Arc::clone(&stderr_buf);
         let mut stderr = match child.stderr.take() {
             Some(stderr) => stderr,
             None => {
@@ -365,6 +399,16 @@ impl Client {
                 return Err(fail(1, "cut session has no stderr"));
             }
         };
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(fail(1, "cut session has no stdout"));
+            }
+        };
+        let stderr_buf = Arc::new(Mutex::new(String::new()));
+        let stderr_collect = Arc::clone(&stderr_buf);
         let stderr_thread = thread::spawn(move || {
             let mut bytes = Vec::new();
             let _ = stderr.read_to_end(&mut bytes);
@@ -373,25 +417,43 @@ impl Client {
                 guard.push_str(&text);
             }
         });
-        let mut stdout = match child.stdout.take() {
-            Some(stdout) => stdout,
-            None => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(fail(1, "cut session has no stdout"));
-            }
-        };
+        let stdout_buf = Arc::new(Mutex::new(String::new()));
+        let stdout_collect = Arc::clone(&stdout_buf);
         let stdout_thread = thread::spawn(move || {
-            let mut sink = Vec::new();
-            let _ = stdout.read_to_end(&mut sink);
+            let mut stream = stdout;
+            let mut buf = [0u8; 4096];
+            loop {
+                match stream.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(count) => {
+                        let text = String::from_utf8_lossy(&buf[..count]);
+                        if let Ok(mut guard) = stdout_collect.lock() {
+                            guard.push_str(&text);
+                        }
+                    }
+                }
+            }
         });
-        Ok(HeldLock {
+        let mut held = HeldLock {
             child,
             stdin: Some(stdin),
             stderr: stderr_buf,
+            stdout: stdout_buf,
             stderr_thread: Some(stderr_thread),
             stdout_thread: Some(stdout_thread),
-        })
+            captured: String::new(),
+        };
+        {
+            let Some(stdin) = held.stdin.as_mut() else {
+                return Err(fail(1, "cut session stdin is closed"));
+            };
+            if let Err(err) = stdin.write_all(lock_sql.as_bytes()).and_then(|()| stdin.flush()) {
+                return Err(fail(1, format!("cut lock: {err}")));
+            }
+        }
+        let captured = held.wait_line("ready|1", Duration::from_secs(40))?;
+        held.captured = captured;
+        Ok(held)
     }
 
     /// True when the writer statement is rejected with lock_not_available.
@@ -445,8 +507,10 @@ pub struct HeldLock {
     child: Child,
     stdin: Option<ChildStdin>,
     stderr: Arc<Mutex<String>>,
+    stdout: Arc<Mutex<String>>,
     stderr_thread: Option<JoinHandle<()>>,
     stdout_thread: Option<JoinHandle<()>>,
+    pub captured: String,
 }
 
 impl Drop for HeldLock {
@@ -486,6 +550,28 @@ impl HeldLock {
         }
     }
 
+    pub fn push_sql(&mut self, sql: &str, sentinel: &str) -> Result<String, Fail> {
+        let start = self.stdout_len();
+        let stdin = self.stdin.as_mut().ok_or_else(|| fail(1, "cut session stdin is closed"))?;
+        stdin.write_all(sql.as_bytes()).map_err(|err| fail(1, format!("cut session: {err}")))?;
+        stdin.flush().map_err(|err| fail(1, format!("cut session: {err}")))?;
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            if self.exited()? {
+                let detail = self.error_text();
+                return Err(fail(1, format!("cut session exited: {detail}")));
+            }
+            let text = self.stdout_from(start);
+            if text.lines().any(|line| line.trim() == sentinel) {
+                return Ok(text);
+            }
+            if Instant::now() >= deadline {
+                return Err(fail(1, "cut session did not answer"));
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+
     pub fn error_text(&mut self) -> String {
         if let Some(handle) = self.stderr_thread.take() {
             let _ = handle.join();
@@ -493,6 +579,43 @@ impl HeldLock {
         match self.stderr.lock() {
             Ok(text) => clip(&text),
             Err(poisoned) => clip(&poisoned.into_inner()),
+        }
+    }
+
+    fn wait_line(&mut self, sentinel: &str, budget: Duration) -> Result<String, Fail> {
+        let deadline = Instant::now() + budget;
+        loop {
+            if self.exited()? {
+                let detail = self.error_text();
+                return Err(fail(1, format!("cut session exited: {detail}")));
+            }
+            let text = self.stdout_from(0);
+            if text.lines().any(|line| line.trim() == sentinel) {
+                return Ok(text);
+            }
+            if Instant::now() >= deadline {
+                return Err(fail(1, "cut session did not become ready"));
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn stdout_len(&self) -> usize {
+        match self.stdout.lock() {
+            Ok(text) => text.len(),
+            Err(poisoned) => poisoned.into_inner().len(),
+        }
+    }
+
+    fn stdout_from(&self, start: usize) -> String {
+        let text = match self.stdout.lock() {
+            Ok(text) => text.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        };
+        if start > text.len() {
+            String::new()
+        } else {
+            text[start..].to_string()
         }
     }
 }

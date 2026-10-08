@@ -9,6 +9,7 @@ use crate::cut::{self, RelationDigest, WriterBlock};
 use crate::json::{self, escape, Value};
 use crate::protocol::{self, Operator};
 use crate::sha256::{self, is_hex64};
+use crate::snapshot::{SequenceFence, SequenceLock, SnapshotBind};
 use crate::{fail, Fail};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +24,10 @@ pub struct Manifest {
     pub pg_restore_version: String,
     pub psql_version: String,
     pub tool_dir: String,
+    pub catalog_sha256: String,
+    pub cut_finished_unix: u64,
     pub cut_mode: String,
+    pub cut_started_unix: u64,
     pub history_insufficient: bool,
     pub wal_moved: bool,
     pub lsn_before: String,
@@ -37,6 +41,8 @@ pub struct Manifest {
     pub gold: Vec<NamedHash>,
     pub schemas: Vec<NamedHash>,
     pub relation_digests: Vec<RelationDigest>,
+    pub sequence_fence: SequenceFence,
+    pub snapshots: Vec<SnapshotBind>,
     pub writer_blocks: Vec<WriterBlock>,
     pub shop_gold_sha256: String,
 }
@@ -45,7 +51,10 @@ const KEYS: &[&str] = &[
     "backup_finished_unix",
     "backup_started_unix",
     "caller",
+    "catalog_sha256",
+    "cut_finished_unix",
     "cut_mode",
+    "cut_started_unix",
     "dumps",
     "entry_count_after",
     "entry_count_before",
@@ -63,8 +72,10 @@ const KEYS: &[&str] = &[
     "quiescent",
     "relation_digests",
     "schemas",
+    "sequence_fence",
     "session",
     "shop_gold_sha256",
+    "snapshots",
     "source_cut",
     "target_fence",
     "tool_dir",
@@ -93,11 +104,14 @@ fn named_json(items: &[NamedHash]) -> String {
 
 pub fn to_json(manifest: &Manifest) -> String {
     format!(
-        "{{\n  \"backup_finished_unix\": {finished},\n  \"backup_started_unix\": {started},\n  \"caller\": \"{caller}\",\n  \"cut_mode\": {cut_mode},\n  \"dumps\": {dumps},\n  \"entry_count_after\": {entry_after},\n  \"entry_count_before\": {entry_before},\n  \"gold\": {gold},\n  \"history_insufficient\": {history},\n  \"last_write_unix\": {last_write},\n  \"lineage_version\": \"{lineage}\",\n  \"lsn_after\": {lsn_after},\n  \"lsn_before\": {lsn_before},\n  \"manifest_version\": \"{manifest_version}\",\n  \"owner\": \"{owner}\",\n  \"pg_dump_version\": {dump_version},\n  \"pg_restore_version\": {restore_version},\n  \"psql_version\": {psql_version},\n  \"quiescent\": {quiescent},\n  \"relation_digests\": {digests},\n  \"schemas\": {schemas},\n  \"session\": \"{session}\",\n  \"shop_gold_sha256\": {shop},\n  \"source_cut\": \"{cut}\",\n  \"target_fence\": \"{fence}\",\n  \"tool_dir\": {tool_dir},\n  \"wal_moved\": {wal},\n  \"writer_blocks\": {blocks}\n}}\n",
+        "{{\n  \"backup_finished_unix\": {finished},\n  \"backup_started_unix\": {started},\n  \"caller\": \"{caller}\",\n  \"catalog_sha256\": {catalog},\n  \"cut_finished_unix\": {cut_finished},\n  \"cut_mode\": {cut_mode},\n  \"cut_started_unix\": {cut_started},\n  \"dumps\": {dumps},\n  \"entry_count_after\": {entry_after},\n  \"entry_count_before\": {entry_before},\n  \"gold\": {gold},\n  \"history_insufficient\": {history},\n  \"last_write_unix\": {last_write},\n  \"lineage_version\": \"{lineage}\",\n  \"lsn_after\": {lsn_after},\n  \"lsn_before\": {lsn_before},\n  \"manifest_version\": \"{manifest_version}\",\n  \"owner\": \"{owner}\",\n  \"pg_dump_version\": {dump_version},\n  \"pg_restore_version\": {restore_version},\n  \"psql_version\": {psql_version},\n  \"quiescent\": {quiescent},\n  \"relation_digests\": {digests},\n  \"schemas\": {schemas},\n  \"sequence_fence\": {sequence_fence},\n  \"session\": \"{session}\",\n  \"shop_gold_sha256\": {shop},\n  \"snapshots\": {snapshots},\n  \"source_cut\": \"{cut}\",\n  \"target_fence\": \"{fence}\",\n  \"tool_dir\": {tool_dir},\n  \"wal_moved\": {wal},\n  \"writer_blocks\": {blocks}\n}}\n",
         finished = manifest.backup_finished_unix,
         started = manifest.backup_started_unix,
         caller = protocol::CALLER,
+        catalog = escape(&manifest.catalog_sha256),
+        cut_finished = manifest.cut_finished_unix,
         cut_mode = escape(&manifest.cut_mode),
+        cut_started = manifest.cut_started_unix,
         dumps = named_json(&manifest.dumps),
         digests = digests_json(&manifest.relation_digests),
         blocks = blocks_json(&manifest.writer_blocks),
@@ -116,8 +130,10 @@ pub fn to_json(manifest: &Manifest) -> String {
         psql_version = escape(&manifest.psql_version),
         quiescent = if manifest.history_insufficient { "false" } else { "true" },
         schemas = named_json(&manifest.schemas),
+        sequence_fence = fence_json(&manifest.sequence_fence),
         session = protocol::SESSION,
         shop = escape(&manifest.shop_gold_sha256),
+        snapshots = snapshots_json(&manifest.snapshots),
         cut = protocol::SOURCE_CUT,
         fence = protocol::TARGET_FENCE,
         tool_dir = escape(&manifest.tool_dir),
@@ -142,13 +158,30 @@ pub fn parse(text: &str) -> Result<Manifest, Fail> {
     let quiescent = value.bool_key("quiescent")?;
     let relation_digests = digests(value.array("relation_digests")?)?;
     let writer_blocks = blocks(value.array("writer_blocks")?)?;
-    cut::proof_shape(value.string("cut_mode")?, history, quiescent, &writer_blocks, &relation_digests)?;
+    let snapshots = snapshots(value.array("snapshots")?)?;
+    let sequence_fence = fence(value.get("sequence_fence").ok_or_else(|| fail(4, "sequence fence is missing"))?)?;
+    let catalog_sha256 = value.string("catalog_sha256")?.to_string();
+    cut::proof_shape(&cut::CutProof {
+        blocks: &writer_blocks,
+        catalog_sha256: &catalog_sha256,
+        cut_mode: value.string("cut_mode")?,
+        digests: &relation_digests,
+        fence: &sequence_fence,
+        history_insufficient: history,
+        quiescent,
+        snapshots: &snapshots,
+    })?;
     if !is_hex64(value.string("shop_gold_sha256")?) {
         return Err(fail(4, "shop gold digest is not hex"));
     }
     Ok(Manifest {
+        catalog_sha256,
+        cut_finished_unix: value.u64_key("cut_finished_unix")?,
         cut_mode: value.string("cut_mode")?.to_string(),
+        cut_started_unix: value.u64_key("cut_started_unix")?,
         relation_digests,
+        sequence_fence,
+        snapshots,
         writer_blocks,
         pg_dump_version: value.string("pg_dump_version")?.to_string(),
         pg_restore_version: value.string("pg_restore_version")?.to_string(),
@@ -218,6 +251,56 @@ fn blocks_json(items: &[WriterBlock]) -> String {
     out
 }
 
+fn fence_json(fence: &SequenceFence) -> String {
+    let mut sequences = String::from("[\n");
+    for (index, item) in fence.sequences.iter().enumerate() {
+        if index > 0 {
+            sequences.push_str(",\n");
+        }
+        sequences.push_str("      {\"database\": ");
+        sequences.push_str(&escape(&item.database));
+        sequences.push_str(", \"held\": ");
+        sequences.push_str(if item.held { "true" } else { "false" });
+        sequences.push_str(", \"relation\": ");
+        sequences.push_str(&escape(&item.relation));
+        sequences.push_str(", \"sqlstate\": ");
+        sequences.push_str(&escape(&item.sqlstate));
+        sequences.push('}');
+    }
+    if !fence.sequences.is_empty() {
+        sequences.push('\n');
+    }
+    sequences.push_str("    ]");
+    format!(
+        "{{\n    \"held\": {held},\n    \"lock_mode\": {mode},\n    \"method\": {method},\n    \"sequences\": {sequences}\n  }}",
+        held = if fence.held { "true" } else { "false" },
+        mode = escape(&fence.lock_mode),
+        method = escape(&fence.method),
+        sequences = sequences.as_str(),
+    )
+}
+
+fn snapshots_json(items: &[SnapshotBind]) -> String {
+    let mut out = String::from("[\n");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push_str(",\n");
+        }
+        out.push_str("    {\"database\": ");
+        out.push_str(&escape(&item.database));
+        out.push_str(", \"id\": ");
+        out.push_str(&escape(&item.id));
+        out.push_str(", \"isolation\": ");
+        out.push_str(&escape(&item.isolation));
+        out.push('}');
+    }
+    if !items.is_empty() {
+        out.push('\n');
+    }
+    out.push_str("  ]");
+    out
+}
+
 fn string_array(items: &[String]) -> String {
     let mut out = String::from("[");
     for (index, item) in items.iter().enumerate() {
@@ -257,6 +340,39 @@ fn blocks(items: &[Value]) -> Result<Vec<WriterBlock>, Fail> {
         });
     }
     Ok(out)
+}
+
+fn snapshots(items: &[Value]) -> Result<Vec<SnapshotBind>, Fail> {
+    let mut out = Vec::new();
+    for item in items {
+        json::require_keys(item, &["database", "id", "isolation"])?;
+        out.push(SnapshotBind {
+            database: item.string("database")?.to_string(),
+            id: item.string("id")?.to_string(),
+            isolation: item.string("isolation")?.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+fn fence(value: &Value) -> Result<SequenceFence, Fail> {
+    json::require_keys(value, &["held", "lock_mode", "method", "sequences"])?;
+    let mut sequences = Vec::new();
+    for item in value.array("sequences")? {
+        json::require_keys(item, &["database", "held", "relation", "sqlstate"])?;
+        sequences.push(SequenceLock {
+            database: item.string("database")?.to_string(),
+            held: item.bool_key("held")?,
+            relation: item.string("relation")?.to_string(),
+            sqlstate: item.string("sqlstate")?.to_string(),
+        });
+    }
+    Ok(SequenceFence {
+        held: value.bool_key("held")?,
+        lock_mode: value.string("lock_mode")?.to_string(),
+        method: value.string("method")?.to_string(),
+        sequences,
+    })
 }
 
 fn string_list(items: &[Value]) -> Result<Vec<String>, Fail> {
