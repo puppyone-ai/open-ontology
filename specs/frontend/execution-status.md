@@ -64,3 +64,5 @@ M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组
 当前覆盖旧句柄：G1原a35139862/G2原a35318470/G3原a35246149启动confirmedrunning。M9五角色已作者交付待完整读hash，G2adapter lint4归G1修，G3fixed新M8/M9 delta复审；真实B04尚待a373完整，禁止mock完成。
 
 当前G1a35174689/G2a35371120启动confirmedrunning，G3a35246149统一confirmedlive。M10作者67suite/lint0待完整证据核验；B02/B04/B07等待固定SDK与真实producer，mock/schema不作完成。新stack395只写后端deploy/product-stack，G1web部署所有权不变。
+
+当前三固定会话实际启动：G1a35123892/G2a35320565/G3a35273812。M9作者65SHA0坏0缺；M11prepareCall/no fetch仍不完成真实client，G1推进真实HTTPtransport，G2绑定可用fixed接口，G3必要delta独立复审。Agent入口a397唯一后端路径不改FE；不将其已派发当旅程完成。

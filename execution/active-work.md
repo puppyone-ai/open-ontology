@@ -96,3 +96,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 补位工具确认running：a38895212/a3894246/G1a35174689/G2a35371120/a39445515/a39518259，加9本轮confirmedlive共15。所有原资源优先收取不复制；当前78/90未因authorclosed/benchfalse涨数。frontend G3原46149live保留，三固定UUID不变。
 
 一次18min统一15：a39051488/a39124465/a39359985/a38895212/G1a35174689/G2a35371120/G3a35246149terminal0；8confirmedlive a37393577/a38342717/a38459102/a3865084/a39230009/a3894246/a39445515/a39518259。新396jobs独立review、397真实Agent问答闭环、398当前权限artifactdownload；原MCP与前端三续接，不复启已交反馈/备份/jobs作者。独占新tools/agent-entry与artifact-control-api不冲现有写者，nextUUIDa399。
+
+补位实际工具confirmedrunning：a38816513/G1a35123892/G2a35320565/G3a35273812/a39663228/a3971792/a39858504，加8confirmedlive共15，Rust10/task1 Node2/browser2仍排队不超限。feedback作者137SHA/前端M9作者65SHA0坏已核验但未签新增能力；其独立包需完整读才验收。当前78/90/103/93/16保持。
