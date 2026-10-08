@@ -1894,3 +1894,6 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 - [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。
 
 - [ ] SP11-W06/SP14-W02完整真实产品stack启动→ready→旅程→关闭→restart闭环：a395唯一deploy/product-stack；真实服务固定镜像与配方，依赖未fixed不以mock/TCPready完成，标准runsc门槛保留；a394独立验a387原真实关闭卡，不自签作者记录。
+
+- [ ] SP10/11真实Agent入口：a397 verifiedprincipal+显式数据role+publishedPack→真实Pi模型工具Gateway查询→引用事件→关闭全链，无预写SQL/proposal/mock替代。
+- [ ] SP11-W03当前权限对象下载：a398真实completedexport/hash→加密托管→本人当前tuple下载→撤权/TTL/restart全链；a396原完整jobs独立复审，未验收不计完成。

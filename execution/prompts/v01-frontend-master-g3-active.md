@@ -21,3 +21,5 @@ NEXT CLOSED-LOOP DISPATCH: 原67076 terminal0，M5-G2三报告/69SHA已核验，
 NEXT unified18min closure: 原92248terminal0，M6固定97909报告仅limited且font失败；下一固定9c75d686b已修字体/adapter/a6f92身份pin。FIRST读取全作者M7报告并取实际fixed SHA；修改自身过时oracle376字/35bd pin按真实声明roots+fixedsource推导，不弱化测试。先等待G1可写组合suite报告，必要独立真实TLS sameorigin adapter/browser登录bootstrapguardlogout/CSRF及字体delta，不重跑无关19截图。独立证据全三报告/SHA，前端仅原三UUID。
 
 NEXT complete capability: 原62155terminal0，M7固定9c75 review旧陈述E54withhold/M8未writable不是当前：后端E54已a375closure原完整APPROVE_LIMITED，G1fixed96489 M8可写63+5测试与M9真实五角色已交付，读取FULL新包/固定SHA再必要delta复审。不要重跑无关19截图，全rolecurrent/guard/CSRF/退出及adapterroutes/lint真实fullcombined固定证据，旧历史保留。
+
+NEXT product closure: 原46149terminal0，M9reviewoldlintfixedM10已0/67，保留历史但新fixedcommit必要delta复审，不再复跑旧lint。FULL读取G1M10/M11以及G2新包取得真实fixedSHA，身份note旧admin/reviewer需G1修，以当前5roleactualreceipt核验。真实HTTPclient若继续notfetch无法总卡验收，明确handOff推动真实接口；独立闭环只真实后端证据，无mock。
