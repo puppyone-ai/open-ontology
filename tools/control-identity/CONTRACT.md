@@ -56,9 +56,11 @@ ID Token rules, checked before a session row is inserted:
 | `alg` is exactly `RS256`. `none`, `HS*`, `PS*`, `ES*`, and any other alg are rejected before verification | `alg.rejected` |
 | `kid` nonempty, unique among registered JWKs, `kty=RSA`, `use` absent or `sig`, `alg` absent or `RS256`, no private RSA fields, exponent exactly 65537, modulus 2048..=8192 bits | `kid.unknown`, `kid.ambiguous`, or `jwks.rejected` |
 | Signature over the ASCII signing input using `ring::signature::RsaPublicKeyComponents` and `RSA_PKCS1_2048_8192_SHA256` | `token.rejected` |
-| `iss` exact, `aud` contains the configured audience, multiple audiences require `azp` equal to `client_id`, a present `azp` equals `client_id` | `issuer.rejected` or `audience.rejected` |
+| `iss` exact, `aud` contains the registered `client_id` for every permitted configuration, a distinct configured audience does not replace `client_id`, multiple audiences require `azp` equal to `client_id`, a present `azp` equals `client_id`, and a single audience equal to `client_id` is accepted when `azp` is absent | `issuer.rejected` or `audience.rejected` |
 | `exp`, `nbf`, and `iat` are integers. `exp > iat`, `exp - iat <= 900`, skew is `clock_skew_seconds` | `token.expired` or `token.rejected` |
 | `nonce` hashes to the stored nonce hash. `sub` is 1..=256 non-space ASCII | `nonce.rejected` or `token.rejected` |
+
+The config field `audience` stays required and stays in the `config_commit` preimage. It is not the ID Token audience. A file where `audience` and `client_id` differ still loads. The ID Token is accepted only when `aud` contains `client_id`.
 
 Role, group, and realm claims in the ID Token are ignored. They never become a management role.
 

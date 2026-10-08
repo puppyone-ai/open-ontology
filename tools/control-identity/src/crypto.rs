@@ -82,7 +82,6 @@ pub fn jwt_header_kid(token: &str) -> Result<String, Fault> {
 
 pub struct TokenBinding<'a> {
     pub issuer: &'a str,
-    pub audience: &'a str,
     pub client_id: &'a str,
     pub nonce_hash: &'a str,
     pub now: i64,
@@ -186,7 +185,8 @@ fn claims(payload: &Value, binding: &TokenBinding<'_>) -> Result<IdentityClaims,
         return Err(Fault::issuer());
     }
     let audiences = audiences(payload.get("aud").ok_or_else(Fault::audience)?)?;
-    if !audiences.iter().any(|value| value == binding.audience) {
+    // OIDC Core 1.0 §3.1.3.7. The configured audience is not a substitute.
+    if !audiences.iter().any(|value| value == binding.client_id) {
         return Err(Fault::audience());
     }
     match payload.get("azp") {
@@ -442,32 +442,42 @@ mod tests {
         let (n, e) = pkcs8_rsa_public(&der).expect("public");
         let pair = RsaKeyPair::from_pkcs8(&der).expect("pair");
         let now = 1_700_000_000_i64;
-        let payload = format!(
-            r#"{{"iss":"https://idp.example","aud":"oo-control","azp":"oo-client","exp":{},"nbf":{},"iat":{},"nonce":"nonce-value","sub":"fixture-admin"}}"#,
-            now + 300,
-            now,
-            now
-        );
-        let token = sign(&pair, "k1", &payload);
         let key = RsaKey { kid: "k1".to_string(), n, e };
         let nonce_hash = sha256_hex(b"nonce-value");
         let binding = TokenBinding {
             issuer: "https://idp.example",
-            audience: "oo-control",
             client_id: "oo-client",
             nonce_hash: &nonce_hash,
             now,
             skew: 60,
         };
-        let claims = verify_id_token(&token, &key, &binding).expect("verify");
+        let claims = verify_id_token(&sign(&pair, "k1", &claim(now, r#""aud":"oo-client","azp":"oo-client""#)), &key, &binding).expect("verify");
         assert_eq!(claims.subject, "fixture-admin");
-        let mut tampered = token.clone();
+        let mut tampered = sign(&pair, "k1", &claim(now, r#""aud":"oo-client","azp":"oo-client""#));
         let last = tampered.pop().expect("sig");
         tampered.push(if last == 'A' { 'B' } else { 'A' });
+        assert_eq!(verify_id_token(&tampered, &key, &binding), Err(Fault::token()));
         assert_eq!(
-            verify_id_token(&tampered, &key, &binding),
-            Err(Fault::token())
+            verify_id_token(&sign(&pair, "k1", &claim(now, r#""aud":"oo-client""#)), &key, &binding).map(|item| item.subject),
+            Ok("fixture-admin".to_string())
         );
+        assert_eq!(
+            verify_id_token(&sign(&pair, "k1", &claim(now, r#""aud":["oo-client","extra"],"azp":"oo-client""#)), &key, &binding)
+                .map(|item| item.subject),
+            Ok("fixture-admin".to_string())
+        );
+        for aud in [r#""aud":"oo-control","azp":"oo-client""#, r#""aud":"other-aud","azp":"oo-client""#, r#""aud":["oo-client","extra"]"#, r#""aud":["oo-control","extra"],"azp":"oo-client""#, r#""aud":["oo-client","extra"],"azp":"other-client""#] {
+            assert_eq!(verify_id_token(&sign(&pair, "k1", &claim(now, aud)), &key, &binding), Err(Fault::audience()));
+        }
+    }
+
+    fn claim(now: i64, aud: &str) -> String {
+        format!(
+            r#"{{"iss":"https://idp.example",{aud},"exp":{},"nbf":{},"iat":{},"nonce":"nonce-value","sub":"fixture-admin"}}"#,
+            now + 300,
+            now,
+            now
+        )
     }
 
     fn sign(pair: &RsaKeyPair, kid: &str, payload: &str) -> String {

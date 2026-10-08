@@ -28,8 +28,11 @@ pub enum Mode {
     Hs256,
     WrongIssuer,
     WrongAudience,
+    ConfiguredAudienceOnly,
     WrongAzp,
     MultiAud,
+    MultiAudAzp,
+    SingleAudNoAzp,
     BadNonce,
     Expired,
     FutureIat,
@@ -59,6 +62,7 @@ pub struct Idp {
 struct IdpState {
     issuer: String,
     client_id: String,
+    configured_audience: String,
     client_secret: String,
     redirect_uri: String,
     keys: Vec<SigningKey>,
@@ -75,13 +79,14 @@ pub struct IdpParts<'a> {
     pub key_pem: &'a [u8],
     pub issuer: &'a str,
     pub client_id: &'a str,
+    pub configured_audience: &'a str,
     pub client_secret: &'a str,
     pub redirect_uri: &'a str,
     pub der_keys: &'a [Vec<u8>],
 }
 
 pub async fn start(listener: TcpListener, parts: IdpParts<'_>) -> Idp {
-    let IdpParts { cert_pem, key_pem, issuer, client_id, client_secret, redirect_uri, der_keys } = parts;
+    let IdpParts { cert_pem, key_pem, issuer, client_id, configured_audience, client_secret, redirect_uri, der_keys } = parts;
     let keys = der_keys
         .iter()
         .enumerate()
@@ -95,6 +100,7 @@ pub async fn start(listener: TcpListener, parts: IdpParts<'_>) -> Idp {
     let state = Arc::new(IdpState {
         issuer: issuer.to_string(),
         client_id: client_id.to_string(),
+        configured_audience: configured_audience.to_string(),
         client_secret: client_secret.to_string(),
         redirect_uri: redirect_uri.to_string(),
         keys,
@@ -241,27 +247,36 @@ async fn token(State(state): State<Arc<IdpState>>, request: Request) -> Response
 
 fn mint(state: &IdpState, mode: Mode, subject: &str, nonce: &str) -> String {
     let now = control_identity_now();
+    let client = state.client_id.as_str();
+    let configured = state.configured_audience.as_str();
     let (iss, aud, azp, token_nonce, exp, iat, nbf, key_index, alg) = match mode {
-        Mode::WrongIssuer => ("https://evil.example", "oo-control", "oo-control-client", nonce, now + 300, now, now, 0, "RS256"),
-        Mode::WrongAudience => (&state.issuer[..], "other-aud", "oo-control-client", nonce, now + 300, now, now, 0, "RS256"),
-        Mode::WrongAzp => (&state.issuer[..], "oo-control", "other-client", nonce, now + 300, now, now, 0, "RS256"),
-        Mode::BadNonce => (&state.issuer[..], "oo-control", "oo-control-client", "wrong-nonce", now + 300, now, now, 0, "RS256"),
-        Mode::Expired => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now - 30, now - 120, now - 120, 0, "RS256"),
-        Mode::FutureIat => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now + 4000, now + 3600, now + 3600, 0, "RS256"),
-        Mode::UnknownKid | Mode::RotateKid => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now + 300, now, now, 1, "RS256"),
-        Mode::AlgNone => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now + 300, now, now, 0, "none"),
-        Mode::Hs256 => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now + 300, now, now, 0, "HS256"),
-        _ => (&state.issuer[..], "oo-control", "oo-control-client", nonce, now + 300, now, now, 0, "RS256"),
+        Mode::WrongIssuer => ("https://evil.example", client, client, nonce, now + 300, now, now, 0, "RS256"),
+        Mode::WrongAudience => (state.issuer.as_str(), "other-aud", client, nonce, now + 300, now, now, 0, "RS256"),
+        Mode::ConfiguredAudienceOnly => (state.issuer.as_str(), configured, client, nonce, now + 300, now, now, 0, "RS256"),
+        Mode::WrongAzp => (state.issuer.as_str(), client, "other-client", nonce, now + 300, now, now, 0, "RS256"),
+        Mode::BadNonce => (state.issuer.as_str(), client, client, "wrong-nonce", now + 300, now, now, 0, "RS256"),
+        Mode::Expired => (state.issuer.as_str(), client, client, nonce, now - 30, now - 120, now - 120, 0, "RS256"),
+        Mode::FutureIat => (state.issuer.as_str(), client, client, nonce, now + 4000, now + 3600, now + 3600, 0, "RS256"),
+        Mode::UnknownKid | Mode::RotateKid => (state.issuer.as_str(), client, client, nonce, now + 300, now, now, 1, "RS256"),
+        Mode::AlgNone => (state.issuer.as_str(), client, client, nonce, now + 300, now, now, 0, "none"),
+        Mode::Hs256 => (state.issuer.as_str(), client, client, nonce, now + 300, now, now, 0, "HS256"),
+        _ => (state.issuer.as_str(), client, client, nonce, now + 300, now, now, 0, "RS256"),
     };
-    let payload = if mode == Mode::MultiAud {
-        format!(
-            r#"{{"iss":"{}","aud":["oo-control","extra"],"exp":{exp},"nbf":{nbf},"iat":{iat},"nonce":"{token_nonce}","sub":"{subject}"}}"#,
+    let payload = match mode {
+        Mode::MultiAud => format!(
+            r#"{{"iss":"{}","aud":["{client}","extra"],"exp":{exp},"nbf":{nbf},"iat":{iat},"nonce":"{token_nonce}","sub":"{subject}"}}"#,
             state.issuer
-        )
-    } else {
-        format!(
+        ),
+        Mode::MultiAudAzp => format!(
+            r#"{{"iss":"{}","aud":["{client}","extra"],"azp":"{client}","exp":{exp},"nbf":{nbf},"iat":{iat},"nonce":"{token_nonce}","sub":"{subject}"}}"#,
+            state.issuer
+        ),
+        Mode::SingleAudNoAzp => format!(
+            r#"{{"iss":"{iss}","aud":"{aud}","exp":{exp},"nbf":{nbf},"iat":{iat},"nonce":"{token_nonce}","sub":"{subject}"}}"#
+        ),
+        _ => format!(
             r#"{{"iss":"{iss}","aud":"{aud}","azp":"{azp}","exp":{exp},"nbf":{nbf},"iat":{iat},"nonce":"{token_nonce}","sub":"{subject}"}}"#
-        )
+        ),
     };
     let kid = state.keys[key_index].kid;
     if alg != "RS256" {

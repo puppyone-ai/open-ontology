@@ -106,6 +106,7 @@ async fn live_identity_boundaries() {
         &Endpoints { env: &env, dir: &dir, material: &material, origin: &origin, issuer: &issuer, callback: &callback, port: product_port },
     );
     let config = load_config(&config_path).expect("config");
+    assert_ne!(config.audience, config.client_id, "configured audience stays distinct from client_id");
     let der_keys = vec![fs::read(dir.join("k1.der")).expect("k1"), fs::read(dir.join("k2.der")).expect("k2")];
     let idp = idp::start(
         idp_listener,
@@ -113,7 +114,8 @@ async fn live_identity_boundaries() {
             cert_pem: &material.cert,
             key_pem: &material.key,
             issuer: &issuer,
-            client_id: "oo-control-client",
+            client_id: &config.client_id,
+            configured_audience: &config.audience,
             client_secret: &secret,
             redirect_uri: &callback,
             der_keys: &der_keys,
@@ -135,6 +137,7 @@ async fn live_identity_boundaries() {
     let mut server = ServerProc::spawn(&exe, &config_path);
     phase_positive(&mut http, &idp, &token, &mut proof, &mut server, &exe, &config_path).await;
     phase_roles(&mut http, &idp, &config, &mut proof).await;
+    phase_audience(&mut http, &idp, &mut proof).await;
     phase_negatives(&mut http, &idp, &pg, &mut proof, &mut server, &exe, &config_path).await;
     server.kill();
     pg.batch_execute("DROP SCHEMA IF EXISTS oo_identity_control CASCADE").await.expect("drop");
@@ -242,6 +245,35 @@ async fn phase_roles(http: &mut Http, idp: &Idp, config: &Config, proof: &mut Pr
     }
     assert!(VerifiedSession::try_from_caller_json(&json!({"authorized": true})).is_err());
     proof.record("caller_json", 401, "unauthenticated");
+}
+
+async fn phase_audience(http: &mut Http, idp: &Idp, proof: &mut Proof) {
+    idp.set_subject("fixture-admin");
+    for (mode, name) in [
+        (Mode::Ok, "aud_client_id"),
+        (Mode::SingleAudNoAzp, "aud_client_id_no_azp"),
+        (Mode::MultiAudAzp, "aud_multi_matching_azp"),
+    ] {
+        idp.set_mode(mode);
+        let reply = login_follow(http, "/control/v1/auth/login?return_to=%2Fapp").await;
+        assert_eq!(reply.status, 302, "{name}");
+        let current = http.call("GET", "/control/v1/identity/current", None, false, None).await;
+        assert_eq!(current.status, 200, "{name}");
+        assert_eq!(current.body["subject"], "fixture-admin");
+        proof.record(name, 302, "accepted");
+    }
+    for (mode, name) in [
+        (Mode::WrongAudience, "aud_arbitrary"),
+        (Mode::ConfiguredAudienceOnly, "aud_configured_only"),
+        (Mode::MultiAud, "aud_multi_without_azp"),
+    ] {
+        idp.set_mode(mode);
+        let reply = login_follow(http, "/control/v1/auth/login?return_to=%2Fapp").await;
+        assert_eq!(reply.status, 401, "{name}");
+        assert_eq!(error_code(&reply.body), "audience.rejected");
+        proof.record(name, reply.status, "audience.rejected");
+    }
+    idp.set_mode(Mode::Ok);
 }
 
 async fn phase_negatives(http: &mut Http, idp: &Idp, pg: &tokio_postgres::Client, proof: &mut Proof, server: &mut ServerProc, exe: &str, config: &Path) {

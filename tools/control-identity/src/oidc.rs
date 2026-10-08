@@ -23,7 +23,6 @@ struct Timed<T> {
 pub struct Oidc {
     client: reqwest::Client,
     issuer: String,
-    audience: String,
     client_id: String,
     client_secret: zeroize::Zeroizing<String>,
     skew: i64,
@@ -54,7 +53,6 @@ impl Oidc {
         Ok(Self {
             client,
             issuer: config.issuer.clone(),
-            audience: config.audience.clone(),
             client_id: config.client_id.clone(),
             client_secret: zeroize::Zeroizing::new(config.client_secret.to_string()),
             skew: config.clock_skew_seconds,
@@ -90,7 +88,6 @@ impl Oidc {
             &key,
             &TokenBinding {
                 issuer: &self.issuer,
-                audience: &self.audience,
                 client_id: &self.client_id,
                 nonce_hash,
                 now: unix_now(),
