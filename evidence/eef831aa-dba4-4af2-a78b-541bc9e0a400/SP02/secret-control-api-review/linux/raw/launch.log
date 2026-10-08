@@ -1,0 +1,6 @@
+write_builder
+write_failed=1
+resume_write_builder
+pg_restart
+restart_builder
+resume_ok

@@ -1,0 +1,33 @@
+# Independent review packet for the secret write, resolve, rotate, and revoke card.
+# UUID eef831aa-dba4-4af2-a78b-541bc9e0a400
+# Frozen commit bb831355662c1dffd76b86bf60417158f4513134
+# Digests of the archived tools/secret-control-api tree are linux/raw/source-sha256.txt.
+# The packet digest list is SHA256SUMS. SHA256SUMS.sha256 is the digest of that file and is not a line inside it.
+
+REPORT.md
+FINDINGS.md
+HANDOFF.md
+SOURCE-INVENTORY.txt
+linux/launch.sh
+linux/resume.sh
+linux/run-proof.sh
+linux/cleanup.sh
+linux/raw/review-proof.json
+linux/raw/restart-proof.json
+linux/raw/run.json
+linux/raw/pg-after-restart.txt
+linux/raw/fixed-commit.txt
+linux/raw/recipe-origin.txt
+linux/raw/archive-secret.sha256
+linux/raw/failed-attempts/01-typecheck/NOTE.txt
+overlay/independent/main.rs
+overlay/independent/idp.rs
+pg/pg-wrap.sh
+pg/up.sh
+pg/init-roles.sh
+tools/sha256_manifest.rs
+
+# SHA256SUMS lists every regular file in this packet except itself.
+# Product paths below are the frozen archive. This review does not vendor them.
+# tools/secret-control-api/**
+# tools/control-identity/**

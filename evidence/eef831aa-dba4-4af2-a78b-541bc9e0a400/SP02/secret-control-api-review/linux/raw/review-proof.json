@@ -1,0 +1,146 @@
+{
+  "cases": [
+    {
+      "code": "ok",
+      "http": 201,
+      "name": "create"
+    },
+    {
+      "code": "ok",
+      "http": 200,
+      "name": "idempotent_replay"
+    },
+    {
+      "code": "idempotency.conflict",
+      "http": 409,
+      "name": "idempotency_conflict"
+    },
+    {
+      "code": "version.conflict",
+      "http": 409,
+      "name": "write_existing"
+    },
+    {
+      "code": "ok",
+      "http": 200,
+      "name": "status"
+    },
+    {
+      "code": "unauthenticated",
+      "http": 401,
+      "name": "unauthenticated"
+    },
+    {
+      "code": "csrf.rejected",
+      "http": 403,
+      "name": "csrf"
+    },
+    {
+      "code": "origin.rejected",
+      "http": 403,
+      "name": "origin"
+    },
+    {
+      "code": "forbidden",
+      "http": 403,
+      "name": "cross_project"
+    },
+    {
+      "code": "malformed",
+      "http": 400,
+      "name": "query"
+    },
+    {
+      "code": "ok",
+      "http": 200,
+      "name": "resolve_cert_ignores_caller_header"
+    },
+    {
+      "code": "malformed",
+      "http": 400,
+      "name": "resolve_caller_json_workload"
+    },
+    {
+      "code": "malformed",
+      "http": 400,
+      "name": "resolve_caller_json_envelope"
+    },
+    {
+      "code": "workload.rejected",
+      "http": 403,
+      "name": "resolve_other_cert"
+    },
+    {
+      "code": "transport.rejected",
+      "http": 0,
+      "name": "resolve_foreign_ca"
+    },
+    {
+      "code": "transport.rejected",
+      "http": 0,
+      "name": "resolve_no_client_cert"
+    },
+    {
+      "code": "namespace.rejected",
+      "http": 403,
+      "name": "namespace_mismatch"
+    },
+    {
+      "code": "workload.rejected",
+      "http": 403,
+      "name": "cross_namespace"
+    },
+    {
+      "code": "not_found",
+      "http": 404,
+      "name": "management_cannot_resolve"
+    },
+    {
+      "code": "version.conflict",
+      "http": 409,
+      "name": "stale_rotate"
+    },
+    {
+      "code": "workload.rejected",
+      "http": 403,
+      "name": "rotate_workload"
+    },
+    {
+      "code": "ok",
+      "http": 200,
+      "name": "rotate"
+    },
+    {
+      "code": "version.conflict",
+      "http": 409,
+      "name": "stale_after_rotate"
+    },
+    {
+      "code": "version.retired",
+      "http": 409,
+      "name": "retired"
+    },
+    {
+      "code": "aead.rejected",
+      "http": 0,
+      "name": "aad_and_key"
+    },
+    {
+      "code": "revoked",
+      "http": 409,
+      "name": "revoke"
+    },
+    {
+      "code": "forbidden",
+      "http": 403,
+      "name": "fixture-reviewer"
+    }
+  ],
+  "customer_idp": "not_claimed",
+  "customer_kms": "external_gate",
+  "fixed_commit": "bb831355662c1dffd76b86bf60417158f4513134",
+  "foreign_pool_refresh": "not_claimed",
+  "mtls_ca": "not_issued",
+  "mtls_ca_issued_by_service": false,
+  "resolve_authority": "verified_client_certificate"
+}
