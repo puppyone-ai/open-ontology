@@ -76,3 +76,5 @@ M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组
 当前原G1a35183401/G2a35387867/G3a35288570续接工具confirmedrunning，仍只有三fixedUUID。402后端binding唯一controlidentity writer，前端/其他backend只读fixed归档；真实HTTP与生产者到达后接闭环，schemaonly不计完成。
 
 当前G1原83401统一confirmedlive，G2原94804/G3原11230新续接confirmedrunning；实际B04/发布未绑定不算完成。真实docs主链要求由403编排与现有373/392/397实现，FE保持三会话与fixedcontract消费。
+
+当前fixedG1a35126801/G2a35385668/G3a35211844启动confirmedrunning，M13只实际B04list/get两个GET，剩余13动作仍未真实验收，完整总卡/OC主链不能签。读取对应docs/Plan再推进，每个producer/interface固定后真实绑定。

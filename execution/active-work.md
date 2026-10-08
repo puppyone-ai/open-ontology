@@ -133,3 +133,5 @@ Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–1
 补位实际工具confirmedrunning：38363819/3887802/39971659/39598157/39239012/G2a35394804/G3a35211230/40498310，加7本轮统一confirmedlive共15。原G1a35183401不重启；Rust10/task1 Node2/browser2维持，主链OC01–06检查持续，标准Yaml/Git/activePack不能被仅compiledPack替代。
 
 一次18min统一15：39768103/G1a35183401/40310719/38363819/3887802/39971659/G2a35394804/G3a35211230terminal0；7confirmedlive37359356/39860322/40146761/40268266/39239012/39598157/40498310保留。OC缺口完整read403handoff分发唯一373Yaml/reviews/effective、374reviewedtreeGit、392gatesfromGit、397activePack；仅marker存在不当实现，逐表count与总100k区分。续8closed+原374closed共9补位，预计16实际线不伪claim老句柄live，资源caps不变。nextUUIDa405未用。
+
+补位9实际启动confirmedrunning：39762006/38367519/3886286/G1a35126801/G2a35385668/G3a35211844/40340782/39962996/37471262，加7统一confirmedlive共16。原37359356/39239012保持只卡片追加next接口要求不并发启动；402唯一identitywriter/374唯一Gitwriter/399唯一compatwriter/403唯一lifecycle，其他固定消费不冲突。Rust10/task1 Node2/browser2保留，79/90计数不涨。
