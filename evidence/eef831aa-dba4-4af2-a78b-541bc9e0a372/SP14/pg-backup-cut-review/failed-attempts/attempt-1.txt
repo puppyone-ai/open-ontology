@@ -1,0 +1,1 @@
+check-clippy exit 101: collapsible_if in oracle/src/check.rs. Product test and clippy had already passed. Builder removed. No second database.
