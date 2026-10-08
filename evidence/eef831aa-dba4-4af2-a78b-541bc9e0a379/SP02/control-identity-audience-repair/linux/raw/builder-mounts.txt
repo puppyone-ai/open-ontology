@@ -1,0 +1,6 @@
+/work rw=true
+/src rw=false
+/evidence/linux rw=true
+/secrets rw=false
+/cargo rw=true
+
