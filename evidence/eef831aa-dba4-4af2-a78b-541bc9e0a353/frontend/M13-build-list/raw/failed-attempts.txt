@@ -1,0 +1,3 @@
+attempt=1 container=oo-a353-node-m13 archive=61c2d356124f8631fb5fbc490de67c87c00d2964
+types=0 types-node=0 types-sdk=0 lint=0 test=0 docker=0
+no failed container attempt

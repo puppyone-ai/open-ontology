@@ -15,3 +15,5 @@
 占位行仍是 unbound。合同 operation 是 `schema_frozen`，`invokeOperation` 返回 `schema_only`，不发请求。没有真实候选时不渲染决定表单。转交保持禁用。这不是审核完成。
 
 页面预检调用 `prepareCall`，current 为 null。`listReviewItems` 与 `getReviewItem` 预检是 `schema_only`。`previewReviewBatch` 与 `decideReviewItem` 预检是 `csrf_required`。占位 `B04.reviews` 与 `B04.candidates` 预检是 `not_precise`。预检不发请求。`schema_only` 目录行不是审核完成。
+
+固定源 `61c2d356124f8631fb5fbc490de67c87c00d2964` 没有这些审核 operation 的真实响应。本页不调用 `callOperation`。转交保持禁用。没有候选，不渲染决定表单。
