@@ -1,0 +1,1 @@
+attempt 1: cargo test and clippy exit 101. env!("CARGO_BIN_EXE_feedback_receiver") is unset. Cargo sets CARGO_BIN_EXE_feedback-receiver for this hyphenated binary. Library and dependencies compiled. Live test did not run.

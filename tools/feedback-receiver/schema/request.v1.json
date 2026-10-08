@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.feedback.receiver.request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "receipt_id", "project", "items"],
+  "properties": {
+    "protocol": {"const": "oo.feedback.receiver/v1"},
+    "receipt_id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+    "project": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "kind", "text", "target"],
+        "properties": {
+          "project": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+          "kind": {"enum": ["gap", "reject", "failure", "comment"]},
+          "text": {"type": "string", "minLength": 1, "maxLength": 500},
+          "target": {"type": "string", "maxLength": 128, "pattern": "^[a-z0-9_.]*$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.feedback.receiver.ack/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "receipt_id",
+    "payload_hash",
+    "project",
+    "duplicate",
+    "published",
+    "grants_issued",
+    "roles_changed",
+    "auto_merge",
+    "metrics_certified",
+    "curated_written",
+    "effects",
+    "dedup",
+    "scope_drops",
+    "candidates"
+  ],
+  "properties": {
+    "protocol": {"const": "oo.feedback.receiver/v1"},
+    "receipt_id": {"type": "string"},
+    "payload_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "project": {"type": "string"},
+    "duplicate": {"type": "boolean"},
+    "published": {"const": false},
+    "grants_issued": {"const": false},
+    "roles_changed": {"const": false},
+    "auto_merge": {"const": false},
+    "metrics_certified": {"const": false},
+    "curated_written": {"const": false},
+    "effects": {"type": "object"},
+    "dedup": {"type": "object"},
+    "scope_drops": {"type": "object"},
+    "candidates": {"type": "array", "items": {"$ref": "candidate.v1.json"}}
+  }
+}

@@ -1,0 +1,1 @@
+attempt 2: rules.rs moved String expected into the prior slice and then borrowed it. Library, binary, and live.rs compiled. Live test did not run.

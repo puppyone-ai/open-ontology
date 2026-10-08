@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.feedback.receiver.review/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project",
+    "published",
+    "grants_issued",
+    "roles_changed",
+    "count",
+    "truncated",
+    "candidates"
+  ],
+  "properties": {
+    "protocol": {"const": "oo.feedback.receiver/v1"},
+    "project": {"type": "string"},
+    "published": {"const": false},
+    "grants_issued": {"const": false},
+    "roles_changed": {"const": false},
+    "count": {"type": "integer", "minimum": 0},
+    "truncated": {"type": "boolean"},
+    "candidates": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "candidate.v1.json"}
+    }
+  }
+}

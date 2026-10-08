@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.feedback.receiver.candidate/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "channel",
+    "key",
+    "score",
+    "impact",
+    "uncertainty_millis",
+    "trusted_metric",
+    "knowledge_verified",
+    "prior_overlap",
+    "queue_id",
+    "source"
+  ],
+  "properties": {
+    "candidate_id": {"type": "string", "pattern": "^cand_[0-9a-f]{32}$"},
+    "channel": {
+      "enum": [
+        "entity",
+        "metric_hypothesis",
+        "example",
+        "untrusted_feedback",
+        "stale_override",
+        "negative_entity"
+      ]
+    },
+    "key": {"type": "string"},
+    "score": {"type": "integer", "minimum": 0},
+    "impact": {"type": "integer", "minimum": 0},
+    "uncertainty_millis": {"type": "integer", "minimum": 0},
+    "trusted_metric": {"const": false},
+    "knowledge_verified": {"const": false},
+    "prior_overlap": {"type": "boolean"},
+    "queue_id": {"type": "string"},
+    "source": {"$ref": "source.v1.json"}
+  }
+}

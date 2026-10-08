@@ -1,0 +1,18 @@
+{
+  "schema": "oo.selfbuild-suggestions.catalog/v1",
+  "source_id": "examples",
+  "schema_hash": "unsealed",
+  "tables": [
+    {
+      "schema": "logistics",
+      "name": "shipment",
+      "primary_key": ["shipment_id"],
+      "columns": [
+        {"name": "shipment_id", "type_name": "int8"},
+        {"name": "amount", "type_name": "numeric"},
+        {"name": "received_at", "type_name": "timestamptz"}
+      ]
+    }
+  ],
+  "foreign_keys": []
+}

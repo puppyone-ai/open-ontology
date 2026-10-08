@@ -1,0 +1,22 @@
+phase=toolchain
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+info: downloading component clippy
+clippy 0.1.94 (4a4ef493e3 2026-03-02)
+phase=lock
+lock_subset=ok
+phase=fetch
+phase=test
+phase=test exit=101
+phase=clippy
+phase=clippy exit=101
+live result is not ok
+secret_scan=ok
+inside_exit=1
