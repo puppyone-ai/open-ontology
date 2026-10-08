@@ -78,7 +78,43 @@ pub const ROLES: &[&str] = &[
     "CREATE ROLE oo_enum_view NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS",
     "CREATE ROLE oo_a356_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS",
     "CREATE ROLE oo_a356_writer NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS",
+    "CREATE ROLE oo_a377_owner NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS",
+    "CREATE ROLE oo_a377_operator NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS",
 ];
+
+pub const ASSIGN_OWNER: &str = "\
+DO $oo$\n\
+DECLARE r record;\n\
+BEGIN\n\
+  FOR r IN\n\
+    SELECT n.nspname AS schema_name\n\
+    FROM pg_catalog.pg_namespace n\n\
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')\n\
+      AND n.nspname NOT LIKE 'pg_%'\n\
+  LOOP\n\
+    EXECUTE format('ALTER SCHEMA %I OWNER TO oo_a377_owner', r.schema_name);\n\
+  END LOOP;\n\
+  FOR r IN\n\
+    SELECT n.nspname, c.relname, c.relkind\n\
+    FROM pg_catalog.pg_class c\n\
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n\
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')\n\
+      AND n.nspname NOT LIKE 'pg_%'\n\
+      AND c.relkind IN ('r', 'p', 'v', 'm', 'S')\n\
+  LOOP\n\
+    IF r.relkind = 'S' THEN\n\
+      EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO oo_a377_owner', r.nspname, r.relname);\n\
+    ELSIF r.relkind = 'v' THEN\n\
+      EXECUTE format('ALTER VIEW %I.%I OWNER TO oo_a377_owner', r.nspname, r.relname);\n\
+    ELSIF r.relkind = 'm' THEN\n\
+      EXECUTE format('ALTER MATERIALIZED VIEW %I.%I OWNER TO oo_a377_owner', r.nspname, r.relname);\n\
+    ELSE\n\
+      EXECUTE format('ALTER TABLE %I.%I OWNER TO oo_a377_owner', r.nspname, r.relname);\n\
+    END IF;\n\
+  END LOOP;\n\
+END\n\
+$oo$;\n\
+";
 
 pub fn role_name(statement: &str) -> &str {
     statement.split_whitespace().nth(2).unwrap_or("")

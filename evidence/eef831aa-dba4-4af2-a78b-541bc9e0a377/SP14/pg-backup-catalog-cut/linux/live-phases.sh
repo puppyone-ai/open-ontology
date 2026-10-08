@@ -162,27 +162,141 @@ if [ "$seen" -ne 1 ]; then
   exit 1
 fi
 
-sql_out oo_a356_agent "$ROOT/saved/probes/sequence-agent-before.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM shop.cut_seq"
-sql_out oo_a356_control "$ROOT/saved/probes/sequence-control-before.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM oo_key_fixture.cut_seq"
-trim_copy "$ROOT/saved/probes/sequence-agent-before.raw" "$ROOT/saved/probes/sequence-agent-before.txt"
-trim_copy "$ROOT/saved/probes/sequence-control-before.raw" "$ROOT/saved/probes/sequence-control-before.txt"
-agent_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/sequence-agent-before.txt")
-control_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/sequence-control-before.txt")
-if [ "$agent_seq" = "41|f" ] && [ "$control_seq" = "41|f" ]; then
-  printf '%s\n' '41|f' > "$ROOT/saved/probes/sequence-before.txt"
-else
-  printf '%s\n' "${agent_seq}|${control_seq}" > "$ROOT/saved/probes/sequence-before.txt"
-fi
-
 cat > "$ROOT/run/q-next-agent.sql" <<'EOF'
 \set VERBOSITY verbose
-SET lock_timeout = '3s';
-SELECT nextval('shop.cut_seq');
+SET lock_timeout = '1s';
+DO $probe$
+DECLARE
+  n int := 0;
+  i int;
+BEGIN
+  FOR i IN 1..200 LOOP
+    SELECT count(*) INTO n
+    FROM pg_locks l
+    JOIN pg_class c ON c.oid = l.relation
+    JOIN pg_namespace ns ON ns.oid = c.relnamespace
+    JOIN pg_stat_activity a ON a.pid = l.pid
+    WHERE a.application_name = 'oo_a356_cut_agent'
+      AND a.datname = 'oo_a356_agent'
+      AND l.granted
+      AND l.mode = 'ShareRowExclusiveLock'
+      AND ns.nspname = 'shop'
+      AND c.relname = 'cut_seq';
+    EXIT WHEN n >= 1;
+    PERFORM pg_sleep(0.1);
+  END LOOP;
+  IF n < 1 THEN
+    RAISE EXCEPTION 'sequence fence was not visible';
+  END IF;
+  PERFORM nextval('shop.cut_seq');
+  RAISE EXCEPTION 'nextval committed while the sequence fence was visible';
+EXCEPTION
+  WHEN lock_not_available THEN
+    RAISE EXCEPTION '55P03 nextval %', SQLERRM USING ERRCODE = 'lock_not_available';
+END
+$probe$;
 EOF
 cat > "$ROOT/run/q-next-control.sql" <<'EOF'
 \set VERBOSITY verbose
-SET lock_timeout = '3s';
-SELECT nextval('oo_key_fixture.cut_seq');
+SET lock_timeout = '1s';
+DO $probe$
+DECLARE
+  n int := 0;
+  i int;
+BEGIN
+  FOR i IN 1..200 LOOP
+    SELECT count(*) INTO n
+    FROM pg_locks l
+    JOIN pg_class c ON c.oid = l.relation
+    JOIN pg_namespace ns ON ns.oid = c.relnamespace
+    JOIN pg_stat_activity a ON a.pid = l.pid
+    WHERE a.application_name = 'oo_a356_cut_control'
+      AND a.datname = 'oo_a356_control'
+      AND l.granted
+      AND l.mode = 'ShareRowExclusiveLock'
+      AND ns.nspname = 'oo_key_fixture'
+      AND c.relname = 'cut_seq';
+    EXIT WHEN n >= 1;
+    PERFORM pg_sleep(0.1);
+  END LOOP;
+  IF n < 1 THEN
+    RAISE EXCEPTION 'sequence fence was not visible';
+  END IF;
+  PERFORM nextval('oo_key_fixture.cut_seq');
+  RAISE EXCEPTION 'nextval committed while the sequence fence was visible';
+EXCEPTION
+  WHEN lock_not_available THEN
+    RAISE EXCEPTION '55P03 nextval %', SQLERRM USING ERRCODE = 'lock_not_available';
+END
+$probe$;
+EOF
+cat > "$ROOT/run/q-setval-agent.sql" <<'EOF'
+\set VERBOSITY verbose
+SET lock_timeout = '1s';
+DO $probe$
+DECLARE
+  n int := 0;
+  i int;
+BEGIN
+  FOR i IN 1..200 LOOP
+    SELECT count(*) INTO n
+    FROM pg_locks l
+    JOIN pg_class c ON c.oid = l.relation
+    JOIN pg_namespace ns ON ns.oid = c.relnamespace
+    JOIN pg_stat_activity a ON a.pid = l.pid
+    WHERE a.application_name = 'oo_a356_cut_agent'
+      AND a.datname = 'oo_a356_agent'
+      AND l.granted
+      AND l.mode = 'ShareRowExclusiveLock'
+      AND ns.nspname = 'shop'
+      AND c.relname = 'cut_seq';
+    EXIT WHEN n >= 1;
+    PERFORM pg_sleep(0.1);
+  END LOOP;
+  IF n < 1 THEN
+    RAISE EXCEPTION 'sequence fence was not visible';
+  END IF;
+  PERFORM setval('shop.cut_seq', 99, true);
+  RAISE EXCEPTION 'setval committed while the sequence fence was visible';
+EXCEPTION
+  WHEN lock_not_available THEN
+    RAISE EXCEPTION '55P03 setval %', SQLERRM USING ERRCODE = 'lock_not_available';
+END
+$probe$;
+EOF
+cat > "$ROOT/run/q-setval-control.sql" <<'EOF'
+\set VERBOSITY verbose
+SET lock_timeout = '1s';
+DO $probe$
+DECLARE
+  n int := 0;
+  i int;
+BEGIN
+  FOR i IN 1..200 LOOP
+    SELECT count(*) INTO n
+    FROM pg_locks l
+    JOIN pg_class c ON c.oid = l.relation
+    JOIN pg_namespace ns ON ns.oid = c.relnamespace
+    JOIN pg_stat_activity a ON a.pid = l.pid
+    WHERE a.application_name = 'oo_a356_cut_control'
+      AND a.datname = 'oo_a356_control'
+      AND l.granted
+      AND l.mode = 'ShareRowExclusiveLock'
+      AND ns.nspname = 'oo_key_fixture'
+      AND c.relname = 'cut_seq';
+    EXIT WHEN n >= 1;
+    PERFORM pg_sleep(0.1);
+  END LOOP;
+  IF n < 1 THEN
+    RAISE EXCEPTION 'sequence fence was not visible';
+  END IF;
+  PERFORM setval('oo_key_fixture.cut_seq', 99, true);
+  RAISE EXCEPTION 'setval committed while the sequence fence was visible';
+EXCEPTION
+  WHEN lock_not_available THEN
+    RAISE EXCEPTION '55P03 setval %', SQLERRM USING ERRCODE = 'lock_not_available';
+END
+$probe$;
 EOF
 cat > "$ROOT/run/q-agent-ddl.sql" <<'EOF'
 \set ON_ERROR_STOP off
@@ -266,8 +380,21 @@ finish_sql() {
 probe_start=$(date +%s)
 start_sql next-agent oo_a356_agent q-next-agent.sql "$EVIDENCE/live/boundary/next-agent.out" "$EVIDENCE/live/boundary/next-agent.err"
 start_sql next-control oo_a356_control q-next-control.sql "$EVIDENCE/live/boundary/next-control.out" "$EVIDENCE/live/boundary/next-control.err"
+start_sql setval-agent oo_a356_agent q-setval-agent.sql "$EVIDENCE/live/boundary/setval-agent.out" "$EVIDENCE/live/boundary/setval-agent.err"
+start_sql setval-control oo_a356_control q-setval-control.sql "$EVIDENCE/live/boundary/setval-control.out" "$EVIDENCE/live/boundary/setval-control.err"
 start_sql agent-ddl oo_a356_agent q-agent-ddl.sql "$EVIDENCE/live/boundary/agent-ddl.out" "$EVIDENCE/live/boundary/agent-ddl.err"
 start_sql control-ddl oo_a356_control q-control-ddl.sql "$EVIDENCE/live/boundary/control-ddl.out" "$EVIDENCE/live/boundary/control-ddl.err"
+sql_out oo_a356_agent "$ROOT/saved/probes/sequence-agent-before.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM shop.cut_seq"
+sql_out oo_a356_control "$ROOT/saved/probes/sequence-control-before.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM oo_key_fixture.cut_seq"
+trim_copy "$ROOT/saved/probes/sequence-agent-before.raw" "$ROOT/saved/probes/sequence-agent-before.txt"
+trim_copy "$ROOT/saved/probes/sequence-control-before.raw" "$ROOT/saved/probes/sequence-control-before.txt"
+agent_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/sequence-agent-before.txt")
+control_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/sequence-control-before.txt")
+if [ "$agent_seq" = "41|f" ] && [ "$control_seq" = "41|f" ]; then
+  printf '%s\n' '41|f' > "$ROOT/saved/probes/sequence-before.txt"
+else
+  printf '%s\n' "${agent_seq}|${control_seq}" > "$ROOT/saved/probes/sequence-before.txt"
+fi
 sql_out oo_a356_agent "$EVIDENCE/live/boundary/agent-lock-during.out" "SELECT count(*)::text FROM pg_locks l JOIN pg_class c ON c.oid = l.relation JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_stat_activity a ON a.pid = l.pid WHERE a.application_name = 'oo_a356_cut_agent' AND l.granted AND l.mode = 'ShareLock' AND n.nspname = 'shop' AND c.relname = 'entry'"
 sql_out oo_a356_control "$EVIDENCE/live/boundary/control-lock-during.out" "SELECT count(*)::text FROM pg_locks l JOIN pg_class c ON c.oid = l.relation JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_stat_activity a ON a.pid = l.pid WHERE a.application_name = 'oo_a356_cut_control' AND l.granted AND l.mode = 'ShareLock' AND n.nspname = 'oo_key_fixture' AND c.relname = 'cut_marker'"
 during_agent=$(one_line "$EVIDENCE/live/boundary/agent-lock-during.out")
@@ -279,6 +406,8 @@ if [ "$during_agent" != "1" ] || [ "$during_control" != "1" ]; then
 fi
 finish_sql next-agent "$EVIDENCE/live/boundary/next-agent.exit"
 finish_sql next-control "$EVIDENCE/live/boundary/next-control.exit"
+finish_sql setval-agent "$EVIDENCE/live/boundary/setval-agent.exit"
+finish_sql setval-control "$EVIDENCE/live/boundary/setval-control.exit"
 finish_sql agent-ddl "$EVIDENCE/live/boundary/agent-ddl.exit"
 finish_sql control-ddl "$EVIDENCE/live/boundary/control-ddl.exit"
 sql_out oo_a356_agent "$EVIDENCE/live/boundary/agent-lock-after.out" "SELECT count(*)::text FROM pg_locks l JOIN pg_class c ON c.oid = l.relation JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_stat_activity a ON a.pid = l.pid WHERE a.application_name = 'oo_a356_cut_agent' AND l.granted AND l.mode = 'ShareLock' AND n.nspname = 'shop' AND c.relname = 'entry'"
@@ -298,14 +427,25 @@ sql_out oo_a356_agent "$ROOT/saved/probes/count-before.raw" "SELECT count(*)::te
 trim_copy "$ROOT/saved/probes/marker-before.raw" "$ROOT/saved/probes/marker-before.txt"
 trim_copy "$ROOT/saved/probes/count-before.raw" "$ROOT/saved/probes/count-before.txt"
 
-next_agent=$(cat "$EVIDENCE/live/boundary/next-agent.exit")
-next_control=$(cat "$EVIDENCE/live/boundary/next-control.exit")
-cat "$EVIDENCE/live/boundary/next-agent.err" "$EVIDENCE/live/boundary/next-control.err" > "$ROOT/saved/probes/preexisting-nextval.err"
-if [ "$next_agent" = "0" ] && [ "$next_control" = "0" ]; then
+cat "$EVIDENCE/live/boundary/next-agent.err" "$EVIDENCE/live/boundary/next-control.err" \
+  "$EVIDENCE/live/boundary/setval-agent.err" "$EVIDENCE/live/boundary/setval-control.err" \
+  > "$ROOT/saved/probes/preexisting-nextval.err"
+sequence_blocked=1
+for probe_name in next-agent next-control setval-agent setval-control; do
+  probe_code=$(cat "$EVIDENCE/live/boundary/${probe_name}.exit")
+  if [ "$probe_code" = "0" ] || ! grep -q '55P03' "$EVIDENCE/live/boundary/${probe_name}.err"; then
+    sequence_blocked=0
+    echo "sequence probe ${probe_name} exit ${probe_code} did not return 55P03" >&2
+  fi
+done
+if [ "$sequence_blocked" -ne 1 ]; then
   printf '%s\n' 0 > "$ROOT/saved/probes/preexisting-nextval.exit"
-else
-  printf '%s\n' 1 > "$ROOT/saved/probes/preexisting-nextval.exit"
+  wait "$backup_pid" || true
+  backup_pid=""
+  echo "sequence fence did not reject nextval and setval" >&2
+  exit 1
 fi
+printf '%s\n' 1 > "$ROOT/saved/probes/preexisting-nextval.exit"
 
 set +e
 wait "$backup_pid"
@@ -397,6 +537,26 @@ cp "$EVIDENCE/live/restore-readiness.json" "$ROOT/saved/reports/restore-readines
 if [ "$restore_expect" = "0" ]; then
   sql_out oo_a356_restore_agent "$ROOT/saved/probes/restore-amount.raw" "SELECT amount::text FROM shop.entry WHERE entry_id = 3"
   trim_copy "$ROOT/saved/probes/restore-amount.raw" "$ROOT/saved/probes/restore-amount.txt"
+  sql_out oo_a356_restore_agent "$ROOT/saved/probes/restore-sequence-agent.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM shop.cut_seq"
+  sql_out oo_a356_restore_control "$ROOT/saved/probes/restore-sequence-control.raw" "SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END FROM oo_key_fixture.cut_seq"
+  restore_agent_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/restore-sequence-agent.raw")
+  restore_control_seq=$(tr -d '[:space:]' < "$ROOT/saved/probes/restore-sequence-control.raw")
+  if [ "$restore_agent_seq" = "41|f" ] && [ "$restore_control_seq" = "41|f" ]; then
+    printf '%s\n' '41|f' > "$ROOT/saved/probes/restore-sequence.txt"
+  else
+    printf '%s\n' "${restore_agent_seq}|${restore_control_seq}" > "$ROOT/saved/probes/restore-sequence.txt"
+  fi
+  sql_out oo_a356_restore_agent "$ROOT/saved/probes/restore-view-agent.raw" "SELECT CASE WHEN c.relkind = 'v' AND COALESCE(d.description, '') <> 'a377-during-cut' THEN 'yes' ELSE 'no' END FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objsubid = 0 WHERE n.nspname = 'oo_dict' AND c.relname = 'enums'"
+  sql_out oo_a356_restore_control "$ROOT/saved/probes/restore-view-control.raw" "SELECT CASE WHEN c.relkind = 'v' AND COALESCE(d.description, '') <> 'a377-during-cut' THEN 'yes' ELSE 'no' END FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.classoid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objsubid = 0 WHERE n.nspname = 'oo_dict' AND c.relname = 'calendar'"
+  sql_out oo_a356_restore_agent "$ROOT/saved/probes/restore-probe-schema.raw" "SELECT count(*)::text FROM pg_catalog.pg_namespace WHERE nspname = 'oo_a377_probe'"
+  view_agent=$(tr -d '[:space:]' < "$ROOT/saved/probes/restore-view-agent.raw")
+  view_control=$(tr -d '[:space:]' < "$ROOT/saved/probes/restore-view-control.raw")
+  probe_schema=$(tr -d '[:space:]' < "$ROOT/saved/probes/restore-probe-schema.raw")
+  if [ "$view_agent" = "yes" ] && [ "$view_control" = "yes" ] && [ "$probe_schema" = "0" ]; then
+    printf '%s\n' yes > "$ROOT/saved/probes/restore-views.txt"
+  else
+    printf '%s\n' "agent=${view_agent} control=${view_control} probe=${probe_schema}" > "$ROOT/saved/probes/restore-views.txt"
+  fi
   phase restore-existing 4 restore "$OPERATOR"
 else
   phase restore-again 4 restore "$OPERATOR"
@@ -418,6 +578,12 @@ cp "$ROOT/saved/probes/preexisting-nextval.err" "$ROOT/saved/probes/preexisting-
 if [ -f "$ROOT/saved/probes/restore-amount.txt" ]; then
   cp "$ROOT/saved/probes/restore-amount.txt" "$ROOT/check/probes/"
 fi
+if [ -f "$ROOT/saved/probes/restore-sequence.txt" ]; then
+  cp "$ROOT/saved/probes/restore-sequence.txt" "$ROOT/check/probes/"
+fi
+if [ -f "$ROOT/saved/probes/restore-views.txt" ]; then
+  cp "$ROOT/saved/probes/restore-views.txt" "$ROOT/check/probes/"
+fi
 printf '%s\n' yes > "$ROOT/check/probes/full-gold.txt"
 cp "$ROOT/saved/reports/"* "$ROOT/check/reports/"
 docker exec -u 0 "$PGNAME" rm -rf /var/lib/postgresql/a377-check
@@ -435,14 +601,14 @@ printf '%s\n' "$check_code" > "$EVIDENCE/live/phases/cut-check.exit"
 echo "phase cut-check exit ${check_code}"
 
 sql_out postgres "$EVIDENCE/live/databases.txt" "SELECT datname FROM pg_database WHERE datname LIKE 'oo_a356_%' OR datname LIKE 'oo_a377_%' ORDER BY 1"
-if grep -R -l -a -F -f "$ROOT/secrets/admin.pass" "$EVIDENCE" > "$ROOT/password-leak-files.txt"; then
+if grep -R -l -a -F -f "$ROOT/secrets/admin.pass" --exclude-dir=secrets "$EVIDENCE" > "$ROOT/password-leak-files.txt"; then
   cp "$ROOT/password-leak-files.txt" "$EVIDENCE/live/password-leak-files.txt"
   echo "password leaked into evidence" >&2
   exit 1
 fi
 printf '%s\n' none > "$EVIDENCE/live/password-leak-files.txt"
 marker=$(printf '%s%s' '-----BEGIN PRI' 'VATE KEY-----')
-if grep -R -l -a -F -- "$marker" "$EVIDENCE" > "$ROOT/private-key-files.txt"; then
+if grep -R -l -a -F --exclude-dir=secrets -- "$marker" "$EVIDENCE" > "$ROOT/private-key-files.txt"; then
   cp "$ROOT/private-key-files.txt" "$EVIDENCE/live/private-key-files.txt"
   echo "private key leaked into evidence" >&2
   exit 1

@@ -1,0 +1,65 @@
+version=PostgreSQL 17.10 (Debian 17.10-1.pgdg12+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+baseline_cut=41|f|0|16391
+baseline_owned=7|f|0|16393
+baseline_cached=1|f|0|16392
+cached_first_nextval=1
+cached_after_first=10|t|32|16392
+baseline_setval_cut=SELECT pg_catalog.setval('shop.cut_seq', 41, false);
+baseline_setval_owned=SELECT pg_catalog.setval('shop.owned_seq', 7, false);
+baseline_owned_by=91:-- Name: owned_seq; Type: SEQUENCE OWNED BY; Schema: shop; Owner: -;94:ALTER SEQUENCE shop.owned_seq OWNED BY shop.entry.id;;
+share_row_exclusive_seen=1
+nextval_exit=1
+nextval_sqlstate=none
+setval_exit=1
+setval_sqlstate=none
+cached_nextval_exit=1
+cached_nextval_sqlstate=none
+during_cut=41|f|0|16391
+during_cached=10|t|32|16392
+during_owned=7|f|0|16393
+snapshot=0000000E-00000002-1
+during_dump_exit=0
+during_setval_cut=SELECT pg_catalog.setval('shop.cut_seq', 41, false);
+during_setval_cached=SELECT pg_catalog.setval('shop.cached_seq', 10, true);
+during_setval_owned=SELECT pg_catalog.setval('shop.owned_seq', 7, false);
+during_owned_by=-- Name: owned_seq; Type: SEQUENCE OWNED BY; Schema: shop; Owner: -;ALTER SEQUENCE shop.owned_seq OWNED BY shop.entry.id;;
+holder_exit=0
+after_commit_cut=41|f|0|16391
+after_commit_cached=10|t|32|16392
+cached_after_release_nextval=11
+cached_after_release_state=20|t|22|16392
+cut_after_one_next=41|t|32|16391
+rewrite_cache=before|41|t|32|16391;after|41|t|0|16399;
+rewrite_increment=before|41|t|32|16391;after|41|t|0|16400;
+cut_after_rollback=41|t|32|16391
+alter_while_inflight_exit=1
+alter_while_inflight_sqlstate=none
+inflight_state=3|t|32|16394
+readonly_nextval_exit=1
+readonly_nextval_sqlstate=none
+priv_stranger_sqlstate=
+priv_stranger_err=ERROR:  permission denied for schema shop 
+priv_operator_exit=0
+priv_operator=op_state|41|t|32;op_lock|AccessExclusiveLock|true;op_lock|AccessShareLock|true;op_lock|RowExclusiveLock|true;op_lock|ShareRowExclusiveLock|true;
+holder_lines_begin
+Output format is unaligned.
+BEGIN
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+state_cut|41|f|0|16391
+state_cached|10|t|32|16392
+state_owned|7|f|0|16393
+snap|0000000E-00000002-1
+lock|cached_seq|AccessShareLock|true
+lock|cached_seq|RowExclusiveLock|true
+lock|cached_seq|ShareRowExclusiveLock|true
+lock|cut_seq|AccessShareLock|true
+lock|cut_seq|RowExclusiveLock|true
+lock|cut_seq|ShareRowExclusiveLock|true
+lock|owned_seq|AccessShareLock|true
+lock|owned_seq|RowExclusiveLock|true
+lock|owned_seq|ShareRowExclusiveLock|true
+
+COMMIT
+holder_lines_end

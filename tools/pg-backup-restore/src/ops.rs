@@ -66,6 +66,8 @@ pub fn load_fixture(operator: &Operator) -> Result<(), Fail> {
     write_sql(&operator.work_dir.join("shop.sql"), SHOP_DDL)?;
     client.script(AGENT_DB, &operator.work_dir.join("shop.sql"))?;
     load_shop(&client, operator)?;
+    client.sql(CONTROL_DB, fixture::ASSIGN_OWNER)?;
+    client.sql(AGENT_DB, fixture::ASSIGN_OWNER)?;
     let core = probe(&client, CONTROL_DB, AGENT_DB, true)?;
     require_core(&core)?;
     let stamp = unix_now()?;
@@ -420,6 +422,7 @@ fn ensure_roles(client: &Client) -> Result<(), Fail> {
             client.sql("postgres", statement)?;
         }
     }
+    client.sql("postgres", "GRANT oo_a377_owner TO oo_a377_operator")?;
     Ok(())
 }
 

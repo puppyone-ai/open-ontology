@@ -1,0 +1,12 @@
+psql:/run-in/q-next-agent.sql:32: ERROR:  55P03: 55P03 nextval canceling statement due to lock timeout
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-next-control.sql:32: ERROR:  55P03: 55P03 nextval canceling statement due to lock timeout
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-setval-agent.sql:32: ERROR:  55P03: 55P03 setval canceling statement due to lock timeout
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:/run-in/q-setval-control.sql:32: ERROR:  55P03: 55P03 setval canceling statement due to lock timeout
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

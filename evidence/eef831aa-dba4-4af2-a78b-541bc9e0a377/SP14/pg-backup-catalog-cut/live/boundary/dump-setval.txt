@@ -1,0 +1,2 @@
+control: SELECT pg_catalog.setval('oo_key_fixture.cut_seq', 41, false);
+agent: SELECT pg_catalog.setval('shop.cut_seq', 41, false);

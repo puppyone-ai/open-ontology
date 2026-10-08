@@ -1,8 +1,9 @@
 removed_container=oo-a377-pg
 removed_volumes=oo-a377-eef831aa-pgdata oo-a377-eef831aa-cargo oo-a377-eef831aa-target
 removed_network=oo-a377-eef831aa-net
-removed_tmp=/tmp/oo-a377-eef831aa-dba4-4af2-a78b-541bc9e0a377
+kept_prior_evidence=prior-unproven-cut linux/build-prior-unproven seq-lock-probe
 label_owner=a377
 label_session=eef831aa-dba4-4af2-a78b-541bc9e0a377
 foreign_containers_untouched=yes
 prune=no
+runtime_gitignored=yes

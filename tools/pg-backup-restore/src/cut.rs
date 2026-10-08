@@ -2,9 +2,10 @@
 //!
 //! SHARE locks block writers, including the table owner, and stay compatible
 //! with pg_dump's ACCESS SHARE. Each database also exports its own REPEATABLE
-//! READ snapshot. Sequence values are not MVCC, so a sequence lock attempt is
-//! recorded and a refused lock withholds the cut. The sessions are disconnected
-//! on drop so a failed backup does not leave either database read-only.
+//! READ snapshot. Sequence values are not MVCC. The cut restates sequence
+//! ownership, which holds ShareRowExclusiveLock across the dumps without
+//! changing last_value, is_called, or log_cnt. A refused fence withholds the
+//! cut. The sessions are disconnected on drop.
 
 use std::thread;
 use std::time::{Duration, Instant};
@@ -249,8 +250,8 @@ fn snapshot_shape(snapshots: &[SnapshotBind]) -> Result<(), Fail> {
 }
 
 fn fence_shape(fence: &SequenceFence) -> Result<(), Fail> {
-    if fence.lock_mode != "SHARE" || fence.method != "lock_table_share" {
-        return Err(fail(4, "sequence fence is not a share lock"));
+    if fence.lock_mode != snapshot::SEQUENCE_LOCK_MODE || fence.method != snapshot::SEQUENCE_METHOD {
+        return Err(fail(4, "sequence fence is not the owned-by lock"));
     }
     let mut seen = Vec::new();
     for row in &fence.sequences {
@@ -308,6 +309,9 @@ impl Barrier {
             holds.push(held);
             let captured = holds.last().expect("hold was pushed").captured.clone();
             let parsed = snapshot::parse_capture(&captured)?;
+            if parsed.operator != snapshot::CUT_OPERATOR || parsed.operator_super {
+                return Err(fail(1, "cut operator is not the registered role"));
+            }
             if parsed.tables != relations {
                 inventory_matches = false;
             }
@@ -400,8 +404,8 @@ impl Barrier {
         sequences.sort_by(|left, right| left.database.cmp(&right.database).then(left.relation.cmp(&right.relation)));
         SequenceFence {
             held: self.sequence_fence_held(),
-            lock_mode: "SHARE".to_string(),
-            method: "lock_table_share".to_string(),
+            lock_mode: snapshot::SEQUENCE_LOCK_MODE.to_string(),
+            method: snapshot::SEQUENCE_METHOD.to_string(),
             sequences,
         }
     }
@@ -643,7 +647,7 @@ fn sequence_locks_sql(application: &str, database: &str) -> String {
          WHERE a.application_name = '{application}' \
            AND a.datname = '{database}' \
            AND l.granted \
-           AND l.mode = 'ShareLock' \
+           AND l.mode = 'ShareRowExclusiveLock' \
            AND c.relkind = 'S'"
     )
 }

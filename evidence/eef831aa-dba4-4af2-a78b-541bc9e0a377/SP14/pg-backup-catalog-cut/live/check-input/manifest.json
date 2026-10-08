@@ -1,14 +1,14 @@
 {
-  "backup_finished_unix": 1791423147,
-  "backup_started_unix": 1791423143,
+  "backup_finished_unix": 1791432163,
+  "backup_started_unix": 1791432159,
   "caller": "trusted_local_admin",
   "catalog_sha256": "8819c6e48c6595d8a5e1cebac12baa2576d1502bb35dda9b43f291b6f7373bcc",
-  "cut_finished_unix": 1791423147,
-  "cut_mode": "unproven",
-  "cut_started_unix": 1791423144,
+  "cut_finished_unix": 1791432163,
+  "cut_mode": "writers_blocked",
+  "cut_started_unix": 1791432159,
   "dumps": [
-    {"name": "oo_a356_agent.dump", "sha256": "be87b475155463602e02cd85178e9f97ff3847ca792e4b3a5dfa85fd6dcf3a36"},
-    {"name": "oo_a356_control.dump", "sha256": "9b869b0a677b9d39648d1601912a977f689f731d56a1efd2bf9a2da13b9fe630"}
+    {"name": "oo_a356_agent.dump", "sha256": "5995d922be2dceb1acb47811dbf98ff8858ce066c27be680437c848256e96458"},
+    {"name": "oo_a356_control.dump", "sha256": "bdd5c29aa7105b5746e20b0cf21437e4fb778dcaac484a6b74c3bf08440c11cb"}
   ],
   "entry_count_after": 90000,
   "entry_count_before": 90000,
@@ -29,17 +29,17 @@
     {"name": "shop-entry.copy", "sha256": "a11369572ab597c2211d47df03b92c2a1b2da88451bfb5439c1d7ecf2cb10450"},
     {"name": "shop-party.copy", "sha256": "62230764135b6d717fe792dffa77d776d0e7cdc7ff2123fd049ce4f56f06fa5b"}
   ],
-  "history_insufficient": true,
-  "last_write_unix": 1791423143,
+  "history_insufficient": false,
+  "last_write_unix": 1791432159,
   "lineage_version": "pg-backup-restore/v1",
-  "lsn_after": "0/2B4B588",
-  "lsn_before": "0/2B4B588",
+  "lsn_after": "0/2B5D358",
+  "lsn_before": "0/2B5D358",
   "manifest_version": "oo-pg-backup-manifest/v1",
   "owner": "a356",
   "pg_dump_version": "pg_dump (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
   "pg_restore_version": "pg_restore (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
   "psql_version": "psql (PostgreSQL) 17.10 (Debian 17.10-1.pgdg12+1)",
-  "quiescent": false,
+  "quiescent": true,
   "relation_digests": [
     {"content_md5": "7de0ed909daa596cf0f5d78b3f55f0d5", "database": "oo_a356_agent", "gold_sha256": "81fbe09b04941375105c50877af35070916b3c3d3473900eeedec09c76dad998", "relation": "oo_enum_control.install_manifest"},
     {"content_md5": "059cf35ae3922228250ea80fe1311443", "database": "oo_a356_agent", "gold_sha256": "4703c603bdf0f93cc372aca076407e1fb7606e2559e917b67ea2f2591b566fc1", "relation": "oo_enum_control.published"},
@@ -64,19 +64,19 @@
     {"name": "session-store-v1", "sha256": "7b1baab3bbe350765e58e72a802f332e83198517b3dde8503849c604ed6758a2"}
   ],
   "sequence_fence": {
-    "held": false,
-    "lock_mode": "SHARE",
-    "method": "lock_table_share",
+    "held": true,
+    "lock_mode": "ShareRowExclusiveLock",
+    "method": "alter_sequence_owned_by",
     "sequences": [
-      {"database": "oo_a356_agent", "held": false, "relation": "shop.cut_seq", "sqlstate": "42809"},
-      {"database": "oo_a356_control", "held": false, "relation": "oo_key_fixture.cut_seq", "sqlstate": "42809"}
+      {"database": "oo_a356_agent", "held": true, "relation": "shop.cut_seq", "sqlstate": "00000"},
+      {"database": "oo_a356_control", "held": true, "relation": "oo_key_fixture.cut_seq", "sqlstate": "00000"}
     ]
   },
   "session": "eef831aa-dba4-4af2-a78b-541bc9e0a356",
   "shop_gold_sha256": "225c88a436be7735f2df8fddaedc372728c4bd05f07616371e4ca8017d2993d1",
   "snapshots": [
-    {"database": "oo_a356_control", "id": "00000011-00000006-1", "isolation": "REPEATABLE READ"},
-    {"database": "oo_a356_agent", "id": "00000004-00000008-1", "isolation": "REPEATABLE READ"}
+    {"database": "oo_a356_control", "id": "00000005-00000008-1", "isolation": "REPEATABLE READ"},
+    {"database": "oo_a356_agent", "id": "0000000B-00000008-1", "isolation": "REPEATABLE READ"}
   ],
   "source_cut": "cut-a356-1",
   "target_fence": "fence-a356-restore",

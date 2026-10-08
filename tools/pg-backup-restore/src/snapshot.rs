@@ -1,10 +1,14 @@
 //! Exported REPEATABLE READ snapshot and the non-MVCC sequence fence.
 //!
 //! `pg_export_snapshot` runs at the top level of the cut transaction, after the
-//! table SHARE locks and after the sequence lock attempts. The attempts sit in
-//! a PL/pgSQL exception block so PostgreSQL's refusal to lock a sequence does
-//! not abort the transaction. The product does not call `nextval`, `setval`,
-//! or `ALTER SEQUENCE`.
+//! table SHARE locks and after `ALTER SEQUENCE ... OWNED BY` has taken
+//! `ShareRowExclusiveLock`. That is the PostgreSQL 17.10 lock which conflicts
+//! with `nextval` and `setval` and does not rewrite the sequence tuple. The
+//! product does not call `nextval`, `setval`, `RESTART`, `CACHE`, or `INCREMENT`.
+
+pub const CUT_OPERATOR: &str = "oo_a377_operator";
+pub const SEQUENCE_LOCK_MODE: &str = "ShareRowExclusiveLock";
+pub const SEQUENCE_METHOD: &str = "alter_sequence_owned_by";
 
 use crate::sha256;
 use crate::{fail, Fail};
@@ -52,6 +56,8 @@ pub struct Capture {
     pub comments: Vec<(String, String)>,
     pub fence: Vec<FenceAttempt>,
     pub matviews: Vec<(String, String)>,
+    pub operator: String,
+    pub operator_super: bool,
     pub sequence_names: Vec<String>,
     pub sequences: Vec<SeqState>,
     pub snapshot_id: String,
@@ -89,6 +95,8 @@ pub fn cut_script(tables: &[String], sequences: &[String]) -> Result<String, Fai
     sql.push_str("BEGIN ISOLATION LEVEL REPEATABLE READ;\n");
     sql.push_str("SET lock_timeout = '15s';\n");
     sql.push_str("SET idle_in_transaction_session_timeout = 0;\n");
+    sql.push_str(&format!("SET ROLE {CUT_OPERATOR};\n"));
+    sql.push_str("SELECT 'role|' || current_user || '|' || CASE WHEN r.rolsuper THEN 't' ELSE 'f' END FROM pg_catalog.pg_roles r WHERE r.rolname = current_user;\n");
     sql.push_str(&format!("LOCK TABLE {} IN SHARE MODE;\n", locked.join(", ")));
     sql.push_str(&fence_do(&seqs));
     sql.push_str("SELECT 'snap|' || pg_catalog.pg_export_snapshot();\n");
@@ -122,6 +130,8 @@ pub fn reread_sql(states: &[SeqState]) -> String {
 pub fn parse_capture(text: &str) -> Result<Capture, Fail> {
     let mut snapshot_id = None;
     let mut fence = None;
+    let mut operator = None;
+    let mut operator_super = false;
     let mut tables = Vec::new();
     let mut views = Vec::new();
     let mut matviews = Vec::new();
@@ -153,6 +163,20 @@ pub fn parse_capture(text: &str) -> Result<Capture, Fail> {
             fence = Some(parse_fence(payload)?);
             continue;
         }
+        if let Some(payload) = line.strip_prefix("role|") {
+            if operator.is_some() {
+                return Err(fail(1, "cut operator repeated"));
+            }
+            let mut fields = payload.split('|');
+            let name = fields.next().unwrap_or("");
+            let flag = fields.next().unwrap_or("");
+            if fields.next().is_some() || !ident_ok(name) || (flag != "t" && flag != "f") {
+                return Err(fail(1, "cut operator is refused"));
+            }
+            operator = Some(name.to_string());
+            operator_super = flag == "t";
+            continue;
+        }
         if let Some(payload) = line.strip_prefix("obj|") {
             parse_obj(payload, &mut tables, &mut views, &mut matviews, &mut sequence_names, &mut sequences, &mut comments)?;
             continue;
@@ -168,6 +192,9 @@ pub fn parse_capture(text: &str) -> Result<Capture, Fail> {
     let Some(fence) = fence else {
         return Err(fail(1, "sequence fence is missing"));
     };
+    let Some(operator) = operator else {
+        return Err(fail(1, "cut operator is missing"));
+    };
     tables.sort();
     tables.dedup();
     sequence_names.sort();
@@ -176,7 +203,18 @@ pub fn parse_capture(text: &str) -> Result<Capture, Fail> {
     matviews.sort_by(|left, right| left.0.cmp(&right.0));
     sequences.sort_by(|left, right| left.relation.cmp(&right.relation));
     comments.sort_by(|left, right| left.0.cmp(&right.0));
-    Ok(Capture { comments, fence, matviews, sequence_names, sequences, snapshot_id, tables, views })
+    Ok(Capture {
+        comments,
+        fence,
+        matviews,
+        operator,
+        operator_super,
+        sequence_names,
+        sequences,
+        snapshot_id,
+        tables,
+        views,
+    })
 }
 
 pub fn catalog_lines(database: &str, capture: &Capture) -> Result<Vec<String>, Fail> {
@@ -239,10 +277,31 @@ fn fence_do(sequences: &[String]) -> String {
     if sequences.is_empty() {
         return "DO $oo$ BEGIN PERFORM set_config('oo.seq_fence', '', true); END $oo$;\n".to_string();
     }
-    let mut body = String::from("DO $oo$\nDECLARE\n  st text;\n  ok text;\n  acc text := '';\nBEGIN\n");
+    let mut body = String::from(
+        "DO $oo$\nDECLARE\n  own text;\n  before_state text;\n  after_state text;\n  st text;\n  ok text;\n  acc text := '';\nBEGIN\n",
+    );
     for (index, relation) in sequences.iter().enumerate() {
+        let (schema, table) = relation.split_once('.').expect("relation was checked");
         body.push_str("  BEGIN\n");
-        body.push_str(&format!("    EXECUTE 'LOCK TABLE {relation} IN SHARE MODE';\n"));
+        body.push_str(&format!(
+            "    SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END || '|' || log_cnt::text INTO before_state FROM {schema}.{table};\n"
+        ));
+        body.push_str(&format!(
+            "    SELECT format('%I.%I.%I', ns.nspname, c.relname, a.attname) INTO own FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class seq ON seq.oid = d.objid JOIN pg_catalog.pg_namespace seqns ON seqns.oid = seq.relnamespace JOIN pg_catalog.pg_class c ON c.oid = d.refobjid JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = d.refobjsubid WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.deptype IN ('a', 'i') AND seqns.nspname = '{schema}' AND seq.relname = '{table}';\n"
+        ));
+        body.push_str("    IF own IS NULL THEN\n");
+        body.push_str(&format!("      EXECUTE 'ALTER SEQUENCE {schema}.{table} OWNED BY NONE';\n"));
+        body.push_str("    ELSE\n");
+        body.push_str(&format!(
+            "      EXECUTE format('ALTER SEQUENCE {schema}.{table} OWNED BY %s', own);\n"
+        ));
+        body.push_str("    END IF;\n");
+        body.push_str(&format!(
+            "    SELECT last_value::text || '|' || CASE WHEN is_called THEN 't' ELSE 'f' END || '|' || log_cnt::text INTO after_state FROM {schema}.{table};\n"
+        ));
+        body.push_str("    IF before_state IS DISTINCT FROM after_state THEN\n");
+        body.push_str("      RAISE EXCEPTION 'sequence state changed';\n");
+        body.push_str("    END IF;\n");
         body.push_str("    st := '00000';\n    ok := 't';\n");
         body.push_str("  EXCEPTION WHEN OTHERS THEN\n");
         body.push_str("    GET STACKED DIAGNOSTICS st = RETURNED_SQLSTATE;\n    ok := 'f';\n");
@@ -470,17 +529,20 @@ mod tests {
         let lower = sql.to_ascii_lowercase();
         assert!(!lower.contains("nextval"));
         assert!(!lower.contains("setval"));
-        assert!(!lower.contains("alter sequence"));
         assert!(!lower.contains("restart"));
+        assert!(!lower.contains("increment"));
+        assert!(!lower.contains("cache"));
         assert!(!sql.contains("READ ONLY"));
         assert!(sql.contains("BEGIN ISOLATION LEVEL REPEATABLE READ;"));
+        assert!(sql.contains("SET ROLE oo_a377_operator;"));
         assert!(sql.contains("LOCK TABLE oo_key_fixture.cut_marker IN SHARE MODE;"));
-        assert!(sql.contains("LOCK TABLE oo_key_fixture.cut_seq IN SHARE MODE"));
+        assert!(sql.contains("ALTER SEQUENCE oo_key_fixture.cut_seq OWNED BY NONE"));
         assert!(sql.contains("pg_catalog.pg_export_snapshot()"));
         assert!(sql.contains("SELECT 'ready|1';"));
         let export = sql.find("pg_export_snapshot").unwrap();
-        let attempt = sql.find("LOCK TABLE oo_key_fixture.cut_seq").unwrap();
-        assert!(attempt < export);
+        let attempt = sql.find("ALTER SEQUENCE oo_key_fixture.cut_seq").unwrap();
+        let role = sql.find("SET ROLE oo_a377_operator").unwrap();
+        assert!(role < attempt && attempt < export);
     }
 
     #[test]
@@ -488,6 +550,7 @@ mod tests {
         let comment = sha256::hex(&sha256::hash("甲注评名录".as_bytes()));
         let text = "\
 snap|00000003-00000016-1
+role|oo_a377_operator|f
 fence|shop.cut_seq|42809|f
 obj|t|shop.entry
 obj|n|shop.cut_seq

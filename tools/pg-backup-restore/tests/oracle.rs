@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pg_backup_restore::cut::{self, RelationDigest, WriterBlock};
-use pg_backup_restore::snapshot::{SequenceFence, SequenceLock, SnapshotBind};
+use pg_backup_restore::snapshot::{self, SequenceFence, SequenceLock, SnapshotBind};
 use pg_backup_restore::decide::{self, publish_offset, Report};
 use pg_backup_restore::fixture::{self, control_sql, enum_sql};
 use pg_backup_restore::gold::{self, entry_qty};
@@ -302,7 +302,7 @@ fn checkpoint_sql_mentions_the_frozen_rows() {
     assert!(!control.contains("nextval"));
     assert!(fixture::SHOP_DDL.contains("shop.cut_seq"));
     assert!(!fixture::SHOP_DDL.contains("nextval"));
-    assert_eq!(fixture::ROLES.len(), 7);
+    assert_eq!(fixture::ROLES.len(), 9);
     assert_eq!(protocol::SCHEMAS.len(), 4);
     assert_eq!(protocol::copies().len(), 15);
 }
@@ -351,8 +351,8 @@ fn sample_manifest() -> Manifest {
         relation_digests: Vec::new(),
         sequence_fence: SequenceFence {
             held: true,
-            lock_mode: "SHARE".to_string(),
-            method: "lock_table_share".to_string(),
+            lock_mode: snapshot::SEQUENCE_LOCK_MODE.to_string(),
+            method: snapshot::SEQUENCE_METHOD.to_string(),
             sequences: Vec::new(),
         },
         snapshots: vec![

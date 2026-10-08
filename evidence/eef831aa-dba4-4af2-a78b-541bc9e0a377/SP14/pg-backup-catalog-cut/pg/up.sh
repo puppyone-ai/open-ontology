@@ -1,5 +1,6 @@
 #!/bin/bash
-# One owned PostgreSQL 17.10. Secrets stay under the private tmp directory.
+# One owned PostgreSQL 17.10. Secrets stay under the gitignored runtime directory.
+# Docker Desktop on this host does not expose /tmp (/host_mnt/private/tmp).
 # No host port. No privileged mode. Does not pull. Does not prune.
 # pg-wrap.sh is the a274 file, unchanged.
 # Origin flags: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/pg/up.sh
@@ -9,7 +10,7 @@ RUN_ID=eef831aa-dba4-4af2-a78b-541bc9e0a377
 REPO=/Users/redux/puppy-one/open-ontology
 PG=${REPO}/evidence/${RUN_ID}/SP14/pg-backup-catalog-cut/pg
 HARNESS=${PG}
-ROOT=/tmp/oo-a377-${RUN_ID}
+ROOT=${REPO}/evidence/${RUN_ID}/SP14/pg-backup-catalog-cut/runtime
 SEC=${ROOT}/secrets
 IMAGE=docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
 NET=oo-a377-eef831aa-net

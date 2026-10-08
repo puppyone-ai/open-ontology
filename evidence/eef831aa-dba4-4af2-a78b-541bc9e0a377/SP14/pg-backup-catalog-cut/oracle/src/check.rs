@@ -49,10 +49,11 @@ pub fn check(root: &Path) -> Result<(), String> {
         if manifest.contains("\"sqlstate\": \"00000\"") {
             return Err("refused fence records a granted sequence lock".to_string());
         }
-        require_contains(&manifest, "\"method\": \"lock_table_share\"")?;
         require_contains(&manifest, "oo_key_fixture.cut_seq")?;
         require_contains(&manifest, "shop.cut_seq")?;
     }
+    require_contains(&manifest, "\"method\": \"alter_sequence_owned_by\"")?;
+    require_contains(&manifest, "\"lock_mode\": \"ShareRowExclusiveLock\"")?;
     if !manifest.contains("\"probe_rejected\": true") || !manifest.contains("\"lock_mode\": \"SHARE\"") {
         return Err("writer blocks are missing".to_string());
     }
@@ -100,9 +101,12 @@ pub fn check(root: &Path) -> Result<(), String> {
 fn check_outcome(root: &Path, held: bool) -> Result<(), String> {
     if held {
         require_text(&root.join("probes").join("preexisting-nextval.err"), "55P03")?;
+        require_text(&root.join("probes").join("preexisting-nextval.err"), "setval")?;
         require_exit(&root.join("probes").join("preexisting-nextval.exit"), false)?;
         require_trim(&root.join("probes").join("sequence-before.txt"), "41|f")?;
         require_trim(&root.join("probes").join("sequence-after.txt"), "41|f")?;
+        require_trim(&root.join("probes").join("restore-sequence.txt"), "41|f")?;
+        require_trim(&root.join("probes").join("restore-views.txt"), "yes")?;
         let restore = read_report(&root.join("reports").join("restore-readiness.json"))?;
         require_contains(&restore, "\"cut_proven\": true")?;
         require_contains(&restore, "\"pitr_ready\": false")?;
@@ -343,7 +347,7 @@ mod tests {
         manifest.push_str("\", \"relation\": \"shop.entry\"},\n");
         manifest.push_str("    {\"application_name\": \"oo_a356_cut_agent\", \"database\": \"oo_a356_agent\", \"lock_mode\": \"SHARE\", \"probe_rejected\": true, \"relations\": [\"shop.entry\"]},\n");
         manifest.push_str(&format!(
-            "  \"sequence_fence\": {{\n    \"held\": {fence_held},\n    \"lock_mode\": \"SHARE\",\n    \"method\": \"lock_table_share\",\n    \"sequences\": [\n      {{\"database\": \"oo_a356_agent\", \"held\": {fence_held}, \"relation\": \"shop.cut_seq\", \"sqlstate\": \"{sqlstate}\"}},\n      {{\"database\": \"oo_a356_control\", \"held\": {fence_held}, \"relation\": \"oo_key_fixture.cut_seq\", \"sqlstate\": \"{sqlstate}\"}}\n    ]\n  }},\n"
+            "  \"sequence_fence\": {{\n    \"held\": {fence_held},\n    \"lock_mode\": \"ShareRowExclusiveLock\",\n    \"method\": \"alter_sequence_owned_by\",\n    \"sequences\": [\n      {{\"database\": \"oo_a356_agent\", \"held\": {fence_held}, \"relation\": \"shop.cut_seq\", \"sqlstate\": \"{sqlstate}\"}},\n      {{\"database\": \"oo_a356_control\", \"held\": {fence_held}, \"relation\": \"oo_key_fixture.cut_seq\", \"sqlstate\": \"{sqlstate}\"}}\n    ]\n  }},\n"
         ));
         manifest.push_str(&format!(
             "    {{\"database\": \"oo_a356_agent\", \"id\": \"{AGENT_SNAP}\", \"isolation\": \"REPEATABLE READ\"}},\n    {{\"database\": \"oo_a356_control\", \"id\": \"{CONTROL_SNAP}\", \"isolation\": \"REPEATABLE READ\"}},\n"
@@ -377,8 +381,10 @@ mod tests {
         fs::write(root.join("probes").join("sequence-before.txt"), "41|f\n").unwrap();
         if held {
             fs::write(root.join("probes").join("sequence-after.txt"), "41|f\n").unwrap();
-            fs::write(root.join("probes").join("preexisting-nextval.err"), "55P03 lock timeout\n").unwrap();
+            fs::write(root.join("probes").join("preexisting-nextval.err"), "55P03 lock timeout\nQUERY: SELECT setval('shop.cut_seq', 99, true)\n").unwrap();
             fs::write(root.join("probes").join("preexisting-nextval.exit"), "1\n").unwrap();
+            fs::write(root.join("probes").join("restore-sequence.txt"), "41|f\n").unwrap();
+            fs::write(root.join("probes").join("restore-views.txt"), "yes\n").unwrap();
             fs::write(root.join("reports").join("restore-readiness.json"), "{\"cut_proven\": true, \"pitr_ready\": false, \"parent_acceptance\": false}\n").unwrap();
         } else {
             fs::write(root.join("probes").join("sequence-after.txt"), "41|t\n").unwrap();

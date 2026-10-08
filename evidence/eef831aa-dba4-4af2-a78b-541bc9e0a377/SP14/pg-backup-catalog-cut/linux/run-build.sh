@@ -4,7 +4,7 @@ set -euo pipefail
 RUN_ID=eef831aa-dba4-4af2-a78b-541bc9e0a377
 REPO=/Users/redux/puppy-one/open-ontology
 EVIDENCE=${REPO}/evidence/${RUN_ID}/SP14/pg-backup-catalog-cut
-ROOT=/tmp/oo-a377-${RUN_ID}
+ROOT=${EVIDENCE}/runtime
 RUST_IMAGE=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
 NET=oo-a377-eef831aa-net
 BNAME=oo-a377-build

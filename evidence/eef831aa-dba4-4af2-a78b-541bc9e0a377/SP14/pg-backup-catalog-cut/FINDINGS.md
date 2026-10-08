@@ -1,42 +1,54 @@
 # Findings
 
-## Sequence state left the snapshot
+## Sequence exclusion that holds nextval
 
-PostgreSQL 17.10 `LOCK TABLE` on a sequence fails with `42809` (`wrong_object_type`). The cut records that sqlstate and does not call `nextval` or `ALTER SEQUENCE`. Both user sequences in this fixture, `shop.cut_seq` and `oo_key_fixture.cut_seq`, came back `held: false` / `42809`. `sequence_fence.held` is false. `cut_mode` is `unproven`. `history_insufficient` is true. `quiescent` is false.
+PostgreSQL 17.10 `lockcmds.c` allows `LOCK TABLE` only for relkind `r`, `p`, and `v`. Sequences return `42809`. Packet `d86fea93c4e537b77fd8bd4a47ca91f3a4746785` measured that and refused the certificate. That packet remains the ancestor of this work. A permanent refusal is not the close of this card.
 
-The catalog read inside the cut transaction says `41|f` for both sequences. The harness `nextval` during the window returned 41 and exited 0, and the source state after the backup is `41|t`. `pg_restore -f` of the sealed dumps contains:
+`ALTER SEQUENCE ... OWNED BY` is the only sequence option that does not set `need_seq_rewrite` (`src/backend/commands/sequence.c`, `init_params`). It opens the sequence with `ShareRowExclusiveLock`. That mode conflicts with the `RowExclusiveLock` taken by `nextval` and `setval` inside `init_sequence`, and it does not conflict with the `AccessShareLock` used by `pg_dump` to read `last_value`. `CACHE` and `INCREMENT`, even when the parameter is unchanged, rewrite the relfilenode and zero `log_cnt`. They are not the fence. `RESTART`, `nextval`, and `setval` change values and are not the proof.
 
-```sql
-SELECT pg_catalog.setval('shop.cut_seq', 41, true);
-SELECT pg_catalog.setval('oo_key_fixture.cut_seq', 41, true);
-```
+Owned-fixture measurements on this PostgreSQL 17.10, saved under `seq-lock-probe/`:
 
-`true` is `is_called`. The dump's sequence state is the later non-MVCC value, not the `41|f` row bound in `catalog.txt`. A snapshot id does not freeze `nextval`. The certificate is refused for that reason. Restore exited 4 with `reason=cut_unproven` before any `oo_a356_restore_*` database existed.
+- `OWNED BY NONE` and a restated `OWNED BY shop.entry.id` left `last_value`, `is_called`, `log_cnt`, and `relfilenode` unchanged.
+- Concurrent `nextval` and `setval` waited and then failed with lock timeout. Verbose psql reported `55P03`.
+- A backend that had already received one cached value from `CACHE 10` issued a second `nextval` while another session held `OWNED BY NONE`. The second call returned `55P03` and the on-disk row stayed `10|t|32`.
+- `pg_dump --snapshot` during the lock exited 0 and wrote the locked `setval` lines.
+- `ALTER SEQUENCE ... CACHE` and `INCREMENT BY` with the current parameter changed the relfilenode. Those statements were rolled back.
+- `USAGE` and `UPDATE` on the sequence, plus `MAINTAIN` on the table, let a stranger `LOCK TABLE` and did not let that stranger `ALTER SEQUENCE`. The error was `must be owner of sequence`.
+- `SET ROLE oo_a377_operator` after the objects were owned by `oo_a377_owner` ran `LOCK TABLE` and `ALTER SEQUENCE ... OWNED BY NONE` with `rolsuper` false. `GRANT` of the superuser role to the operator was rejected by PostgreSQL and is not used.
 
-`proven()` is still a conjunction. A cut whose sequence fence is held can seal `writers_blocked`. This server did not grant that fence, so readiness stays off. The product does not hardcode `replay_ready` false, drop sequences from the dump, or pass `--table`.
+The product assigns `oo_a377_owner` at fixture load, grants that role to `oo_a377_operator`, and in the cut transaction runs `SET ROLE oo_a377_operator`, table `SHARE`, then a restatement of `OWNED BY`. The cut compares `last_value|is_called|log_cnt` around that statement. A change, or any sqlstate other than `00000`, leaves the fence unheld. `ALTER SEQUENCE ... OWNER TO` is not inside the cut transaction, because that path took `AccessExclusiveLock` in the privilege probe and would block `pg_dump`.
 
-## What the snapshot did hold
+## Same-run 100k restore
 
-Each database exported its own snapshot after the table `SHARE` locks and before `pg_dump`. The ids differ: `00000011-00000006-1` on control and `00000004-00000008-1` on agent. The wrapper recorded `dbname`, `snapshot`, `deferrable=absent`, and `format=custom` for each. `--serializable-deferrable` was not passed.
+One private cluster, after the probe container and its data volume were removed, loaded the 100k fixture and ran backup, the corrupt-dump restore, and the good restore.
 
-`pg_restore -f` text of both dumps has neither `oo_a377_probe` nor `a377-during-cut`. The catalog inventory has the preexisting views and the party comment, and it has no probe objects. Shop gold hashes match the sealed a361 values. Entry 3 in the dump text is `1234567890.1234`.
+The manifest records `sequence_fence.held` true, lock mode `ShareRowExclusiveLock`, method `alter_sequence_owned_by`, and sqlstate `00000` for `shop.cut_seq` and `oo_key_fixture.cut_seq`. `cut_mode` is `writers_blocked`. `history_insufficient` is false. `quiescent` is true.
 
-The amount update issued while `SHARE` was held on `shop.entry` exited 3 with `55P03`. The row stayed `1234567890.1234` until the cut sessions were gone. The same update then committed `1.0001`. Marker `cut-a356-1|100000` and count 90000 did not move. A one-byte corruption of the agent dump was refused with `dump_hash_mismatch`, exit 4, and no restore database.
+Harness probes, started once the table `SHARE` locks were visible:
 
-## Harness misses
+- `nextval` on both preexisting sequences, exit 3, stderr `55P03`.
+- `setval(..., 99, true)` on both, exit 3, stderr `55P03`.
+- Amount update while `SHARE` was held, exit 3, `55P03`, amount `1234567890.1234`.
+- Amount update after the cut sessions ended, exit 0, amount `1.0001`.
 
-Live run 1 started an autocommit `UPDATE` to `1.0001`. It exited 0 with empty stderr and committed. The product's own `amount = amount` probe in that same window was a lock timeout. The committed probe was not a `55P03` result. See `failed-attempts/live-1.txt`.
+Sequence state stayed `41|f` on the source after the cut. `pg_restore -f` contains `setval('shop.cut_seq', 41, false)` and `setval('oo_key_fixture.cut_seq', 41, false)`. The catalog rows bound in the manifest are `41|f|0`. The two snapshot ids differ: control `00000005-00000008-1`, agent `0000000B-00000008-1`.
 
-Live run 2 used an 8 second `lock_timeout`. The cut released in about 4 seconds, the waiting update was granted, and the probe rolled the change back. The product had already sealed an unproven manifest with the same `42809` rows and had already excluded the probe objects. The harness stopped before `cut-check`. See `failed-attempts/live-2.txt`.
+The good restore exited 0. Restored entry 3 is `1234567890.1234`. Restored sequences are `41|f`. Restored views `oo_dict.enums` and `oo_dict.calendar` are views and their comments are not `a377-during-cut`. Schema `oo_a377_probe` is absent from the restore. `post_cut_absent_on_restore` is true and `post_cut_present_on_source` is true. Shop file hashes match the sealed a361 values. A one-byte corruption of the agent dump was refused with `dump_hash_mismatch` before either restore database existed (`dbs-before-corrupt` and `dbs-after-corrupt` are `none`).
 
-The recorded run uses a 1 second `lock_timeout`, which expired while the cut still held `SHARE`. `rejected.err` contains `55P03`. The row did not change during the cut.
+`replay_ready` and `cut_proven` are true for this logical restore. `parent_acceptance`, `pitr_ready`, `production_slo_certified`, `all_state_certified`, `production_ops`, and `offset_min_used` are false. `w04_gate` is `open`. `offset_published` is `100000` because the cut was proven and the stored watermark is `100000`. `rpo_window_seconds` is 4 and `rto_seconds` is 1 because those fields are the elapsed seconds of this run. They are not the docs/11 control or agent SLO.
 
-Build misses before the green build: `stderr` was not mutable; clippy `manual_is_multiple_of`; the checker dropped `#[test]` on one function; snapshot id constants were unused in the non-test binary. Those are `failed-attempts/build-1` through `build-4`. The following build exited 0.
+The catalog sha256 equals the unproven packet's catalog sha256, `8819c6e48c6595d8a5e1cebac12baa2576d1502bb35dda9b43f291b6f7373bcc`. The inventory is the same frozen rows, including sequence `41|f|0`. The dump hashes differ because this dump's `setval` third argument is `false`.
+
+The first password scan of the evidence tree matched only `runtime/secrets/admin.pass`, which is gitignored and exists because this host cannot bind-mount `/tmp`. The scan now skips directories named `secrets`. A second scan, and the private-key scan with the same exclusion, matched nothing. `live/password-leak-files.txt` and `live/private-key-files.txt` are `none`.
+
+## Fixture limit
+
+The loaded schemas and the two `cut_seq` sequences have no identity column. PostgreSQL rejects `ALTER SEQUENCE ... OWNED BY` on an identity sequence with `cannot change ownership of identity sequence`. A user sequence that returns a sqlstate other than `00000` keeps `sequence_fence.held` false, and restore then exits 4 with `cut_unproven` before `CREATE DATABASE`. This run's two sequences both returned `00000`.
 
 ## Review
 
-Verdict: withhold. E51 stays open. PITR, production SLO, and full SP14 stay open.
+Verdict: the logical cut and its restore are recorded. E51 stays open. PITR, production SLO, and full SP14 stay open.
 
-The refusal is the measured 17.10 sequence lock result plus a dump that disagrees with the catalog's sequence row. It is not a scope waiver. Table `SHARE`, the two exported snapshots, and the post-cut exclusion were measured on this fixture. `parent_acceptance`, `pitr_ready`, `production_ops`, `production_slo_certified`, `all_state_certified`, and `offset_min_used` are false. `w04_gate` is `open`. `offset_published` is null.
+The same run held table `SHARE` and sequence `ShareRowExclusiveLock`, dumped both databases with explicit snapshot ids, kept preexisting sequence state at `41|f`, excluded the during-cut objects, and restored sequences, views, catalog rows, and the 100k shop gold. Concurrent `nextval` and `setval` failed with `55P03`. The corrupt dump was refused before any restore database existed. The proof is the lock mode plus the snapshot ids plus the inventory plus the dump `setval` lines plus the restored rows. A before/after fingerprint alone is not the proof.
 
-This review is the same session that wrote the change. No second reviewer ran.
+`gold.rs`, `Cargo.toml`, `Cargo.lock`, `protocol.rs`, and `decide.rs` were not edited. `pg-wrap.sh` remains the a274 file. No root manifest change, no cargo update, no 101-check rerun, no second builder, no enterprise connection, no push.
