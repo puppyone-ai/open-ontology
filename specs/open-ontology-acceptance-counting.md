@@ -587,3 +587,6 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 2026-10-08 Codex接受原冻结E55-D1/1：a380固定1078d69e8独立APPROVE_LIMITED三报告完整读取，108SHA0坏0缺，实际DedicatedSession准入fsync在首行前、Collector故障留存/独立reader重启、mTLS项目绑定、PG同事务event/receipt、重复与冲突、ack hash后GC、fsync/quota/私有ENOSPC无query，Rust1.94 focused+Clippy0，ownedcleanup已证。作者测试某live skip并未作为验收，独立boundary实际运行通过。只签原E55审计耐久组件，不签publicSQL/feedback/fullSP06/runsc。局部冻结76→77/90=85.56%；历史101→102，首次独立91→92，唯一返工15/92=16.30%；作者待新交付inventory总对账不推测，原记录95保留。集成0/4、发行0/6、完整87父项16阶段/X门槛不变。
 - [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。
+
+2026-10-08 Codex接受原E54-D1/1真实OIDC管理身份组件：a375 closure三报告完整读取，correction96+closure7SHA0坏0缺，原68case129SHA已核验，diff逐AC复用证明+独立signedHTTPS split-audience六腿替换唯一失效旧结果，固定a6f92da8，不重跑无关68campaign。原WITHHOLD不改，客户IdP不claim/fullSP02不签。局部冻结77→78/90=86.67%；历史102→103，首次独立92→93，E54原独立WITHHOLD后修复计唯一返工15→16/93=17.20%。作者inventory待总对账原95不推测。集成0/4、发行0/6、87父项16阶段/X门槛不变。
+- [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。

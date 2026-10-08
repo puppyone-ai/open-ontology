@@ -1512,3 +1512,6 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 - [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。
 
 - [ ] SP08/B07真实发布回滚API闭环：a392 tools/release-control-api；真实verifiedcurrent+编译审核Pack/G门禁→持久发布指针CAS/审计→角色Pack可读→权限保守rollback，缺外部批准不发生产。卡AC实施前冻结，完整实际验收前不计完成。a391独立验原E51普通sequence切点新实现，不以author成功自签。
+
+2026-10-08 Codex接受原E54-D1/1真实OIDC管理身份组件：a375 closure三报告完整读取，correction96+closure7SHA0坏0缺，原68case129SHA已核验，diff逐AC复用证明+独立signedHTTPS split-audience六腿替换唯一失效旧结果，固定a6f92da8，不重跑无关68campaign。原WITHHOLD不改，客户IdP不claim/fullSP02不签。局部冻结77→78/90=86.67%；历史102→103，首次独立92→93，E54原独立WITHHOLD后修复计唯一返工15→16/93=17.20%。作者inventory待总对账原95不推测。集成0/4、发行0/6、87父项16阶段/X门槛不变。
+- [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。

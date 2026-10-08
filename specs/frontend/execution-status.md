@@ -58,3 +58,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 覆盖当前句柄：G1原a35126083/G2原a3537769/G3原a35262155工具确认running。固定9c75d686b字体/同源B01适配已作者交付，改pin后Vitest EROFS仍需可写归档必要组合测试；G3只针对fixed差异复审真实TLS与字体，G2继续真实管理闭环不把空页面计完成。
 
 最新G1原a35150656续接工具confirmedrunning；G2a3537769/G3a35262155刚统一confirmedlive。M8 fixed96489b1c作者称63全suite+adapter5通过，完整证据待协调读取，不能提前签总卡。
+
+M8 fixed96489b1c三报告完整读取/23SHA一致；Linux私有可写归档63组合test包含G2+adapter5通过，尚待固定G3独立复审；null deployment示例/API/ws unbound不签A20/FE/live。B01后端a6f92原E54已独立验收，客户IdP仍pending；可供真实前端/自构建服务稳定绑定。

@@ -83,3 +83,6 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 单次18min统一16：a38072955/a38976805/a37730117/a38157162/G1a35126083/a37564094terminal0；其余10confirmedlive。a380原E55已验收；a375原E54完整组合verdict已交付待完整读取/哈希；a377真实sequence lock+restore成功新包待独立原scope审，不先验收。原a389继续现有chain/a381修自身sourceGit harness/G1推进总卡；新a391备份独立复审/a392真实发布回滚产品API，各独占路径。nextUUIDa393，开发cap20/资源Rust10/Node2/browser2不变。
 
 实际补位已确认running：a38926582/a38156762/G1a35150656/a39124465/a39230009，加10本轮统一confirmedlive共15工作线。原closed不重复观察/启动，actualRust构建10/task1仍需各任务排队，frontend固定G1/G2/G3。当前冻结77/90，未核验新OIDC/verdict或backup不涨数。
+
+2026-10-08 Codex接受原E54-D1/1真实OIDC管理身份组件：a375 closure三报告完整读取，correction96+closure7SHA0坏0缺，原68case129SHA已核验，diff逐AC复用证明+独立signedHTTPS split-audience六腿替换唯一失效旧结果，固定a6f92da8，不重跑无关68campaign。原WITHHOLD不改，客户IdP不claim/fullSP02不签。局部冻结77→78/90=86.67%；历史102→103，首次独立92→93，E54原独立WITHHOLD后修复计唯一返工15→16/93=17.20%。作者inventory待总对账原95不推测。集成0/4、发行0/6、87父项16阶段/X门槛不变。
+- [x] E54-D1/1：真实OIDC code/PKCE/JWKS/RS256→PG durable管理cookie/bootstrap/current/CSRF/项目权限→logout/restart撤销（原child全scope组合独立验收）。
