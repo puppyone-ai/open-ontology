@@ -284,6 +284,10 @@ describe("same-origin transport", () => {
       ok: false,
       reason: "origin_rejected",
     });
+    expect(registerSameOriginTransport({ origin: "https://oo-fe01-m14-edge:8443", pageOrigin: "https://oo-fe01-m14-edge:8443", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
     expect(registerSameOriginTransport({ origin: "https://edge.example/app", pageOrigin: "https://edge.example/app", fetchImpl })).toEqual({
       ok: false,
       reason: "origin_rejected",
@@ -364,5 +368,58 @@ describe("same-origin transport", () => {
     expect(invokeOperation("listBuilds")).toMatchObject({ ok: false, reason: "schema_only" });
     const accepted = createRuntimeRegistry().register({ group: "B04", origin: null, ready: false, serviceCommit: SELFBUILD_COMMIT });
     expect(prepareCall({ operationId: "listBuilds", registration: accepted, current: null }).reason).toBe("schema_only");
+  });
+
+  it("accepts published review and classification documents and rejects a string preview", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/reviews/preview")) {
+        return new Response(JSON.stringify({
+          contract: "oo.selfbuild-control-api/v1",
+          operation: "previewReviewBatch",
+          wrote: false,
+          items: [],
+          management_identity: "verified",
+          published: false,
+          data_grants: "none",
+        }), { status: 200 });
+      }
+      if (url.includes("/classifications/preview")) {
+        return new Response(JSON.stringify({
+          contract: "oo.selfbuild-control-api/v1",
+          operation: "previewClassifications",
+          wrote: false,
+          items: ["public.party.id"],
+          management_identity: "verified",
+          published: false,
+          data_grants: "none",
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        contract: "oo.selfbuild-control-api/v1",
+        operation: "listClassifications",
+        columns: [{ object_id: "public.party.id", hidden: false }],
+        management_identity: "verified",
+        published: false,
+        data_grants: "none",
+      }), { status: 200 });
+    });
+    registerSameOriginTransport({ origin: "https://edge.example", pageOrigin: "https://edge.example", fetchImpl });
+    const listed = await callOperation({ operationId: "listClassifications", query: { project_id: "alpha" } });
+    const preview = await callOperation({
+      operationId: "previewReviewBatch",
+      current: current(),
+      body: { project_id: "alpha", identity_revision: 4, items: [] },
+    });
+    const mismatched = await callOperation({
+      operationId: "previewClassifications",
+      current: current(),
+      body: { project_id: "alpha", build_id: `b_${"0".repeat(32)}`, identity_revision: 4, idempotency_key: "journey-preview-0001", items: [] },
+    });
+    expect(listed).toMatchObject({ ok: true, status: 200, fetched: true, live: false, journey: false, release: false });
+    expect(preview).toMatchObject({ ok: true, status: 200, fetched: true });
+    expect(mismatched).toMatchObject({ ok: false, reason: "invalid_schema", status: 200, fetched: true, errorCode: null });
+    expect(invokeOperation("previewClassifications")).toMatchObject({ ok: false, reason: "schema_only" });
+    expect(invokeOperation("createBuild")).toMatchObject({ ok: false, reason: "schema_only" });
   });
 });

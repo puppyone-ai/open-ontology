@@ -463,6 +463,11 @@ const DESTROYED_TRANSPORT_HOSTS = new Set([
   "oo-fe01-m13-idp",
   "oo-fe01-m13-pg",
   "oo-fe01-m13-b04",
+  "oo-fe01-m14-edge",
+  "oo-fe01-m14-proof",
+  "oo-fe01-m14-idp",
+  "oo-fe01-m14-pg",
+  "oo-fe01-m14-b04",
 ]);
 
 const CALL_FLAGS = {
@@ -504,6 +509,9 @@ const QUERY_KEYS: Readonly<Record<string, readonly string[]>> = {
   startAuthorizationCodeLogin: ["return_to"],
   completeAuthorizationCodeCallback: ["code", "state", "error"],
   listBuilds: ["project_id", "limit", "cursor"],
+  listReviewItems: ["project_id", "build_id"],
+  getReviewItem: ["project_id", "build_id"],
+  listClassifications: ["project_id"],
 };
 
 export type SameOriginTransport = {
@@ -897,6 +905,9 @@ function checkedQuery(
     if (key === "project_id" && !/^[a-z][a-z0-9_]{0,62}$/.test(value)) {
       return { ok: false, reason: "invalid_schema" };
     }
+    if (key === "build_id" && !/^b_[0-9a-f]{32}$/.test(value)) {
+      return { ok: false, reason: "invalid_schema" };
+    }
     if (key === "limit" && !/^(?:[1-9]|[1-4][0-9]|50)$/.test(value)) {
       return { ok: false, reason: "invalid_schema" };
     }
@@ -949,6 +960,110 @@ function callSuccess(operationId: string, status: number, body: unknown, locatio
   return { ok: true, operationId, status, body, location, fetched: true, ...CALL_FLAGS };
 }
 
+function acceptedSelfbuild(operationId: string, status: number, value: unknown): boolean {
+  if (!isRecord(value) || value.contract !== "oo.selfbuild-control-api/v1" || value.management_identity !== "verified" || value.published !== false || value.data_grants !== "none") {
+    return false;
+  }
+  if (status === 200 && operationId === "listBuilds") {
+    return parseBuildList(value).ok;
+  }
+  if ((operationId === "createBuild" || operationId === "cancelBuild") && status === 202) {
+    return validBuildItem(value) && value.operation === operationId;
+  }
+  if (operationId === "getBuild" && status === 200) {
+    return validBuildItem(value) && value.operation === "getBuild";
+  }
+  if (status !== 200) {
+    return false;
+  }
+  if (operationId === "getBuildCards") {
+    return keysAllowed(value, ["build_id", "contract", "data_grants", "management_identity", "operation", "published", "sample_policy"], ["cards"])
+      && value.operation === "getBuildCards"
+      && value.sample_policy === "none"
+      && typeof value.build_id === "string"
+      && /^b_[0-9a-f]{32}$/.test(value.build_id)
+      && (!("cards" in value) || isRecord(value.cards));
+  }
+  if (operationId === "getBuildCandidates") {
+    return keysAllowed(value, ["build_id", "contract", "data_grants", "management_identity", "operation", "published", "suggestions"], ["generation"])
+      && value.operation === "getBuildCandidates"
+      && typeof value.build_id === "string"
+      && /^b_[0-9a-f]{32}$/.test(value.build_id)
+      && isRecord(value.suggestions)
+      && (!("generation" in value) || isRecord(value.generation));
+  }
+  if (operationId === "listReviewItems") {
+    return keysAllowed(value, ["contract", "data_grants", "items", "management_identity", "operation", "published"], [])
+      && value.operation === "listReviewItems"
+      && Array.isArray(value.items)
+      && value.items.every((item) => validReviewItem(item));
+  }
+  if (operationId === "getReviewItem") {
+    return validReviewItem(value);
+  }
+  if (operationId === "previewReviewBatch" || operationId === "previewClassifications") {
+    return keysAllowed(value, ["contract", "data_grants", "items", "management_identity", "operation", "published", "wrote"], [])
+      && value.operation === operationId
+      && value.wrote === false
+      && Array.isArray(value.items)
+      && value.items.every((item) => isRecord(item));
+  }
+  if (operationId === "listClassifications") {
+    return keysAllowed(value, ["columns", "contract", "data_grants", "management_identity", "operation", "published"], [])
+      && value.operation === "listClassifications"
+      && Array.isArray(value.columns)
+      && value.columns.every((item) => isRecord(item));
+  }
+  if (operationId === "decideReviewItem" || operationId === "confirmClassifications") {
+    return keysAllowed(value, ["code", "contract", "data_grants", "grants", "ledger_authenticated", "ledger_management_identity", "management_identity", "operation", "published"], ["revision"])
+      && value.operation === operationId
+      && typeof value.code === "string"
+      && value.code.length > 0
+      && value.code.length <= 64
+      && value.ledger_authenticated === false
+      && value.ledger_management_identity === "not_claimed"
+      && value.grants === "not_authorized"
+      && (!("revision" in value) || (Number.isSafeInteger(value.revision) && (value.revision as number) >= 1));
+  }
+  if (operationId === "compileBuildPack" || operationId === "getBuildPack") {
+    return keysAllowed(value, ["active", "build_id", "compiled_pack", "contract", "data_grants", "management_identity", "operation", "output_sha256", "producer", "producer_authenticated", "published"], [])
+      && value.operation === operationId
+      && typeof value.build_id === "string"
+      && /^b_[0-9a-f]{32}$/.test(value.build_id)
+      && typeof value.output_sha256 === "string"
+      && /^[0-9a-f]{64}$/.test(value.output_sha256)
+      && isRecord(value.producer)
+      && value.producer_authenticated === false
+      && value.active === false
+      && value.compiled_pack === "not_published";
+  }
+  return false;
+}
+
+function validReviewItem(value: unknown): boolean {
+  if (!isRecord(value) || !keysAllowed(value, ["candidate_sha256", "contract", "data_grants", "item_id", "ledger_authenticated", "management_identity", "operation", "project_id", "published", "source_sha256"], ["build_id", "decision", "evidence_sha256", "schema_sha256"])) {
+    return false;
+  }
+  return value.contract === "oo.selfbuild-control-api/v1"
+    && value.operation === "getReviewItem"
+    && typeof value.item_id === "string"
+    && value.item_id.length > 0
+    && typeof value.project_id === "string"
+    && /^[a-z][a-z0-9_]{0,62}$/.test(value.project_id)
+    && typeof value.candidate_sha256 === "string"
+    && /^[0-9a-f]{64}$/.test(value.candidate_sha256)
+    && typeof value.source_sha256 === "string"
+    && /^[0-9a-f]{64}$/.test(value.source_sha256)
+    && value.management_identity === "verified"
+    && value.ledger_authenticated === false
+    && value.published === false
+    && value.data_grants === "none"
+    && (!("build_id" in value) || (typeof value.build_id === "string" && /^b_[0-9a-f]{32}$/.test(value.build_id)))
+    && (!("schema_sha256" in value) || typeof value.schema_sha256 === "string")
+    && (!("evidence_sha256" in value) || typeof value.evidence_sha256 === "string")
+    && (!("decision" in value) || value.decision === null || isRecord(value.decision));
+}
+
 async function classifyResponse(operationId: string, group: string, response: Response): Promise<CallResult> {
   const location = response.headers.get("location");
   const text = await response.text();
@@ -968,8 +1083,8 @@ async function classifyResponse(operationId: string, group: string, response: Re
   if (response.status === 200 && operationId === "consumeBootstrapToken" && parseBootstrapResult(parsed.value).ok) {
     return callSuccess(operationId, 200, parsed.value, location);
   }
-  if (response.status === 200 && operationId === "listBuilds" && parseBuildList(parsed.value).ok) {
-    return callSuccess(operationId, 200, parsed.value, location);
+  if (acceptedSelfbuild(operationId, response.status, parsed.value)) {
+    return callSuccess(operationId, response.status, parsed.value, location);
   }
   const error = group === "selfbuild" ? parseSelfbuildError(parsed.value) : parseControlIdentityError(parsed.value);
   if (error.ok) {

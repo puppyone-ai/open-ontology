@@ -1,0 +1,13 @@
+✔ splits selfbuild, identity, api, oidc, ws, assets, and pages (0.871666ms)
+✔ the committed example has no origin and no destroyed proof host (0.274042ms)
+✔ refuses plaintext identity, certificate bypass, and destroyed hosts (0.333375ms)
+✔ forwards /control/ to identity and does not fall through to the static page (399.931292ms)
+✔ falls back to index.html only for page deep links (606.771376ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1063.542084

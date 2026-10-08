@@ -174,3 +174,10 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - 私有空库上的 admin `listBuilds` 返回 200 且 `builds` 为空。缺失的 `getBuild` 与 `business_owner` 的 `listBuilds` 返回 403 `forbidden`。其余 13 个 B04 operation 没有发送。
 - 合同钉仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。实现提交 `45644fca81325cf1405a38ceb79435da6e8bb090` 只记在这次回执里。E56、100k、代理闭环和发布未验收。live、journey、release 仍是 false。证据在 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M13-b04-list/`。
 
+## M14 十五条 selfbuild 调用（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑字体，没有重跑 M9 浏览器，没有重跑 M10 的 67 个测试，没有重跑 M12 的五角色浏览器，没有重跑 M13 的列表驱动。
+- `callOperation` 接受符合已提交 schema 的 selfbuild 2xx。预览结果的 `items` 仍必须是对象。`invokeOperation`、`prepareCall` 和页面仍不发送这些请求。B04 登记状态仍是 `schema_frozen`。
+- 私有空库上 15 个 B04 operation 都发送过。空列表、空审核列表、空审核预览、单列分类列表是 schema 通过的 200。`createBuild` 是 503 `dependency.not_ready`。`previewClassifications` 的 200 因字符串 items 记为 `invalid_schema`。其余缺失行读取和变更是 403 `forbidden`。admin、reviewer、owner 的 logout 都是 200。
+- 合同钉仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。实现提交 `45644fca81325cf1405a38ceb79435da6e8bb090` 只记在这次回执里。E56、100k、代理闭环和发布未验收。live、journey、release 仍是 false。证据在 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M14-b04-journey/`。
+

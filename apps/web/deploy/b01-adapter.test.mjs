@@ -45,7 +45,7 @@ test("the committed example has no origin and no destroyed proof host", () => {
   assert.equal(example.gateway.upstream, null);
   assert.equal(example.selfbuild.upstream, null);
   assert.equal(example.ws.upstream, null);
-  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg", "oo-fe01-m12-edge", "oo-fe01-m12-proof", "oo-fe01-m12-idp", "oo-fe01-m12-pg", "oo-fe01-m13-edge", "oo-fe01-m13-proof", "oo-fe01-m13-idp", "oo-fe01-m13-pg", "oo-fe01-m13-b04"]) {
+  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg", "oo-fe01-m12-edge", "oo-fe01-m12-proof", "oo-fe01-m12-idp", "oo-fe01-m12-pg", "oo-fe01-m13-edge", "oo-fe01-m13-proof", "oo-fe01-m13-idp", "oo-fe01-m13-pg", "oo-fe01-m13-b04", "oo-fe01-m14-edge", "oo-fe01-m14-proof", "oo-fe01-m14-idp", "oo-fe01-m14-pg", "oo-fe01-m14-b04"]) {
     assert.equal(exampleText.includes(host), false);
   }
   assert.throws(() => readAdapterConfig(example), /identity\.upstream is required/);
@@ -90,6 +90,10 @@ test("refuses plaintext identity, certificate bypass, and destroyed hosts", () =
   );
   assert.throws(
     () => readAdapterConfig({ ...base, selfbuild: { upstream: "https://oo-fe01-m13-b04:7444", caFile: "/secrets/ca.crt" } }),
+    /destroyed proof host/,
+  );
+  assert.throws(
+    () => readAdapterConfig({ ...base, selfbuild: { upstream: "https://oo-fe01-m14-b04:7444", caFile: "/secrets/ca.crt" } }),
     /destroyed proof host/,
   );
 });

@@ -149,3 +149,13 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 | 未驱动 | `createBuild`、`cancelBuild`、`getBuildCards`、`getBuildCandidates`、`listReviewItems`、`getReviewItem`、`previewReviewBatch`、`decideReviewItem`、`listClassifications`、`previewClassifications`、`confirmClassifications`、`compileBuildPack`、`getBuildPack` |
 | 钉 | 合同仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。消费的实现提交是 `45644fca81325cf1405a38ceb79435da6e8bb090`。E56、100k、代理闭环和发布都未验收。身份提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b` |
 | 范围 | 客户集成 not_claimed。live、journey、release 都是 false。ready 仍是 false。这次发行方 config commit `95bcd295cc74107110a580b50e4c2e1e8eb8b3d7cebfbf564d7b761f90f5cd42` 不替换 M9 常量 |
+
+## M14 十五条 selfbuild 调用
+
+| 字段 | 值 |
+|---|---|
+| 登记状态 | B04 仍是 `schema_frozen`。`invokeOperation` 与 `prepareCall` 仍不发送请求。页面仍调用 `prepareCall`。`registerRuntime` 仍拒绝非 null origin |
+| 真实调用 | `callOperation` 对已提交 OpenAPI 里 schema 通过的 2xx 记为成功。`createBuild` 与 `cancelBuild` 的成功状态是 202。`getBuild` 的成功状态是 200。预览 `items` 必须是对象；字符串数组仍是 `invalid_schema` |
+| 本次回执 | 私有空库，实现 `45644fca81325cf1405a38ceb79435da6e8bb090`。admin `listBuilds` 200 且列表为空。`listReviewItems` 200 且 items 为空。`previewReviewBatch` 200，`wrote` false，items 为空。`listClassifications` 200，一列 `public.party.id`。`createBuild` 503 `dependency.not_ready`。`previewClassifications` HTTP 200，items 是字符串，客户端记 `invalid_schema`。缺失行上的 get、cancel、cards、candidates、getReviewItem、compile、pack、decide、confirm 都是 403 `forbidden`。三次 logout 都是 200。回执 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M14-b04-journey/raw/b04-journey-receipt.json` |
+| 钉 | 合同仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。OpenAPI blob `8f94655da2d765ed0de75d002e6ff7b736c44b32`。CONTRACT blob `8b149c46f1be207bb08e558b0c9abb5347a347c8`。身份提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b` |
+| 范围 | 客户集成 not_claimed。live、journey、release 都是 false。ready 仍是 false。completed_build、model_called、binaries_present 都是 false。E56、100k、代理闭环和发布未验收。这次发行方 config commit `0698fb16b7af07495b028af3494148a44057139cf200f7b390498cde6f4cce08` 不替换 M9 常量 |
