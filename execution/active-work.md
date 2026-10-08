@@ -117,3 +117,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 补位工具confirmedrunning：a38331537/a3887627/G2a3533033/G3a3526454/a37417377/a39990868/a40017820，加8刚confirmedlive共15实际线。所有既有producerconsumers必须immutablefixedarchive；399 owns仅role_pack.rs/reviewed_effective.rs两模块+ontology-dialogue，其余root/工具只读，未和373/397共享写入。global10Rust task1/Node2/browser2不变，nextone18min统一15。
 
 用户要求Self-build全阶段尽快收敛：新增specs/selfbuild-convergence-exit-plan.md明确SB01–11完整成功/失败/审核compiler真实应用/终态一致/部署与证据作者退出条件。唯一a373完整原E56继续，不把S9awaiting/jobrunning/字段未apply当交付；CLI工具中断与delivery退回/独立review返工分开统计，避免把context续接算实现返工或修改分母。当前统计79/90不变，完整SP07仍未签。
+
+Self-build原a373实际resume handle59356工具confirmedrunning，执行SB01–11完整退出条件。上一统一观测其他live仍a39211380/a39558908/a39768103/a39860322/a39990868/a40017820；383/386/351/396/388/353/352/374原CLIterminal0保留，其资源/证据待后续一次收，不重复launch。此次用户优先selfbuild退出标准，尚未补其他新卡/实际并发不伪称15；nexta401未用。
