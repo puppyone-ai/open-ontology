@@ -81,3 +81,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 - [x] E55-D1/1：真实查询准入/完成fsync WAL→真实mTLS PG耐久receipt→验证确认后GC（a380固定独立复审）。
 
 单次18min统一16：a38072955/a38976805/a37730117/a38157162/G1a35126083/a37564094terminal0；其余10confirmedlive。a380原E55已验收；a375原E54完整组合verdict已交付待完整读取/哈希；a377真实sequence lock+restore成功新包待独立原scope审，不先验收。原a389继续现有chain/a381修自身sourceGit harness/G1推进总卡；新a391备份独立复审/a392真实发布回滚产品API，各独占路径。nextUUIDa393，开发cap20/资源Rust10/Node2/browser2不变。
+
+实际补位已确认running：a38926582/a38156762/G1a35150656/a39124465/a39230009，加10本轮统一confirmedlive共15工作线。原closed不重复观察/启动，actualRust构建10/task1仍需各任务排队，frontend固定G1/G2/G3。当前冻结77/90，未核验新OIDC/verdict或backup不涨数。
