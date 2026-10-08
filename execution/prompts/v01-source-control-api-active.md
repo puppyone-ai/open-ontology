@@ -13,3 +13,5 @@ PARALLEL RESUME 用户要求其他任务并行，不因Selfbuild优先停止本�
 NEXT unified closure: 5424terminal0，已有oo-a383-rust重试及原PG55min，FIRST收真实phase/exit不要复起builder或重建PG，完成原注册catalog100k HTTP闭环/固定contract。
 
 NEXT OC01–06 closure: 原63819terminal0，retrybuilder原PG已有启动 FIRST收新真正phase/exit，同卡继续完整真实catalog导入成功接口，别反复被旧monitor记录失败误导。
+
+LATEST USER PRIORITY: 完整读specs/minimal-product-loop-plan.md。当前先单用户真实接库→Selfbuild标准YAML/Packfolder→Pi read/bash oo SQL→真正Gateway→答案/close。management/admin/multiuserAPI依赖排后，不因此阻塞已有真实CLI/lib闭环；无mock/no自动LLMapproved/no伪productionpub，明确draftdevelopment预览。a405唯一用户流程编排消费固定producer，各ownerpaths不变。docs09§6.2明确Pi不依赖MCP。原完整Plan/OC主链保留Todo，不签未实现部分。
