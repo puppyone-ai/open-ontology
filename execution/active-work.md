@@ -74,3 +74,5 @@ G1/G2/G3此刻均terminal，未另启。G1 M6真实fixture-admin授权码登录/
 2026-10-08 Codex完整读取a379/a382各三报告并核验SHA：56/102条0坏0缺。a382固定9a7940ba5独立APPROVE_LIMITED，实际PG widened public/pg_temp/prefix/extraGUC拒绝且catalog不变、恢复精确配置replay，Rust1.94 focusedunit/Clippy/实际proof0；接受search_path原缺陷修复，不新增开发单元或计数，不把raw双psql/SEM父项/SP14/E51标完成。a379固定a6f92da8a0bf872f8a30efb116c2c7b14463505b真实signedIdP audience/client_id修复作者已交付，56SHA一致；E54仍待原a37567327独立复审，尚不验收。
 
 单次18min统一15句柄：a38193531/G1a35195178/G3a35292248/a37567327terminal0；a38373258/a38719418/a37746898terminal1 Internal error。其余8confirmedlive（a38072955/a38494406/a38559533/a38622914/a38865101/a38976805/a39051488/a37393577）。8终止原会话续接只收既有资源/固定证据再推进，严禁复制builder；G2 idle原UUID消费固定9c75。下一UUID仍a391。
+
+实际原会话补位启动确认running：a38342717/a38762843/a37730117/a38157162/G1a35126083/G2a3537769/G3a35262155/a37564094；加8刚观测live共16工作线。所有writer原路径不变；Rust10/Node2/browser2配额排队。下一轮单次18min统一16handle。

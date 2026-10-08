@@ -54,3 +54,5 @@ G2完整M1/M2/M3三报告已读，source f67a87b0a/7151fcbb7/d416874ee；27/23/2
 当前覆盖旧句柄：G1原a35195178、G2原a35352996、G3原a35292248启动工具确认running。G1真实可配置B01部署adapter/字体与组合suite、G2消费固定97909a4b7并完整管理接口路径、G3独立固定M6真实IdP delta。M6三报告80SHA一致、G3M5-G2三报告69SHA一致；font失败保留，真实客户IdP/完整M0–M4/A01–20不勾选。
 
 最新统一观测：G1a35195178/G3a35292248confirmedlive，G2a35352996terminal0，M6-fixture-guard新包尚待完整核验（自述62/63，font失败），总卡管理能力仍未完成；等待真实producer，不能编造B04完成。
+
+覆盖当前句柄：G1原a35126083/G2原a3537769/G3原a35262155工具确认running。固定9c75d686b字体/同源B01适配已作者交付，改pin后Vitest EROFS仍需可写归档必要组合测试；G3只针对fixed差异复审真实TLS与字体，G2继续真实管理闭环不把空页面计完成。
