@@ -1,0 +1,39 @@
+[package]
+name = "mcp-gateway"
+description = "SP13-W01 stdio MCP server wrapping the existing Gateway HTTP surface."
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.94.0"
+version = "0.1.0"
+
+[workspace]
+resolver = "3"
+
+[[bin]]
+name = "mcp-gateway"
+path = "src/main.rs"
+
+[features]
+live = ["dep:oo-gateway"]
+
+[dependencies]
+rmcp = { version = "=3.5.0", default-features = false, features = ["server", "client", "transport-io", "transport-child-process"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time", "io-std"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+oo-gateway = { path = "../../crates/oo-gateway", version = "=0.1.0", optional = true }
+
+[dev-dependencies]
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time", "io-std", "process", "fs"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

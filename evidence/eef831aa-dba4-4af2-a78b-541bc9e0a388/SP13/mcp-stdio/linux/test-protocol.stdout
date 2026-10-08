@@ -1,0 +1,26 @@
+
+running 3 tests
+test http::tests::loopback_url_accepts_only_a_numeric_port ... ok
+test tests::advertised_tools_are_the_three_gateway_routes ... ok
+test tests::knowledge_uris_stay_inside_the_pack_path ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test discover_target_version_lists_the_same_tools ... ok
+test initialize_previous_version_lists_gateway_tools_only ... ok
+test initialize_rejects_unknown_and_non_handshake_versions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

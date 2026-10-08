@@ -1,0 +1,13 @@
+    Checking mcp-gateway v0.1.0 (/src/tools/mcp-gateway)
+error: this assertion has a constant value
+  --> tests/live.rs:63:5
+   |
+63 |     assert!(cfg!(target_os = "linux"), "the proc checks run on linux");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider moving this into a const block: `const { assert!(..) }`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#assertions_on_constants
+   = note: `-D clippy::assertions-on-constants` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+error: could not compile `mcp-gateway` (test "live") due to 1 previous error

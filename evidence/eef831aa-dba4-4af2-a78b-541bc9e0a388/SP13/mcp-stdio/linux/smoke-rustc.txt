@@ -1,0 +1,13 @@
+# Pre-edit smoke. Container oo-a388-smoke, --rm, network none, linux/arm64.
+# Image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
+# Non-login bash -c with PATH=/usr/local/cargo/bin:/usr/bin:/bin and RUSTUP_TOOLCHAIN=1.94.0.
+
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+binary: rustc
+commit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db
+commit-date: 2026-03-02
+host: aarch64-unknown-linux-gnu
+release: 1.94.0
+LLVM version: 21.1.8
+aarch64
+SMOKE_OK
