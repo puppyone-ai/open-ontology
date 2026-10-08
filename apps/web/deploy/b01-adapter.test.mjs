@@ -12,7 +12,13 @@ import { ROUTE_POLICY, readAdapterConfig, routeKind, startAdapter } from "./b01-
 const example = JSON.parse(readFileSync(new URL("./b01-adapter.example.json", import.meta.url), "utf8"));
 const exampleText = readFileSync(new URL("./b01-adapter.example.json", import.meta.url), "utf8");
 
-test("splits identity, api, oidc, ws, assets, and pages", () => {
+test("splits selfbuild, identity, api, oidc, ws, assets, and pages", () => {
+  assert.equal(routeKind("/control/v1/builds"), "selfbuild");
+  assert.equal(routeKind("/control/v1/builds?project_id=alpha"), "selfbuild");
+  assert.equal(routeKind("/control/v1/builds/b_0123456789abcdef0123456789abcdef"), "selfbuild");
+  assert.equal(routeKind("/control/v1/reviews"), "selfbuild");
+  assert.equal(routeKind("/control/v1/reviews/item-1"), "selfbuild");
+  assert.equal(routeKind("/control/v1/classifications/preview"), "selfbuild");
   assert.equal(routeKind("/control/v1/identity/current"), "identity");
   assert.equal(routeKind("/control/v1/auth/login?return_to=%2Faccount"), "identity");
   assert.equal(routeKind("/control"), "identity");
@@ -37,8 +43,9 @@ test("the committed example has no origin and no destroyed proof host", () => {
   assert.equal(example.identity.upstream, null);
   assert.equal(example.static.upstream, null);
   assert.equal(example.gateway.upstream, null);
+  assert.equal(example.selfbuild.upstream, null);
   assert.equal(example.ws.upstream, null);
-  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg"]) {
+  for (const host of ["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg", "oo-fe01-m12-edge", "oo-fe01-m12-proof", "oo-fe01-m12-idp", "oo-fe01-m12-pg", "oo-fe01-m13-edge", "oo-fe01-m13-proof", "oo-fe01-m13-idp", "oo-fe01-m13-pg", "oo-fe01-m13-b04"]) {
     assert.equal(exampleText.includes(host), false);
   }
   assert.throws(() => readAdapterConfig(example), /identity\.upstream is required/);
@@ -81,6 +88,10 @@ test("refuses plaintext identity, certificate bypass, and destroyed hosts", () =
     () => readAdapterConfig({ ...base, gateway: { upstream: "https://oo-fe01-m9-edge:7443", caFile: "/secrets/ca.crt" } }),
     /destroyed proof host/,
   );
+  assert.throws(
+    () => readAdapterConfig({ ...base, selfbuild: { upstream: "https://oo-fe01-m13-b04:7444", caFile: "/secrets/ca.crt" } }),
+    /destroyed proof host/,
+  );
 });
 
 test("forwards /control/ to identity and does not fall through to the static page", async () => {
@@ -117,6 +128,10 @@ test("forwards /control/ to identity and does not fall through to the static pag
       const api = await getText(`https://127.0.0.1:${adapter.port}/v1/pack/metadata`, ca);
       assert.equal(api.status, 502);
       assert.equal(api.body, "api_unbound");
+      const builds = await getText(`https://127.0.0.1:${adapter.port}/control/v1/builds?project_id=alpha`, ca);
+      assert.equal(builds.status, 502);
+      assert.equal(builds.body, "selfbuild_unbound");
+      assert.equal(builds.body.includes("identity"), false);
       assert.equal(api.body.includes("static-index"), false);
       const oidc = await getText(`https://127.0.0.1:${adapter.port}/.well-known/openid-configuration`, ca);
       assert.equal(oidc.status, 502);

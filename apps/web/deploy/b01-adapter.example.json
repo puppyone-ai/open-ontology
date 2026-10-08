@@ -5,8 +5,17 @@
   "identity": { "upstream": null, "caFile": null, "servername": null },
   "static": { "upstream": null },
   "gateway": { "upstream": null },
+  "selfbuild": { "upstream": null, "caFile": null, "servername": null },
   "ws": { "upstream": null },
   "routing": {
+    "selfbuild": [
+      "/control/v1/builds",
+      "/control/v1/builds/",
+      "/control/v1/reviews",
+      "/control/v1/reviews/",
+      "/control/v1/classifications",
+      "/control/v1/classifications/"
+    ],
     "identity": ["/control", "/control/"],
     "api": ["/v1", "/v1/", "/api", "/api/"],
     "oidc": ["/.well-known", "/.well-known/", "/oauth", "/oauth/", "/oidc", "/oidc/"],
@@ -14,5 +23,5 @@
     "assets": ["/fonts/", "/assets/"],
     "spaFallback": "page-deep-link-only"
   },
-  "note": "Nothing here is a default deployment. listen host, listen port, tls, and every upstream stay null until the deployer fills them. The process does not substitute 127.0.0.1 or a proof host. API, OIDC, and WebSocket stay off index.html."
+  "note": "Nothing here is a default deployment. listen host, listen port, tls, and every upstream stay null until the deployer fills them. The process does not substitute 127.0.0.1 or a proof host. API, OIDC, and WebSocket stay off index.html. Published build, review, and classification paths use selfbuild.upstream and are not forwarded to the identity upstream."
 }

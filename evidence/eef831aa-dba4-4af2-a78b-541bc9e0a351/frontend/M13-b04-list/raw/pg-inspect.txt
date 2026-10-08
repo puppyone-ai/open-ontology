@@ -1,0 +1,1 @@
+Memory=1073741824 NanoCpus=1000000000 CapDrop=["ALL"] CapAdd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] Network=oo-fe01-net-m13-eef831aa Privileged=false

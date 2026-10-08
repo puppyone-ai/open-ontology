@@ -137,3 +137,15 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 | 这次发行方的 config commit | `e24a947d3f4aec69e2c00d35e3cd132e42f4712bbdb6753a8cc583295c1536c9`。M9 回执里的 `ec801f46456d62b23679c05e87f45e23cedd710bd3aedb1992d69477a2748152` 保持不动 |
 | B04 | `listBuilds` 实际打到边缘，HTTP 404，响应不符合已提交的 selfbuild error schema，结果是 `invalid_schema`。没有把它当成构建成功。合同仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`，ready 仍是 false |
 | 范围 | 客户集成 not_claimed。live、journey、release 都是 false。服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`，合同仍是 `089b00d7f70da1bc42f7e201dfa070748c651d5b` |
+
+## M13 selfbuild 列表
+
+| 字段 | 值 |
+|---|---|
+| 路由 | `/control/v1/builds`、`/control/v1/reviews`、`/control/v1/classifications` 走 `selfbuild.upstream`。示例里这个上游是 null，请求返回 502 `selfbuild_unbound`，不再转到身份上游 |
+| 登记状态 | B04 仍是 `schema_frozen`。`invokeOperation` 与 `prepareCall` 仍不发送请求。页面仍调用 `prepareCall`。`registerRuntime` 仍拒绝非 null origin |
+| 真实调用 | `callOperation("listBuilds")` 在同源传输登记后发送请求。HTTP 200 只在响应对上已提交的 BuildList 时算成功。空的 `builds` 是空列表，不是完成的构建。其他 selfbuild 2xx 仍是 `invalid_schema` |
+| 本次回执 | 私有空库。admin 的 `listBuilds` 是 200，`count` 0。不存在的 `getBuild` 是 403 `forbidden`。`business_owner` 的 `listBuilds` 是 403 `forbidden`。回执 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M13-b04-list/raw/b04-receipt.json` |
+| 未驱动 | `createBuild`、`cancelBuild`、`getBuildCards`、`getBuildCandidates`、`listReviewItems`、`getReviewItem`、`previewReviewBatch`、`decideReviewItem`、`listClassifications`、`previewClassifications`、`confirmClassifications`、`compileBuildPack`、`getBuildPack` |
+| 钉 | 合同仍是 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。消费的实现提交是 `45644fca81325cf1405a38ceb79435da6e8bb090`。E56、100k、代理闭环和发布都未验收。身份提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b` |
+| 范围 | 客户集成 not_claimed。live、journey、release 都是 false。ready 仍是 false。这次发行方 config commit `95bcd295cc74107110a580b50e4c2e1e8eb8b3d7cebfbf564d7b761f90f5cd42` 不替换 M9 常量 |

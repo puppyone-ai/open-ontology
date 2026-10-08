@@ -4,9 +4,17 @@ import https from "node:https";
 import net from "node:net";
 import { pathToFileURL } from "node:url";
 
-const DESTROYED_HOSTS = new Set(["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg", "oo-fe01-m12-edge", "oo-fe01-m12-proof", "oo-fe01-m12-idp", "oo-fe01-m12-pg"]);
+const DESTROYED_HOSTS = new Set(["oo-fe01-edge", "oo-fe01-proof", "oo-fe01-idp", "oo-fe01-pg", "oo-fe01-m7-edge", "oo-fe01-m7-proof", "oo-fe01-m7-idp", "oo-fe01-m7-pg", "oo-fe01-m9-edge", "oo-fe01-m9-proof", "oo-fe01-m9-idp", "oo-fe01-m9-pg", "oo-fe01-m12-edge", "oo-fe01-m12-proof", "oo-fe01-m12-idp", "oo-fe01-m12-pg", "oo-fe01-m13-edge", "oo-fe01-m13-proof", "oo-fe01-m13-idp", "oo-fe01-m13-pg", "oo-fe01-m13-b04"]);
 
 export const ROUTE_POLICY = {
+  selfbuild: [
+    "/control/v1/builds",
+    "/control/v1/builds/",
+    "/control/v1/reviews",
+    "/control/v1/reviews/",
+    "/control/v1/classifications",
+    "/control/v1/classifications/",
+  ],
   identity: ["/control", "/control/"],
   api: ["/v1", "/v1/", "/api", "/api/"],
   oidc: ["/.well-known", "/.well-known/", "/oauth", "/oauth/", "/oidc", "/oidc/"],
@@ -21,6 +29,7 @@ export function routeKind(urlPath, headers) {
   const path = (urlPath || "/").split("?")[0];
   const upgrade = headerValue(headers, "upgrade").toLowerCase();
   if (upgrade === "websocket" || matchesAny(path, ROUTE_POLICY.ws)) return "ws";
+  if (matchesAny(path, ROUTE_POLICY.selfbuild)) return "selfbuild";
   if (matchesAny(path, ROUTE_POLICY.identity)) return "identity";
   if (matchesAny(path, ROUTE_POLICY.api)) return "api";
   if (matchesAny(path, ROUTE_POLICY.oidc)) return "oidc";
@@ -52,6 +61,7 @@ export function readAdapterConfig(value) {
     throw new Error("identity.servername must match the upstream host");
   }
   const gateway = optionalUpstream(value.gateway, "gateway");
+  const selfbuild = optionalUpstream(value.selfbuild, "selfbuild");
   const ws = optionalUpstream(value.ws, "ws");
   const port = value.listen?.port;
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
@@ -75,6 +85,7 @@ export function readAdapterConfig(value) {
     },
     static: { url: staticUrl },
     gateway,
+    selfbuild,
     ws,
   };
 }
@@ -85,6 +96,7 @@ export function startAdapter(config) {
   }
   const identityAgent = tlsAgent(config.identity);
   const gatewayAgent = config.gateway?.url.protocol === "https:" ? tlsAgent(config.gateway) : null;
+  const selfbuildAgent = config.selfbuild?.url.protocol === "https:" ? tlsAgent(config.selfbuild) : null;
   const wsAgent = config.ws?.url.protocol === "https:" ? tlsAgent(config.ws) : null;
   const server = https.createServer(
     {
@@ -93,7 +105,7 @@ export function startAdapter(config) {
     },
     (request, response) => {
       try {
-        dispatch(request, response, config, { identityAgent, gatewayAgent });
+        dispatch(request, response, config, { identityAgent, gatewayAgent, selfbuildAgent });
       } catch {
         sendPlain(request, response, 502, "adapter_error");
       }
@@ -115,6 +127,7 @@ export function startAdapter(config) {
         close() {
           identityAgent.destroy();
           gatewayAgent?.destroy();
+          selfbuildAgent?.destroy();
           wsAgent?.destroy();
           server.closeAllConnections?.();
           return new Promise((done) => server.close(() => done()));
@@ -127,6 +140,10 @@ export function startAdapter(config) {
 function dispatch(request, response, config, agents) {
   const path = request.url || "/";
   const kind = routeKind(path, request.headers);
+  if (kind === "selfbuild") {
+    if (!config.selfbuild) return sendPlain(request, response, 502, "selfbuild_unbound");
+    return proxy(request, response, config.selfbuild, agents.selfbuildAgent, "selfbuild_unreachable");
+  }
   if (kind === "api") {
     if (!config.gateway) return sendPlain(request, response, 502, "api_unbound");
     return proxy(request, response, config.gateway, agents.gatewayAgent, "api_unreachable");

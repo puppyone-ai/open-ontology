@@ -29,6 +29,7 @@ export {
   createRuntimeRegistry,
   csrfFromCurrent,
   parseBootstrapResult,
+  parseBuildList,
   parseControlIdentityError,
   parseLogoutResult,
   parseSelfbuildError,
@@ -39,6 +40,7 @@ export {
 } from "./client";
 export type {
   BootstrapParse,
+  BuildListParse,
   CallFailure,
   CallResult,
   CallSuccess,

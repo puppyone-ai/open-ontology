@@ -4,6 +4,9 @@
  * CSRF comes only from a typed getIdentityCurrent body.
  * invokeOperation and prepareCall do not call fetch.
  * callOperation fetches only after a deployer registers a trusted same-origin transport.
+ * A listBuilds 200 is accepted only when it matches the published list document.
+ * Other selfbuild successes stay invalid_schema until their published documents are parsed.
+ * invokeOperation remains schema_only for every B04 id.
  */
 
 import { SELFBUILD_COMMIT, SELFBUILD_HTTP, SELFBUILD_OPENAPI, bindingById } from "./bindings";
@@ -334,6 +337,67 @@ export function parseControlIdentityError(value: unknown): ParsedProductError<Co
   return { ok: true, code: parsed.code as ControlIdentityErrorCode, message: parsed.message, retryable: parsed.retryable };
 }
 
+const BUILD_LIST_REQUIRED = [
+  "active",
+  "builds",
+  "compiled_pack",
+  "contract",
+  "data_grants",
+  "management_identity",
+  "operation",
+  "published",
+] as const;
+
+const BUILD_ITEM_REQUIRED = [
+  "active",
+  "build_id",
+  "compiled_pack",
+  "contract",
+  "data_grants",
+  "identity_revision",
+  "input_sha256",
+  "management_identity",
+  "operation",
+  "project_id",
+  "published",
+  "stage",
+  "stages",
+  "status",
+] as const;
+
+const BUILD_OPERATIONS = new Set(["createBuild", "getBuild", "listBuilds", "cancelBuild"]);
+const BUILD_STATUSES = new Set(["queued", "running", "succeeded", "failed", "cancel_requested", "canceled"]);
+const STAGE_NAMES = new Set(["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"]);
+const STAGE_STATUSES = new Set(["pending", "running", "succeeded", "failed", "refused", "awaiting"]);
+
+export type BuildListParse = { ok: true; count: number } | { ok: false; reason: "invalid_schema" };
+
+/** Accepts the published listBuilds object. An empty builds array is a list, not a completed build. */
+export function parseBuildList(value: unknown): BuildListParse {
+  if (!isRecord(value) || !keysAllowed(value, BUILD_LIST_REQUIRED, ["next_cursor"])) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  if (
+    value.contract !== "oo.selfbuild-control-api/v1" ||
+    value.operation !== "listBuilds" ||
+    value.management_identity !== "verified" ||
+    value.published !== false ||
+    value.active !== false ||
+    value.data_grants !== "none" ||
+    value.compiled_pack !== "not_published" ||
+    !Array.isArray(value.builds)
+  ) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  if ("next_cursor" in value && (typeof value.next_cursor !== "string" || value.next_cursor.length < 1 || value.next_cursor.length > 256)) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  if (value.builds.some((item) => !validBuildItem(item))) {
+    return { ok: false, reason: "invalid_schema" };
+  }
+  return { ok: true, count: value.builds.length };
+}
+
 export function parseSelfbuildError(value: unknown): ParsedProductError<SelfbuildErrorCode> | ProductErrorFailure {
   const parsed = parseErrorBody(value, SELFBUILD_ERROR_KEYS, SELFBUILD_ERROR_CODE_SET);
   if (!parsed || !isRecord(value)) {
@@ -394,6 +458,11 @@ const DESTROYED_TRANSPORT_HOSTS = new Set([
   "oo-fe01-m12-proof",
   "oo-fe01-m12-idp",
   "oo-fe01-m12-pg",
+  "oo-fe01-m13-edge",
+  "oo-fe01-m13-proof",
+  "oo-fe01-m13-idp",
+  "oo-fe01-m13-pg",
+  "oo-fe01-m13-b04",
 ]);
 
 const CALL_FLAGS = {
@@ -699,6 +768,60 @@ function validProject(value: unknown): boolean {
   return Array.isArray(value.capabilities) && value.capabilities.every((item) => typeof item === "string" && CAPABILITIES.has(item));
 }
 
+function keysAllowed(value: Record<string, unknown>, required: readonly string[], optional: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  const allowed = new Set<string>([...required, ...optional]);
+  return required.every((key) => keys.includes(key)) && keys.every((key) => allowed.has(key));
+}
+
+function validBuildItem(value: unknown): boolean {
+  if (!isRecord(value) || !keysAllowed(value, BUILD_ITEM_REQUIRED, ["failure_code"])) {
+    return false;
+  }
+  if (
+    value.contract !== "oo.selfbuild-control-api/v1" ||
+    typeof value.operation !== "string" ||
+    !BUILD_OPERATIONS.has(value.operation) ||
+    typeof value.build_id !== "string" ||
+    !/^b_[0-9a-f]{32}$/.test(value.build_id) ||
+    typeof value.project_id !== "string" ||
+    !/^[a-z][a-z0-9_]{0,62}$/.test(value.project_id) ||
+    typeof value.status !== "string" ||
+    !BUILD_STATUSES.has(value.status) ||
+    typeof value.stage !== "string" ||
+    !STAGE_NAMES.has(value.stage) ||
+    !Number.isSafeInteger(value.identity_revision) ||
+    (value.identity_revision as number) < 1 ||
+    typeof value.input_sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(value.input_sha256) ||
+    value.management_identity !== "verified" ||
+    value.published !== false ||
+    value.active !== false ||
+    value.data_grants !== "none" ||
+    value.compiled_pack !== "not_published" ||
+    !Array.isArray(value.stages)
+  ) {
+    return false;
+  }
+  if ("failure_code" in value && value.failure_code !== null && typeof value.failure_code !== "string") {
+    return false;
+  }
+  return value.stages.every((stage) => validStage(stage));
+}
+
+function validStage(value: unknown): boolean {
+  if (!isRecord(value) || !keysAllowed(value, ["stage", "status"], ["output_sha256", "detail_code"])) {
+    return false;
+  }
+  if (typeof value.stage !== "string" || !STAGE_NAMES.has(value.stage) || typeof value.status !== "string" || !STAGE_STATUSES.has(value.status)) {
+    return false;
+  }
+  if ("output_sha256" in value && value.output_sha256 !== null && (typeof value.output_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.output_sha256))) {
+    return false;
+  }
+  return !("detail_code" in value) || value.detail_code === null || typeof value.detail_code === "string";
+}
+
 function sameKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
   const keys = Object.keys(value).sort();
   return keys.length === expected.length && keys.every((key, index) => key === expected[index]);
@@ -843,6 +966,9 @@ async function classifyResponse(operationId: string, group: string, response: Re
     return callSuccess(operationId, 200, parsed.value, location);
   }
   if (response.status === 200 && operationId === "consumeBootstrapToken" && parseBootstrapResult(parsed.value).ok) {
+    return callSuccess(operationId, 200, parsed.value, location);
+  }
+  if (response.status === 200 && operationId === "listBuilds" && parseBuildList(parsed.value).ok) {
     return callSuccess(operationId, 200, parsed.value, location);
   }
   const error = group === "selfbuild" ? parseSelfbuildError(parsed.value) : parseControlIdentityError(parsed.value);

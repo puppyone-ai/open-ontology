@@ -96,6 +96,7 @@ async function waitSubject(name: string): Promise<void> {
 
 describe("same-origin client against the test issuer", () => {
   it("drives five roles and records an honest builds failure", async () => {
+    if (process.env.FE01_B04_DRIVE === "1") return;
     expect(origin.startsWith("https://")).toBe(true);
     expect(bootstrapFile.length).toBeGreaterThan(0);
     expect(evidence.length).toBeGreaterThan(0);

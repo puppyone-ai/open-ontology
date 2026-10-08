@@ -15,6 +15,7 @@ import {
   csrfFromCurrent,
   invokeOperation,
   parseControlIdentityError,
+  parseBuildList,
   parseLogoutResult,
   parseSelfbuildError,
   prepareCall,
@@ -279,6 +280,10 @@ describe("same-origin transport", () => {
       ok: false,
       reason: "origin_rejected",
     });
+    expect(registerSameOriginTransport({ origin: "https://oo-fe01-m13-edge:8443", pageOrigin: "https://oo-fe01-m13-edge:8443", fetchImpl })).toEqual({
+      ok: false,
+      reason: "origin_rejected",
+    });
     expect(registerSameOriginTransport({ origin: "https://edge.example/app", pageOrigin: "https://edge.example/app", fetchImpl })).toEqual({
       ok: false,
       reason: "origin_rejected",
@@ -326,5 +331,38 @@ describe("same-origin transport", () => {
       customerIntegration: "not_claimed",
     });
     expect(prepareCall({ operationId: "listBuilds", registration: null, current: null }).reason).toBe("registration_refused");
+  });
+
+  it("accepts an empty published listBuilds document and still refuses the registry call", async () => {
+    const body = {
+      contract: "oo.selfbuild-control-api/v1",
+      operation: "listBuilds",
+      builds: [],
+      management_identity: "verified",
+      published: false,
+      active: false,
+      data_grants: "none",
+      compiled_pack: "not_published",
+    };
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
+    registerSameOriginTransport({ origin: "https://edge.example", pageOrigin: "https://edge.example", fetchImpl });
+    const result = await callOperation({ operationId: "listBuilds", query: { project_id: "alpha" } });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      ok: true,
+      operationId: "listBuilds",
+      status: 200,
+      fetched: true,
+      live: false,
+      journey: false,
+      release: false,
+      customerIntegration: "not_claimed",
+    });
+    expect(result.ok ? result.body : null).toMatchObject({ builds: [], published: false, compiled_pack: "not_published" });
+    expect(parseBuildList(body)).toEqual({ ok: true, count: 0 });
+    expect(parseBuildList({ ...body, leaked: true })).toEqual({ ok: false, reason: "invalid_schema" });
+    expect(invokeOperation("listBuilds")).toMatchObject({ ok: false, reason: "schema_only" });
+    const accepted = createRuntimeRegistry().register({ group: "B04", origin: null, ready: false, serviceCommit: SELFBUILD_COMMIT });
+    expect(prepareCall({ operationId: "listBuilds", registration: accepted, current: null }).reason).toBe("schema_only");
   });
 });
