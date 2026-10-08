@@ -176,17 +176,43 @@ async fn private_postgres_publish_and_rollback() {
     assert_eq!(operation_count(&env).await, before);
     proof.step("waiver", waiver.status, "malformed", waiver.body["detail"].as_str().unwrap_or(""), Value::Null);
 
+    let hash_before = session_csrf_hash(&env, "fixture-admin").await;
     let bad_origin = api.call_origin("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-origin", "ver-origin", None, "test_scope", "key-origin-00000001")), "https://127.0.0.1:9").await;
     assert_eq!(bad_origin.status, 403);
     assert_eq!(bad_origin.body["code"], "origin.rejected");
     assert_eq!(operation_count(&env).await, before);
+    assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
     proof.step("origin", bad_origin.status, "origin.rejected", "origin", Value::Null);
 
-    let bad_csrf = api.call_csrf("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-csrf", "ver-csrf", None, "test_scope", "key-csrf-0000000001")), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").await;
-    assert_eq!(bad_csrf.status, 403);
-    assert_eq!(bad_csrf.body["code"], "csrf.rejected");
+    let bad_shape = api.call_csrf("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-csrf", "ver-csrf", None, "test_scope", "key-csrf-shape-00001")), "short-token").await;
+    assert_eq!(bad_shape.status, 403);
+    assert_eq!(bad_shape.body["code"], "csrf.rejected");
     assert_eq!(operation_count(&env).await, before);
-    proof.step("csrf", bad_csrf.status, "csrf.rejected", "csrf", Value::Null);
+    assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
+    proof.step("csrf-shape", bad_shape.status, "csrf.rejected", "csrf", Value::Null);
+
+    let missing_csrf = api.call_no_csrf("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-csrf-missing", "ver-csrf-missing", None, "test_scope", "key-csrf-missing-001"))).await;
+    assert_eq!(missing_csrf.status, 403);
+    assert_eq!(missing_csrf.body["code"], "csrf.rejected");
+    assert_eq!(operation_count(&env).await, before);
+    assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
+    proof.step("csrf-missing", missing_csrf.status, "csrf.rejected", "csrf", Value::Null);
+
+    let shaped = "a".repeat(43);
+    let unverified = api
+        .call_csrf(
+            "POST",
+            "/control/v1/releases/op_0123456789abcdef0123456789abcdef/rollback",
+            Some(&rollback_json("ver-missing", "key-csrf-shaped-0001")),
+            &shaped,
+        )
+        .await;
+    assert_eq!(unverified.status, 403, "{}", unverified.body);
+    assert_eq!(unverified.body["code"], "forbidden");
+    assert_eq!(unverified.body["detail"], "scope");
+    assert_eq!(operation_count(&env).await, before);
+    assert_ne!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
+    proof.step("csrf-unverified", unverified.status, "forbidden", "scope", Value::Null);
 
     refresh_csrf(&mut identity_http, &mut api).await;
     let bad_revision = api.call("POST", "/control/v1/releases", Some(&create_json_revision(&omit_commit, "cand-rev", "ver-rev", None, "test_scope", "key-revision-000001", 2)), true).await;
@@ -384,7 +410,12 @@ async fn private_postgres_publish_and_rollback() {
     assert_eq!(active_version(&api).await, json!("ver-restart"));
     assert_reader(&env, Some("ver-restart")).await;
     assert_audit_immutable(&env).await;
+    let rejected = identity_audit_count(&env, "bootstrap_rejected").await;
+    let consumed = identity_audit_count(&env, "bootstrap_consumed").await;
+    assert_eq!(rejected, 0, "product mutations must not write bootstrap_rejected");
+    assert_eq!(consumed, 1, "only the fixture login consumes bootstrap");
     proof.step("restart-queued", 200, "succeeded", "test_scope_not_production", json!("ver-restart"));
+    proof.step("identity-audit", 0, "bootstrap_rejected", "0", json!(consumed));
 
     drop(server);
     proof.finish(&env);
@@ -510,6 +541,11 @@ impl Http {
     async fn call_csrf(&mut self, method: &str, path: &str, body: Option<&str>, csrf: &str) -> Reply {
         let origin = self.origin.clone();
         self.send(method, path, body, Some(&origin), Some(csrf), true).await
+    }
+
+    async fn call_no_csrf(&mut self, method: &str, path: &str, body: Option<&str>) -> Reply {
+        let origin = self.origin.clone();
+        self.send(method, path, body, Some(&origin), None, true).await
     }
 
     async fn call_origin(&mut self, method: &str, path: &str, body: Option<&str>, origin: &str) -> Reply {
@@ -914,6 +950,27 @@ fn read_secret(path: &Path) -> String {
         text.pop();
     }
     text
+}
+
+async fn session_csrf_hash(env: &LiveEnv, subject: &str) -> String {
+    let client = connect_as(env, "oo_identity_admin", &env.identity_password_file).await;
+    let row = client
+        .query_one(
+            "SELECT csrf_hash FROM oo_identity_control.session WHERE subject = $1::text AND revoked_at IS NULL",
+            &[&subject],
+        )
+        .await
+        .expect("session csrf hash");
+    row.get(0)
+}
+
+async fn identity_audit_count(env: &LiveEnv, action: &str) -> i64 {
+    let client = connect_as(env, "oo_identity_admin", &env.identity_password_file).await;
+    let row = client
+        .query_one("SELECT count(*) FROM oo_identity_control.audit_event WHERE action = $1::text", &[&action])
+        .await
+        .expect("identity audit");
+    row.get(0)
 }
 
 async fn operation_count(env: &LiveEnv) -> i64 {

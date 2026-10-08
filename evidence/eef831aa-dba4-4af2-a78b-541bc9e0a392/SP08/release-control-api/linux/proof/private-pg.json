@@ -56,7 +56,21 @@
     {
       "code": "csrf.rejected",
       "detail": "csrf",
-      "name": "csrf",
+      "name": "csrf-shape",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "csrf.rejected",
+      "detail": "csrf",
+      "name": "csrf-missing",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "forbidden",
+      "detail": "scope",
+      "name": "csrf-unverified",
       "status": 403,
       "version": null
     },
@@ -220,6 +234,13 @@
       "name": "restart-queued",
       "status": 200,
       "version": "ver-restart"
+    },
+    {
+      "code": "bootstrap_rejected",
+      "detail": "0",
+      "name": "identity-audit",
+      "status": 0,
+      "version": 1
     }
   ],
   "test_scope": "not_production"

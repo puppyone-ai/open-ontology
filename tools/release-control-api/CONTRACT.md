@@ -8,7 +8,7 @@ This service is the authenticated management surface for one project's publicati
 
 | Input | Pin | How this service uses it |
 |---|---|---|
-| control-identity | service `a6f92da8a0bf872f8a30efb116c2c7b14463505b`, schemas `089b00d7f70da1bc42f7e201dfa070748c651d5b` | Live `GET /control/v1/identity/current` only. Not a path dependency. Caller JSON is not authority. |
+| control-identity | service `a6f92da8a0bf872f8a30efb116c2c7b14463505b`, schemas `089b00d7f70da1bc42f7e201dfa070748c651d5b` | Live `GET /control/v1/identity/current` only. No consume and no logout. Not a path dependency of the server. Caller JSON is not authority. |
 | release-coordinator | `9d5df65b63d3fe6c94d92d02c41d67b2b5c8aed3` | Path consumer of that tree. Stage, gate, checkpoint, plan, activate, rollback, and status are that crate's functions. This service does not reimplement gate admissibility or pointer CAS. |
 | selfbuild reviewed pack | operator file named by `config_commit` | Envelope `oo.selfbuild-control-api/v1` with `compiled_pack=not_published`, `published=false`, `active=false`, and producer `oo.pg-builder.pack-combined/v1`. Two role packs. This service does not compile a second pack and does not call a moving selfbuild process. |
 
@@ -32,7 +32,13 @@ These are the only HTTP operations. Anything else is `not_found` or `method.not_
 
 ## Identity
 
-Every request forwards only the opaque `__Host-oo-session` cookie to the configured identity origin at exactly `/control/v1/identity/current`. The origin is `https` with no userinfo, path, query, or fragment. The service uses the configured CA, does not follow redirects, and has no identity cache. `install_state` must be `initialized`. `authority` must be `management_session`.
+Reads forward only the opaque `__Host-oo-session` cookie to the configured identity origin at exactly `GET /control/v1/identity/current`. The origin is `https` with no userinfo, path, query, or fragment. The service uses the configured CA, does not follow redirects, and has no identity cache. `install_state` must be `initialized`. `authority` must be `management_session`.
+
+Mutations check `Origin` and `X-OO-CSRF` in this process before that GET. `Origin` must equal one configured deployment origin. A missing or non-matching origin is `403 origin.rejected` and does not call identity. `X-OO-CSRF` must be one 43-character token of ASCII letters, digits, `_`, and `-`. A missing or ill-shaped token is `403 csrf.rejected` and does not call identity. The GET then supplies the subject, projects, capabilities, and `revision`. `identity_revision` must equal that `revision`.
+
+`GET /control/v1/identity/current` on identity `a6f92da8a0bf872f8a30efb116c2c7b14463505b` stores a new CSRF hash and returns the new plaintext. The caller's `X-OO-CSRF` is the previous token, so this service does not compare the header with `csrf_token` in that response. This service does not call `POST /control/v1/auth/bootstrap/consume` or `POST /control/v1/auth/logout`. A consume of an unknown token commits an identity audit row `bootstrap_rejected`. A logout whose token matches revokes the session.
+
+Identity `a6f92` has no HTTP read that compares `X-OO-CSRF` with the stored hash and leaves the session, the hash, and the audit table unchanged. A 43-character token that does not match the hash is therefore not rejected by this service. The missing operation for the identity owner (402 is the only writer) is `verifyManagementSession`: `POST /control/v1/identity/verify`, with the session cookie, `Origin` equal to the identity `https_origin`, `X-OO-CSRF`, and `revision`. Success returns the same capability envelope as `getIdentityCurrent` and echoes the presented token. The transaction must not update `csrf_hash`, must not slide idle expiry, must not insert `audit_event`, must not consume a bootstrap token, and must not revoke the session. `401 unauthenticated`, `403 csrf.rejected`, `403 origin.rejected`, and `409 revision.conflict` must commit nothing. This service binds the stored-hash compare to that route when a later identity commit pins it.
 
 | Condition | HTTP | Code |
 |---|---|---|
@@ -42,7 +48,7 @@ Every request forwards only the opaque `__Host-oo-session` cookie to the configu
 | Missing capability | 403 | `forbidden` detail `capability` |
 | Pack role is not the sealed role | 403 | `forbidden` detail `role` |
 | Bad `Origin` | 403 | `origin.rejected` |
-| Bad `X-OO-CSRF` | 403 | `csrf.rejected` |
+| Missing or ill-shaped `X-OO-CSRF` | 403 | `csrf.rejected` |
 | `identity_revision` differs | 409 | `revision.conflict` |
 
 A missing operation and an operation in another project use the same `403` `forbidden` body. The body does not say which case it was.
@@ -57,7 +63,7 @@ A missing operation and an operation in another project use the same `403` `forb
 
 The role name is not authority. `review.decide` cannot publish or roll back.
 
-Mutations require `Origin` equal to one configured deployment origin, `X-OO-CSRF` equal to the current envelope `csrf_token`, and `identity_revision` equal to `revision`.
+Mutations require `Origin` equal to one configured deployment origin, a 43-character `X-OO-CSRF`, and `identity_revision` equal to the `revision` returned by the following `GET /control/v1/identity/current`.
 
 ## Publish
 

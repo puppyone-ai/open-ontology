@@ -4,14 +4,15 @@ Owned resources only. No `docker prune`. No foreign container, volume, network, 
 
 Removed after `linux/proof/private-pg.json` and `linux/build-1/console.log` were on disk:
 
-- container `oo-a392-pg` (`docker rm -f`), id `ee3ac54513273aa8ed462b904c2a0d2ea2e574f0b8a90c4be8f041750bce309d`
+- container `oo-a392-pg` (`docker rm -f`), id `9e43cde46efaefd84d70858bcf04ed25af645f06cb3c7e51f99e959bfb65db2a`
 - volumes `oo-a392-eef831aa-pg`, `oo-a392-eef831aa-cargo`, `oo-a392-eef831aa-target`
-- network `oo-a392-eef831aa-net`, id `4af561a64d51`
+- network `oo-a392-eef831aa-net`, id `291eada120012e4cc927aec51348ab05b8ed18e4363d4fdc2eed4b623690b01f`
 - directory `/tmp/oo-a392-eef831aa-dba4-4af2-a78b-541bc9e0a392` (password files and private keys, mode 0700, not committed)
+- directory `/tmp/oo-a392-eef831aa-pins` (the archived identity, producer, and oo-builder trees)
 
 Builder containers named `oo-a392-build` were removed at the end of each run, including the green run. None remained when Postgres was removed.
 
-`linux/cleanup-after.txt` is the check after that removal: zero containers with label `oo.owner=a392`, zero volumes matching `oo-a392`, zero networks matching `oo-a392`, secrets directory absent.
+`linux/cleanup-after.txt` is the check after that removal: zero containers with label `oo.owner=a392`, zero volumes matching `oo-a392`, zero networks matching `oo-a392`, secrets directory absent, pin directory absent.
 
 Images were left in the local Docker store:
 

@@ -19,11 +19,43 @@ INSIDE="$EVIDENCE/linux/harness/oo-a392-inside.sh"
 
 mkdir -p "$BUILD_EVIDENCE"
 cd "$REPO"
-git diff --quiet "$PRODUCER" -- tools/release-coordinator
-git diff --quiet "$IDENTITY" -- tools/control-identity
+on_exit() {
+  local code=$?
+  if [ ! -f "$BUILD_EVIDENCE/docker-run.exit" ]; then
+    printf '%s\n' "$code" > "$BUILD_EVIDENCE/docker-run.exit"
+  fi
+}
+trap on_exit EXIT
+PRIOR="$EVIDENCE/linux/prior-fbd046761"
+if [ ! -d "$PRIOR" ] && [ -f "$BUILD_EVIDENCE/docker-run.exit" ]; then
+  mkdir -p "$PRIOR"
+  cp -a "$BUILD_EVIDENCE/." "$PRIOR/"
+  if [ -f "$EVIDENCE/linux/proof/private-pg.json" ]; then
+    cp -a "$EVIDENCE/linux/proof/private-pg.json" "$PRIOR/private-pg.json"
+  fi
+fi
+rm -f "$BUILD_EVIDENCE/docker-run.exit"
 git rev-parse HEAD > "$BUILD_EVIDENCE/git-head.txt"
-git diff --stat "$PRODUCER" -- tools/release-coordinator > "$BUILD_EVIDENCE/producer.diffstat"
-git diff --stat "$IDENTITY" -- tools/control-identity > "$BUILD_EVIDENCE/identity.diffstat"
+git diff --stat "$PRODUCER" -- tools/release-coordinator > "$BUILD_EVIDENCE/producer.host.diffstat" || true
+git diff --stat "$IDENTITY" -- tools/control-identity > "$BUILD_EVIDENCE/identity.host.diffstat" || true
+PIN=/tmp/oo-a392-eef831aa-pins
+rm -rf "$PIN"
+mkdir -p "$PIN"
+pin_tree() {
+  local commit="$1" path="$2" n=0 mode kind hash file
+  git -C "$REPO" archive "$commit" "$path" | tar -x -C "$PIN"
+  while read -r mode kind hash file; do
+    [ "$kind" = blob ] || continue
+    git -C "$REPO" cat-file blob "$hash" | cmp -s - "$PIN/$file" || { echo "pin mismatch $file" >&2; exit 2; }
+    n=$((n + 1))
+  done < <(git -C "$REPO" ls-tree -r "$commit" "$path")
+  printf '%s %s files=%s\n' "$path" "$commit" "$n"
+}
+{
+  pin_tree "$IDENTITY" tools/control-identity
+  pin_tree "$PRODUCER" tools/release-coordinator
+  pin_tree "$PRODUCER" crates/oo-builder
+} > "$BUILD_EVIDENCE/compiled-pins.txt"
 
 own=$(docker ps -aq --filter label=oo.kind=rust-builder --filter label=oo.owner="$OWNER" | wc -l | tr -d ' ')
 global=$(docker ps -q --filter label=oo.kind=rust-builder | wc -l | tr -d ' ')
@@ -78,6 +110,9 @@ docker run --name "$BUILD" \
   -e OO_A392_PROOF=/evidence/linux/proof/private-pg.json \
   --mount "type=bind,source=${REPO},target=/repo,readonly" \
   --mount "type=bind,source=${REPO}/tools/release-control-api,target=/repo/tools/release-control-api" \
+  --mount "type=bind,source=${PIN}/tools/control-identity,target=/repo/tools/control-identity,readonly" \
+  --mount "type=bind,source=${PIN}/tools/release-coordinator,target=/repo/tools/release-coordinator,readonly" \
+  --mount "type=bind,source=${PIN}/crates/oo-builder,target=/repo/crates/oo-builder,readonly" \
   --mount "type=bind,source=${ROOT},target=/secrets,readonly" \
   --mount "type=bind,source=${EVIDENCE},target=/evidence" \
   --mount "type=bind,source=${INSIDE},target=/inside.sh,readonly" \

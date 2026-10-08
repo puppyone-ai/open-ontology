@@ -1,0 +1,226 @@
+{
+  "contract": "oo.release-control-api/v1",
+  "customer_approval": "not_issued",
+  "full_sp08_accepted": false,
+  "production_ready": false,
+  "steps": [
+    {
+      "code": "installed",
+      "detail": "",
+      "name": "install",
+      "status": 0,
+      "version": null
+    },
+    {
+      "code": "",
+      "detail": "",
+      "name": "active-empty",
+      "status": 0,
+      "version": null
+    },
+    {
+      "code": "conflict",
+      "detail": "inactive",
+      "name": "pack-inactive",
+      "status": 409,
+      "version": null
+    },
+    {
+      "code": "unauthenticated",
+      "detail": "session",
+      "name": "no-cookie",
+      "status": 401,
+      "version": null
+    },
+    {
+      "code": "malformed",
+      "detail": "json",
+      "name": "duplicate-key",
+      "status": 400,
+      "version": null
+    },
+    {
+      "code": "malformed",
+      "detail": "json",
+      "name": "waiver",
+      "status": 400,
+      "version": null
+    },
+    {
+      "code": "origin.rejected",
+      "detail": "origin",
+      "name": "origin",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "csrf.rejected",
+      "detail": "csrf",
+      "name": "csrf",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "revision.conflict",
+      "detail": "revision",
+      "name": "revision",
+      "status": 409,
+      "version": null
+    },
+    {
+      "code": "forbidden",
+      "detail": "scope",
+      "name": "missing-op",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "not_found",
+      "detail": "route",
+      "name": "unknown-route",
+      "status": 404,
+      "version": null
+    },
+    {
+      "code": "method.not_allowed",
+      "detail": "method",
+      "name": "method",
+      "status": 405,
+      "version": null
+    },
+    {
+      "code": "forbidden",
+      "detail": "capability",
+      "name": "reviewer-rollback",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "forbidden",
+      "detail": "scope",
+      "name": "cross-project",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "forbidden",
+      "detail": "capability",
+      "name": "owner-publish",
+      "status": 403,
+      "version": null
+    },
+    {
+      "code": "refused",
+      "detail": "not_ready",
+      "name": "omit-g7",
+      "status": 200,
+      "version": null
+    },
+    {
+      "code": "refused",
+      "detail": "not_ready",
+      "name": "fabricated-fence",
+      "status": 200,
+      "version": null
+    },
+    {
+      "code": "refused",
+      "detail": "production_blocked",
+      "name": "production-blocked-empty",
+      "status": 200,
+      "version": null
+    },
+    {
+      "code": "succeeded",
+      "detail": "test_scope_not_production",
+      "name": "publish-narrow",
+      "status": 200,
+      "version": "ver-n"
+    },
+    {
+      "code": "succeeded",
+      "detail": "replay",
+      "name": "idempotency-replay",
+      "status": 202,
+      "version": "ver-n"
+    },
+    {
+      "code": "idempotency.conflict",
+      "detail": "idempotency",
+      "name": "idempotency-conflict",
+      "status": 409,
+      "version": "ver-n"
+    },
+    {
+      "code": "conflict",
+      "detail": "pointer",
+      "name": "base-mismatch",
+      "status": 409,
+      "version": "ver-n"
+    },
+    {
+      "code": "refused",
+      "detail": "production_blocked",
+      "name": "production-blocked-active",
+      "status": 200,
+      "version": "ver-n"
+    },
+    {
+      "code": "succeeded",
+      "detail": "test_scope_not_production",
+      "name": "publish-wide",
+      "status": 200,
+      "version": "ver-w"
+    },
+    {
+      "code": "getActiveRolePack",
+      "detail": "test_scope_not_production",
+      "name": "auditor-pack",
+      "status": 200,
+      "version": "ver-w"
+    },
+    {
+      "code": "forbidden",
+      "detail": "capability",
+      "name": "reviewer-pack",
+      "status": 403,
+      "version": "ver-w"
+    },
+    {
+      "code": "forbidden",
+      "detail": "role",
+      "name": "role-mismatch",
+      "status": 403,
+      "version": "ver-w"
+    },
+    {
+      "code": "rolled_back",
+      "detail": "not_issued",
+      "name": "rollback-wide",
+      "status": 200,
+      "version": "ver-n"
+    },
+    {
+      "code": "compat.refused",
+      "detail": "permission",
+      "name": "rollback-widen-refused",
+      "status": 409,
+      "version": "ver-n2"
+    },
+    {
+      "code": "resume_uncertain",
+      "detail": "",
+      "name": "restart-uncertain",
+      "status": 200,
+      "version": "ver-n2"
+    },
+    {
+      "code": "succeeded",
+      "detail": "test_scope_not_production",
+      "name": "restart-queued",
+      "status": 200,
+      "version": "ver-restart"
+    }
+  ],
+  "test_scope": "not_production"
+}

@@ -2,7 +2,7 @@
 
 Session `eef831aa-dba4-4af2-a78b-541bc9e0a392`. This packet is the private PostgreSQL proof of `tools/release-control-api`. `full_sp08_accepted` is false. SP08 is not accepted. The parent goal is not accepted. No ledger, plan checkbox, frontend file, root `Cargo.toml`, or root `Cargo.lock` was edited.
 
-The proof container started at git `f30d06bef4e1f186481587899cbf9b4bd4145c1a`. At that start, `git diff` against producer `9d5df65b63d3fe6c94d92d02c41d67b2b5c8aed3` for `tools/release-coordinator` was empty, and `git diff` against identity `a6f92da8a0bf872f8a30efb116c2c7b14463505b` for `tools/control-identity` was empty. Commits through `b35ae9c5aae756e144a20499a9edf70a875fc11d` do not change those two trees or `crates/oo-builder`.
+The proof container started at git `18b0fcde61ea269cc27e2dc34a81c07ba413a30e`. It compiled `git archive` of identity `a6f92da8a0bf872f8a30efb116c2c7b14463505b` (28 files), producer `9d5df65b63d3fe6c94d92d02c41d67b2b5c8aed3` (16 files), and `crates/oo-builder` at that producer commit (41 files). The host identity worktree was dirty and was not the compiler input. See `linux/build-1/compiled-pins.txt` and `identity.host.diffstat`.
 
 ## What landed
 
@@ -10,7 +10,7 @@ The proof container started at git `f30d06bef4e1f186481587899cbf9b4bd4145c1a`. A
 
 Publish is HTTP 202, then a worker. `getActiveRelease` reads `oo_release_control.publication_status` as `oo_release_reader`. `getActiveRolePack` returns paths, sha256, and byte sizes for the active role. Rollback calls producer `recover` action `rollback` only after the restored visibility is a reviewed subset of the active version. A failed or missing gate does not move the active pointer.
 
-OpenAPI, the six schema files, `CONTRACT.md`, and `migrations/oo_release_api_v1.sql` were already frozen when the green run compiled. This session did not weaken them.
+OpenAPI, the six schema files, and `migrations/oo_release_api_v1.sql` are unchanged. `CONTRACT.md` now states the mutation rule the code implements: local `Origin`, a 43-character `X-OO-CSRF`, then `GET /control/v1/identity/current` for revision and capabilities. The header is not compared with that response's `csrf_token`. The service does not call bootstrap consume or logout. The stored-hash compare is the `verifyManagementSession` gap for the identity owner.
 
 ## Proof that ran
 
@@ -20,20 +20,24 @@ Smoke, before product edits, is `linux/smoke/console.log`: `rustc 1.94.0 (4a4ef4
 
 Final builder, `linux/build-1/console.log`:
 
-- `cargo clippy --locked --offline --all-targets -- -D warnings`, `Finished dev profile in 1.72s`.
-- `cargo test --locked --offline -- --test-threads=1`: library 4 passed, contract 5 passed, live 1 passed in 9.47s, binary tests 0, doc-tests 0. 10 passed, 0 failed.
+- `cargo clippy --locked --offline --all-targets -- -D warnings`, `Finished dev profile in 1m 40s`.
+- `cargo test --locked --offline -- --test-threads=1`: library 4 passed, contract 6 passed, live 1 passed in 9.22s, binary tests 0, doc-tests 0. 11 passed, 0 failed.
 - The live test is `private_postgres_publish_and_rollback`.
 - `linux/build-1/docker-run.exit` is `0`. Console ends `BUILD_OK`.
 - `linux/build-1/hostconfig.txt`: `oom=false exit=0 privileged=false memory=6442450944 cpus=1000000000`.
-- `linux/build-1/capacity-build.txt`: `own=0 global=2 rust_images=2 host_tools=0` before that container started.
-- The inside script refuses a child lock checksum that is absent from the root lock. The green run reached `cargo fetch --locked` and the tests, so that check passed. `cargo generate-lockfile` ran on the first builder, when the child lock did not yet exist. Later runs kept that lock. Root manifests were not edited.
+- `linux/build-1/capacity-build.txt`: `own=0 global=0 rust_images=0 host_tools=0` before that container started.
+- The inside script refuses a child lock checksum that is absent from the root lock. This run reached `cargo fetch --locked` and the tests, so that check passed. The child lock already existed. `cargo generate-lockfile` did not run. Root manifests were not edited.
+- The consume-probe console from commit `fbd0467617a3c1514e7ffbef52f1138e20416ac6` is kept at `linux/prior-fbd046761/`. This run is the CSRF binding proof.
 
 `linux/proof/private-pg.json` is the live test's step list. `production_ready` is false. `full_sp08_accepted` is false. `customer_approval` is `not_issued`. `test_scope` is `not_production`. Steps, in order:
 
 - install `installed`.
 - active pointer null. Pack read is 409 `inactive`.
 - no cookie 401 `unauthenticated`. Duplicate key and waiver key 400 `malformed`. No operation row was added.
-- bad origin 403 `origin.rejected`. Bad CSRF 403 `csrf.rejected`. Wrong revision 409 `revision.conflict`.
+- bad origin 403 `origin.rejected`, and the admin `csrf_hash` stayed unchanged.
+- ill-shaped `X-OO-CSRF` and a missing `X-OO-CSRF` are 403 `csrf.rejected`. `csrf_hash` stayed unchanged. No operation row.
+- a 43-character token that is not the stored token, posted as rollback of a missing operation, is 403 `forbidden` detail `scope`. `current` ran, so `csrf_hash` changed. No operation row. Identity `bootstrap_rejected` stayed 0 through the rest of the proof. `bootstrap_consumed` stayed 1.
+- wrong revision 409 `revision.conflict`.
 - missing operation 403 `forbidden` `scope`. Unknown route 404. `POST /control/v1/releases/active` 405.
 - reviewer rollback 403 `capability`. Cross-project current 403 `scope`. Business owner publish 403 `capability`.
 - omitted G7 refused, reason `not_ready`, pointer null.
@@ -50,7 +54,7 @@ Final builder, `linux/build-1/console.log`:
 - a restarted serve marked a running row with no candidate as `resume_uncertain` and left the pointer at `ver-n2`.
 - a queued row inserted while serve was stopped completed after restart. Pointer became `ver-restart`, class `test_scope_not_production`. The test required an API-admin `UPDATE` of `audit_event` to fail with `42501`.
 
-PostgreSQL before removal: container `ee3ac54513273aa8ed462b904c2a0d2ea2e574f0b8a90c4be8f041750bce309d`, `pg/up.exit` `0`, `memory=1073741824`, `cpus=1000000000`, `privileged=false`, `oom=false`. Ports `{}`. Capability drop `ALL`, add `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`. `pg-wrap.sh` content hash `05e7a4469b63096ddf444c4420410558dd251168cf1510c29779f08ec18ed42a`. Bootstrap stdout is the nine command tags only. Password scan of that stdout and stderr passed inside the harness.
+PostgreSQL before removal: container `9e43cde46efaefd84d70858bcf04ed25af645f06cb3c7e51f99e959bfb65db2a`, `pg/up.exit` `0`, `memory=1073741824`, `cpus=1000000000`, `privileged=false`, `oom=false`. Ports `{}`. Capability drop `ALL`, add `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`. `pg-wrap.sh` content hash `05e7a4469b63096ddf444c4420410558dd251168cf1510c29779f08ec18ed42a`. Bootstrap stdout is the nine command tags only. Password scan of that stdout and stderr passed inside the harness.
 
 ## Failed attempts kept
 

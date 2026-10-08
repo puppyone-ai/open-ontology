@@ -67,6 +67,15 @@ fn rollback_permission_is_a_column_subset() {
 }
 
 #[test]
+fn mutation_binding_matches_a6f92_current() {
+    let text = read("CONTRACT.md");
+    assert!(text.contains("verifyManagementSession"));
+    assert!(text.contains("POST /control/v1/identity/verify"));
+    assert!(text.contains("does not call `POST /control/v1/auth/bootstrap/consume`"));
+    assert!(!text.contains("equal to the current envelope"));
+}
+
+#[test]
 fn migration_hash_is_lowercase_hex() {
     let hash = release_control_api::migration_sha256();
     assert_eq!(hash.len(), 64);

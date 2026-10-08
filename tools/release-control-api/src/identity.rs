@@ -54,7 +54,6 @@ pub struct VerifiedProject {
 pub struct VerifiedIdentity {
     pub subject: String,
     pub revision: i64,
-    pub csrf_token: String,
     pub projects: Vec<VerifiedProject>,
 }
 
@@ -161,8 +160,8 @@ pub fn parse_current_envelope(bytes: &[u8]) -> Result<VerifiedIdentity, Identity
     if revision < 1 || object.get("revision").and_then(Value::as_u64).is_none() {
         return Err(IdentityFault::Untyped);
     }
-    let csrf_token = bounded_string(object, "csrf_token", 43, 43)?;
-    if !session_cookie_ok(&csrf_token) {
+    let rotated = bounded_string(object, "csrf_token", 43, 43)?;
+    if !session_cookie_ok(&rotated) {
         return Err(IdentityFault::Untyped);
     }
     let session = object.get("session").and_then(Value::as_object).ok_or(IdentityFault::Untyped)?;
@@ -178,7 +177,7 @@ pub fn parse_current_envelope(bytes: &[u8]) -> Result<VerifiedIdentity, Identity
     for project in projects_value {
         projects.push(parse_project(project)?);
     }
-    Ok(VerifiedIdentity { subject, revision, csrf_token, projects })
+    Ok(VerifiedIdentity { subject, revision, projects })
 }
 
 pub fn classify_status(status: u16) -> Result<(), IdentityFault> {
@@ -190,16 +189,14 @@ pub fn classify_status(status: u16) -> Result<(), IdentityFault> {
     }
 }
 
-/// Confirm a mutation against a6f92.
+/// Authorize a mutation against identity `a6f92da8`.
 ///
-/// `getIdentityCurrent` stores a new CSRF hash before it returns the new
-/// token, so the presented token cannot equal that response. Identity's
-/// consume route compares the header with the stored hash first. An unknown
-/// bootstrap token then fails `bootstrap.*` and leaves the hash in place.
-/// That route accepts only the identity origin, so the probe uses the
-/// configured identity origin after the caller origin has matched a
-/// deployment origin. `current` runs after the probe and supplies the
-/// session, revision, and capabilities.
+/// `Origin` and the shape of `X-OO-CSRF` are checked here, before any
+/// identity request. The session, capabilities, and revision come from
+/// `GET /control/v1/identity/current`. That GET stores a new CSRF hash and
+/// returns the new plaintext, so the presented header is not compared with
+/// the response token. Logout and bootstrap consume both compare the stored
+/// hash and then write. This function calls neither.
 pub async fn authorize_mutation(
     client: &reqwest::Client,
     identity_origin: &str,
@@ -221,7 +218,6 @@ pub async fn authorize_mutation(
     if injected(csrf) || !session_cookie_ok(csrf) || !session_cookie_ok(cookie) || injected(cookie) {
         return Err(ApiError::csrf());
     }
-    confirm_presented_csrf(client, identity_origin, cookie, csrf).await?;
     let identity = fetch_current(client, identity_origin, cookie).await.map_err(IdentityFault::api)?;
     if revision != identity.revision {
         return Err(ApiError::revision());
@@ -229,48 +225,8 @@ pub async fn authorize_mutation(
     Ok(identity)
 }
 
-const UNKNOWN_BOOTSTRAP: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const CONSUME_PATH: &str = "/control/v1/auth/bootstrap/consume";
-
-async fn confirm_presented_csrf(client: &reqwest::Client, identity_origin: &str, cookie: &str, csrf: &str) -> Result<(), ApiError> {
-    let body = format!("{{\"token\":\"{UNKNOWN_BOOTSTRAP}\"}}");
-    let response = client
-        .post(format!("{identity_origin}{CONSUME_PATH}"))
-        .header("cookie", format!("__Host-oo-session={cookie}"))
-        .header("origin", identity_origin)
-        .header("x-oo-csrf", csrf)
-        .header("accept", "application/json")
-        .header("content-type", "application/json")
-        .body(body)
-        .send()
-        .await
-        .map_err(|_| ApiError::not_ready("identity"))?;
-    let status = response.status().as_u16();
-    if (300..400).contains(&status) {
-        return Err(ApiError::not_ready("identity"));
-    }
-    let bytes = response.bytes().await.map_err(|_| ApiError::not_ready("identity"))?;
-    if bytes.len() > 65_536 {
-        return Err(ApiError::not_ready("identity"));
-    }
-    let code = error_code(&bytes);
-    match status {
-        401 if code.as_deref() == Some("unauthenticated") => Err(ApiError::unauthenticated()),
-        403 if code.as_deref() == Some("csrf.rejected") => Err(ApiError::csrf()),
-        403 if code.as_deref() == Some("origin.rejected") => Err(ApiError::origin()),
-        403 | 409 if code.as_deref().is_some_and(|item| item.starts_with("bootstrap.")) => Ok(()),
-        _ => Err(ApiError::not_ready("identity")),
-    }
-}
-
 fn injected(value: &str) -> bool {
     value.bytes().any(|byte| byte == b'\r' || byte == b'\n' || byte == 0)
-}
-
-fn error_code(bytes: &[u8]) -> Option<String> {
-    let value: Value = parse_request(bytes).ok()?;
-    let code = value.get("error")?.get("code")?.as_str()?;
-    Some(code.to_owned())
 }
 
 pub fn authorize(identity: &VerifiedIdentity, project_id: &str, deployment: &str, scope: Scope) -> Result<(), ApiError> {

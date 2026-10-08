@@ -1,20 +1,36 @@
 # FINDINGS
 
-Bound to the green run in `linux/build-1/console.log` and `linux/proof/private-pg.json`. A green test does not accept SP08.
+Bound to `linux/build-1/console.log` and `linux/proof/private-pg.json` from the run whose `git-head.txt` is `18b0fcde61ea269cc27e2dc34a81c07ba413a30e`. A green test does not accept SP08. The earlier consume-probe campaign is archived at `linux/prior-fbd046761/` and is not the binding this packet describes.
 
-## CSRF and the frozen identity sentences
+## CSRF binding
 
-`CONTRACT.md` says every request forwards only the session cookie to exactly `/control/v1/identity/current`, and that a mutation's `X-OO-CSRF` equals the current envelope `csrf_token`. Identity `Store::current` stores a new CSRF hash on every GET and returns the new plaintext. The previous token is then dead. Comparing the caller's header with the token returned by that same GET cannot succeed.
+Identity `a6f92da8a0bf872f8a30efb116c2c7b14463505b` `Store::current` mints a new opaque token on every `GET /control/v1/identity/current`, stores `sha256` of that token in `csrf_hash` via `SLIDE_SESSION`, and returns the new plaintext. The caller's previous `X-OO-CSRF` cannot equal `csrf_token` in that same response.
 
-The mutation path therefore does two calls, and the contract file was not edited:
+That commit's HTTP routes are login, callback, current, logout, and bootstrap consume. Logout compares the header with the stored hash and then revokes the session and audits `logout`. Consume compares the hash and, for an unknown bootstrap token, commits a separate audit row `bootstrap_rejected`. `CONTRACT.md` and `src/identity.rs` both refuse those two calls.
 
-1. The caller's `Origin` must be one of `deployment_origins`. A mismatch is `403 origin.rejected` and does not call identity.
-2. The API posts `/control/v1/auth/bootstrap/consume` with `Origin` set to the configured identity origin, the caller's cookie, the caller's `X-OO-CSRF`, and a fixed unknown 43-character bootstrap token. Identity checks origin and the stored CSRF hash before it classifies the token. A `bootstrap.*` code means those checks matched and the stored hash is unchanged. Any other refusal is `403 csrf.rejected`.
-3. The API then GETs `/control/v1/identity/current` and requires `identity_revision` to equal `revision`. That GET rotates the CSRF for the next mutation.
+The binding this service implements:
 
-GETs still call only `current`. The live proof recorded `origin.rejected`, `csrf.rejected`, and `revision.conflict` before any operation row, then succeeded on later mutations that refreshed `current` immediately before the POST. A client must GET identity `/current` after any product GET and use that new token on the next mutation.
+1. `Origin` must be one configured deployment origin. The check is local. A mismatch is `403 origin.rejected` and does not call identity. The live test held the admin `csrf_hash` unchanged across that refusal.
+2. `X-OO-CSRF` must be one 43-character token of ASCII letters, digits, `_`, and `-`. Missing or ill-shaped is `403 csrf.rejected` and does not call identity. The live test held `csrf_hash` unchanged for `short-token` and for a missing header. Proof steps: `csrf-shape`, `csrf-missing`.
+3. The service then sends only the session cookie to `GET /control/v1/identity/current` and requires `identity_revision` to equal `revision`.
+4. The service does not compare the header with the returned `csrf_token`.
+
+A 43-character token that is not the stored token is not `csrf.rejected`. Proof step `csrf-unverified` posted that token on rollback of a missing operation, received `403 forbidden` detail `scope`, added no operation row, and observed `csrf_hash` change because `current` ran. After publish, rollback, pack read, and restart, identity audit `bootstrap_rejected` was 0 and `bootstrap_consumed` was 1, the fixture login. Proof step `identity-audit`.
 
 `test_issuer` did not become customer approval. The proof field `customer_approval` is `not_issued`. `customer_gate_verified` stayed false.
+
+## Interface gap for the identity owner
+
+402 is the only writer of `tools/control-identity`. This card does not modify that tree. The host worktree differed from `a6f92` while the proof ran (`linux/build-1/identity.host.diffstat`). The compiler read `git archive a6f92da8a0bf872f8a30efb116c2c7b14463505b tools/control-identity`, 28 files, each compared with `git cat-file` (`linux/build-1/compiled-pins.txt`).
+
+The missing operation is `verifyManagementSession`, `POST /control/v1/identity/verify`:
+
+- Inputs: `__Host-oo-session`, `Origin` equal to the identity `https_origin`, `X-OO-CSRF`, and `revision`.
+- Success returns the capability envelope `getIdentityCurrent` already returns, and echoes the presented token.
+- The transaction does not update `csrf_hash`, does not slide idle expiry, does not insert `audit_event`, does not consume a bootstrap token, and does not revoke the session.
+- `401 unauthenticated`, `403 csrf.rejected`, `403 origin.rejected`, and `409 revision.conflict` commit nothing.
+
+This service binds the stored-hash compare to that route when a later identity commit pins it. Until that pin exists, a well-formed token that does not match the stored hash is not rejected.
 
 ## Gates that do not publish
 
