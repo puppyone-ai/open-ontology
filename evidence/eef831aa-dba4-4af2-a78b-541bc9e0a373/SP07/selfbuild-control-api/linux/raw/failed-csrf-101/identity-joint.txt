@@ -1,0 +1,23 @@
+   Compiling selfbuild-control-api v0.1.0 (/src/tools/selfbuild-control-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.89s
+     Running tests/identity_joint.rs (/target/debug/deps/identity_joint-fc992ce1fffb7223)
+
+running 2 tests
+test caller_json_is_not_authority ... ok
+test current_and_reject_are_durable ... identity_joint=current
+
+thread 'current_and_reject_are_durable' (4832) panicked at tests/identity_joint.rs:101:5:
+assertion `left == right` failed: {"active":false,"compiled_pack":"not_published","contract":"oo.selfbuild-control-api/v1","data_grants":"none","error":{"code":"csrf.rejected","message":"the session token was rejected","retryable":false},"management_identity":"verified","published":false}
+  left: 403
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    current_and_reject_are_durable
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+error: test failed, to rerun pass `--test identity_joint`

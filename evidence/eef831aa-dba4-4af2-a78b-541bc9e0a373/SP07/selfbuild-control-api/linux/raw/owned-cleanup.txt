@@ -1,0 +1,4 @@
+removed exited oo-a373-rust
+left oo-a373-pg running
+left volumes oo-a373-cargo oo-a373-target oo-a373-pgdata
+did not drop oo_selfbuild oo_identity oo_review

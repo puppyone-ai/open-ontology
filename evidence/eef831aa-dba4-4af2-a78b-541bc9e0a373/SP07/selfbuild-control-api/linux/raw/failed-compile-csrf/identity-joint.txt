@@ -1,0 +1,49 @@
+   Compiling selfbuild-control-api v0.1.0 (/src/tools/selfbuild-control-api)
+error: expected `;`, found keyword `let`
+  --> src/http.rs:96:6
+   |
+96 |     }
+   |      ^ help: add `;` here
+97 |     let Some(project_auth) = identity.project(&request.project_id) else {
+   |     --- unexpected token
+
+error: expected `;`, found keyword `let`
+   --> src/http.rs:389:6
+    |
+389 |     }
+    |      ^ help: add `;` here
+390 |     let Some(build_id) = value.get("build_id").and_then(Value::as_str) else {
+    |     --- unexpected token
+
+error: expected `;`, found keyword `let`
+   --> src/http.rs:499:6
+    |
+499 |     }
+    |      ^ help: add `;` here
+500 |     let scope_name = if confirm { scope::CLASSIFICATION_CONFIRM } else { scope::CLASSIFICATION_PREVIEW };
+    |     --- unexpected token
+
+error[E0308]: mismatched types
+   --> src/http.rs:780:9
+    |
+777 |     identity::authorize_mutation(
+    |     ---------------------------- arguments to this function are incorrect
+...
+780 |         cookie,
+    |         ^^^^^^ expected `&str`, found `String`
+    |
+note: function defined here
+   --> src/identity.rs:209:14
+    |
+209 | pub async fn authorize_mutation(
+    |              ^^^^^^^^^^^^^^^^^^
+...
+212 |     cookie: &str,
+    |     ------------
+help: consider borrowing here
+    |
+780 |         &cookie,
+    |         +
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `selfbuild-control-api` (lib) due to 4 previous errors

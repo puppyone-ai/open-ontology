@@ -1,0 +1,9 @@
+   Compiling selfbuild-control-api v0.1.0 (/src/tools/selfbuild-control-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.21s
+     Running tests/contract.rs (/target/debug/deps/contract-16dfd8e9accb45cf)
+
+running 1 test
+test missing_cookie_is_401_and_closed_identity_is_503 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+

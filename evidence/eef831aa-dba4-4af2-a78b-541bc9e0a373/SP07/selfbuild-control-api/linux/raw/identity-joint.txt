@@ -1,0 +1,12 @@
+   Compiling selfbuild-control-api v0.1.0 (/src/tools/selfbuild-control-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.07s
+     Running tests/identity_joint.rs (/target/debug/deps/identity_joint-fc992ce1fffb7223)
+
+running 2 tests
+test caller_json_is_not_authority ... ok
+test current_and_reject_are_durable ... identity_joint=current
+identity_joint=ledger
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+

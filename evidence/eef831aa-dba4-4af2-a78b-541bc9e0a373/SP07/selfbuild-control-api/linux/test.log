@@ -1,0 +1,18 @@
+info: syncing channel updates for 1.98.1-aarch64-unknown-linux-gnu
+info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+info: downloading 5 components
+rustc=rustc 1.98.1 (48a229cea 2026-09-01)
+fetch_begin
+    Updating crates.io index
+error: cannot update the lock file /src/tools/selfbuild-control-api/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+fetch_exit=101
+test_begin
+error: cannot update the lock file /src/tools/selfbuild-control-api/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+test_exit=101
+clippy_begin
+error: cannot update the lock file /src/tools/selfbuild-control-api/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+clippy_exit=101
+done

@@ -27,4 +27,4 @@ Session cookie is `__Host-oo-session`. Mutations send `Origin` and `X-OO-CSRF`. 
 
 `compiled_pack` is `not_published`. `published` and `active` are false. Classification does not grant.
 
-Identity producer commit pinned here: `089b00d7f70da1bc42f7e201dfa070748c651d5b` (contract and schemas only). The live service is still a370. Until that fixed binary is delivered, calls that need it return `503` `dependency.not_ready`.
+Identity contract and schemas stay `089b00d7f70da1bc42f7e201dfa070748c651d5b`. The joint decide path was exercised against private archive `a6f92da8a0bf872f8a30efb116c2c7b14463505b` (audience repair). That identity product is unaccepted. A missing identity server still returns `503` `dependency.not_ready`. G1 operation IDs in this file are unchanged.
