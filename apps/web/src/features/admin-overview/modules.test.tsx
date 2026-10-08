@@ -68,6 +68,9 @@ describe("admin registrations", () => {
       expect(screen.getByRole("heading", { name: module.title })).toBeTruthy();
       expect(screen.queryByText("审核决定已保存；尚未发布。")).toBeNull();
       for (const operationId of operationIds ?? []) {
+        const method = SELFBUILD_HTTP.find(([id]) => id === operationId)?.[1];
+        const precheck = method === "POST" ? "csrf_required" : method === "GET" ? "schema_only" : "not_precise";
+        expect(screen.getByText(`${operationId} 预检 ${precheck}`)).toBeTruthy();
         if (frozenIds.has(operationId)) {
           expect(screen.getByText(`${operationId} 状态 schema_frozen，调用 schema_only`)).toBeTruthy();
         }

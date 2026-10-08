@@ -11,3 +11,5 @@
 | confirmClassifications | selfbuild | A19 | schema_frozen | false | false | false |
 
 占位行仍是 unbound。合同 operation 是 `schema_frozen`，`invokeOperation` 返回 `schema_only`，不发请求。批量确认保持禁用。这不是分类完成。
+
+页面预检调用 `prepareCall`，current 为 null。`listClassifications` 预检是 `schema_only`。`previewClassifications` 与 `confirmClassifications` 预检是 `csrf_required`。占位 id 预检是 `not_precise`。预检不发请求。`schema_only` 目录行不是分类完成。

@@ -18,3 +18,5 @@
 | getBuildPack | selfbuild | A12 | schema_frozen | false | false | false |
 
 占位行仍是 unbound，`invokeOperation` 返回 `not_connected`。合同 operation 来自 SDK 的 `SELFBUILD_HTTP`，状态 `schema_frozen`，合同提交 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。`invokeOperation` 返回 `schema_only`，不发请求。运行构建和重试保持禁用。这不是构建完成，也不是 compiled pack 已发布。
+
+页面预检调用固定源 `11e35da6eb0c3588f7cdaea6592daa0e943c4bf8` 的 `prepareCall`。页面没有原始 current 信封，所以传入 null。POST 预检是 `csrf_required`，GET 预检是 `schema_only`，占位 `B04.*` 预检是 `not_precise`。预检不发请求，返回值不含 CSRF。目录上的 `schema_only` 行不是构建完成。

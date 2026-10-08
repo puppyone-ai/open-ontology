@@ -13,3 +13,5 @@
 | decideReviewItem | selfbuild | A18 | schema_frozen | false | false | false |
 
 占位行仍是 unbound。合同 operation 是 `schema_frozen`，`invokeOperation` 返回 `schema_only`，不发请求。没有真实候选时不渲染决定表单。转交保持禁用。这不是审核完成。
+
+页面预检调用 `prepareCall`，current 为 null。`listReviewItems` 与 `getReviewItem` 预检是 `schema_only`。`previewReviewBatch` 与 `decideReviewItem` 预检是 `csrf_required`。占位 `B04.reviews` 与 `B04.candidates` 预检是 `not_precise`。预检不发请求。`schema_only` 目录行不是审核完成。
