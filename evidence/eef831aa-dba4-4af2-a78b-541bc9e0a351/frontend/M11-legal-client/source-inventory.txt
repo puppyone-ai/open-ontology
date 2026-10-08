@@ -1,0 +1,8 @@
+2cfb50a9b16e7d574acac8de4dfd477d3cc0196dd0802a45049edc885f9dba33  packages/sdk-ts/src/client.ts
+dc996104afb473abe45964657bef2799dbe1487163288aedf8c0a9d89c71f4b2  packages/sdk-ts/src/index.ts
+f32d8f109cece4ce9e3d1cb39e7d01357aa31d38a6dcf140f6123b062f2df1fd  packages/sdk-ts/package.json
+abd4ad1280820e28688fe773063720152b9e671dbc901958b69334a2339d2f70  apps/web/src/api/sdk-client.test.ts
+420883b65f577d594901d0c8ea7ba6d188fc92dcc06764a3a7b234e88b5b4188  apps/web/src/app/runtime-config.ts
+a2a82ea92a38db1428311a71f7873655ce5a7579c48d85515fe725b84e9d4b10  apps/web/src/app/runtime-config.test.ts
+ed2213f50020974162893ed6958d126d7253b0350883d3c55f64e45144569c87  apps/web/design/APIBINDING.md
+fbe28a5ddca337bb8824154909b13a7148abcce5089181b64b1e579da3f90a71  apps/web/versions.md

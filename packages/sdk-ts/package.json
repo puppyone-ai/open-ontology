@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Typed SDK binding registry. GET /v1/pack/metadata is schema_frozen. Other product operations stay unbound. This package does not call the network.",
+  "description": "Typed SDK binding registry and legal client. Published operations stay schema_frozen or fixture_verified until a ready service exists. This package does not call the network.",
   "exports": {
     ".": "./src/index.ts"
   },

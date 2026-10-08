@@ -1,0 +1,1 @@
+Three tsc exits remain in ../attempt-1. Attempt 2 did not rerun them. apps/web and packages/sdk-ts have no commit diff between attempt-1 archive e86a4900585a9e3a0f5af8d243626d57e4e27eea and attempt-2 archive 86a39f8aefc9609769ab370c4b845fb8d9572656. client.ts was the same in both runs.

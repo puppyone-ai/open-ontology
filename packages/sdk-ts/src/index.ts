@@ -20,6 +20,30 @@ export {
 } from "./bindings";
 export type { BindingRecord, BindingState, InvokeResult } from "./bindings";
 export {
+  CONTROL_IDENTITY_ERROR_CODES,
+  GROUP_PUBLICATION,
+  PRECISE_OPERATION_IDS,
+  SELFBUILD_ERROR_CODES,
+  createRuntimeRegistry,
+  csrfFromCurrent,
+  parseControlIdentityError,
+  parseSelfbuildError,
+  prepareCall,
+  registerRuntime,
+} from "./client";
+export type {
+  ControlIdentityErrorCode,
+  CurrentCsrf,
+  GroupName,
+  GroupPublication,
+  ParsedProductError,
+  PrepareRefusal,
+  ProductErrorFailure,
+  RegisterInput,
+  RuntimeRegistration,
+  SelfbuildErrorCode,
+} from "./client";
+export {
   GATEWAY_ERROR_TEXT,
   MAX_SAFE_U64,
   PACK_METADATA_PROTOCOL,

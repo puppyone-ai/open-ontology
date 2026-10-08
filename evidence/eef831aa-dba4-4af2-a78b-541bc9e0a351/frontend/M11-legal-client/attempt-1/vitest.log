@@ -1,0 +1,54 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90m/src/apps/web[39m
+
+ [31m❯[39m src/api/sdk-client.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 38[2mms[22m[39m
+   [31m❯[39m legal client [2m(4)[22m
+[31m     [31m×[31m binds precise strings to the published OpenAPI and leaves B02 and B07 unpublished[39m[32m 33[2mms[22m[39m
+     [32m✓[39m parses published error enums and rejects an imprecise body[32m 2[2mms[22m[39m
+     [32m✓[39m takes CSRF only from a current envelope and does not call fetch[32m 1[2mms[22m[39m
+     [32m✓[39m refuses a runtime origin, a ready flag, and an unpublished group[32m 0[2mms[22m[39m
+ [32m✓[39m src/api/sdk-binding.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/app/runtime-config.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/api/sdk-client.test.ts[2m > [22mlegal client[2m > [22mbinds precise strings to the published OpenAPI and leaves B02 and B07 unpublished
+[31m[1mAssertionError[22m: expected [ 'createBuild', 'listBuilds', …(13) ] to deeply equal [ 'createBuild', 'listBuilds', …(13) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -4,12 +4,12 @@[39m
+[2m    "getBuild",[22m
+[2m    "cancelBuild",[22m
+[2m    "getBuildCards",[22m
+[2m    "getBuildCandidates",[22m
+[2m    "listReviewItems",[22m
+[32m-   "getReviewItem",[39m
+[2m    "previewReviewBatch",[22m
+[31m+   "getReviewItem",[39m
+[2m    "decideReviewItem",[22m
+[2m    "listClassifications",[22m
+[2m    "previewClassifications",[22m
+[2m    "confirmClassifications",[22m
+[2m    "compileBuildPack",[22m
+
+[36m [2m❯[22m src/api/sdk-client.test.ts:[2m82:106[22m[39m
+    [90m 80|[39m   it("binds precise strings to the published OpenAPI and leaves B02 an…
+    [90m 81|[39m     expect(operationIds("../../tools/control-identity/openapi/control-…
+    [90m 82|[39m     expect(operationIds("../../tools/selfbuild-control-api/openapi/sel…
+    [90m   |[39m                                                                                                          [31m^[39m
+    [90m 83|[39m       SELFBUILD_HTTP.map(([operationId]) => operationId),
+    [90m 84|[39m     );
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 05:26:20
+[2m   Duration [22m 2.67s[2m (environment 72%, setup 22%, transform 4%, tests 2%, import 1%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~653ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.31s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

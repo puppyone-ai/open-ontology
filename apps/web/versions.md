@@ -152,3 +152,10 @@ Geist 可变字体低于拉丁预载 120KiB。中文子集和完整回退按实�
 - Linux Node v24.21.0 上，三份 `tsc`、eslint、5 个适配器测试和 Vitest 都是 0。Vitest 是 31 个文件、67 个测试，包含 `production-route.test.tsx` 和 `modules.test.tsx`。没有跳过。
 - B04 仍是 `schema_frozen`。a373 交接仍写明二进制未交付、E56 未验收。五个身份 operation 仍是 `fixture_verified`，服务提交仍是 `a6f92da8a0bf872f8a30efb116c2c7b14463505b`。`live`、`journey`、`release` 仍是 false。运行时 origin 仍是 null。
 
+## M11 合法客户端（2026-10-08）
+
+- 锁文件没有改写。sha256 仍是 `73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e`。没有新增 registry 依赖，没有重跑字体，没有重跑浏览器，没有重跑 M10 的 67 个测试。
+- SDK 新增 `registerRuntime`、`createRuntimeRegistry`、`csrfFromCurrent`、`parseControlIdentityError`、`parseSelfbuildError` 和 `prepareCall`。B04 仍钉在合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。B02 与 B07 在 git 里没有已提交的 OpenAPI，登记保持 unbound。
+- 变更类 operation 的 CSRF 只来自 current schema 的 `csrf_token`。`prepareCall` 不发送请求。运行时 origin 仍是 null。`live`、`journey`、`release` 仍是 false。a373 交接仍写明服务未验收，所以构建、审核、分类、发布和用户问答没有进入真实调用。
+- Linux Node v24.21.0 上，三份 `tsc` 退出码是 0。第一次 Vitest 因 OpenAPI 与 `SELFBUILD_HTTP` 的顺序差异失败，断言改为按 operationId 集合比较后，`sdk-client.test.ts` 4 个测试通过。没有重跑 M10 的 67 个测试。证据在 `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a351/frontend/M11-legal-client/`。
+

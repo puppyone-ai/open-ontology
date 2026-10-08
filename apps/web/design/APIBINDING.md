@@ -111,3 +111,17 @@ ID Token 的 `aud` 必须包含 `client_id`。OpenAPI 与 schema blob 仍是 089
 ## M10 显式部署配置
 
 提交的 `b01-adapter.example.json` 不带监听地址、端口、TLS 或上游。这些字段都是 null。读取配置时，缺少 `listen.host` 会拒绝，进程不补 `127.0.0.1`，也不补已销毁的证明主机。能跑起来的配置只来自部署者填写的 `OO_B01_ADAPTER_CONFIG`。身份状态、B04 合同和运行时 origin 与 M9 相同。a373 的交接没有变成可绑定交付，所以这一轮没有接 B04 的 HTTP。
+
+## M11 合法客户端
+
+| 字段 | 值 |
+|---|---|
+| B02 | unbound。git 里没有已提交的 CONTRACT 或 OpenAPI。openApi 是 absent。ready、live、journey、release 都是 false |
+| B04 | schema_frozen。合同 `7bb2da3cc996a5f0ed6e41e27734c3ea390d44e9`。OpenAPI 是 `tools/selfbuild-control-api/openapi/selfbuild-control-api.openapi.yaml`。ready 是 false |
+| B07 | unbound。git 里没有已提交的 CONTRACT 或 OpenAPI。openApi 是 absent。ready、live、journey、release 都是 false |
+| 精准 operation | 控制身份 5 个 operationId，加上 B04 OpenAPI 的 15 个 operationId。占位 `B02.*`、`B04.*`、`B07.*` 不是合法调用字符串 |
+| error | `parseControlIdentityError` 与 `parseSelfbuildError` 只接受各自已提交 error schema 的 code、160 字以内 message，以及固定常量字段 |
+| CSRF | `csrfFromCurrent` 只从通过 current schema 的 `csrf_token` 取出 `X-OO-CSRF`。调用方 JSON、`authorized`、本地生成值都不算 |
+| 运行时注册 | `createRuntimeRegistry` / `registerRuntime`。origin 不是 null、ready 为 true、合同提交不匹配，都会拒绝。登记结果的 origin 仍是 null |
+| 调用 | `prepareCall` 在 CSRF 绑定之后仍返回 `schema_only` 或 `not_connected`。它不发送 fetch，也不把 token 放进返回值 |
+| 服务 | a373 交接仍写明 E56 未验收、生产者二进制未交付、身份产品读取未验收。构建、审核、分类、发布、用户问答和全旅程都还没有真实调用 |

@@ -1,0 +1,1 @@
+oo-fe01-node-m11 was removed at the end of each launch. No other container was removed. oo-a373-pg and the other actors' containers stayed. No prune, no image delete.
