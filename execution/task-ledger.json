@@ -6811,7 +6811,7 @@
       "resource_prefix": "oo-dl01w1-43",
       "rust_slots": 1,
       "database_memory_gib": 4,
-      "status": "author_partial_source_rule_projection_pending",
+      "status": "author_full_unpublished_preview",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-43-grok-longrun-complete-source.log",
       "resource_terminal": "FE/BE/reader removed; native3 auditfullcoverage measured; internalLoader dependency not externalinfra",
@@ -6821,7 +6821,7 @@
       "merged_consumer_task": "DL01-W1-49",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-43-current-complete-product-longrun.md",
       "author_commit": "3e3b081c7d342a88b71d7d322331a3eea94f9c18",
-      "next_action": "016190796失败保留，71修实际源权威投影，禁止继续付费猜单位",
+      "next_action": "固定完整作者链已收，集中整源审阅和正式门槛待，不重跑模型",
       "evidence_commit": "523d24f567f581287242e3edd7cf7bf07a2d3ffa",
       "native_fixed_review": "6279ab8ab0a368f73f05e6c3f1235d737e304857",
       "prior_dispatch_failure": "root card Python syntax error; missing prompt CLI1, no worker started; corrected",
@@ -6882,7 +6882,8 @@
       "latest_author_delivery_verification": "Git commit exists; author interim raw evidence retained; whole source/product exits pending, no independent approval",
       "status_before_shared_hold": "native_waiting_dependency",
       "shared_reference_only": false,
-      "latest_observed_at": "2026-10-12T23:45:29.047591+00:00"
+      "latest_observed_at": "2026-10-12T23:45:29.047591+00:00",
+      "source_commit": "a26327a63"
     },
     {
       "task_id": "DL01-W1-44",
@@ -8177,7 +8178,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。",
+  "current_execution_note": "Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -8252,7 +8253,7 @@
   "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 6,
+    "count": 7,
     "required": 10,
     "sources": [
       "mysql",
@@ -8260,11 +8261,13 @@
       "mariadb",
       "oracle",
       "clickhouse",
-      "mongodb"
+      "mongodb",
+      "doris"
     ],
     "formal_signed_sources": 0,
     "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
     "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json",
-    "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json"
+    "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json",
+    "doris_intake": "execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json"
   }
 }

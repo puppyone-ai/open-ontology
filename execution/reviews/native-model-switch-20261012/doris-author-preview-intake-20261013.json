@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "/tmp/oo-dl01w1-43-gateway-unit-final/full-ontology-20-compare.json": "32d63b574726cd2f7bda5b4a244bcc478380fc5e5bd7864531b245e524745770",
+    "/tmp/oo-dl01w1-43-gateway-unit-final/gold-seven-18/gold-diff.json": "16443a3859fac82d75ede639f99d4e75969e1a9e98a72818553ddff02682bf1a",
+    "/tmp/oo-dl01w1-43-selfbuild-private/unit-pack-source-money-final-71-response.json": "b56bd905c24871d330459fc1173f3733818d67ba9a87dc372843895ad3d44492",
+    "/tmp/oo-dl01w1-43-gateway-unit-preview/dialogue-unit-explain/transcript.json": "ce7cf9e63195ef74c6bb730859872719b4a98b4f3902fa56b789c5525561d58f",
+    "/tmp/oo-dl01w1-43-gateway-unit-preview/dialogue-unit-explain/verdict.json": "22d1029b5c550d33154144470785b3cc04fbb62b60dc3a5499b3af677e37cf6c",
+    "/tmp/oo-dl01w1-43-gateway-unit-final/reviewed/oo_r_dorispreview/binding.json": "8be573761513e24f90ff750abda7b169e5a39f070f0886fabb5d7e7b4c768b37",
+    "/tmp/oo-dl01w1-43-gateway-unit-final/packs/oo_r_dorispreview.json": "c3c218d239c3a55a42703952ce45303ed4d075b819855303b1e95f35be20ab61"
+  },
+  "dialogue": {},
+  "effective": "/tmp/oo-dl01w1-43-selfbuild-private/work/builds/b_d1db2581e9dda9995b5443f1c6898552/native-maintenance/0843efe149db4a40ed1ecf3b931399dec7f709980e59d20633a60bf5765d25ef/effective.json",
+  "event": "root fixed Doris author intake; not independent review",
+  "source_commit": "a26327a63",
+  "shared_commits": [
+    "f3e420ea4",
+    "4a936d4b3",
+    "b59d32e0b"
+  ],
+  "scope": "owned fixture complete unpublished author preview; formal gates pending",
+  "formal_counter_delta": 0,
+  "verification": "20-column generated source/effective declaration comparison zero discrepancies; 18-role final source gold equal; final Pack/binding bytes equal actual eight-turn consumed version, no new model replay; all historical money/PII and model/maintenance failures retained",
+  "cancel_wal": {
+    "/tmp/oo-dl01w1-43-gateway-unit-preview/wal/q_d3XLtFZsxGYZQUSdH7GOkZ7u57-admit.wal": "6f602dc03515e71200916f844cea14a521e4588ee0567ac78b635f25ea5af5cc",
+    "/tmp/oo-dl01w1-43-gateway-unit-preview/wal/q_d3XLtFZsxGYZQUSdH7GOkZ7u57-cancel.wal": "669752f31bdbc4f319183b5ddfa6ae5afc4d66219d0b735a24e968a1e89a1612",
+    "/tmp/oo-dl01w1-43-gateway-unit-preview/wal/q_d3XLtFZsxGYZQUSdH7GOkZ7u57-complete.wal": "6ad183ef3743ca5f6e51f40446ed9270d11594442c70f597e61b443a01180781"
+  }
+}

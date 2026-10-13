@@ -51,7 +51,7 @@ def main():
                    for dataset in effective["datasets"] for column in dataset["columns"]}
         for key in (("oo_dl01w1_43.part_day", "amount"), ("oo_dl01w1_43.uniq_acct", "balance")):
             column = columns[key]
-            if (column["semantic_type"], column["unit"], column["pii"], column["classification"]["state"]) != ("money", "unspecified", "unknown", "pending"):
+            if (column["semantic_type"], column["unit"], column["pii"], column["classification"], column["provenance"]) != ("money", "unspecified", None, {"at": None, "by": None, "state": "pending"}, "declared"):
                 raise ValueError(f"source money declaration lost in effective Ontology: {key}")
     assert {x["dataset"] for x in vector} == {x[0] for x in allowed}
     role = visible["role"]; login = "oo_43_target_ro"

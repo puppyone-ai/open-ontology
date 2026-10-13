@@ -5,10 +5,10 @@ use serde_json::{Value, json};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, process::Command};
 use crate::{config::Config,error::{Error,Result},lease,session,sha256::sha256_hex,api::LeaseStatus};
 const KIND:&str="native_capture";
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Executable { pub path:String, pub sha256:String, pub args:Vec<String> }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Registration {
  pub admission_binary:String, pub admission_sha256:String,
@@ -50,7 +50,8 @@ impl Manifest {
   }
   if let Some(r)=&self.registration {
    let group=self.loader.args==["import-native-transaction"];
-   if group {
+   let baseline=self.method=="C1" && self.loader.args==["import-native-update"] && r.transaction_registry_vector_path.is_some();
+   if group || baseline {
     let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256) else {return Err(Error::new("registration"))};
     if r.registry_path.is_some() || !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("registration"))}
    } else if !r.registry_path.as_ref().is_some_and(|path|Path::new(path).is_absolute() && !path.contains("..") && !path.contains('\0'))
@@ -320,7 +321,7 @@ pub async fn fire(config:&Config,project:&str)->Result<()> {
 }
 // Drain pipes concurrently: large producer/loader outputs must never deadlock heartbeat.
 #[allow(clippy::too_many_arguments)]
-async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration:Option<&Registration>,binding:&str,pin:i64,project:&str,task:&str,worker:&str,generation:i64,target:Option<&tokio_postgres::Client>)->Result<Value> {
+async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration:Option<&Registration>,registry_override:Option<(&str,&str)>,binding:&str,pin:i64,project:&str,task:&str,worker:&str,generation:i64,target:Option<&tokio_postgres::Client>)->Result<Value> {
  executable_check(e)?;
  let mut command=Command::new(&e.path);
  command.args(&e.args).env_clear().env("PATH","/usr/bin:/bin").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
@@ -338,6 +339,11 @@ async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration
    if bytes.len()>1024*1024 || sha256_hex(&bytes)!=*sha {return Err(Error::new("registration"))}
    command.env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR",path).env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256",sha);
   }
+ }
+ if let Some((path,sha))=registry_override {
+  let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
+  if !Path::new(path).is_absolute() || path.contains("..") || bytes.len()>1024*1024 || sha256_hex(&bytes)!=sha {return Err(Error::new("registration"))}
+  command.env("OO_NATIVE_BINDING_REGISTRY",path).env("OO_NATIVE_BINDING_REGISTRY_SHA256",sha);
  }
  let mut child=command.spawn().map_err(|_|Error::new("spawn"))?;
  let mut stdin=child.stdin.take().ok_or_else(||Error::new("spawn"))?;
@@ -407,13 +413,14 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  let text:String=row.get(0);let pinned:String=row.get(1);let stored:Option<String>=row.get(2);let pin:i64=row.get(3);let binding:String=row.get(4);let payload:String=row.get(5);
  let m:Manifest=serde_json::from_str(&text).map_err(|_|Error::new("manifest"))?;m.shape()?;
  let group=m.loader.args==["import-native-transaction"];
+ let baseline=m.method=="C1" && m.registration.as_ref().is_some_and(|r|r.transaction_registry_vector_path.is_some()) && !group;
  let database:String=row.get::<_,Option<String>>(8).ok_or_else(||Error::new("target_database"))?;
  if database!=target_database(config,&m.method)? {return Err(Error::new("target_database"))}
  let parsed=crate::capture_plan::CapturePayload::parse(&payload)?;
  let artifact:String=row.get(6);
  if canonical(&m)?.1!=pinned || parsed.binding!=binding || parsed.pin!=pin || artifact!=sha256_hex(crate::capture_plan::CapturePayload::text(&binding,pin).as_bytes()){return Err(Error::new("manifest_changed"))}
  adopt_claim(c,&m.source_id,&database,project,task,worker,generation).await?;
- let base=if m.method=="C1" && !group {
+ let base=if m.method=="C1" && !group && !baseline {
   confirmed_c1_generation(config,c,&m.source_id,&database,&binding,task,&stored).await?
  } else {confirmed_generation(config,c,&m.source_id,&database,task,&stored).await?};
  let mut request=match stored {
@@ -429,19 +436,19 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
     }
    };
    if input.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-producer/v1") || input.get("binding").and_then(Value::as_str)!=Some(&binding) || input.get("pin").and_then(Value::as_i64)!=Some(pin) || input.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || input.get("method").and_then(Value::as_str)!=Some(&m.method) || input.get("acknowledged_source_generation").and_then(Value::as_i64)!=Some(base) {return Err(Error::new("producer_input"))}
-   let value=exec(config,&m.producer,"producer",serde_json::to_vec(&input).unwrap(),None,&binding,pin,project,task,worker,generation,None).await?;
-   let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else {request_protocol(&m.method)};
+   let value=exec(config,&m.producer,"producer",serde_json::to_vec(&input).unwrap(),None,None,&binding,pin,project,task,worker,generation,None).await?;
+   let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else if baseline {"oo.jobs.native-baseline-producer/v1"} else {request_protocol(&m.method)};
    if value.get("protocol").and_then(Value::as_str)!=Some(protocol) || value.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || value.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
    let s=serde_json::to_string(&value).unwrap();
    let n=c.execute("UPDATE jw_native.occurrences o SET request=$2::text::jsonb FROM jobs.tasks t WHERE o.task_id=t.id AND t.id=$1::text::uuid AND t.state='running' AND t.lease_owner=$3 AND t.generation=$4 AND t.lease_until>clock_timestamp() AND o.request IS NULL",&[&task,&s,&worker,&generation]).await.map_err(Error::sql)?;
    if n!=1{return Err(Error::new("lost_lease"))}value
   }
  };
- let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else {request_protocol(&m.method)};
+ let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else if baseline {"oo.jobs.native-baseline-producer/v1"} else {request_protocol(&m.method)};
  if request.get("protocol").and_then(Value::as_str)!=Some(protocol) || request.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || request.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
  if request.get("source_generation").and_then(Value::as_i64)!=Some(base+1) {return Err(Error::new("source_generation"))}
  let target_database=if m.method=="C4" {config.target_database.as_deref().ok_or_else(||Error::new("target_database"))?} else {&config.database};
- let loader_request=if group {
+ let loader_request=if baseline {request.clone()} else if group {
   let value=group_loader_request(&request,&binding,pin,&m.source_id,base,task,generation)?;
   if value["entries"].as_array().is_none_or(|entries|entries.iter().any(|entry|entry.pointer("/target/database").and_then(Value::as_str)!=Some(target_database))) {return Err(Error::new("target_database"))}
   value
@@ -455,18 +462,20 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
   Some(row)=>{
    let text:String=row.get(0);let sha:String=row.get(1);
    let selected:Manifest=serde_json::from_str(&text).map_err(|_|Error::new("loader_override"))?;selected.shape()?;
-   if canonical(&selected)?.1!=sha || selected.binding!=m.binding || selected.project_id!=m.project_id || selected.source_id!=m.source_id || selected.method!=m.method || selected.cycle!=m.cycle {return Err(Error::new("loader_override"))}
+   if canonical(&selected)?.1!=sha || selected.binding!=m.binding || selected.project_id!=m.project_id || selected.source_id!=m.source_id || selected.method!=m.method || selected.cycle!=m.cycle
+    || baseline && selected.registration!=m.registration {return Err(Error::new("loader_override"))}
    println!("loader_operator_override={sha} original_occurrence_manifest={pinned} source_request_rewritten=false");selected
   }
   None=>m.clone(),
  };
+ if baseline {return apply_baseline(config,c,project,worker,task,generation,&binding,pin,&m,&effective,&database,base,&request).await}
  // mirror is an invocation-only policy, excluded from the native source payload digest.
  // Preserve original stored request; require actual Loader mirror recovery before CAS.
  let mut loader_request=loader_request;
  if !group {invocation_mirror(&mut loader_request,&m.method)?}
  println!("invocation_mirror={} source_request_rewritten=false",!group && m.method!="C4");
  let target=if m.method=="C4" {Some(mirror_claim(config,c,project,task,worker,generation,&effective.loader).await?)} else {None};
- let result=exec(config,&effective.loader,"loader",serde_json::to_vec(&loader_request).unwrap(),effective.registration.as_ref(),&binding,pin,project,task,worker,generation,target.as_ref()).await?;
+ let result=exec(config,&effective.loader,"loader",serde_json::to_vec(&loader_request).unwrap(),effective.registration.as_ref(),None,&binding,pin,project,task,worker,generation,target.as_ref()).await?;
  let lease_id=result.pointer("/jobs_lease_receipt/id").and_then(Value::as_str);
  let lease_gen=result.pointer("/jobs_lease_receipt/generation").and_then(Value::as_i64);
  let lease_owner=result.pointer("/jobs_lease_receipt/owner").and_then(Value::as_str);
@@ -521,6 +530,49 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  if n!=1 {return Err(Error::new("source_active"))}
  tx.commit().await.map_err(Error::sql)?;
  println!("complete=succeeded binding={binding} pin={pin} task={task} generation={generation} load_state={state} applied_pos={pos}");Ok(())
+}
+#[allow(clippy::too_many_arguments)]
+async fn apply_baseline(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:&str,task:&str,generation:i64,binding:&str,pin:i64,m:&Manifest,effective:&Manifest,database:&str,base:i64,request:&Value)->Result<()> {
+ let registration=effective.registration.as_ref().ok_or_else(||Error::new("baseline_registry"))?;
+ let path=registration.transaction_registry_vector_path.as_deref().ok_or_else(||Error::new("baseline_registry"))?;
+ let sha=registration.transaction_registry_vector_sha256.as_deref().ok_or_else(||Error::new("baseline_registry"))?;
+ let bytes=std::fs::read(path).map_err(|_|Error::new("baseline_registry"))?;
+ if bytes.len()>1024*1024 || sha256_hex(&bytes)!=sha {return Err(Error::new("baseline_registry"))}
+ let vector:Value=serde_json::from_slice(&bytes).map_err(|_|Error::new("baseline_registry"))?;
+ let entries=baseline_entries(request,&vector,binding,pin,&m.source_id,base,database,task,generation)?;
+ let mut receipts=Vec::with_capacity(entries.len());
+ for (index,(entry,registry,registry_sha)) in entries.iter().enumerate() {
+  let stage=format!("loader_{index}");
+  let result=exec(config,&effective.loader,&stage,serde_json::to_vec(entry).map_err(|_|Error::new("baseline_request"))?,Some(registration),Some((registry,registry_sha)),binding,pin,project,task,worker,generation,None).await?;
+  if result.get("source_id").and_then(Value::as_str)!=Some(&m.source_id)
+   || result.get("logical_schema")!=entry.get("logical_schema") || result.get("logical_table")!=entry.get("logical_table")
+   || result.get("source_generation").and_then(Value::as_i64)!=Some(base+1)
+   || result.get("source_bound").and_then(Value::as_bool)!=Some(true)
+   || !(result.get("mirror_committed").and_then(Value::as_bool)==Some(true)
+     || result.get("load_state").and_then(Value::as_str)==Some("replay")
+      && result.get("receipt").and_then(Value::as_str)==Some("replay")
+      && result.get("mirror").and_then(Value::as_str)==Some("replay"))
+   || result.pointer("/jobs_lease_receipt/id").and_then(Value::as_str)!=Some(task)
+   || result.pointer("/jobs_lease_receipt/generation").and_then(Value::as_i64)!=Some(generation)
+   || result.pointer("/jobs_lease_receipt/owner").and_then(Value::as_str)!=Some(worker)
+   || !matches!(crate::capture_source::native_decision(&result),crate::capture_source::NativeDecision::Advance|crate::capture_source::NativeDecision::Replay) {return Err(Error::new("loader_refused"))}
+  verify_c1_applied(config,&m.source_id,database,entry,&result).await?;
+  receipts.push(result);
+ }
+ let target=target_owner(config,database).await?;
+ let last_generation=receipts.last().and_then(|r|r.get("target_generation")).and_then(Value::as_i64).ok_or_else(||Error::new("target_generation"))?;
+ let state:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.source_watermark WHERE source=$1 AND source_generation=$2 AND target_generation=$3 AND consistency='per_table' AND consistency_grade='S1' AND NOT cross_table_consistent AND position_codec='snapshot-zero/v1' AND applied_pos=0) AND (SELECT count(*) FROM _oo.table_freshness WHERE source=$1)=$4",&[&m.source_id,&(base+1),&last_generation,&(receipts.len() as i64)]).await.map_err(Error::sql)?.get(0);
+ if !state {return Err(Error::new("target_generation"))}
+ let result=json!({"protocol":"oo.jobs.native-baseline-result/v1","source_id":m.source_id,"source_generation":base+1,"consistency_grade":"S1","cross_table_consistent":false,"load_state":"awaiting_publish","entries":receipts});
+ let tx=c.transaction().await.map_err(Error::sql)?;
+ let done=lease::complete_success(&tx,project,task,worker,generation).await?;
+ if done.status!=LeaseStatus::Succeeded {return Err(Error::new("lost_lease"))}
+ tx.execute("INSERT INTO jw_native.watermarks(binding_id,pin,task_id,generation,source_generation,applied_pos,load_state,result) VALUES($1::text::uuid,$2,$3::text::uuid,$4,$5,'0','awaiting_publish',$6::text::jsonb) ON CONFLICT(binding_id) DO UPDATE SET pin=EXCLUDED.pin,task_id=EXCLUDED.task_id,generation=EXCLUDED.generation,source_generation=EXCLUDED.source_generation,applied_pos=EXCLUDED.applied_pos,load_state=EXCLUDED.load_state,result=EXCLUDED.result,advanced_at=clock_timestamp() WHERE jw_native.watermarks.pin<EXCLUDED.pin",&[&binding,&pin,&task,&generation,&(base+1),&result.to_string()]).await.map_err(Error::sql)?;
+ tx.execute("UPDATE jw_native.occurrences SET result=$2::text::jsonb WHERE task_id=$1::text::uuid",&[&task,&result.to_string()]).await.map_err(Error::sql)?;
+ let n=tx.execute("UPDATE jw_native.source_progress SET source_generation=$3,task_id=$4::text::uuid,binding_id=$5::text::uuid,active_task_id=NULL,confirmed_at=clock_timestamp() WHERE source_id=$1 AND target_database=$2 AND COALESCE(source_generation,0)=$6 AND active_task_id=$4::text::uuid",&[&m.source_id,&database,&(base+1),&task,&binding,&base]).await.map_err(Error::sql)?;
+ if n!=1 {return Err(Error::new("source_active"))}
+ tx.commit().await.map_err(Error::sql)?;
+ println!("complete=succeeded baseline=S1 binding={binding} pin={pin} task={task} generation={generation} tables={}",entries.len());Ok(())
 }
 async fn mirror_claim(config:&Config,control:&tokio_postgres::Client,project:&str,task:&str,worker:&str,generation:i64,loader:&Executable)->Result<tokio_postgres::Client> {
  let row=control.query_opt("SELECT row_to_json(t)::text FROM jobs.tasks t WHERE id=$1::text::uuid AND project_id=$2::text::uuid AND state='running' AND lease_owner=$3 AND generation=$4 AND lease_until>clock_timestamp()",&[&task,&project,&worker,&generation]).await.map_err(Error::sql)?.ok_or_else(||Error::new("lost_lease"))?;
@@ -673,6 +725,50 @@ fn pg_lsn_decimal(value:&str)->Result<String> {
  Ok(((u64::from(high)<<32)|u64::from(low)).to_string())
 }
 
+// One source snapshot has one global generation, even when it contains
+// several tables. The operator pins each sealed registry independently.
+#[allow(clippy::too_many_arguments)]
+fn baseline_entries(request:&Value,vector:&Value,binding:&str,pin:i64,source:&str,base:i64,database:&str,task:&str,generation:i64)->Result<Vec<(Value,String,String)>> {
+ let object=request.as_object().ok_or_else(||Error::new("baseline_request"))?;
+ if object.len()!=7 || request.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-baseline-producer/v1")
+  || request.get("binding").and_then(Value::as_str)!=Some(binding) || request.get("pin").and_then(Value::as_i64)!=Some(pin)
+  || request.get("source_id").and_then(Value::as_str)!=Some(source) || request.get("capture_method").and_then(Value::as_str)!=Some("c1_cdc")
+  || request.get("source_generation").and_then(Value::as_i64)!=Some(base+1) {return Err(Error::new("baseline_request"))}
+ let entries=request.get("entries").and_then(Value::as_array).ok_or_else(||Error::new("baseline_request"))?;
+ let pins=vector.get("entries").and_then(Value::as_array).ok_or_else(||Error::new("baseline_registry"))?;
+ if vector.as_object().is_none_or(|o|o.len()!=2) || vector.get("protocol").and_then(Value::as_str)!=Some("oo.pipeline.native-transaction-registry-vector/v1")
+  || entries.is_empty() || entries.len()>16 || entries.len()!=pins.len() {return Err(Error::new("baseline_registry"))}
+ let mut checked=Vec::with_capacity(entries.len());let mut previous=None;let mut config_digest=None;
+ for (entry,pin_entry) in entries.iter().zip(pins) {
+  let schema=entry.get("logical_schema").and_then(Value::as_str).ok_or_else(||Error::new("baseline_request"))?;
+  let table=entry.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("baseline_request"))?;
+  let key=(schema,table);
+  if previous.is_some_and(|old|old>=key) || pin_entry.as_object().is_none_or(|o|o.len()!=4)
+   || pin_entry.get("logical_schema").and_then(Value::as_str)!=Some(schema)
+   || pin_entry.get("logical_table").and_then(Value::as_str)!=Some(table)
+   || entry.get("protocol").and_then(Value::as_str)!=Some("oo.pipeline.native-update/v1")
+   || entry.get("source_id").and_then(Value::as_str)!=Some(source)
+   || entry.get("capture_method").and_then(Value::as_str)!=Some("c1_cdc")
+   || entry.get("source_generation").and_then(Value::as_i64)!=Some(base+1)
+   || entry.get("position_codec").and_then(Value::as_str)!=Some("snapshot-zero/v1")
+   || entry.get("applied_pos").and_then(Value::as_str)!=Some("0")
+   || entry.get("consistency_grade").and_then(Value::as_str)!=Some("S1")
+   || entry.get("cross_table_consistent").and_then(Value::as_bool)!=Some(false)
+   || entry.pointer("/target/database").and_then(Value::as_str)!=Some(database)
+   || entry.get("mirror").and_then(Value::as_bool)!=Some(false) {return Err(Error::new("baseline_request"))}
+  let digest=entry.get("config_digest").and_then(Value::as_str).ok_or_else(||Error::new("baseline_request"))?;
+  if config_digest.is_some_and(|old|old!=digest) {return Err(Error::new("baseline_request"))}
+  config_digest=Some(digest);
+  let path=pin_entry.get("registry_path").and_then(Value::as_str).ok_or_else(||Error::new("baseline_registry"))?;
+  let sha=pin_entry.get("registry_sha256").and_then(Value::as_str).ok_or_else(||Error::new("baseline_registry"))?;
+  if !Path::new(path).is_absolute() || path.contains("..") || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("baseline_registry"))}
+  let mut invoked=entry.clone();crate::capture_source::attach_observed_lease(&mut invoked,task,generation).map_err(|_|Error::new("lease"))?;
+  invocation_mirror(&mut invoked,"C1")?;
+  checked.push((invoked,path.to_owned(),sha.to_owned()));previous=Some(key);
+ }
+ Ok(checked)
+}
+
 fn group_loader_request(request:&Value,binding:&str,pin:i64,source:&str,base:i64,task:&str,generation:i64)->Result<Value> {
  let object=request.as_object().ok_or_else(||Error::new("transaction_request"))?;
  if object.len()!=8 || request.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-transaction-producer/v1")
@@ -719,6 +815,30 @@ fn invocation_mirror(request:&mut Value,method:&str)->Result<()> {
   object.insert("mirror".into(),Value::Bool(false));
  } else {object.insert("mirror".into(),Value::Bool(true));}
  Ok(())
+}
+
+#[cfg(test)]
+mod baseline_tests {
+ use super::*;
+ fn fixture()->(Value,Value) {
+  let entry=|table:&str|json!({"protocol":"oo.pipeline.native-update/v1","source_id":"s","capture_method":"c1_cdc","source_generation":1,"logical_schema":"public","logical_table":table,"position_codec":"snapshot-zero/v1","applied_pos":"0","consistency_grade":"S1","cross_table_consistent":false,"config_digest":"same","mirror":false,"target":{"database":"db"}});
+  (json!({"protocol":"oo.jobs.native-baseline-producer/v1","binding":"b","pin":1,"source_id":"s","capture_method":"c1_cdc","source_generation":1,"entries":[entry("a"),entry("b")]}),
+   json!({"protocol":"oo.pipeline.native-transaction-registry-vector/v1","entries":[{"logical_schema":"public","logical_table":"a","registry_path":"/r/a","registry_sha256":"a".repeat(64)},{"logical_schema":"public","logical_table":"b","registry_path":"/r/b","registry_sha256":"b".repeat(64)}]}))
+ }
+ #[test]
+ fn baseline_snapshot_vector_is_closed_and_keeps_one_real_lease() {
+  let (mut request,vector)=fixture();
+  let accepted=baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).unwrap();
+  assert_eq!(accepted.len(),2);
+  assert_eq!(accepted[0].0["lease_generation"],2);
+  assert_eq!(accepted[1].0["mirror"],true);
+  request["entries"][1]["logical_table"]=json!("a");
+  assert!(baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).is_err());
+  let (mut request,vector)=fixture();request["entries"][1]["config_digest"]=json!("other");
+  assert!(baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).is_err());
+  let (request,mut vector)=fixture();vector["entries"][1]["registry_sha256"]=json!("tampered");
+  assert!(baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).is_err());
+ }
 }
 
 #[cfg(test)]

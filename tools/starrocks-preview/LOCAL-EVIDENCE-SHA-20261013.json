@@ -604,6 +604,21 @@
       "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/wal/q_ZUAooFGHYi2iSdFFj1CPlR3lNS-freshness.wal",
       "bytes": 151,
       "sha256": "978207803c0fe22f19f6a59476d7d6f82318b47828f85a5bea6f2df78278df02"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-continuation-exact-config.json",
+      "bytes": 5434,
+      "sha256": "8ea61ccd018a43aa9bdd758ff2c5072c9e94df68f51af1a919e9afa6f2e3eb42"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-continue-exact-prepared.py",
+      "bytes": 11729,
+      "sha256": "6f1d5ad8fb68510ad91fca443fa5eae9dca6bf3196ced8fa4195e8f6324ae1e5"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/postgres-42803.json",
+      "bytes": 470,
+      "sha256": "c1f98ea645dc539d0d3cb3666ddfc368c1aed04541bbfc26296e535b3fa7eb5d"
     }
   ],
   "status": "c4_target_complete_final_priced_bundle_ready_selfbuild_pending"
