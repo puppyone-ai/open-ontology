@@ -43,7 +43,7 @@ pub use import::{
 };
 pub use native_import::{route, run_native_import, NativeRoute, ENVELOPE_PROTOCOL};
 pub use native_catalog::{gate_request, run_import_native_catalog, REQUEST_PROTOCOL as NATIVE_CATALOG_REQUEST};
-pub use sealed::{draft_only, sealed_build, SealedBuild, SealedTarget, DEPENDENCY_SHA};
+pub use sealed::{draft_only, draft_with_source_contract, sealed_build, SealedBuild, SealedTarget, DEPENDENCY_SHA};
 pub use document_profile::{compile_document_profile, DocumentProfileIn, PROTOCOL as DOCUMENT_PROFILE_PROTOCOL};
 pub use source_contract::{
     bind_source_pack, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,

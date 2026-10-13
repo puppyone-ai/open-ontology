@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="630" viewBox="0 0 1280 630" role="img" aria-labelledby="title desc"><title id="title">What an Ontology contains</title><desc id="desc">A useful enterprise context layer combines real data, business meaning, and enforceable access.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">What an Ontology contains</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">A useful enterprise context layer combines real data, business meaning, and enforceable access.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 150 Q 227.0 146 404 150 Q 415 152 412 161 L 411 445 Q 412 457 400 455 Q 227.0 458 50 454 Q 38 454 43 442 L 42 161 Q 41 150 50 150 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 146 Q 282.5 144 404 147" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="170" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">01 / THE FACTS</text>
+<text x="57" y="194" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Data plane</text>
+<text x="57" y="223" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Independent PostgreSQL replica</text>
+<text x="57" y="248" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Original types + source identity</text>
+<text x="57" y="273" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Raw tables + approved scene views</text>
+<text x="57" y="298" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Per-table position / freshness</text>
+<text x="57" y="323" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Quality warnings + delete guarantee</text>
+<path d="M 463 150 Q 640.0 146 817 150 Q 828 152 825 161 L 824 445 Q 825 457 813 455 Q 640.0 458 463 454 Q 451 454 456 442 L 455 161 Q 454 150 463 150 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 466 146 Q 695.5 144 817 147" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="470" y="170" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">02 / THE MEANING</text>
+<text x="470" y="194" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Semantic plane</text>
+<text x="470" y="223" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Datasets + column meaning</text>
+<text x="470" y="248" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Entities + relationships / JOINs</text>
+<text x="470" y="273" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Enums + business vocabulary</text>
+<text x="470" y="298" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Metrics + calendar anchors</text>
+<text x="470" y="323" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Verified query examples</text>
+<path d="M 877 150 Q 1053.5 146 1230 150 Q 1241 152 1238 161 L 1237 445 Q 1238 457 1226 455 Q 1053.5 458 877 454 Q 865 454 870 442 L 869 161 Q 868 150 877 150 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 880 146 Q 1108.85 144 1230 147" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="884" y="170" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">03 / THE AUTHORITY</text>
+<text x="884" y="194" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Access plane</text>
+<text x="884" y="223" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Role-scoped Knowledge Pack</text>
+<text x="884" y="248" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Gateway + typed query results</text>
+<text x="884" y="273" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">SQL restrictions + budgets</text>
+<text x="884" y="298" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">PostgreSQL roles / RLS</text>
+<text x="884" y="323" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Query IDs + audit provenance</text>
+<path d="M 417 294 Q 433.0 294.0 449 294" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 831 294 Q 847.0 294.0 863 294" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 168 498 Q 640.5 494 1113 498 Q 1124 500 1121 509 L 1120 565 Q 1121 577 1109 575 Q 640.5 578 168 574 Q 156 574 161 562 L 160 509 Q 159 498 168 498 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 171 494 Q 784.65 492 1113 495" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="175" y="526" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Ontology = facts + reviewed meaning + governed access</text>
+<text x="175" y="555" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">OOS YAML and Markdown are portable assets; live rows remain in the Agent DB.</text>
+<text x="40" y="607" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">ONTOLOGY MODEL · Business semantics over relational storage.</text>
+<text x="1240" y="607" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>

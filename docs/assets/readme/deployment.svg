@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="890" viewBox="0 0 1280 890" role="img" aria-labelledby="title desc"><title id="title">Deployment: separate the planes</title><desc id="desc">Separate control, ingestion, data, and access zones with scoped credentials.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">Deployment: separate the planes</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">Separate control, ingestion, data, and access zones with scoped credentials.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 146 Q 231.0 142 412 146 Q 423 148 420 157 L 419 722 Q 420 734 408 732 Q 231.0 735 50 731 Q 38 731 43 719 L 42 157 Q 41 146 50 146 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 142 Q 287.70000000000005 140 412 143" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="166" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ZONE A / ctl · pipe · src</text>
+<text x="57" y="190" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Control + ingestion</text>
+<text x="57" y="219" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Control API / console / Git</text>
+<text x="57" y="244" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">OIDC + secret management</text>
+<path d="M 71 296 Q 230.5 292 390 296 Q 401 298 398 307 L 397 393 Q 398 405 386 403 Q 230.5 406 71 402 Q 59 402 64 390 L 63 307 Q 62 296 71 296 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 74 292 Q 280.75 290 390 293" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="78" y="324" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Builder + workers</text>
+<text x="78" y="353" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Profiles / S0–S10 / evaluation</text>
+<text x="78" y="378" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Scheduled capture + fenced jobs</text>
+<path d="M 71 451 Q 230.5 447 390 451 Q 401 453 398 462 L 397 549 Q 398 561 386 559 Q 230.5 562 71 558 Q 59 558 64 546 L 63 462 Q 62 451 71 451 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 74 447 Q 280.75 445 390 448" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="78" y="479" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Loader + buffer</text>
+<text x="78" y="508" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Bounded batches / replay</text>
+<text x="78" y="533" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Committed watermark + ACK</text>
+<path d="M 71 611 Q 230.5 607 390 611 Q 401 613 398 622 L 397 687 Q 398 699 386 697 Q 230.5 700 71 696 Q 59 696 64 684 L 63 622 Q 62 611 71 611 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 74 607 Q 280.75 605 390 608" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="78" y="639" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">State + assets</text>
+<text x="78" y="668" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Control PG / Git / object store</text>
+<path d="M 463 146 Q 640.0 142 817 146 Q 828 148 825 157 L 824 722 Q 825 734 813 732 Q 640.0 735 463 731 Q 451 731 456 719 L 455 157 Q 454 146 463 146 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 466 142 Q 695.5 140 817 143" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="470" y="166" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ZONE B / pipe · data_ro</text>
+<text x="470" y="190" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Data platform</text>
+<text x="470" y="219" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Independent Agent PostgreSQL</text>
+<text x="470" y="244" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Business writes: pipeline only</text>
+<path d="M 486 296 Q 640.0 292 794 296 Q 805 298 802 307 L 801 393 Q 802 405 790 403 Q 640.0 406 486 402 Q 474 402 479 390 L 478 307 Q 477 296 486 296 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 489 292 Q 688.6 290 794 293" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="493" y="324" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Primary database</text>
+<text x="493" y="353" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Target apply / metadata</text>
+<text x="493" y="378" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Durable position + quality</text>
+<path d="M 486 484 Q 640.0 480 794 484 Q 805 486 802 495 L 801 588 Q 802 600 790 598 Q 640.0 601 486 597 Q 474 597 479 585 L 478 495 Q 477 484 486 484 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 489 480 Q 688.6 478 794 481" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="493" y="512" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Read replica</text>
+<text x="493" y="541" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Gateway reads on data_ro</text>
+<text x="493" y="566" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">End-user roles + RLS</text>
+<path d="M 640 411 Q 640.0 440.0 640 469" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="655" y="450" font-size="16" text-anchor="start" font-weight="normal" style="fill:#292724">replication</text>
+<path d="M 486 642 Q 640.0 638 794 642 Q 805 644 802 653 L 801 687 Q 802 699 790 697 Q 640.0 700 486 696 Q 474 696 479 684 L 478 653 Q 477 642 486 642 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 489 638 Q 688.6 636 794 639" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="493" y="670" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">WAL backup + restore drills</text>
+<path d="M 877 146 Q 1053.5 142 1230 146 Q 1241 148 1238 157 L 1237 722 Q 1238 734 1226 732 Q 1053.5 735 877 731 Q 865 731 870 719 L 869 157 Q 868 146 877 146 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 880 142 Q 1108.85 140 1230 143" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="884" y="166" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ZONE C / edge · gw · sandbox</text>
+<text x="884" y="190" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Access + execution</text>
+<text x="884" y="219" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">TLS edge / CLI / SDK / MCP</text>
+<text x="884" y="244" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">User identity + versioned context</text>
+<path d="M 899 296 Q 1053.5 292 1208 296 Q 1219 298 1216 307 L 1215 393 Q 1216 405 1204 403 Q 1053.5 406 899 402 Q 887 402 892 390 L 891 307 Q 890 296 899 296 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 902 292 Q 1102.25 290 1208 293" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="906" y="324" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Gateway + audit</text>
+<text x="906" y="353" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">SQL guard / cancellation</text>
+<text x="906" y="378" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Per-instance persistent audit WAL</text>
+<path d="M 899 462 Q 1053.5 458 1208 462 Q 1219 464 1216 473 L 1215 568 Q 1216 580 1204 578 Q 1053.5 581 899 577 Q 887 577 892 565 L 891 473 Q 890 462 899 462 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 902 458 Q 1102.25 456 1208 459" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="906" y="490" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Optional internal agent</text>
+<text x="906" y="519" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Entry + egress proxy</text>
+<text x="906" y="544" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">gVisor sandbox per session</text>
+<path d="M 899 642 Q 1053.5 638 1208 642 Q 1219 644 1216 653 L 1215 687 Q 1216 699 1204 697 Q 1053.5 700 899 696 Q 887 696 892 684 L 891 653 Q 890 642 899 642 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 902 638 Q 1102.25 636 1208 639" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="906" y="670" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">External harness can connect</text>
+<path d="M 404 498 Q 453.0 406.0 470 346" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 808 540 Q 830.0 460.5 884 349" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 1051 449 Q 1051.0 430.5 1051 412" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 50 778 Q 640.0 774 1230 778 Q 1241 780 1238 789 L 1237 831 Q 1238 843 1226 841 Q 640.0 844 50 840 Q 38 840 43 828 L 42 789 Q 41 778 50 778 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 774 Q 819.4 772 1230 775" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="806" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Observe • back up • restore • reconcile • upgrade in order • review before activation</text>
+<text x="40" y="867" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">REFERENCE TOPOLOGY · Minimal uses a dedicated read-only interface on the primary.</text>
+<text x="1240" y="867" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>

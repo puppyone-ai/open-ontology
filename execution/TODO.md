@@ -95,7 +95,7 @@
 - DL01-W1-76 / public-gateway-fixed-critical-review：critical_review；critical_review_request_changes；Plan SP09-W01；固定依赖 91031011238c。
 - DL01-W1-77 / native-loader-fixed-critical-review：critical_review；critical_review_request_changes；Plan DBX-W05；固定依赖 f0060dfbc217。
 - DL01-W1-78 / customer-mysql-readonly-validation：real_customer_readonly_validation；author_readonly_probe_terminal；Plan DBX-W06；固定依赖 ebae1fa23。
-- DL01-W1-79 / shared-native-source-product-loader：continued_shared_product_capability；author_shared_loader_recovery_delivered；Plan SP03-W02；固定依赖 56bcab6b8d85。
+- DL01-W1-79 / shared-native-source-product-loader：continued_shared_product_capability；native_running；Plan SP03-W02；固定依赖 56bcab6b8d85。
 
 ## 最近下一步与当前派发
 

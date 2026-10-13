@@ -280,6 +280,32 @@ fn comment_select_rewrites_through_the_parser() {
 }
 
 #[test]
+fn quoted_native_column_keeps_its_case_through_physical_recheck() {
+    let catalog = catalog(vec![relation(
+        "oo_w141",
+        "shipments",
+        "pt_ship",
+        vec![col("whCode", "pc_whcode", TEXT_OID)],
+        0,
+        14,
+    )]);
+    let plan = admit(&catalog, "SELECT \"whCode\" FROM oo_w141.shipments LIMIT 1");
+    match &plan.bindings.outputs[0] {
+        OutputItem::Column(column) => {
+            assert_eq!(column.name, "whCode");
+            assert_eq!(column.output_name, "whCode");
+            assert_eq!(column.physical_name, "pc_whcode");
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(plan.executed_sql.contains("pc_whcode"));
+    assert!(matches!(
+        refuse(&catalog, "SELECT whCode FROM oo_w141.shipments LIMIT 1"),
+        GuardError::ColumnNotAllowed { .. }
+    ));
+}
+
+#[test]
 fn alias_hides_the_table_name() {
     let plan = admit(&small(), "SELECT s.order_id FROM logistics.shipment AS s");
     assert_eq!(plan.bindings.relations[0].alias.as_deref(), Some("s"));

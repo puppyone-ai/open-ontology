@@ -8130,7 +8130,7 @@
         "tools/source-admission/src/capture.rs"
       ],
       "resource_prefix": "oo-dl01w1-79",
-      "status": "author_shared_loader_recovery_delivered",
+      "status": "native_running",
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-79-native-source-product-loader.log",
       "denominator_change": false,
@@ -8141,7 +8141,7 @@
         "known_builders": "06-trust194/194b/194c/trustcli Exited0; no own06 compiler running",
         "retained_mysql_resources": "06-pg and06-mysql stay06;06-trustpg observation only, no takeover without receipt"
       },
-      "next_action": "f1037e08f固定C4/PG代码与Linux ELF f792参考交付；当前真实多跳lostlease mirror-rebind/jobs0005+新ELF+74 prodworker实测继续，未签收整源。",
+      "next_action": "Actual PG multi-table atomic C1 apply, exact OLAP MINVALUE lower and guarded recovery read grants; old per-table S1 is not T.",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "previous_cli_exit": 0,

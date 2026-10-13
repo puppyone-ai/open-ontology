@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="660" viewBox="0 0 1280 660" role="img" aria-labelledby="title desc"><title id="title">From enterprise data to agent-ready context</title><desc id="desc">A replica, reviewed semantics, and governed access — connected by one-way boundaries.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">From enterprise data to agent-ready context</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">A replica, reviewed semantics, and governed access — connected by one-way boundaries.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 148 Q 167.0 144 284 148 Q 295 150 292 159 L 291 250 Q 292 262 280 260 Q 167.0 263 50 259 Q 38 259 43 247 L 42 159 Q 41 148 50 148 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 144 Q 204.5 142 284 145" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="176" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Control plane</text>
+<text x="57" y="205" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Configuration / identity</text>
+<text x="57" y="230" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Review / version / evaluation</text>
+<path d="M 380 148 Q 532.0 144 684 148 Q 695 150 692 159 L 691 250 Q 692 262 680 260 Q 532.0 263 380 259 Q 368 259 373 247 L 372 159 Q 371 148 380 148 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 383 144 Q 580.0 142 684 145" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="387" y="176" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Ontology Builder</text>
+<text x="387" y="205" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">S0–S10: facts → draft → review</text>
+<text x="387" y="230" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">YAML + curated overlays + Git</text>
+<path d="M 813 148 Q 935.0 144 1057 148 Q 1068 150 1065 159 L 1064 250 Q 1065 262 1053 260 Q 935.0 263 813 259 Q 801 259 806 247 L 805 159 Q 804 148 813 148 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 816 144 Q 974.0 142 1057 145" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="820" y="176" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Knowledge Pack</text>
+<text x="820" y="205" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Role-scoped, versioned files</text>
+<text x="820" y="230" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Meaning + joins + caveats</text>
+<path d="M 296 202 Q 330.5 202.0 365 202" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 698 202 Q 748.0 202.0 798 202" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 50 360 Q 134.5 356 219 360 Q 230 362 227 371 L 226 483 Q 227 495 215 493 Q 134.5 496 50 492 Q 38 492 43 480 L 42 371 Q 41 360 50 360 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 356 Q 162.25 354 219 357" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="380" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">01 / REGISTER</text>
+<text x="57" y="404" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Source systems</text>
+<text x="57" y="433" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Databases + files</text>
+<text x="57" y="458" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Read-only account</text>
+<text x="57" y="483" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Budgeted extraction</text>
+<path d="M 274 360 Q 358.5 356 443 360 Q 454 362 451 371 L 450 483 Q 451 495 439 493 Q 358.5 496 274 492 Q 262 492 267 480 L 266 371 Q 265 360 274 360 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 277 356 Q 386.25 354 443 357" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="281" y="380" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">02 / REPLICATE</text>
+<text x="281" y="404" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Sync pipeline</text>
+<text x="281" y="433" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Capture batches</text>
+<text x="281" y="458" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Snapshot + changes</text>
+<text x="281" y="483" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Apply + CAS / ACK</text>
+<path d="M 498 360 Q 594.0 356 690 360 Q 701 362 698 371 L 697 483 Q 698 495 686 493 Q 594.0 496 498 492 Q 486 492 491 480 L 490 371 Q 489 360 498 360 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 501 356 Q 625.2 354 690 357" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="505" y="380" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">03 / PRESERVE</text>
+<text x="505" y="404" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Agent DB / PG</text>
+<text x="505" y="433" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Typed local replica</text>
+<text x="505" y="458" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Position + quality state</text>
+<text x="505" y="483" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Pipeline-only writes</text>
+<path d="M 747 360 Q 833.0 356 919 360 Q 930 362 927 371 L 926 483 Q 927 495 915 493 Q 833.0 496 747 492 Q 735 492 740 480 L 739 371 Q 738 360 747 360 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 750 356 Q 861.2 354 919 357" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="754" y="380" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">04 / GOVERN</text>
+<text x="754" y="404" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Gateway</text>
+<text x="754" y="433" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Identity + SQL guard</text>
+<text x="754" y="458" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Role / RLS + budgets</text>
+<text x="754" y="483" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Durable audit</text>
+<path d="M 976 360 Q 1103.0 356 1230 360 Q 1241 362 1238 371 L 1237 483 Q 1238 495 1226 493 Q 1103.0 496 976 492 Q 964 492 969 480 L 968 371 Q 967 360 976 360 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 979 356 Q 1143.5 354 1230 357" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="983" y="380" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">05 / CONSUME</text>
+<text x="983" y="404" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Your agent / harness</text>
+<text x="983" y="433" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">OO CLI / HTTP / SDK</text>
+<text x="983" y="458" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">MCP where verified</text>
+<text x="983" y="483" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Internal chat is optional</text>
+<path d="M 227 422 Q 243.0 422.0 259 422" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 451 422 Q 467.0 422.0 483 422" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 698 422 Q 715.0 422.0 732 422" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 927 422 Q 944.0 422.0 961 422" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 590 348 Q 590.0 309.5 590 271" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="606" y="313" font-size="15" text-anchor="start" font-weight="normal" style="fill:#292724">catalog + profile</text>
+<path d="M 932 270 Q 983.5 344.0 1105 348" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1016" y="293" font-size="15" text-anchor="start" font-weight="normal" style="fill:#292724">read context</text>
+<circle class="motion" r="5" fill="#FFA832" stroke="#292724" stroke-width="1"><animateMotion dur="9s" begin="0s" repeatCount="indefinite" path="M 230 422 L 448 422 L 696 422 L 924 422 L 963 422"/></circle>
+<circle class="motion" r="5" fill="#75BE9E" stroke="#292724" stroke-width="1"><animateMotion dur="9s" begin="-4s" repeatCount="indefinite" path="M 700 202 L 796 202 L 935 265 Q 1015 300 1102 342"/></circle>
+<path d="M 50 541 Q 640.0 537 1230 541 Q 1241 543 1238 552 L 1237 591 Q 1238 603 1226 601 Q 640.0 604 50 600 Q 38 600 43 588 L 42 552 Q 41 541 50 541 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 537 Q 819.4 535 1230 538" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="569" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">B1: no source writes     B2: pipeline writes only     B3: access stays within user permissions</text>
+<text x="40" y="637" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">DATA FLOW · Replicated data and reviewed context meet at the Gateway.</text>
+<text x="1240" y="637" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>

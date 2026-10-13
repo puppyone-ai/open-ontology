@@ -11,7 +11,7 @@ use pg_builder::{
     assemble_cards, bind_source_pack, canonical_json, canonical_sha256, compile_document_profile, generate, import_cards,
     import_seal, load_config, pack_combined, pack_pair, read_bearer, read_comments, read_profile,
     review_only, run_catalog, run_import, run_import_native_catalog, run_import_pg_catalog, seal_request_for_model,
-    run_native_import, scaffold_curated, sealed_build, draft_only, DocumentProfileIn,
+    run_native_import, scaffold_curated, sealed_build, draft_with_source_contract, DocumentProfileIn,
     CombinedIn, GenerateIn, BIND_SOURCE_PACK_PROTOCOL, DOCUMENT_PROFILE_PROTOCOL,
     LoopbackTransport, PackIn, PgBuilderError, SealedBuild, SealedTarget,
 };
@@ -66,7 +66,8 @@ fn run() -> Result<u8, PgBuilderError> {
 
 fn sealed_draft_cmd(args: &[String]) -> Result<u8, PgBuilderError> {
     let catalog = read_text(&flag(args, "--catalog")?)?;
-    let result = draft_only(&catalog)?;
+    let contract = optional(args, "--source-contract").map(|path| read_json(&path)).transpose()?;
+    let result = draft_with_source_contract(&catalog, contract.as_ref())?;
     write_json(&flag(args, "--out")?, &result)?;
     Ok(if result.get("outcome").and_then(Value::as_str) == Some("draft_compiled") { 0 } else { 1 })
 }

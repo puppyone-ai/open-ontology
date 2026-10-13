@@ -95,6 +95,36 @@ pub fn role_columns(dir: &str, protocol: Option<&crate::config::SourceProtocol>,
     bundle.roles.get(role).cloned().ok_or_else(ApiError::membership)
 }
 
+pub fn declared_money_units(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Result<BTreeMap<String, String>, ApiError> {
+    let bundle = load_for(dir, protocol)?;
+    money_units(&bundle.rules)
+}
+
+fn money_units(rules: &Value) -> Result<BTreeMap<String, String>, ApiError> {
+    let mut units = BTreeMap::new();
+    for rule in rules.get("columns").and_then(Value::as_array).ok_or_else(ApiError::malformed)? {
+        if rule.get("semantic_type").and_then(Value::as_str) != Some("money") { continue; }
+        let column = rule.get("column").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
+        let unit = rule.get("unit").and_then(Value::as_str).filter(|value| !value.is_empty()).ok_or_else(ApiError::malformed)?;
+        if units.insert(column.to_owned(), unit.to_owned()).is_some() { return Err(ApiError::malformed()); }
+    }
+    Ok(units)
+}
+
+fn money_matches_rules(rows: &[Value], rules: &Value) -> Result<bool, ApiError> {
+    let expected = money_units(rules)?;
+    for (id, unit) in expected {
+        let matches = rows.iter().filter(|row| {
+            let dataset = row.get("dataset").and_then(Value::as_str).unwrap_or("");
+            let column = row.get("column").and_then(Value::as_str).unwrap_or("");
+            format!("{dataset}.{column}") == id
+        }).collect::<Vec<_>>();
+        if matches.len() != 1 || matches[0].get("semantic_type").and_then(Value::as_str) != Some("money")
+            || matches[0].get("unit").and_then(Value::as_str) != Some(unit.as_str()) { return Ok(false); }
+    }
+    Ok(true)
+}
+
 pub fn all_roles(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Result<BTreeMap<String, Vec<String>>, ApiError> {
     Ok(load_for(dir, protocol)?.roles)
 }
@@ -404,6 +434,7 @@ async fn s5_model(
             if bundle.raw.get("catalog.json").and_then(|b| serde_json::from_slice::<Value>(b).ok()).and_then(|v| v.get("protocol").and_then(Value::as_str).map(str::to_owned)).as_deref().is_some_and(|protocol| matches!(protocol, "oo.pipeline.sealed-import-catalog/v1" | "oo.pipeline.sealed-import-collection/v1")) {
                 let rows = std::fs::read(dir.join("native-model-output/decisions.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
                 let Some(rows) = rows.and_then(|v| v.as_array().cloned()) else { return fail(client, job, "S5", "model.candidates_absent").await; };
+                if !money_matches_rules(&rows, &bundle.rules).unwrap_or(false) { return fail(client, job, "S5", "model.candidates_invalid").await; }
                 let rules = json!({"columns":rows.iter().map(|v| json!({"column":format!("{}.{}",v.get("dataset").and_then(Value::as_str).unwrap_or(""),v.get("column").and_then(Value::as_str).unwrap_or("")),"semantic_type":v.get("semantic_type"),"pii":v.get("pii"),"unit":v.get("unit").and_then(Value::as_str).unwrap_or(""),"confidence":"high"})).collect::<Vec<_>>(),"relationships":bundle.rules.get("relationships").cloned().unwrap_or(json!([]))});
                 let Ok((_, yaml)) = generated_from_inputs(&bundle.typed_catalog, &rules, "none") else { return fail(client, job, "S5", "model.candidates_invalid").await; };
                 if overlay::insert_generated_model(client, &job.build_id, &yaml).await.is_err() || write_private(&dir.join("generated.yaml"), yaml.as_bytes()).is_err() { return fail(client, job, "S5", "overlay.write").await; }
@@ -976,4 +1007,21 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), ()> {
         .open(path)
         .map_err(|_| ())?;
     std::io::Write::write_all(&mut file, bytes).map_err(|_| ())
+}
+
+#[cfg(test)]
+mod money_tests {
+    use super::money_matches_rules;
+    use serde_json::json;
+
+    #[test]
+    fn declared_unknown_currency_cannot_become_usd() {
+        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","unit":"unspecified"}]});
+        let valid = json!({"dataset":"oo_w141.shipments","column":"price","semantic_type":"money","unit":"unspecified"});
+        assert!(money_matches_rules(&[valid.clone()], &rules).unwrap());
+        let mut unsupported = valid;
+        unsupported["unit"] = json!("USD");
+        assert!(!money_matches_rules(&[unsupported], &rules).unwrap());
+        assert!(!money_matches_rules(&[], &rules).unwrap());
+    }
 }

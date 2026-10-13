@@ -842,7 +842,7 @@ fn bind_range(var: &mut pb::RangeVar, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
             suggestion: unique_suggestion(ctx.catalog, &var.relname),
         });
     }
-    if !closed_ident(&var.schemaname) || !closed_ident(&var.relname) {
+    if !closed_ident(&var.schemaname) || !closed_logical_ident(&var.relname) {
         return Err(GuardError::Unsupported {
             construct: "identifier",
         });
@@ -923,7 +923,7 @@ fn rewrite_one_target(
     mut target: pb::Node,
     ctx: &mut Ctx<'_>,
 ) -> Result<Vec<pb::Node>, GuardError> {
-    let (alias, star_names) = inspect_target(&target)?;
+    let (alias, star_names) = inspect_target(&target, ctx.surface == Surface::Physical)?;
     if let Some(names) = star_names {
         return expand_star(&names, &alias, ctx);
     }
@@ -951,7 +951,7 @@ fn rewrite_one_target(
     Ok(vec![target])
 }
 
-fn inspect_target(target: &pb::Node) -> Result<(String, Option<Vec<String>>), GuardError> {
+fn inspect_target(target: &pb::Node, generated: bool) -> Result<(String, Option<Vec<String>>), GuardError> {
     let res = match target.node.as_ref() {
         Some(pb::node::Node::ResTarget(res)) => res.as_ref(),
         _ => {
@@ -965,7 +965,8 @@ fn inspect_target(target: &pb::Node) -> Result<(String, Option<Vec<String>>), Gu
             construct: "target indirection",
         });
     }
-    if !res.name.is_empty() && !closed_ident(&res.name) {
+    if !res.name.is_empty()
+        && !(generated && closed_logical_ident(&res.name) || closed_ident(&res.name)) {
         return Err(GuardError::Unsupported {
             construct: "output alias",
         });
@@ -2223,7 +2224,7 @@ fn validate_relations(catalog: &PolicyCatalog, surface: Surface) -> Result<(), G
 }
 
 fn validate_relation(relation: &VisibleRelation, surface: Surface) -> Result<(), GuardError> {
-    if !closed_ident(&relation.schema) || !closed_ident(&relation.name) {
+    if !closed_ident(&relation.schema) || !closed_logical_ident(&relation.name) {
         return Err(GuardError::CatalogInvalid {
             reason: "identifier",
         });
@@ -2251,7 +2252,7 @@ fn validate_relation(relation: &VisibleRelation, surface: Surface) -> Result<(),
     let mut names = BTreeSet::new();
     let mut physical = BTreeSet::new();
     for column in &relation.columns {
-        if !closed_ident(&column.name) || !closed_ident(&column.physical_name) {
+        if !closed_logical_ident(&column.name) || !closed_ident(&column.physical_name) {
             return Err(GuardError::CatalogInvalid {
                 reason: "identifier",
             });
@@ -2365,6 +2366,16 @@ fn closed_ident(value: &str) -> bool {
     bytes[1..]
         .iter()
         .all(|byte| *byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit())
+}
+
+fn closed_logical_ident(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && (bytes[0] == b'_' || bytes[0].is_ascii_alphabetic())
+        && bytes[1..]
+            .iter()
+            .all(|byte| *byte == b'_' || byte.is_ascii_alphanumeric())
 }
 
 fn operator_token_ok(value: &str) -> bool {

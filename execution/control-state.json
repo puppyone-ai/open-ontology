@@ -1179,6 +1179,22 @@
         "tools/job-worker",
         "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
       ]
+    },
+    {
+      "task": "DL01-W1-79",
+      "native_agent_name": "/root/sol_recovery_loader",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "crates/oo-pipeline",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
+        "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
+        "crates/oo-connectors",
+        "crates/oo-jobs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "tools/source-admission/src/capture.rs"
+      ]
     }
   ],
   "execution_policy": {
