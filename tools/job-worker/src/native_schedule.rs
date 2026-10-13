@@ -18,6 +18,10 @@ pub struct Registration {
  pub transaction_registry_vector_path:Option<String>,
  #[serde(default,skip_serializing_if="Option::is_none")]
  pub transaction_registry_vector_sha256:Option<String>,
+ #[serde(default,skip_serializing_if="Option::is_none")]
+ pub control_target_path:Option<String>,
+ #[serde(default,skip_serializing_if="Option::is_none")]
+ pub control_target_sha256:Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +60,9 @@ impl Manifest {
     if r.registry_path.is_some() || !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("registration"))}
    } else if !r.registry_path.as_ref().is_some_and(|path|Path::new(path).is_absolute() && !path.contains("..") && !path.contains('\0'))
     || r.transaction_registry_vector_path.is_some() || r.transaction_registry_vector_sha256.is_some() {return Err(Error::new("registration"))}
+   if r.control_target_path.is_some()!=r.control_target_sha256.is_some() {return Err(Error::new("registration"))}
+   if let (Some(path),Some(sha))=(&r.control_target_path,&r.control_target_sha256)
+    && (!group || !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit())) {return Err(Error::new("registration"))}
   } else if self.loader.args==["import-native-transaction"] {return Err(Error::new("registration"))}
   Ok(())
  }
@@ -64,6 +71,8 @@ impl Manifest {
   if let Some(r)=&self.registration {
    executable_check(&Executable{path:r.admission_binary.clone(),sha256:r.admission_sha256.clone(),args:vec![]})?;
    if let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256)
+    && sha256_hex(&std::fs::read(path).map_err(|_|Error::new("registration"))?)!=*sha {return Err(Error::new("registration"))}
+   if let (Some(path),Some(sha))=(&r.control_target_path,&r.control_target_sha256)
     && sha256_hex(&std::fs::read(path).map_err(|_|Error::new("registration"))?)!=*sha {return Err(Error::new("registration"))}
   }
   Ok(())
@@ -338,6 +347,11 @@ async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration
    let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
    if bytes.len()>1024*1024 || sha256_hex(&bytes)!=*sha {return Err(Error::new("registration"))}
    command.env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR",path).env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256",sha);
+  }
+  if let (Some(path),Some(sha))=(&r.control_target_path,&r.control_target_sha256) {
+   let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
+   if bytes.len()>65536 || sha256_hex(&bytes)!=*sha {return Err(Error::new("registration"))}
+   command.env("OO_NATIVE_CONTROL_TARGET",path).env("OO_NATIVE_CONTROL_TARGET_SHA256",sha);
   }
  }
  if let Some((path,sha))=registry_override {
@@ -838,6 +852,21 @@ mod baseline_tests {
   assert!(baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).is_err());
   let (request,mut vector)=fixture();vector["entries"][1]["registry_sha256"]=json!("tampered");
   assert!(baseline_entries(&request,&vector,"b",1,"s",0,"db","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).is_err());
+ }
+}
+
+#[cfg(test)]
+mod control_pin_tests {
+ use super::*;
+ #[test]
+ fn group_control_descriptor_is_operator_pinned_and_closed() {
+  let mut manifest:Manifest=serde_json::from_value(json!({"protocol":"oo.jobs.native-schedule/v1","binding":"d101fd4a-3a89-41f6-b7fe-94b4001d5512","project_id":"00000000-0000-4000-8000-000000000074","source_id":"s","method":"C1","cycle":"pull","period_ms":1000,"producer":{"path":"/producer","sha256":"a".repeat(64),"args":[]},"loader":{"path":"/loader","sha256":"b".repeat(64),"args":["import-native-transaction"]},"registration":{"admission_binary":"/admission","admission_sha256":"c".repeat(64),"transaction_registry_vector_path":"/vector","transaction_registry_vector_sha256":"d".repeat(64),"control_target_path":"/private/control.json","control_target_sha256":"e".repeat(64)}})).unwrap();
+  assert!(manifest.shape().is_ok());
+  manifest.registration.as_mut().unwrap().control_target_sha256=None;
+  assert!(manifest.shape().is_err());
+  manifest.registration.as_mut().unwrap().control_target_sha256=Some("e".repeat(64));
+  manifest.loader.args=vec!["import-native-update".into()];
+  assert!(manifest.shape().is_err());
  }
 }
 

@@ -1,5 +1,9 @@
 # 工程变更与验收记录
 
+## 2026-10-14 最小持续链收口
+
+2026-10-14：StarRocks 135项固定源证据、最后真实对话三事实及实际sent/durable取消三WAL核验通过；四问合并和freshness not_ready/STALE_DATA处置仍待，不提前计完整作者。PG固定Loader/worker已官方安装注册，四表gold/拒绝策略及原状态不变；冻结x803 producer仍缺真正持续CDC，pg_runtime_finish（GPT-6.1 Sol low）独占/tmp/oo-pg46-runtime-finish接续新自有fixture持续链，无付费模型调用。完整作者7/10、正式0/10保持；原Plan/分母/父项、整版、矩阵、前端不晋级。证据见starrocks-final-dialogue-facts-intake-20261013.json及postgres-runtime-intake-20261014.json。
+
 ### 2026-10-13 Doris完整作者链固定收取
 
 Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。 收取凭据：`execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json`。原退出、分母、父项及集成/发行不变；无整版交付，不切PRODUCT-LOOPS/Goal；矩阵/前端不晋级。

@@ -1,0 +1,87 @@
+{
+  "event": "root final actual Star dialogue facts verified without new model calls",
+  "original_model_bytes_unchanged": true,
+  "raw_transcript": {
+    "path": "/tmp/oo-w45-gateway-preview/root-final-no-cast-output/transcript.json",
+    "sha256": "9279d9ff4002714ff542731e48b468a39d00bc2b8c0bdf418ca2be454096775f"
+  },
+  "normalization": "Parse one Markdown JSON fence; use existing per-fact value/query_id/column/row directly. No inferred values or rewritten model messages. Original strict-format failure retained.",
+  "facts": {
+    "dimension_count": 1,
+    "dimension_label": "fourth",
+    "account_count": 2
+  },
+  "evidence": {
+    "dimension_count": {
+      "query_id": "q_FjIBHZ5VbyB4Ph2iWpPm0mNV2m",
+      "column": "count",
+      "row": 0
+    },
+    "dimension_label": {
+      "query_id": "q_IworTl3v5XgiTJLGfoQSn5ebIX",
+      "column": "label",
+      "row": 0
+    },
+    "account_count": {
+      "query_id": "q_OLMdBegU9pka6o2HIMs197zoVc",
+      "column": "count",
+      "row": 0
+    }
+  },
+  "query_wal": {
+    "q_FjIBHZ5VbyB4Ph2iWpPm0mNV2m": {
+      "/tmp/oo-w45-gateway-preview/wal/q_FjIBHZ5VbyB4Ph2iWpPm0mNV2m-admit.wal": "7ec755c00852046b68f80ec53b17003814499e94de8a736d6ec37a2f63da3e10",
+      "/tmp/oo-w45-gateway-preview/wal/q_FjIBHZ5VbyB4Ph2iWpPm0mNV2m-complete.wal": "4b84a480812d8119abef158ff33aa6da5e0b7b313da9baa7bf10bea02cc5e93d"
+    },
+    "q_IworTl3v5XgiTJLGfoQSn5ebIX": {
+      "/tmp/oo-w45-gateway-preview/wal/q_IworTl3v5XgiTJLGfoQSn5ebIX-admit.wal": "8addb079025e656d23932b3c6326629c9909f1963653263785a35bc481542e57",
+      "/tmp/oo-w45-gateway-preview/wal/q_IworTl3v5XgiTJLGfoQSn5ebIX-complete.wal": "20dda8a699b2279614cce95fc33175bb25442ffa9aff915b6c6785c384d808cc"
+    },
+    "q_OLMdBegU9pka6o2HIMs197zoVc": {
+      "/tmp/oo-w45-gateway-preview/wal/q_OLMdBegU9pka6o2HIMs197zoVc-admit.wal": "afe49f0c72c70ca82002bf3dd96b194a0b7a7c4c794f59344eeafb562a7c071d",
+      "/tmp/oo-w45-gateway-preview/wal/q_OLMdBegU9pka6o2HIMs197zoVc-complete.wal": "b66179fd04cb55ae059f27f758880f104222fdd5d1bb7c61675f1d145337a357"
+    }
+  },
+  "actual_new_usage": 7612,
+  "remaining": "Full four-question merge and freshness not_ready/STALE_DATA disposition; formal author source count unchanged.",
+  "live_cancel": {
+    "path": "/tmp/oo-w45-gateway-preview/root-live-cancel-final/receipt.json",
+    "sha256": "913fab387e2ea2e0b88976583304f44f67fba8f603a2dcf9db13fff1657bf8f6",
+    "result": {
+      "query_id": "q_w7MmDuVo8Agf1aCl4DBQFuwTW4",
+      "cancel": {
+        "audit": "durable",
+        "outcome": "sent",
+        "query_id": "q_w7MmDuVo8Agf1aCl4DBQFuwTW4"
+      },
+      "query_result": {
+        "class": "gateway",
+        "code": "TIMEOUT",
+        "exit": 2,
+        "hint": "sqlstate 57014",
+        "message": "query canceled",
+        "query_id": "q_w7MmDuVo8Agf1aCl4DBQFuwTW4",
+        "retry": {
+          "attempt_count": "unknown",
+          "max_extra_attempts": 3,
+          "max_wait_ms": 2000,
+          "nested_cli_retries": 0,
+          "outcome": "not_replayed"
+        },
+        "retryable": false
+      },
+      "wal": {
+        "/tmp/oo-w45-gateway-preview/wal/q_w7MmDuVo8Agf1aCl4DBQFuwTW4-admit.wal": "f651e61626680c844aab0a4ffc05b752fd9b21d84dd0cb2d6dc9acc2be7898a9",
+        "/tmp/oo-w45-gateway-preview/wal/q_w7MmDuVo8Agf1aCl4DBQFuwTW4-cancel.wal": "ba999b1cbbe52e588bf5f1bb61129443a8824d4e7187a141110646354957c8d4",
+        "/tmp/oo-w45-gateway-preview/wal/q_w7MmDuVo8Agf1aCl4DBQFuwTW4-complete.wal": "0709f651dc1cc0af75a7449cc4d1f8140026382e30cd93605bddcae14ea06caa"
+      },
+      "source_write_attempts": 0,
+      "target_action": "owned temporary table lock, no data mutation"
+    }
+  },
+  "fixed_source_manifest": {
+    "path": "tools/starrocks-preview/LOCAL-EVIDENCE-SHA-20261013.json",
+    "sha256": "94c1b502fd95c8786e0af63f810035958a9f791eca7c0d92216e5edf4aaedcde",
+    "verified_entries": 135
+  }
+}
