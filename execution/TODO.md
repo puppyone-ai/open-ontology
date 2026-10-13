@@ -59,7 +59,7 @@
 - DL01-W1-40 / clickhouse-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-41 / mongodb-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
-- DL01-W1-43 / doris-driver-preflight：source_product_development；author_partial_source_rule_projection_pending；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-43 / doris-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-45 / starrocks-driver：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-46 / postgres-product：source_product_development；author_product_chain_pending_shared_T_recovery；Plan SP03-W01；固定依赖 577160c22de6。
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。
+Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。

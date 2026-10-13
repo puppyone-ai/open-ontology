@@ -1,5 +1,9 @@
 # 工程变更与验收记录
 
+### 2026-10-13 Doris完整作者链固定收取
+
+Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。 收取凭据：`execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json`。原退出、分母、父项及集成/发行不变；无整版交付，不切PRODUCT-LOOPS/Goal；矩阵/前端不晋级。
+
 ### 2026-10-13 Mongo完整作者链固定收取
 
 Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。 收取凭据：`execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json`。原Plan分母、父项、集成/发行及支持等级不变；无整版交付，不切PRODUCT-LOOPS/Goal；前端无变更。

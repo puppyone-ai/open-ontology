@@ -1120,7 +1120,7 @@
     {
       "task": "DL01-W1-43",
       "native_agent_name": "/root/closure_doris_43",
-      "status": "author_partial_source_rule_projection_pending",
+      "status": "completed_author_handoff",
       "executor": "native gpt-6.1-sol/low",
       "write_paths": [
         "testing/dl01-driver-preflight/doris",
@@ -1144,7 +1144,7 @@
     {
       "task": "DL01-W1-71",
       "native_agent_name": "/root/shared_selfbuild_continuation",
-      "status": "native_running",
+      "status": "completed_author_handoff",
       "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
       "write_paths": [
         "tools/selfbuild-control-api",
@@ -1259,7 +1259,7 @@
   },
   "shared_reference_live_agents": [],
   "source_closure_current": {
-    "author_full_unpublished_preview": 6,
+    "author_full_unpublished_preview": 7,
     "total_sources": 10,
     "unified_signed_full_sources": 0,
     "mysql_fixed_author_commit": "27eeec147",
@@ -1267,12 +1267,12 @@
     "no_live_engineer_reason": "superseded: human confirmed quota restored, original 04/39/71/74/79 resumed; actual handles in managed_live_native_agents",
     "goal": "active",
     "remaining_shared_runtime_proof": "before-CAS recovery, remaining complete sources, truthful semantic corrections and accurate dialogue",
-    "current_note": "Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。"
+    "current_note": "Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。"
   },
   "ordinary_event_wait_seconds": 1080,
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 6,
+    "count": 7,
     "required": 10,
     "sources": [
       "mysql",
@@ -1280,12 +1280,14 @@
       "mariadb",
       "oracle",
       "clickhouse",
-      "mongodb"
+      "mongodb",
+      "doris"
     ],
     "formal_signed_sources": 0,
     "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
     "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json",
-    "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json"
+    "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json",
+    "doris_intake": "execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json"
   },
   "token_efficiency_receipt": {
     "skill": "ponytail 5.2.0",
