@@ -13,6 +13,7 @@ fn main() -> ExitCode {
         Some("reader-gate") if args.len() == 6 => run_gate(&args),
         Some("capture-tick") if args.len() == 7 => run_capture_tick(&args),
         Some("capture-tick-budget") if args.len() == 8 => run_capture_tick_budget(&args),
+        Some("capture-full-baseline-budget") if args.len() == 8 => run_capture_full_baseline_budget(&args),
         Some("capture-partition-budget") if args.len() == 9 => run_capture_partition_budget(&args),
         Some("capture-dba") if args.len() == 6 => run_capture_dba(&args),
         _ => {
@@ -22,6 +23,7 @@ fn main() -> ExitCode {
             eprintln!("       doris-reader reader-gate <evidence> <secrets> <host> <port> <db>");
             eprintln!("       doris-reader capture-tick <evidence> <secrets> <host> <port> <every_ms> <label>");
             eprintln!("       doris-reader capture-tick-budget <evidence> <secrets> <host> <port> <every_ms> <label> <max_rows_per_table>");
+            eprintln!("       doris-reader capture-full-baseline-budget <evidence> <secrets> <host> <port> <every_ms> <label> <max_rows_per_table>");
             eprintln!("       doris-reader capture-partition-budget <evidence> <secrets> <host> <port> <every_ms> <label> <partition> <max_rows>");
             eprintln!("       doris-reader capture-dba <evidence> <secrets> <host> <port> <sql-file>");
             return ExitCode::from(2);
@@ -47,6 +49,15 @@ fn run_capture_tick_budget(args: &[String]) -> Result<(), Fail> {
     let max_rows = args[7].parse().map_err(|_| Fail::new("budget", "max_rows"))?;
     let runtime = runtime()?;
     runtime.block_on(capture::capture_tick_budget(evidence, &args[2], endpoint, every_ms, &args[6], max_rows))
+}
+
+fn run_capture_full_baseline_budget(args: &[String]) -> Result<(), Fail> {
+    let evidence = evidence_dir(&args[1])?;
+    let endpoint = capture_endpoint(&args[3], &args[4])?;
+    let every_ms = args[5].parse().map_err(|_| Fail::new("schedule", "every_ms"))?;
+    let max_rows = args[7].parse().map_err(|_| Fail::new("budget", "max_rows"))?;
+    let runtime = runtime()?;
+    runtime.block_on(capture::capture_full_baseline_budget(evidence, &args[2], endpoint, every_ms, &args[6], max_rows))
 }
 
 fn run_capture_partition_budget(args: &[String]) -> Result<(), Fail> {

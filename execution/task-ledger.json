@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_on": "2026-10-10T17:19:05.299114+08:00",
+  "updated_on": "2026-10-13",
   "scope": "formal parent-item dispatch/acceptance register; does not overwrite frozen development subunit evidence",
   "baseline": {
     "source_revision": 4,
@@ -19,8 +19,8 @@
     "dbx_development_denominator": "not frozen",
     "development_counts": "specs/open-ontology-acceptance-counting.md",
     "runtime": "execution/control-state.json",
-    "new_grok_dispatch": "authorized by explicit user instruction 2026-10-09; new or resumed tasks allowed within fixed cards, ownership and resource limits",
-    "ordinary_wait_seconds": 600,
+    "new_grok_dispatch": "paused: latest human uses native Codex engineers, temporary gpt-6-sol/low authorized",
+    "ordinary_wait_seconds": 1080,
     "update_protocol": "execution/UPDATE-PROTOCOL.md",
     "product_boundary": {
       "core": "Ontology production/review/publication and harness-independent Pack/interfaces",
@@ -6566,7 +6566,7 @@
       "resource_prefix": "oo-dl01w1-40",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "executor_quota_exhausted",
+      "status": "native_waiting_dependency",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-40-grok-longrun-complete-source.log",
       "resource_terminal": "prior CLI terminal for human-directed scope consolidation; existing background resources stay same owner and must be collected",
@@ -6578,7 +6578,7 @@
       "author_commit": "99dd0b439d0f8588c8cee1f63c5af2729ceff5b4",
       "evidence_commit": "2810a52e6b8e53e02fafa0d23a70d3d7bd282f42",
       "coordinator_correction": "old PG/mysql interfaces rejected; corrected b1ff native semantic +39b2 pg-builder sealed frozen dependencies; remaining native manifest demand sole06 writer",
-      "next_action": "真实 g5 更新删除 typed diff0；共享新增分区 vector 修复未实际签收。",
+      "next_action": "71 fixed consumer historical batch/partition-vector; no S5 before true no-model gate",
       "native_import_source": "d3b3abcff32cc85602d7736eb1340b14813c069b",
       "native_import_evidence": "e304a6adeedbe2c713623fe68ad480ff3c8bff27",
       "whole_author_commit": "9e95d6bdb4d062019fb4c01501ce04ba10dd2965",
@@ -6668,7 +6668,7 @@
       "resource_prefix": "oo-dl01w1-41",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "executor_quota_exhausted",
+      "status": "native_running",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-41-full-maintained-ontology-source.log",
       "exit_receipt_prefix": "DL01-W1-41-whole-source",
@@ -6807,7 +6807,7 @@
       "resource_prefix": "oo-dl01w1-43",
       "rust_slots": 1,
       "database_memory_gib": 4,
-      "status": "executor_quota_exhausted",
+      "status": "native_running",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-43-grok-longrun-complete-source.log",
       "resource_terminal": "FE/BE/reader removed; native3 auditfullcoverage measured; internalLoader dependency not externalinfra",
@@ -7011,7 +7011,7 @@
       "resource_prefix": "oo-dl01w1-45",
       "rust_slots": 1,
       "database_memory_gib": 4,
-      "status": "executor_quota_exhausted",
+      "status": "native_running",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-45-grok-longrun-complete-source.log",
       "resource_terminal": "prior CLI0 incomplete; only terminal owner resumed under complete receipt supervisor; named existing resource first collected, no duplicatebuilder",
@@ -7792,7 +7792,7 @@
         "a524f17c-94d1-46b7-8ebf-75bbd35fc51a"
       ],
       "previous_cli_exit": 0,
-      "next_action": "人类确认原生额度恢复；原完整任务续接，Ponytail5.1.1最小关键修复，真实共享依赖/完整源退出与固定证据，不重复模型。",
+      "next_action": "原多源身份保持与真实OIDC续签、Maria/Oracle独立API/strict no-model实际预检已交；sourceowner独占新S5。普通review deferred，非整源签收。",
       "whole_product_shared_owners": {
         "native_loader": "DL01-W1-79"
       },
@@ -7821,7 +7821,9 @@
       },
       "latest_author_evidence": "94745df46",
       "exclusive_transfer_out": "79 terminal; arrow_meta/canonical/sealed_import returnedsole71 with1dd6b1c2 duration implementation; source-admission/capture.rs stays readonly",
-      "latest_observed_at": "2026-10-13T08:35:05.602535+00:00"
+      "latest_observed_at": "2026-10-13T08:35:05.602535+00:00",
+      "source_commit": "6b6709f41d4b897726999a4ba84d21c0c47e3e85",
+      "evidence_commit": "51854571b"
     },
     {
       "task_id": "DL01-W1-72",
@@ -7934,7 +7936,8 @@
           "code_and_resources_retained": true
         }
       ],
-      "capacity_handoff": "execution/batches/native-full-source-20261012/CAPACITY-HANDOFF.md"
+      "capacity_handoff": "execution/batches/native-full-source-20261012/CAPACITY-HANDOFF.md",
+      "source_commit": "c13bfb787a901cafbab96297b8de99191759ca5a"
     },
     {
       "task_id": "DL01-W1-74",
@@ -7967,7 +7970,7 @@
       },
       "background_container": "oo-dl01w1-74-rust",
       "background_running_verified": true,
-      "next_action": "人类确认原生额度恢复；原完整任务续接，Ponytail5.1.1最小关键修复，真实共享依赖/完整源退出与固定证据，不重复模型。",
+      "next_action": "Linux1.94 15unit+2freeze通过；同源多binding基线真CAS/ACK及其他源并行已证；79 owner-only mirror-rebind新固定契约后收完整beforeCAS多跳恢复链。",
       "previous_cli_exit": 0,
       "latest_author_delivery": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
       "fixed_git_hashes_verified": 556,
@@ -8137,7 +8140,7 @@
         "known_builders": "06-trust194/194b/194c/trustcli Exited0; no own06 compiler running",
         "retained_mysql_resources": "06-pg and06-mysql stay06;06-trustpg observation only, no takeover without receipt"
       },
-      "next_action": "人类确认原生额度恢复；原完整任务续接，Ponytail5.1.1最小关键修复，真实共享依赖/完整源退出与固定证据，不重复模型。",
+      "next_action": "f1037e08f固定C4/PG代码与Linux ELF f792参考交付；当前真实多跳lostlease mirror-rebind/jobs0005+新ELF+74 prodworker实测继续，未签收整源。",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "previous_cli_exit": 0,
@@ -8167,7 +8170,7 @@
       "latest_observed_at": "2026-10-13T08:35:05.602538+00:00"
     }
   ],
-  "current_execution_note": "人类已授权且实际暂停10旧容器，释放10CPU且保留卷/镜像/ID；06/39/45/46/43/44共6真实CLI推进完整源或共享nativeLoader；MySQL完整实验子闭环独立2f9127f7通过，本批8/8，源0/10不混计；clock.sleep900",
+  "current_execution_note": "共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -8238,5 +8241,7 @@
     ]
   },
   "source_requirement_audit": "execution/reviews/full-source-original-requirements-audit-20261012.md",
-  "human_capture_method_resolution": "按原docs逐源方法，验证可配置周期与更新、删除收敛；C1/C2/C3/C4/C5分别标注能力、一致性、删除检测"
+  "human_capture_method_resolution": "按原docs逐源方法，验证可配置周期与更新、删除收敛；C1/C2/C3/C4/C5分别标注能力、一致性、删除检测",
+  "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
+  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence."
 }

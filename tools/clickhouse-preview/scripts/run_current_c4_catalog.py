@@ -40,6 +40,7 @@ def main():
         '--network', 'container:oo-dl01w1-40-gpt-fresh-pg',
         '--mount', f'type=bind,source={PRIVATE},target=/private,readonly',
         '--mount', f'type=bind,source={ROOT},target={ROOT},readonly',
+        '--mount', 'type=bind,source=/tmp/oo-dl01w1-40-gpt-producer,target=/tmp/oo-dl01w1-40-gpt-producer,readonly',
         '--mount', f'type=bind,source={args.pipeline.resolve()},target=/bin/oo-pipeline,readonly',
         '--mount', f'type=bind,source={args.admission.resolve()},target=/bin/oo-source-admission,readonly',
         '-e', 'OO_NATIVE_ADMISSION_BIN=/bin/oo-source-admission',

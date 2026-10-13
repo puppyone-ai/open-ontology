@@ -1,0 +1,17 @@
+{
+  "source": "8191e014679af24917e25e35bb93cf19f4273bdc",
+  "evidence_commit": "6bc19fb6dec5c7aaf88cc6476b378b0ccf152b2f",
+  "verified_fixed_blob_count": 173,
+  "manifest_mismatches": [],
+  "elfs": {
+    "worker": {
+      "path": "/tmp/oo-dl01w1-74-fixed-8191e0146-6642ab43/job-worker",
+      "sha256": "6642ab43a33ecdbf007d957bd4d81217317a71beb6b1a07e3d428b941b090ef7"
+    },
+    "loader": {
+      "path": "/tmp/oo-dl01w1-79-fixed-f80af746/oo-pipeline",
+      "sha256": "f80af74646087fb39470a55b7eaefc81ccbf2a28269e2d7ff137f67a4d9cfc19"
+    }
+  },
+  "scope": "actual isolated production worker minimum target permissions/global binding generation/sidecar and no-sidecar lost-lease/CAS-after pendingACK, not source-specific C4/C1 product acceptance"
+}

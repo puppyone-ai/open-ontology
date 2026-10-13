@@ -316,6 +316,32 @@ pub async fn install_native_mirror_rebind_cli() -> Result<(), u8> {
     if result["installed"] == true { Ok(()) } else { Err(1) }
 }
 
+/// Install exact-task claiming on the control database under its jobs owner.
+pub async fn install_native_claim_selected_cli() -> Result<(), u8> {
+    let mut stdin = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
+    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
+    let result = if document.get("protocol").and_then(Value::as_str) != Some(INSTALL_PROTOCOL) {
+        json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":"invalid_version"})
+    } else {
+        match document.get("target") {
+            Some(target) => match connect_target(target).await {
+                Ok(mut conn) => match target_installer::install_jobs_claim_selected(&mut conn).await {
+                    Ok(()) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_claim_selected_digest()}),
+                    Err(err) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()}),
+                },
+                Err(reason) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":reason}),
+            },
+            None => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":"closed"}),
+        }
+    };
+    let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
+    bytes.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
+    if result["installed"] == true { Ok(()) } else { Err(1) }
+}
+
 async fn dispatch(document: &Value) -> Value {
     if document.get("protocol").and_then(|value| value.as_str()) == Some(INSTALL_PROTOCOL) {
         return install_document(document).await;

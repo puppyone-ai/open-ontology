@@ -46,7 +46,7 @@ def main():
         'columns': [
             {'column': f'oo_dl01w40.readings.{name}', 'semantic_type': semantic,
              'confidence': 'high' if name in {'reading_id', 'version', 'ts', 'qty', 'wide_u64'} else 'low',
-             'pii': 'none'}
+             'pii': 'none' if name in {'reading_id', 'version', 'ts', 'qty', 'wide_u64'} else 'unknown'}
             for name, semantic in zip(NAMES, TYPES)
         ],
         'relationships': [],

@@ -34,6 +34,7 @@ const DEADLINE_MARKER: &str = "oo-dl01w1-45-deadline";
 #[derive(Clone, Copy, Debug)]
 pub enum Command {
     Read,
+    PartitionRead,
     Block,
     CapsRow,
     CapsByte,
@@ -43,6 +44,7 @@ pub enum Command {
 
 pub struct Request {
     pub command: Command,
+    pub partition: Option<String>,
     pub host: String,
     pub port: u16,
     pub password_file: PathBuf,
@@ -56,7 +58,7 @@ pub struct Request {
 pub async fn execute(request: Request) -> Result<(), Fail> {
     fs::create_dir_all(&request.out).map_err(|err| Fail::new("out", err.to_string()))?;
     match request.command {
-        Command::Read => read(&request).await,
+        Command::Read | Command::PartitionRead => read(&request).await,
         Command::Block => block(&request).await,
         Command::CapsRow | Command::CapsByte => caps(&request).await,
         Command::Deadline => deadline(&request).await,
@@ -71,6 +73,14 @@ async fn read(request: &Request) -> Result<(), Fail> {
 }
 
 async fn read_inner(request: &Request, audit: &Audit) -> Result<(), Fail> {
+    let partition = match request.command {
+        Command::PartitionRead => match request.partition.as_deref() {
+            Some("p202605" | "p202606") => request.partition.as_deref(),
+            _ => return Err(Fail::new("partition", "approved partition name required")),
+        },
+        _ if request.partition.is_some() => return Err(Fail::new("partition", "unexpected partition")),
+        _ => None,
+    };
     let mut conn = connect(request, audit, "business").await?;
     let loaded = match load_world(request, &mut conn, audit, SqlMode::ReadOnly).await {
         Ok(loaded) => loaded,
@@ -82,15 +92,21 @@ async fn read_inner(request: &Request, audit: &Audit) -> Result<(), Fail> {
     let mut encoded = Vec::new();
     let tables = plan::base_tables();
     let mut planned = Vec::new();
-    planned.extend(tables.iter().cloned());
-    planned.push(plan::partition_table());
+    if partition.is_some() {
+        planned.push(tables[0].clone());
+    } else {
+        planned.extend(tables.iter().cloned());
+        planned.push(plan::partition_table());
+    }
     for table in &planned {
         if Instant::now() > loaded.deadline {
             disconnect(conn, audit, "business").await;
             discard_published(&request.out);
             return Err(Fail::new("deadline", table.name));
         }
-        let rows = match fetch_table(&mut conn, audit, table, request.max_rows, request.max_bytes, loaded.deadline).await {
+        let partition_sql = partition.map(|name| format!("SELECT event_id, bucket, seen, amount, note FROM dup_events PARTITION ({name}) ORDER BY event_id, bucket, IFNULL(note, ''), IFNULL(CAST(amount AS STRING), '')"));
+        let sql = partition_sql.as_deref().unwrap_or(table.sql);
+        let rows = match fetch_table(&mut conn, audit, table, sql, request.max_rows, request.max_bytes, loaded.deadline).await {
             Ok(rows) => rows,
             Err(err) => {
                 disconnect(conn, audit, "business").await;
@@ -129,7 +145,8 @@ async fn read_inner(request: &Request, audit: &Audit) -> Result<(), Fail> {
         &json!({
             "protocol": PROTOCOL,
             "ready": true,
-            "command": "read",
+            "command": if partition.is_some() { "partition-read" } else { "read" },
+            "partition": partition,
             "business_connections": 1,
             "control_connections": 0,
             "tables": encoded.iter().map(|(name, bytes, rows)| json!({"name": name, "rows": rows, "ipc_bytes": bytes.len()})).collect::<Vec<_>>(),
@@ -199,7 +216,7 @@ async fn caps(request: &Request) -> Result<(), Fail> {
     }
     let table = &plan::base_tables()[0];
     let deadline = Instant::now() + request.deadline;
-    let fetched = fetch_table(&mut conn, &audit, table, request.max_rows, request.max_bytes, deadline).await;
+    let fetched = fetch_table(&mut conn, &audit, table, table.sql, request.max_rows, request.max_bytes, deadline).await;
     disconnect(conn, &audit, "business").await;
     discard_published(&request.out);
     let code = match fetched {
@@ -724,12 +741,13 @@ async fn fetch_table(
     conn: &mut Conn,
     audit: &Audit,
     table: &TableContract,
+    sql: &str,
     max_rows: u64,
     max_bytes: u64,
     deadline: Instant,
 ) -> Result<Vec<Vec<Cell>>, Fail> {
-    audit.sql("business", table.sql, SqlMode::ReadOnly)?;
-    let mut result = conn.query_iter(table.sql).await.map_err(map_server)?;
+    audit.sql("business", sql, SqlMode::ReadOnly)?;
+    let mut result = conn.query_iter(sql).await.map_err(map_server)?;
     let mut rows = Vec::new();
     let mut bytes = 0u64;
     loop {

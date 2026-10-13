@@ -38,6 +38,7 @@ fn parse(args: &[String]) -> Result<Request, Fail> {
     }
     let mut command = match args[0].as_str() {
         "read" => Command::Read,
+        "partition-read" => Command::PartitionRead,
         "block" => Command::Block,
         "caps" => Command::CapsRow,
         "deadline" => Command::Deadline,
@@ -52,6 +53,7 @@ fn parse(args: &[String]) -> Result<Request, Fail> {
     let mut max_rows = 1000u64;
     let mut max_bytes = 8 * 1024 * 1024u64;
     let mut deadline_ms = 60_000u64;
+    let mut partition = None;
     let mut index = 1;
     while index < args.len() {
         match args[index].as_str() {
@@ -63,6 +65,7 @@ fn parse(args: &[String]) -> Result<Request, Fail> {
             "--max-rows" => max_rows = parse_num(&need(args, &mut index)?, "max-rows")?,
             "--max-bytes" => max_bytes = parse_num(&need(args, &mut index)?, "max-bytes")?,
             "--deadline-ms" => deadline_ms = parse_num(&need(args, &mut index)?, "deadline-ms")?,
+            "--partition" => partition = Some(need(args, &mut index)?),
             "row" if args[0] == "caps" => command = Command::CapsRow,
             "byte" if args[0] == "caps" => command = Command::CapsByte,
             other => return Err(Fail::new("argv", other.to_string())),
@@ -74,6 +77,7 @@ fn parse(args: &[String]) -> Result<Request, Fail> {
     }
     Ok(Request {
         command,
+        partition,
         host: host.ok_or_else(|| Fail::new("argv", "--host"))?,
         port,
         password_file: password_file.ok_or_else(|| Fail::new("argv", "--password-file"))?,

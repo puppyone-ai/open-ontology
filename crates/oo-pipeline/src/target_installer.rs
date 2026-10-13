@@ -91,6 +91,7 @@ const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
 const FILE_JOBS_MIRROR_SYNC: &str = "0007_verified_mirror_sync_expand.sql";
 const FILE_JOBS_MIRROR_READ: &str = "0008_native_mirror_read_grants_expand.sql";
+const FILE_JOBS_CLAIM_SELECTED: &str = "0009_claim_selected_expand.sql";
 
 const SCRIPT_BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const SCRIPT_FENCE: &str = include_str!("../migrations/0001_target_fence_expand.sql");
@@ -109,6 +110,7 @@ const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
 const SCRIPT_JOBS_MIRROR_SYNC: &str = include_str!("../../oo-jobs/migrations/0007_verified_mirror_sync_expand.sql");
 const SCRIPT_JOBS_MIRROR_READ: &str = include_str!("../../oo-jobs/migrations/0008_native_mirror_read_grants_expand.sql");
+const SCRIPT_JOBS_CLAIM_SELECTED: &str = include_str!("../../oo-jobs/migrations/0009_claim_selected_expand.sql");
 
 const LOCK_SQL: &str = "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)";
 const ROW_LOCK_SQL: &str = "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE";
@@ -205,6 +207,10 @@ pub fn compiled_native_olap_partition_digest() -> String {
 
 pub fn compiled_jobs_mirror_rebind_digest() -> String {
     sha256_hex(SCRIPT_JOBS_MIRROR_READ.as_bytes())
+}
+
+pub fn compiled_jobs_claim_selected_digest() -> String {
+    sha256_hex(SCRIPT_JOBS_CLAIM_SELECTED.as_bytes())
 }
 
 /// Lowercase hex SHA-256. This is the migration checksum function.
@@ -1201,6 +1207,56 @@ pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), I
         exec_script(&mut tx, SCRIPT_JOBS_MIRROR_READ).await?;
         sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-read/1',$1,'expand',$2)")
             .bind(&digest).bind(FILE_JOBS_MIRROR_READ)
+            .execute(&mut *tx).await.map_err(database_error)?;
+        Ok(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install an exact-task claim function on the control DB; no target schema is required.
+pub async fn install_jobs_claim_selected(conn: &mut PgConnection) -> Result<(), InstallError> {
+    if !read_principal(conn).await?.superuser {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL lock_timeout = '15s'").await?;
+        exec_static(&mut tx, "SET LOCAL statement_timeout = '60s'").await?;
+        exec_static(&mut tx, "SELECT pg_advisory_xact_lock(6401202601)").await?;
+        exec_static(&mut tx, "SELECT id FROM jobs.migration_lock WHERE id = 1 FOR UPDATE").await?;
+        for (version, file, script) in [
+            ("jobs-control/1", "0001_jobs_control_expand.sql", include_str!("../../oo-jobs/migrations/0001_jobs_control_expand.sql")),
+            ("jobs-event-project/1", "0002_event_project_binding_expand.sql", include_str!("../../oo-jobs/migrations/0002_event_project_binding_expand.sql")),
+            ("jobs-lease-operations/1", "0003_job_lease_operations_expand.sql", include_str!("../../oo-jobs/migrations/0003_job_lease_operations_expand.sql")),
+        ] {
+            let row: Option<(String, String)> = sqlx::query_as(
+                "SELECT checksum,filename FROM jobs.schema_migrations WHERE version=$1"
+            ).bind(version).fetch_optional(&mut *tx).await.map_err(database_error)?;
+            if row != Some((sha256_hex(script.as_bytes()), file.to_string())) {
+                return Err(InstallError::Refused { message: "jobs predecessor differs".to_string() });
+            }
+        }
+        let claim: Option<String> = sqlx::query_scalar(
+            "SELECT to_regprocedure('jobs.claim(uuid,text[],text)')::text"
+        ).fetch_one(&mut *tx).await.map_err(database_error)?;
+        if claim.is_none() {
+            return Err(InstallError::Refused { message: "jobs claim is absent".to_string() });
+        }
+        let digest = compiled_jobs_claim_selected_digest();
+        let installed: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-claim-selected/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = installed {
+            if row != (digest, FILE_JOBS_CLAIM_SELECTED.to_string()) {
+                return Err(InstallError::Refused { message: "jobs selected claim checksum differs".to_string() });
+            }
+            return Ok::<(), InstallError>(());
+        }
+        exec_static(&mut tx, "SET LOCAL ROLE oo_jobs_owner").await?;
+        exec_script(&mut tx, SCRIPT_JOBS_CLAIM_SELECTED).await?;
+        sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-claim-selected/1',$1,'expand',$2)")
+            .bind(&digest).bind(FILE_JOBS_CLAIM_SELECTED)
             .execute(&mut *tx).await.map_err(database_error)?;
         Ok(())
     }.await;

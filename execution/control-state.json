@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-13T16:35:05.631031+08:00",
+  "as_of": "2026-10-13T18:14:45.935835+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -15,7 +15,7 @@
   "executor_policy": {
     "new_grok_dispatch": "paused: current human instruction uses native engineers",
     "default": "native gpt-6.1-sol/low; temporary explicitly authorized gpt-6-sol/low on capacity failure",
-    "authorized_exception": "human authorized temporary GPT-6 Sol low engineers; product model change pending separate authorization",
+    "authorized_exception": "human authorized gpt-6-sol/low engineers and Grok-4.7 product fallback",
     "grok_development_cap": 20,
     "independent_review_exempt_from_dev_cap": true,
     "frontend_fixed_sessions": [
@@ -23,7 +23,7 @@
       "a353",
       "a352"
     ],
-    "ordinary_wait_seconds": 900,
+    "ordinary_wait_seconds": 1080,
     "target_reliable_concurrency": 15,
     "rust_admission_policy": "latest direct human authorization: no fixed compiler slots/task jobs or CPU quota; use actual available hardware, preserve exclusive paths and source read budgets",
     "wait_tool": "clock.sleep",
@@ -131,7 +131,7 @@
     }
   },
   "priority_frontier": {
-    "status": "人类确认原生Codex额度全部恢复并再次要求Ponytail5.1.1加速；原04/39/71/74/79五个完整有用任务已续接，原作者预览2/10、统一签收0/10不变。Root新增Oracle真实三源Linux无模型预检exit0/管理session401和PG同LSNruntime实际谓词负例exit0；MSRV首次尝试因toolchain自动1.98.1失败不计通过，交79显式+1.94验证。最新Goal普通等待18分钟1080秒，clock.sleep按通知即收；原独占源码资源及整源退出保持",
+    "status": "共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。",
     "p0": "DL01 ten distinct actual sources incl MySQL/Oracle: per-docs sustained capture + maintained standard OOS YAML + real Knowledge Pack + Gateway and independent Agent dialogue; full0/10, historical preview6/10",
     "parallel": "current delivery critical path first; later cards may develop with implemented pinned dependencies, exclusive paths and actual spare capacity",
     "later_preparation": "prepare customer questions/authorization and per-target nightly early; later delivery acceptance remains ordered; preserve existing code"
@@ -1118,6 +1118,42 @@
       ]
     },
     {
+      "task": "DL01-W1-41",
+      "native_agent_name": "/root/closure_mongodb_41",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "testing/dl01-driver-preflight/mongodb",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight",
+        "tools/mongodb-preview",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-43",
+      "native_agent_name": "/root/closure_doris_43",
+      "status": "native_running",
+      "executor": "native gpt-6.1-sol/low",
+      "write_paths": [
+        "testing/dl01-driver-preflight/doris",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
+        "tools/doris-preview",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-45",
+      "native_agent_name": "/root/closure_starrocks_45",
+      "status": "native_running",
+      "executor": "native gpt-6.1-sol/low",
+      "write_paths": [
+        "testing/dl01-driver-preflight/starrocks",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight",
+        "tools/starrocks-preview",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product"
+      ]
+    },
+    {
       "task": "DL01-W1-71",
       "native_agent_name": "/root/shared_selfbuild_continuation",
       "status": "native_running",
@@ -1199,7 +1235,7 @@
     "DL01-W1-45",
     "DL01-W1-46"
   ],
-  "product_model_policy": "original gpt-6.1-sol/low actual model verified from HTTP envelope7f9; sameURL/key, no product fallback or alias change",
+  "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
   "managed_reference_handoffs": [
     {
       "task": "DL01-W1-06",
@@ -1232,5 +1268,6 @@
     "goal": "active",
     "remaining_shared_runtime_proof": "C4/C1/catalog/global-generation and remaining source full chains"
   },
-  "ordinary_event_wait_seconds": 1080
+  "ordinary_event_wait_seconds": 1080,
+  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence."
 }

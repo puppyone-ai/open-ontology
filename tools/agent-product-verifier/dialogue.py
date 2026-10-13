@@ -19,8 +19,13 @@ def model_view(name, body):
     if name == 'query':
         keys = ('columns', 'rows', 'returned_rows', 'truncated', 'truncation_reasons',
                 'query_id', 'knowledge_version', 'policy_version', 'sources', 'freshness', 'hints')
-        return {**{k: body[k] for k in keys if k in body},
+        view = {**{k: body[k] for k in keys if k in body},
                 'warnings': compact_warnings(body.get('warnings', []))}
+        names = [column.get('name') for column in body.get('columns', [])]
+        rows = body.get('rows', [])
+        if names and all(isinstance(name, str) for name in names) and len(set(names)) == len(names) and all(len(row) == len(names) for row in rows):
+            view['rows'] = [dict(zip(names, row)) for row in rows]
+        return view
     return body
 
 def compact_warnings(warnings):
@@ -53,24 +58,27 @@ def main():
     a=p.parse_args(); cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
     out.mkdir(mode=0o700, parents=True, exist_ok=False)
     if cfg['model_origin'] != 'http://127.0.0.1:8317': raise ValueError('approved product origin required')
+    model_name=cfg.get('model','gpt-6.1-sol')
+    if model_name not in {'gpt-6.1-sol', 'grok-4.7'}: raise ValueError('approved dialogue model required')
     bearer=private(cfg['model_bearer_file']); private(cfg['gateway_token_file'])
     truth=pathlib.Path(cfg['independent_truth_file']); gold=json.loads(truth.read_text())
     common=['--json','--gateway',cfg['gateway'],'--transport',cfg['transport'],'--auth',cfg['auth'],'--token-file',cfg['gateway_token_file']]
     if cfg.get('ca_file'): common += ['--ca-file',cfg['ca_file']]
-    tools=[{'type':'function','function':{'name':name,'description':'Read actual role-bound OO Gateway '+name,
+    tools=[{'type':'function','function':{'name':name,'description':('Read an installed relative Pack file path returned by knowledge_search; never use / or a guessed path' if name == 'knowledge_cat' else 'Describe an exact schema.table name returned by tables' if name == 'describe' else 'Read actual role-bound OO Gateway '+name),
        'parameters':{'type':'object','properties':{k:{'type':v} for k,v in args.items()},'required':list(args),'additionalProperties':False}}} for name,args in TOOLS.items()]
     messages=[{'role':'system','content':'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. Include query_id in factual answers. You cannot use direct DB or source credentials.'}]
     transcript=[]; query_ids=set(); used=set(); answers=[]; turn_history=[]
     for turn, question in enumerate(cfg['questions']):
         messages.append({'role':'user','content':question['prompt']})
         for step in range(cfg.get('max_tool_rounds',20)):
-            payload={'model':'gpt-6.1-sol','reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':'auto'}
+            payload={'model':model_name,'reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':'required' if step == 0 else 'auto'}
             req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})
             with urllib.request.urlopen(req,timeout=120) as response: model=json.load(response)
             msg=model['choices'][0]['message']; messages.append(msg); transcript.append({'turn':turn,'step':step,'model':model})
             (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
             calls=msg.get('tool_calls',[])
             if not calls:
+                if step == 0: raise ValueError('model answered without actual tools in this turn')
                 answer=msg.get('content') or ''; answers.append(answer)
                 if not all(str(x) in answer for x in gold[question['truth_key']]['expected_exact_facts']): raise ValueError('answer differs from independent truth')
                 turn_history.extend(({'role':'user','content':question['prompt']}, {'role':'assistant','content':answer}))
@@ -83,14 +91,18 @@ def main():
                      'query':['query',args.get('sql',''),'--max-rows','100','--timeout-ms','10000'],
                      'describe':['describe',args.get('table','')], 'validate':['validate',args.get('sql','')], 'tables':['tables'],'freshness':['freshness']}[name]
                 proc=subprocess.run([cfg['oo_cli']]+cmd+common,capture_output=True,text=True,timeout=45)
-                body=json.loads(proc.stdout); query_ids.update(ids(body)); used.add(name)
+                body=json.loads(proc.stdout); query_ids.update(ids(body))
+                if proc.returncode == 0: used.add(name)
                 view=model_view(name,body)
                 transcript.append({'turn':turn,'tool':name,'arguments':args,'exit':proc.returncode,'response':body,'model_view':view})
                 (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
                 if proc.returncode and not (
-                    name in {'validate', 'query'}
-                    and body.get('class') == 'gateway'
-                    and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'}
+                    (name in {'validate', 'query'}
+                     and body.get('class') == 'gateway'
+                     and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'})
+                    or (body.get('class') == 'usage' and (
+                        (name == 'describe' and body.get('message') == 'table is not public')
+                        or (name == 'knowledge_cat' and body.get('message') == 'path is not public')))
                 ):
                     raise ValueError('OO CLI tool failed: '+name)
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps({'exit':proc.returncode,'response':view})})
@@ -106,7 +118,8 @@ def main():
         data=path.read_bytes(); audit_bytes+=path.name.encode()+b'\0'+data
         for line in data.splitlines(): audit_ids.update(ids(json.loads(line)))
     if not query_ids <= audit_ids: raise ValueError('query_id not present in independent Gateway audit')
-    verdict={'model':'gpt-6.1-sol','reasoning_effort':'low','turns':len(answers),'tools':sorted(used),'query_ids':sorted(query_ids),'audit_sha256':hashlib.sha256(audit_bytes).hexdigest(),'truth_sha256':hashlib.sha256(truth.read_bytes()).hexdigest(),'outcome':'verified'}
+    actual_models=sorted({item['model']['model'] for item in transcript if 'model' in item})
+    verdict={'model':model_name,'response_models':actual_models,'reasoning_effort':'low','turns':len(answers),'tools':sorted(used),'query_ids':sorted(query_ids),'audit_sha256':hashlib.sha256(audit_bytes).hexdigest(),'truth_sha256':hashlib.sha256(truth.read_bytes()).hexdigest(),'outcome':'verified'}
     (out/'verdict.json').write_text(json.dumps(verdict,indent=2)+'\n')
     print(json.dumps(verdict))
 

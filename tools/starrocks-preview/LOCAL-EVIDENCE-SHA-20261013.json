@@ -1,0 +1,60 @@
+{
+  "entries": [
+    {
+      "bytes": 20538,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/collection-gen3.json",
+      "sha256": "01ad951d64d4447c5e316414e72f2becdf0ac046767e6e76bd2fece8374d117d"
+    },
+    {
+      "bytes": 6050,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/independent/legal-batch-gen3-20261013/compare.json",
+      "sha256": "99071e5316fb6ae555b14defcf75d489ddf8d9e1cc886619b5fdc56d0ee71dbd"
+    },
+    {
+      "bytes": 1104,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-c4-current-20261013/actual-metadata.json",
+      "sha256": "198c7b0d09c4a80739da60212f97cee39f915ebad5829e75946059f9b0c8a404"
+    },
+    {
+      "bytes": 1291,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-c4-current-20261013/source-input-sha256.json",
+      "sha256": "1c9c849fa5e6eee8317fea5abd8a6a9668653ee8a57727453babc2538857a16b"
+    },
+    {
+      "bytes": 1180,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-c4-current-20261013/sealed-inputs/p202605/witness.json",
+      "sha256": "0bcdc3e6d12e41a7aac59fb44cbcd33f93e596128bee2f246edf452dd4ad3b6a"
+    },
+    {
+      "bytes": 1180,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-c4-current-20261013/sealed-inputs/p202606/witness.json",
+      "sha256": "645f92c474709b35a0d520eb713eb1d9bd22b40bf8cfc804f94e342b07832491"
+    },
+    {
+      "bytes": 3951,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-sealed/1/registry.json",
+      "sha256": "3060e95b01530375eab34ebe4b003c31bd68332cee40fc2e057ae1ca444b0f49"
+    },
+    {
+      "bytes": 3951,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-sealed/2/registry.json",
+      "sha256": "ae8a6931aae86996c739684a069850f5d7088d721c70bafb91faf44f64ee9530"
+    },
+    {
+      "bytes": 286,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-run-20261013/step-1-rebound.stdout",
+      "sha256": "8038286135affa8a09ea2d9281c52f28ec586470fad3b9449e122395ed621740"
+    },
+    {
+      "bytes": 2931,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-direct-smoke/dddddddd-4545-4141-8181-000000001007/1/request.json",
+      "sha256": "7f57dcfac00eb87aeb49a60a22aeaf9826eaa71b3ed65286be46256d7a99d1e3"
+    },
+    {
+      "bytes": 2931,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-direct-smoke/dddddddd-4545-4141-8181-000000001007/2/request.json",
+      "sha256": "ea14d7b839a283b034a0e151cf07c8ffb384afa554ac6d7987ec5350cb772a05"
+    }
+  ],
+  "status": "source_c4_pending_target"
+}

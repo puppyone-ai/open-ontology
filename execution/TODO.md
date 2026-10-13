@@ -1,6 +1,6 @@
 # 完整产品 TODO 与派发入口
 
-更新：2026-10-10T17:19:05.299114+08:00。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
+更新：2026-10-13。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
 
 本清单勾选表示**整个父项正式退出**，不是开发组件是否存在。未勾项可能已交付多个组件；状态“待签收对账”不能解释为尚未开发或开发完成率为零。开发子项与证据见[验收计数](../specs/open-ontology-acceptance-counting.md)，历史交付见[总台账](../specs/open-ontology-development-ledger.md)。87个SP、14个DBX与8个DBP分别统计，不合并分母。
 
@@ -56,12 +56,12 @@
 - DL01-W1-37 / suite-repair-review：independent_review；fixed_review_passed；Plan DBX-W14；固定依赖 876b3b916d6f。
 - DL01-W1-38 / budget-report：development_parent_extension；historical_terminal_ownership_transferred；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-39 / mariadb-driver-preflight：source_product_development；native_running；Plan DBX-W06；固定依赖 577160c22de6。
-- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；executor_quota_exhausted；Plan DBX-W12；固定依赖 577160c22de6。
-- DL01-W1-41 / mongodb-driver-preflight：source_product_development；executor_quota_exhausted；Plan DBX-W13；固定依赖 577160c22de6。
+- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；native_waiting_dependency；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-41 / mongodb-driver-preflight：source_product_development；native_running；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
-- DL01-W1-43 / doris-driver-preflight：source_product_development；executor_quota_exhausted；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-43 / doris-driver-preflight：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
-- DL01-W1-45 / starrocks-driver：source_product_development；executor_quota_exhausted；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-45 / starrocks-driver：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-46 / postgres-product：source_product_development；native_waiting_dependency；Plan SP03-W01；固定依赖 577160c22de6。
 - DL01-W1-47 / mariadb-product：source_product_development；merged_into_source_owner；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-48 / clickhouse-product：source_product_development；merged_into_source_owner；Plan DBX-W12；固定依赖 577160c22de6。
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-人类已授权且实际暂停10旧容器，释放10CPU且保留卷/镜像/ID；06/39/45/46/43/44共6真实CLI推进完整源或共享nativeLoader；MySQL完整实验子闭环独立2f9127f7通过，本批8/8，源0/10不混计；clock.sleep900
+共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。

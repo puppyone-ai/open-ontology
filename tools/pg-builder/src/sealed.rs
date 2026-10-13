@@ -88,7 +88,11 @@ impl ResponseIdentity {
         let prompt = usage.get("prompt_tokens")?.as_u64()?;
         let completion = usage.get("completion_tokens")?.as_u64()?;
         let total = usage.get("total_tokens")?.as_u64()?;
-        if model != expected_model || id.is_empty() || sha.len() != 64 || prompt.checked_add(completion) != Some(total) {
+        let approved_model = model == expected_model
+            || (expected_model == "grok-4.7" && model == "grok-4.7-build");
+        if !approved_model || id.is_empty() || sha.len() != 64 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || prompt.checked_add(completion) != Some(total)
+        {
             return None;
         }
         Some(Self { model: model.to_owned(), id: id.to_owned(), envelope_sha256: sha.to_owned(), usage: (prompt, completion, total) })
@@ -1033,6 +1037,17 @@ mod tests {
         let mut bad_usage = good;
         bad_usage["usage"]["total_tokens"] = serde_json::json!(6);
         assert!(super::ResponseIdentity::read(&bad_usage, "gpt-6.1-sol").is_none());
+        let grok = serde_json::json!({"model":"grok-4.7-build","id":"chatcmpl-grok","envelope_sha256":"a".repeat(64),
+            "usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}});
+        let identity = super::ResponseIdentity::read(&grok, "grok-4.7").unwrap();
+        assert_eq!(identity.model, "grok-4.7-build");
+        assert!(super::ResponseIdentity::read(&grok, "gpt-6.1-sol").is_none());
+        let mut unknown = grok.clone();
+        unknown["model"] = serde_json::json!("grok-4.7-unknown");
+        assert!(super::ResponseIdentity::read(&unknown, "grok-4.7").is_none());
+        let mut bad_sha = grok;
+        bad_sha["envelope_sha256"] = serde_json::json!("z".repeat(64));
+        assert!(super::ResponseIdentity::read(&bad_sha, "grok-4.7").is_none());
     }
     use std::time::Duration;
 

@@ -475,7 +475,17 @@ fn validate_partition_vector(
             return Err(SealedImportError::new("partition.binding", "/partition_vector", "source partition ranges overlap"));
         }
     }
-    if !current || rows != table.accepted_rows || vector.iter().any(|entry| entry.partition_scope.observed_partition_ids != observed) {
+    if !current || rows != table.accepted_rows || vector.iter().any(|entry| {
+        let scoped = &entry.partition_scope.observed_partition_ids;
+        scoped.is_empty()
+            || scoped.binary_search(&entry.partition_id).is_err()
+            || scoped.windows(2).any(|pair| pair[0] >= pair[1])
+            || scoped.iter().any(|id| !ids.contains(id))
+            || (entry.source_generation == document.source_generation
+                && entry.target_generation == document.target_generation
+                && entry.run_id == document.run_id
+                && scoped != &observed)
+    }) {
         return Err(SealedImportError::new("partition.coverage", "/partition_vector", "partition coverage or full materialized row count is incomplete"));
     }
     Ok(Some(vector.clone()))
@@ -1036,29 +1046,9 @@ fn closed_reason(value: &str) -> bool {
 }
 
 fn closed_batch(value: &str) -> bool {
-    if let Some((run, generation)) = value.split_once('_') {
-        let bytes = run.as_bytes();
-        return bytes.len() == 36
-            && bytes.iter().enumerate().all(|(index, byte)| {
-                if matches!(index, 8 | 13 | 18 | 23) { *byte == b'-' }
-                else { byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase() }
-            })
-            && !generation.is_empty()
-            && generation.len() <= 20
-            && generation.bytes().all(|byte| byte.is_ascii_digit());
-    }
-    let Some((left, right)) = value.split_once(".b") else {
-        return false;
-    };
-    let Some(index) = left.strip_prefix('t') else {
-        return false;
-    };
-    !index.is_empty()
-        && index.len() <= 6
-        && index.bytes().all(|byte| byte.is_ascii_digit())
-        && !right.is_empty()
-        && right.len() <= 6
-        && right.bytes().all(|byte| byte.is_ascii_digit())
+    (1..=128).contains(&value.len())
+        && !value.contains("..")
+        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
 }
 
 fn plugin_token(value: &str) -> bool {
@@ -1190,8 +1180,11 @@ mod tests {
     fn real_run_generation_batch_token_is_closed() {
         assert!(closed_batch("acd47cd5-daf0-4f0c-8da1-3b475a159778_4"));
         assert!(closed_batch("t0.b0"));
-        assert!(!closed_batch("acd47cd5-daf0-4f0c-8da1-3b475a159778_4_extra"));
-        assert!(!closed_batch("ACD47CD5-daf0-4f0c-8da1-3b475a159778_4"));
+        assert!(closed_batch("oo-dl01w1-40-native-20261013-g5-part"));
+        for refused in ["", "../part", "part..tail", "part/path", "part\\path", "part\nnext"] {
+            assert!(!closed_batch(refused));
+        }
+        assert!(!closed_batch(&"x".repeat(129)));
     }
 
     #[test]
@@ -1242,6 +1235,27 @@ mod tests {
         let parsed = parse_sealed_import_catalog(&catalog.to_string()).expect("complete vector");
         assert_eq!(parsed.partition_vector.as_ref().expect("vector").len(), 1);
         assert_ne!(parsed.partition_vector.as_ref().expect("vector")[0].partition_scope.schema_digest, parsed.schema_digest);
+        let mut history = catalog.clone();
+        history["source_generation"] = serde_json::json!(2);
+        history["target_generation"] = serde_json::json!(2);
+        let mut current = history["partition_vector"][0].clone();
+        current["partition_id"] = serde_json::json!("202403");
+        current["partition_scope"]["partition_id"] = serde_json::json!("202403");
+        current["partition_scope"]["source_generation"] = serde_json::json!(2);
+        current["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202403"]);
+        current["current_signature"] = serde_json::json!("202403|1|1|sealed");
+        current["partition_scope"]["current_signature"] = current["current_signature"].clone();
+        current["source_generation"] = serde_json::json!(2);
+        current["target_generation"] = serde_json::json!(2);
+        current["row_count"] = serde_json::json!(0);
+        current["partition_scope"]["row_count"] = serde_json::json!(0);
+        history["partition_vector"].as_array_mut().unwrap().push(current);
+        assert!(parse_sealed_import_catalog(&history.to_string()).is_ok());
+        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202403"]);
+        assert!(parse_sealed_import_catalog(&history.to_string()).unwrap_err().code.ends_with("/partition.coverage"));
+        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202403"]);
+        history["partition_vector"][0]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202405"]);
+        assert!(parse_sealed_import_catalog(&history.to_string()).unwrap_err().code.ends_with("/partition.coverage"));
         catalog["partition_vector"][0]["row_count"] = serde_json::json!(0);
         let wrong = parse_sealed_import_catalog(&catalog.to_string()).expect_err("partial row count");
         assert!(wrong.code.ends_with("/partition.binding"));

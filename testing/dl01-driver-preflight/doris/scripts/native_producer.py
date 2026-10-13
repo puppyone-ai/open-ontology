@@ -22,7 +22,8 @@ from capture_receipt import TABLES, column_decl
 
 READER_SHA = "613612c3245a8bbb83d7534d75b6babc2aedd351ed91c9d7948c8df2b5570e31"
 PARTITION_READER_SHA = "cccd1134f02b08137466cf876a27c9f1981cdfef64e7644e1aa5571ea9ce474e"
-VALIDATOR_SHA = "1628c96da4bb3e71f17ab3fba4385c27d810e5cac89e424f6e777bc69dcbcfc0"
+BASELINE_READER_SHA = "29fbbeb07880dccffbfe149262f99422e96b643c597b645bdaf43794b1c2734d"
+VALIDATOR_SHA = "85fb10d91fa169ad85dc7b7c4116a6354614fcd69e20c010b67b2536f6170d85"
 
 
 def digest(path):
@@ -63,7 +64,9 @@ def main():
         parser.add_argument("--" + field, required=True)
     parser.add_argument("--table", choices=TABLES, required=True)
     parser.add_argument("--partition-reader")
+    parser.add_argument("--baseline-reader")
     parser.add_argument("--base-generation", type=int, default=2)
+    parser.add_argument("--target-database", default="dorisnative")
     parser.add_argument("--source-host", default="172.16.143.10")
     parser.add_argument("--target-ca", default="/tmp/oo-dl01w1-43-native-tls/ca.pem")
     args = parser.parse_args()
@@ -72,13 +75,15 @@ def main():
         raise ValueError("producer binding")
     binding = str(UUID(incoming["binding"]))
     pin = incoming["pin"]
-    if not isinstance(pin, int) or pin < 1 or args.base_generation < 1:
+    if not isinstance(pin, int) or pin < 1 or args.base_generation < 0:
         raise ValueError("producer pin")
-    c4 = args.table == "part_day"
-    reader = args.partition_reader if c4 else args.reader
+    c4 = args.table == "part_day" and incoming.get("method") == "C4"
+    full_baseline = args.table == "part_day" and incoming.get("method") == "C5"
+    reader = args.partition_reader if c4 else args.baseline_reader if full_baseline else args.reader
     if reader is None:
-        raise ValueError("partition reader required for C4")
-    if (digest(reader) != (PARTITION_READER_SHA if c4 else READER_SHA)
+        raise ValueError("selected reader required")
+    reader_sha = PARTITION_READER_SHA if c4 else BASELINE_READER_SHA if full_baseline else READER_SHA
+    if (digest(reader) != reader_sha
             or digest(args.validator) != VALIDATOR_SHA):
         raise ValueError("producer executable identity")
     if incoming.get("method") != ("C4" if c4 else "C5"):
@@ -126,7 +131,7 @@ def main():
     command = ([reader, "capture-partition-budget", str(output), args.reader_secrets,
                 args.source_host, "9030", str(incoming["period_ms"]), label,
                 "cycle" + str(pin), str(limit)] if c4 else
-               [reader, "capture-tick-budget", str(output), args.reader_secrets,
+               [reader, "capture-full-baseline-budget" if full_baseline else "capture-tick-budget", str(output), args.reader_secrets,
                 args.source_host, "9030", str(incoming["period_ms"]), label, str(limit)])
     execute(command, output, "capture")
     tick_path = output / f"{label}.json"
@@ -164,7 +169,7 @@ def main():
     report = {"protocol": "oo.source-admission.report/v1", "target_id": "dorispreview",
               "source_id": "dorispreview", "secret_ref": config["secret_ref"],
               "driver": {"kind": "native", "name": "doris-reader", "version": "0.1.0",
-                         "digest": PARTITION_READER_SHA if c4 else READER_SHA},
+                         "digest": reader_sha},
               "compat_mode": "doris", "license_flags": ["Apache-2.0"],
               "permissions": config["permissions"],
               "capabilities": [{"name": "BatchFull", "cursor": None, "feed": None,
@@ -187,12 +192,13 @@ def main():
     spec = TABLES[args.table]
     request = {"protocol": "oo.pipeline.native-partition/v1" if c4 else "oo.pipeline.native-update/v1", "source_engine": "doris",
                "source_id": "dorispreview", "source_generation": generation,
-               "parent_source_generation": generation - 1, "snapshot": witness["snapshot"],
+               "parent_source_generation": generation - 1 if generation > 1 else None, "snapshot": witness["snapshot"],
                "logical_schema": "oo_dl01w1_43", "logical_table": args.table,
                "batch_id": label + "-" + args.table,
                "capture_method": "c4_partition" if route == "C4" else "c5_diff",
                "delete_detection": table["delete_mode"], "consistency_grade": table["consistency"],
                "cross_table_consistent": False, "full_snapshot": not c4,
+               "mirror": False if c4 else True,
                "row_identity": spec["identity"], "key_columns": ["day"] if c4 else spec["keys"],
                "position_codec": "partition-signature/v1" if c4 else "snapshot-zero/v1",
                "position_lineage": "doris.partition." + args.table if c4 else "doris.snapshot." + args.table,
@@ -203,8 +209,8 @@ def main():
                "registry_path": str(registered_registry),
                "columns": [column_decl(c) for c in spec["columns"]], "tombstones": [],
                "target": {"shard": "dorispreview", "owner": "5106fed0-5bcd-4aaf-8df7-838c95a7d7e2",
-                          "host": args.target_host, "port": 5432, "database": "dorisnative",
-                          "user": "oo_doris_loader", "password_file": args.target_secret,
+                          "host": args.target_host, "port": 5432, "database": args.target_database,
+                          "runtime_principal": "oo_doris_loader", "password_file": args.target_secret,
                           "ca_file": args.target_ca, "ssl": "verify-full"}}
     document(output / "request.json", request)
     saved = (json.dumps(request, separators=(",", ":")) + "\n").encode()

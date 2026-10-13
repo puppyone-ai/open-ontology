@@ -258,7 +258,7 @@ pub async fn capture_tick(
     every_ms: u64,
     label: &str,
 ) -> Result<(), Fail> {
-    capture_tick_impl(evidence, secrets, endpoint, every_ms, label, None).await
+    capture_tick_impl(evidence, secrets, endpoint, every_ms, label, None, false).await
 }
 
 pub async fn capture_tick_budget(
@@ -272,7 +272,19 @@ pub async fn capture_tick_budget(
     if !(1..=1_000_000).contains(&max_rows) {
         return Err(Fail::new("budget", "max_rows outside 1..1000000"));
     }
-    capture_tick_impl(evidence, secrets, endpoint, every_ms, label, Some(max_rows)).await
+    capture_tick_impl(evidence, secrets, endpoint, every_ms, label, Some(max_rows), false).await
+}
+
+/// Full bounded source scan for the first materialization of `part_day`.
+/// Later refreshes use the separately observed C4 partition path.
+pub async fn capture_full_baseline_budget(
+    evidence: PathBuf, secrets: &str, endpoint: Endpoint, every_ms: u64,
+    label: &str, max_rows: usize,
+) -> Result<(), Fail> {
+    if !(1..=1_000_000).contains(&max_rows) {
+        return Err(Fail::new("budget", "max_rows outside 1..1000000"));
+    }
+    capture_tick_impl(evidence, secrets, endpoint, every_ms, label, Some(max_rows), true).await
 }
 
 /// Read one observed Doris range partition. The metadata check brackets the
@@ -513,6 +525,7 @@ async fn capture_tick_impl(
     every_ms: u64,
     label: &str,
     max_rows: Option<usize>,
+    part_day_full_baseline: bool,
 ) -> Result<(), Fail> {
     refuse_binlog(false)?;
     validate_label(label)?;
@@ -542,7 +555,7 @@ async fn capture_tick_impl(
         &evidence.join(format!("reader-connect-{label}.log")),
     )
     .await?;
-    let snapshot = match read_snapshot(&mut link, &audit, max_rows).await {
+    let snapshot = match read_snapshot(&mut link, &audit, max_rows, part_day_full_baseline).await {
         Ok(body) => body,
         Err(err) => {
             link.close(&audit).await;
@@ -641,7 +654,7 @@ struct Snapshot {
     arrows: Vec<(&'static str, Vec<u8>)>,
 }
 
-async fn read_snapshot(link: &mut Link, audit: &Audit, max_rows: Option<usize>) -> Result<Snapshot, Fail> {
+async fn read_snapshot(link: &mut Link, audit: &Audit, max_rows: Option<usize>, part_day_full_baseline: bool) -> Result<Snapshot, Fail> {
     let select_version = one_cell(link, audit, "SELECT VERSION()").await?;
     let backends = checked_query(link, audit, "SHOW BACKENDS").await?;
     let backend_version = backends
@@ -655,6 +668,9 @@ async fn read_snapshot(link: &mut Link, audit: &Audit, max_rows: Option<usize>) 
     let mut arrows = Vec::new();
     for spec in TABLES {
         let route = route_named(spec.name).ok_or_else(|| Fail::new("route", spec.name))?;
+        let baseline = part_day_full_baseline && spec.name == "part_day";
+        let selected_route = if baseline { "C5" } else { route.route };
+        let selected_delete = if baseline { "reconcile" } else { route.delete_mode };
         let mut sql = format!("SELECT {} FROM {} ORDER BY {}", spec.columns_sql, spec.name, spec.columns_sql);
         if let Some(limit) = max_rows {
             // One bounded sentinel detects exhaustion, instead of silently
@@ -667,17 +683,20 @@ async fn read_snapshot(link: &mut Link, audit: &Audit, max_rows: Option<usize>) 
         tables.push(json!({
             "consistency": "S0",
             "cursor_safety": "no_cursor",
-            "delete_mode": route.delete_mode,
+            "delete_mode": selected_delete,
             "key_model": route.key_model,
             "name": spec.name,
-            "out_of_partition_deletes": if route.route == "C4" {
+            "out_of_partition_deletes": if selected_route == "C4" {
                 "undetected_when_partition_metadata_is_unchanged"
+            } else if baseline {
+                "full_scan_reconciliation"
             } else {
                 "not_partitioned"
             },
-            "quality": quality_for(route.route),
-            "reason": route.reason,
-            "route": route.route,
+            "quality": quality_for(selected_route),
+            "reason": if baseline { "first materialization uses complete bounded table scan; later partition refresh uses C4" } else { route.reason },
+            "route": selected_route,
+            "selected_full_baseline": baseline,
             "rows": canonical(&rows),
         }));
     }

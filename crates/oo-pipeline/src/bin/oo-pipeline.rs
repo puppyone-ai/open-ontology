@@ -45,6 +45,9 @@ fn main() -> ExitCode {
         Some(command) if command == OsStr::new("install-native-mirror-rebind") && args.next().is_none() => {
             install_native_mirror_rebind()
         }
+        Some(command) if command == OsStr::new("install-native-claim-selected") && args.next().is_none() => {
+            install_native_claim_selected()
+        }
         Some(command) if command == OsStr::new("install-native-update") && args.next().is_none() => {
             install_native_update()
         }
@@ -162,6 +165,14 @@ async fn sync_native_task_mirror() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn install_native_mirror_rebind() -> ExitCode {
     match oo_pipeline::native_update::install_native_mirror_rebind_cli().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn install_native_claim_selected() -> ExitCode {
+    match oo_pipeline::native_update::install_native_claim_selected_cli().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }

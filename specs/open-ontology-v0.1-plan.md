@@ -2694,3 +2694,11 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-13T16:35:05.631031+08:00 固定派发及资源交接
 
 人类确认原生Codex额度全部恢复并再次要求Ponytail5.1.1加速；原04/39/71/74/79五个完整有用任务已续接，原作者预览2/10、统一签收0/10不变。Root新增Oracle真实三源Linux无模型预检exit0/管理session401和PG同LSNruntime实际谓词负例exit0；MSRV首次尝试因toolchain自动1.98.1失败不计通过，交79显式+1.94验证。最新Goal普通等待18分钟1080秒，clock.sleep按通知即收；原独占源码资源及整源退出保持。完整task/UUID/路径/固定SHA/句柄见dispatch.json及task-ledger。原能力返工不增加分母；历史开发8/8、完整源0/10源验收，parent/集成/发行无变化。主Plan原退出保留；无整版签收，无需切换PRODUCT-LOOPS/Goal；矩阵与前端无变更。
+
+### 2026-10-13T16:50:09.411954+08:00 固定派发及资源交接
+
+共享71源码6b6709f41及priced配置证据51854571b固定交付：原逐表source身份/真实OIDC续签/Oracle与Maria独立API，无模型严格settings/price与原封印预检。Oracle修复后新build b_487a4949da9204caaa530cc20dc4fdba、Mariapricedbuild202仍在后续，不计完成。79 f1037e08f/f792只代码参考，真实多跳lease mirror重绑定与74实测继续。原失败不删、新旧canonicalkey不冒充cache、无新replay框架；作者预览2/10、统一0/10保持。完整task/UUID/路径/固定SHA/句柄见dispatch.json及task-ledger。原能力返工不增加分母；历史开发8/8、完整源0/10源验收，parent/集成/发行无变化。主Plan原退出保留；无整版签收，无需切换PRODUCT-LOOPS/Goal；矩阵与前端无变更。
+
+## 2026-10-13 当前接续与净化快照
+
+共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。 产品Selfbuild及对话已获准Grok-4.7备用，同URL/key保留真实模型及失败，不复用旧模型缓存；原生开发者策略不变。普通等待1080秒，clock.sleep，通知即收。净化同步仅源码、短状态与本地证据SHA；原始evidence/log/stdout/stderr/exit保持本地，不force-add。172bfd192修复对话真实工具要求及可恢复的明确表名错误，并保留导出NDJSON测试夹具；25项导出测试通过，非十源签收。整版、父项及支持等级未晋级，PRODUCT-LOOPS不变。

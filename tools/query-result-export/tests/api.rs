@@ -29,7 +29,7 @@ fn sha256_matches_the_empty_and_abc_vectors() {
 
 #[test]
 fn compiled_clerk_stdout_matches_the_hand_csv_and_sidecar() {
-    let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
+    let source = include_bytes!("fixtures/query-clerk-order_doc-star.jsonl");
     let golden = include_bytes!("fixtures/golden-clerk.csv");
     assert_eq!(source.len(), 1027);
     assert_eq!(golden.len(), 171);
@@ -72,7 +72,7 @@ fn hand_formula_row_keeps_canonical_ints_and_prefixes_text() {
 
 #[test]
 fn truncated_consistent_source_is_partial_and_keeps_the_csv() {
-    let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
+    let source = include_bytes!("fixtures/query-clerk-order_doc-star.jsonl");
     let golden = include_bytes!("fixtures/golden-clerk.csv");
     let text = String::from_utf8(source.to_vec()).unwrap();
     let partial = text.replacen("\"truncated\":false", "\"truncated\":true", 1);
@@ -87,7 +87,7 @@ fn truncated_consistent_source_is_partial_and_keeps_the_csv() {
 
 #[test]
 fn inconsistent_row_count_writes_nothing_in_render() {
-    let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
+    let source = include_bytes!("fixtures/query-clerk-order_doc-star.jsonl");
     let text = String::from_utf8(source.to_vec()).unwrap();
     let bad = text.replacen("\"returned_rows\":3", "\"returned_rows\":2", 1);
     let err = render(bad.as_bytes(), CLERK).expect_err("mismatch");
@@ -141,7 +141,7 @@ fn source_over_the_byte_budget_is_budget() {
 
 #[test]
 fn caller_width_mismatch_is_a_request_failure() {
-    let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
+    let source = include_bytes!("fixtures/query-clerk-order_doc-star.jsonl");
     assert_eq!(render(source, &["only"]).unwrap_err(), Fault::request());
 }
 
@@ -341,7 +341,7 @@ fn truncated_decimal_row_stays_partial_and_keeps_the_plain_text() {
 
 #[test]
 fn export_to_writes_the_exact_source_bytes() {
-    let source = include_bytes!("fixtures/query-clerk-order_doc-star.stdout");
+    let source = include_bytes!("fixtures/query-clerk-order_doc-star.jsonl");
     let dir = scratch();
     let done = export_to(source, CLERK, &dir).expect("write");
     assert_eq!(done, Completeness::Complete);

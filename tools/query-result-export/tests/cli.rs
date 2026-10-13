@@ -54,7 +54,7 @@ fn cli_exports_the_compiled_fixture_and_refuses_a_second_write() {
     let source = root.join("clerk.stdout");
     fs::write(
         &source,
-        include_bytes!("fixtures/query-clerk-order_doc-star.stdout"),
+        include_bytes!("fixtures/query-clerk-order_doc-star.jsonl"),
     )
     .unwrap();
     let out = root.join("out");
@@ -79,7 +79,7 @@ fn cli_exports_the_compiled_fixture_and_refuses_a_second_write() {
     );
     assert_eq!(
         fs::read(out.join("export.source.jsonl")).unwrap(),
-        include_bytes!("fixtures/query-clerk-order_doc-star.stdout")
+        include_bytes!("fixtures/query-clerk-order_doc-star.jsonl")
     );
     let second = Command::new(bin())
         .arg("--request")
@@ -95,7 +95,7 @@ fn cli_exports_the_compiled_fixture_and_refuses_a_second_write() {
 fn cli_partial_exit_does_not_claim_completion() {
     let root = scratch();
     let mut text = String::from_utf8(
-        include_bytes!("fixtures/query-clerk-order_doc-star.stdout").to_vec(),
+        include_bytes!("fixtures/query-clerk-order_doc-star.jsonl").to_vec(),
     )
     .unwrap();
     text = text.replacen("\"truncated\":false", "\"truncated\":true", 1);

@@ -1,3 +1,7 @@
+## 2026-10-13 当前接续与净化快照
+
+共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。 产品Selfbuild及对话已获准Grok-4.7备用，同URL/key保留真实模型及失败，不复用旧模型缓存；原生开发者策略不变。普通等待1080秒，clock.sleep，通知即收。净化同步仅源码、短状态与本地证据SHA；原始evidence/log/stdout/stderr/exit保持本地，不force-add。172bfd192修复对话真实工具要求及可恢复的明确表名错误，并保留导出NDJSON测试夹具；25项导出测试通过，非十源签收。整版、父项及支持等级未晋级，PRODUCT-LOOPS不变。
+
 ## 2026-10-12 当前调度：共享链路稳定后再放行十源
 
 完整数据源工作仍暂停，独占owner及历史产物保留；必须在共享真实导入/同步恢复、准确当前集合、完整Selfbuild/YAML/维护Pack、public Gateway与实际多轮Agent对话全部通过后才由root放行。当前运行owner、固定SHA、参考证据及缺口以 [共享稳定门禁](shared-readiness-gate.json)、control-state.json和dispatch.json为准，不从以下历史事件推断live或验收。已交隔离TIME→interval保真修复仍须补齐当前五表准确输入和后续完整产品链；不以组件或隔离测试成功放行。原DL01可授权未发布预览，正式发布和真实业务owner/G门槛仍单列保留。工程临时备用GPT6Sol low已授权；产品保持GPT6.1 Sol low及原URL/key，目录缺项不是实际模型不可用证据。完整源0/10、整版未签收；普通等待900秒，CPU/编译固定限额已取消，独占文件及实际资源约束保留。

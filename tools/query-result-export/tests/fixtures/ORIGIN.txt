@@ -1,4 +1,4 @@
-query-clerk-order_doc-star.stdout
+query-clerk-order_doc-star.jsonl
 source=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a226/SP11/reviewed-pg-composition/live/steps/query-clerk-order_doc-star.stdout
 sha256=54cabda641bf1a2128e0246a78eb1a761895a0aa5a4226d136ad8aec399ad6eb
 bytes=1027
