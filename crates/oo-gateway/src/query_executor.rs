@@ -2395,10 +2395,10 @@ fn absorb_rows(
                 if consistency != "transactional" && consistency != "per_table" {
                     continue;
                 }
-                let applied_pos: String = row.try_get(3).map_err(decode)?;
-                if !position_text(&applied_pos) {
+                let applied_pos: Option<String> = row.try_get(3).map_err(decode)?;
+                let Some(applied_pos) = watermark_position(applied_pos) else {
                     continue;
-                }
+                };
                 let cross: bool = row.try_get(2).map_err(decode)?;
                 let state: String = row.try_get(4).map_err(decode)?;
                 snapshot.watermarks.push(WatermarkObserved {
@@ -2614,6 +2614,10 @@ fn physical_text(value: &str) -> bool {
 fn position_text(value: &str) -> bool {
     let digits = value.strip_prefix('+').unwrap_or(value);
     (1..=38).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn watermark_position(value: Option<String>) -> Option<String> {
+    value.filter(|position| position_text(position))
 }
 
 fn codec_text(value: &str) -> bool {
@@ -3893,6 +3897,13 @@ fn stop_before_append(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn nullable_source_watermark_does_not_invent_a_position() {
+        assert_eq!(super::watermark_position(None), None);
+        assert_eq!(super::watermark_position(Some("+12345678901234567890".into())), Some("+12345678901234567890".into()));
+        assert_eq!(super::watermark_position(Some("-1".into())), None);
+        assert_eq!(super::watermark_position(Some(String::new())), None);
+    }
     #[test]
     fn quality_mapping_requires_the_vector_source() {
         let physical = format!("pt_{}", "a".repeat(60));

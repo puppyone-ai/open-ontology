@@ -137,6 +137,9 @@ pub const ADMISSION_BIN_SHA256_DURATION_MICROS: &str =
 /// Source-bound Doris/StarRocks OLAP C4 partition scope, Linux Rust 1.94.
 pub const ADMISSION_BIN_SHA256_OLAP_C4: &str =
     "85fb10d91fa169ad85dc7b7c4116a6354614fcd69e20c010b67b2536f6170d85";
+/// Sealed PostgreSQL multi-table transaction scope, Linux Rust 1.94.
+pub const ADMISSION_BIN_SHA256_PG_TRANSACTION: &str =
+    "9ae6dd2808576a17f45e76f1b3577291f758f29cbf31698f1338e8ace4979473";
 
 /// Trusted runtime allowlist. A manifest field cannot add a program.
 pub fn approved_admission_bin(digest: &str) -> bool {
@@ -152,6 +155,7 @@ pub fn approved_admission_bin(digest: &str) -> bool {
         || digest == ADMISSION_BIN_SHA256_MONGO_BSON
         || digest == ADMISSION_BIN_SHA256_DURATION_MICROS
         || digest == ADMISSION_BIN_SHA256_OLAP_C4
+        || digest == ADMISSION_BIN_SHA256_PG_TRANSACTION
 }
 
 const ENV_BIN: &str = "OO_NATIVE_ADMISSION_BIN";
@@ -244,6 +248,7 @@ pub struct ResolvedCapture {
     pub arrow_schema_sha256: String,
     /// Source-observed C4 scope, equal to the hash-bound capturer payload.
     pub partition_scope: Option<serde_json::Value>,
+    pub transaction_scope: Option<serde_json::Value>,
 }
 
 /// Closed native products admitted by the real source capture boundary.
@@ -534,6 +539,7 @@ fn resolved_capture(
         schema_digest: parsed.schema_digest.clone(),
         arrow_schema_sha256: parsed.arrow_schema_sha256.clone().unwrap_or_default(),
         partition_scope: parsed.partition_scope.clone(),
+        transaction_scope: parsed.transaction_scope.clone(),
     }
 }
 
@@ -567,6 +573,7 @@ struct ParsedBinding {
     objects: Vec<BoundObject>,
     fields: Vec<BoundField>,
     partition_scope: Option<serde_json::Value>,
+    transaction_scope: Option<serde_json::Value>,
 }
 
 /// How an admission file matched a binding. Neither variant is `admitted`.
@@ -860,6 +867,9 @@ fn parse_binding(binding: &serde_json::Value) -> Result<ParsedBinding, &'static 
         }
         validate_partition_scope(scope, binding, &parsed_objects)?;
     }
+    let transaction_scope = binding.get("transaction_scope").cloned();
+    if transaction_scope.is_some() && (!matches!(binding.get("source_engine").and_then(serde_json::Value::as_str), Some("postgres" | "postgresql"))
+        || partition_scope.is_some()) { return Err("schema"); }
     let mut parsed_fields = Vec::with_capacity(fields.len());
     for field in fields {
         let source_oid = match field.get("source_oid") {
@@ -963,6 +973,7 @@ fn parse_binding(binding: &serde_json::Value) -> Result<ParsedBinding, &'static 
         objects: parsed_objects,
         fields: parsed_fields,
         partition_scope,
+        transaction_scope,
     })
 }
 
@@ -1057,6 +1068,7 @@ fn partition_range(object: &serde_json::Map<String, serde_json::Value>) -> bool 
 pub struct ServerRegistration {
     pub fields: Vec<BoundField>,
     pub partition_scope: Option<serde_json::Value>,
+    pub transaction_scope: Option<serde_json::Value>,
     /// SHA-256 of the registry with the receipt stamp replaced by 64 zero digits.
     pub preimage_sha256: String,
     /// SHA-256 of the receipt file named by the registry stamp.
@@ -1218,6 +1230,7 @@ pub fn open_server_registration(
     Ok(ServerRegistration {
         fields: Vec::new(),
         partition_scope: None,
+        transaction_scope: binding.get("transaction_scope").cloned(),
         preimage_sha256: preimage,
         receipt_sha256: receipt_sha,
         catalog_sha256: catalog_sha,
@@ -1406,6 +1419,10 @@ fn verify_inputs(
         if capturer.get("partition_scope") != Some(scope) {
             return Err("nonadmitted");
         }
+    }
+    if let Some(scope) = binding.transaction_scope.as_ref() {
+        let capturer: serde_json::Value = serde_json::from_slice(&_receipt).map_err(|_| "nonadmitted")?;
+        if capturer.get("transaction_scope") != Some(scope) { return Err("nonadmitted"); }
     }
     let catalog_bytes = read_hashed(&binding.catalog_path, &binding.catalog_sha256)?;
     let admission = read_capped(Path::new(&binding.receipt_path))?;
@@ -1864,6 +1881,7 @@ mod tests {
         assert!(!driver_length_allowed(DIGEST, 116_863_584));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_E465));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_NATIVE_MINIMAL));
+        assert!(approved_admission_bin(ADMISSION_BIN_SHA256_PG_TRANSACTION));
         const MARIA: &str = "7ee551ecadd2fb66e3dea5564dab7336cafcce0e6fb0dd57d5816a7685338474";
         assert!(driver_length_allowed(MARIA, 314_875_904));
         assert!(!driver_length_allowed(MARIA, 314_875_903));

@@ -127,12 +127,15 @@ def main():
         generation = scope["source_generation"]
         request = {"protocol": "oo.pipeline.native-partition/v1", "source_engine": "starrocks", "source_id": cfg["source_id"], "source_generation": generation, "parent_source_generation": generation - 1,
                    "logical_schema": "oo_w45_sr", "logical_table": "dup_events", "snapshot": receipt["snapshot"], "admission_path": str(receipt_path), "registry_path": str(registry_path),
+                   "admission_expect": {"source_engine": "starrocks", "source_id": cfg["source_id"], "source_generation": generation,
+                                        "declared_receipt_sha256": digest(receipt_path)},
                    "arrow_path": str(frozen_arrow), "audit_digest": digest(source / "sealed-inputs" / name / "capturer.json"), "batch_id": f"{cfg['binding']}_{generation}",
                    "capture_method": "c4_partition", "consistency_grade": receipt["consistency"], "cross_table_consistent": False,
                    "delete_detection": "partition_replace", "full_snapshot": False, "row_identity": "duplicate", "key_columns": ["bucket"], "upsert_supported": False,
                    "window_closed": True, "position_codec": "partition-signature/v1", "position_lineage": "native-update.batch", "applied_pos": "0", "columns": columns,
                    "tombstones": [], "mirror": False, "quality": ["OUT_OF_PARTITION_DELETE_NOT_EXTRAPOLATED"], "target": cfg["target"]}
-        for key in ("config_digest", "schema_digest", "type_digest", "input_digest"):
+        for key in ("run_id", "catalog_sha256", "registry_sha256", "driver_digest", "arrow_schema_sha256",
+                    "config_digest", "schema_digest", "type_digest", "input_digest"):
             request[key] = receipt[key]
         save(root / "request.tmp", request)
         os.replace(root / "request.tmp", request_path)

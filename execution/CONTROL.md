@@ -1,3 +1,7 @@
+## 2026-10-13 完整作者链收取与最小调用
+
+完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。 固定收取证据：`execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json`；对话验证器900d86899仅续跑已核准的未完成轮次，错误事实仍拒绝。开发、集成、发行和外部门槛分开；原Plan退出、分母、父项checkbox、支持等级不变。无整版交付，PRODUCT-LOOPS/Goal不切换；前端无变更。
+
 ## 2026-10-13 当前接续与净化快照
 
 共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。 产品Selfbuild及对话已获准Grok-4.7备用，同URL/key保留真实模型及失败，不复用旧模型缓存；原生开发者策略不变。普通等待1080秒，clock.sleep，通知即收。净化同步仅源码、短状态与本地证据SHA；原始evidence/log/stdout/stderr/exit保持本地，不force-add。172bfd192修复对话真实工具要求及可恢复的明确表名错误，并保留导出NDJSON测试夹具；25项导出测试通过，非十源签收。整版、父项及支持等级未晋级，PRODUCT-LOOPS不变。

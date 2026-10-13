@@ -64,6 +64,17 @@ def main():
     })
     write(args.output / 'native-model.json', {
         'dataset': 'oo_dl01w40.readings',
+        'source_contract': {
+            'schema': 'oo.pg-builder.source-contract/v1',
+            'family': 'clickhouse', 'product': 'clickhouse',
+            'version': '26.8.21.10', 'capture': 'sealed_import',
+            'grade': 'S0', 'source_kind': 'clickhouse',
+            'delete_detection': 'partition_replace',
+            'columns': [
+                {'dataset': 'oo_dl01w40.readings', 'column': c['logical_name'], 'caveat': c['caveat']}
+                for c in table['columns'] if c.get('caveat') is not None
+            ],
+        },
         'visibility': {
             'protocol': 'oo.builder.role-visibility/v1',
             'project': 'clickhouse',

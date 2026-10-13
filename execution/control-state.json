@@ -1259,26 +1259,30 @@
   },
   "shared_reference_live_agents": [],
   "source_closure_current": {
-    "author_full_unpublished_preview": 2,
+    "author_full_unpublished_preview": 5,
     "total_sources": 10,
     "unified_signed_full_sources": 0,
     "mysql_fixed_author_commit": "27eeec147",
     "opensearch_fixed_author_commit": "7ac93aac4",
     "no_live_engineer_reason": "superseded: human confirmed quota restored, original 04/39/71/74/79 resumed; actual handles in managed_live_native_agents",
     "goal": "active",
-    "remaining_shared_runtime_proof": "C4/C1/catalog/global-generation and remaining source full chains"
+    "remaining_shared_runtime_proof": "before-CAS recovery, remaining complete sources, truthful semantic corrections and accurate dialogue",
+    "current_note": "完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。"
   },
   "ordinary_event_wait_seconds": 1080,
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 3,
+    "count": 5,
     "required": 10,
     "sources": [
       "mysql",
       "opensearch",
-      "mariadb"
+      "mariadb",
+      "oracle",
+      "clickhouse"
     ],
     "formal_signed_sources": 0,
-    "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json"
+    "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
+    "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json"
   }
 }

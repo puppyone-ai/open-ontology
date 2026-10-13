@@ -54,7 +54,82 @@
       "bytes": 2931,
       "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-direct-smoke/dddddddd-4545-4141-8181-000000001007/2/request.json",
       "sha256": "ea14d7b839a283b034a0e151cf07c8ffb384afa554ac6d7987ec5350cb772a05"
+    },
+    {
+      "bytes": 6050,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/independent/c4-g5-20261013/compare.json",
+      "sha256": "21b1931f62154a052036edd069e2f25ce6052c516da4e676c2e9c3d1fce2ed56"
+    },
+    {
+      "bytes": 25072,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/collection.json",
+      "sha256": "8df3f7ca254c159c1800ad56a11c93efd7eeb1f968379ba9ecf0ebd64b13492b"
+    },
+    {
+      "bytes": 891,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-input/manifest.json",
+      "sha256": "fb8e707a30b992e508c8e760333e61d9969fda4cefd3f26788abc7a9be5227f7"
+    },
+    {
+      "bytes": 1052,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-recovery/step-final7-1/stdout.bin",
+      "sha256": "01e73c90accb10766a0b6260dacae74d4c3bb943718952cc96d062bf5e03100b"
+    },
+    {
+      "bytes": 1052,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-recovery/step-final7-2/stdout.bin",
+      "sha256": "a83d36f4292f7d350a275325ca5e6757ae29c16f72a1d51c66890e09070c43ef"
+    },
+    {
+      "bytes": 3549,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-occurrences-final7/dddddddd-4545-4141-8181-000000001014/1/request.json",
+      "sha256": "83019c35fb314a493d8bccd2ec392ec2caa15ed285989dea29cfef64fda910dc"
+    },
+    {
+      "bytes": 3549,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-occurrences-final7/dddddddd-4545-4141-8181-000000001014/2/request.json",
+      "sha256": "518315aa10e49c18fdc4c46c1f70ab16e1a2078b9a55372fd8bda92e6ffb36b0"
+    },
+    {
+      "bytes": 891,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-input-priced/manifest.json",
+      "sha256": "f952c277d0d56cd1c7a42a7d2a8defeb89596fdf38559cbe764104e868e53029"
+    },
+    {
+      "bytes": 2932,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-input-priced/native-model.json",
+      "sha256": "db3452f4ff9015a9ad932d161255698fb06d73211ae04dab85f86f300628df7d"
+    },
+    {
+      "bytes": 2338,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-s5-create-response.json",
+      "sha256": "fdeeeeed39f2426186bd33391f4c6ead6a53c02e97d4745d08a9865853b514c0"
+    },
+    {
+      "bytes": 2564,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-status-1.json",
+      "sha256": "8d90c401b018d7969c7073203de37b4a19468000e2e8b53a9b5ed52007be5439"
+    },
+    {
+      "bytes": 14017,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-confirm-response.json",
+      "sha256": "e74795c5549bb9916208c7e22a7258ed75c840fc28731196f9aaf8a046206fc9"
+    },
+    {
+      "bytes": 530,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-role-pack-admin-response.json",
+      "sha256": "6a30d45afca615f1db037b398a9eed2a1f833c6d3dac7e471e571dc2ec44dab7"
+    },
+    {
+      "bytes": 891,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/selfbuild-input-restricted/manifest.json",
+      "sha256": "b7d6356bda6941eb72b00b358d062b07fb9d79fb108644d064ac098ca0f1938b"
+    },
+    {
+      "bytes": 1630,
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/independent-gold.json",
+      "sha256": "b02d3110ad828226d6b2b05da33354b34ed9190aecbf82b9b0b6373c80681ca1"
     }
   ],
-  "status": "source_c4_pending_target"
+  "status": "c4_target_complete_final_priced_bundle_ready_selfbuild_pending"
 }

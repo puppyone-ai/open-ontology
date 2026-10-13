@@ -4,25 +4,32 @@ import hashlib, json, os, pathlib, secrets, shutil, subprocess
 B=pathlib.Path(os.environ.get('OO_W41_MAINTENANCE_DIR', '/Users/redux/.cache/oo-dl01w1-71/native-generic/mongo41/work/builds/b_df0eae229850ceb71331c908dc082e86/native-maintenance/1344fc63b8bbdebc454943899a50c9837c37cb159c8df1673349fdad22874c9e'))
 P=pathlib.Path('/tmp/oo-dl01w1-41-gateway-preview'); P.mkdir(mode=0o700,exist_ok=True)
 load=lambda n:json.loads((B/n).read_text())
-command=load('command.json'); reviewed=load('reviewed.json'); visibility=load('visibility.json'); pack=load('role-pack.json')
+command=load('command.json'); reviewed=load('reviewed.json'); effective_oos=load('effective.json'); visibility=load('visibility.json'); pack=load('role-pack.json'); receipt=load('receipt.json')
 cat=command['catalog']; vector=cat['binding_vector']; entry=cat['entries'][0]; table=entry['tables'][0]; visible=visibility['datasets'][0]['columns']
 assert len(vector)==1 and len(visible)==20 and visibility['role']=='oo_r_mongodb_full'
 assert vector[0]['source_id']=='oo_w141_native_c5' and vector[0]['target_generation']==4 and vector[0]['dataset']=='oo_w141.shipments'
 assert reviewed['provenance']['collection_sha256']==cat['collection_sha256']
 assert all(d['pii']=='none' for d in command['decisions'])
+assert receipt['protocol']=='oo.selfbuild-control-api/native-maintenance/v1' and receipt['publication']=='not_published' and receipt['llm_calls']==0
+assert hashlib.sha256((B/'receipt.json').read_bytes()).hexdigest()==B.name
+assert hashlib.sha256((B/'effective.json').read_bytes()).hexdigest()==receipt['effective_sha256']
+assert hashlib.sha256((B/'reviewed.json').read_bytes()).hexdigest()==receipt['reviewed_sha256']
+assert receipt['source_unit_corrections']==[{'candidate_unit':'USD','column':'oo_w141.shipments.price','declared_unit':'unspecified'}]
 # A model suggestion cannot replace a declared source-side semantic unit.
 source_rules=json.loads((pathlib.Path(__file__).resolve().parents[2]/'evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/raw/native-c5-20261012/cfc-selfbuild-bundle-unit-76b/rules.json').read_text())
 for rule in source_rules['columns']:
  if 'unit' not in rule:
   continue
  dataset,column=rule['column'].rsplit('.',1)
- effective=next(c for d in reviewed['effective_oos']['datasets'] if d['dataset']==dataset for c in d['columns'] if c['name']==column)
+ effective=next(c for d in effective_oos['datasets'] if d['dataset']==dataset for c in d['columns'] if c['name']==column)
  if effective['unit']!=rule['unit']:
   raise ValueError(f'source semantic unit mismatch: {dataset}.{column}; expected {rule["unit"]}, got {effective["unit"]}')
 catsha=hashlib.sha256(json.dumps(cat,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
 R=P/'reviewed/mongodb_full';R.mkdir(parents=True,exist_ok=True)
 (R/'native-input.json').write_text(json.dumps(command,sort_keys=True,separators=(',',':'))+'\n')
 (R/'command.json').write_text(json.dumps(reviewed,sort_keys=True,separators=(',',':'))+'\n')
+(R/'effective.json').write_text(json.dumps(effective_oos,sort_keys=True,separators=(',',':'))+'\n')
+(R/'maintenance-receipt.json').write_text(json.dumps(receipt,sort_keys=True,separators=(',',':'))+'\n')
 bind={'allow':[{'column':c,'dataset':'oo_w141.shipments','explicit_allow':False} for c in visible], 'artifact_sha256':catsha,'binding_vector':vector,'catalog_version':cat['collection_sha256'],'config_digest':vector[0]['config_digest'],'generation':4,'knowledge_id':command['settings']['knowledge']['id'],'knowledge_version':'1','login':'oo_w141_gateway_login','ontology_version':command['settings']['ontology_version'],'policy_id':command['settings']['policy']['id'],'policy_version':'1','project':'mongodb','role':'mongodb_full','schema':'oo_w141','schema_hash':cat['collection_sha256'],'source_id':'oo_w141_native_c5'}
 (R/'binding.json').write_text(json.dumps(bind,sort_keys=True,separators=(',',':'))+'\n')
 (P/'packs').mkdir(exist_ok=True);(P/'packs/mongodb_full.json').write_text(json.dumps(pack,sort_keys=True,separators=(',',':'))+'\n')

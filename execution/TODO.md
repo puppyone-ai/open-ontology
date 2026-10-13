@@ -20,7 +20,7 @@
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
-- DL01-W1-04 / driver：source_product_development；author_partial_dialogue_pack_content_pending；Plan DBX-W04；固定依赖 577160c22de6。
+- DL01-W1-04 / driver：source_product_development；author_full_unpublished_preview；Plan DBX-W04；固定依赖 577160c22de6。
 - DL01-W1-05 / semantics：development；historical_terminal_ownership_transferred；Plan DBX-W05；固定依赖 577160c22de6。
 - DL01-W1-06 / mysql：development；author_complete_deferred_connected_review；Plan SP03-W02；固定依赖 577160c22de6。
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
@@ -56,8 +56,8 @@
 - DL01-W1-37 / suite-repair-review：independent_review；fixed_review_passed；Plan DBX-W14；固定依赖 876b3b916d6f。
 - DL01-W1-38 / budget-report：development_parent_extension；historical_terminal_ownership_transferred；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-39 / mariadb-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W06；固定依赖 577160c22de6。
-- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
-- DL01-W1-41 / mongodb-driver-preflight：source_product_development；native_running；Plan DBX-W13；固定依赖 577160c22de6。
+- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-41 / mongodb-driver-preflight：source_product_development；author_partial_dialogue_grounding_failed；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
 - DL01-W1-43 / doris-driver-preflight：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
@@ -89,8 +89,8 @@
 - DL01-W1-70 / mysql-full-source-review：critical_review；review_return；Plan SP03-W02；固定依赖 84e123025c52。
 - DL01-W1-71 / full-selfbuild-yaml-maintenance：shared_complete_capability；native_running；Plan SP07-W01；固定依赖 13ad15b4bc66。
 - DL01-W1-72 / public-gateway-sdk-cli-complete：shared_complete_capability；author_complete_deferred_connected_review；Plan SP09-W01；固定依赖 8405b4585。
-- DL01-W1-73 / ontology-publish-maintenance：shared_complete_capability；native_running；Plan SP08-W04；固定依赖 e2bd526e9617。
-- DL01-W1-74 / capture-jobs-schedule-lease：shared_complete_capability；native_running；Plan SP04-W06；固定依赖 1c4797e2f846。
+- DL01-W1-73 / ontology-publish-maintenance：shared_complete_capability；author_shared_gateway_delivered；Plan SP08-W04；固定依赖 e2bd526e9617。
+- DL01-W1-74 / capture-jobs-schedule-lease：shared_complete_capability；author_shared_worker_delivered；Plan SP04-W06；固定依赖 1c4797e2f846。
 - DL01-W1-75 / publish-maintenance-fixed-critical-review：critical_review；critical_review_request_changes；Plan SP08-W04；固定依赖 699ca96df609。
 - DL01-W1-76 / public-gateway-fixed-critical-review：critical_review；critical_review_request_changes；Plan SP09-W01；固定依赖 91031011238c。
 - DL01-W1-77 / native-loader-fixed-critical-review：critical_review；critical_review_request_changes；Plan DBX-W05；固定依赖 f0060dfbc217。
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。
+完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。

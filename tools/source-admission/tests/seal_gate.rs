@@ -438,7 +438,10 @@ fn part_day_keeps_c4_and_does_not_promote_partition_quality() {
         "ns2-part_day.arrow",
     );
     let (admitted, doc) = decision_of(&laid);
-    assert!(admitted, "{doc}");
+    // A C4 label alone cannot authorize a partition replacement without the
+    // source-observed partition scope bound to this capture.
+    assert!(!admitted, "{doc}");
+    assert_eq!(doc["blocks"][0]["code"], json!("SOURCE_METADATA_UNBOUND"));
     assert_eq!(doc["model"]["capture_methods"][0]["method"], json!("C4"));
     assert_eq!(
         doc["model"]["capture_methods"][0]["consistency"],

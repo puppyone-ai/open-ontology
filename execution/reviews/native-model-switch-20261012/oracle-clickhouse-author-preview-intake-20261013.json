@@ -1,0 +1,32 @@
+{
+  "event": "root fixed artifact intake; not independent review",
+  "author_previews": [
+    "oracle",
+    "clickhouse"
+  ],
+  "source_commits": {
+    "oracle": "09f77c713",
+    "oracle_source_exit_addendum": "a50bd2ae4",
+    "clickhouse": "d284cbc21c9aaac5426de3e7e3f539782deb5ef7"
+  },
+  "manifests": {
+    "tools/oracle-preview/LOCAL-EVIDENCE-SHA-20261013.json": {
+      "sha256": "7b1de685edbe6c2175df79b4899ed18faa89165dd52d944587adc388a6eeb422",
+      "checked_local_references": 62
+    },
+    "tools/oracle-preview/SOURCE-EXIT-20261013.json": {
+      "sha256": "9f6449db3aac39a6b9bbf0af23055f91773585b019a686e253ceecb1c9f4a58a",
+      "checked_local_references": 16
+    },
+    "tools/clickhouse-preview/EVIDENCE-SHA256-20261013.json": {
+      "sha256": "f8334bc4f56dce82f0343f32000e8f21ba3497ff657a7f45dfd4f75483836093",
+      "checked_local_references": 11
+    }
+  },
+  "clickhouse_answer_checks": "Four actual answers checked against successful query rows: count2; ids102,104; qty9; timestamp1707091200123456789; amount0.0000000000; wide_u640; STALE_DATA truthful. Original denied query retained.",
+  "oracle_scope": "Original four-turn gold plus same-agent actual three-table Pack document followup. Original harness exit1 preserved. Fixed g3 producer nine SQL read-only, three capture zero-write receipts; historical Oracle audit and measured configurable cycles separate, no fresh g3 DB audit claimed.",
+  "formal_signed_sources": 0,
+  "formal_delta": 0,
+  "review": "Deferred until first whole Goal loop and all ten full chains per human policy",
+  "remaining": "Customer Oracle connectivity, release/business-owner/nightly gates pending"
+}

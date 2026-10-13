@@ -108,6 +108,7 @@ async fn dispatch() -> Result<(), Fail> {
         "capture-schedule" => finish_capture(&config, crate::capture::schedule(&config).await, "capture-schedule.json"),
         "capture-receipt" => crate::receipt::produce(&config, &read_text(&parsed.config)?).await,
         "capture-receipt-delta" => crate::receipt::produce_delta(&config, &read_text(&parsed.config)?).await,
+        "capture-receipt-transaction" => crate::receipt::produce_transaction(&config, &read_text(&parsed.config)?).await,
         _ => Err(Fail::new("usage", 2)),
     }
 }
@@ -166,6 +167,7 @@ fn parse(args: Vec<String>) -> Result<Parsed, Fail> {
             | "capture-schedule"
             | "capture-receipt"
             | "capture-receipt-delta"
+            | "capture-receipt-transaction"
     ) {
         usage();
         return Err(Fail::new("usage", 2));
@@ -184,7 +186,7 @@ fn cmd_refuse(config: &Config, request: Option<&str>) -> Result<(), Fail> {
 
 fn usage() {
     eprintln!(
-        "commands: dba-load dba-load-customer refuse-unapproved oracle run customer-run deadline cancel audit type-gate arrow-sample target-partial cleanup write-option-probe consume consume-all replay-role rebind arrow-reseal capture-check capture-sync capture-compare capture-schedule capture-receipt capture-receipt-delta model-forward builder-bind"
+            "commands: dba-load dba-load-customer refuse-unapproved oracle run customer-run deadline cancel audit type-gate arrow-sample target-partial cleanup write-option-probe consume consume-all replay-role rebind arrow-reseal capture-check capture-sync capture-compare capture-schedule capture-receipt capture-receipt-delta capture-receipt-transaction model-forward builder-bind"
     );
 }
 

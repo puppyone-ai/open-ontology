@@ -371,8 +371,11 @@ async fn read_partition(
         || identity_before != identity_after || jobs_before != jobs_after {
         return Err(Fail::new("partition", "source metadata changed during read"));
     }
-    if part.get("RowCount").and_then(Json::as_str).and_then(|n| n.parse::<usize>().ok()) != Some(rows.len()) {
-        return Err(Fail::new("partition", "partition row count not stable"));
+    // Doris reports physical partition row counts across delete/compaction work.
+    // The versioned metadata and both visible row reads must agree, but a
+    // physical RowCount need not equal the current logical row bag.
+    if part.get("RowCount").and_then(Json::as_str).and_then(|n| n.parse::<usize>().ok()).is_none() {
+        return Err(Fail::new("partition", "partition row count missing"));
     }
     let status = status_before.first().ok_or_else(|| Fail::new("partition", "table status missing"))?;
     let created = status.get("Create_time").and_then(Json::as_str)

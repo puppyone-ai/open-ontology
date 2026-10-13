@@ -6,22 +6,24 @@ GOLD=ROOT/'evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/ra
 PRIVATE=pathlib.Path('/tmp/oo-dl01w1-41-gateway-preview')
 gold=json.loads(GOLD.read_text()); result=gold['result']
 assert gold['protocol']=='oo.mongodb.gold-target-aggregate/v1' and gold['target_generation']==4
-assert result['approved_rows']==14 and result['deleted_id_present']==0 and result['inserted_id_present']==1
+assert result['approved_rows']==14 and result['updated_code_present']==1 and result['deleted_id_present']==0 and result['inserted_id_present']==1
 addr=(PRIVATE/'listen.addr').read_text().strip()
 assert addr.startswith('127.0.0.1:')
+token=pathlib.Path(os.environ.get('OO_W41_TOKEN_FILE',str(PRIVATE/'client-20261013-01.token')))
+assert token.parent==PRIVATE and token.name.startswith('client-') and token.suffix=='.token'
 truth={
- 'aggregate':{'expected_exact_facts':[str(result['approved_rows']),result['units_sum']]},
- 'mutation':{'expected_exact_facts':['S41-001-U','S41-017-I']},
+ 'aggregate':{'expected_named_facts':{'row_count':str(result['approved_rows']),'total_units':result['units_sum']}},
+ 'mutation':{'expected_named_facts':{'updated_code_present':str(result['updated_code_present']),'deleted_id_present':str(result['deleted_id_present']),'inserted_id_present':str(result['inserted_id_present'])}},
  'identity':{'expected_exact_facts':['oo_w141.shipments','whCode']},
 }
 truth_path=PRIVATE/'dialogue-truth.json';truth_path.write_text(json.dumps(truth,sort_keys=True)+'\n')
 config={'model_origin':'http://127.0.0.1:8317','model':'grok-4.7','model_bearer_file':'/tmp/oo-product-model-20261012/bearer',
- 'gateway_token_file':str(PRIVATE/'client-20261013-01.token'),'gateway':'http://'+addr,'transport':'local-development','auth':'external',
+ 'gateway_token_file':str(token),'gateway':'http://'+addr,'transport':'local-development','auth':'external',
  'oo_cli':str(ROOT/'tools/mongodb-preview/scripts/oo-gateway-cli.py'),
  'independent_truth_file':str(truth_path),'independent_gateway_audit_file':str(PRIVATE/'wal'),
  'questions':[
-  {'truth_key':'aggregate','prompt':'Inspect the role knowledge and schema through OO tools, then query the current reviewed MongoDB shipments. Report the exact row count and exact SUM(units), with query IDs and freshness caveats.'},
-  {'truth_key':'mutation','prompt':'Using only OO tools and actual SQL, verify the update (code S41-001-U), physical delete of ObjectId c141d04141eef04100000002, and insertion (code S41-017-I). State each count and query ID; do not infer from the prompt.'},
+  {'truth_key':'aggregate','prompt':'Inspect the role knowledge, schema, and freshness through OO tools, then query the current reviewed MongoDB shipments. Do not answer before a successful query returns the exact row count and exact SUM(units); never invent a query ID. For the required final JSON, both facts and evidence must be objects keyed by fact name; evidence is not an array. Each facts value must be an exact decimal string, not an object; each evidence value must be an object with query_id, column, and row. Explain freshness caveats in the later identity turn.'},
+  {'truth_key':'mutation','prompt':'Using only OO tools and actual SQL, verify the update (code S41-001-U), physical delete of ObjectId c141d04141eef04100000002, and insertion (code S41-017-I). Do not answer before successful queries return each count; never invent a query ID. Report the three counts as updated_code_present, deleted_id_present, and inserted_id_present. For the required final JSON, both facts and evidence must be objects keyed by these fact names; evidence is not an array. Each facts value must be an exact decimal string, not an object; each evidence value must be an object with query_id, column, and row.'},
   {'truth_key':'identity','prompt':'Using role knowledge, tables, describe, freshness, and read-only SQL as needed, identify the dataset oo_w141.shipments and explain the exact reviewed whCode column, ObjectId text, UUID and binary mappings, and whether the source is live or the target remains queryable independently.'},
  ],'max_tool_rounds':20}
 path=PRIVATE/'dialogue-config.json';path.write_text(json.dumps(config,sort_keys=True,indent=2)+'\n');os.chmod(path,0o600)

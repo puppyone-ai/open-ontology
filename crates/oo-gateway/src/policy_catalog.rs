@@ -539,7 +539,7 @@ async fn load_in_snapshot(
     ensure_snapshot(tx).await?;
     for table in &bound.tables {
         let scoped = BoundInput { source: table.source.clone(), config_digest: table.config_digest.clone(), generation: table.generation, ..bound.clone() };
-        ensure_generation(tx, &scoped).await?;
+        ensure_generation(tx, &scoped, vector.map(|_| table)).await?;
     }
     ensure_role(tx, &bound.role).await?;
     let types = load_types(tx).await?;
@@ -606,15 +606,28 @@ async fn ensure_snapshot(tx: &Transaction<'_>) -> Result<(), CatalogError> {
     }
 }
 
-async fn ensure_generation(tx: &Transaction<'_>, bound: &BoundInput) -> Result<(), CatalogError> {
-    let row = tx
-        .query_one(
+async fn ensure_generation(
+    tx: &Transaction<'_>,
+    bound: &BoundInput,
+    native_table: Option<&TableBound>,
+) -> Result<(), CatalogError> {
+    let row = if let Some(table) = native_table {
+        tx.query_one(
+            "SELECT max(run_generation) FROM _oo.physical_mappings \
+             WHERE source = $1 AND config_digest = $2 AND level = 't' \
+               AND logical_namespace = $3 AND logical_table = $4",
+            &[&bound.source, &bound.config_digest, &table.namespace, &table.name],
+        )
+        .await
+    } else {
+        tx.query_one(
             "SELECT max(run_generation) FROM _oo.physical_mappings \
              WHERE source = $1 AND config_digest = $2",
             &[&bound.source, &bound.config_digest],
         )
         .await
-        .map_err(db_error)?;
+    }
+    .map_err(db_error)?;
     let current: Option<i64> = row.get(0);
     if current == Some(bound.generation) {
         Ok(())

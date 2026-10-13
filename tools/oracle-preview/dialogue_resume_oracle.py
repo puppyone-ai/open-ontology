@@ -53,10 +53,80 @@ def ids(value):
         for item in value: found.update(ids(item))
     return found
 
+def pack_followup(a):
+    """One Oracle-only continuation after the four already verified answers."""
+    cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
+    out.mkdir(mode=0o700, parents=True, exist_ok=False)
+    if cfg['model_origin']!='http://127.0.0.1:8317' or cfg['model']!='grok-4.7':
+        raise ValueError('original approved dialogue transport/model required')
+    bearer=private(cfg['model_bearer_file']); private(cfg['gateway_token_file'])
+    prior_bytes=pathlib.Path(a.partial).read_bytes()
+    if hashlib.sha256(prior_bytes).hexdigest()!=a.partial_sha256: raise ValueError('original transcript changed')
+    prior=json.loads(prior_bytes)
+    if len(prior)!=38 or [x.get('turn') for x in prior if 'model' in x][-1]!=3:
+        raise ValueError('expected completed four-turn Oracle transcript')
+    gold=json.loads(pathlib.Path(cfg['independent_truth_file']).read_text())
+    answers=[]
+    for turn,question in enumerate(cfg['questions']):
+        found=[x['model']['choices'][0]['message'] for x in prior if x.get('turn')==turn and 'model' in x and not x['model']['choices'][0]['message'].get('tool_calls')]
+        if len(found)!=1: raise ValueError('original answer count changed')
+        answer=found[0].get('content') or ''
+        if not all(str(v) in answer for v in gold[question['truth_key']]['expected_exact_facts']):
+            raise ValueError('original gold answer changed')
+        answers.append(answer)
+    pack=json.loads(pathlib.Path(a.role_pack).read_text())
+    public={f['path']:f['sha256'] for f in pack['files'] if f['path'].startswith('tables/') and f['path'].endswith('.md')}
+    if len(public)!=3 or pack.get('pack_digest')!='04377a13dddd44b62ac031791294853169286439dc3830f728d536714e0e1313':
+        raise ValueError('expected original three-table role pack')
+    common=['--json','--gateway',cfg['gateway'],'--transport',cfg['transport'],'--auth',cfg['auth'],'--token-file',cfg['gateway_token_file']]
+    # This is entry metadata provided by the operator, not model discovery or an answer.
+    prompt=('The operator supplies these installed public Pack entry paths (knowledge_version 1): '
+            +', '.join(sorted(public))+'. Read the relevant actual Pack documents with knowledge_cat. '
+            'Explain what their amount, date, and timezone-related column type/semantic labels do and do not establish. '
+            'Use only the retrieved document content; do not run SQL or infer new data values.')
+    messages=[{'role':'system','content':'You are continuing the same Oracle OO Gateway dialogue. Use the actual public OO tool before answering. Do not invent Pack contents or data values.'}]
+    for question,answer in zip(cfg['questions'],answers):
+        messages += [{'role':'user','content':question['prompt']},{'role':'assistant','content':answer}]
+    messages.append({'role':'user','content':prompt})
+    tool=[{'type':'function','function':{'name':'knowledge_cat','description':'Read one installed public relative Pack document path from the operator entry list',
+           'parameters':{'type':'object','properties':{'path':{'type':'string'}},'required':['path'],'additionalProperties':False}}}]
+    transcript=[]; read=set(); response_models=set(); usage=[]
+    for step in range(5):
+        payload={'model':'grok-4.7','reasoning_effort':'low','messages':messages,'tools':tool,'tool_choice':'required' if step==0 else 'auto'}
+        req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})
+        with urllib.request.urlopen(req,timeout=120) as response: model=json.load(response)
+        response_models.add(model.get('model')); usage.append(model.get('usage'))
+        msg=model['choices'][0]['message']; messages.append(msg)
+        transcript.append({'step':step,'model':model}); (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
+        calls=msg.get('tool_calls') or []
+        if not calls:
+            if step==0 or not read: raise ValueError('no actual Pack document consumed')
+            answer=msg.get('content') or ''
+            if not answer: raise ValueError('missing Pack explanation')
+            result={'outcome':'pack_document_read','prior_transcript_sha256':a.partial_sha256,'prior_four_gold_answers':True,
+                    'operator_supplied_entry_paths':sorted(public),'autonomous_document_paths':sorted(read),
+                    'response_models':sorted(response_models),'usage':usage,'answer':answer}
+            (out/'receipt.json').write_text(json.dumps(result,indent=2)+'\n'); print(json.dumps(result)); return
+        for call in calls:
+            if call['function']['name']!='knowledge_cat': raise ValueError('unexpected tool')
+            args=json.loads(call['function']['arguments']); path=args.get('path')
+            if set(args)!={'path'} or path not in public: raise ValueError('document path outside supplied public pack')
+            proc=subprocess.run([cfg['oo_cli'],'knowledge','cat',path,*common],capture_output=True,text=True,timeout=45)
+            body=json.loads(proc.stdout)
+            transcript.append({'step':step,'tool':'knowledge_cat','arguments':args,'exit':proc.returncode,'response':body})
+            (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
+            if proc.returncode or body.get('sha256')!=public[path] or body.get('knowledge_version')!='1' or body.get('policy_version')!='1':
+                raise ValueError('Pack document/version mismatch')
+            read.add(path)
+            messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps({'exit':0,'response':body})})
+    raise ValueError('follow-up exhausted bounded tool rounds')
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--config',required=True); p.add_argument('--out',required=True)
     p.add_argument('--partial',required=True); p.add_argument('--partial-sha256',required=True)
-    a=p.parse_args(); cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
+    p.add_argument('--role-pack'); a=p.parse_args()
+    if a.role_pack: return pack_followup(a)
+    cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
     out.mkdir(mode=0o700, parents=True, exist_ok=False)
     if cfg['model_origin'] != 'http://127.0.0.1:8317': raise ValueError('approved product origin required')
     model_name=cfg.get('model','gpt-6.1-sol')

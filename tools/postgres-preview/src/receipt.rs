@@ -118,6 +118,14 @@ pub async fn produce(config: &Config, config_bytes: &[u8]) -> Result<(), Fail> {
 }
 
 pub async fn produce_delta(config: &Config, config_bytes: &[u8]) -> Result<(), Fail> {
+    produce_delta_inner(config, config_bytes, false).await
+}
+
+pub async fn produce_transaction(config: &Config, config_bytes: &[u8]) -> Result<(), Fail> {
+    produce_delta_inner(config, config_bytes, true).await
+}
+
+async fn produce_delta_inner(config: &Config, config_bytes: &[u8], transactional: bool) -> Result<(), Fail> {
     let capture = config.capture.as_ref().ok_or(Fail::new("capture.refused", 4))?;
     refuse_early(config, capture)?;
     let root = admit_root(config);
@@ -147,7 +155,7 @@ pub async fn produce_delta(config: &Config, config_bytes: &[u8]) -> Result<(), F
     if peeked.len() == 10_000 {
         return Err(Fail::new("capture.large_txn", 4));
     }
-    let folded = fold_peek(&index, &peeked)?;
+    let folded = fold_peek(&index, &peeked, transactional)?;
     if folded.pending {
         write_json(&root.join("delta-open.json"), &json!({
             "protocol": "oo.postgres-preview.native-delta/v1",
@@ -177,7 +185,7 @@ pub async fn produce_delta(config: &Config, config_bytes: &[u8]) -> Result<(), F
         }
     };
     exec(config, client, &mut audit_sql, "COMMIT").await?;
-    write_delta(config, config_bytes, &audit_sql, &index, folded.max_lsn, reread, &dba_observation)
+    write_delta(config, config_bytes, &audit_sql, &index, folded.max_lsn, reread, &dba_observation, folded.scope.as_ref())
 }
 
 fn refuse_early(config: &Config, capture: &Capture) -> Result<(), Fail> {
@@ -541,7 +549,7 @@ fn write_snapshot(config: &Config, config_bytes: &[u8], audit_sql: &[String], re
             let count = page_row_count(&table.rows[offset..], bytes, &table.columns)?;
             let slice = &table.rows[offset..offset + count];
             offset += count;
-            let written = write_page(config, &root, table, generation, parent, &read.snapshot, "pg_snapshot", &shared, bytes, slice, &[])?;
+            let written = write_page(config, &root, table, generation, parent, &read.snapshot, "pg_snapshot", &shared, bytes, slice, &[], false)?;
             page_rows.push(written);
             parent = Some(generation);
             generation += 1;
@@ -594,6 +602,7 @@ fn write_page(
     arrow: &[u8],
     rows: &[(i64, Vec<CellValue>)],
     tombstones: &[String],
+    transactional: bool,
 ) -> Result<Value, Fail> {
     let dir = root.join(format!("{}.{}", table.schema, table.table));
     fs::create_dir_all(&dir).map_err(|_| Fail::new("capture.apply", 4))?;
@@ -643,6 +652,13 @@ fn write_page(
     let dir_name = format_dir(table);
     let container_arrow = container_object_path(&config.out_dir, &dir_name, &arrow_name);
     let container_receipt = container_object_path(&config.out_dir, &dir_name, &receipt_name);
+    let batch_id = if transactional {
+        let index = config.approved_objects.iter().position(|item| item.schema == table.schema && item.table == table.table)
+            .ok_or(Fail::new("capture.refused", 4))?;
+        format!("t{index}.b{generation}")
+    } else {
+        format!("{}-{}-g{generation}", table.schema, table.table)
+    };
     let mut request = json!({
         "protocol": REQUEST_PROTOCOL,
         "source_engine": "postgresql",
@@ -650,11 +666,11 @@ fn write_page(
         "source_generation": generation,
         "logical_schema": table.schema,
         "logical_table": table.table,
-        "batch_id": format!("{}-{}-g{generation}", table.schema, table.table, generation = generation),
+        "batch_id": batch_id,
         "capture_method": "c1_cdc",
         "delete_detection": "native",
-        "consistency_grade": "S1",
-        "cross_table_consistent": false,
+        "consistency_grade": if transactional { "T" } else { "S1" },
+        "cross_table_consistent": transactional,
         "position_codec": if snapshot_kind == "pg_snapshot" { "snapshot-zero/v1" } else { "pg-commit-lsn/v1" },
         "position_lineage": if snapshot_kind == "pg_snapshot" { "pg-export-snapshot" } else { "pg-commit-lsn" },
         "applied_pos": if snapshot_kind == "pg_snapshot" { "0".to_owned() } else { snapshot_value.to_owned() },
@@ -681,7 +697,7 @@ fn write_page(
     write_json(&dir.join(&request_name), &request)?;
     // Producer observation, not a trusted admission decision. This is emitted
     // only beside the page produced from bounded, allowed source statements.
-    let capture = page_observation(table, generation, snapshot_value, snapshot_kind, shared, &arrow_name, &arrow_hash, rows.len(), tombstones.len())?;
+    let capture = page_observation(table, generation, snapshot_value, snapshot_kind, shared, &arrow_name, &arrow_hash, rows.len(), tombstones.len(), transactional)?;
     write_json(&dir.join(format!("g{generation}.capture.json")), &capture)?;
     Ok(json!({
         "generation": generation,
@@ -709,6 +725,7 @@ fn page_observation(
     arrow_hash: &str,
     row_count: usize,
     tombstone_count: usize,
+    transactional: bool,
 ) -> Result<Value, Fail> {
     let cursor_codec = match snapshot_kind {
         "pg_snapshot" if !snapshot_value.is_empty() => "pg-export-snapshot/v1",
@@ -726,9 +743,10 @@ fn page_observation(
         "cursor": {"codec": cursor_codec, "position": snapshot_value},
         "capture_method": "C1",
         "delete_detection": "native",
-        "consistency_grade": "S1",
+        "consistency_grade": if transactional { "T" } else { "S1" },
+        "cross_table_consistency": if transactional { "T" } else { "per_table" },
         "write_class": "R1",
-        "cross_table_consistent": false,
+        "cross_table_consistent": transactional,
         "dba_objects": shared.dba_objects,
         "product_reader_write_attempts": shared.write_attempts,
         "write_observation": "all source statements passed platform_sql_allowed before execution; audit linked",
@@ -884,20 +902,46 @@ struct Folded {
     commits: usize,
     max_lsn: u64,
     pending: bool,
+    scope: Option<ScopeRaw>,
 }
 
-fn fold_peek(index: &Value, rows: &[tokio_postgres::Row]) -> Result<Folded, Fail> {
+struct ScopeRaw {
+    xid: i32,
+    begin_message_lsn: String,
+    begin_final_lsn: u64,
+    commit_lsn: u64,
+    end_lsn: u64,
+    tables: Vec<(String, String)>,
+}
+
+type ChangedKey = (String, String, i64, bool);
+type OpenTxn = (i32, String, u64, Vec<ChangedKey>);
+
+fn fold_peek(index: &Value, rows: &[tokio_postgres::Row], transactional: bool) -> Result<Folded, Fail> {
     let mut relations = HashMap::new();
-    let mut open: Option<Vec<(String, String, i64, bool)>> = None;
+    let mut open: Option<OpenTxn> = None;
     let mut changes = BTreeMap::new();
     let mut commits = 0usize;
     let mut max_lsn = 0u64;
+    let mut scope = None;
     for row in rows {
         let data: Vec<u8> = row.try_get(1).map_err(|_| Fail::new("capture.protocol", 4))?;
         match decode_message(&data)? {
-            Msg::Begin { .. } => open = Some(Vec::new()),
-            Msg::Commit { commit_lsn, .. } => {
-                let events = open.take().ok_or(Fail::new("capture.protocol", 4))?;
+            Msg::Begin { xid, final_lsn } => {
+                if open.is_some() { return Err(Fail::new("capture.protocol", 4)); }
+                let message_lsn: String = row.try_get(0).map_err(|_| Fail::new("capture.protocol", 4))?;
+                open = Some((xid, message_lsn, final_lsn, Vec::new()));
+            }
+            Msg::Commit { commit_lsn, end_lsn, .. } => {
+                let (xid, begin_message_lsn, begin_final_lsn, events) = open.take().ok_or(Fail::new("capture.protocol", 4))?;
+                if transactional {
+                    if scope.is_some() || events.is_empty() || end_lsn < commit_lsn {
+                        return Err(Fail::new("capture.protocol", 4));
+                    }
+                    let tables = events.iter().map(|(schema, table, _, _)| (schema.clone(), table.clone()))
+                        .collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+                    scope = Some(ScopeRaw { xid, begin_message_lsn, begin_final_lsn, commit_lsn, end_lsn, tables });
+                }
                 for (schema, table, pk, upsert) in events {
                     changes.insert((schema, table, pk), upsert);
                 }
@@ -908,35 +952,38 @@ fn fold_peek(index: &Value, rows: &[tokio_postgres::Row]) -> Result<Folded, Fail
                 relations.insert(rel.oid, rel);
             }
             Msg::Insert { oid, cells } | Msg::Update { oid, cells } => {
-                push_change(index, &relations, &mut open, oid, &cells, true)?;
+                push_change(index, &relations, &mut open, oid, &cells, true, transactional)?;
             }
             Msg::Delete { oid, cells } => {
-                push_change(index, &relations, &mut open, oid, &cells, false)?;
+                push_change(index, &relations, &mut open, oid, &cells, false, transactional)?;
             }
             Msg::Truncate { oids } => {
-                if oids.iter().any(|oid| relations.get(oid).is_some_and(|rel| table_known(index, &rel.namespace, &rel.name))) {
+                if transactional || oids.iter().any(|oid| relations.get(oid).is_some_and(|rel| table_known(index, &rel.namespace, &rel.name))) {
                     return Err(Fail::new("capture.schema_paused", 10));
                 }
             }
             Msg::Ignore => {}
         }
     }
-    Ok(Folded { changes, commits, max_lsn, pending: open.is_some() })
+    if transactional && (commits != 1 || scope.is_none()) { return Err(Fail::new("capture.protocol", 4)); }
+    Ok(Folded { changes, commits, max_lsn, pending: open.is_some(), scope })
 }
 
 fn push_change(
     index: &Value,
     relations: &HashMap<u32, crate::capture::Rel>,
-    open: &mut Option<Vec<(String, String, i64, bool)>>,
+    open: &mut Option<OpenTxn>,
     oid: u32,
     cells: &[crate::capture::Cell],
     upsert: bool,
+    transactional: bool,
 ) -> Result<(), Fail> {
-    let Some(events) = open else {
+    let Some((_, _, _, events)) = open else {
         return Err(Fail::new("capture.protocol", 4));
     };
     let rel = relations.get(&oid).ok_or(Fail::new("capture.protocol", 4))?;
     if !table_known(index, &rel.namespace, &rel.name) {
+        if transactional { return Err(Fail::new("capture.refused", 4)); }
         return Ok(());
     }
     let pk_name = index_pk(index, &rel.namespace, &rel.name)?;
@@ -1078,13 +1125,14 @@ fn write_delta(
     max_lsn: u64,
     tables: Vec<TableData>,
     dba_observation: &Value,
+    scope: Option<&ScopeRaw>,
 ) -> Result<(), Fail> {
     let root = admit_root(config);
     let audit = json!({
         "protocol": "oo.postgres-preview.native-audit/v1",
         "statements": audit_sql,
         "slot_advanced": false,
-        "applied_pos": max_lsn.to_string(),
+        "applied_pos": scope.map_or(max_lsn, |txn| txn.end_lsn).to_string(),
         "source_dml": 0
     });
     let audit_bytes = canonical_bytes(&audit)?;
@@ -1101,7 +1149,15 @@ fn write_delta(
         dba_objects: dba_descriptors(&root, "dba-objects.delta.json", dba_observation)?,
     };
     let mut index = index.clone();
-    let lsn_text = max_lsn.to_string();
+    let lsn_text = scope.map_or(max_lsn, |txn| txn.end_lsn).to_string();
+    if let Some(txn) = scope {
+        let observed = tables.iter().map(|table| (table.schema.clone(), table.table.clone()))
+            .collect::<std::collections::BTreeSet<_>>();
+        if observed.len() != tables.len() || observed.into_iter().collect::<Vec<_>>() != txn.tables {
+            return Err(Fail::new("capture.protocol", 4));
+        }
+    }
+    let mut scope_entries = Vec::new();
     for table in &tables {
         if table.rows.is_empty() && table.tombstones.is_empty() {
             continue;
@@ -1110,6 +1166,8 @@ fn write_delta(
             return Err(Fail::new("capture.protocol", 4));
         }
         let (parent, generation) = next_generation(&index, &table.schema, &table.table)?;
+        let mut tombstones = table.tombstones.clone();
+        if scope.is_some() { tombstones.sort(); }
         let bytes = if table.rows.is_empty() {
             Vec::new()
         } else {
@@ -1130,13 +1188,59 @@ fn write_delta(
             &shared,
             &bytes,
             &table.rows,
-            &table.tombstones,
+            &tombstones,
+            scope.is_some(),
         )?;
+        if scope.is_some() {
+            let tombstones_sha256 = sha256(&serde_json::to_vec(&tombstones).map_err(|_| Fail::new("capture.apply", 4))?);
+            scope_entries.push(json!({
+                "logical_schema": table.schema,
+                "logical_table": table.table,
+                "source_generation": generation,
+                "parent_source_generation": parent,
+                "arrow_sha256": written["arrow_sha256"],
+                "row_count": table.rows.len(),
+                "tombstones_sha256": tombstones_sha256
+            }));
+        }
         append_page(&mut index, &table.schema, &table.table, written)?;
+    }
+    if let Some(txn) = scope {
+        let scope_body = json!({
+            "source_id": config.source_id,
+            "slot": config.capture.as_ref().ok_or(Fail::new("capture.refused", 4))?.slot,
+            "publication": config.capture.as_ref().ok_or(Fail::new("capture.refused", 4))?.publication,
+            "xid": txn.xid,
+            "begin_message_lsn": txn.begin_message_lsn,
+            "begin_final_lsn": lsn_pg(txn.begin_final_lsn),
+            "commit_lsn": lsn_pg(txn.commit_lsn),
+            "end_lsn": lsn_pg(txn.end_lsn),
+            "complete": true,
+            "tables": scope_entries
+        });
+        for (schema, table) in &txn.tables {
+            let (_, generation) = next_generation_before_append(&index, schema, table)?;
+            let path = root.join(format!("{schema}.{table}/g{generation}.capture.json"));
+            let mut capture: Value = serde_json::from_slice(&fs::read(&path).map_err(|_| Fail::new("capture.apply", 4))?)
+                .map_err(|_| Fail::new("capture.apply", 4))?;
+            capture["transaction_scope"] = scope_body.clone();
+            write_json(&path, &capture)?;
+        }
+        write_json(&root.join(format!("transaction-{}.json", txn.end_lsn)), &scope_body)?;
     }
     index["delete_grade"] = json!("unknown");
     write_json(&root.join("index.json"), &index)?;
     Ok(())
+}
+
+fn lsn_pg(lsn: u64) -> String { format!("{:X}/{:X}", lsn >> 32, lsn & 0xffff_ffff) }
+
+fn next_generation_before_append(index: &Value, schema: &str, table: &str) -> Result<(i64, i64), Fail> {
+    let pages = index.get("tables").and_then(Value::as_array).and_then(|tables| {
+        tables.iter().find(|item| item.get("schema").and_then(Value::as_str) == Some(schema) && item.get("table").and_then(Value::as_str) == Some(table))
+    }).and_then(|item| item.get("pages").and_then(Value::as_array)).ok_or(Fail::new("capture.refused", 4))?;
+    let generation = pages.last().and_then(|page| page.get("generation").and_then(Value::as_i64)).ok_or(Fail::new("capture.refused", 4))?;
+    Ok((generation - 1, generation))
 }
 
 fn next_generation(index: &Value, schema: &str, table: &str) -> Result<(i64, i64), Fail> {

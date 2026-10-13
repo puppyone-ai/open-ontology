@@ -65,6 +65,12 @@ pub const VERSION_NATIVE_PARTITION: &str = "native-partition/v1";
 pub const VERSION_NATIVE_PARTITION_REBIND: &str = "native-partition-rebind/v1";
 pub const VERSION_NATIVE_INTERVAL: &str = "native-interval/v1";
 pub const VERSION_NATIVE_OLAP_PARTITION: &str = "native-olap-partition/v1";
+pub const VERSION_NATIVE_OLAP_GUARD: &str = "native-olap-guard-precedence/v1";
+pub const VERSION_NATIVE_OLAP_GUARD_SIGNATURE: &str = "native-olap-guard-signature/v1";
+pub const VERSION_NATIVE_PG_TRANSACTION_GROUP: &str = "native-pg-transaction-group/v1";
+pub const VERSION_NATIVE_EMPTY_CATALOG: &str = "native-empty-sealed-catalog/v1";
+pub const VERSION_NATIVE_PG_GROUP_RECEIPT: &str = "native-pg-group-receipt/v1";
+pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
 
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
 ///
@@ -87,10 +93,17 @@ const FILE_NATIVE_PARTITION: &str = "0011_native_partition.sql";
 const FILE_NATIVE_PARTITION_REBIND: &str = "0012_native_partition_rebind.sql";
 const FILE_NATIVE_INTERVAL: &str = "0013_native_interval.sql";
 const FILE_NATIVE_OLAP_PARTITION: &str = "0014_native_olap_partition.sql";
+const FILE_NATIVE_OLAP_GUARD: &str = "0015_native_olap_guard_precedence.sql";
+const FILE_NATIVE_OLAP_GUARD_SIGNATURE: &str = "0016_native_olap_guard_signature.sql";
+const FILE_NATIVE_PG_TRANSACTION_GROUP: &str = "0017_native_pg_transaction_group.sql";
+const FILE_NATIVE_EMPTY_CATALOG: &str = "0018_native_empty_sealed_catalog.sql";
+const FILE_NATIVE_PG_GROUP_RECEIPT: &str = "0019_native_pg_group_receipt.sql";
+const FILE_NATIVE_PG_GROUP_PRIOR: &str = "0020_native_pg_group_prior.sql";
 const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
 const FILE_JOBS_MIRROR_SYNC: &str = "0007_verified_mirror_sync_expand.sql";
 const FILE_JOBS_MIRROR_READ: &str = "0008_native_mirror_read_grants_expand.sql";
+const FILE_JOBS_RECEIPT_READ: &str = "0010_native_receipt_read_grants_expand.sql";
 const FILE_JOBS_CLAIM_SELECTED: &str = "0009_claim_selected_expand.sql";
 
 const SCRIPT_BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
@@ -106,10 +119,17 @@ const SCRIPT_NATIVE_PARTITION: &str = include_str!("../migrations/0011_native_pa
 const SCRIPT_NATIVE_PARTITION_REBIND: &str = include_str!("../migrations/0012_native_partition_rebind.sql");
 const SCRIPT_NATIVE_INTERVAL: &str = include_str!("../migrations/0013_native_interval.sql");
 const SCRIPT_NATIVE_OLAP_PARTITION: &str = include_str!("../migrations/0014_native_olap_partition.sql");
+const SCRIPT_NATIVE_OLAP_GUARD: &str = include_str!("../migrations/0015_native_olap_guard_precedence.sql");
+const SCRIPT_NATIVE_OLAP_GUARD_SIGNATURE: &str = include_str!("../migrations/0016_native_olap_guard_signature.sql");
+const SCRIPT_NATIVE_PG_TRANSACTION_GROUP: &str = include_str!("../migrations/0017_native_pg_transaction_group.sql");
+const SCRIPT_NATIVE_EMPTY_CATALOG: &str = include_str!("../migrations/0018_native_empty_sealed_catalog.sql");
+const SCRIPT_NATIVE_PG_GROUP_RECEIPT: &str = include_str!("../migrations/0019_native_pg_group_receipt.sql");
+const SCRIPT_NATIVE_PG_GROUP_PRIOR: &str = include_str!("../migrations/0020_native_pg_group_prior.sql");
 const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
 const SCRIPT_JOBS_MIRROR_SYNC: &str = include_str!("../../oo-jobs/migrations/0007_verified_mirror_sync_expand.sql");
 const SCRIPT_JOBS_MIRROR_READ: &str = include_str!("../../oo-jobs/migrations/0008_native_mirror_read_grants_expand.sql");
+const SCRIPT_JOBS_RECEIPT_READ: &str = include_str!("../../oo-jobs/migrations/0010_native_receipt_read_grants_expand.sql");
 const SCRIPT_JOBS_CLAIM_SELECTED: &str = include_str!("../../oo-jobs/migrations/0009_claim_selected_expand.sql");
 
 const LOCK_SQL: &str = "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)";
@@ -205,8 +225,36 @@ pub fn compiled_native_olap_partition_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_OLAP_PARTITION.as_bytes())
 }
 
+pub fn compiled_native_olap_guard_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_OLAP_GUARD.as_bytes())
+}
+
+pub fn compiled_native_olap_guard_signature_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_OLAP_GUARD_SIGNATURE.as_bytes())
+}
+
+pub fn compiled_native_pg_transaction_group_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PG_TRANSACTION_GROUP.as_bytes())
+}
+
+pub fn compiled_native_empty_catalog_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_EMPTY_CATALOG.as_bytes())
+}
+
+pub fn compiled_native_pg_group_receipt_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PG_GROUP_RECEIPT.as_bytes())
+}
+
+pub fn compiled_native_pg_group_prior_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PG_GROUP_PRIOR.as_bytes())
+}
+
 pub fn compiled_jobs_mirror_rebind_digest() -> String {
     sha256_hex(SCRIPT_JOBS_MIRROR_READ.as_bytes())
+}
+
+pub fn compiled_jobs_receipt_read_digest() -> String {
+    sha256_hex(SCRIPT_JOBS_RECEIPT_READ.as_bytes())
 }
 
 pub fn compiled_jobs_claim_selected_digest() -> String {
@@ -1095,9 +1143,29 @@ pub async fn install_native_olap_partition(conn: &mut PgConnection) -> Result<()
         }
     }
     let digest = compiled_native_olap_partition_digest();
+    let installed = find_row(&rows, VERSION_NATIVE_OLAP_PARTITION).is_some();
     if let Some(row) = find_row(&rows, VERSION_NATIVE_OLAP_PARTITION) {
         if !row_exact(row, VERSION_NATIVE_OLAP_PARTITION, &digest, FILE_NATIVE_OLAP_PARTITION) {
             return match mismatch(tx, Mismatch { version: VERSION_NATIVE_OLAP_PARTITION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+    }
+    let guard_digest = compiled_native_olap_guard_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_OLAP_GUARD) {
+        if !installed || !row_exact(row, VERSION_NATIVE_OLAP_GUARD, &guard_digest, FILE_NATIVE_OLAP_GUARD) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_OLAP_GUARD.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+    }
+    let signature_digest = compiled_native_olap_guard_signature_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_OLAP_GUARD_SIGNATURE) {
+        if !installed || !matches!(find_row(&rows, VERSION_NATIVE_OLAP_GUARD), Some(prior) if row_exact(prior, VERSION_NATIVE_OLAP_GUARD, &guard_digest, FILE_NATIVE_OLAP_GUARD))
+            || !row_exact(row, VERSION_NATIVE_OLAP_GUARD_SIGNATURE, &signature_digest, FILE_NATIVE_OLAP_GUARD_SIGNATURE) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_OLAP_GUARD_SIGNATURE.to_string(), stored: row.checksum.clone() }).await {
                 Err(err) => Err(err),
                 Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
             };
@@ -1107,8 +1175,168 @@ pub async fn install_native_olap_partition(conn: &mut PgConnection) -> Result<()
     }
     let result = async {
         exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
-        exec_script(&mut tx, SCRIPT_NATIVE_OLAP_PARTITION).await?;
-        insert_markers(&mut tx, &[marker(VERSION_NATIVE_OLAP_PARTITION, &digest, FILE_NATIVE_OLAP_PARTITION)]).await?;
+        if !installed {
+            exec_script(&mut tx, SCRIPT_NATIVE_OLAP_PARTITION).await?;
+            insert_markers(&mut tx, &[marker(VERSION_NATIVE_OLAP_PARTITION, &digest, FILE_NATIVE_OLAP_PARTITION)]).await?;
+        }
+        if find_row(&rows, VERSION_NATIVE_OLAP_GUARD).is_none() {
+            exec_script(&mut tx, SCRIPT_NATIVE_OLAP_GUARD).await?;
+            insert_markers(&mut tx, &[marker(VERSION_NATIVE_OLAP_GUARD, &guard_digest, FILE_NATIVE_OLAP_GUARD)]).await?;
+        }
+        exec_script(&mut tx, SCRIPT_NATIVE_OLAP_GUARD_SIGNATURE).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_OLAP_GUARD_SIGNATURE, &signature_digest, FILE_NATIVE_OLAP_GUARD_SIGNATURE)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the atomic PostgreSQL C1 group record after the exact OLAP guard.
+pub async fn install_native_pg_transaction_group(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_olap_guard_signature_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_OLAP_GUARD_SIGNATURE), Some(row)
+        if row_exact(row, VERSION_NATIVE_OLAP_GUARD_SIGNATURE, &prior, FILE_NATIVE_OLAP_GUARD_SIGNATURE)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "native transaction group requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_pg_transaction_group_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PG_TRANSACTION_GROUP) {
+        if !row_exact(row, VERSION_NATIVE_PG_TRANSACTION_GROUP, &digest, FILE_NATIVE_PG_TRANSACTION_GROUP) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_PG_TRANSACTION_GROUP.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PG_TRANSACTION_GROUP).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_TRANSACTION_GROUP, &digest, FILE_NATIVE_PG_TRANSACTION_GROUP)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Keep an exhausted zero-row native table eligible for sealed catalog export.
+pub async fn install_native_empty_catalog(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_pg_transaction_group_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PG_TRANSACTION_GROUP), Some(row)
+        if row_exact(row, VERSION_NATIVE_PG_TRANSACTION_GROUP, &prior, FILE_NATIVE_PG_TRANSACTION_GROUP)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "empty native catalog requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_empty_catalog_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_EMPTY_CATALOG) {
+        if !row_exact(row, VERSION_NATIVE_EMPTY_CATALOG, &digest, FILE_NATIVE_EMPTY_CATALOG) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_EMPTY_CATALOG.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_EMPTY_CATALOG).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_EMPTY_CATALOG, &digest, FILE_NATIVE_EMPTY_CATALOG)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Attest group completeness against actual per-table storage receipt fields.
+pub async fn install_native_pg_group_receipt(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_empty_catalog_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_EMPTY_CATALOG), Some(row)
+        if row_exact(row, VERSION_NATIVE_EMPTY_CATALOG, &prior, FILE_NATIVE_EMPTY_CATALOG)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "group receipt requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_pg_group_receipt_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PG_GROUP_RECEIPT) {
+        if !row_exact(row, VERSION_NATIVE_PG_GROUP_RECEIPT, &digest, FILE_NATIVE_PG_GROUP_RECEIPT) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_PG_GROUP_RECEIPT.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PG_GROUP_RECEIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_GROUP_RECEIPT, &digest, FILE_NATIVE_PG_GROUP_RECEIPT)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Owner-only accessor for the prior PostgreSQL source generation.
+pub async fn install_native_pg_group_prior(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_pg_group_receipt_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PG_GROUP_RECEIPT), Some(row)
+        if row_exact(row, VERSION_NATIVE_PG_GROUP_RECEIPT, &prior, FILE_NATIVE_PG_GROUP_RECEIPT)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "group prior requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_pg_group_prior_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PG_GROUP_PRIOR) {
+        if !row_exact(row, VERSION_NATIVE_PG_GROUP_PRIOR, &digest, FILE_NATIVE_PG_GROUP_PRIOR) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_PG_GROUP_PRIOR.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PG_GROUP_PRIOR).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_GROUP_PRIOR, &digest, FILE_NATIVE_PG_GROUP_PRIOR)]).await?;
         Ok::<(), InstallError>(())
     }.await;
     if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
@@ -1171,9 +1399,18 @@ pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), I
         let read_grants: Option<(String, String)> = sqlx::query_as(
             "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-mirror-read/1'"
         ).fetch_optional(&mut *tx).await.map_err(database_error)?;
-        if let Some(row) = read_grants {
-            if synchronized.is_none() || row != (digest, FILE_JOBS_MIRROR_READ.to_string()) {
+        if let Some(row) = &read_grants {
+            if synchronized.is_none() || row != &(digest.clone(), FILE_JOBS_MIRROR_READ.to_string()) {
                 return Err(InstallError::Refused { message: "jobs mirror read checksum differs".to_string() });
+            }
+        }
+        let receipt_digest = compiled_jobs_receipt_read_digest();
+        let receipt_grants: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-native-receipt-read/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = &receipt_grants {
+            if read_grants.is_none() || row != &(receipt_digest.clone(), FILE_JOBS_RECEIPT_READ.to_string()) {
+                return Err(InstallError::Refused { message: "jobs receipt read checksum differs".to_string() });
             }
             return Ok::<(), InstallError>(());
         }
@@ -1204,9 +1441,15 @@ pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), I
                 .execute(&mut *tx).await.map_err(database_error)?;
         }
         exec_static(&mut tx, "RESET ROLE").await?;
-        exec_script(&mut tx, SCRIPT_JOBS_MIRROR_READ).await?;
-        sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-read/1',$1,'expand',$2)")
-            .bind(&digest).bind(FILE_JOBS_MIRROR_READ)
+        if read_grants.is_none() {
+            exec_script(&mut tx, SCRIPT_JOBS_MIRROR_READ).await?;
+            sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-read/1',$1,'expand',$2)")
+                .bind(&digest).bind(FILE_JOBS_MIRROR_READ)
+                .execute(&mut *tx).await.map_err(database_error)?;
+        }
+        exec_script(&mut tx, SCRIPT_JOBS_RECEIPT_READ).await?;
+        sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-native-receipt-read/1',$1,'expand',$2)")
+            .bind(&receipt_digest).bind(FILE_JOBS_RECEIPT_READ)
             .execute(&mut *tx).await.map_err(database_error)?;
         Ok(())
     }.await;

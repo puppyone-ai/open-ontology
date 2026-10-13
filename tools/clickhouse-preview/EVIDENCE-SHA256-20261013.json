@@ -1,0 +1,46 @@
+{
+  "dialogue_transcript": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/dialogue-run-20261013-v6/transcript.json",
+    "sha256": "c7a813cc65088af34da21140f1618b65dff662a6c913579e347d6071009e59b7"
+  },
+  "dialogue_verdict": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/dialogue-run-20261013-v6/verdict.json",
+    "sha256": "e9751b096b88227f04fccdacc7f87a82b50074b072c2dd547e899b6adbfd16bc"
+  },
+  "gate_report": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/gates-g6-response.json",
+    "sha256": "692c09dfc98db08b14965fb3ba47f8d936bf017921ef8beed85fbbd34c3e6dbd"
+  },
+  "gateway_cancel": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/gateway/cancel-response.json",
+    "sha256": "52b25d4f029538bd1f427fcf516c018d36e570713389f3dfc9bc1fe0f3c4f591"
+  },
+  "gateway_freshness": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/gateway/freshness-fixed.json",
+    "sha256": "444c9fb9ee786d1cc90a30630c57bb1cd467fa30c1cc5210633da62a5214b0d0"
+  },
+  "gateway_gold": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/gateway/gold-diff.json",
+    "sha256": "935551d9036bd325fed2ce0ff7d5746f11fd82f39bbcae27cbf9f41138bc0df3"
+  },
+  "gateway_query": {
+    "path": "/tmp/oo-dl01w1-40-selfbuild-runtime/gateway/query-all12-fixed.json",
+    "sha256": "32e32fbcd9394154de38330b2055fa6cd215f0e084ea0da04c04a87a2aaba7d0"
+  },
+  "source_bundle_manifest": {
+    "path": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/native-20261013-c4-current-bundle-v3/manifest.json",
+    "sha256": "16c985e558702766821942eea2ddc4c1ede430f0d8627076fb156a2cfd72b287"
+  },
+  "source_demo": {
+    "path": "/tmp/ch40-final-demo-20261013/demo.json",
+    "sha256": "90cc4040ce98a963c5c830d35ffa4eae809f9ff6c74017811341a6514b93ff0e"
+  },
+  "source_gold": {
+    "path": "testing/dl01-driver-preflight/clickhouse/fixtures/gold-20261013-c4-insert-update-delete.json",
+    "sha256": "155875c9cf8b885debee2ec11247abd2b1cf18b475de3ce9487349fba32b73ad"
+  },
+  "source_typed_diff": {
+    "path": "/tmp/ch40-final-demo-20261013/typed-diff.json",
+    "sha256": "30c8645e478daf060a491ad986527f754684e5272e6f932dc9f08299f2b457f9"
+  }
+}

@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS jw_native.process_attempts (
  PRIMARY KEY(task_id,generation,stage));
 REVOKE ALL ON jw_native.process_attempts FROM PUBLIC;
 GRANT SELECT,INSERT ON jw_native.process_attempts TO oo_jobs_runtime;
+REVOKE UPDATE ON jw_native.process_attempts FROM oo_jobs_runtime;
+GRANT UPDATE(exit_code,stdout,stderr,observed_at) ON jw_native.process_attempts TO oo_jobs_runtime;
 ALTER TABLE jw_native.process_attempts DROP CONSTRAINT IF EXISTS process_attempts_stage_check;
 ALTER TABLE jw_native.process_attempts ADD CONSTRAINT process_attempts_stage_check CHECK(stage IN ('producer','loader','ack'));
 CREATE TABLE IF NOT EXISTS jw_native.pending_acks (
