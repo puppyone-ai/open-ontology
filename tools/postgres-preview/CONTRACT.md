@@ -56,6 +56,20 @@ The producer queries their actual names/owner/plugin/database and writes the raw
 observation used by the descriptors' exact hash/path. Rollback instructions are
 for the DBA; the product never executes them.
 
+For a new isolated DBA transaction, `capture-receipt-transaction` requires one
+complete pgoutput BEGIN–COMMIT pair and rejects an extra or open transaction,
+unknown relation, or truncation. It records the BEGIN message LSN separately
+from the BEGIN payload's final LSN, plus the actual xid and COMMIT/end LSN.
+The exact affected table set and each page's Arrow/tombstone hashes are copied
+into every page's `capturer.transaction_scope`. Its requested applied position
+is the decimal end LSN; the existing `pg-commit-lsn/v1` codec remains the
+transport encoding. These T pages are still producer observations until the
+source-admission executable seals the whole scope and the Loader applies all
+members in one target transaction. Older S1 pages retain their original grade.
+The new request's batch ID is `t{approved_table_index}.b{source_generation}`
+so the fixed native Selfbuild catalog consumer accepts it without changing old
+sealed page identities.
+
 Target request identity and password file follow the operator's configured
 restricted runtime principal. They no longer silently select `postgres` or the
 superuser password. The target's actual TLS policy must still be configured in

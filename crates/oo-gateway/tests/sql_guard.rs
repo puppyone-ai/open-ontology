@@ -306,6 +306,31 @@ fn quoted_native_column_keeps_its_case_through_physical_recheck() {
 }
 
 #[test]
+fn varchar_equality_uses_only_the_catalogued_text_operator() {
+    let catalog = catalog(vec![relation(
+        "oo_w141",
+        "shipments",
+        "pt_ship",
+        vec![col("code", "pc_code", 1043)],
+        0,
+        14,
+    )]);
+    let plan = admit(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE code = 'S41-001-U'");
+    assert_eq!(plan.bindings.operators.len(), 1);
+    assert_eq!(plan.bindings.operators[0].name, "=");
+    assert!(matches!(
+        refuse(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE code = 1"),
+        GuardError::FunctionNotAllowed
+    ));
+    assert!(matches!(
+        refuse(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE code::text = 'S41-001-U'"),
+        GuardError::Unsupported { construct: "cast" }
+    ));
+    let function = refuse(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE lower(code) = 's41-001-u'");
+    assert!(matches!(function, GuardError::Unsupported { .. } | GuardError::FunctionNotAllowed), "{function:?}");
+}
+
+#[test]
 fn alias_hides_the_table_name() {
     let plan = admit(&small(), "SELECT s.order_id FROM logistics.shipment AS s");
     assert_eq!(plan.bindings.relations[0].alias.as_deref(), Some("s"));

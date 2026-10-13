@@ -33,6 +33,9 @@ fn main() -> ExitCode {
         Some(command) if command == OsStr::new("import-native-update") && args.next().is_none() => {
             import_native_update()
         }
+        Some(command) if command == OsStr::new("import-native-transaction") && args.next().is_none() => {
+            import_native_transaction()
+        }
         Some(command) if command == OsStr::new("ack-native-partition") && args.next().is_none() => {
             ack_native_partition()
         }
@@ -133,6 +136,14 @@ async fn import_jsonb_document() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn import_native_update() -> ExitCode {
     match oo_pipeline::native_update::import_native_update().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn import_native_transaction() -> ExitCode {
+    match oo_pipeline::native_update::import_native_transaction().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }

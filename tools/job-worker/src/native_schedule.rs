@@ -11,7 +11,13 @@ pub struct Executable { pub path:String, pub sha256:String, pub args:Vec<String>
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Registration {
- pub admission_binary:String, pub admission_sha256:String, pub registry_path:String,
+ pub admission_binary:String, pub admission_sha256:String,
+ #[serde(default,skip_serializing_if="Option::is_none")]
+ pub registry_path:Option<String>,
+ #[serde(default,skip_serializing_if="Option::is_none")]
+ pub transaction_registry_vector_path:Option<String>,
+ #[serde(default,skip_serializing_if="Option::is_none")]
+ pub transaction_registry_vector_sha256:Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -36,17 +42,29 @@ impl Manifest {
    || !crate::api::is_uuid(&self.project_id) || self.source_id.is_empty()
    || !["C1","C2","C3","C4","C5"].contains(&self.method.as_str())
    || !["detect","pull","reconcile"].contains(&self.cycle.as_str())
-   || !(1000..=86400000).contains(&self.period_ms) || self.loader.args!=["import-native-update"] {return Err(Error::new("manifest"))}
+   || !(1000..=86400000).contains(&self.period_ms)
+   || self.loader.args!=["import-native-update"] && self.loader.args!=["import-native-transaction"]
+   || self.loader.args==["import-native-transaction"] && self.method!="C1" {return Err(Error::new("manifest"))}
   for e in [&self.producer,&self.loader] {
    if !Path::new(&e.path).is_absolute() || e.path.contains("..") || e.sha256.len()!=64 || !e.sha256.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("manifest"))}
   }
-  if let Some(r)=&self.registration
-   && (!Path::new(&r.registry_path).is_absolute() || r.registry_path.contains("..") || r.registry_path.contains('\0')) {return Err(Error::new("registration"))}
+  if let Some(r)=&self.registration {
+   let group=self.loader.args==["import-native-transaction"];
+   if group {
+    let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256) else {return Err(Error::new("registration"))};
+    if r.registry_path.is_some() || !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("registration"))}
+   } else if !r.registry_path.as_ref().is_some_and(|path|Path::new(path).is_absolute() && !path.contains("..") && !path.contains('\0'))
+    || r.transaction_registry_vector_path.is_some() || r.transaction_registry_vector_sha256.is_some() {return Err(Error::new("registration"))}
+  } else if self.loader.args==["import-native-transaction"] {return Err(Error::new("registration"))}
   Ok(())
  }
  fn check(&self)->Result<()> {
   self.shape()?;executable_check(&self.producer)?;executable_check(&self.loader)?;
-  if let Some(r)=&self.registration {executable_check(&Executable{path:r.admission_binary.clone(),sha256:r.admission_sha256.clone(),args:vec![]})?;}
+  if let Some(r)=&self.registration {
+   executable_check(&Executable{path:r.admission_binary.clone(),sha256:r.admission_sha256.clone(),args:vec![]})?;
+   if let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256)
+    && sha256_hex(&std::fs::read(path).map_err(|_|Error::new("registration"))?)!=*sha {return Err(Error::new("registration"))}
+  }
   Ok(())
  }
 }
@@ -171,6 +189,45 @@ async fn verify_c1_applied(config:&Config,source:&str,database:&str,request:&Val
  let valid:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.source_watermark w ON w.source=f.source JOIN _oo.full_import_run r ON r.run_id=$7::text::uuid JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND f.physical_name=$8 AND w.position_codec=$6 AND w.applied_pos>=$5::text::numeric AND r.state='awaiting_publish' AND r.source_id=$1 AND r.source_generation=$4 AND r.target_generation=$9 AND ft.schema_ident=$2 AND ft.table_ident=$3 AND ft.physical_name=$8 AND ft.exhausted AND ar.txn_or_batch_id=$10 AND ar.payload_digest=$11 AND ar.applied_pos=$5::text::numeric AND ar.txn_complete)",&[&source,&schema,&table,&generation,&pos,&codec,&run,&physical,&target_generation,&batch,&digest]).await.map_err(Error::sql)?.get(0);
  if !valid {return Err(Error::new("target_generation"))} Ok(())
 }
+async fn verify_group_applied(config:&Config,source:&str,database:&str,request:&Value,result:&Value)->Result<()> {
+ let scope=request.get("transaction_scope").ok_or_else(||Error::new("transaction_scope"))?;
+ let end=pg_lsn_decimal(scope.get("end_lsn").and_then(Value::as_str).ok_or_else(||Error::new("transaction_scope"))?)?;
+ let generation=request.get("source_generation").and_then(Value::as_i64).ok_or_else(||Error::new("source_generation"))?;
+ let target_generation=result.get("target_generation").and_then(Value::as_i64).ok_or_else(||Error::new("target_generation"))?;
+ let entries=request.get("entries").and_then(Value::as_array).ok_or_else(||Error::new("transaction_request"))?;
+ let receipts=result.get("entries").and_then(Value::as_array).ok_or_else(||Error::new("target_generation"))?;
+ if result.get("end_lsn").and_then(Value::as_str)!=Some(end.as_str()) || result.get("xid")!=scope.get("xid") || entries.len()!=receipts.len() {return Err(Error::new("target_generation"))}
+ let target=target_owner(config,database).await?;
+ let xid=scope.get("xid").and_then(Value::as_i64).ok_or_else(||Error::new("transaction_scope"))?;
+ let attestation=target.query_one("SELECT _oo.native_transaction_read($1,$2,$3::text::numeric)::text",&[&source,&xid,&end]).await.map_err(Error::sql)?.get::<_,Option<String>>(0).ok_or_else(||Error::new("transaction_attestation"))?;
+ let attestation:Value=serde_json::from_str(&attestation).map_err(|_|Error::new("transaction_attestation"))?;
+ if attestation.get("source").and_then(Value::as_str)!=Some(source)
+  || attestation.get("xid").and_then(Value::as_i64)!=Some(xid)
+  || attestation.get("end_lsn").and_then(Value::as_u64)!=end.parse::<u64>().ok()
+  || attestation.get("scope_digest")!=result.get("scope_digest")
+  || attestation.get("job_task_id")!=result.get("job_task_id")
+  || attestation.get("target_generation").and_then(Value::as_i64)!=Some(target_generation)
+  || attestation.get("entries")!=result.get("entries") {return Err(Error::new("transaction_attestation"))}
+ let watermark:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.source_watermark WHERE source=$1 AND source_generation=$2 AND applied_pos=$3::text::numeric AND target_generation=$4 AND position_codec='pg-commit-lsn/v1' AND consistency='transactional' AND consistency_grade='T' AND cross_table_consistent)",&[&source,&generation,&end,&target_generation]).await.map_err(Error::sql)?.get(0);
+ if !watermark {return Err(Error::new("target_generation"))}
+ for (entry,receipt) in entries.iter().zip(receipts) {
+  let schema=entry.get("logical_schema").and_then(Value::as_str).ok_or_else(||Error::new("transaction_request"))?;
+  let table=entry.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("transaction_request"))?;
+  let table_generation=entry.get("source_generation").and_then(Value::as_i64).ok_or_else(||Error::new("transaction_request"))?;
+  let batch=entry.get("batch_id").and_then(Value::as_str).ok_or_else(||Error::new("transaction_request"))?;
+  let physical=receipt.get("physical_name").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
+  let run=receipt.get("run_id").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
+  let digest=receipt.get("payload_digest").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
+  if receipt.get("logical_schema").and_then(Value::as_str)!=Some(schema)
+   || receipt.get("logical_table").and_then(Value::as_str)!=Some(table)
+   || receipt.get("source_generation").and_then(Value::as_i64)!=Some(table_generation)
+   || receipt.get("target_generation").and_then(Value::as_i64)!=Some(target_generation)
+   || receipt.get("batch_id").and_then(Value::as_str)!=Some(batch) {return Err(Error::new("target_generation"))}
+  let applied:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.full_import_run r ON r.run_id=$6::text::uuid JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND f.physical_name=$7 AND r.state='awaiting_publish' AND r.source_id=$1 AND r.source_generation=$4 AND r.target_generation=$8 AND ft.schema_ident=$2 AND ft.table_ident=$3 AND ft.physical_name=$7 AND ft.exhausted AND ar.txn_or_batch_id=$9 AND ar.payload_digest=$10 AND ar.applied_pos=$5::text::numeric AND ar.txn_complete)",&[&source,&schema,&table,&table_generation,&end,&run,&physical,&target_generation,&batch,&digest]).await.map_err(Error::sql)?.get(0);
+  if !applied {return Err(Error::new("target_generation"))}
+ }
+ Ok(())
+}
 async fn adopt_claim(control:&tokio_postgres::Client,source:&str,database:&str,project:&str,task:&str,worker:&str,generation:i64)->Result<()> {
  // Upgrade old queued occurrences only after a real jobs.claim. This records
  // the active fence, never a source generation, ACK, or substitute request.
@@ -269,10 +326,18 @@ async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration
  command.args(&e.args).env_clear().env("PATH","/usr/bin:/bin").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
  if let Some(r)=registration {
   executable_check(&Executable{path:r.admission_binary.clone(),sha256:r.admission_sha256.clone(),args:vec![]})?;
-  let registry=r.registry_path.replace("{binding}",binding).replace("{pin}",&pin.to_string());
-  let bytes=std::fs::read(&registry).map_err(|_|Error::new("registration"))?;
-  if bytes.len()>1024*1024 {return Err(Error::new("registration"))}
-  command.env("OO_NATIVE_ADMISSION_BIN",&r.admission_binary).env("OO_NATIVE_BINDING_REGISTRY",&registry).env("OO_NATIVE_BINDING_REGISTRY_SHA256",sha256_hex(&bytes));
+  command.env("OO_NATIVE_ADMISSION_BIN",&r.admission_binary);
+  if let Some(path)=&r.registry_path {
+   let registry=path.replace("{binding}",binding).replace("{pin}",&pin.to_string());
+   let bytes=std::fs::read(&registry).map_err(|_|Error::new("registration"))?;
+   if bytes.len()>1024*1024 {return Err(Error::new("registration"))}
+   command.env("OO_NATIVE_BINDING_REGISTRY",&registry).env("OO_NATIVE_BINDING_REGISTRY_SHA256",sha256_hex(&bytes));
+  }
+  if let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256) {
+   let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
+   if bytes.len()>1024*1024 || sha256_hex(&bytes)!=*sha {return Err(Error::new("registration"))}
+   command.env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR",path).env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256",sha);
+  }
  }
  let mut child=command.spawn().map_err(|_|Error::new("spawn"))?;
  let mut stdin=child.stdin.take().ok_or_else(||Error::new("spawn"))?;
@@ -341,13 +406,14 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  let row=c.query_one("SELECT o.manifest::text,o.manifest_sha,o.request::text,o.pin,b.id::text,t.payload::text,t.artifact_digest,(SELECT pin FROM jw_native.watermarks WHERE binding_id=b.id),b.target_database,o.producer_input::text FROM jw_native.occurrences o JOIN jw_native.bindings b ON b.id=o.binding_id JOIN jobs.tasks t ON t.id=o.task_id WHERE t.id=$1::text::uuid AND b.project_id=$2::text::uuid",&[&task,&project]).await.map_err(Error::sql)?;
  let text:String=row.get(0);let pinned:String=row.get(1);let stored:Option<String>=row.get(2);let pin:i64=row.get(3);let binding:String=row.get(4);let payload:String=row.get(5);
  let m:Manifest=serde_json::from_str(&text).map_err(|_|Error::new("manifest"))?;m.shape()?;
+ let group=m.loader.args==["import-native-transaction"];
  let database:String=row.get::<_,Option<String>>(8).ok_or_else(||Error::new("target_database"))?;
  if database!=target_database(config,&m.method)? {return Err(Error::new("target_database"))}
  let parsed=crate::capture_plan::CapturePayload::parse(&payload)?;
  let artifact:String=row.get(6);
  if canonical(&m)?.1!=pinned || parsed.binding!=binding || parsed.pin!=pin || artifact!=sha256_hex(crate::capture_plan::CapturePayload::text(&binding,pin).as_bytes()){return Err(Error::new("manifest_changed"))}
  adopt_claim(c,&m.source_id,&database,project,task,worker,generation).await?;
- let base=if m.method=="C1" {
+ let base=if m.method=="C1" && !group {
   confirmed_c1_generation(config,c,&m.source_id,&database,&binding,task,&stored).await?
  } else {confirmed_generation(config,c,&m.source_id,&database,task,&stored).await?};
  let mut request=match stored {
@@ -364,17 +430,26 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
    };
    if input.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-producer/v1") || input.get("binding").and_then(Value::as_str)!=Some(&binding) || input.get("pin").and_then(Value::as_i64)!=Some(pin) || input.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || input.get("method").and_then(Value::as_str)!=Some(&m.method) || input.get("acknowledged_source_generation").and_then(Value::as_i64)!=Some(base) {return Err(Error::new("producer_input"))}
    let value=exec(config,&m.producer,"producer",serde_json::to_vec(&input).unwrap(),None,&binding,pin,project,task,worker,generation,None).await?;
-   if value.get("protocol").and_then(Value::as_str)!=Some(request_protocol(&m.method)) || value.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || value.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
+   let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else {request_protocol(&m.method)};
+   if value.get("protocol").and_then(Value::as_str)!=Some(protocol) || value.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || value.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
    let s=serde_json::to_string(&value).unwrap();
    let n=c.execute("UPDATE jw_native.occurrences o SET request=$2::text::jsonb FROM jobs.tasks t WHERE o.task_id=t.id AND t.id=$1::text::uuid AND t.state='running' AND t.lease_owner=$3 AND t.generation=$4 AND t.lease_until>clock_timestamp() AND o.request IS NULL",&[&task,&s,&worker,&generation]).await.map_err(Error::sql)?;
    if n!=1{return Err(Error::new("lost_lease"))}value
   }
  };
- if request.get("protocol").and_then(Value::as_str)!=Some(request_protocol(&m.method)) || request.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || request.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
+ let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else {request_protocol(&m.method)};
+ if request.get("protocol").and_then(Value::as_str)!=Some(protocol) || request.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || request.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
  if request.get("source_generation").and_then(Value::as_i64)!=Some(base+1) {return Err(Error::new("source_generation"))}
  let target_database=if m.method=="C4" {config.target_database.as_deref().ok_or_else(||Error::new("target_database"))?} else {&config.database};
- if request.pointer("/target/database").and_then(Value::as_str)!=Some(target_database){return Err(Error::new("target_database"))}
- crate::capture_source::attach_observed_lease(&mut request,task,generation).map_err(|_|Error::new("lease"))?;
+ let loader_request=if group {
+  let value=group_loader_request(&request,&binding,pin,&m.source_id,base,task,generation)?;
+  if value["entries"].as_array().is_none_or(|entries|entries.iter().any(|entry|entry.pointer("/target/database").and_then(Value::as_str)!=Some(target_database))) {return Err(Error::new("target_database"))}
+  value
+ } else {
+  if request.pointer("/target/database").and_then(Value::as_str)!=Some(target_database){return Err(Error::new("target_database"))}
+  crate::capture_source::attach_observed_lease(&mut request,task,generation).map_err(|_|Error::new("lease"))?;
+  request.clone()
+ };
  let override_row=c.query_opt("SELECT operator_manifest::text,operator_manifest_sha FROM jw_native.loader_overrides WHERE binding_id=$1::text::uuid",&[&binding]).await.map_err(Error::sql)?;
  let effective=match override_row {
   Some(row)=>{
@@ -387,10 +462,11 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  };
  // mirror is an invocation-only policy, excluded from the native source payload digest.
  // Preserve original stored request; require actual Loader mirror recovery before CAS.
- invocation_mirror(&mut request,&m.method)?;
- println!("invocation_mirror={} source_request_rewritten=false",m.method!="C4");
+ let mut loader_request=loader_request;
+ if !group {invocation_mirror(&mut loader_request,&m.method)?}
+ println!("invocation_mirror={} source_request_rewritten=false",!group && m.method!="C4");
  let target=if m.method=="C4" {Some(mirror_claim(config,c,project,task,worker,generation,&effective.loader).await?)} else {None};
- let result=exec(config,&effective.loader,"loader",serde_json::to_vec(&request).unwrap(),effective.registration.as_ref(),&binding,pin,project,task,worker,generation,target.as_ref()).await?;
+ let result=exec(config,&effective.loader,"loader",serde_json::to_vec(&loader_request).unwrap(),effective.registration.as_ref(),&binding,pin,project,task,worker,generation,target.as_ref()).await?;
  let lease_id=result.pointer("/jobs_lease_receipt/id").and_then(Value::as_str);
  let lease_gen=result.pointer("/jobs_lease_receipt/generation").and_then(Value::as_i64);
  let lease_owner=result.pointer("/jobs_lease_receipt/owner").and_then(Value::as_str);
@@ -406,12 +482,21 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
      && result.get("mirror_committed").is_none())
   && result.pointer("/partition_target_receipt/acknowledged").and_then(Value::as_bool)==Some(false);
  if m.method=="C4" && !c4_ready {return Err(Error::new("loader_refused"))}
- if m.method!="C4" && !matches!(crate::capture_source::native_decision(&result),crate::capture_source::NativeDecision::Advance|crate::capture_source::NativeDecision::Replay){return Err(Error::new("loader_refused"))}
+ if group {
+  if result.get("protocol").and_then(Value::as_str)!=Some("oo.pipeline.native-transaction-result/v1")
+   || result.get("source_id").and_then(Value::as_str)!=Some(&m.source_id)
+   || result.get("source_generation").and_then(Value::as_i64)!=request.get("source_generation").and_then(Value::as_i64)
+   || result.get("source_bound").and_then(Value::as_bool)!=Some(true)
+   || result.get("job_task_id").and_then(Value::as_str)!=Some(task)
+   || result.get("job_generation").and_then(Value::as_i64)!=Some(generation)
+   || !matches!(result.get("load_state").and_then(Value::as_str),Some("awaiting_publish"|"replay")) {return Err(Error::new("loader_refused"))}
+ } else if m.method!="C4" && !matches!(crate::capture_source::native_decision(&result),crate::capture_source::NativeDecision::Advance|crate::capture_source::NativeDecision::Replay){return Err(Error::new("loader_refused"))}
  let source_generation=request.get("source_generation").and_then(Value::as_i64).ok_or_else(||Error::new("position"))?;
- let raw_pos=if m.method=="C4" {result.pointer("/partition_target_receipt/partition_scope/partition_id")} else {request.get("applied_pos")}.ok_or_else(||Error::new("position"))?;
+ let raw_pos=if group {result.get("end_lsn")} else if m.method=="C4" {result.pointer("/partition_target_receipt/partition_scope/partition_id")} else {request.get("applied_pos")}.ok_or_else(||Error::new("position"))?;
  let pos=raw_pos.as_str().map(str::to_owned).unwrap_or_else(||raw_pos.to_string());
  let state=result.get("load_state").and_then(Value::as_str).unwrap_or("").to_string();let result_text=result.to_string();
- if m.method=="C1" {verify_c1_applied(config,&m.source_id,&database,&request,&result).await?}
+ if group {verify_group_applied(config,&m.source_id,&database,&request,&result).await?}
+ else if m.method=="C1" {verify_c1_applied(config,&m.source_id,&database,&request,&result).await?}
  else {verify_applied(config,&m.source_id,&database,source_generation).await?}
  let tx=c.transaction().await.map_err(Error::sql)?;
  if m.method=="C4" {
@@ -428,7 +513,7 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  if done.status!=LeaseStatus::Succeeded{return Err(Error::new("lost_lease"))}
  tx.execute("INSERT INTO jw_native.watermarks(binding_id,pin,task_id,generation,source_generation,applied_pos,load_state,result) VALUES($1::text::uuid,$2,$3::text::uuid,$4,$5,$6,$7,$8::text::jsonb) ON CONFLICT(binding_id) DO UPDATE SET pin=EXCLUDED.pin,task_id=EXCLUDED.task_id,generation=EXCLUDED.generation,source_generation=EXCLUDED.source_generation,applied_pos=EXCLUDED.applied_pos,load_state=EXCLUDED.load_state,result=EXCLUDED.result,advanced_at=clock_timestamp() WHERE jw_native.watermarks.pin<EXCLUDED.pin",&[&binding,&pin,&task,&generation,&source_generation,&pos,&state,&result_text]).await.map_err(Error::sql)?;
  tx.execute("UPDATE jw_native.occurrences SET result=$2::text::jsonb WHERE task_id=$1::text::uuid",&[&task,&result_text]).await.map_err(Error::sql)?;
- let n=if m.method=="C1" {
+ let n=if m.method=="C1" && !group {
   tx.execute("UPDATE jw_native.source_progress SET active_task_id=NULL WHERE source_id=$1 AND target_database=$2 AND active_task_id=$3::text::uuid",&[&m.source_id,&database,&task]).await.map_err(Error::sql)?
  } else {
   tx.execute("UPDATE jw_native.source_progress SET source_generation=$3,task_id=$4::text::uuid,binding_id=$5::text::uuid,active_task_id=NULL,confirmed_at=clock_timestamp() WHERE source_id=$1 AND target_database=$2 AND COALESCE(source_generation,0)=$6 AND active_task_id=$4::text::uuid",&[&m.source_id,&database,&source_generation,&task,&binding,&base]).await.map_err(Error::sql)?
@@ -581,6 +666,52 @@ fn request_protocol(method:&str)->&'static str {
  if method=="C4" {"oo.pipeline.native-partition/v1"} else {"oo.pipeline.native-update/v1"}
 }
 
+fn pg_lsn_decimal(value:&str)->Result<String> {
+ let (high,low)=value.split_once('/').ok_or_else(||Error::new("transaction_scope"))?;
+ let high=u32::from_str_radix(high,16).map_err(|_|Error::new("transaction_scope"))?;
+ let low=u32::from_str_radix(low,16).map_err(|_|Error::new("transaction_scope"))?;
+ Ok(((u64::from(high)<<32)|u64::from(low)).to_string())
+}
+
+fn group_loader_request(request:&Value,binding:&str,pin:i64,source:&str,base:i64,task:&str,generation:i64)->Result<Value> {
+ let object=request.as_object().ok_or_else(||Error::new("transaction_request"))?;
+ if object.len()!=8 || request.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-transaction-producer/v1")
+  || request.get("binding").and_then(Value::as_str)!=Some(binding)
+  || request.get("pin").and_then(Value::as_i64)!=Some(pin)
+  || request.get("source_id").and_then(Value::as_str)!=Some(source)
+  || request.get("capture_method").and_then(Value::as_str)!=Some("c1_cdc")
+  || request.get("source_generation").and_then(Value::as_i64)!=Some(base+1) {return Err(Error::new("transaction_request"))}
+ let scope=request.get("transaction_scope").ok_or_else(||Error::new("transaction_scope"))?;
+ if scope.get("complete").and_then(Value::as_bool)!=Some(true) || scope.get("source_id").and_then(Value::as_str)!=Some(source) {return Err(Error::new("transaction_scope"))}
+ let end=pg_lsn_decimal(scope.get("end_lsn").and_then(Value::as_str).ok_or_else(||Error::new("transaction_scope"))?)?;
+ let tables=scope.get("tables").and_then(Value::as_array).ok_or_else(||Error::new("transaction_scope"))?;
+ let entries=request.get("entries").and_then(Value::as_array).ok_or_else(||Error::new("transaction_request"))?;
+ if entries.is_empty() || entries.len()!=tables.len() {return Err(Error::new("transaction_request"))}
+ let mut checked=Vec::with_capacity(entries.len());let mut previous=None;
+ for (entry,table) in entries.iter().zip(tables) {
+  let schema=entry.get("logical_schema").and_then(Value::as_str).ok_or_else(||Error::new("transaction_request"))?;
+  let name=entry.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("transaction_request"))?;
+  let key=(schema,name);
+  if previous.is_some_and(|old|old>=key) || table.get("logical_schema").and_then(Value::as_str)!=Some(schema)
+   || table.get("logical_table").and_then(Value::as_str)!=Some(name)
+   || entry.get("protocol").and_then(Value::as_str)!=Some("oo.pipeline.native-update/v1")
+   || entry.get("source_id").and_then(Value::as_str)!=Some(source)
+   || entry.get("capture_method").and_then(Value::as_str)!=Some("c1_cdc")
+   || entry.get("consistency_grade").and_then(Value::as_str)!=Some("T")
+   || entry.get("cross_table_consistent").and_then(Value::as_bool)!=Some(true)
+   || entry.get("position_codec").and_then(Value::as_str)!=Some("pg-commit-lsn/v1")
+   || entry.get("applied_pos").and_then(Value::as_str)!=Some(end.as_str())
+   || entry.get("input_digest")!=table.get("arrow_sha256")
+   || entry.get("source_generation")!=table.get("source_generation")
+   || entry.get("parent_source_generation")!=table.get("parent_source_generation")
+   || entry.get("source_generation").and_then(Value::as_i64)!=entry.get("parent_source_generation").and_then(Value::as_i64).map(|g|g+1) {return Err(Error::new("transaction_request"))}
+  previous=Some(key);
+  let mut invoked=entry.clone();crate::capture_source::attach_observed_lease(&mut invoked,task,generation).map_err(|_|Error::new("lease"))?;
+  checked.push(invoked);
+ }
+ Ok(json!({"protocol":"oo.pipeline.native-transaction/v1","entries":checked}))
+}
+
 fn invocation_mirror(request:&mut Value,method:&str)->Result<()> {
  let object=request.as_object_mut().ok_or_else(||Error::new("request"))?;
  if method=="C4" {
@@ -601,6 +732,30 @@ mod invocation_tests {
   assert!(frozen.get("mirror").is_none());
   assert_eq!(invoked["mirror"],false);
   assert!(invocation_mirror(&mut json!({"mirror":true}),"C4").is_err());
+ }
+ #[test]
+ fn transaction_group_keeps_table_generations_and_freezes_one_lease() {
+  let scope=json!({"complete":true,"source_id":"pg","end_lsn":"0/2D8FAF0","tables":[
+   {"logical_schema":"a","logical_table":"one","arrow_sha256":"abc","parent_source_generation":3,"source_generation":4},
+   {"logical_schema":"b","logical_table":"two","arrow_sha256":"def","parent_source_generation":4,"source_generation":5}]});
+  let entries=[("a","one","abc",3,4),("b","two","def",4,5)].into_iter().map(|(schema,table,digest,parent,generation)|json!({
+   "protocol":"oo.pipeline.native-update/v1","source_id":"pg","capture_method":"c1_cdc",
+   "logical_schema":schema,"logical_table":table,"input_digest":digest,
+   "parent_source_generation":parent,"source_generation":generation,"consistency_grade":"T",
+   "cross_table_consistent":true,"position_codec":"pg-commit-lsn/v1","applied_pos":"47774448"
+  })).collect::<Vec<_>>();
+  let frozen=json!({"protocol":"oo.jobs.native-transaction-producer/v1","binding":"binding",
+   "pin":1,"source_id":"pg","capture_method":"c1_cdc","source_generation":4,
+   "transaction_scope":scope,"entries":entries});
+  let task="00000000-0000-4000-8000-000000000001";
+  let invoked=group_loader_request(&frozen,"binding",1,"pg",3,task,7).expect("group");
+  assert_eq!(invoked["entries"][0]["source_generation"],4);
+  assert_eq!(invoked["entries"][1]["source_generation"],5);
+  assert_eq!(invoked["entries"][0]["lease_generation"],7);
+  assert_eq!(invoked["entries"][1]["lease_id"],task);
+  assert!(frozen["entries"][0].get("lease_id").is_none());
+  let mut changed=frozen.clone();changed["entries"][1]["applied_pos"]=json!("47774449");
+  assert!(group_loader_request(&changed,"binding",1,"pg",3,task,7).is_err());
  }
 }
 

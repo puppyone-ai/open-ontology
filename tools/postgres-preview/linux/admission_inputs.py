@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--permissions', required=True, type=Path)
     parser.add_argument('--driver', required=True, type=Path)
     parser.add_argument('--visible-driver', required=True)
+    parser.add_argument('--transaction-only', action='store_true')
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     facts = [json.loads(line) for line in args.permissions.read_text().splitlines()]
@@ -52,6 +53,8 @@ def main():
     permissions_path.write_bytes(permissions_bytes)
     for capture_path in sorted((args.output_root/'native-admit').rglob('*.capture.json')):
         capture = json.loads(capture_path.read_text())
+        if args.transaction_only and 'transaction_scope' not in capture:
+            continue
         request = json.loads(capture_path.with_name(capture_path.name.replace('.capture.', '.request.')).read_text())
         table = capture['logical_table']
         schema = capture['logical_schema']

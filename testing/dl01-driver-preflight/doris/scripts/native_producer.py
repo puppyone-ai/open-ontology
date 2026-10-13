@@ -21,7 +21,7 @@ if hashlib.sha256(Path(__file__).with_name("capture_receipt.py").read_bytes()).h
 from capture_receipt import TABLES, column_decl
 
 READER_SHA = "613612c3245a8bbb83d7534d75b6babc2aedd351ed91c9d7948c8df2b5570e31"
-PARTITION_READER_SHA = "cccd1134f02b08137466cf876a27c9f1981cdfef64e7644e1aa5571ea9ce474e"
+PARTITION_READER_SHA = "cecd964d5be4c1a7caa0ccb7256d898279b469b866ad7174595a74438edd163b"
 BASELINE_READER_SHA = "29fbbeb07880dccffbfe149262f99422e96b643c597b645bdaf43794b1c2734d"
 VALIDATOR_SHA = "85fb10d91fa169ad85dc7b7c4116a6354614fcd69e20c010b67b2536f6170d85"
 
@@ -204,7 +204,7 @@ def main():
                "position_lineage": "doris.partition." + args.table if c4 else "doris.snapshot." + args.table,
                "applied_pos": "0", "schema_digest": receipt["schema_digest"],
                "type_digest": receipt["type_digest"], "config_digest": receipt["config_digest"],
-               "input_digest": digest(arrow), "audit_digest": digest(tick_path),
+               "input_digest": digest(arrow), "audit_digest": digest(capturer_path),
                "arrow_path": str(arrow), "admission_path": str(seal / "admission-receipt.json"),
                "registry_path": str(registered_registry),
                "columns": [column_decl(c) for c in spec["columns"]], "tombstones": [],

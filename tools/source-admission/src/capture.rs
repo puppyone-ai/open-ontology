@@ -202,6 +202,7 @@ struct Material {
     driver_version: String,
     fields: Vec<FieldOut>,
     partition_scope: Option<Value>,
+    transaction_scope: Option<Value>,
 }
 
 struct Prepared {
@@ -568,6 +569,16 @@ fn observe(
         }
         _ => None,
     };
+    let transaction_scope = match (witness.source_engine.as_str(), method_token.as_deref(), grade.as_deref()) {
+        ("postgres" | "postgresql", Some("C1"), Some("T")) if cross_table.as_deref() == Some("T") =>
+            bind_transaction_scope(capturer, witness, &input_digest,
+                parsed.as_ref().map(|arrow| arrow.rows), &mut blocks),
+        _ if capturer.get("transaction_scope").is_some() => {
+            blocks.push(block("SOURCE_METADATA_UNBOUND", "transaction_scope"));
+            None
+        }
+        _ => None,
+    };
     if let Some(parsed) = parsed.as_ref()
         && schema_digest == parsed.schema_sha256
     {
@@ -647,6 +658,7 @@ fn observe(
             driver_version: report.driver.version.clone(),
             fields,
             partition_scope,
+            transaction_scope,
         })
     } else {
         None
@@ -727,6 +739,76 @@ fn bind_partition_scope(
         return None;
     }
     Some(scope.clone())
+}
+
+fn bind_transaction_scope(
+    capturer: &Value,
+    witness: &Witness,
+    arrow_digest: &str,
+    rows: Option<u64>,
+    blocks: &mut Vec<Block>,
+) -> Option<Value> {
+    let Some(scope) = capturer.get("transaction_scope") else {
+        blocks.push(block("SOURCE_METADATA_UNBOUND", "transaction_scope"));
+        return None;
+    };
+    let valid = (|| {
+        let object = scope.as_object()?;
+        let keys = ["source_id", "slot", "publication", "xid", "begin_message_lsn",
+            "begin_final_lsn", "commit_lsn", "end_lsn", "complete", "tables"];
+        if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key))
+            || scope["source_id"] != witness.source_id || scope["complete"] != true
+            || !["slot", "publication"].iter().all(|key| scope[*key].as_str().is_some_and(|s|
+                !s.is_empty() && s.len() <= 128 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')))
+            || scope["xid"].as_i64().is_none_or(|xid| xid <= 0) { return None; }
+        let begin = pg_lsn(scope["begin_message_lsn"].as_str()?)?;
+        let final_lsn = pg_lsn(scope["begin_final_lsn"].as_str()?)?;
+        let commit = pg_lsn(scope["commit_lsn"].as_str()?)?;
+        let end = pg_lsn(scope["end_lsn"].as_str()?)?;
+        if begin == 0 || begin > commit || final_lsn != commit || commit > end
+            || witness.snapshot.kind != "pg_commit_lsn"
+            || witness.snapshot.value != end.to_string() { return None; }
+        let tables = scope["tables"].as_array()?;
+        if tables.is_empty() || tables.len() > 32 { return None; }
+        let mut prior = None;
+        let mut current = false;
+        for table in tables {
+            let fields = table.as_object()?;
+            let keys = ["logical_schema", "logical_table", "source_generation",
+                "parent_source_generation", "arrow_sha256", "row_count", "tombstones_sha256"];
+            if fields.len() != keys.len() || keys.iter().any(|key| !fields.contains_key(*key))
+                || !table["arrow_sha256"].as_str().is_some_and(hex64)
+                || !table["tombstones_sha256"].as_str().is_some_and(hex64) { return None; }
+            let schema = table["logical_schema"].as_str()?;
+            let name = table["logical_table"].as_str()?;
+            if schema.is_empty() || name.is_empty() || prior.is_some_and(|old| old >= (schema, name)) {
+                return None;
+            }
+            prior = Some((schema, name));
+            let generation = table["source_generation"].as_i64()?;
+            if generation < 1 || match table.get("parent_source_generation") {
+                Some(Value::Null) => generation != 1,
+                Some(value) => value.as_i64().is_none_or(|parent| parent < 1 || parent + 1 != generation),
+                None => true,
+            } { return None; }
+            if schema == witness.logical_schema && name == witness.logical_table {
+                if generation != witness.source_generation || table["arrow_sha256"] != arrow_digest
+                    || table["row_count"].as_u64() != rows { return None; }
+                current = true;
+            }
+        }
+        current.then_some(())
+    })().is_some();
+    if !valid { blocks.push(block("SOURCE_METADATA_UNBOUND", "transaction_scope")); return None; }
+    Some(scope.clone())
+}
+
+fn pg_lsn(value: &str) -> Option<u64> {
+    let (hi, lo) = value.split_once('/')?;
+    if hi.is_empty() || hi.len() > 8 || lo.is_empty() || lo.len() > 8
+        || !hi.bytes().chain(lo.bytes()).all(|b| b.is_ascii_hexdigit()) { return None; }
+    Some((u64::from(u32::from_str_radix(hi, 16).ok()?) << 32)
+        | u64::from(u32::from_str_radix(lo, 16).ok()?))
 }
 
 fn partition_digest(value: &str) -> bool {
@@ -1803,6 +1885,9 @@ fn registry_bytes(
     });
     if let Some(scope) = &material.partition_scope {
         binding["partition_scope"] = scope.clone();
+    }
+    if let Some(scope) = &material.transaction_scope {
+        binding["transaction_scope"] = scope.clone();
     }
     with_newline(&serde_json::json!({
         "protocol": BINDING_REGISTRY_PROTOCOL,

@@ -2614,7 +2614,8 @@ fn read_record_batch(
     {
         return Err(ArrowFault::Shape);
     }
-    let rows = header.i64_field(0)?.ok_or(ArrowFault::Shape)?;
+    // FlatBuffers omits the default zero length of an empty record batch.
+    let rows = header.i64_field(0)?.unwrap_or(0);
     if rows < 0 {
         return Err(ArrowFault::Truncated);
     }

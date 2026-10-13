@@ -13,6 +13,8 @@ DIFF = EVIDENCE / "native-sync/independent/catchup-gen2-20261013/compare.json"
 OUT = EVIDENCE / "native-recovery-20261013/selfbuild-input"
 SOURCE = "sr_w45_native"
 ROLE = "oo_r_w45_native"
+HIDDEN = {"oo_w45_sr.pk_accounts.account_id", "oo_w45_sr.pk_accounts.balance",
+          "oo_w45_sr.pk_accounts.nickname"}
 
 
 def sha(data):
@@ -31,13 +33,22 @@ def save(out, name, value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--generation", type=int, choices=(2, 3), default=3)
+    parser.add_argument("--generation", type=int, choices=(2, 3, 5), default=3)
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--restricted-role", action="store_true")
     args = parser.parse_args()
+    if args.restricted_role and args.generation != 5:
+        parser.error("restricted role requires the reviewed generation-5 classification")
     generation_number = args.generation
-    collection_path = EVIDENCE / f"native-sync/collection-gen{generation_number}.json"
+    collection_path = (EVIDENCE / "native-sync/c4-final-collection/collection.json" if generation_number == 5
+                       else EVIDENCE / f"native-sync/collection-gen{generation_number}.json")
     diff_path = EVIDENCE / ("native-sync/independent/catchup-gen2-20261013/compare.json" if generation_number == 2
+                           else "native-sync/independent/c4-g5-20261013/compare.json" if generation_number == 5
                            else "native-sync/independent/legal-batch-gen3-20261013/compare.json")
-    out = OUT if generation_number == 2 else EVIDENCE / "native-batch-repair-20261013/selfbuild-input"
+    out = (OUT if generation_number == 2 else EVIDENCE / "native-batch-repair-20261013/selfbuild-input"
+           if generation_number == 3 else EVIDENCE / "native-sync/c4-final-collection/selfbuild-input")
+    if args.out is not None:
+        out = args.out
     out.mkdir(parents=True, exist_ok=False)
     raw = collection_path.read_bytes()
     collection = json.loads(raw)
@@ -57,13 +68,21 @@ def main():
         dataset = "oo_w45_sr." + name
         assert binding["dataset"] == dataset and entry["source_id"] == SOURCE
         generation[dataset] = {key: entry[key] for key in ("source_generation", "target_generation", "run_id")}
-        assert entry["source_generation"] == generation_number
-        matching = [path.parent / "decoded" / f"{name}.json"
-                    for path in CAPTURES.glob(f"*/{generation_number}/request.json")
-                    if json.loads(path.read_text())["logical_table"] == name]
-        assert len(matching) == 1, (name, matching)
-        decoded = json.loads(matching[0].read_text())
-        rows = decoded["rows"]
+        assert entry["source_generation"] == (5 if name == "dup_events" and generation_number == 5 else min(generation_number, 3))
+        if generation_number == 5 and name == "dup_events":
+            partitions = [json.loads((EVIDENCE / f"native-c4-current-20261013/{part}-decoded/dup_events.json").read_text())
+                          for part in ("p202605", "p202606")]
+            assert partitions[0]["fields"] == partitions[1]["fields"]
+            decoded = partitions[0]
+            rows = partitions[0]["rows"] + partitions[1]["rows"]
+        else:
+            capture_generation = min(generation_number, 3)
+            matching = [path.parent / "decoded" / f"{name}.json"
+                        for path in CAPTURES.glob(f"*/{capture_generation}/request.json")
+                        if json.loads(path.read_text())["logical_table"] == name]
+            assert len(matching) == 1, (name, matching)
+            decoded = json.loads(matching[0].read_text())
+            rows = decoded["rows"]
         assert len(rows) == table["accepted_rows"] == diff["tables"][name]["expected_rows"]
         assert diff["tables"][name]["target_rows"] == len(rows)
         field_names = [field["name"] for field in decoded["fields"]]
@@ -89,6 +108,8 @@ def main():
             rules.append({"column": dataset + "." + key, "semantic_type": "identifier",
                           "confidence": "high", "pii": "unknown"})
     assert len(roles) == 19 and len(set(roles)) == 19
+    visible_roles = [name for name in roles if name not in HIDDEN] if args.restricted_role else roles
+    assert len(visible_roles) == (16 if args.restricted_role else 19)
     collection_sha = sha(raw)
     common = {"source_id": SOURCE, "source_generation": generation_number,
               "target_generation": max(item["target_generation"] for item in generation.values()),
@@ -97,7 +118,7 @@ def main():
     profile = {"protocol": "oo.source.starrocks.profile/v1", "sampled": False,
                "tables": profiles, **common}
     semantics = {"protocol": "oo.source.starrocks.audit/v1", "product": "StarRocks",
-                 "version": "3.5.21-85fccf8", "capture_method": "C5",
+                 "version": "3.5.21-85fccf8", "capture_method": "C4+C5" if generation_number == 5 else "C5",
                  "consistency_grade": "B", "cross_table_consistent": False,
                  "delete_detection": "reconcile", "reader_write_attempts": 0,
                  "quality": {"agg_metrics": ["DELETES_UNDETECTED"],
@@ -105,7 +126,11 @@ def main():
                              "other_tables": ["DELETES_LAGGED"]},
                  "schedule_period_ms": {"uniq_dim": 20000, "other_tables": 6000},
                  "source_full_typed_cell_diff": 0, **common}
-    version = f"ont-starrocks-native-c5-g{generation_number}"
+    if generation_number == 5:
+        semantics["quality"]["dup_events"] = ["OUT_OF_PARTITION_DELETE_NOT_EXTRAPOLATED"]
+        semantics["partition_vector"] = next(entry["partition_vector"] for entry in collection["entries"]
+                                         if entry["tables"][0]["logical_table"] == "dup_events")
+    version = f"ont-starrocks-native-{'c4c5' if generation_number == 5 else 'c5'}-g{generation_number}"
     knowledge = {"id": "know-starrocks-w45", "version": "1"}
     policy = {"id": "pol-starrocks-w45", "version": "1"}
     native_model = {
@@ -124,7 +149,8 @@ def main():
                      "ontology_version": version, "policy": policy, "project": "starrocks"},
         "visibility": {"catalog_version": "pending",
                        "datasets": [{"dataset": item["dataset"],
-                                     "columns": [field["name"] for field in item["columns"]],
+                                     "columns": [field["name"] for field in item["columns"]
+                                                 if item["dataset"] + "." + field["name"] in visible_roles],
                                      "global_stats": "denied", "row_security": "none"}
                                     for item in profiles],
                        "issued_for_compiler": "oo-builder/role-pack/v1",
@@ -135,6 +161,9 @@ def main():
                        "principal": "fixture-admin", "project": "starrocks",
                        "protocol": "oo.builder.role-visibility/v1",
                        "role": ROLE}}
+    if generation_number == 5:
+        native_model["declared_price"] = {"status": "declared_non_billing", "currency": "USD",
+                                          "per_total_token": "0.00001000"}
     files = {"catalog.json": sha(raw)}
     (out / "catalog.json").write_bytes(raw)
     for name, value in {
@@ -145,7 +174,7 @@ def main():
         "suggestions.json": {"certified": False, "merged": False, "ready": False},
         "generation.json": {"llm_calls": 0, "outcome": "structural_draft"},
         "roles.json": {"contract": "oo.selfbuild-control-api/sealed-roles/v1",
-                       "roles": {ROLE: roles}},
+                       "roles": {ROLE: visible_roles}},
         "native-model.json": native_model,
     }.items():
         files[name] = save(out, name, value)

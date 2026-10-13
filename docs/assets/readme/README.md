@@ -11,10 +11,9 @@ This directory contains source-controlled presentation assets, not engineering e
 | `self-build.svg` | Eleven S0–S10 stages and the review/classification boundary | Original hand-drawn-style vector diagram; animated downstream flow |
 | `query-lifecycle.svg` | Admission, durable audit, read-only execution, result, and cleanup | Original hand-drawn-style vector diagram; animated request/result paths |
 | `deployment.svg` | Intended network/deployment zones | Original hand-drawn-style vector diagram |
-| `roadmap.svg` | Ordered cumulative product loops | Original hand-drawn-style vector diagram |
 
 The brand palette is derived from the company mark: amber/orange and charcoal. Warm paper, muted mint, and pale blue distinguish diagram planes. The supplementary colors are presentation choices, not a newly declared corporate brand standard.
 
 SVGs are self-contained, use no JavaScript, and require no external fonts or image resources. The animated SVGs use standard declarative SVG animation. They retain a complete static diagram when animation is unavailable, and their animated packet elements are hidden under `prefers-reduced-motion`. Host font availability can affect the handwriting font fallback; all diagram text remains native SVG text with accessible titles/descriptions.
 
-All README image paths are repository-relative. Images and source SVGs are stored together so GitHub can serve them directly. Architecture and deployment diagrams follow the product documentation. The roadmap shows the ordered delivery milestones.
+All README image paths are repository-relative. Images and source SVGs are stored together so GitHub can serve them directly. Architecture and deployment diagrams follow the product documentation.

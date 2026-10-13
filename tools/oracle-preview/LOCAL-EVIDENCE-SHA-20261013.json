@@ -62,7 +62,14 @@
     "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-resume-1/wal/q_jOyDDy51w8DOO7VJBOcLzuGDXa-admit.wal": "d8c013bbc4b50b598a01fe8ca5ee89d4ca93c8e0a490988eb50aebf3527ebfd0",
     "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-resume-1/wal/q_jOyDDy51w8DOO7VJBOcLzuGDXa-complete.wal": "3aa466b8ccc29c7dbd45530094b69c9ca797661282c6c800811390b29f720273",
     "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-resume-1/wal/q_lRMIj96QPLFMdihQnX9FhY0b2a-admit.wal": "75bb745eccd82555c9c0eeb3c6d8a57f9a58e4208d5aee590b2731ce60bc863c",
-    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-resume-1/wal/q_lRMIj96QPLFMdihQnX9FhY0b2a-complete.wal": "83aef17a8bbd7f59e84ac32152857b0668d6d8642afb82564bfec7c8776acfce"
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-resume-1/wal/q_lRMIj96QPLFMdihQnX9FhY0b2a-complete.wal": "83aef17a8bbd7f59e84ac32152857b0668d6d8642afb82564bfec7c8776acfce",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/runtime/dialogue-grok-pack-followup-1.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/runtime/dialogue-grok-pack-followup-1.stderr": "57c7e0b6f3b472aaa7d0a007a5a09b9dc3701ac0aee4193070c4886d4b797794",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/runtime/dialogue-grok-pack-followup-2.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/runtime/dialogue-grok-pack-followup-2.stdout": "58413ec7c7de3d268460edf0cb2d6569926c8b1ef8104caa3a656a85d082d32a",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/runtime/dialogue-grok-pack-followup-2.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-pack-followup-2/transcript.json": "cce4a4b6333b8cd3a1a620c03debd38d52005588fe0106a09bac20e0316eefcf",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/dialogue-grok-pack-followup-2/receipt.json": "40647bb488b22a99441a9cd9d44df0b203a02746efb3693c0ec9aa985df025e3"
   },
   "source_owned_resume_code_sha256": "3368a443513d5d1501542a810a3f783350c0cfaf9390c800a5dbc85ba9ae2410"
 }

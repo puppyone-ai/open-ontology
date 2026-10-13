@@ -1,0 +1,186 @@
+{
+  "protocol": "oo.oracle.source-exit/v1",
+  "scope": "owned_fixture_unpublished_preview",
+  "fixed_generation": 3,
+  "source_scn": "6542596",
+  "tables": {
+    "T_BATCH": 5,
+    "T_WIDE": 4,
+    "T_TS": 2
+  },
+  "typed_cells_compared": 54,
+  "typed_differences": 0,
+  "batch_deleted_id_45_absent": true,
+  "source_reader_write_attempts_fixed_producer": 0,
+  "source_reader_write_attempts_basis": "actual nine emitted SQL files contain no write verbs; three fixed capture receipts report source_dml_ddl=0; g3 semantics reports zero for this producer/run",
+  "fixed_capture_receipts": [
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/57c04bf3-7ca9-4899-81f8-2a2a7226a0ae/3/capture/capture.json",
+      "sha256": "9df3651027a6e5dbbf6fb07d31058d318780fbf447137e39e4ebdb08c32331da"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/aa66aa77-ac7e-4028-ab93-bb6ce9d9332d/3/capture/capture.json",
+      "sha256": "69fda4e9395f7ecd6ac3f0fb150ff1a99c54372c2471b555310b3d928af9979b"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/e62edbde-ae08-44c1-aea5-908e67cc6f8b/3/capture/capture.json",
+      "sha256": "9df3651027a6e5dbbf6fb07d31058d318780fbf447137e39e4ebdb08c32331da"
+    }
+  ],
+  "fixed_emitted_read_sql": [
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/57c04bf3-7ca9-4899-81f8-2a2a7226a0ae/3/capture/run/sql/dictionary.sql",
+      "sha256": "a051d0d2f5135144aa4a78d3d8559e336236965015bbb040a2dd758c4bcc8629"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/57c04bf3-7ca9-4899-81f8-2a2a7226a0ae/3/capture/run/sql/counts.sql",
+      "sha256": "b3ad23d237eb265cefc48563717dde29c87ff014355a3ed8cbf244bec710eb07"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/57c04bf3-7ca9-4899-81f8-2a2a7226a0ae/3/capture/run/sql/pull.sql",
+      "sha256": "60014ed3fd73a836298785e97b5da9d4bed31bd52720c24d540d3c6936797fe7"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/aa66aa77-ac7e-4028-ab93-bb6ce9d9332d/3/capture/run/sql/dictionary.sql",
+      "sha256": "a051d0d2f5135144aa4a78d3d8559e336236965015bbb040a2dd758c4bcc8629"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/aa66aa77-ac7e-4028-ab93-bb6ce9d9332d/3/capture/run/sql/counts.sql",
+      "sha256": "b3ad23d237eb265cefc48563717dde29c87ff014355a3ed8cbf244bec710eb07"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/aa66aa77-ac7e-4028-ab93-bb6ce9d9332d/3/capture/run/sql/pull.sql",
+      "sha256": "60014ed3fd73a836298785e97b5da9d4bed31bd52720c24d540d3c6936797fe7"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/e62edbde-ae08-44c1-aea5-908e67cc6f8b/3/capture/run/sql/dictionary.sql",
+      "sha256": "a051d0d2f5135144aa4a78d3d8559e336236965015bbb040a2dd758c4bcc8629"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/e62edbde-ae08-44c1-aea5-908e67cc6f8b/3/capture/run/sql/counts.sql",
+      "sha256": "b3ad23d237eb265cefc48563717dde29c87ff014355a3ed8cbf244bec710eb07"
+    },
+    {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/occurrences/e62edbde-ae08-44c1-aea5-908e67cc6f8b/3/capture/run/sql/pull.sql",
+      "sha256": "60014ed3fd73a836298785e97b5da9d4bed31bd52720c24d540d3c6936797fe7"
+    }
+  ],
+  "fixed_source_semantics": {
+    "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/g3-closed-batch/source_semantics.json",
+    "sha256": "f5585fcc91e9a157eb2bf55707008a397a92844a61c2c5808aaa59979f271a97"
+  },
+  "fixed_typed_diff": {
+    "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/continuation-20261013/g3-closed-batch/typed-target-diff.json",
+    "sha256": "112e1601586356a68514f43721dff574139c01a841f4a602c8399d3918936f74"
+  },
+  "c5_live_period_proof": {
+    "run_result": {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/c5-capture/run/result.json",
+      "sha256": "5671ec0063221da91f1dac648f8ba2a7f131d2e40bb6b1681d20630fcf2d6ef0"
+    },
+    "default_seconds": {
+      "delete_visibility_sla_seconds": 86400,
+      "detect_period_seconds": 86400,
+      "origin": "docs_default",
+      "pull_period_seconds": 86400,
+      "reconcile_period_seconds": 86400
+    },
+    "configured_proof_seconds": {
+      "baseline": {
+        "delete_visibility_sla_seconds": 86400,
+        "detect_period_seconds": 2,
+        "origin": "configured",
+        "pull_period_seconds": 2,
+        "reconcile_period_seconds": 2
+      },
+      "changed": {
+        "delete_visibility_sla_seconds": 86400,
+        "detect_period_seconds": 3,
+        "origin": "configured",
+        "pull_period_seconds": 4,
+        "reconcile_period_seconds": 5
+      }
+    },
+    "actual_wait_cycles": [
+      [
+        "proof_default",
+        "baseline",
+        6.012409999966621
+      ],
+      [
+        "proof_default",
+        "replay",
+        6.0088399581145495
+      ],
+      [
+        "proof_changed",
+        "insert",
+        12.014114417135715
+      ],
+      [
+        "proof_changed",
+        "update",
+        12.025430917041376
+      ],
+      [
+        "proof_changed",
+        "delete",
+        12.018308125901967
+      ],
+      [
+        "proof_changed",
+        "resnapshot",
+        12.028342708013952
+      ],
+      [
+        "proof_changed",
+        "schema_pause",
+        12.01241383398883
+      ],
+      [
+        "proof_changed",
+        "schema_approved",
+        12.009508998133242
+      ]
+    ],
+    "update_events": [
+      {
+        "key": "91",
+        "op": "update"
+      }
+    ],
+    "delete_events": [
+      {
+        "key": "91",
+        "op": "delete"
+      }
+    ],
+    "reader_audit": {
+      "actions": [
+        "ALTER SESSION",
+        "COMMIT",
+        "EXECUTE",
+        "LOGOFF",
+        "LOGON",
+        "SELECT"
+      ],
+      "kernel_audit": 0,
+      "other": 154,
+      "platform_dml": 0,
+      "rows": 154
+    }
+  },
+  "historical_rejected_insert": {
+    "evidence": {
+      "path": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/closure-2/audit/denied-writes.txt",
+      "sha256": "a9d35e3c9a75e8fdc249ed2a06e1300a29c20ef303d42a374907e8d0325b6f4c"
+    },
+    "classification": "failed write attempt; excluded only from fixed producer/run window, never relabeled zero historical attempts"
+  },
+  "oracle_cdc_default": "off",
+  "capture_method": "C5 full diff/reconcile",
+  "formal_source_acceptance": false,
+  "customer_connection": "pending ORA-12537",
+  "publication": "not_ready",
+  "limitation": "C5 live Oracle reader audit is from its earlier proof window; the gen3 fixed-run zero-attempt conclusion is bound to emitted SQL and capture receipts, not a new gen3 database audit."
+}

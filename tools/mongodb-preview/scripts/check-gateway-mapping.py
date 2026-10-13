@@ -10,6 +10,12 @@ proc=subprocess.run(['docker','exec','-u','postgres','oo-dl01w1-41-pg-native','p
 rows=[json.loads(line) for line in proc.stdout.splitlines()]
 columns=[r for r in rows if r['level']=='c']; assert len(columns)==20
 mapping={r['logical_column']:r for r in columns}
+assert table['stored_physical'].startswith('pt_') and len(table['stored_physical'])==63
+physical_sql=("SELECT jsonb_build_object('name',a.attname,'oid',a.atttypid,'typmod',a.atttypmod) "
+              "FROM pg_attribute a JOIN pg_class t ON t.oid=a.attrelid JOIN pg_namespace n ON n.oid=t.relnamespace "
+              "WHERE n.nspname='_oo' AND t.relname='"+table['stored_physical']+"' AND a.attnum>0 AND NOT a.attisdropped")
+pg=subprocess.run(['docker','exec','-u','postgres','oo-dl01w1-41-pg-native','psql','-At','-d','oo_w141_native20261013','-c',physical_sql],capture_output=True,text=True,check=True)
+physical_columns={r['name']:r for r in (json.loads(line) for line in pg.stdout.splitlines())}
 actual=[]
 for field in table['columns']:
  name=field['logical_name']; expected=name if name in mapping else 'q_'+name.encode().hex()
@@ -17,7 +23,9 @@ for field in table['columns']:
  assert row['physical_name']==field['stored_physical']
  assert row['scope_table_physical']==table['stored_physical']
  assert row['scope_namespace_physical']==table['stored_namespace']
- actual.append({'original':name,'registry_key':expected,'physical':row['physical_name'],'oid':field['oid'],'typmod':field['typmod']})
+ physical=physical_columns[field['stored_physical']]
+ assert int(physical['oid'])==field['oid'] and physical['typmod']==field['typmod'], (name,physical,field['oid'],field['typmod'])
+ actual.append({'original':name,'registry_key':expected,'physical':row['physical_name'],'oid':int(physical['oid']),'typmod':physical['typmod']})
 assert len({r['registry_key'] for r in actual})==20
 assert next(r for r in actual if r['original']=='whCode')['registry_key']=='q_7768436f6465'
 proof={'protocol':'oo.mongodb.gateway-mapping-proof/v1','source_id':vector['source_id'],'generation':vector['source_generation'],'target_generation':vector['target_generation'],'run_id':vector['run_id'],'config_digest':vector['config_digest'],'collection_sha256':cmd['catalog']['collection_sha256'],'columns':actual,'registry_row_count':len(rows),'exact_columns':20}

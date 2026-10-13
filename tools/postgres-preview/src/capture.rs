@@ -75,7 +75,7 @@ pub(crate) struct Rel {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Msg {
-    Begin { xid: i32 },
+    Begin { xid: i32, final_lsn: u64 },
     Commit { commit_lsn: u64, end_lsn: u64, commit_us: i64 },
     Relation(Rel),
     Insert { oid: u32, cells: Vec<Cell> },
@@ -2333,10 +2333,10 @@ pub(crate) fn decode_message(data: &[u8]) -> Result<Msg, Fail> {
     let kind = cur.u8()?;
     let message = match kind {
         b'B' => {
-            let _final_lsn = cur.u64()?;
+            let final_lsn = cur.u64()?;
             let _commit_us = cur.i64()?;
             let xid = cur.i32()?;
-            Msg::Begin { xid }
+            Msg::Begin { xid, final_lsn }
         }
         b'C' => {
             let _flags = cur.u8()?;
@@ -2495,7 +2495,7 @@ fn assemble(messages: &[Msg]) -> Result<Assembled, Fail> {
             Msg::Relation(rel) => {
                 relations.insert(rel.oid, rel.clone());
             }
-            Msg::Begin { xid } => {
+            Msg::Begin { xid, .. } => {
                 if open.is_some() {
                     return Err(Fail::new("capture.protocol", 4));
                 }
@@ -2579,6 +2579,7 @@ mod tests {
             decode_message(&update).expect("update"),
             decode_message(&commit).expect("commit"),
         ];
+        assert!(matches!(messages[1], Msg::Begin { xid: 7, final_lsn: 10 }));
         let assembled = assemble(&messages).expect("assemble");
         assert_eq!(assembled.pending, 0);
         assert_eq!(assembled.txns.len(), 1);

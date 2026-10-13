@@ -18,6 +18,7 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use pg_query::protobuf as pb;
+use postgres_types::Type;
 
 use oo_core::api::ErrorCode;
 
@@ -1797,6 +1798,16 @@ fn resolve_comparison<'a>(
 ) -> Result<&'a ResolvedOperator, GuardError> {
     if let Ok(found) = resolve_operator(catalog, schema, name, left, right) {
         return Ok(found);
+    }
+    // PostgreSQL compares varchar with a text literal through its implicit
+    // varchar-to-text cast. Bind only equality to the already verified builtin
+    // text/text operator; all other casts and functions remain refused.
+    if name == "="
+        && let Some(text) = catalog.literal_types.text
+        && [left, right].iter().all(|oid| *oid == text || *oid == Type::VARCHAR.oid())
+        && (left == Type::VARCHAR.oid() || right == Type::VARCHAR.oid())
+    {
+        return resolve_operator(catalog, schema, name, text, text);
     }
     let Some(numeric) = numeric_type_oid(catalog) else {
         return Err(GuardError::FunctionNotAllowed);

@@ -10,6 +10,8 @@ TOOLS = {
 
 def model_view(name, body):
     """Keep source results in the transcript; send only decision facts to the model."""
+    if body.get('class') and body.get('exit'):
+        return body
     if name == 'freshness':
         keys = ('knowledge_version', 'policy_version', 'publication', 'capture_method',
                 'deletion_guarantee', 'replica_lag', 'freshness', 'sources', 'quality_counts')
@@ -53,6 +55,31 @@ def ids(value):
         for item in value: found.update(ids(item))
     return found
 
+def verify_named_facts(answer, expected, results):
+    report = json.loads(answer)
+    if not isinstance(report, dict) or set(report) != {'facts', 'evidence'}:
+        raise ValueError('named factual answer must contain only facts and evidence')
+    if not isinstance(report['facts'], dict) or not isinstance(report['evidence'], dict):
+        raise ValueError('facts and evidence must be objects keyed by fact name')
+    if set(report['facts']) != set(expected) or set(report['evidence']) != set(expected):
+        raise ValueError('named factual answer or evidence is incomplete')
+    for name, value in expected.items():
+        claimed = report['facts'][name]
+        if isinstance(claimed, dict): claimed = claimed.get('value')
+        if isinstance(claimed, (bool, float)) or str(claimed) != str(value):
+            raise ValueError('named fact differs from independent truth: ' + name)
+        link = report['evidence'][name]
+        body = results[link['query_id']]
+        names = [c['name'] for c in body['columns']]
+        if names.count(link['column']) != 1:
+            raise ValueError('fact column is not uniquely present')
+        row = link.get('row', 0)
+        if type(row) is not int or row < 0:
+            raise ValueError('invalid fact row')
+        if str(body['rows'][row][names.index(link['column'])]) != str(value):
+            raise ValueError('fact is not grounded in successful query result')
+
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--config',required=True); p.add_argument('--out',required=True)
     a=p.parse_args(); cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
@@ -68,10 +95,47 @@ def main():
        'parameters':{'type':'object','properties':{k:{'type':v} for k,v in args.items()},'required':list(args),'additionalProperties':False}}} for name,args in TOOLS.items()]
     messages=[{'role':'system','content':'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. Include query_id in factual answers. You cannot use direct DB or source credentials.'}]
     transcript=[]; query_ids=set(); used=set(); answers=[]; turn_history=[]
+    if cfg.get('resume_transcript'):
+        data=pathlib.Path(cfg['resume_transcript']).read_bytes()
+        if hashlib.sha256(data).hexdigest() != cfg['resume_transcript_sha256']:
+            raise ValueError('resume transcript digest mismatch')
+        transcript=json.loads(data)
+        for event in transcript:
+            if 'tool' in event and event['exit'] == 0:
+                used.add(event['tool'])
+                if event['tool'] == 'query': query_ids.update(ids(event['response']))
+            if 'model' not in event: continue
+            msg=event['model']['choices'][0]['message']
+            if msg.get('tool_calls'): continue
+            turn=event['turn']
+            if turn != len(answers): raise ValueError('resume must contain consecutive completed turns')
+            answer=msg.get('content') or ''
+            expected=gold[cfg['questions'][turn]['truth_key']]
+            results={e['response']['query_id']:e['response'] for e in transcript
+                     if e.get('turn') == turn and e.get('tool') == 'query' and e['exit'] == 0}
+            if 'expected_named_facts' in expected:
+                verify_named_facts(answer, expected['expected_named_facts'], results)
+            else:
+                raise ValueError('resume requires query-grounded named facts')
+            answers.append(answer)
+            turn_history.extend(({'role':'user','content':cfg['questions'][turn]['prompt']},
+                                 {'role':'assistant','content':answer}))
+        if not answers or any(e['turn'] >= len(answers) for e in transcript):
+            raise ValueError('resume must end in a verified completed turn')
+        messages=[messages[0], *turn_history]
     for turn, question in enumerate(cfg['questions']):
-        messages.append({'role':'user','content':question['prompt']})
+        if turn < len(answers): continue
+        expected = gold[question['truth_key']]
+        prompt = question['prompt']
+        if 'expected_named_facts' in expected:
+            prompt += '\nReturn JSON with facts and evidence only (these facts are your answer). facts keys: ' + ', '.join(expected['expected_named_facts']) + '. evidence must be an object keyed by fact name, with each value containing query_id, column and zero-based row from an actual successful query. Use bare JSON, no Markdown fences; exact string values or objects containing value and type/freshness metadata.'
+        messages.append({'role':'user','content':prompt})
+        turn_results = {}
         for step in range(cfg.get('max_tool_rounds',20)):
-            payload={'model':model_name,'reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':'required' if step == 0 else 'auto'}
+            choice = 'required' if step == 0 else 'auto'
+            if 'expected_named_facts' in expected and step > 0 and not turn_results:
+                choice = {'type': 'function', 'function': {'name': 'query'}}
+            payload={'model':model_name,'reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':choice}
             req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})
             with urllib.request.urlopen(req,timeout=120) as response: model=json.load(response)
             msg=model['choices'][0]['message']; messages.append(msg); transcript.append({'turn':turn,'step':step,'model':model})
@@ -80,7 +144,10 @@ def main():
             if not calls:
                 if step == 0: raise ValueError('model answered without actual tools in this turn')
                 answer=msg.get('content') or ''; answers.append(answer)
-                if not all(str(x) in answer for x in gold[question['truth_key']]['expected_exact_facts']): raise ValueError('answer differs from independent truth')
+                if 'expected_named_facts' in expected:
+                    verify_named_facts(answer, expected['expected_named_facts'], turn_results)
+                elif not all(str(x) in answer for x in expected['expected_exact_facts']):
+                    raise ValueError('answer differs from independent truth')
                 turn_history.extend(({'role':'user','content':question['prompt']}, {'role':'assistant','content':answer}))
                 messages=[messages[0], *turn_history]
                 break
@@ -91,8 +158,11 @@ def main():
                      'query':['query',args.get('sql',''),'--max-rows','100','--timeout-ms','10000'],
                      'describe':['describe',args.get('table','')], 'validate':['validate',args.get('sql','')], 'tables':['tables'],'freshness':['freshness']}[name]
                 proc=subprocess.run([cfg['oo_cli']]+cmd+common,capture_output=True,text=True,timeout=45)
-                body=json.loads(proc.stdout); query_ids.update(ids(body))
-                if proc.returncode == 0: used.add(name)
+                body=json.loads(proc.stdout)
+                if name == 'query' and proc.returncode == 0: query_ids.update(ids(body))
+                if proc.returncode == 0:
+                    used.add(name)
+                    if name == 'query': turn_results[body['query_id']] = body
                 view=model_view(name,body)
                 transcript.append({'turn':turn,'tool':name,'arguments':args,'exit':proc.returncode,'response':body,'model_view':view})
                 (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')

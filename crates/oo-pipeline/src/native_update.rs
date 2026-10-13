@@ -35,6 +35,8 @@ use crate::target_installer::{self, InstallError};
 /// Request protocol.
 pub const REQUEST_PROTOCOL: &str = "oo.pipeline.native-update/v1";
 pub const PARTITION_PROTOCOL: &str = "oo.pipeline.native-partition/v1";
+pub const TRANSACTION_PROTOCOL: &str = "oo.pipeline.native-transaction/v1";
+pub const TRANSACTION_RESULT_PROTOCOL: &str = "oo.pipeline.native-transaction-result/v1";
 
 /// Install request protocol.
 pub const INSTALL_PROTOCOL: &str = "oo.pipeline.install-native-update/v1";
@@ -67,6 +69,22 @@ pub async fn import_native_update() -> Result<(), u8> {
         Some("awaiting_publish" | "replay") => Ok(()),
         _ => Err(1),
     }
+}
+
+/// Apply every source-bound table of one PostgreSQL transaction in one target transaction.
+pub async fn import_native_transaction() -> Result<(), u8> {
+    let mut stdin = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
+    if stdin.is_empty() || stdin.len() > 4 * READ_BUDGET { return Err(2); }
+    let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
+    let result = match execute_transaction(&document).await {
+        Ok(value) => value,
+        Err(reason) => json!({"protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":"not_sealed","reason":reason}),
+    };
+    let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
+    bytes.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
+    if matches!(result["load_state"].as_str(), Some("awaiting_publish" | "replay")) { Ok(()) } else { Err(1) }
 }
 
 /// Complete the target-side C4 ACK after `jobs.complete_success` commits.
@@ -302,7 +320,7 @@ pub async fn install_native_mirror_rebind_cli() -> Result<(), u8> {
         match document.get("target").ok_or(2u8).and_then(|target| Ok(target.clone())) {
             Ok(target) => match connect_target(&target).await {
                 Ok(mut conn) => match target_installer::install_jobs_mirror_rebind(&mut conn).await {
-                    Ok(()) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_mirror_rebind_digest()}),
+                    Ok(()) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_receipt_read_digest()}),
                     Err(err) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()}),
                 },
                 Err(reason) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":reason}),
@@ -395,6 +413,10 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_partition_rebind(&mut conn).await {
         Ok(()) => match target_installer::install_native_interval(&mut conn).await {
         Ok(()) => match target_installer::install_native_olap_partition(&mut conn).await {
+        Ok(()) => match target_installer::install_native_pg_transaction_group(&mut conn).await {
+        Ok(()) => match target_installer::install_native_empty_catalog(&mut conn).await {
+        Ok(()) => match target_installer::install_native_pg_group_receipt(&mut conn).await {
+        Ok(()) => match target_installer::install_native_pg_group_prior(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -403,9 +425,23 @@ async fn install_document(document: &Value) -> Value {
             "partition_digest": target_installer::compiled_native_partition_digest(),
             "partition_rebind_digest": target_installer::compiled_native_partition_rebind_digest(),
             "interval_digest": target_installer::compiled_native_interval_digest(),
-            "olap_partition_digest": target_installer::compiled_native_olap_partition_digest()
+            "olap_partition_digest": target_installer::compiled_native_olap_partition_digest(),
+            "olap_guard_digest": target_installer::compiled_native_olap_guard_digest()
+            ,"olap_guard_signature_digest": target_installer::compiled_native_olap_guard_signature_digest()
+            ,"pg_transaction_group_digest": target_installer::compiled_native_pg_transaction_group_digest()
+            ,"native_empty_catalog_digest": target_installer::compiled_native_empty_catalog_digest()
+            ,"pg_group_receipt_digest": target_installer::compiled_native_pg_group_receipt_digest()
+            ,"pg_group_prior_digest": target_installer::compiled_native_pg_group_prior_digest()
         }),
-        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0014"}),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0020"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0019"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0018"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0017"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0016"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0013"}),
         },
@@ -434,6 +470,9 @@ fn install_token(err: &InstallError) -> &'static str {
 
 async fn execute(document: &Value) -> Result<Value, &'static str> {
     let plan = classify(document)?;
+    if plan.transaction_scope.is_some() {
+        return Ok(refused(document, "transaction_group_required"));
+    }
     if plan.mirror_only {
         let mut conn = connect_target(&plan.target).await?;
         let status = mirror_only(&mut conn, &plan).await?;
@@ -572,6 +611,186 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
     ))
 }
 
+fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String, u64), &'static str> {
+    let object = document.as_object().ok_or("closed")?;
+    if object.len() != 2 || document["protocol"] != TRANSACTION_PROTOCOL
+        || object.keys().any(|key| key != "protocol" && key != "entries") { return Err("closed"); }
+    let requests = document["entries"].as_array().filter(|items| (2..=32).contains(&items.len())).ok_or("closed")?;
+    let vector_path = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR").map_err(|_| "nonadmitted")?;
+    let vector_sha = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256").map_err(|_| "nonadmitted")?;
+    let admission_bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
+    if !vector_path.starts_with('/') || !admission_bin.starts_with('/') || !hex64(&vector_sha) { return Err("nonadmitted"); }
+    let bytes = fs::read(&vector_path).map_err(|_| "nonadmitted")?;
+    if bytes.is_empty() || bytes.len() > 65_536 || hex_bytes(&Sha256::digest(&bytes)) != vector_sha { return Err("nonadmitted"); }
+    let vector: Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
+    let vector_object = vector.as_object().ok_or("nonadmitted")?;
+    if vector_object.len() != 2 || vector["protocol"] != "oo.pipeline.native-transaction-registry-vector/v1" { return Err("nonadmitted"); }
+    let entries = vector["entries"].as_array().filter(|items| items.len() == requests.len()).ok_or("nonadmitted")?;
+    let mut plans = Vec::with_capacity(requests.len());
+    for (request, entry) in requests.iter().zip(entries) {
+        let e = entry.as_object().ok_or("nonadmitted")?;
+        if e.len() != 4 || !["logical_schema", "logical_table", "registry_path", "registry_sha256"].iter().all(|key| e.contains_key(*key))
+            || request["logical_schema"] != entry["logical_schema"] || request["logical_table"] != entry["logical_table"] { return Err("nonadmitted"); }
+        let path = entry["registry_path"].as_str().filter(|value| value.starts_with('/')).ok_or("nonadmitted")?;
+        let sha = entry["registry_sha256"].as_str().filter(|value| hex64(value)).ok_or("nonadmitted")?;
+        let plan = native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {
+            bin: Some(admission_bin.clone()), registry: Some(path.to_string()), registry_sha256: Some(sha.to_string()),
+        }, || classify(request))?;
+        plans.push(plan);
+    }
+    let first = plans.first().ok_or("closed")?;
+    let scope = first.transaction_scope.as_ref().ok_or("transaction_scope_required")?.clone();
+    let scope_tables = scope["tables"].as_array().filter(|items| items.len() == plans.len()).ok_or("transaction_scope_required")?;
+    let end_lsn = pg_lsn_value(scope["end_lsn"].as_str().ok_or("transaction_scope_required")?)?;
+    let scope_digest = hex_bytes(&Sha256::digest(serde_json::to_vec(&scope).map_err(|_| "transaction_scope_required")?));
+    let mut prior = None;
+    for (plan, table) in plans.iter().zip(scope_tables) {
+        let key = (&plan.schema, &plan.table);
+        if prior.is_some_and(|old| old >= key) { return Err("transaction_scope_required"); }
+        prior = Some(key);
+        if !matches!(plan.source_engine.as_str(), "postgres" | "postgresql")
+            || plan.capture_method != "c1_cdc" || plan.delete_detection != "native"
+            || plan.consistency_grade != "T" || !plan.cross_table || plan.position_codec != "pg-commit-lsn/v1"
+            || plan.mode != "incremental" || plan.partition_scope.is_some() || plan.mirror
+            || !plan.source_bound || plan.lease_id.is_none() || plan.lease_generation.is_none()
+            || plan.transaction_scope.as_ref() != Some(&scope)
+            || plan.source_id != first.source_id || plan.target != first.target
+            || plan.shard != first.shard || plan.owner != first.owner
+            || plan.lease_id != first.lease_id || plan.lease_generation != first.lease_generation
+            || plan.config_digest != first.config_digest
+            || plan.applied_pos_request != end_lsn.to_string()
+            || table["logical_schema"] != plan.schema || table["logical_table"] != plan.table
+            || table["source_generation"] != plan.source_generation
+            || table["parent_source_generation"] != json!(plan.parent_source_generation)
+            || table["arrow_sha256"] != native_arrow::arrow_sha256(&plan.arrow)
+            || table["row_count"].as_u64() != Some(if plan.arrow.is_empty() { 0 } else {
+                decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows as u64
+            })
+            || table["tombstones_sha256"] != hex_bytes(&Sha256::digest(serde_json::to_vec(&plan.tombstones).map_err(|_| "transaction_scope_required")?))
+        { return Err("transaction_scope_required"); }
+    }
+    if scope["source_id"] != first.source_id || scope["complete"] != true
+        || scope["xid"].as_i64().is_none_or(|xid| xid <= 0) { return Err("transaction_scope_required"); }
+    Ok((plans, scope, scope_digest, end_lsn))
+}
+
+fn pg_lsn_value(value: &str) -> Result<u64, &'static str> {
+    let (hi, lo) = value.split_once('/').ok_or("transaction_scope_required")?;
+    if hi.is_empty() || hi.len() > 8 || lo.is_empty() || lo.len() > 8
+        || !hi.bytes().chain(lo.bytes()).all(|byte| byte.is_ascii_hexdigit()) { return Err("transaction_scope_required"); }
+    Ok((u64::from(u32::from_str_radix(hi, 16).map_err(|_| "transaction_scope_required")?) << 32)
+        | u64::from(u32::from_str_radix(lo, 16).map_err(|_| "transaction_scope_required")?))
+}
+
+async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
+    let (plans, scope, scope_digest, end_lsn) = transaction_plans(document)?;
+    let first = &plans[0];
+    let xid = scope["xid"].as_i64().ok_or("transaction_scope_required")?;
+    let group_generation = plans.iter().map(|plan| plan.source_generation).min().ok_or("transaction_scope_required")?;
+    let job = first.lease_id.as_deref().ok_or("lease_required")?;
+    let job_generation = first.lease_generation.ok_or("lease_required")?;
+    let mut conn = connect_target(&first.target).await?;
+    let shard = first.shard.clone();
+    let result = async {
+        let mut tx = conn.begin().await.map_err(sql_token)?;
+        let (lease_receipt, _) = lease_hold(&mut tx, job, Some(job_generation)).await?;
+        let attestation: Option<String> = sqlx::query_scalar(
+            "SELECT _oo.native_transaction_read($1,$2,$3::text::numeric)::text"
+        ).bind(&first.source_id).bind(xid).bind(end_lsn.to_string())
+         .fetch_one(&mut *tx).await.map_err(sql_token)?;
+        let (state, entries, target_generation) = if let Some(raw) = attestation {
+            let saved: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
+            if saved["scope_digest"] != scope_digest || saved["job_task_id"] != job
+                || saved["source"] != first.source_id || saved["xid"] != xid
+                || saved["end_lsn"].as_u64() != Some(end_lsn) {
+                return Err("OO010");
+            }
+            let entries = saved["entries"].as_array().filter(|rows| rows.len() == plans.len()).ok_or("OO010")?.clone();
+            for (plan, entry) in plans.iter().zip(&entries) {
+                let existing = transaction_read_batch(&mut tx, plan).await?.ok_or("OO010")?;
+                if entry["logical_schema"] != plan.schema || entry["logical_table"] != plan.table
+                    || entry["source_generation"] != plan.source_generation
+                    || entry["batch_id"] != plan.batch_id || entry["payload_digest"] != plan.payload_digest
+                    || entry["run_id"] != existing.run_id || entry["physical_name"] != existing.physical_name
+                    || entry["target_generation"] != existing.target_generation { return Err("OO010"); }
+            }
+            ("replay", entries, saved["target_generation"].as_i64().ok_or("OO010")?)
+        } else {
+            let adopted_generation: i64 = sqlx::query_scalar(
+                "SELECT _oo.adopt_target_generation($1,$2::uuid)"
+            ).bind(&first.shard).bind(&first.owner)
+             .fetch_one(&mut *tx).await.map_err(sql_token)?;
+            sqlx::query("SELECT _oo.full_import_bind_session($1,$2::uuid,$3)")
+                .bind(&first.shard).bind(&first.owner).bind(adopted_generation)
+                .execute(&mut *tx).await.map_err(sql_token)?;
+            let prior_generation: i64 = sqlx::query_scalar(
+                "SELECT _oo.native_pg_group_prior($1,$2::uuid,$3,$4)"
+            ).bind(&first.shard).bind(&first.owner).bind(adopted_generation)
+             .bind(&first.source_id).fetch_one(&mut *tx).await.map_err(sql_token)?;
+            if prior_generation.checked_add(1) != Some(group_generation) { return Err("stale_run"); }
+            for plan in &plans {
+                if transaction_read_batch(&mut tx, plan).await?.is_some() { return Err("OO010"); }
+            }
+            let mut order: Vec<usize> = (0..plans.len()).collect();
+            // Table generations may differ; the full-source transaction advances
+            // one global generation. Seal that minimum table generation last.
+            order.sort_by_key(|index| std::cmp::Reverse(plans[*index].source_generation));
+            let mut entries = vec![Value::Null; plans.len()];
+            let mut target_generation = None;
+            for index in order {
+                let plan = &plans[index];
+                position_ahead(&mut tx, plan).await?;
+                let applied = apply_tx(&mut tx, plan).await?;
+                if target_generation.is_some_and(|generation| generation != applied.target_generation) { return Err("OO010"); }
+                target_generation = Some(applied.target_generation);
+                entries[index] = json!({
+                    "logical_schema":plan.schema,"logical_table":plan.table,
+                    "source_generation":plan.source_generation,"target_generation":applied.target_generation,
+                    "physical_name":applied.physical_name,"batch_id":plan.batch_id,
+                    "payload_digest":plan.payload_digest,"run_id":applied.run_id
+                });
+            }
+            let generation = target_generation.ok_or("not_sealed")?;
+            if generation != adopted_generation { return Err("OO010"); }
+            let entries_text = serde_json::to_string(&entries).map_err(|_| "not_sealed")?;
+            sqlx::query("SELECT _oo.native_transaction_commit($1,$2::uuid,$3,$4,$5,$6::text::numeric,$7,$8::jsonb,$9::uuid)")
+                .bind(&first.shard).bind(&first.owner).bind(generation).bind(&first.source_id)
+                .bind(xid).bind(end_lsn.to_string()).bind(&scope_digest).bind(&entries_text).bind(job)
+                .execute(&mut *tx).await.map_err(sql_token)?;
+            ("awaiting_publish", entries, generation)
+        };
+        lease_hold(&mut tx, job, Some(job_generation)).await?;
+        tx.commit().await.map_err(sql_token)?;
+        Ok(json!({
+            "protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":state,"reason":null,
+            "source_id":first.source_id,"xid":xid,"end_lsn":end_lsn.to_string(),
+            "source_generation":group_generation,
+            "scope_digest":scope_digest,"job_task_id":job,"job_generation":job_generation,
+            "target_generation":target_generation,"entries":entries,
+            "jobs_lease_receipt":lease_receipt,"source_bound":true
+        }))
+    }.await;
+    let _ = release(&mut conn, &shard).await;
+    result
+}
+
+async fn transaction_read_batch(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, plan: &UpdatePlan,
+) -> Result<Option<StoredBatch>, &'static str> {
+    let raw: Option<String> = sqlx::query_scalar("SELECT _oo.native_update_read_batch($1,$2,$3,$4)")
+        .bind(&plan.source_id).bind(&plan.schema).bind(&plan.table).bind(&plan.batch_id)
+        .fetch_one(&mut **tx).await.map_err(sql_token)?;
+    let Some(raw) = raw else { return Ok(None); };
+    let value: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
+    Ok(Some(StoredBatch {
+        payload_digest: value["payload_digest"].as_str().ok_or("not_sealed")?.to_string(),
+        run_id: value["run_id"].as_str().ok_or("not_sealed")?.to_string(),
+        target_generation: value["target_generation"].as_i64().ok_or("not_sealed")?,
+        physical_name: value["physical_name"].as_str().ok_or("not_sealed")?.to_string(),
+        row_count: value["row_count"].as_i64().ok_or("not_sealed")?,
+    }))
+}
+
 struct StoredBatch {
     payload_digest: String,
     run_id: String,
@@ -638,6 +857,7 @@ struct UpdatePlan {
     lease_id: Option<String>,
     lease_generation: Option<i64>,
     partition_scope: Option<Value>,
+    transaction_scope: Option<Value>,
     previous_ack_exists: bool,
     previous_signature: Option<String>,
     previous_ack_auto: bool,
@@ -920,6 +1140,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         lease_id,
         lease_generation,
         partition_scope,
+        transaction_scope: admission.transaction_scope,
         previous_ack_exists,
         previous_signature,
         previous_ack_auto,
@@ -980,6 +1201,7 @@ fn classify_mirror(document: &Value) -> Result<UpdatePlan, &'static str> {
         lease_id: None,
         lease_generation: None,
         partition_scope: None,
+        transaction_scope: None,
         previous_ack_exists: false,
         previous_signature: None,
         previous_ack_auto: false,
@@ -991,6 +1213,7 @@ struct Admission {
     producer_trust: Value,
     trusted_fields: Vec<native_binding::BoundField>,
     partition_scope: Option<Value>,
+    transaction_scope: Option<Value>,
     consistency: Option<String>,
     cross_table: Option<bool>,
 }
@@ -1001,6 +1224,7 @@ fn unbound_admission() -> Admission {
         producer_trust: producer_trust_absent(),
         trusted_fields: Vec::new(),
         partition_scope: None,
+        transaction_scope: None,
         consistency: None,
         cross_table: None,
     }
@@ -1158,6 +1382,7 @@ fn historical_admission(
             source_bound: false,
             trusted_fields: Vec::new(),
             partition_scope: None,
+            transaction_scope: None,
             producer_trust: json!({
                 "entry": "historical_readonly",
                 "trusted": false,
@@ -1559,6 +1784,7 @@ fn open_registration(
     }
     opened.fields = authorized.fields;
     opened.partition_scope = authorized.partition_scope;
+    opened.transaction_scope = authorized.transaction_scope;
     Ok(opened)
 }
 
@@ -1567,6 +1793,7 @@ fn registration_admission(opened: native_binding::ServerRegistration) -> Admissi
         source_bound: true,
         trusted_fields: opened.fields,
         partition_scope: opened.partition_scope,
+        transaction_scope: opened.transaction_scope,
         consistency: Some(opened.consistency.clone()),
         cross_table: Some(opened.cross_table),
         producer_trust: json!({
@@ -2389,7 +2616,10 @@ fn validate_olap_route(
     }
     let lower = scope["partition_range"]["lower"].as_str().ok_or("partition_scope_required")?;
     let upper = scope["partition_range"]["upper"].as_str().ok_or("partition_scope_required")?;
-    if !canonical_date(lower) || !canonical_date(upper) || lower >= upper {
+    // StarRocks reports a MINVALUE range bound as 0000-01-01. The target
+    // copy-forward maps this exact token to -infinity; Arrow rows remain dates.
+    if !(canonical_date(lower) || source_engine == "starrocks" && lower == "0000-01-01")
+        || !canonical_date(upper) || lower >= upper {
         return Err("partition_scope_required");
     }
     let decoded = decode_arrow_stream(arrow).map_err(arrow_token)?;
@@ -2426,11 +2656,16 @@ async fn apply_tx(
             return Err("partition_schema_not_ready");
         }
         if plan.previous_ack_auto {
-            let stored_digest: Option<String> = sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
-                .bind(target_installer::VERSION_NATIVE_OLAP_PARTITION)
-                .fetch_optional(&mut **tx).await.map_err(sql_token)?;
-            if stored_digest.as_deref() != Some(target_installer::compiled_native_olap_partition_digest().as_str()) {
-                return Err("partition_schema_not_ready");
+            for (version, digest) in [
+                (target_installer::VERSION_NATIVE_OLAP_PARTITION, target_installer::compiled_native_olap_partition_digest()),
+                (target_installer::VERSION_NATIVE_OLAP_GUARD, target_installer::compiled_native_olap_guard_digest()),
+                (target_installer::VERSION_NATIVE_OLAP_GUARD_SIGNATURE, target_installer::compiled_native_olap_guard_signature_digest()),
+            ] {
+                let stored_digest: Option<String> = sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                    .bind(version).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+                if stored_digest.as_deref() != Some(digest.as_str()) {
+                    return Err("partition_schema_not_ready");
+                }
             }
         }
     }

@@ -1,5 +1,9 @@
 # 工程变更与验收记录
 
+## 2026-10-13 完整作者链收取与最小调用
+
+完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。 固定收取证据：`execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json`；对话验证器900d86899仅续跑已核准的未完成轮次，错误事实仍拒绝。开发、集成、发行和外部门槛分开；原Plan退出、分母、父项checkbox、支持等级不变。无整版交付，PRODUCT-LOOPS/Goal不切换；前端无变更。
+
 协调者维护。每条写明能力/决策、固定代码与证据、验收层级、仍待条件；不以代码行数、会话数量或 commit 等同于通过。记录按日期逆序，后续交付追加到对应日期顶部；不复制秘密、客户数据或全部工具日志。
 
 ## 2026-10-09

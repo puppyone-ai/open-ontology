@@ -44,7 +44,6 @@ Built by [puppyone](https://github.com/puppyone-ai): **Making the world friendly
 - [Getting started](#getting-started)
 - [Deployment](#deployment)
 - [Security and operations](#security-and-operations)
-- [Roadmap](#roadmap)
 - [Repository map](#repository-map)
 - [Documentation](#documentation)
 - [FAQ](#faq)
@@ -367,20 +366,6 @@ Security boundaries:
 For operations, back up the control database, configuration Git, secrets, and the Agent DB as appropriate. Restore identity and semantic decisions before rebuilding derived assets, then reconcile the restored data. Upgrade control migrations first, keep older consumers compatible, and verify the query and recovery paths before activation. Set RPO/RTO and SLO targets using the [operations guide](docs/11-deployment-and-operations.md), and verify them with recovery drills.
 
 Keep security reports private. Never publish customer data, credentials, or internal endpoints in repository issues. See the [security requirements](docs/10-security.md).
-
-## Roadmap
-
-![Hand-drawn five-loop roadmap: ten-source ingestion, reviewed publication, external services, enterprise workbench, and complete release.](docs/assets/readme/roadmap.svg)
-
-| Loop | Cumulative product goal |
-| --- | --- |
-| **DL01** | Ten independent data sources with the full synchronization, Self-build, maintained Ontology, Pack, and real agent consumption chain |
-| **DL02** | Multi-role review and gated publication, including version changes and rollback |
-| **DL03** | General external services through verified CLI, HTTP, SDK, and MCP integrations |
-| **DL04** | A continuously maintained enterprise workbench for sources, semantics, permissions, agents, and operations |
-| **DL05** | Complete release: deployment, recovery, compatibility, evaluation, customer conditions, and applicable release/support gates |
-
-The loops build on one another: source-to-agent integration, publication, external interfaces, an enterprise workbench, and operational readiness. Milestones and acceptance criteria are recorded in the [implementation Plan](specs/open-ontology-v0.1-plan.md).
 
 ## Repository map
 

@@ -1,3 +1,7 @@
+## 2026-10-13 完整作者链收取与最小调用
+
+完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。 固定收取证据：`execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json`；对话验证器900d86899仅续跑已核准的未完成轮次，错误事实仍拒绝。开发、集成、发行和外部门槛分开；原Plan退出、分母、父项checkbox、支持等级不变。无整版交付，PRODUCT-LOOPS/Goal不切换；前端无变更。
+
 ## 2026-10-12 当前调度：共享链路稳定后再放行十源
 
 完整数据源工作仍暂停，独占owner及历史产物保留；必须在共享真实导入/同步恢复、准确当前集合、完整Selfbuild/YAML/维护Pack、public Gateway与实际多轮Agent对话全部通过后才由root放行。当前运行owner、固定SHA、参考证据及缺口以 [共享稳定门禁](shared-readiness-gate.json)、control-state.json和dispatch.json为准，不从以下历史事件推断live或验收。已交隔离TIME→interval保真修复仍须补齐当前五表准确输入和后续完整产品链；不以组件或隔离测试成功放行。原DL01可授权未发布预览，正式发布和真实业务owner/G门槛仍单列保留。工程临时备用GPT6Sol low已授权；产品保持GPT6.1 Sol low及原URL/key，目录缺项不是实际模型不可用证据。完整源0/10、整版未签收；普通等待900秒，CPU/编译固定限额已取消，独占文件及实际资源约束保留。
