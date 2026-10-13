@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="645" viewBox="0 0 1280 645" role="img" aria-labelledby="title desc"><title id="title">A question becomes an accountable query</title><desc id="desc">Knowledge is context. Gateway is the authority. PostgreSQL enforces the user boundary.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">A question becomes an accountable query</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">Knowledge is context. Gateway is the authority. PostgreSQL enforces the user boundary.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 156 Q 162.0 152 274 156 Q 285 158 282 167 L 281 251 Q 282 263 270 261 Q 162.0 264 50 260 Q 38 260 43 248 L 42 167 Q 41 156 50 156 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 152 Q 198.0 150 274 153" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="176" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">QUESTION</text>
+<text x="57" y="200" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Agent / client</text>
+<text x="57" y="229" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Read Pack → propose SQL</text>
+<text x="57" y="254" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">No source DB credentials</text>
+<path d="M 361 156 Q 473.0 152 585 156 Q 596 158 593 167 L 592 251 Q 593 263 581 261 Q 473.0 264 361 260 Q 349 260 354 248 L 353 167 Q 352 156 361 156 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 364 152 Q 509.0 150 585 153" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="368" y="176" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ADMISSION</text>
+<text x="368" y="200" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Identity + policy</text>
+<text x="368" y="229" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Token / role / version tuple</text>
+<text x="368" y="254" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Visibility + SQL + budget</text>
+<path d="M 672 156 Q 784.0 152 896 156 Q 907 158 904 167 L 903 251 Q 904 263 892 261 Q 784.0 264 672 260 Q 660 260 665 248 L 664 167 Q 663 156 672 156 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 675 152 Q 820.0 150 896 153" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="679" y="176" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">AUDIT</text>
+<text x="679" y="200" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Durable admit WAL</text>
+<text x="679" y="229" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Persist audit before reading</text>
+<text x="679" y="254" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Fail closed if audit fails</text>
+<path d="M 984 156 Q 1106.0 152 1228 156 Q 1239 158 1236 167 L 1235 251 Q 1236 263 1224 261 Q 1106.0 264 984 260 Q 972 260 977 248 L 976 167 Q 975 156 984 156 Z" fill="#D9E8F2" stroke="#292724" stroke-width="2.1"/>
+<path d="M 987 152 Q 1145.0 150 1228 153" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="991" y="176" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">EXECUTION</text>
+<text x="991" y="200" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Agent DB read</text>
+<text x="991" y="229" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">REPEATABLE READ</text>
+<text x="991" y="254" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">READ ONLY + role / RLS</text>
+<path d="M 288 211 Q 317.0 211.0 346 211" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 600 211 Q 628.5 211.0 657 211" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 910 211 Q 939.5 211.0 969 211" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 1106 269 Q 1106.0 317.0 1106 365" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 984 378 Q 1106.0 374 1228 378 Q 1239 380 1236 389 L 1235 472 Q 1236 484 1224 482 Q 1106.0 485 984 481 Q 972 481 977 469 L 976 389 Q 975 378 984 378 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 987 374 Q 1145.0 372 1228 375" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="991" y="398" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">RETURN</text>
+<text x="991" y="422" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Typed result</text>
+<text x="991" y="451" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Rows + limits + warnings</text>
+<text x="991" y="476" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Freshness + query_id</text>
+<path d="M 672 378 Q 784.0 374 896 378 Q 907 380 904 389 L 903 472 Q 904 484 892 482 Q 784.0 485 672 481 Q 660 481 665 469 L 664 389 Q 663 378 672 378 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 675 374 Q 820.0 372 896 375" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="679" y="398" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ACCOUNTING</text>
+<text x="679" y="422" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Complete + cleanup</text>
+<text x="679" y="451" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Audit result / cancel state</text>
+<text x="679" y="476" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Rollback + release</text>
+<path d="M 361 378 Q 473.0 374 585 378 Q 596 380 593 389 L 592 472 Q 593 484 581 482 Q 473.0 485 361 481 Q 349 481 354 469 L 353 389 Q 352 378 361 378 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 364 374 Q 509.0 372 585 375" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="368" y="398" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">ANSWER</text>
+<text x="368" y="422" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Agent answer</text>
+<text x="368" y="451" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Read exact values + caveats</text>
+<text x="368" y="476" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Cite query_id + version</text>
+<path d="M 968 430 Q 940.0 430.0 912 430" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 657 430 Q 628.0 430.0 599 430" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<circle class="motion" r="5" fill="#FFA832" stroke="#292724" stroke-width="1"><animateMotion dur="11s" begin="0s" repeatCount="indefinite" path="M 286 211 L 970 211 L 1106 272 L 1106 363"/></circle>
+<circle class="motion" r="5" fill="#75BE9E" stroke="#292724" stroke-width="1"><animateMotion dur="7s" begin="-3s" repeatCount="indefinite" path="M 969 430 L 598 430"/></circle>
+<path d="M 50 545 Q 639.5 541 1229 545 Q 1240 547 1237 556 L 1236 591 Q 1237 603 1225 601 Q 639.5 604 50 600 Q 38 600 43 588 L 42 556 Q 41 545 50 545 Z" fill="#F3EEE0" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 541 Q 818.75 539 1229 542" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="573" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Cancel, timeout, or revocation → stop output → cancel backend → confirm cleanup → release</text>
+<text x="40" y="622" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">QUERY LIFECYCLE · Cancellation confirms backend cleanup before connection reuse.</text>
+<text x="1240" y="622" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>

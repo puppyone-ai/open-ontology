@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="417" viewBox="0 0 1280 417" role="img" aria-labelledby="title desc"><title id="title">The delivery roadmap</title><desc id="desc">Source integration, publication, external access, enterprise operations, and release.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">The delivery roadmap</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">Source integration, publication, external access, enterprise operations, and release.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 154 Q 151.0 150 252 154 Q 263 156 260 165 L 259 295 Q 260 307 248 305 Q 151.0 308 50 304 Q 38 304 43 292 L 42 165 Q 41 154 50 154 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 150 Q 183.70000000000002 148 252 151" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="174" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">DL01</text>
+<text x="57" y="198" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Source integration</text>
+<text x="57" y="227" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Ten-source full chains</text>
+<text x="57" y="252" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Sync → build → agent</text>
+<path d="M 265 223 Q 273.0 223.0 281 223" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 294 154 Q 395.0 150 496 154 Q 507 156 504 165 L 503 295 Q 504 307 492 305 Q 395.0 308 294 304 Q 282 304 287 292 L 286 165 Q 285 154 294 154 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 297 150 Q 427.70000000000005 148 496 151" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="301" y="174" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">DL02</text>
+<text x="301" y="198" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Review + publish</text>
+<text x="301" y="227" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Roles + gated publication</text>
+<text x="301" y="252" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Version / rollback</text>
+<path d="M 509 223 Q 517.0 223.0 525 223" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 538 154 Q 639.0 150 740 154 Q 751 156 748 165 L 747 295 Q 748 307 736 305 Q 639.0 308 538 304 Q 526 304 531 292 L 530 165 Q 529 154 538 154 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 541 150 Q 671.7 148 740 151" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="545" y="174" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">DL03</text>
+<text x="545" y="198" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">External services</text>
+<text x="545" y="227" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">CLI / HTTP / SDK</text>
+<text x="545" y="252" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Verified client integration</text>
+<path d="M 753 223 Q 761.0 223.0 769 223" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 782 154 Q 883.0 150 984 154 Q 995 156 992 165 L 991 295 Q 992 307 980 305 Q 883.0 308 782 304 Q 770 304 775 292 L 774 165 Q 773 154 782 154 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 785 150 Q 915.7 148 984 151" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="789" y="174" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">DL04</text>
+<text x="789" y="198" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Team workbench</text>
+<text x="789" y="227" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Continuous maintenance</text>
+<text x="789" y="252" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Sources + operations</text>
+<path d="M 997 223 Q 1005.0 223.0 1013 223" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 1026 154 Q 1127.0 150 1228 154 Q 1239 156 1236 165 L 1235 295 Q 1236 307 1224 305 Q 1127.0 308 1026 304 Q 1014 304 1019 292 L 1018 165 Q 1017 154 1026 154 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 1029 150 Q 1159.7 148 1228 151" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1033" y="174" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">DL05</text>
+<text x="1033" y="198" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Complete release</text>
+<text x="1033" y="227" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Deployment / recovery</text>
+<text x="1033" y="252" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Customer + release gates</text>
+<text x="40" y="394" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">PRODUCT ROADMAP · Five cumulative milestones, from ingestion to operations.</text>
+<text x="1240" y="394" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>

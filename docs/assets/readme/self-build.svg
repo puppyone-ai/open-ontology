@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="770" viewBox="0 0 1280 770" role="img" aria-labelledby="title desc"><title id="title">Self-build: S0 → S10</title><desc id="desc">Collect facts first. Draft semantics second. Review and classify before granting access.</desc><defs><pattern id="paper" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="3" cy="7" r=".65" fill="#C6BCA7" opacity=".4"/></pattern><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M 2 2 L 10 6 L 2 10" fill="none" stroke="#292724" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><style>text{font-family:'Chalkboard SE','Segoe Print','Comic Sans MS',sans-serif;fill:#292724}.small{font-family:ui-monospace,SFMono-Regular,monospace}.motion{pointer-events:none}@media(prefers-reduced-motion:reduce){.motion{display:none}}</style><rect width="100%" height="100%" rx="22" fill="#FAF7EF"/><rect width="100%" height="100%" rx="22" fill="url(#paper)"/>
+<text x="40" y="48" font-size="30" text-anchor="start" font-weight="bold" style="fill:#292724">Self-build: S0 → S10</text>
+<text x="42" y="79" font-size="17" text-anchor="start" font-weight="normal" style="fill:#6B655C">Collect facts first. Draft semantics second. Review and classify before granting access.</text>
+<path d="M 42 94 Q 258 90 484 94" fill="none" stroke="#FFA832" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 50 155 Q 151.0 151 252 155 Q 263 157 260 166 L 259 259 Q 260 271 248 269 Q 151.0 272 50 268 Q 38 268 43 256 L 42 166 Q 41 155 50 155 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 151 Q 183.70000000000002 149 252 152" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="175" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S0</text>
+<text x="57" y="199" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Metadata</text>
+<text x="57" y="228" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Catalog, comments, keys</text>
+<path d="M 264 214 Q 272.5 214.0 281 214" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 294 155 Q 395.0 151 496 155 Q 507 157 504 166 L 503 259 Q 504 271 492 269 Q 395.0 272 294 268 Q 282 268 287 256 L 286 166 Q 285 155 294 155 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 297 151 Q 427.70000000000005 149 496 152" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="301" y="175" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S1</text>
+<text x="301" y="199" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Data profile</text>
+<text x="301" y="228" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Stats, shapes, samples</text>
+<path d="M 508 214 Q 516.5 214.0 525 214" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 538 155 Q 639.0 151 740 155 Q 751 157 748 166 L 747 259 Q 748 271 736 269 Q 639.0 272 538 268 Q 526 268 531 256 L 530 166 Q 529 155 538 155 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 541 151 Q 671.7 149 740 152" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="545" y="175" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S2</text>
+<text x="545" y="199" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Semantic types</text>
+<text x="545" y="228" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Rules + source caveats</text>
+<path d="M 752 214 Q 760.5 214.0 769 214" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 782 155 Q 883.0 151 984 155 Q 995 157 992 166 L 991 259 Q 992 271 980 269 Q 883.0 272 782 268 Q 770 268 775 256 L 774 166 Q 773 155 782 155 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 785 151 Q 915.7 149 984 152" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="789" y="175" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S3</text>
+<text x="789" y="199" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Relationships</text>
+<text x="789" y="228" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">FKs + checked joins</text>
+<path d="M 996 214 Q 1004.5 214.0 1013 214" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 1026 155 Q 1127.0 151 1228 155 Q 1239 157 1236 166 L 1235 259 Q 1236 271 1224 269 Q 1127.0 272 1026 268 Q 1014 268 1019 256 L 1018 166 Q 1017 155 1026 155 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 1029 151 Q 1159.7 149 1228 152" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1033" y="175" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S4</text>
+<text x="1033" y="199" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Code dictionaries</text>
+<text x="1033" y="228" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Low-cardinality values</text>
+<path d="M 1026 345 Q 1127.0 341 1228 345 Q 1239 347 1236 356 L 1235 449 Q 1236 461 1224 459 Q 1127.0 462 1026 458 Q 1014 458 1019 446 L 1018 356 Q 1017 345 1026 345 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 1029 341 Q 1159.7 339 1228 342" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1033" y="365" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S5</text>
+<text x="1033" y="389" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">LLM draft</text>
+<text x="1033" y="418" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Descriptions + questions</text>
+<path d="M 1014 404 Q 1005.5 404.0 997 404" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 782 345 Q 883.0 341 984 345 Q 995 347 992 356 L 991 449 Q 992 461 980 459 Q 883.0 462 782 458 Q 770 458 775 446 L 774 356 Q 773 345 782 345 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 785 341 Q 915.7 339 984 342" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="789" y="365" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S6</text>
+<text x="789" y="389" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Entity candidates</text>
+<text x="789" y="418" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Domains + groupings</text>
+<path d="M 770 404 Q 761.5 404.0 753 404" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 538 345 Q 639.0 341 740 345 Q 751 347 748 356 L 747 449 Q 748 461 736 459 Q 639.0 462 538 458 Q 526 458 531 446 L 530 356 Q 529 345 538 345 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 541 341 Q 671.7 339 740 342" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="545" y="365" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S7</text>
+<text x="545" y="389" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Metric candidates</text>
+<text x="545" y="418" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Grain + business meaning</text>
+<path d="M 526 404 Q 517.5 404.0 509 404" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 294 345 Q 395.0 341 496 345 Q 507 347 504 356 L 503 449 Q 504 461 492 459 Q 395.0 462 294 458 Q 282 458 287 446 L 286 356 Q 285 345 294 345 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 297 341 Q 427.70000000000005 339 496 342" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="301" y="365" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S8</text>
+<text x="301" y="389" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Example queries</text>
+<text x="301" y="418" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Validated SQL candidates</text>
+<path d="M 282 404 Q 273.5 404.0 265 404" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 50 345 Q 151.0 341 252 345 Q 263 347 260 356 L 259 449 Q 260 461 248 459 Q 151.0 462 50 458 Q 38 458 43 446 L 42 356 Q 41 345 50 345 Z" fill="white" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 341 Q 183.70000000000002 339 252 342" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="365" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S9</text>
+<text x="57" y="389" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Human review</text>
+<text x="57" y="418" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Decisions + overlays</text>
+<path d="M 1128 277 Q 1128.0 305.5 1128 334" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 151 465 Q 151.0 495.0 151 525" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 50 535 Q 151.0 531 252 535 Q 263 537 260 546 L 259 654 Q 260 666 248 664 Q 151.0 667 50 663 Q 38 663 43 651 L 42 546 Q 41 535 50 535 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 53 531 Q 183.70000000000002 529 252 532" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="57" y="555" font-size="13" text-anchor="start" font-weight="normal" class="small" style="fill:#856033">S10 / AUTHORIZE</text>
+<text x="57" y="579" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Classify columns</text>
+<text x="57" y="608" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Confirm or auto-accept</text>
+<text x="57" y="633" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Unclassified = no grant</text>
+<path d="M 374 553 Q 525.0 549 676 553 Q 687 555 684 564 L 683 650 Q 684 662 672 660 Q 525.0 663 374 659 Q 362 659 367 647 L 366 564 Q 365 553 374 553 Z" fill="#FFE3B9" stroke="#292724" stroke-width="2.1"/>
+<path d="M 377 549 Q 572.7 547 676 550" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="381" y="581" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Effective OOS</text>
+<text x="381" y="610" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Generated + curated + reviews</text>
+<text x="381" y="635" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Canonical YAML + provenance</text>
+<path d="M 790 553 Q 1009.5 549 1229 553 Q 1240 555 1237 564 L 1236 650 Q 1237 662 1225 660 Q 1009.5 663 790 659 Q 778 659 783 647 L 782 564 Q 781 553 790 553 Z" fill="#CCE9DA" stroke="#292724" stroke-width="2.1"/>
+<path d="M 793 549 Q 1077.75 547 1229 550" fill="none" stroke="#292724" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="797" y="581" font-size="22" text-anchor="start" font-weight="bold" style="fill:#292724">Role Pack / publication</text>
+<text x="797" y="610" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Review decisions persist as curated overlays.</text>
+<text x="797" y="635" font-size="17" text-anchor="start" font-weight="normal" style="fill:#292724">Publication applies the G1–G13 gates.</text>
+<path d="M 266 600 Q 312.5 600.0 359 600" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 690 600 Q 732.5 600.0 775 600" fill="none" stroke="#292724" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<circle class="motion" r="5" fill="#FFA832" stroke="#292724" stroke-width="1"><animateMotion dur="7s" begin="0s" repeatCount="indefinite" path="M 262 600 L 775 600"/></circle>
+<text x="40" y="747" font-size="14" text-anchor="start" font-weight="normal" class="small" style="fill:#71695D">SELF-BUILD · Facts, model candidates, review, and classification feed versioned OOS.</text>
+<text x="1240" y="747" font-size="14" text-anchor="end" font-weight="normal" class="small" style="fill:#8D602E">puppyone / Open Ontology</text>
+</svg>
