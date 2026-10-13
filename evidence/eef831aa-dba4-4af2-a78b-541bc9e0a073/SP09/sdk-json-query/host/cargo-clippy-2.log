@@ -1,3 +1,0 @@
-    Checking oo-sdk v0.1.0 (/Users/redux/puppy-one/open-ontology/crates/oo-sdk)
-    Building [=======================> ] 240/245: oo-sdk, oo_sdk(test)            Building [=======================> ] 241/245: oo-sdk                          Building [=======================> ] 242/245: tls_query(test), proxy_env(…    Building [=======================> ] 243/245: tls_query(test), http_query…    Building [=======================> ] 244/245: http_query(test)                Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s
-EXIT:0

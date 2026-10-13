@@ -1,0 +1,32 @@
+# OpenSearch 3.9.0 single-node fixture for DL01-W1-44. No secrets in this file.
+cluster.name: oo-dl01w1-44
+node.name: oo-dl01w1-44-opensearch
+discovery.type: single-node
+network.host: 0.0.0.0
+http.port: 9200
+bootstrap.memory_lock: false
+cluster.routing.allocation.disk.threshold_enabled: false
+
+plugins.security.disabled: false
+plugins.security.allow_unsafe_democertificates: false
+plugins.security.allow_default_init_securityindex: true
+plugins.security.ssl.transport.enabled: true
+plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certs/ca.pem
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: certs/node.pem
+plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: certs/ca.pem
+plugins.security.ssl.http.clientauth_mode: OPTIONAL
+plugins.security.nodes_dn:
+  - "CN=oo-dl01w1-44-node,OU=node,O=open-ontology"
+  - "O=open-ontology,OU=node,CN=oo-dl01w1-44-node"
+plugins.security.authcz.admin_dn:
+  - "CN=oo-dl01w1-44-dba-cert,OU=dba,O=open-ontology"
+  - "O=open-ontology,OU=dba,CN=oo-dl01w1-44-dba-cert"
+plugins.security.audit.type: internal_opensearch
+plugins.security.restapi.roles_enabled:
+  - "all_access"
+plugins.security.system_indices.enabled: true

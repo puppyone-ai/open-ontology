@@ -151,7 +151,13 @@ No customer endpoint, no raw row, no sample value, no second model endpoint, no 
 
 `pg-builder` takes one command and paths. Exit 0 writes a structured document, including a handled model failure. Exit 1 is a config or seal refusal. Exit 2 is usage. The bearer is read from `secret.bearer_file` and is not an argument.
 
-Commands: `catalog`, `profile`, `comments`, `seal`, `cards`, `curated`, `approve`, `generate`, `review`, `pack`, `pack-combined`, `scan`. `approve` writes `authenticated` false and `parent_auth` required. `generate` opens the loopback socket only after approval. `review` and `pack` refuse a generation whose `outcome` is not `validated`. `scan` compares file bytes with the bearer file and prints `bearer_scan=clean` or `bearer_scan=found` plus a path. It does not print the token.
+Commands: `catalog`, `profile`, `comments`, `seal`, `cards`, `curated`, `approve`, `generate`, `review`, `pack`, `pack-combined`, `scan`, `import`, `import-cards`, `import-seal`. `approve` writes `authenticated` false and `parent_auth` required. `generate` opens the loopback socket only after approval. `review` and `pack` refuse a generation whose `outcome` is not `validated`. `scan` compares file bytes with the bearer file and prints `bearer_scan=clean` or `bearer_scan=found` plus a path. It does not print the token.
+
+`catalog` is unchanged: its child argv is `oo-pipeline` and `catalog-pg`. `import` is a separate request file, protocol `oo.pg-builder.import-request/v1`, whose child argv is `oo-pipeline` and `catalog-import`. The request names the binary, the source id, the config digest, the source generation, the manifest file, and the target runtime principal. It has no SQL field and no physical name. The password stays in its file. Child environment is empty. Stdout must be `oo.pipeline.sealed-import-catalog/v1` and must not be `oo.source.pgsql/v1`.
+
+`import-cards` writes `oo.pg-builder.import-cards/v1` from that catalog: logical names, oids, typmods, caveats, accepted rows, and the quality block. `sample_policy` is `none`, `stats` is `withheld`, `shadows_queried` is false, and `source_introspection` is `not_used`. Stored physical names are dropped.
+
+`import-seal` calls `compile_captured_pg_catalog` on that catalog and writes `oo.pg-builder.import-seal/v1`. The fixed compiler accepts only `oo.source.pgsql/v1`. The command records the compiler's code and static message, sets `pack` to `not_produced` and `model` to `not_called`, and exits 1. It does not emit a draft, a review, or a pack. An unexpected compiler success is `compiler.contract` and writes nothing.
 
 ## Combined pack
 

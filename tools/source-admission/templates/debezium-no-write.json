@@ -1,0 +1,15 @@
+{
+  "protocol": "oo.source-admission.debezium-template/v1",
+  "note": "Disabled write options. Do not copy upstream example GRANTs. snapshot.mode stays never; OO owns the initial read.",
+  "snapshot.mode": "never",
+  "signal.enabled": false,
+  "signal.data.collection": null,
+  "incremental.snapshot.enabled": false,
+  "heartbeat.action.query": null,
+  "heartbeat.interval.ms": 0,
+  "schema.history.internal.store.only.captured.tables.ddl": false,
+  "create.stream": false,
+  "create.trigger": false,
+  "table.include.list": "set-by-operator",
+  "provide.transaction.metadata": false
+}

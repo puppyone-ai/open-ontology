@@ -1,1 +1,0 @@
-Attempt 2 refused bad history (OO004) and rolled back the forced OO003 follow-on. Legal seed then failed: schedule id a0750001-0001-4000-8000-0000000000s1 is not a UUID. The fixture id was changed to a0750001-0001-4000-8000-000000000051. Product SQL was not changed.

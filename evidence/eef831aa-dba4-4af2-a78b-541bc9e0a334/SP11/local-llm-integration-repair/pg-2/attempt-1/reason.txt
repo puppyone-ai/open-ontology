@@ -1,1 +1,0 @@
-up.sh stopped before docker run because host openssl is LibreSSL 3.3.6 and rejects x509 -ext. The certificate already had DNS:oo-a334-pg. No container was created. The rerun records SAN from x509 -text.

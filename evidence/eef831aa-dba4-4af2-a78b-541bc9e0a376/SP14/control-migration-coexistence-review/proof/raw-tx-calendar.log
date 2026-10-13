@@ -1,1 +1,0 @@
-psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  database "oo_a376_raw_tx" does not exist

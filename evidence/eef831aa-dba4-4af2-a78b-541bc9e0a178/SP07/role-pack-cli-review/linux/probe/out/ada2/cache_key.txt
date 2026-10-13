@@ -1,1 +1,0 @@
-oo.builder.role-pack-cache/v1|project=yard|principal=ada178b|role=oo_r_clerk|policy=pol-yard@3|knowledge=know-yard@1|ontology=ontology-v1|catalog=catalog-v1|compiler=oo-builder/role-pack/v1|pack=0adc296da6c6c882d4886792862b7eece542870e53d3673f3804f64a0a153e76

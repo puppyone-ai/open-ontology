@@ -1,7 +1,0 @@
-volume /opt/probe rw=true
-bind /inside.sh rw=false
-bind /src/mock_openai.rs rw=false
-bind /evidence rw=true
-volume /npm-cache rw=true
-volume /opt/pi-prefix rw=true
-

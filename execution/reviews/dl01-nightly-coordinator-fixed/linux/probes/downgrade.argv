@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/downgrade/matrix.yaml --package /harness/fixtures/downgrade/package --nightly /harness/fixtures/downgrade/nightly.json

@@ -1,5 +1,0 @@
-before
-oo-a366-build Exited (0) 3 minutes ago
-oo-a366-pg Up 3 minutes
-after
-tmp_removed

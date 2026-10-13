@@ -1,0 +1,8 @@
+{
+  "fixed_sha": "983577c9b89453b08ab4e1a02cab88df78c3e005",
+  "manifest": "evidence/1e7798c0-f799-4d4b-ab47-5e15599f60d9/DL01/semantics/bson-double/SHA256SUMS",
+  "fixed_git_hashes_checked": 471,
+  "errors": [],
+  "scope": "author complete BSON Double sealing/native jsonb/profile/role-page prototype, not pg-builder consumer or full Mongo source",
+  "full_source_accepted": false
+}

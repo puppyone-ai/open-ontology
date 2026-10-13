@@ -1,6 +1,0 @@
-151415f7253fd265cb44ee0c4c84683615318a0dd39ec92cf1f21f7242869ee6  crates/oo-pipeline/src/catalog_cli.rs
-c36c83bc9d854c26b1f80b56b6cea42c434dc39b17b38859466af2d6319ec830  crates/oo-pipeline/src/import_cli.rs
-cbb9e3e4accf792daaebb509070b45179b7601d6a20c9b991df9f5c297d05f7b  crates/oo-pipeline/src/lib.rs
-3ac2ef9b58a012aa14018f0b2ca7891e77e3890aeacf5c6d6f33419acd6fa476  crates/oo-pipeline/src/bin/oo-pipeline.rs
-dae51a862501c2c42a1437cfce674eda9ef4f49f4c729d558dc1f8c809e3597f  crates/oo-pipeline/tests/catalog_pg_cli_live.rs
-7c96562bdecbd24a4094d542fa453364901d47663926158b6fd8f3d5b402b235  contracts/pipeline/catalog-pg-cli-v1.md

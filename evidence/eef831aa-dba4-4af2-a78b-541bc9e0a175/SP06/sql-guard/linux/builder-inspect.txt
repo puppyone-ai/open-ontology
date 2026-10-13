@@ -1,1 +1,0 @@
-id=057629845c905838df1e607d613a8db5f5d6601769688f0b71e3953f52e91204 status=running privileged=false network=oo-a175-net capdrop=["ALL"]

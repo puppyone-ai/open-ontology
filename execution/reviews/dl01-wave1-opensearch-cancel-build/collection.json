@@ -1,0 +1,37 @@
+{
+  "scope": "collect existing Linux/MSRV build only; actual native explicit cancellation not run, source not accepted",
+  "phases": {
+    "fetch": "0",
+    "lock": "0",
+    "test": "0",
+    "clippy-component": "0",
+    "clippy": "0",
+    "driver-build": "0",
+    "build": "0"
+  },
+  "binaries": {
+    "os-reader": {
+      "sha256": "8dcfee676cad692ad496d581fa7eac5929bef06af901f9010c013c928ff9bf4e",
+      "bytes": 113959720,
+      "elf": true
+    },
+    "os-judge": {
+      "sha256": "a4a5ab7ea77a054b887db74780bfadd129f34e5f093392f2f7fb86a7e3839261",
+      "bytes": 9103544,
+      "elf": true
+    }
+  },
+  "test_result_lines": [
+    "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+  ],
+  "rust_release": [
+    "release: 1.94.0"
+  ],
+  "container": {
+    "id": "e7a93fbf19deeed7a4cd11827213d0b8ca97593a4ce9dffbb4f975050abcc857",
+    "running": false,
+    "exit": 0
+  }
+}

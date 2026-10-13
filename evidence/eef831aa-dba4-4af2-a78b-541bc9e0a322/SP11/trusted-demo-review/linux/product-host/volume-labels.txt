@@ -1,3 +1,0 @@
-oo-a322-eef831aa-pgdata project=open-ontology owner=a322 session=eef831aa-dba4-4af2-a78b-541bc9e0a322 fixed=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480
-oo-a322-eef831aa-cargo project=open-ontology owner=a322 session=eef831aa-dba4-4af2-a78b-541bc9e0a322 fixed=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480
-oo-a322-eef831aa-target project=open-ontology owner=a322 session=eef831aa-dba4-4af2-a78b-541bc9e0a322 fixed=25dfc9022780c3deff12f37b7ad7ea4ed1fb6480

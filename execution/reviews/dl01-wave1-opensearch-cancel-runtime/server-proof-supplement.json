@@ -1,0 +1,14 @@
+{
+  "native_cancel_reason_observed": true,
+  "reason": "channel closed",
+  "user_triggered_unix_ms": 1791675469721,
+  "owned_task_ids": [
+    "HkIsVOTUQ1uoWoJCCnE9Fg:308"
+  ],
+  "task_before_cancelled": false,
+  "task_after_cancelled": true,
+  "after_same_id": true,
+  "server_cancellation_time_ms": 1791675469724,
+  "remaining": "server log time/index/node matches own cancellation window, but harness must bind terminal evidence and poll disappearance; existing binary classifier requires owned_http_response 500 and therefore rejects intentional closed channel; source remains not accepted",
+  "source_count_delta": 0
+}

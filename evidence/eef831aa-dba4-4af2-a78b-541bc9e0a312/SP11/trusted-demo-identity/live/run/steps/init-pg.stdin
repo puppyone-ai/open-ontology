@@ -1,1 +1,0 @@
-{"connect_ms":30000,"protocol":"oo.pipeline.init-pg/v1","target":{"administrator":"oo_fixture_admin","ca_file":"/secrets/ca.crt","database":"oo_a312_dst","host":"oo-a312-pg","password_file":"/secrets/admin.pass","port":5432}}

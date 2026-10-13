@@ -1,0 +1,68 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "rev-w37-dup-nest-0001",
+  "target_id": "rev-w37-dup-nest",
+  "exact_version": "16.9",
+  "tested_versions": [
+    "16.9"
+  ],
+  "variant": "self-managed",
+  "driver_digest": "dcad3959b7a83bbf9377a815f40f278ad33b6acb5d9d1e715d4d3af75934643b",
+  "suite_version": "cc-map/w37-review",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "review-single-node-w37",
+    "service_version": "15.2",
+    "service_version": "16.9"
+  },
+  "cloud": {
+    "applies": false,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "id": "CC-01",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "5c52cbe0b4c90074acdb37019eed20420097a6e7b318ffd103433adb8e18ced0",
+      "raw_path": "raw/CC-01.txt"
+    },
+    {
+      "id": "CC-02",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "a1e5542aceca9a77dd7aaad47e08eef694a123dac1213b00f3d3c87a23cedbc8",
+      "raw_path": "raw/CC-02.txt"
+    },
+    {
+      "id": "CC-03",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "5c9b4f858546c33d6574198ecf6fd26823cffbade9518d18ee93a7cf0dfe3a3f",
+      "raw_path": "raw/CC-03.txt"
+    },
+    {
+      "id": "CC-04",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "3618c21ddfa927032d5ac35fb1d05faf179635a5ccc663c0eecfe977927ee04e",
+      "raw_path": "raw/CC-04.txt"
+    },
+    {
+      "id": "CC-11",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "000d1601afb963ff75c1b8ac789685f9c9d996a4ad585784073c17696aa2a60e",
+      "raw_path": "raw/CC-11.txt"
+    }
+  ],
+  "rejections": [],
+  "reviewers": []
+}

@@ -1,0 +1,31 @@
+[workspace]
+
+[package]
+name = "source-support"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Read the support matrix and admit or reject a source registration. Not the oo CLI and not source-control-api."
+
+[[bin]]
+name = "source-support"
+path = "src/main.rs"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

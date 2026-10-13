@@ -1,0 +1,11 @@
+# DL01-W1-78 两套真实客户MySQL只读入口验证（验收，不是第二个MySQL开发者）
+
+用户已提供两套MySQL5.7测试库、确认VPN通、允许任选某表读取、给测试账号密码；只读测试已授权。凭据已私有保存，不要索要/打印/传argv/复制Git/写prompt。只通过 `/tmp/oo-customer-mysql-20261012/targets.json` 读取host/port/database与reader-secret.json路径，secretfile0600/rootdir0700；密码只进mysql defaults文件0600或既有driver进程内配置。不扫描其他credential。不能把源码开发任务再拆给agent；全程Grok，不子agent。
+
+这是用户新请求的完整真实只读预检闭环与交接。原MySQL全部功能开发仍唯一06，其他九源继续，不改任何产品源代码。写入仅 `evidence/7c3864f0-545d-4134-9256-62661465a39d/DL01/customer-mysql-readonly` 与 `execution/reviews/customer-mysql-readonly-20261012` 的脱敏REPORT/FINDINGS/HANDOFF/resource/hash；临时运行脚本/原始rows/credential副本只在自身 `/tmp/oo-customer-mysql-readonly-20261012` 模式0700。原表名/结构若客户敏感存私有档案，Git只别名与类型分布/rows/cells计数/摘要和失败类别，绝不原始业务值/secret/hash密码。零推送/发布/foreign源码(rootCargo锁/台账/其他源)/unknownprocesskill/prune。
+
+先读execution/INDEX、GOAL、CONTROL、review-policy、skill原docs/database-support02准入、03capture、04类型，以及MySQL Plan/REQ/AT。使用现成mysql客户端/固定Rust reader、已批准image或已存在依赖配方，避免新功能编码；没有hostmysql/pymysql，Docker批准客户端可新自有namespace但真实VPN需host连接，网络失败不判数据源不可用。宿主DNS结果198.18.3.78/.79可能中间resolver，不当真实RDSserverIP/signoff。账号提供范围只任一表结构和少量行，不做负面试写、不造数、不启audit/binlog、无sourceDML/DDL，不重启RDS。账号真实grants观测若有写/未知权限则记录非R0，身份不要假称只读；即便测试账号较宽，本次自有只读observer无源写，不拿它作为平台正式admitted reader。
+
+实测：两库分别实际connect并确认SELECT VERSION(),DATABASE(),CURRENT_USER()/字符集timezone（摘要/alias）；SHOWGRANTS输出可能带password hash，只私有file并解析脱敏，不原样toolstdout。元数据选一张获准base table，最多64列metadata；读该表LIMIT5，connect10秒、statement5000ms、每target1连接，禁全量COUNT/扫描大表。session只读transaction与session MAX_EXECUTION_TIME可以按原docs设置，不能schema install到源。行仅私有保存，向模型/日志只输出rows/cols/type统计/row hashes，不业务值。绑定查询时间、源码client/runtime/binary/真实server版本、真实库/表选择、账号scope与必要source预算、VPN端到端结果；SQLquery身份/sourceaudit可得则取只读已有证据，无法观测不能claimsourceaudit完整。若SSL/身份/网络失败保留实际错误并给最小缺条件，不能mock/凭DNS成功冒auth数据成功。
+
+完整退出：两套实库connect+identity+选一表结构/少量行真成功（空表如实际0行诚实记录）；真实不可用返回明确证据，不能localfixture代替。单次probe完整三报告/fixed SHA/raw退出/hash/resource/私有data路径不泄密，交06唯一MySQL工程师可直接复用私有target config和现成reader调用recipe，自主后续持续更新/selfbuild/YamlOntology维护/KnowledgePack/Gateway/Agent整个原完整源卡。本预检不整源签收，不G1G13升格、不新source分母，model/SQLServer未补条件保持待验。执行到具名运行终态后交付，不仅启动background就退出。

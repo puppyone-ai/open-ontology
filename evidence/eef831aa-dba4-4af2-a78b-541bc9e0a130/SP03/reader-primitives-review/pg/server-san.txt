@@ -1,3 +1,0 @@
-subject=CN=a130pg
-X509v3 Subject Alternative Name: 
-    DNS:a130pg

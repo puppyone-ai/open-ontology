@@ -1,1 +1,0 @@
-clippy exit 101 before any live test. init_pg_cli.rs called PgConnection::connect_with without sqlx::Connection in scope. Not OOM. Fixed the import and reran.

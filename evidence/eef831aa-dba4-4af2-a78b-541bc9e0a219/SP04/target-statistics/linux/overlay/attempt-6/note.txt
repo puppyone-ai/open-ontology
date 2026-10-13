@@ -1,1 +1,0 @@
-Attempt 6: lib.exit=0 clippy.exit=0 live.exit=101. The stale-generation call returned OpenTransaction with a reusable connection. query_scalar uses the extended protocol, so statement_timestamp() > transaction_timestamp() is true on an idle connection (Bind stamps the transaction, Execute stamps the statement). OOMKilled=false. Container removed. Next probe uses one simple query.

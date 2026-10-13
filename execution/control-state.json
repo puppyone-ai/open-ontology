@@ -1,0 +1,1236 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-10-13T16:35:05.631031+08:00",
+  "timezone": "Asia/Shanghai",
+  "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
+  "baseline": {
+    "observed_head": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+    "source_revision": 4,
+    "sp_parent_items": 87,
+    "phases": 16,
+    "dbx_parent_items": 14,
+    "dbp_prototypes": 8,
+    "source_commit": "12cfdc48260636032429449d4e66253d54c1e3cd"
+  },
+  "executor_policy": {
+    "new_grok_dispatch": "paused: current human instruction uses native engineers",
+    "default": "native gpt-6.1-sol/low; temporary explicitly authorized gpt-6-sol/low on capacity failure",
+    "authorized_exception": "human authorized temporary GPT-6 Sol low engineers; product model change pending separate authorization",
+    "grok_development_cap": 20,
+    "independent_review_exempt_from_dev_cap": true,
+    "frontend_fixed_sessions": [
+      "a351",
+      "a353",
+      "a352"
+    ],
+    "ordinary_wait_seconds": 900,
+    "target_reliable_concurrency": 15,
+    "rust_admission_policy": "latest direct human authorization: no fixed compiler slots/task jobs or CPU quota; use actual available hardware, preserve exclusive paths and source read budgets",
+    "wait_tool": "clock.sleep",
+    "task_delivery_boundary": "complete source product loop after shared readiness; shared reference-only handoffs do not release sources",
+    "source_parallel_release": "execution/shared-readiness-gate.json root pass required"
+  },
+  "platform_goal": {
+    "status_last_observed": "active",
+    "objective_replacement_supported_by_tool": false,
+    "replacement_definition": "execution/GOAL.md",
+    "no_false_completion": true,
+    "objective_matches_latest_user": true
+  },
+  "resources": {
+    "rust_global": null,
+    "rust_task": null,
+    "node_global": 2,
+    "node_task": 1,
+    "browser_global": 2,
+    "browser_task": 1,
+    "pg_task_default": 1,
+    "pg_source_target_exception": 2,
+    "source_business_connections_minimal_case": 1,
+    "cpu_quota": null,
+    "compiler_jobs": "Cargo default available parallelism; remove forced CARGO_BUILD_JOBS=1 for next builds",
+    "fixed_cpu_reservation_cap": null
+  },
+  "managed_live_grok_handles": [],
+  "process_observation": {
+    "grok_os_count": 17,
+    "association": "unknown; not counted as productive tasks; no kill or resume",
+    "observation_policy": "pre-dispatch single snapshot; 17 unknown processes excluded from this batch"
+  },
+  "containers_observed_running": [
+    {
+      "name": "oo-dl01w1-40-clickhouse",
+      "id": "36809fe2946b",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 2.0
+    },
+    {
+      "name": "oo-dl01w1-40-pg",
+      "id": "b808b623e6a2",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 1.0
+    },
+    {
+      "name": "oo-dl01w1-40-rust",
+      "id": "fce18ced32e7",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 6.0
+    },
+    {
+      "name": "oo-dl01w1-04-p2-pg",
+      "id": "eb0ec24b748e",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 1.0
+    },
+    {
+      "name": "oo-dl01w1-06-pg",
+      "id": "9e49238c6b31",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 1.0
+    },
+    {
+      "name": "oo-dl01w1-06-mysql",
+      "id": "3e3c9a2ea48c",
+      "state": "running",
+      "cpu_limit": 1.0,
+      "memory_gib": 1.5
+    }
+  ],
+  "runtime_caveat": "CPU effective quota -1 and cgroup max verified for nine owned running containers; historical NanoCpus metadata may retain1CPU but effective cgroup unlimited. Existing compiler jobs env not dynamically changed.",
+  "acceptance": {
+    "minimal_pg": "accepted only unreviewed/unpublished draft product milestone",
+    "source_commit": "3b70b151552ad5d5e905a6148860812a3f84ac82",
+    "evidence_commit": "34d14adef756c07f1540eafdad17f3ff3a3bbbb9",
+    "verified_sha_entries": 475,
+    "historical_local_development": "79/90; not global completion rate",
+    "historical_m1_development": "17/24",
+    "historical_integration": "0/4",
+    "historical_release": "0/6",
+    "dbx_verified_targets": 0,
+    "dbx_development_denominator": "not frozen; do not report 0 percent",
+    "controlled_source_previews": {
+      "accepted": 6,
+      "required": 10,
+      "scope": "historical batch preview only; not latest full source acceptance"
+    },
+    "full_source_products": {
+      "accepted": 0,
+      "required": 10,
+      "requirements": [
+        "每源实际导入独立本地数据库，按原docs逐源C1–C5支持持续检测、更新、拉取与用户自定义检测/拉取及对账周期，真实新增/修改/删除后准确追平并证明恢复/权限/零源写",
+        "完整Self-build按docs输出标准YAML Ontology，真实表结构、类型、关系和业务含义准确；能维护、更新并绑定数据及语义版本",
+        "产出实际Agent消费的Knowledge Pack，与Ontology/YAML/角色权限/本地数据同版本可追溯",
+        "Gateway经OO CLI及声明可用的MCP或其他现有入口供独立Agent直接调用，完成真实多轮对话/查询及独立准确性验证",
+        "固定实现/运行制品/原始证据/独立完整复审，缺CDC/模型凭据/人工审批/实例等保持待验，历史受控preview不替代完整签收"
+      ]
+    }
+  },
+  "priority_frontier": {
+    "status": "人类确认原生Codex额度全部恢复并再次要求Ponytail5.1.1加速；原04/39/71/74/79五个完整有用任务已续接，原作者预览2/10、统一签收0/10不变。Root新增Oracle真实三源Linux无模型预检exit0/管理session401和PG同LSNruntime实际谓词负例exit0；MSRV首次尝试因toolchain自动1.98.1失败不计通过，交79显式+1.94验证。最新Goal普通等待18分钟1080秒，clock.sleep按通知即收；原独占源码资源及整源退出保持",
+    "p0": "DL01 ten distinct actual sources incl MySQL/Oracle: per-docs sustained capture + maintained standard OOS YAML + real Knowledge Pack + Gateway and independent Agent dialogue; full0/10, historical preview6/10",
+    "parallel": "current delivery critical path first; later cards may develop with implemented pinned dependencies, exclusive paths and actual spare capacity",
+    "later_preparation": "prepare customer questions/authorization and per-target nightly early; later delivery acceptance remains ordered; preserve existing code"
+  },
+  "external_conditions": [
+    "enterprise endpoint/TLS/VPN configuration",
+    "vendor drivers/licenses and real target instances",
+    "real cloud accounts/budgets",
+    "independent DBA/security/customer acceptance",
+    "protected CI/dual architecture integration/runsc and release approvals",
+    "DL01 SQL Server2022 requires native Linux amd64 actual endpoint/execution host; async user request pending"
+  ],
+  "authoritative_documents": [
+    "execution/HANDOFF.md",
+    "execution/GOAL.md",
+    "specs/open-ontology-v0.1-plan.md",
+    "docs/database-support/README.md"
+  ],
+  "security": "no credential values, full process argv, raw conversation or customer data in this snapshot",
+  "coordination_index": "execution/INDEX.md",
+  "task_registry": "execution/task-ledger.json",
+  "todo": "execution/TODO.md",
+  "update_protocol": "execution/UPDATE-PROTOCOL.md",
+  "product_boundary": {
+    "deliverable": "ontology production/review/version/publication system, role Pack and public Gateway access interfaces",
+    "consumers": "external harnesses using implemented CLI/HTTP/SDK/MCP or future supported protocols",
+    "pi": "built-in experience and internal validation client; not required for core artifact consumption",
+    "external_acceptance": "real non-built-in-Pi caller; declared client/protocol/version, knowledge version, results/authorization/audit proven",
+    "all_harnesses_verified": false
+  },
+  "product_loop_registry": "execution/PRODUCT-LOOPS.md",
+  "current_delivery_loop": "DL01",
+  "delivery_order": [
+    "DL01",
+    "DL02",
+    "DL03",
+    "DL04",
+    "DL05"
+  ],
+  "product_deliveries_accepted": 0,
+  "delivery_completion_scope": {
+    "required_sp_phases": 15,
+    "required_sp_parents": 80,
+    "required_dbx_parents": 14,
+    "deferred_phase": "SP15",
+    "deferred_sp_parents": 7,
+    "dl05_requires_complete_plan": true,
+    "no_acceptance_inferred": true
+  },
+  "active_batch": "execution/batches/dl01-wave1-20261009/dispatch.json",
+  "resource_reservations": {
+    "rust_development": 8,
+    "rust_review_available": 2,
+    "node": 0,
+    "browser": 0,
+    "database_memory_max_gib": 26,
+    "docker_memory_gib": 94,
+    "docker_cpu": 16,
+    "rust_reserved": 10,
+    "rust_review_spare": 0,
+    "scope": "historical reservation snapshot, not current compiler/CPU cap; latest user override and managed current handles take precedence"
+  },
+  "round_exit": "DL01 ten-source full preview delivery, not first helper/fixture",
+  "batch_observation": {
+    "at": "2026-10-09T22:38:46.871075+08:00",
+    "after_wait_seconds": 600,
+    "running_tasks": 20,
+    "terminal_tasks": 0,
+    "rust_builders_observed": [
+      "oo-dl01w1-04-pre-edit"
+    ],
+    "no_live_log_tailing": true
+  },
+  "continuation": {
+    "next_step": "MySQL32917全流程；OracleP2运行时68907；budget91786；nightly修复6376；新compiler复审31833；39/40/41/43/44五driver前置。10CLI/Rust10预留，实际CPU/memory容量等待，exitwatch47754",
+    "active_development_units": "original6/8; DBX-W02-BUDGET0/1 andDBX-W04-P2 0/1 separately; source0/10",
+    "do_not_finish_goal": "DL01 target-level acceptance0/10 including MySQL/Oracle unmet",
+    "avoid": "no mock/source substitution/product owner replacement without confirmation"
+  },
+  "completed_batch_tasks": [
+    {
+      "task_id": "DL01-W1-01",
+      "name": "matrix",
+      "parent": "DBX-W01",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "4c87cffa-970a-44ac-99c6-8f56af022543",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/source-support",
+        "evidence/4c87cffa-970a-44ac-99c6-8f56af022543/DL01/matrix"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-01-matrix.md",
+      "resource_prefix": "oo-dl01w1-01",
+      "rust_slots": 1,
+      "database_memory_gib": 6,
+      "status": "author_delivery_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-01.log",
+      "process_identity": [
+        {
+          "pid": 94426,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "e4e400235d5b6891df099308854501d6684965db"
+    },
+    {
+      "task_id": "DL01-W1-02",
+      "name": "admission",
+      "parent": "DBX-W02",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "5983d507-bd78-474b-9417-32909ed054eb",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/source-admission",
+        "evidence/5983d507-bd78-474b-9417-32909ed054eb/DL01/admission"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-02-admission.md",
+      "resource_prefix": "oo-dl01w1-02",
+      "rust_slots": 1,
+      "database_memory_gib": 6,
+      "status": "author_delivery_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-02-attempt2.log",
+      "process_identity": [
+        {
+          "pid": 94428,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "attempts": [
+        {
+          "event": "Original CLI0; builder exited0,21 gated/mock tests, actual PG report journey and final packet pending",
+          "previous_handle": 19832,
+          "new_handle": 97222
+        }
+      ],
+      "exit_receipt_prefix": "DL01-W1-02-attempt2",
+      "cli_exit": 0,
+      "author_commit": "fabc471609eedd313f7900009793ca153b61b187"
+    },
+    {
+      "task_id": "DL01-W1-03",
+      "name": "capture",
+      "parent": "DBX-W03",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "c2b0d2bf-03d9-41fa-b3f1-261b7e2161f4",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/source-capture-policy",
+        "evidence/c2b0d2bf-03d9-41fa-b3f1-261b7e2161f4/DL01/capture"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-03-capture.md",
+      "resource_prefix": "oo-dl01w1-03",
+      "rust_slots": 1,
+      "database_memory_gib": 6,
+      "status": "author_delivery_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-03-attempt3.log",
+      "process_identity": [
+        {
+          "pid": 94427,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "tool_handle": 90800,
+          "cli_exit": 0,
+          "compile_exit": 101,
+          "failure": "7 E0308 and missing packet; transient502/actor DeadFailed; no product acceptance",
+          "builder_terminal": "oo-dl01w1-03-postedit removed"
+        },
+        {
+          "event": "Attempt2 CLI0, post-edit2 compile101:3 env! Cargo binary-name errors; stopped/removed before resume",
+          "previous_handle": 45492,
+          "new_handle": 21551
+        }
+      ],
+      "resume_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-03-resume.md",
+      "exit_receipt_prefix": "DL01-W1-03-attempt3",
+      "cli_exit": 0,
+      "author_commit": "647b8b2e2b9f3966b9496bcef41aaba75c23e682"
+    },
+    {
+      "task_id": "DL01-W1-06",
+      "name": "mysql",
+      "parent": "SP03-W02",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "b5ac4bc8-1872-4fe4-a56a-04a70f7103a2",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/mysql-preview",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-06-mysql.md",
+      "resource_prefix": "oo-dl01w1-06",
+      "rust_slots": 1,
+      "database_memory_gib": 6,
+      "status": "partial_delivery_builder_pack_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-06.log",
+      "process_identity": [
+        {
+          "pid": 94432,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "c88e1d5ad9af45332f419a09f0ff361d36523c9d",
+      "evidence_commit": "a2d95f3a8535b844a6d682d08512a80444bf5edf",
+      "resource_terminal": "two owned databases retained; smoke exited; build removed"
+    },
+    {
+      "task_id": "DL01-W1-07",
+      "name": "suite",
+      "parent": "DBX-W14",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "67e443da-e8bf-43ee-874b-a6267f2e19df",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/source-conformance",
+        "evidence/67e443da-e8bf-43ee-874b-a6267f2e19df/DL01/suite"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-07-suite.md",
+      "resource_prefix": "oo-dl01w1-07",
+      "rust_slots": 1,
+      "database_memory_gib": 6,
+      "status": "author_delivery_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-07.log",
+      "process_identity": [
+        {
+          "pid": 94434,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "76928401921e941d0dc9454a0d2dd1db6088b928"
+    },
+    {
+      "task_id": "DL01-W1-08",
+      "name": "mariadb",
+      "parent": "DBX-W06",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "451aa6f1-9e4f-474c-bf35-4de5652aac52",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/mariadb",
+        "evidence/451aa6f1-9e4f-474c-bf35-4de5652aac52/DL01/mariadb"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-08-mariadb.md",
+      "resource_prefix": "oo-dl01w1-08",
+      "rust_slots": 0,
+      "database_memory_gib": 2,
+      "status": "author_preparation_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-08.log",
+      "process_identity": [
+        {
+          "pid": 94436,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "ed892b5eba9a055dd36fbfc5865323afbdbd0c83"
+    },
+    {
+      "task_id": "DL01-W1-09",
+      "name": "mssql",
+      "parent": "DBX-W08",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "bc0b2f83-51f5-4697-bffb-09908ff2ce7d",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/mssql",
+        "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-09-mssql.md",
+      "resource_prefix": "oo-dl01w1-09",
+      "rust_slots": 0,
+      "database_memory_gib": 4,
+      "status": "pending_real_target",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-09.log",
+      "process_identity": [
+        {
+          "pid": 94438,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "a534880db6c346bb6b6d7936d2717b4532582dd6",
+      "evidence_commit": "1295e2f190ddde2f3e7055ffb69333aa66fcd6fe",
+      "independent_review": "execution/reviews/dl01-wave1-intake/DL01-W1-09.json",
+      "resource_terminal": "none created"
+    },
+    {
+      "task_id": "DL01-W1-10",
+      "name": "oracle",
+      "parent": "DBX-W09",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "18da73a5-ad34-477a-8edf-0dc51122c1dd",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/oracle",
+        "evidence/18da73a5-ad34-477a-8edf-0dc51122c1dd/DL01/oracle"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-10-oracle.md",
+      "resource_prefix": "oo-dl01w1-10",
+      "rust_slots": 0,
+      "database_memory_gib": 6,
+      "status": "author_preparation_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-10.log",
+      "process_identity": [
+        {
+          "pid": 94440,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "d92fb9ac5efa8296696f8f8dfbcba1bfff89e5f1"
+    },
+    {
+      "task_id": "DL01-W1-11",
+      "name": "clickhouse",
+      "parent": "DBX-W12",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "4e795a4e-818a-4f9b-8846-09b070d1278c",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/clickhouse",
+        "evidence/4e795a4e-818a-4f9b-8846-09b070d1278c/DL01/clickhouse"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-11-clickhouse.md",
+      "resource_prefix": "oo-dl01w1-11",
+      "rust_slots": 0,
+      "database_memory_gib": 2,
+      "status": "author_preparation_runtime_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-11.log",
+      "process_identity": [
+        {
+          "pid": 94442,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "daff7345679701deaed9ff9b285d07a7b0f6c812",
+      "evidence_commit": "7f73a9ac4aa7ba620735b2d5f9d6da30bf6c88a8",
+      "intake_review": "execution/reviews/dl01-wave1-intake/DL01-W1-11.json",
+      "resource_terminal": "source runtime removed; immutable image retained only",
+      "next_action": "独立固定环境复审W22/W23后，按已提交共用接口派完整Arrow/PG/Builder/Pack/非Pi消费卡"
+    },
+    {
+      "task_id": "DL01-W1-12",
+      "name": "doris",
+      "parent": "DBX-W12",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "5e742094-ec5f-45f1-af04-9ffd9ada7428",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/doris",
+        "evidence/5e742094-ec5f-45f1-af04-9ffd9ada7428/DL01/doris"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-12-doris.md",
+      "resource_prefix": "oo-dl01w1-12",
+      "rust_slots": 0,
+      "database_memory_gib": 4,
+      "status": "author_preparation_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-12.log",
+      "process_identity": [
+        {
+          "pid": 94444,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "d93d595fa41771385c510e704378862ec14e3716"
+    },
+    {
+      "task_id": "DL01-W1-13",
+      "name": "starrocks",
+      "parent": "DBX-W12",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "6f476a94-2648-4c2a-8154-d0b9f8b086fc",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/starrocks",
+        "evidence/6f476a94-2648-4c2a-8154-d0b9f8b086fc/DL01/starrocks"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-13-starrocks.md",
+      "resource_prefix": "oo-dl01w1-13",
+      "rust_slots": 0,
+      "database_memory_gib": 4,
+      "status": "author_preparation_runtime_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-13.log",
+      "process_identity": [
+        {
+          "pid": 94446,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "9a82b4ab10ef888aa2d89d5e09863c86c18a7b79",
+      "evidence_commit": "d2e4508c643b007d09efefa32873cec19ec2ae16",
+      "intake_review": "execution/reviews/dl01-wave1-intake/DL01-W1-13.json",
+      "resource_terminal": "source runtime removed; immutable image retained only",
+      "next_action": "独立固定环境复审W22/W23后，按已提交共用接口派完整Arrow/PG/Builder/Pack/非Pi消费卡"
+    },
+    {
+      "task_id": "DL01-W1-14",
+      "name": "mongodb",
+      "parent": "DBX-W13",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "df309940-5694-474f-a7ef-e9f764abf09c",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/mongodb",
+        "evidence/df309940-5694-474f-a7ef-e9f764abf09c/DL01/mongodb"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-14-mongodb.md",
+      "resource_prefix": "oo-dl01w1-14",
+      "rust_slots": 0,
+      "database_memory_gib": 2,
+      "status": "author_preparation_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-14.log",
+      "process_identity": [
+        {
+          "pid": 94447,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "b24610ca75a7f9aa5d245a171aac1fa681409c55"
+    },
+    {
+      "task_id": "DL01-W1-15",
+      "name": "opensearch",
+      "parent": "DBX-W13",
+      "kind": "target_preparation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "b53c75ff-62f4-4869-8428-a605d263cb43",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "testing/dl01-targets/opensearch",
+        "evidence/b53c75ff-62f4-4869-8428-a605d263cb43/DL01/opensearch"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-15-opensearch.md",
+      "resource_prefix": "oo-dl01w1-15",
+      "rust_slots": 0,
+      "database_memory_gib": 2,
+      "status": "author_preparation_review_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-15.log",
+      "process_identity": [
+        {
+          "pid": 94449,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "28fd98240d28d2ac39fc2ae4452720e25e85669a"
+    },
+    {
+      "task_id": "DL01-W1-16",
+      "name": "pg-fixed",
+      "parent": "SP03-W01",
+      "kind": "reconciliation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "d96e34c0-bc03-4d2c-8366-799760eea878",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "execution/reviews/dl01-wave1-pg",
+        "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-16-pg-fixed.md",
+      "resource_prefix": "oo-dl01w1-16",
+      "rust_slots": 0,
+      "database_memory_gib": 0,
+      "status": "reconciliation_reviewed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-16.log",
+      "process_identity": [
+        {
+          "pid": 94451,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "7caae25cf7ded311f75f0ec6aedf48b9f5bbd36c",
+      "evidence_commit": "9187802b6526683e6a8a4980e4bcf2413ed3ffeb",
+      "independent_review": "execution/reviews/dl01-wave1-intake/DL01-W1-16.json",
+      "resource_terminal": "none created",
+      "accepted_scope": "fixed evidence reconciliation only; parent/product pending"
+    },
+    {
+      "task_id": "DL01-W1-17",
+      "name": "sp02-fixed",
+      "parent": "SP02-W01",
+      "kind": "reconciliation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "add1dfc8-a1a3-4617-b890-dd9416161161",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "execution/reviews/dl01-wave1-sp02",
+        "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-17-sp02-fixed.md",
+      "resource_prefix": "oo-dl01w1-17",
+      "rust_slots": 0,
+      "database_memory_gib": 0,
+      "status": "reconciliation_reviewed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-17.log",
+      "process_identity": [
+        {
+          "pid": 94453,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "bbf2d5183cc166e3b18ec9b6a31afb37dd33d180",
+      "evidence_commit": "91dc775ac3528e0a5823c9b8dc632f1d73cb7fb3",
+      "independent_review": "execution/reviews/dl01-wave1-intake/DL01-W1-17.json",
+      "resource_terminal": "none created",
+      "accepted_scope": "fixed evidence reconciliation only; parent/product pending"
+    },
+    {
+      "task_id": "DL01-W1-18",
+      "name": "selfbuild-fixed",
+      "parent": "SP07-W01",
+      "kind": "reconciliation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "8a00aded-d6ea-43ea-ab3e-683533508f88",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "execution/reviews/dl01-wave1-selfbuild",
+        "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-18-selfbuild-fixed.md",
+      "resource_prefix": "oo-dl01w1-18",
+      "rust_slots": 0,
+      "database_memory_gib": 0,
+      "status": "reconciliation_reviewed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-18.log",
+      "process_identity": [
+        {
+          "pid": 94454,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "09da5e17b20ae59091fee4cb651735702deb7b6f",
+      "evidence_commit": "d7bccd02e8740085a2724c866e3fd1949a28f2f8",
+      "independent_review": "execution/reviews/dl01-wave1-intake/DL01-W1-18.json",
+      "resource_terminal": "none created",
+      "accepted_scope": "fixed evidence reconciliation only; parent/product pending"
+    },
+    {
+      "task_id": "DL01-W1-19",
+      "name": "external-fixed",
+      "parent": "SP09-W01",
+      "kind": "reconciliation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "6d1d9059-99c8-4daf-b34a-0824afad8968",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "execution/reviews/dl01-wave1-external",
+        "evidence/6d1d9059-99c8-4daf-b34a-0824afad8968/DL01/external-fixed"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-19-external-fixed.md",
+      "resource_prefix": "oo-dl01w1-19",
+      "rust_slots": 0,
+      "database_memory_gib": 0,
+      "status": "reconciliation_reviewed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-19.log",
+      "process_identity": [
+        {
+          "pid": 94457,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "7241d1f06a0ff3d142bab06b5fa9c916f3dd03b5",
+      "evidence_commit": "6ab52504a066b3773a73d0c2d69df3fcea41730e",
+      "independent_review": "execution/reviews/dl01-wave1-external-fixed/receipt.json",
+      "resource_terminal": "none created"
+    },
+    {
+      "task_id": "DL01-W1-20",
+      "name": "operations-fixed",
+      "parent": "SP14-W01",
+      "kind": "reconciliation",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "04fa5746-4cd5-4e3e-aca2-2e9af22a5b75",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "execution/reviews/dl01-wave1-operations",
+        "evidence/04fa5746-4cd5-4e3e-aca2-2e9af22a5b75/DL01/operations-fixed"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-20-operations-fixed.md",
+      "resource_prefix": "oo-dl01w1-20",
+      "rust_slots": 0,
+      "database_memory_gib": 0,
+      "status": "reconciliation_reviewed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-20.log",
+      "process_identity": [
+        {
+          "pid": 94458,
+          "started_at_host_observed": "Fri Oct 9 22:25:14 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "author_commit": "0f35adbb76f8fa337bcd1eaad99b692ba454c8a0",
+      "evidence_commit": "eea626ff61c6bb332b0237e64bc02d1869297838",
+      "independent_review": "execution/reviews/dl01-wave1-intake/DL01-W1-20.json",
+      "resource_terminal": "none created"
+    },
+    {
+      "task_id": "DL01-W1-21",
+      "name": "operator-preview",
+      "parent": "SP09-W02",
+      "kind": "development",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "dc025276-332e-4411-85a3-2bd18fa0b323",
+      "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+      "write_paths": [
+        "tools/operator-preview",
+        "evidence/dc025276-332e-4411-85a3-2bd18fa0b323/DL01/operator-preview"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-21-operator-preview.md",
+      "resource_prefix": "oo-dl01w1-21",
+      "rust_slots": 1,
+      "database_memory_gib": 1,
+      "status": "cli_exited_background_build_pending",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-21.log",
+      "launched_at": "2026-10-09T22:47:42.187119+08:00",
+      "process_identity": [
+        {
+          "pid": 34504,
+          "started_at_host_observed": "Fri Oct 9 22:47:08 2026",
+          "command_name": "grok",
+          "argv_not_recorded": true
+        }
+      ],
+      "cli_exit": 0,
+      "resource_terminal": "product builder and PG retained; owner reserved"
+    },
+    {
+      "task_id": "DL01-W1-22",
+      "name": "clickhouse-review",
+      "parent": "DBX-W12",
+      "kind": "independent_review",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "1f05190d-5fc1-48da-84f8-7963566f8b56",
+      "base_commit": "daff7345679701deaed9ff9b285d07a7b0f6c812",
+      "evidence_seal_commit": "7f73a9ac4aa7ba620735b2d5f9d6da30bf6c88a8",
+      "write_paths": [
+        "execution/reviews/dl01-clickhouse-fixed",
+        "evidence/1f05190d-5fc1-48da-84f8-7963566f8b56/DL01/clickhouse-fixed-review"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-22-clickhouse-review.md",
+      "resource_prefix": "oo-dl01w1-22",
+      "rust_slots": 0,
+      "database_memory_gib": 2,
+      "status": "setup_dependency_review_passed",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-22.log",
+      "launched_at": "2026-10-09T23:38:43.220489+08:00",
+      "cli_exit": 0,
+      "review_commit": "d655cb9e93073ad8593f7b73a0dcdd55de298800",
+      "independent_review": "execution/reviews/dl01-clickhouse-fixed/REVIEW.md"
+    },
+    {
+      "task_id": "DL01-W1-23",
+      "name": "starrocks-review",
+      "parent": "DBX-W12",
+      "kind": "independent_review",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "fa610af9-30e5-44f9-a49b-d35a49447dc8",
+      "base_commit": "9a82b4ab10ef888aa2d89d5e09863c86c18a7b79",
+      "evidence_seal_commit": "d2e4508c643b007d09efefa32873cec19ec2ae16",
+      "write_paths": [
+        "execution/reviews/dl01-starrocks-fixed",
+        "evidence/fa610af9-30e5-44f9-a49b-d35a49447dc8/DL01/starrocks-fixed-review"
+      ],
+      "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-23-starrocks-review.md",
+      "resource_prefix": "oo-dl01w1-23",
+      "rust_slots": 0,
+      "database_memory_gib": 4,
+      "status": "review_request_changes",
+      "tool_handle": null,
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-23.log",
+      "launched_at": "2026-10-09T23:38:43.220489+08:00",
+      "cli_exit": 0,
+      "review_commit": "8fb8fb334eb40f1261c4ff9cf702a8fed79cdc4d",
+      "independent_review": "execution/reviews/dl01-starrocks-fixed/REVIEW.md"
+    }
+  ],
+  "reconciliation_frontier": {
+    "pg17": "statement zero-write audit and current complete preview journey; PG13-16 later original parent matrix",
+    "secrets": "source-control maps secret_ref to private operator file; central resolve join missing",
+    "selfbuild": "71 latest c02cbf fixed TLS structural protocol; real-source artifact adapter running, model bearer absent, actual S5/published/owner approval incomplete; 13ad retained historical only",
+    "public_query": "public untrusted gate stays blocked; actual trusted operator preview W21 in development"
+  },
+  "ready_target_preparation": {
+    "clickhouse": {
+      "source": "daff7345679701deaed9ff9b285d07a7b0f6c812",
+      "seal": "7f73a9ac4aa7ba620735b2d5f9d6da30bf6c88a8",
+      "runtime_review_task": "DL01-W1-22",
+      "source_support_accepted": false
+    },
+    "starrocks": {
+      "source": "9a82b4ab10ef888aa2d89d5e09863c86c18a7b79",
+      "seal": "d2e4508c643b007d09efefa32873cec19ec2ae16",
+      "runtime_review_task": "DL01-W1-23",
+      "source_support_accepted": false
+    }
+  },
+  "active_event_waiter": null,
+  "last_confirmed_batch": {
+    "observed_at": "2026-10-11T04:53:57.304227+08:00",
+    "live_tool_handles": [
+      48327,
+      1036,
+      40172,
+      95940,
+      43529,
+      93104,
+      7506,
+      3215,
+      98952
+    ],
+    "confirmation": "old knownhandles terminal0; newly started distinct current sessions returned running; CH/SQL kept original live",
+    "source_acceptance": "mariadb1/10 only; OScriticalreviewpending"
+  },
+  "development_acceptance": {
+    "frozen": 8,
+    "accepted": 7,
+    "accepted_tasks": [
+      "DL01-W1-01",
+      "DL01-W1-02",
+      "DL01-W1-03",
+      "DL01-W1-04",
+      "DL01-W1-05",
+      "DL01-W1-21",
+      "DL01-W1-07"
+    ],
+    "scope": "separate original child only; parents/source-loop/integration/release unchanged"
+  },
+  "development_extensions": {
+    "DBX-W02-BUDGET": {
+      "frozen_units": 1,
+      "accepted_units": 0,
+      "task": "DL01-W1-38",
+      "separate_from_original8": true,
+      "author_complete_units": 1
+    },
+    "DBX-W04-P2": {
+      "frozen_units": 1,
+      "accepted_units": 0,
+      "task": "DL01-W1-04",
+      "separate_from_original8": true
+    }
+  },
+  "managed_background_ownership": [
+    {
+      "task": "DL01-W1-39",
+      "rust": "oo-dl01w1-39-rust",
+      "database": "oo-dl01w1-39-mariadb",
+      "last_observed": "mariadb-probe live; CLI402 terminal; no packet"
+    },
+    {
+      "task": "DL01-W1-40",
+      "last_observed": "idle managed Rust container removed after onlysleep inspection; private volumes/evidence retained"
+    }
+  ],
+  "executor_quota_state": {
+    "restored_by_human_on": "2026-10-10",
+    "retry_authorized": true,
+    "prior_HTTP402_records_preserved": true,
+    "work_resumed": true
+  },
+  "active_coordinator_reviews": [],
+  "review_policy": {
+    "effective_on": "2026-10-10",
+    "authority": "direct human instruction: restored Grok quota, resume high concurrency, defer routine independent review",
+    "routine_development": "complete task-card delivery chain, fixed source/evidence SHA, meaningful actual tests and necessary failures; coordinator validates packet; downstream development may proceed before independent review",
+    "review_status": "explicitly deferred_to_integration; author delivery is not independent approval or product acceptance",
+    "critical_milestones": [
+      "complete per-source controlled preview product loop",
+      "P2 real OCI source-only isolation and permission boundary",
+      "shared admission/authorization/identity changes that gate a complete product",
+      "whole DL01-DL05 ordered acceptance and release gates"
+    ],
+    "critical_rule": "coordinator assesses concrete scope; independent review at milestone or connected product integration, not every helper",
+    "unchanged": [
+      "original exits and meaningful Linux/MSRV tests",
+      "fixed dependencies and exclusive files",
+      "preserve failures/no mock acceptance",
+      "source/integration/release/external separate counters",
+      "actual resource caps and 600s event waits"
+    ]
+  },
+  "reliable_concurrency": {
+    "target": 15,
+    "current_managed_executors": 7,
+    "source_engineers": 10,
+    "shared_critical_reviews": 0,
+    "duplicate_consumers_removed": 5,
+    "do_not_fill_count_with_duplicate_or_dependency_blocked_tasks": true,
+    "actual_rust_cap": 10,
+    "actual_cpu_cap": 16
+  },
+  "source_owner_map": "execution/source-owner-map.json",
+  "external_source_gate": {
+    "task": "DL01-W1-09",
+    "source": "sqlserver",
+    "fixed_blocker_sha": "7145c4d04e6983f19b200a72b9f3d1554137106c",
+    "condition": "native amd64 SQLServer2022 configured/authorized target absent",
+    "question_pending": true,
+    "not_source_accepted": true
+  },
+  "last_clock_wait": {
+    "duration_requested_ms": 900000,
+    "elapsed_seconds": 900,
+    "terminal_tasks_observed": [
+      "DL01-W1-44",
+      "DL01-W1-46",
+      "DL01-W1-04",
+      "DL01-W1-41",
+      "DL01-W1-43",
+      "DL01-W1-45",
+      "DL01-W1-06"
+    ],
+    "classification": "fixed reports and real failures collected; immutable OpenSearch full packet to independent review; six same logical source owners compact handoff collect background before edits",
+    "actual_full_source_acceptance_delta": 0
+  },
+  "legacy_runtime_pause_request": {
+    "status": "authorized_and_stopped",
+    "containers": [
+      "oo-a419-product-run",
+      "oo-a419-src-pg",
+      "oo-a419-dst-pg",
+      "oo-a410-src",
+      "oo-a410-tgt",
+      "oo-a407-src-pg",
+      "oo-a407-dst-pg",
+      "oo-a405-pg",
+      "oo-a397-pg",
+      "oo-a373-pg"
+    ],
+    "cpu_sum": 10,
+    "requested_action": "pause only, preserve volumes/images/evidence; no authorization inferred from continue",
+    "authority": "direct human 授权暂停旧容器",
+    "receipt": "execution/reviews/dl01-legacy-runtime-authorized-pause/receipt.json",
+    "released_cpu_limits": 10,
+    "volumes_and_images_preserved": true,
+    "unknown_cli_untouched": true
+  },
+  "active_batch_development": {
+    "accepted_units": 8,
+    "frozen_units": 8,
+    "source_accepted": 1,
+    "source_total": 10
+  },
+  "legacy_runtime_authorization_updated_at": "2026-10-10T17:16:19.472573+08:00",
+  "source_acceptance": {
+    "accepted": 1,
+    "required": 10,
+    "products": [
+      "mariadb"
+    ],
+    "scope": "controlled experimental previews; DL01 incomplete"
+  },
+  "source_acceptance_count": 5,
+  "source_requirement_audit": "execution/reviews/full-source-original-requirements-audit-20261012.md",
+  "human_capture_method_resolution": "按原docs逐源方法，验证可配置周期与更新、删除收敛；C1/C2/C3/C4/C5分别标注能力、一致性、删除检测",
+  "resource_policy_receipt": "execution/reviews/resource-unlimit-20261012/receipt.json",
+  "all_source_convergence_policy": {
+    "authority": "direct human 2026-10-12 latest",
+    "scope": "all ten sources, MySQL/Oracle emphasized, not PG only",
+    "review": "defer nonfatal component review/polish; runnable actual-tested artifacts feed complete product integration",
+    "first_exit": "first truly full source/product loop with original real requirements; other nine retained",
+    "reliable_target": 15,
+    "no_fixed_cpu_or_compile_slots": true
+  },
+  "shared_native_loader_ownership": {
+    "writer": "DL01-W1-79",
+    "from": "DL01-W1-06",
+    "reason": "native Loader/pg-builder full product path isolated so sole MySQL engineer can focus real customer and full MySQL loop",
+    "former_cli_exit": 0,
+    "known_builders_terminal": true,
+    "mysql_databases_stay_owner06": true,
+    "scope_denominator_change": false,
+    "paths": [
+      "crates/oo-pipeline",
+      "tools/pg-builder",
+      "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
+    ]
+  },
+  "managed_live_native_agents": [
+    {
+      "task": "DL01-W1-04",
+      "native_agent_name": "/root/closure_oracle_04",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/source-driver-worker",
+        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver",
+        "tools/oracle-preview",
+        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-39",
+      "native_agent_name": "/root/closure_mariadb_39",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "testing/dl01-driver-preflight/mariadb",
+        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-driver-preflight",
+        "tools/mariadb-preview",
+        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-71",
+      "native_agent_name": "/root/shared_selfbuild_continuation",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/selfbuild-control-api",
+        "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full",
+        "crates/oo-core",
+        "crates/oo-builder",
+        "contracts/schema/oos-v1.json",
+        "tools/agent-product-verifier",
+        "tools/control-identity",
+        "tools/identity-binding-api",
+        "tools/pg-builder"
+      ]
+    },
+    {
+      "task": "DL01-W1-74",
+      "native_agent_name": "/root/sol_recovery_capture_jobs",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/job-worker",
+        "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
+      ]
+    },
+    {
+      "task": "DL01-W1-79",
+      "native_agent_name": "/root/sol_recovery_loader",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "crates/oo-pipeline",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
+        "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
+        "crates/oo-connectors",
+        "crates/oo-jobs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "tools/source-admission/src/capture.rs"
+      ]
+    }
+  ],
+  "execution_policy": {
+    "kind": "native_codex_subagents",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "max_reliable_active": 15,
+    "grok_authorized": false,
+    "ordinary_wait_seconds": 900,
+    "review_dispatch": "only after first complete Goal loop and all ten-source chains ready, no standalone component reviewers",
+    "dialogue_model": "gpt-6.1-sol",
+    "dialogue_reasoning_effort": "low",
+    "dialogue_proxy_url_and_key": "unchanged active proxy client key reused privately; authenticated exact model completion200"
+  },
+  "native_handoff_receipt": "execution/batches/native-full-source-20261012/grok-terminal-handoff.json",
+  "product_model_runtime": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "base_url": "http://127.0.0.1:8317",
+    "private_config_reference": "/tmp/oo-product-model-20261012/config.json",
+    "url_and_key_changed": false,
+    "models_probe_status": 200,
+    "actual_completion_probe_status": 200,
+    "response_model": "gpt-6.1-sol",
+    "model_probe_receipt": "execution/reviews/native-model-switch-20261012/receipt.json",
+    "actual_product_dialogue_acceptance": false
+  },
+  "shared_readiness_gate": "execution/shared-readiness-gate.json",
+  "source_workflows_held": [
+    "DL01-W1-04",
+    "DL01-W1-06",
+    "DL01-W1-09",
+    "DL01-W1-39",
+    "DL01-W1-40",
+    "DL01-W1-41",
+    "DL01-W1-43",
+    "DL01-W1-44",
+    "DL01-W1-45",
+    "DL01-W1-46"
+  ],
+  "product_model_policy": "original gpt-6.1-sol/low actual model verified from HTTP envelope7f9; sameURL/key, no product fallback or alias change",
+  "managed_reference_handoffs": [
+    {
+      "task": "DL01-W1-06",
+      "status": "completed",
+      "commit": "1116ee7cdc4a97103f7baf74260838bd2c1c9c9d",
+      "source_workflow": "held"
+    },
+    {
+      "task": "DL01-W1-40",
+      "status": "completed",
+      "commit": "549cd6bb97a4c2925176b1b2d044aa6d3f3a1963",
+      "source_workflow": "held"
+    }
+  ],
+  "shared_data_chain_verified": {
+    "gate": "execution/shared-readiness-gate.json",
+    "source_release_allowed": false,
+    "root_mongo_typed_diff": "14x20/280 cells/difference0/exit0",
+    "worker_source": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
+    "remaining": "genuine current S5/YAML/Pack/publication/Gateway/dialogue"
+  },
+  "shared_reference_live_agents": [],
+  "source_closure_current": {
+    "author_full_unpublished_preview": 2,
+    "total_sources": 10,
+    "unified_signed_full_sources": 0,
+    "mysql_fixed_author_commit": "27eeec147",
+    "opensearch_fixed_author_commit": "7ac93aac4",
+    "no_live_engineer_reason": "superseded: human confirmed quota restored, original 04/39/71/74/79 resumed; actual handles in managed_live_native_agents",
+    "goal": "active",
+    "remaining_shared_runtime_proof": "C4/C1/catalog/global-generation and remaining source full chains"
+  },
+  "ordinary_event_wait_seconds": 1080
+}

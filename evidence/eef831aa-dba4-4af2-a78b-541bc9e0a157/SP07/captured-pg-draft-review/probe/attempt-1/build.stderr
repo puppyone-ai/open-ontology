@@ -1,7 +1,0 @@
-error: failed to write /src/Cargo.lock
-
-Caused by:
-  failed to open: /src/Cargo.lock
-
-Caused by:
-  Read-only file system (os error 30)

@@ -1,2 +1,0 @@
-collected=2026-10-05T20:30:19Z
-name=/oo-a203-rust194 id=27182e6c011d8d69696187960da94fbff5d03a9ca0ff24bbf08cea2a27270b45 status=exited exit=0 oom=false privileged=false finished=2026-10-05T18:10:35.979252591Z image=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 memory=8589934592 capdrop=["ALL"] network=oo-a203-net  ports={}

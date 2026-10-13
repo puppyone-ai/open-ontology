@@ -1,0 +1,80 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "rev-w37-yard-0001",
+  "target_id": "rev-w37-yard",
+  "exact_version": "16.9",
+  "tested_versions": [
+    "16.9"
+  ],
+  "variant": "self-managed",
+  "driver_digest": "dcad3959b7a83bbf9377a815f40f278ad33b6acb5d9d1e715d4d3af75934643b",
+  "suite_version": "cc-map/w37-review",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "review-single-node-w37",
+    "service_version": "16.9"
+  },
+  "cloud": {
+    "applies": false,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "id": "CC-01",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "a1483f54bc7ef910b4c71f5907a4a4bb7871b386d24911f01efde030cbaeee1f",
+      "raw_path": "raw/CC-01.txt"
+    },
+    {
+      "id": "CC-02",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "bb7b57aca6edcb05bd4b8f519c0420dd1e8a220c40caa8435b3e925b76e24028",
+      "raw_path": "raw/CC-02.txt"
+    },
+    {
+      "id": "CC-03",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "7eb7a2ef0dd38bf34f3db40cbda05510b817bf05a4a8d2a1dd7d17ddc64fb659",
+      "raw_path": "raw/CC-03.txt"
+    },
+    {
+      "id": "CC-04",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "9b4acdae9dd97ab97f5a301bea7b40a3cc0fb603721902b8c3bc348357f03f32",
+      "raw_path": "raw/CC-04.txt"
+    },
+    {
+      "id": "CC-11",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "c0eea8a6bd5bd6148a0f40255f5977c626fe357fd029cd2053ee101bf3322d88",
+      "raw_path": "raw/CC-11.txt"
+    }
+  ],
+  "rejections": [],
+  "reviewers": [
+    {
+      "role": "data",
+      "name": "Nia Kepler"
+    },
+    {
+      "role": "dba",
+      "name": "Omar Quill"
+    },
+    {
+      "role": "security",
+      "name": "Pia Shore"
+    }
+  ]
+}

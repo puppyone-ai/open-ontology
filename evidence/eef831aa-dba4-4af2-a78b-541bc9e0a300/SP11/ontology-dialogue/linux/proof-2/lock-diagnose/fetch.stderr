@@ -1,6 +1,0 @@
-     Locking 1 package to latest Rust 1.94.0 compatible version
-      Adding zeroize_derive v1.5.0
-error: failed to download `yoke-derive v0.8.2`
-
-Caused by:
-  attempting to make an HTTP request, but --offline was specified

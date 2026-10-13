@@ -1,0 +1,54 @@
+{
+  "task": "DL01-W1-08",
+  "product": "MariaDB",
+  "version": "11.4.13",
+  "version_line": "11.4",
+  "support_window": "11.4 LTS",
+  "variant": "self-managed",
+  "deployment": "docker-official-image",
+  "image": {
+    "ref": "docker.io/library/mariadb:11.4.13",
+    "index_digest": "sha256:1292844148b311e4ed4300022a996d39083f415a963e970cf47cad1b3b18e3a6",
+    "native_platform": "linux/arm64/v8",
+    "native_manifest_digest": "sha256:0130d92c05fbf2d82adc2b86de742eaede65b2596c65d91786f8e03cd19e6a39",
+    "native_created": "2026-10-02T01:30:31Z",
+    "base": "ubuntu:noble",
+    "base_digest": "sha256:08571ca13e00ca07a2a84eab83a959b4242e22cceb16486a11bef1428c9e93a7",
+    "source": "https://github.com/MariaDB/mariadb-docker.git#bdfe641466a5312bb97d06a1a4e1fb411c49e6b6:11.4",
+    "oci_version_label": "11.4.13",
+    "license_spdx": "GPL-2.0",
+    "hub_tag_updated": "2026-10-02T05:36:33.400513Z"
+  },
+  "not_run": {
+    "reason": "Ready alternative only. This preparation does not start a non-native image and does not use QEMU.",
+    "amd64_manifest_digest": "sha256:f2f5e00999bd335343e09091e27e39c9386eb1822efcd0e0bac40b0003fa47e3",
+    "amd64_created": "2026-10-02T01:30:57Z"
+  },
+  "server_flags": [
+    "--skip-log-bin",
+    "--default-time-zone=+00:00",
+    "--skip-name-resolve",
+    "--innodb-buffer-pool-size=128M",
+    "--sql-mode=STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE"
+  ],
+  "sql_mode_reason": "The image default omits NO_ZERO_DATE. Attempt 1 inserted 0000-00-00 and kept the row. The fixture adds NO_ZERO_DATE and NO_ZERO_IN_DATE so that value is an error.",
+  "schema_charset": "utf8mb4",
+  "schema_collation": "utf8mb4_bin",
+  "binlog": "off",
+  "cdc": "not claimed",
+  "mysql_image": "not used",
+  "rust_driver": "not compiled",
+  "identities": {
+    "bootstrap": "root, password file only, fixture setup",
+    "dba": "oo_dba",
+    "reader": "oo_reader",
+    "dba_privileges": [
+      "ALL PRIVILEGES ON oo_synth.*",
+      "SELECT ON mysql.general_log",
+      "PROCESS ON *.*",
+      "CONNECTION ADMIN ON *.*"
+    ],
+    "reader_privileges": ["SELECT ON oo_synth.*"]
+  },
+  "license_inventory": "inventory/manifest.json from the running image"
+}

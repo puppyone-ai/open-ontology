@@ -1,2 +1,0 @@
-6b05ee35e43f oo-a340-proof 0f24958fa693 a340 rust-builder
-9bb4a1b06930 oo-a340-pg 3aac91d19d5b a340 postgres

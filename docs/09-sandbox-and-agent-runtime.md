@@ -2,13 +2,15 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 > 依赖：[06 Ontology](06-ontology-layer.md)、[07 Gateway](07-gateway.md)、[08 Agent 接口](08-agent-interface.md)
 > 被依赖：[10 安全](10-security.md)、[13 评测](13-evaluation-and-benchmarks.md) 轨道 C/E
 
 ## 1. 职责与不变量
 
-Agent 入口把用户的问题交给沙盒里的 harness，再把回答送回去；沙盒是 Agent 的工作台；出口代理是沙盒通往外部的唯一出口。
+本章描述OO附带的Agent体验和内部验证运行环境。默认Pi让用户在构建后立即试问，也用于检验Pack、工具接口、查询和释放流程。OO的核心交付仍是Ontology生产系统及可外接的产物和接口；外部harness直接使用06/08规定的Knowledge和Gateway接口，不要求启动本章的Pi会话。
+
+使用内置体验时，Agent入口把问题交给沙盒中的harness，再转发回答；出口代理是该沙盒通往外部的唯一出口。本章全部隔离与状态释放不变量仍适用，外部接口也须遵守其自身的身份、授权和审计契约。
 
 - **I-RT-1** 沙盒内没有任何可复用凭证（数据库密码、Gateway token、模型 Key、签名密钥）。
 - **I-RT-2** 沙盒的出站只能到出口代理；出口代理只转发到 Gateway 与白名单模型端点；沙盒没有入站。

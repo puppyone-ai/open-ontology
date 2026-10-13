@@ -1,2 +1,0 @@
-name=oo-a154-full-import-verify kind=rust-builder owner=a154 status=Up 18 seconds
-name=oo-a154-pg kind=postgres owner=a154 status=Up 2 hours

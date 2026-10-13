@@ -1,0 +1,31 @@
+[package]
+name = "minimal-product-loop"
+description = "Single-operator development loop from a private PostgreSQL config to a draft pack, Pi, and the real gateway."
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.94.0"
+version = "0.1.0"
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+pg-builder = { path = "../pg-builder", version = "=0.1.0" }
+pg-e2e = { path = "../../testing/real-db/pg-e2e", version = "=0.1.0" }
+pi-harness = { path = "../pi-harness", version = "=0.1.0" }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

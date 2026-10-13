@@ -1,1 +1,0 @@
-hand grammar for the U+FEFF boundary. Not a compiled query-pg receipt.

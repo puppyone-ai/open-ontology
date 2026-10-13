@@ -1,0 +1,44 @@
+{
+  "protocol": "oo.operator-preview.config/v1",
+  "authority": {
+    "kind": "trusted-operator-file",
+    "binds": "import+mapping+role-policy+pack+target-tls"
+  },
+  "project": "a407bulk",
+  "role": "oo_r_reader",
+  "policy_pack_id": "pol-preview",
+  "policy_version": "1",
+  "knowledge": {"id": "know-preview", "version": "1"},
+  "import": {
+    "import_generation": 2,
+    "import_hash": "f7c21ea98c20b88b8a7986da37f77772f9d8874f2efc055b48afdb0fef31aed1",
+    "snapshot_id": "0000000D-0000000C-1",
+    "source_id": "a407bulk",
+    "manifest_sha256": "77adb990b8aac4ec42ab2e328e7b38cf5cef5c103efc6b13dd7168d1306debc7",
+    "target_config_sha256": "379615f4f792d2afa6ecceb851355edc309f1473162f5f6ea7ccdf835c42363d"
+  },
+  "policy_path": "policy.example.json",
+  "pack_dir": "pack",
+  "pack_receipt": "pack-receipt.json",
+  "role_pack_dir": "role-pack",
+  "target": {
+    "host": "postgres.example",
+    "port": 5432,
+    "database": "preview",
+    "user": "oo_preview_login",
+    "ca_path": "ca.pem",
+    "password_path": "password.file"
+  },
+  "state_dir": "state",
+  "audit_dir": "audit",
+  "receipt_dir": "receipts",
+  "audit_max_bytes": 67108864,
+  "catalog": {
+    "max_tables": 4,
+    "max_columns": 64,
+    "max_functions": 1,
+    "max_operators": 64,
+    "large_table_row_threshold": 1000000,
+    "unknown_rows": "zero"
+  }
+}

@@ -1,1 +1,0 @@
-Proof container oo-a362-proof2 exited 101 at clippy-builder. Tests passed before that: pg-builder combined 9, pg-builder contract 12, description-pack combined 6, description-pack pack 21. Clippy -D warnings rejected a nested if in tools/pg-builder/src/bridge.rs pack_combined. It is now one let-chain. Container removed. This directory was not overwritten.

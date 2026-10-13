@@ -1,6 +1,0 @@
-rm_exit=0
-network_exit=0
-cargo_volume_exit=0
-target_volume_exit=0
-cargo_volume_retained=oo-a104-eef831aa-dba4-4af2-a78b-541bc9e0a104-cargo
-target_volume_retained=oo-a104-eef831aa-dba4-4af2-a78b-541bc9e0a104-target

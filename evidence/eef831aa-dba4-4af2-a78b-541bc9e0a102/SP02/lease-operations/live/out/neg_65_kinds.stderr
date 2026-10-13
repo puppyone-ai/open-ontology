@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/lease_operations/neg_65_kinds.sql:2: ERROR:  OO010: invalid lease operation input
-CONTEXT:  PL/pgSQL function claim(uuid,text[],text) line 28 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,1 +1,0 @@
-pg-backup-restore: usage: pg-backup-restore <load-fixture|backup|mark-post-cut|restore> <operator.json> | hash-tree <root> <sums>

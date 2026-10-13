@@ -1,0 +1,51 @@
+{
+  "protocol": "oo.postgres-preview.config/v1",
+  "source_id": "oo_dl01w1_46",
+  "secret_ref": "secret://oo-dl01w1-46/denied",
+  "role": "oo_dl01w1_46_denied",
+  "approved_objects": [
+    {"schema": "public", "table": "hubs"},
+    {"schema": "public", "table": "shipments"},
+    {"schema": "public", "table": "tracking_events"}
+  ],
+  "budget": {"max_rows": 100000, "max_bytes": 134217728, "statement_ms": 120000},
+  "model": {
+    "origin": "http://127.0.0.1:8317",
+    "path": "/v1/chat/completions",
+    "model_id": "grok-4.7",
+    "bearer_file": "/tmp/oo-customer-demo-20261007/llm-token"
+  },
+  "source": {
+    "host": "oo-dl01w1-46-src",
+    "port": 5432,
+    "database": "src",
+    "username": "oo_dl01w1_46_denied",
+    "password_file": "/run/secrets/denied",
+    "ca_file": "/run/secrets/ca.pem"
+  },
+  "dba": {
+    "host": "oo-dl01w1-46-src",
+    "port": 5432,
+    "database": "src",
+    "username": "oo_dl01w1_46_dba",
+    "password_file": "/run/secrets/dba",
+    "ca_file": "/run/secrets/ca.pem"
+  },
+  "target": {
+    "host": "oo-dl01w1-46-tgt",
+    "port": 5432,
+    "database": "dst",
+    "username": "oo_dl01w1_46_target",
+    "password_file": "/run/secrets/target",
+    "ca_file": "/run/secrets/ca.pem"
+  },
+  "bins": {
+    "admission": "/opt/oo-source-admission",
+    "budget": "/opt/oo-source-admission-pg-budget",
+    "pipeline": "/opt/oo-pipeline",
+    "builder": "/opt/pg-builder",
+    "preview": "/opt/operator-preview"
+  },
+  "coordinator_state": "/ontology/execution/pg-budget-ready.json",
+  "out_dir": "/out/denied"
+}

@@ -1,3 +1,0 @@
-Attempt 08. Clippy exit 0. Contract tests passed. Live test panicked at half_write: HTTP 403, expected 201.
-Cause: identity GET current rotates the stored CSRF hash, and the old mutation check compared the caller's token with the token just returned by that read.
-No secret value and no bootstrap token in this archive.

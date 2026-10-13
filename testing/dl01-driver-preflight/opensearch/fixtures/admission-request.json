@@ -1,0 +1,7 @@
+{
+  "source_id": "oo_dl01w1_44",
+  "secret_ref": "secret://oo-dl01w1-44/opensearch",
+  "index": "oo-dl01w1-44-synthetic",
+  "search_status": 0,
+  "mget_status": 0
+}

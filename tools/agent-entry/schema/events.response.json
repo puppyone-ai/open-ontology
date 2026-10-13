@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-entry-v1/events",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "session_id", "events"],
+  "properties": {
+    "contract": {"const": "agent-entry-v1"},
+    "session_id": {"type": "string"},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sequence", "kind"],
+        "properties": {
+          "sequence": {"type": "integer", "minimum": 1},
+          "kind": {
+            "enum": [
+              "turn_started", "assistant_delta", "tool_call_started", "tool_call_finished",
+              "citation", "clarification", "incomplete", "model_stop", "error", "turn_finished"
+            ]
+          },
+          "turn_id": {"type": "string"},
+          "text": {"type": "string"},
+          "reason": {"type": "string"},
+          "query_id": {"type": "string", "pattern": "^q_[0-9A-Za-z]{6,40}$"},
+          "model_http_status": {"type": "integer"},
+          "complete": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

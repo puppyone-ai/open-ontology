@@ -1,0 +1,20 @@
+{
+  "protocol": "oo.source-customer-input/v1",
+  "source_id": "oo_w141",
+  "secret_ref": "secret://oo-dl01w1-41/reader",
+  "driver_digest": "622f272c59e54a3c85f5902c6b8e7b1653a6b6681f45e4c42d6581301119a4b8",
+  "permission": "read",
+  "namespace": "oo_w141",
+  "approved_objects": ["oo_w141.shipments"],
+  "approved_fields": [
+    "_id", "code", "flag", "units", "price", "created", "uid", "blob", "blob_presence",
+    "weight", "warehouse", "whCode", "lane", "memo", "memo_presence", "marks",
+    "marks_presence", "pack", "pack_presence"
+  ],
+  "role": "read",
+  "budget_unit": "Rows",
+  "budget_limit": 16,
+  "batch_object": "oo_w141.shipments",
+  "deny_object": "oo_w141.not_approved",
+  "deny_fields": ["notApproved"]
+}

@@ -5,7 +5,11 @@
 
 #![forbid(unsafe_code)]
 
+pub mod adapt;
+pub mod builder_call;
+pub mod builder_inputs;
 pub mod canonical;
+pub mod corebind;
 pub mod compile;
 pub mod config;
 pub mod error;
@@ -15,8 +19,12 @@ pub mod ids;
 pub mod jsonutil;
 pub mod ledger;
 pub mod membership;
+pub mod oosyaml;
+pub mod overlay;
+mod project_catalog;
 pub mod pack;
 pub mod scope;
+pub mod sealed;
 pub mod serve;
 pub mod spawn;
 pub mod stages;

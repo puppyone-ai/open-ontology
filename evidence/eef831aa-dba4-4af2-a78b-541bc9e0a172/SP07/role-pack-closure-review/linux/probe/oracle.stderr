@@ -1,8 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.16s
-     Running tests/role_pack_a172_review.rs (/target/debug/deps/role_pack_a172_review-9e17a9e56b249c61)
-
-thread 'fresh_closure_cases_and_independent_oracle' (137) panicked at crates/oo-builder/tests/role_pack_a172_review.rs:110:23:
-compile failed: oo.builder.role-pack/v1/oos.invalid at /values/1/class: an enum failed OOS validation
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-error: test failed, to rerun pass `-p oo-builder --test role_pack_a172_review`

@@ -1,5 +1,0 @@
-/usr/bin/gcc 0 777
-/usr/bin/cc 0 777
-/usr/bin/gcc-14 0 777
-/bin/kill 0 755
-/usr/bin/kill 0 755

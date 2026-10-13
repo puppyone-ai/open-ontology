@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/inherited-mysql/matrix.yaml --package /harness/fixtures/inherited-mysql/package

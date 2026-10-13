@@ -1,9 +1,0 @@
-backup=0
-restore_corrupt_dump=4
-restore=0
-restore_existing=4
-cut_check=0
-load_fixture=0
-mark_post_cut=0
-rejected_update=3
-committed_update=0

@@ -1,0 +1,29 @@
+{
+  "observed_on": "2026-10-10",
+  "endpoint": "http://127.0.0.1:8317",
+  "approved_token_file_reference": "/tmp/oo-customer-demo-20261007/llm-token",
+  "live_completion_http_status": 402,
+  "upstream_message": "Grok Build usage balance exhausted",
+  "no_parsed_completion": true,
+  "actual_most_recent_latency_ms": 2591,
+  "proxy_cooldown_minutes": 30,
+  "do_not_repeat_provider_failure_or_fake_outputs": true,
+  "developer_cli_quota_recovered_is_not_builder_completion_proof": true,
+  "restored_provider_or_explicit_endpoint_reference_required": true,
+  "fixed_witness_source": "39b2c1e17202a089897b3076ee0d71e194f767e7",
+  "fixed_witness_receipt": "c2a8b03c575061737246a8e8993f95366d14582b",
+  "whole_source_accepted": false,
+  "status": "actual_parsed_completion_verified_product_chain_pending",
+  "human_restoration_at": "2026-10-10T14:40:26.433898+08:00",
+  "verification_owner": "DL01-W1-06 same native MySQL engineer",
+  "prior_failure_preserved": true,
+  "actual_recovery": {
+    "owner": "DL01-W1-06",
+    "model": "grok-4.7",
+    "http_status": 200,
+    "parsed_content": "pong",
+    "duration_seconds": 7.1,
+    "evidence_log": "/tmp/oo-dl01-wave1/logs/DL01-W1-06-model-restored-whole-product.log"
+  },
+  "acceptance": "provider restored, no source/Pack acceptance"
+}

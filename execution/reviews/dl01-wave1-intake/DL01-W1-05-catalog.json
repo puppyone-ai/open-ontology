@@ -1,0 +1,11 @@
+{
+  "task": "DL01-W1-05",
+  "source": "b1ffb079d7beec4297dbd3deec97219584c6775d",
+  "seal": "b0e64601a24d4a824fe30ed32cba038deb811ee7",
+  "verified_sha_entries": 225,
+  "decision": "author_new_nativecatalog_api_pending_independent_review",
+  "old_child_approval_does_not_cover_new_revision": true,
+  "schema_recipe_correction": "base577 schema differs; overlay oos-v1 from b1ff (unchangedfrom5bd) as required; inspect actualbuildsource inventory",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

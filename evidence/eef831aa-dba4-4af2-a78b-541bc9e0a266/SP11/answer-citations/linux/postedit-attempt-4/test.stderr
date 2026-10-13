@@ -1,7 +1,0 @@
-   Compiling answer-citations v0.1.0 (/src/tools/answer-citations)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
-     Running unittests src/lib.rs (/target/debug/deps/answer_citations-c0e9d15bc341308b)
-     Running unittests src/main.rs (/target/debug/deps/answer_citations-1a01a9a0fae33021)
-     Running tests/api.rs (/target/debug/deps/api-fd7a7cfd5d5e960f)
-     Running tests/cli.rs (/target/debug/deps/cli-45f4cdb5dc110805)
-   Doc-tests answer_citations

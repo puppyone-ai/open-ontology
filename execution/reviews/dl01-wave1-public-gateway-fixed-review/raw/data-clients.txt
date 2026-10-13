@@ -1,0 +1,2 @@
+local postgres active
+192.168.80.5/32 oo_dl01w1_46_target idle

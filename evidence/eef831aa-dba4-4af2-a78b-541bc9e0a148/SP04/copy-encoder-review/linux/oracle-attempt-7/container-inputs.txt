@@ -1,4 +1,0 @@
--rw-r--r-- 1 postgres postgres  335 Oct  4 01:32 /tmp/domain.sql
--rw-r--r-- 1 postgres postgres   45 Oct  4 01:32 /tmp/domain-violation.copy
--rw-r--r-- 1 postgres postgres  408 Oct  4 01:32 /tmp/fresh.copy
--rw-r--r-- 1 postgres postgres 2353 Oct  4 01:32 /tmp/load.sql

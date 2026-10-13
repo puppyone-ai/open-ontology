@@ -1,1 +1,0 @@
-cpu=0.08% mem=103.4MiB / 1GiB mem_perc=10.09% net=19.2MB / 16MB block=51.5MB / 114MB pids=6

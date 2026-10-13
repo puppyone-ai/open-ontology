@@ -6,7 +6,9 @@
 //! Binary decoding is the separate protocol [`types::TYPE_CONVERSION_PROTOCOL`].
 //! [`PgSession::read_typed`] is that decoder. The snapshot owner protocol is
 //! [`SNAPSHOT_PROTOCOL`]. [`STREAM_PROTOCOL`] is the bounded full-snapshot Arrow
-//! pull on that same owner. [`KEY_PLAN_PROTOCOL`] plans typed half-open chunks
+//! pull on that same owner. [`WINDOW_PROTOCOL`] reads one selected table through
+//! a paced portal and publishes Arrow only after that portal completes inside
+//! the existing row, byte, and deadline caps. [`KEY_PLAN_PROTOCOL`] plans typed half-open chunks
 //! on that same owner. It is not the whole reader. [`SnapshotOwner::cancel`]
 //! stops an active pull and releases both backends. [`PgConnector::prepare_snapshot`]
 //! builds a [`SnapshotRequest`] from the configured read-only session and releases
@@ -23,6 +25,8 @@
 #![forbid(unsafe_code)]
 
 mod access;
+mod bounded_read;
+mod budget_report;
 mod catalog;
 mod config;
 mod delimited;
@@ -38,15 +42,48 @@ mod sql;
 mod stream;
 pub mod types;
 
+pub use bounded_read::{WINDOW_PAGE_ROWS_MAX, WINDOW_PROTOCOL, WindowReceipt, WindowRequest};
+pub use budget_report::{
+    BUDGET_PROTOCOL, BudgetBlock, BudgetBound, BudgetEvidence, BudgetIdentity, BudgetInspection,
+    BudgetPermission, BudgetTls, BudgetVersion, Companion, DriverIdentity, ObjectPrivileges,
+    ObservedSetting, ObservedSettings, OltpCostModel, driver_digest,
+};
 pub use config::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SourceId, TableSelection,
 };
+pub use delimited::{
+    BomPolicy, DELIMITED_LINEAGE_VERSION, DELIMITED_MAX_BATCH_BYTES, DELIMITED_MAX_BATCH_ROWS,
+    DELIMITED_MAX_COLUMNS, DELIMITED_MAX_FIELD_BYTES, DELIMITED_MAX_FIELDS,
+    DELIMITED_MAX_NAME_BYTES, DELIMITED_MAX_NULL_TOKEN_BYTES, DELIMITED_MAX_RECORD_BYTES,
+    DELIMITED_MAX_ROWS, DELIMITED_MAX_TOTAL_BYTES, DELIMITED_MIN_RECORD_BYTES,
+    DELIMITED_PROFILE_VERSION, DELIMITED_PROTOCOL, DELIMITED_RECEIPT_VERSION, DelimitedBatch,
+    DelimitedBudget, DelimitedCancel, DelimitedCancelled, DelimitedColumn, DelimitedComplete,
+    DelimitedDialect, DelimitedError, DelimitedErrorKind, DelimitedExhausted, DelimitedHeader,
+    DelimitedItem, DelimitedProfile, DelimitedReader, DelimitedType,
+    FieldLineage as DelimitedFieldLineage, FieldPresence as DelimitedFieldPresence, HeaderPolicy,
+    NullPolicy, RowLineage as DelimitedRowLineage,
+};
 pub use error::{SourceError, SourceErrorKind};
+pub use file_worker_parent::{
+    ChildRequest, FILE_WORKER_PARENT_PROTOCOL, Failure, FailureKind, GroupSignal,
+    KERNEL_RESTRICTION, KernelRestriction, PARENT_DEADLINE_MAX_MS, PARENT_DEADLINE_MIN_MS,
+    ParentConfig, ParentError, ParentParseComplete, ParentPull, PullBudget, SourceProfile,
+    Teardown, VerifiedBatch, VerifiedField, VerifiedRow,
+};
 pub use ident::{PG17_RESERVED, stable_ident};
+pub use jsonl::{
+    FieldLineage, FieldPresence, JSONL_LINEAGE_VERSION, JSONL_MAX_ARRAY_ELEMENTS,
+    JSONL_MAX_BATCH_BYTES, JSONL_MAX_BATCH_ROWS, JSONL_MAX_COLUMNS, JSONL_MAX_DEPTH,
+    JSONL_MAX_FIELDS, JSONL_MAX_NAME_BYTES, JSONL_MAX_RECORD_BYTES, JSONL_MAX_ROWS,
+    JSONL_MAX_TOTAL_BYTES, JSONL_PROFILE_VERSION, JSONL_PROTOCOL, JSONL_RECEIPT_VERSION,
+    JsonlBatch, JsonlBudget, JsonlCancel, JsonlCancelled, JsonlColumn, JsonlComplete, JsonlError,
+    JsonlErrorKind, JsonlExhausted, JsonlHeader, JsonlItem, JsonlProfile, JsonlReader, JsonlType,
+    RowLineage,
+};
 pub use key_plan::{
-    DeclaredKey, DeclaredKeyKind, KeyColumnPlan, KeyPlan, KeyRange, PlannedChunk, TableKeyPlan,
-    DEFAULT_TARGET_ROWS, KEY_PLAN_PROTOCOL, MAX_PLAN_CHUNKS, SNAPSHOT_DEADLINE_DEFAULT,
+    DEFAULT_TARGET_ROWS, DeclaredKey, DeclaredKeyKind, KEY_PLAN_PROTOCOL, KeyColumnPlan, KeyPlan,
+    KeyRange, MAX_PLAN_CHUNKS, PlannedChunk, SNAPSHOT_DEADLINE_DEFAULT, TableKeyPlan,
 };
 pub use model::{
     AccessReport, BlockReason, CapabilityStatus, CdcPrerequisite, ColumnPrivileges, DbaItem,
@@ -58,47 +95,21 @@ pub use model::{
 };
 pub use session::{PgConnector, PgSession};
 pub use snapshot::{
-    config_identity, snapshot_input_digest, type_policy_identity, AdmittedCatalog, AdmittedColumn,
-    AdmittedTable, BackendKey, CutProbe, ProbeValue, SnapshotAborted, SnapshotBinding,
-    RunCancel, RunCancelled, RunComplete, SnapshotFinished, SnapshotOwner, SnapshotRequest,
-    TableAccess,
-    CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL,
-};
-pub use file_worker_parent::{
-    ChildRequest, Failure, FailureKind, GroupSignal, KernelRestriction, ParentConfig, ParentError,
-    ParentParseComplete, ParentPull, PullBudget, SourceProfile, Teardown, VerifiedBatch,
-    VerifiedField, VerifiedRow, FILE_WORKER_PARENT_PROTOCOL, KERNEL_RESTRICTION,
-    PARENT_DEADLINE_MAX_MS, PARENT_DEADLINE_MIN_MS,
-};
-pub use delimited::{
-    BomPolicy, DelimitedBatch, DelimitedBudget, DelimitedCancel, DelimitedCancelled,
-    DelimitedColumn, DelimitedComplete, DelimitedDialect, DelimitedError, DelimitedErrorKind,
-    DelimitedExhausted, DelimitedHeader, DelimitedItem, DelimitedProfile, DelimitedReader,
-    DelimitedType, FieldLineage as DelimitedFieldLineage, FieldPresence as DelimitedFieldPresence,
-    HeaderPolicy, NullPolicy, RowLineage as DelimitedRowLineage, DELIMITED_LINEAGE_VERSION,
-    DELIMITED_MAX_BATCH_BYTES, DELIMITED_MAX_BATCH_ROWS, DELIMITED_MAX_COLUMNS,
-    DELIMITED_MAX_FIELD_BYTES, DELIMITED_MAX_FIELDS, DELIMITED_MAX_NAME_BYTES,
-    DELIMITED_MAX_NULL_TOKEN_BYTES, DELIMITED_MAX_RECORD_BYTES, DELIMITED_MAX_ROWS,
-    DELIMITED_MAX_TOTAL_BYTES, DELIMITED_MIN_RECORD_BYTES, DELIMITED_PROFILE_VERSION,
-    DELIMITED_PROTOCOL, DELIMITED_RECEIPT_VERSION,
-};
-pub use jsonl::{
-    FieldLineage, FieldPresence, JsonlBatch, JsonlBudget, JsonlCancel, JsonlCancelled,
-    JsonlColumn, JsonlComplete, JsonlError, JsonlErrorKind, JsonlExhausted, JsonlHeader,
-    JsonlItem, JsonlProfile, JsonlReader, JsonlType, RowLineage, JSONL_LINEAGE_VERSION,
-    JSONL_MAX_ARRAY_ELEMENTS, JSONL_MAX_BATCH_BYTES, JSONL_MAX_BATCH_ROWS, JSONL_MAX_COLUMNS,
-    JSONL_MAX_DEPTH, JSONL_MAX_FIELDS, JSONL_MAX_NAME_BYTES, JSONL_MAX_RECORD_BYTES,
-    JSONL_MAX_ROWS, JSONL_MAX_TOTAL_BYTES, JSONL_PROFILE_VERSION, JSONL_PROTOCOL,
-    JSONL_RECEIPT_VERSION,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, BackendKey, CLEANUP_OBSERVATION_BOUND_MS,
+    CutProbe, ProbeValue, RunCancel, RunCancelled, RunComplete, SNAPSHOT_PROTOCOL, SnapshotAborted,
+    SnapshotBinding, SnapshotFinished, SnapshotOwner, SnapshotRequest, TableAccess,
+    config_identity, snapshot_input_digest, type_policy_identity,
 };
 pub use stream::{
-    StreamAccounting, StreamBatch, StreamBudget, StreamItem, TableEof, STREAM_PROTOCOL,
+    STREAM_PROTOCOL, StreamAccounting, StreamBatch, StreamBudget, StreamItem, TableEof,
 };
 pub use types::{
-    type_capabilities, ColumnMapping, PgTypePolicy, RunBinding, TypedBatch, TYPE_CONVERSION_PROTOCOL,
+    ColumnMapping, PgTypePolicy, RunBinding, TYPE_CONVERSION_PROTOCOL, TypedBatch,
+    type_capabilities,
 };
 
 /// Frozen protocol name for this source slice.
+/// [`BUDGET_PROTOCOL`] is a separate document. This name does not grow budget fields.
 pub const PROTOCOL: &str = "oo.source.pgsql/v1";
 
 /// Identifier algorithm implemented by [`stable_ident`].

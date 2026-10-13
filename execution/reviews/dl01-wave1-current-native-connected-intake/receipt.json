@@ -1,0 +1,112 @@
+[
+  {
+    "task": "06",
+    "fixed_sha": "5e1c0ce86d7563e61ebfe0dc306912cb69985844",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-loader/SHA256SUMS",
+        "checked": 246,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "44",
+    "fixed_sha": "3dec37be3e4f587bcbbd0c7d262e4b3f375ecb05",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-driver-preflight/native-20261012/SHA256SUMS",
+        "checked": 127,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "46",
+    "fixed_sha": "2703af69e9aebc2372e917f9eb9c428bbc7f8648",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/runner/out/capture-g2/SHA256SUMS",
+        "checked": 360,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "74",
+    "fixed_sha": "12bb22f7d0aef014bc4efe0749f4c64157b9db1b",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/SHA256SUMS",
+        "checked": 763,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "75",
+    "fixed_sha": "5b797a2ff840cefb8c4f47371227d16b2e1618a9",
+    "changed_manifests": [],
+    "inventory_new_delivery_not_inferred_from_old": true,
+    "product_acceptance": false
+  },
+  {
+    "task": "76",
+    "fixed_sha": "6e4944497dde0f0c79151da6c57c116d64e98fd2",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/72f2dc43-1371-481f-bbe2-85e9765847c6/DL01/public-gateway-fixed-review/SHA256SUMS",
+        "checked": 303,
+        "errors": []
+      },
+      {
+        "manifest": "execution/reviews/dl01-wave1-public-gateway-fixed-review/SHA256SUMS",
+        "checked": 303,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "04",
+    "fixed_sha": "4fa46c07fe59fb1fda05e41130da9b64ee767978",
+    "changed_manifests": [],
+    "inventory_new_delivery_not_inferred_from_old": true,
+    "product_acceptance": false
+  },
+  {
+    "task": "41",
+    "fixed_sha": "c41d31698fef43a452c93c766e5682d4a24d7054",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/SHA256SUMS",
+        "checked": 1597,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  },
+  {
+    "task": "45",
+    "fixed_sha": "6026b349105f9cde711d9a8eccdff4a9aa8a019b",
+    "changed_manifests": [
+      {
+        "manifest": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-chain/SHA256SUMS",
+        "checked": 190,
+        "errors": []
+      }
+    ],
+    "inventory_new_delivery_not_inferred_from_old": false,
+    "product_acceptance": false
+  }
+]

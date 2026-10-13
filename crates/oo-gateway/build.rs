@@ -93,9 +93,20 @@ fn main() {
             continue;
         }
         let text = fs::read_to_string(&source).expect("read accepted source");
-        let rewritten = rewrite(&text, Path::new(relative).file_name().and_then(|n| n.to_str()).unwrap_or(""));
-        let output_name = if *relative == "src/lib.rs" { "mod.rs" } else {
-            Path::new(relative).file_name().and_then(|name| name.to_str()).expect("file name")
+        let rewritten = rewrite(
+            &text,
+            Path::new(relative)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(""),
+        );
+        let output_name = if *relative == "src/lib.rs" {
+            "mod.rs"
+        } else {
+            Path::new(relative)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("file name")
         };
         fs::write(module_dir.join(output_name), rewritten).expect("write module");
     }
@@ -103,7 +114,11 @@ fn main() {
     let module_path = module_dir.join("mod.rs");
     let glue = format!(
         "#[allow(unused, clippy::all)]\n#[path = \"{}\"]\nmod accepted_token_store;\n",
-        module_path.display().to_string().replace('\\', "\\\\").replace('"', "\\\"")
+        module_path
+            .display()
+            .to_string()
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
     );
     fs::write(out_dir.join("accepted_glue.rs"), glue).expect("write glue");
 }

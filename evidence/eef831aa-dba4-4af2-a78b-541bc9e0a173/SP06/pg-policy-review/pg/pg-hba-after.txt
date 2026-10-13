@@ -1,2 +1,0 @@
-local all all trust
-hostssl all all all scram-sha-256

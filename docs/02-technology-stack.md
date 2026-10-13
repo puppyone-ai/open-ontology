@@ -152,6 +152,13 @@
 - **后果：** hook 源码可为 Rust，但部署消费的是已审计的不可变制品；CPU/内存/时限由隔离进程监督，而非给同进程闭包加 timeout。
 - **切换条件：** 未来若引入 Wasmtime/WASI，需要另行验证 fuel、内存、IPC 与能力授权；首版不依赖 WASM。
 
+### ADR-014 数据库支持以“目标 × 能力”的支持矩阵为准
+
+- **背景：** “任何数据库”若只靠驱动名或协议兼容声称，会掩盖 CDC、权限、类型、位点与许可差异。
+- **决定：** 准入单位是目标（家族、产品、版本、变体、驱动），逐能力分级（candidate → designed → experimental → verified → certified），矩阵为唯一真相源；源端写入按 R0–R3 分类，R2/R3 不准入，R1w 默认禁用。详见 [database-support](database-support/README.md) 与 Spec 第 7A 章。
+- **后果：** 新增数据库的工作量集中在连接器与证据；ADR-002 中的 Debezium 仅用于已验证的日志 CDC 且禁用写入型选项。
+- **切换条件：** 无。
+
 ## 4. 缓冲层切换到 Kafka 的条件（沿用参考草案）
 
 满足任一即切换到 Kafka / Redpanda（Debezium Server 同时支持两种 sink，Loader 实现两种消费者）：

@@ -1,1 +1,0 @@
-lock_edge=serde,serde_json

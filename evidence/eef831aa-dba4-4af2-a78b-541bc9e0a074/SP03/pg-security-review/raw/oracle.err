@@ -1,4 +1,0 @@
-psql:/fixture/oracle.sql:79: NOTICE:  admin_set_role fail 42501 permission denied to set role "oo_src_writer"
-psql:/fixture/oracle.sql:79: NOTICE:  admin_direct_insert fail 42501 permission denied for table side_write
-psql:/fixture/oracle.sql:79: NOTICE:  admin_grant ok
-psql:/fixture/oracle.sql:113: NOTICE:  view_trap fail 42501 permission denied for function invoker_insert before=0 after=0

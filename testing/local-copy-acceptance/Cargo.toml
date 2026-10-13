@@ -1,0 +1,28 @@
+[package]
+name = "local-copy-acceptance"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.0"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Independent MP-01a-d judge for a local PostgreSQL copy. A missing producer stays unsigned."
+
+# Own workspace root so this crate is not a member of the product workspace.
+[workspace]
+
+[[bin]]
+name = "local-copy-acceptance"
+path = "src/main.rs"
+
+[lib]
+name = "local_copy_acceptance"
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

@@ -1,0 +1,39 @@
+{
+  "task_id": "DL01-W1-34",
+  "parent": "DBX-W09",
+  "kind": "native_driver_preflight",
+  "session_uuid": "4264ed49-a669-48b2-a819-dd18a00b1f27",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "product_acceptance": false,
+  "certifies_19c": false,
+  "certifies_marketing_alias": false,
+  "image": {
+    "repository": "docker.io/gvenzl/oracle-free",
+    "digest": "sha256:cdc5b3a3685da4f1785daeee24f74de8a9768b7629192ea9abdaeeea343d12a8",
+    "platform": "linux/arm64",
+    "pull": "never"
+  },
+  "rust_builder": {
+    "repository": "docker.io/library/rust",
+    "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "platform": "linux/arm64",
+    "version_observed_in_smoke": "1.94.0"
+  },
+  "driver": {
+    "crate": "oracledb",
+    "version": "26.0.0-beta.4",
+    "checksum": "d729181747bd69ba53cde2956ea9ddc06cf09d0badaf4a9e89944b7c0b7b4397",
+    "git": "e2578c8b96ba19d58ad8ebdf28097757cd471d54",
+    "license": "UPL-1.0 OR Apache-2.0",
+    "rust_version": "1.89",
+    "mode": "thin",
+    "feature": "arrow",
+    "instant_client": false,
+    "license_file_sha256": "a90ccbcbaac3be7c243648cff1ea7be053eed2033b9443ade51fe926380db235",
+    "notice_file_sha256": "9b1bab09f15ad426f8615de9fac824081dbaa795c7aa99356cdb807cafaa23f2"
+  },
+  "database_banner_observed": "Oracle AI Database 26ai Free Release 23.26.3.0.0 - Develop, Learn, and Run for Free",
+  "resource_prefix": "oo-dl01w1-34",
+  "container_memory": "6g",
+  "container_cpus": 1
+}

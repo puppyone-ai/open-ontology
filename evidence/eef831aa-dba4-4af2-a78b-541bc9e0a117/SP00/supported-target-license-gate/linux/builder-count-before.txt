@@ -1,8 +1,0 @@
-host_rust_comm=0
-rust_named_or_image_containers=0
-total=0
-cap=2
-own_max=1
-counting=running-docker-ps-plus-host-comm
-slot_a=a116
-slot_b=a117

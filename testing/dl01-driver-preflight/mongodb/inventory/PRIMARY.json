@@ -1,0 +1,53 @@
+{
+  "recorded_before_compile": true,
+  "primary_api": "https://crates.io/api/v1/crates/mongodb",
+  "primary_archive": "https://static.crates.io/crates/mongodb/mongodb-3.3.0.crate",
+  "primary_index": "https://index.crates.io/mo/ng/mongodb",
+  "version": "3.3.0",
+  "yanked": false,
+  "created_at": "2025-09-03T18:28:05.759546Z",
+  "archive_bytes": 399530,
+  "archive_sha256": "622f272c59e54a3c85f5902c6b8e7b1653a6b6681f45e4c42d6581301119a4b8",
+  "api_checksum": "622f272c59e54a3c85f5902c6b8e7b1653a6b6681f45e4c42d6581301119a4b8",
+  "index_cksum": "622f272c59e54a3c85f5902c6b8e7b1653a6b6681f45e4c42d6581301119a4b8",
+  "checksums_agree": true,
+  "license": "Apache-2.0",
+  "license_file_sha256": "0d6fc0c55c9aa03692171f5373ba6d878aca44a77438ab4fafd3e63f43b816ca",
+  "readme_sha256": "77776792e89dc88365011aba63c401e987964cd0a046ebd80dfb53520841a5f7",
+  "cargo_toml_orig_sha256": "656e28e19547b765401c519ab0e19ffc817b4a267510617384190a8ea3576d4f",
+  "tour_md_sha256": "666ef20099a6e1acecb8c8c1fd03ce0027b1e199c49685fc2d0999cbc2509e31",
+  "rust_version": "1.83",
+  "readme_requires": "Rust 1.83.0+",
+  "builder": "1.94",
+  "msrv_compatible_with_builder": true,
+  "description": "The official MongoDB driver for Rust",
+  "repository": "https://github.com/mongodb/mongo-rust-driver",
+  "homepage": "https://www.mongodb.com/docs/drivers/rust/",
+  "vcs_sha1": "97d7aabdfab16607b675997fc3c0a5364d3fdc5a",
+  "docs_from_archive": [
+    "README.md",
+    "docs/tour.md",
+    "src/cursor.rs",
+    "src/client.rs",
+    "src/event/command.rs"
+  ],
+  "docs_notes": {
+    "cursor_drop_sends_killCursors": "src/cursor.rs states that a Cursor still open when dropped is closed by an asynchronous killCursors command.",
+    "do_not_drop_driver_future": "README section 'Warning about timeouts / cancellation' says dropping a driver future, including via tokio::time::timeout, is not a supported cancel and can leave the driver inconsistent. Futures must be polled to completion.",
+    "shutdown_sends_endSessions": "Client::shutdown waits for cursor and session cleanup. Client drop schedules endSessions.",
+    "retry_writes_default_true": "ClientOptions.retry_writes documents the default as true, so this gate sets it to false explicitly.",
+    "server_monitoring_mode": "Poll uses the polling protocol. Stream can open a separate monitoring socket. This gate sets Poll and records the sockets that actually open."
+  },
+  "features_selected": {
+    "default": false,
+    "compat-3-0-0": true,
+    "rustls-tls": false,
+    "openssl-tls": false,
+    "dns-resolver": false,
+    "in-use-encryption": false,
+    "sync": false
+  },
+  "decision": "use mongodb 3.3.0",
+  "substitution": null,
+  "failed_condition": null
+}

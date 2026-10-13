@@ -1,0 +1,69 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "rev-w37-dup-buried-0001",
+  "target_id": "rev-w37-dup-buried",
+  "exact_version": "16.9",
+  "tested_versions": [
+    "16.9"
+  ],
+  "variant": "self-managed",
+  "driver_digest": "dcad3959b7a83bbf9377a815f40f278ad33b6acb5d9d1e715d4d3af75934643b",
+  "suite_version": "cc-map/w37-review",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "review-single-node-w37",
+    "service_version": "16.9"
+  },
+  "cloud": {
+    "applies": false,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "service_version": "15.2",
+      "service_version": "16.9",
+      "id": "CC-01",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "c159b9621f443558b32afa00525b7807128e83d969c16ad0b9ef61fad8d296db",
+      "raw_path": "raw/CC-01.txt"
+    },
+    {
+      "id": "CC-02",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "5d9031c889a68df62a08183f07604afe212131bd27840e38e90a59bc8c06116e",
+      "raw_path": "raw/CC-02.txt"
+    },
+    {
+      "id": "CC-03",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "bc4f9ed1ae9060cd80376f9db998f4e37b338e64a565b9f4bb31b7014fc2792b",
+      "raw_path": "raw/CC-03.txt"
+    },
+    {
+      "id": "CC-04",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "e8d01a35764f7a8d9b42453a747e3254c189376cb45c18e04713530cd59cd22c",
+      "raw_path": "raw/CC-04.txt"
+    },
+    {
+      "id": "CC-11",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "96add9f56afa0284940a82b09fe4d8f603bea5bc2c216d01a9a8a291a041aa66",
+      "raw_path": "raw/CC-11.txt"
+    }
+  ],
+  "rejections": [],
+  "reviewers": []
+}

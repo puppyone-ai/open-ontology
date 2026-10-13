@@ -1,1 +1,0 @@
-psql:/migrations/0003_target_segment_preflight_expand.sql:133: ERROR:  LOCK TABLE can only be used in transaction blocks

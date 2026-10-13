@@ -1,8 +1,0 @@
-captured_at=2026-10-03T00:17:39Z
-attempt=4
-host_cargo=0
-rust_builders=0
-global=0
-own_take=1
-slot=A
-slot_b=a120_handle_7304_live_vendor_writer

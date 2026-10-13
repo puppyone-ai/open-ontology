@@ -1,1 +1,0 @@
-ExitCode=0 OOMKilled=false Privileged=false NetworkMode=none Memory=6442450944 NanoCpus=1000000000 CapDrop=["ALL"]

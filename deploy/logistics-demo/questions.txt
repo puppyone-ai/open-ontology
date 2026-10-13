@@ -1,0 +1,6 @@
+How many rows are in public.tracking_events? Write the SQL yourself and run it with oo query.
+What is the exact sum of public.shipments.cost_amount for delivered shipments whose origin hub has hub_code HUB-0042? Match origin_hub_id to public.hubs.hub_id. Keep the exact numeric text. Write the SQL yourself and run it with oo query.
+How many public.shipments rows are delayed and use air transport? Write the SQL yourself and run it with oo query.
+How many public.shipments rows have a null cost_amount? Write the SQL yourself and run it with oo query.
+Return the cost_amount of the public.shipments row whose shipment_id is 1. Keep the exact numeric text. Write the SQL yourself and run it with oo query.
+Return the smallest and the largest public.hubs.capacity_grams values, in that order. Write the SQL yourself and run it with oo query.

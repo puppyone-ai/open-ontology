@@ -1,1 +1,0 @@
-isolated sqlx-core tests passed (4 passed, bytes 1.12.1). clippy then exited 1 because cargo-clippy is not installed in the fresh image. This run installs the 1.94.0 clippy component and repeats only clippy.

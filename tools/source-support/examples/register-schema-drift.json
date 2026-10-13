@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "oo.source-control-api/source-register/v1",
+  "type": "object",
+  "required": ["project_id", "identity_revision", "source_ref", "kind", "idempotency_key"],
+  "properties": {
+    "kind": {"enum": ["pg_local", "file_local", "mysql_local"]},
+    "connection": {"type": "object"},
+    "secret_ref": {"type": "string"},
+    "tables": {"type": "array"}
+  }
+}

@@ -1,8 +1,0 @@
-src/app/router.tsx(3,32): error TS2307: Cannot find module '../features/auth/admin-login-page' or its corresponding type declarations.
-src/app/router.tsx(4,31): error TS2307: Cannot find module '../features/auth/bootstrap-page' or its corresponding type declarations.
-src/app/router.tsx(5,76): error TS2307: Cannot find module '../features/auth/error-pages' or its corresponding type declarations.
-src/app/router.tsx(6,27): error TS2307: Cannot find module '../features/auth/login-page' or its corresponding type declarations.
-src/app/router.tsx(7,29): error TS2307: Cannot find module '../features/user/account-page' or its corresponding type declarations.
-src/app/router.tsx(8,39): error TS2307: Cannot find module '../features/user/conversation-files-page' or its corresponding type declarations.
-src/app/router.tsx(9,34): error TS2307: Cannot find module '../features/user/conversation-page' or its corresponding type declarations.
-src/app/router.tsx(10,31): error TS2307: Cannot find module '../features/user/knowledge-page' or its corresponding type declarations.

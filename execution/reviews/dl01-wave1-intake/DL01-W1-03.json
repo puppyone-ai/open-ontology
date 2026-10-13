@@ -1,0 +1,9 @@
+{
+  "task": "DL01-W1-03",
+  "source": "280bc35da56b1d7d018c54e79b136a1f99c7e1ab",
+  "seal": "d6a7e414a40768c03618c0bd74d74503ab218ef8",
+  "verified_sha_entries": 282,
+  "decision": "author_repair_pending_independent_review",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

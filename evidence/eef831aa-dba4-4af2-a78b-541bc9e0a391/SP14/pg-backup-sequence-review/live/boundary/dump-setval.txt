@@ -1,5 +1,0 @@
-CREATE VIEW oo_dict.enums WITH (security_invoker='false', security_barrier='true') AS
-SELECT pg_catalog.setval('shop.cut_seq', 41, false);
----control---
-CREATE VIEW oo_dict.calendar WITH (security_invoker='false', security_barrier='true') AS
-SELECT pg_catalog.setval('oo_key_fixture.cut_seq', 41, false);

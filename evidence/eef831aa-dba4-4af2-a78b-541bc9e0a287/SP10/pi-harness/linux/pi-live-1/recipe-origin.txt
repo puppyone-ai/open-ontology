@@ -1,9 +1,0 @@
-task=real Pi tool turn, abort, disconnect, and session restore
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-network=none
-memory=6442450944
-cpus=1
-postgres=no
-prefix=oo-a287-eef831aa-pi-prefix from linux/pi-install-1
-origin=linux/pi-capture-1/launch.sh
-changes=four adapter scenarios after the capture mapping; prefix read-only; offline build

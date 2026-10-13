@@ -1,1 +1,0 @@
-lib tests failed to compile. publish::Staged lacked Debug, so Result::unwrap_err in the residue test did not compile. source::Export.turn was stored and never read. Both are fixed. Container removed.

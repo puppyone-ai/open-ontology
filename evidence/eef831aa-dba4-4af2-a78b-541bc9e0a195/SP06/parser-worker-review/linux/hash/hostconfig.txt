@@ -1,7 +1,0 @@
-ExitCode=0
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a195-eef831aa-net
-CapDrop=["ALL"]
-Memory=8589934592
-Id=cb1a84816763a670d135ad94d111d102411386c0860041f4b9c18fea237dc42f

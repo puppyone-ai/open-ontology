@@ -77,6 +77,15 @@ pub fn read_ca_file(path: &str) -> Result<Vec<u8>, Failure> {
     }
 }
 
+pub fn read_client_pem(path: &str) -> Result<Vec<u8>, Failure> {
+    match read_capped(Path::new(path), DOCUMENT_MAX_BYTES as u64, false) {
+        Ok(bytes) if bytes.is_empty() => Err(Failure::local("client pem rejected: empty")),
+        Ok(bytes) if bytes.contains(&0) => Err(Failure::local("client pem rejected: other")),
+        Ok(bytes) => Ok(bytes),
+        Err(error) => Err(Failure::local(client_pem_reason(error))),
+    }
+}
+
 fn read_token(path: &Path) -> Result<String, ReadError> {
     let bytes = read_capped(path, TOKEN_FILE_MAX, true)?;
     token_bytes(&bytes)
@@ -124,6 +133,11 @@ fn inspect(file: &File, cap: u64, token_policy: bool) -> Result<(), ReadError> {
     }
     if meta.len() > cap {
         return Err(ReadError::Budget);
+    }
+    // A mode-000 file is not granted to its owner. CAP_DAC_OVERRIDE still
+    // lets this process open it; reject that before any byte is read.
+    if !token_policy && meta.mode() & 0o777 == 0 {
+        return Err(ReadError::Permission);
     }
     if token_policy {
         let me = process_owner()?;
@@ -193,6 +207,20 @@ fn sql_reason(error: ReadError) -> &'static str {
         ReadError::Utf8 => "sql file rejected: utf8",
         ReadError::Empty => "sql is missing",
         ReadError::Owner | ReadError::Mode | ReadError::Other => "sql file rejected: other",
+    }
+}
+
+fn client_pem_reason(error: ReadError) -> &'static str {
+    match error {
+        ReadError::Missing => "client pem rejected: missing",
+        ReadError::Permission => "client pem rejected: permission",
+        ReadError::Symlink => "client pem rejected: symlink",
+        ReadError::NotFile => "client pem rejected: not-file",
+        ReadError::Budget => "client pem rejected: budget",
+        ReadError::Empty => "client pem rejected: empty",
+        ReadError::Utf8 | ReadError::Owner | ReadError::Mode | ReadError::Other => {
+            "client pem rejected: other"
+        }
     }
 }
 

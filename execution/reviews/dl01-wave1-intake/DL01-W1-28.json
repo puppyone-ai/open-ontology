@@ -1,0 +1,9 @@
+{
+  "task": "DL01-W1-28",
+  "collector": "Codex coordinator separate from Grok author and reviewer",
+  "fixed_review_commit": "b45dfa12328927ddb441236d6ae1057419fd197c",
+  "packet_entries_verified": 107,
+  "acceptance_scope": "Oracle setup dependency only",
+  "source_acceptance_delta": 0,
+  "functional_acceptance_delta": 0
+}

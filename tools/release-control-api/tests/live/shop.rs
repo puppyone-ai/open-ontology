@@ -1,8 +1,10 @@
 //! Shop catalog used by the release-coordinator proof. The compiler is `oo-builder`.
 
-use oo_builder::{compile_captured_pg_catalog, compile_reviewed_effective, REVIEWED_EFFECTIVE_COMMAND_PROTOCOL};
+use oo_builder::{
+    REVIEWED_EFFECTIVE_COMMAND_PROTOCOL, compile_captured_pg_catalog, compile_reviewed_effective,
+};
 use release_control_api::sha256_hex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub const POLICY_ID: &str = "pol-shop";
 pub const POLICY_VERSION: &str = "1";
@@ -14,7 +16,10 @@ pub fn shop(columns: &[&str], role: &str) -> (Value, Value) {
     let catalog = catalog_text();
     let compiled = compile_captured_pg_catalog(&catalog, None, None).expect("captured catalog");
     let draft: Value = serde_json::from_str(&compiled.draft).expect("draft");
-    let schema = draft["provenance"]["schema_hash"].as_str().expect("schema").to_owned();
+    let schema = draft["provenance"]["schema_hash"]
+        .as_str()
+        .expect("schema")
+        .to_owned();
     let mut decisions = Vec::new();
     for column in ["id", "contact"] {
         let item_id = format!("column/public.customer/{column}");
@@ -70,7 +75,8 @@ pub fn shop(columns: &[&str], role: &str) -> (Value, Value) {
         },
         "decisions": decisions,
     });
-    let reviewed = compile_reviewed_effective(&serde_json::to_string(&command).expect("command")).expect("reviewed effective");
+    let reviewed = compile_reviewed_effective(&serde_json::to_string(&command).expect("command"))
+        .expect("reviewed effective");
     let reviewed: Value = serde_json::from_str(&reviewed).expect("reviewed json");
     let visibility = json!({
         "protocol": "oo.builder.role-visibility/v1",
@@ -109,7 +115,11 @@ fn column_preimage(attnum: i32, name: &str, type_oid: i64) -> String {
 }
 
 fn catalog_text() -> String {
-    let columns = format!("{},{}", column_preimage(1, "id", 23), column_preimage(2, "contact", 25));
+    let columns = format!(
+        "{},{}",
+        column_preimage(1, "id", 23),
+        column_preimage(2, "contact", 25)
+    );
     let preimage = format!(
         r#"{{"tables":[{{"schema":"public","name":"customer","relkind":"r","replica_identity":"d","rls":false,"force_rls":false,"columns":[{columns}],"primary_key":[{{"attnum":1,"name":"id"}}],"primary_key_nulls_not_distinct":false,"unique_keys":[],"foreign_keys":[],"policies":[]}}]}}"#
     );

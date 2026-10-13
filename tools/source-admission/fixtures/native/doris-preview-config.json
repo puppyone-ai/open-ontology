@@ -1,0 +1,26 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "dorispreview",
+  "source_id": "dorispreview",
+  "secret_ref": "secret://oo-dl01w1-43/reader",
+  "compat_mode": "doris",
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true}
+  ],
+  "budget": {"unit": "Rows", "hard_limit": 32, "confidence": "unknown"},
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null
+}

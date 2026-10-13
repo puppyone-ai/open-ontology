@@ -1,3 +1,0 @@
-host_snap=/tmp/oo-a148-eef831aa-dba4-4af2-a78b-541bc9e0a148/oracle-src
-drwxr-xr-x@ 21 redux  wheel  672 Oct  4 09:28 [1m[36m/tmp/oo-a148-eef831aa-dba4-4af2-a78b-541bc9e0a148/oracle-src[39;49m[0m
-    1303 /tmp/oo-a148-eef831aa-dba4-4af2-a78b-541bc9e0a148/oracle-src/Cargo.toml

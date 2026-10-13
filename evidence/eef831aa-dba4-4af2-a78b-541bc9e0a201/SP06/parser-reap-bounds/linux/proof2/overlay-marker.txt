@@ -1,2 +1,0 @@
-64:const GROUP_KILL_BIN: &str = "/bin/kill";
-821:    let _ = Command::new(GROUP_KILL_BIN)

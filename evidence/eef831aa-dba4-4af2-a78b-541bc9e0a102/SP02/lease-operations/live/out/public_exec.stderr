@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/lease_operations/public_exec.sql:6: ERROR:  42501: permission denied for function claim
-LOCATION:  aclcheck_error, aclchk.c:2843

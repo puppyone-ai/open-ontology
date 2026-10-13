@@ -1,1 +1,0 @@
-{"record":"header","version":"oo.benchmark.query-result-adapter/v1","turn":0,"max_rows":20,"max_result_bytes":4096,"columns":[{"name":"ticket_count","type":"int64","ordinal":0}]}

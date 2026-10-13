@@ -1,0 +1,15 @@
+[package]
+name = "oo-mongodb-arrow-decode"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "oo-mongodb-arrow-decode"
+path = "src/main.rs"
+
+[dependencies]
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true }
+arrow-schema = { workspace = true }
+serde_json = { workspace = true }

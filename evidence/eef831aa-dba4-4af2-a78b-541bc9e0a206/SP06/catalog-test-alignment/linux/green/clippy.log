@@ -1,8 +1,0 @@
-   Compiling aws-lc-sys v0.45.0
-   Compiling aws-lc-rs v1.18.1
-   Compiling rustls v0.23.45
-    Checking rustls-webpki v0.103.15
-    Checking tokio-rustls v0.26.5
-    Checking tokio-postgres-rustls v0.14.0
-    Checking oo-gateway v0.1.0 (/src/crates/oo-gateway)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.81s

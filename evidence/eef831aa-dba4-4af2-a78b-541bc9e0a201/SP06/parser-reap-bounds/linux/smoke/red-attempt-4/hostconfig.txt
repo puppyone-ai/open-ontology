@@ -1,8 +1,0 @@
-ExitCode=0
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a201-eef831aa-net
-CapDrop=["ALL"]
-Memory=8589934592
-NanoCpus=4000000000
-PidsLimit=4096

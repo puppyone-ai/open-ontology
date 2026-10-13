@@ -4,3 +4,7 @@ Grok4.7 xhigh sole coder/tester/reviewer; no subagents/worktrees. Read AGENTS/do
 NEXT unified closure: 90868terminal0，gatewaybuild仍跑dialoguephase，FIRST收真正exit并启动原queuedactualgrok4.7成功/失败loop，仅一个builder；原90000fixture不重载，完整compatfixedcommit交389与397。
 
 NEXT OC01–06 closure: 原71659terminal0 source成功待fullproof，真实contracts/builder/role-pack-v1.md与reviewed-effective-oos-v1.md仍slug-only和代码64hex不一致；授权新增只这两份契约文档写入边界，更新实际兼容policy规则/标准spec依据，不能仅report记不一致。先收fixedactualmodelloop结果，文档更正不重跑不变测试，固定提交/wholepacket供review。
+
+FINAL SHORT-GOAL CLOSURE: 62996已terminal，真实benchmark389know-a317 compiler合法/dialogue非法，旧config HTTPSlocal无transport→6key拒绝，当前短目标要消除真实producerconsumer不一致，不让389修改gold/手写Pack等假完成。唯一owner检查真实compiler合法knowledge规则与文档，把dialogue严格同一规范（合法hyphen/underscore范围）而不是任意放宽；64digest从真实producer参数输出，显式localtransport使用合法HTTP127.0.0.1 relay本地upstreamref，productionHTTPS/min16不变。不改testing/real-db gold，导出新的真实同一数据sealedpack配置即可供405/389。全focused＋实际modelSQLqentrycount90000/citationok证据，不再只声称参数合法，固定兼容commit与interfacehashhandoff。
+
+NEXT SHORT TARGET COMPLETE: 原21486terminal0，新knowledgehyphen规则已修，私有PG90000加载完成，唯一Rustbuilder还在。FIRST收既有focused+compile真正exit，queued真实grok4.7proposal/query只在build绿后执行；不要重新load/repeatfresh，在本卡完成actual90000/citationok+固定全packets才交付。

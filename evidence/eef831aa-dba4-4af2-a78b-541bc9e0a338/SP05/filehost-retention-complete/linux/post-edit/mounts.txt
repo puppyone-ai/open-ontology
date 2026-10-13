@@ -1,6 +1,0 @@
-bind /tmp/oo-a338-eef831aa-dba4-4af2-a78b-541bc9e0a338/postedit-snap /src rw=true
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a338/SP05/filehost-retention-complete/linux/post-edit/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a338/SP05/filehost-retention-complete/linux/post-edit /evidence rw=true
-volume /var/lib/docker/volumes/oo-a338-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a338-eef831aa-target/_data /target rw=true
-

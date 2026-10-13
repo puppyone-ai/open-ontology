@@ -1,7 +1,0 @@
-ExitCode=3
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a334-eef831aa-net
-CapDrop=["ALL"]
-Memory=6442450944
-NanoCpus=1000000000

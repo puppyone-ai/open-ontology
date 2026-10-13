@@ -1,1 +1,0 @@
-docker run --name oo-a355-sbs-querypg --platform linux/arm64 --pull never --network oo-a355-sbs-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 archive=7a6f7eac8b8041eae215c087d1a80930437871ce

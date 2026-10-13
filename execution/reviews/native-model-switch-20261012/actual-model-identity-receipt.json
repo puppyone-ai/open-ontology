@@ -1,0 +1,21 @@
+{
+  "model": "gpt-6.1-sol",
+  "response_id": "resp_042ef9164dc34849016acccf4bed5487d0bc7684bfa4a4d5e4",
+  "usage": {
+    "completion_tokens": 1353,
+    "total_tokens": 3739,
+    "prompt_tokens": 2386,
+    "prompt_tokens_details": {
+      "cached_tokens": 2176,
+      "cache_write_tokens": 0,
+      "cached_creation_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 15
+    }
+  },
+  "envelope_sha256": "7f9f29f6c311dbfe460bb304a6602389e2d9d5e66baf40ac8d4b3e59d1d3cb25",
+  "envelope_mode": "0600",
+  "source_commit": "9adc937dbc9a3771773f3d1cd76fed4ff31c98f5",
+  "scope": "root verified actual HTTP model identity; raw completion private, current full shared gate not yet passed"
+}

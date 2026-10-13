@@ -1,5 +1,0 @@
-{"label":"alpha","flag":true,"count":1,"payload":{"n":1}}
-{"label":"beta","flag":false,"count":null,"payload":null}
-{"flag":true,"count":-0,"label":"gamma"}
-{"label":"delta","flag":false,"count":9223372036854775807,"payload":[1,"x"]}
-{"label":"eps","flag":true,"count":-9223372036854775808,"payload":"text"}

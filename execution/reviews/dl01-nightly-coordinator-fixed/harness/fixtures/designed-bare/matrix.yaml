@@ -1,0 +1,17 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-10
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "oo-dl01w1-37 independent review input; not an author fixture and not a grade promotion"
+targets:
+  - id: rev-w37-plain
+    family: postgres
+    product: Review Plain Postgres
+    versions: ["16.9"]
+    variant: self-managed
+    wave: 0
+    driver: review-native-w37
+    caps:
+      catalog: designed
+      batch_full: designed
+    limits: ["independent review input only"]
+    evidence: []

@@ -154,9 +154,9 @@ fn absorb(hasher: &mut Sha256, row_chunks: &mut u32, rows: &mut u64, piece: &Cop
 
 fn piece_bytes(piece: &CopyPiece) -> &[u8] {
     match piece {
-        CopyPiece::Header { bytes } | CopyPiece::Rows { bytes, .. } | CopyPiece::Trailer { bytes } => {
-            bytes
-        }
+        CopyPiece::Header { bytes }
+        | CopyPiece::Rows { bytes, .. }
+        | CopyPiece::Trailer { bytes } => bytes,
         CopyPiece::Done => &[],
     }
 }

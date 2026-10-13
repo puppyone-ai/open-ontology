@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = ["reader", "decode", "judge"]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.94"
+version = "0.1.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+# Direct pins copied from base 577160c22de63adb9b38e0147f3bc2da893c4d9d.
+# reqwest matches oo-sdk: default features off, rustls + http2.
+# arrow-* 60.0.0 is already in that lock. No cargo update of the root lock.
+[workspace.dependencies]
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-buffer = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+base64 = "=0.23.1"
+cc = "=1.4.7"
+find-msvc-tools = "=0.1.13"
+hyper-util = { version = "=0.1.20", default-features = false }
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "http2"] }
+rustls-platform-verifier = { version = "=0.7.0", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision", "raw_value"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "net", "time", "io-util", "sync"] }
+tokio-rustls = { version = "=0.26.5", default-features = false }
+yoke-derive = "=0.8.2"
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }

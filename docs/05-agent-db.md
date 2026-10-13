@@ -180,7 +180,8 @@ Loader 在**同一事务**中写数据和更新这一行，因此任何从库上
 ```sql
 CREATE TABLE _oo.source_watermark (
   source        text PRIMARY KEY,
-  consistency   text,                 -- transactional | per_table
+  consistency   text,                 -- transactional | per_table（仅 T 级源有效）
+  consistency_grade text,             -- T | S1 | S0 | B（见 database-support/03 §3）
   applied_pos   numeric(38,0),        -- transactional：最后完整水位；仅 consistent=true 代表当前切面
   source_committed_at timestamptz,
   applied_at    timestamptz,
@@ -200,6 +201,10 @@ CREATE TABLE _oo.table_quality (
   hidden_columns integer,             -- 已同步但尚未分类、对 Agent 不可见的列数
   partial_txn_in_progress boolean,    -- 超大源事务正在分段写入
   entity_check  text,                 -- ok | failed | n/a：实体解析不变量（§6.4）
+  capture_method text,                -- c1_cdc | c2_change_feed | c3_cursor | c4_partition | c5_diff
+  delete_detection text,              -- native | partition_replace | reconcile | none
+  position_state text,                -- ok | stale_risk | expired（POSITION_EXPIRED）
+  budget_state  text,                 -- ok | exhausted（SOURCE_BUDGET_EXHAUSTED）
   updated_at    timestamptz,
   PRIMARY KEY (schema_name, table_name)
 );

@@ -1,1 +1,0 @@
-attempt6_exit=101 reason=tests passed 6/6. Clippy denied too_many_arguments on the test lineage oracle.

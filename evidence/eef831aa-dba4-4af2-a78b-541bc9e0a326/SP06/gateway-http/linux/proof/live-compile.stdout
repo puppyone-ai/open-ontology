@@ -1,6 +1,0 @@
-
-running 1 test
-test issued_token_reads_its_pack_and_failures_stay_closed ... ignored, requires OO_A326_LIVE=1 and the private PostgreSQL
-
-test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
-

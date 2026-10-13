@@ -1,1 +1,0 @@
-host_cargo=2 rust_builders=0 global=2 cap=10

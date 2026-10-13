@@ -1,0 +1,54 @@
+{
+  "protocol": "oo.minimal-product-loop.config/v1",
+  "mode": "operator-development",
+  "development_preview": true,
+  "publication": "not_published",
+  "llm_review": "unreviewed",
+  "runtime_acknowledgement": "local-process-not-a-sandbox-certificate",
+  "database": {
+    "type": "postgresql",
+    "host": "oo-a419-dst-pg",
+    "port": 5432,
+    "name": "oo_a419_dst",
+    "username": "oo_a419_dst_read",
+    "tls": "require",
+    "secret_ref": "secret://logistics/target/reader",
+    "password_file": "/var/lib/oo/private/target-reader",
+    "ca_file": "/var/lib/oo/private/target-ca.crt"
+  },
+  "tables": [
+    {"schema": "public", "table": "hubs"},
+    {"schema": "public", "table": "shipments"},
+    {"schema": "public", "table": "tracking_events"}
+  ],
+  "llm": {
+    "model_id": "grok-4.7",
+    "origin": "http://127.0.0.1:8317",
+    "path": "/v1/chat/completions",
+    "bearer_file": "/var/lib/oo/private/llm-token",
+    "deadline_ms": 120000
+  },
+  "gateway": {
+    "oo": "/opt/pi-runtime-kit/bin/oo",
+    "query_pg": "/opt/pi-runtime-kit/bin/query-pg",
+    "policy_file": "/var/lib/oo/work/dev-policy.json",
+    "token_file": "/var/lib/oo/private/gateway-marker"
+  },
+  "pi": {
+    "executable": "/opt/pi-runtime-kit/install/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+    "executable_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+    "runtime": "/opt/pi-runtime-kit/node/bin/node",
+    "runtime_sha256": "d09e299258c24f7cdf6f5d5ec185e3a56512b27a697113735dac909f1cac7b8d",
+    "provider": "grok",
+    "model": "grok-4.7"
+  },
+  "paths": {
+    "catalog_bin": "/usr/local/bin/oo-pipeline",
+    "knowledge": "/var/lib/oo/knowledge",
+    "work": "/var/lib/oo/work"
+  },
+  "operator": {
+    "label": "operator",
+    "at": "2026-10-09T00:00:00Z"
+  }
+}

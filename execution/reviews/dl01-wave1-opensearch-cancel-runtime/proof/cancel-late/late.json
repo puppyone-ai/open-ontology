@@ -1,0 +1,19 @@
+{
+  "cancel_after_time_interval_sent": false,
+  "class": "late",
+  "completed_at": "2026-10-10T23:37:51.033Z",
+  "completed_unix_ms": 1791675471033,
+  "counted_as_user_cancel": false,
+  "dba_cancel_used": false,
+  "marker": "oo44latecancel",
+  "natural_completion_before_trigger": true,
+  "rejected_server_timer": "800ms",
+  "search_path": "/oo-dl01w1-44-workload/_search?request_cache=false",
+  "server_status_before_trigger": 200,
+  "supervisor_signaled_at": "2026-10-10T23:37:51.035Z",
+  "supervisor_signaled_unix_ms": 1791675471035,
+  "task_id_present_at_trigger": false,
+  "task_list_status": 200,
+  "user_triggered_at": "2026-10-10T23:37:51.035Z",
+  "user_triggered_unix_ms": 1791675471035
+}

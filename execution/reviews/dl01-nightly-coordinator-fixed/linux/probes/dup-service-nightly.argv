@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/dup-service-last-match/matrix.yaml --package /harness/fixtures/dup-service-last-match/package --nightly /harness/fixtures/dup-service-last-match/nightly.json

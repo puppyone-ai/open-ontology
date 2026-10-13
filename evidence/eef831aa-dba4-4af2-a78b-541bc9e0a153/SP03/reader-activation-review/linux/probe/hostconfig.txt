@@ -1,6 +1,0 @@
-ExitCode=0
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a153-eef831aa-net
-CapDrop=[ALL]
-Id=37d10d0c33043d1c289302741c7dd9ed328c81c72d5d3b12c415fc301ceef0b4

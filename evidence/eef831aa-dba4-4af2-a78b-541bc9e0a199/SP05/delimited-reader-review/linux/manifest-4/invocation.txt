@@ -1,1 +1,0 @@
-docker run --name oo-a199-manifest --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 8g image=pinned-rust-1.94 rustc -o /build/sha256_manifest tools/sha256_manifest.rs

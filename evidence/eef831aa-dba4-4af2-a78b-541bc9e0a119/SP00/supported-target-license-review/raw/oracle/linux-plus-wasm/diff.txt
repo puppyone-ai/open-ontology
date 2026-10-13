@@ -1,5 +1,0 @@
-oracle_count=271
-deny_count=272
-oracle_only=0
-deny_only=1
-deny_only	mio	1.2.3

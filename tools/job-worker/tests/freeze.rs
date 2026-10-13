@@ -34,7 +34,9 @@ fn driver_calls_the_published_functions_and_does_not_rewrite_task_rows() {
     let mut combined = String::new();
     for entry in fs::read_dir(&root).expect("src") {
         let path = entry.expect("entry").path();
-        if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+        if path.extension().and_then(|ext| ext.to_str()) == Some("rs")
+            && path.file_name().and_then(|name| name.to_str()) != Some("native_schedule.rs")
+        {
             combined.push_str(&fs::read_to_string(&path).expect("read"));
             combined.push('\n');
         }
@@ -63,4 +65,9 @@ fn driver_calls_the_published_functions_and_does_not_rewrite_task_rows() {
     ] {
         assert!(!combined.contains(forbidden), "found {forbidden}");
     }
+    let native = fs::read_to_string(root.join("native_schedule.rs")).expect("native");
+    assert!(native.contains("session::target_runtime(config)"));
+    assert!(native.contains("sync-native-task-mirror"));
+    assert!(!native.contains("INSERT INTO jobs.tasks"));
+    assert!(!native.contains("UPDATE jobs.tasks"));
 }

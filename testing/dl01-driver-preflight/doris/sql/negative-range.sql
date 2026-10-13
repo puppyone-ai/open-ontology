@@ -1,0 +1,2 @@
+USE oo_dl01w1_43;
+INSERT INTO part_day VALUES ('2026-05-01', 'east', CAST('1.00' AS DECIMAL(12,2)));

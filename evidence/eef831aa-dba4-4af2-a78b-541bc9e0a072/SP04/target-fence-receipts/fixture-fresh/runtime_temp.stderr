@@ -1,4 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/reject_temp.sql:2: ERROR:  42501: permission denied to create temporary tables in database "oo_agent"
-LINE 1: CREATE TEMP TABLE oo_a072_temp (id integer);
-                          ^
-LOCATION:  InitTempTableNamespace, namespace.c:4413

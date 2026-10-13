@@ -1,5 +1,0 @@
-oo-jsonl-profile/v1
-id=a224-notes
-column=label	utf8	1
-column=n	int64	0
-column=flag	bool	0

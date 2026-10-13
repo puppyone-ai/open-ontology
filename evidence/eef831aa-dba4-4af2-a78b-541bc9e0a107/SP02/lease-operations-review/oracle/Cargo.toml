@@ -1,6 +1,0 @@
-[package]
-name = "lease_oracle"
-version = "0.0.0"
-edition = "2021"
-publish = false
-description = "Independent SP02-W01-b1 review oracle. Not product code."

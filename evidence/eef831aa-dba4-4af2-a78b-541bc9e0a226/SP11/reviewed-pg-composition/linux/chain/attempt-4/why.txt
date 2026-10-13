@@ -1,1 +1,0 @@
-run exit 1: role-pack rejected principal fixture.operator. check_slug allows lowercase, digits, underscore, and hyphen, and rejects a dot. The harness principal is now fixture_operator. Product crates were not edited. Raw stderr is live/steps/role-pack-private-note.stderr.

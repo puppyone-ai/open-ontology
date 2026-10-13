@@ -1,4 +1,0 @@
-writer=1
-reader=0
-rows=4
-reltuples=-1,-1

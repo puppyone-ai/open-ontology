@@ -1,3 +1,0 @@
-docker-run exit 101. OOMKilled false. Container oo-a217-overlay removed.
-lib-test failed while compiling oo-builder. rustc E0432: unresolved import oo_core::text::CivilDate.
-CivilDate is oo_core::oos::CivilDate. No test ran. The next overlay copies the corrected import.

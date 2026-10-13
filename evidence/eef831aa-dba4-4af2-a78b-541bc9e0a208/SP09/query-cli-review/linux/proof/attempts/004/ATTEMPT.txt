@@ -1,4 +1,0 @@
-proof attempt 004 docker exit 101
-a190-live 101 at policy_catalog_pg_live.rs:1626: drop role oo_r_keeper failed because database oo_a208 still held 6 objects. That database was left by attempt 003. The a190 source was not edited.
-a208-live 101 and clippy 101: E0597 at query_pg_cli_a208_review.rs:646, records dropped while audit_state still borrowed a sqlstate string. The owned-string fix was written after this container exited and is not part of this attempt.
-a208-gate 101 is the same compile error. secret-scan 0. lock-hash 0. product-hash 0.

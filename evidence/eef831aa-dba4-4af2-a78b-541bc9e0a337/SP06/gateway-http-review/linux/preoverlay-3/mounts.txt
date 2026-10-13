@@ -1,9 +1,0 @@
-bind /tools rw=false
-bind /evidence rw=true
-volume /cargo-home rw=true
-volume /target rw=true
-bind /src rw=false
-bind /fixture rw=false
-bind /inside.sh rw=false
-bind /extract-libclang.sh rw=false
-

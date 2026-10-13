@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/oracle-alias/matrix.yaml --package /harness/fixtures/oracle-alias/package

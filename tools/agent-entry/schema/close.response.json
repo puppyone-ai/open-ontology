@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-entry-v1/close",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "session_id", "parent_acceptance", "production_signed", "receipt"],
+  "properties": {
+    "contract": {"const": "agent-entry-v1"},
+    "operation": {"const": "closeSession"},
+    "session_id": {"type": "string"},
+    "parent_acceptance": {"const": false},
+    "production_signed": {"const": false},
+    "receipt": {"type": "object"}
+  }
+}

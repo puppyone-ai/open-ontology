@@ -1,0 +1,92 @@
+{
+  "documents": [
+    {
+      "_id": "led-01",
+      "source": {
+        "bin_value": "AA==",
+        "doc_key": "ledger-open",
+        "double_value": 0.0,
+        "event_ms": 0,
+        "flag": false,
+        "long_value": -9223372036854775808,
+        "note": "",
+        "payload_json": {"kind": "open"},
+        "quantities": [],
+        "scaled_value": 0,
+        "seq_key": 11,
+        "tags": [],
+        "thing": {"label": "", "n": 0}
+      }
+    },
+    {
+      "_id": "led-02",
+      "source": {
+        "bin_value": "AP8Q",
+        "doc_key": "ledger-post",
+        "double_value": 1.5,
+        "event_ms": 1609459200000,
+        "flag": true,
+        "long_value": 22,
+        "note": "posted",
+        "payload_json": {"kind": "post", "n": 2},
+        "quantities": [4, 5],
+        "scaled_value": 2.5,
+        "seq_key": 22,
+        "tags": ["cash", "card"],
+        "thing": {"label": "batch", "n": 9}
+      }
+    },
+    {
+      "_id": "led-03",
+      "source": {
+        "bin_value": null,
+        "doc_key": "ledger-null",
+        "double_value": -2.5,
+        "event_ms": null,
+        "flag": null,
+        "long_value": null,
+        "note": null,
+        "payload_json": null,
+        "quantities": [null, 8],
+        "scaled_value": -1.25,
+        "seq_key": 33,
+        "tags": null,
+        "thing": null,
+        "where_point": {"lat": 3.0, "lon": 4.0}
+      }
+    },
+    {
+      "_id": "led-04",
+      "source": {
+        "doc_key": "ledger-span",
+        "event_ms": -86400000,
+        "flag": true,
+        "long_value": 9223372036854775807,
+        "note": "span",
+        "payload_json": {"ok": false, "z": [1, 2]},
+        "quantities": [-3, 0],
+        "seq_key": 44,
+        "tags": ["", "east"],
+        "thing": {"label": "span", "n": null}
+      }
+    },
+    {
+      "_id": "led-rm",
+      "source": {
+        "bin_value": "AA==",
+        "doc_key": "ledger-void",
+        "double_value": 3.0,
+        "event_ms": 55,
+        "flag": false,
+        "long_value": 55,
+        "note": "void-me",
+        "payload_json": {"kind": "void"},
+        "quantities": [55],
+        "scaled_value": 0.5,
+        "seq_key": 55,
+        "tags": ["void"],
+        "thing": {"label": "void", "n": 55}
+      }
+    }
+  ]
+}

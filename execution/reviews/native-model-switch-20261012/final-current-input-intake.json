@@ -1,0 +1,15 @@
+{
+  "source_commit": "fb28785f2",
+  "manifest_verified": 8,
+  "resource_hashes_verified": 15,
+  "errors": 0,
+  "existing_API_adapter": "ok columns=43 vector=5/networknone/no-model",
+  "catalog_SHA": "19e0b3405ad0f7c69d393a685e489594e53d260da28a7dfd3e94366dd0e53ee4",
+  "profile_SHA": "33805736a8340ad20f9dee9ccc66f22d7c84f5f6bd74edff3bdcb3aef2da9d99",
+  "semantics_SHA": "0225a6653401ed3317fcc795f80abac20565d6b0dbf025f231078e9f0652e508",
+  "prior_failures_preserved": [
+    "0a91e0629 stale duplicated value_probe generation/run",
+    "0b6ceaa45 inner-vs-outer collection digest domain"
+  ],
+  "source_release_allowed": false
+}

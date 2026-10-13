@@ -1,1 +1,0 @@
-docker run --name oo-a372-hash --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 pinned-rust-1.94 pg-backup-restore hash-tree

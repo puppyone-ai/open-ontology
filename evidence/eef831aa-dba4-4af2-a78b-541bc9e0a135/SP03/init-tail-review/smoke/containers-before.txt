@@ -1,1 +1,0 @@
-name=oo-a134-pg kind=postgres owner=a134 status=Up 2 minutes

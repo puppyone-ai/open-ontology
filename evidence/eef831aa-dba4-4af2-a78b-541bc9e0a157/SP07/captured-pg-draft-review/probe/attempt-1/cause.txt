@@ -1,1 +1,0 @@
-cargo build failed before compile: snapshot /src was mounted read-only, so Cargo could not write Cargo.lock for the evidence-only workspace member. Product sources were not edited. Repository Cargo.lock was not written.

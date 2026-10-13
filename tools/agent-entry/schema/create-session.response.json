@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-entry-v1/create-session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "operation", "session_id", "project_id", "management_role", "data_role",
+    "pack_sha256", "deployment", "production_signed", "runsc", "conversation_id",
+    "parent_acceptance", "runtime", "sandbox_certificate"
+  ],
+  "properties": {
+    "contract": {"const": "agent-entry-v1"},
+    "operation": {"const": "createSession"},
+    "session_id": {"type": "string", "minLength": 2, "maxLength": 80},
+    "project_id": {"type": "string"},
+    "management_role": {"type": "string"},
+    "data_role": {"enum": ["oo_r_wide", "oo_r_narrow"]},
+    "pack_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "deployment": {"const": "localprocess"},
+    "production_signed": {"const": false},
+    "runsc": {"const": "absent_development_local_process"},
+    "conversation_id": {"type": "string", "minLength": 1},
+    "parent_acceptance": {"const": false},
+    "runtime": {"const": "development_local_process"},
+    "sandbox_certificate": {"const": false}
+  }
+}

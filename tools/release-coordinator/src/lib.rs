@@ -4,16 +4,22 @@
 
 #![forbid(unsafe_code)]
 
+mod apply;
 mod canon;
+mod schema_check;
 mod cli;
 #[cfg(test)]
 mod live;
+#[cfg(test)]
+mod w73;
 mod decide;
 mod error;
+mod maintain;
 mod seal;
 mod sha256;
 mod sql;
 mod store;
+mod target;
 mod tls;
 
 pub use cli::{argv_malformed, dispatch, CommandExit};
@@ -23,11 +29,13 @@ pub use decide::{
 pub use error::StoreError;
 pub use seal::{authority_statement, compile_seal, Seal};
 pub use sha256::sha256_hex;
+pub use maintain::{maintain_activate, maintain_install, maintain_recover, maintenance_sha256, ControlConn, MaintainRequest};
 pub use store::{
     activate, checkpoint, commit_activation, enter_applying, gate_record, install, migration_sha256, plan, recover,
     stage, status, CheckpointRequest, Endpoint, GateRequest, InstallRequest, PlanRequest, Receipt, RecoverRequest,
     StageRequest,
 };
+pub use target::{column_types, close_target, grant_target, install_target, observe_target, open_target, revoke_target, status_target, FenceRef, TargetConn};
 pub use tls::rustls_connector;
 
 pub const CONTRACT: &str = "oo.release-coordinator/v1";

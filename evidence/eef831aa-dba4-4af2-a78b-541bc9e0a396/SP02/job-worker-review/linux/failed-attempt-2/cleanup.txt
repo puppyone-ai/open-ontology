@@ -1,6 +1,0 @@
-removed volume oo-a396-jw-pgdata
-removed volume oo-a396-jw-cargo
-removed volume oo-a396-jw-target
-removed network oo-a396-jw
-removed secrets dir
-removed source archive dir

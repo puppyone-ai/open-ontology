@@ -38,6 +38,34 @@ pub const VERSION_MAPPING: &str = "physical-mapping/v1";
 /// `install` does not apply this version. [`install_full_import`] does.
 pub const VERSION_FULL_IMPORT: &str = "full-import/v1";
 
+/// Sealed-import catalog version stored for `0006_sealed_import_catalog.sql`.
+///
+/// `install` and [`install_full_import`] do not apply this version.
+/// [`install_sealed_catalog`] does. The read command does not install it.
+pub const VERSION_SEALED_CATALOG: &str = "sealed-import-catalog/v1";
+
+/// Native sealed-catalog version stored for `0008_native_sealed_catalog.sql`.
+///
+/// [`install_sealed_catalog`] does not apply this version.
+/// [`install_native_sealed_catalog`] does, and only after `0006` is exact.
+pub const VERSION_NATIVE_CATALOG: &str = "native-sealed-catalog/v1";
+
+/// jsonb document type SQL stored for `0009_full_import_jsonb.sql`.
+///
+/// [`install_full_import`] does not apply this version. [`install_jsonb_document`]
+/// does, and only after `full-import/v1` is exact. oid 114 stays `json`.
+pub const VERSION_FULL_IMPORT_JSONB: &str = "full-import-jsonb/v1";
+
+/// Native update version stored for `0010_native_update_expand.sql`.
+///
+/// [`install_jsonb_document`] does not apply this version. [`install_native_update`]
+/// does, and only after `full-import/v1` is exact. It does not rewrite `0000` through `0009`.
+pub const VERSION_NATIVE_UPDATE: &str = "native-update/v1";
+pub const VERSION_NATIVE_PARTITION: &str = "native-partition/v1";
+pub const VERSION_NATIVE_PARTITION_REBIND: &str = "native-partition-rebind/v1";
+pub const VERSION_NATIVE_INTERVAL: &str = "native-interval/v1";
+pub const VERSION_NATIVE_OLAP_PARTITION: &str = "native-olap-partition/v1";
+
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
 ///
 /// A stored v2 row must match this digest. The file is not compiled into the
@@ -51,12 +79,36 @@ const FILE_SEGMENT_V2: &str = "0002_target_segment_null_expand.sql";
 const FILE_PREFLIGHT: &str = "0003_target_segment_preflight_expand.sql";
 const FILE_MAPPING: &str = "0004_physical_mapping.sql";
 const FILE_FULL_IMPORT: &str = "0005_full_import_expand.sql";
+const FILE_SEALED_CATALOG: &str = "0006_sealed_import_catalog.sql";
+const FILE_NATIVE_CATALOG: &str = "0008_native_sealed_catalog.sql";
+const FILE_FULL_IMPORT_JSONB: &str = "0009_full_import_jsonb.sql";
+const FILE_NATIVE_UPDATE: &str = "0010_native_update_expand.sql";
+const FILE_NATIVE_PARTITION: &str = "0011_native_partition.sql";
+const FILE_NATIVE_PARTITION_REBIND: &str = "0012_native_partition_rebind.sql";
+const FILE_NATIVE_INTERVAL: &str = "0013_native_interval.sql";
+const FILE_NATIVE_OLAP_PARTITION: &str = "0014_native_olap_partition.sql";
+const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
+const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
+const FILE_JOBS_MIRROR_SYNC: &str = "0007_verified_mirror_sync_expand.sql";
+const FILE_JOBS_MIRROR_READ: &str = "0008_native_mirror_read_grants_expand.sql";
 
 const SCRIPT_BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const SCRIPT_FENCE: &str = include_str!("../migrations/0001_target_fence_expand.sql");
 const SCRIPT_PREFLIGHT: &str = include_str!("../migrations/0003_target_segment_preflight_expand.sql");
 const SCRIPT_MAPPING: &str = include_str!("../migrations/0004_physical_mapping.sql");
 const SCRIPT_FULL_IMPORT: &str = include_str!("../migrations/0005_full_import_expand.sql");
+const SCRIPT_SEALED_CATALOG: &str = include_str!("../migrations/0006_sealed_import_catalog.sql");
+const SCRIPT_NATIVE_CATALOG: &str = include_str!("../migrations/0008_native_sealed_catalog.sql");
+const SCRIPT_FULL_IMPORT_JSONB: &str = include_str!("../migrations/0009_full_import_jsonb.sql");
+const SCRIPT_NATIVE_UPDATE: &str = include_str!("../migrations/0010_native_update_expand.sql");
+const SCRIPT_NATIVE_PARTITION: &str = include_str!("../migrations/0011_native_partition.sql");
+const SCRIPT_NATIVE_PARTITION_REBIND: &str = include_str!("../migrations/0012_native_partition_rebind.sql");
+const SCRIPT_NATIVE_INTERVAL: &str = include_str!("../migrations/0013_native_interval.sql");
+const SCRIPT_NATIVE_OLAP_PARTITION: &str = include_str!("../migrations/0014_native_olap_partition.sql");
+const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
+const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
+const SCRIPT_JOBS_MIRROR_SYNC: &str = include_str!("../../oo-jobs/migrations/0007_verified_mirror_sync_expand.sql");
+const SCRIPT_JOBS_MIRROR_READ: &str = include_str!("../../oo-jobs/migrations/0008_native_mirror_read_grants_expand.sql");
 
 const LOCK_SQL: &str = "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)";
 const ROW_LOCK_SQL: &str = "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE";
@@ -113,6 +165,46 @@ pub fn compiled_digests() -> CompiledDigests {
 /// SHA-256 of `0005_full_import_expand.sql`. This is not part of [`compiled_digests`].
 pub fn compiled_full_import_digest() -> String {
     sha256_hex(SCRIPT_FULL_IMPORT.as_bytes())
+}
+
+/// SHA-256 of `0006_sealed_import_catalog.sql`. This is not part of [`compiled_digests`].
+pub fn compiled_sealed_catalog_digest() -> String {
+    sha256_hex(SCRIPT_SEALED_CATALOG.as_bytes())
+}
+
+/// SHA-256 of `0008_native_sealed_catalog.sql`. This is not part of [`compiled_digests`].
+pub fn compiled_native_catalog_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_CATALOG.as_bytes())
+}
+
+/// SHA-256 of `0009_full_import_jsonb.sql`. This is not part of [`compiled_digests`].
+pub fn compiled_jsonb_document_digest() -> String {
+    sha256_hex(SCRIPT_FULL_IMPORT_JSONB.as_bytes())
+}
+
+/// SHA-256 of `0010_native_update_expand.sql`. This is not part of [`compiled_digests`].
+pub fn compiled_native_update_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_UPDATE.as_bytes())
+}
+
+pub fn compiled_native_partition_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PARTITION.as_bytes())
+}
+
+pub fn compiled_native_partition_rebind_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PARTITION_REBIND.as_bytes())
+}
+
+pub fn compiled_native_interval_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_INTERVAL.as_bytes())
+}
+
+pub fn compiled_native_olap_partition_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_OLAP_PARTITION.as_bytes())
+}
+
+pub fn compiled_jobs_mirror_rebind_digest() -> String {
+    sha256_hex(SCRIPT_JOBS_MIRROR_READ.as_bytes())
 }
 
 /// Lowercase hex SHA-256. This is the migration checksum function.
@@ -329,6 +421,24 @@ impl fmt::Display for FullImportInstallOutcome {
     }
 }
 
+/// What one successful [`install_jsonb_document`] call did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JsonbDocumentInstallOutcome {
+    /// `0009` replaced `full_import_type_sql` and its marker was inserted.
+    Installed,
+    /// The stored `full-import-jsonb/v1` row already matches. No script ran.
+    Replay,
+}
+
+/// What one successful [`install_native_update`] call did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeUpdateInstallOutcome {
+    /// `0010` created the update tables and its marker was inserted.
+    Installed,
+    /// The stored `native-update/v1` row already matches. No script ran.
+    Replay,
+}
+
 /// `0005` readiness. Schema setup is not a finished import.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VerifiedFullImport {
@@ -337,6 +447,68 @@ pub struct VerifiedFullImport {
 
 impl VerifiedFullImport {
     /// Compiled digest of `0005_full_import_expand.sql`.
+    pub fn digest(&self) -> &str {
+        &self.digest
+    }
+}
+
+/// What one successful [`install_sealed_catalog`] call did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SealedCatalogInstallOutcome {
+    /// `0006` was applied and its version row was inserted.
+    Installed,
+    /// The stored `sealed-import-catalog/v1` row already matches.
+    Replay,
+}
+
+impl fmt::Display for SealedCatalogInstallOutcome {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Installed => "installed",
+            Self::Replay => "replay",
+        })
+    }
+}
+
+/// What one successful [`install_native_sealed_catalog`] call did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeCatalogInstallOutcome {
+    /// `0008` was applied and its version row was inserted.
+    Installed,
+    /// The stored `native-sealed-catalog/v1` row already matches.
+    Replay,
+}
+
+impl fmt::Display for NativeCatalogInstallOutcome {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Installed => "installed",
+            Self::Replay => "replay",
+        })
+    }
+}
+
+/// `0006` readiness. This is not a publication and not a source catalog.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedSealedCatalog {
+    digest: String,
+}
+
+impl VerifiedSealedCatalog {
+    /// Compiled digest of `0006_sealed_import_catalog.sql`.
+    pub fn digest(&self) -> &str {
+        &self.digest
+    }
+}
+
+/// `0008` readiness. This is not a publication and not a source catalog.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedNativeCatalog {
+    digest: String,
+}
+
+impl VerifiedNativeCatalog {
+    /// Compiled digest of `0008_native_sealed_catalog.sql`.
     pub fn digest(&self) -> &str {
         &self.digest
     }
@@ -566,6 +738,476 @@ pub async fn install_full_import(
     Ok(FullImportInstallOutcome::Installed)
 }
 
+/// Install `0009` after `full-import/v1` is exact.
+///
+/// This does not call [`install`] or [`install_full_import`] and does not
+/// change `0000` through `0008`. A stored checksum that differs raises `OO001`
+/// and does not update the row. An exact row is a replay. The script replaces
+/// `_oo.full_import_type_sql` so oid 3802 typmod -1 returns `jsonb` and oid 114
+/// stays `json`. It does not copy rows.
+pub async fn install_jsonb_document(
+    conn: &mut PgConnection,
+) -> Result<JsonbDocumentInstallOutcome, InstallError> {
+    let digest = compiled_jsonb_document_digest();
+    let full_digest = compiled_full_import_digest();
+    let digests = compiled_digests();
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        return rollback_jsonb(tx, err).await;
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => return rollback_jsonb(tx, err).await,
+    };
+    let rows = if catalog.migrations {
+        match read_rows(&mut tx).await {
+            Ok(rows) => rows,
+            Err(err) => return rollback_jsonb(tx, err).await,
+        }
+    } else {
+        Vec::new()
+    };
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return mismatch_jsonb(tx, hit).await;
+    }
+    if !production_exact(&rows, &digests) {
+        return rollback_jsonb(
+            tx,
+            InstallError::Refused {
+                message: "jsonb document import requires the production target schema".to_string(),
+            },
+        )
+        .await;
+    }
+    match find_row(&rows, VERSION_FULL_IMPORT) {
+        Some(row) if row_exact(row, VERSION_FULL_IMPORT, &full_digest, FILE_FULL_IMPORT) => {}
+        Some(row) => {
+            return mismatch_jsonb(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        None => {
+            return rollback_jsonb(
+                tx,
+                InstallError::Refused {
+                    message: "jsonb document import requires the full import schema".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+    if let Some(row) = find_row(&rows, VERSION_FULL_IMPORT_JSONB) {
+        if !row_exact(row, VERSION_FULL_IMPORT_JSONB, &digest, FILE_FULL_IMPORT_JSONB) {
+            return mismatch_jsonb(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT_JSONB.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(JsonbDocumentInstallOutcome::Replay);
+    }
+    if let Err(err) = exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await {
+        return rollback_jsonb(tx, err).await;
+    }
+    if let Err(err) = exec_script(&mut tx, SCRIPT_FULL_IMPORT_JSONB).await {
+        return rollback_jsonb(tx, err).await;
+    }
+    if let Err(err) = insert_markers(
+        &mut tx,
+        &[marker(VERSION_FULL_IMPORT_JSONB, &digest, FILE_FULL_IMPORT_JSONB)],
+    )
+    .await
+    {
+        return rollback_jsonb(tx, err).await;
+    }
+    tx.commit().await.map_err(database_error)?;
+    Ok(JsonbDocumentInstallOutcome::Installed)
+}
+
+/// Install `0010` after `full-import/v1` is exact.
+///
+/// This does not call [`install`] or [`install_full_import`] and does not
+/// change `0000` through `0009`. A stored checksum that differs raises `OO001`
+/// and does not update the row. An exact row is a replay. The script does not
+/// copy rows and does not create a publication.
+pub async fn install_native_update(
+    conn: &mut PgConnection,
+) -> Result<NativeUpdateInstallOutcome, InstallError> {
+    let digest = compiled_native_update_digest();
+    let full_digest = compiled_full_import_digest();
+    let digests = compiled_digests();
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        return rollback_native_update(tx, err).await;
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => return rollback_native_update(tx, err).await,
+    };
+    let rows = if catalog.migrations {
+        match read_rows(&mut tx).await {
+            Ok(rows) => rows,
+            Err(err) => return rollback_native_update(tx, err).await,
+        }
+    } else {
+        Vec::new()
+    };
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return mismatch_native_update(tx, hit).await;
+    }
+    if !production_exact(&rows, &digests) {
+        return rollback_native_update(
+            tx,
+            InstallError::Refused {
+                message: "native update requires the production target schema".to_string(),
+            },
+        )
+        .await;
+    }
+    match find_row(&rows, VERSION_FULL_IMPORT) {
+        Some(row) if row_exact(row, VERSION_FULL_IMPORT, &full_digest, FILE_FULL_IMPORT) => {}
+        Some(row) => {
+            return mismatch_native_update(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        None => {
+            return rollback_native_update(
+                tx,
+                InstallError::Refused {
+                    message: "native update requires the full import schema".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_UPDATE) {
+        if !row_exact(row, VERSION_NATIVE_UPDATE, &digest, FILE_NATIVE_UPDATE) {
+            return mismatch_native_update(
+                tx,
+                Mismatch {
+                    version: VERSION_NATIVE_UPDATE.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(NativeUpdateInstallOutcome::Replay);
+    }
+    if let Err(err) = exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await {
+        return rollback_native_update(tx, err).await;
+    }
+    if let Err(err) = exec_script(&mut tx, SCRIPT_NATIVE_UPDATE).await {
+        return rollback_native_update(tx, err).await;
+    }
+    if let Err(err) = insert_markers(
+        &mut tx,
+        &[marker(VERSION_NATIVE_UPDATE, &digest, FILE_NATIVE_UPDATE)],
+    )
+    .await
+    {
+        return rollback_native_update(tx, err).await;
+    }
+    tx.commit().await.map_err(database_error)?;
+    Ok(NativeUpdateInstallOutcome::Installed)
+}
+
+/// Install the C4 partition state extension after the exact native update migration.
+pub async fn install_native_partition(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = match read_rows(&mut tx).await {
+        Ok(rows) => rows,
+        Err(err) => { let _ = tx.rollback().await; return Err(err); }
+    };
+    let prior = compiled_native_update_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_UPDATE), Some(row) if row_exact(row, VERSION_NATIVE_UPDATE, &prior, FILE_NATIVE_UPDATE)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "native partition requires exact native update schema".to_string() });
+    }
+    let digest = compiled_native_partition_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PARTITION) {
+        if !row_exact(row, VERSION_NATIVE_PARTITION, &digest, FILE_NATIVE_PARTITION) {
+            match mismatch(tx, Mismatch { version: VERSION_NATIVE_PARTITION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => return Err(err),
+                Ok(_) => return Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            }
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PARTITION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PARTITION, &digest, FILE_NATIVE_PARTITION)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_partition_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = match read_rows(&mut tx).await {
+        Ok(rows) => rows,
+        Err(err) => { let _ = tx.rollback().await; return Err(err); }
+    };
+    let prior = compiled_native_partition_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PARTITION), Some(row) if row_exact(row, VERSION_NATIVE_PARTITION, &prior, FILE_NATIVE_PARTITION)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "partition rebind requires exact partition schema".to_string() });
+    }
+    let digest = compiled_native_partition_rebind_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PARTITION_REBIND) {
+        if !row_exact(row, VERSION_NATIVE_PARTITION_REBIND, &digest, FILE_NATIVE_PARTITION_REBIND) {
+            match mismatch(tx, Mismatch { version: VERSION_NATIVE_PARTITION_REBIND.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => return Err(err),
+                Ok(_) => return Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            }
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "GRANT USAGE ON SCHEMA jobs TO oo_target_owner").await?;
+        exec_static(&mut tx, "GRANT SELECT ON jobs.tasks TO oo_target_owner").await?;
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PARTITION_REBIND).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PARTITION_REBIND, &digest, FILE_NATIVE_PARTITION_REBIND)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Extend the installed full-import functions with exact OID 1186 interval.
+pub async fn install_native_interval(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    for (version, digest, file) in [
+        (VERSION_FULL_IMPORT_JSONB, compiled_jsonb_document_digest(), FILE_FULL_IMPORT_JSONB),
+        (VERSION_NATIVE_PARTITION_REBIND, compiled_native_partition_rebind_digest(), FILE_NATIVE_PARTITION_REBIND),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row) if row_exact(row, version, &digest, file)) {
+            let _ = tx.rollback().await;
+            return Err(InstallError::Refused { message: "native interval requires exact prior schema".to_string() });
+        }
+    }
+    let digest = compiled_native_interval_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_INTERVAL) {
+        if !row_exact(row, VERSION_NATIVE_INTERVAL, &digest, FILE_NATIVE_INTERVAL) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_INTERVAL.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_INTERVAL).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_INTERVAL, &digest, FILE_NATIVE_INTERVAL)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Add source-bound OLAP partition routing without changing historical scripts.
+pub async fn install_native_olap_partition(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    for (version, digest, file) in [
+        (VERSION_NATIVE_PARTITION, compiled_native_partition_digest(), FILE_NATIVE_PARTITION),
+        (VERSION_NATIVE_PARTITION_REBIND, compiled_native_partition_rebind_digest(), FILE_NATIVE_PARTITION_REBIND),
+        (VERSION_NATIVE_INTERVAL, compiled_native_interval_digest(), FILE_NATIVE_INTERVAL),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row) if row_exact(row, version, &digest, file)) {
+            let _ = tx.rollback().await;
+            return Err(InstallError::Refused { message: "native OLAP partition requires exact prior schema".to_string() });
+        }
+    }
+    let digest = compiled_native_olap_partition_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_OLAP_PARTITION) {
+        if !row_exact(row, VERSION_NATIVE_OLAP_PARTITION, &digest, FILE_NATIVE_OLAP_PARTITION) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_OLAP_PARTITION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_OLAP_PARTITION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_OLAP_PARTITION, &digest, FILE_NATIVE_OLAP_PARTITION)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Apply the jobs-owner mirror recovery successor only on a target with jobs.
+pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal.superuser || !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL lock_timeout = '15s'").await?;
+        exec_static(&mut tx, "SET LOCAL statement_timeout = '60s'").await?;
+        exec_static(&mut tx, "SELECT pg_advisory_xact_lock(6401202601)").await?;
+        exec_static(&mut tx, "SELECT id FROM jobs.migration_lock WHERE id = 1 FOR UPDATE").await?;
+        for (version, file, script) in [
+            ("jobs-control/1", "0001_jobs_control_expand.sql", include_str!("../../oo-jobs/migrations/0001_jobs_control_expand.sql")),
+            ("jobs-event-project/1", "0002_event_project_binding_expand.sql", include_str!("../../oo-jobs/migrations/0002_event_project_binding_expand.sql")),
+            ("jobs-lease-operations/1", "0003_job_lease_operations_expand.sql", include_str!("../../oo-jobs/migrations/0003_job_lease_operations_expand.sql")),
+        ] {
+            let row: Option<(String, String)> = sqlx::query_as(
+                "SELECT checksum,filename FROM jobs.schema_migrations WHERE version=$1"
+            ).bind(version).fetch_optional(&mut *tx).await.map_err(database_error)?;
+            if row != Some((sha256_hex(script.as_bytes()), file.to_string())) {
+                return Err(InstallError::Refused { message: "jobs predecessor differs".to_string() });
+            }
+        }
+        let prior_digest = sha256_hex(SCRIPT_JOBS_MIRROR_REBIND.as_bytes());
+        let installed: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-mirror-rebind/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = &installed {
+            if row != &(prior_digest.clone(), FILE_JOBS_MIRROR_REBIND.to_string()) {
+                return Err(InstallError::Refused { message: "jobs mirror checksum differs".to_string() });
+            }
+        }
+        let retry_digest = sha256_hex(SCRIPT_JOBS_MIRROR_RETRY.as_bytes());
+        let current: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-mirror-retry-run-at/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = &current {
+            if installed.is_none() || row != &(retry_digest.clone(), FILE_JOBS_MIRROR_RETRY.to_string()) {
+                return Err(InstallError::Refused { message: "jobs mirror retry checksum differs".to_string() });
+            }
+        }
+        let sync_digest = sha256_hex(SCRIPT_JOBS_MIRROR_SYNC.as_bytes());
+        let synchronized: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-mirror-sync/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = &synchronized {
+            if current.is_none() || row != &(sync_digest.clone(), FILE_JOBS_MIRROR_SYNC.to_string()) {
+                return Err(InstallError::Refused { message: "jobs mirror sync checksum differs".to_string() });
+            }
+        }
+        let digest = compiled_jobs_mirror_rebind_digest();
+        let read_grants: Option<(String, String)> = sqlx::query_as(
+            "SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-mirror-read/1'"
+        ).fetch_optional(&mut *tx).await.map_err(database_error)?;
+        if let Some(row) = read_grants {
+            if synchronized.is_none() || row != (digest, FILE_JOBS_MIRROR_READ.to_string()) {
+                return Err(InstallError::Refused { message: "jobs mirror read checksum differs".to_string() });
+            }
+            return Ok::<(), InstallError>(());
+        }
+        let prior: Option<String> = sqlx::query_scalar(
+            "SELECT to_regprocedure('jobs.loader_hold(uuid,bigint)')::text"
+        ).fetch_one(&mut *tx).await.map_err(database_error)?;
+        if prior.is_none() {
+            return Err(InstallError::Refused { message: "jobs loader hold is absent".to_string() });
+        }
+        exec_static(&mut tx, "GRANT EXECUTE ON FUNCTION pg_catalog.set_config(text,text,boolean) TO oo_jobs_owner").await?;
+        exec_static(&mut tx, "SET LOCAL ROLE oo_jobs_owner").await?;
+        if installed.is_none() {
+            exec_script(&mut tx, SCRIPT_JOBS_MIRROR_REBIND).await?;
+            sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-rebind/1',$1,'expand',$2)")
+                .bind(&prior_digest).bind(FILE_JOBS_MIRROR_REBIND)
+                .execute(&mut *tx).await.map_err(database_error)?;
+        }
+        if current.is_none() {
+            exec_script(&mut tx, SCRIPT_JOBS_MIRROR_RETRY).await?;
+            sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-retry-run-at/1',$1,'expand',$2)")
+                .bind(&retry_digest).bind(FILE_JOBS_MIRROR_RETRY)
+                .execute(&mut *tx).await.map_err(database_error)?;
+        }
+        if synchronized.is_none() {
+            exec_script(&mut tx, SCRIPT_JOBS_MIRROR_SYNC).await?;
+            sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-sync/1',$1,'expand',$2)")
+                .bind(&sync_digest).bind(FILE_JOBS_MIRROR_SYNC)
+                .execute(&mut *tx).await.map_err(database_error)?;
+        }
+        exec_static(&mut tx, "RESET ROLE").await?;
+        exec_script(&mut tx, SCRIPT_JOBS_MIRROR_READ).await?;
+        sqlx::query("INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES ('jobs-mirror-read/1',$1,'expand',$2)")
+            .bind(&digest).bind(FILE_JOBS_MIRROR_READ)
+            .execute(&mut *tx).await.map_err(database_error)?;
+        Ok(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
 /// Compare the production rows and the `full-import/v1` row with the compiled files.
 ///
 /// This does not install, `SET ROLE`, or take the migration lock.
@@ -619,6 +1261,354 @@ pub async fn verify_full_import_readiness(
     }
 }
 
+/// Install `0006` after `full-import/v1` is exact.
+///
+/// This does not call [`install`] or [`install_full_import`] and does not
+/// change `0000` through `0005`. A stored checksum that differs raises `OO001`
+/// and does not update the row. An exact row is a replay. The script does not
+/// copy rows.
+pub async fn install_sealed_catalog(
+    conn: &mut PgConnection,
+) -> Result<SealedCatalogInstallOutcome, InstallError> {
+    let digest = compiled_sealed_catalog_digest();
+    let full_digest = compiled_full_import_digest();
+    let digests = compiled_digests();
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        return rollback_sealed(tx, err).await;
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => return rollback_sealed(tx, err).await,
+    };
+    let rows = if catalog.migrations {
+        match read_rows(&mut tx).await {
+            Ok(rows) => rows,
+            Err(err) => return rollback_sealed(tx, err).await,
+        }
+    } else {
+        Vec::new()
+    };
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return mismatch_sealed(tx, hit).await;
+    }
+    if !production_exact(&rows, &digests) {
+        return rollback_sealed(
+            tx,
+            InstallError::Refused {
+                message: "sealed catalog requires the production target schema".to_string(),
+            },
+        )
+        .await;
+    }
+    match find_row(&rows, VERSION_FULL_IMPORT) {
+        Some(row) if row_exact(row, VERSION_FULL_IMPORT, &full_digest, FILE_FULL_IMPORT) => {}
+        Some(row) => {
+            return mismatch_sealed(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        None => {
+            return rollback_sealed(
+                tx,
+                InstallError::Refused {
+                    message: "sealed catalog requires the full import schema".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+    if let Some(row) = find_row(&rows, VERSION_SEALED_CATALOG) {
+        if !row_exact(row, VERSION_SEALED_CATALOG, &digest, FILE_SEALED_CATALOG) {
+            return mismatch_sealed(
+                tx,
+                Mismatch {
+                    version: VERSION_SEALED_CATALOG.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(SealedCatalogInstallOutcome::Replay);
+    }
+    if let Err(err) = exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await {
+        return rollback_sealed(tx, err).await;
+    }
+    if let Err(err) = exec_script(&mut tx, SCRIPT_SEALED_CATALOG).await {
+        return rollback_sealed(tx, err).await;
+    }
+    if let Err(err) = insert_markers(
+        &mut tx,
+        &[marker(VERSION_SEALED_CATALOG, &digest, FILE_SEALED_CATALOG)],
+    )
+    .await
+    {
+        return rollback_sealed(tx, err).await;
+    }
+    tx.commit().await.map_err(database_error)?;
+    Ok(SealedCatalogInstallOutcome::Installed)
+}
+
+/// Compare `sealed-import-catalog/v1` with the compiled file.
+///
+/// This does not install, `SET ROLE`, or take the migration lock. Full import
+/// must already be exact.
+pub async fn verify_sealed_catalog_readiness(
+    conn: &mut PgConnection,
+) -> Result<VerifiedSealedCatalog, ReadinessError> {
+    let full = verify_full_import_readiness(conn).await?;
+    if full.digest() != compiled_full_import_digest() {
+        return Err(ReadinessError::Incomplete);
+    }
+    let mut tx = conn.begin().await.map_err(readiness_database)?;
+    if let Err(err) = exec_static(&mut tx, "SET TRANSACTION READ ONLY").await {
+        let _ = tx.rollback().await;
+        return Err(readiness_from_install(err));
+    }
+    let rows = match read_rows(&mut tx).await {
+        Ok(rows) => rows,
+        Err(err) => {
+            let _ = tx.rollback().await;
+            return Err(readiness_from_install(err));
+        }
+    };
+    tx.commit().await.map_err(readiness_database)?;
+    let digest = compiled_sealed_catalog_digest();
+    match find_row(&rows, VERSION_SEALED_CATALOG) {
+        Some(row) if row_exact(row, VERSION_SEALED_CATALOG, &digest, FILE_SEALED_CATALOG) => {
+            Ok(VerifiedSealedCatalog { digest })
+        }
+        Some(row) => Err(ReadinessError::ChecksumMismatch {
+            version: row.version.clone(),
+            stored: row.checksum.clone(),
+        }),
+        None => Err(ReadinessError::Incomplete),
+    }
+}
+
+/// Install `0008` after `sealed-import-catalog/v1` is exact.
+///
+/// This does not execute `0006` and does not change `0000` through `0007`.
+/// A stored checksum that differs raises `OO001` and does not update the row.
+pub async fn install_native_sealed_catalog(
+    conn: &mut PgConnection,
+) -> Result<NativeCatalogInstallOutcome, InstallError> {
+    let digest = compiled_native_catalog_digest();
+    let sealed_digest = compiled_sealed_catalog_digest();
+    let full_digest = compiled_full_import_digest();
+    let digests = compiled_digests();
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        return rollback_native(tx, err).await;
+    }
+    let catalog = match read_catalog(&mut tx).await {
+        Ok(catalog) => catalog,
+        Err(err) => return rollback_native(tx, err).await,
+    };
+    let rows = if catalog.migrations {
+        match read_rows(&mut tx).await {
+            Ok(rows) => rows,
+            Err(err) => return rollback_native(tx, err).await,
+        }
+    } else {
+        Vec::new()
+    };
+    if let Some(hit) = checksum_mismatch(&rows, &digests) {
+        return mismatch_native(tx, hit).await;
+    }
+    if !production_exact(&rows, &digests) {
+        return rollback_native(
+            tx,
+            InstallError::Refused {
+                message: "native sealed catalog requires the production target schema".to_string(),
+            },
+        )
+        .await;
+    }
+    match find_row(&rows, VERSION_FULL_IMPORT) {
+        Some(row) if row_exact(row, VERSION_FULL_IMPORT, &full_digest, FILE_FULL_IMPORT) => {}
+        Some(row) => {
+            return mismatch_native(
+                tx,
+                Mismatch {
+                    version: VERSION_FULL_IMPORT.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        None => {
+            return rollback_native(
+                tx,
+                InstallError::Refused {
+                    message: "native sealed catalog requires the full import schema".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+    match find_row(&rows, VERSION_SEALED_CATALOG) {
+        Some(row) if row_exact(row, VERSION_SEALED_CATALOG, &sealed_digest, FILE_SEALED_CATALOG) => {}
+        Some(row) => {
+            return mismatch_native(
+                tx,
+                Mismatch {
+                    version: VERSION_SEALED_CATALOG.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        None => {
+            return rollback_native(
+                tx,
+                InstallError::Refused {
+                    message: "native sealed catalog requires the sealed import schema".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_CATALOG) {
+        if !row_exact(row, VERSION_NATIVE_CATALOG, &digest, FILE_NATIVE_CATALOG) {
+            return mismatch_native(
+                tx,
+                Mismatch {
+                    version: VERSION_NATIVE_CATALOG.to_string(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(NativeCatalogInstallOutcome::Replay);
+    }
+    if let Err(err) = exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await {
+        return rollback_native(tx, err).await;
+    }
+    if let Err(err) = exec_script(&mut tx, SCRIPT_NATIVE_CATALOG).await {
+        return rollback_native(tx, err).await;
+    }
+    if let Err(err) = insert_markers(
+        &mut tx,
+        &[marker(VERSION_NATIVE_CATALOG, &digest, FILE_NATIVE_CATALOG)],
+    )
+    .await
+    {
+        return rollback_native(tx, err).await;
+    }
+    tx.commit().await.map_err(database_error)?;
+    Ok(NativeCatalogInstallOutcome::Installed)
+}
+
+/// Compare `native-sealed-catalog/v1` with the compiled file.
+///
+/// This does not install. `0006` must already be exact.
+pub async fn verify_native_catalog_readiness(
+    conn: &mut PgConnection,
+) -> Result<VerifiedNativeCatalog, ReadinessError> {
+    let sealed = verify_sealed_catalog_readiness(conn).await?;
+    if sealed.digest() != compiled_sealed_catalog_digest() {
+        return Err(ReadinessError::Incomplete);
+    }
+    let mut tx = conn.begin().await.map_err(readiness_database)?;
+    if let Err(err) = exec_static(&mut tx, "SET TRANSACTION READ ONLY").await {
+        let _ = tx.rollback().await;
+        return Err(readiness_from_install(err));
+    }
+    let rows = match read_rows(&mut tx).await {
+        Ok(rows) => rows,
+        Err(err) => {
+            let _ = tx.rollback().await;
+            return Err(readiness_from_install(err));
+        }
+    };
+    tx.commit().await.map_err(readiness_database)?;
+    let digest = compiled_native_catalog_digest();
+    match find_row(&rows, VERSION_NATIVE_CATALOG) {
+        Some(row) if row_exact(row, VERSION_NATIVE_CATALOG, &digest, FILE_NATIVE_CATALOG) => {
+            Ok(VerifiedNativeCatalog { digest })
+        }
+        Some(row) => Err(ReadinessError::ChecksumMismatch {
+            version: row.version.clone(),
+            stored: row.checksum.clone(),
+        }),
+        None => Err(ReadinessError::Incomplete),
+    }
+}
+
+async fn rollback_native(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    err: InstallError,
+) -> Result<NativeCatalogInstallOutcome, InstallError> {
+    let _ = tx.rollback().await;
+    Err(err)
+}
+
+async fn mismatch_native(
+    mut tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    hit: Mismatch,
+) -> Result<NativeCatalogInstallOutcome, InstallError> {
+    let raised = exec_static(&mut tx, RAISE_OO001).await;
+    let _ = tx.rollback().await;
+    match raised {
+        Err(InstallError::Database { sqlstate, .. }) if sqlstate == "OO001" => {
+            Err(InstallError::ChecksumMismatch {
+                version: hit.version,
+                stored: hit.stored,
+            })
+        }
+        Err(err) => Err(err),
+        Ok(()) => Err(InstallError::Refused {
+            message: "checksum mismatch did not raise OO001".to_string(),
+        }),
+    }
+}
+
+async fn rollback_sealed(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    err: InstallError,
+) -> Result<SealedCatalogInstallOutcome, InstallError> {
+    let _ = tx.rollback().await;
+    Err(err)
+}
+
+async fn mismatch_sealed(
+    mut tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    hit: Mismatch,
+) -> Result<SealedCatalogInstallOutcome, InstallError> {
+    let raised = exec_static(&mut tx, RAISE_OO001).await;
+    let _ = tx.rollback().await;
+    match raised {
+        Err(InstallError::Database { sqlstate, .. }) if sqlstate == "OO001" => {
+            Err(InstallError::ChecksumMismatch {
+                version: hit.version,
+                stored: hit.stored,
+            })
+        }
+        Err(err) => Err(err),
+        Ok(()) => Err(InstallError::Refused {
+            message: "checksum mismatch did not raise OO001".to_string(),
+        }),
+    }
+}
+
 async fn prepare_locked(
     conn: &mut sqlx::PgConnection,
     principal: &Principal,
@@ -666,6 +1656,46 @@ async fn rollback_full(
 ) -> Result<FullImportInstallOutcome, InstallError> {
     let _ = tx.rollback().await;
     Err(err)
+}
+
+async fn rollback_jsonb(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    err: InstallError,
+) -> Result<JsonbDocumentInstallOutcome, InstallError> {
+    let _ = tx.rollback().await;
+    Err(err)
+}
+
+async fn rollback_native_update(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    err: InstallError,
+) -> Result<NativeUpdateInstallOutcome, InstallError> {
+    let _ = tx.rollback().await;
+    Err(err)
+}
+
+async fn mismatch_native_update(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    hit: Mismatch,
+) -> Result<NativeUpdateInstallOutcome, InstallError> {
+    match mismatch(tx, hit).await {
+        Err(err) => Err(err),
+        Ok(_) => Err(InstallError::Refused {
+            message: "checksum mismatch did not raise OO001".to_string(),
+        }),
+    }
+}
+
+async fn mismatch_jsonb(
+    tx: sqlx::Transaction<'_, sqlx::Postgres>,
+    hit: Mismatch,
+) -> Result<JsonbDocumentInstallOutcome, InstallError> {
+    match mismatch(tx, hit).await {
+        Err(err) => Err(err),
+        Ok(_) => Err(InstallError::Refused {
+            message: "checksum mismatch did not raise OO001".to_string(),
+        }),
+    }
 }
 
 async fn mismatch(
@@ -740,8 +1770,8 @@ fn fresh_catalog(catalog: &Catalog) -> bool {
         && !catalog.migration_lock
         && !catalog.receipts
         && !catalog.constraint
-        && !catalog.owner_role
-        && !catalog.runtime_role
+        // Roles are cluster-wide. The bootstrap route separately validates
+        // their exact privilege definition before reusing them in a new DB.
 }
 
 fn route_for(
@@ -843,7 +1873,18 @@ async fn apply_route(
     match route {
         Route::Replay => Ok(InstallOutcome::Replay),
         Route::Bootstrap => {
-            exec_script(conn, SCRIPT_BOOTSTRAP).await?;
+            let roles = cluster_role_state(conn).await?;
+            let bootstrap = match roles {
+                ClusterRoles::Absent => SCRIPT_BOOTSTRAP,
+                ClusterRoles::Exact => bootstrap_grant_sql()?,
+                ClusterRoles::Wrong => {
+                    return Err(InstallError::Refused {
+                        message: "existing cluster roles do not match the closed pipeline definition"
+                            .to_string(),
+                    });
+                }
+            };
+            exec_script(conn, bootstrap).await?;
             exec_static(conn, "SET LOCAL ROLE oo_target_owner").await?;
             exec_script(conn, SCRIPT_FENCE).await?;
             exec_static(conn, ROW_LOCK_SQL).await?;
@@ -1087,6 +2128,70 @@ async fn read_rows(conn: &mut PgConnection) -> Result<Vec<StoredRow>, InstallErr
         .collect())
 }
 
+enum ClusterRoles {
+    Absent,
+    Exact,
+    Wrong,
+}
+
+fn closed_nologin_role(
+    login: bool,
+    superuser: bool,
+    createdb: bool,
+    createrole: bool,
+    inherit: bool,
+    bypassrls: bool,
+    replication: bool,
+) -> bool {
+    !login && !superuser && !createdb && !createrole && !inherit && !bypassrls && !replication
+}
+
+fn bootstrap_grant_sql() -> Result<&'static str, InstallError> {
+    const MARK: &str = "\nALTER ROLE oo_target_owner SET search_path = pg_catalog;\n";
+    let Some(at) = SCRIPT_BOOTSTRAP.find(MARK) else {
+        return Err(InstallError::Refused {
+            message: "bootstrap script has no database grant section".to_string(),
+        });
+    };
+    Ok(&SCRIPT_BOOTSTRAP[at + 1..])
+}
+
+async fn cluster_role_state(conn: &mut PgConnection) -> Result<ClusterRoles, InstallError> {
+    let rows: Vec<(String, bool, bool, bool, bool, bool, bool, bool)> = sqlx::query_as(
+        "SELECT rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, \
+         rolbypassrls, rolreplication FROM pg_catalog.pg_roles \
+         WHERE rolname IN ('oo_target_owner', 'oo_pipeline_runtime')",
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(database_error)?;
+    if rows.is_empty() {
+        return Ok(ClusterRoles::Absent);
+    }
+    if rows.len() != 2 {
+        return Ok(ClusterRoles::Wrong);
+    }
+    let mut owner = false;
+    let mut runtime = false;
+    for (name, login, superuser, createdb, createrole, inherit, bypass, replication) in rows {
+        if !closed_nologin_role(
+            login, superuser, createdb, createrole, inherit, bypass, replication,
+        ) {
+            return Ok(ClusterRoles::Wrong);
+        }
+        match name.as_str() {
+            "oo_target_owner" => owner = true,
+            "oo_pipeline_runtime" => runtime = true,
+            _ => return Ok(ClusterRoles::Wrong),
+        }
+    }
+    if owner && runtime {
+        Ok(ClusterRoles::Exact)
+    } else {
+        Ok(ClusterRoles::Wrong)
+    }
+}
+
 async fn exec_static(conn: &mut PgConnection, sql: &'static str) -> Result<(), InstallError> {
     sqlx::raw_sql(sql)
         .execute(&mut *conn)
@@ -1171,6 +2276,14 @@ mod tests {
         assert_eq!(SCRIPT_PREFLIGHT.matches(ABSENT_MESSAGE).count(), 3);
         assert!(!SCRIPT_BOOTSTRAP.contains("GRANT oo_target_owner TO oo_pipeline_runtime"));
         assert!(!SCRIPT_MAPPING.contains("COPY "));
+        let grants = bootstrap_grant_sql().expect("grant section");
+        assert!(grants.starts_with("ALTER ROLE oo_target_owner SET search_path = pg_catalog;"));
+        assert!(!grants.contains("CREATE ROLE"));
+        assert!(grants.contains("GRANT CONNECT ON DATABASE"));
+        assert!(closed_nologin_role(false, false, false, false, false, false, false));
+        assert!(!closed_nologin_role(true, false, false, false, false, false, false));
+        assert!(!closed_nologin_role(false, true, false, false, false, false, false));
+        assert!(!closed_nologin_role(false, false, false, false, true, false, false));
     }
 
     #[test]
@@ -1180,6 +2293,24 @@ mod tests {
         assert!(digest.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         assert_ne!(digest, compiled_digests().mapping());
         assert!(!SCRIPT_FULL_IMPORT.contains("COPY "));
+        assert!(!SCRIPT_SEALED_CATALOG.contains("set_config"));
+        assert!(!SCRIPT_SEALED_CATALOG.contains("pg_attribute"));
+        assert!(!SCRIPT_SEALED_CATALOG.contains("COPY "));
+        assert!(SCRIPT_SEALED_CATALOG.contains("sealed import is partial"));
+        assert!(SCRIPT_SEALED_CATALOG.contains("GRANT EXECUTE ON FUNCTION _oo.full_import_sealed_identity"));
+        assert_eq!(compiled_sealed_catalog_digest().len(), 64);
+        assert_eq!(compiled_native_catalog_digest().len(), 64);
+        assert!(SCRIPT_NATIVE_CATALOG.contains("full_import_native_catalog"));
+        assert!(SCRIPT_NATIVE_CATALOG.contains("pg_attribute"));
+        assert!(!SCRIPT_NATIVE_CATALOG.contains("COPY"));
+        assert!(!SCRIPT_NATIVE_CATALOG.contains("set_config"));
+        assert!(SCRIPT_FULL_IMPORT_JSONB.contains("RETURN 'jsonb'"));
+        assert!(SCRIPT_FULL_IMPORT_JSONB.contains("RETURN 'json'"));
+        assert!(SCRIPT_FULL_IMPORT_JSONB.contains("p_oid = 3802"));
+        assert!(SCRIPT_FULL_IMPORT_JSONB.contains("closed jsonb typmod"));
+        assert!(!SCRIPT_FULL_IMPORT_JSONB.contains("COPY "));
+        assert!(!SCRIPT_FULL_IMPORT.contains("3802"));
+        assert_eq!(compiled_jsonb_document_digest().len(), 64);
         let contract = include_str!("../../../contracts/pipeline/full-import-v1.json");
         assert!(contract.contains(&digest));
         assert!(!contract.contains("37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db1e26208"));

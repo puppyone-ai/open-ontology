@@ -1,9 +1,0 @@
- pg_terminate_backend 
-----------------------
-(0 rows)
-
-DROP DATABASE
-CREATE DATABASE
-REVOKE
-GRANT
-GRANT

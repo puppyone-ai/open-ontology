@@ -1,0 +1,1 @@
+rev-w37-hash rejection of undeclared cdc was altered

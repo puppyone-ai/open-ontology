@@ -1,1 +1,0 @@
-host exec of launch.sh returned permission denied before docker. chmod 755 applied. no console.log existed.

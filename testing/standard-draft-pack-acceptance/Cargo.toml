@@ -1,0 +1,24 @@
+[package]
+name = "standard-draft-pack-acceptance"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Native OOS acceptance for an unreviewed standard draft pack."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+oo-core = { path = "../../crates/oo-core", version = "=0.1.0" }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

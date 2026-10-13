@@ -1,2 +1,0 @@
-case=grandchild-stdout-red hung=1 at_ms=3000 child=170 grandchild=171 alive=1 comm=sleep cwd=/tmp/oo-parser-worker-151-1
-case=grandchild-stdout-red unblocked=1 wall_ms=3002 elapsed_ms=3002 signal=Some(9) reaped=1 pid_absent=1 direct=170

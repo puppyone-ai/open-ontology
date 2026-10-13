@@ -1,0 +1,67 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "rev-w37-rds-0001",
+  "target_id": "rev-w37-rds",
+  "exact_version": "16.9",
+  "tested_versions": [
+    "16.9"
+  ],
+  "variant": "rds",
+  "driver_digest": "dcad3959b7a83bbf9377a815f40f278ad33b6acb5d9d1e715d4d3af75934643b",
+  "suite_version": "cc-map/w37-review",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "review-single-node-w37",
+    "service_version": "16.9"
+  },
+  "cloud": {
+    "applies": true,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "id": "CC-01",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "8f45158d79506416e5fc4db2024527d42433f1e795c5b9d0cf7bab22fee5aa00",
+      "raw_path": "raw/CC-01.txt"
+    },
+    {
+      "id": "CC-02",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "49852e1e382e95b45872b3eb93a85003cc0ecdb13d6e0fae1756add3045e2de5",
+      "raw_path": "raw/CC-02.txt"
+    },
+    {
+      "id": "CC-03",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "881ec19b7a712a59a12092c5f20f60ae14ee010cf72694bb1fcfbbd2cb663108",
+      "raw_path": "raw/CC-03.txt"
+    },
+    {
+      "id": "CC-04",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "880beca927ab4cbcea5e15021af316427ea24734b390aa552e68c7d58be01407",
+      "raw_path": "raw/CC-04.txt"
+    },
+    {
+      "id": "CC-11",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "934ab6a4684f16ca6d3d655333701a39f214583de18b1f1ce0c541f83b9cfcd7",
+      "raw_path": "raw/CC-11.txt"
+    }
+  ],
+  "rejections": [],
+  "reviewers": []
+}

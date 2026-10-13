@@ -1,4 +1,0 @@
-code=0
-stdout=delivered=2
-
-stderr=

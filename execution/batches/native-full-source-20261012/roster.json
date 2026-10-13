@@ -1,0 +1,227 @@
+[
+  {
+    "task_id": "DL01-W1-02",
+    "native_agent_name": "/root/sol_recovery_admission",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/source-admission",
+      "evidence/5983d507-bd78-474b-9417-32909ed054eb/DL01/admission"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/admission.md",
+    "status": "native_waiting_dependency",
+    "next_action": "fixed actual Mongo and C4 update/delete registries delivered; shared integration pending worker and data accuracy",
+    "exclusive_transfer_out": "Terminal02; capture.rs only temporarily sole79 for minimal standard Arrow Duration metadata parse; no other02 path transfer"
+  },
+  {
+    "task_id": "DL01-W1-04",
+    "native_agent_name": "/root/sol_recovery_oracle",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/source-driver-worker",
+      "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver",
+      "tools/oracle-preview",
+      "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/oracle.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-06",
+    "native_agent_name": "/root/sol_recovery_mysql",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/mysql-preview",
+      "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/mysql.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root verified71manifest+31resource SHA; current accurate5table7/4/4/5/4 input handed71, full source held",
+    "shared_reference_phase": {
+      "owner": "/root/sol_recovery_mysql",
+      "status": "author_delivered",
+      "scope": "current real value_probe new-generation schema-change/fullsnapshot/correctTIME productionworker/CAS + all5 accurate collection/profile/semantics; full source and model tasks held",
+      "fixed_dependencies": [
+        "7d333bd574b6c5d81457dcb7fd669eaf12d4ae04",
+        "1dd6b1c2b855054e4104af0326b778fdfb6ea5a7",
+        "979367e4020d07fd206a00fc1d00dd953a9c8f86"
+      ],
+      "source_commit": "0a91e0629"
+    }
+  },
+  {
+    "task_id": "DL01-W1-09",
+    "native_agent_name": "/root/native_sqlserver",
+    "executor": "native gpt-6.1-sol/low",
+    "write_paths": [
+      "testing/dl01-targets/mssql",
+      "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql",
+      "tools/mssql-preview",
+      "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/sqlserver.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-39",
+    "native_agent_name": "/root/sol_recovery_mariadb",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "testing/dl01-driver-preflight/mariadb",
+      "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-driver-preflight",
+      "tools/mariadb-preview",
+      "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/mariadb.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-40",
+    "native_agent_name": "/root/sol_recovery_clickhouse",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "testing/dl01-driver-preflight/clickhouse",
+      "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
+      "tools/clickhouse-preview",
+      "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/clickhouse.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-41",
+    "native_agent_name": "/root/sol_recovery_mongodb",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "testing/dl01-driver-preflight/mongodb",
+      "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight",
+      "tools/mongodb-preview",
+      "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/mongodb.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-43",
+    "native_agent_name": "/root/native_doris",
+    "executor": "native gpt-6.1-sol/low",
+    "write_paths": [
+      "testing/dl01-driver-preflight/doris",
+      "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
+      "tools/doris-preview",
+      "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/doris.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-44",
+    "native_agent_name": "/root/native_opensearch",
+    "executor": "native gpt-6.1-sol/low",
+    "write_paths": [
+      "testing/dl01-driver-preflight/opensearch",
+      "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-driver-preflight",
+      "tools/opensearch-preview",
+      "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/opensearch.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-45",
+    "native_agent_name": "/root/native_starrocks",
+    "executor": "native gpt-6.1-sol/low",
+    "write_paths": [
+      "testing/dl01-driver-preflight/starrocks",
+      "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight",
+      "tools/starrocks-preview",
+      "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/starrocks.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-46",
+    "native_agent_name": "/root/native_postgres",
+    "executor": "native gpt-6.1-sol/low",
+    "write_paths": [
+      "tools/postgres-preview",
+      "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/postgres.md",
+    "status": "held_for_shared_stability",
+    "next_action": "root releases complete source work only after execution/shared-readiness-gate.json passes fixed real integrated evidence; retain source ownership, artifacts and failures"
+  },
+  {
+    "task_id": "DL01-W1-71",
+    "native_agent_name": "/root/sol_recovery_selfbuild",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/selfbuild-control-api",
+      "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full",
+      "crates/oo-core",
+      "crates/oo-builder",
+      "contracts/schema/oos-v1.json",
+      "tools/agent-product-verifier",
+      "tools/control-identity",
+      "tools/identity-binding-api",
+      "tools/pg-builder"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/selfbuild_agent.md",
+    "status": "author_current_time_s5_failed",
+    "next_action": "ce1aff673 fixed16files newbundle/newAPI; realoriginalGPT6.1S5 HTTP502overload/noPack/identityusageabsent. root15minclockbackoff notbefore14:23:41UTC then atmost1 sameinput retry; no idle agent sampling",
+    "exclusive_transfer_out": "79 terminal; arrow_meta/canonical/sealed_import returnedsole71 with1dd6b1c2 duration implementation; source-admission/capture.rs stays readonly"
+  },
+  {
+    "task_id": "DL01-W1-73",
+    "native_agent_name": "/root/sol_recovery_publish",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/release-control-api",
+      "tools/release-coordinator",
+      "evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance",
+      "crates/oo-gateway"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/publish.md",
+    "status": "author_shared_gateway_preview_delivered",
+    "next_action": "fixed e891b362/96141f4 current Gateway preview handoff; no surviving child observed but <1s parser wall timing unresolved; waiting shared interval fidelity then current accurate dialogue, no full source release"
+  },
+  {
+    "task_id": "DL01-W1-74",
+    "native_agent_name": "/root/sol_recovery_capture_jobs",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "tools/job-worker",
+      "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/capture-jobs-shared-ack.md",
+    "status": "author_shared_data_chain_delivered",
+    "next_action": "fixed shared worker delivered; actual sources held until full shared model/Pack/publication/dialogue gate; no idle sampling"
+  },
+  {
+    "task_id": "DL01-W1-79",
+    "native_agent_name": "/root/sol_recovery_loader",
+    "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+    "write_paths": [
+      "crates/oo-pipeline",
+      "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
+      "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
+      "crates/oo-connectors",
+      "crates/oo-jobs",
+      "Cargo.toml",
+      "Cargo.lock",
+      "tools/source-admission/src/capture.rs"
+    ],
+    "native_card": "execution/batches/native-full-source-20261012/native_loader.md",
+    "status": "author_shared_interval_delivered",
+    "next_action": "fixed1dd6b1c2 isolated6cell seal/import/consumer plus old280cell upgrade verified;06 actual current5table repair before71/73 consumption; no current target/S5 changes in79 reference",
+    "exclusive_transfer": "minimal Duration implementation delivered1dd6b1c2; 79 terminal, corefiles returned71; shared pipeline/admission artifacts readonly untilroot further dispatch"
+  }
+]

@@ -1,6 +1,0 @@
-absent control-identity
-absent audit-ingest
-absent session-control-api
-absent selfbuild-control-api
-source-control-api recipe_only
-release-control-api recipe_only

@@ -1,7 +1,0 @@
-volume /target rw=true
-bind /crate rw=true
-bind /archive rw=false
-bind /inside.sh rw=false
-bind /evidence rw=true
-volume /cargo-home rw=true
-

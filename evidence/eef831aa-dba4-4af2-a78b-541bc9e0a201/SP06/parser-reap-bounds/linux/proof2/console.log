@@ -1,6 +1,0 @@
-oo_task=sp06-parser-reap-bounds-proof2
-phase=proof2
-phase_exit=0 phase=clippy-component
-phase_exit=0 phase=test
-phase_exit=0 phase=clippy
-phase_exit=0 phase=proof2

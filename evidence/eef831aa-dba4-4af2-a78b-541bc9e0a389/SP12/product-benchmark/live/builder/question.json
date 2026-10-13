@@ -1,1 +1,0 @@
-{"protocol":"oo.ontology-dialogue.question/v1","text":"Count the rows in shop.entry. The only statement that matches this question is SELECT count(*) FROM shop.entry."}

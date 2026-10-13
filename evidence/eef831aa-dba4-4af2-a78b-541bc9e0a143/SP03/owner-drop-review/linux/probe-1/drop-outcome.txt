@@ -1,8 +1,0 @@
-log_mark=29939
-seeded r3d.held log_mark=29939
-next_batch_drop_state=active data_pid=128 reader_backends=2
-owner_drop_first_sample_ms=1 still=[(128, "2026-10-03 22:49:03.633228+00", "active"), (129, "2026-10-03 22:49:03.75325+00", "idle in transaction")] busy=[(128, "2026-10-03 22:49:03.633228+00", "active"), (129, "2026-10-03 22:49:03.75325+00", "idle in transaction")] detail=["pid=128 state=active wait=Lock/relation xact=true query=SELECT id,note FROM r3d.held", "pid=129 state=idle in transaction wait=Client/ClientRead xact=true query=SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.pg_postmaster_start_time()::te"]
-owner_drop_absent_ms=55
-owner_drop_finish_called=0 snapshot_finished=0
-sql_audit oo_statements=41 cancel_selects=1 dml_ddl_commit_terminate=0 verbs=RELEASE=1,ROLLBACK=3,SAVEPOINT=1,SELECT=34,START=2
-owner_drop_live_complete

@@ -1,2 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/reject_insert.sql:2: ERROR:  42501: permission denied for table apply_receipts
-LOCATION:  aclcheck_error, aclchk.c:2843

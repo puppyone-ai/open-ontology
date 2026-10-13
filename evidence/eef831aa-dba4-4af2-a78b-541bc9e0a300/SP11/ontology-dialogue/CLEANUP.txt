@@ -1,9 +1,0 @@
-Removed after proof-8 evidence was on disk. No foreign containers, volumes, or networks were pruned.
-
-docker rm -f oo-a300-pg
-docker network rm oo-a300-eef831aa-net
-docker volume rm oo-a300-eef831aa-cargo oo-a300-eef831aa-target oo-a300-eef831aa-pgdata
-rm -rf /tmp/oo-a300-eef831aa-dba4-4af2-a78b-541bc9e0a300
-rm -f /tmp/oo-a300-sha256-manifest /tmp/oo-a300-lock-assemble
-
-The network had only oo-a300-pg attached. After removal it had zero containers, then the network and the three volumes were removed. The tmp directory was removed. Evidence under evidence/eef831aa-dba4-4af2-a78b-541bc9e0a300/SP11/ontology-dialogue was kept, including failed proofs linux/proof through linux/proof-7.

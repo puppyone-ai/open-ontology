@@ -1,3 +1,0 @@
-account=8000
-entry=90000
-party=2000

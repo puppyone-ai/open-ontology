@@ -1,1 +1,0 @@
-{"kind":"rows","completion":"complete","warnings":[],"columns":[{"name":"name","type":"text"},{"name":"rank","type":"int64"}],"rows":[[{"presence":"value","value":"GOLD_CELL_TOPK"},{"presence":"value","value":"2"}]]}

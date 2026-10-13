@@ -6,10 +6,10 @@ use std::time::{Duration, Instant};
 
 use arrow_array::{Array, Int32Array};
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, PgTypePolicy, SecretRef,
-    SelectedTable, SnapshotOwner, SnapshotRequest, SourceErrorKind, SourceId, StreamBudget,
-    StreamItem, TableSelection, CLEANUP_OBSERVATION_BOUND_MS,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, PgTypePolicy, SecretRef, SelectedTable,
+    SnapshotOwner, SnapshotRequest, SourceErrorKind, SourceId, StreamBudget, StreamItem,
+    TableSelection, config_identity, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -35,12 +35,19 @@ struct Pointer {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn revoke_after_first_eof_is_select_not_granted_before_scan() {
     let path = std::env::var("OO_PG_STREAM_FIXTURE").expect("OO_PG_STREAM_FIXTURE is required");
-    let pointer: Pointer = serde_json::from_str(&fs::read_to_string(&path).expect("pointer"))
-        .expect("pointer json");
+    let pointer: Pointer =
+        serde_json::from_str(&fs::read_to_string(&path).expect("pointer")).expect("pointer json");
     let reader_pass = read_pass(&pointer.password_dir, "reader.pass");
     let super_pass = read_pass(&pointer.password_dir, "super.pass");
     let ca = fs::read(&pointer.ca_file).expect("ca");
-    let mut admin = dial(&pointer, &pointer.super_user, &super_pass, &ca, "oo-acl-admin").await;
+    let mut admin = dial(
+        &pointer,
+        &pointer.super_user,
+        &super_pass,
+        &ca,
+        "oo-acl-admin",
+    )
+    .await;
     sqlx::query("GRANT SELECT ON TABLE acl.acl_a, acl.acl_b TO oo_a131_reader")
         .execute(&mut admin)
         .await
@@ -184,7 +191,11 @@ async fn revoke_after_first_eof_is_select_not_granted_before_scan() {
         if write_word(&strip_sql_literals(sql)).is_some() {
             reader_writes += 1;
         }
-        let verb = sql.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+        let verb = sql
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_ascii_uppercase();
         if matches!(verb.as_str(), "START" | "BEGIN") {
             saw_start = true;
         }
@@ -207,10 +218,16 @@ async fn revoke_after_first_eof_is_select_not_granted_before_scan() {
             reader_after += 1;
         }
     }
-    assert_eq!(savepoint_before, 1, "first table did not take one stream savepoint");
+    assert_eq!(
+        savepoint_before, 0,
+        "stream savepoint is not on the source allow-list"
+    );
     assert_eq!(savepoint_after, 0, "savepoint ran after revoke");
     assert!(scan_a_before >= 1, "first table was not scanned");
-    assert_eq!(scan_a_after, 0, "first table was scanned again after revoke");
+    assert_eq!(
+        scan_a_after, 0,
+        "first table was scanned again after revoke"
+    );
     assert!(reader_after > 0, "no reader statement after revoke");
     assert_eq!(reader_writes, 0, "reader log has a write verb");
     assert!(saw_start, "reader transaction start was not logged");
@@ -283,7 +300,10 @@ async fn node_of(admin: &mut PgConnection) -> (String, bool) {
     .fetch_one(&mut *admin)
     .await
     .expect("node");
-    (row.try_get(0).expect("postmaster"), row.try_get(1).expect("recovery"))
+    (
+        row.try_get(0).expect("postmaster"),
+        row.try_get(1).expect("recovery"),
+    )
 }
 
 async fn oo_backends(admin: &mut PgConnection, user: &str) -> Vec<(i64, String)> {
@@ -316,7 +336,10 @@ async fn wait_gone(admin: &mut PgConnection, pid: i64, start: &str, bound: Durat
             return;
         }
         if began.elapsed() > bound {
-            panic!("backend {pid} still present after {}ms", began.elapsed().as_millis());
+            panic!(
+                "backend {pid} still present after {}ms",
+                began.elapsed().as_millis()
+            );
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -333,13 +356,7 @@ async fn read_log(path: &str) -> String {
     }
 }
 
-async fn dial(
-    pointer: &Pointer,
-    user: &str,
-    password: &str,
-    ca: &[u8],
-    app: &str,
-) -> PgConnection {
+async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &str) -> PgConnection {
     let options = PgConnectOptions::from_explicit()
         .host(&pointer.host)
         .port(pointer.port)
@@ -349,7 +366,11 @@ async fn dial(
         .application_name(app)
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca.to_vec());
-    options.disable_statement_logging().connect().await.expect("dial")
+    options
+        .disable_statement_logging()
+        .connect()
+        .await
+        .expect("dial")
 }
 
 fn read_pass(dir: &str, name: &str) -> Zeroizing<String> {

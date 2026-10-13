@@ -1,7 +1,0 @@
-b205d2104ecf5cdca6cf2eb2e9672d2e72727a8c78920d695fb2e939994d9b9a  crates/oo-builder/src/lib.rs
-fb871e8abebb2d9a7ab2efc6e2639ee3708805ac5a6ad25bc420b9aaf10d1a2c  crates/oo-builder/src/reviewed_effective.rs
-e466c12cdb603ce3e18483bb71e4dde5da59cd113200e71fb3d50d8b2afdd4fe  crates/oo-builder/src/bin/reviewed-effective-oos.rs
-9fb2562bf81892436f81087c719723a48f21395fb7134e3933a69f66d8807b3f  crates/oo-builder/src/bin/oo-builder.rs
-60b374cb2ea1c4cefde16154279deb901cf35e95767283a61c862e633a1662b7  crates/oo-builder/tests/reviewed_effective.rs
-0a72583708efb2411b29ea80ff465394dddf4eca3b2d8e704d0c9e17f7cb8f66  contracts/builder/reviewed-effective-oos-v1.md
-16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

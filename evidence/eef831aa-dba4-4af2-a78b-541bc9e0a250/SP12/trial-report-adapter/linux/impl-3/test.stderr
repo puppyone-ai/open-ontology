@@ -1,9 +1,0 @@
-   Compiling oo-trial-report-adapter v0.1.0 (/src/benchmarks/trial-report-adapter)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.39s
-     Running unittests src/lib.rs (/target/debug/deps/oo_trial_report_adapter-026900e6344f0cac)
-     Running unittests src/main.rs (/target/debug/deps/trial_report_adapter-3d199f96e05dac85)
-     Running tests/bounds.rs (/target/debug/deps/bounds-24e9305d2ff32293)
-     Running tests/cli.rs (/target/debug/deps/cli-f37427a4cca7fcf4)
-     Running tests/gold.rs (/target/debug/deps/gold-647911101daa76b0)
-     Running tests/proof.rs (/target/debug/deps/proof-a2bfe22b96120a3e)
-   Doc-tests oo_trial_report_adapter

@@ -1,1 +1,0 @@
-{"datasets":[{"dataset":"ent.invoice","description":"发票单据名录","label":"发票"},{"dataset":"ent.party","description":"企业主体名录","label":"交易方"}],"relationships":[{"name":"invoice_party_fk","status":"draft"}]}

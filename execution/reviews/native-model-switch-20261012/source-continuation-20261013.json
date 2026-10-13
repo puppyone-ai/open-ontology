@@ -1,0 +1,99 @@
+{
+  "event": "20261013-long-local-source-continuation",
+  "scope": "original ten-source full exits unchanged",
+  "mysql_fixed_author_packets": [
+    "27eeec147",
+    "4ad53a1ec"
+  ],
+  "mysql_reference_hash_check": [
+    {
+      "name": "collection",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/official-time-repair-20261012/collection-current-time.json",
+      "expected": "19e0b3405ad0f7c69d393a685e489594e53d260da28a7dfd3e94366dd0e53ee4",
+      "actual": "19e0b3405ad0f7c69d393a685e489594e53d260da28a7dfd3e94366dd0e53ee4",
+      "matches": true
+    },
+    {
+      "name": "profile",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/final-current-input-20261012/source-profile-current-time.json",
+      "expected": "33805736a8340ad20f9dee9ccc66f22d7c84f5f6bd74edff3bdcb3aef2da9d99",
+      "actual": "33805736a8340ad20f9dee9ccc66f22d7c84f5f6bd74edff3bdcb3aef2da9d99",
+      "matches": true
+    },
+    {
+      "name": "semantics",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/final-current-input-20261012/source-semantics-current-time.json",
+      "expected": "0225a6653401ed3317fcc795f80abac20565d6b0dbf025f231078e9f0652e508",
+      "actual": "0225a6653401ed3317fcc795f80abac20565d6b0dbf025f231078e9f0652e508",
+      "matches": true
+    },
+    {
+      "name": "typed",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/official-time-repair-20261012/raw/composite-typed-proof.json",
+      "expected": "e208eb4af41a470597104d16f25dd41bbb3b681381aa84d3e251397b57350f75",
+      "actual": "e208eb4af41a470597104d16f25dd41bbb3b681381aa84d3e251397b57350f75",
+      "matches": true
+    },
+    {
+      "name": "cycles",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/native-20261012/raw/reconcile-cycles/full-typed-diff.json",
+      "expected": "7a73b0b54f814853abdc93f97baaf52667a8c96c3685901a20028c2dfe065c34",
+      "actual": "7a73b0b54f814853abdc93f97baaf52667a8c96c3685901a20028c2dfe065c34",
+      "matches": true
+    },
+    {
+      "name": "replay",
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/native-20261012/raw/negatives/replay-proof.json",
+      "expected": "3b6027175ba26def6d14c547cd343c1d6016af91cb0971ad885b7c950fd0776a",
+      "actual": "3b6027175ba26def6d14c547cd343c1d6016af91cb0971ad885b7c950fd0776a",
+      "matches": true
+    },
+    {
+      "name": "selfbuild",
+      "path": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/native-20261012/current-time-final/summary.json",
+      "expected": "f1e04a81ceb2e74f048b7c968db7a1daf393ba8a736aa3594738ebe47201c354",
+      "actual": "f1e04a81ceb2e74f048b7c968db7a1daf393ba8a736aa3594738ebe47201c354",
+      "matches": true
+    },
+    {
+      "name": "dialogue",
+      "path": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/native-20261012/current-time-dialogue/summary.json",
+      "expected": "c4e9d23c8649f4fd0009fa77292345cc3ca91b0602c5bf573070ca49e99f9a66",
+      "actual": "c4e9d23c8649f4fd0009fa77292345cc3ca91b0602c5bf573070ca49e99f9a66",
+      "matches": true
+    },
+    {
+      "name": "dialogue_verdict",
+      "path": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/native-20261012/current-time-dialogue/verdict.json",
+      "expected": "883f5010f73f58ac6438c1b4a8455ed54df5e5fbb0333a64e8fed706b59e3ad9",
+      "actual": "883f5010f73f58ac6438c1b4a8455ed54df5e5fbb0333a64e8fed706b59e3ad9",
+      "matches": true
+    },
+    {
+      "name": "gateway",
+      "path": "evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/HANDOFF-current-time-preview-20261012.md",
+      "expected": "8e2eb7f770c95a897ac2c69388e1a6d22d42af139d13b35baa75c12b93f07b79",
+      "actual": "8e2eb7f770c95a897ac2c69388e1a6d22d42af139d13b35baa75c12b93f07b79",
+      "matches": true
+    }
+  ],
+  "acceptance": "author complete unpublished preview; independent review deferred; no formal or parent acceptance",
+  "local_fixture_reuse": true,
+  "new_model_calls_by_root": 0,
+  "resource_policy": "sole writers; reuse actual Linux outputs; no fake concurrency",
+  "source_full_acceptance_counter_delta": 0,
+  "mysql_fixed_manifest_intake": [
+    {
+      "fixed_sha": "27eeec147",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/full-closure-20261013/SHA256SUMS",
+      "verified_blob_count": 15,
+      "failures": []
+    },
+    {
+      "fixed_sha": "4ad53a1ec",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/demo-refresh-20261013/SHA256SUMS",
+      "verified_blob_count": 7,
+      "failures": []
+    }
+  ]
+}

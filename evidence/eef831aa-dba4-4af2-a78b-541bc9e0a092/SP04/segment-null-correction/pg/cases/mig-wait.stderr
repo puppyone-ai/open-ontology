@@ -1,2 +1,0 @@
-psql:<stdin>:3: ERROR:  55P03: canceling statement due to lock timeout
-LOCATION:  ProcessInterrupts, postgres.c:3399

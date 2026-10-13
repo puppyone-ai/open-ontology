@@ -1,0 +1,7 @@
+# 原72公开Gateway/SDK/CLI完整闭环，终态资源已收紧凑接续
+
+先读 `execution/batches/dl01-wave1-20261009/DL01-W1-72-complete-capability-resource-collect.md`、原72卡、SP06/SP09相关原docs/Spec/Plan、executionINDEX/GOAL/CONTROL及codex-grok skill；独占crates/oo-gateway/oo-sdk/oo-cli与evidence/7e719805-ed88-4354-a5a1-f869f34da49b/DL01/public-gateway-cli，其他只读。原能力公开mTLS typed query、freshness、servercancel、audit/WAL、revoke已910310+885e固定，不重复全部无变化绿套件。76固定6e494指出public_call连接前file拒绝问题，原72已在dirty自有代码修aarch64noFollow0x8000，Linux1.94 clippy/example/release已绿，旧x86flag与issue-token create_new残留失败留存。
+
+当前事实：原CLI35960已exit0；02:后现场oo-dl01w1-72-rust及72-pg均不存在，file-gate/driver.exit=1，phase-exits.tsv已落。accepts.tsv上bad token644/000/link/owner、pem000/link、CA link全部0→0，stderr token file rejected mode；BUT sdk-plain-connect也是0→0，这个正对照未证明真实监听，driver1不能claim修复闭环。先读原始phases.log/check结果和资源回执，修真实正对照/监听计数/合法mTLS数据准确验证，不偷改expected。不需要再跑已绿strict，除非修改实现；不要删cache target导致release重复恢复，不把后台启动当完成。等待自己具名后台计算终态后收全raw再提交，只有真正缺外部条件才明确pending。
+
+必须一条原完整交付链：固定实现+准确架构文件gate、独立监听negative0与positive至少1证明有效、合法SDK50行/谓词41行独立typed0cells、原publiccancel/audit/revoke已固定链身份链接且新改变无回归。三报告/manifest hash排除pycache、Git固定SHA/ELF锁/source/archive依赖可重跑/resource清理，让73能用新SDK/CLI发布查询。API/library公共调用者若接受预读凭据明确边界，公开示例文件路径全部安全门在TCP前。继续保留Export/MCP/正式Pack/整源未完成，不扩大本card范围。全程Grok不子agent，无CPU/jobs/槽限制，无rootCargo/lock/ledger变更，无别人的key，旧source不restart。

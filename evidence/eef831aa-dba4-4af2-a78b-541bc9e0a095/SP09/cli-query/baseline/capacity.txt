@@ -1,8 +1,0 @@
-host_uname=arm64
-running_containers_before:
-name=oo-a096-rust194-075afd80-ece4-4e25-bb21-21cdf591841f status=Up 8 minutes owner=a096 kind=rust-builder
-host_toolchain_comms:
-note=capacity counted by container name/label and comm only
-labeled_rust_builders=1
-host_toolchain_comms=0
-global=1

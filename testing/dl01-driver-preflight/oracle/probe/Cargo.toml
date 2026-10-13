@@ -1,0 +1,16 @@
+[package]
+name = "oo-oracle-driver-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "oracle-driver-probe"
+path = "src/main.rs"
+
+[dependencies]
+oracledb = { version = "=26.0.0-beta.4", features = ["arrow"] }
+arrow-array = "=59.3.0"
+arrow-ipc = "=59.3.0"
+arrow-schema = "=59.3.0"
+serde_json = "1"

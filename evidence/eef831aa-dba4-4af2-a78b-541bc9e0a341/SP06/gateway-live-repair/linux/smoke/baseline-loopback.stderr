@@ -1,3 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.81s
-     Running tests/http_gateway_loopback.rs (target/debug/deps/http_gateway_loopback-4e26e517ceadf452)

@@ -1,0 +1,251 @@
+{
+  "admitted": false,
+  "cdc_default": "off",
+  "delete_detection": "reconcile",
+  "fixed_importer_sha": null,
+  "initial_load": "shadow_diff",
+  "logminer_used": false,
+  "method": "C5",
+  "native_loader": false,
+  "protocol": "oo.oracle.c5-producer-catalog/v1",
+  "publication": "not_published",
+  "schema_digest": null,
+  "scn": 6464157,
+  "snapshot": {
+    "kind": "token",
+    "value": "oo-dl01w1-04-scn-6464157"
+  },
+  "source_acceptance": "not_claimed",
+  "source_engine": "oracle",
+  "tables": [
+    {
+      "admitted": false,
+      "arrow_sha256": null,
+      "columns": [
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [],
+          "name": "ID",
+          "nullable": "N",
+          "position": 1,
+          "precision": 4,
+          "scale": 0,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [],
+          "name": "N16",
+          "nullable": "Y",
+          "position": 2,
+          "precision": 16,
+          "scale": 6,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [],
+          "name": "N1",
+          "nullable": "Y",
+          "position": 3,
+          "precision": 1,
+          "scale": 0,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 0,
+          "data_type": "DATE",
+          "flags": [],
+          "name": "D",
+          "nullable": "Y",
+          "position": 4,
+          "precision": null,
+          "scale": null,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 6,
+          "data_type": "CHAR",
+          "flags": [
+            "empty_string_is_null"
+          ],
+          "name": "C6",
+          "nullable": "Y",
+          "position": 5,
+          "precision": null,
+          "scale": null,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 20,
+          "data_type": "VARCHAR2",
+          "flags": [
+            "empty_string_is_null"
+          ],
+          "name": "V2",
+          "nullable": "Y",
+          "position": 6,
+          "precision": null,
+          "scale": null,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 0,
+          "data_type": "RAW",
+          "flags": [],
+          "name": "R",
+          "nullable": "Y",
+          "position": 7,
+          "precision": null,
+          "scale": null,
+          "table": "T_BATCH"
+        },
+        {
+          "char_length": 20,
+          "data_type": "VARCHAR2",
+          "flags": [
+            "empty_string_is_null"
+          ],
+          "name": "C5_NOTE",
+          "nullable": "Y",
+          "position": 8,
+          "precision": null,
+          "scale": null,
+          "table": "T_BATCH"
+        }
+      ],
+      "consistency_grade": "S0",
+      "delete_detection": "reconcile",
+      "generation": 8,
+      "initial_load": "shadow_diff",
+      "method": "C5",
+      "owner": "OO04_FIX",
+      "position": "oo-dl01w1-04-scn-6464157",
+      "quality": [
+        "DELETES_LAGGED"
+      ],
+      "resumed": false,
+      "row_count": 5,
+      "schema_digest": null,
+      "shadow": "shadow/T_BATCH/gen-8.json",
+      "source_id": "oo04_t_batch",
+      "table": "T_BATCH",
+      "tombstones": [
+        "91:5"
+      ]
+    },
+    {
+      "admitted": false,
+      "arrow_sha256": null,
+      "columns": [
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [],
+          "name": "ID",
+          "nullable": "N",
+          "position": 1,
+          "precision": 4,
+          "scale": 0,
+          "table": "T_WIDE"
+        },
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [
+            "unconstrained_number"
+          ],
+          "name": "N_FREE",
+          "nullable": "Y",
+          "position": 2,
+          "precision": null,
+          "scale": null,
+          "table": "T_WIDE"
+        }
+      ],
+      "consistency_grade": "S0",
+      "delete_detection": "reconcile",
+      "generation": 7,
+      "initial_load": "shadow_diff",
+      "method": "C5",
+      "owner": "OO04_FIX",
+      "position": "oo-dl01w1-04-scn-6463953",
+      "quality": [
+        "POSITION_EXPIRED",
+        "DELETES_LAGGED"
+      ],
+      "resumed": false,
+      "row_count": 4,
+      "schema_digest": null,
+      "shadow": "shadow/T_WIDE/gen-7.json",
+      "source_id": "oo04_t_wide_text",
+      "table": "T_WIDE",
+      "tombstones": []
+    },
+    {
+      "admitted": false,
+      "arrow_sha256": null,
+      "columns": [
+        {
+          "char_length": 0,
+          "data_type": "NUMBER",
+          "flags": [],
+          "name": "ID",
+          "nullable": "N",
+          "position": 1,
+          "precision": 4,
+          "scale": 0,
+          "table": "T_TS"
+        },
+        {
+          "char_length": 0,
+          "data_type": "TIMESTAMP(9)",
+          "flags": [
+            "precision_loss"
+          ],
+          "name": "TS",
+          "nullable": "N",
+          "position": 2,
+          "precision": null,
+          "scale": 9,
+          "table": "T_TS"
+        },
+        {
+          "char_length": 0,
+          "data_type": "TIMESTAMP(9) WITH TIME ZONE",
+          "flags": [
+            "precision_loss"
+          ],
+          "name": "TSTZ",
+          "nullable": "N",
+          "position": 3,
+          "precision": null,
+          "scale": 9,
+          "table": "T_TS"
+        }
+      ],
+      "consistency_grade": "S0",
+      "delete_detection": "reconcile",
+      "generation": 7,
+      "initial_load": "shadow_diff",
+      "method": "C5",
+      "owner": "OO04_FIX",
+      "position": "oo-dl01w1-04-scn-6463953",
+      "quality": [
+        "POSITION_EXPIRED",
+        "DELETES_LAGGED"
+      ],
+      "resumed": false,
+      "row_count": 2,
+      "schema_digest": null,
+      "shadow": "shadow/T_TS/gen-7.json",
+      "source_id": "oo04_t_ts_text",
+      "table": "T_TS",
+      "tombstones": []
+    }
+  ],
+  "xstream": "not_used"
+}

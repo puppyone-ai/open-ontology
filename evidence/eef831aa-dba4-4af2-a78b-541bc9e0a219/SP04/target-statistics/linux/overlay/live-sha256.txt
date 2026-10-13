@@ -1,2 +1,0 @@
-ba353f5f4ea08289ee19ebbb1d47b6949355a322134dd3c9e3de1c14548e7da9  ./catalog-facts.txt
-e2efee80b05e9180c1bd4e510bd9e5e0c8ac209e37edaa22d1b43f8dc363ba1b  ./facts.txt

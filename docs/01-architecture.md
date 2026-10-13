@@ -2,12 +2,14 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 > 依赖：[00 愿景与范围](00-vision-and-scope.md)
 
 ## 1. 分层总览
 
-OO 由一个**控制面**和七个**数据/访问层**组成。控制面负责“配置和构建”，七层负责“搬运、存放和访问”。
+OO由一个控制面和七个数据/访问层组成。控制面负责配置、构建、审核和发布；源、管线、Agent DB、Gateway及Wrapper构成Ontology生产与消费主链。外部调用方使用已发布Knowledge和第⑤层的接口，无需经过第⑥/⑦层的内置沙盒或Agent入口。
+
+第⑥/⑦层和默认Pi提供内置体验及验证环境，仍有自己的隔离、授权和释放要求。更换harness不改变Ontology的存储格式、发布版本或Gateway契约；内置聊天的会话状态不作为核心产物读取的前置条件。
 
 ```text
 ┌─⓪ 控制面 Control Plane（管理员与领域专家使用）───────────────────────────────┐

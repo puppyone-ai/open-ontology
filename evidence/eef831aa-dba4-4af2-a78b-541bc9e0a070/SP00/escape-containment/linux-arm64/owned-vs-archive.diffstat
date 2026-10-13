@@ -1,8 +1,0 @@
- crates/xtask/src/gates.rs          |  33 +-
- crates/xtask/src/lib.rs            |   1 +
- crates/xtask/src/owned_process.rs  |  92 +++--
- crates/xtask/src/runner_capture.rs | 737 ++++++++++++++++++++++++++++---------
- crates/xtask/src/suites.rs         |  48 +++
- crates/xtask/tests/cli.rs          | 310 ++++++++++------
- testing/harness/README.md          |   2 +-
- 7 files changed, 919 insertions(+), 304 deletions(-)

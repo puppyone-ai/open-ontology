@@ -28,12 +28,16 @@ impl StoreError {
 impl fmt::Display for StoreError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Query { sqlstate: Some(sqlstate) } => write!(formatter, "query {sqlstate}"),
+            Self::Query {
+                sqlstate: Some(sqlstate),
+            } => write!(formatter, "query {sqlstate}"),
             other => formatter.write_str(other.reason()),
         }
     }
 }
 
 pub fn query_error(err: tokio_postgres::Error) -> StoreError {
-    StoreError::Query { sqlstate: err.code().map(|code| code.code().to_owned()) }
+    StoreError::Query {
+        sqlstate: err.code().map(|code| code.code().to_owned()),
+    }
 }

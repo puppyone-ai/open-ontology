@@ -1,1 +1,0 @@
-name=oo-a338-eef831aa-net driver=bridge internal=false

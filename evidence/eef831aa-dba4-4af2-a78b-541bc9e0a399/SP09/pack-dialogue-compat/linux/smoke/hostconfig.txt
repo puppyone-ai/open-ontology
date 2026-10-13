@@ -1,1 +1,0 @@
-oom=false privileged=false network=none memory=6442450944 nano=1000000000 capdrop=["ALL"]

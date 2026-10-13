@@ -1,7 +1,0 @@
-cache_out= ?column? ;----------; first|1;(1 row);;SET;
-cache_err=psql:/tmp/a377-seq-probe2/cache.sql:6: ERROR:  55P03: canceling statement due to lock timeout;LOCATION:  ProcessInterrupts, postgres.c:3399;
-hold_out=BEGIN;ALTER SEQUENCE;       ?column?       ;----------------------; during|10|t|32|16401;(1 row);; pg_sleep ;----------; ;(1 row);;COMMIT;
-hold_err=
-role_out=BEGIN;GRANT ROLE;
-role_err=ERROR:  role "oo_a377_operator" is a member of role "oo_a356_admin";
-stranger_err=ERROR:  must be owner of sequence cut_seq;

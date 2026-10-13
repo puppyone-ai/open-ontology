@@ -1,0 +1,17 @@
+{
+  "verdict": "approved",
+  "scope": "original frozen D07 claim checker",
+  "reviewer": "Codex coordinator independent of author",
+  "source_sha": "876b3b916d6ff8ba5bb79e2c0e1beee283d69a40",
+  "author_seal_sha": "a2ee57f1d0de5ce34626a9431bd16cb07e60c6f4",
+  "prior_request_changes": "95e491416cfd877816e6696cf07586c1eada5d03",
+  "assertions": 57,
+  "failure_count": 0,
+  "build_exit": 0,
+  "test_exit": 0,
+  "clippy_exit": 0,
+  "container_exit": 0,
+  "source_grade_promoted": false,
+  "parent_accepted": false,
+  "binary_sha256": "53f6cee28dad10ba080d704ef1815ca827a0fd83151953ee19e08f049afabdf9"
+}

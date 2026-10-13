@@ -1,8 +1,0 @@
-7991e0f16b08889d67a002a6c2b47eca29d4f99d19b1d53b8ba833dc10a9271d  apps/web/public/fonts/NotoSansSC-300-subset.woff2
-5957ae0d7734cd1c0452cfc75e8a00ee5b0afe47377aebabcd2607793d09a6e6  apps/web/public/fonts/NotoSansSC-400-subset.woff2
-fb09039bf3aaf67d60f553d41c1f2223f9247cc67ea914b6c9a3eee559e7b3b6  apps/web/public/fonts/NotoSansSC-500-subset.woff2
-bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b  apps/web/public/fonts/NotoSansSC-full.woff2
-a369fcf5628ea2aa4e1b9e2ec6a5b3624e365bda588e1f0f2f12b564f728fbb8  apps/web/public/fonts/Geist-wght.woff2
-e4507fb4fb5f832fbbb6c06aea4206274ba3083007f23fa8cbc0e87a10acf95b  apps/web/public/fonts/GeistMono-Regular.woff2
-c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90  apps/web/public/fonts/licenses/Geist-OFL.txt
-6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2  apps/web/public/fonts/licenses/NotoSans-LICENSE

@@ -1,4 +1,0 @@
-Owned cleanup for M14 used exact container, volume, and network names only.
-At report time, docker ps -a had no name matching oo-fe01, docker volume ls had no oo-fe01-m14 volume, and /tmp/oo-fe01-eef831aa-dba4-4af2-a78b-541bc9e0a351/m14-secrets was absent.
-Foreign containers, including oo-a373-pg and other owners, were not removed.
-No prune, no shared cache delete, no host HOME delete.

@@ -1,9 +1,0 @@
-   Compiling oo-builder v0.1.0 (/cargo-home/work/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.30s
-     Running tests/description_candidate_a264.rs (/target/debug/deps/description_candidate_a264-89e82d57ec47e081)
-
-running 1 test
-test physical_a_and_b_library_and_cli ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
-

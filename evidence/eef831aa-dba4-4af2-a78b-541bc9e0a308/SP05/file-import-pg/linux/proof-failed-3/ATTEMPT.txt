@@ -1,5 +1,0 @@
-Attempt 3. refuse exit 0. lock subset exit 0. lock-stable exit 0.
-clippy exit 101: duplicated allow, large_enum_variant, redundant closure, type_complexity.
-live exit 101: first CSV import returned run_closed/run (OO031).
-OOMKilled false. PostgreSQL stayed up. Container removed.
-The deferred shadow trigger fires at COMMIT and requires state open. Seal had already moved the run to awaiting_publish.

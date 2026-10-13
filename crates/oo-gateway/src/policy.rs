@@ -13,8 +13,8 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::CertificateDer;
+use rustls::pki_types::pem::PemObject;
 use rustls::{ClientConfig, RootCertStore};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, Error as PgError, Transaction};
@@ -23,9 +23,10 @@ use tokio_postgres::{Client, Error as PgError, Transaction};
 pub mod catalog;
 
 /// TLS stream produced by [`rustls_connector`].
-pub type TlsStream = <tokio_postgres_rustls::MakeRustlsConnect as tokio_postgres::tls::MakeTlsConnect<
-    tokio_postgres::Socket,
->>::Stream;
+pub type TlsStream =
+    <tokio_postgres_rustls::MakeRustlsConnect as tokio_postgres::tls::MakeTlsConnect<
+        tokio_postgres::Socket,
+    >>::Stream;
 
 /// Connection future for [`connect_require_tls`]. Poll it, or the session stalls.
 pub type TlsConnection = tokio_postgres::Connection<tokio_postgres::Socket, TlsStream>;
@@ -211,9 +212,7 @@ pub enum PolicyError {
 impl fmt::Display for PolicyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RowFilterRefused => {
-                formatter.write_str("row filter is refused before any grant")
-            }
+            Self::RowFilterRefused => formatter.write_str("row filter is refused before any grant"),
             Self::InvalidIdentifier { field } => {
                 write!(formatter, "invalid policy identifier: {field}")
             }
@@ -238,9 +237,8 @@ impl fmt::Display for PolicyError {
             Self::PhysicalAbsent => formatter.write_str("mapped relation is absent in _oo"),
             Self::CertificateRejected => formatter.write_str("CA certificate was rejected"),
             Self::EmptyPolicySet => formatter.write_str("column policy set is empty"),
-            Self::MixedIdentity => {
-                formatter.write_str("column policy set mixes role, login, project, digest, or generation")
-            }
+            Self::MixedIdentity => formatter
+                .write_str("column policy set mixes role, login, project, digest, or generation"),
             Self::LimitExceeded => formatter.write_str("column policy set exceeds a bound"),
             Self::TypeRefused { column } => {
                 write!(formatter, "mapped column type is not grantable: {column}")
@@ -327,8 +325,11 @@ pub struct TlsEndpoint {
 ///
 /// The crypto provider is aws-lc-rs, the provider already pinned in this
 /// workspace. There is no `NoTls` constructor and no certificate skip flag.
-pub fn rustls_connector(ca_pem: &[u8]) -> Result<tokio_postgres_rustls::MakeRustlsConnect, PolicyError> {
-    let certificate = CertificateDer::from_pem_slice(ca_pem).map_err(|_| PolicyError::CertificateRejected)?;
+pub fn rustls_connector(
+    ca_pem: &[u8],
+) -> Result<tokio_postgres_rustls::MakeRustlsConnect, PolicyError> {
+    let certificate =
+        CertificateDer::from_pem_slice(ca_pem).map_err(|_| PolicyError::CertificateRejected)?;
     let mut roots = RootCertStore::empty();
     roots
         .add(certificate)
@@ -422,6 +423,18 @@ pub struct SetInstallOutcome {
 pub fn compile_column_acl_set(
     policies: &[ColumnAclPolicy],
 ) -> Result<CompiledPolicySet, PolicyError> {
+    compile_set(policies, false)
+}
+
+/// Compile one native source whose sealed collection binds each table independently.
+/// The shared project, role and login remain identical; each table retains its own mapping seal.
+pub fn compile_column_acl_native_vector_set(
+    policies: &[ColumnAclPolicy],
+) -> Result<CompiledPolicySet, PolicyError> {
+    compile_set(policies, true)
+}
+
+fn compile_set(policies: &[ColumnAclPolicy], native_vector: bool) -> Result<CompiledPolicySet, PolicyError> {
     if policies.is_empty() {
         return Err(PolicyError::EmptyPolicySet);
     }
@@ -447,8 +460,8 @@ pub fn compile_column_acl_set(
     let mut tables = BTreeSet::new();
     for policy in &compiled {
         if policy.project != first.project
-            || policy.config_digest != first.config_digest
-            || policy.generation != first.generation
+            || (!native_vector && policy.config_digest != first.config_digest)
+            || (!native_vector && policy.generation != first.generation)
             || policy.role != first.role
             || policy.login != first.login
         {
@@ -489,6 +502,21 @@ pub async fn install_column_acl_set(
     }
 }
 
+/// Install the exact per-table native vector for a separate preview role.
+/// Each table is resolved and generation-checked in the same transaction.
+pub async fn install_column_acl_native_vector_set(
+    client: &mut Client,
+    policies: &[ColumnAclPolicy],
+) -> Result<SetInstallOutcome, PolicyError> {
+    let compiled = compile_column_acl_native_vector_set(policies)?;
+    require_tls_session(client).await?;
+    let mut tx = client.transaction().await.map_err(db_error)?;
+    match install_set_in_transaction(&mut tx, &compiled).await {
+        Ok(outcome) => { tx.commit().await.map_err(db_error)?; Ok(outcome) }
+        Err(err) => { let _ = tx.rollback().await; Err(err) }
+    }
+}
+
 struct ResolvedTable {
     physical_table: String,
     physical_columns: Vec<String>,
@@ -500,16 +528,13 @@ async fn install_set_in_transaction(
 ) -> Result<SetInstallOutcome, PolicyError> {
     let grantor = require_grantor(tx).await?;
     let first = &compiled.policies[0];
-    let current = current_generation(tx, &first.project, &first.config_digest).await?;
-    if current != Some(first.generation) {
-        return Err(PolicyError::StaleGeneration {
-            policy: first.generation,
-            current,
-        });
-    }
     let mut resolved = Vec::with_capacity(compiled.policies.len());
     let mut physical_tables = BTreeSet::new();
     for policy in &compiled.policies {
+        let current = current_generation(tx, &policy.project, &policy.config_digest).await?;
+        if current != Some(policy.generation) {
+            return Err(PolicyError::StaleGeneration { policy: policy.generation, current });
+        }
         let physical_table = lookup_relation(
             tx,
             policy,
@@ -794,13 +819,17 @@ fn reserved_role(value: &str) -> bool {
 
 fn quote_ident(value: &str) -> Result<String, PolicyError> {
     if !is_plain_ident(value) || value.contains('"') {
-        return Err(PolicyError::InvalidIdentifier { field: "identifier" });
+        return Err(PolicyError::InvalidIdentifier {
+            field: "identifier",
+        });
     }
     Ok(format!("\"{value}\""))
 }
 
 fn require_physical(value: &str, prefix: &str) -> Result<String, PolicyError> {
-    let rest = value.strip_prefix(prefix).ok_or(PolicyError::PhysicalAbsent)?;
+    let rest = value
+        .strip_prefix(prefix)
+        .ok_or(PolicyError::PhysicalAbsent)?;
     if value.len() == 63
         && rest.len() == 60
         && rest

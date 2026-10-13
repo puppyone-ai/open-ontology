@@ -1,1 +1,0 @@
-Standalone build exited 0 by pruning 56 registry packages from its private lock copy. That is not the frozen registry set. Preserved before requiring the workspace overlay.

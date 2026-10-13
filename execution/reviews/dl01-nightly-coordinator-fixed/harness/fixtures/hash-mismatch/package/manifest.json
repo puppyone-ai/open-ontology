@@ -1,0 +1,76 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "rev-w37-hash-0001",
+  "target_id": "rev-w37-hash",
+  "exact_version": "16.9",
+  "tested_versions": [
+    "16.9"
+  ],
+  "variant": "self-managed",
+  "driver_digest": "dcad3959b7a83bbf9377a815f40f278ad33b6acb5d9d1e715d4d3af75934643b",
+  "suite_version": "cc-map/w37-review",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "review-single-node-w37",
+    "service_version": "16.9"
+  },
+  "cloud": {
+    "applies": false,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "id": "CC-01",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "89fd3ecd6da7067e45b7597ec85534841a8a5ad1bd583d521f377ed263a1eae7",
+      "raw_path": "raw/CC-01.txt"
+    },
+    {
+      "id": "CC-02",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "3d5432874ec634835be24292075ebf2cfe1bb94b5b9a38e4f2267393d01c4964",
+      "raw_path": "raw/CC-02.txt"
+    },
+    {
+      "id": "CC-03",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "f1916d07a0180516878a86b0ffecef9c88f322dafa31ea837c65b4508eacf0c8",
+      "raw_path": "raw/CC-03.txt"
+    },
+    {
+      "id": "CC-04",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "09a83fccef7a75ddae25bc8c0dd05e772d9b8fa9f26cf8a25cab3393f13b254c",
+      "raw_path": "raw/CC-04.txt"
+    },
+    {
+      "id": "CC-11",
+      "capability": "batch_full",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "1bd0976ef81d9bc0d177cac4c93c2a0acbbd5144157c5bf1a601a27b9b0bc0d6",
+      "raw_path": "raw/CC-11.txt"
+    }
+  ],
+  "rejections": [
+    {
+      "capability": "cdc",
+      "code": "CAPABILITY_UNVERIFIED",
+      "silent_fallback": false,
+      "raw_exit": 1,
+      "raw_sha256": "d74449e1ffa0eec9e70fada208bf70038d7e7be5631ebfefdcf0429166a9ac86",
+      "raw_path": "raw/reject-cdc.txt"
+    }
+  ],
+  "reviewers": []
+}

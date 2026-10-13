@@ -1,0 +1,1 @@
+rev-w37-schema CC-11 driver digest was pinned before read

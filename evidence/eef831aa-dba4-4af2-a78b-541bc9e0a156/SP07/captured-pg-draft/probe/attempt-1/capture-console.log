@@ -1,7 +1,0 @@
-oo_task=captured-pg-draft-probe
-oo_phase=capture
-oo_toolchain_request=1.94.0
-oo_platform=linux/arm64
-rustc_host=aarch64-unknown-linux-gnu
-=== build ===
-phase build exit 101

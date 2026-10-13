@@ -1,6 +1,0 @@
-Second focused-6 run. docker-run.exit 101. test-builder.exit 101. Clippy builder and fixture 0. Fixture tests 0.
-loopback_timeout_redirect_and_chunked_body panicked at tests/contract.rs:598.
-left Some("unavailable") right Some("redirect"). 10 passed, 1 failed, 0.83s.
-The fixture read only until the header terminator. post_loopback writes the header and the body as two write_all calls, and the header already ends with CRLF CRLF. On 1 CPU the peer answered and closed before the body write, so the client mapped EPIPE to unavailable.
-This attempt is preserved. The next source reads the Content-Length body before writing the 302. Product http.rs was not changed for this attempt.
-Container oo-a328-focused-6 was already removed. No model request was issued.

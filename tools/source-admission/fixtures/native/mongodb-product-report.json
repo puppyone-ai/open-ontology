@@ -1,0 +1,66 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "mongodb-8.0.32-community-standalone",
+  "source_id": "oo_w141",
+  "secret_ref": "secret://oo-dl01w1-41/reader",
+  "driver": {
+    "kind": "native-rust",
+    "name": "mongodb",
+    "version": "3.3.0",
+    "digest": "622f272c59e54a3c85f5902c6b8e7b1653a6b6681f45e4c42d6581301119a4b8"
+  },
+  "compat_mode": "mongodb-native",
+  "license_flags": ["Apache-2.0"],
+  "permissions": [
+    {"name": "read", "status": "known", "granted": true}
+  ],
+  "capabilities": [
+    {
+      "name": "Catalog",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "Budget",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": "Rows",
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C5",
+      "write_class": "R0",
+      "consistency": "S0",
+      "token_order": "None",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {"unit": "Rows", "confidence": "unknown", "estimate": "not_collected"},
+  "r1w": null
+}

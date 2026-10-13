@@ -1,6 +1,0 @@
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"1"},{"kind":"text","value":"甲公司"},{"kind":"bool","value":true},{"kind":"null"}]}
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"2"},{"kind":"text","value":"乙部"},{"kind":"bool","value":false},{"kind":"text","value":"备注"}]}
-{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":32,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"edae4d9049862aa1570aac78fa3d1e056d832b6079eae656ba80279ad7c04190","executed_sha256":"7e1e0e342ac8f7f328a0feec88e73b4d96fbf2933573ee9a5a7872deb734f341","stop":null,"sqlstate":null}
-{"record":"row","turn":1,"cells":[{"kind":"int","value":"1"},{"kind":"text","value":"甲公司"}]}
-{"record":"row","turn":1,"cells":[{"kind":"int","value":"2"},{"kind":"text","value":"乙部"}]}
-{"record":"summary","turn":1,"status":"succeeded","truncated":false,"returned_rows":2,"result_bytes":17,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"2eb92a3733cfe580780018e09e13a400a6fc5152597a25b94a4eae468c3ceb9d","executed_sha256":"c4a53778f2ac87a4c13e3c6c31820116d352b2ba9c68cf2848ca574e8f9661ba","stop":null,"sqlstate":null}

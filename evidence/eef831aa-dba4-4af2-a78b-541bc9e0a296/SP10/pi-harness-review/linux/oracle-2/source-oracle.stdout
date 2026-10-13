@@ -1,3 +1,0 @@
-source_commands=prompt,get_messages,switch_session,abort
-literal_export_restore_calls=absent
-source_ok

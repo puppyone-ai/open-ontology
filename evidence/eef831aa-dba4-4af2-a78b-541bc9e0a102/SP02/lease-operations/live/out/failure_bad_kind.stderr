@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/lease_operations/failure_bad_kind.sql:8: ERROR:  OO010: invalid lease operation input
-CONTEXT:  PL/pgSQL function complete_failure(uuid,uuid,text,bigint,text) line 22 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

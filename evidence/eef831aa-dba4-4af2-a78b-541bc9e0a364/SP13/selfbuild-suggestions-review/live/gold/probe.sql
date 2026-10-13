@@ -1,1 +1,0 @@
-UPDATE shop.account SET label = label

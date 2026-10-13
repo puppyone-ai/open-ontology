@@ -1,1 +1,0 @@
-Stopped after red_drop was recorded. The race step dropped the finished stream before wait_idle, so shutdown started another unbounded cancel_query against the stalled proxy and wait_idle never reached release. The drop fact is oracle-partial.txt. The harness was corrected and rerun.

@@ -8,12 +8,13 @@
 
 use std::io::{self, Write};
 
-use oo_connectors::{PgConnector, SourceCatalog, PROTOCOL};
+use oo_connectors::{PROTOCOL, PgConnector, SourceCatalog};
 use oo_core::parse_json_value;
 use serde::Deserialize;
 
 use crate::import_cli::{
-    self, Stop, build_source, from_source, read_bounded_stdin, read_ca, read_password, source_budget,
+    self, Stop, build_source, from_source, read_bounded_stdin, read_ca, read_password,
+    source_budget,
 };
 
 /// Request protocol. The binary accepts this value and no other.
@@ -51,7 +52,10 @@ async fn execute() -> Result<Vec<u8>, Stop> {
 }
 
 async fn read_catalog(config: oo_connectors::PgSourceConfig) -> Result<SourceCatalog, Stop> {
-    let mut session = PgConnector::new(config).connect().await.map_err(from_source)?;
+    let mut session = PgConnector::new(config)
+        .connect()
+        .await
+        .map_err(from_source)?;
     let allowed = session
         .inspect_access()
         .await

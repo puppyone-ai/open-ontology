@@ -1,2 +1,0 @@
-{"record":"row","turn":0,"cells":[{"kind":"text","value":"tel-00001"}]}
-{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":9,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"3b897964e55f1987d17590c9503ce957315d3e1056f6cfa6b947ceb1d80a21e0","executed_sha256":"0806ab0665b7accaffca9f7b6ec6d79512d5648757b4de258326887e71f67d3b","stop":null,"sqlstate":null}

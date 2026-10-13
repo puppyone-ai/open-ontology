@@ -1,0 +1,53 @@
+{
+  "task_id": "DL01-W1-09",
+  "query": "testing/dl01-targets/mssql/reader/01-oracle-read.sql",
+  "executed": false,
+  "verdict": "not_run",
+  "note": "Values are the independent expectations for a future linux/amd64 run. This session has no observed SQL Server result.",
+  "cases": {
+    "database_collation": {"expected": "Latin1_General_CI_AS", "basis": "CREATE DATABASE collation in dba/02-fixture.sql"},
+    "name_bin_collation": {"expected": "Latin1_General_BIN2", "basis": "column definition"},
+    "dt7_scale": {"expected": 7, "basis": "datetime2(7) catalog scale"},
+    "dt7_datetime_precision": {"expected": 7, "basis": "INFORMATION_SCHEMA.COLUMNS.DATETIME_PRECISION"},
+    "dt7_nanosecond": {"expected": 123456700, "basis": "DATEPART(nanosecond) of 12:34:56.1234567 is 123456700"},
+    "amt_precision": {"expected": 38, "basis": "decimal(38,10) inserted from a decimal string, not a float literal"},
+    "amt_scale": {"expected": 10, "basis": "decimal(38,10)"},
+    "survives_float_roundtrip": {"expected": 0, "basis": "9007199254740993.0000000001 is outside exact float64. decimal to float to decimal must change it"},
+    "null_notes": {"expected": 3, "basis": "rows 1, 5, and 6 store NULL. Empty string is a separate row"},
+    "empty_notes": {"expected": 1, "basis": "SQL Server keeps N'' distinct from NULL"},
+    "space_notes": {"expected": 1, "basis": "row 3 stores one space"},
+    "ci_case_equal": {"expected": 1, "basis": "Latin1_General_CI_AS case-insensitive equality"},
+    "ci_trail_equal": {"expected": 1, "basis": "non-binary equality ignores trailing spaces"},
+    "bin_case_equal": {"expected": 0, "basis": "Latin1_General_BIN2 compares code points. U+0041 is not U+0061"},
+    "bin_trail_equal": {"expected": 1, "basis": "character equality still applies ANSI trailing-space padding under BIN2. Byte identity is the next flag"},
+    "bin_trail_bytes_equal": {"expected": 0, "basis": "CONVERT(varbinary) keeps the extra UTF-16 space"},
+    "bin_key_order": {"expected": "1,2,3,4,5,6", "basis": "binary(4) unsigned byte order of the six keys as loaded"},
+    "name_bin_order": {"expected": "6,1,3,2,4,5", "basis": "NULL sorts lowest, then BIN2 code points U+0041, U+005A, U+0061, U+4E2D, U+6587"},
+    "reader_sysadmin": {"expected": 0, "basis": "reader login is not a server admin"},
+    "reader_db_owner": {"expected": 0, "basis": "reader is not db_owner"},
+    "reader_datawriter": {"expected": 0, "basis": "reader is not db_datawriter"},
+    "reader_ddladmin": {"expected": 0, "basis": "reader is not db_ddladmin"},
+    "can_insert": {"expected": 0, "basis": "INSERT was not granted"},
+    "can_select": {"expected": 1, "basis": "GRANT SELECT ON SCHEMA::dbo"},
+    "can_create_table": {"expected": 0, "basis": "CREATE TABLE was not granted"},
+    "can_alter_any_connection": {"expected": 0, "basis": "reader cannot KILL sessions"},
+    "is_cdc_enabled": {"expected": 0, "basis": "fixture does not call sp_cdc_enable_db. DBP2 is still required before any CDC claim"},
+    "change_tracking_on": {"expected": 0, "basis": "fixture does not enable change tracking"}
+  },
+  "negative_writes": {
+    "executed": false,
+    "batches": ["INSERT", "UPDATE", "DELETE", "CREATE TABLE"],
+    "expected_error_numbers": [229, 229, 229, 262],
+    "rule": "Any non-zero error is a denial. Error 0 is a least-privilege failure. A different non-zero number is recorded and is still a denial."
+  },
+  "cancel": {
+    "executed": false,
+    "mechanism": "Kill the reader client during WAITFOR so the TDS connection drops. Do not grant KILL to the reader.",
+    "expected": "DBA sees the reader request gone and an attention event for oo_dl01w1_09_reader."
+  },
+  "zero_write_audit": {
+    "executed": false,
+    "sources": ["SQL Server Audit oo_dl01w1_09_audit", "Extended Events session oo_dl01w1_09_reader_xe"],
+    "rule": "Successful INSERT, UPDATE, DELETE, MERGE, CREATE, ALTER, DROP, or TRUNCATE from the reader fails the observation. A denied write is the negative journey."
+  }
+}

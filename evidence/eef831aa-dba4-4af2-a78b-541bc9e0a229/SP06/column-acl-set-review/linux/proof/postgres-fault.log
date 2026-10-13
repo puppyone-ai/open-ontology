@@ -1,2 +1,0 @@
-2026-10-05 23:30:38.909 UTC [87] ERROR:  a229 post-grant fault grant 4 hit t detail GRANT type=TABLE schema= identity= rel= named= obj= sub= query GRANT USAGE ON SCHEMA "_oo" TO "oo_r_fault";
-	GRANT SELECT ("pc_d9889b36cba2949bf27a7b38f03467273d82ce5ff9d7b065e88231e07aeb") ON TABLE "_oo"."pt_678e39d7c77a876bfecbc964c3a33fe4513ce1d071f7c289d125b89f470b" TO "oo_r_fault"

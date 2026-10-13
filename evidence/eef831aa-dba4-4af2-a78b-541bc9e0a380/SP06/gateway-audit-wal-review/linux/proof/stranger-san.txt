@@ -1,2 +1,0 @@
-X509v3 Subject Alternative Name: 
-    URI:spiffe://oo/workload/stranger

@@ -1,7 +1,0 @@
-bind /tmp/oo-a245-eef831aa-dba4-4af2-a78b-541bc9e0a245/build01/archive /src rw=true
-bind /tmp/oo-a245-eef831aa-dba4-4af2-a78b-541bc9e0a245/build01/overlay /overlay rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a245/SP05/file-parser-cli/linux/build01/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a245/SP05/file-parser-cli/linux/build01 /evidence rw=true
-volume /var/lib/docker/volumes/oo-a245-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a245-eef831aa-target/_data /target rw=true
-

@@ -1,8 +1,0 @@
-ExitCode=126
-OOMKilled=false
-Privileged=false
-NetworkMode=none
-CapDrop=["ALL"]
-Memory=8589934592
-ReadonlyRootfs=false
-Id=ce155b9f44d41e673f14223ea04afee2d915ea18d7c856781d3d9a87f16205ba

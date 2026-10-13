@@ -1,0 +1,25 @@
+{
+  "protocol": "oo.mysql-customer.audit-receipt/v1",
+  "source_id": "yard",
+  "database": "yard",
+  "subject_user": "yard_reader",
+  "auditor_user": "yard_auditor",
+  "auditor_account": "yard_auditor@localhost",
+  "product_read": "zero",
+  "window_sha256": "abc",
+  "auditor_statement_sha256": "def",
+  "classes": [
+    {"event": "statement/sql/alter_table", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/create_table", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/delete", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/delete_multi", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/drop_table", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/insert", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/insert_select", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/replace", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/replace_select", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/truncate", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/update", "count_star": 0, "sum_errors": 0},
+    {"event": "statement/sql/update_multi", "count_star": 0, "sum_errors": 0}
+  ]
+}

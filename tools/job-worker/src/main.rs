@@ -32,6 +32,14 @@ async fn run() -> Result<()> {
     let config = Config::load(&PathBuf::from(config_path.ok_or_else(|| Error::new("usage"))?))?;
     let flags = flags(&rest)?;
     match command.as_deref() {
+        Some("native-install") => job_worker::native_schedule::install(&config).await,
+        Some("native-put") => job_worker::native_schedule::put(&config, &required(&flags,"manifest")?).await,
+        Some("native-enable") => job_worker::native_schedule::enabled(&config, &required(&flags,"binding")?, required(&flags,"enabled")? == "true").await,
+        Some("native-loader-put") => job_worker::native_schedule::loader_put(&config, &required(&flags,"manifest")?).await,
+        Some("native-state") => job_worker::native_schedule::state(&config, &required(&flags,"binding")?).await,
+        Some("native-fire") => job_worker::native_schedule::fire(&config, &required(&flags,"project")?).await,
+        Some("native-step") => job_worker::native_schedule::step(&config, &required(&flags,"project")?, &required(&flags,"worker")?).await,
+        Some("native-serve") => job_worker::native_schedule::serve(&config, &required(&flags,"project")?, &required(&flags,"worker")?, required(&flags,"seconds")?.parse().map_err(|_|Error::new("usage"))?).await,
         Some("apply") => job_worker::apply::apply(&config).await,
         Some("reset") => job_worker::apply::reset(&config).await,
         Some("prepare") => job_worker::prepare::prepare(&config).await,
@@ -70,6 +78,9 @@ async fn run() -> Result<()> {
             let text = job_worker::report::report(&config).await?;
             println!("{text}");
             Ok(())
+        }
+        Some(command) if command.starts_with("capture-") => {
+            job_worker::capture::dispatch(&config, command, &flags).await
         }
         _ => Err(Error::new("usage")),
     }

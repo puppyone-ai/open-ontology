@@ -1,0 +1,95 @@
+{
+  "scope": "owned running batch containers effective CPU quota removal; no restart or compiler jobs-env change",
+  "containers": [
+    {
+      "name": "oo-dl01w1-43-runtime",
+      "id": "01346bbdb8fa",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-43-pg",
+      "id": "8f5294bb3063",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-46-tools",
+      "id": "eb5b8c114daa",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-46-tgt",
+      "id": "aa38983015fa",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-46-src",
+      "id": "b9b2815ad24d",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-04-p2-pg",
+      "id": "eb0ec24b748e",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-04-p2-oracle",
+      "id": "ffc81586acf3",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-06-pg",
+      "id": "9e49238c6b31",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    },
+    {
+      "name": "oo-dl01w1-06-mysql",
+      "id": "3e3c9a2ea48c",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1
+      },
+      "after_quota": -1,
+      "state": "running"
+    }
+  ]
+}

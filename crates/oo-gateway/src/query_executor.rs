@@ -59,7 +59,13 @@
 //! Result objects are built here. Another crate cannot construct
 //! [`QuerySummary`]. Cell text is the driver's typed value for int2, int4,
 //! int8, text, bool, and null. Numeric OID 1700 is an [`ExactDecimal`].
-//! Every other result OID is refused before the portal is executed.
+//! `varchar`, `bpchar`, `float8`, `json`, `jsonb`, `bytea`, `uuid`, `date`,
+//! `timestamp`, and `timestamptz` are canonical text in [`Cell::Text`].
+//! `float4` and every other result OID are refused before the portal runs.
+//! This module still has no authentication gate. [`UNTRUSTED_ADMISSION`]
+//! stays blocked. A caller that already authenticated may pass
+//! [`SelectRequest::read_quality`] to read fixed `_oo` quality relations in
+//! the same transaction, after the portal and before rollback.
 
 use std::error::Error as StdError;
 use std::fmt;
@@ -68,15 +74,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use postgres_types::FromSql;
-use tokio::sync::{mpsc, oneshot, watch, Notify};
+use tokio::sync::{Notify, mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 use tokio_postgres::types::Type;
 use tokio_postgres::{Client, Error as PgError, IsolationLevel, Row, Transaction};
 
 use crate::policy::TlsConnection;
-use crate::sql_guard::{
-    guard_select, GuardError, GuardedPlan, PolicyCatalog, PolicyIdentity,
-};
+use crate::sql_guard::{GuardError, GuardedPlan, PolicyCatalog, PolicyIdentity, guard_select};
 use oo_core::api::ErrorCode;
 use oo_core::limits::CANONICAL_MAX_COEFFICIENT_DIGITS;
 use oo_core::{DecimalError, ExactDecimal};
@@ -96,11 +100,27 @@ pub const PORTAL_PAGE_ROWS: i32 = 1;
 const _: () = assert!(PORTAL_PAGE_ROWS > 0);
 
 const OID_BOOL: u32 = 16;
+const OID_BYTEA: u32 = 17;
 const OID_INT8: u32 = 20;
 const OID_INT2: u32 = 21;
 const OID_INT4: u32 = 23;
 const OID_TEXT: u32 = 25;
+const OID_JSON: u32 = 114;
+const OID_FLOAT8: u32 = 701;
+const OID_BPCHAR: u32 = 1042;
+const OID_VARCHAR: u32 = 1043;
+const OID_DATE: u32 = 1082;
+const OID_TIME: u32 = 1083;
+const OID_TIMESTAMP: u32 = 1114;
+const OID_TIMESTAMPTZ: u32 = 1184;
+const OID_INTERVAL: u32 = 1186;
 const OID_NUMERIC: u32 = 1700;
+const OID_UUID: u32 = 2950;
+const OID_JSONB: u32 = 3802;
+/// Microseconds from 1970-01-01 to 2000-01-01.
+const PG_EPOCH_UNIX_US: i64 = 946_684_800_000_000;
+/// Days from 1970-01-01 to 2000-01-01.
+const PG_EPOCH_UNIX_DAYS: i64 = 10_957;
 const NUMERIC_SIGN_POS: u16 = 0x0000;
 const NUMERIC_SIGN_NEG: u16 = 0x4000;
 const NUMERIC_SIGN_NAN: u16 = 0xC000;
@@ -151,6 +171,11 @@ pub struct SelectRequest<'a> {
     pub max_result_bytes: u64,
     /// Whole-query budget, from 1 ms through [`MAX_QUERY_WALL`], in whole milliseconds.
     pub wall_clock: Duration,
+    /// When true, read fixed `_oo` quality relations in this transaction.
+    /// Absence is recorded and does not fail a finished read.
+    pub read_quality: bool,
+    /// Exact reviewed collection vector for source-scoped quality rows.
+    pub quality_vector: Option<&'a serde_json::Value>,
 }
 
 /// Trusted hook. `admit` must succeed before the query transaction starts.
@@ -413,6 +438,224 @@ impl CompletionStatus {
     }
 }
 
+/// One prepared result column. Names and OIDs come from the statement, not the client.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResultColumn {
+    /// PostgreSQL result name.
+    pub name: String,
+    /// Result type OID.
+    pub oid: u32,
+    /// Result typmod. `-1` is unconstrained.
+    pub typmod: i32,
+}
+
+/// One logical table the quality read may describe.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QualityTable {
+    /// Source authenticated by the native collection, when available.
+    pub source: Option<String>,
+    /// Logical schema.
+    pub schema: String,
+    /// Logical relation.
+    pub name: String,
+    /// Physical schema written by the guard.
+    pub physical_schema: String,
+    /// Physical relation written by the guard.
+    pub physical_name: String,
+}
+
+/// What the same-snapshot quality read found. Empty strings mean the value was absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QualitySnapshot {
+    /// `skipped`, `absent`, `unreadable`, or `read`.
+    ///
+    /// `read` means the catalog probe ran. Each [`RelationProbe`] says whether
+    /// that relation was absent, not readable, or read. An empty freshness list
+    /// is not a claim that the source is ready.
+    pub relations: &'static str,
+    /// Rows whose names matched the guarded relations.
+    pub freshness: Vec<FreshnessObserved>,
+    /// Status warnings. Counts and hidden names are not copied.
+    pub warnings: Vec<QualityWarning>,
+    /// Table mappings visible to this role. Physical names are not stored.
+    pub mappings: Vec<MappingObserved>,
+    /// One state per probed relation.
+    pub probes: Vec<RelationProbe>,
+    /// Watermark rows whose source is one of `mappings`. Empty when unread.
+    pub watermarks: Vec<WatermarkObserved>,
+    /// Receipt rows matched to a visible mapping. Physical names are not stored.
+    pub receipts: Vec<ReceiptObserved>,
+    /// Import runs whose source is visible to this role.
+    pub runs: Vec<ImportRunObserved>,
+    /// Import tables matched to a visible mapping.
+    pub imports: Vec<ImportTableObserved>,
+    /// Quality totals for visible physical tables only.
+    pub quality_counts: Vec<QualityCount>,
+    /// Capture method from a readable quality row, or empty when unread.
+    pub capture_method: String,
+    /// Delete detection from a readable quality row, or empty when unread.
+    pub delete_detection: String,
+}
+
+/// One logical mapping the login could read. `bound` compares the catalog's
+/// physical relation and then drops that name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MappingObserved {
+    /// Source identity from `_oo.physical_mappings`.
+    pub source: String,
+    /// Logical schema.
+    pub schema: String,
+    /// Logical table.
+    pub table: String,
+    /// Mapping `run_generation`.
+    pub run_generation: i64,
+    /// True when this row is the catalog's bound generation.
+    pub bound: bool,
+}
+
+/// Observed state of one `_oo` relation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelationProbe {
+    /// Relation name. One of the fixed probe list.
+    pub name: &'static str,
+    /// `absent`, `not_readable`, or `read`.
+    pub state: &'static str,
+}
+
+/// One source watermark row filtered to a visible mapping source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WatermarkObserved {
+    /// Source identity.
+    pub source: String,
+    /// `transactional` or `per_table` text from the row.
+    pub consistency: String,
+    /// Cross-table flag from the row.
+    pub cross_table_consistent: bool,
+    /// Exact `applied_pos` text. Not a float.
+    pub applied_pos: String,
+    /// State text from the row.
+    pub state: String,
+}
+
+/// One apply receipt matched to a visible logical table.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReceiptObserved {
+    /// Source identity.
+    pub source: String,
+    /// Logical schema.
+    pub schema: String,
+    /// Logical table.
+    pub table: String,
+    /// Mapping generation that matched the receipt's physical generation.
+    pub run_generation: i64,
+    /// Exact applied position text.
+    pub applied_pos: String,
+    /// Position codec text from the row.
+    pub codec: String,
+    /// Cross-table flag from the row.
+    pub cross_table_consistent: bool,
+    /// Partial transaction flag from the row.
+    pub partial_txn: bool,
+    /// `target_commit_at` rendered in UTC, or empty.
+    pub target_commit_at: String,
+}
+
+/// One full-import run for a visible source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportRunObserved {
+    /// Source identity.
+    pub source: String,
+    /// Source generation.
+    pub source_generation: i64,
+    /// Target generation.
+    pub target_generation: i64,
+    /// Run state. `awaiting_publish` is not ready.
+    pub state: String,
+    /// True when `sealed_at` is present.
+    pub sealed: bool,
+}
+
+/// One import table row matched to a visible mapping.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportTableObserved {
+    /// Logical schema.
+    pub schema: String,
+    /// Logical table.
+    pub table: String,
+    /// Mapping generation.
+    pub run_generation: i64,
+    /// Applied row count from the import table.
+    pub applied_rows: i64,
+    /// Exact applied position text, or empty.
+    pub applied_pos: String,
+    /// Exhausted flag from the row.
+    pub exhausted: bool,
+}
+
+/// Masked quality totals for the role's physical tables.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QualityCount {
+    /// `batch` or `reject`.
+    pub kind: String,
+    /// Sum of `rejected_rows`.
+    pub rejected_rows: i64,
+    /// Sum of `accepted_rows`.
+    pub accepted_rows: i64,
+    /// Number of quality rows in the sum.
+    pub batches: i64,
+}
+
+/// Raw freshness text from `_oo.table_freshness`. Not a client timestamp yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FreshnessObserved {
+    /// Logical schema when the row matched one.
+    pub schema: String,
+    /// Logical table when the row matched one.
+    pub table: String,
+    /// `state` text from the relation.
+    pub state: String,
+    /// `source_committed_at` rendered in UTC, or empty.
+    pub source_committed_at: String,
+    /// `applied_at` rendered in UTC, or empty.
+    pub applied_at: String,
+}
+
+/// One quality status. `code` is a static warning name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QualityWarning {
+    /// Static code such as `RECONCILE_MISMATCH`.
+    pub code: &'static str,
+    /// Logical schema.
+    pub schema: String,
+    /// Logical table.
+    pub table: String,
+    /// Message. No counts and no hidden column names.
+    pub message: String,
+}
+
+impl QualitySnapshot {
+    pub(crate) fn blank(relations: &'static str) -> Self {
+        Self {
+            relations,
+            freshness: Vec::new(),
+            warnings: Vec::new(),
+            mappings: Vec::new(),
+            probes: Vec::new(),
+            watermarks: Vec::new(),
+            receipts: Vec::new(),
+            runs: Vec::new(),
+            imports: Vec::new(),
+            quality_counts: Vec::new(),
+            capture_method: String::new(),
+            delete_detection: String::new(),
+        }
+    }
+
+    fn skipped() -> Self {
+        Self::blank("skipped")
+    }
+}
+
 /// One decoded cell. Integers are canonical decimal text from the typed value.
 /// Numeric is an exact decimal, not a float and not driver text.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -423,7 +666,7 @@ pub enum Cell {
     Bool(bool),
     /// int2, int4, or int8 rendered with `Display`.
     Int(String),
-    /// `text` only. `varchar` is refused before decode.
+    /// `text`, `varchar`, `bpchar`, or another allowlisted type rendered as text.
     Text(String),
     /// PostgreSQL `numeric` as an exact decimal. The coefficient has no exponent.
     Decimal(ExactDecimal),
@@ -546,6 +789,8 @@ struct Shared {
     cleanup_deadline: Option<Instant>,
     cancel_notify: Arc<Notify>,
     destroy: watch::Sender<bool>,
+    result_columns: Vec<ResultColumn>,
+    quality: QualitySnapshot,
 }
 
 enum StreamItem {
@@ -560,7 +805,10 @@ struct EndGeneration<'a> {
 
 impl EndGeneration<'_> {
     fn arm(shared: &Mutex<Shared>) -> EndGeneration<'_> {
-        EndGeneration { shared, armed: true }
+        EndGeneration {
+            shared,
+            armed: true,
+        }
     }
 
     fn close_generation(&mut self) {
@@ -626,6 +874,8 @@ impl DedicatedSession {
             cleanup_deadline: None,
             cancel_notify: Arc::new(Notify::new()),
             destroy,
+            result_columns: Vec::new(),
+            quality: QualitySnapshot::skipped(),
         }));
         Ok(Self {
             client: Some(client),
@@ -712,10 +962,26 @@ impl DedicatedSession {
         let token = self.token.clone();
         let tls = self.tls.clone();
         let destroy_rx = lock(&self.shared).destroy.subscribe();
+        let tables = plan
+            .bindings
+            .relations
+            .iter()
+            .map(|relation| QualityTable {
+                source: request.quality_vector.and_then(serde_json::Value::as_array).and_then(|items| {
+                    items.iter().find(|item| item["dataset"] == format!("{}.{}", relation.schema, relation.name))
+                }).and_then(|item| item["source_id"].as_str()).map(str::to_owned),
+                schema: relation.schema.clone(),
+                name: relation.name.clone(),
+                physical_schema: relation.physical_schema.clone(),
+                physical_name: relation.physical_name.clone(),
+            })
+            .collect();
         let limits = Limits {
             max_rows: request.max_rows,
             max_result_bytes: request.max_result_bytes,
             wall,
+            read_quality: request.read_quality,
+            tables,
         };
         let task = tokio::spawn(async move {
             run_producer(
@@ -874,6 +1140,16 @@ impl SelectStream {
     pub fn cancel_handle(&self) -> CancelHandle {
         self.cancel.clone()
     }
+
+    /// Result columns stored when the statement was prepared.
+    pub fn result_columns(&self) -> Vec<ResultColumn> {
+        lock(&self.shared).result_columns.clone()
+    }
+
+    /// Quality snapshot stored before rollback. `skipped` when the request did not ask.
+    pub fn quality(&self) -> QualitySnapshot {
+        lock(&self.shared).quality.clone()
+    }
 }
 
 impl Drop for SelectStream {
@@ -1021,6 +1297,8 @@ struct Limits {
     max_rows: u32,
     max_result_bytes: u64,
     wall: Duration,
+    read_quality: bool,
+    tables: Vec<QualityTable>,
 }
 
 struct AuditIds {
@@ -1160,6 +1438,15 @@ async fn drive(
         let kind = StopKind::synced(err);
         return cleanup(tx, rows, kind, &mut hot).await;
     }
+    lock(shared).result_columns = statement
+        .columns()
+        .iter()
+        .map(|column| ResultColumn {
+            name: column.name().to_string(),
+            oid: column.type_().oid(),
+            typmod: column.type_modifier(),
+        })
+        .collect();
     if !statement.params().is_empty() {
         let kind = StopKind::synced(ExecError::Protocol { step: "parameters" });
         return cleanup(tx, rows, kind, &mut hot).await;
@@ -1175,6 +1462,11 @@ async fn drive(
             returned_rows,
             result_bytes,
         } => {
+            if limits.read_quality
+                && let Err(kind) = capture_quality(&tx, &mut hot, &limits.tables, shared).await
+            {
+                return cleanup(tx, rows, kind, &mut hot).await;
+            }
             let confirmed = rollback_confirmed(tx, started, limits.wall).await;
             if !confirmed {
                 let kind = StopKind {
@@ -1621,7 +1913,10 @@ async fn read_pages(
                 });
             }
         };
-        let row_bytes = cells.iter().map(cell_bytes).fold(0_u64, u64::saturating_add);
+        let row_bytes = cells
+            .iter()
+            .map(cell_bytes)
+            .fold(0_u64, u64::saturating_add);
         if stop_before_append(
             returned_rows,
             limits.max_rows,
@@ -1838,15 +2133,667 @@ fn check_settings(row: &Row, timeout_row: &Row, role: &str, ms: u64) -> Result<(
         return Err(StopKind::synced(ExecError::Protocol { step: "read_only" }));
     }
     if current_user != role {
-        return Err(StopKind::synced(ExecError::Protocol { step: "current_user" }));
+        return Err(StopKind::synced(ExecError::Protocol {
+            step: "current_user",
+        }));
     }
     if !search_path_empty(&search_path) {
-        return Err(StopKind::synced(ExecError::Protocol { step: "search_path" }));
+        return Err(StopKind::synced(ExecError::Protocol {
+            step: "search_path",
+        }));
     }
     if timeout_setting != ms.to_string() {
-        return Err(StopKind::synced(ExecError::Protocol { step: "statement_timeout" }));
+        return Err(StopKind::synced(ExecError::Protocol {
+            step: "statement_timeout",
+        }));
     }
     Ok(())
+}
+
+async fn capture_quality(
+    tx: &Transaction<'_>,
+    hot: &mut HotWait<'_>,
+    tables: &[QualityTable],
+    shared: &Mutex<Shared>,
+) -> Result<(), StopKind> {
+    platform_batch(tx, "RESET ROLE", "reset_role", hot).await?;
+    platform_batch(tx, "SAVEPOINT oo_gw_quality", "savepoint", hot).await?;
+    let snapshot = match read_quality_rows(tx, hot, tables).await {
+        Ok(snapshot) => snapshot,
+        Err(kind) => {
+            platform_batch(
+                tx,
+                "ROLLBACK TO SAVEPOINT oo_gw_quality",
+                "savepoint_rollback",
+                hot,
+            )
+            .await?;
+            if matches!(
+                kind.error,
+                ExecError::Canceled { .. } | ExecError::Timeout { .. }
+            ) {
+                return Err(kind);
+            }
+            QualitySnapshot::blank("unreadable")
+        }
+    };
+    lock(shared).quality = snapshot;
+    Ok(())
+}
+
+const PROBE_NAMES: &[&str] = &[
+    "physical_mappings",
+    "table_freshness",
+    "source_watermark",
+    "table_quality",
+    "apply_receipts",
+    "full_import_run",
+    "full_import_table",
+    "full_import_quality",
+];
+
+struct HeldMap {
+    source: String,
+    schema: String,
+    table: String,
+    run_generation: i64,
+    physical: String,
+    bound: bool,
+}
+
+enum ProbeEnd {
+    State(&'static str),
+    Fatal(StopKind),
+}
+
+fn probe_label(sqlstate: Option<&str>) -> &'static str {
+    match sqlstate {
+        Some("42P01") => "absent",
+        Some("42501") => "not_readable",
+        Some("57014") => "fatal",
+        _ => "unread",
+    }
+}
+
+async fn probe_hot(
+    tx: &Transaction<'_>,
+    hot: &mut HotWait<'_>,
+    sql: &str,
+) -> Result<Vec<Row>, ProbeEnd> {
+    if let Err(kind) = platform_batch(tx, "SAVEPOINT oo_gw_probe", "savepoint", hot).await {
+        return Err(ProbeEnd::Fatal(kind));
+    }
+    match hot_result(tx.query(sql, &[]), hot, "quality_probe").await {
+        Ok(rows) => {
+            if let Err(kind) =
+                platform_batch(tx, "RELEASE SAVEPOINT oo_gw_probe", "savepoint", hot).await
+            {
+                return Err(ProbeEnd::Fatal(kind));
+            }
+            Ok(rows)
+        }
+        Err(kind) => {
+            if let Err(rollback) = platform_batch(
+                tx,
+                "ROLLBACK TO SAVEPOINT oo_gw_probe",
+                "savepoint_rollback",
+                hot,
+            )
+            .await
+            {
+                return Err(ProbeEnd::Fatal(rollback));
+            }
+            let _ = platform_batch(tx, "RELEASE SAVEPOINT oo_gw_probe", "savepoint", hot).await;
+            let label = probe_label(kind.error.sqlstate());
+            if label == "fatal" {
+                Err(ProbeEnd::Fatal(kind))
+            } else {
+                Err(ProbeEnd::State(label))
+            }
+        }
+    }
+}
+
+async fn read_quality_rows(
+    tx: &Transaction<'_>,
+    hot: &mut HotWait<'_>,
+    tables: &[QualityTable],
+) -> Result<QualitySnapshot, StopKind> {
+    let mut snapshot = QualitySnapshot::blank("read");
+    let mut held: Vec<HeldMap> = Vec::new();
+    for name in PROBE_NAMES {
+        let sql = probe_sql(name);
+        let rows = match probe_hot(tx, hot, sql).await {
+            Ok(rows) => rows,
+            Err(ProbeEnd::State(state)) => {
+                snapshot.probes.push(RelationProbe { name, state });
+                continue;
+            }
+            Err(ProbeEnd::Fatal(kind)) => return Err(kind),
+        };
+        snapshot.probes.push(RelationProbe {
+            name,
+            state: "read",
+        });
+        absorb_rows(name, &rows, tables, &mut held, &mut snapshot)?;
+    }
+    project_held(&held, &mut snapshot);
+    Ok(snapshot)
+}
+
+fn probe_sql(name: &str) -> &'static str {
+    match name {
+        "physical_mappings" => {
+            "SELECT source::text, logical_namespace::text, logical_table::text, \
+             run_generation::int8, physical_name::text \
+             FROM _oo.physical_mappings WHERE level = 't'"
+        }
+        "table_freshness" => {
+            "SELECT schema_name::text, table_name::text, COALESCE(state, ''), \
+             COALESCE(to_char(source_committed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), ''), \
+             COALESCE(to_char(applied_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), '') \
+             FROM _oo.table_freshness"
+        }
+        "source_watermark" => {
+            "SELECT source::text, consistency::text, cross_table_consistent, \
+             applied_pos::text, COALESCE(state, '') FROM _oo.source_watermark"
+        }
+        "table_quality" => {
+            "SELECT schema_name::text, table_name::text, \
+             COALESCE(reconcile_status, ''), COALESCE(entity_check, ''), \
+             COALESCE(partial_txn_in_progress, false), COALESCE(position_state, ''), \
+             COALESCE(budget_state, ''), \
+             CASE \
+               WHEN unexplained_codes IS NULL THEN false \
+               WHEN unexplained_codes = 'null'::jsonb THEN false \
+               WHEN unexplained_codes = '{}'::jsonb THEN false \
+               WHEN unexplained_codes = '[]'::jsonb THEN false \
+               ELSE true \
+             END, \
+             COALESCE(capture_method, ''), COALESCE(delete_detection, '') \
+             FROM _oo.table_quality"
+        }
+        "apply_receipts" => {
+            "SELECT source::text, table_generation::text, applied_pos::text, \
+             position_codec::text, cross_table_consistent, partial_txn, \
+             COALESCE(to_char(target_commit_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), '') \
+             FROM _oo.apply_receipts"
+        }
+        "full_import_run" => {
+            "SELECT source_id::text, source_generation::int8, target_generation::int8, \
+             state::text, sealed_at IS NOT NULL FROM _oo.full_import_run"
+        }
+        "full_import_table" => {
+            "SELECT schema_ident::text, table_ident::text, physical_name::text, \
+             applied_rows::int8, COALESCE(applied_pos::text, ''), exhausted \
+             FROM _oo.full_import_table"
+        }
+        "full_import_quality" => {
+            "SELECT physical_name::text, kind::text, \
+             COALESCE(rejected_rows, 0)::int8, COALESCE(accepted_rows, 0)::int8 \
+             FROM _oo.full_import_quality"
+        }
+        _ => "SELECT 1 WHERE false",
+    }
+}
+
+fn absorb_rows(
+    name: &str,
+    rows: &[Row],
+    tables: &[QualityTable],
+    held: &mut Vec<HeldMap>,
+    snapshot: &mut QualitySnapshot,
+) -> Result<(), StopKind> {
+    let decode = |err: tokio_postgres::Error| {
+        let _ = err;
+        StopKind::synced(ExecError::Protocol { step: "quality" })
+    };
+    match name {
+        "physical_mappings" => {
+            for row in rows {
+                if held.len() >= 64 {
+                    break;
+                }
+                let source: String = row.try_get(0).map_err(decode)?;
+                let schema: String = row.try_get(1).map_err(decode)?;
+                let table: String = row.try_get(2).map_err(decode)?;
+                let generation: i64 = row.try_get(3).map_err(decode)?;
+                let physical: String = row.try_get(4).map_err(decode)?;
+                if let Some(item) =
+                    hold_mapping(tables, source, schema, table, generation, physical)
+                {
+                    held.push(item);
+                }
+            }
+        }
+        "table_freshness" => {
+            for row in rows {
+                let schema: String = row.try_get(0).map_err(decode)?;
+                let table: String = row.try_get(1).map_err(decode)?;
+                let Some(logical) = match_quality_table(tables, &schema, &table) else {
+                    continue;
+                };
+                snapshot.freshness.push(FreshnessObserved {
+                    schema: logical.schema.clone(),
+                    table: logical.name.clone(),
+                    state: row.try_get(2).map_err(decode)?,
+                    source_committed_at: row.try_get(3).map_err(decode)?,
+                    applied_at: row.try_get(4).map_err(decode)?,
+                });
+            }
+        }
+        "source_watermark" => {
+            for row in rows {
+                if snapshot.watermarks.len() >= 32 {
+                    break;
+                }
+                let source: String = row.try_get(0).map_err(decode)?;
+                if !held.iter().any(|item| item.source == source) {
+                    continue;
+                }
+                let consistency: String = row.try_get(1).map_err(decode)?;
+                if consistency != "transactional" && consistency != "per_table" {
+                    continue;
+                }
+                let applied_pos: String = row.try_get(3).map_err(decode)?;
+                if !position_text(&applied_pos) {
+                    continue;
+                }
+                let cross: bool = row.try_get(2).map_err(decode)?;
+                let state: String = row.try_get(4).map_err(decode)?;
+                snapshot.watermarks.push(WatermarkObserved {
+                    source,
+                    consistency,
+                    cross_table_consistent: cross,
+                    applied_pos,
+                    state,
+                });
+            }
+        }
+        "table_quality" => {
+            for row in rows {
+                let schema: String = row.try_get(0).map_err(decode)?;
+                let table: String = row.try_get(1).map_err(decode)?;
+                let Some(logical) = match_quality_table(tables, &schema, &table) else {
+                    continue;
+                };
+                let reconcile: String = row.try_get(2).map_err(decode)?;
+                let entity: String = row.try_get(3).map_err(decode)?;
+                let partial: bool = row.try_get(4).map_err(decode)?;
+                let position: String = row.try_get(5).map_err(decode)?;
+                let budget: String = row.try_get(6).map_err(decode)?;
+                let unexplained: bool = row.try_get(7).map_err(decode)?;
+                push_quality_warning(
+                    &mut snapshot.warnings,
+                    logical,
+                    QualityFacts {
+                        reconcile: &reconcile,
+                        entity: &entity,
+                        partial,
+                        position: &position,
+                        budget: &budget,
+                        unexplained,
+                    },
+                );
+                let capture: String = row.try_get(8).map_err(decode)?;
+                let deletion: String = row.try_get(9).map_err(decode)?;
+                note_method(&mut snapshot.capture_method, &capture, CAPTURE_METHODS);
+                note_method(&mut snapshot.delete_detection, &deletion, DELETE_METHODS);
+            }
+        }
+        "apply_receipts" => {
+            for row in rows {
+                if snapshot.receipts.len() >= 32 {
+                    break;
+                }
+                let source: String = row.try_get(0).map_err(decode)?;
+                let physical: String = row.try_get(1).map_err(decode)?;
+                let Some(item) = held
+                    .iter()
+                    .find(|item| item.source == source && item.physical == physical)
+                else {
+                    continue;
+                };
+                let applied_pos: String = row.try_get(2).map_err(decode)?;
+                let codec: String = row.try_get(3).map_err(decode)?;
+                if !position_text(&applied_pos) || !codec_text(&codec) {
+                    continue;
+                }
+                snapshot.receipts.push(ReceiptObserved {
+                    source,
+                    schema: item.schema.clone(),
+                    table: item.table.clone(),
+                    run_generation: item.run_generation,
+                    applied_pos,
+                    codec,
+                    cross_table_consistent: row.try_get(4).map_err(decode)?,
+                    partial_txn: row.try_get(5).map_err(decode)?,
+                    target_commit_at: row.try_get(6).map_err(decode)?,
+                });
+            }
+        }
+        "full_import_run" => {
+            for row in rows {
+                if snapshot.runs.len() >= 32 {
+                    break;
+                }
+                let source: String = row.try_get(0).map_err(decode)?;
+                if !held.iter().any(|item| item.source == source) {
+                    continue;
+                }
+                let state: String = row.try_get(3).map_err(decode)?;
+                if !matches!(state.as_str(), "open" | "awaiting_publish" | "retired") {
+                    continue;
+                }
+                snapshot.runs.push(ImportRunObserved {
+                    source,
+                    source_generation: row.try_get(1).map_err(decode)?,
+                    target_generation: row.try_get(2).map_err(decode)?,
+                    state,
+                    sealed: row.try_get(4).map_err(decode)?,
+                });
+            }
+        }
+        "full_import_table" => {
+            for row in rows {
+                if snapshot.imports.len() >= 32 {
+                    break;
+                }
+                let schema: String = row.try_get(0).map_err(decode)?;
+                let table: String = row.try_get(1).map_err(decode)?;
+                let physical: String = row.try_get(2).map_err(decode)?;
+                let Some(item) = held.iter().find(|item| {
+                    item.schema == schema && item.table == table && item.physical == physical
+                }) else {
+                    continue;
+                };
+                let applied_pos: String = row.try_get(4).map_err(decode)?;
+                if !applied_pos.is_empty() && !position_text(&applied_pos) {
+                    continue;
+                }
+                snapshot.imports.push(ImportTableObserved {
+                    schema,
+                    table,
+                    run_generation: item.run_generation,
+                    applied_rows: row.try_get(3).map_err(decode)?,
+                    applied_pos,
+                    exhausted: row.try_get(5).map_err(decode)?,
+                });
+            }
+        }
+        "full_import_quality" => {
+            let mut sums: Vec<QualityCount> = Vec::new();
+            for row in rows {
+                let physical: String = row.try_get(0).map_err(decode)?;
+                if !held.iter().any(|item| item.physical == physical) {
+                    continue;
+                }
+                let kind: String = row.try_get(1).map_err(decode)?;
+                if kind != "batch" && kind != "reject" {
+                    continue;
+                }
+                let rejected: i64 = row.try_get(2).map_err(decode)?;
+                let accepted: i64 = row.try_get(3).map_err(decode)?;
+                if let Some(found) = sums.iter_mut().find(|item| item.kind == kind) {
+                    found.rejected_rows = found.rejected_rows.saturating_add(rejected);
+                    found.accepted_rows = found.accepted_rows.saturating_add(accepted);
+                    found.batches = found.batches.saturating_add(1);
+                } else if sums.len() < 8 {
+                    sums.push(QualityCount {
+                        kind,
+                        rejected_rows: rejected,
+                        accepted_rows: accepted,
+                        batches: 1,
+                    });
+                }
+            }
+            snapshot.quality_counts = sums;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn hold_mapping(
+    tables: &[QualityTable],
+    source: String,
+    schema: String,
+    table: String,
+    generation: i64,
+    physical: String,
+) -> Option<HeldMap> {
+    if !source_text(&source) || generation < 1 || !physical_text(&physical) {
+        return None;
+    }
+    let logical = tables
+        .iter()
+        .find(|item| item.schema == schema && item.name == table)?;
+    if logical.source.as_deref().is_some_and(|expected| expected != source) {
+        return None;
+    }
+    let bound = physical == logical.physical_name;
+    Some(HeldMap {
+        source,
+        schema,
+        table,
+        run_generation: generation,
+        physical,
+        bound,
+    })
+}
+
+fn project_held(held: &[HeldMap], snapshot: &mut QualitySnapshot) {
+    for item in held {
+        snapshot.mappings.push(MappingObserved {
+            source: item.source.clone(),
+            schema: item.schema.clone(),
+            table: item.table.clone(),
+            run_generation: item.run_generation,
+            bound: item.bound,
+        });
+    }
+}
+
+fn source_text(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes[0].is_ascii_lowercase()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_')
+}
+
+fn physical_text(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 63
+        && bytes.starts_with(b"pt_")
+        && bytes[3..].iter().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn position_text(value: &str) -> bool {
+    let digits = value.strip_prefix('+').unwrap_or(value);
+    (1..=38).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn codec_text(value: &str) -> bool {
+    matches!(
+        value,
+        "pg-commit-lsn/v1" | "mysql-binlog-pos/v1" | "batch-cursor-us/v1" | "snapshot-zero/v1"
+    )
+}
+
+const CAPTURE_METHODS: &[&str] = &[
+    "c1_cdc",
+    "c2_change_feed",
+    "c3_cursor",
+    "c4_partition",
+    "c5_diff",
+];
+const DELETE_METHODS: &[&str] = &["native", "partition_replace", "reconcile", "none"];
+
+fn note_method(slot: &mut String, value: &str, allowed: &[&str]) {
+    if !allowed.contains(&value) {
+        return;
+    }
+    if slot.is_empty() {
+        *slot = value.to_owned();
+    } else if slot != value && slot != "mixed" {
+        *slot = "mixed".to_owned();
+    }
+}
+
+fn match_quality_table<'a>(
+    tables: &'a [QualityTable],
+    schema: &str,
+    table: &str,
+) -> Option<&'a QualityTable> {
+    tables.iter().find(|item| {
+        (item.schema == schema && item.name == table)
+            || (item.physical_schema == schema && item.physical_name == table)
+    })
+}
+
+struct QualityFacts<'a> {
+    reconcile: &'a str,
+    entity: &'a str,
+    partial: bool,
+    position: &'a str,
+    budget: &'a str,
+    unexplained: bool,
+}
+
+fn push_quality_warning(
+    warnings: &mut Vec<QualityWarning>,
+    table: &QualityTable,
+    facts: QualityFacts<'_>,
+) {
+    let QualityFacts {
+        reconcile,
+        entity,
+        partial,
+        position,
+        budget,
+        unexplained,
+    } = facts;
+    let push = |warnings: &mut Vec<QualityWarning>, code, message: &str| {
+        warnings.push(QualityWarning {
+            code,
+            schema: table.schema.clone(),
+            table: table.name.clone(),
+            message: message.to_owned(),
+        });
+    };
+    if reconcile == "mismatch" {
+        push(
+            warnings,
+            "RECONCILE_MISMATCH",
+            "reconcile status is mismatch",
+        );
+    } else if reconcile == "stale" {
+        push(warnings, "RECONCILE_STALE", "reconcile status is stale");
+    }
+    if unexplained {
+        push(
+            warnings,
+            "UNEXPLAINED_CODES",
+            "unexplained codes are present",
+        );
+    }
+    if partial {
+        push(
+            warnings,
+            "PARTIAL_TRANSACTION",
+            "a partial transaction is in progress",
+        );
+    }
+    if entity == "failed" {
+        push(warnings, "ENTITY_CHECK_FAILED", "entity check failed");
+    }
+    if position == "stale_risk" || position == "expired" {
+        push(warnings, "STALE_DATA", "position state is not current");
+    }
+    if budget == "exhausted" {
+        push(warnings, "STALE_DATA", "budget state is exhausted");
+    }
+}
+
+/// Read `_oo` quality for a login that is not inside a user `SET ROLE`.
+///
+/// Each relation is probed on its own savepoint. `42P01` is `absent`.
+/// `42501` is `not_readable`. Rows that do not match `tables` are omitted.
+pub(crate) async fn observe_quality(
+    client: &mut Client,
+    tables: &[QualityTable],
+) -> QualitySnapshot {
+    let Ok(transaction) = client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .read_only(true)
+        .start()
+        .await
+    else {
+        return QualitySnapshot::blank("unreadable");
+    };
+    let snapshot = match observe_quality_rows(&transaction, tables).await {
+        Ok(snapshot) => snapshot,
+        Err(()) => QualitySnapshot::blank("unreadable"),
+    };
+    let _ = transaction.rollback().await;
+    snapshot
+}
+
+async fn observe_quality_rows(
+    tx: &Transaction<'_>,
+    tables: &[QualityTable],
+) -> Result<QualitySnapshot, ()> {
+    let mut snapshot = QualitySnapshot::blank("read");
+    let mut held: Vec<HeldMap> = Vec::new();
+    for name in PROBE_NAMES {
+        let sql = probe_sql(name);
+        let rows = match probe_plain(tx, sql).await {
+            Ok(rows) => rows,
+            Err(Some(state)) => {
+                snapshot.probes.push(RelationProbe { name, state });
+                continue;
+            }
+            Err(None) => return Err(()),
+        };
+        snapshot.probes.push(RelationProbe {
+            name,
+            state: "read",
+        });
+        absorb_rows(name, &rows, tables, &mut held, &mut snapshot).map_err(|_| ())?;
+    }
+    project_held(&held, &mut snapshot);
+    Ok(snapshot)
+}
+
+async fn probe_plain(tx: &Transaction<'_>, sql: &str) -> Result<Vec<Row>, Option<&'static str>> {
+    tx.batch_execute("SAVEPOINT oo_gw_probe")
+        .await
+        .map_err(|_| None)?;
+    match tx.query(sql, &[]).await {
+        Ok(rows) => {
+            tx.batch_execute("RELEASE SAVEPOINT oo_gw_probe")
+                .await
+                .map_err(|_| None)?;
+            Ok(rows)
+        }
+        Err(err) => {
+            tx.batch_execute("ROLLBACK TO SAVEPOINT oo_gw_probe")
+                .await
+                .map_err(|_| None)?;
+            let _ = tx.batch_execute("RELEASE SAVEPOINT oo_gw_probe").await;
+            let code = err.code().map(|code| code.code().to_owned());
+            let label = probe_label(code.as_deref());
+            if label == "fatal" {
+                Err(None)
+            } else {
+                Err(Some(label))
+            }
+        }
+    }
 }
 
 async fn rollback_bounded(tx: Transaction<'_>, bound: Duration) -> bool {
@@ -1976,15 +2923,28 @@ fn decode_cell(row: &Row, index: usize, oid: u32, typmod: i32) -> Result<Cell, E
             row.try_get::<_, Option<i64>>(index)
                 .map_err(|_| ExecError::Protocol { step: "decode" })?,
         ),
-        OID_TEXT => match row
-            .try_get::<_, Option<String>>(index)
+        OID_TEXT | OID_VARCHAR | OID_BPCHAR => text_cell(row, index),
+        OID_NUMERIC => decode_numeric_cell(row, index, typmod),
+        OID_BYTEA | OID_JSON | OID_FLOAT8 | OID_DATE | OID_TIME | OID_TIMESTAMP
+        | OID_TIMESTAMPTZ | OID_INTERVAL | OID_UUID | OID_JSONB => match row
+            .try_get::<_, Option<ExtendedPayload>>(index)
             .map_err(|_| ExecError::Protocol { step: "decode" })?
         {
             None => Ok(Cell::Null),
-            Some(value) => Ok(Cell::Text(value)),
+            Some(payload) => format_payload(oid, &payload.0),
         },
-        OID_NUMERIC => decode_numeric_cell(row, index, typmod),
         other => Err(ExecError::TypeRefused { oid: other }),
+    }
+}
+
+fn text_cell(row: &Row, index: usize) -> Result<Cell, ExecError> {
+    match row
+        .try_get::<_, Option<String>>(index)
+        .map_err(|_| ExecError::Protocol { step: "decode" })?
+    {
+        None => Ok(Cell::Null),
+        Some(value) if value.contains('\0') => Err(ExecError::Protocol { step: "decode" }),
+        Some(value) => Ok(Cell::Text(value)),
     }
 }
 
@@ -2008,7 +2968,8 @@ fn numeric_error_step(err: &PgError) -> &'static str {
 }
 
 fn numeric_reject_step(err: &(dyn StdError + 'static)) -> Option<&'static str> {
-    err.downcast_ref::<NumericReject>().map(|reject| reject.step)
+    err.downcast_ref::<NumericReject>()
+        .map(|reject| reject.step)
 }
 
 fn int_cell<T>(value: Option<T>) -> Result<Cell, ExecError>
@@ -2043,9 +3004,7 @@ fn classify_pg(err: PgError, step: &'static str, deadline_owned: bool) -> ExecEr
     } else {
         ExecError::Protocol { step }
     };
-    if deadline_owned
-        && let ExecError::Canceled { sqlstate } = mapped
-    {
+    if deadline_owned && let ExecError::Canceled { sqlstate } = mapped {
         return ExecError::Timeout {
             sqlstate: Some(sqlstate),
         };
@@ -2109,6 +3068,8 @@ fn begin_generation(shared: &Mutex<Shared>) -> u64 {
     guard.generation = guard.generation.wrapping_add(1);
     guard.accepting_cancel = true;
     guard.summary = None;
+    guard.result_columns.clear();
+    guard.quality = QualitySnapshot::skipped();
     guard.cleanup_deadline = None;
     guard.cancel_packet_sent = false;
     guard.generation
@@ -2125,7 +3086,8 @@ fn lock(shared: &Mutex<Shared>) -> MutexGuard<'_, Shared> {
 }
 
 fn remaining(started: Instant, wall: Duration) -> Option<Duration> {
-    wall.checked_sub(started.elapsed()).filter(|remain| !remain.is_zero())
+    wall.checked_sub(started.elapsed())
+        .filter(|remain| !remain.is_zero())
 }
 
 fn budget_left(deadline: Instant, now: Instant) -> Duration {
@@ -2424,8 +3386,214 @@ fn quote_role(role: &str) -> Result<String, ExecError> {
 fn oid_allowed(oid: u32) -> bool {
     matches!(
         oid,
-        OID_BOOL | OID_INT8 | OID_INT2 | OID_INT4 | OID_TEXT | OID_NUMERIC
+        OID_BOOL
+            | OID_BYTEA
+            | OID_INT8
+            | OID_INT2
+            | OID_INT4
+            | OID_TEXT
+            | OID_JSON
+            | OID_FLOAT8
+            | OID_BPCHAR
+            | OID_VARCHAR
+            | OID_DATE
+            | OID_TIME
+            | OID_TIMESTAMP
+            | OID_TIMESTAMPTZ
+            | OID_INTERVAL
+            | OID_NUMERIC
+            | OID_UUID
+            | OID_JSONB
     )
+}
+
+struct ExtendedPayload(Vec<u8>);
+
+impl<'a> FromSql<'a> for ExtendedPayload {
+    fn from_sql(_ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn StdError + Sync + Send>> {
+        Ok(Self(raw.to_vec()))
+    }
+
+    fn accepts(ty: &Type) -> bool {
+        oid_allowed(ty.oid())
+            && !matches!(
+                ty.oid(),
+                OID_BOOL
+                    | OID_INT8
+                    | OID_INT2
+                    | OID_INT4
+                    | OID_TEXT
+                    | OID_VARCHAR
+                    | OID_BPCHAR
+                    | OID_NUMERIC
+            )
+    }
+}
+
+/// Render one binary payload. Dates are ISO-8601. `bytea` is lowercase hex.
+/// `jsonb` is the version byte plus the server's JSON text. Floats that are
+/// not finite are refused. This is not the numeric exact path.
+pub(crate) fn format_payload(oid: u32, raw: &[u8]) -> Result<Cell, ExecError> {
+    let text = match oid {
+        OID_BYTEA => hex_lower(raw),
+        OID_JSON => json_text(raw)?,
+        OID_JSONB => jsonb_text(raw)?,
+        OID_FLOAT8 => float8_text(raw)?,
+        OID_DATE => date_text(raw)?,
+        OID_TIME => time_text(raw)?,
+        OID_TIMESTAMP => timestamp_text(raw, false)?,
+        OID_TIMESTAMPTZ => timestamp_text(raw, true)?,
+        OID_INTERVAL => interval_text(raw)?,
+        OID_UUID => uuid_text(raw)?,
+        _ => return Err(ExecError::TypeRefused { oid }),
+    };
+    if text.contains('\0') {
+        return Err(ExecError::Protocol { step: "decode" });
+    }
+    Ok(Cell::Text(text))
+}
+
+fn hex_lower(raw: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(raw.len() * 2);
+    for byte in raw {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
+}
+
+fn json_text(raw: &[u8]) -> Result<String, ExecError> {
+    let text = std::str::from_utf8(raw).map_err(|_| ExecError::Protocol { step: "json" })?;
+    serde_json::from_str::<serde_json::Value>(text)
+        .map_err(|_| ExecError::Protocol { step: "json" })?;
+    Ok(text.to_owned())
+}
+
+fn jsonb_text(raw: &[u8]) -> Result<String, ExecError> {
+    let Some((1, rest)) = raw.split_first() else {
+        return Err(ExecError::Protocol { step: "jsonb" });
+    };
+    json_text(rest).map_err(|_| ExecError::Protocol { step: "jsonb" })
+}
+
+fn float8_text(raw: &[u8]) -> Result<String, ExecError> {
+    if raw.len() != 8 {
+        return Err(ExecError::Protocol { step: "float8" });
+    }
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(raw);
+    let value = f64::from_be_bytes(bytes);
+    if !value.is_finite() {
+        return Err(ExecError::Protocol { step: "float8" });
+    }
+    Ok(value.to_string())
+}
+
+fn date_text(raw: &[u8]) -> Result<String, ExecError> {
+    if raw.len() != 4 {
+        return Err(ExecError::Protocol { step: "date" });
+    }
+    let days = i32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]);
+    let unix = i64::from(days) + PG_EPOCH_UNIX_DAYS;
+    let (year, month, day) =
+        civil_from_days(unix).map_err(|_| ExecError::Protocol { step: "date" })?;
+    Ok(format!("{year:04}-{month:02}-{day:02}"))
+}
+
+fn time_text(raw: &[u8]) -> Result<String, ExecError> {
+    let bytes: [u8; 8] = raw
+        .try_into()
+        .map_err(|_| ExecError::Protocol { step: "time" })?;
+    let micros = i64::from_be_bytes(bytes);
+    if !(0..=86_400_000_000).contains(&micros) {
+        return Err(ExecError::Protocol { step: "time" });
+    }
+    let seconds = micros / 1_000_000;
+    Ok(format!(
+        "{:02}:{:02}:{:02}.{:06}",
+        seconds / 3600,
+        (seconds % 3600) / 60,
+        seconds % 60,
+        micros % 1_000_000
+    ))
+}
+
+/// Native MySQL TIME is sealed as a signed microsecond duration. Other
+/// PostgreSQL interval shapes have no MySQL TIME equivalent and stay refused.
+fn interval_text(raw: &[u8]) -> Result<String, ExecError> {
+    let bytes: [u8; 16] = raw.try_into().map_err(|_| ExecError::Protocol { step: "interval" })?;
+    if bytes[8..].iter().any(|byte| *byte != 0) {
+        return Err(ExecError::Protocol { step: "interval" });
+    }
+    let micros = i64::from_be_bytes(bytes[..8].try_into().map_err(|_| ExecError::Protocol { step: "interval" })?);
+    let negative = micros < 0;
+    let magnitude = micros.unsigned_abs();
+    let seconds = magnitude / 1_000_000;
+    Ok(format!("{}{:02}:{:02}:{:02}.{:06}", if negative { "-" } else { "" },
+        seconds / 3600, (seconds % 3600) / 60, seconds % 60, magnitude % 1_000_000))
+}
+
+fn timestamp_text(raw: &[u8], zone: bool) -> Result<String, ExecError> {
+    if raw.len() != 8 {
+        return Err(ExecError::Protocol { step: "timestamp" });
+    }
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(raw);
+    let micros = i64::from_be_bytes(bytes);
+    if micros == i64::MAX || micros == i64::MIN {
+        return Err(ExecError::Protocol { step: "timestamp" });
+    }
+    let unix_us = micros
+        .checked_add(PG_EPOCH_UNIX_US)
+        .ok_or(ExecError::Protocol { step: "timestamp" })?;
+    let secs = unix_us.div_euclid(1_000_000);
+    let frac = unix_us.rem_euclid(1_000_000) as u32;
+    let days = secs.div_euclid(86_400);
+    let sod = secs.rem_euclid(86_400) as u32;
+    let (year, month, day) =
+        civil_from_days(days).map_err(|_| ExecError::Protocol { step: "timestamp" })?;
+    let hour = sod / 3600;
+    let minute = (sod % 3600) / 60;
+    let second = sod % 60;
+    let suffix = if zone { "Z" } else { "" };
+    Ok(format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{frac:06}{suffix}"
+    ))
+}
+
+fn uuid_text(raw: &[u8]) -> Result<String, ExecError> {
+    if raw.len() != 16 {
+        return Err(ExecError::Protocol { step: "uuid" });
+    }
+    let hex = hex_lower(raw);
+    Ok(format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    ))
+}
+
+fn civil_from_days(unix_days: i64) -> Result<(i32, u32, u32), ()> {
+    let z = unix_days.checked_add(719_468).ok_or(())?;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let mut year = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    if month <= 2 {
+        year += 1;
+    }
+    if !(1..=9999).contains(&year) || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return Err(());
+    }
+    Ok((year as i32, month as u32, day as u32))
 }
 
 #[derive(Debug)]
@@ -2542,7 +3710,8 @@ fn decode_numeric_payload(raw: &[u8]) -> Result<ExactDecimal, &'static str> {
     }
     let (int_part, frac_part) = split_numeric(weight, scale, &groups)?;
     let coefficient = numeric_coefficient(&int_part, &frac_part)?;
-    ExactDecimal::new(sign == NUMERIC_SIGN_NEG, coefficient, i32::from(dscale)).map_err(decimal_step)
+    ExactDecimal::new(sign == NUMERIC_SIGN_NEG, coefficient, i32::from(dscale))
+        .map_err(decimal_step)
 }
 
 fn decimal_step(err: DecimalError) -> &'static str {
@@ -2724,6 +3893,16 @@ fn stop_before_append(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn quality_mapping_requires_the_vector_source() {
+        let physical = format!("pt_{}", "a".repeat(60));
+        let tables = vec![super::QualityTable {
+            source: Some("source_east".into()), schema: "sales".into(), name: "orders".into(),
+            physical_schema: "pn_test".into(), physical_name: physical.clone(),
+        }];
+        assert!(super::hold_mapping(&tables, "source_west".into(), "sales".into(), "orders".into(), 1, physical.clone()).is_none());
+        assert!(super::hold_mapping(&tables, "source_east".into(), "sales".into(), "orders".into(), 1, physical).is_some());
+    }
     use postgres_types::FromSql;
     use tokio_postgres::types::Type;
 
@@ -2782,7 +3961,10 @@ mod tests {
             role_bind_decision(None, "oo_r_reader_a", "oo_r_reader_b"),
             RoleBind::Invalid
         );
-        assert_eq!(role_bind_decision(None, "oo_r_", "oo_r_"), RoleBind::Invalid);
+        assert_eq!(
+            role_bind_decision(None, "oo_r_", "oo_r_"),
+            RoleBind::Invalid
+        );
         assert_eq!(
             role_bind_decision(Some("oo_r_reader_a"), "oo_r_reader_a", "oo_r_reader_a"),
             RoleBind::Proceed
@@ -2831,7 +4013,10 @@ mod tests {
     #[test]
     fn role_shape_accepts_only_the_nologin_prefix() {
         assert!(role_shape_ok("oo_r_reader_a"));
-        assert_eq!(quote_role("oo_r_reader_a").as_deref(), Ok("\"oo_r_reader_a\""));
+        assert_eq!(
+            quote_role("oo_r_reader_a").as_deref(),
+            Ok("\"oo_r_reader_a\"")
+        );
         assert!(!role_shape_ok("reader_a"));
         assert!(!role_shape_ok("oo_r_"));
         assert!(!role_shape_ok("oo_r_Reader"));
@@ -2858,7 +4043,9 @@ mod tests {
         assert!(!canonical_int_text("01"));
         assert!(!canonical_int_text("+1"));
         assert!(!canonical_int_text("-"));
-        assert!(matches!(int_cell(Some(i64::MIN)), Ok(Cell::Int(text)) if text == "-9223372036854775808"));
+        assert!(
+            matches!(int_cell(Some(i64::MIN)), Ok(Cell::Int(text)) if text == "-9223372036854775808")
+        );
     }
 
     #[test]
@@ -2872,11 +4059,51 @@ mod tests {
         assert!(oid_allowed(Type::BOOL.oid()));
         assert!(oid_allowed(Type::INT8.oid()));
         assert!(oid_allowed(Type::NUMERIC.oid()));
-        assert!(!oid_allowed(Type::VARCHAR.oid()));
+        assert!(oid_allowed(Type::VARCHAR.oid()));
+        assert!(oid_allowed(Type::FLOAT8.oid()));
+        assert!(oid_allowed(Type::DATE.oid()));
+        assert!(oid_allowed(Type::TIME.oid()));
+        assert!(oid_allowed(Type::INTERVAL.oid()));
+        let mut negative_interval = [0u8; 16];
+        negative_interval[..8].copy_from_slice(&(-3_600_000_000_i64).to_be_bytes());
+        assert_eq!(format_payload(OID_INTERVAL, &negative_interval).unwrap(), Cell::Text("-01:00:00.000000".into()));
+        negative_interval[15] = 1;
+        assert!(format_payload(OID_INTERVAL, &negative_interval).is_err());
+        assert_eq!(
+            format_payload(OID_TIME, &45_296_123_456_i64.to_be_bytes()).unwrap(),
+            Cell::Text("12:34:56.123456".to_owned())
+        );
+        assert_eq!(
+            format_payload(OID_TIME, &86_400_000_000_i64.to_be_bytes()).unwrap(),
+            Cell::Text("24:00:00.000000".to_owned())
+        );
+        assert!(format_payload(OID_TIME, &86_400_000_001_i64.to_be_bytes()).is_err());
+        assert!(oid_allowed(Type::JSON.oid()));
+        assert!(oid_allowed(Type::JSONB.oid()));
+        assert!(oid_allowed(Type::BYTEA.oid()));
         assert!(!oid_allowed(Type::FLOAT4.oid()));
-        assert!(!oid_allowed(Type::FLOAT8.oid()));
-        assert!(!oid_allowed(Type::DATE.oid()));
         assert!(!oid_allowed(705));
+        assert_eq!(
+            format_payload(OID_DATE, &0_i32.to_be_bytes()),
+            Ok(Cell::Text("2000-01-01".to_owned()))
+        );
+        assert_eq!(
+            format_payload(OID_BYTEA, &[0x00, 0xff]),
+            Ok(Cell::Text("00ff".to_owned()))
+        );
+        assert_eq!(
+            format_payload(OID_JSON, br#"{"a":1}"#),
+            Ok(Cell::Text("{\"a\":1}".to_owned()))
+        );
+        assert_eq!(
+            format_payload(OID_JSONB, b"\x01{\"b\":true}"),
+            Ok(Cell::Text("{\"b\":true}".to_owned()))
+        );
+        assert!(format_payload(OID_FLOAT8, &f64::NAN.to_be_bytes()).is_err());
+        assert_eq!(
+            format_payload(OID_FLOAT8, &1.5_f64.to_be_bytes()),
+            Ok(Cell::Text("1.5".to_owned()))
+        );
         assert_eq!(
             stop_class(&ExecError::TypeRefused {
                 oid: Type::FLOAT4.oid()
@@ -2895,7 +4122,10 @@ mod tests {
 
     #[test]
     fn error_codes_use_the_existing_enum_and_hide_server_text() {
-        assert_eq!(ExecError::AuditUnavailable.code(), ErrorCode::AuditUnavailable);
+        assert_eq!(
+            ExecError::AuditUnavailable.code(),
+            ErrorCode::AuditUnavailable
+        );
         assert_eq!(
             ExecError::Timeout { sqlstate: None }.code(),
             ErrorCode::Timeout
@@ -2952,6 +4182,8 @@ mod tests {
             cleanup_deadline: None,
             cancel_notify: Arc::new(Notify::new()),
             destroy,
+            result_columns: Vec::new(),
+            quality: QualitySnapshot::skipped(),
         }));
         (shared, rx)
     }
@@ -3031,23 +4263,34 @@ mod tests {
 
     #[test]
     fn numeric_wire_matches_the_reviewed_vectors() {
-        let wide = decode_numeric_payload(&numeric_wire(4, NUMERIC_SIGN_POS, 2, &[100, 0, 0, 0, 0, 100]))
-            .expect("wide");
+        let wide = decode_numeric_payload(&numeric_wire(
+            4,
+            NUMERIC_SIGN_POS,
+            2,
+            &[100, 0, 0, 0, 0, 100],
+        ))
+        .expect("wide");
         assert_eq!(wide.to_string(), "1000000000000000000.01");
         assert_eq!(wide.scale(), 2);
         assert!(!wide.is_negative());
-        let one = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("1.01");
+        let one =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("1.01");
         assert_eq!(one.to_string(), "1.01");
-        let cent = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 2, &[100])).expect("0.01");
+        let cent =
+            decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 2, &[100])).expect("0.01");
         assert_eq!(cent.to_string(), "0.01");
-        let zero = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[])).expect("zero");
+        let zero =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[])).expect("zero");
         assert_eq!(zero.to_string(), "0.00");
         assert!(!zero.is_negative());
-        let neg = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 2, &[1, 100])).expect("-1.01");
+        let neg = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 2, &[1, 100]))
+            .expect("-1.01");
         assert_eq!(neg.to_string(), "-1.01");
-        let tiny = decode_numeric_payload(&numeric_wire(-2, NUMERIC_SIGN_POS, 6, &[100])).expect("tiny");
+        let tiny =
+            decode_numeric_payload(&numeric_wire(-2, NUMERIC_SIGN_POS, 6, &[100])).expect("tiny");
         assert_eq!(tiny.to_string(), "0.000001");
-        let padded = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
+        let padded =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
         assert_eq!(padded.to_string(), "1.0000");
         assert_eq!(padded.coefficient(), "10000");
         assert_eq!(padded.scale(), 4);
@@ -3076,20 +4319,24 @@ mod tests {
         assert!(negative.is_negative());
         assert_eq!(negative.coefficient(), "123456789012345678");
         assert_eq!(negative.to_string(), "-12345678901234.5678");
-        let small = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 4, &[1])).expect("small");
+        let small =
+            decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 4, &[1])).expect("small");
         assert_eq!(small.coefficient(), "1");
         assert_eq!(small.scale(), 4);
         assert_eq!(small.to_string(), "0.0001");
-        let small_neg = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_NEG, 4, &[1])).expect("small neg");
+        let small_neg = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_NEG, 4, &[1]))
+            .expect("small neg");
         assert!(small_neg.is_negative());
         assert_eq!(small_neg.coefficient(), "1");
         assert_eq!(small_neg.to_string(), "-0.0001");
-        let zeros = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[])).expect("zeros");
+        let zeros =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[])).expect("zeros");
         assert!(!zeros.is_negative());
         assert_eq!(zeros.coefficient(), "0");
         assert_eq!(zeros.scale(), 4);
         assert_eq!(zeros.to_string(), "0.0000");
-        let neg_zero = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 4, &[])).expect("neg zero");
+        let neg_zero =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_NEG, 4, &[])).expect("neg zero");
         assert!(!neg_zero.is_negative());
         assert_eq!(neg_zero.coefficient(), "0");
         assert_eq!(
@@ -3116,7 +4363,10 @@ mod tests {
         let mut negative_count = numeric_wire(0, NUMERIC_SIGN_POS, 0, &[]);
         negative_count[0] = 0xFF;
         negative_count[1] = 0xFF;
-        assert_eq!(decode_numeric_payload(&negative_count), Err("numeric_payload"));
+        assert_eq!(
+            decode_numeric_payload(&negative_count),
+            Err("numeric_payload")
+        );
         assert_eq!(
             decode_numeric_payload(&numeric_wire(0, 0x0001, 0, &[])),
             Err("numeric_payload")
@@ -3135,22 +4385,30 @@ mod tests {
         .expect("amount");
         let admitted = apply_numeric_typmod(amount, 1_179_656).expect("18,4");
         assert_eq!(admitted.coefficient(), "123456789012345678");
-        let narrow = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
+        let narrow =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 4, &[1])).expect("pad");
         assert!(apply_numeric_typmod(narrow, numeric_typmod(4, 4)).is_err());
-        let fraction = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 6, &[12, 3400])).expect("fraction");
+        let fraction = decode_numeric_payload(&numeric_wire(-1, NUMERIC_SIGN_POS, 6, &[12, 3400]))
+            .expect("fraction");
         assert_eq!(fraction.coefficient(), "1234");
         assert_eq!(fraction.scale(), 6);
         assert_eq!(fraction.to_string(), "0.001234");
         assert!(fraction.storage_precision() > 4);
-        let kept = apply_numeric_typmod(fraction.clone(), numeric_typmod(4, 6)).expect("coeff width");
+        let kept =
+            apply_numeric_typmod(fraction.clone(), numeric_typmod(4, 6)).expect("coeff width");
         assert_eq!(kept.coefficient(), "1234");
         assert!(apply_numeric_typmod(fraction, numeric_typmod(4, 4)).is_err());
-        let unconstrained = decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("free");
+        let unconstrained =
+            decode_numeric_payload(&numeric_wire(0, NUMERIC_SIGN_POS, 2, &[1, 100])).expect("free");
         assert!(apply_numeric_typmod(unconstrained, -1).is_ok());
-        assert_eq!(decode_numeric_payload(&numeric_wire(2_048, NUMERIC_SIGN_POS, 0, &[1])), Err("numeric_precision"));
+        assert_eq!(
+            decode_numeric_payload(&numeric_wire(2_048, NUMERIC_SIGN_POS, 0, &[1])),
+            Err("numeric_precision")
+        );
         let budget = decode_numeric_payload(&numeric_wire(2_047, NUMERIC_SIGN_POS, 4, &[1]));
         assert_eq!(budget, Err("numeric_precision"));
-        let nan = PgNumericCell::from_sql(&Type::NUMERIC, &numeric_wire(0, NUMERIC_SIGN_NAN, 0, &[]));
+        let nan =
+            PgNumericCell::from_sql(&Type::NUMERIC, &numeric_wire(0, NUMERIC_SIGN_NAN, 0, &[]));
         let err = nan.expect_err("nan");
         assert_eq!(
             err.downcast_ref::<NumericReject>().map(|item| item.step),

@@ -1,0 +1,37 @@
+count|unsigned|6
+count|decimal|6
+count|null|3
+count|null_unique|3
+count|json|6
+count|temporal|5
+count|binary|9
+count|zero_probe|0
+null_all|1
+null_codes|2
+zero_qty|1
+order|unsigned|0
+order|unsigned|1
+order|unsigned|4294967295
+order|unsigned|9223372036854775807
+order|unsigned|9223372036854775808
+order|unsigned|18446744073709551615
+order|decimal|-1.5000000000
+order|decimal|-0.0000000001
+order|decimal|0.0000000000
+order|decimal|0.0000000001
+order|decimal|12345678901234567890.1234567890
+order|decimal|99999999999999999999.9999999999
+order|temporal|1000-01-01 00:00:00.000000
+order|temporal|1970-01-01 00:00:01.000001
+order|temporal|2024-02-29 12:00:00.123456
+order|temporal|2038-01-19 03:14:07.000000
+order|temporal|9999-12-31 23:59:59.999999
+order|binary|<EMPTY>
+order|binary|00
+order|binary|0000
+order|binary|00FF
+order|binary|41
+order|binary|61
+order|binary|E4B8AD
+order|binary|E4B8AE
+order|binary|FF

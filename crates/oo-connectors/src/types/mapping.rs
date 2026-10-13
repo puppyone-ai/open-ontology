@@ -1,15 +1,15 @@
 //! Column plans. `SourceColumn.type_support.converted` is ignored.
 
-use oo_core::arrow_meta::ArrowTypeName;
-use oo_core::canonical::{LogicalField, LogicalType, ARBITRARY_DECIMAL_SCALE};
 use oo_core::TYPE_POLICY_V1;
+use oo_core::arrow_meta::ArrowTypeName;
+use oo_core::canonical::{ARBITRARY_DECIMAL_SCALE, LogicalField, LogicalType};
 
 use crate::model::SourceColumn;
 use crate::numeric_parts;
 
-use super::facts::{expected_send, TypeFacts, TypeGraph, OID_NUMERIC};
+use super::facts::{OID_NUMERIC, TypeFacts, TypeGraph, expected_send};
 use super::typmod::numeric_typmod_v1;
-use super::{TYPE_CONVERSION_PROTOCOL, NUMERIC_TYPMOD_VERSION};
+use super::{NUMERIC_TYPMOD_VERSION, TYPE_CONVERSION_PROTOCOL};
 
 /// Arrow physical kind. Decimal text is used when a series-60 decimal cannot
 /// hold every value of the declared typmod.
@@ -24,10 +24,17 @@ pub enum ArrowPhysical {
     Binary,
     Date32,
     Time64Micros,
+    DurationMicros,
     TimestampMicrosNaive,
     TimestampMicrosUtc,
-    Decimal128 { precision: u8, scale: i8 },
-    Decimal256 { precision: u8, scale: i8 },
+    Decimal128 {
+        precision: u8,
+        scale: i8,
+    },
+    Decimal256 {
+        precision: u8,
+        scale: i8,
+    },
     /// Exact decimal text. `scale` is `None` when each value carries its own.
     DecimalUtf8 {
         precision: Option<i32>,
@@ -52,14 +59,11 @@ impl ArrowPhysical {
             Self::Binary => ArrowTypeName::Binary,
             Self::Date32 => ArrowTypeName::Date32,
             Self::Time64Micros => ArrowTypeName::Time64Micros,
+            Self::DurationMicros => ArrowTypeName::DurationMicros,
             Self::TimestampMicrosNaive => ArrowTypeName::TimestampMicrosNaive,
             Self::TimestampMicrosUtc => ArrowTypeName::TimestampMicrosUtc,
-            Self::Decimal128 { precision, scale } => {
-                ArrowTypeName::decimal128(*precision, *scale)?
-            }
-            Self::Decimal256 { precision, scale } => {
-                ArrowTypeName::decimal256(*precision, *scale)?
-            }
+            Self::Decimal128 { precision, scale } => ArrowTypeName::decimal128(*precision, *scale)?,
+            Self::Decimal256 { precision, scale } => ArrowTypeName::decimal256(*precision, *scale)?,
             Self::List(item) => ArrowTypeName::list(item.arrow_name()?)?,
         })
     }
@@ -298,7 +302,9 @@ fn plan_enum(column: &SourceColumn, facts: &TypeFacts, graph: &TypeGraph) -> Col
     }
     let mut mapping = base_mapping(column, &qualified(facts), "utf8", &qualified(facts));
     mapping.decision = MapDecision::Lossless;
-    mapping.metadata.push(("oo.pg.enum".to_string(), "label".to_string()));
+    mapping
+        .metadata
+        .push(("oo.pg.enum".to_string(), "label".to_string()));
     ColumnPlan {
         mapping,
         attnum: column.attnum,
@@ -339,24 +345,86 @@ fn shape(
 
 fn plan_builtin(column: &SourceColumn, facts: &TypeFacts, typmod: i32) -> ColumnPlan {
     let built = match facts.oid {
-        super::facts::OID_BOOL => Some(shape(LogicalType::Bool, ArrowPhysical::Boolean, None, None, None)),
-        super::facts::OID_INT2 => Some(shape(LogicalType::Int, ArrowPhysical::Int16, None, None, None)),
-        super::facts::OID_INT4 => Some(shape(LogicalType::Int, ArrowPhysical::Int32, None, None, None)),
-        super::facts::OID_INT8 => Some(shape(LogicalType::Int, ArrowPhysical::Int64, None, None, None)),
-        super::facts::OID_FLOAT4 | super::facts::OID_FLOAT8 => {
-            Some(shape(LogicalType::Float64, ArrowPhysical::Float64, None, None, None))
-        }
+        super::facts::OID_BOOL => Some(shape(
+            LogicalType::Bool,
+            ArrowPhysical::Boolean,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_INT2 => Some(shape(
+            LogicalType::Int,
+            ArrowPhysical::Int16,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_INT4 => Some(shape(
+            LogicalType::Int,
+            ArrowPhysical::Int32,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_INT8 => Some(shape(
+            LogicalType::Int,
+            ArrowPhysical::Int64,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_FLOAT4 | super::facts::OID_FLOAT8 => Some(shape(
+            LogicalType::Float64,
+            ArrowPhysical::Float64,
+            None,
+            None,
+            None,
+        )),
         super::facts::OID_TEXT | super::facts::OID_VARCHAR | super::facts::OID_BPCHAR => {
             let precision = char_len(typmod);
-            Some(shape(LogicalType::Text, ArrowPhysical::Utf8, precision, None, None))
+            Some(shape(
+                LogicalType::Text,
+                ArrowPhysical::Utf8,
+                precision,
+                None,
+                None,
+            ))
         }
-        super::facts::OID_BYTEA | super::facts::OID_UUID => {
-            Some(shape(LogicalType::Bytes, ArrowPhysical::Binary, None, None, None))
-        }
-        super::facts::OID_JSON => Some(shape(LogicalType::Text, ArrowPhysical::Utf8, None, None, None)),
-        super::facts::OID_JSONB => Some(shape(LogicalType::Json, ArrowPhysical::Utf8, None, None, None)),
-        super::facts::OID_DATE => Some(shape(LogicalType::Date, ArrowPhysical::Date32, None, None, None)),
-        super::facts::OID_TIME => Some(shape(LogicalType::Time, ArrowPhysical::Time64Micros, None, None, None)),
+        super::facts::OID_BYTEA | super::facts::OID_UUID => Some(shape(
+            LogicalType::Bytes,
+            ArrowPhysical::Binary,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_JSON => Some(shape(
+            LogicalType::Text,
+            ArrowPhysical::Utf8,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_JSONB => Some(shape(
+            LogicalType::Json,
+            ArrowPhysical::Utf8,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_DATE => Some(shape(
+            LogicalType::Date,
+            ArrowPhysical::Date32,
+            None,
+            None,
+            None,
+        )),
+        super::facts::OID_TIME => Some(shape(
+            LogicalType::Time,
+            ArrowPhysical::Time64Micros,
+            None,
+            None,
+            None,
+        )),
         super::facts::OID_TIMESTAMP => Some(shape(
             LogicalType::TimestampNaive,
             ArrowPhysical::TimestampMicrosNaive,
@@ -395,14 +463,19 @@ fn plan_builtin(column: &SourceColumn, facts: &TypeFacts, typmod: i32) -> Column
     mapping.scale = scale;
     mapping.timezone = timezone;
     if facts.oid == super::facts::OID_JSON {
-        mapping.metadata.push(("oo.pg.json".to_string(), "exact-text".to_string()));
+        mapping
+            .metadata
+            .push(("oo.pg.json".to_string(), "exact-text".to_string()));
     }
     if facts.oid == super::facts::OID_JSONB {
         mapping
             .metadata
             .push(("oo.pg.jsonb".to_string(), "canonical-json".to_string()));
     }
-    if matches!(facts.oid, super::facts::OID_FLOAT4 | super::facts::OID_FLOAT8) {
+    if matches!(
+        facts.oid,
+        super::facts::OID_FLOAT4 | super::facts::OID_FLOAT8
+    ) {
         mapping.metadata.push((
             "oo.pg.float".to_string(),
             "canonical hash collapses signed zero; arrow bits keep the sign".to_string(),
@@ -492,12 +565,18 @@ fn plan_numeric(column: &SourceColumn, facts: &TypeFacts, typmod: i32) -> Column
         .metadata
         .push(("oo.pg.base_type".to_string(), qualified(facts)));
     if let ArrowPhysical::DecimalUtf8 { precision, scale } = &arrow {
-        mapping.metadata.push(("oo.pg.decimal".to_string(), "exact".to_string()));
+        mapping
+            .metadata
+            .push(("oo.pg.decimal".to_string(), "exact".to_string()));
         if let Some(precision) = precision {
-            mapping.metadata.push(("oo.pg.precision".to_string(), precision.to_string()));
+            mapping
+                .metadata
+                .push(("oo.pg.precision".to_string(), precision.to_string()));
         }
         if let Some(scale) = scale {
-            mapping.metadata.push(("oo.pg.scale".to_string(), scale.to_string()));
+            mapping
+                .metadata
+                .push(("oo.pg.scale".to_string(), scale.to_string()));
         }
     }
     ColumnPlan {
@@ -540,18 +619,19 @@ fn decimal_arrow(precision: i32, scale: i32) -> Option<ArrowPhysical> {
 }
 
 fn char_len(typmod: i32) -> Option<i32> {
-    if typmod < 4 {
-        None
-    } else {
-        Some(typmod - 4)
-    }
+    if typmod < 4 { None } else { Some(typmod - 4) }
 }
 
 fn qualified(facts: &TypeFacts) -> String {
     format!("{}.{}", facts.schema, facts.name)
 }
 
-fn base_mapping(column: &SourceColumn, source_type: &str, arrow_type: &str, pg_type: &str) -> ColumnMapping {
+fn base_mapping(
+    column: &SourceColumn,
+    source_type: &str,
+    arrow_type: &str,
+    pg_type: &str,
+) -> ColumnMapping {
     ColumnMapping {
         protocol: TYPE_CONVERSION_PROTOCOL,
         source_type: source_type.to_string(),

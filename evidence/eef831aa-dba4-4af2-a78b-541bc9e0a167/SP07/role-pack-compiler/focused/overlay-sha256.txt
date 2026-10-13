@@ -1,4 +1,0 @@
-overlay=lib.rs role_pack.rs tests/role_pack.rs
-8e138d4f3aaadd32f5b09ba05d97bf44c312e68f647cc64d6b912a855bc36cd1  /Users/redux/puppy-one/open-ontology/crates/oo-builder/src/lib.rs
-bf6253188f4d6cf1d09385f152040ae3956ed8faa9608f81560c22827555e7c1  /Users/redux/puppy-one/open-ontology/crates/oo-builder/src/role_pack.rs
-6dfdec91765f10df56a16a4ca15a8fc71f387e22f7dc216d1d8f04319a810246  /Users/redux/puppy-one/open-ontology/crates/oo-builder/tests/role_pack.rs

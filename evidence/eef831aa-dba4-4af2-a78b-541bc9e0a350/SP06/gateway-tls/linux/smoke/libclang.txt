@@ -1,6 +1,0 @@
-LIBCLANG_PATH=/cargo-home/a326-clang-root/usr/lib/llvm-19/lib
-LD_LIBRARY_PATH=/cargo-home/a326-clang-root/usr/lib/llvm-19/lib:/cargo-home/a326-clang-root/usr/lib/aarch64-linux-gnu
-llvm_inc=/cargo-home/a326-clang-root/usr/lib/llvm-19/lib/clang/19/include
-gcc_inc=/usr/lib/gcc/aarch64-linux-gnu/14/include
-lrwxrwxrwx 1 root root 41 Jun 14  2025 /cargo-home/a326-clang-root/usr/lib/llvm-19/lib/libclang.so -> ../../aarch64-linux-gnu/libclang-19.so.19
-stdbool.h=present

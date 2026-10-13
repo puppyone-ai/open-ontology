@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex–Grok 工程协作"
+  short_description: "协调并行任务、固定提交复审、资源交接与真实产品证据验收"
+  default_prompt: "Use $codex-grok to coordinate the next complete capability from the current repository plan and executor policy."

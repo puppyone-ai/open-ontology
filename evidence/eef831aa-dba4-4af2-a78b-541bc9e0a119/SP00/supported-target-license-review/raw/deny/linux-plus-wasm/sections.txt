@@ -1,9 +1,0 @@
-exit=4
-stdout=   advisories ok: 0 errors, 0 warnings, 0 notes          bans ok: 0 errors, 11 warnings, 0 notes  licenses FAILED: 2 errors, 0 warnings, 270 notes       sources ok: 0 errors, 0 warnings, 0 notes 
-stderr_bytes=537235
-rejected=2
-cc0=3
-cdla=2
-duplicate=11
-tiny=3
-webpki=4

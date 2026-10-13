@@ -1,2 +1,0 @@
-78d932548d65f312c9ec7646374c390cea9b6213c303183db04fe0a6b661c67e  tools/description-provider/CONTRACT.md
-d374ce9400a7f5aa0923f80128faa8ededa873958ba87f14e12b1bf3be9b09c2  tools/description-provider/src/transport.rs

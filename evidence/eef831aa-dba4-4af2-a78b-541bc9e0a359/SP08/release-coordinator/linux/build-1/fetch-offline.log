@@ -1,5 +1,0 @@
-error: failed to download `tokio-rustls v0.26.5`
-
-Caused by:
-  attempting to make an HTTP request, but --offline was specified
-exit:101

@@ -298,6 +298,148 @@ async fn unknown_aborted_error_eof_partial_and_huge_are_not_finished() {
     }
 }
 
+const REASONING_SECRET: &str = "pi-harness-reasoning-secret";
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn thinking_read_bash_and_text_finish_without_leaking_reasoning() {
+    let mut fixture = fixture("thinking-tools", Duration::from_secs(5));
+    let raw = fixture.temp.path("raw.ndjson");
+    fixture.request.raw_event_log = Some(raw.clone());
+    let harness = Harness::launch(fixture.request).await.expect("launch");
+    wait_file(&fixture.temp.path("work/stub-rpc"));
+    let mut stream = harness.events().unwrap();
+    let acceptance = harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+    assert_eq!(acceptance.id, "c1");
+    assert_eq!(acceptance.disposition, "started");
+    let items = collect_turn(&mut stream).await;
+    let rendered = format!("{items:?}");
+    assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+    let events = product(&items);
+    assert!(matches!(events[0], ProductEvent::TurnStarted));
+    match events[1] {
+        ProductEvent::ToolCallStarted { name, call_id, args_summary } => {
+            assert_eq!(*name, "read");
+            assert_eq!(*call_id, "call_read");
+            assert!(args_summary.contains("README.md"), "{args_summary}");
+        }
+        other => panic!("{other:?}"),
+    }
+    match events[2] {
+        ProductEvent::ToolCallFinished { call_id, status, output_summary } => {
+            assert_eq!(*call_id, "call_read");
+            assert_eq!(*status, "ok");
+            assert_eq!(output_summary, "readme-bytes");
+        }
+        other => panic!("{other:?}"),
+    }
+    match events[3] {
+        ProductEvent::ToolCallStarted { name, call_id, .. } => {
+            assert_eq!(*name, "bash");
+            assert_eq!(*call_id, "call_bash");
+        }
+        other => panic!("{other:?}"),
+    }
+    match events[4] {
+        ProductEvent::ToolCallFinished { call_id, status, output_summary } => {
+            assert_eq!(*call_id, "call_bash");
+            assert_eq!(*status, "ok");
+            assert!(output_summary.contains("query_id=q_fixed"), "{output_summary}");
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(events[5], ProductEvent::AssistantDelta { text } if text == "fixture-reply"));
+    assert!(matches!(
+        events[6],
+        ProductEvent::TurnFinished { stop_reason, answer, .. } if stop_reason == "stop" && answer.as_deref() == Some("fixture-reply")
+    ));
+    assert_eq!(events.len(), 7);
+    assert_eq!(sequences(&items), vec![0, 1, 2, 3, 4, 5, 6]);
+    let log = fs::read_to_string(&raw).unwrap();
+    assert!(!log.contains(REASONING_SECRET), "{log}");
+    assert!(log.contains("thinking_start"), "{log}");
+    assert!(log.contains("\"delta\":\"redacted\""), "{log}");
+    assert!(log.contains("\"content\":\"redacted\""), "{log}");
+    let commands = fs::read_to_string(fixture.temp.path("work/stub-commands.jsonl")).unwrap();
+    assert!(commands.contains("\"id\":\"c1\""), "{commands}");
+    assert!(!commands.contains(REASONING_SECRET), "{commands}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn thinking_only_eof_unknown_error_partial_and_abort_stay_incomplete() {
+    let running = launch_keep("thinking-eof").await;
+    let mut stream = running.harness.events().unwrap();
+    running.harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+    let items = collect_terminal(&mut stream).await;
+    let rendered = format!("{items:?}");
+    assert!(!items.iter().any(is_finished), "{rendered}");
+    assert!(rendered.contains("stdout-eof"), "{rendered}");
+    assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+    assert!(matches!(product(&items)[0], ProductEvent::TurnStarted));
+
+    {
+        let mut unknown = fixture("thinking-unknown", Duration::from_secs(5));
+        unknown.request.raw_event_log = Some(unknown.temp.path("raw.ndjson"));
+        let harness = Harness::launch(unknown.request).await.unwrap();
+        wait_file(&unknown.temp.path("work/stub-rpc"));
+        let mut stream = harness.events().unwrap();
+        harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+        let items = collect_terminal(&mut stream).await;
+        let rendered = format!("{items:?}");
+        assert!(!items.iter().any(is_finished), "{rendered}");
+        assert!(rendered.contains("unsupported-event:message_update:thinking_partial"), "{rendered}");
+        assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+    }
+
+    {
+        let mut errored = fixture("thinking-error", Duration::from_secs(5));
+        let raw = errored.temp.path("raw.ndjson");
+        errored.request.raw_event_log = Some(raw.clone());
+        let harness = Harness::launch(errored.request).await.unwrap();
+        wait_file(&errored.temp.path("work/stub-rpc"));
+        let mut stream = harness.events().unwrap();
+        harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+        let items = collect_terminal(&mut stream).await;
+        let rendered = format!("{items:?}");
+        assert!(!items.iter().any(is_finished), "{rendered}");
+        assert!(rendered.contains("assistant-stream:error"), "{rendered}");
+        assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+        let log = fs::read_to_string(&raw).unwrap();
+        assert!(!log.contains(REASONING_SECRET), "{log}");
+        assert!(log.contains("\"thinking\":\"redacted\""), "{log}");
+    }
+
+    {
+        let mut partial = fixture("thinking-partial", Duration::from_secs(5));
+        let raw = partial.temp.path("raw.ndjson");
+        partial.request.raw_event_log = Some(raw.clone());
+        let harness = Harness::launch(partial.request).await.unwrap();
+        wait_file(&partial.temp.path("work/stub-rpc"));
+        let mut stream = harness.events().unwrap();
+        harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+        let items = collect_terminal(&mut stream).await;
+        let rendered = format!("{items:?}");
+        assert!(!items.iter().any(is_finished), "{rendered}");
+        assert!(rendered.contains("partial"), "{rendered}");
+        assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+        let log = fs::read_to_string(&raw).unwrap();
+        assert!(!log.contains(REASONING_SECRET), "{log}");
+    }
+
+    let running = launch_keep("abort-thinking").await;
+    let mut stream = running.harness.events().unwrap();
+    let acceptance = running.harness.send(UserMessage { text: "hello".to_owned() }).await.unwrap();
+    assert_eq!(acceptance.id, "c1");
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let outcome = running.harness.abort().await.unwrap();
+    assert!(outcome.ack, "{outcome:?}");
+    assert_eq!(outcome.child_pid, running.harness.child_pid());
+    let items = collect_terminal(&mut stream).await;
+    let rendered = format!("{items:?}");
+    assert!(!items.iter().any(is_finished), "{rendered}");
+    assert!(rendered.contains("aborted"), "{rendered}");
+    assert!(!rendered.contains(REASONING_SECRET), "{rendered}");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn rejected_prompt_is_not_started() {
     let running = launch_keep("reject").await;

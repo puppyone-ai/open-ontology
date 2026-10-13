@@ -1,7 +1,0 @@
-postgres recipe origin
-parent_up=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/pg/up.sh
-parent_up_sha256=ce993ed95722bb098e8a5db42a10ee42426670e843b86809b5e8be446099d72b
-parent_wrap=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/pg/pg-wrap.sh
-parent_wrap_sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
-wrap_sha256=25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f
-minimal_changes=uuid a394; database oo_a394; alias oo-a394-pg; same roles; network created here if absent

@@ -1,0 +1,172 @@
+{
+  "authority": "direct human2026-10-10: every native source owned by one autonomous engineer, actual whole product closure per task",
+  "ordinary_wait_seconds": 900,
+  "target_reliable_concurrency": 15,
+  "source_engineers": [
+    {
+      "source": "postgresql",
+      "task": "DL01-W1-46",
+      "uuid": "797f483e-533c-4521-b620-2fc07eb0b5f9",
+      "handle": 3215,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "tools/postgres-preview",
+        "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "fresh compact sole engineer complete original source; collect named background before editing"
+    },
+    {
+      "source": "mysql",
+      "task": "DL01-W1-06",
+      "uuid": "9250f9e9-cfe0-4748-b3c7-8804f3a42100",
+      "handle": 23774,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "tools/mysql-preview",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql",
+        "crates/oo-pipeline",
+        "tools/pg-builder",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "customer currently count only; complete actualArrow/sealed/Builder/consume same chosencustomer input"
+    },
+    {
+      "source": "mariadb",
+      "task": "DL01-W1-39",
+      "uuid": "0d8d559a-7e46-4859-838e-21ffccd62772",
+      "handle": 50993,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/mariadb",
+        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-driver-preflight",
+        "tools/mariadb-preview",
+        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "experimental_source_accepted",
+      "next_action": "preserve fixed experiment; nightly/verified/parent separate"
+    },
+    {
+      "source": "sqlserver",
+      "task": "DL01-W1-09",
+      "uuid": "bc0b2f83-51f5-4697-bffb-09908ff2ce7d",
+      "handle": 1036,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-targets/mssql",
+        "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql",
+        "tools/mssql-preview",
+        "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql-product"
+      ],
+      "mandatory_blocker": "real nativeamd64 environment, no substitute",
+      "status": "implementation_author_pending_external_source",
+      "next_action": "nativeSQLtarget/EULA and genuineadmission required; pipeline sqlserver sealed product not supported yet; realcode tests17 not sourceacceptance"
+    },
+    {
+      "source": "oracle",
+      "task": "DL01-W1-04",
+      "uuid": "c6c5f31b-478b-482a-9986-3d06914fe366",
+      "handle": 40172,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "tools/source-driver-worker",
+        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver",
+        "tools/oracle-preview",
+        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "fresh compact sole engineer complete original source; collect named background before editing"
+    },
+    {
+      "source": "clickhouse",
+      "task": "DL01-W1-40",
+      "uuid": "e6df8bcb-4f26-4071-82f7-9f96ac596dcc",
+      "handle": 9209,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/clickhouse",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
+        "tools/clickhouse-preview",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "whole source missing actual401 and verified genericcustomerfullflow; original typedoracle failure preserved fixed tests9"
+    },
+    {
+      "source": "doris",
+      "task": "DL01-W1-43",
+      "uuid": "47b3ae5d-8519-45f1-aed7-3f293a5f4576",
+      "handle": 12843,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/doris",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
+        "tools/doris-preview",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "collect latest wholeproductfailed gates and persist source-owned fixes to full original exit"
+    },
+    {
+      "source": "starrocks",
+      "task": "DL01-W1-45",
+      "uuid": "e63afc63-9ce4-4dd6-b785-83f600c4000d",
+      "handle": 65440,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/starrocks",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight",
+        "tools/starrocks-preview",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "collect latest wholeproductfailed gates and persist source-owned fixes to full original exit"
+    },
+    {
+      "source": "mongodb",
+      "task": "DL01-W1-41",
+      "uuid": "c0017148-4b75-465a-a7d1-efb1d03dfb4c",
+      "handle": 43529,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/mongodb",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight",
+        "tools/mongodb-preview",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "whole_author_review_pending",
+      "next_action": "59 full controlled source fixed independent review"
+    },
+    {
+      "source": "opensearch",
+      "task": "DL01-W1-44",
+      "uuid": "04a5dda5-7f08-45ea-a91b-298afba68cba",
+      "handle": 95732,
+      "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
+      "write_paths": [
+        "testing/dl01-driver-preflight/opensearch",
+        "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-driver-preflight",
+        "tools/opensearch-preview",
+        "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-product"
+      ],
+      "mandatory_blocker": null,
+      "status": "repair_running",
+      "next_action": "actual owned business explicit CancelToken, native deadline distinct, no clusteradmin"
+    }
+  ],
+  "shared_milestone_review": [
+    "DL01-W1-52"
+  ],
+  "no_duplicate_native_driver_consumer_owners": true,
+  "original_exit_unchanged": true,
+  "observed_at": "2026-10-10T22:46:14.547838+08:00"
+}

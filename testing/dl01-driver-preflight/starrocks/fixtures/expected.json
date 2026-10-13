@@ -1,0 +1,70 @@
+{
+  "schema": "oo-dl01-starrocks-driver-fixture-v1",
+  "product": "StarRocks",
+  "distinct_from_setup_gold": true,
+  "dup_events": {
+    "key_model": "DUPLICATE",
+    "rows": [
+      {"event_id": 21, "bucket": "2026-05-06", "seen": "2026-05-06 01:02:03", "amount": "4.5000", "note": "west"},
+      {"event_id": 21, "bucket": "2026-05-06", "seen": "2026-05-06 01:02:03", "amount": "4.5000", "note": "west"},
+      {"event_id": 22, "bucket": "2026-05-19", "seen": null, "amount": null, "note": ""},
+      {"event_id": 23, "bucket": "2026-06-03", "seen": "2026-06-03 23:59:59", "amount": "-0.0003", "note": null},
+      {"event_id": 24, "bucket": "2026-06-21", "seen": "2026-06-21 12:30:45", "amount": "77777777777777.7777", "note": "边"},
+      {"event_id": 25, "bucket": "2026-05-31", "seen": "2026-05-31 00:00:00", "amount": "0.0000", "note": "空"}
+    ]
+  },
+  "pk_accounts": {
+    "key_model": "PRIMARY",
+    "rows": [
+      {"account_id": 300, "balance": "22345678901234567890123456789.123456789", "nickname": "new", "opened": "2026-05-02 03:04:05"},
+      {"account_id": 301, "balance": null, "nickname": null, "opened": null},
+      {"account_id": 302, "balance": "0.000000000", "nickname": "", "opened": "2026-05-03 00:00:00"}
+    ],
+    "not_visible": [
+      {"account_id": 300, "balance": "1.250000000", "nickname": "old", "opened": "2026-05-01 00:00:00"}
+    ]
+  },
+  "agg_metrics": {
+    "key_model": "AGGREGATE",
+    "rows": [
+      {"metric_day": "2026-05-01", "metric_name": "taps", "qty": 10, "revenue": "2.0000"},
+      {"metric_day": "2026-05-02", "metric_name": "hits", "qty": 8, "revenue": "0.0000"}
+    ]
+  },
+  "uniq_dim": {
+    "key_model": "UNIQUE",
+    "rows": [
+      {"dim_id": 17, "label": "second", "score": "4.40"},
+      {"dim_id": 18, "label": "keep", "score": null}
+    ],
+    "not_visible": [
+      {"dim_id": 17, "label": "first", "score": "3.30"}
+    ]
+  },
+  "dup_partition_sums": {
+    "rows": [
+      {"part": "p202605", "row_count": 4, "amount_sum": "9.0000"},
+      {"part": "p202606", "row_count": 2, "amount_sum": "77777777777777.7774"}
+    ]
+  },
+  "after": {
+    "dup_append_visible": [
+      {"event_id": 26, "bucket": "2026-06-11", "seen": "2026-06-11 08:00:00", "amount": "2.2500", "note": "late"}
+    ],
+    "dup_partition_sums": [
+      {"part": "p202605", "row_count": 4, "amount_sum": "9.0000"},
+      {"part": "p202606", "row_count": 3, "amount_sum": "77777777777780.0274"}
+    ],
+    "pk_if_update_and_delete_visible": [
+      {"account_id": 300, "balance": "22345678901234567890123456789.123456789", "nickname": "edited", "opened": "2026-05-02 03:04:05"},
+      {"account_id": 301, "balance": null, "nickname": null, "opened": null}
+    ]
+  },
+  "decimals": {
+    "amount": 4,
+    "balance": 9,
+    "revenue": 4,
+    "score": 2,
+    "amount_sum": 4
+  }
+}

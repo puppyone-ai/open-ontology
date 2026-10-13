@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/insert_migration.sql:4: ERROR:  42501: permission denied for table schema_migrations
-LOCATION:  aclcheck_error, aclchk.c:2843

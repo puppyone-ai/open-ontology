@@ -1,1 +1,0 @@
-privileged=false capdrop=["ALL"] capadd=null ports={} net=oo-a188-eef831aa-net tmpfs={"/tmp":"rw,nosuid,nodev,size=2g"} security=["no-new-privileges"] readonly_root=false memory=8589934592 memoryswap=8589934592

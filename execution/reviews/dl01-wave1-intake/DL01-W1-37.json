@@ -1,0 +1,9 @@
+{
+  "task": "DL01-W1-37",
+  "review": "95e491416cfd877816e6696cf07586c1eada5d03",
+  "verified_sha_entries": 612,
+  "decision": "request_changes",
+  "failure": "missing/malformed/unloadable cited package still receives3nightly suite successes; duplicate and exactdrift denial fixed",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

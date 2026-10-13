@@ -1,4 +1,0 @@
-require_fail=1
-harness_fail=0
-residual=4
-cases=320

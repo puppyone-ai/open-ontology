@@ -1,4 +1,0 @@
-oo_task=sp12-product-benchmark-hit
-oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a389
-phase_exit=0 phase=generate-third
-phase_exit=1 phase=score-third

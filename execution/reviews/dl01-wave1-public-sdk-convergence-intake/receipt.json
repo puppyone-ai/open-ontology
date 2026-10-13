@@ -1,0 +1,8 @@
+{
+  "fixed_sha": "def424680e2066e997c7496d0bf62d36332fb211",
+  "manifest": "evidence/7e719805-ed88-4354-a5a1-f869f34da49b/DL01/public-gateway-cli/hash-manifest.txt",
+  "fixed_git_hashes_checked": 1206,
+  "errors": [],
+  "scope": "author tested public SDK file gate, positive TCP and actual mTLS50/41 cells; no standalone re-review required under latest human; integrated product review deferred",
+  "whole_source_accepted": false
+}

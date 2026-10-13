@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/create_function.sql:3: ERROR:  42501: permission denied for schema jobs
-LOCATION:  aclcheck_error, aclchk.c:2843

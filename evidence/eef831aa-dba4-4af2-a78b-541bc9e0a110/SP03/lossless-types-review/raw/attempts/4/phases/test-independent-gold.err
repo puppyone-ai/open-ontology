@@ -1,7 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running tests/independent_gold.rs (/target/debug/deps/independent_gold-e701e13934311e22)
-
-thread 'independent_live_gold' (769) panicked at crates/oo-connectors/tests/independent_gold.rs:216:54:
-called `Option::unwrap()` on a `None` value
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-error: test failed, to rerun pass `-p oo-connectors --test independent_gold`

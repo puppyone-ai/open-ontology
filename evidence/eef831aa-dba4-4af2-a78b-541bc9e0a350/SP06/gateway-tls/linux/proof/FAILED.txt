@@ -1,7 +1,0 @@
-Attempt proof exited 101 before gateway tests.
-rustc 0, libclang reused, clippy-component recorded, clippy 101.
-Clippy -D warnings stopped on three lib diagnostics:
-dead_code on TlsPeer.remote, and clippy::result_large_err on gate and verified_peer.
-PostgreSQL up.exit was 0. The proof container was removed. Cargo and target volumes were kept.
-No loopback, TLS, or live test ran in this attempt.
-The smoke directory was not rerun.

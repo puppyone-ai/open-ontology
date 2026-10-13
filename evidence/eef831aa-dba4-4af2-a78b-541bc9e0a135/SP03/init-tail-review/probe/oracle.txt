@@ -1,6 +1,0 @@
-rows=12000
-sum=72006000
-bit_xor=12000
-row_sha256=ec867603e6dd3cbddf278bc24c3b97d2ef1ddfe82509661190acec0804352d89
-row_sha256_input=big-endian i32 id for 1..=rows
-oracle_producer=host python3 hashlib, not the rust test

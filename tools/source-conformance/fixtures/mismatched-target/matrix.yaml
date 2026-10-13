@@ -1,0 +1,12 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-09
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "synthetic fixture; not the admission matrix"
+targets:
+  - id: fixture-designed
+    family: postgres
+    product: PostgreSQL
+    versions: ["16.4"]
+    variant: self-managed
+    caps:
+      batch_full: designed

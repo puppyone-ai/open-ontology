@@ -1,5 +1,0 @@
-Attempt 1 is a preserved false refusal. docker-run.exit=2, smoke.exit=2, phase source.exit=2, OOMKilled=false. Container ae68e8c23a4687589dd22d489f883d8042e4d3c6fc66c1373988d472714bdbad was removed by launch.sh. The console line is "baseline archive already accepts quantity".
-
-The gate grepped the whole archived reviewed_policy.rs for SemanticType::Quantity. Fixed commit c828e2781fc37eb62249fab54fa0b7fff86f0249 blob 56b62fdc1ab9864b99d992ccb46782fc34c1a507 contains that string only in semantic_name, as SemanticType::Quantity => "quantity". The compatible() integer arm is Identifier, ForeignKey, Code, and StatusCode. Archive hash-object equals that blob. The extracted archive is still at /tmp/oo-a254-eef831aa-dba4-4af2-a78b-541bc9e0a254/archive.
-
-The live inside.sh gate now reads only the compatible() arm that matches `"int2" | "int4" | "int8" => matches!` through the following `"text" =>` line. That slice has Quantity on the working tree and does not have it on the fixed archive.

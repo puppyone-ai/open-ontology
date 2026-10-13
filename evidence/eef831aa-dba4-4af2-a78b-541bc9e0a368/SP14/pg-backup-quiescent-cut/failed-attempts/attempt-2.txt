@@ -1,1 +1,0 @@
-attempt 2: cut-check tests failed because content_md5 was checked as 64 hex digits. product tests and clippy had already passed.

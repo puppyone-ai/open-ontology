@@ -1,4 +1,0 @@
-7:  "cut_mode": "writers_blocked",
-67:    "held": true,
-71:      {"database": "oo_a356_agent", "held": true, "relation": "shop.cut_seq", "sqlstate": "00000"},
-72:      {"database": "oo_a356_control", "held": true, "relation": "oo_key_fixture.cut_seq", "sqlstate": "00000"}

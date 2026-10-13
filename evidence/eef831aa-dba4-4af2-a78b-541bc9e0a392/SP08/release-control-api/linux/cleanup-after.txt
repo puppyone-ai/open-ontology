@@ -1,5 +1,0 @@
-containers=0
-volumes=0
-networks=0
-secrets=absent
-pins=absent

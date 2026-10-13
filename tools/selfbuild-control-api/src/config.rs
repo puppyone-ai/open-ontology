@@ -72,6 +72,33 @@ pub struct ProjectCfg {
     pub role_policy_file: String,
     pub hidden_columns: Vec<String>,
     pub visible_columns: Vec<String>,
+    pub sealed_bundle: String,
+    pub source_protocol: Option<SourceProtocol>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceProtocol {
+    pub catalog: String,
+    pub profile: String,
+    pub semantics: String,
+    pub source_commit: String,
+    pub semantics_commit: String,
+    pub type_basis: Vec<TypeBasis>,
+    pub schema_audit: Vec<SchemaAudit>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SchemaAudit {
+    pub path: String,
+    pub sha256: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeBasis {
+    pub protocol: String,
+    pub outer_protocol: String,
+    pub path: String,
+    pub sha256: String,
 }
 
 #[derive(Clone, Debug)]
@@ -172,6 +199,39 @@ struct FileProject {
     role_policy_file: String,
     hidden_columns: Vec<String>,
     visible_columns: Vec<String>,
+    #[serde(default)]
+    sealed_bundle: String,
+    #[serde(default)]
+    source_protocol: Option<FileSourceProtocol>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileSourceProtocol {
+    catalog: String,
+    profile: String,
+    semantics: String,
+    source_commit: String,
+    semantics_commit: String,
+    type_basis: Vec<FileTypeBasis>,
+    #[serde(default)]
+    schema_audit: Vec<FileSchemaAudit>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileSchemaAudit {
+    path: String,
+    sha256: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileTypeBasis {
+    protocol: String,
+    outer_protocol: String,
+    path: String,
+    sha256: String,
 }
 
 #[derive(Deserialize)]
@@ -300,7 +360,7 @@ fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
         || project.sample_policy != "none"
         || !matches!(project.rules_auto_accept.as_str(), "none" | "rule_high_confidence")
         || project.llm.origin != "http://127.0.0.1:8317"
-        || project.llm.model_id != "grok-4.7"
+        || !matches!(project.llm.model_id.as_str(), "grok-4.7" | "gpt-6.1-sol")
         || !absolute_path(&project.llm.bearer_file)
         || !absolute_path(&project.role_policy_file)
     {
@@ -319,15 +379,25 @@ fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
     }
     let mut tables = Vec::new();
     for table in project.source.tables {
-        if !sql_ident(&table.schema) || !sql_ident(&table.table) {
+        if !crate::ids::source_ident_ok(&table.schema) || !crate::ids::source_ident_ok(&table.table) {
             return Err(ApiError::malformed());
         }
         tables.push((table.schema, table.table));
     }
     for column in project.hidden_columns.iter().chain(project.visible_columns.iter()) {
-        if !crate::ids::object_id_ok(column) || column.split('.').count() != 3 {
+        if column.split('.').count() != 3 || !column.split('.').all(crate::ids::source_ident_ok) {
             return Err(ApiError::malformed());
         }
+    }
+    if !project.sealed_bundle.is_empty() && !absolute_path(&project.sealed_bundle) {
+        return Err(ApiError::malformed());
+    }
+    let source_protocol = match project.source_protocol {
+        None => None,
+        Some(item) => Some(source_protocol_cfg(item)?),
+    };
+    if source_protocol.is_some() && project.sealed_bundle.is_empty() {
+        return Err(ApiError::malformed());
     }
     Ok(ProjectCfg {
         project_id: project.project_id,
@@ -355,6 +425,73 @@ fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
         role_policy_file: project.role_policy_file,
         hidden_columns: project.hidden_columns,
         visible_columns: project.visible_columns,
+        sealed_bundle: project.sealed_bundle,
+        source_protocol,
+    })
+}
+
+fn source_protocol_cfg(file: FileSourceProtocol) -> Result<SourceProtocol, ApiError> {
+    let measured = crate::adapt::measured_catalog(&file.catalog)
+        || matches!(file.catalog.as_str(), "oo.pipeline.sealed-import-catalog/v1" | "oo.pipeline.sealed-import-collection/v1");
+    if measured {
+        if file.profile.is_empty()
+            || file.profile.len() > 128
+            || file.semantics.is_empty()
+            || file.semantics.len() > 128
+            || file.profile == crate::adapt::CAPTURE_COMPARE
+            || !crate::adapt::git_commit(&file.source_commit)
+            || !crate::adapt::git_commit(&file.semantics_commit)
+            || file.type_basis.len() > 8
+        {
+            return Err(ApiError::malformed());
+        }
+    } else if file.catalog != crate::adapt::CAPTURE_CATALOG
+        || file.profile != crate::adapt::CAPTURE_COMPARE
+        || file.semantics != crate::adapt::SEMANTICS_PROFILE
+        || !crate::adapt::git_commit(&file.source_commit)
+        || !crate::adapt::git_commit(&file.semantics_commit)
+        || file.type_basis.is_empty()
+        || file.type_basis.len() > 8
+    {
+        return Err(ApiError::malformed());
+    }
+    let mut type_basis = Vec::new();
+    for item in file.type_basis {
+        if item.protocol != crate::adapt::SEALED_MANIFEST
+            || item.outer_protocol != crate::adapt::CATALOG_IMPORT
+            || !crate::ids::hex64(&item.sha256)
+            || !absolute_path(&item.path)
+        {
+            return Err(ApiError::malformed());
+        }
+        type_basis.push(TypeBasis {
+            protocol: item.protocol,
+            outer_protocol: item.outer_protocol,
+            path: item.path,
+            sha256: item.sha256,
+        });
+    }
+    if file.schema_audit.len() > 4 {
+        return Err(ApiError::malformed());
+    }
+    let mut schema_audit = Vec::new();
+    for item in file.schema_audit {
+        if !crate::ids::hex64(&item.sha256) || !absolute_path(&item.path) || schema_audit.iter().any(|prior: &SchemaAudit| prior.path == item.path) {
+            return Err(ApiError::malformed());
+        }
+        schema_audit.push(SchemaAudit {
+            path: item.path,
+            sha256: item.sha256,
+        });
+    }
+    Ok(SourceProtocol {
+        catalog: file.catalog,
+        profile: file.profile,
+        semantics: file.semantics,
+        source_commit: file.source_commit,
+        semantics_commit: file.semantics_commit,
+        type_basis,
+        schema_audit,
     })
 }
 
@@ -384,7 +521,7 @@ fn principal_cfg(principal: FilePrincipal) -> Result<PrincipalCfg, ApiError> {
 fn endpoint(file: FileEndpoint, install_user: bool) -> Result<Endpoint, ApiError> {
     if file.port == 0
         || !host_ok(&file.host)
-        || file.server_name != file.host
+        || !host_ok(&file.server_name)
         || !sql_ident(&file.database)
         || !sql_ident(&file.user)
         || !absolute_path(&file.password_file)
@@ -392,7 +529,10 @@ fn endpoint(file: FileEndpoint, install_user: bool) -> Result<Endpoint, ApiError
     {
         return Err(ApiError::malformed());
     }
-    if install_user && file.user != INSTALL_USER {
+    if install_user
+        && file.user != INSTALL_USER
+        && !(file.user.starts_with("oo_") && file.user.ends_with("_selfbuild_api_admin"))
+    {
         return Err(ApiError::malformed());
     }
     Ok(Endpoint {
@@ -464,13 +604,48 @@ pub fn project_input_hash(project: &ProjectCfg) -> String {
         .iter()
         .map(|(schema, table)| serde_json::json!({"schema": schema, "table": table}))
         .collect();
-    crate::canonical::canonical_sha256(&serde_json::json!({
+    let mut body = serde_json::json!({
         "allowance_id": project.allowance_id,
         "config_commit": project.config_commit,
         "project_id": project.project_id,
         "source_ref": project.source_ref,
         "tables": tables
-    }))
+    });
+    if !project.sealed_bundle.is_empty() {
+        body["sealed_bundle"] = serde_json::json!(project.sealed_bundle);
+    }
+    if let Some(protocol) = &project.source_protocol {
+        let basis: Vec<Value> = protocol
+            .type_basis
+            .iter()
+            .map(|item| {
+                serde_json::json!({
+                    "outer_protocol": item.outer_protocol,
+                    "path": item.path,
+                    "protocol": item.protocol,
+                    "sha256": item.sha256
+                })
+            })
+            .collect();
+        let mut pinned = serde_json::json!({
+            "catalog": protocol.catalog,
+            "profile": protocol.profile,
+            "semantics": protocol.semantics,
+            "semantics_commit": protocol.semantics_commit,
+            "source_commit": protocol.source_commit,
+            "type_basis": basis
+        });
+        if !protocol.schema_audit.is_empty() {
+            let audits: Vec<Value> = protocol
+                .schema_audit
+                .iter()
+                .map(|item| serde_json::json!({"path": item.path, "sha256": item.sha256}))
+                .collect();
+            pinned["schema_audit"] = serde_json::json!(audits);
+        }
+        body["source_protocol"] = pinned;
+    }
+    crate::canonical::canonical_sha256(&body)
 }
 
 pub fn regular_file(path: &str) -> bool {
@@ -486,4 +661,31 @@ pub fn binaries_ready(binaries: &Binaries) -> bool {
         && regular_file(&binaries.rules)
         && regular_file(&binaries.suggestions)
         && regular_file(&binaries.review_ledger)
+}
+
+#[cfg(test)]
+mod endpoint_tests {
+    use super::*;
+
+    #[test]
+    fn scoped_install_login_can_use_certificate_dns_name() {
+        let file = || FileEndpoint {
+            host: "oo-dl01w1-41-pg-native".into(),
+            server_name: "oo-dl01w1-41-pg".into(),
+            port: 5432,
+            database: "oo_w141_selfbuild".into(),
+            user: "oo_w141_selfbuild_api_admin".into(),
+            password_file: "/private/password".into(),
+            ca_file: "/private/ca.crt".into(),
+        };
+        let accepted = endpoint(file(), true).unwrap();
+        assert_eq!(accepted.host, "oo-dl01w1-41-pg-native");
+        assert_eq!(accepted.server_name, "oo-dl01w1-41-pg");
+        let mut unsafe_user = file();
+        unsafe_user.user = "postgres".into();
+        assert!(endpoint(unsafe_user, true).is_err());
+        let mut unsafe_name = file();
+        unsafe_name.server_name = "*.example.com".into();
+        assert!(endpoint(unsafe_name, true).is_err());
+    }
 }

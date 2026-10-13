@@ -1,1 +1,0 @@
-Fixture batch failed sqlstate 22003. numeric(18,4) and numeric(38,4) exact values insert. NaN inserts into numeric(18,4). Infinity does not: numeric field overflow, precision 18 scale 4 cannot hold an infinite value. Next fixture keeps NaN and drops the infinity tables.

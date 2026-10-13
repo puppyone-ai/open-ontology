@@ -1,0 +1,6 @@
+{
+  "crates/oo-pipeline/src/native_update.rs": "7cd42157c7759d4d393683535b08eaa6b6c925958cc40e12d53cd366d5130db2",
+  "crates/oo-pipeline/src/native_catalog.rs": "9782d36ab49830e6dc736491de5a8605ec75fa38f235847a056e57b8dfdd2ab1",
+  "crates/oo-pipeline/migrations/0014_native_olap_partition.sql": "ce462621086c187826bce2b08987ebfa38e3d8f9c2daa7aa49a40da748c6ca68",
+  "crates/oo-builder/src/sealed_import.rs": "1db7f994f7359723d093bcb5210be2ce9eda448c1fee1c45902142011fa7dc5e"
+}

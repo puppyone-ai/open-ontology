@@ -1,1 +1,0 @@
-import-pg exit 1: full import refused numeric_nan. Catalog, review, effective OOS, role pack, bundle, and init-pg had already exited 0. NaN is removed from the source fixture. The row is not inserted into the target by hand.

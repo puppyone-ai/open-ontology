@@ -1,1 +1,0 @@
-attempt-2 eslint+vitest sdk-client.test.ts only; tsc stayed at attempt-1

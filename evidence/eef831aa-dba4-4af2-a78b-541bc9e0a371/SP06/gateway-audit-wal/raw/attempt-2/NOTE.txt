@@ -1,1 +1,0 @@
-Attempt 2 builder exit 1. libclang extract and audit-ingest build exited 0. gateway-audit-wal did not compile: File moved before try_clone. Clippy also rejected unused mut, single_match, and manual_is_multiple_of. The ingest schema test rejected the word feedback in a SQL comment.

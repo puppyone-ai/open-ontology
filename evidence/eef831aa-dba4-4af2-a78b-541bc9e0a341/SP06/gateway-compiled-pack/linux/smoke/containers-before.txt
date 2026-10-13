@@ -1,3 +1,0 @@
-94815b96965c oo-a341-pg 3aac91d19d5b a341 postgres
-c0605e5f13f7 oo-a317-nr-chain 0f24958fa693 a317 rust-builder
-ae06598ca490 oo-a317-pg 3aac91d19d5b a317 postgres

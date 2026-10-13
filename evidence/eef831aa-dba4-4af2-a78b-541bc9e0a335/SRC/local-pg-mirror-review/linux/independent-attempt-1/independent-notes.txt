@@ -1,2 +1,0 @@
-oracle=independent_local_copy
-closed_budget_ceilings=batch_1000_statement_30000_lock_1000_snapshot_300000

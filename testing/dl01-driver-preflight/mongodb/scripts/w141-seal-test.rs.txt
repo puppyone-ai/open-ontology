@@ -1,0 +1,66 @@
+#[cfg(test)]
+mod w141_customer_seal {
+    use super::seal_bson_jsonb_document;
+    use serde_json::json;
+
+    #[test]
+    fn seal_customer_envelopes() {
+        let dir = std::path::Path::new("/envelopes");
+        let mut paths: Vec<_> = std::fs::read_dir(dir)
+            .unwrap_or_else(|err| panic!("envelopes: {err}"))
+            .map(|item| item.unwrap().path())
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+            .collect();
+        paths.sort();
+        assert_eq!(paths.len(), 33, "16 seal + 1 side + 16 full");
+        let mut out = String::new();
+        let mut sealed = 0_u32;
+        let mut refused = 0_u32;
+        for path in paths {
+            let name = path.file_name().and_then(|item| item.to_str()).unwrap_or("");
+            let text = std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("{name}: {err}"));
+            match seal_bson_jsonb_document(&text) {
+                Ok(document) => {
+                    sealed += 1;
+                    assert_eq!(document.oid, 3802);
+                    assert_eq!(document.typmod, -1);
+                    assert_eq!(document.metadata.get("oo.precision.float").map(String::as_str), Some("rejected"));
+                    assert!(name.starts_with("seal-") || name == "side-00.json", "{name} sealed");
+                    out.push_str(
+                        &json!({
+                            "file": name,
+                            "outcome": "sealed",
+                            "dataset": document.dataset,
+                            "column": document.column,
+                            "oid": document.oid,
+                            "typmod": document.typmod,
+                            "raw_bson_sha256": document.raw_bson_sha256,
+                            "pg_jsonb_sha256": document.pg_jsonb_sha256,
+                            "identity_hash": document.identity_hash,
+                        })
+                        .to_string(),
+                    );
+                }
+                Err(err) => {
+                    refused += 1;
+                    assert!(name.starts_with("full-"), "{name} {}", err.code);
+                    assert!(err.code.ends_with("/float.rejected"), "{}", err.code);
+                    out.push_str(
+                        &json!({
+                            "file": name,
+                            "outcome": "refused",
+                            "code": err.code,
+                            "path": err.path,
+                            "message": err.message,
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            out.push('\n');
+        }
+        assert_eq!(sealed, 17, "seal-scope rows plus the side envelope");
+        assert_eq!(refused, 16, "full documents");
+        std::fs::write("/evidence/seal-results.jsonl", out).unwrap();
+    }
+}

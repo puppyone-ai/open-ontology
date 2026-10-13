@@ -1,1 +1,0 @@
-docker-run.exit=101 test.exit=101 OOMKilled=false. Compile failed on one error: GetResult.range is std::ops::Range<u64>, which is Clone and not Copy, so moving the GetResult into the held bytes() stream after reading range was a partial move. Product hashes and Cargo.lock were unchanged. Artifacts kept here.

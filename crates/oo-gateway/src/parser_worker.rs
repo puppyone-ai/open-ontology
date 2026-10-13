@@ -28,10 +28,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::sql_guard::{
-    guard_select, BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError,
-    GuardedPlan, LiteralKind, LiteralTypes, OutputItem, PolicyCatalog, PolicyIdentity,
-    RecognizedBindings, ResolvedFunction, ResolvedOperator, StarExpansion, VisibleColumn,
-    VisibleRelation, NODE_BUDGET, SQL_BYTE_BUDGET,
+    BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError, GuardedPlan,
+    LiteralKind, LiteralTypes, NODE_BUDGET, OutputItem, PolicyCatalog, PolicyIdentity,
+    RecognizedBindings, ResolvedFunction, ResolvedOperator, SQL_BYTE_BUDGET, StarExpansion,
+    VisibleColumn, VisibleRelation, guard_select,
 };
 
 /// ASCII `OOSW`.
@@ -336,7 +336,9 @@ impl TrustedWorker {
         if !path.is_absolute() {
             return Err(WorkerPathError::NotAbsolute);
         }
-        let canon = path.canonicalize().map_err(|_| WorkerPathError::Unavailable)?;
+        let canon = path
+            .canonicalize()
+            .map_err(|_| WorkerPathError::Unavailable)?;
         if !canon.is_file() {
             return Err(WorkerPathError::Unavailable);
         }
@@ -712,8 +714,7 @@ pub fn supervise(
 /// variable is rejected. It is not a slow path. Fault modes are not
 /// implemented in this binary.
 pub fn worker_main() -> i32 {
-    if std::env::args_os().nth(1).is_some() || std::env::var_os("OO_PARSER_WORKER_SLOW").is_some()
-    {
+    if std::env::args_os().nth(1).is_some() || std::env::var_os("OO_PARSER_WORKER_SLOW").is_some() {
         return 2;
     }
     match worker_once() {
@@ -954,7 +955,12 @@ enum IoOutcome {
     Deadline,
 }
 
-fn exchange(mut stdin: InPipe, mut stdout: OutPipe, request: &[u8], deadline: Instant) -> IoOutcome {
+fn exchange(
+    mut stdin: InPipe,
+    mut stdout: OutPipe,
+    request: &[u8],
+    deadline: Instant,
+) -> IoOutcome {
     if let Err(outcome) = write_all_within(&mut stdin, request, deadline) {
         return outcome;
     }
@@ -1045,7 +1051,11 @@ fn write_all_within(stdin: &mut InPipe, bytes: &[u8], deadline: Instant) -> Resu
     }
 }
 
-fn read_exact_within(stdout: &mut OutPipe, buf: &mut [u8], deadline: Instant) -> Result<(), IoOutcome> {
+fn read_exact_within(
+    stdout: &mut OutPipe,
+    buf: &mut [u8],
+    deadline: Instant,
+) -> Result<(), IoOutcome> {
     let mut filled = 0;
     while filled < buf.len() {
         arm_read(stdout, deadline)?;
@@ -1099,7 +1109,11 @@ fn slice_budget(deadline: Instant) -> Option<Duration> {
     if now >= deadline {
         return None;
     }
-    Some(IO_SLICE.min(deadline.saturating_duration_since(now)).max(Duration::from_millis(1)))
+    Some(
+        IO_SLICE
+            .min(deadline.saturating_duration_since(now))
+            .max(Duration::from_millis(1)),
+    )
 }
 
 fn is_wait(kind: io::ErrorKind) -> bool {
@@ -1193,7 +1207,11 @@ fn read_frame_from(reader: &mut impl Read) -> Result<Frame, CodecError> {
         read_exact(reader, &mut body).map_err(|_| CodecError::Truncated)?;
     }
     read_following_eof(reader)?;
-    Ok(Frame { version, kind, body })
+    Ok(Frame {
+        version,
+        kind,
+        body,
+    })
 }
 
 /// The request is one frame. The next read must be end of file.
@@ -1495,7 +1513,12 @@ fn read_star(reader: &mut Reader<'_>) -> Result<StarExpansion, CodecError> {
 }
 
 fn write_bindings(writer: &mut Writer, bindings: &RecognizedBindings) -> Result<(), CodecError> {
-    write_list(writer, &bindings.relations, MAX_BOUND_RELATIONS, write_bound_relation)?;
+    write_list(
+        writer,
+        &bindings.relations,
+        MAX_BOUND_RELATIONS,
+        write_bound_relation,
+    )?;
     write_list(writer, &bindings.outputs, MAX_OUTPUTS, write_output)?;
     write_list(
         writer,
@@ -1638,7 +1661,10 @@ fn write_label(writer: &mut Writer, value: &str, allowed: &[&str]) -> Result<(),
     writer.str(value, MAX_STATIC)
 }
 
-fn read_label(reader: &mut Reader<'_>, allowed: &[&'static str]) -> Result<&'static str, CodecError> {
+fn read_label(
+    reader: &mut Reader<'_>,
+    allowed: &[&'static str],
+) -> Result<&'static str, CodecError> {
     let value = reader.str(MAX_STATIC)?;
     allowed
         .iter()

@@ -1748,6 +1748,114 @@ fn escaped_sql_label_distinct_and_name_closure() {
     assert!(manifest.get("principal").is_none());
 }
 
+#[test]
+fn source_semantics_section_filters_hidden_columns_and_readme_declares_postgresql() {
+    let sentence = "所有 SQL 为 PostgreSQL 方言，无论数据来自何种源库";
+    let (effective, visibility) = analyst_documents();
+    let legacy = must(&effective, &visibility);
+    let legacy_readme = legacy.file("README.md").expect("readme");
+    let legacy_customer = legacy.file("tables/sales.customer.md").expect("customer");
+    assert!(legacy_readme.contains(sentence));
+    assert!(!legacy_customer.contains("## 来源与语义"));
+    assert!(!legacy_readme.contains("consistency_grade: A"));
+
+    let (mut effective, visibility) = analyst_documents();
+    let datasets = effective["datasets"].as_array_mut().unwrap();
+    let customer = datasets
+        .iter_mut()
+        .find(|item| item["dataset"] == "sales.customer")
+        .unwrap();
+    customer["source_semantics"] = json!({
+        "family": "oracle",
+        "product": "oracle",
+        "version": "19c",
+        "capture": "batch_full",
+        "grade": "B",
+        "source_kind": "oracle_table",
+        "delete_detection": "reconcile",
+        "caveats": ["append_only_source"],
+        "columns": [
+            {"column": "name", "caveats": ["source_collation_ci"]},
+            {"column": "email", "caveats": ["empty_string_is_null"], "native_note": "unconstrained_number"}
+        ],
+        "constraint_trust": [
+            {
+                "name": "customer_pkey",
+                "kind": "primary_key",
+                "columns": ["customer_id"],
+                "trust": "enforced",
+                "disposition": "enforced"
+            },
+            {
+                "name": "email_fk",
+                "kind": "foreign_key",
+                "columns": ["email"],
+                "trust": "declared_only",
+                "disposition": "candidate",
+                "inclusion": {"rows_checked": 10, "ratio_thousandths": 980}
+            }
+        ]
+    });
+    let ticket = datasets
+        .iter_mut()
+        .find(|item| item["dataset"] == "support.ticket")
+        .unwrap();
+    ticket["source_semantics"] = json!({
+        "family": "oracle",
+        "product": "oracle",
+        "version": "19c",
+        "capture": "batch_full",
+        "grade": "S0",
+        "source_kind": "oracle_table",
+        "delete_detection": "reconcile",
+        "caveats": ["synthetic_binlog"],
+        "columns": [{"column": "subject", "caveats": ["lossy_type_fallback"]}]
+    });
+    let pack = must(&effective, &visibility);
+    let page = pack.file("tables/sales.customer.md").expect("customer");
+    let readme = pack.file("README.md").expect("readme");
+    assert!(readme.contains(sentence));
+    assert!(page.lines().any(|line| line == "## 来源与语义"));
+    assert!(page.contains("consistency_grade: B"));
+    assert!(page.contains("append_only_source"));
+    assert!(page.contains("source_collation_ci"));
+    assert!(page.contains("constraint: customer_pkey"));
+    assert!(!page.contains("consistency_grade: A"));
+    assert!(!page.contains("empty_string_is_null"));
+    assert!(!page.contains("unconstrained_number"));
+    assert!(!page.contains("email_fk"));
+    assert!(!page.contains("synthetic_binlog"));
+    assert!(!page.contains("lossy_type_fallback"));
+    let body = prose(&pack);
+    assert!(!body.contains("synthetic_binlog"));
+    assert!(!body.contains("lossy_type_fallback"));
+    assert!(pack.file("tables/support.ticket.md").is_err());
+
+    effective["datasets"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|item| item["dataset"] == "sales.customer")
+        .unwrap()["source_semantics"]["grade"] = json!("A");
+    let rejected = compile(&effective, &visibility).expect_err("profile grade");
+    assert!(rejected.code.contains("schema.rejected"), "{}", rejected.code);
+
+    effective["datasets"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|item| item["dataset"] == "sales.customer")
+        .unwrap()["source_semantics"]["grade"] = json!("B");
+    effective["datasets"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|item| item["dataset"] == "sales.customer")
+        .unwrap()["source_semantics"]["endpoint"] = json!("secret://shop");
+    let endpoint = compile(&effective, &visibility).expect_err("endpoint");
+    assert!(endpoint.code.contains("schema.rejected"), "{}", endpoint.code);
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     const HEX: &[u8; 16] = b"0123456789abcdef";

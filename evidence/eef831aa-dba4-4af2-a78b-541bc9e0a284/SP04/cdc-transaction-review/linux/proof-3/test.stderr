@@ -1,4 +1,0 @@
-   Compiling cdc-transaction v0.1.0 (/work/cdc-transaction)
-    Finished `test` profile [unoptimized] target(s) in 0.23s
-     Running tests/a284_independent.rs (/target/tool/debug/deps/a284_independent-0ad7704dcd7a98de)
-error: test failed, to rerun pass `--test a284_independent`

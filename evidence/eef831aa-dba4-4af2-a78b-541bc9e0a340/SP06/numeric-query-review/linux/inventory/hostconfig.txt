@@ -1,9 +1,0 @@
-Id=7e242962509fc8e30551de2f91fb99e14cb162e860a799d85deb34d9c6ce0797
-ExitCode=0
-OOMKilled=false
-Privileged=false
-NetworkMode=none
-CapDrop=["ALL"]
-Memory=1073741824
-NanoCpus=1000000000
-Label=hash

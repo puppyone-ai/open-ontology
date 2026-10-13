@@ -1,5 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/repo/crates/oo-core)
-   Compiling business-calendar v0.1.0 (/work/repo/tools/business-calendar)
-   Compiling calendar-store v0.1.0 (/work/repo/tools/calendar-store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.79s
-     Running tests/a297_calendar.rs (/target/debug/deps/a297_calendar-a4cd05980f394823)

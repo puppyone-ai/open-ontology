@@ -1,0 +1,15 @@
+{
+  "protocol": "oo.minimal-product-loop.copy-invoke/v1",
+  "mode": "fresh",
+  "admin_user": "oo_a419_dst_admin",
+  "binary": "/target/loop/debug/local-pg-mirror",
+  "plan": "/var/lib/oo/copy/plan.json",
+  "manifest": "/var/lib/oo/copy/manifest.json",
+  "target_config": "/var/lib/oo/copy/target.json",
+  "source_config": "/var/lib/oo/config/source.json",
+  "source_password": "/var/lib/oo/private/source-reader",
+  "source_ca": "/var/lib/oo/private/source-ca.crt",
+  "admin_password": "/var/lib/oo/private/target-admin",
+  "runtime_password": "/var/lib/oo/private/target-runtime",
+  "target_ca": "/var/lib/oo/private/target-ca.crt"
+}

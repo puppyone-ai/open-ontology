@@ -1,9 +1,0 @@
-arrow-array-60.0.0 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-array-60.0.0
-ahash-0.8.12 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12
-rustls-platform-verifier-0.7.0 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/rustls-platform-verifier-0.7.0
-tiny-keccak-2.0.2 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/tiny-keccak-2.0.2
-webpki-root-certs-1.0.9 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-root-certs-1.0.9
-const-random-0.1.18 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/const-random-0.1.18
-const-random-macro-0.1.16 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/const-random-macro-0.1.16
-rustls-native-certs-0.8.4 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/rustls-native-certs-0.8.4
-reqwest-0.13.5 /cargo-home/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.13.5

@@ -1,1 +1,0 @@
-privileged=false capdrop=["ALL"] capadd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] ports={} net=oo-a140-b6245f63-1c40-4d6e-9c00-b75e952dc512-net

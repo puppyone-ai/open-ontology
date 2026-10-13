@@ -1,0 +1,56 @@
+[package]
+name = "source-driver-worker"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Isolated external source-driver supervisor and Arrow IPC bridge."
+
+[[bin]]
+name = "oo-source-driver-child"
+path = "src/bin/oo-source-driver-child.rs"
+
+[[bin]]
+name = "oo-source-driver-parent"
+path = "src/bin/oo-source-driver-parent.rs"
+
+[[bin]]
+name = "oo-net-probe"
+path = "src/bin/oo-net-probe.rs"
+
+[[bin]]
+name = "oo-c5-arrow"
+path = "src/bin/oo-c5-arrow.rs"
+
+[[bin]]
+name = "oo-source-driver-p2"
+path = "src/bin/oo-source-driver-p2.rs"
+
+[workspace]
+resolver = "3"
+members = [".", "isolate", "semantics-bin"]
+
+[dependencies]
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-buffer = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+serde_json = "=1.0.151"
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+source-driver-isolate = { path = "isolate" }
+
+[dev-dependencies]
+source-driver-isolate = { path = "isolate" }
+
+[profile.dev]
+debug = false
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

@@ -1,0 +1,9 @@
+{
+  "database": "oo_dl01",
+  "name": "readings",
+  "engine": "ReplacingMergeTree",
+  "partition_key": "toYYYYMM(ts)",
+  "sorting_key": "reading_id",
+  "primary_key": "reading_id",
+  "engine_full_contains": ["ReplacingMergeTree", "version"]
+}

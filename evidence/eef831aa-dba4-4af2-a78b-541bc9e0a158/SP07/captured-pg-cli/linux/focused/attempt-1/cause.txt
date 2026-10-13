@@ -1,1 +1,0 @@
-clippy component was installed in the exited smoke container filesystem, not in the cargo volume. This container did not run rustup component add clippy. Tests had already passed.

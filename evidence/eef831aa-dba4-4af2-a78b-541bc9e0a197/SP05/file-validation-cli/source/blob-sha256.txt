@@ -1,3 +1,0 @@
-a562c5a90e03bb98d47ab6c765be57bdac93e06cf70bdb47b84ed6e23d92aea2  validate-file.rs  crates/oo-pipeline/src/bin/validate-file.rs
-1cbce75887f446eb3300b98e076a344921e627bd842cc4f91d6a96d2db4b4f19  validate_file_cli.rs  crates/oo-pipeline/tests/validate_file_cli.rs
-2e17088adc741e2414ef48cb6987beb2530e07d46fb401ec715cf442718340bf  validate-file-cli-v1.md  contracts/pipeline/validate-file-cli-v1.md

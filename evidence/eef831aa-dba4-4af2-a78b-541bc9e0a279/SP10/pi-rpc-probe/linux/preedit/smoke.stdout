@@ -1,8 +1,0 @@
-ok echo
-ok exit_codes
-ok stdin_eof
-ok partial_eof
-ok kill_wait
-deadline_elapsed_ms=802
-ok deadline
-process_smoke_ok

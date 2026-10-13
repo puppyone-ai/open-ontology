@@ -1,3 +1,0 @@
-removed=oo-a400-proof oo-a400-pg oo-a400-hash oo-a400-eef831aa-pgdata oo-a400-cargo oo-a400-work oo-a400-eef831aa-net /tmp/oo-a400-eef831aa-dba4-4af2-a78b-541bc9e0a400
-foreign_cleanup=no
-prune=no

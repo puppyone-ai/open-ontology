@@ -1,5 +1,0 @@
-psql:/probe/sql/follow_dead_mig.sql:8: ERROR:  40P01: deadlock detected
-DETAIL:  Process 1527 waits for ShareRowExclusiveLock on relation 17645 of database 17622; blocked by process 1534.
-Process 1534 waits for RowExclusiveLock on relation 17737 of database 17622; blocked by process 1527.
-HINT:  See server log for query details.
-LOCATION:  DeadLockReport, deadlock.c:1130

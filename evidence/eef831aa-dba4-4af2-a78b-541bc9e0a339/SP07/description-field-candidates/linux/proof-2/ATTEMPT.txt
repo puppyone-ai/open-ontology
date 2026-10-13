@@ -1,7 +1,0 @@
-Post-edit proof-2. Preserved. docker-run.exit 101.
-PHASE toolchain=0 overlay=0 test-candidate=0 test-lib=0 test-lib-filter=0 test-review=0 test-pack=101.
-Candidate API, CLI, lib, and description-review tests passed. description-pack tests did not compile.
-tests/pack.rs:1875 passed a String to serde_json::from_str, which expects &str.
-Host fix builds the bare request text first, then parses a reference.
-Container oo-a339-proof2 was removed by launch.sh. Volumes and network were left in place.
-OOMKilled false. Memory 6442450944. NanoCpus 1000000000.

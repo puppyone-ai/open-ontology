@@ -1,0 +1,11 @@
+[
+  {
+    "task": "04",
+    "fixed_sha": "fc70aede8a0d8f2a8f01c451ffd72071c12a3e64",
+    "manifest": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/c5-capture/SHA256SUMS",
+    "fixed_git_hashes_checked": 228,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

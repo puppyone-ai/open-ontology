@@ -1,4 +1,0 @@
-oo_task=sp06-parser-reap-bounds-proof-clippy
-phase=proof-clippy
-phase_exit=0 phase=clippy-component
-phase_exit=101 phase=clippy

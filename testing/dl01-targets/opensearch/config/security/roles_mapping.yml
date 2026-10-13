@@ -1,0 +1,14 @@
+---
+_meta:
+  type: "rolesmapping"
+  config_version: 2
+
+all_access:
+  reserved: false
+  users:
+    - "oo_dl01w1_15_dba"
+
+oo_dl01w1_15_reader:
+  reserved: false
+  users:
+    - "oo_dl01w1_15_reader"

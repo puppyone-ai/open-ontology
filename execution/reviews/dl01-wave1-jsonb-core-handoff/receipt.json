@@ -1,0 +1,8 @@
+{
+  "source": "3fb598a027deab45bbc857cb76000fa29003c860",
+  "evidence": "f0e847218dbf06db9eae7481f3dff4b2f79009b2",
+  "verified": 418,
+  "total": 418,
+  "scope": "author complete document semantic/profile/Pack capability; independent review deferred to Mongo whole-source integration; not source or parent acceptance",
+  "handoff": "evidence/1e7798c0-f799-4d4b-ab47-5e15599f60d9/DL01/semantics/jsonb3802/HANDOFF.md"
+}

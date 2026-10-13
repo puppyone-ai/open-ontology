@@ -1,4 +1,0 @@
-commit=3a251deacd7e86fc3fbe0855be3e1f6ec976c9d6
-parent=4e495b0df4e8ce6ebfa43052299dd490e10b9669
-tree=a13cf1b8a4e7390ebbd58384871675a5f271a4b9
-subject=control: lock local project quota and stream part publish

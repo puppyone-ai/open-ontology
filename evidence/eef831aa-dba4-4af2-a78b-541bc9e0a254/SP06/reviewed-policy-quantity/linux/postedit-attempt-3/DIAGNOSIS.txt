@@ -1,1 +1,0 @@
-Attempt 3 passed the three test targets. Clippy -D warnings then refused to_policy, to_filter, to_spec, and to_class because they take self by value. The retry renames those methods to into_*. Tests were already green: 21, 6, and 6.

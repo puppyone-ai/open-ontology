@@ -1,2 +1,0 @@
-ed3e1c4331d58fe79c449cdb06c6c39a40992bf20e3273d244566761c0605a1b  crates/oo-gateway/src/query_executor.rs
-59e576e035556bb54c350aefc58f4e72722e3582ae93371052b44cb61573bc3d  crates/oo-gateway/tests/query_executor_repro.rs

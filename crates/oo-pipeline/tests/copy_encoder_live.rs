@@ -8,13 +8,24 @@ use std::net::TcpStream;
 use std::time::Duration;
 
 use oo_pipeline::copy_encoder::{
+    accept_jsonb_document, arrow_dimensions, assemble_batch, map_column, numeric_parts, parse_json,
     ArrowScalar, CellPresence, CellReject, ColumnPrivileges, CopyBudgets, CopyColumn, CopyEncoder,
-    CopyError, CopyPiece, DecodedCell, ExactDecimal, ExactInt, FloatClass, HEADER_LEN,
-    LogicalValue, RunBinding, SourceColumn, TypeFacts, TypeGraph, TypeSupport,
-    TypeUnsupportedReason, TypedBatch, UnavailablePolicy, arrow_dimensions, assemble_batch,
-    map_column, numeric_parts,
+    CopyError, CopyPiece, DecodedCell, ExactDecimal, ExactInt, FloatClass, LogicalValue,
+    RunBinding, SourceColumn, TypeFacts, TypeGraph, TypeSupport, TypeUnsupportedReason, TypedBatch,
+    UnavailablePolicy, HEADER_LEN,
 };
+use oo_pipeline::copy_sink::send_batch;
+use oo_pipeline::target_installer::{install_jsonb_document, JsonbDocumentInstallOutcome};
+use serde_json::json;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use sqlx::{ConnectOptions, Row};
 
+const EMPTY_BSON_ENVELOPE: &str = concat!(
+    r#"{"protocol":"oo.document.bson-jsonb/v1","dataset":"doc.docs","column":"doc","#,
+    r#""oid":3802,"typmod":-1,"source_type":"jsonb","raw_bson_dropped":false,"#,
+    r#""raw_bson_hex":"0500000000","pg_jsonb_hex":"017b7d","pg_jsonb_text":"{}","#,
+    r#""loss_concealed":false,"missing_is_null":false}"#
+);
 const NOTE: &str = "a \"quote\"\tand\nline";
 const RAW: &[u8] = &[0x00, 0xff, b'"', b'\t', b'\n'];
 const AMOUNT_WIRE: &[u8] = &[
@@ -305,8 +316,179 @@ fn refusals_are_typed() {
     assert_eq!((error.code, error.detail), ("unavailable", "masked"));
     assert_eq!(encoder.pull().expect_err("poison"), error);
 
-    let error = open_err(jsonb_batch());
-    assert_eq!((error.code, error.detail), ("type_not_encoded", "jsonb"));
+    let text = r#"{"k": 0, "n": 1.50}"#;
+    let node = parse_json(text).expect("jsonb text");
+    let kept = pull_user(
+        single(
+            3802,
+            "jsonb",
+            "jsonb_send",
+            -1,
+            -1,
+            cell(LogicalValue::Json(node), ArrowScalar::Utf8(text.to_string())),
+        ),
+        3802,
+    )
+    .expect("jsonb");
+    assert_eq!(kept[0], 1);
+    assert_eq!(&kept[1..], text.as_bytes());
+    let exponent = r#"{"n":1e2}"#;
+    let node = parse_json(exponent).expect("exponent text");
+    let refused_batch = single(
+        3802,
+        "jsonb",
+        "jsonb_send",
+        -1,
+        -1,
+        cell(
+            LogicalValue::Json(node),
+            ArrowScalar::Utf8(exponent.to_string()),
+        ),
+    );
+    let refused = pull_rows_err(
+        &refused_batch.0,
+        &refused_batch.1,
+        &refused_batch.2,
+        budgets(1_048_576, 1_048_576, 1_048_576, 4),
+    );
+    assert_eq!((refused.code, refused.detail), ("value_mismatch", "jsonb"));
+    assert_eq!(accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(), Ok("{}"));
+    let json114 = EMPTY_BSON_ENVELOPE.replace("\"oid\":3802", "\"oid\":114");
+    assert_eq!(
+        accept_jsonb_document(&json114).unwrap_err().code,
+        "type_not_encoded"
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires OO_JSONB_PROBE_HOST and the preview database"]
+async fn jsonb_document_copies_into_oid_3802() {
+    let text = r#"{"k": 0, "n": 1.50, "z": 9007199254740993}"#;
+    let node = parse_json(text).expect("jsonb text");
+    let kept = pull_user(
+        single(
+            3802,
+            "jsonb",
+            "jsonb_send",
+            -1,
+            -1,
+            cell(LogicalValue::Json(node), ArrowScalar::Utf8(text.to_string())),
+        ),
+        3802,
+    )
+    .expect("jsonb wire");
+    assert_eq!(kept[0], 1);
+    assert_eq!(&kept[1..], text.as_bytes());
+    let exponent = r#"{"n":1e2}"#;
+    let refused_batch = single(
+        3802,
+        "jsonb",
+        "jsonb_send",
+        -1,
+        -1,
+        cell(
+            LogicalValue::Json(parse_json(exponent).expect("exponent")),
+            ArrowScalar::Utf8(exponent.to_string()),
+        ),
+    );
+    let refused = pull_rows_err(
+        &refused_batch.0,
+        &refused_batch.1,
+        &refused_batch.2,
+        budgets(1_048_576, 1_048_576, 1_048_576, 4),
+    );
+    assert_eq!((refused.code, refused.detail), ("value_mismatch", "jsonb"));
+    assert_eq!(accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(), Ok("{}"));
+
+    let host = env::var("OO_JSONB_PROBE_HOST").expect("OO_JSONB_PROBE_HOST");
+    let port = env::var("OO_JSONB_PROBE_PORT").expect("OO_JSONB_PROBE_PORT").parse::<u16>().expect("port");
+    let database = env::var("OO_JSONB_PROBE_DB").expect("OO_JSONB_PROBE_DB");
+    let user = env::var("OO_JSONB_PROBE_USER").expect("OO_JSONB_PROBE_USER");
+    let password = fs::read_to_string(env::var("OO_JSONB_PROBE_PASSWORD_FILE").expect("password file")).expect("password file");
+    let password = password.trim_end_matches('\n').trim_end_matches('\r').to_string();
+    let ca = fs::read(env::var("OO_JSONB_PROBE_CA").expect("ca")).expect("ca");
+    let options = PgConnectOptions::from_explicit()
+        .host(&host)
+        .port(port)
+        .username(&user)
+        .password(password.as_str())
+        .database(&database)
+        .ssl_mode(PgSslMode::VerifyFull)
+        .ssl_root_cert_from_pem(ca)
+        .disable_statement_logging();
+    let mut conn = options.connect().await.map_err(|_| "connect").expect("connect");
+    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE").execute(&mut conn).await.expect("drop");
+    let install = install_jsonb_document(&mut conn).await.expect("install");
+    let install_name = match install {
+        JsonbDocumentInstallOutcome::Installed => "installed",
+        JsonbDocumentInstallOutcome::Replay => "replay",
+    };
+    let doc_type = sql_text(&mut conn, "SELECT _oo.full_import_type_sql(3802, -1)").await;
+    let json_type = sql_text(&mut conn, "SELECT _oo.full_import_type_sql(114, -1)").await;
+    assert_eq!(doc_type, "jsonb");
+    assert_eq!(json_type, "json");
+    let typmod = sqlx::query("SELECT _oo.full_import_type_sql(3802, 0)").fetch_one(&mut conn).await.expect_err("typmod");
+    let state = typmod.as_database_error().and_then(|db| db.code().map(|code| code.to_string())).unwrap_or_default();
+    assert_eq!(state, "22023");
+    sqlx::query("CREATE SCHEMA oo_jsonb_w106").execute(&mut conn).await.expect("schema");
+    let table = format!("CREATE TABLE oo_jsonb_w106.doc (pos numeric(38,0) NOT NULL, doc {doc_type})");
+    sqlx::query(sqlx::AssertSqlSafe(table)).execute(&mut conn).await.expect("table");
+    let (batch, columns, positions) = single(
+        3802,
+        "jsonb",
+        "jsonb_send",
+        -1,
+        -1,
+        cell(LogicalValue::Json(parse_json(text).expect("text")), ArrowScalar::Utf8(text.to_string())),
+    );
+    send_batch(
+        &mut conn,
+        "COPY oo_jsonb_w106.doc (pos, doc) FROM STDIN WITH (FORMAT binary)",
+        &batch,
+        &columns,
+        &positions,
+        budgets(1_048_576, 1_048_576, 1_048_576, 4),
+    )
+    .await
+    .expect("copy");
+    let stored = sql_text(&mut conn, "SELECT doc::text FROM oo_jsonb_w106.doc").await;
+    let rows = sql_text(&mut conn, "SELECT count(*)::text FROM oo_jsonb_w106.doc").await;
+    let atttypid = sql_text(
+        &mut conn,
+        "SELECT atttypid::text FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'oo_jsonb_w106' AND c.relname = 'doc' AND a.attname = 'doc'",
+    )
+    .await;
+    let atttypmod = sql_text(
+        &mut conn,
+        "SELECT atttypmod::text FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'oo_jsonb_w106' AND c.relname = 'doc' AND a.attname = 'doc'",
+    )
+    .await;
+    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE").execute(&mut conn).await.expect("drop");
+    assert_eq!(stored, text);
+    assert_eq!(rows, "1");
+    assert_eq!(atttypid, "3802");
+    assert_eq!(atttypmod, "-1");
+    if let Ok(path) = env::var("OO_JSONB_PROBE_OUT") {
+        let body = json!({
+            "protocol": "oo.pipeline.jsonb-document-probe/v1",
+            "install": install_name,
+            "type_3802": doc_type,
+            "type_114": json_type,
+            "typmod_sqlstate": state,
+            "atttypid": atttypid,
+            "atttypmod": atttypmod,
+            "text": stored,
+            "rows": rows,
+            "exponent_refused": "value_mismatch",
+            "seal": "{}"
+        });
+        fs::write(path, serde_json::to_vec_pretty(&body).expect("json")).expect("evidence");
+    }
+}
+
+async fn sql_text(conn: &mut sqlx::PgConnection, sql: &'static str) -> String {
+    let row = sqlx::query(sql).fetch_one(&mut *conn).await.expect("query");
+    row.try_get::<String, _>(0).expect("text")
 }
 
 #[test]
@@ -785,18 +967,6 @@ fn float4_batch(class: FloatClass, bits: u64) -> (TypedBatch, Vec<CopyColumn>, V
         4,
         -1,
         cell(LogicalValue::Float(class), ArrowScalar::Float64(bits)),
-    )
-}
-
-fn jsonb_batch() -> (TypedBatch, Vec<CopyColumn>, Vec<ExactDecimal>) {
-    let column = column(1, "doc", 3802, "jsonb", -1, false);
-    let graph = TypeGraph::new([facts(3802, "jsonb", "jsonb_send", -1)]);
-    let plan = map_column(&column, &graph, false);
-    let batch = assemble_batch(&binding(), vec![plan], &[], Vec::new()).expect("jsonb");
-    (
-        batch,
-        vec![CopyColumn::SystemPosition, CopyColumn::User { attnum: 1 }],
-        Vec::new(),
     )
 }
 

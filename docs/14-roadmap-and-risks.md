@@ -2,9 +2,15 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 
 里程碑按“依赖与验收”划分，不按日历。每个里程碑的退出条件都是可验证的评测结果（[13](13-evaluation-and-benchmarks.md)）。
+
+## 产品交付边界
+
+各里程碑交付的是Ontology系统：生成、审核、Git版本化、发布、角色Pack及数据访问接口。M1的CLI/HTTP/SDK先提供外接路径，M2继续完成远程MCP和授权；内置Pi、网页及IM是体验和验证入口，各自的安全及释放工作保留。核心产物消费不依赖内置Pi。
+
+面向任意harness通过稳定产物和标准接口实现。具体客户端、版本和transport只声明实际验证的范围；外接验收与内置Pi验收分别记录，不把通用协议设计写成“所有harness已支持”。
 
 ## 1. 里程碑
 
@@ -62,7 +68,7 @@
 ### M3 扩展
 
 - Helm chart、kubernetes-sigs/agent-sandbox 驱动、E2B 驱动；
-- SQL Server、Snowflake/BigQuery/Databricks/ClickHouse（批量）；Kafka 缓冲；
+- 数据库扩展：按[数据库支持扩展设计](database-support/README.md)的波次与支持矩阵逐目标推进（SQL Server、Oracle、Db2、HANA、国产库、云数仓、OLAP、文档库等，等级与证据以矩阵为准）；Kafka 缓冲；
 - `compile_metric` 工具（为认证指标提供语义查询 → SQL 的编译）；
 - Ontology 导出：OSI（Apache Ossie）、dbt semantic models、Cube；导入：dbt manifest、DataHub/OpenMetadata；
 - 可复现构建、镜像签名与 SBOM 常态化。

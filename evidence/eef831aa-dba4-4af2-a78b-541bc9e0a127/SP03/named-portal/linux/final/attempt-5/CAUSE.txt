@@ -1,9 +1,0 @@
-docker_run_exit=101
-lib_exit=0
-focused_exit=101
-clippy_exit=0
-bounds_tests=6 passed
-live_stdout=state_after_first_page=active
-live_panic=expected idle in transaction
-protocol_fact=pg_stat_activity.state stays active after PortalSuspended until ReadyForQuery
-assertions_changed=after this attempt, to the observed state active

@@ -40,6 +40,7 @@ struct LoadedPack {
     pack_digest: String,
     files: Vec<PackFile>,
     columns: Vec<PackColumn>,
+    texts: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,24 +82,36 @@ impl PackCatalog {
         let mut names = Vec::new();
         for entry in entries {
             let entry = entry.map_err(|_| PackError { reason: "pack_dir" })?;
-            let file_type = entry.file_type().map_err(|_| PackError { reason: "pack_dir" })?;
+            let file_type = entry
+                .file_type()
+                .map_err(|_| PackError { reason: "pack_dir" })?;
             if file_type.is_symlink() {
-                return Err(PackError { reason: "pack_symlink" });
+                return Err(PackError {
+                    reason: "pack_symlink",
+                });
             }
             let name = entry.file_name();
-            let name = name.to_str().ok_or(PackError { reason: "pack_name" })?;
+            let name = name.to_str().ok_or(PackError {
+                reason: "pack_name",
+            })?;
             if !artifact_name(name) {
-                return Err(PackError { reason: "pack_name" });
+                return Err(PackError {
+                    reason: "pack_name",
+                });
             }
             if !file_type.is_file() {
-                return Err(PackError { reason: "pack_name" });
+                return Err(PackError {
+                    reason: "pack_name",
+                });
             }
             names.push(name.to_owned());
         }
         names.sort();
         let mut packs = Vec::new();
         for name in names {
-            let text = fs::read_to_string(dir.join(&name)).map_err(|_| PackError { reason: "pack_read" })?;
+            let text = fs::read_to_string(dir.join(&name)).map_err(|_| PackError {
+                reason: "pack_read",
+            })?;
             packs.push(parse_artifact(&text)?);
         }
         let mut seen = Vec::new();
@@ -110,7 +123,9 @@ impl PackCatalog {
                 pack.knowledge_version.as_str(),
             );
             if seen.contains(&key) {
-                return Err(PackError { reason: "pack_duplicate" });
+                return Err(PackError {
+                    reason: "pack_duplicate",
+                });
             }
             seen.push(key);
         }
@@ -142,6 +157,101 @@ impl PackCatalog {
                 columns: pack.columns.clone(),
             })
     }
+
+    /// File body for the token's exact project, role, policy, and knowledge version.
+    pub fn file_text(
+        &self,
+        project: &str,
+        role: &str,
+        policy_version: &str,
+        knowledge_version: &str,
+        path: &str,
+    ) -> Option<PackBody> {
+        let pack = self.packs.iter().find(|pack| {
+            pack.project == project
+                && pack.role == role
+                && pack.policy_version == policy_version
+                && pack.knowledge_version == knowledge_version
+        })?;
+        let (stored_path, text) = pack.texts.iter().find(|(stored, _)| stored == path)?;
+        let file = pack.files.iter().find(|file| file.path == *stored_path)?;
+        Some(PackBody {
+            path: file.path.clone(),
+            sha256: file.sha256.clone(),
+            bytes: file.bytes,
+            text: text.clone(),
+        })
+    }
+
+    /// Bounded literal search over one identity. The needle is not a path.
+    pub fn search_text(
+        &self,
+        project: &str,
+        role: &str,
+        policy_version: &str,
+        knowledge_version: &str,
+        needle: &str,
+    ) -> Vec<PackHit> {
+        if needle.is_empty() || needle.len() > 200 || needle.contains('\0') {
+            return Vec::new();
+        }
+        let Some(pack) = self.packs.iter().find(|pack| {
+            pack.project == project
+                && pack.role == role
+                && pack.policy_version == policy_version
+                && pack.knowledge_version == knowledge_version
+        }) else {
+            return Vec::new();
+        };
+        let mut hits = Vec::new();
+        for (path, text) in &pack.texts {
+            let Some(index) = text.find(needle) else {
+                continue;
+            };
+            let start = index.saturating_sub(40);
+            let end = (index + needle.len() + 40).min(text.len());
+            let start = floor_char(text, start);
+            let end = floor_char(text, end);
+            let file = pack.files.iter().find(|file| file.path == *path);
+            hits.push(PackHit {
+                path: path.clone(),
+                sha256: file.map(|file| file.sha256.clone()).unwrap_or_default(),
+                excerpt: text[start..end].to_owned(),
+            });
+            if hits.len() == 20 {
+                break;
+            }
+        }
+        hits
+    }
+}
+
+/// One sealed file body. The digest is the pack file digest, not a new hash.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackBody {
+    pub path: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub text: String,
+}
+
+/// One search hit. The excerpt is a bounded window, not the whole file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackHit {
+    pub path: String,
+    pub sha256: String,
+    pub excerpt: String,
+}
+
+fn floor_char(text: &str, index: usize) -> usize {
+    if index >= text.len() {
+        return text.len();
+    }
+    let mut at = index;
+    while at > 0 && !text.is_char_boundary(at) {
+        at -= 1;
+    }
+    at
 }
 
 /// The operator helper used to invent a digest. A file without `compiler` is
@@ -154,17 +264,32 @@ pub fn fixture_artifact(
     table: &str,
     column: &str,
 ) -> Result<String, PackError> {
-    let _ = (project, role, policy_version, knowledge_version, table, column);
+    let _ = (
+        project,
+        role,
+        policy_version,
+        knowledge_version,
+        table,
+        column,
+    );
     Err(PackError {
         reason: "legacy_unsupported",
     })
 }
 
 fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
-    let root: Value = serde_json::from_str(text).map_err(|_| PackError { reason: "pack_json" })?;
-    let object = root.as_object().ok_or(PackError { reason: "pack_json" })?;
+    let root: Value = serde_json::from_str(text).map_err(|_| PackError {
+        reason: "pack_json",
+    })?;
+    let object = root.as_object().ok_or(PackError {
+        reason: "pack_json",
+    })?;
     match object.get("compiler") {
-        None => return Err(PackError { reason: "legacy_unsupported" }),
+        None => {
+            return Err(PackError {
+                reason: "legacy_unsupported",
+            });
+        }
         Some(value) if value.as_str() != Some(ROLE_PACK_COMPILER) => {
             return Err(PackError { reason: "compiler" });
         }
@@ -187,7 +312,12 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
     let declared_manifest = hex64(object, "manifest_sha256")?;
     let declared_entries = u64_field(object, "entry_count", "budget")?;
     let declared_total = u64_field(object, "total_bytes", "budget")?;
-    let files_value = object.get("files").and_then(Value::as_array).ok_or(PackError { reason: "pack_files" })?;
+    let files_value = object
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or(PackError {
+            reason: "pack_files",
+        })?;
     if files_value.len() as u64 > MAX_ENTRIES {
         return Err(PackError { reason: "budget" });
     }
@@ -196,35 +326,58 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
     let mut columns = Vec::new();
     let mut total = 0_u64;
     for file in files_value {
-        let file = file.as_object().ok_or(PackError { reason: "pack_files" })?;
+        let file = file.as_object().ok_or(PackError {
+            reason: "pack_files",
+        })?;
         require_exact_keys(file, &["bytes", "path", "sha256", "text"])?;
-        let path = file.get("path").and_then(Value::as_str).ok_or(PackError { reason: "pack_path" })?;
+        let path = file.get("path").and_then(Value::as_str).ok_or(PackError {
+            reason: "pack_path",
+        })?;
         if !safe_pack_path(path) {
-            return Err(PackError { reason: "pack_path" });
+            return Err(PackError {
+                reason: "pack_path",
+            });
         }
         if seen_paths.iter().any(|seen| seen == path) {
-            return Err(PackError { reason: "path_duplicate" });
+            return Err(PackError {
+                reason: "path_duplicate",
+            });
         }
         seen_paths.push(path.to_owned());
-        let body = file.get("text").and_then(Value::as_str).ok_or(PackError { reason: "pack_text" })?;
+        let body = file.get("text").and_then(Value::as_str).ok_or(PackError {
+            reason: "pack_text",
+        })?;
         let bytes = u64_field(file, "bytes", "pack_bytes")?;
         if bytes != body.len() as u64 {
-            return Err(PackError { reason: "pack_bytes" });
+            return Err(PackError {
+                reason: "pack_bytes",
+            });
         }
         if bytes > MAX_FILE_BYTES {
             return Err(PackError { reason: "budget" });
         }
-        total = total.checked_add(bytes).ok_or(PackError { reason: "budget" })?;
-        let sha = file.get("sha256").and_then(Value::as_str).ok_or(PackError { reason: "source_digest" })?;
+        total = total
+            .checked_add(bytes)
+            .ok_or(PackError { reason: "budget" })?;
+        let sha = file
+            .get("sha256")
+            .and_then(Value::as_str)
+            .ok_or(PackError {
+                reason: "source_digest",
+            })?;
         if !is_hex64(sha) || sha != sha256_hex(body.as_bytes()) {
-            return Err(PackError { reason: "source_digest" });
+            return Err(PackError {
+                reason: "source_digest",
+            });
         }
         let table_name = path
             .strip_prefix("tables/")
             .and_then(|rest| rest.strip_suffix(".md"))
             .filter(|table| !table.is_empty() && !table.contains('/'));
         if table_name.is_some() && unknown_pii(body) {
-            return Err(PackError { reason: "role_mismatch" });
+            return Err(PackError {
+                reason: "role_mismatch",
+            });
         }
         if let Some(table) = table_name {
             columns.extend(column_names(table, body));
@@ -236,7 +389,8 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
             text: body.to_owned(),
         });
     }
-    if declared_entries != stored.len() as u64 || declared_total != total || total > MAX_TOTAL_BYTES {
+    if declared_entries != stored.len() as u64 || declared_total != total || total > MAX_TOTAL_BYTES
+    {
         return Err(PackError { reason: "budget" });
     }
     let mut ordered = stored.clone();
@@ -255,24 +409,39 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
     );
     let pack_digest = sha256_hex(canonical_json(&preimage).as_bytes());
     if pack_digest != declared_digest {
-        return Err(PackError { reason: "pack_digest" });
+        return Err(PackError {
+            reason: "pack_digest",
+        });
     }
     let manifest_file = stored
         .iter()
         .find(|file| file.path == "manifest.json")
         .ok_or(PackError { reason: "manifest" })?;
     if sha256_hex(manifest_file.text.as_bytes()) != declared_manifest {
-        return Err(PackError { reason: "source_digest" });
+        return Err(PackError {
+            reason: "source_digest",
+        });
     }
-    let manifest: Value = serde_json::from_str(&manifest_file.text).map_err(|_| PackError { reason: "manifest" })?;
-    let manifest = manifest.as_object().ok_or(PackError { reason: "manifest" })?;
-    require_str(manifest, "protocol", MANIFEST_PROTOCOL).map_err(|_| PackError { reason: "binding" })?;
-    require_str(manifest, "compiler", ROLE_PACK_COMPILER).map_err(|_| PackError { reason: "binding" })?;
+    let manifest: Value =
+        serde_json::from_str(&manifest_file.text).map_err(|_| PackError { reason: "manifest" })?;
+    let manifest = manifest
+        .as_object()
+        .ok_or(PackError { reason: "manifest" })?;
+    require_str(manifest, "protocol", MANIFEST_PROTOCOL)
+        .map_err(|_| PackError { reason: "binding" })?;
+    require_str(manifest, "compiler", ROLE_PACK_COMPILER)
+        .map_err(|_| PackError { reason: "binding" })?;
     require_status(manifest)?;
     let project = slug(manifest, "project")?;
     let role = role_name(manifest)?;
-    let policy = manifest.get("policy").and_then(Value::as_object).ok_or(PackError { reason: "binding" })?;
-    let knowledge = manifest.get("knowledge").and_then(Value::as_object).ok_or(PackError { reason: "binding" })?;
+    let policy = manifest
+        .get("policy")
+        .and_then(Value::as_object)
+        .ok_or(PackError { reason: "binding" })?;
+    let knowledge = manifest
+        .get("knowledge")
+        .and_then(Value::as_object)
+        .ok_or(PackError { reason: "binding" })?;
     let policy_id = slug(policy, "id")?;
     let policy_version = version_token(policy, "version")?;
     let knowledge_id = slug(knowledge, "id")?;
@@ -280,22 +449,49 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
     let _ = (policy_id, knowledge_id);
     let ontology_version = version_token(manifest, "ontology_version")?;
     let _catalog_version = version_token(manifest, "catalog_version")?;
-    let listed = manifest.get("files").and_then(Value::as_array).ok_or(PackError { reason: "source_digest" })?;
-    let mut expected: Vec<&StoredFile> = stored.iter().filter(|file| file.path != "manifest.json").collect();
+    let listed = manifest
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or(PackError {
+            reason: "source_digest",
+        })?;
+    let mut expected: Vec<&StoredFile> = stored
+        .iter()
+        .filter(|file| file.path != "manifest.json")
+        .collect();
     expected.sort_by(|left, right| left.path.cmp(&right.path));
     if listed.len() != expected.len() {
-        return Err(PackError { reason: "source_digest" });
+        return Err(PackError {
+            reason: "source_digest",
+        });
     }
     for (item, file) in listed.iter().zip(expected.iter()) {
-        let item = item.as_object().ok_or(PackError { reason: "source_digest" })?;
-        if item.len() != 3 || ["bytes", "path", "sha256"].iter().any(|key| !item.contains_key(*key)) {
-            return Err(PackError { reason: "source_digest" });
+        let item = item.as_object().ok_or(PackError {
+            reason: "source_digest",
+        })?;
+        if item.len() != 3
+            || ["bytes", "path", "sha256"]
+                .iter()
+                .any(|key| !item.contains_key(*key))
+        {
+            return Err(PackError {
+                reason: "source_digest",
+            });
         }
-        let path = item.get("path").and_then(Value::as_str).ok_or(PackError { reason: "source_digest" })?;
+        let path = item.get("path").and_then(Value::as_str).ok_or(PackError {
+            reason: "source_digest",
+        })?;
         let bytes = u64_field(item, "bytes", "source_digest")?;
-        let sha = item.get("sha256").and_then(Value::as_str).ok_or(PackError { reason: "source_digest" })?;
+        let sha = item
+            .get("sha256")
+            .and_then(Value::as_str)
+            .ok_or(PackError {
+                reason: "source_digest",
+            })?;
         if path != file.path || bytes != file.bytes || sha != file.sha256 {
-            return Err(PackError { reason: "source_digest" });
+            return Err(PackError {
+                reason: "source_digest",
+            });
         }
     }
     let readme = stored
@@ -304,14 +500,23 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
         .ok_or(PackError { reason: "binding" })?;
     require_line(&readme.text, "compiler", ROLE_PACK_COMPILER, "binding")?;
     require_line(&readme.text, "project", &project, "binding")?;
-    require_line(&readme.text, "ontology_version", &ontology_version, "binding")?;
+    require_line(
+        &readme.text,
+        "ontology_version",
+        &ontology_version,
+        "binding",
+    )?;
     require_line(&readme.text, "role", &role, "role_mismatch")?;
     let tokens = role_tokens(&readme.text);
     if tokens != vec![role.clone()] {
-        return Err(PackError { reason: "role_mismatch" });
+        return Err(PackError {
+            reason: "role_mismatch",
+        });
     }
     let mut files = Vec::new();
+    let mut texts = Vec::new();
     for file in stored {
+        texts.push((file.path.clone(), file.text));
         files.push(PackFile {
             path: file.path,
             bytes: file.bytes,
@@ -319,7 +524,10 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
         });
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
-    columns.sort_by(|left, right| (left.table.as_str(), left.name.as_str()).cmp(&(right.table.as_str(), right.name.as_str())));
+    texts.sort_by(|left, right| left.0.cmp(&right.0));
+    columns.sort_by(|left, right| {
+        (left.table.as_str(), left.name.as_str()).cmp(&(right.table.as_str(), right.name.as_str()))
+    });
     Ok(LoadedPack {
         project,
         role,
@@ -328,6 +536,7 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
         pack_digest,
         files,
         columns,
+        texts,
     })
 }
 
@@ -358,7 +567,12 @@ fn require_status(manifest: &Map<String, Value>) -> Result<(), PackError> {
     Ok(())
 }
 
-fn require_line(text: &str, label: &str, expected: &str, reason: &'static str) -> Result<(), PackError> {
+fn require_line(
+    text: &str,
+    label: &str,
+    expected: &str,
+    reason: &'static str,
+) -> Result<(), PackError> {
     let prefix = format!("{label}: `");
     let mut found = 0_u32;
     for line in text.lines() {
@@ -393,7 +607,9 @@ fn role_tokens(text: &str) -> Vec<String> {
             }
             index += 1;
             while index < bytes.len()
-                && (bytes[index].is_ascii_lowercase() || bytes[index].is_ascii_digit() || bytes[index] == b'_')
+                && (bytes[index].is_ascii_lowercase()
+                    || bytes[index].is_ascii_digit()
+                    || bytes[index] == b'_')
             {
                 index += 1;
             }
@@ -447,46 +663,69 @@ fn column_names(table: &str, markdown: &str) -> Vec<PackColumn> {
 
 fn require_exact_keys(object: &Map<String, Value>, expected: &[&str]) -> Result<(), PackError> {
     if object.len() != expected.len() || expected.iter().any(|key| !object.contains_key(*key)) {
-        return Err(PackError { reason: "pack_json" });
+        return Err(PackError {
+            reason: "pack_json",
+        });
     }
     Ok(())
 }
 
 fn require_str(object: &Map<String, Value>, key: &str, expected: &str) -> Result<(), PackError> {
-    let got = object.get(key).and_then(Value::as_str).ok_or(PackError { reason: "pack_protocol" })?;
+    let got = object.get(key).and_then(Value::as_str).ok_or(PackError {
+        reason: "pack_protocol",
+    })?;
     if got == expected {
         Ok(())
     } else {
-        Err(PackError { reason: "pack_protocol" })
+        Err(PackError {
+            reason: "pack_protocol",
+        })
     }
 }
 
 fn hex64(object: &Map<String, Value>, key: &str) -> Result<String, PackError> {
-    let value = object.get(key).and_then(Value::as_str).ok_or(PackError { reason: "pack_digest" })?;
+    let value = object.get(key).and_then(Value::as_str).ok_or(PackError {
+        reason: "pack_digest",
+    })?;
     if is_hex64(value) {
         Ok(value.to_owned())
     } else {
-        Err(PackError { reason: "pack_digest" })
+        Err(PackError {
+            reason: "pack_digest",
+        })
     }
 }
 
 fn is_hex64(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-fn u64_field(object: &Map<String, Value>, key: &str, reason: &'static str) -> Result<u64, PackError> {
-    object.get(key).and_then(Value::as_u64).ok_or(PackError { reason })
+fn u64_field(
+    object: &Map<String, Value>,
+    key: &str,
+    reason: &'static str,
+) -> Result<u64, PackError> {
+    object
+        .get(key)
+        .and_then(Value::as_u64)
+        .ok_or(PackError { reason })
 }
 
 fn slug(object: &Map<String, Value>, key: &str) -> Result<String, PackError> {
-    let value = object.get(key).and_then(Value::as_str).ok_or(PackError { reason: "binding" })?;
+    let value = object
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or(PackError { reason: "binding" })?;
     let bytes = value.as_bytes();
     let ok = !bytes.is_empty()
         && bytes.len() <= 63
         && bytes[0].is_ascii_lowercase()
-        && bytes[1..]
-            .iter()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-');
+        && bytes[1..].iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
+        });
     if ok {
         Ok(value.to_owned())
     } else {
@@ -495,7 +734,10 @@ fn slug(object: &Map<String, Value>, key: &str) -> Result<String, PackError> {
 }
 
 fn role_name(object: &Map<String, Value>) -> Result<String, PackError> {
-    let value = object.get("role").and_then(Value::as_str).ok_or(PackError { reason: "binding" })?;
+    let value = object
+        .get("role")
+        .and_then(Value::as_str)
+        .ok_or(PackError { reason: "binding" })?;
     let Some(rest) = value.strip_prefix("oo_r_") else {
         return Err(PackError { reason: "binding" });
     };
@@ -514,7 +756,10 @@ fn role_name(object: &Map<String, Value>) -> Result<String, PackError> {
 }
 
 fn version_token(object: &Map<String, Value>, key: &str) -> Result<String, PackError> {
-    let value = object.get(key).and_then(Value::as_str).ok_or(PackError { reason: "binding" })?;
+    let value = object
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or(PackError { reason: "binding" })?;
     let bytes = value.as_bytes();
     let ok = !bytes.is_empty()
         && bytes.len() <= 64
@@ -540,7 +785,9 @@ fn artifact_name(name: &str) -> bool {
         return false;
     }
     stem.len() <= 63
-        && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-')
+        && bytes.all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+        })
 }
 
 fn safe_pack_path(path: &str) -> bool {
@@ -562,7 +809,8 @@ fn safe_pack_path(path: &str) -> bool {
     }) {
         return false;
     }
-    path.split('/').all(|segment| !segment.is_empty() && segment != "." && segment != "..")
+    path.split('/')
+        .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
 }
 
 fn canonical_json(value: &Value) -> String {
@@ -644,7 +892,10 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn scratch() -> std::path::PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
         let path = std::env::temp_dir().join(format!("oo-pack-{nanos}"));
         fs::create_dir(&path).expect("scratch");
         path
@@ -662,7 +913,13 @@ mod tests {
         )
     }
 
-    fn manifest_body(project: &str, role: &str, policy_version: &str, knowledge_version: &str, files: &[(&str, &str)]) -> String {
+    fn manifest_body(
+        project: &str,
+        role: &str,
+        policy_version: &str,
+        knowledge_version: &str,
+        files: &[(&str, &str)],
+    ) -> String {
         let mut listed = Vec::new();
         for (path, text) in files {
             listed.push(serde_json::json!({
@@ -672,34 +929,74 @@ mod tests {
             }));
         }
         let mut manifest = Map::new();
-        manifest.insert("authentication".to_owned(), Value::String("not_claimed".to_owned()));
-        manifest.insert("authorization".to_owned(), Value::String("not_claimed".to_owned()));
-        manifest.insert("catalog_version".to_owned(), Value::String("cat-v1".to_owned()));
-        manifest.insert("compiler".to_owned(), Value::String(ROLE_PACK_COMPILER.to_owned()));
+        manifest.insert(
+            "authentication".to_owned(),
+            Value::String("not_claimed".to_owned()),
+        );
+        manifest.insert(
+            "authorization".to_owned(),
+            Value::String("not_claimed".to_owned()),
+        );
+        manifest.insert(
+            "catalog_version".to_owned(),
+            Value::String("cat-v1".to_owned()),
+        );
+        manifest.insert(
+            "compiler".to_owned(),
+            Value::String(ROLE_PACK_COMPILER.to_owned()),
+        );
         manifest.insert("files".to_owned(), Value::Array(listed));
         let mut knowledge = Map::new();
         knowledge.insert("id".to_owned(), Value::String("know_depot".to_owned()));
-        knowledge.insert("version".to_owned(), Value::String(knowledge_version.to_owned()));
+        knowledge.insert(
+            "version".to_owned(),
+            Value::String(knowledge_version.to_owned()),
+        );
         manifest.insert("knowledge".to_owned(), Value::Object(knowledge));
-        manifest.insert("mount".to_owned(), Value::String("not_performed".to_owned()));
-        manifest.insert("ontology_version".to_owned(), Value::String("ont-v1".to_owned()));
+        manifest.insert(
+            "mount".to_owned(),
+            Value::String("not_performed".to_owned()),
+        );
+        manifest.insert(
+            "ontology_version".to_owned(),
+            Value::String("ont-v1".to_owned()),
+        );
         let mut policy = Map::new();
         policy.insert("id".to_owned(), Value::String("pol_depot".to_owned()));
-        policy.insert("version".to_owned(), Value::String(policy_version.to_owned()));
+        policy.insert(
+            "version".to_owned(),
+            Value::String(policy_version.to_owned()),
+        );
         manifest.insert("policy".to_owned(), Value::Object(policy));
         manifest.insert("project".to_owned(), Value::String(project.to_owned()));
-        manifest.insert("protocol".to_owned(), Value::String(MANIFEST_PROTOCOL.to_owned()));
-        manifest.insert("publication".to_owned(), Value::String("not_claimed".to_owned()));
+        manifest.insert(
+            "protocol".to_owned(),
+            Value::String(MANIFEST_PROTOCOL.to_owned()),
+        );
+        manifest.insert(
+            "publication".to_owned(),
+            Value::String("not_claimed".to_owned()),
+        );
         manifest.insert("role".to_owned(), Value::String(role.to_owned()));
         manifest.insert("row_security_reproven".to_owned(), Value::Bool(false));
         manifest.insert("samples".to_owned(), Value::String("omitted".to_owned()));
         canonical_json(&Value::Object(manifest))
     }
 
-    fn seal(project: &str, role: &str, policy_version: &str, knowledge_version: &str, column: &str, pii: &str) -> String {
+    fn seal(
+        project: &str,
+        role: &str,
+        policy_version: &str,
+        knowledge_version: &str,
+        column: &str,
+        pii: &str,
+    ) -> String {
         let readme = readme(project, role);
         let table = table(column, pii);
-        let mut pairs = vec![("README.md", readme.as_str()), ("tables/shop.orders.md", table.as_str())];
+        let mut pairs = vec![
+            ("README.md", readme.as_str()),
+            ("tables/shop.orders.md", table.as_str()),
+        ];
         pairs.sort_by(|left, right| left.0.cmp(right.0));
         let manifest = manifest_body(project, role, policy_version, knowledge_version, &pairs);
         let mut files = vec![
@@ -725,7 +1022,12 @@ mod tests {
             }));
         }
         let mut ordered = records.clone();
-        ordered.sort_by(|left, right| left["path"].as_str().unwrap().cmp(right["path"].as_str().unwrap()));
+        ordered.sort_by(|left, right| {
+            left["path"]
+                .as_str()
+                .unwrap()
+                .cmp(right["path"].as_str().unwrap())
+        });
         let preimage = Value::Array(
             ordered
                 .iter()
@@ -738,7 +1040,12 @@ mod tests {
                 })
                 .collect(),
         );
-        let manifest_text = files.iter().find(|file| file.0 == "manifest.json").expect("manifest").1.as_str();
+        let manifest_text = files
+            .iter()
+            .find(|file| file.0 == "manifest.json")
+            .expect("manifest")
+            .1
+            .as_str();
         let artifact = serde_json::json!({
             "compiler": compiler,
             "entry_count": files.len() as u64,
@@ -757,7 +1064,15 @@ mod tests {
 
     #[test]
     fn operator_fixture_is_legacy_unsupported() {
-        let error = fixture_artifact("depot", "oo_r_picker", "pv1", "kv1", "orders", "picker_note").expect_err("legacy");
+        let error = fixture_artifact(
+            "depot",
+            "oo_r_picker",
+            "pv1",
+            "kv1",
+            "orders",
+            "picker_note",
+        )
+        .expect_err("legacy");
         assert_eq!(error.reason, "legacy_unsupported");
         let dir = scratch();
         write_pack(
@@ -777,7 +1092,9 @@ mod tests {
         let parsed: Value = serde_json::from_str(&text).expect("json");
         write_pack(&dir, "picker.json", &text);
         let catalog = PackCatalog::load_dir(&dir).expect("load");
-        let meta = catalog.find("depot", "oo_r_picker", "pv1", "kv1").expect("pack");
+        let meta = catalog
+            .find("depot", "oo_r_picker", "pv1", "kv1")
+            .expect("pack");
         assert_eq!(meta.pack_digest, parsed["pack_digest"].as_str().unwrap());
         assert_eq!(meta.columns.len(), 1);
         assert_eq!(meta.columns[0].name, "picker_note");
@@ -789,9 +1106,21 @@ mod tests {
     #[test]
     fn declared_digest_tamper_is_refused() {
         let dir = scratch();
-        let mut parsed: Value = serde_json::from_str(&seal("depot", "oo_r_picker", "pv1", "kv1", "picker_note", "none")).unwrap();
+        let mut parsed: Value = serde_json::from_str(&seal(
+            "depot",
+            "oo_r_picker",
+            "pv1",
+            "kv1",
+            "picker_note",
+            "none",
+        ))
+        .unwrap();
         parsed["pack_digest"] = Value::String("ab".repeat(32));
-        write_pack(&dir, "picker.json", &serde_json::to_string(&parsed).unwrap());
+        write_pack(
+            &dir,
+            "picker.json",
+            &serde_json::to_string(&parsed).unwrap(),
+        );
         let error = PackCatalog::load_dir(&dir).expect_err("tamper");
         assert_eq!(error.reason, "pack_digest");
         let _ = fs::remove_dir_all(&dir);
@@ -803,29 +1132,60 @@ mod tests {
         let good = seal("depot", "oo_r_picker", "pv1", "kv1", "picker_note", "none");
         let mut parsed: Value = serde_json::from_str(&good).unwrap();
         parsed["files"][0]["sha256"] = Value::String("0".repeat(64));
-        write_pack(&dir, "picker.json", &serde_json::to_string(&parsed).unwrap());
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("sha").reason, "source_digest");
+        write_pack(
+            &dir,
+            "picker.json",
+            &serde_json::to_string(&parsed).unwrap(),
+        );
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("sha").reason,
+            "source_digest"
+        );
 
         let mut parsed: Value = serde_json::from_str(&good).unwrap();
         let first = parsed["files"][0].clone();
         parsed["files"].as_array_mut().unwrap().push(first);
         parsed["entry_count"] = Value::from(parsed["files"].as_array().unwrap().len() as u64);
-        write_pack(&dir, "picker.json", &serde_json::to_string(&parsed).unwrap());
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("path").reason, "path_duplicate");
+        write_pack(
+            &dir,
+            "picker.json",
+            &serde_json::to_string(&parsed).unwrap(),
+        );
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("path").reason,
+            "path_duplicate"
+        );
 
         let mut parsed: Value = serde_json::from_str(&good).unwrap();
         parsed["total_bytes"] = Value::from(1_u64);
-        write_pack(&dir, "picker.json", &serde_json::to_string(&parsed).unwrap());
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("budget").reason, "budget");
+        write_pack(
+            &dir,
+            "picker.json",
+            &serde_json::to_string(&parsed).unwrap(),
+        );
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("budget").reason,
+            "budget"
+        );
 
         let mut parsed: Value = serde_json::from_str(&good).unwrap();
         parsed["compiler"] = Value::String("other".to_owned());
-        write_pack(&dir, "picker.json", &serde_json::to_string(&parsed).unwrap());
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("compiler").reason, "compiler");
+        write_pack(
+            &dir,
+            "picker.json",
+            &serde_json::to_string(&parsed).unwrap(),
+        );
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("compiler").reason,
+            "compiler"
+        );
 
         let readme_body = readme("depot", "oo_r_auditor");
         let table_body = table("picker_note", "none");
-        let pairs = [("README.md", readme_body.as_str()), ("tables/shop.orders.md", table_body.as_str())];
+        let pairs = [
+            ("README.md", readme_body.as_str()),
+            ("tables/shop.orders.md", table_body.as_str()),
+        ];
         let manifest = manifest_body("depot", "oo_r_picker", "pv1", "kv1", &pairs);
         let files = vec![
             ("README.md".to_owned(), readme_body),
@@ -833,11 +1193,17 @@ mod tests {
             ("tables/shop.orders.md".to_owned(), table_body),
         ];
         write_pack(&dir, "picker.json", &resign(&files, ROLE_PACK_COMPILER));
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("role").reason, "role_mismatch");
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("role").reason,
+            "role_mismatch"
+        );
 
         let readme_body = readme("depot", "oo_r_picker");
         let table_body = table("picker_note", "unknown");
-        let pairs = [("README.md", readme_body.as_str()), ("tables/shop.orders.md", table_body.as_str())];
+        let pairs = [
+            ("README.md", readme_body.as_str()),
+            ("tables/shop.orders.md", table_body.as_str()),
+        ];
         let manifest = manifest_body("depot", "oo_r_picker", "pv1", "kv1", &pairs);
         let files = vec![
             ("README.md".to_owned(), readme_body),
@@ -845,7 +1211,10 @@ mod tests {
             ("tables/shop.orders.md".to_owned(), table_body),
         ];
         write_pack(&dir, "picker.json", &resign(&files, ROLE_PACK_COMPILER));
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("hidden").reason, "role_mismatch");
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("hidden").reason,
+            "role_mismatch"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -872,12 +1241,18 @@ mod tests {
                 file["text"].as_str().unwrap().to_owned(),
             ));
         }
-        let manifest_index = files.iter().position(|file| file.0 == "manifest.json").unwrap();
+        let manifest_index = files
+            .iter()
+            .position(|file| file.0 == "manifest.json")
+            .unwrap();
         let mut manifest: Value = serde_json::from_str(&files[manifest_index].1).unwrap();
         manifest["files"][0]["sha256"] = Value::String("0".repeat(64));
         files[manifest_index].1 = canonical_json(&manifest);
         write_pack(&dir, "picker.json", &resign(&files, ROLE_PACK_COMPILER));
-        assert_eq!(PackCatalog::load_dir(&dir).expect_err("list").reason, "source_digest");
+        assert_eq!(
+            PackCatalog::load_dir(&dir).expect_err("list").reason,
+            "source_digest"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }

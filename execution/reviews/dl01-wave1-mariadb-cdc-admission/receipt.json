@@ -1,0 +1,13 @@
+{
+  "fixed_source": "8950a54218d03bc8927c81338691d753c563ba32",
+  "hashes": [
+    {
+      "manifest": "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/c1-admission/SHA256SUMS",
+      "verified": 94
+    }
+  ],
+  "scope": "real explicit CDC refused on source missing binlog/GTID/privileges; not continuous source convergence",
+  "full_source_accepted": false,
+  "new_update_delete_loop": "not_run",
+  "source_c1_accepted": false
+}

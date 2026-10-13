@@ -1,7 +1,0 @@
-Post-edit proof-3. Preserved. docker-run.exit 101.
-PHASE toolchain=0 overlay=0 test-candidate=0 test-lib=0 test-lib-filter=0 test-review=0 test-pack=101.
-description-pack tests compiled. 19 passed, 2 failed.
-column_only_approval_reseals: effective dataset label stayed the generated name "orders". The curated document label "Orders register" was unchanged. The assertion expected the curated label on the effective draft after a rejected dataset decision.
-column_text_is_resealed_and_role_filtered: pay contained the vault label and omitted the vault body. Role packs emit a column description only when that column review is approved or include_unreviewed lists column_descriptions. The shared settings list only dataset_descriptions. The column review state was not forged.
-Host fix compares the effective label with the pre-reseal draft, and this one command adds column_descriptions beside dataset_descriptions. ColumnWorld.command was unread and is removed.
-Container oo-a339-proof3 was removed by launch.sh. OOMKilled false. Memory 6442450944. NanoCpus 1000000000.

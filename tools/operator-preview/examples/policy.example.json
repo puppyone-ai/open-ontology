@@ -1,0 +1,18 @@
+{
+  "protocol": "oo.operator-preview.policy/v1",
+  "project": "a407bulk",
+  "config_digest": "379615f4f792d2afa6ecceb851355edc309f1473162f5f6ea7ccdf835c42363d",
+  "generation": 2,
+  "role": "reader",
+  "login": "oo_preview_login",
+  "table": {
+    "namespace": "public",
+    "name": "batch_c",
+    "columns": [
+      {"name": "id", "status": "confirmed", "semantic_type": "int8", "pii": {"class": "none"}},
+      {"name": "qty", "status": "confirmed", "semantic_type": "int8", "pii": {"class": "none"}},
+      {"name": "amount", "status": "confirmed", "semantic_type": "numeric", "pii": {"class": "none"}},
+      {"name": "note", "status": "confirmed", "semantic_type": "text", "pii": {"class": "none"}}
+    ]
+  }
+}

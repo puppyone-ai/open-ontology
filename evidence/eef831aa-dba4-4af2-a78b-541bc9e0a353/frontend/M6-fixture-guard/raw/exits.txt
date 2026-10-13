@@ -1,5 +1,0 @@
-types=0
-types-node=0
-types-sdk=0
-lint=0
-test=1

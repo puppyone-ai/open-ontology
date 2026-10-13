@@ -10,8 +10,8 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use oo_gateway::policy::{
-    compile_column_acl_set, ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass,
-    RowFilter,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, RowFilter,
+    compile_column_acl_set,
 };
 use oo_gateway::reviewed_policy::{
     ReviewedAllow, ReviewedBinding, ReviewedIdentity, ReviewedSourceSeal,
@@ -251,10 +251,30 @@ fn measure_table() -> TableSpec {
     TableSpec {
         name: "measure",
         columns: vec![
-            Col { attnum: 1, name: "batch_i8", oid: 20, type_name: "int8" },
-            Col { attnum: 2, name: "amount_i2", oid: 21, type_name: "int2" },
-            Col { attnum: 3, name: "amount_i4", oid: 23, type_name: "int4" },
-            Col { attnum: 4, name: "amount_i8", oid: 20, type_name: "int8" },
+            Col {
+                attnum: 1,
+                name: "batch_i8",
+                oid: 20,
+                type_name: "int8",
+            },
+            Col {
+                attnum: 2,
+                name: "amount_i2",
+                oid: 21,
+                type_name: "int2",
+            },
+            Col {
+                attnum: 3,
+                name: "amount_i4",
+                oid: 23,
+                type_name: "int4",
+            },
+            Col {
+                attnum: 4,
+                name: "amount_i8",
+                oid: 20,
+                type_name: "int8",
+            },
         ],
         pk: vec![(1, "batch_i8")],
     }
@@ -263,7 +283,12 @@ fn measure_table() -> TableSpec {
 fn one_column(type_name: &'static str, oid: i64) -> TableSpec {
     TableSpec {
         name: "measure",
-        columns: vec![Col { attnum: 1, name: "amount", oid, type_name }],
+        columns: vec![Col {
+            attnum: 1,
+            name: "amount",
+            oid,
+            type_name,
+        }],
         pk: vec![(1, "amount")],
     }
 }
@@ -302,14 +327,18 @@ fn run_bin(env_name: &str, args: &[&str], stdin_text: &str) -> String {
     assert!(
         output.code == 0,
         "{env_name} {args:?} exited {}\n{}\n{}",
-        output.code, output.stderr, output.stdout
+        output.code,
+        output.stderr,
+        output.stdout
     );
     output.stdout
 }
 
 fn fingerprints_of(artifact: &Value) -> BTreeMap<(String, String), String> {
     let mut out = BTreeMap::new();
-    let queue = artifact["draft"]["review_queue"].as_array().expect("review queue");
+    let queue = artifact["draft"]["review_queue"]
+        .as_array()
+        .expect("review queue");
     for item in queue {
         if item["kind"] != "structural_column" {
             continue;
@@ -321,7 +350,10 @@ fn fingerprints_of(artifact: &Value) -> BTreeMap<(String, String), String> {
         let Some((dataset, column)) = rest.rsplit_once('/') else {
             continue;
         };
-        let fingerprint = item["fact_fingerprint"].as_str().expect("fingerprint").to_string();
+        let fingerprint = item["fact_fingerprint"]
+            .as_str()
+            .expect("fingerprint")
+            .to_string();
         out.insert((dataset.to_string(), column.to_string()), fingerprint);
     }
     out
@@ -421,6 +453,7 @@ fn binding(chain: &Chain, allow_list: Vec<ReviewedAllow>) -> ReviewedBinding {
         generation: BINDING_GENERATION,
         role: "clerk".to_string(),
         login: "clerk_login".to_string(),
+        binding_vector: None,
         allow: allow_list,
     }
 }
@@ -489,7 +522,13 @@ fn measure_decisions(
         decision(fingerprints, schema_hash, "batch_i8", "none", "identifier"),
         decision(fingerprints, schema_hash, "amount_i2", "none", "quantity"),
         decision(fingerprints, schema_hash, "amount_i4", "none", "quantity"),
-        decision(fingerprints, schema_hash, "amount_i8", "personal", "quantity"),
+        decision(
+            fingerprints,
+            schema_hash,
+            "amount_i8",
+            "personal",
+            "quantity",
+        ),
     ]
 }
 
@@ -651,7 +690,12 @@ impl PiiDoc {
     }
 }
 
-fn single_decision(type_name: &'static str, oid: i64, semantic: &'static str, pii: &'static str) -> Chain {
+fn single_decision(
+    type_name: &'static str,
+    oid: i64,
+    semantic: &'static str,
+    pii: &'static str,
+) -> Chain {
     let table = one_column(type_name, oid);
     let catalog = catalog_json(&table);
     let artifact_json = run_bin(
@@ -722,7 +766,13 @@ fn integer_quantity_reaches_the_reviewed_policy_cli() {
     let expect = [
         ("amount_i2", "quantity", PiiClass::None),
         ("amount_i4", "quantity", PiiClass::None),
-        ("amount_i8", "quantity", PiiClass::Declared { explicit_allow: true }),
+        (
+            "amount_i8",
+            "quantity",
+            PiiClass::Declared {
+                explicit_allow: true,
+            },
+        ),
         ("batch_i8", "identifier", PiiClass::None),
     ];
     for (column, (name, semantic, pii)) in columns.iter().zip(expect) {
@@ -749,7 +799,9 @@ fn quantity_pii_token_must_match_the_current_allow_rule() {
     let policies = policies_of(&declared.stdout);
     assert_eq!(
         policies[0].table.columns[0].pii,
-        PiiClass::Declared { explicit_allow: true }
+        PiiClass::Declared {
+            explicit_allow: true
+        }
     );
     assert_eq!(policies[0].table.columns[0].semantic_type, "quantity");
 }
@@ -848,7 +900,15 @@ fn money_needs_a_unit_and_other_semantics_stay_refused() {
     );
     assert!(refused.stdout.is_empty());
 
-    for semantic in ["ratio", "event_time", "date", "audit_time", "geo", "json", "system"] {
+    for semantic in [
+        "ratio",
+        "event_time",
+        "date",
+        "audit_time",
+        "geo",
+        "json",
+        "system",
+    ] {
         let chain = single_decision("int8", 20, semantic, "none");
         let out = run_cli(&operator(&chain, vec![allow("amount", false)]));
         assert_line(&out, 11, "reviewed-policy: semantic\n");

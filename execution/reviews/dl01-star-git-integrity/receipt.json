@@ -1,0 +1,26 @@
+{
+  "bad_commit": "2784186b0975a9aa833d656fd964dd853fe7a9cd",
+  "restore_commit": "2a985cd32f82b27735b7104b90a17208e56e2fb7",
+  "restore_baseline": "523d24f567f581287242e3edd7cf7bf07a2d3ffa",
+  "foreign_paths": 2117,
+  "restore_blob_mismatches": [
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver/FINDINGS.md",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver/HANDOFF.md",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver/REPORT.md",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver/SHA256SUMS",
+    "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver/receipt.json",
+    "tools/source-driver-worker/CONTRACT.md",
+    "tools/source-driver-worker/Cargo.lock",
+    "tools/source-driver-worker/Cargo.toml",
+    "tools/source-driver-worker/NOTICE.md",
+    "tools/source-driver-worker/src/bin/oo-source-driver-parent.rs",
+    "tools/source-driver-worker/src/lib.rs",
+    "tools/source-driver-worker/src/parent.rs",
+    "tools/source-driver-worker/tests/bridge.rs"
+  ],
+  "later_commits_touching_restored_foreign_paths": {},
+  "policy": "no source acceptance from restore; no rewritten history; preserve accidental commit and forward repair",
+  "guard": "execution/scripts/commit_owned.py reads committed task ownership and uses private index",
+  "oracle_preserved_forward_commit": "87696cbae8a925ef0612cb15c43c7a5aa3292902",
+  "oracle_worktree_bytes_unchanged": true
+}

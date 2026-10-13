@@ -1,5 +1,0 @@
-generate-lockfile exited 0 and wrote tools/local-analysis/Cargo.lock (103 packages).
-cargo test --locked --offline and cargo clippy --locked --offline then both exited 101:
-failed to download ahash v0.8.12 because --offline was specified before any fetch.
-Clippy itself was installed: clippy-aarch64-unknown-linux-gnu is in components.txt.
-The recorded exits in this directory are from that run. The next run fetches the existing lock before the offline test.

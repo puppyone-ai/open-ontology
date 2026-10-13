@@ -27,8 +27,22 @@ printf '%s\n' $? > "${EVIDENCE}/run/init-script.exit"
 mkdir -p "${EVIDENCE}/run/probes"
 if [ -d "${STATE}/probe" ]; then
   cp -p "${STATE}/probe/"*.json "${EVIDENCE}/run/probes/" 2>/dev/null || true
+  python3 - "${STATE}/probe" "${EVIDENCE}/run/probes" <<'PY'
+import pathlib, sys
+source = pathlib.Path(sys.argv[1])
+dest = pathlib.Path(sys.argv[2])
+dest.mkdir(parents=True, exist_ok=True)
+tokens = ("PRIVATE KEY", "BEGIN ", "password=", "PGPASSWORD", "oo-entry=")
+for path in sorted(source.iterdir()):
+    if path.suffix not in {".http", ".raw", ".err"} or not path.is_file():
+        continue
+    lines = []
+    for line in path.read_text(errors="replace").splitlines():
+        lines.append("[redacted]" if any(token in line for token in tokens) else line)
+    (dest / path.name).write_text("\n".join(lines) + "\n")
+PY
 fi
-for container in oo-a395-control-db oo-a395-identity oo-a395-audit oo-a395-session; do
+for container in oo-a395-control-db oo-a395-identity oo-a395-audit oo-a395-session oo-a395-release oo-a395-selfbuild; do
   docker logs "$container" > "${EVIDENCE}/run/${container}.log" 2>&1 || true
 done
 python3 - "${EVIDENCE}/run" <<'PY'
@@ -44,8 +58,9 @@ for path in run.glob("*.log"):
     path.write_text("\n".join(lines) + "\n")
 PY
 if [ -x "${STATE}/bin/oo-product-stack" ]; then
-  cp "${STATE}/bin/oo-product-stack" /tmp/oo-a395-oracle
-  chmod 755 /tmp/oo-a395-oracle
+  mkdir -p "${STACK}/.oracle"
+  cp "${STATE}/bin/oo-product-stack" "${STACK}/.oracle/oo-product-stack"
+  chmod 755 "${STACK}/.oracle/oo-product-stack"
 fi
 "${STACK}/ops/sbom.sh"
 python3 - "$STATE" "${EVIDENCE}/run/secret-files.json" <<'PY'
@@ -61,6 +76,7 @@ pathlib.Path(sys.argv[2]).write_text(json.dumps(files))
 PY
 "${STACK}/ops/cleanup.sh"
 "${STACK}/ops/journey.sh"
-rm -f /tmp/oo-a395-oracle
-printf '%s\n' $? > "${EVIDENCE}/run/phase.exit"
+journey_code=$?
+rm -f "${STACK}/.oracle/oo-product-stack"
+printf '%s\n' "$journey_code" > "${EVIDENCE}/run/phase.exit"
 echo "phase_finished"

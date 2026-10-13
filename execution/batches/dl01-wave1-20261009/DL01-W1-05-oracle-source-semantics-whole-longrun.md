@@ -1,0 +1,19 @@
+恢复原05唯一Grok工程师完整共享source语义封存→有效Builderprofile→实际rolePack能力，原docs/Spec5.4/AT-SRC11及REQ14全部适用不缩减，先读INDEX GOAL PRODUCT-LOOPS CONTROL UPDATEskill原05任务/对应docsPlan。Grok4.7xhigh noGPT/no nested/worktree，原dispatch05唯一paths tools/source-semantics crates/oo-core crates/oo-builder contracts/schema/oos-v1.json+原1e7798证据，禁止修改06 pipeline/pg-builder或04Oracle产品/Gateway。共享deps固定05旧3fb598/f0e及06接口9d922b49b1795cc4696bacb385493250cb012dec+jsonb631720/完整证据471e96994。读06source-bound-admission/HANDOFF与04 two-gaps/HANDOFF固定1bf0fb6，两项原Oracle退出还未闭合，core caveat_agrees现仅五个存储token，实际Oracle需要empty_string_is_null（CHAR/VARCHAR2）、unconstrained_number（原N_FREE canonicaltext）、precision_loss（TS9真实文本/画像说明），保持offset/所有保真不能虚称损失。必须设计真实可信source-semantic契约与存储caveat区别，非简单任意字符串放行/手填sealed文件；从真实source类型元数据和source-bound identity生成确定语义，合法sealed catalog及schema digest一致，contract与catalog/pack匹配，禁止跨源/run/列/注入/不匹配token。所需source版本/S1/reconcile/sealed_import真实传递不能固定标签冒实际观测。
+一次完整小闭环交付：Linux1.94先冒烟→源码实现→strict测试/clippy/build；从原Oracle真实固定source数据字典/Arrow/catalog和06public接口形成合法封存编译器输入→三个flags进入实际compiled角色Pack文件/画像，原jsonb/missingnull/大数BSON、bpchar/UUID/decimal及旧caveat权限原回归保持；有效和必要cross-source/digest/schema/token拒绝都有raw实际请求/输出/退出/typed/identity。不以单个coreunit或字符串contains冒capability完成。可固定archives编译06已提交入口作只读消费者验证，无权写06源码；公共接线缺口给root精确接口而不越权。所有core/schema/builder公共改变必须明确旧sealed兼容行为与哈希变化，不能伪造历史SHA，影响04新的导入/BuilderPack由04后续真实执行；不能宣称原旧Pack获新flags。
+先收所有named旧background（原05terminal），准入Rustglobal10/task1 CPU16headroom10GiB/每task1CPU，资源named独立无model/token必要不扫描秘密。不改rootCargo/lock。三报告/full原始stdoutstderr/requestresponse/hashinventory/ELF源依赖锁/recipe/resourceexitcleanup，保留所有失败，commit_owned --task DL01-W1-05固定实现与证据SHA；source/parent/grade/nightly/发行不加计数，集中整源独立复审。原jsonb交付不得回滚。直到完整共有语义小闭环或确需foreign接口/外部条件完整证据handoff才结束。
+
+## 2026-10-12 最新人类完整数据源签收条件
+
+用户明确完整签收包含 按原docs逐源C1–C5的持续捕获（可配置检测/拉取及对账周期）、完整 Self-build 到 docs 标准 YAML、持续维护更新 Ontology、Agent 实际消费 Knowledge Pack、Gateway 经 OO CLI 或声明实际可用的 MCP/其他入口完成真实对话和准确查询。上述五段必须绑定真实源表、同一数据与语义版本及固定证据，不能用草案/一次批量导入/单工具查询替代。原支持等级、源码零写、权限、类型、恢复、审阅和外部门槛继续适用；捕获方法按能力显式选择；不把分区刷新/差分混称日志CDC，不自动降低声明的一致性或删除保证。
+
+此前六源证据保留为受控预览验收6/10；按本完整要求当前完整签收0/10，六源须补证，不抹除旧成功/失败或新增返工分母。当前DL01仍优先，同步复用SP04/SP07/SP08/SP09/SP13的固定公共能力；五版顺序与全部必交Plan不缩减。旧“CDC/MCP留后版”条文在完整源签收范围内被此直接人类要求覆盖；不提前勾选任何整版。
+
+当前工作仍保留独占文件与固定依赖，不越权拓展。当前原子公共能力完整交付之后，整源按此退出继续同一自主工程师推进；等待接口或外部条件精确handoff。不得使用旧6/10作完整产品签收。
+
+## 2026-10-12 最新人类编译与CPU授权
+
+直接人类要求解除全部编译槽和CPU限制。旧Rustglobal10/task1、CPU16预留总额、builder --cpus1、CARGO_BUILD_JOBS=1及按固定槽排队规定已被覆盖。后续构建不设置固定并行jobs/CPU配额/编译槽上限，使用当前机器可用CPU与内存；独占源码/固定archives、源只读预算、真实测试及权限边界保持。容器CPU按实际cgroup无quota验证；正在运行的编译不中断，旧进程启动时jobs环境只能在下一构建调整，不把文档变更冒充运行参数已改变。可靠Grok目标15与普通clock.sleep900秒保持，worker遇旧资源条文以本最新人类授权为准；依据当前真实机器状态安排，不按旧固定CPU/槽阈值阻塞。
+
+最新收取：原05 handle35494 terminal0，无新fixedsource；sem-post schema/版本提取失败及第三次clippy失败原样保留，jsonb旧3fb仍非新sourcebound成功。先收named sem-post后台和原始test/clippy退出，然后同一完整共享语义能力修到真实pack/必要拒绝及full三报告固定SHA；不又只起builder就结束。用户已解除全部编译槽与CPU限制，旧admit fixedcap拒绝不再有效，当前source budgets/权限保持。compile固定archive加soleownedoverlay、待collect期间不修改正在编译的immutable源码。
+
+最新Mongo固定c7678516a/11194实际原doc schema缺BSON Double：JSONB_DOUBLE_UNENCODED，weight是获准列，仅float64投影可读但fulldoc不能为了容易封存默默省略并完整签收；repair76 document-profile schema.invalid/readyfalse。你的同一个共享语义/jsonb完整能力按原AT-SRC13处理获准BSONDouble规范ExtendedJSON原值/负0/非有限值策略、rawBSON一致、jsonb_send/modelprofile/真实rolepage，不经有损浮点重渲染；必要scope明示拒绝但不能以删获准weight充作fulldoc保真。原rawdoc保留缺null/decimal128/int64/objectid/UUID/date全部；schema/新增字段权限拒绝保持。原05source-bound flags新接口仍需全实际文件产物fixed交付，06只消耗fixedSHA，别改foreigntool或手补sealedcatalog。

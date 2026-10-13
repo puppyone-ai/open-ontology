@@ -1,5 +1,0 @@
-Live run 2 reached a sealed backup and then the harness rejected it. The value probe used an 8s lock_timeout. The cut itself finished in about 4s: the product writer probes logged lock timeouts at 01:29:21 and 01:29:22, and the waiting value UPDATE was granted when the cut released at 01:29:23. The probe then raised and rolled back, so entry_id 3 stayed 1234567890.1234. rejected.err contains P0001, not 55P03. The harness trap then stopped the backup process. The sealed files were already on disk.
-
-That seal is an unproven cut, not a certificate. cut_mode=unproven, history_insufficient=true, quiescent=false, sequence fence held=false, both sequences sqlstate 42809. Snapshot ids 00000011-00000006-1 and 00000004-00000008-1 were passed to pg_dump with deferrable=absent and format=custom. Catalog sequence rows are 41|f. Shop gold hashes match the sealed a361 values. pg_restore -f text of both dumps has no oo_a377_probe and no a377-during-cut, and no 1.0001. Entry count stayed 90000.
-
-The rerun uses a 1s lock_timeout so the value probe times out while the product's own writer probes still hold SHARE.

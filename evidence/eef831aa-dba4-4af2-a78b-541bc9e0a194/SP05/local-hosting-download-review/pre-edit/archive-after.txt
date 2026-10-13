@@ -1,7 +1,0 @@
-path=crates/oo-control/src/file_hosting.rs blob=1af90356ae515da382d4dc23c783fa3f42d1c93b snap=1af90356ae515da382d4dc23c783fa3f42d1c93b match=1
-path=crates/oo-control/tests/file_hosting.rs blob=89f7381297fc6db02e36a73ea8f8ccb20cc9358d snap=89f7381297fc6db02e36a73ea8f8ccb20cc9358d match=1
-path=crates/oo-control/src/lib.rs blob=b7e3eae88545f792e2d1fd9fd5d560f84580f3bd snap=b7e3eae88545f792e2d1fd9fd5d560f84580f3bd match=1
-path=crates/oo-control/Cargo.toml blob=ab86ecccb38618a93ce32141189156c3ab90a7dc snap=ab86ecccb38618a93ce32141189156c3ab90a7dc match=1
-path=contracts/control/local-file-hosting-v1.md blob=3418685b2a009d75eea7760788d48b1655d30d3e snap=3418685b2a009d75eea7760788d48b1655d30d3e match=1
-path=Cargo.lock blob=2147cc3bd9fed782c209d2125cdba5b266291c45 snap=2147cc3bd9fed782c209d2125cdba5b266291c45 match=1
-archive_unchanged_after_smoke=1

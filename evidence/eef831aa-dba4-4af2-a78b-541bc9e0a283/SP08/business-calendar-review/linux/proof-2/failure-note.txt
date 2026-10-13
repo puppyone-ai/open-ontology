@@ -1,5 +1,0 @@
-proof-2 preserved. Author smoke passed 21. Lock subset, offline fetch, and product bytes passed.
-Overlay test dsl_supported_or_refused_and_week_is_not_an_anchor panicked with calendar_invalid.
-The phrase YAML used a Rust backslash line continuation, which strips the indent of the next line, so the first phrase key was not under phrases.
-Clippy denied needless_lifetimes on range_end in the overlay. The product sources were not edited.
-proof-3 keeps the two-space phrase indent with explicit newlines and elides that lifetime.

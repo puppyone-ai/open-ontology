@@ -1,1 +1,0 @@
-Attempt 4 builder exit 1. rustup followed the repo toolchain file and compiled with 1.98.1. The lib test also shadowed inspect() with a local binding. The retry pins RUSTUP_TOOLCHAIN=1.94.0 and renames that binding.

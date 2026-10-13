@@ -1,5 +1,0 @@
-adapter_completion=complete
-comparator_versus_full_gold=mismatch
-comparator_versus_prefix_gold=match
-runner_must_refuse_truncation=independent
-runner_approved=no

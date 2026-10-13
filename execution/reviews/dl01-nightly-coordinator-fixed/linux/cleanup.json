@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-10T03:40:00.409239+08:00",
+  "container_removed": true,
+  "private_cargo_target_volumes_removed": true,
+  "private_archive_removed": true,
+  "foreign_resources_changed": false,
+  "previous_managed_w40_idle_container_cleanup": "recorded separate snapshot, owner CLI terminal/no work process",
+  "mariadb_probe_left_running": true
+}

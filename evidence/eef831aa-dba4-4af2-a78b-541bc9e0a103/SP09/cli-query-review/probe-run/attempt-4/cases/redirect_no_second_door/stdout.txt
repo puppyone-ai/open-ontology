@@ -1,1 +1,0 @@
-{"class":"protocol","exit":1,"message":"protocol redirect refused","retry":{"attempt_count":"unknown","max_extra_attempts":3,"max_wait_ms":2000,"nested_cli_retries":0,"outcome":"not_replayed"},"retryable":false}

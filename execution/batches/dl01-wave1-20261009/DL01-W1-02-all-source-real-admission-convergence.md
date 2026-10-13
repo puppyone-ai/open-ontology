@@ -1,0 +1,14 @@
+# 原02公共准入接通十源完整产品
+
+先读 `execution/batches/dl01-wave1-20261009/DL01-W1-02-complete-capability-resource-collect.md`、原DBX-W02全REQ/AT及执行控制/review-policy、skill。
+
+已cbc88/b0df的79?实际native9/cli17等Linux1.94suite绿与Doris C4/C5 publicDecision合法可先作者完整联结，不再一般review润色；当前十源全部并行、MySQLOracle重点。唯一owner tools/source-admission，负责真正每源capturer/sourceaudit/method/grade/schema/type/witness生成校验与producer/server注册配方，支持逐源原C1–C5并杜绝自写grade自证；不把Doris witness借给其他源。先接Oracle/MySQL/MariaDB/PG等已固定真实producer输入，准确修共享实际运行拒绝，别为完美DSL写无意义组件。06负责allowlist/native consumer；你的新LinuxELFe465/doris driver115MB现在需要合法明确可信注册recipe，不在consumer未改时重复同digest拒绝。十源原完整闭环工程师自主消费该真实接口，三报告/fixedSHA/raw/关键实际tests/资源即可，不额外review。
+
+## 最新收敛规则
+直接人类要求十源全部做，MySQL/Oracle重点；每源一个完整自主Grok工程师，非只PG/非细碎功能。可运行固定代码+必要真实测试即可先联结；一般组件审阅、风格、小问题延后。无法运行、数据不准确、越权/secret暴露、伪造信任或接受不真实结果必须修。原完整输入/Plan/Goal/量化退出不改，source0/10不因组件变绿晋升；模型approved路径空目录只挡真实S5/Agent对话，不偷找foreignkey。
+新固定可复用：02内容b0df708e494eaca7d8739c963f73447250e6d1ba/回执cbc88efdcfd944eb1a1f768f237956ed13653314；Linux1.94 validator ELF e465241fc1292b6eb5a13cf12efbffe360a9fbf1cbb03c02affb0241a4e58e1f，合法DorisR0 witness C5/C4/public无secretref，其他源需源自身真实witness不借他源。06 e37a6f9dead618283d654c70c65302f14c430d37新ELF56514ae7e734ab211365c37b8889644f93a979dc82326708a7cfc3a7012e9866，单向registry_preimage、真实工件/活lease、expired/consistency/replayTruth/leaseRequired门，不能用历史4673自写receipt的source_bound声称trusted。02新ELF allowlist以及大driver正常配额尚需sole06实际接通，jobs.claim/fence接口尚需sole06/74，不手造SQL lease/cert。已绿物理导入不为新证据重跑无变化的旧窗口。
+每源自主完成可用产品全闭环：本源真实schema/全批准类型/独立源audit/配置捕获周期和增删改收敛→真正sealed importer→Selfbuild真实S0S10/OOS YAML/curated有效版本和维护→实际KnowledgePack→Gateway OOCLI或现有声明protocol→独立Agent真实多轮准确。准备独占真实原始producer/witness与明确调用请求，消费shared新固定接口，新API拒绝属工程问题由确切owner改，不拿旧同拒绝循环来凑并发。不让仅后台启动终结CLI，先收自己具名任务终态；任务卡完整版三报告、fixedSHA/ELF/raw/hash/resource一次交付。无foreign/rootCargo/ledgerwrites，无新agents/worktrees，无CPU/jobs/槽限制；不得重启旧paused源，可新自有隔离非生产批准namespace，保持现有资源。
+
+## 当前跨源联结收敛实测（2026-10-12）
+SDK72已def424680e2066e997c7496d0bf62d36332fb211真实file-gate driver0、正监听0→1、合法mTLS50/41行300/246格0differences，固定Git清单1206条hash全match，Gateway/CLI源码仍与910310相同；直接联结不新增普通复审。
+OpenSearch44 witness-20261012实际02 seal-native e465 exit2 OBJECT_UNAPPROVED（approved索引oo-dl01w1-44-ledger vs逻辑ledger_rows）；SCHEMA_UNSUPPORTED真实IPC TypeFloat=3、Timestamp=10、List=12且一子字段。原source支持这些已真实四代660cells0；这是阻整源共享接口缺失，不是风格小问题，02 sole按原docs修正确源对象→逻辑表映射/这些实际原Arrow类型witness验证（unsupported未批准geo/c5_extra保持不能越权），06 sole批准实际reader116863584 bytes可信资源上限，别general允许任意elf。当前native06 e37拒绝child applied_pos0 expired正确，不删expired门；producer/runtime实位点在其原C5规则派生，不为接口造位点。raw目录在44当前HANDOFF。

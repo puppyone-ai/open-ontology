@@ -1,4 +1,0 @@
-bind /Users/redux/puppy-one/open-ontology/testing/product-benchmark/linux/smoke/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a389/SP12/product-benchmark/linux/smoke /evidence rw=true
-

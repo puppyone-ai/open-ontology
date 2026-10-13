@@ -1,1 +1,0 @@
-embed exit 101: offline lockfile resolution looked up optional async-fs, which the production features do not enable and which is not in the warm cache. The next run drops unused optional tables from the /tmp copy only.

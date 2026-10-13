@@ -1,2 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/reject_set_role.sql:2: ERROR:  42501: permission denied to set role "oo_pipeline_runtime"
-LOCATION:  call_string_check_hook, guc.c:6938

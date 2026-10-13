@@ -14,6 +14,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, Error as PgError, IsolationLevel, Transaction};
@@ -26,28 +28,70 @@ use crate::sql_guard::{
 use super::CompiledPolicy;
 
 /// Base types this loader can place on a visible column.
-pub const SUPPORTED_TYPES: &[&str] = &["bool", "int2", "int4", "int8", "numeric", "text"];
+///
+/// The six original names stay. `varchar`, `float8`, `timestamptz`, `json`,
+/// `bytea`, `uuid`, `bpchar`, `date`, `timestamp`, `interval`, and `jsonb` are the exact
+/// extra base types this loader can publish. `timestamp` is timestamp without
+/// time zone. `json` stays oid 114. `float4` and every
+/// other name stay out. Publishing a name does not admit a column: the role
+/// and the physical mapper still have to allow that column.
+pub const SUPPORTED_TYPES: &[&str] = &[
+    "bool",
+    "int2",
+    "int4",
+    "int8",
+    "numeric",
+    "text",
+    "varchar",
+    "float8",
+    "timestamptz",
+    "json",
+    "bytea",
+    "uuid",
+    "bpchar",
+    "date",
+    "time",
+    "interval",
+    "timestamp",
+    "jsonb",
+];
 
-/// Precision ceiling for a constrained `numeric` column. Matches the builder
-/// bound that treats precision above 38 as unbounded or wide.
-const NUMERIC_MAX_PRECISION: i32 = 38;
+/// Decimal256 coefficient ceiling. Precision 1..=38 remains decimal128.
+/// Precision 77 and above stays refused.
+const NUMERIC_MAX_PRECISION: i32 = 76;
 
 /// `true` when `name` is an allowlisted base type this loader can publish.
 ///
-/// `numeric` also requires `atttypmod >= 0` and precision `1..=38`, using the
-/// same high 16 bits as the query decoder. Other allowlisted names ignore
-/// `typmod`. The caller still requires `typtype` `b`.
+/// `numeric` requires precision `1..=76`. `uuid`, `date`, `timestamp`, and
+/// `jsonb` are legal only at typmod `-1`. A timestamp typmod of `0` or `6`
+/// would truncate and stays refused. `bpchar` is legal at typmod `-1`, and at
+/// a character typmod whose length `typmod - 4` is `1..=10485760`. Typmod `10`
+/// is `character(6)`. `json` stays typmod-ignored. The other allowlisted names
+/// ignore typmod. The caller still requires `typtype` `b`.
 pub fn grantable_base_type(name: &str, typmod: i32) -> bool {
     if !SUPPORTED_TYPES.contains(&name) {
         return false;
     }
-    if name != "numeric" {
+    match name {
+        "numeric" => match numeric_grant_precision(typmod) {
+            Some(precision) => (1..=NUMERIC_MAX_PRECISION).contains(&precision),
+            None => false,
+        },
+        "uuid" | "date" | "time" | "timestamp" | "interval" | "jsonb" => typmod == -1,
+        "bpchar" => character_grant_typmod(typmod),
+        _ => true,
+    }
+}
+
+/// Unconstrained `character`, or `character(n)` with `n` in `1..=10485760`.
+fn character_grant_typmod(typmod: i32) -> bool {
+    if typmod == -1 {
         return true;
     }
-    match numeric_grant_precision(typmod) {
-        Some(precision) => (1..=NUMERIC_MAX_PRECISION).contains(&precision),
-        None => false,
+    if typmod < 4 {
+        return false;
     }
+    (1..=10_485_760).contains(&(typmod - 4))
 }
 
 /// Precision of a constrained numeric typmod. `None` means unconstrained.
@@ -65,7 +109,10 @@ pub const COMPARISON_OPERATORS: &[&str] = &["<", "<=", "<>", "=", ">", ">="];
 /// Same-type pairs, plus the int4 pairs an integer literal needs on either side.
 ///
 /// Integer literals use the `int4` type OID. `int2` and `int8` columns compare
-/// with that literal only through the cross-type builtin operators.
+/// with that literal only through the cross-type builtin operators. `numeric`
+/// columns compare with an integer literal through the `numeric`/`numeric`
+/// operator; PostgreSQL casts the literal. A decimal-point literal is still
+/// rejected before this list is consulted.
 pub const COMPARISON_SIGNATURES: &[(&str, &str)] = &[
     ("bool", "bool"),
     ("int2", "int2"),
@@ -75,6 +122,7 @@ pub const COMPARISON_SIGNATURES: &[(&str, &str)] = &[
     ("int4", "int8"),
     ("int8", "int4"),
     ("int8", "int8"),
+    ("numeric", "numeric"),
     ("text", "text"),
 ];
 
@@ -208,17 +256,23 @@ impl fmt::Display for CatalogError {
 
 impl std::error::Error for CatalogError {}
 
+#[derive(Clone)]
 struct BoundInput {
-    project: String,
+    source: String,
+    native_namespace: bool,
     role: String,
     config_digest: String,
     generation: i64,
     tables: Vec<TableBound>,
 }
 
+#[derive(Clone)]
 struct TableBound {
+    source: String,
     namespace: String,
     name: String,
+    config_digest: String,
+    generation: i64,
     columns: Vec<String>,
 }
 
@@ -242,7 +296,52 @@ pub async fn load_policy_catalog(
     policies: &[CompiledPolicy],
     limits: &CatalogLimits,
 ) -> Result<PolicyCatalog, CatalogError> {
-    let bound = prepare(identity, policies, limits)?;
+    load_policy_catalog_bound_source(client, identity, policies, limits, None, None, None).await
+}
+
+/// Authentication project stays unchanged; native source identity is independently verified by the native reviewed adapter.
+pub async fn load_policy_catalog_for_source(
+    client: &mut Client,
+    identity: &PolicyIdentity,
+    policies: &[CompiledPolicy],
+    limits: &CatalogLimits,
+    source: &str,
+) -> Result<PolicyCatalog, CatalogError> {
+    load_policy_catalog_bound_source(client, identity, policies, limits, Some(source), None, None).await
+}
+/// Load one atomically verified native collection with independent per-table versions.
+pub async fn load_policy_catalog_for_source_vector(
+    client: &mut Client,
+    identity: &PolicyIdentity,
+    policies: &[CompiledPolicy],
+    limits: &CatalogLimits,
+    source: &str,
+    vector: Option<&Value>,
+    catalog: Option<&Value>,
+) -> Result<PolicyCatalog, CatalogError> {
+    load_policy_catalog_bound_source(client, identity, policies, limits, Some(source), vector, catalog).await
+}
+async fn load_policy_catalog_bound_source(
+    client: &mut Client,
+    identity: &PolicyIdentity,
+    policies: &[CompiledPolicy],
+    limits: &CatalogLimits,
+    source: Option<&str>,
+    vector: Option<&Value>,
+    catalog: Option<&Value>,
+) -> Result<PolicyCatalog, CatalogError> {
+    let mut bound = prepare(identity, policies, limits, vector.is_some())?;
+    if let Some(source) = source {
+        if !closed_identity(source) && !(vector.is_some() && source.is_empty()) {
+            return Err(CatalogError::IdentityMismatch);
+        }
+        bound.source = source.to_owned();
+        for table in &mut bound.tables { table.source = source.to_owned(); }
+        bound.native_namespace = true;
+    }
+    if let Some(vector) = vector {
+        bind_vector_sources(&mut bound, vector, catalog.ok_or(CatalogError::IdentityMismatch)?)?;
+    }
     require_tls(client).await?;
     let tx = client
         .build_transaction()
@@ -251,7 +350,7 @@ pub async fn load_policy_catalog(
         .start()
         .await
         .map_err(db_error)?;
-    match load_in_snapshot(&tx, identity, &bound, limits).await {
+    match load_in_snapshot(&tx, identity, &bound, limits, vector, catalog).await {
         Ok(catalog) => {
             // Commit drops the transaction borrow before the idle check.
             commit_snapshot(tx).await?;
@@ -265,10 +364,28 @@ pub async fn load_policy_catalog(
     }
 }
 
+fn bind_vector_sources(bound: &mut BoundInput, vector: &Value, catalog: &Value) -> Result<(), CatalogError> {
+    let entries = vector.as_array().ok_or(CatalogError::IdentityMismatch)?;
+    if entries.len() != bound.tables.len() || catalog["entries"].as_array().is_none_or(|items| items.len() != entries.len()) {
+        return Err(CatalogError::IdentityMismatch);
+    }
+    for table in &mut bound.tables {
+        let dataset = format!("{}.{}", table.namespace, table.name);
+        let mut matches = entries.iter().filter(|entry| entry["dataset"] == dataset);
+        let entry = matches.next().ok_or(CatalogError::IdentityMismatch)?;
+        if matches.next().is_some() { return Err(CatalogError::IdentityMismatch); }
+        let table_source = entry["source_id"].as_str().ok_or(CatalogError::IdentityMismatch)?;
+        if !closed_identity(table_source) { return Err(CatalogError::IdentityMismatch); }
+        table.source = table_source.to_owned();
+    }
+    Ok(())
+}
+
 fn prepare(
     identity: &PolicyIdentity,
     policies: &[CompiledPolicy],
     limits: &CatalogLimits,
+    native_vector: bool,
 ) -> Result<BoundInput, CatalogError> {
     if policies.is_empty() {
         return Err(CatalogError::EmptyInput);
@@ -289,8 +406,8 @@ fn prepare(
     for policy in policies {
         if policy.project != first.project
             || policy.role != first.role
-            || policy.config_digest != first.config_digest
-            || policy.generation != first.generation
+            || (!native_vector && policy.config_digest != first.config_digest)
+            || (!native_vector && policy.generation != first.generation)
             || policy.login != first.login
         {
             return Err(CatalogError::MixedIdentity);
@@ -302,8 +419,11 @@ fn prepare(
             return Err(CatalogError::MixedIdentity);
         }
         tables.push(TableBound {
+            source: first.project.clone(),
             namespace: policy.namespace.clone(),
             name: policy.table.clone(),
+            config_digest: policy.config_digest.clone(),
+            generation: policy.generation,
             columns: policy
                 .columns
                 .iter()
@@ -312,7 +432,8 @@ fn prepare(
         });
     }
     Ok(BoundInput {
-        project: first.project.clone(),
+        source: first.project.clone(),
+        native_namespace: false,
         role: first.role.clone(),
         config_digest: first.config_digest.clone(),
         generation: first.generation,
@@ -409,19 +530,28 @@ async fn load_in_snapshot(
     identity: &PolicyIdentity,
     bound: &BoundInput,
     limits: &CatalogLimits,
+    vector: Option<&Value>,
+    catalog: Option<&Value>,
 ) -> Result<PolicyCatalog, CatalogError> {
     tx.batch_execute("SET LOCAL search_path TO pg_catalog; SET LOCAL statement_timeout = '30s'")
         .await
         .map_err(db_error)?;
     ensure_snapshot(tx).await?;
-    ensure_generation(tx, bound).await?;
+    for table in &bound.tables {
+        let scoped = BoundInput { source: table.source.clone(), config_digest: table.config_digest.clone(), generation: table.generation, ..bound.clone() };
+        ensure_generation(tx, &scoped).await?;
+    }
     ensure_role(tx, &bound.role).await?;
     let types = load_types(tx).await?;
     let operators = load_operators(tx, &types, limits).await?;
-    let functions = load_count(tx, &types, limits).await?;
+    let functions = load_functions(tx, &types, limits).await?;
     let mut relations = Vec::with_capacity(bound.tables.len());
     for table in &bound.tables {
-        if let Some(relation) = load_relation(tx, bound, table, &types, limits).await? {
+        let scoped = BoundInput { source: table.source.clone(), config_digest: table.config_digest.clone(), generation: table.generation, ..bound.clone() };
+        if let Some(vector) = vector {
+            verify_native_table_vector(tx, &scoped, table, vector, catalog.ok_or(CatalogError::IdentityMismatch)?).await?;
+        }
+        if let Some(relation) = load_relation(tx, &scoped, table, &types, limits).await? {
             relations.push(relation);
         }
     }
@@ -481,7 +611,7 @@ async fn ensure_generation(tx: &Transaction<'_>, bound: &BoundInput) -> Result<(
         .query_one(
             "SELECT max(run_generation) FROM _oo.physical_mappings \
              WHERE source = $1 AND config_digest = $2",
-            &[&bound.project, &bound.config_digest],
+            &[&bound.source, &bound.config_digest],
         )
         .await
         .map_err(db_error)?;
@@ -491,6 +621,90 @@ async fn ensure_generation(tx: &Transaction<'_>, bound: &BoundInput) -> Result<(
     } else {
         Err(CatalogError::StaleGeneration)
     }
+}
+
+async fn verify_native_table_vector(
+    tx: &Transaction<'_>,
+    bound: &BoundInput,
+    table: &TableBound,
+    vector: &Value,
+    catalog: &Value,
+) -> Result<(), CatalogError> {
+    let dataset = format!("{}.{}", table.namespace, table.name);
+    let entries = vector.as_array().ok_or(CatalogError::IdentityMismatch)?;
+    let entry = entries.iter().find(|item| item["dataset"] == dataset).ok_or(CatalogError::IdentityMismatch)?;
+    let text = |key: &str| entry[key].as_str().ok_or(CatalogError::IdentityMismatch);
+    if text("source_id")? != bound.source
+        || text("config_digest")? != table.config_digest
+        || entry["source_generation"].as_i64() != Some(table.generation)
+    {
+        return Err(CatalogError::IdentityMismatch);
+    }
+    let namespace = mapped_name(tx, bound, LEVEL_NAMESPACE, &table.namespace, "", "").await?;
+    let physical = mapped_name(tx, bound, LEVEL_TABLE, &table.namespace, &table.name, "").await?;
+    if namespace != text("stored_namespace")? || physical != text("stored_physical")? {
+        return Err(CatalogError::IdentityMismatch);
+    }
+    let target_generation = entry["target_generation"].as_i64().ok_or(CatalogError::IdentityMismatch)?;
+    let row = tx.query_one(
+        "SELECT count(*)::int8 FROM _oo.full_import_run r JOIN _oo.full_import_table t USING(run_id) \
+         WHERE r.run_id::text=$1 AND r.source_id=$2 AND r.source_generation=$3 \
+           AND r.target_generation=$4 AND r.config_digest=$5 AND r.type_digest=$6 \
+           AND r.input_digest=$7 AND r.sealed_at IS NOT NULL \
+           AND r.state IN ('awaiting_publish','published') \
+           AND t.schema_ident=$8 AND t.table_ident=$9 AND t.physical_name=$10",
+        &[&text("run_id")?, &bound.source, &table.generation, &target_generation,
+          &table.config_digest, &text("type_digest")?, &text("input_digest")?,
+          &table.namespace, &table.name, &physical],
+    ).await.map_err(db_error)?;
+    let count: i64 = row.get(0);
+    if count != 1 { return Err(CatalogError::IdentityMismatch); }
+    let catalog_entries = catalog["entries"].as_array().ok_or(CatalogError::IdentityMismatch)?;
+    let matching = catalog_entries.iter().filter(|candidate| {
+        candidate["run_id"] == entry["run_id"]
+            && candidate["tables"][0]["logical_schema"] == table.namespace
+            && candidate["tables"][0]["logical_table"] == table.name
+    }).collect::<Vec<_>>();
+    if matching.len() != 1 { return Err(CatalogError::IdentityMismatch); }
+    let catalog_entry = matching[0];
+    if catalog_entry["schema_digest"] != entry["schema_digest"]
+        || catalog_entry["source_id"] != entry["source_id"]
+        || catalog_entry["type_digest"] != entry["type_digest"]
+        || catalog_entry["input_digest"] != entry["input_digest"]
+        || catalog_entry["source_generation"] != entry["source_generation"]
+        || catalog_entry["target_generation"] != entry["target_generation"]
+        || catalog_entry["config_digest"] != entry["config_digest"]
+        || catalog_entry["tables"][0]["stored_physical"] != physical
+        || catalog_entry["tables"][0]["stored_namespace"] != namespace
+    { return Err(CatalogError::IdentityMismatch); }
+    let columns = catalog_entry["tables"][0]["columns"].as_array().ok_or(CatalogError::IdentityMismatch)?;
+    let relation = relation_row(tx, &namespace, &physical, true).await?;
+    let rows = tx.query(
+        "SELECT a.attname::text,a.atttypid::int8,a.atttypmod::int4 \
+         FROM pg_catalog.pg_attribute a \
+         WHERE a.attrelid=($1::int4)::oid \
+           AND a.attnum>0 AND NOT a.attisdropped AND a.attname <> '_oo_pos' \
+         ORDER BY a.attnum",
+        &[&relation.oid],
+    ).await.map_err(db_error)?;
+    if rows.len() != columns.len() { return Err(CatalogError::IdentityMismatch); }
+    let mut preimage = String::new();
+    oo_core::sealed_import::push_schema_table(&mut preimage, &table.namespace, &table.name);
+    for (row, column) in rows.iter().zip(columns) {
+        let physical_name: String = row.get(0);
+        let oid: i64 = row.get(1);
+        let typmod: i32 = row.get(2);
+        let logical_name = column["logical_name"].as_str().ok_or(CatalogError::IdentityMismatch)?;
+        if column["stored_physical"] != physical_name
+            || column["oid"].as_i64() != Some(oid)
+            || column["typmod"].as_i64() != Some(i64::from(typmod))
+        { return Err(CatalogError::IdentityMismatch); }
+        let caveat = if column["caveat"].is_null() { None } else { Some(column["caveat"].as_str().ok_or(CatalogError::IdentityMismatch)?) };
+        oo_core::sealed_import::push_schema_column(&mut preimage, logical_name, oid, typmod, caveat);
+    }
+    let calculated = format!("{:x}", Sha256::digest(preimage.as_bytes()));
+    if catalog_entry["schema_digest"] != calculated { return Err(CatalogError::IdentityMismatch); }
+    Ok(())
 }
 
 async fn ensure_role(tx: &Transaction<'_>, role: &str) -> Result<(), CatalogError> {
@@ -720,6 +934,72 @@ WHERE NOT EXISTS ( \
       AND depend.deptype = 'e' \
   )";
 
+async fn load_functions(
+    tx: &Transaction<'_>,
+    types: &BTreeMap<String, u32>,
+    limits: &CatalogLimits,
+) -> Result<Vec<ResolvedFunction>, CatalogError> {
+    let mut functions = load_count(tx, types, limits).await?;
+    for (name, type_name) in [
+        ("sum", "numeric"),
+        ("sum", "int8"),
+        ("min", "int8"),
+        ("max", "int8"),
+    ] {
+        let loaded = u32::try_from(functions.len()).map_err(|_| CatalogError::LimitExceeded)?;
+        if loaded >= limits.max_functions {
+            break;
+        }
+        functions.push(load_unary_aggregate(tx, types, name, type_name).await?);
+    }
+    Ok(functions)
+}
+
+async fn load_unary_aggregate(
+    tx: &Transaction<'_>,
+    types: &BTreeMap<String, u32>,
+    name: &str,
+    type_name: &str,
+) -> Result<ResolvedFunction, CatalogError> {
+    let type_oid = types.get(type_name).ok_or(CatalogError::MissingObject)?;
+    let type_i = i32::try_from(*type_oid).map_err(|_| CatalogError::MissingObject)?;
+    let function_name = name.to_string();
+    let params: [&(dyn ToSql + Sync); 2] = [&function_name, &type_i];
+    let count_row = tx
+        .query_one(
+            &format!("SELECT count(*)::int8 {UNARY_AGGREGATE_FROM}"),
+            &params,
+        )
+        .await
+        .map_err(db_error)?;
+    let count: i64 = count_row.get(0);
+    if count != 1 {
+        return if count > 1 {
+            Err(CatalogError::AmbiguousObject)
+        } else {
+            Err(CatalogError::MissingObject)
+        };
+    }
+    let row = tx
+        .query_one(
+            &format!("SELECT procedure.oid::int4, procedure.proname {UNARY_AGGREGATE_FROM}"),
+            &params,
+        )
+        .await
+        .map_err(db_error)?;
+    let found_name: String = row.get(1);
+    if found_name != name {
+        return Err(CatalogError::MissingObject);
+    }
+    Ok(ResolvedFunction {
+        oid: oid_from_i32(row.get(0))?,
+        schema: "pg_catalog".to_string(),
+        name: found_name,
+        argument_type_oids: vec![*type_oid],
+        aggregate_star: false,
+    })
+}
+
 async fn load_count(
     tx: &Transaction<'_>,
     types: &BTreeMap<String, u32>,
@@ -764,6 +1044,29 @@ async fn load_count(
     }])
 }
 
+const UNARY_AGGREGATE_FROM: &str = "\
+FROM pg_catalog.pg_proc AS procedure \
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = procedure.pronamespace \
+JOIN pg_catalog.pg_aggregate AS aggregate ON aggregate.aggfnoid = procedure.oid \
+JOIN pg_catalog.pg_language AS language ON language.oid = procedure.prolang \
+JOIN pg_catalog.pg_type AS argument ON argument.oid = procedure.proargtypes[0] \
+WHERE namespace.nspname = 'pg_catalog' \
+  AND procedure.proname = $1 \
+  AND procedure.prokind = 'a' \
+  AND procedure.pronargs = 1 \
+  AND procedure.provolatile = 'i' \
+  AND NOT procedure.proretset \
+  AND argument.oid = ($2::int4)::oid \
+  AND aggregate.aggkind = 'n' \
+  AND aggregate.aggnumdirectargs = 0 \
+  AND language.lanname = 'internal' \
+  AND NOT EXISTS ( \
+      SELECT 1 FROM pg_catalog.pg_depend AS depend \
+      WHERE depend.objid = procedure.oid \
+        AND depend.classid = 'pg_catalog.pg_proc'::regclass \
+        AND depend.deptype = 'e' \
+    )";
+
 const COUNT_FROM: &str = "\
 FROM pg_catalog.pg_proc AS procedure \
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = procedure.pronamespace \
@@ -793,6 +1096,11 @@ async fn load_relation(
     types: &BTreeMap<String, u32>,
     limits: &CatalogLimits,
 ) -> Result<Option<VisibleRelation>, CatalogError> {
+    let physical_schema = if bound.native_namespace {
+        mapped_name(tx, bound, LEVEL_NAMESPACE, &table.namespace, "", "").await?
+    } else {
+        PHYSICAL_SCHEMA.to_owned()
+    };
     let physical_table =
         mapped_name(tx, bound, LEVEL_TABLE, &table.namespace, &table.name, "").await?;
     let mut published = Vec::with_capacity(table.columns.len());
@@ -808,7 +1116,13 @@ async fn load_relation(
         .await?;
         published.push((column.clone(), physical));
     }
-    let relation = relation_row(tx, &physical_table).await?;
+    let relation = relation_row(
+        tx,
+        &physical_schema,
+        &physical_table,
+        bound.native_namespace,
+    )
+    .await?;
     let attribute_count = count_attributes(tx, relation.oid).await?;
     if attribute_count > i64::from(limits.max_columns) {
         return Err(CatalogError::LimitExceeded);
@@ -850,7 +1164,7 @@ async fn load_relation(
     Ok(Some(VisibleRelation {
         schema: table.namespace.clone(),
         name: table.name.clone(),
-        physical_schema: PHYSICAL_SCHEMA.to_string(),
+        physical_schema: relation.schema,
         physical_name: physical_table,
         columns,
         pending_unclassified: pending,
@@ -859,18 +1173,24 @@ async fn load_relation(
 }
 
 struct RelationRow {
+    schema: String,
     oid: i32,
     reltuples: f32,
 }
 
-async fn relation_row(tx: &Transaction<'_>, physical: &str) -> Result<RelationRow, CatalogError> {
+async fn relation_row(
+    tx: &Transaction<'_>,
+    schema: &str,
+    physical: &str,
+    native: bool,
+) -> Result<RelationRow, CatalogError> {
     let count_row = tx
         .query_one(
             "SELECT count(*)::int8 \
              FROM pg_catalog.pg_class AS relation \
              JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
-             WHERE namespace.nspname = $1 AND relation.relname = $2 AND relation.relkind = 'r'",
-            &[&PHYSICAL_SCHEMA, &physical],
+             WHERE (namespace.nspname = $1 OR ($3 AND namespace.nspname = '_oo')) AND relation.relname = $2 AND relation.relkind = 'r'",
+            &[&schema, &physical, &native],
         )
         .await
         .map_err(db_error)?;
@@ -884,15 +1204,16 @@ async fn relation_row(tx: &Transaction<'_>, physical: &str) -> Result<RelationRo
     }
     let row = tx
         .query_one(
-            "SELECT relation.oid::int4, relation.reltuples \
+            "SELECT relation.oid::int4, relation.reltuples, namespace.nspname \
              FROM pg_catalog.pg_class AS relation \
              JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace \
-             WHERE namespace.nspname = $1 AND relation.relname = $2 AND relation.relkind = 'r'",
-            &[&PHYSICAL_SCHEMA, &physical],
+             WHERE (namespace.nspname = $1 OR ($3 AND namespace.nspname = '_oo')) AND relation.relname = $2 AND relation.relkind = 'r'",
+            &[&schema, &physical, &native],
         )
         .await
         .map_err(db_error)?;
     Ok(RelationRow {
+        schema: row.get(2),
         oid: row.get(0),
         reltuples: row.get(1),
     })
@@ -979,6 +1300,11 @@ struct MapLevel {
     prefix: &'static str,
 }
 
+const LEVEL_NAMESPACE: MapLevel = MapLevel {
+    word: "namespace",
+    letter: "n",
+    prefix: "pn_",
+};
 const LEVEL_TABLE: MapLevel = MapLevel {
     word: "table",
     letter: "t",
@@ -1005,7 +1331,7 @@ async fn mapped_name(
                AND level = $4 AND logical_namespace = $5 AND logical_table = $6 \
                AND logical_column = $7",
             &[
-                &bound.project,
+                &bound.source,
                 &bound.config_digest,
                 &bound.generation,
                 &level.letter,
@@ -1031,7 +1357,7 @@ async fn mapped_name(
                AND level = $4 AND logical_namespace = $5 AND logical_table = $6 \
                AND logical_column = $7",
             &[
-                &bound.project,
+                &bound.source,
                 &bound.config_digest,
                 &bound.generation,
                 &level.letter,
@@ -1047,7 +1373,7 @@ async fn mapped_name(
         .query_one(
             "SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)",
             &[
-                &bound.project,
+                &bound.source,
                 &bound.config_digest,
                 &bound.generation,
                 &level.word,
@@ -1191,6 +1517,32 @@ mod tests {
         }
     }
 
+    #[test]
+    fn native_vector_scopes_each_table_to_its_real_source() {
+        let make_table = |name: &str| TableBound {
+            source: "aggregate".into(), namespace: "sales".into(), name: name.into(),
+            config_digest: "a".repeat(64), generation: 3, columns: vec!["id".into()],
+        };
+        let mut bound = BoundInput {
+            source: "aggregate".into(), native_namespace: true, role: "oo_r_sales".into(),
+            config_digest: "a".repeat(64), generation: 3,
+            tables: vec![make_table("east"), make_table("west")],
+        };
+        let vector = serde_json::json!([
+            {"dataset":"sales.east","source_id":"east_source"},
+            {"dataset":"sales.west","source_id":"west_source"}
+        ]);
+        let catalog = serde_json::json!({"entries":[{},{}]});
+        bind_vector_sources(&mut bound, &vector, &catalog).unwrap();
+        assert_eq!(bound.tables.iter().map(|table| table.source.as_str()).collect::<Vec<_>>(), vec!["east_source", "west_source"]);
+        let mut duplicate = vector.clone();
+        duplicate[1]["dataset"] = serde_json::json!("sales.east");
+        assert!(bind_vector_sources(&mut bound, &duplicate, &catalog).is_err());
+        let mut missing_source = vector.clone();
+        missing_source[1]["source_id"] = serde_json::Value::Null;
+        assert!(bind_vector_sources(&mut bound, &missing_source, &catalog).is_err());
+    }
+
     fn identity() -> PolicyIdentity {
         PolicyIdentity {
             project: "ledger".to_string(),
@@ -1200,7 +1552,7 @@ mod tests {
     }
 
     #[test]
-    fn bounded_numeric_admits_precision_1_through_38() {
+    fn bounded_numeric_admits_precision_1_through_76_and_the_exact_extra_bases() {
         fn typmod(precision: i32, scale: i32) -> i32 {
             ((precision << 16) | (scale & 0x7FF)) + 4
         }
@@ -1211,19 +1563,50 @@ mod tests {
         assert!(grantable_base_type("numeric", typmod(1, 0)));
         assert!(grantable_base_type("numeric", typmod(4, 6)));
         assert!(grantable_base_type("numeric", typmod(18, -2)));
+        assert!(grantable_base_type("numeric", typmod(39, 4)));
+        assert!(grantable_base_type("numeric", typmod(76, 10)));
+        assert_eq!(typmod(76, 10), 4_980_750);
         assert!(grantable_base_type("int8", -1));
+        assert!(grantable_base_type("varchar", -1));
+        assert!(grantable_base_type("float8", -1));
+        assert!(grantable_base_type("timestamptz", -1));
+        assert!(grantable_base_type("json", -1));
         assert!(!grantable_base_type("numeric", -1));
         assert!(!grantable_base_type("numeric", typmod(0, 0)));
-        assert!(!grantable_base_type("numeric", typmod(39, 4)));
+        assert!(!grantable_base_type("numeric", typmod(77, 10)));
         assert!(!grantable_base_type("numeric", typmod(1000, 0)));
-        assert!(!grantable_base_type("float8", typmod(18, 4)));
-        assert!(!grantable_base_type("varchar", -1));
-        assert_eq!(required_operator_count(), 54);
+        assert!(grantable_base_type("bytea", -1));
+        assert!(grantable_base_type("uuid", -1));
+        assert!(!grantable_base_type("uuid", 0));
+        assert!(!grantable_base_type("uuid", 4));
+        assert!(grantable_base_type("bpchar", -1));
+        assert!(grantable_base_type("bpchar", 10));
+        assert!(!grantable_base_type("bpchar", 0));
+        assert!(!grantable_base_type("bpchar", 1));
+        assert!(!grantable_base_type("bpchar", 2));
+        assert!(!grantable_base_type("bpchar", 3));
+        assert!(!grantable_base_type("bpchar", 4));
+        assert!(grantable_base_type("date", -1));
+        assert!(!grantable_base_type("date", 0));
+        assert!(!grantable_base_type("date", 4));
+        assert!(grantable_base_type("timestamp", -1));
+        assert!(!grantable_base_type("timestamp", 0));
+        assert!(!grantable_base_type("timestamp", 6));
+        assert!(grantable_base_type("jsonb", -1));
+        assert!(!grantable_base_type("jsonb", 0));
+        assert!(!grantable_base_type("jsonb", 4));
+        assert!(!grantable_base_type("float4", -1));
+        assert!(grantable_base_type("interval", -1));
+        assert!(!grantable_base_type("interval", 0));
+        assert!(grantable_base_type("time", -1));
+        assert!(!grantable_base_type("time", 0));
+        assert!(!grantable_base_type("xml", -1));
+        assert_eq!(required_operator_count(), 60);
     }
 
     #[test]
     fn whitelist_covers_only_the_comparison_subset() {
-        assert_eq!(required_operator_count(), 54);
+        assert_eq!(required_operator_count(), 60);
         assert!(COMPARISON_OPERATORS.contains(&"="));
         assert!(COMPARISON_OPERATORS.contains(&"<>"));
         assert!(
@@ -1259,18 +1642,18 @@ mod tests {
     fn mixed_and_mismatched_identity_fail_before_a_connection() {
         let clerk = policy("clerk", vec!["amount"]);
         assert_eq!(
-            refused(prepare(&identity(), &[], &limits())),
+            refused(prepare(&identity(), &[], &limits(), false)),
             CatalogError::EmptyInput
         );
         let mut wrong = identity();
         wrong.role = "oo_r_auditor".to_string();
         assert_eq!(
-            refused(prepare(&wrong, std::slice::from_ref(&clerk), &limits())),
+            refused(prepare(&wrong, std::slice::from_ref(&clerk), &limits(), false)),
             CatalogError::IdentityMismatch
         );
         let auditor = policy("auditor", vec!["amount"]);
         assert_eq!(
-            refused(prepare(&identity(), &[clerk, auditor], &limits())),
+            refused(prepare(&identity(), &[clerk, auditor], &limits(), false)),
             CatalogError::MixedIdentity
         );
         let mut narrow = limits();
@@ -1279,7 +1662,8 @@ mod tests {
             refused(prepare(
                 &identity(),
                 &[policy("clerk", vec!["amount"])],
-                &narrow
+                &narrow,
+                false
             )),
             CatalogError::InvalidLimit
         );

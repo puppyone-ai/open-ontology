@@ -1,0 +1,28 @@
+{
+  "source": "e582db56ce2aca2552f48e83e3a273743a1cc9d9",
+  "evidence": "bbff190f6cfb8fee129adfacd586216b423ca105",
+  "review": "5d47e3dace67b90581924bd05ed8d2c2bd0f6602",
+  "hash_checks": [
+    {
+      "tree": "bbff190f6cfb8fee129adfacd586216b423ca105",
+      "manifest": "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-driver-preflight/SHA256SUMS",
+      "verified": 942,
+      "total": 942,
+      "bad": []
+    },
+    {
+      "tree": "5d47e3dace67b90581924bd05ed8d2c2bd0f6602",
+      "manifest": "evidence/8d85bacc-f328-42a9-89dc-6aa5e9caf780/DL01/opensearch-full-source-review/SHA256SUMS",
+      "verified": 10,
+      "total": 10,
+      "bad": []
+    }
+  ],
+  "cancel_task": [
+    "HkIsVOTUQ1uoWoJCCnE9Fg:26335"
+  ],
+  "cancel_reason": "cancelled task with reason: channel closed",
+  "acceptance_scope": "complete controlled nonproduction source preview only; formal matrix DBA/verified/nightly/parent/release not accepted",
+  "source_count_before": 1,
+  "source_count_after": 2
+}

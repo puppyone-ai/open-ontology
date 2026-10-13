@@ -34,13 +34,16 @@ async fn main() -> ExitCode {
         (Some("abort"), Some(pi), Some(node), Some(out), None) => abort_turn(Path::new(&pi), Path::new(&node), Path::new(&out)).await,
         (Some("disconnect"), Some(pi), Some(node), Some(out), None) => disconnect(Path::new(&pi), Path::new(&node), Path::new(&out)).await,
         (Some("restore"), Some(pi), Some(node), Some(out), None) => restore_turn(Path::new(&pi), Path::new(&node), Path::new(&out)).await,
-        _ => Err("usage: pi-harness-live <capture|tool|abort|disconnect|restore> <pi> <node> <out-dir>".to_owned()),
+        (Some("grok"), Some(pi), Some(node), Some(out), Some(origin)) => {
+            grok_turn(Path::new(&pi), Path::new(&node), Path::new(&out), &origin).await
+        }
+        _ => Err("usage: pi-harness-live <capture|tool|abort|disconnect|restore|grok> <pi> <node> <out-dir> [origin]".to_owned()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("pi-harness-live: {err}");
-            ExitCode::from(1)
+            if err.starts_with("harness-rejected-thinking") { ExitCode::from(2) } else { ExitCode::from(1) }
         }
     }
 }
@@ -421,6 +424,278 @@ async fn capture(pi: &Path, node: &Path, out: &Path) -> Result<(), String> {
     fs::write(out.join("probe.txt"), "capture-not-adapter\n").map_err(show)?;
     provider.stop()?;
     check_canary(&tree)?;
+    Ok(())
+}
+
+async fn grok_turn(pi: &Path, node: &Path, out: &Path, origin: &str) -> Result<(), String> {
+    // Real Pi 1.0.4 process and a caller-supplied origin. Not the stub, and not a product QA claim.
+    fs::create_dir_all(out).map_err(show)?;
+    let tree = tree(out)?;
+    let result = grok_turn_inner(pi, node, out, origin, &tree).await;
+    scrub_private(out, &tree);
+    result
+}
+
+async fn grok_turn_inner(pi: &Path, node: &Path, out: &Path, origin: &str, tree: &Tree) -> Result<(), String> {
+    if origin.contains(PUBLIC_PROXY_MARKER) || origin.contains("llm-token") {
+        return Err("origin is not a forwarder".to_owned());
+    }
+    let raw_path = out.join("raw.ndjson");
+    let mut req = request(tree, pi, node, origin.to_owned(), Some(raw_path.clone()))?;
+    req.provider = "grok".to_owned();
+    req.model = "grok-4.7".to_owned();
+    req.model_config = ModelConfig { name: "Grok 4.7".to_owned(), context_window: 131_072, max_tokens: 256 };
+    req.bounds.command_deadline = Duration::from_secs(60);
+    req.bounds.turn_deadline = Duration::from_secs(90);
+    req.bounds.abort_ack_deadline = Duration::from_secs(10);
+    req.bounds.kill_wait = Duration::from_secs(5);
+    let launched = Harness::launch(req).await.map_err(show)?;
+    let reasoning_flag = read_reasoning_flag(&tree.agent.join("models.json"))?;
+    if reasoning_flag != "false" {
+        return Err(format!("models reasoning flag is {reasoning_flag}"));
+    }
+    let mut stream = launched.events().map_err(show)?;
+    let acceptance = launched
+        .send(UserMessage { text: "Reply with the single word pong.".to_owned() })
+        .await
+        .map_err(|err| format!("send: {err}"))?;
+    let items = collect(&mut stream, Duration::from_secs(100), true).await?;
+    let stderr_len = launched.stderr_tail().len();
+    drop(launched);
+    let published = publish_raw(&raw_path, &out.join("raw-public.ndjson"))?;
+    write_public_items(&out.join("events.txt"), &items)?;
+    let finished = items.iter().any(is_turn_finished);
+    let rejected = items.iter().any(|item| match item {
+        StreamItem::Event(Sequenced { event: ProductEvent::Error { reason }, .. }) => reason.contains("thinking_start"),
+        StreamItem::Terminated(Termination::Incomplete { reason }) => reason.contains("thinking_start"),
+        _ => false,
+    });
+    let termination = items
+        .iter()
+        .rev()
+        .find_map(|item| match item {
+            StreamItem::Terminated(Termination::Finished) => Some("finished".to_owned()),
+            StreamItem::Terminated(Termination::Incomplete { reason }) => Some(format!("incomplete:{reason}")),
+            _ => None,
+        })
+        .unwrap_or_else(|| "none".to_owned());
+    let label = if published.thinking_start == 0 && finished {
+        "real-model-no-thinking-delta"
+    } else if published.thinking_start > 0 && finished {
+        "real-pi-thinking-ignored"
+    } else {
+        "real-pi-incomplete"
+    };
+    fs::write(
+        out.join("result.txt"),
+        format!(
+            "label={label}\nkind=real-pi-1.0.4-grok-4.7-probe\npin={PINNED_PI_VERSION}\nprovider=grok\nmodel=grok-4.7\nreasoning_flag={reasoning_flag}\nacceptance_id={}\nthinking_start={}\nfinished={finished}\ntermination={termination}\nstderr_bytes={stderr_len}\nparent_acceptance=false\ngoal_acceptance=false\nqa=false\n",
+            acceptance.id, published.thinking_start,
+        ),
+    )
+    .map_err(show)?;
+    check_canary(tree)?;
+    if rejected {
+        return Err("harness-rejected-thinking_start".to_owned());
+    }
+    if !finished {
+        return Err(format!("turn did not finish termination={termination}"));
+    }
+    Ok(())
+}
+
+fn read_reasoning_flag(path: &Path) -> Result<String, String> {
+    let text = fs::read_to_string(path).map_err(|err| format!("models: {err}"))?;
+    let value: Value = serde_json::from_str(&text).map_err(|err| format!("models json: {err}"))?;
+    let flag = value
+        .get("providers")
+        .and_then(|providers| providers.get("grok"))
+        .and_then(|provider| provider.get("models"))
+        .and_then(|models| models.get(0))
+        .and_then(|model| model.get("reasoning"))
+        .and_then(Value::as_bool);
+    Ok(match flag {
+        Some(true) => "true".to_owned(),
+        Some(false) => "false".to_owned(),
+        None => "missing".to_owned(),
+    })
+}
+
+struct PublishedRaw {
+    thinking_start: u64,
+}
+
+fn publish_raw(raw_path: &Path, public_path: &Path) -> Result<PublishedRaw, String> {
+    let bytes = fs::read(raw_path).unwrap_or_default();
+    let mut thinking_start = 0_u64;
+    let mut public = String::new();
+    for line in bytes.split(|byte| *byte == b'\n') {
+        if line.is_empty() {
+            continue;
+        }
+        let value: Value = serde_json::from_slice(line).map_err(|_| "raw log line did not parse".to_owned())?;
+        if reasoning_leaked(&value) {
+            let _ = fs::remove_file(raw_path);
+            let _ = fs::remove_file(public_path);
+            return Err("raw log failed redaction".to_owned());
+        }
+        if value.get("assistantMessageEvent").and_then(|event| event.get("type")).and_then(Value::as_str) == Some("thinking_start") {
+            thinking_start = thinking_start.saturating_add(1);
+        }
+        public.push_str(&public_record(&value));
+        public.push('\n');
+    }
+    fs::write(public_path, public).map_err(show)?;
+    let _ = fs::remove_file(raw_path);
+    Ok(PublishedRaw { thinking_start })
+}
+
+fn reasoning_leaked(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(reasoning_leaked),
+        Value::Object(map) => {
+            let kind = map.get("type").and_then(Value::as_str);
+            if kind == Some("thinking") && map.get("thinking").and_then(Value::as_str).is_some_and(|text| text != "redacted") {
+                return true;
+            }
+            if let Some(event) = map.get("assistantMessageEvent").and_then(Value::as_object) {
+                let event_kind = event.get("type").and_then(Value::as_str);
+                if event_kind == Some("thinking_delta") && event.get("delta").and_then(Value::as_str) != Some("redacted") {
+                    return true;
+                }
+                if event_kind == Some("thinking_end") && event.get("content").and_then(Value::as_str) != Some("redacted") {
+                    return true;
+                }
+            }
+            if let Some(usage) = map.get("usage").and_then(Value::as_object)
+                && let Some(text) = usage.get("reasoning").and_then(Value::as_str)
+                && text != "redacted"
+            {
+                return true;
+            }
+            map.values().any(reasoning_leaked)
+        }
+        _ => false,
+    }
+}
+
+fn public_record(value: &Value) -> String {
+    let mut out = serde_json::Map::new();
+    if let Some(kind) = value.get("type").and_then(Value::as_str) {
+        out.insert("type".to_owned(), Value::String(kind.to_owned()));
+    }
+    if let Some(event) = value.get("assistantMessageEvent").and_then(Value::as_object) {
+        let mut kept = serde_json::Map::new();
+        if let Some(kind) = event.get("type").and_then(Value::as_str) {
+            kept.insert("type".to_owned(), Value::String(kind.to_owned()));
+        }
+        if let Some(index) = event.get("contentIndex").and_then(Value::as_u64) {
+            kept.insert("contentIndex".to_owned(), Value::from(index));
+        }
+        match event.get("type").and_then(Value::as_str) {
+            Some("thinking_delta") => {
+                kept.insert("delta".to_owned(), Value::String("redacted".to_owned()));
+            }
+            Some("thinking_end") => {
+                kept.insert("content".to_owned(), Value::String("redacted".to_owned()));
+            }
+            Some("text_delta") => {
+                let text = event.get("delta").and_then(Value::as_str).unwrap_or("");
+                kept.insert("delta_chars".to_owned(), Value::from(text.chars().count()));
+                if text.chars().count() <= 64 && !text.contains('\n') {
+                    kept.insert("delta".to_owned(), Value::String(text.to_owned()));
+                }
+            }
+            Some("error") => {
+                if let Some(reason) = event.get("reason").and_then(Value::as_str) {
+                    kept.insert("reason".to_owned(), Value::String(reason.to_owned()));
+                }
+            }
+            _ => {}
+        }
+        if let Some(call) = event.get("toolCall").and_then(Value::as_object) {
+            if let Some(name) = call.get("name").and_then(Value::as_str) {
+                kept.insert("tool".to_owned(), Value::String(name.to_owned()));
+            }
+            if let Some(id) = call.get("id").and_then(Value::as_str) {
+                kept.insert("call_id".to_owned(), Value::String(id.to_owned()));
+            }
+        }
+        out.insert("assistantMessageEvent".to_owned(), Value::Object(kept));
+    }
+    if let Some(message) = value.get("message").and_then(Value::as_object)
+        && let Some(stop) = message.get("stopReason").and_then(Value::as_str)
+    {
+        out.insert("stopReason".to_owned(), Value::String(stop.to_owned()));
+    }
+    serde_json::to_string(&Value::Object(out)).unwrap_or_else(|_| "{\"type\":\"redacted\"}".to_owned())
+}
+
+fn write_public_items(path: &Path, items: &[StreamItem]) -> Result<(), String> {
+    let mut lines = String::new();
+    for item in items {
+        match item {
+            StreamItem::Event(Sequenced { sequence, event }) => {
+                lines.push_str(&format!("sequence={sequence} {}\n", event_summary(event)));
+            }
+            StreamItem::Terminated(Termination::Finished) => lines.push_str("terminated=finished\n"),
+            StreamItem::Terminated(Termination::Incomplete { reason }) => {
+                lines.push_str(&format!("terminated=incomplete reason={reason}\n"));
+            }
+        }
+    }
+    fs::write(path, lines).map_err(show)
+}
+
+fn event_summary(event: &ProductEvent) -> String {
+    match event {
+        ProductEvent::TurnStarted => "kind=turn_started".to_owned(),
+        ProductEvent::AssistantDelta { text } => format!("kind=assistant_delta chars={}", text.chars().count()),
+        ProductEvent::ToolCallStarted { name, call_id, args_summary } => {
+            format!("kind=tool_call_started name={name} call_id={call_id} args_chars={}", args_summary.chars().count())
+        }
+        ProductEvent::ToolCallFinished { call_id, status, output_summary } => {
+            format!("kind=tool_call_finished call_id={call_id} status={status} output_chars={}", output_summary.chars().count())
+        }
+        ProductEvent::TurnFinished { stop_reason, answer, usage } => {
+            let chars = answer.as_ref().map(|text| text.chars().count()).unwrap_or(0);
+            let usage_text = usage
+                .as_ref()
+                .map(|item| format!(" usage={}/{}/{}", item.input, item.output, item.total))
+                .unwrap_or_default();
+            format!("kind=turn_finished stop={stop_reason} answer_chars={chars}{usage_text}")
+        }
+        ProductEvent::Error { reason } => format!("kind=error reason={reason}"),
+    }
+}
+
+fn scrub_private(out: &Path, tree: &Tree) {
+    let _ = fs::remove_dir_all(&tree.session);
+    let _ = fs::remove_dir_all(&tree.home);
+    let _ = fs::remove_dir_all(&tree.agent);
+    let _ = fs::remove_file(out.join("raw.ndjson"));
+    let _ = remove_jsonl(out);
+}
+
+fn remove_jsonl(dir: &Path) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|err| format!("read dir: {err}"))?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let kind = entry.file_type().map_err(|err| format!("file type: {err}"))?;
+        if kind.is_symlink() {
+            if path.extension().and_then(|ext| ext.to_str()) == Some("jsonl") {
+                let _ = fs::remove_file(&path);
+            }
+            continue;
+        }
+        if kind.is_dir() {
+            remove_jsonl(&path)?;
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) == Some("jsonl") {
+            fs::remove_file(&path).map_err(|err| format!("remove jsonl: {err}"))?;
+        }
+    }
     Ok(())
 }
 

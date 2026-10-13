@@ -1,6 +1,0 @@
-proof attempt 005 docker exit 101
-a190-live 0 and a190-oracle keys=present. OO_A190_LIVE=1 policy_catalog_pg_live passed in 0.92s.
-a208-gate, a208-live, and clippy exited 101. Two compile errors in the review overlay only:
-E0308 fact_token received String where it expects &str at hidden_db_audit_sqlstate.
-E0507 finish_child took &mut Child and then called wait_with_output, which takes Child by value.
-Product hash matched smoke. Lock unchanged. Secret scan clean. The overlay was corrected after this container exited.

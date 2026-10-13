@@ -36,6 +36,7 @@ const TAG_TIMESTAMPTZ: u8 = 10;
 const TAG_JSON: u8 = 11;
 const TAG_ARRAY: u8 = 12;
 const TAG_STRUCT: u8 = 13;
+const TAG_DURATION_MICROS: u8 = 14;
 
 const PRESENCE_MISSING: u8 = 0;
 const PRESENCE_NULL: u8 = 1;
@@ -86,6 +87,7 @@ pub enum LogicalType {
     Bytes,
     Date,
     Time,
+    DurationMicros,
     TimestampNaive,
     TimestampTz,
     Json,
@@ -167,6 +169,7 @@ pub enum LogicalValue {
         day: u8,
     },
     TimeMicros(i64),
+    DurationMicros(i64),
     TimestampNaive {
         year: i32,
         month: u8,
@@ -306,6 +309,7 @@ fn write_type(
         LogicalType::Bytes => buf.u8(TAG_BYTES),
         LogicalType::Date => buf.u8(TAG_DATE),
         LogicalType::Time => buf.u8(TAG_TIME),
+        LogicalType::DurationMicros => buf.u8(TAG_DURATION_MICROS),
         LogicalType::TimestampNaive => buf.u8(TAG_TIMESTAMP_NAIVE),
         LogicalType::TimestampTz => buf.u8(TAG_TIMESTAMPTZ),
         LogicalType::Json => buf.u8(TAG_JSON),
@@ -376,6 +380,12 @@ fn write_value(
         }
         (LogicalType::Time, LogicalValue::TimeMicros(micros)) => {
             if micros.abs() > MYSQL_TIME_MAX_MICROS {
+                return Err(CanonicalError::InvalidValue);
+            }
+            buf.i64be(*micros)
+        }
+        (LogicalType::DurationMicros, LogicalValue::DurationMicros(micros)) => {
+            if micros.unsigned_abs() > MYSQL_TIME_MAX_MICROS as u64 {
                 return Err(CanonicalError::InvalidValue);
             }
             buf.i64be(*micros)

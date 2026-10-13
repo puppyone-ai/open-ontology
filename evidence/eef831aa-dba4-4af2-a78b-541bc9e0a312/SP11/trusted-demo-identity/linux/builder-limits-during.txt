@@ -1,1 +1,0 @@
-name=/oo-a312-build mem=6442450944 nano=1000000000 priv=false caps=["ALL"] net=oo-a312-eef831aa-net

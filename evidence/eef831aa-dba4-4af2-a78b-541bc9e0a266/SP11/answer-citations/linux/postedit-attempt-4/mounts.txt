@@ -1,7 +1,0 @@
-volume /var/lib/docker/volumes/oo-a266-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a266-eef831aa-target/_data /target rw=true
-bind /tmp/oo-a266-eef831aa-dba4-4af2-a78b-541bc9e0a266/proof-src /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a266/SP11/answer-citations/tools /tools rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a266/SP11/answer-citations/linux/postedit-attempt-4/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a266/SP11/answer-citations /evidence rw=true
-

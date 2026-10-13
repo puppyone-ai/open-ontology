@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/hold_project_change.sql:11: ERROR:  23514: immutable task columns
-CONTEXT:  PL/pgSQL function enforce_task_update() line 14 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

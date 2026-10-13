@@ -1,9 +1,0 @@
-exit=0
-stdout=advisories ok, bans ok, licenses ok, sources ok 
-stderr_bytes=43201
-rejected=0
-cc0=0
-cdla=0
-duplicate=11
-tiny=0
-webpki=0

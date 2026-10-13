@@ -41,6 +41,14 @@ pub struct CombinedIn<'a> {
 }
 
 pub fn seal_request(catalog_json: &str) -> Result<Value, PgBuilderError> {
+    seal_request_for_model(catalog_json, "gpt-6.1-sol")
+}
+
+/// Bind the actual configured model before preparing the description request.
+pub fn seal_request_for_model(catalog_json: &str, model_id: &str) -> Result<Value, PgBuilderError> {
+    if !matches!(model_id, "gpt-6.1-sol" | "grok-4.7") {
+        return Err(PgBuilderError::new("config.endpoint", "the model is not the builder model"));
+    }
     let compiled = compile_captured_pg_catalog(catalog_json, None, None).map_err(|_| {
         PgBuilderError::new("compiler.seal", "the captured catalog was refused")
     })?;
@@ -80,7 +88,7 @@ pub fn seal_request(catalog_json: &str) -> Result<Value, PgBuilderError> {
         "admitted": true,
         "artifact": artifact,
         "binding": {
-            "model_id": "grok-4.7",
+            "model_id": model_id,
             "prompt_version": DESCRIPTION_PROMPT_VERSION,
             "source_id": compiled.source_id
         },

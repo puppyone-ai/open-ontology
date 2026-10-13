@@ -1,0 +1,18 @@
+{
+  "implementation_commit": "0a91e0629",
+  "evidence_manifest_verified": 71,
+  "resource_hashes_verified": 31,
+  "errors": 0,
+  "vector": "7/4/4/5/4",
+  "rows": 100009,
+  "columns": 43,
+  "independent_composite_cells": 828066,
+  "difference_count": 0,
+  "new_target_run": "d215cf57-016c-473d-b5f8-ab875f3d9bb5",
+  "task_id": "113a2ef0-d68c-4bbe-9b0a-2fd0a1847bbb",
+  "actual_worker_CAS": "succeeded/pin5",
+  "source_release_allowed": false,
+  "scope": "current accurately repaired five-table input; updated Selfbuild/Pack/Gateway/dialogue pending",
+  "source_quality": "one zero_date/no TIME reject; target rejectedrows0 distinct",
+  "collection_sha256": "19e0b3405ad0f7c69d393a685e489594e53d260da28a7dfd3e94366dd0e53ee4"
+}

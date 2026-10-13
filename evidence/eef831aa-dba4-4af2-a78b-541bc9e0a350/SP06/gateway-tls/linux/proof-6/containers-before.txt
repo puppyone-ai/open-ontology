@@ -1,3 +1,0 @@
-05e25c9e78cc oo-a355-pg 3aac91d19d5b a355 postgres
-4f2c3005f83a oo-a355-sbs-querypg 0f24958fa693 a355 rust-builder
-438105cc8d0e oo-a356-pg 3aac91d19d5b a356 postgres

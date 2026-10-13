@@ -1,0 +1,152 @@
+{
+  "schema": "oo-source-conformance/fixed-review-receipt/v1",
+  "receipt_version": 1,
+  "task_id": "DL01-W1-35",
+  "reviews": "DL01-W1-04",
+  "name": "driver-fixed-review",
+  "kind": "independent-fixed-review",
+  "parent": "DBX-W04",
+  "session_uuid": "5e87b548-7b74-4da7-9bca-4be1d16a310f",
+  "executor": "grok-4.7/xhigh",
+  "author_session_uuid": "992aa5d3-6848-4dd9-aff1-d4d31a099983",
+  "base_sha": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "source_sha": "7de78381be5f692ae53c2559b759ce00ad807303",
+  "evidence_seal_sha": "01a7d6cffaaf013ef56377514cab445ebf72599e",
+  "tool_tree": "5e82d3faa56225b281498d0fae518f703c6c40b6",
+  "content_tree": "6091b9a968ace5aa08010bde3384ca2d67786c94",
+  "repo_head_at_report": "cbf03fe0ef4443c27b2e7f2eaee539a519ea8250",
+  "overlay_time_head": "131279c54572f612d10945ccb5a17a3a9c638f9e",
+  "verdict": "approved",
+  "verdict_scope": "bounded supervisor of one pinned local executable, Arrow IPC k:int64/v:utf8, child-side close_range CLOEXEC",
+  "child_exit_changed": false,
+  "parent_dbx_w04": "open",
+  "at_src_10": "pending",
+  "oci_image_pin": "pending",
+  "local_executable_pin": "sha256 of the spawned file and of driver-artifact.bin",
+  "cli_string_gate": "image_digest, driver digest, and volume compared to flags before parse",
+  "kernel_network": "pending",
+  "matrix_integration": "pending",
+  "matrix_grade_promoted": false,
+  "matrix_rewritten": false,
+  "source_capability_grade_accepted": false,
+  "oracle_driver_accepted": false,
+  "native_driver_accepted": false,
+  "arbitrary_schema_accepted": false,
+  "source_support_consumer": "pending",
+  "database_started": false,
+  "schema_fields": ["k:int64", "v:utf8"],
+  "schema_fingerprint": "442ab712912be03a68a4d459c7a9c23c1b66fb4fcb35aeb491c483dd7ed71769",
+  "previous_review": {
+    "commit": "e93a62dedc5910603377765209ecfaca1e158542",
+    "source_sha": "cdba5f3992104dba9d70ed9e3b50358c6df19772",
+    "evidence_seal_sha": "b42f777a36b9fe8896dca7b8bd6ca0d09ed10f7b",
+    "tool_tree": "46b8c15eb90bcf3a2e4e8c7f3ee486505d564a53",
+    "verdict": "request_changes",
+    "verdict_scope": "child inherits a non-CLOEXEC descriptor opened in the parent",
+    "failing_test": "child_stdin_env_and_fd_boundaries",
+    "saw_canary_fd": 1,
+    "observation": "observations/env-fd.txt"
+  },
+  "binaries": {
+    "oo-source-driver-parent": {
+      "profile": "debug",
+      "sha256": "301445e5c0e790681d2bfc40c1dad933f2639049da19fef52a1df4ff3b5a10f1",
+      "path": "/target/driver/w35-bins/oo-source-driver-parent"
+    },
+    "oo-source-driver-child": {
+      "profile": "debug",
+      "sha256": "f1e64eb92894e1e8b73dc638568d979affcb3fd369d0206b71b78d71b88bdde9",
+      "path": "/target/driver/w35-bins/oo-source-driver-child"
+    },
+    "oo-net-probe": {
+      "profile": "debug",
+      "sha256": "eb4a948bb4757b4a24b44a0acbf811127ea0cdfb49c707e5a2f82cb99deb6688",
+      "path": "/target/driver/w35-bins/oo-net-probe"
+    }
+  },
+  "toolchain": {
+    "image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+    "os": "linux",
+    "arch": "arm64",
+    "rustc": "1.94.0 (4a4ef493e3a1488c6e321570238084b38948f6db) 2026-03-02",
+    "host": "aarch64-unknown-linux-gnu",
+    "llvm": "21.1.8",
+    "cargo": "1.94.0 (85eff7c80 2026-01-15)",
+    "kernel": "6.12.76-linuxkit",
+    "pull": "never",
+    "cpus": 1,
+    "memory_bytes": 6442450944,
+    "nano_cpus": 1000000000,
+    "cargo_build_jobs": 1,
+    "host_rust_used": false,
+    "builder_container": "9ad285718944988d6cbabb8b6062022fd2b5b0cead9d3496891df67127f71322",
+    "harness_rerun_container": "2f56dc3b1a94e6a29ed0c7ba2b785ab521d9af654b33e99836136b5b8d7962a2"
+  },
+  "compile_input": {
+    "archive": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+    "overlay": "tools/source-driver-worker at 7de78381be5f692ae53c2559b759ce00ad807303",
+    "tool_tree": "5e82d3faa56225b281498d0fae518f703c6c40b6",
+    "source_driver_in_base_archive": false,
+    "worktree_compiled": false,
+    "overlay_files": 13,
+    "overlay_check": 0,
+    "author_packet_checked": 634,
+    "author_packet_check_fail": 0
+  },
+  "decisive_exits": {
+    "fetch_offline": 0,
+    "fetch": 0,
+    "build": 0,
+    "author_test": 0,
+    "author_test_result": "passed=24 failed=0",
+    "clippy": 0,
+    "ldd": 0,
+    "fix_proof_harness_test": 101,
+    "fix_proof_harness_result": "passed=28 failed=1",
+    "fix_proof_failing_test": "exec_failure_uses_the_error_pipe",
+    "fix_proof_failure_class": "harness fixture; glibc execvp ran a mode 0755 text file with /bin/sh",
+    "fix_proof_docker_wait": 101,
+    "enosys": 0,
+    "enosys_marker": "absent",
+    "harness_rerun_test": 0,
+    "harness_rerun_result": "passed=29 failed=0",
+    "exec_error_pipe": "ENOENT=2 EACCES=13",
+    "historical_failing_test": "child_stdin_env_and_fd_boundaries",
+    "historical_saw_canary_fd": 1,
+    "netproof_rerun": false
+  },
+  "admission": {
+    "fix_proof": "own=0 global_rust_builder=0 ancestor_running=1 host_cargo=0 memory_free_pct=38 docker_mem_bytes=101060706304",
+    "harness_rerun": "own=0 global_rust_builder=0 ancestor_running=1 host_cargo=0 memory_free_pct=38 docker_mem_bytes=101060706304",
+    "cap_global": 10,
+    "cap_own": 1
+  },
+  "documents": {
+    "REPORT.md": "ecad512165571cdfe0ed62d288093546a641279ce5ce6d3a29b37f6067e6c404",
+    "FINDINGS.md": "6cfc441f55adbb8c93bcf44e1029c49043660f93bb8ae88a1929215356c77aa4",
+    "HANDOFF.md": "8ddec0bf13326f27d305f68844d039b1d103e2ba65a258407f62459d7ff844f5",
+    "SHA256SUMS": "4ebe8911a882bdcd9a509334bff0671a40af4aa73e773df21d93e5ab78314ff7",
+    "sums_exclude": ["SHA256SUMS", "receipt.json"],
+    "sums_files": 279
+  },
+  "resources": {
+    "prefix": "oo-dl01w1-35",
+    "labels": {
+      "oo.project": "open-ontology",
+      "oo.owner": "dl01w1-35",
+      "oo.session": "5e87b548-7b74-4da7-9bca-4be1d16a310f"
+    },
+    "cleanup_observed_at": "2026-10-09T18:54:44Z",
+    "cleanup_proof": "evidence/5e87b548-7b74-4da7-9bca-4be1d16a310f/DL01/driver-review/linux/fix-proof/cleanup.txt",
+    "containers_removed": [
+      "9ad285718944988d6cbabb8b6062022fd2b5b0cead9d3496891df67127f71322",
+      "2f56dc3b1a94e6a29ed0c7ba2b785ab521d9af654b33e99836136b5b8d7962a2"
+    ],
+    "network_removed": "oo-dl01w1-35-net",
+    "volumes_retained": ["oo-dl01w1-35-cargo", "oo-dl01w1-35-target"],
+    "image_retained": true,
+    "databases": []
+  },
+  "packet": "evidence/5e87b548-7b74-4da7-9bca-4be1d16a310f/DL01/driver-review",
+  "review_index": "execution/reviews/dl01-driver-fixed"
+}

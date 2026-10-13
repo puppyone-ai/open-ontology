@@ -1,2 +1,0 @@
-{"record":"row","turn":0,"cells":[{"kind":"numeric","value":"1.50"}]}
-{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":1,"result_bytes":4,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","executed_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","stop":null,"sqlstate":null}

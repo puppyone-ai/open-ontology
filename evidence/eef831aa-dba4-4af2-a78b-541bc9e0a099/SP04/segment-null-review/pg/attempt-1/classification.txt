@@ -1,7 +1,0 @@
-attempt=1 probe_exit=2
-harness, not product:
-- install-db_lawful and install-db_roll re-executed 0001 on an existing schema and stopped at 42P06. 0002 was not applied. law-upgrade and forced-OO003 are consequences.
-- sqlstate() returned on the first non-ERROR line. same-shard.stderr and old-writer.stderr contain ERROR 55P03 after a lock-release WARNING. The product raised 55P03.
-- runtime has no SELECT on _oo.apply_receipts. Stamp queries inside the runtime script raised 42501. regress-cross.stdout is RESULT|replay. kill-after-replay.stdout is RESULT|replay. conflict state is OO010 and side count is 0. The stamp comparison had an empty held value.
-product, oracle unchanged:
-- missing-v1.stderr is 42P01 from '_oo.apply_receipts'::regclass while the relation is absent. Expected OO002. Not retuned.

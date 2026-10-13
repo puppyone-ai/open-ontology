@@ -1,2 +1,0 @@
-docker_rust_builders=1
-host_cargo=0

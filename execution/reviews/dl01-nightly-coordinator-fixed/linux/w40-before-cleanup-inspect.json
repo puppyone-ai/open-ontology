@@ -1,0 +1,281 @@
+[
+    {
+        "Id": "5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3",
+        "Created": "2026-10-09T19:15:34.73019996Z",
+        "Path": "bash",
+        "Args": [
+            "/inside.sh"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 23052,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-09T19:15:34.782753586Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+        "ResolvConfPath": "/var/lib/docker/containers/5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3/hostname",
+        "HostsPath": "/var/lib/docker/containers/5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3/hosts",
+        "LogPath": "/var/lib/docker/containers/5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3/5e855e0cb7d7f54be2d03c63e7fa0d6a74e75376e4e3f33f4f0a8723f798ded3-json.log",
+        "Name": "/oo-dl01w1-40-rust",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/Users/redux/puppy-one/open-ontology/evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight:/evidence",
+                "/Users/redux/puppy-one/open-ontology/testing/dl01-driver-preflight/clickhouse/scripts/build_inside.sh:/inside.sh:ro",
+                "/tmp/oo-dl01w1-40-secrets:/secrets:ro",
+                "oo-dl01w1-40-cargo:/cargo-home",
+                "oo-dl01w1-40-target:/target",
+                "/host_mnt/Users/redux/puppy-one/open-ontology/testing/dl01-driver-preflight/clickhouse:/src"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "oo-dl01w1-40-net",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "no-new-privileges"
+            ],
+            "Tmpfs": {
+                "/tmp": "rw,size=512m"
+            },
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 6442450944,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 6442450944,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 1024,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/host_mnt/Users/redux/puppy-one/open-ontology/testing/dl01-driver-preflight/clickhouse",
+                "Destination": "/src",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/testing/dl01-driver-preflight/clickhouse/scripts/build_inside.sh",
+                "Destination": "/inside.sh",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/oo-dl01w1-40-secrets",
+                "Destination": "/secrets",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-dl01w1-40-cargo",
+                "Source": "/var/lib/docker/volumes/oo-dl01w1-40-cargo/_data",
+                "Destination": "/cargo-home",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-dl01w1-40-target",
+                "Source": "/var/lib/docker/volumes/oo-dl01w1-40-target/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "5e855e0cb7d7",
+            "Domainname": "",
+            "User": "0:0",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "CARGO_BUILD_JOBS=1",
+                "RUSTUP_TOOLCHAIN=1.94.0",
+                "HOME=/tmp",
+                "CARGO_HOME=/cargo-home",
+                "CARGO_TARGET_DIR=/target/driver",
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "RUST_VERSION=1.94.0"
+            ],
+            "Cmd": [
+                "bash",
+                "/inside.sh"
+            ],
+            "Image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "Labels": {
+                "oo.kind": "rust-builder",
+                "oo.owner": "oo-dl01w1-40",
+                "oo.project": "open-ontology",
+                "oo.session": "4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de",
+                "oo.task": "DL01-W1-40",
+                "oo.toolchain": "1.94.0",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "9dbb33488ca1bfc3275a3e56141dad946c56d3b3c37cee16c7adc2a5c8ed562d",
+            "SandboxKey": "/var/run/docker/netns/9dbb33488ca1",
+            "Ports": {},
+            "Networks": {
+                "oo-dl01w1-40-net": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "98d578173e033a982e70dd67cc60d32fbab0c3e869cf4b64ef83212165cea34e",
+                    "EndpointID": "7d0e2dcfdbda118897b4beb96ba7577d7cd64917eb2872d26110178e98f13f64",
+                    "Gateway": "192.168.64.1",
+                    "IPAddress": "192.168.64.2",
+                    "MacAddress": "4e:7b:09:54:51:2d",
+                    "IPPrefixLen": 24,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "oo-dl01w1-40-rust",
+                        "5e855e0cb7d7"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "size": 1936,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            }
+        }
+    }
+]

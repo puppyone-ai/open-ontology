@@ -1,9 +1,10 @@
 #!/bin/bash
-# Shared paths for the a395 product stack. Secrets stay under /tmp, never $HOME.
+# Shared paths for the a395 product stack. Secrets stay in the gitignored run directory, never $HOME.
 set -euo pipefail
 ROOT=/Users/redux/puppy-one/open-ontology
 UUID=eef831aa-dba4-4af2-a78b-541bc9e0a395
-STATE=/tmp/oo-a395-${UUID}
+STATE=${ROOT}/deploy/product-stack/.run
+ORACLE_KEEP=${ROOT}/deploy/product-stack/.oracle/oo-product-stack
 EVIDENCE=${ROOT}/evidence/${UUID}/SP14/product-stack
 STACK=${ROOT}/deploy/product-stack
 RUST_IMAGE=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
@@ -33,6 +34,14 @@ load_profiles() {
     export OO_A395_SESSION_IMAGE=oo-a395-session:local
     COMPOSE_PROFILES+=(session)
   fi
+  if docker image inspect oo-a395-release:local >/dev/null 2>&1; then
+    export OO_A395_RELEASE_IMAGE=oo-a395-release:local
+    COMPOSE_PROFILES+=(release-fixed)
+  fi
+  if docker image inspect oo-a395-selfbuild:local >/dev/null 2>&1; then
+    export OO_A395_SELFBUILD_IMAGE=oo-a395-selfbuild:local
+    COMPOSE_PROFILES+=(selfbuild)
+  fi
   COMPOSE_ARGS=()
   local profile
   for profile in "${COMPOSE_PROFILES[@]}"; do
@@ -47,8 +56,8 @@ compose() {
 oracle_bin() {
   if [ -x "${STATE}/bin/oo-product-stack" ]; then
     printf '%s\n' "${STATE}/bin/oo-product-stack"
-  elif [ -x /tmp/oo-a395-oracle ]; then
-    printf '%s\n' /tmp/oo-a395-oracle
+  elif [ -x "$ORACLE_KEEP" ]; then
+    printf '%s\n' "$ORACLE_KEEP"
   else
     return 1
   fi

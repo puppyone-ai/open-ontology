@@ -40,7 +40,7 @@ pub fn secret_ref_ok(value: &str) -> bool {
 
 pub fn object_id_ok(value: &str) -> bool {
     let parts: Vec<&str> = value.split('.').collect();
-    (parts.len() == 2 || parts.len() == 3) && parts.iter().all(|part| ident_ok(part))
+    (parts.len() == 2 || parts.len() == 3) && parts.iter().all(|part| source_ident_ok(part))
 }
 
 pub fn session_cookie_ok(value: &str) -> bool {
@@ -60,4 +60,12 @@ pub fn ct_eq(left: &str, right: &str) -> bool {
         diff |= one ^ two;
     }
     diff == 0
+}
+
+/// Original SQL/document names; separate from control object identifiers.
+pub fn source_ident_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty() && bytes.len() <= 128
+        && (bytes[0].is_ascii_alphabetic() || bytes[0] == b'_')
+        && bytes.iter().all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
 }

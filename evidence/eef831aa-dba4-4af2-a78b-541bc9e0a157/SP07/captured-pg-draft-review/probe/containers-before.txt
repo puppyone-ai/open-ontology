@@ -1,2 +1,0 @@
-name=oo-a157-pg kind=postgres owner=a157 status=Up 7 minutes
-name=oo-a154-pg kind=postgres owner=a154 status=Up About an hour

@@ -1,3 +1,0 @@
-36631c8b6969 oo-a353-node-m6 481d53bf3819  
-78b488d7e48e oo-a377-pg 3aac91d19d5b a377 postgres
-9485a8bb9599 oo-a373-pg 3aac91d19d5b a373 postgres

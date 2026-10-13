@@ -298,7 +298,7 @@ fn postgres(config: &Config) -> Result<&Postgres, PgBuilderError> {
         .ok_or_else(|| PgBuilderError::new("config.postgres", "postgres configuration is required"))
 }
 
-fn read_password(path: &Path) -> Result<String, PgBuilderError> {
+pub(crate) fn read_password(path: &Path) -> Result<String, PgBuilderError> {
     let meta = fs::symlink_metadata(path)
         .map_err(|_| PgBuilderError::new("profile.secret", "the password file is not a regular file"))?;
     if !meta.file_type().is_file() || meta.len() > 4096 {
@@ -346,11 +346,11 @@ fn check_secret_ref(value: &str) -> Result<(), PgBuilderError> {
     }
 }
 
-fn contains_secret(haystack: &[u8], secret: &[u8]) -> bool {
+pub(crate) fn contains_secret(haystack: &[u8], secret: &[u8]) -> bool {
     !secret.is_empty() && haystack.windows(secret.len()).any(|window| window == secret)
 }
 
-fn read_capped(mut reader: impl Read, max: usize) -> std::io::Result<Vec<u8>> {
+pub(crate) fn read_capped(mut reader: impl Read, max: usize) -> std::io::Result<Vec<u8>> {
     let mut out = Vec::new();
     let mut chunk = [0u8; 8192];
     loop {
@@ -365,7 +365,7 @@ fn read_capped(mut reader: impl Read, max: usize) -> std::io::Result<Vec<u8>> {
     }
 }
 
-fn wait_child(child: &mut std::process::Child, limit: Duration) -> Result<std::process::ExitStatus, PgBuilderError> {
+pub(crate) fn wait_child(child: &mut std::process::Child, limit: Duration) -> Result<std::process::ExitStatus, PgBuilderError> {
     let started = Instant::now();
     loop {
         if started.elapsed() > limit {

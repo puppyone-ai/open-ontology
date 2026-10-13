@@ -1,5 +1,0 @@
-ExitCode=101
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a147-eef831aa-net
-CapDrop=[ALL]

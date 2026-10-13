@@ -1,8 +1,0 @@
-method=POST
-path=/v1/chat/completions
-status=200
-request_bytes=1311
-response_bytes=638
-request_sha256=8d35759cb55effde430e4a3423c219ea155d28f95bd42ba47700879047553dd2
-response_sha256=02784d6eb7c576d9cdd359bf34edf0d15feca36e2d2c84454f353458ce2a47b6
-authorization=redacted

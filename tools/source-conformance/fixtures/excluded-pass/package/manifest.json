@@ -1,0 +1,35 @@
+{
+  "schema": "oo-source-conformance/evidence-package/v1",
+  "evidence_id": "fixture-evidence-0001",
+  "target_id": "fixture-pg",
+  "exact_version": "16.4",
+  "tested_versions": [
+    "16.4"
+  ],
+  "variant": "self-managed",
+  "driver_digest": "b3d5ca3e485eef7d8fc12d67627ad75d3fafdd6dc1bf28874d6fbad55967171e",
+  "suite_version": "cc-map/1",
+  "evidence_type": "container",
+  "deployment_scope": "public",
+  "identity": {
+    "topology": "fixture-single-node",
+    "service_version": "16.4"
+  },
+  "cloud": {
+    "applies": false,
+    "budget_exceeded": false,
+    "cycle_status": "not_cloud"
+  },
+  "cases": [
+    {
+      "id": "CC-01",
+      "capability": "cdc",
+      "disposition": "pass",
+      "raw_exit": 0,
+      "raw_sha256": "bd0599d6217098529ca70ff83c2df70a87b4541dca1ed321303c1eab7f04341e",
+      "raw_path": "raw/CC-01.txt"
+    }
+  ],
+  "rejections": [],
+  "reviewers": []
+}

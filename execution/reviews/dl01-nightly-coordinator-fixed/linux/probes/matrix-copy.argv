@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /tmp/matrix-copy.yaml

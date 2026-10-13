@@ -376,7 +376,9 @@ impl GuardError {
     /// Actionable hint that does not repeat hidden names.
     pub fn hint(&self) -> Option<String> {
         match self {
-            Self::Unqualified { suggestion: Some(name) } => Some(format!("use {name}")),
+            Self::Unqualified {
+                suggestion: Some(name),
+            } => Some(format!("use {name}")),
             Self::Unqualified { suggestion: None } => Some("use schema.name".to_string()),
             Self::CostTooHigh { .. } => Some("add a filter or use export".to_string()),
             _ => None,
@@ -399,14 +401,15 @@ impl fmt::Display for GuardError {
             Self::Locking => formatter.write_str("locking clause is not allowed"),
             Self::SystemSchema => formatter.write_str("system schema is not allowed"),
             Self::Unsupported { construct } => {
-                write!(formatter, "statement construct is not supported: {construct}")
+                write!(
+                    formatter,
+                    "statement construct is not supported: {construct}"
+                )
             }
             Self::Serialize { reason } => {
                 write!(formatter, "statement could not be serialized: {reason}")
             }
-            Self::FunctionNotAllowed => {
-                formatter.write_str("function or operator is not allowed")
-            }
+            Self::FunctionNotAllowed => formatter.write_str("function or operator is not allowed"),
             Self::RelationNotFound => formatter.write_str("relation is not visible"),
             Self::ColumnNotAllowed {
                 available,
@@ -461,15 +464,13 @@ fn guard_with(
     if let Some(relation) = large_relation(&admitted, catalog) {
         return Err(GuardError::CostTooHigh { relation });
     }
-    let executed = pg_query::deparse(&parsed.protobuf).map_err(|_| GuardError::Serialize {
-        reason: "deparse",
-    })?;
+    let executed = pg_query::deparse(&parsed.protobuf)
+        .map_err(|_| GuardError::Serialize { reason: "deparse" })?;
     if executed.is_empty() {
         return Err(GuardError::Serialize { reason: "deparse" });
     }
-    let reparsed = pg_query::parse(&executed).map_err(|_| GuardError::Serialize {
-        reason: "reparse",
-    })?;
+    let reparsed =
+        pg_query::parse(&executed).map_err(|_| GuardError::Serialize { reason: "reparse" })?;
     if reparsed.protobuf.version != PINNED_PARSER_VERSION {
         return Err(GuardError::Serialize { reason: "version" });
     }
@@ -624,10 +625,7 @@ fn admit_select(
     if tree.stmts.len() != 1 {
         return Err(GuardError::Statement);
     }
-    let statement = tree.stmts[0]
-        .stmt
-        .as_mut()
-        .ok_or(GuardError::Statement)?;
+    let statement = tree.stmts[0].stmt.as_mut().ok_or(GuardError::Statement)?;
     let select = match statement.node.as_mut() {
         Some(pb::node::Node::SelectStmt(select)) => select.as_mut(),
         Some(_) => return Err(GuardError::Statement),
@@ -648,6 +646,13 @@ fn admit_select(
     };
     bind_from_list(&mut select.from_clause, &mut ctx)?;
     rewrite_targets(&mut select.target_list, &mut ctx)?;
+    for key in &mut select.group_clause {
+        if !matches!(admit_expr(key, &mut ctx)?, ExprKind::Column { .. }) {
+            return Err(GuardError::Unsupported {
+                construct: "GROUP BY",
+            });
+        }
+    }
     let where_fold = admit_where(select.where_clause.as_mut(), &mut ctx)?;
     admit_sort(&mut select.sort_clause, &mut ctx)?;
     if ctx.ranges.is_empty() && uses_column(&ctx) {
@@ -673,7 +678,9 @@ fn admit_select(
 }
 
 fn uses_column(ctx: &Ctx<'_>) -> bool {
-    ctx.outputs.iter().any(|item| matches!(item, OutputItem::Column(_)))
+    ctx.outputs
+        .iter()
+        .any(|item| matches!(item, OutputItem::Column(_)))
         || !ctx.starred.is_empty()
 }
 
@@ -682,22 +689,32 @@ fn reject_select_shape(select: &pb::SelectStmt) -> Result<(), GuardError> {
         return Err(GuardError::Unsupported { construct: "CTE" });
     }
     if !select.distinct_clause.is_empty() {
-        return Err(GuardError::Unsupported { construct: "DISTINCT" });
+        return Err(GuardError::Unsupported {
+            construct: "DISTINCT",
+        });
     }
     if select.into_clause.is_some() {
         return Err(GuardError::Into);
     }
-    if !select.group_clause.is_empty() || select.group_distinct {
-        return Err(GuardError::Unsupported { construct: "GROUP BY" });
+    if select.group_distinct {
+        return Err(GuardError::Unsupported {
+            construct: "GROUP BY",
+        });
     }
     if select.having_clause.is_some() {
-        return Err(GuardError::Unsupported { construct: "HAVING" });
+        return Err(GuardError::Unsupported {
+            construct: "HAVING",
+        });
     }
     if !select.window_clause.is_empty() {
-        return Err(GuardError::Unsupported { construct: "WINDOW" });
+        return Err(GuardError::Unsupported {
+            construct: "WINDOW",
+        });
     }
     if !select.values_lists.is_empty() {
-        return Err(GuardError::Unsupported { construct: "VALUES" });
+        return Err(GuardError::Unsupported {
+            construct: "VALUES",
+        });
     }
     if !select.locking_clause.is_empty() {
         return Err(GuardError::Locking);
@@ -746,31 +763,32 @@ fn bind_from_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardErr
     match node.node.as_mut() {
         Some(pb::node::Node::RangeVar(var)) => bind_range(var, ctx),
         Some(pb::node::Node::JoinExpr(join)) => bind_join(join, ctx),
-        Some(pb::node::Node::RangeSubselect(_)) => {
-            Err(GuardError::Unsupported { construct: "subquery" })
-        }
-        Some(pb::node::Node::RangeFunction(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "range function",
-            })
-        }
-        Some(pb::node::Node::RangeTableFunc(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "table function",
-            })
-        }
-        Some(pb::node::Node::RangeTableSample(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "tablesample",
-            })
-        }
-        _ => Err(GuardError::Unsupported { construct: "from item" }),
+        Some(pb::node::Node::RangeSubselect(_)) => Err(GuardError::Unsupported {
+            construct: "subquery",
+        }),
+        Some(pb::node::Node::RangeFunction(_)) => Err(GuardError::Unsupported {
+            construct: "range function",
+        }),
+        Some(pb::node::Node::RangeTableFunc(_)) => Err(GuardError::Unsupported {
+            construct: "table function",
+        }),
+        Some(pb::node::Node::RangeTableSample(_)) => Err(GuardError::Unsupported {
+            construct: "tablesample",
+        }),
+        _ => Err(GuardError::Unsupported {
+            construct: "from item",
+        }),
     }
 }
 
 fn bind_join(join: &mut pb::JoinExpr, ctx: &mut Ctx<'_>) -> Result<(), GuardError> {
-    if !matches!(join.jointype, JOIN_INNER | JOIN_LEFT | JOIN_FULL | JOIN_RIGHT) {
-        return Err(GuardError::Unsupported { construct: "join type" });
+    if !matches!(
+        join.jointype,
+        JOIN_INNER | JOIN_LEFT | JOIN_FULL | JOIN_RIGHT
+    ) {
+        return Err(GuardError::Unsupported {
+            construct: "join type",
+        });
     }
     if join.is_natural {
         return Err(GuardError::Unsupported {
@@ -783,15 +801,19 @@ fn bind_join(join: &mut pb::JoinExpr, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
         });
     }
     if join.alias.is_some() {
-        return Err(GuardError::Unsupported { construct: "join alias" });
+        return Err(GuardError::Unsupported {
+            construct: "join alias",
+        });
     }
-    let left = join.larg.as_mut().ok_or(GuardError::Unsupported {
-        construct: "join",
-    })?;
+    let left = join
+        .larg
+        .as_mut()
+        .ok_or(GuardError::Unsupported { construct: "join" })?;
     bind_from_item(left, ctx)?;
-    let right = join.rarg.as_mut().ok_or(GuardError::Unsupported {
-        construct: "join",
-    })?;
+    let right = join
+        .rarg
+        .as_mut()
+        .ok_or(GuardError::Unsupported { construct: "join" })?;
     bind_from_item(right, ctx)?;
     if let Some(quals) = join.quals.as_mut() {
         let kind = admit_expr(quals, ctx)?;
@@ -821,7 +843,9 @@ fn bind_range(var: &mut pb::RangeVar, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
         });
     }
     if !closed_ident(&var.schemaname) || !closed_ident(&var.relname) {
-        return Err(GuardError::Unsupported { construct: "identifier" });
+        return Err(GuardError::Unsupported {
+            construct: "identifier",
+        });
     }
     if schema_banned(&var.schemaname, ctx.surface) {
         return Err(GuardError::SystemSchema);
@@ -833,14 +857,16 @@ fn bind_range(var: &mut pb::RangeVar, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
     };
     let rel = &ctx.catalog.relations[rel_index];
     let conflict = alias.clone().unwrap_or_else(|| rel.name.clone());
-    if ctx.ranges.iter().any(|range| conflict_name(range, ctx.catalog) == conflict) {
+    if ctx
+        .ranges
+        .iter()
+        .any(|range| conflict_name(range, ctx.catalog) == conflict)
+    {
         return Err(GuardError::Unsupported {
             construct: "duplicate range name",
         });
     }
-    let exposed = alias
-        .clone()
-        .unwrap_or_else(|| rel.physical_name.clone());
+    let exposed = alias.clone().unwrap_or_else(|| rel.physical_name.clone());
     let ordinal = ctx.next_ordinal;
     ctx.next_ordinal = ctx.next_ordinal.saturating_add(1);
     var.schemaname.clone_from(&rel.physical_schema);
@@ -864,7 +890,9 @@ fn range_alias(var: &pb::RangeVar) -> Result<Option<String>, GuardError> {
         });
     }
     if !closed_ident(&alias.aliasname) {
-        return Err(GuardError::Unsupported { construct: "identifier" });
+        return Err(GuardError::Unsupported {
+            construct: "identifier",
+        });
     }
     Ok(Some(alias.aliasname.clone()))
 }
@@ -891,7 +919,10 @@ fn rewrite_targets(targets: &mut Vec<pb::Node>, ctx: &mut Ctx<'_>) -> Result<(),
     Ok(())
 }
 
-fn rewrite_one_target(mut target: pb::Node, ctx: &mut Ctx<'_>) -> Result<Vec<pb::Node>, GuardError> {
+fn rewrite_one_target(
+    mut target: pb::Node,
+    ctx: &mut Ctx<'_>,
+) -> Result<Vec<pb::Node>, GuardError> {
     let (alias, star_names) = inspect_target(&target)?;
     if let Some(names) = star_names {
         return expand_star(&names, &alias, ctx);
@@ -915,14 +946,19 @@ fn rewrite_one_target(mut target: pb::Node, ctx: &mut Ctx<'_>) -> Result<Vec<pb:
         Some(pb::node::Node::ResTarget(res)) => res.name.clone(),
         _ => String::new(),
     };
-    ctx.outputs.push(output_item(&kind, &output_name, ctx.catalog));
+    ctx.outputs
+        .push(output_item(&kind, &output_name, ctx.catalog));
     Ok(vec![target])
 }
 
 fn inspect_target(target: &pb::Node) -> Result<(String, Option<Vec<String>>), GuardError> {
     let res = match target.node.as_ref() {
         Some(pb::node::Node::ResTarget(res)) => res.as_ref(),
-        _ => return Err(GuardError::Unsupported { construct: "target" }),
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "target",
+            });
+        }
     };
     if !res.indirection.is_empty() {
         return Err(GuardError::Unsupported {
@@ -946,7 +982,9 @@ fn target_val(target: &mut pb::Node) -> Result<&mut pb::Node, GuardError> {
         Some(pb::node::Node::ResTarget(res)) => res.val.as_mut().map(|val| val.as_mut()),
         _ => None,
     }
-    .ok_or(GuardError::Unsupported { construct: "target" })
+    .ok_or(GuardError::Unsupported {
+        construct: "target",
+    })
 }
 
 fn star_names(node: &pb::Node) -> Result<Option<Vec<String>>, GuardError> {
@@ -962,7 +1000,7 @@ fn star_names(node: &pb::Node) -> Result<Option<Vec<String>>, GuardError> {
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "column reference",
-                })
+                });
             }
         }
     }
@@ -983,7 +1021,9 @@ fn expand_star(
     ctx: &mut Ctx<'_>,
 ) -> Result<Vec<pb::Node>, GuardError> {
     if !output_alias.is_empty() {
-        return Err(GuardError::Unsupported { construct: "star alias" });
+        return Err(GuardError::Unsupported {
+            construct: "star alias",
+        });
     }
     let slots = if names.is_empty() {
         if ctx.ranges.is_empty() {
@@ -1000,7 +1040,11 @@ fn expand_star(
     Ok(nodes)
 }
 
-fn expand_slot(slot: usize, names: &[String], ctx: &mut Ctx<'_>) -> Result<Vec<pb::Node>, GuardError> {
+fn expand_slot(
+    slot: usize,
+    names: &[String],
+    ctx: &mut Ctx<'_>,
+) -> Result<Vec<pb::Node>, GuardError> {
     let rel_index = ctx.ranges[slot].rel_index;
     let exposed = ctx.ranges[slot].exposed.clone();
     let schema = ctx.catalog.relations[rel_index].schema.clone();
@@ -1015,7 +1059,10 @@ fn expand_slot(slot: usize, names: &[String], ctx: &mut Ctx<'_>) -> Result<Vec<p
         qualifier: names.join("."),
         schema: schema.clone(),
         name: relation.clone(),
-        columns: columns.iter().map(|(logical, _, _)| logical.clone()).collect(),
+        columns: columns
+            .iter()
+            .map(|(logical, _, _)| logical.clone())
+            .collect(),
     });
     let mut nodes = Vec::with_capacity(columns.len());
     for (logical, physical, type_oid) in columns {
@@ -1036,7 +1083,11 @@ fn one_qualifier(names: &[String], ctx: &Ctx<'_>) -> Result<Vec<usize>, GuardErr
     let slots = qualifier_slots(names, ctx);
     match slots.len() {
         1 => Ok(slots),
-        0 => Err(column_error(&(0..ctx.ranges.len()).collect::<Vec<_>>(), ctx, false)),
+        0 => Err(column_error(
+            &(0..ctx.ranges.len()).collect::<Vec<_>>(),
+            ctx,
+            false,
+        )),
         _ => Err(column_error(&slots, ctx, true)),
     }
 }
@@ -1069,7 +1120,7 @@ fn admit_sort_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardEr
         _ => {
             return Err(GuardError::Unsupported {
                 construct: "order key",
-            })
+            });
         }
     };
     if sort.sortby_dir >= SORT_USING || !sort.use_op.is_empty() {
@@ -1103,15 +1154,21 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         Some(pb::node::Node::BoolExpr(_)) => admit_bool(node, ctx),
         Some(pb::node::Node::NullTest(_)) => admit_null(node, ctx),
         Some(pb::node::Node::TypeCast(_)) => admit_bool_cast(node),
-        Some(pb::node::Node::ParamRef(_)) => {
-            Err(GuardError::Unsupported { construct: "parameter" })
-        }
+        Some(pb::node::Node::ParamRef(_)) => Err(GuardError::Unsupported {
+            construct: "parameter",
+        }),
         Some(pb::node::Node::SubLink(_)) | Some(pb::node::Node::RangeSubselect(_)) => {
-            Err(GuardError::Unsupported { construct: "subquery" })
+            Err(GuardError::Unsupported {
+                construct: "subquery",
+            })
         }
         Some(pb::node::Node::CaseExpr(_)) => Err(GuardError::Unsupported { construct: "CASE" }),
-        Some(_) => Err(GuardError::Unsupported { construct: "expression" }),
-        None => Err(GuardError::Unsupported { construct: "expression" }),
+        Some(_) => Err(GuardError::Unsupported {
+            construct: "expression",
+        }),
+        None => Err(GuardError::Unsupported {
+            construct: "expression",
+        }),
     }
 }
 
@@ -1121,7 +1178,7 @@ fn admit_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, Guar
         _ => {
             return Err(GuardError::Unsupported {
                 construct: "column reference",
-            })
+            });
         }
     };
     let (slot, column_index) = resolve_column(&names, ctx)?;
@@ -1149,7 +1206,7 @@ fn plain_names(col: &pb::ColumnRef) -> Result<Vec<String>, GuardError> {
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "column reference",
-                })
+                });
             }
         }
     }
@@ -1182,7 +1239,11 @@ fn resolve_column(names: &[String], ctx: &Ctx<'_>) -> Result<(usize, usize), Gua
                         })?;
                     Ok((*slot, index))
                 }
-                [] => Err(column_error(&(0..ctx.ranges.len()).collect::<Vec<_>>(), ctx, false)),
+                [] => Err(column_error(
+                    &(0..ctx.ranges.len()).collect::<Vec<_>>(),
+                    ctx,
+                    false,
+                )),
                 many => Err(column_error(many, ctx, true)),
             }
         }
@@ -1203,7 +1264,11 @@ fn qualified_column(
 ) -> Result<(usize, usize), GuardError> {
     let slots = qualifier_slots(qualifier, ctx);
     match slots.as_slice() {
-        [] => Err(column_error(&(0..ctx.ranges.len()).collect::<Vec<_>>(), ctx, false)),
+        [] => Err(column_error(
+            &(0..ctx.ranges.len()).collect::<Vec<_>>(),
+            ctx,
+            false,
+        )),
         [slot] => match column_index(ctx.catalog, ctx.ranges[*slot].rel_index, column) {
             Some(index) => Ok((*slot, index)),
             None => Err(column_error(&[*slot], ctx, false)),
@@ -1267,7 +1332,9 @@ fn column_error(slots: &[usize], ctx: &Ctx<'_>, ambiguous: bool) -> GuardError {
 
 fn admit_const(node: &pb::Node) -> Result<ExprKind, GuardError> {
     let Some(pb::node::Node::AConst(value)) = node.node.as_ref() else {
-        return Err(GuardError::Unsupported { construct: "literal" });
+        return Err(GuardError::Unsupported {
+            construct: "literal",
+        });
     };
     if value.isnull {
         return Ok(ExprKind::Literal {
@@ -1285,15 +1352,15 @@ fn admit_const(node: &pb::Node) -> Result<ExprKind, GuardError> {
             fold: Fold::Other,
         }),
         Some(pb::a_const::Val::Boolval(value)) => Ok(bool_literal(value.boolval)),
-        Some(pb::a_const::Val::Fval(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "float literal",
-            })
-        }
-        Some(pb::a_const::Val::Bsval(_)) => {
-            Err(GuardError::Unsupported { construct: "bit string" })
-        }
-        None => Err(GuardError::Unsupported { construct: "literal" }),
+        Some(pb::a_const::Val::Fval(_)) => Err(GuardError::Unsupported {
+            construct: "float literal",
+        }),
+        Some(pb::a_const::Val::Bsval(_)) => Err(GuardError::Unsupported {
+            construct: "bit string",
+        }),
+        None => Err(GuardError::Unsupported {
+            construct: "literal",
+        }),
     }
 }
 
@@ -1308,15 +1375,17 @@ fn admit_bool_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
     let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref() else {
         return Err(GuardError::Unsupported { construct: "cast" });
     };
-    let type_name = cast.type_name.as_ref().ok_or(GuardError::Unsupported {
-        construct: "cast",
-    })?;
+    let type_name = cast
+        .type_name
+        .as_ref()
+        .ok_or(GuardError::Unsupported { construct: "cast" })?;
     if !plain_bool_type(type_name) {
         return Err(GuardError::Unsupported { construct: "cast" });
     }
-    let arg = cast.arg.as_deref().ok_or(GuardError::Unsupported {
-        construct: "cast",
-    })?;
+    let arg = cast
+        .arg
+        .as_deref()
+        .ok_or(GuardError::Unsupported { construct: "cast" })?;
     match bool_string(arg) {
         Some(value) => Ok(bool_literal(value)),
         None => Err(GuardError::Unsupported { construct: "cast" }),
@@ -1363,7 +1432,11 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     let (schema, name, aggregate_star) = {
         let func = match node.node.as_ref() {
             Some(pb::node::Node::FuncCall(func)) => func.as_ref(),
-            _ => return Err(GuardError::Unsupported { construct: "function" }),
+            _ => {
+                return Err(GuardError::Unsupported {
+                    construct: "function",
+                });
+            }
         };
         if func.over.is_some()
             || func.agg_filter.is_some()
@@ -1392,7 +1465,7 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "function",
-                })
+                });
             }
         };
         let mut types = Vec::with_capacity(args.len());
@@ -1402,7 +1475,13 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         }
         types
     };
-    let resolved = resolve_function(ctx.catalog, schema.as_deref(), &name, &types, aggregate_star)?;
+    let resolved = resolve_function(
+        ctx.catalog,
+        schema.as_deref(),
+        &name,
+        &types,
+        aggregate_star,
+    )?;
     let bound = bound_function(resolved);
     ctx.functions.push(bound.clone());
     Ok(ExprKind::Function(bound))
@@ -1462,7 +1541,7 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         _ => {
             return Err(GuardError::Unsupported {
                 construct: "operator expression",
-            })
+            });
         }
     };
     if kind == AEXPR_IN {
@@ -1474,7 +1553,7 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "operator expression",
-                })
+                });
             }
         };
         if expr.kind != AEXPR_OP {
@@ -1488,13 +1567,13 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let (schema, name) = operator_name(&expr.name)?;
         (schema, name)
     };
-    let (left_type, right_type) = {
+    let compared = {
         let expr = match node.node.as_mut() {
             Some(pb::node::Node::AExpr(expr)) => expr.as_mut(),
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "operator expression",
-                })
+                });
             }
         };
         let left = expr.lexpr.as_mut().ok_or(GuardError::Unsupported {
@@ -1508,9 +1587,32 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         (
             infer_type(&left_kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?,
             infer_type(&right_kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?,
+            matches!(
+                left_kind,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
+            matches!(
+                right_kind,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
         )
     };
-    let resolved = resolve_operator(ctx.catalog, schema.as_deref(), &name, left_type, right_type)?;
+    let (left_type, right_type, left_int_literal, right_int_literal) = compared;
+    let resolved = resolve_comparison(
+        ctx.catalog,
+        schema.as_deref(),
+        &name,
+        left_type,
+        right_type,
+        left_int_literal,
+        right_int_literal,
+    )?;
     let bound = BoundOperator {
         oid: resolved.oid,
         procedure_oid: resolved.procedure_oid,
@@ -1598,7 +1700,15 @@ fn admit_in_literal(
         other => literal_type_oid(other, ctx.catalog.literal_types)
             .ok_or(GuardError::FunctionNotAllowed)?,
     };
-    let resolved = resolve_operator(ctx.catalog, None, token, left_type, right_type)?;
+    let resolved = resolve_comparison(
+        ctx.catalog,
+        None,
+        token,
+        left_type,
+        right_type,
+        false,
+        matches!(kind, LiteralKind::Integer),
+    )?;
     ctx.operators.push(BoundOperator {
         oid: resolved.oid,
         procedure_oid: resolved.procedure_oid,
@@ -1648,9 +1758,9 @@ fn in_predicate() -> GuardError {
 
 fn operator_form(kind: i32) -> GuardError {
     let construct = match pb::AExprKind::try_from(kind).ok() {
-        Some(pb::AExprKind::AexprLike | pb::AExprKind::AexprIlike | pb::AExprKind::AexprSimilar) => {
-            "LIKE predicate"
-        }
+        Some(
+            pb::AExprKind::AexprLike | pb::AExprKind::AexprIlike | pb::AExprKind::AexprSimilar,
+        ) => "LIKE predicate",
         Some(pb::AExprKind::AexprIn) => "IN predicate",
         Some(
             pb::AExprKind::AexprBetween
@@ -1675,6 +1785,68 @@ fn operator_name(nodes: &[pb::Node]) -> Result<(Option<String>, String), GuardEr
     }
 }
 
+fn resolve_comparison<'a>(
+    catalog: &'a PolicyCatalog,
+    schema: Option<&str>,
+    name: &str,
+    left: u32,
+    right: u32,
+    left_int_literal: bool,
+    right_int_literal: bool,
+) -> Result<&'a ResolvedOperator, GuardError> {
+    if let Ok(found) = resolve_operator(catalog, schema, name, left, right) {
+        return Ok(found);
+    }
+    let Some(numeric) = numeric_type_oid(catalog) else {
+        return Err(GuardError::FunctionNotAllowed);
+    };
+    let Some(integer) = catalog.literal_types.integer else {
+        return Err(GuardError::FunctionNotAllowed);
+    };
+    let promotes = (left_int_literal && left == integer && right == numeric)
+        || (right_int_literal && right == integer && left == numeric);
+    if promotes {
+        return resolve_operator(catalog, schema, name, numeric, numeric);
+    }
+    Err(GuardError::FunctionNotAllowed)
+}
+
+/// Same-type OID that is not a literal type and not crossed with `int4`.
+///
+/// The loader's `numeric`/`numeric` operators are that OID. `int2` and `int8`
+/// are crossed with the integer literal, so they are not treated as numeric.
+fn numeric_type_oid(catalog: &PolicyCatalog) -> Option<u32> {
+    let integer = catalog.literal_types.integer?;
+    let mut same = BTreeSet::new();
+    let mut crossed = BTreeSet::new();
+    for operator in &catalog.operators {
+        if operator.left_type_oid == operator.right_type_oid {
+            same.insert(operator.left_type_oid);
+        }
+        if operator.left_type_oid == integer && operator.right_type_oid != integer {
+            crossed.insert(operator.right_type_oid);
+        }
+        if operator.right_type_oid == integer && operator.left_type_oid != integer {
+            crossed.insert(operator.left_type_oid);
+        }
+    }
+    let mut found = None;
+    for oid in same {
+        if Some(oid) == catalog.literal_types.integer
+            || Some(oid) == catalog.literal_types.text
+            || Some(oid) == catalog.literal_types.boolean
+            || crossed.contains(&oid)
+        {
+            continue;
+        }
+        if found.is_some() {
+            return None;
+        }
+        found = Some(oid);
+    }
+    found
+}
+
 fn resolve_operator<'a>(
     catalog: &'a PolicyCatalog,
     schema: Option<&str>,
@@ -1684,7 +1856,9 @@ fn resolve_operator<'a>(
 ) -> Result<&'a ResolvedOperator, GuardError> {
     let mut found = None;
     for operator in &catalog.operators {
-        if operator.name != name || operator.left_type_oid != left || operator.right_type_oid != right
+        if operator.name != name
+            || operator.left_type_oid != left
+            || operator.right_type_oid != right
         {
             continue;
         }
@@ -1704,7 +1878,11 @@ fn resolve_operator<'a>(
 fn admit_bool(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
     let op = match node.node.as_ref() {
         Some(pb::node::Node::BoolExpr(expr)) => expr.boolop,
-        _ => return Err(GuardError::Unsupported { construct: "boolean" }),
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "boolean",
+            });
+        }
     };
     let count = match node.node.as_ref() {
         Some(pb::node::Node::BoolExpr(expr)) => expr.args.len(),
@@ -1713,12 +1891,20 @@ fn admit_bool(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     match op {
         BOOL_AND | BOOL_OR if count >= 2 => {}
         BOOL_NOT if count == 1 => {}
-        _ => return Err(GuardError::Unsupported { construct: "boolean" }),
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "boolean",
+            });
+        }
     }
     let mut folds = Vec::with_capacity(count);
     let args = match node.node.as_mut() {
         Some(pb::node::Node::BoolExpr(expr)) => &mut expr.args,
-        _ => return Err(GuardError::Unsupported { construct: "boolean" }),
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "boolean",
+            });
+        }
     };
     for arg in args {
         let kind = admit_expr(arg, ctx)?;
@@ -1762,7 +1948,11 @@ fn admit_null(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     }
     let (test, row) = match node.node.as_ref() {
         Some(pb::node::Node::NullTest(test)) => (test.nulltesttype, test.argisrow),
-        _ => return Err(GuardError::Unsupported { construct: "null test" }),
+        _ => {
+            return Err(GuardError::Unsupported {
+                construct: "null test",
+            });
+        }
     };
     if row || !matches!(test, NULL_IS | NULL_NOT) {
         return Err(GuardError::Unsupported {
@@ -1797,7 +1987,9 @@ fn predicate_fold(kind: &ExprKind, catalog: &PolicyCatalog) -> Result<Fold, Guar
         ExprKind::Column { type_oid, .. } if catalog.literal_types.boolean == Some(*type_oid) => {
             Ok(Fold::Other)
         }
-        _ => Err(GuardError::Unsupported { construct: "predicate" }),
+        _ => Err(GuardError::Unsupported {
+            construct: "predicate",
+        }),
     }
 }
 
@@ -1857,7 +2049,10 @@ fn output_item(kind: &ExprKind, output_name: &str, catalog: &PolicyCatalog) -> O
 }
 
 fn large_relation(admitted: &Admitted, catalog: &PolicyCatalog) -> Option<String> {
-    if !matches!(admitted.where_fold, WhereFold::Absent | WhereFold::TrueConst) {
+    if !matches!(
+        admitted.where_fold,
+        WhereFold::Absent | WhereFold::TrueConst
+    ) {
         return None;
     }
     admitted.starred.iter().find_map(|index| {
@@ -1920,7 +2115,7 @@ fn string_fields(nodes: &[pb::Node]) -> Result<Vec<String>, GuardError> {
             _ => {
                 return Err(GuardError::Unsupported {
                     construct: "identifier",
-                })
+                });
             }
         }
     }
@@ -2000,7 +2195,9 @@ fn validate_identity_text(identity: &PolicyIdentity) -> Result<(), GuardError> {
 }
 
 fn identity_text(value: &str) -> bool {
-    !value.is_empty() && value.len() <= 128 && !value.chars().any(|char| char == '\0' || char.is_control())
+    !value.is_empty()
+        && value.len() <= 128
+        && !value.chars().any(|char| char == '\0' || char.is_control())
 }
 
 fn validate_relations(catalog: &PolicyCatalog, surface: Surface) -> Result<(), GuardError> {
@@ -2027,7 +2224,9 @@ fn validate_relations(catalog: &PolicyCatalog, surface: Surface) -> Result<(), G
 
 fn validate_relation(relation: &VisibleRelation, surface: Surface) -> Result<(), GuardError> {
     if !closed_ident(&relation.schema) || !closed_ident(&relation.name) {
-        return Err(GuardError::CatalogInvalid { reason: "identifier" });
+        return Err(GuardError::CatalogInvalid {
+            reason: "identifier",
+        });
     }
     if schema_banned(&relation.schema, surface) {
         return Err(GuardError::CatalogInvalid {
@@ -2035,7 +2234,9 @@ fn validate_relation(relation: &VisibleRelation, surface: Surface) -> Result<(),
         });
     }
     if !closed_ident(&relation.physical_schema) || !closed_ident(&relation.physical_name) {
-        return Err(GuardError::CatalogInvalid { reason: "identifier" });
+        return Err(GuardError::CatalogInvalid {
+            reason: "identifier",
+        });
     }
     if physical_schema_banned(&relation.physical_schema) {
         return Err(GuardError::CatalogInvalid {
@@ -2051,7 +2252,9 @@ fn validate_relation(relation: &VisibleRelation, surface: Surface) -> Result<(),
     let mut physical = BTreeSet::new();
     for column in &relation.columns {
         if !closed_ident(&column.name) || !closed_ident(&column.physical_name) {
-            return Err(GuardError::CatalogInvalid { reason: "identifier" });
+            return Err(GuardError::CatalogInvalid {
+                reason: "identifier",
+            });
         }
         if column.type_oid == 0 {
             return Err(GuardError::CatalogInvalid { reason: "type oid" });
@@ -2101,7 +2304,10 @@ fn validate_functions(catalog: &PolicyCatalog) -> Result<(), GuardError> {
 fn validate_operators(catalog: &PolicyCatalog) -> Result<(), GuardError> {
     let mut seen = BTreeSet::new();
     for operator in &catalog.operators {
-        if operator.oid == 0 || operator.procedure_oid == 0 || operator.left_type_oid == 0 || operator.right_type_oid == 0
+        if operator.oid == 0
+            || operator.procedure_oid == 0
+            || operator.left_type_oid == 0
+            || operator.right_type_oid == 0
         {
             return Err(GuardError::CatalogInvalid {
                 reason: "operator oid",
@@ -2234,397 +2440,814 @@ fn descend_node(node: &pb::Node, depth: usize, scan: &mut Scan) -> Result<(), Gu
 
 fn descend_kind(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::Alias(_) | pb::node::Node::RangeVar(_) | pb::node::Node::TableFunc(_) | pb::node::Node::IntoClause(_) | pb::node::Node::Var(_) | pb::node::Node::Param(_) | pb::node::Node::Aggref(_) | pb::node::Node::GroupingFunc(_) | pb::node::Node::WindowFunc(_) | pb::node::Node::WindowFuncRunCondition(_) | pb::node::Node::MergeSupportFunc(_) | pb::node::Node::SubscriptingRef(_) | pb::node::Node::FuncExpr(_) | pb::node::Node::NamedArgExpr(_) | pb::node::Node::OpExpr(_) | pb::node::Node::DistinctExpr(_) => descend_kind_0(kind, depth, scan),
-        pb::node::Node::NullIfExpr(_) | pb::node::Node::ScalarArrayOpExpr(_) | pb::node::Node::BoolExpr(_) | pb::node::Node::SubLink(_) | pb::node::Node::SubPlan(_) | pb::node::Node::AlternativeSubPlan(_) | pb::node::Node::FieldSelect(_) | pb::node::Node::FieldStore(_) | pb::node::Node::RelabelType(_) | pb::node::Node::CoerceViaIo(_) | pb::node::Node::ArrayCoerceExpr(_) | pb::node::Node::ConvertRowtypeExpr(_) | pb::node::Node::CollateExpr(_) | pb::node::Node::CaseExpr(_) | pb::node::Node::CaseWhen(_) | pb::node::Node::CaseTestExpr(_) => descend_kind_1(kind, depth, scan),
-        pb::node::Node::ArrayExpr(_) | pb::node::Node::RowExpr(_) | pb::node::Node::RowCompareExpr(_) | pb::node::Node::CoalesceExpr(_) | pb::node::Node::MinMaxExpr(_) | pb::node::Node::SqlvalueFunction(_) | pb::node::Node::XmlExpr(_) | pb::node::Node::JsonFormat(_) | pb::node::Node::JsonReturning(_) | pb::node::Node::JsonValueExpr(_) | pb::node::Node::JsonConstructorExpr(_) | pb::node::Node::JsonIsPredicate(_) | pb::node::Node::JsonBehavior(_) | pb::node::Node::JsonExpr(_) | pb::node::Node::JsonTablePath(_) | pb::node::Node::JsonTablePathScan(_) => descend_kind_2(kind, depth, scan),
-        pb::node::Node::JsonTableSiblingJoin(_) | pb::node::Node::NullTest(_) | pb::node::Node::BooleanTest(_) | pb::node::Node::MergeAction(_) | pb::node::Node::CoerceToDomain(_) | pb::node::Node::CoerceToDomainValue(_) | pb::node::Node::SetToDefault(_) | pb::node::Node::CurrentOfExpr(_) | pb::node::Node::NextValueExpr(_) | pb::node::Node::InferenceElem(_) | pb::node::Node::TargetEntry(_) | pb::node::Node::RangeTblRef(_) | pb::node::Node::JoinExpr(_) | pb::node::Node::FromExpr(_) | pb::node::Node::OnConflictExpr(_) | pb::node::Node::Query(_) => descend_kind_3(kind, depth, scan),
-        pb::node::Node::TypeName(_) | pb::node::Node::ColumnRef(_) | pb::node::Node::ParamRef(_) | pb::node::Node::AExpr(_) | pb::node::Node::TypeCast(_) | pb::node::Node::CollateClause(_) | pb::node::Node::RoleSpec(_) | pb::node::Node::FuncCall(_) | pb::node::Node::AStar(_) | pb::node::Node::AIndices(_) | pb::node::Node::AIndirection(_) | pb::node::Node::AArrayExpr(_) | pb::node::Node::ResTarget(_) | pb::node::Node::MultiAssignRef(_) | pb::node::Node::SortBy(_) | pb::node::Node::WindowDef(_) => descend_kind_4(kind, depth, scan),
-        pb::node::Node::RangeSubselect(_) | pb::node::Node::RangeFunction(_) | pb::node::Node::RangeTableFunc(_) | pb::node::Node::RangeTableFuncCol(_) | pb::node::Node::RangeTableSample(_) | pb::node::Node::ColumnDef(_) | pb::node::Node::TableLikeClause(_) | pb::node::Node::IndexElem(_) | pb::node::Node::DefElem(_) | pb::node::Node::LockingClause(_) | pb::node::Node::XmlSerialize(_) | pb::node::Node::PartitionElem(_) | pb::node::Node::PartitionSpec(_) | pb::node::Node::PartitionBoundSpec(_) | pb::node::Node::PartitionRangeDatum(_) | pb::node::Node::SinglePartitionSpec(_) => descend_kind_5(kind, depth, scan),
-        pb::node::Node::PartitionCmd(_) | pb::node::Node::RangeTblEntry(_) | pb::node::Node::RtepermissionInfo(_) | pb::node::Node::RangeTblFunction(_) | pb::node::Node::TableSampleClause(_) | pb::node::Node::WithCheckOption(_) | pb::node::Node::SortGroupClause(_) | pb::node::Node::GroupingSet(_) | pb::node::Node::WindowClause(_) | pb::node::Node::RowMarkClause(_) | pb::node::Node::WithClause(_) | pb::node::Node::InferClause(_) | pb::node::Node::OnConflictClause(_) | pb::node::Node::CtesearchClause(_) | pb::node::Node::CtecycleClause(_) | pb::node::Node::CommonTableExpr(_) => descend_kind_6(kind, depth, scan),
-        pb::node::Node::MergeWhenClause(_) | pb::node::Node::TriggerTransition(_) | pb::node::Node::JsonOutput(_) | pb::node::Node::JsonArgument(_) | pb::node::Node::JsonFuncExpr(_) | pb::node::Node::JsonTablePathSpec(_) | pb::node::Node::JsonTable(_) | pb::node::Node::JsonTableColumn(_) | pb::node::Node::JsonKeyValue(_) | pb::node::Node::JsonParseExpr(_) | pb::node::Node::JsonScalarExpr(_) | pb::node::Node::JsonSerializeExpr(_) | pb::node::Node::JsonObjectConstructor(_) | pb::node::Node::JsonArrayConstructor(_) | pb::node::Node::JsonArrayQueryConstructor(_) | pb::node::Node::JsonAggConstructor(_) => descend_kind_7(kind, depth, scan),
-        pb::node::Node::JsonObjectAgg(_) | pb::node::Node::JsonArrayAgg(_) | pb::node::Node::RawStmt(_) | pb::node::Node::InsertStmt(_) | pb::node::Node::DeleteStmt(_) | pb::node::Node::UpdateStmt(_) | pb::node::Node::MergeStmt(_) | pb::node::Node::SelectStmt(_) | pb::node::Node::SetOperationStmt(_) | pb::node::Node::ReturnStmt(_) | pb::node::Node::PlassignStmt(_) | pb::node::Node::CreateSchemaStmt(_) | pb::node::Node::AlterTableStmt(_) | pb::node::Node::ReplicaIdentityStmt(_) | pb::node::Node::AlterTableCmd(_) | pb::node::Node::AlterCollationStmt(_) => descend_kind_8(kind, depth, scan),
-        pb::node::Node::AlterDomainStmt(_) | pb::node::Node::GrantStmt(_) | pb::node::Node::ObjectWithArgs(_) | pb::node::Node::AccessPriv(_) | pb::node::Node::GrantRoleStmt(_) | pb::node::Node::AlterDefaultPrivilegesStmt(_) | pb::node::Node::CopyStmt(_) | pb::node::Node::VariableSetStmt(_) | pb::node::Node::VariableShowStmt(_) | pb::node::Node::CreateStmt(_) | pb::node::Node::Constraint(_) | pb::node::Node::CreateTableSpaceStmt(_) | pb::node::Node::DropTableSpaceStmt(_) | pb::node::Node::AlterTableSpaceOptionsStmt(_) | pb::node::Node::AlterTableMoveAllStmt(_) | pb::node::Node::CreateExtensionStmt(_) => descend_kind_9(kind, depth, scan),
-        pb::node::Node::AlterExtensionStmt(_) | pb::node::Node::AlterExtensionContentsStmt(_) | pb::node::Node::CreateFdwStmt(_) | pb::node::Node::AlterFdwStmt(_) | pb::node::Node::CreateForeignServerStmt(_) | pb::node::Node::AlterForeignServerStmt(_) | pb::node::Node::CreateForeignTableStmt(_) | pb::node::Node::CreateUserMappingStmt(_) | pb::node::Node::AlterUserMappingStmt(_) | pb::node::Node::DropUserMappingStmt(_) | pb::node::Node::ImportForeignSchemaStmt(_) | pb::node::Node::CreatePolicyStmt(_) | pb::node::Node::AlterPolicyStmt(_) | pb::node::Node::CreateAmStmt(_) | pb::node::Node::CreateTrigStmt(_) | pb::node::Node::CreateEventTrigStmt(_) => descend_kind_10(kind, depth, scan),
-        pb::node::Node::AlterEventTrigStmt(_) | pb::node::Node::CreatePlangStmt(_) | pb::node::Node::CreateRoleStmt(_) | pb::node::Node::AlterRoleStmt(_) | pb::node::Node::AlterRoleSetStmt(_) | pb::node::Node::DropRoleStmt(_) | pb::node::Node::CreateSeqStmt(_) | pb::node::Node::AlterSeqStmt(_) | pb::node::Node::DefineStmt(_) | pb::node::Node::CreateDomainStmt(_) | pb::node::Node::CreateOpClassStmt(_) | pb::node::Node::CreateOpClassItem(_) | pb::node::Node::CreateOpFamilyStmt(_) | pb::node::Node::AlterOpFamilyStmt(_) | pb::node::Node::DropStmt(_) | pb::node::Node::TruncateStmt(_) => descend_kind_11(kind, depth, scan),
-        pb::node::Node::CommentStmt(_) | pb::node::Node::SecLabelStmt(_) | pb::node::Node::DeclareCursorStmt(_) | pb::node::Node::ClosePortalStmt(_) | pb::node::Node::FetchStmt(_) | pb::node::Node::IndexStmt(_) | pb::node::Node::CreateStatsStmt(_) | pb::node::Node::StatsElem(_) | pb::node::Node::AlterStatsStmt(_) | pb::node::Node::CreateFunctionStmt(_) | pb::node::Node::FunctionParameter(_) | pb::node::Node::AlterFunctionStmt(_) | pb::node::Node::DoStmt(_) | pb::node::Node::InlineCodeBlock(_) | pb::node::Node::CallStmt(_) | pb::node::Node::CallContext(_) => descend_kind_12(kind, depth, scan),
-        pb::node::Node::RenameStmt(_) | pb::node::Node::AlterObjectDependsStmt(_) | pb::node::Node::AlterObjectSchemaStmt(_) | pb::node::Node::AlterOwnerStmt(_) | pb::node::Node::AlterOperatorStmt(_) | pb::node::Node::AlterTypeStmt(_) | pb::node::Node::RuleStmt(_) | pb::node::Node::NotifyStmt(_) | pb::node::Node::ListenStmt(_) | pb::node::Node::UnlistenStmt(_) | pb::node::Node::TransactionStmt(_) | pb::node::Node::CompositeTypeStmt(_) | pb::node::Node::CreateEnumStmt(_) | pb::node::Node::CreateRangeStmt(_) | pb::node::Node::AlterEnumStmt(_) | pb::node::Node::ViewStmt(_) => descend_kind_13(kind, depth, scan),
-        pb::node::Node::LoadStmt(_) | pb::node::Node::CreatedbStmt(_) | pb::node::Node::AlterDatabaseStmt(_) | pb::node::Node::AlterDatabaseRefreshCollStmt(_) | pb::node::Node::AlterDatabaseSetStmt(_) | pb::node::Node::DropdbStmt(_) | pb::node::Node::AlterSystemStmt(_) | pb::node::Node::ClusterStmt(_) | pb::node::Node::VacuumStmt(_) | pb::node::Node::VacuumRelation(_) | pb::node::Node::ExplainStmt(_) | pb::node::Node::CreateTableAsStmt(_) | pb::node::Node::RefreshMatViewStmt(_) | pb::node::Node::CheckPointStmt(_) | pb::node::Node::DiscardStmt(_) | pb::node::Node::LockStmt(_) => descend_kind_14(kind, depth, scan),
-        pb::node::Node::ConstraintsSetStmt(_) | pb::node::Node::ReindexStmt(_) | pb::node::Node::CreateConversionStmt(_) | pb::node::Node::CreateCastStmt(_) | pb::node::Node::CreateTransformStmt(_) | pb::node::Node::PrepareStmt(_) | pb::node::Node::ExecuteStmt(_) | pb::node::Node::DeallocateStmt(_) | pb::node::Node::DropOwnedStmt(_) | pb::node::Node::ReassignOwnedStmt(_) | pb::node::Node::AlterTsdictionaryStmt(_) | pb::node::Node::AlterTsconfigurationStmt(_) | pb::node::Node::PublicationTable(_) | pb::node::Node::PublicationObjSpec(_) | pb::node::Node::CreatePublicationStmt(_) | pb::node::Node::AlterPublicationStmt(_) => descend_kind_15(kind, depth, scan),
-        pb::node::Node::CreateSubscriptionStmt(_) | pb::node::Node::AlterSubscriptionStmt(_) | pb::node::Node::DropSubscriptionStmt(_) | pb::node::Node::Integer(_) | pb::node::Node::Float(_) | pb::node::Node::Boolean(_) | pb::node::Node::String(_) | pb::node::Node::BitString(_) | pb::node::Node::List(_) | pb::node::Node::IntList(_) | pb::node::Node::OidList(_) | pb::node::Node::AConst(_) => descend_kind_16(kind, depth, scan),
+        pb::node::Node::Alias(_)
+        | pb::node::Node::RangeVar(_)
+        | pb::node::Node::TableFunc(_)
+        | pb::node::Node::IntoClause(_)
+        | pb::node::Node::Var(_)
+        | pb::node::Node::Param(_)
+        | pb::node::Node::Aggref(_)
+        | pb::node::Node::GroupingFunc(_)
+        | pb::node::Node::WindowFunc(_)
+        | pb::node::Node::WindowFuncRunCondition(_)
+        | pb::node::Node::MergeSupportFunc(_)
+        | pb::node::Node::SubscriptingRef(_)
+        | pb::node::Node::FuncExpr(_)
+        | pb::node::Node::NamedArgExpr(_)
+        | pb::node::Node::OpExpr(_)
+        | pb::node::Node::DistinctExpr(_) => descend_kind_0(kind, depth, scan),
+        pb::node::Node::NullIfExpr(_)
+        | pb::node::Node::ScalarArrayOpExpr(_)
+        | pb::node::Node::BoolExpr(_)
+        | pb::node::Node::SubLink(_)
+        | pb::node::Node::SubPlan(_)
+        | pb::node::Node::AlternativeSubPlan(_)
+        | pb::node::Node::FieldSelect(_)
+        | pb::node::Node::FieldStore(_)
+        | pb::node::Node::RelabelType(_)
+        | pb::node::Node::CoerceViaIo(_)
+        | pb::node::Node::ArrayCoerceExpr(_)
+        | pb::node::Node::ConvertRowtypeExpr(_)
+        | pb::node::Node::CollateExpr(_)
+        | pb::node::Node::CaseExpr(_)
+        | pb::node::Node::CaseWhen(_)
+        | pb::node::Node::CaseTestExpr(_) => descend_kind_1(kind, depth, scan),
+        pb::node::Node::ArrayExpr(_)
+        | pb::node::Node::RowExpr(_)
+        | pb::node::Node::RowCompareExpr(_)
+        | pb::node::Node::CoalesceExpr(_)
+        | pb::node::Node::MinMaxExpr(_)
+        | pb::node::Node::SqlvalueFunction(_)
+        | pb::node::Node::XmlExpr(_)
+        | pb::node::Node::JsonFormat(_)
+        | pb::node::Node::JsonReturning(_)
+        | pb::node::Node::JsonValueExpr(_)
+        | pb::node::Node::JsonConstructorExpr(_)
+        | pb::node::Node::JsonIsPredicate(_)
+        | pb::node::Node::JsonBehavior(_)
+        | pb::node::Node::JsonExpr(_)
+        | pb::node::Node::JsonTablePath(_)
+        | pb::node::Node::JsonTablePathScan(_) => descend_kind_2(kind, depth, scan),
+        pb::node::Node::JsonTableSiblingJoin(_)
+        | pb::node::Node::NullTest(_)
+        | pb::node::Node::BooleanTest(_)
+        | pb::node::Node::MergeAction(_)
+        | pb::node::Node::CoerceToDomain(_)
+        | pb::node::Node::CoerceToDomainValue(_)
+        | pb::node::Node::SetToDefault(_)
+        | pb::node::Node::CurrentOfExpr(_)
+        | pb::node::Node::NextValueExpr(_)
+        | pb::node::Node::InferenceElem(_)
+        | pb::node::Node::TargetEntry(_)
+        | pb::node::Node::RangeTblRef(_)
+        | pb::node::Node::JoinExpr(_)
+        | pb::node::Node::FromExpr(_)
+        | pb::node::Node::OnConflictExpr(_)
+        | pb::node::Node::Query(_) => descend_kind_3(kind, depth, scan),
+        pb::node::Node::TypeName(_)
+        | pb::node::Node::ColumnRef(_)
+        | pb::node::Node::ParamRef(_)
+        | pb::node::Node::AExpr(_)
+        | pb::node::Node::TypeCast(_)
+        | pb::node::Node::CollateClause(_)
+        | pb::node::Node::RoleSpec(_)
+        | pb::node::Node::FuncCall(_)
+        | pb::node::Node::AStar(_)
+        | pb::node::Node::AIndices(_)
+        | pb::node::Node::AIndirection(_)
+        | pb::node::Node::AArrayExpr(_)
+        | pb::node::Node::ResTarget(_)
+        | pb::node::Node::MultiAssignRef(_)
+        | pb::node::Node::SortBy(_)
+        | pb::node::Node::WindowDef(_) => descend_kind_4(kind, depth, scan),
+        pb::node::Node::RangeSubselect(_)
+        | pb::node::Node::RangeFunction(_)
+        | pb::node::Node::RangeTableFunc(_)
+        | pb::node::Node::RangeTableFuncCol(_)
+        | pb::node::Node::RangeTableSample(_)
+        | pb::node::Node::ColumnDef(_)
+        | pb::node::Node::TableLikeClause(_)
+        | pb::node::Node::IndexElem(_)
+        | pb::node::Node::DefElem(_)
+        | pb::node::Node::LockingClause(_)
+        | pb::node::Node::XmlSerialize(_)
+        | pb::node::Node::PartitionElem(_)
+        | pb::node::Node::PartitionSpec(_)
+        | pb::node::Node::PartitionBoundSpec(_)
+        | pb::node::Node::PartitionRangeDatum(_)
+        | pb::node::Node::SinglePartitionSpec(_) => descend_kind_5(kind, depth, scan),
+        pb::node::Node::PartitionCmd(_)
+        | pb::node::Node::RangeTblEntry(_)
+        | pb::node::Node::RtepermissionInfo(_)
+        | pb::node::Node::RangeTblFunction(_)
+        | pb::node::Node::TableSampleClause(_)
+        | pb::node::Node::WithCheckOption(_)
+        | pb::node::Node::SortGroupClause(_)
+        | pb::node::Node::GroupingSet(_)
+        | pb::node::Node::WindowClause(_)
+        | pb::node::Node::RowMarkClause(_)
+        | pb::node::Node::WithClause(_)
+        | pb::node::Node::InferClause(_)
+        | pb::node::Node::OnConflictClause(_)
+        | pb::node::Node::CtesearchClause(_)
+        | pb::node::Node::CtecycleClause(_)
+        | pb::node::Node::CommonTableExpr(_) => descend_kind_6(kind, depth, scan),
+        pb::node::Node::MergeWhenClause(_)
+        | pb::node::Node::TriggerTransition(_)
+        | pb::node::Node::JsonOutput(_)
+        | pb::node::Node::JsonArgument(_)
+        | pb::node::Node::JsonFuncExpr(_)
+        | pb::node::Node::JsonTablePathSpec(_)
+        | pb::node::Node::JsonTable(_)
+        | pb::node::Node::JsonTableColumn(_)
+        | pb::node::Node::JsonKeyValue(_)
+        | pb::node::Node::JsonParseExpr(_)
+        | pb::node::Node::JsonScalarExpr(_)
+        | pb::node::Node::JsonSerializeExpr(_)
+        | pb::node::Node::JsonObjectConstructor(_)
+        | pb::node::Node::JsonArrayConstructor(_)
+        | pb::node::Node::JsonArrayQueryConstructor(_)
+        | pb::node::Node::JsonAggConstructor(_) => descend_kind_7(kind, depth, scan),
+        pb::node::Node::JsonObjectAgg(_)
+        | pb::node::Node::JsonArrayAgg(_)
+        | pb::node::Node::RawStmt(_)
+        | pb::node::Node::InsertStmt(_)
+        | pb::node::Node::DeleteStmt(_)
+        | pb::node::Node::UpdateStmt(_)
+        | pb::node::Node::MergeStmt(_)
+        | pb::node::Node::SelectStmt(_)
+        | pb::node::Node::SetOperationStmt(_)
+        | pb::node::Node::ReturnStmt(_)
+        | pb::node::Node::PlassignStmt(_)
+        | pb::node::Node::CreateSchemaStmt(_)
+        | pb::node::Node::AlterTableStmt(_)
+        | pb::node::Node::ReplicaIdentityStmt(_)
+        | pb::node::Node::AlterTableCmd(_)
+        | pb::node::Node::AlterCollationStmt(_) => descend_kind_8(kind, depth, scan),
+        pb::node::Node::AlterDomainStmt(_)
+        | pb::node::Node::GrantStmt(_)
+        | pb::node::Node::ObjectWithArgs(_)
+        | pb::node::Node::AccessPriv(_)
+        | pb::node::Node::GrantRoleStmt(_)
+        | pb::node::Node::AlterDefaultPrivilegesStmt(_)
+        | pb::node::Node::CopyStmt(_)
+        | pb::node::Node::VariableSetStmt(_)
+        | pb::node::Node::VariableShowStmt(_)
+        | pb::node::Node::CreateStmt(_)
+        | pb::node::Node::Constraint(_)
+        | pb::node::Node::CreateTableSpaceStmt(_)
+        | pb::node::Node::DropTableSpaceStmt(_)
+        | pb::node::Node::AlterTableSpaceOptionsStmt(_)
+        | pb::node::Node::AlterTableMoveAllStmt(_)
+        | pb::node::Node::CreateExtensionStmt(_) => descend_kind_9(kind, depth, scan),
+        pb::node::Node::AlterExtensionStmt(_)
+        | pb::node::Node::AlterExtensionContentsStmt(_)
+        | pb::node::Node::CreateFdwStmt(_)
+        | pb::node::Node::AlterFdwStmt(_)
+        | pb::node::Node::CreateForeignServerStmt(_)
+        | pb::node::Node::AlterForeignServerStmt(_)
+        | pb::node::Node::CreateForeignTableStmt(_)
+        | pb::node::Node::CreateUserMappingStmt(_)
+        | pb::node::Node::AlterUserMappingStmt(_)
+        | pb::node::Node::DropUserMappingStmt(_)
+        | pb::node::Node::ImportForeignSchemaStmt(_)
+        | pb::node::Node::CreatePolicyStmt(_)
+        | pb::node::Node::AlterPolicyStmt(_)
+        | pb::node::Node::CreateAmStmt(_)
+        | pb::node::Node::CreateTrigStmt(_)
+        | pb::node::Node::CreateEventTrigStmt(_) => descend_kind_10(kind, depth, scan),
+        pb::node::Node::AlterEventTrigStmt(_)
+        | pb::node::Node::CreatePlangStmt(_)
+        | pb::node::Node::CreateRoleStmt(_)
+        | pb::node::Node::AlterRoleStmt(_)
+        | pb::node::Node::AlterRoleSetStmt(_)
+        | pb::node::Node::DropRoleStmt(_)
+        | pb::node::Node::CreateSeqStmt(_)
+        | pb::node::Node::AlterSeqStmt(_)
+        | pb::node::Node::DefineStmt(_)
+        | pb::node::Node::CreateDomainStmt(_)
+        | pb::node::Node::CreateOpClassStmt(_)
+        | pb::node::Node::CreateOpClassItem(_)
+        | pb::node::Node::CreateOpFamilyStmt(_)
+        | pb::node::Node::AlterOpFamilyStmt(_)
+        | pb::node::Node::DropStmt(_)
+        | pb::node::Node::TruncateStmt(_) => descend_kind_11(kind, depth, scan),
+        pb::node::Node::CommentStmt(_)
+        | pb::node::Node::SecLabelStmt(_)
+        | pb::node::Node::DeclareCursorStmt(_)
+        | pb::node::Node::ClosePortalStmt(_)
+        | pb::node::Node::FetchStmt(_)
+        | pb::node::Node::IndexStmt(_)
+        | pb::node::Node::CreateStatsStmt(_)
+        | pb::node::Node::StatsElem(_)
+        | pb::node::Node::AlterStatsStmt(_)
+        | pb::node::Node::CreateFunctionStmt(_)
+        | pb::node::Node::FunctionParameter(_)
+        | pb::node::Node::AlterFunctionStmt(_)
+        | pb::node::Node::DoStmt(_)
+        | pb::node::Node::InlineCodeBlock(_)
+        | pb::node::Node::CallStmt(_)
+        | pb::node::Node::CallContext(_) => descend_kind_12(kind, depth, scan),
+        pb::node::Node::RenameStmt(_)
+        | pb::node::Node::AlterObjectDependsStmt(_)
+        | pb::node::Node::AlterObjectSchemaStmt(_)
+        | pb::node::Node::AlterOwnerStmt(_)
+        | pb::node::Node::AlterOperatorStmt(_)
+        | pb::node::Node::AlterTypeStmt(_)
+        | pb::node::Node::RuleStmt(_)
+        | pb::node::Node::NotifyStmt(_)
+        | pb::node::Node::ListenStmt(_)
+        | pb::node::Node::UnlistenStmt(_)
+        | pb::node::Node::TransactionStmt(_)
+        | pb::node::Node::CompositeTypeStmt(_)
+        | pb::node::Node::CreateEnumStmt(_)
+        | pb::node::Node::CreateRangeStmt(_)
+        | pb::node::Node::AlterEnumStmt(_)
+        | pb::node::Node::ViewStmt(_) => descend_kind_13(kind, depth, scan),
+        pb::node::Node::LoadStmt(_)
+        | pb::node::Node::CreatedbStmt(_)
+        | pb::node::Node::AlterDatabaseStmt(_)
+        | pb::node::Node::AlterDatabaseRefreshCollStmt(_)
+        | pb::node::Node::AlterDatabaseSetStmt(_)
+        | pb::node::Node::DropdbStmt(_)
+        | pb::node::Node::AlterSystemStmt(_)
+        | pb::node::Node::ClusterStmt(_)
+        | pb::node::Node::VacuumStmt(_)
+        | pb::node::Node::VacuumRelation(_)
+        | pb::node::Node::ExplainStmt(_)
+        | pb::node::Node::CreateTableAsStmt(_)
+        | pb::node::Node::RefreshMatViewStmt(_)
+        | pb::node::Node::CheckPointStmt(_)
+        | pb::node::Node::DiscardStmt(_)
+        | pb::node::Node::LockStmt(_) => descend_kind_14(kind, depth, scan),
+        pb::node::Node::ConstraintsSetStmt(_)
+        | pb::node::Node::ReindexStmt(_)
+        | pb::node::Node::CreateConversionStmt(_)
+        | pb::node::Node::CreateCastStmt(_)
+        | pb::node::Node::CreateTransformStmt(_)
+        | pb::node::Node::PrepareStmt(_)
+        | pb::node::Node::ExecuteStmt(_)
+        | pb::node::Node::DeallocateStmt(_)
+        | pb::node::Node::DropOwnedStmt(_)
+        | pb::node::Node::ReassignOwnedStmt(_)
+        | pb::node::Node::AlterTsdictionaryStmt(_)
+        | pb::node::Node::AlterTsconfigurationStmt(_)
+        | pb::node::Node::PublicationTable(_)
+        | pb::node::Node::PublicationObjSpec(_)
+        | pb::node::Node::CreatePublicationStmt(_)
+        | pb::node::Node::AlterPublicationStmt(_) => descend_kind_15(kind, depth, scan),
+        pb::node::Node::CreateSubscriptionStmt(_)
+        | pb::node::Node::AlterSubscriptionStmt(_)
+        | pb::node::Node::DropSubscriptionStmt(_)
+        | pb::node::Node::Integer(_)
+        | pb::node::Node::Float(_)
+        | pb::node::Node::Boolean(_)
+        | pb::node::Node::String(_)
+        | pb::node::Node::BitString(_)
+        | pb::node::Node::List(_)
+        | pb::node::Node::IntList(_)
+        | pb::node::Node::OidList(_)
+        | pb::node::Node::AConst(_) => descend_kind_16(kind, depth, scan),
     }
 }
 
 fn descend_kind_0(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::Alias(inner) => { descend_alias(inner, depth, scan) }
-        pb::node::Node::RangeVar(inner) => { descend_range_var(inner, depth, scan) }
-        pb::node::Node::TableFunc(inner) => { descend_table_func(inner, depth, scan) }
-        pb::node::Node::IntoClause(inner) => { descend_into_clause(inner, depth, scan) }
-        pb::node::Node::Var(inner) => { descend_var(inner, depth, scan) }
-        pb::node::Node::Param(inner) => { descend_param(inner, depth, scan) }
-        pb::node::Node::Aggref(inner) => { descend_aggref(inner, depth, scan) }
-        pb::node::Node::GroupingFunc(inner) => { descend_grouping_func(inner, depth, scan) }
-        pb::node::Node::WindowFunc(inner) => { descend_window_func(inner, depth, scan) }
-        pb::node::Node::WindowFuncRunCondition(inner) => { descend_window_func_run_condition(inner, depth, scan) }
-        pb::node::Node::MergeSupportFunc(inner) => { descend_merge_support_func(inner, depth, scan) }
-        pb::node::Node::SubscriptingRef(inner) => { descend_subscripting_ref(inner, depth, scan) }
-        pb::node::Node::FuncExpr(inner) => { descend_func_expr(inner, depth, scan) }
-        pb::node::Node::NamedArgExpr(inner) => { descend_named_arg_expr(inner, depth, scan) }
-        pb::node::Node::OpExpr(inner) => { descend_op_expr(inner, depth, scan) }
-        pb::node::Node::DistinctExpr(inner) => { descend_distinct_expr(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::Alias(inner) => descend_alias(inner, depth, scan),
+        pb::node::Node::RangeVar(inner) => descend_range_var(inner, depth, scan),
+        pb::node::Node::TableFunc(inner) => descend_table_func(inner, depth, scan),
+        pb::node::Node::IntoClause(inner) => descend_into_clause(inner, depth, scan),
+        pb::node::Node::Var(inner) => descend_var(inner, depth, scan),
+        pb::node::Node::Param(inner) => descend_param(inner, depth, scan),
+        pb::node::Node::Aggref(inner) => descend_aggref(inner, depth, scan),
+        pb::node::Node::GroupingFunc(inner) => descend_grouping_func(inner, depth, scan),
+        pb::node::Node::WindowFunc(inner) => descend_window_func(inner, depth, scan),
+        pb::node::Node::WindowFuncRunCondition(inner) => {
+            descend_window_func_run_condition(inner, depth, scan)
+        }
+        pb::node::Node::MergeSupportFunc(inner) => descend_merge_support_func(inner, depth, scan),
+        pb::node::Node::SubscriptingRef(inner) => descend_subscripting_ref(inner, depth, scan),
+        pb::node::Node::FuncExpr(inner) => descend_func_expr(inner, depth, scan),
+        pb::node::Node::NamedArgExpr(inner) => descend_named_arg_expr(inner, depth, scan),
+        pb::node::Node::OpExpr(inner) => descend_op_expr(inner, depth, scan),
+        pb::node::Node::DistinctExpr(inner) => descend_distinct_expr(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_1(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::NullIfExpr(inner) => { descend_null_if_expr(inner, depth, scan) }
-        pb::node::Node::ScalarArrayOpExpr(inner) => { descend_scalar_array_op_expr(inner, depth, scan) }
-        pb::node::Node::BoolExpr(inner) => { descend_bool_expr(inner, depth, scan) }
-        pb::node::Node::SubLink(inner) => { descend_sub_link(inner, depth, scan) }
-        pb::node::Node::SubPlan(inner) => { descend_sub_plan(inner, depth, scan) }
-        pb::node::Node::AlternativeSubPlan(inner) => { descend_alternative_sub_plan(inner, depth, scan) }
-        pb::node::Node::FieldSelect(inner) => { descend_field_select(inner, depth, scan) }
-        pb::node::Node::FieldStore(inner) => { descend_field_store(inner, depth, scan) }
-        pb::node::Node::RelabelType(inner) => { descend_relabel_type(inner, depth, scan) }
-        pb::node::Node::CoerceViaIo(inner) => { descend_coerce_via_io(inner, depth, scan) }
-        pb::node::Node::ArrayCoerceExpr(inner) => { descend_array_coerce_expr(inner, depth, scan) }
-        pb::node::Node::ConvertRowtypeExpr(inner) => { descend_convert_rowtype_expr(inner, depth, scan) }
-        pb::node::Node::CollateExpr(inner) => { descend_collate_expr(inner, depth, scan) }
-        pb::node::Node::CaseExpr(inner) => { descend_case_expr(inner, depth, scan) }
-        pb::node::Node::CaseWhen(inner) => { descend_case_when(inner, depth, scan) }
-        pb::node::Node::CaseTestExpr(inner) => { descend_case_test_expr(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::NullIfExpr(inner) => descend_null_if_expr(inner, depth, scan),
+        pb::node::Node::ScalarArrayOpExpr(inner) => {
+            descend_scalar_array_op_expr(inner, depth, scan)
+        }
+        pb::node::Node::BoolExpr(inner) => descend_bool_expr(inner, depth, scan),
+        pb::node::Node::SubLink(inner) => descend_sub_link(inner, depth, scan),
+        pb::node::Node::SubPlan(inner) => descend_sub_plan(inner, depth, scan),
+        pb::node::Node::AlternativeSubPlan(inner) => {
+            descend_alternative_sub_plan(inner, depth, scan)
+        }
+        pb::node::Node::FieldSelect(inner) => descend_field_select(inner, depth, scan),
+        pb::node::Node::FieldStore(inner) => descend_field_store(inner, depth, scan),
+        pb::node::Node::RelabelType(inner) => descend_relabel_type(inner, depth, scan),
+        pb::node::Node::CoerceViaIo(inner) => descend_coerce_via_io(inner, depth, scan),
+        pb::node::Node::ArrayCoerceExpr(inner) => descend_array_coerce_expr(inner, depth, scan),
+        pb::node::Node::ConvertRowtypeExpr(inner) => {
+            descend_convert_rowtype_expr(inner, depth, scan)
+        }
+        pb::node::Node::CollateExpr(inner) => descend_collate_expr(inner, depth, scan),
+        pb::node::Node::CaseExpr(inner) => descend_case_expr(inner, depth, scan),
+        pb::node::Node::CaseWhen(inner) => descend_case_when(inner, depth, scan),
+        pb::node::Node::CaseTestExpr(inner) => descend_case_test_expr(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_2(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::ArrayExpr(inner) => { descend_array_expr(inner, depth, scan) }
-        pb::node::Node::RowExpr(inner) => { descend_row_expr(inner, depth, scan) }
-        pb::node::Node::RowCompareExpr(inner) => { descend_row_compare_expr(inner, depth, scan) }
-        pb::node::Node::CoalesceExpr(inner) => { descend_coalesce_expr(inner, depth, scan) }
-        pb::node::Node::MinMaxExpr(inner) => { descend_min_max_expr(inner, depth, scan) }
-        pb::node::Node::SqlvalueFunction(inner) => { descend_sql_value_function(inner, depth, scan) }
-        pb::node::Node::XmlExpr(inner) => { descend_xml_expr(inner, depth, scan) }
-        pb::node::Node::JsonFormat(inner) => { descend_json_format(inner, depth, scan) }
-        pb::node::Node::JsonReturning(inner) => { descend_json_returning(inner, depth, scan) }
-        pb::node::Node::JsonValueExpr(inner) => { descend_json_value_expr(inner, depth, scan) }
-        pb::node::Node::JsonConstructorExpr(inner) => { descend_json_constructor_expr(inner, depth, scan) }
-        pb::node::Node::JsonIsPredicate(inner) => { descend_json_is_predicate(inner, depth, scan) }
-        pb::node::Node::JsonBehavior(inner) => { descend_json_behavior(inner, depth, scan) }
-        pb::node::Node::JsonExpr(inner) => { descend_json_expr(inner, depth, scan) }
-        pb::node::Node::JsonTablePath(inner) => { descend_json_table_path(inner, depth, scan) }
-        pb::node::Node::JsonTablePathScan(inner) => { descend_json_table_path_scan(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::ArrayExpr(inner) => descend_array_expr(inner, depth, scan),
+        pb::node::Node::RowExpr(inner) => descend_row_expr(inner, depth, scan),
+        pb::node::Node::RowCompareExpr(inner) => descend_row_compare_expr(inner, depth, scan),
+        pb::node::Node::CoalesceExpr(inner) => descend_coalesce_expr(inner, depth, scan),
+        pb::node::Node::MinMaxExpr(inner) => descend_min_max_expr(inner, depth, scan),
+        pb::node::Node::SqlvalueFunction(inner) => descend_sql_value_function(inner, depth, scan),
+        pb::node::Node::XmlExpr(inner) => descend_xml_expr(inner, depth, scan),
+        pb::node::Node::JsonFormat(inner) => descend_json_format(inner, depth, scan),
+        pb::node::Node::JsonReturning(inner) => descend_json_returning(inner, depth, scan),
+        pb::node::Node::JsonValueExpr(inner) => descend_json_value_expr(inner, depth, scan),
+        pb::node::Node::JsonConstructorExpr(inner) => {
+            descend_json_constructor_expr(inner, depth, scan)
+        }
+        pb::node::Node::JsonIsPredicate(inner) => descend_json_is_predicate(inner, depth, scan),
+        pb::node::Node::JsonBehavior(inner) => descend_json_behavior(inner, depth, scan),
+        pb::node::Node::JsonExpr(inner) => descend_json_expr(inner, depth, scan),
+        pb::node::Node::JsonTablePath(inner) => descend_json_table_path(inner, depth, scan),
+        pb::node::Node::JsonTablePathScan(inner) => {
+            descend_json_table_path_scan(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_3(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::JsonTableSiblingJoin(inner) => { descend_json_table_sibling_join(inner, depth, scan) }
-        pb::node::Node::NullTest(inner) => { descend_null_test(inner, depth, scan) }
-        pb::node::Node::BooleanTest(inner) => { descend_boolean_test(inner, depth, scan) }
-        pb::node::Node::MergeAction(inner) => { descend_merge_action(inner, depth, scan) }
-        pb::node::Node::CoerceToDomain(inner) => { descend_coerce_to_domain(inner, depth, scan) }
-        pb::node::Node::CoerceToDomainValue(inner) => { descend_coerce_to_domain_value(inner, depth, scan) }
-        pb::node::Node::SetToDefault(inner) => { descend_set_to_default(inner, depth, scan) }
-        pb::node::Node::CurrentOfExpr(inner) => { descend_current_of_expr(inner, depth, scan) }
-        pb::node::Node::NextValueExpr(inner) => { descend_next_value_expr(inner, depth, scan) }
-        pb::node::Node::InferenceElem(inner) => { descend_inference_elem(inner, depth, scan) }
-        pb::node::Node::TargetEntry(inner) => { descend_target_entry(inner, depth, scan) }
-        pb::node::Node::RangeTblRef(inner) => { descend_range_tbl_ref(inner, depth, scan) }
-        pb::node::Node::JoinExpr(inner) => { descend_join_expr(inner, depth, scan) }
-        pb::node::Node::FromExpr(inner) => { descend_from_expr(inner, depth, scan) }
-        pb::node::Node::OnConflictExpr(inner) => { descend_on_conflict_expr(inner, depth, scan) }
-        pb::node::Node::Query(inner) => { descend_query(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::JsonTableSiblingJoin(inner) => {
+            descend_json_table_sibling_join(inner, depth, scan)
+        }
+        pb::node::Node::NullTest(inner) => descend_null_test(inner, depth, scan),
+        pb::node::Node::BooleanTest(inner) => descend_boolean_test(inner, depth, scan),
+        pb::node::Node::MergeAction(inner) => descend_merge_action(inner, depth, scan),
+        pb::node::Node::CoerceToDomain(inner) => descend_coerce_to_domain(inner, depth, scan),
+        pb::node::Node::CoerceToDomainValue(inner) => {
+            descend_coerce_to_domain_value(inner, depth, scan)
+        }
+        pb::node::Node::SetToDefault(inner) => descend_set_to_default(inner, depth, scan),
+        pb::node::Node::CurrentOfExpr(inner) => descend_current_of_expr(inner, depth, scan),
+        pb::node::Node::NextValueExpr(inner) => descend_next_value_expr(inner, depth, scan),
+        pb::node::Node::InferenceElem(inner) => descend_inference_elem(inner, depth, scan),
+        pb::node::Node::TargetEntry(inner) => descend_target_entry(inner, depth, scan),
+        pb::node::Node::RangeTblRef(inner) => descend_range_tbl_ref(inner, depth, scan),
+        pb::node::Node::JoinExpr(inner) => descend_join_expr(inner, depth, scan),
+        pb::node::Node::FromExpr(inner) => descend_from_expr(inner, depth, scan),
+        pb::node::Node::OnConflictExpr(inner) => descend_on_conflict_expr(inner, depth, scan),
+        pb::node::Node::Query(inner) => descend_query(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_4(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::TypeName(inner) => { descend_type_name(inner, depth, scan) }
-        pb::node::Node::ColumnRef(inner) => { descend_column_ref(inner, depth, scan) }
-        pb::node::Node::ParamRef(inner) => { descend_param_ref(inner, depth, scan) }
-        pb::node::Node::AExpr(inner) => { descend_a_expr(inner, depth, scan) }
-        pb::node::Node::TypeCast(inner) => { descend_type_cast(inner, depth, scan) }
-        pb::node::Node::CollateClause(inner) => { descend_collate_clause(inner, depth, scan) }
-        pb::node::Node::RoleSpec(inner) => { descend_role_spec(inner, depth, scan) }
-        pb::node::Node::FuncCall(inner) => { descend_func_call(inner, depth, scan) }
-        pb::node::Node::AStar(inner) => { descend_a_star(inner, depth, scan) }
-        pb::node::Node::AIndices(inner) => { descend_a_indices(inner, depth, scan) }
-        pb::node::Node::AIndirection(inner) => { descend_a_indirection(inner, depth, scan) }
-        pb::node::Node::AArrayExpr(inner) => { descend_a_array_expr(inner, depth, scan) }
-        pb::node::Node::ResTarget(inner) => { descend_res_target(inner, depth, scan) }
-        pb::node::Node::MultiAssignRef(inner) => { descend_multi_assign_ref(inner, depth, scan) }
-        pb::node::Node::SortBy(inner) => { descend_sort_by(inner, depth, scan) }
-        pb::node::Node::WindowDef(inner) => { descend_window_def(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::TypeName(inner) => descend_type_name(inner, depth, scan),
+        pb::node::Node::ColumnRef(inner) => descend_column_ref(inner, depth, scan),
+        pb::node::Node::ParamRef(inner) => descend_param_ref(inner, depth, scan),
+        pb::node::Node::AExpr(inner) => descend_a_expr(inner, depth, scan),
+        pb::node::Node::TypeCast(inner) => descend_type_cast(inner, depth, scan),
+        pb::node::Node::CollateClause(inner) => descend_collate_clause(inner, depth, scan),
+        pb::node::Node::RoleSpec(inner) => descend_role_spec(inner, depth, scan),
+        pb::node::Node::FuncCall(inner) => descend_func_call(inner, depth, scan),
+        pb::node::Node::AStar(inner) => descend_a_star(inner, depth, scan),
+        pb::node::Node::AIndices(inner) => descend_a_indices(inner, depth, scan),
+        pb::node::Node::AIndirection(inner) => descend_a_indirection(inner, depth, scan),
+        pb::node::Node::AArrayExpr(inner) => descend_a_array_expr(inner, depth, scan),
+        pb::node::Node::ResTarget(inner) => descend_res_target(inner, depth, scan),
+        pb::node::Node::MultiAssignRef(inner) => descend_multi_assign_ref(inner, depth, scan),
+        pb::node::Node::SortBy(inner) => descend_sort_by(inner, depth, scan),
+        pb::node::Node::WindowDef(inner) => descend_window_def(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_5(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::RangeSubselect(inner) => { descend_range_subselect(inner, depth, scan) }
-        pb::node::Node::RangeFunction(inner) => { descend_range_function(inner, depth, scan) }
-        pb::node::Node::RangeTableFunc(inner) => { descend_range_table_func(inner, depth, scan) }
-        pb::node::Node::RangeTableFuncCol(inner) => { descend_range_table_func_col(inner, depth, scan) }
-        pb::node::Node::RangeTableSample(inner) => { descend_range_table_sample(inner, depth, scan) }
-        pb::node::Node::ColumnDef(inner) => { descend_column_def(inner, depth, scan) }
-        pb::node::Node::TableLikeClause(inner) => { descend_table_like_clause(inner, depth, scan) }
-        pb::node::Node::IndexElem(inner) => { descend_index_elem(inner, depth, scan) }
-        pb::node::Node::DefElem(inner) => { descend_def_elem(inner, depth, scan) }
-        pb::node::Node::LockingClause(inner) => { descend_locking_clause(inner, depth, scan) }
-        pb::node::Node::XmlSerialize(inner) => { descend_xml_serialize(inner, depth, scan) }
-        pb::node::Node::PartitionElem(inner) => { descend_partition_elem(inner, depth, scan) }
-        pb::node::Node::PartitionSpec(inner) => { descend_partition_spec(inner, depth, scan) }
-        pb::node::Node::PartitionBoundSpec(inner) => { descend_partition_bound_spec(inner, depth, scan) }
-        pb::node::Node::PartitionRangeDatum(inner) => { descend_partition_range_datum(inner, depth, scan) }
-        pb::node::Node::SinglePartitionSpec(inner) => { descend_single_partition_spec(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::RangeSubselect(inner) => descend_range_subselect(inner, depth, scan),
+        pb::node::Node::RangeFunction(inner) => descend_range_function(inner, depth, scan),
+        pb::node::Node::RangeTableFunc(inner) => descend_range_table_func(inner, depth, scan),
+        pb::node::Node::RangeTableFuncCol(inner) => {
+            descend_range_table_func_col(inner, depth, scan)
+        }
+        pb::node::Node::RangeTableSample(inner) => descend_range_table_sample(inner, depth, scan),
+        pb::node::Node::ColumnDef(inner) => descend_column_def(inner, depth, scan),
+        pb::node::Node::TableLikeClause(inner) => descend_table_like_clause(inner, depth, scan),
+        pb::node::Node::IndexElem(inner) => descend_index_elem(inner, depth, scan),
+        pb::node::Node::DefElem(inner) => descend_def_elem(inner, depth, scan),
+        pb::node::Node::LockingClause(inner) => descend_locking_clause(inner, depth, scan),
+        pb::node::Node::XmlSerialize(inner) => descend_xml_serialize(inner, depth, scan),
+        pb::node::Node::PartitionElem(inner) => descend_partition_elem(inner, depth, scan),
+        pb::node::Node::PartitionSpec(inner) => descend_partition_spec(inner, depth, scan),
+        pb::node::Node::PartitionBoundSpec(inner) => {
+            descend_partition_bound_spec(inner, depth, scan)
+        }
+        pb::node::Node::PartitionRangeDatum(inner) => {
+            descend_partition_range_datum(inner, depth, scan)
+        }
+        pb::node::Node::SinglePartitionSpec(inner) => {
+            descend_single_partition_spec(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_6(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::PartitionCmd(inner) => { descend_partition_cmd(inner, depth, scan) }
-        pb::node::Node::RangeTblEntry(inner) => { descend_range_tbl_entry(inner, depth, scan) }
-        pb::node::Node::RtepermissionInfo(inner) => { descend_rte_permission_info(inner, depth, scan) }
-        pb::node::Node::RangeTblFunction(inner) => { descend_range_tbl_function(inner, depth, scan) }
-        pb::node::Node::TableSampleClause(inner) => { descend_table_sample_clause(inner, depth, scan) }
-        pb::node::Node::WithCheckOption(inner) => { descend_with_check_option(inner, depth, scan) }
-        pb::node::Node::SortGroupClause(inner) => { descend_sort_group_clause(inner, depth, scan) }
-        pb::node::Node::GroupingSet(inner) => { descend_grouping_set(inner, depth, scan) }
-        pb::node::Node::WindowClause(inner) => { descend_window_clause(inner, depth, scan) }
-        pb::node::Node::RowMarkClause(inner) => { descend_row_mark_clause(inner, depth, scan) }
-        pb::node::Node::WithClause(inner) => { descend_with_clause(inner, depth, scan) }
-        pb::node::Node::InferClause(inner) => { descend_infer_clause(inner, depth, scan) }
-        pb::node::Node::OnConflictClause(inner) => { descend_on_conflict_clause(inner, depth, scan) }
-        pb::node::Node::CtesearchClause(inner) => { descend_cte_search_clause(inner, depth, scan) }
-        pb::node::Node::CtecycleClause(inner) => { descend_cte_cycle_clause(inner, depth, scan) }
-        pb::node::Node::CommonTableExpr(inner) => { descend_common_table_expr(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::PartitionCmd(inner) => descend_partition_cmd(inner, depth, scan),
+        pb::node::Node::RangeTblEntry(inner) => descend_range_tbl_entry(inner, depth, scan),
+        pb::node::Node::RtepermissionInfo(inner) => descend_rte_permission_info(inner, depth, scan),
+        pb::node::Node::RangeTblFunction(inner) => descend_range_tbl_function(inner, depth, scan),
+        pb::node::Node::TableSampleClause(inner) => descend_table_sample_clause(inner, depth, scan),
+        pb::node::Node::WithCheckOption(inner) => descend_with_check_option(inner, depth, scan),
+        pb::node::Node::SortGroupClause(inner) => descend_sort_group_clause(inner, depth, scan),
+        pb::node::Node::GroupingSet(inner) => descend_grouping_set(inner, depth, scan),
+        pb::node::Node::WindowClause(inner) => descend_window_clause(inner, depth, scan),
+        pb::node::Node::RowMarkClause(inner) => descend_row_mark_clause(inner, depth, scan),
+        pb::node::Node::WithClause(inner) => descend_with_clause(inner, depth, scan),
+        pb::node::Node::InferClause(inner) => descend_infer_clause(inner, depth, scan),
+        pb::node::Node::OnConflictClause(inner) => descend_on_conflict_clause(inner, depth, scan),
+        pb::node::Node::CtesearchClause(inner) => descend_cte_search_clause(inner, depth, scan),
+        pb::node::Node::CtecycleClause(inner) => descend_cte_cycle_clause(inner, depth, scan),
+        pb::node::Node::CommonTableExpr(inner) => descend_common_table_expr(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_7(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::MergeWhenClause(inner) => { descend_merge_when_clause(inner, depth, scan) }
-        pb::node::Node::TriggerTransition(inner) => { descend_trigger_transition(inner, depth, scan) }
-        pb::node::Node::JsonOutput(inner) => { descend_json_output(inner, depth, scan) }
-        pb::node::Node::JsonArgument(inner) => { descend_json_argument(inner, depth, scan) }
-        pb::node::Node::JsonFuncExpr(inner) => { descend_json_func_expr(inner, depth, scan) }
-        pb::node::Node::JsonTablePathSpec(inner) => { descend_json_table_path_spec(inner, depth, scan) }
-        pb::node::Node::JsonTable(inner) => { descend_json_table(inner, depth, scan) }
-        pb::node::Node::JsonTableColumn(inner) => { descend_json_table_column(inner, depth, scan) }
-        pb::node::Node::JsonKeyValue(inner) => { descend_json_key_value(inner, depth, scan) }
-        pb::node::Node::JsonParseExpr(inner) => { descend_json_parse_expr(inner, depth, scan) }
-        pb::node::Node::JsonScalarExpr(inner) => { descend_json_scalar_expr(inner, depth, scan) }
-        pb::node::Node::JsonSerializeExpr(inner) => { descend_json_serialize_expr(inner, depth, scan) }
-        pb::node::Node::JsonObjectConstructor(inner) => { descend_json_object_constructor(inner, depth, scan) }
-        pb::node::Node::JsonArrayConstructor(inner) => { descend_json_array_constructor(inner, depth, scan) }
-        pb::node::Node::JsonArrayQueryConstructor(inner) => { descend_json_array_query_constructor(inner, depth, scan) }
-        pb::node::Node::JsonAggConstructor(inner) => { descend_json_agg_constructor(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::MergeWhenClause(inner) => descend_merge_when_clause(inner, depth, scan),
+        pb::node::Node::TriggerTransition(inner) => descend_trigger_transition(inner, depth, scan),
+        pb::node::Node::JsonOutput(inner) => descend_json_output(inner, depth, scan),
+        pb::node::Node::JsonArgument(inner) => descend_json_argument(inner, depth, scan),
+        pb::node::Node::JsonFuncExpr(inner) => descend_json_func_expr(inner, depth, scan),
+        pb::node::Node::JsonTablePathSpec(inner) => {
+            descend_json_table_path_spec(inner, depth, scan)
+        }
+        pb::node::Node::JsonTable(inner) => descend_json_table(inner, depth, scan),
+        pb::node::Node::JsonTableColumn(inner) => descend_json_table_column(inner, depth, scan),
+        pb::node::Node::JsonKeyValue(inner) => descend_json_key_value(inner, depth, scan),
+        pb::node::Node::JsonParseExpr(inner) => descend_json_parse_expr(inner, depth, scan),
+        pb::node::Node::JsonScalarExpr(inner) => descend_json_scalar_expr(inner, depth, scan),
+        pb::node::Node::JsonSerializeExpr(inner) => descend_json_serialize_expr(inner, depth, scan),
+        pb::node::Node::JsonObjectConstructor(inner) => {
+            descend_json_object_constructor(inner, depth, scan)
+        }
+        pb::node::Node::JsonArrayConstructor(inner) => {
+            descend_json_array_constructor(inner, depth, scan)
+        }
+        pb::node::Node::JsonArrayQueryConstructor(inner) => {
+            descend_json_array_query_constructor(inner, depth, scan)
+        }
+        pb::node::Node::JsonAggConstructor(inner) => {
+            descend_json_agg_constructor(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_8(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::JsonObjectAgg(inner) => { descend_json_object_agg(inner, depth, scan) }
-        pb::node::Node::JsonArrayAgg(inner) => { descend_json_array_agg(inner, depth, scan) }
-        pb::node::Node::RawStmt(inner) => { descend_raw_stmt(inner, depth, scan) }
-        pb::node::Node::InsertStmt(inner) => { scan.saw_write = true; descend_insert_stmt(inner, depth, scan) }
-        pb::node::Node::DeleteStmt(inner) => { scan.saw_write = true; descend_delete_stmt(inner, depth, scan) }
-        pb::node::Node::UpdateStmt(inner) => { scan.saw_write = true; descend_update_stmt(inner, depth, scan) }
-        pb::node::Node::MergeStmt(inner) => { scan.saw_write = true; descend_merge_stmt(inner, depth, scan) }
-        pb::node::Node::SelectStmt(inner) => { descend_select_stmt(inner, depth, scan) }
-        pb::node::Node::SetOperationStmt(inner) => { descend_set_operation_stmt(inner, depth, scan) }
-        pb::node::Node::ReturnStmt(inner) => { descend_return_stmt(inner, depth, scan) }
-        pb::node::Node::PlassignStmt(inner) => { descend_pl_assign_stmt(inner, depth, scan) }
-        pb::node::Node::CreateSchemaStmt(inner) => { descend_create_schema_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTableStmt(inner) => { descend_alter_table_stmt(inner, depth, scan) }
-        pb::node::Node::ReplicaIdentityStmt(inner) => { descend_replica_identity_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTableCmd(inner) => { descend_alter_table_cmd(inner, depth, scan) }
-        pb::node::Node::AlterCollationStmt(inner) => { descend_alter_collation_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::JsonObjectAgg(inner) => descend_json_object_agg(inner, depth, scan),
+        pb::node::Node::JsonArrayAgg(inner) => descend_json_array_agg(inner, depth, scan),
+        pb::node::Node::RawStmt(inner) => descend_raw_stmt(inner, depth, scan),
+        pb::node::Node::InsertStmt(inner) => {
+            scan.saw_write = true;
+            descend_insert_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DeleteStmt(inner) => {
+            scan.saw_write = true;
+            descend_delete_stmt(inner, depth, scan)
+        }
+        pb::node::Node::UpdateStmt(inner) => {
+            scan.saw_write = true;
+            descend_update_stmt(inner, depth, scan)
+        }
+        pb::node::Node::MergeStmt(inner) => {
+            scan.saw_write = true;
+            descend_merge_stmt(inner, depth, scan)
+        }
+        pb::node::Node::SelectStmt(inner) => descend_select_stmt(inner, depth, scan),
+        pb::node::Node::SetOperationStmt(inner) => descend_set_operation_stmt(inner, depth, scan),
+        pb::node::Node::ReturnStmt(inner) => descend_return_stmt(inner, depth, scan),
+        pb::node::Node::PlassignStmt(inner) => descend_pl_assign_stmt(inner, depth, scan),
+        pb::node::Node::CreateSchemaStmt(inner) => descend_create_schema_stmt(inner, depth, scan),
+        pb::node::Node::AlterTableStmt(inner) => descend_alter_table_stmt(inner, depth, scan),
+        pb::node::Node::ReplicaIdentityStmt(inner) => {
+            descend_replica_identity_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterTableCmd(inner) => descend_alter_table_cmd(inner, depth, scan),
+        pb::node::Node::AlterCollationStmt(inner) => {
+            descend_alter_collation_stmt(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_9(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::AlterDomainStmt(inner) => { descend_alter_domain_stmt(inner, depth, scan) }
-        pb::node::Node::GrantStmt(inner) => { descend_grant_stmt(inner, depth, scan) }
-        pb::node::Node::ObjectWithArgs(inner) => { descend_object_with_args(inner, depth, scan) }
-        pb::node::Node::AccessPriv(inner) => { descend_access_priv(inner, depth, scan) }
-        pb::node::Node::GrantRoleStmt(inner) => { descend_grant_role_stmt(inner, depth, scan) }
-        pb::node::Node::AlterDefaultPrivilegesStmt(inner) => { descend_alter_default_privileges_stmt(inner, depth, scan) }
-        pb::node::Node::CopyStmt(inner) => { descend_copy_stmt(inner, depth, scan) }
-        pb::node::Node::VariableSetStmt(inner) => { descend_variable_set_stmt(inner, depth, scan) }
-        pb::node::Node::VariableShowStmt(inner) => { descend_variable_show_stmt(inner, depth, scan) }
-        pb::node::Node::CreateStmt(inner) => { descend_create_stmt(inner, depth, scan) }
-        pb::node::Node::Constraint(inner) => { descend_constraint(inner, depth, scan) }
-        pb::node::Node::CreateTableSpaceStmt(inner) => { descend_create_table_space_stmt(inner, depth, scan) }
-        pb::node::Node::DropTableSpaceStmt(inner) => { descend_drop_table_space_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTableSpaceOptionsStmt(inner) => { descend_alter_table_space_options_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTableMoveAllStmt(inner) => { descend_alter_table_move_all_stmt(inner, depth, scan) }
-        pb::node::Node::CreateExtensionStmt(inner) => { descend_create_extension_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::AlterDomainStmt(inner) => descend_alter_domain_stmt(inner, depth, scan),
+        pb::node::Node::GrantStmt(inner) => descend_grant_stmt(inner, depth, scan),
+        pb::node::Node::ObjectWithArgs(inner) => descend_object_with_args(inner, depth, scan),
+        pb::node::Node::AccessPriv(inner) => descend_access_priv(inner, depth, scan),
+        pb::node::Node::GrantRoleStmt(inner) => descend_grant_role_stmt(inner, depth, scan),
+        pb::node::Node::AlterDefaultPrivilegesStmt(inner) => {
+            descend_alter_default_privileges_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CopyStmt(inner) => descend_copy_stmt(inner, depth, scan),
+        pb::node::Node::VariableSetStmt(inner) => descend_variable_set_stmt(inner, depth, scan),
+        pb::node::Node::VariableShowStmt(inner) => descend_variable_show_stmt(inner, depth, scan),
+        pb::node::Node::CreateStmt(inner) => descend_create_stmt(inner, depth, scan),
+        pb::node::Node::Constraint(inner) => descend_constraint(inner, depth, scan),
+        pb::node::Node::CreateTableSpaceStmt(inner) => {
+            descend_create_table_space_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DropTableSpaceStmt(inner) => {
+            descend_drop_table_space_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterTableSpaceOptionsStmt(inner) => {
+            descend_alter_table_space_options_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterTableMoveAllStmt(inner) => {
+            descend_alter_table_move_all_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateExtensionStmt(inner) => {
+            descend_create_extension_stmt(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_10(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::AlterExtensionStmt(inner) => { descend_alter_extension_stmt(inner, depth, scan) }
-        pb::node::Node::AlterExtensionContentsStmt(inner) => { descend_alter_extension_contents_stmt(inner, depth, scan) }
-        pb::node::Node::CreateFdwStmt(inner) => { descend_create_fdw_stmt(inner, depth, scan) }
-        pb::node::Node::AlterFdwStmt(inner) => { descend_alter_fdw_stmt(inner, depth, scan) }
-        pb::node::Node::CreateForeignServerStmt(inner) => { descend_create_foreign_server_stmt(inner, depth, scan) }
-        pb::node::Node::AlterForeignServerStmt(inner) => { descend_alter_foreign_server_stmt(inner, depth, scan) }
-        pb::node::Node::CreateForeignTableStmt(inner) => { descend_create_foreign_table_stmt(inner, depth, scan) }
-        pb::node::Node::CreateUserMappingStmt(inner) => { descend_create_user_mapping_stmt(inner, depth, scan) }
-        pb::node::Node::AlterUserMappingStmt(inner) => { descend_alter_user_mapping_stmt(inner, depth, scan) }
-        pb::node::Node::DropUserMappingStmt(inner) => { descend_drop_user_mapping_stmt(inner, depth, scan) }
-        pb::node::Node::ImportForeignSchemaStmt(inner) => { descend_import_foreign_schema_stmt(inner, depth, scan) }
-        pb::node::Node::CreatePolicyStmt(inner) => { descend_create_policy_stmt(inner, depth, scan) }
-        pb::node::Node::AlterPolicyStmt(inner) => { descend_alter_policy_stmt(inner, depth, scan) }
-        pb::node::Node::CreateAmStmt(inner) => { descend_create_am_stmt(inner, depth, scan) }
-        pb::node::Node::CreateTrigStmt(inner) => { descend_create_trig_stmt(inner, depth, scan) }
-        pb::node::Node::CreateEventTrigStmt(inner) => { descend_create_event_trig_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::AlterExtensionStmt(inner) => {
+            descend_alter_extension_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterExtensionContentsStmt(inner) => {
+            descend_alter_extension_contents_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateFdwStmt(inner) => descend_create_fdw_stmt(inner, depth, scan),
+        pb::node::Node::AlterFdwStmt(inner) => descend_alter_fdw_stmt(inner, depth, scan),
+        pb::node::Node::CreateForeignServerStmt(inner) => {
+            descend_create_foreign_server_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterForeignServerStmt(inner) => {
+            descend_alter_foreign_server_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateForeignTableStmt(inner) => {
+            descend_create_foreign_table_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateUserMappingStmt(inner) => {
+            descend_create_user_mapping_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterUserMappingStmt(inner) => {
+            descend_alter_user_mapping_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DropUserMappingStmt(inner) => {
+            descend_drop_user_mapping_stmt(inner, depth, scan)
+        }
+        pb::node::Node::ImportForeignSchemaStmt(inner) => {
+            descend_import_foreign_schema_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreatePolicyStmt(inner) => descend_create_policy_stmt(inner, depth, scan),
+        pb::node::Node::AlterPolicyStmt(inner) => descend_alter_policy_stmt(inner, depth, scan),
+        pb::node::Node::CreateAmStmt(inner) => descend_create_am_stmt(inner, depth, scan),
+        pb::node::Node::CreateTrigStmt(inner) => descend_create_trig_stmt(inner, depth, scan),
+        pb::node::Node::CreateEventTrigStmt(inner) => {
+            descend_create_event_trig_stmt(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_11(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::AlterEventTrigStmt(inner) => { descend_alter_event_trig_stmt(inner, depth, scan) }
-        pb::node::Node::CreatePlangStmt(inner) => { descend_create_p_lang_stmt(inner, depth, scan) }
-        pb::node::Node::CreateRoleStmt(inner) => { descend_create_role_stmt(inner, depth, scan) }
-        pb::node::Node::AlterRoleStmt(inner) => { descend_alter_role_stmt(inner, depth, scan) }
-        pb::node::Node::AlterRoleSetStmt(inner) => { descend_alter_role_set_stmt(inner, depth, scan) }
-        pb::node::Node::DropRoleStmt(inner) => { descend_drop_role_stmt(inner, depth, scan) }
-        pb::node::Node::CreateSeqStmt(inner) => { descend_create_seq_stmt(inner, depth, scan) }
-        pb::node::Node::AlterSeqStmt(inner) => { descend_alter_seq_stmt(inner, depth, scan) }
-        pb::node::Node::DefineStmt(inner) => { descend_define_stmt(inner, depth, scan) }
-        pb::node::Node::CreateDomainStmt(inner) => { descend_create_domain_stmt(inner, depth, scan) }
-        pb::node::Node::CreateOpClassStmt(inner) => { descend_create_op_class_stmt(inner, depth, scan) }
-        pb::node::Node::CreateOpClassItem(inner) => { descend_create_op_class_item(inner, depth, scan) }
-        pb::node::Node::CreateOpFamilyStmt(inner) => { descend_create_op_family_stmt(inner, depth, scan) }
-        pb::node::Node::AlterOpFamilyStmt(inner) => { descend_alter_op_family_stmt(inner, depth, scan) }
-        pb::node::Node::DropStmt(inner) => { descend_drop_stmt(inner, depth, scan) }
-        pb::node::Node::TruncateStmt(inner) => { descend_truncate_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::AlterEventTrigStmt(inner) => {
+            descend_alter_event_trig_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreatePlangStmt(inner) => descend_create_p_lang_stmt(inner, depth, scan),
+        pb::node::Node::CreateRoleStmt(inner) => descend_create_role_stmt(inner, depth, scan),
+        pb::node::Node::AlterRoleStmt(inner) => descend_alter_role_stmt(inner, depth, scan),
+        pb::node::Node::AlterRoleSetStmt(inner) => descend_alter_role_set_stmt(inner, depth, scan),
+        pb::node::Node::DropRoleStmt(inner) => descend_drop_role_stmt(inner, depth, scan),
+        pb::node::Node::CreateSeqStmt(inner) => descend_create_seq_stmt(inner, depth, scan),
+        pb::node::Node::AlterSeqStmt(inner) => descend_alter_seq_stmt(inner, depth, scan),
+        pb::node::Node::DefineStmt(inner) => descend_define_stmt(inner, depth, scan),
+        pb::node::Node::CreateDomainStmt(inner) => descend_create_domain_stmt(inner, depth, scan),
+        pb::node::Node::CreateOpClassStmt(inner) => {
+            descend_create_op_class_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateOpClassItem(inner) => {
+            descend_create_op_class_item(inner, depth, scan)
+        }
+        pb::node::Node::CreateOpFamilyStmt(inner) => {
+            descend_create_op_family_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterOpFamilyStmt(inner) => {
+            descend_alter_op_family_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DropStmt(inner) => descend_drop_stmt(inner, depth, scan),
+        pb::node::Node::TruncateStmt(inner) => descend_truncate_stmt(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_12(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::CommentStmt(inner) => { descend_comment_stmt(inner, depth, scan) }
-        pb::node::Node::SecLabelStmt(inner) => { descend_sec_label_stmt(inner, depth, scan) }
-        pb::node::Node::DeclareCursorStmt(inner) => { descend_declare_cursor_stmt(inner, depth, scan) }
-        pb::node::Node::ClosePortalStmt(inner) => { descend_close_portal_stmt(inner, depth, scan) }
-        pb::node::Node::FetchStmt(inner) => { descend_fetch_stmt(inner, depth, scan) }
-        pb::node::Node::IndexStmt(inner) => { descend_index_stmt(inner, depth, scan) }
-        pb::node::Node::CreateStatsStmt(inner) => { descend_create_stats_stmt(inner, depth, scan) }
-        pb::node::Node::StatsElem(inner) => { descend_stats_elem(inner, depth, scan) }
-        pb::node::Node::AlterStatsStmt(inner) => { descend_alter_stats_stmt(inner, depth, scan) }
-        pb::node::Node::CreateFunctionStmt(inner) => { descend_create_function_stmt(inner, depth, scan) }
-        pb::node::Node::FunctionParameter(inner) => { descend_function_parameter(inner, depth, scan) }
-        pb::node::Node::AlterFunctionStmt(inner) => { descend_alter_function_stmt(inner, depth, scan) }
-        pb::node::Node::DoStmt(inner) => { descend_do_stmt(inner, depth, scan) }
-        pb::node::Node::InlineCodeBlock(inner) => { descend_inline_code_block(inner, depth, scan) }
-        pb::node::Node::CallStmt(inner) => { descend_call_stmt(inner, depth, scan) }
-        pb::node::Node::CallContext(inner) => { descend_call_context(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::CommentStmt(inner) => descend_comment_stmt(inner, depth, scan),
+        pb::node::Node::SecLabelStmt(inner) => descend_sec_label_stmt(inner, depth, scan),
+        pb::node::Node::DeclareCursorStmt(inner) => descend_declare_cursor_stmt(inner, depth, scan),
+        pb::node::Node::ClosePortalStmt(inner) => descend_close_portal_stmt(inner, depth, scan),
+        pb::node::Node::FetchStmt(inner) => descend_fetch_stmt(inner, depth, scan),
+        pb::node::Node::IndexStmt(inner) => descend_index_stmt(inner, depth, scan),
+        pb::node::Node::CreateStatsStmt(inner) => descend_create_stats_stmt(inner, depth, scan),
+        pb::node::Node::StatsElem(inner) => descend_stats_elem(inner, depth, scan),
+        pb::node::Node::AlterStatsStmt(inner) => descend_alter_stats_stmt(inner, depth, scan),
+        pb::node::Node::CreateFunctionStmt(inner) => {
+            descend_create_function_stmt(inner, depth, scan)
+        }
+        pb::node::Node::FunctionParameter(inner) => descend_function_parameter(inner, depth, scan),
+        pb::node::Node::AlterFunctionStmt(inner) => descend_alter_function_stmt(inner, depth, scan),
+        pb::node::Node::DoStmt(inner) => descend_do_stmt(inner, depth, scan),
+        pb::node::Node::InlineCodeBlock(inner) => descend_inline_code_block(inner, depth, scan),
+        pb::node::Node::CallStmt(inner) => descend_call_stmt(inner, depth, scan),
+        pb::node::Node::CallContext(inner) => descend_call_context(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_13(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::RenameStmt(inner) => { descend_rename_stmt(inner, depth, scan) }
-        pb::node::Node::AlterObjectDependsStmt(inner) => { descend_alter_object_depends_stmt(inner, depth, scan) }
-        pb::node::Node::AlterObjectSchemaStmt(inner) => { descend_alter_object_schema_stmt(inner, depth, scan) }
-        pb::node::Node::AlterOwnerStmt(inner) => { descend_alter_owner_stmt(inner, depth, scan) }
-        pb::node::Node::AlterOperatorStmt(inner) => { descend_alter_operator_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTypeStmt(inner) => { descend_alter_type_stmt(inner, depth, scan) }
-        pb::node::Node::RuleStmt(inner) => { descend_rule_stmt(inner, depth, scan) }
-        pb::node::Node::NotifyStmt(inner) => { descend_notify_stmt(inner, depth, scan) }
-        pb::node::Node::ListenStmt(inner) => { descend_listen_stmt(inner, depth, scan) }
-        pb::node::Node::UnlistenStmt(inner) => { descend_unlisten_stmt(inner, depth, scan) }
-        pb::node::Node::TransactionStmt(inner) => { descend_transaction_stmt(inner, depth, scan) }
-        pb::node::Node::CompositeTypeStmt(inner) => { descend_composite_type_stmt(inner, depth, scan) }
-        pb::node::Node::CreateEnumStmt(inner) => { descend_create_enum_stmt(inner, depth, scan) }
-        pb::node::Node::CreateRangeStmt(inner) => { descend_create_range_stmt(inner, depth, scan) }
-        pb::node::Node::AlterEnumStmt(inner) => { descend_alter_enum_stmt(inner, depth, scan) }
-        pb::node::Node::ViewStmt(inner) => { descend_view_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::RenameStmt(inner) => descend_rename_stmt(inner, depth, scan),
+        pb::node::Node::AlterObjectDependsStmt(inner) => {
+            descend_alter_object_depends_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterObjectSchemaStmt(inner) => {
+            descend_alter_object_schema_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterOwnerStmt(inner) => descend_alter_owner_stmt(inner, depth, scan),
+        pb::node::Node::AlterOperatorStmt(inner) => descend_alter_operator_stmt(inner, depth, scan),
+        pb::node::Node::AlterTypeStmt(inner) => descend_alter_type_stmt(inner, depth, scan),
+        pb::node::Node::RuleStmt(inner) => descend_rule_stmt(inner, depth, scan),
+        pb::node::Node::NotifyStmt(inner) => descend_notify_stmt(inner, depth, scan),
+        pb::node::Node::ListenStmt(inner) => descend_listen_stmt(inner, depth, scan),
+        pb::node::Node::UnlistenStmt(inner) => descend_unlisten_stmt(inner, depth, scan),
+        pb::node::Node::TransactionStmt(inner) => descend_transaction_stmt(inner, depth, scan),
+        pb::node::Node::CompositeTypeStmt(inner) => descend_composite_type_stmt(inner, depth, scan),
+        pb::node::Node::CreateEnumStmt(inner) => descend_create_enum_stmt(inner, depth, scan),
+        pb::node::Node::CreateRangeStmt(inner) => descend_create_range_stmt(inner, depth, scan),
+        pb::node::Node::AlterEnumStmt(inner) => descend_alter_enum_stmt(inner, depth, scan),
+        pb::node::Node::ViewStmt(inner) => descend_view_stmt(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_14(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::LoadStmt(inner) => { descend_load_stmt(inner, depth, scan) }
-        pb::node::Node::CreatedbStmt(inner) => { descend_createdb_stmt(inner, depth, scan) }
-        pb::node::Node::AlterDatabaseStmt(inner) => { descend_alter_database_stmt(inner, depth, scan) }
-        pb::node::Node::AlterDatabaseRefreshCollStmt(inner) => { descend_alter_database_refresh_coll_stmt(inner, depth, scan) }
-        pb::node::Node::AlterDatabaseSetStmt(inner) => { descend_alter_database_set_stmt(inner, depth, scan) }
-        pb::node::Node::DropdbStmt(inner) => { descend_dropdb_stmt(inner, depth, scan) }
-        pb::node::Node::AlterSystemStmt(inner) => { descend_alter_system_stmt(inner, depth, scan) }
-        pb::node::Node::ClusterStmt(inner) => { descend_cluster_stmt(inner, depth, scan) }
-        pb::node::Node::VacuumStmt(inner) => { descend_vacuum_stmt(inner, depth, scan) }
-        pb::node::Node::VacuumRelation(inner) => { descend_vacuum_relation(inner, depth, scan) }
-        pb::node::Node::ExplainStmt(inner) => { descend_explain_stmt(inner, depth, scan) }
-        pb::node::Node::CreateTableAsStmt(inner) => { descend_create_table_as_stmt(inner, depth, scan) }
-        pb::node::Node::RefreshMatViewStmt(inner) => { descend_refresh_mat_view_stmt(inner, depth, scan) }
-        pb::node::Node::CheckPointStmt(inner) => { descend_check_point_stmt(inner, depth, scan) }
-        pb::node::Node::DiscardStmt(inner) => { descend_discard_stmt(inner, depth, scan) }
-        pb::node::Node::LockStmt(inner) => { descend_lock_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::LoadStmt(inner) => descend_load_stmt(inner, depth, scan),
+        pb::node::Node::CreatedbStmt(inner) => descend_createdb_stmt(inner, depth, scan),
+        pb::node::Node::AlterDatabaseStmt(inner) => descend_alter_database_stmt(inner, depth, scan),
+        pb::node::Node::AlterDatabaseRefreshCollStmt(inner) => {
+            descend_alter_database_refresh_coll_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterDatabaseSetStmt(inner) => {
+            descend_alter_database_set_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DropdbStmt(inner) => descend_dropdb_stmt(inner, depth, scan),
+        pb::node::Node::AlterSystemStmt(inner) => descend_alter_system_stmt(inner, depth, scan),
+        pb::node::Node::ClusterStmt(inner) => descend_cluster_stmt(inner, depth, scan),
+        pb::node::Node::VacuumStmt(inner) => descend_vacuum_stmt(inner, depth, scan),
+        pb::node::Node::VacuumRelation(inner) => descend_vacuum_relation(inner, depth, scan),
+        pb::node::Node::ExplainStmt(inner) => descend_explain_stmt(inner, depth, scan),
+        pb::node::Node::CreateTableAsStmt(inner) => {
+            descend_create_table_as_stmt(inner, depth, scan)
+        }
+        pb::node::Node::RefreshMatViewStmt(inner) => {
+            descend_refresh_mat_view_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CheckPointStmt(inner) => descend_check_point_stmt(inner, depth, scan),
+        pb::node::Node::DiscardStmt(inner) => descend_discard_stmt(inner, depth, scan),
+        pb::node::Node::LockStmt(inner) => descend_lock_stmt(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_15(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::ConstraintsSetStmt(inner) => { descend_constraints_set_stmt(inner, depth, scan) }
-        pb::node::Node::ReindexStmt(inner) => { descend_reindex_stmt(inner, depth, scan) }
-        pb::node::Node::CreateConversionStmt(inner) => { descend_create_conversion_stmt(inner, depth, scan) }
-        pb::node::Node::CreateCastStmt(inner) => { descend_create_cast_stmt(inner, depth, scan) }
-        pb::node::Node::CreateTransformStmt(inner) => { descend_create_transform_stmt(inner, depth, scan) }
-        pb::node::Node::PrepareStmt(inner) => { descend_prepare_stmt(inner, depth, scan) }
-        pb::node::Node::ExecuteStmt(inner) => { descend_execute_stmt(inner, depth, scan) }
-        pb::node::Node::DeallocateStmt(inner) => { descend_deallocate_stmt(inner, depth, scan) }
-        pb::node::Node::DropOwnedStmt(inner) => { descend_drop_owned_stmt(inner, depth, scan) }
-        pb::node::Node::ReassignOwnedStmt(inner) => { descend_reassign_owned_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTsdictionaryStmt(inner) => { descend_alter_ts_dictionary_stmt(inner, depth, scan) }
-        pb::node::Node::AlterTsconfigurationStmt(inner) => { descend_alter_ts_configuration_stmt(inner, depth, scan) }
-        pb::node::Node::PublicationTable(inner) => { descend_publication_table(inner, depth, scan) }
-        pb::node::Node::PublicationObjSpec(inner) => { descend_publication_obj_spec(inner, depth, scan) }
-        pb::node::Node::CreatePublicationStmt(inner) => { descend_create_publication_stmt(inner, depth, scan) }
-        pb::node::Node::AlterPublicationStmt(inner) => { descend_alter_publication_stmt(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::ConstraintsSetStmt(inner) => {
+            descend_constraints_set_stmt(inner, depth, scan)
+        }
+        pb::node::Node::ReindexStmt(inner) => descend_reindex_stmt(inner, depth, scan),
+        pb::node::Node::CreateConversionStmt(inner) => {
+            descend_create_conversion_stmt(inner, depth, scan)
+        }
+        pb::node::Node::CreateCastStmt(inner) => descend_create_cast_stmt(inner, depth, scan),
+        pb::node::Node::CreateTransformStmt(inner) => {
+            descend_create_transform_stmt(inner, depth, scan)
+        }
+        pb::node::Node::PrepareStmt(inner) => descend_prepare_stmt(inner, depth, scan),
+        pb::node::Node::ExecuteStmt(inner) => descend_execute_stmt(inner, depth, scan),
+        pb::node::Node::DeallocateStmt(inner) => descend_deallocate_stmt(inner, depth, scan),
+        pb::node::Node::DropOwnedStmt(inner) => descend_drop_owned_stmt(inner, depth, scan),
+        pb::node::Node::ReassignOwnedStmt(inner) => descend_reassign_owned_stmt(inner, depth, scan),
+        pb::node::Node::AlterTsdictionaryStmt(inner) => {
+            descend_alter_ts_dictionary_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterTsconfigurationStmt(inner) => {
+            descend_alter_ts_configuration_stmt(inner, depth, scan)
+        }
+        pb::node::Node::PublicationTable(inner) => descend_publication_table(inner, depth, scan),
+        pb::node::Node::PublicationObjSpec(inner) => {
+            descend_publication_obj_spec(inner, depth, scan)
+        }
+        pb::node::Node::CreatePublicationStmt(inner) => {
+            descend_create_publication_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterPublicationStmt(inner) => {
+            descend_alter_publication_stmt(inner, depth, scan)
+        }
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
 fn descend_kind_16(kind: &pb::node::Node, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
     match kind {
-        pb::node::Node::CreateSubscriptionStmt(inner) => { descend_create_subscription_stmt(inner, depth, scan) }
-        pb::node::Node::AlterSubscriptionStmt(inner) => { descend_alter_subscription_stmt(inner, depth, scan) }
-        pb::node::Node::DropSubscriptionStmt(inner) => { descend_drop_subscription_stmt(inner, depth, scan) }
-        pb::node::Node::Integer(inner) => { descend_integer(inner, depth, scan) }
-        pb::node::Node::Float(inner) => { descend_float(inner, depth, scan) }
-        pb::node::Node::Boolean(inner) => { descend_boolean(inner, depth, scan) }
-        pb::node::Node::String(inner) => { descend_string(inner, depth, scan) }
-        pb::node::Node::BitString(inner) => { descend_bit_string(inner, depth, scan) }
-        pb::node::Node::List(inner) => { descend_list(inner, depth, scan) }
-        pb::node::Node::IntList(inner) => { descend_int_list(inner, depth, scan) }
-        pb::node::Node::OidList(inner) => { descend_oid_list(inner, depth, scan) }
-        pb::node::Node::AConst(inner) => { descend_a_const(inner, depth, scan) }
-        _ => Err(GuardError::Unsupported { construct: "ast node" }),
+        pb::node::Node::CreateSubscriptionStmt(inner) => {
+            descend_create_subscription_stmt(inner, depth, scan)
+        }
+        pb::node::Node::AlterSubscriptionStmt(inner) => {
+            descend_alter_subscription_stmt(inner, depth, scan)
+        }
+        pb::node::Node::DropSubscriptionStmt(inner) => {
+            descend_drop_subscription_stmt(inner, depth, scan)
+        }
+        pb::node::Node::Integer(inner) => descend_integer(inner, depth, scan),
+        pb::node::Node::Float(inner) => descend_float(inner, depth, scan),
+        pb::node::Node::Boolean(inner) => descend_boolean(inner, depth, scan),
+        pb::node::Node::String(inner) => descend_string(inner, depth, scan),
+        pb::node::Node::BitString(inner) => descend_bit_string(inner, depth, scan),
+        pb::node::Node::List(inner) => descend_list(inner, depth, scan),
+        pb::node::Node::IntList(inner) => descend_int_list(inner, depth, scan),
+        pb::node::Node::OidList(inner) => descend_oid_list(inner, depth, scan),
+        pb::node::Node::AConst(inner) => descend_a_const(inner, depth, scan),
+        _ => Err(GuardError::Unsupported {
+            construct: "ast node",
+        }),
     }
 }
 
-fn descend_a_array_expr(value: &pb::AArrayExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_a_array_expr(
+    value: &pb::AArrayExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.elements {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2648,7 +3271,11 @@ fn descend_a_expr(value: &pb::AExpr, depth: usize, scan: &mut Scan) -> Result<()
     Ok(())
 }
 
-fn descend_a_indices(value: &pb::AIndices, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_a_indices(
+    value: &pb::AIndices,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.lidx {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2658,7 +3285,11 @@ fn descend_a_indices(value: &pb::AIndices, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_a_indirection(value: &pb::AIndirection, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_a_indirection(
+    value: &pb::AIndirection,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.arg {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2672,7 +3303,11 @@ fn descend_a_star(_value: &pb::AStar, _depth: usize, _scan: &mut Scan) -> Result
     Ok(())
 }
 
-fn descend_access_priv(value: &pb::AccessPriv, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_access_priv(
+    value: &pb::AccessPriv,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.cols {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2711,32 +3346,52 @@ fn descend_alias(value: &pb::Alias, depth: usize, scan: &mut Scan) -> Result<(),
     Ok(())
 }
 
-fn descend_alter_collation_stmt(value: &pb::AlterCollationStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_collation_stmt(
+    value: &pb::AlterCollationStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.collname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_database_refresh_coll_stmt(_value: &pb::AlterDatabaseRefreshCollStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_database_refresh_coll_stmt(
+    _value: &pb::AlterDatabaseRefreshCollStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_alter_database_set_stmt(value: &pb::AlterDatabaseSetStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_database_set_stmt(
+    value: &pb::AlterDatabaseSetStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.setstmt {
         descend_variable_set_stmt(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_database_stmt(value: &pb::AlterDatabaseStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_database_stmt(
+    value: &pb::AlterDatabaseStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_default_privileges_stmt(value: &pb::AlterDefaultPrivilegesStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_default_privileges_stmt(
+    value: &pb::AlterDefaultPrivilegesStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2746,7 +3401,11 @@ fn descend_alter_default_privileges_stmt(value: &pb::AlterDefaultPrivilegesStmt,
     Ok(())
 }
 
-fn descend_alter_domain_stmt(value: &pb::AlterDomainStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_domain_stmt(
+    value: &pb::AlterDomainStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.type_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2756,32 +3415,52 @@ fn descend_alter_domain_stmt(value: &pb::AlterDomainStmt, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_alter_enum_stmt(value: &pb::AlterEnumStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_enum_stmt(
+    value: &pb::AlterEnumStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.type_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_event_trig_stmt(_value: &pb::AlterEventTrigStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_event_trig_stmt(
+    _value: &pb::AlterEventTrigStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_alter_extension_contents_stmt(value: &pb::AlterExtensionContentsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_extension_contents_stmt(
+    value: &pb::AlterExtensionContentsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.object {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_extension_stmt(value: &pb::AlterExtensionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_extension_stmt(
+    value: &pb::AlterExtensionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_fdw_stmt(value: &pb::AlterFdwStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_fdw_stmt(
+    value: &pb::AlterFdwStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.func_options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2791,14 +3470,22 @@ fn descend_alter_fdw_stmt(value: &pb::AlterFdwStmt, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_alter_foreign_server_stmt(value: &pb::AlterForeignServerStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_foreign_server_stmt(
+    value: &pb::AlterForeignServerStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_function_stmt(value: &pb::AlterFunctionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_function_stmt(
+    value: &pb::AlterFunctionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.func {
         descend_object_with_args(item, depth.saturating_add(1), scan)?;
     }
@@ -2808,7 +3495,11 @@ fn descend_alter_function_stmt(value: &pb::AlterFunctionStmt, depth: usize, scan
     Ok(())
 }
 
-fn descend_alter_object_depends_stmt(value: &pb::AlterObjectDependsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_object_depends_stmt(
+    value: &pb::AlterObjectDependsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2821,7 +3512,11 @@ fn descend_alter_object_depends_stmt(value: &pb::AlterObjectDependsStmt, depth: 
     Ok(())
 }
 
-fn descend_alter_object_schema_stmt(value: &pb::AlterObjectSchemaStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_object_schema_stmt(
+    value: &pb::AlterObjectSchemaStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2831,7 +3526,11 @@ fn descend_alter_object_schema_stmt(value: &pb::AlterObjectSchemaStmt, depth: us
     Ok(())
 }
 
-fn descend_alter_op_family_stmt(value: &pb::AlterOpFamilyStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_op_family_stmt(
+    value: &pb::AlterOpFamilyStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.opfamilyname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2841,7 +3540,11 @@ fn descend_alter_op_family_stmt(value: &pb::AlterOpFamilyStmt, depth: usize, sca
     Ok(())
 }
 
-fn descend_alter_operator_stmt(value: &pb::AlterOperatorStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_operator_stmt(
+    value: &pb::AlterOperatorStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.opername {
         descend_object_with_args(item, depth.saturating_add(1), scan)?;
     }
@@ -2851,7 +3554,11 @@ fn descend_alter_operator_stmt(value: &pb::AlterOperatorStmt, depth: usize, scan
     Ok(())
 }
 
-fn descend_alter_owner_stmt(value: &pb::AlterOwnerStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_owner_stmt(
+    value: &pb::AlterOwnerStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2864,7 +3571,11 @@ fn descend_alter_owner_stmt(value: &pb::AlterOwnerStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_alter_policy_stmt(value: &pb::AlterPolicyStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_policy_stmt(
+    value: &pb::AlterPolicyStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.table {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2880,7 +3591,11 @@ fn descend_alter_policy_stmt(value: &pb::AlterPolicyStmt, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_alter_publication_stmt(value: &pb::AlterPublicationStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_publication_stmt(
+    value: &pb::AlterPublicationStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2890,7 +3605,11 @@ fn descend_alter_publication_stmt(value: &pb::AlterPublicationStmt, depth: usize
     Ok(())
 }
 
-fn descend_alter_role_set_stmt(value: &pb::AlterRoleSetStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_role_set_stmt(
+    value: &pb::AlterRoleSetStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.role {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -2900,7 +3619,11 @@ fn descend_alter_role_set_stmt(value: &pb::AlterRoleSetStmt, depth: usize, scan:
     Ok(())
 }
 
-fn descend_alter_role_stmt(value: &pb::AlterRoleStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_role_stmt(
+    value: &pb::AlterRoleStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.role {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -2910,7 +3633,11 @@ fn descend_alter_role_stmt(value: &pb::AlterRoleStmt, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_alter_seq_stmt(value: &pb::AlterSeqStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_seq_stmt(
+    value: &pb::AlterSeqStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.sequence {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2920,7 +3647,11 @@ fn descend_alter_seq_stmt(value: &pb::AlterSeqStmt, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_alter_stats_stmt(value: &pb::AlterStatsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_stats_stmt(
+    value: &pb::AlterStatsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.defnames {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2930,7 +3661,11 @@ fn descend_alter_stats_stmt(value: &pb::AlterStatsStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_alter_subscription_stmt(value: &pb::AlterSubscriptionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_subscription_stmt(
+    value: &pb::AlterSubscriptionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.publication {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2940,14 +3675,22 @@ fn descend_alter_subscription_stmt(value: &pb::AlterSubscriptionStmt, depth: usi
     Ok(())
 }
 
-fn descend_alter_system_stmt(value: &pb::AlterSystemStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_system_stmt(
+    value: &pb::AlterSystemStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.setstmt {
         descend_variable_set_stmt(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_table_cmd(value: &pb::AlterTableCmd, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_table_cmd(
+    value: &pb::AlterTableCmd,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.newowner {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -2957,21 +3700,33 @@ fn descend_alter_table_cmd(value: &pb::AlterTableCmd, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_alter_table_move_all_stmt(value: &pb::AlterTableMoveAllStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_table_move_all_stmt(
+    value: &pb::AlterTableMoveAllStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.roles {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_table_space_options_stmt(value: &pb::AlterTableSpaceOptionsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_table_space_options_stmt(
+    value: &pb::AlterTableSpaceOptionsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_alter_table_stmt(value: &pb::AlterTableStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_table_stmt(
+    value: &pb::AlterTableStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -2981,7 +3736,11 @@ fn descend_alter_table_stmt(value: &pb::AlterTableStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_alter_ts_configuration_stmt(value: &pb::AlterTsConfigurationStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_ts_configuration_stmt(
+    value: &pb::AlterTsConfigurationStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.cfgname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -2994,7 +3753,11 @@ fn descend_alter_ts_configuration_stmt(value: &pb::AlterTsConfigurationStmt, dep
     Ok(())
 }
 
-fn descend_alter_ts_dictionary_stmt(value: &pb::AlterTsDictionaryStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_ts_dictionary_stmt(
+    value: &pb::AlterTsDictionaryStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.dictname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3004,7 +3767,11 @@ fn descend_alter_ts_dictionary_stmt(value: &pb::AlterTsDictionaryStmt, depth: us
     Ok(())
 }
 
-fn descend_alter_type_stmt(value: &pb::AlterTypeStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_type_stmt(
+    value: &pb::AlterTypeStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.type_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3014,7 +3781,11 @@ fn descend_alter_type_stmt(value: &pb::AlterTypeStmt, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_alter_user_mapping_stmt(value: &pb::AlterUserMappingStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alter_user_mapping_stmt(
+    value: &pb::AlterUserMappingStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.user {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -3024,7 +3795,11 @@ fn descend_alter_user_mapping_stmt(value: &pb::AlterUserMappingStmt, depth: usiz
     Ok(())
 }
 
-fn descend_alternative_sub_plan(value: &pb::AlternativeSubPlan, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_alternative_sub_plan(
+    value: &pb::AlternativeSubPlan,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3034,7 +3809,11 @@ fn descend_alternative_sub_plan(value: &pb::AlternativeSubPlan, depth: usize, sc
     Ok(())
 }
 
-fn descend_array_coerce_expr(value: &pb::ArrayCoerceExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_array_coerce_expr(
+    value: &pb::ArrayCoerceExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3047,7 +3826,11 @@ fn descend_array_coerce_expr(value: &pb::ArrayCoerceExpr, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_array_expr(value: &pb::ArrayExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_array_expr(
+    value: &pb::ArrayExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3057,11 +3840,19 @@ fn descend_array_expr(value: &pb::ArrayExpr, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_bit_string(_value: &pb::BitString, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_bit_string(
+    _value: &pb::BitString,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_bool_expr(value: &pb::BoolExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_bool_expr(
+    value: &pb::BoolExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3071,11 +3862,19 @@ fn descend_bool_expr(value: &pb::BoolExpr, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_boolean(_value: &pb::Boolean, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_boolean(
+    _value: &pb::Boolean,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_boolean_test(value: &pb::BooleanTest, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_boolean_test(
+    value: &pb::BooleanTest,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3085,11 +3884,19 @@ fn descend_boolean_test(value: &pb::BooleanTest, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_call_context(_value: &pb::CallContext, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_call_context(
+    _value: &pb::CallContext,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_call_stmt(value: &pb::CallStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_call_stmt(
+    value: &pb::CallStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.funccall {
         descend_func_call(item, depth.saturating_add(1), scan)?;
     }
@@ -3102,7 +3909,11 @@ fn descend_call_stmt(value: &pb::CallStmt, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_case_expr(value: &pb::CaseExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_case_expr(
+    value: &pb::CaseExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3118,14 +3929,22 @@ fn descend_case_expr(value: &pb::CaseExpr, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_case_test_expr(value: &pb::CaseTestExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_case_test_expr(
+    value: &pb::CaseTestExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_case_when(value: &pb::CaseWhen, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_case_when(
+    value: &pb::CaseWhen,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3138,15 +3957,27 @@ fn descend_case_when(value: &pb::CaseWhen, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_check_point_stmt(_value: &pb::CheckPointStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_check_point_stmt(
+    _value: &pb::CheckPointStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_close_portal_stmt(_value: &pb::ClosePortalStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_close_portal_stmt(
+    _value: &pb::ClosePortalStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_cluster_stmt(value: &pb::ClusterStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_cluster_stmt(
+    value: &pb::ClusterStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3156,7 +3987,11 @@ fn descend_cluster_stmt(value: &pb::ClusterStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_coalesce_expr(value: &pb::CoalesceExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_coalesce_expr(
+    value: &pb::CoalesceExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3166,7 +4001,11 @@ fn descend_coalesce_expr(value: &pb::CoalesceExpr, depth: usize, scan: &mut Scan
     Ok(())
 }
 
-fn descend_coerce_to_domain(value: &pb::CoerceToDomain, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_coerce_to_domain(
+    value: &pb::CoerceToDomain,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3176,14 +4015,22 @@ fn descend_coerce_to_domain(value: &pb::CoerceToDomain, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_coerce_to_domain_value(value: &pb::CoerceToDomainValue, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_coerce_to_domain_value(
+    value: &pb::CoerceToDomainValue,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_coerce_via_io(value: &pb::CoerceViaIo, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_coerce_via_io(
+    value: &pb::CoerceViaIo,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3193,7 +4040,11 @@ fn descend_coerce_via_io(value: &pb::CoerceViaIo, depth: usize, scan: &mut Scan)
     Ok(())
 }
 
-fn descend_collate_clause(value: &pb::CollateClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_collate_clause(
+    value: &pb::CollateClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.arg {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3203,7 +4054,11 @@ fn descend_collate_clause(value: &pb::CollateClause, depth: usize, scan: &mut Sc
     Ok(())
 }
 
-fn descend_collate_expr(value: &pb::CollateExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_collate_expr(
+    value: &pb::CollateExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3213,7 +4068,11 @@ fn descend_collate_expr(value: &pb::CollateExpr, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_column_def(value: &pb::ColumnDef, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_column_def(
+    value: &pb::ColumnDef,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.type_name {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -3238,21 +4097,33 @@ fn descend_column_def(value: &pb::ColumnDef, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_column_ref(value: &pb::ColumnRef, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_column_ref(
+    value: &pb::ColumnRef,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.fields {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_comment_stmt(value: &pb::CommentStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_comment_stmt(
+    value: &pb::CommentStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.object {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_common_table_expr(value: &pb::CommonTableExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_common_table_expr(
+    value: &pb::CommonTableExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.aliascolnames {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3280,7 +4151,11 @@ fn descend_common_table_expr(value: &pb::CommonTableExpr, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_composite_type_stmt(value: &pb::CompositeTypeStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_composite_type_stmt(
+    value: &pb::CompositeTypeStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.typevar {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3290,13 +4165,21 @@ fn descend_composite_type_stmt(value: &pb::CompositeTypeStmt, depth: usize, scan
     Ok(())
 }
 
-fn descend_constraint(value: &pb::Constraint, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_constraint(
+    value: &pb::Constraint,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     descend_constraint_0(value, depth, scan)?;
     descend_constraint_1(value, depth, scan)?;
     Ok(())
 }
 
-fn descend_constraint_0(value: &pb::Constraint, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_constraint_0(
+    value: &pb::Constraint,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.raw_expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3324,7 +4207,11 @@ fn descend_constraint_0(value: &pb::Constraint, depth: usize, scan: &mut Scan) -
     Ok(())
 }
 
-fn descend_constraint_1(value: &pb::Constraint, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_constraint_1(
+    value: &pb::Constraint,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.pk_attrs {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3337,14 +4224,22 @@ fn descend_constraint_1(value: &pb::Constraint, depth: usize, scan: &mut Scan) -
     Ok(())
 }
 
-fn descend_constraints_set_stmt(value: &pb::ConstraintsSetStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_constraints_set_stmt(
+    value: &pb::ConstraintsSetStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.constraints {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_convert_rowtype_expr(value: &pb::ConvertRowtypeExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_convert_rowtype_expr(
+    value: &pb::ConvertRowtypeExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3354,7 +4249,11 @@ fn descend_convert_rowtype_expr(value: &pb::ConvertRowtypeExpr, depth: usize, sc
     Ok(())
 }
 
-fn descend_copy_stmt(value: &pb::CopyStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_copy_stmt(
+    value: &pb::CopyStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3373,14 +4272,22 @@ fn descend_copy_stmt(value: &pb::CopyStmt, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_create_am_stmt(value: &pb::CreateAmStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_am_stmt(
+    value: &pb::CreateAmStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.handler_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_create_cast_stmt(value: &pb::CreateCastStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_cast_stmt(
+    value: &pb::CreateCastStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.sourcetype {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -3393,7 +4300,11 @@ fn descend_create_cast_stmt(value: &pb::CreateCastStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_create_conversion_stmt(value: &pb::CreateConversionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_conversion_stmt(
+    value: &pb::CreateConversionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.conversion_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3403,7 +4314,11 @@ fn descend_create_conversion_stmt(value: &pb::CreateConversionStmt, depth: usize
     Ok(())
 }
 
-fn descend_create_domain_stmt(value: &pb::CreateDomainStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_domain_stmt(
+    value: &pb::CreateDomainStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.domainname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3419,7 +4334,11 @@ fn descend_create_domain_stmt(value: &pb::CreateDomainStmt, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_create_enum_stmt(value: &pb::CreateEnumStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_enum_stmt(
+    value: &pb::CreateEnumStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.type_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3429,7 +4348,11 @@ fn descend_create_enum_stmt(value: &pb::CreateEnumStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_create_event_trig_stmt(value: &pb::CreateEventTrigStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_event_trig_stmt(
+    value: &pb::CreateEventTrigStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.whenclause {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3439,14 +4362,22 @@ fn descend_create_event_trig_stmt(value: &pb::CreateEventTrigStmt, depth: usize,
     Ok(())
 }
 
-fn descend_create_extension_stmt(value: &pb::CreateExtensionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_extension_stmt(
+    value: &pb::CreateExtensionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_create_fdw_stmt(value: &pb::CreateFdwStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_fdw_stmt(
+    value: &pb::CreateFdwStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.func_options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3456,14 +4387,22 @@ fn descend_create_fdw_stmt(value: &pb::CreateFdwStmt, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_create_foreign_server_stmt(value: &pb::CreateForeignServerStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_foreign_server_stmt(
+    value: &pb::CreateForeignServerStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_create_foreign_table_stmt(value: &pb::CreateForeignTableStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_foreign_table_stmt(
+    value: &pb::CreateForeignTableStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.base_stmt {
         descend_create_stmt(item, depth.saturating_add(1), scan)?;
     }
@@ -3473,7 +4412,11 @@ fn descend_create_foreign_table_stmt(value: &pb::CreateForeignTableStmt, depth: 
     Ok(())
 }
 
-fn descend_create_function_stmt(value: &pb::CreateFunctionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_function_stmt(
+    value: &pb::CreateFunctionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.funcname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3492,7 +4435,11 @@ fn descend_create_function_stmt(value: &pb::CreateFunctionStmt, depth: usize, sc
     Ok(())
 }
 
-fn descend_create_op_class_item(value: &pb::CreateOpClassItem, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_op_class_item(
+    value: &pb::CreateOpClassItem,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.name {
         descend_object_with_args(item, depth.saturating_add(1), scan)?;
     }
@@ -3508,7 +4455,11 @@ fn descend_create_op_class_item(value: &pb::CreateOpClassItem, depth: usize, sca
     Ok(())
 }
 
-fn descend_create_op_class_stmt(value: &pb::CreateOpClassStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_op_class_stmt(
+    value: &pb::CreateOpClassStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.opclassname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3524,14 +4475,22 @@ fn descend_create_op_class_stmt(value: &pb::CreateOpClassStmt, depth: usize, sca
     Ok(())
 }
 
-fn descend_create_op_family_stmt(value: &pb::CreateOpFamilyStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_op_family_stmt(
+    value: &pb::CreateOpFamilyStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.opfamilyname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_create_p_lang_stmt(value: &pb::CreatePLangStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_p_lang_stmt(
+    value: &pb::CreatePLangStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.plhandler {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3544,7 +4503,11 @@ fn descend_create_p_lang_stmt(value: &pb::CreatePLangStmt, depth: usize, scan: &
     Ok(())
 }
 
-fn descend_create_policy_stmt(value: &pb::CreatePolicyStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_policy_stmt(
+    value: &pb::CreatePolicyStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.table {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3560,7 +4523,11 @@ fn descend_create_policy_stmt(value: &pb::CreatePolicyStmt, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_create_publication_stmt(value: &pb::CreatePublicationStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_publication_stmt(
+    value: &pb::CreatePublicationStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3570,7 +4537,11 @@ fn descend_create_publication_stmt(value: &pb::CreatePublicationStmt, depth: usi
     Ok(())
 }
 
-fn descend_create_range_stmt(value: &pb::CreateRangeStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_range_stmt(
+    value: &pb::CreateRangeStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.type_name {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3580,14 +4551,22 @@ fn descend_create_range_stmt(value: &pb::CreateRangeStmt, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_create_role_stmt(value: &pb::CreateRoleStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_role_stmt(
+    value: &pb::CreateRoleStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_create_schema_stmt(value: &pb::CreateSchemaStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_schema_stmt(
+    value: &pb::CreateSchemaStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.authrole {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -3597,7 +4576,11 @@ fn descend_create_schema_stmt(value: &pb::CreateSchemaStmt, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_create_seq_stmt(value: &pb::CreateSeqStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_seq_stmt(
+    value: &pb::CreateSeqStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.sequence {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3607,7 +4590,11 @@ fn descend_create_seq_stmt(value: &pb::CreateSeqStmt, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_create_stats_stmt(value: &pb::CreateStatsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_stats_stmt(
+    value: &pb::CreateStatsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.defnames {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3623,7 +4610,11 @@ fn descend_create_stats_stmt(value: &pb::CreateStatsStmt, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_create_stmt(value: &pb::CreateStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_stmt(
+    value: &pb::CreateStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3651,7 +4642,11 @@ fn descend_create_stmt(value: &pb::CreateStmt, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_create_subscription_stmt(value: &pb::CreateSubscriptionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_subscription_stmt(
+    value: &pb::CreateSubscriptionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.publication {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3661,7 +4656,11 @@ fn descend_create_subscription_stmt(value: &pb::CreateSubscriptionStmt, depth: u
     Ok(())
 }
 
-fn descend_create_table_as_stmt(value: &pb::CreateTableAsStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_table_as_stmt(
+    value: &pb::CreateTableAsStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.query {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3671,7 +4670,11 @@ fn descend_create_table_as_stmt(value: &pb::CreateTableAsStmt, depth: usize, sca
     Ok(())
 }
 
-fn descend_create_table_space_stmt(value: &pb::CreateTableSpaceStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_table_space_stmt(
+    value: &pb::CreateTableSpaceStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.owner {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -3681,7 +4684,11 @@ fn descend_create_table_space_stmt(value: &pb::CreateTableSpaceStmt, depth: usiz
     Ok(())
 }
 
-fn descend_create_transform_stmt(value: &pb::CreateTransformStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_transform_stmt(
+    value: &pb::CreateTransformStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.type_name {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -3694,7 +4701,11 @@ fn descend_create_transform_stmt(value: &pb::CreateTransformStmt, depth: usize, 
     Ok(())
 }
 
-fn descend_create_trig_stmt(value: &pb::CreateTrigStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_trig_stmt(
+    value: &pb::CreateTrigStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3719,7 +4730,11 @@ fn descend_create_trig_stmt(value: &pb::CreateTrigStmt, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_create_user_mapping_stmt(value: &pb::CreateUserMappingStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_create_user_mapping_stmt(
+    value: &pb::CreateUserMappingStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.user {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
@@ -3729,14 +4744,22 @@ fn descend_create_user_mapping_stmt(value: &pb::CreateUserMappingStmt, depth: us
     Ok(())
 }
 
-fn descend_createdb_stmt(value: &pb::CreatedbStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_createdb_stmt(
+    value: &pb::CreatedbStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_cte_cycle_clause(value: &pb::CteCycleClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_cte_cycle_clause(
+    value: &pb::CteCycleClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.cycle_col_list {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3749,25 +4772,41 @@ fn descend_cte_cycle_clause(value: &pb::CteCycleClause, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_cte_search_clause(value: &pb::CteSearchClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_cte_search_clause(
+    value: &pb::CteSearchClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.search_col_list {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_current_of_expr(value: &pb::CurrentOfExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_current_of_expr(
+    value: &pb::CurrentOfExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_deallocate_stmt(_value: &pb::DeallocateStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_deallocate_stmt(
+    _value: &pb::DeallocateStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_declare_cursor_stmt(value: &pb::DeclareCursorStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_declare_cursor_stmt(
+    value: &pb::DeclareCursorStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.query {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3781,7 +4820,11 @@ fn descend_def_elem(value: &pb::DefElem, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_define_stmt(value: &pb::DefineStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_define_stmt(
+    value: &pb::DefineStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.defnames {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3794,7 +4837,11 @@ fn descend_define_stmt(value: &pb::DefineStmt, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_delete_stmt(value: &pb::DeleteStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_delete_stmt(
+    value: &pb::DeleteStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -3813,11 +4860,19 @@ fn descend_delete_stmt(value: &pb::DeleteStmt, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_discard_stmt(_value: &pb::DiscardStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_discard_stmt(
+    _value: &pb::DiscardStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_distinct_expr(value: &pb::DistinctExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_distinct_expr(
+    value: &pb::DistinctExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3834,57 +4889,93 @@ fn descend_do_stmt(value: &pb::DoStmt, depth: usize, scan: &mut Scan) -> Result<
     Ok(())
 }
 
-fn descend_drop_owned_stmt(value: &pb::DropOwnedStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_owned_stmt(
+    value: &pb::DropOwnedStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.roles {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_drop_role_stmt(value: &pb::DropRoleStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_role_stmt(
+    value: &pb::DropRoleStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.roles {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_drop_stmt(value: &pb::DropStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_stmt(
+    value: &pb::DropStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.objects {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_drop_subscription_stmt(_value: &pb::DropSubscriptionStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_subscription_stmt(
+    _value: &pb::DropSubscriptionStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_drop_table_space_stmt(_value: &pb::DropTableSpaceStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_table_space_stmt(
+    _value: &pb::DropTableSpaceStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_drop_user_mapping_stmt(value: &pb::DropUserMappingStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_drop_user_mapping_stmt(
+    value: &pb::DropUserMappingStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.user {
         descend_role_spec(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_dropdb_stmt(value: &pb::DropdbStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_dropdb_stmt(
+    value: &pb::DropdbStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_execute_stmt(value: &pb::ExecuteStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_execute_stmt(
+    value: &pb::ExecuteStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.params {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_explain_stmt(value: &pb::ExplainStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_explain_stmt(
+    value: &pb::ExplainStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.query {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3894,11 +4985,19 @@ fn descend_explain_stmt(value: &pb::ExplainStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_fetch_stmt(_value: &pb::FetchStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_fetch_stmt(
+    _value: &pb::FetchStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_field_select(value: &pb::FieldSelect, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_field_select(
+    value: &pb::FieldSelect,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3908,7 +5007,11 @@ fn descend_field_select(value: &pb::FieldSelect, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_field_store(value: &pb::FieldStore, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_field_store(
+    value: &pb::FieldStore,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3928,7 +5031,11 @@ fn descend_float(_value: &pb::Float, _depth: usize, _scan: &mut Scan) -> Result<
     Ok(())
 }
 
-fn descend_from_expr(value: &pb::FromExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_from_expr(
+    value: &pb::FromExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.fromlist {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3938,7 +5045,11 @@ fn descend_from_expr(value: &pb::FromExpr, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_func_call(value: &pb::FuncCall, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_func_call(
+    value: &pb::FuncCall,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.funcname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3957,7 +5068,11 @@ fn descend_func_call(value: &pb::FuncCall, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_func_expr(value: &pb::FuncExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_func_expr(
+    value: &pb::FuncExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3967,7 +5082,11 @@ fn descend_func_expr(value: &pb::FuncExpr, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_function_parameter(value: &pb::FunctionParameter, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_function_parameter(
+    value: &pb::FunctionParameter,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.arg_type {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -3977,7 +5096,11 @@ fn descend_function_parameter(value: &pb::FunctionParameter, depth: usize, scan:
     Ok(())
 }
 
-fn descend_grant_role_stmt(value: &pb::GrantRoleStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_grant_role_stmt(
+    value: &pb::GrantRoleStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.granted_roles {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -3993,7 +5116,11 @@ fn descend_grant_role_stmt(value: &pb::GrantRoleStmt, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_grant_stmt(value: &pb::GrantStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_grant_stmt(
+    value: &pb::GrantStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.objects {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4009,7 +5136,11 @@ fn descend_grant_stmt(value: &pb::GrantStmt, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_grouping_func(value: &pb::GroupingFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_grouping_func(
+    value: &pb::GroupingFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4022,14 +5153,22 @@ fn descend_grouping_func(value: &pb::GroupingFunc, depth: usize, scan: &mut Scan
     Ok(())
 }
 
-fn descend_grouping_set(value: &pb::GroupingSet, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_grouping_set(
+    value: &pb::GroupingSet,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.content {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_import_foreign_schema_stmt(value: &pb::ImportForeignSchemaStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_import_foreign_schema_stmt(
+    value: &pb::ImportForeignSchemaStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.table_list {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4039,7 +5178,11 @@ fn descend_import_foreign_schema_stmt(value: &pb::ImportForeignSchemaStmt, depth
     Ok(())
 }
 
-fn descend_index_elem(value: &pb::IndexElem, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_index_elem(
+    value: &pb::IndexElem,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4055,7 +5198,11 @@ fn descend_index_elem(value: &pb::IndexElem, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_index_stmt(value: &pb::IndexStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_index_stmt(
+    value: &pb::IndexStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4077,7 +5224,11 @@ fn descend_index_stmt(value: &pb::IndexStmt, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_infer_clause(value: &pb::InferClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_infer_clause(
+    value: &pb::InferClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.index_elems {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4087,7 +5238,11 @@ fn descend_infer_clause(value: &pb::InferClause, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_inference_elem(value: &pb::InferenceElem, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_inference_elem(
+    value: &pb::InferenceElem,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4097,11 +5252,19 @@ fn descend_inference_elem(value: &pb::InferenceElem, depth: usize, scan: &mut Sc
     Ok(())
 }
 
-fn descend_inline_code_block(_value: &pb::InlineCodeBlock, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_inline_code_block(
+    _value: &pb::InlineCodeBlock,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_insert_stmt(value: &pb::InsertStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_insert_stmt(
+    value: &pb::InsertStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4130,11 +5293,19 @@ fn descend_int_list(value: &pb::IntList, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_integer(_value: &pb::Integer, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_integer(
+    _value: &pb::Integer,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_into_clause(value: &pb::IntoClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_into_clause(
+    value: &pb::IntoClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.rel {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4150,7 +5321,11 @@ fn descend_into_clause(value: &pb::IntoClause, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_join_expr(value: &pb::JoinExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_join_expr(
+    value: &pb::JoinExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.larg {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4172,7 +5347,11 @@ fn descend_join_expr(value: &pb::JoinExpr, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_json_agg_constructor(value: &pb::JsonAggConstructor, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_agg_constructor(
+    value: &pb::JsonAggConstructor,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.output {
         descend_json_output(item, depth.saturating_add(1), scan)?;
     }
@@ -4188,14 +5367,22 @@ fn descend_json_agg_constructor(value: &pb::JsonAggConstructor, depth: usize, sc
     Ok(())
 }
 
-fn descend_json_argument(value: &pb::JsonArgument, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_argument(
+    value: &pb::JsonArgument,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.val {
         descend_json_value_expr(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_json_array_agg(value: &pb::JsonArrayAgg, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_array_agg(
+    value: &pb::JsonArrayAgg,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.constructor {
         descend_json_agg_constructor(item, depth.saturating_add(1), scan)?;
     }
@@ -4205,7 +5392,11 @@ fn descend_json_array_agg(value: &pb::JsonArrayAgg, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_json_array_constructor(value: &pb::JsonArrayConstructor, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_array_constructor(
+    value: &pb::JsonArrayConstructor,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.exprs {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4215,7 +5406,11 @@ fn descend_json_array_constructor(value: &pb::JsonArrayConstructor, depth: usize
     Ok(())
 }
 
-fn descend_json_array_query_constructor(value: &pb::JsonArrayQueryConstructor, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_array_query_constructor(
+    value: &pb::JsonArrayQueryConstructor,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.query {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4228,14 +5423,22 @@ fn descend_json_array_query_constructor(value: &pb::JsonArrayQueryConstructor, d
     Ok(())
 }
 
-fn descend_json_behavior(value: &pb::JsonBehavior, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_behavior(
+    value: &pb::JsonBehavior,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_json_constructor_expr(value: &pb::JsonConstructorExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_constructor_expr(
+    value: &pb::JsonConstructorExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4254,13 +5457,21 @@ fn descend_json_constructor_expr(value: &pb::JsonConstructorExpr, depth: usize, 
     Ok(())
 }
 
-fn descend_json_expr(value: &pb::JsonExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_expr(
+    value: &pb::JsonExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     descend_json_expr_0(value, depth, scan)?;
     descend_json_expr_1(value, depth, scan)?;
     Ok(())
 }
 
-fn descend_json_expr_0(value: &pb::JsonExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_expr_0(
+    value: &pb::JsonExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4288,18 +5499,30 @@ fn descend_json_expr_0(value: &pb::JsonExpr, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_json_expr_1(value: &pb::JsonExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_expr_1(
+    value: &pb::JsonExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.on_error {
         descend_json_behavior(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_json_format(_value: &pb::JsonFormat, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_format(
+    _value: &pb::JsonFormat,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_json_func_expr(value: &pb::JsonFuncExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_func_expr(
+    value: &pb::JsonFuncExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.context_item {
         descend_json_value_expr(item, depth.saturating_add(1), scan)?;
     }
@@ -4321,7 +5544,11 @@ fn descend_json_func_expr(value: &pb::JsonFuncExpr, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_json_is_predicate(value: &pb::JsonIsPredicate, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_is_predicate(
+    value: &pb::JsonIsPredicate,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4331,7 +5558,11 @@ fn descend_json_is_predicate(value: &pb::JsonIsPredicate, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_json_key_value(value: &pb::JsonKeyValue, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_key_value(
+    value: &pb::JsonKeyValue,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.key {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4341,7 +5572,11 @@ fn descend_json_key_value(value: &pb::JsonKeyValue, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_json_object_agg(value: &pb::JsonObjectAgg, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_object_agg(
+    value: &pb::JsonObjectAgg,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.constructor {
         descend_json_agg_constructor(item, depth.saturating_add(1), scan)?;
     }
@@ -4351,7 +5586,11 @@ fn descend_json_object_agg(value: &pb::JsonObjectAgg, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_json_object_constructor(value: &pb::JsonObjectConstructor, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_object_constructor(
+    value: &pb::JsonObjectConstructor,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.exprs {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4361,7 +5600,11 @@ fn descend_json_object_constructor(value: &pb::JsonObjectConstructor, depth: usi
     Ok(())
 }
 
-fn descend_json_output(value: &pb::JsonOutput, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_output(
+    value: &pb::JsonOutput,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.type_name {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -4371,7 +5614,11 @@ fn descend_json_output(value: &pb::JsonOutput, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_json_parse_expr(value: &pb::JsonParseExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_parse_expr(
+    value: &pb::JsonParseExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.expr {
         descend_json_value_expr(item, depth.saturating_add(1), scan)?;
     }
@@ -4381,14 +5628,22 @@ fn descend_json_parse_expr(value: &pb::JsonParseExpr, depth: usize, scan: &mut S
     Ok(())
 }
 
-fn descend_json_returning(value: &pb::JsonReturning, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_returning(
+    value: &pb::JsonReturning,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.format {
         descend_json_format(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_json_scalar_expr(value: &pb::JsonScalarExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_scalar_expr(
+    value: &pb::JsonScalarExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4398,7 +5653,11 @@ fn descend_json_scalar_expr(value: &pb::JsonScalarExpr, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_json_serialize_expr(value: &pb::JsonSerializeExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_serialize_expr(
+    value: &pb::JsonSerializeExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.expr {
         descend_json_value_expr(item, depth.saturating_add(1), scan)?;
     }
@@ -4408,7 +5667,11 @@ fn descend_json_serialize_expr(value: &pb::JsonSerializeExpr, depth: usize, scan
     Ok(())
 }
 
-fn descend_json_table(value: &pb::JsonTable, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table(
+    value: &pb::JsonTable,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.context_item {
         descend_json_value_expr(item, depth.saturating_add(1), scan)?;
     }
@@ -4430,7 +5693,11 @@ fn descend_json_table(value: &pb::JsonTable, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_json_table_column(value: &pb::JsonTableColumn, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table_column(
+    value: &pb::JsonTableColumn,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.type_name {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -4452,11 +5719,19 @@ fn descend_json_table_column(value: &pb::JsonTableColumn, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_json_table_path(_value: &pb::JsonTablePath, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table_path(
+    _value: &pb::JsonTablePath,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_json_table_path_scan(value: &pb::JsonTablePathScan, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table_path_scan(
+    value: &pb::JsonTablePathScan,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.plan {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4469,14 +5744,22 @@ fn descend_json_table_path_scan(value: &pb::JsonTablePathScan, depth: usize, sca
     Ok(())
 }
 
-fn descend_json_table_path_spec(value: &pb::JsonTablePathSpec, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table_path_spec(
+    value: &pb::JsonTablePathSpec,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.string {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_json_table_sibling_join(value: &pb::JsonTableSiblingJoin, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_table_sibling_join(
+    value: &pb::JsonTableSiblingJoin,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.plan {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4489,7 +5772,11 @@ fn descend_json_table_sibling_join(value: &pb::JsonTableSiblingJoin, depth: usiz
     Ok(())
 }
 
-fn descend_json_value_expr(value: &pb::JsonValueExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_json_value_expr(
+    value: &pb::JsonValueExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.raw_expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4509,29 +5796,49 @@ fn descend_list(value: &pb::List, depth: usize, scan: &mut Scan) -> Result<(), G
     Ok(())
 }
 
-fn descend_listen_stmt(_value: &pb::ListenStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_listen_stmt(
+    _value: &pb::ListenStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_load_stmt(_value: &pb::LoadStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_load_stmt(
+    _value: &pb::LoadStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_lock_stmt(value: &pb::LockStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_lock_stmt(
+    value: &pb::LockStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.relations {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_locking_clause(value: &pb::LockingClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_locking_clause(
+    value: &pb::LockingClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.locked_rels {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_merge_action(value: &pb::MergeAction, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_merge_action(
+    value: &pb::MergeAction,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.qual {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4544,7 +5851,11 @@ fn descend_merge_action(value: &pb::MergeAction, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_merge_stmt(value: &pb::MergeStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_merge_stmt(
+    value: &pb::MergeStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4566,14 +5877,22 @@ fn descend_merge_stmt(value: &pb::MergeStmt, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_merge_support_func(value: &pb::MergeSupportFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_merge_support_func(
+    value: &pb::MergeSupportFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_merge_when_clause(value: &pb::MergeWhenClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_merge_when_clause(
+    value: &pb::MergeWhenClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.condition {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4586,7 +5905,11 @@ fn descend_merge_when_clause(value: &pb::MergeWhenClause, depth: usize, scan: &m
     Ok(())
 }
 
-fn descend_min_max_expr(value: &pb::MinMaxExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_min_max_expr(
+    value: &pb::MinMaxExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4596,14 +5919,22 @@ fn descend_min_max_expr(value: &pb::MinMaxExpr, depth: usize, scan: &mut Scan) -
     Ok(())
 }
 
-fn descend_multi_assign_ref(value: &pb::MultiAssignRef, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_multi_assign_ref(
+    value: &pb::MultiAssignRef,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.source {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_named_arg_expr(value: &pb::NamedArgExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_named_arg_expr(
+    value: &pb::NamedArgExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4613,18 +5944,30 @@ fn descend_named_arg_expr(value: &pb::NamedArgExpr, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_next_value_expr(value: &pb::NextValueExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_next_value_expr(
+    value: &pb::NextValueExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_notify_stmt(_value: &pb::NotifyStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_notify_stmt(
+    _value: &pb::NotifyStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_null_if_expr(value: &pb::NullIfExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_null_if_expr(
+    value: &pb::NullIfExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4634,7 +5977,11 @@ fn descend_null_if_expr(value: &pb::NullIfExpr, depth: usize, scan: &mut Scan) -
     Ok(())
 }
 
-fn descend_null_test(value: &pb::NullTest, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_null_test(
+    value: &pb::NullTest,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4644,7 +5991,11 @@ fn descend_null_test(value: &pb::NullTest, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_object_with_args(value: &pb::ObjectWithArgs, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_object_with_args(
+    value: &pb::ObjectWithArgs,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.objname {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4664,7 +6015,11 @@ fn descend_oid_list(value: &pb::OidList, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_on_conflict_clause(value: &pb::OnConflictClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_on_conflict_clause(
+    value: &pb::OnConflictClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.infer {
         descend_infer_clause(item, depth.saturating_add(1), scan)?;
     }
@@ -4677,7 +6032,11 @@ fn descend_on_conflict_clause(value: &pb::OnConflictClause, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_on_conflict_expr(value: &pb::OnConflictExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_on_conflict_expr(
+    value: &pb::OnConflictExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.arbiter_elems {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4713,11 +6072,19 @@ fn descend_param(value: &pb::Param, depth: usize, scan: &mut Scan) -> Result<(),
     Ok(())
 }
 
-fn descend_param_ref(_value: &pb::ParamRef, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_param_ref(
+    _value: &pb::ParamRef,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_partition_bound_spec(value: &pb::PartitionBoundSpec, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_partition_bound_spec(
+    value: &pb::PartitionBoundSpec,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.listdatums {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4730,7 +6097,11 @@ fn descend_partition_bound_spec(value: &pb::PartitionBoundSpec, depth: usize, sc
     Ok(())
 }
 
-fn descend_partition_cmd(value: &pb::PartitionCmd, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_partition_cmd(
+    value: &pb::PartitionCmd,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.name {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4740,7 +6111,11 @@ fn descend_partition_cmd(value: &pb::PartitionCmd, depth: usize, scan: &mut Scan
     Ok(())
 }
 
-fn descend_partition_elem(value: &pb::PartitionElem, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_partition_elem(
+    value: &pb::PartitionElem,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4753,21 +6128,33 @@ fn descend_partition_elem(value: &pb::PartitionElem, depth: usize, scan: &mut Sc
     Ok(())
 }
 
-fn descend_partition_range_datum(value: &pb::PartitionRangeDatum, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_partition_range_datum(
+    value: &pb::PartitionRangeDatum,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.value {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_partition_spec(value: &pb::PartitionSpec, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_partition_spec(
+    value: &pb::PartitionSpec,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.part_params {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_pl_assign_stmt(value: &pb::PlAssignStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_pl_assign_stmt(
+    value: &pb::PlAssignStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.indirection {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4777,7 +6164,11 @@ fn descend_pl_assign_stmt(value: &pb::PlAssignStmt, depth: usize, scan: &mut Sca
     Ok(())
 }
 
-fn descend_prepare_stmt(value: &pb::PrepareStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_prepare_stmt(
+    value: &pb::PrepareStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.argtypes {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4787,14 +6178,22 @@ fn descend_prepare_stmt(value: &pb::PrepareStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_publication_obj_spec(value: &pb::PublicationObjSpec, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_publication_obj_spec(
+    value: &pb::PublicationObjSpec,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.pubtable {
         descend_publication_table(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_publication_table(value: &pb::PublicationTable, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_publication_table(
+    value: &pb::PublicationTable,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -4892,7 +6291,11 @@ fn descend_query_2(value: &pb::Query, depth: usize, scan: &mut Scan) -> Result<(
     Ok(())
 }
 
-fn descend_range_function(value: &pb::RangeFunction, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_function(
+    value: &pb::RangeFunction,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.functions {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4905,7 +6308,11 @@ fn descend_range_function(value: &pb::RangeFunction, depth: usize, scan: &mut Sc
     Ok(())
 }
 
-fn descend_range_subselect(value: &pb::RangeSubselect, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_subselect(
+    value: &pb::RangeSubselect,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.subquery {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4915,7 +6322,11 @@ fn descend_range_subselect(value: &pb::RangeSubselect, depth: usize, scan: &mut 
     Ok(())
 }
 
-fn descend_range_table_func(value: &pb::RangeTableFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_table_func(
+    value: &pb::RangeTableFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.docexpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4934,7 +6345,11 @@ fn descend_range_table_func(value: &pb::RangeTableFunc, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_range_table_func_col(value: &pb::RangeTableFuncCol, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_table_func_col(
+    value: &pb::RangeTableFuncCol,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.type_name {
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
@@ -4947,7 +6362,11 @@ fn descend_range_table_func_col(value: &pb::RangeTableFuncCol, depth: usize, sca
     Ok(())
 }
 
-fn descend_range_table_sample(value: &pb::RangeTableSample, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_table_sample(
+    value: &pb::RangeTableSample,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.relation {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -4963,13 +6382,21 @@ fn descend_range_table_sample(value: &pb::RangeTableSample, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_range_tbl_entry(value: &pb::RangeTblEntry, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_tbl_entry(
+    value: &pb::RangeTblEntry,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     descend_range_tbl_entry_0(value, depth, scan)?;
     descend_range_tbl_entry_1(value, depth, scan)?;
     Ok(())
 }
 
-fn descend_range_tbl_entry_0(value: &pb::RangeTblEntry, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_tbl_entry_0(
+    value: &pb::RangeTblEntry,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.alias {
         descend_alias(item, depth.saturating_add(1), scan)?;
     }
@@ -4997,7 +6424,11 @@ fn descend_range_tbl_entry_0(value: &pb::RangeTblEntry, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_range_tbl_entry_1(value: &pb::RangeTblEntry, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_tbl_entry_1(
+    value: &pb::RangeTblEntry,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.functions {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5022,7 +6453,11 @@ fn descend_range_tbl_entry_1(value: &pb::RangeTblEntry, depth: usize, scan: &mut
     Ok(())
 }
 
-fn descend_range_tbl_function(value: &pb::RangeTblFunction, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_tbl_function(
+    value: &pb::RangeTblFunction,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.funcexpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5041,11 +6476,19 @@ fn descend_range_tbl_function(value: &pb::RangeTblFunction, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_range_tbl_ref(_value: &pb::RangeTblRef, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_tbl_ref(
+    _value: &pb::RangeTblRef,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_range_var(value: &pb::RangeVar, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_range_var(
+    value: &pb::RangeVar,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.alias {
         descend_alias(item, depth.saturating_add(1), scan)?;
     }
@@ -5059,7 +6502,11 @@ fn descend_raw_stmt(value: &pb::RawStmt, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_reassign_owned_stmt(value: &pb::ReassignOwnedStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_reassign_owned_stmt(
+    value: &pb::ReassignOwnedStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.roles {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5069,14 +6516,22 @@ fn descend_reassign_owned_stmt(value: &pb::ReassignOwnedStmt, depth: usize, scan
     Ok(())
 }
 
-fn descend_refresh_mat_view_stmt(value: &pb::RefreshMatViewStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_refresh_mat_view_stmt(
+    value: &pb::RefreshMatViewStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_reindex_stmt(value: &pb::ReindexStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_reindex_stmt(
+    value: &pb::ReindexStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5086,7 +6541,11 @@ fn descend_reindex_stmt(value: &pb::ReindexStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_relabel_type(value: &pb::RelabelType, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_relabel_type(
+    value: &pb::RelabelType,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5096,7 +6555,11 @@ fn descend_relabel_type(value: &pb::RelabelType, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_rename_stmt(value: &pb::RenameStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_rename_stmt(
+    value: &pb::RenameStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5106,11 +6569,19 @@ fn descend_rename_stmt(value: &pb::RenameStmt, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_replica_identity_stmt(_value: &pb::ReplicaIdentityStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_replica_identity_stmt(
+    _value: &pb::ReplicaIdentityStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_res_target(value: &pb::ResTarget, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_res_target(
+    value: &pb::ResTarget,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.indirection {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5120,18 +6591,30 @@ fn descend_res_target(value: &pb::ResTarget, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_return_stmt(value: &pb::ReturnStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_return_stmt(
+    value: &pb::ReturnStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.returnval {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_role_spec(_value: &pb::RoleSpec, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_role_spec(
+    _value: &pb::RoleSpec,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_row_compare_expr(value: &pb::RowCompareExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_row_compare_expr(
+    value: &pb::RowCompareExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5166,15 +6649,27 @@ fn descend_row_expr(value: &pb::RowExpr, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_row_mark_clause(_value: &pb::RowMarkClause, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_row_mark_clause(
+    _value: &pb::RowMarkClause,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_rte_permission_info(_value: &pb::RtePermissionInfo, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_rte_permission_info(
+    _value: &pb::RtePermissionInfo,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_rule_stmt(value: &pb::RuleStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_rule_stmt(
+    value: &pb::RuleStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5187,7 +6682,11 @@ fn descend_rule_stmt(value: &pb::RuleStmt, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_scalar_array_op_expr(value: &pb::ScalarArrayOpExpr, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_scalar_array_op_expr(
+    value: &pb::ScalarArrayOpExpr,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5197,20 +6696,32 @@ fn descend_scalar_array_op_expr(value: &pb::ScalarArrayOpExpr, depth: usize, sca
     Ok(())
 }
 
-fn descend_sec_label_stmt(value: &pb::SecLabelStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_sec_label_stmt(
+    value: &pb::SecLabelStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.object {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_select_stmt(value: &pb::SelectStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_select_stmt(
+    value: &pb::SelectStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     descend_select_stmt_0(value, depth, scan)?;
     descend_select_stmt_1(value, depth, scan)?;
     Ok(())
 }
 
-fn descend_select_stmt_0(value: &pb::SelectStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_select_stmt_0(
+    value: &pb::SelectStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.distinct_clause {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5238,7 +6749,11 @@ fn descend_select_stmt_0(value: &pb::SelectStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_select_stmt_1(value: &pb::SelectStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_select_stmt_1(
+    value: &pb::SelectStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.values_lists {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5266,7 +6781,11 @@ fn descend_select_stmt_1(value: &pb::SelectStmt, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_set_operation_stmt(value: &pb::SetOperationStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_set_operation_stmt(
+    value: &pb::SetOperationStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.larg {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5288,14 +6807,22 @@ fn descend_set_operation_stmt(value: &pb::SetOperationStmt, depth: usize, scan: 
     Ok(())
 }
 
-fn descend_set_to_default(value: &pb::SetToDefault, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_set_to_default(
+    value: &pb::SetToDefault,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_single_partition_spec(_value: &pb::SinglePartitionSpec, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_single_partition_spec(
+    _value: &pb::SinglePartitionSpec,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
@@ -5309,18 +6836,30 @@ fn descend_sort_by(value: &pb::SortBy, depth: usize, scan: &mut Scan) -> Result<
     Ok(())
 }
 
-fn descend_sort_group_clause(_value: &pb::SortGroupClause, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_sort_group_clause(
+    _value: &pb::SortGroupClause,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_sql_value_function(value: &pb::SqlValueFunction, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_sql_value_function(
+    value: &pb::SqlValueFunction,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_stats_elem(value: &pb::StatsElem, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_stats_elem(
+    value: &pb::StatsElem,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5369,7 +6908,11 @@ fn descend_sub_plan(value: &pb::SubPlan, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_subscripting_ref(value: &pb::SubscriptingRef, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_subscripting_ref(
+    value: &pb::SubscriptingRef,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5388,13 +6931,21 @@ fn descend_subscripting_ref(value: &pb::SubscriptingRef, depth: usize, scan: &mu
     Ok(())
 }
 
-fn descend_table_func(value: &pb::TableFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_table_func(
+    value: &pb::TableFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     descend_table_func_0(value, depth, scan)?;
     descend_table_func_1(value, depth, scan)?;
     Ok(())
 }
 
-fn descend_table_func_0(value: &pb::TableFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_table_func_0(
+    value: &pb::TableFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.ns_uris {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5422,7 +6973,11 @@ fn descend_table_func_0(value: &pb::TableFunc, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_table_func_1(value: &pb::TableFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_table_func_1(
+    value: &pb::TableFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.colexprs {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5441,14 +6996,22 @@ fn descend_table_func_1(value: &pb::TableFunc, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_table_like_clause(value: &pb::TableLikeClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_table_like_clause(
+    value: &pb::TableLikeClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_table_sample_clause(value: &pb::TableSampleClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_table_sample_clause(
+    value: &pb::TableSampleClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.args {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5458,7 +7021,11 @@ fn descend_table_sample_clause(value: &pb::TableSampleClause, depth: usize, scan
     Ok(())
 }
 
-fn descend_target_entry(value: &pb::TargetEntry, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_target_entry(
+    value: &pb::TargetEntry,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5468,25 +7035,41 @@ fn descend_target_entry(value: &pb::TargetEntry, depth: usize, scan: &mut Scan) 
     Ok(())
 }
 
-fn descend_transaction_stmt(value: &pb::TransactionStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_transaction_stmt(
+    value: &pb::TransactionStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_trigger_transition(_value: &pb::TriggerTransition, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_trigger_transition(
+    _value: &pb::TriggerTransition,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_truncate_stmt(value: &pb::TruncateStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_truncate_stmt(
+    value: &pb::TruncateStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.relations {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_type_cast(value: &pb::TypeCast, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_type_cast(
+    value: &pb::TypeCast,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.arg {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5496,7 +7079,11 @@ fn descend_type_cast(value: &pb::TypeCast, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_type_name(value: &pb::TypeName, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_type_name(
+    value: &pb::TypeName,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.names {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5509,11 +7096,19 @@ fn descend_type_name(value: &pb::TypeName, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_unlisten_stmt(_value: &pb::UnlistenStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_unlisten_stmt(
+    _value: &pb::UnlistenStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_update_stmt(value: &pb::UpdateStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_update_stmt(
+    value: &pb::UpdateStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5535,7 +7130,11 @@ fn descend_update_stmt(value: &pb::UpdateStmt, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_vacuum_relation(value: &pb::VacuumRelation, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_vacuum_relation(
+    value: &pb::VacuumRelation,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.relation {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5545,7 +7144,11 @@ fn descend_vacuum_relation(value: &pb::VacuumRelation, depth: usize, scan: &mut 
     Ok(())
 }
 
-fn descend_vacuum_stmt(value: &pb::VacuumStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_vacuum_stmt(
+    value: &pb::VacuumStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.options {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5562,18 +7165,30 @@ fn descend_var(value: &pb::Var, depth: usize, scan: &mut Scan) -> Result<(), Gua
     Ok(())
 }
 
-fn descend_variable_set_stmt(value: &pb::VariableSetStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_variable_set_stmt(
+    value: &pb::VariableSetStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.args {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_variable_show_stmt(_value: &pb::VariableShowStmt, _depth: usize, _scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_variable_show_stmt(
+    _value: &pb::VariableShowStmt,
+    _depth: usize,
+    _scan: &mut Scan,
+) -> Result<(), GuardError> {
     Ok(())
 }
 
-fn descend_view_stmt(value: &pb::ViewStmt, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_view_stmt(
+    value: &pb::ViewStmt,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(item) = &value.view {
         descend_range_var(item, depth.saturating_add(1), scan)?;
     }
@@ -5589,7 +7204,11 @@ fn descend_view_stmt(value: &pb::ViewStmt, depth: usize, scan: &mut Scan) -> Res
     Ok(())
 }
 
-fn descend_window_clause(value: &pb::WindowClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_window_clause(
+    value: &pb::WindowClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.partition_clause {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5605,7 +7224,11 @@ fn descend_window_clause(value: &pb::WindowClause, depth: usize, scan: &mut Scan
     Ok(())
 }
 
-fn descend_window_def(value: &pb::WindowDef, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_window_def(
+    value: &pb::WindowDef,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.partition_clause {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5621,7 +7244,11 @@ fn descend_window_def(value: &pb::WindowDef, depth: usize, scan: &mut Scan) -> R
     Ok(())
 }
 
-fn descend_window_func(value: &pb::WindowFunc, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_window_func(
+    value: &pb::WindowFunc,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5637,7 +7264,11 @@ fn descend_window_func(value: &pb::WindowFunc, depth: usize, scan: &mut Scan) ->
     Ok(())
 }
 
-fn descend_window_func_run_condition(value: &pb::WindowFuncRunCondition, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_window_func_run_condition(
+    value: &pb::WindowFuncRunCondition,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.xpr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5647,14 +7278,22 @@ fn descend_window_func_run_condition(value: &pb::WindowFuncRunCondition, depth: 
     Ok(())
 }
 
-fn descend_with_check_option(value: &pb::WithCheckOption, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_with_check_option(
+    value: &pb::WithCheckOption,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.qual {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
     Ok(())
 }
 
-fn descend_with_clause(value: &pb::WithClause, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_with_clause(
+    value: &pb::WithClause,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     for node in &value.ctes {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5677,7 +7316,11 @@ fn descend_xml_expr(value: &pb::XmlExpr, depth: usize, scan: &mut Scan) -> Resul
     Ok(())
 }
 
-fn descend_xml_serialize(value: &pb::XmlSerialize, depth: usize, scan: &mut Scan) -> Result<(), GuardError> {
+fn descend_xml_serialize(
+    value: &pb::XmlSerialize,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), GuardError> {
     if let Some(node) = &value.expr {
         descend_node(node, depth.saturating_add(1), scan)?;
     }
@@ -5686,4 +7329,3 @@ fn descend_xml_serialize(value: &pb::XmlSerialize, depth: usize, scan: &mut Scan
     }
     Ok(())
 }
-

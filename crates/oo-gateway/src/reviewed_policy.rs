@@ -21,8 +21,8 @@ use oo_core::oos::{
 use oo_core::text::{Label, QualifiedTable, TableName};
 
 use crate::policy::{
-    compile_column_acl_set, ClassStatus, ColumnAclPolicy, ColumnSpec, CompiledPolicySet,
-    LogicalTable, PiiClass, PolicyError,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, CompiledPolicySet, LogicalTable, PiiClass,
+    PolicyError, compile_column_acl_set,
 };
 
 const CONTRACT: &str = "oo.gateway.reviewed-policy/v1";
@@ -105,6 +105,8 @@ pub struct ReviewedBinding {
     pub login: String,
     /// Columns this call may compile. Empty is refused by the existing set compiler.
     pub allow: Vec<ReviewedAllow>,
+    /// Exact sealed collection vector for independently versioned native tables.
+    pub binding_vector: Option<Value>,
 }
 
 /// Policies passed to `compile_column_acl_set`, plus that function's result.
@@ -182,15 +184,12 @@ impl fmt::Display for ReviewedPolicyError {
             }
             Self::Shape => formatter.write_str("reviewed policy document shape is not accepted"),
             Self::Seal => formatter.write_str("reviewed policy seal does not match"),
-            Self::Identity => formatter.write_str(
-                "reviewed document identity does not match the administrative binding",
-            ),
+            Self::Identity => formatter
+                .write_str("reviewed document identity does not match the administrative binding"),
             Self::Decision { reason } => {
                 write!(formatter, "reviewed column decision is {reason}")
             }
-            Self::Semantic => {
-                formatter.write_str("reviewed column semantic type is not accepted")
-            }
+            Self::Semantic => formatter.write_str("reviewed column semantic type is not accepted"),
             Self::PiiAllow => {
                 formatter.write_str("reviewed column pii requires an explicit allow token")
             }
@@ -222,6 +221,8 @@ struct DecisionIn {
     fact_fingerprint: String,
     pii: PiiLevel,
     semantic_type: SemanticType,
+    #[serde(default)]
+    unit: Option<Label>,
     reviewer: ReviewerIn,
 }
 
@@ -260,11 +261,13 @@ pub fn compile_reviewed_policies(
     accept_artifact(&artifact)?;
     verify_seals(&command, &artifact, binding)?;
     let parsed = parse_decision_list(&decisions, &command, binding)?;
-    let effective = command.get("effective_oos").ok_or(ReviewedPolicyError::Shape)?;
+    let effective = command
+        .get("effective_oos")
+        .ok_or(ReviewedPolicyError::Shape)?;
     if !identity_ok(effective, &artifact, binding) {
         return Err(ReviewedPolicyError::Identity);
     }
-    let model = parse_model(effective, &binding.seal.schema)?;
+    let model = parse_model(effective, Some(&binding.seal.schema))?;
     unclassified_layer(&artifact, "generated")?;
     unclassified_layer(&artifact, "effective")?;
     let admitted = admit_all(&model, &parsed, &command, &artifact, binding)?;
@@ -475,9 +478,9 @@ fn duplicated_values(items: &[Value]) -> Result<bool, ReviewedPolicyError> {
 
 fn duplicated_allow(allow: &[ReviewedAllow]) -> bool {
     let mut seen = BTreeSet::new();
-    allow.iter().any(|entry| {
-        !seen.insert((entry.dataset.as_str(), entry.column.as_str()))
-    })
+    allow
+        .iter()
+        .any(|entry| !seen.insert((entry.dataset.as_str(), entry.column.as_str())))
 }
 
 fn identity_ok(effective: &Value, artifact: &Value, binding: &ReviewedBinding) -> bool {
@@ -495,14 +498,18 @@ fn identity_ok(effective: &Value, artifact: &Value, binding: &ReviewedBinding) -
             == Some(binding.seal.source_id.as_str())
 }
 
-fn parse_model(effective: &Value, schema: &str) -> Result<Model, ReviewedPolicyError> {
+fn parse_model(effective: &Value, schema: Option<&str>) -> Result<Model, ReviewedPolicyError> {
     if effective.get("protocol").and_then(Value::as_str) != Some(EFFECTIVE_PROTOCOL) {
         return Err(ReviewedPolicyError::Shape);
     }
     let ontology: OntologyFile = serde_json::from_value(effective["ontology"].clone())
         .map_err(|_| ReviewedPolicyError::Shape)?;
     check_ontology(&ontology, schema)?;
-    let datasets = parse_datasets(effective.get("datasets").ok_or(ReviewedPolicyError::Shape)?)?;
+    let datasets = parse_datasets(
+        effective
+            .get("datasets")
+            .ok_or(ReviewedPolicyError::Shape)?,
+    )?;
     parse_relationships(
         effective
             .get("relationships")
@@ -512,7 +519,7 @@ fn parse_model(effective: &Value, schema: &str) -> Result<Model, ReviewedPolicyE
     Ok(Model { datasets })
 }
 
-fn check_ontology(ontology: &OntologyFile, schema: &str) -> Result<(), ReviewedPolicyError> {
+fn check_ontology(ontology: &OntologyFile, schema: Option<&str>) -> Result<(), ReviewedPolicyError> {
     if !ontology.compile.per_role {
         return Err(ReviewedPolicyError::Shape);
     }
@@ -525,7 +532,7 @@ fn check_ontology(ontology: &OntologyFile, schema: &str) -> Result<(), ReviewedP
     Ok(())
 }
 
-fn schemas_cover(ontology: &OntologyFile, schema: &str) -> bool {
+fn schemas_cover(ontology: &OntologyFile, schema: Option<&str>) -> bool {
     if ontology.include_schemas.is_empty() {
         return false;
     }
@@ -535,7 +542,7 @@ fn schemas_cover(ontology: &OntologyFile, schema: &str) -> bool {
             return false;
         }
     }
-    seen.contains(schema)
+    schema.is_none_or(|name| seen.contains(name))
 }
 
 fn parse_datasets(value: &Value) -> Result<Vec<DatasetFile>, ReviewedPolicyError> {
@@ -612,7 +619,9 @@ fn admit_all(
 ) -> Result<Vec<Admitted>, ReviewedPolicyError> {
     let mut admitted = Vec::with_capacity(binding.allow.len());
     for entry in &binding.allow {
-        admitted.push(admit_one(model, decisions, command, artifact, binding, entry)?);
+        admitted.push(admit_one(
+            model, decisions, command, artifact, binding, entry,
+        )?);
     }
     Ok(admitted)
 }
@@ -636,7 +645,14 @@ fn admit_one(
     };
     check_decision(decision, artifact, binding, entry)?;
     check_output(column, decision, command, entry)?;
-    let spec = column_spec(column, decision, entry.explicit_allow, artifact, namespace, table)?;
+    let spec = column_spec(
+        column,
+        decision,
+        entry.explicit_allow,
+        artifact,
+        namespace,
+        table,
+    )?;
     Ok(Admitted {
         namespace: namespace.to_owned(),
         table: table.to_owned(),
@@ -649,7 +665,8 @@ fn absent_reason(
     dataset: &str,
     column: &str,
 ) -> Result<ReviewedPolicyError, ReviewedPolicyError> {
-    let rejected = queue_rejected(artifact, dataset, column)? || generated_rejected(artifact, dataset, column)?;
+    let rejected = queue_rejected(artifact, dataset, column)?
+        || generated_rejected(artifact, dataset, column)?;
     let reason = if rejected { "rejected" } else { "unknown" };
     Ok(ReviewedPolicyError::Decision { reason })
 }
@@ -732,12 +749,22 @@ fn split_logical<'a>(dataset: &'a str, schema: &'a str) -> Option<(&'a str, &'a 
     }
 }
 
+fn split_native_logical<'a>(dataset: &'a str, effective: &Value, vector: bool, schema: &'a str) -> Option<(&'a str, &'a str)> {
+    if !vector { return split_logical(dataset, schema); }
+    let (actual_schema, _) = dataset.split_once('.')?;
+    let included = effective["ontology"]["include_schemas"].as_array()?;
+    if !included.iter().any(|name| name.as_str() == Some(actual_schema)) { return None; }
+    split_logical(dataset, actual_schema)
+}
+
 fn find_column<'a>(model: &'a Model, dataset: &str, column: &str) -> Option<&'a DatasetColumn> {
     let file = model
         .datasets
         .iter()
         .find(|item| item.dataset.as_str() == dataset)?;
-    file.columns.iter().find(|item| item.name.as_str() == column)
+    file.columns
+        .iter()
+        .find(|item| item.name.as_str() == column)
 }
 
 fn classification_matches(column: &DatasetColumn, decision: &DecisionIn) -> bool {
@@ -746,6 +773,7 @@ fn classification_matches(column: &DatasetColumn, decision: &DecisionIn) -> bool
     };
     column.pii == Some(decision.pii)
         && column.semantic_type == Some(decision.semantic_type)
+        && column.unit == decision.unit
         && column.review.is_none()
         && record.state == ClassState::Confirmed
         && record.by.as_ref() == Some(&decision.reviewer.by)
@@ -760,7 +788,8 @@ fn queue_rejected(
     let queue = review_queue(artifact)?;
     let item_id = format!("column/{dataset}/{column}");
     Ok(queue.iter().any(|item| {
-        structural_item(item, &item_id) && item.get("state").and_then(Value::as_str) == Some("rejected")
+        structural_item(item, &item_id)
+            && item.get("state").and_then(Value::as_str) == Some("rejected")
     }))
 }
 
@@ -878,9 +907,10 @@ fn physical_type(
         .pointer("/evidence_envelope/catalog/tables")
         .and_then(Value::as_array)
         .ok_or(ReviewedPolicyError::Semantic)?;
-    let Some(table_value) = tables.iter().find(|item| {
-        field_is(item, "schema_ident", schema) && field_is(item, "name_ident", table)
-    }) else {
+    let Some(table_value) = tables
+        .iter()
+        .find(|item| field_is(item, "schema_ident", schema) && field_is(item, "name_ident", table))
+    else {
         return Err(ReviewedPolicyError::Semantic);
     };
     let columns = table_value
@@ -961,7 +991,9 @@ fn map_pii(level: PiiLevel, explicit_allow: bool) -> Result<PiiClass, ReviewedPo
     match (level, explicit_allow) {
         (PiiLevel::None, false) => Ok(PiiClass::None),
         (PiiLevel::Personal | PiiLevel::Sensitive | PiiLevel::Restricted, true) => {
-            Ok(PiiClass::Declared { explicit_allow: true })
+            Ok(PiiClass::Declared {
+                explicit_allow: true,
+            })
         }
         _ => Err(ReviewedPolicyError::PiiAllow),
     }
@@ -1008,10 +1040,14 @@ fn group_policies(admitted: Vec<Admitted>, binding: &ReviewedBinding) -> Vec<Col
 }
 
 fn policy_for(item: Admitted, binding: &ReviewedBinding) -> ColumnAclPolicy {
+    let dataset = format!("{}.{}", item.namespace, item.table);
+    let context = binding.binding_vector.as_ref().and_then(Value::as_array).and_then(|entries| {
+        entries.iter().find(|entry| entry["dataset"] == dataset)
+    });
     ColumnAclPolicy {
         project: binding.identity.project.clone(),
-        config_digest: binding.config_digest.clone(),
-        generation: binding.generation,
+        config_digest: context.and_then(|entry| entry["config_digest"].as_str()).unwrap_or(&binding.config_digest).to_owned(),
+        generation: context.and_then(|entry| entry["source_generation"].as_i64()).unwrap_or(binding.generation),
         role: binding.role.clone(),
         login: binding.login.clone(),
         table: LogicalTable {
@@ -1027,7 +1063,8 @@ fn forbidden_key(value: &Value) -> bool {
     match value {
         Value::Array(items) => items.iter().any(forbidden_key),
         Value::Object(map) => {
-            map.keys().any(|key| FORBIDDEN_KEYS.contains(&key.as_str())) || map.values().any(forbidden_key)
+            map.keys().any(|key| FORBIDDEN_KEYS.contains(&key.as_str()))
+                || map.values().any(forbidden_key)
         }
         _ => false,
     }
@@ -1052,9 +1089,15 @@ fn bool_field(value: &Value, key: &str) -> bool {
 }
 
 fn non_claims(provenance: &Value) -> bool {
-    ["authentication", "authorization", "grants", "publication", "semantic_publication"]
-        .into_iter()
-        .all(|key| same(provenance, key, "not_claimed"))
+    [
+        "authentication",
+        "authorization",
+        "grants",
+        "publication",
+        "semantic_publication",
+    ]
+    .into_iter()
+    .all(|key| same(provenance, key, "not_claimed"))
 }
 
 fn hash_eq(value: &Value, key: &str, expected: &str) -> bool {
@@ -1201,15 +1244,267 @@ mod tests {
         assert!(!compatible("float4", SemanticType::Quantity));
         assert!(!compatible("float8", SemanticType::Quantity));
         assert!(!compatible("date", SemanticType::Quantity));
-        let admitted = physical_type(&catalog("numeric", "b"), "shop", "entry", "amount", "numeric");
+        let admitted = physical_type(
+            &catalog("numeric", "b"),
+            "shop",
+            "entry",
+            "amount",
+            "numeric",
+        );
         assert_eq!(admitted, Ok("numeric".to_string()));
-        assert!(physical_type(&catalog("numeric", "b"), "shop", "entry", "amount", "numeric(18,4)").is_err());
-        assert!(physical_type(&catalog("numeric", "d"), "shop", "entry", "amount", "numeric").is_err());
-        assert!(physical_type(&catalog("float8", "b"), "shop", "entry", "amount", "float8").is_err());
-        assert!(physical_type(&catalog("float4", "b"), "shop", "entry", "amount", "float4").is_err());
+        assert!(
+            physical_type(
+                &catalog("numeric", "b"),
+                "shop",
+                "entry",
+                "amount",
+                "numeric(18,4)"
+            )
+            .is_err()
+        );
+        assert!(
+            physical_type(
+                &catalog("numeric", "d"),
+                "shop",
+                "entry",
+                "amount",
+                "numeric"
+            )
+            .is_err()
+        );
+        assert!(
+            physical_type(&catalog("float8", "b"), "shop", "entry", "amount", "float8").is_err()
+        );
+        assert!(
+            physical_type(&catalog("float4", "b"), "shop", "entry", "amount", "float4").is_err()
+        );
         assert!(physical_type(&catalog("date", "b"), "shop", "entry", "amount", "date").is_err());
         assert!(physical_type(&catalog("bool", "b"), "shop", "entry", "amount", "bool").is_ok());
         assert!(physical_type(&catalog("text", "b"), "shop", "entry", "amount", "text").is_ok());
         assert!(physical_type(&catalog("int8", "b"), "shop", "entry", "amount", "int8").is_ok());
+    }
+}
+
+/// Recompile a genuine native reviewed input, preserving its protocol and source semantics.
+/// Binding is the administrator's accepted import/role identity, never inferred from the current files.
+pub fn compile_native_reviewed_policies(
+    input_json: &str,
+    output_json: &str,
+    binding: &ReviewedBinding,
+) -> Result<ReviewedColumnPolicies, ReviewedPolicyError> {
+    check_budget(input_json)?;
+    check_budget(output_json)?;
+    let input = scan_value(input_json)?;
+    let output = scan_value(output_json)?;
+    if input["protocol"] != "oo.builder.reviewed-sealed-import-command/v1"
+        || output["protocol"] != "oo.builder.reviewed-sealed-import-command/v1"
+    {
+        return Err(ReviewedPolicyError::Shape);
+    }
+    let expected = oo_builder::compile_reviewed_sealed_import(input_json)
+        .map_err(|_| ReviewedPolicyError::Seal)?;
+    if expected != canonical_json(&output) {
+        return Err(ReviewedPolicyError::Seal);
+    }
+    let catalog = &input["catalog"];
+    let provenance = &output["provenance"];
+    let collection = binding.binding_vector.as_ref();
+    let legacy_seal = provenance["schema_digest"] == binding.seal.schema_hash
+        && provenance["config_digest"] == binding.config_digest
+        && provenance["source_generation"].as_i64() == Some(binding.generation);
+    let vector_seal = collection.is_some_and(|vector| {
+        let catalog_entries = catalog["entries"].as_array();
+        catalog["protocol"] == "oo.pipeline.sealed-import-collection/v1"
+            && catalog["binding_vector"] == *vector
+            && provenance["binding_vector"] == *vector
+            && provenance["collection_sha256"] == binding.seal.schema_hash
+            && vector.as_array().is_some_and(|items| {
+                let mut seen = BTreeSet::new();
+                !items.is_empty() && catalog_entries.is_some_and(|entries| entries.len() == items.len())
+                    && items.iter().all(|entry| {
+                    let Some(dataset) = entry["dataset"].as_str() else { return false; };
+                    let Some(config) = entry["config_digest"].as_str() else { return false; };
+                    let Some(source_generation) = entry["source_generation"].as_i64() else { return false; };
+                    let Some(target_generation) = entry["target_generation"].as_i64() else { return false; };
+                    let Some(stored_namespace) = entry["stored_namespace"].as_str() else { return false; };
+                    let Some(stored_physical) = entry["stored_physical"].as_str() else { return false; };
+                    let Some(source) = entry["source_id"].as_str() else { return false; };
+                    let matches_catalog = catalog_entries.is_some_and(|entries| entries.iter().filter(|item| {
+                        item["source_id"] == source && item["run_id"] == entry["run_id"]
+                            && item["tables"][0]["logical_schema"] == dataset.split_once('.').map(|(schema, _)| schema).unwrap_or("")
+                            && item["tables"][0]["logical_table"] == dataset.split_once('.').map(|(_, table)| table).unwrap_or("")
+                    }).count() == 1);
+                    seen.insert(dataset.to_owned())
+                        && split_native_logical(dataset, &output["effective_oos"], true, &binding.seal.schema).is_some()
+                        && !source.is_empty() && matches_catalog
+                        && config.len() == 64 && config.bytes().all(|b| b.is_ascii_hexdigit())
+                        && source_generation >= 1 && target_generation >= 1
+                        && stored_namespace.starts_with("pn_") && stored_namespace.len() == 63
+                        && stored_physical.starts_with("pt_") && stored_physical.len() == 63
+                })
+            })
+    });
+    let vector_sources = collection.and_then(Value::as_array).map(|items| {
+        items.iter().filter_map(|entry| entry["source_id"].as_str()).collect::<BTreeSet<_>>()
+    });
+    let provenance_source_ok = match vector_sources {
+        Some(sources) if sources.len() > 1 => binding.seal.source_id.is_empty()
+            && (provenance["source_id"] == "" || provenance["source_id"].is_null()),
+        _ => provenance["source_id"] == binding.seal.source_id,
+    };
+    if canonical_sha256(catalog) != binding.seal.artifact_sha256
+        || !provenance_source_ok
+        || !(if collection.is_some() { vector_seal } else { legacy_seal })
+    {
+        return Err(ReviewedPolicyError::Identity);
+    }
+    let effective = &output["effective_oos"];
+    let id = &binding.identity;
+    if effective["project"] != id.project
+        || effective["ontology_version"] != id.ontology_version
+        || effective["catalog_version"] != id.catalog_version
+        || effective["policy"]["id"] != id.policy_id
+        || effective["policy"]["version"] != id.policy_version
+        || effective["knowledge"]["id"] != id.knowledge_id
+        || effective["knowledge"]["version"] != id.knowledge_version
+    {
+        return Err(ReviewedPolicyError::Identity);
+    }
+    let model = parse_model(effective, collection.is_none().then_some(binding.seal.schema.as_str()))?;
+    if let Some(vector) = collection {
+        let entries = vector.as_array().ok_or(ReviewedPolicyError::Identity)?;
+        if entries.len() != model.datasets.len()
+            || !model.datasets.iter().all(|dataset| entries.iter().any(|entry| entry["dataset"] == dataset.dataset.as_str()))
+        {
+            return Err(ReviewedPolicyError::Identity);
+        }
+    }
+    let decisions: Vec<DecisionIn> = serde_json::from_value(input["decisions"].clone())
+        .map_err(|_| ReviewedPolicyError::Shape)?;
+    if decisions.len() > MAX_DECISIONS || binding.allow.is_empty() {
+        return Err(ReviewedPolicyError::Shape);
+    }
+    let mut admitted = Vec::new();
+    let mut seen = BTreeSet::new();
+    for entry in &binding.allow {
+        if !seen.insert((entry.dataset.clone(), entry.column.clone())) {
+            return Err(ReviewedPolicyError::Shape);
+        }
+        let (namespace, table) = split_native_logical(&entry.dataset, effective, collection.is_some(), &binding.seal.schema)
+            .ok_or(ReviewedPolicyError::Identity)?;
+        let column = find_column(&model, &entry.dataset, &entry.column)
+            .ok_or(ReviewedPolicyError::Decision { reason: "missing" })?;
+        let decision = decisions
+            .iter()
+            .find(|d| d.dataset == entry.dataset && d.column == entry.column)
+            .ok_or(ReviewedPolicyError::Decision { reason: "missing" })?;
+        if decision.schema_hash != binding.seal.schema_hash
+            || !classification_matches(column, decision)
+            || hidden_has(&output, &entry.dataset, &entry.column)?
+        {
+            return Err(ReviewedPolicyError::Decision { reason: "mismatch" });
+        }
+        let semantic = column.semantic_type.ok_or(ReviewedPolicyError::Semantic)?;
+        admitted.push(Admitted {
+            namespace: namespace.to_owned(),
+            table: table.to_owned(),
+            column: ColumnSpec {
+                name: column.name.as_str().to_owned(),
+                status: ClassStatus::Confirmed,
+                semantic_type: semantic_name(semantic).to_owned(),
+                pii: map_pii(decision.pii, entry.explicit_allow)?,
+            },
+        });
+    }
+    let policies = group_policies(admitted, binding);
+    let compiled = if collection.is_some() {
+        crate::policy::compile_column_acl_native_vector_set(&policies)
+    } else {
+        compile_column_acl_set(&policies)
+    }.map_err(ReviewedPolicyError::Policy)?;
+    Ok(ReviewedColumnPolicies { policies, compiled })
+}
+
+#[cfg(test)]
+mod native_review_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn vector_namespaces_must_be_in_the_reviewed_ontology() {
+        let effective = json!({"ontology":{"include_schemas":["logistics","cust_east","cust_west"]}});
+        assert_eq!(split_native_logical("cust_east.k_note", &effective, true, ""), Some(("cust_east", "k_note")));
+        assert_eq!(split_native_logical("logistics.hubs", &effective, true, ""), Some(("logistics", "hubs")));
+        assert!(split_native_logical("other.k_note", &effective, true, "").is_none());
+        assert!(split_native_logical("cust_east.k_note", &effective, false, "logistics").is_none());
+    }
+    #[test]
+    fn actual_native_compiler_output_binds_two_tables_and_rejects_tampering() {
+        let catalog: Value = serde_json::from_str(include_str!(
+            "../../oo-builder/tests/fixtures/w06-sealed-import-catalog.json"
+        ))
+        .unwrap();
+        let draft = oo_builder::compile_sealed_import_catalog(&canonical_json(&catalog)).unwrap();
+        let schema = catalog["tables"][0]["logical_schema"].as_str().unwrap();
+        let decisions=draft.columns.iter().map(|c|json!({"dataset":c.dataset,"column":c.name,"schema_hash":draft.schema_digest,"fact_fingerprint":c.fact_fingerprint,"pii":"none","semantic_type":"identifier","reviewer":{"by":"fixture.owner","at":"2026-10-12"}})).collect::<Vec<_>>();
+        let input = json!({"protocol":"oo.builder.reviewed-sealed-import-command/v1","catalog":catalog,"decisions":decisions,"settings":{"project":"native_fixture","ontology_version":"ont-native","catalog_version":draft.identity_hash,"policy":{"id":"pol-native","version":"1"},"knowledge":{"id":"know-native","version":"1"},"ontology":{"spec_version":"oos/v1","name":"native_fixture","locale":"en-US","include_schemas":[schema],"default_tier_preference":["raw"],"publish":{"include_unreviewed":[]},"classification":{"auto_accept":"rule_high_confidence"},"lifecycle":{"deprecation_min_releases":2},"compile":{"per_role":true,"budgets":{"readme_tokens":2000,"table_file_tokens":3000},"sample_values":{"default":"masked","max_per_column":0}}}}});
+        let input = canonical_json(&input);
+        let output = oo_builder::compile_reviewed_sealed_import(&input).unwrap();
+        let binding = ReviewedBinding {
+            identity: ReviewedIdentity {
+                project: "native_fixture".into(),
+                ontology_version: "ont-native".into(),
+                catalog_version: draft.identity_hash.clone(),
+                policy_id: "pol-native".into(),
+                policy_version: "1".into(),
+                knowledge_id: "know-native".into(),
+                knowledge_version: "1".into(),
+            },
+            seal: ReviewedSourceSeal {
+                source_id: draft.source_id.clone(),
+                schema: schema.to_owned(),
+                schema_hash: draft.schema_digest.clone(),
+                artifact_sha256: canonical_sha256(&catalog),
+            },
+            config_digest: draft.config_digest.clone(),
+            generation: draft.source_generation,
+            role: "native_fixture".into(),
+            login: "oo_target_admin".into(),
+            binding_vector: None,
+            allow: draft
+                .columns
+                .iter()
+                .map(|c| ReviewedAllow {
+                    dataset: c.dataset.clone(),
+                    column: c.name.clone(),
+                    explicit_allow: false,
+                })
+                .collect(),
+        };
+        let result = compile_native_reviewed_policies(&input, &output, &binding).unwrap();
+        assert_eq!(result.policies.len(), 2);
+        assert_eq!(
+            result
+                .policies
+                .iter()
+                .map(|p| p.table.columns.len())
+                .sum::<usize>(),
+            19
+        );
+        let mut tampered: Value = serde_json::from_str(&output).unwrap();
+        tampered["provenance"]["source_engine"] = json!("pgsql");
+        assert!(
+            compile_native_reviewed_policies(&input, &canonical_json(&tampered), &binding).is_err()
+        );
+        let mut changed = binding.clone();
+        changed.generation += 1;
+        assert!(compile_native_reviewed_policies(&input, &output, &changed).is_err());
+        changed = binding.clone();
+        changed.seal.artifact_sha256 = "00".repeat(32);
+        assert!(compile_native_reviewed_policies(&input, &output, &changed).is_err());
+        let pg_retag = input.replace(
+            "oo.builder.reviewed-sealed-import-command/v1",
+            "oo.builder.reviewed-effective-oos-command/v1",
+        );
+        assert!(compile_native_reviewed_policies(&pg_retag, &output, &binding).is_err());
     }
 }

@@ -1,4 +1,0 @@
-   Compiling enum-history v0.1.0 (/work/tree/tools/enum-history)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.37s
-     Running tests/a278_handcomputed.rs (/target/debug/deps/a278_handcomputed-81bb4e279ab260cc)
-error: test failed, to rerun pass `--test a278_handcomputed`

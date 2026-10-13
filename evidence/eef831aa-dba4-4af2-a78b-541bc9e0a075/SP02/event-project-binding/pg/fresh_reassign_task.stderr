@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/reassign_task_project.sql:4: ERROR:  42501: permission denied for table tasks
-LOCATION:  aclcheck_error, aclchk.c:2843

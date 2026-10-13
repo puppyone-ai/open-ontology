@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/missing-valid/matrix.yaml --package /harness/fixtures/missing-valid/package

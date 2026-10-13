@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/drop_schema.sql:3: ERROR:  42501: must be owner of schema jobs
-LOCATION:  aclcheck_error, aclchk.c:2981

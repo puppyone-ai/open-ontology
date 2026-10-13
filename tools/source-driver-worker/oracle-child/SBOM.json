@@ -1,0 +1,44 @@
+{
+  "name": "oo-oracle-p2-child",
+  "task": "DL01-W1-04",
+  "protocol": "oo.source.driver-oracle/v2",
+  "instant_client": false,
+  "packages": [
+    {
+      "name": "oracledb",
+      "version": "26.0.0-beta.4",
+      "checksum": "d729181747bd69ba53cde2956ea9ddc06cf09d0badaf4a9e89944b7c0b7b4397",
+      "git": "e2578c8b96ba19d58ad8ebdf28097757cd471d54",
+      "license": "UPL-1.0 OR Apache-2.0",
+      "license_file_sha256": "a90ccbcbaac3be7c243648cff1ea7be053eed2033b9443ade51fe926380db235",
+      "notice_file_sha256": "9b1bab09f15ad426f8615de9fac824081dbaa795c7aa99356cdb807cafaa23f2",
+      "features": ["arrow"],
+      "mode": "thin"
+    },
+    {
+      "name": "arrow-array",
+      "version": "59.3.0",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "arrow-ipc",
+      "version": "59.3.0",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "arrow-schema",
+      "version": "59.3.0",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "license": "MIT OR Apache-2.0"
+    }
+  ],
+  "decode_package": {
+    "name": "oo-oracle-p2-decode",
+    "links_oracledb": false
+  }
+}

@@ -15,3 +15,7 @@ NEXT unified closure: 5424terminal0，已有oo-a383-rust重试及原PG55min，FI
 NEXT OC01–06 closure: 原63819terminal0，retrybuilder原PG已有启动 FIRST收新真正phase/exit，同卡继续完整真实catalog导入成功接口，别反复被旧monitor记录失败误导。
 
 LATEST USER PRIORITY: 完整读specs/minimal-product-loop-plan.md。当前先单用户真实接库→Selfbuild标准YAML/Packfolder→Pi read/bash oo SQL→真正Gateway→答案/close。management/admin/multiuserAPI依赖排后，不因此阻塞已有真实CLI/lib闭环；无mock/no自动LLMapproved/no伪productionpub，明确draftdevelopment预览。a405唯一用户流程编排消费固定producer，各ownerpaths不变。docs09§6.2明确Pi不依赖MCP。原完整Plan/OC主链保留Todo，不签未实现部分。
+
+FINAL SHORT-GOAL CLOSURE: 10843terminal0，现有retry65s101。FIRST收唯一真正新phase修本次错误，不再交仅新builder已跑作为完工，单用户最小loop优先真实source lib/CLI，管理API余项后做。完整编译和requiredtests在同一次私有build先集中发现所有错误修完再启动真实测试，避免每lint独立续接。复用PG/target。
+
+NEXT SHORT TARGET COMPLETE: 原60733terminal0，CA:FALSE修复已reload原PG不换密码，下一48s测试101。FIRST收该真正失败原文和所有testexit，专注当前短目标单userPGsource→真实catalogprofile，别反复每次启动仅收一种lint或证书后退出；一次集中定位编译+连接+catalogfixture全部required失败再完整同卡修。已有sourceproof条件可供405 lib/CLI，不依赖adminAPI。

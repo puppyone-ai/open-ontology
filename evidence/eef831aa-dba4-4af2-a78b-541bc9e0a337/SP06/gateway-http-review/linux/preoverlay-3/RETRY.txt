@@ -1,1 +1,0 @@
-preoverlay-2 passed archive lib 42, loopback 8, clippy, arch-check, and postgres live. Review clippy failed on collapsible_if in the private test only. Product unchanged. This retry collapses that if. Volumes and postgres reused.

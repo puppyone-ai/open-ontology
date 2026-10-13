@@ -1,9 +1,0 @@
-cleanup_at=2026-10-03T10:47:00Z
-containers_removed=rust-smoke,rust-prereq,rust-prereq-locks,rust-lib,rust-lib-2,rust-lib-3,rust-live-1,rust-oracle-1,rust-oracle-2,rust-oracle-3,pg
-network_removed=eef831aa-dba4-4af2-a78b-541bc9e0a125-net
-pg_stop_exit=1
-pg_stop_note=docker stop printed the container id and then "404 page not found"; the container was Exited (1) and was removed
-volumes_left=eef831aa-dba4-4af2-a78b-541bc9e0a125-cargo,eef831aa-dba4-4af2-a78b-541bc9e0a125-target,eef831aa-dba4-4af2-a78b-541bc9e0a125-pglog
-secrets_removed=yes
-prune=no
-foreign_cleanup=no

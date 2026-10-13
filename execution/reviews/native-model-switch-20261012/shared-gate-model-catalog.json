@@ -1,0 +1,10 @@
+{
+  "at_utc": "2026-10-12T10:01:00.006021+00:00",
+  "http_status": 200,
+  "requested_product_model": "gpt-6.1-sol",
+  "exact_requested_model_advertised": false,
+  "temporary_engineer_model_advertised": true,
+  "model_count": 31,
+  "catalog_digest": "5699957dac7b9b043bb3550454fa1e6a3eaa5781293737670d623903f5ac0949",
+  "scope": "availability catalog only; no model inference and no change to proxy URL/key/model mapping"
+}

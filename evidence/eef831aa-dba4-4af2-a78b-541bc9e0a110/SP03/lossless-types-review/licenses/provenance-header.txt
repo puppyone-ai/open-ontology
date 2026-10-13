@@ -1,4 +1,0 @@
-adopt_commit_utc=2026-10-02T13:30:04Z
-adopt_epoch=1790947804
-observed_utc=2026-10-02T18:57:54Z
-threshold_seconds=604800

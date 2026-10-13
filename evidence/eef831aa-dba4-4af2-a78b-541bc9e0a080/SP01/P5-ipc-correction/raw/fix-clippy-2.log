@@ -1,8 +1,0 @@
-=== fix-clippy-default-2 ===
-    Checking oo-p05-pg17-parser v0.1.0 (/src)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.80s
-CLIPPY_DEFAULT_EXIT:0
-=== fix-clippy-hooks-2 ===
-    Checking oo-p05-pg17-parser v0.1.0 (/src)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.72s
-CLIPPY_HOOKS_EXIT:0

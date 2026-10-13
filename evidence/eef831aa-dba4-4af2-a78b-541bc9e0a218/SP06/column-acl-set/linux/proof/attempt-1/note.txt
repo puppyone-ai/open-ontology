@@ -1,1 +1,0 @@
-metadata column_privileges counted owner rows on _oo_pos; assertion narrowed to fixture roles and PUBLIC

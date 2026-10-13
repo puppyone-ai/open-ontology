@@ -1,0 +1,11 @@
+{
+  "task": "DL01-W1-35",
+  "review": "5829c110256e1f10294de2920c54190128af1dda",
+  "source": "7de78381be5f692ae53c2559b759ce00ad807303",
+  "verified_sha_entries": 279,
+  "decision": "approve_original_bounded_supervisor",
+  "scope": "process/Arrow/cancel/crash/input/fd boundaries originalv1 only; notOCI/nativeOracle/arbitrarySchema/network",
+  "development_acceptance_delta": 1,
+  "source_acceptance_delta": 0,
+  "newP2extension_live68907_differentrevision": true
+}

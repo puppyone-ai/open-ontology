@@ -1,5 +1,0 @@
-=== fetch ===
-phase_exit=0 phase=fetch
-=== retention oracle ===
-phase_exit=0 phase=rerun
-phase_exit=0 phase=lock

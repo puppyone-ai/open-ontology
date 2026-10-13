@@ -1,0 +1,2 @@
+USE oo_dl01w1_43;
+INSERT INTO nul_obs VALUES (1, CHAR(0));

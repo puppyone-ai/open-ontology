@@ -1,0 +1,14 @@
+[package]
+name = "oo-mongodb-driver-smoke"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "oo-mongodb-driver-smoke"
+path = "src/main.rs"
+
+[dependencies]
+mongodb = { version = "=3.3.0", default-features = false, features = ["compat-3-0-0", "rustls-tls"] }
+# Same version the mongodb 3.3.0 archive lock uses. Caret resolution otherwise selects 3.9.1.
+mongodb-internal-macros = "=3.3.0"

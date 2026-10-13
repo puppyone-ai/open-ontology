@@ -1,2 +1,0 @@
-psql:<stdin>:1: ERROR:  42501: permission denied for table apply_receipts
-LOCATION:  aclcheck_error, aclchk.c:2843

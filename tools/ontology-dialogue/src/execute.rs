@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::error::Fault;
-use crate::grammar::{caller_label, hex64, in_range};
+use crate::grammar::{caller_label, hex64, in_range, knowledge_id_ok};
 use crate::json::{self, JsonError};
 use crate::pack;
 use crate::propose::{proposal_preimage_sha, tuple_line, HashParts};
@@ -123,6 +123,8 @@ fn proposal_declared(proposal: &ProposalDoc) -> bool {
         && !proposal.authenticated
         && proposal.model_sql == "untrusted"
         && !proposal.auto_execute
+        && hex64(&proposal.policy_id)
+        && knowledge_id_ok(&proposal.knowledge_id)
 }
 
 fn approval_declared(approval: &ApprovalDoc) -> bool {

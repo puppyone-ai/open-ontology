@@ -1,8 +1,0 @@
-   Compiling session-store v0.1.0 (/work/session-store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.62s
-     Running tests/a281_session.rs (/target/debug/deps/a281_session-5a3efd669afcabfe)
-
-thread 'row_lock_is_one_backend_transaction' (1137) panicked at tests/a281_session.rs:535:5:
-session_store_backends=1 waiting=0
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-error: test failed, to rerun pass `--test a281_session`

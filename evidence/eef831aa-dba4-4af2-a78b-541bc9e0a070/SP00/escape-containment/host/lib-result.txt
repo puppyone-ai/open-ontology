@@ -1,1 +1,0 @@
-test result: FAILED. 31 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s

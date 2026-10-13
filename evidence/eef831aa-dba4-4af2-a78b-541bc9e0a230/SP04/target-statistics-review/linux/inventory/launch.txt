@@ -1,9 +1,0 @@
-Std-only `tools/sha256.rs` writes `SHA256SUMS` over this review directory.
-Image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5.
-Container name oo-a230-inventory. Platform linux/arm64. Network none. Cap-drop ALL.
-Memory 6 GiB. One CPU. No privileged mode. No host home. Pull never.
-The manifest skips SHA256SUMS and SHA256SUMS.sha256.
-hostconfig.txt is written after the first container exits.
-A second container with the same limits rewrites the manifest so hostconfig.txt is included.
-That second container is removed and does not add a later log line.
-Attempt 1 id a45756448b135c33a39968034d84027ff8c86015530753a9a5cab1b63bb8d0bf exit 126 because /work was noexec. The rewrite uses an executable tmpfs.

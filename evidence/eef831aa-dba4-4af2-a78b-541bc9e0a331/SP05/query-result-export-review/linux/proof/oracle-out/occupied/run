@@ -1,1 +1,0 @@
-{"version":"oo.query-result-export/v1","source_file":"/src/tools/query-result-export/tests/fixtures/query-clerk-order_doc-star.stdout","output_dir":"/evidence/linux/proof/oracle-out/occupied","columns":["order_id","customer_id","memo","posted","amount","clerk_note"]}

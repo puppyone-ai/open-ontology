@@ -1,1 +1,0 @@
-Harness compile failed before any SQL ran. cargo build --offline exited 101 because a local Outcome named q shadowed pg::q in phase_restart. The network rebuild of the same source also exited 101. This attempt is retained. It is not a product result.

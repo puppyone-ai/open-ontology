@@ -1,0 +1,16 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-10
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "repair identity fixture; not a grade promotion"
+targets:
+  - id: repair-mysql
+    family: mysql
+    product: MySQL
+    versions: ["8.0"]
+    variant: self-managed
+    wave: 0
+    driver: repair-native
+    caps:
+      batch_full: experimental
+    limits: ["repair fixture only"]
+    evidence: []

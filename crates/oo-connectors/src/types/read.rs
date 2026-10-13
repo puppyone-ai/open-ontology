@@ -5,10 +5,10 @@
 use sqlx::postgres::PgValueFormat;
 use sqlx::{Row, ValueRef};
 
-use super::batch::{assemble_batch, DecodedCell, TypedBatch};
+use super::batch::{DecodedCell, TypedBatch, assemble_batch};
 use super::binary::decode_payload;
 use super::facts::{TypeFacts, TypeGraph};
-use super::mapping::{map_column, ColumnPlan, MapDecision};
+use super::mapping::{ColumnPlan, MapDecision, map_column};
 use super::{PgTypePolicy, RunBinding, UnsupportedColumnPolicy};
 use crate::error::SourceError;
 use crate::model::SourceColumn;
@@ -65,7 +65,11 @@ fn valid_quoted(raw: &str) -> bool {
 }
 
 /// `SELECT` of quoted columns, or a refusal. An empty list is not a presence scan.
-pub fn compose_select(schema: &str, table: &str, columns: &[String]) -> Result<String, SourceError> {
+pub fn compose_select(
+    schema: &str,
+    table: &str,
+    columns: &[String],
+) -> Result<String, SourceError> {
     if columns.is_empty() || !valid_quoted_ident(schema) || !valid_quoted_ident(table) {
         return Err(SourceError::catalog("quote_ident"));
     }
@@ -246,9 +250,12 @@ impl PgSession {
         if binding.source_id != self.source_id {
             return Err(SourceError::config("binding_source"));
         }
-        if !self.selection.tables().iter().any(|table| {
-            table.schema() == binding.schema && table.table() == binding.table
-        }) {
+        if !self
+            .selection
+            .tables()
+            .iter()
+            .any(|table| table.schema() == binding.schema && table.table() == binding.table)
+        {
             return Err(SourceError::config("binding_table"));
         }
         if !self.identity_aligned {
@@ -282,7 +289,11 @@ impl PgSession {
         else {
             return Err(SourceError::catalog("selected_table_missing"));
         };
-        let key_attnums: Vec<i32> = table.primary_key.into_iter().map(|key| key.attnum).collect();
+        let key_attnums: Vec<i32> = table
+            .primary_key
+            .into_iter()
+            .map(|key| key.attnum)
+            .collect();
         let graph = self.load_type_graph(&table.columns).await?;
         let mut plans = Vec::with_capacity(table.columns.len());
         for column in &table.columns {
@@ -359,7 +370,10 @@ impl PgSession {
         assemble_batch(binding, plans, &key_attnums, decoded)
     }
 
-    async fn load_type_graph(&mut self, columns: &[SourceColumn]) -> Result<TypeGraph, SourceError> {
+    pub(crate) async fn load_type_graph(
+        &mut self,
+        columns: &[SourceColumn],
+    ) -> Result<TypeGraph, SourceError> {
         let mut graph = TypeGraph::default();
         let mut pending: Vec<i64> = columns.iter().map(|column| column.type_oid).collect();
         for depth in 0..=8 {
@@ -369,13 +383,15 @@ impl PgSession {
             if pending.is_empty() {
                 break;
             }
-            let wanted = u32::try_from(pending.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+            let wanted = u32::try_from(pending.len())
+                .map_err(|_| SourceError::budget("max_rows_per_sec"))?;
             let admitted = self.admit_rows(session::Admit::Exact {
                 wanted,
                 natural: true,
             })?;
             self.arm_rows(admitted.limit);
-            let rows = session::fetch_all(self, sqlx::query(sql::TYPE_FACTS).bind(&pending)).await?;
+            let rows =
+                session::fetch_all(self, sqlx::query(sql::TYPE_FACTS).bind(&pending)).await?;
             if rows.len() != pending.len() {
                 return Err(SourceError::catalog("type_facts_missing"));
             }
@@ -408,7 +424,9 @@ impl PgSession {
             let rows = self
                 .fetch_limited(
                     admitted,
-                    sqlx::query(sql::ENUM_LABELS_BOUNDED).bind(&enum_oids).bind(limit),
+                    sqlx::query(sql::ENUM_LABELS_BOUNDED)
+                        .bind(&enum_oids)
+                        .bind(limit),
                     "catalog_truncated",
                 )
                 .await?;
@@ -429,7 +447,7 @@ impl PgSession {
         Ok(graph)
     }
 
-    async fn quote_one(&mut self, name: &str) -> Result<String, SourceError> {
+    pub(crate) async fn quote_one(&mut self, name: &str) -> Result<String, SourceError> {
         let row = session::fetch_one(self, sqlx::query(sql::QUOTE_IDENT).bind(name)).await?;
         let quoted = session::cell_string(&row, 0)?;
         if !valid_quoted_ident(&quoted) {

@@ -1,0 +1,34 @@
+[
+  {
+    "reading_id": "102",
+    "version": "1",
+    "amount": "0.0000000000",
+    "note": "",
+    "code": "alpha",
+    "code_or_null": "beta",
+    "ts": "2024-01-02 00:00:00.000000000",
+    "tags": [],
+    "labels": [
+      null
+    ],
+    "qty": "10",
+    "label": "",
+    "wide_u64": "0"
+  },
+  {
+    "reading_id": "104",
+    "version": "1",
+    "amount": "0.0000000000",
+    "note": "",
+    "code": "alpha",
+    "code_or_null": "beta",
+    "ts": "2024-02-05 00:00:00.123456789",
+    "tags": [],
+    "labels": [
+      null
+    ],
+    "qty": "9",
+    "label": "",
+    "wide_u64": "0"
+  }
+]

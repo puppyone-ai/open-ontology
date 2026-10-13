@@ -1,6 +1,0 @@
-complete_lines_equal=1
-writer=err Closed
-object_sha=8e338be649868e7c9e053212037e4bb0965ba7653e81b974bab76578bd59c80a
-manifest_bytes_unchanged=1
-lineage_independent=1
-foreign_unchanged=1

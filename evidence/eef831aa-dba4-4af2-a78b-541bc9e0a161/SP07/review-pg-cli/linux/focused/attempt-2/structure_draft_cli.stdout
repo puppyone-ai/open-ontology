@@ -1,9 +1,0 @@
-
-running 4 tests
-test skeleton_and_unknown_commands_exit_2 ... ok
-test repeated_key_member_exits_nonzero_without_echoing_the_name ... ok
-test structure_draft_writes_the_customer_golden_and_rejects_a_duplicate_key ... ok
-test rejected_fk_endpoint_closes_the_relationship_on_the_cli ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-

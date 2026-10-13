@@ -1,8 +1,0 @@
-23:41:24 tick=60 phase=adapter-fetch.exit
-23:42:25 tick=120 phase=adapter-build.exit
-23:43:26 tick=180 phase=adapter-build.exit
-23:43:53 hold
-23:44:00 timeout-start
-23:44:02 timeout-ready
-23:44:06 timeout-release
-23:44:15 counts

@@ -1,1 +1,0 @@
-tmpfs was noexec and the shell had no pipefail, so /tmp/probe was Permission denied while tee made the container exit 0. Preserved. Not a passing probe.

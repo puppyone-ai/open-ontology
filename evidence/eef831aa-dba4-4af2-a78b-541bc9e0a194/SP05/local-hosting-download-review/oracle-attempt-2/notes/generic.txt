@@ -1,7 +1,0 @@
-begin=Unsupported
-put_part=Unsupported
-complete=Unsupported
-abort=Unsupported
-quota_mutated=0
-generic_pull=1
-read_object_full_buffer=1

@@ -1,4 +1,0 @@
-oo_task=sp06-parser-reap-bounds-red2
-phase=red-attempt-2
-=== std api probe 2 ===
-phase_exit=0 phase=std-api-compile-2

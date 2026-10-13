@@ -15,7 +15,7 @@ use std::process::ExitCode;
 
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
-use oo_gateway::policy::{compile_column_acl_set, install_column_acl_set};
+use oo_gateway::policy::{compile_column_acl_set, install_column_acl_set, compile_column_acl_native_vector_set, install_column_acl_native_vector_set};
 use oo_gateway::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
     RowFilter, TlsEndpoint, connect_require_tls,
@@ -25,6 +25,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 const PROTOCOL: &str = "oo.gateway.install-column-acl-cli/v1";
+const NATIVE_VECTOR_PROTOCOL: &str = "oo.gateway.install-native-vector-acl-cli/v1";
 const PASSWORD_FILE_BYTES: usize = 1026;
 const PASSWORD_BYTES: usize = 1024;
 const CA_BYTES: usize = 1_048_576;
@@ -96,21 +97,23 @@ struct Prepared {
     endpoint: TlsEndpoint,
     password: String,
     ca: Vec<u8>,
+    native_vector: bool,
 }
 
 fn prepare(text: &str) -> Result<Prepared, Fail> {
     let value = parse_json_value(text, PROTOCOL).map_err(|_| Fail::Scan)?;
     reject_null(&value)?;
     let request: RequestDoc = serde_json::from_value(value).map_err(|_| Fail::Request)?;
-    if request.protocol != PROTOCOL {
+    if request.protocol != PROTOCOL && request.protocol != NATIVE_VECTOR_PROTOCOL {
         return Err(Fail::Request);
     }
+    let native_vector = request.protocol == NATIVE_VECTOR_PROTOCOL;
     let endpoint = endpoint_from(request.endpoint)?;
     let mut policies = Vec::with_capacity(request.policies.len());
     for policy in &request.policies {
         policies.push(policy.to_acl()?);
     }
-    compile_column_acl_set(&policies).map_err(from_policy)?;
+    if native_vector { compile_column_acl_native_vector_set(&policies) } else { compile_column_acl_set(&policies) }.map_err(from_policy)?;
     let password = read_password(Path::new(&request.password_file))?;
     if contains_bytes(text.as_bytes(), password.as_bytes()) {
         return Err(Fail::Request);
@@ -121,11 +124,15 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
         endpoint,
         password,
         ca,
+        native_vector,
     })
 }
 
 fn endpoint_from(doc: EndpointDoc) -> Result<TlsEndpoint, Fail> {
-    if doc.port == 0 || !host_ok(&doc.host) || !plain_ident(&doc.database) || !plain_ident(&doc.user)
+    if doc.port == 0
+        || !host_ok(&doc.host)
+        || !plain_ident(&doc.database)
+        || !plain_ident(&doc.user)
     {
         return Err(Fail::Request);
     }
@@ -145,7 +152,11 @@ async fn install(prepared: Prepared) -> Result<String, Fail> {
     let driver = tokio::spawn(async move {
         let _ = connection.await;
     });
-    let result = install_column_acl_set(&mut client, &prepared.policies).await;
+    let result = if prepared.native_vector {
+        install_column_acl_native_vector_set(&mut client, &prepared.policies).await
+    } else {
+        install_column_acl_set(&mut client, &prepared.policies).await
+    };
     drop(client);
     let _ = driver.await;
     let outcome = result.map_err(from_policy)?;
@@ -154,7 +165,7 @@ async fn install(prepared: Prepared) -> Result<String, Fail> {
         InstallEffect::Replay => "replay",
     };
     let body = OutcomeDoc {
-        protocol: PROTOCOL,
+        protocol: if prepared.native_vector { NATIVE_VECTOR_PROTOCOL } else { PROTOCOL },
         effect,
         role: &outcome.role,
         grantor: &outcome.grantor,
@@ -172,9 +183,9 @@ async fn install(prepared: Prepared) -> Result<String, Fail> {
 
 fn from_connect(err: PolicyError) -> Fail {
     match err {
-        PolicyError::CertificateRejected | PolicyError::TlsRequired | PolicyError::Database { .. } => {
-            Fail::Tls
-        }
+        PolicyError::CertificateRejected
+        | PolicyError::TlsRequired
+        | PolicyError::Database { .. } => Fail::Tls,
         PolicyError::InvalidIdentifier { .. } => Fail::Request,
         other => from_policy(other),
     }
@@ -226,7 +237,10 @@ fn reject_null(value: &Value) -> Result<(), Fail> {
 }
 
 fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
-    !needle.is_empty() && haystack.windows(needle.len()).any(|window| window == needle)
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
 }
 
 fn host_ok(host: &str) -> bool {
@@ -467,10 +481,7 @@ impl Fail {
             Self::Scan => (EXIT_SCAN, "install-column-acl: scan".to_string()),
             Self::Request => (EXIT_REQUEST, "install-column-acl: request".to_string()),
             Self::Tls => (EXIT_TLS, "install-column-acl: tls".to_string()),
-            Self::Policy(reason) => (
-                EXIT_POLICY,
-                format!("install-column-acl: policy {reason}"),
-            ),
+            Self::Policy(reason) => (EXIT_POLICY, format!("install-column-acl: policy {reason}")),
         };
         eprintln!("{line}");
         ExitCode::from(code)

@@ -1,7 +1,0 @@
-POST /v1/reviews HTTP/1.1
-Host: feedback.local
-Content-Length: 2
-Connection: close
-Content-Type: application/json
-
-{}

@@ -1,0 +1,54 @@
+{
+  "protocol": "oo.minimal-product-loop.config/v1",
+  "mode": "operator-development",
+  "development_preview": true,
+  "publication": "not_published",
+  "llm_review": "unreviewed",
+  "runtime_acknowledgement": "local-process-not-a-sandbox-certificate",
+  "database": {
+    "type": "postgresql",
+    "host": "oo-a407-dst-pg",
+    "port": 5432,
+    "name": "oo_a407_dst",
+    "username": "oo_a407_reader",
+    "tls": "verify-full",
+    "secret_ref": "secret://pg/a407/reader",
+    "password_file": "configured-by-pipeline/target-reader.password",
+    "ca_file": "configured-by-pipeline/target-reader.ca"
+  },
+  "tables": [
+    {"schema": "public", "table": "batch_a"},
+    {"schema": "public", "table": "batch_b"},
+    {"schema": "public", "table": "batch_c"}
+  ],
+  "llm": {
+    "model_id": "grok-4.7",
+    "origin": "http://127.0.0.1:8317",
+    "path": "/v1/chat/completions",
+    "bearer_file": "configured-by-pipeline/llm.bearer",
+    "deadline_ms": 30000
+  },
+  "gateway": {
+    "oo": "/opt/pi-runtime-kit/bin/oo",
+    "query_pg": "/opt/pi-runtime-kit/bin/query-pg",
+    "policy_file": "configured-by-pipeline/query-pg-policy.json",
+    "token_file": "configured-by-pipeline/gateway.token"
+  },
+  "pi": {
+    "executable": "/opt/pi-runtime-kit/install/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+    "executable_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+    "runtime": "/opt/pi-runtime-kit/node/bin/node",
+    "runtime_sha256": "d09e299258c24f7cdf6f5d5ec185e3a56512b27a697113735dac909f1cac7b8d",
+    "provider": "grok",
+    "model": "grok-4.7"
+  },
+  "paths": {
+    "catalog_bin": "configured-by-pipeline/catalog",
+    "knowledge": "configured-by-pipeline/knowledge",
+    "work": "configured-by-pipeline/work"
+  },
+  "operator": {
+    "label": "a415-fresh-campaign",
+    "at": "2026-10-09T00:00:00Z"
+  }
+}

@@ -1,0 +1,40 @@
+[package]
+name = "mssql-preview"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "SQL Server customer reader. Readonly TDS catalog and precision-preserving Arrow. No native seal and no source acceptance without a real target."
+
+[workspace]
+resolver = "2"
+
+[lib]
+name = "mssql_preview"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mssql-preview"
+path = "src/main.rs"
+
+[dependencies]
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = "=0.10.8"
+tiberius = { version = "=0.13.0", default-features = false, features = ["tds73", "rustls", "rustls-webpki-roots", "rust_decimal"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "time"] }
+tokio-util = { version = "=0.7.18", default-features = false, features = ["compat"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

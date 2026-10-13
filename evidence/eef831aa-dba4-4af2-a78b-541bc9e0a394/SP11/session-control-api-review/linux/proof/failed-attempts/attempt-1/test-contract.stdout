@@ -1,8 +1,0 @@
-
-running 3 tests
-test claims_hash_is_order_independent ... ok
-test client_identity_fields_are_self_asserted ... ok
-test localprocess_listens_and_production_does_not_flip_into_it ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-

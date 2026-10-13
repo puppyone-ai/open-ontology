@@ -1,3 +1,0 @@
-Captured stdout of the pre-edit smoke container oo-a392-smoke-pre.
-That container was removed before this file was written. The smoke was not run again.
-The line SMOKE_CONTAINER_REMOVED is part of the captured stdout.

@@ -1,1 +1,0 @@
-attempt1_exit=4 reason=lock delta treated itertools 0.15.0 as a forbidden bump; it is an added version beside existing itertools

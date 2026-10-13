@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/drop_constraint.sql:2: ERROR:  42501: must be owner of table task_events
-LOCATION:  aclcheck_error, aclchk.c:2981

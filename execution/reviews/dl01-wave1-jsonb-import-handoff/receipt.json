@@ -1,0 +1,23 @@
+{
+  "author_fixed_source": "631720c5f0e9eaf07fa1616382003664e765595d",
+  "hashes": [
+    {
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/customer-stage3/SHA256SUMS",
+      "verified": 2
+    },
+    {
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/jsonb-document-import/SHA256SUMS",
+      "verified": 5
+    },
+    {
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/jsonb-probe-stage/SHA256SUMS",
+      "verified": 1
+    }
+  ],
+  "independent_review": "deferred_to_connected_product",
+  "scope": "native canonical document importer and profile function; not MongoDB/MySQL source acceptance",
+  "missing_delivery_reports": [
+    "FINDINGS.md",
+    "HANDOFF.md"
+  ]
+}

@@ -1,6 +1,0 @@
-docker-run.exit 101. Frozen cargo test --test reviewed_policy exited 101 before the overlay.
-19 of 21 tests panicked at reviewed_policy.rs:303: missing OO_A227_OO_BUILDER.
-schema_preimage_matches_the_captured_catalog_vector and adapter_source_does_not_open_a_database passed.
-Bins, fetch, libclang, and the quantity source gate had already exited 0.
-The retry exports OO_A227_OO_BUILDER and OO_A227_REVIEWED_EFFECTIVE to the same frozen binaries.
-This is a review-script omission. The product tree was not edited.

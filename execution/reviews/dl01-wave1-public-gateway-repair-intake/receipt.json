@@ -1,0 +1,11 @@
+[
+  {
+    "task": "72",
+    "fixed_sha": "885e52ab057567edfda054a09aaf99319c5d786f",
+    "manifest": "evidence/7e719805-ed88-4354-a5a1-f869f34da49b/DL01/public-gateway-cli/hash-manifest.txt",
+    "fixed_git_hashes_checked": 1017,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

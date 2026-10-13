@@ -1,1 +1,0 @@
-reader SET log_statement failed: the parameter is superuser-only. The admin now records log_statement=all on the reader role after the password statement.

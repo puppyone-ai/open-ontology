@@ -1,9 +1,0 @@
-bind /oracle rw=false
-bind /inside.sh rw=false
-bind /evidence rw=true
-volume /cargo-home rw=true
-volume /target rw=true
-bind /src rw=false
-bind /receipts rw=false
-bind /a357 rw=false
-

@@ -1,6 +1,0 @@
-=== bin ===
-    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s
-=== test ===
-    Checking oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s

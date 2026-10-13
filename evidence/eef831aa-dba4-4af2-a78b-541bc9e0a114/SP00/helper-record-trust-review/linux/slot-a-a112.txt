@@ -1,3 +1,0 @@
-d0dec4c423a3 eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-r1 Exited (0) 2 minutes ago
-4e85771679bb eef831aa-dba4-4af2-a78b-541bc9e0a112-pg Up 9 minutes
-47a29b760358 eef831aa-dba4-4af2-a78b-541bc9e0a112-rust-base Exited (101) About an hour ago

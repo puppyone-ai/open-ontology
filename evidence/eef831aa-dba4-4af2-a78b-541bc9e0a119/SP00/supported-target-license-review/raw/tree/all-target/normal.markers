@@ -1,8 +1,0 @@
-present	core_detect
-present	multiversion
-present	multiversion-macros
-present	rustversion
-present	tiny-keccak
-present	webpki-root-certs
-present	rustls-native-certs
-present	arrow-array

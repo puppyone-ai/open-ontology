@@ -3,14 +3,14 @@
 //! The canonical hash is the type-policy frame. It is not a hash of Arrow
 //! buffers. SQL NULL and an unavailable cell are different presences.
 
-use oo_core::canonical::{
-    encode_pk, encode_value, hash_bytes, LogicalField, LogicalValue, Presence,
-};
 use oo_core::TYPE_POLICY_V1;
+use oo_core::canonical::{
+    LogicalField, LogicalValue, Presence, encode_pk, encode_value, hash_bytes,
+};
 
 use super::binary::{field_value, logical_field};
 use super::mapping::{ArrowPhysical, ColumnPlan, MapDecision};
-use super::{digest_hex, RunBinding, TYPE_CONVERSION_PROTOCOL};
+use super::{RunBinding, TYPE_CONVERSION_PROTOCOL, digest_hex};
 use crate::error::SourceError;
 
 /// Why a cell has no value.
@@ -42,6 +42,7 @@ pub enum ArrowScalar {
     Binary(Vec<u8>),
     Date32(i32),
     Time64(i64),
+    DurationMicros(i64),
     TimestampNaive(i64),
     TimestampUtc(i64),
     Decimal128(i128),
@@ -171,9 +172,8 @@ pub fn assemble_batch(
         .collect();
     let mut fields = Vec::with_capacity(framed.len());
     for index in &framed {
-        fields.push(
-            logical_field(&plans[*index]).ok_or_else(|| SourceError::protocol("type_plan"))?,
-        );
+        fields
+            .push(logical_field(&plans[*index]).ok_or_else(|| SourceError::protocol("type_plan"))?);
     }
     let mut arrow = Vec::with_capacity(framed.len());
     for index in &framed {
@@ -276,7 +276,8 @@ fn digest_key(
         };
         let field = logical_field(&plans[framed[slot]])
             .ok_or_else(|| SourceError::protocol("type_plan"))?;
-        let value = field_value(&row[slot]).map_err(|_| SourceError::protocol("canonical_value"))?;
+        let value =
+            field_value(&row[slot]).map_err(|_| SourceError::protocol("canonical_value"))?;
         if value.presence != Presence::Value {
             return Err(SourceError::protocol("key_unavailable"));
         }
@@ -372,6 +373,10 @@ fn write_scalar(out: &mut Vec<u8>, value: &ArrowScalar) {
         }
         ArrowScalar::Time64(item) => {
             out.push(9);
+            out.extend(item.to_le_bytes());
+        }
+        ArrowScalar::DurationMicros(item) => {
+            out.push(16);
             out.extend(item.to_le_bytes());
         }
         ArrowScalar::TimestampNaive(item) | ArrowScalar::TimestampUtc(item) => {

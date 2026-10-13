@@ -1,2 +1,0 @@
-/cargo-home/a399-clang-root/usr/lib/llvm-19/lib/clang/19/include
-/usr/lib/gcc/aarch64-linux-gnu/14/include

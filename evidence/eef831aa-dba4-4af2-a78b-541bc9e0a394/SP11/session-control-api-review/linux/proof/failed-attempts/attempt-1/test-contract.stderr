@@ -1,3 +1,0 @@
-   Compiling session-control-api v0.1.0 (/src/tools/session-control-api)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.16s
-     Running tests/contract.rs (/target/debug/deps/contract-8249682a54a56cba)

@@ -1,0 +1,30 @@
+[package]
+name = "opensearch-preview"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "OpenSearch 3.9 controlled preview. Observed scope is admitted. Denial is not a retag."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+serde_json = "=1.0.151"
+source-admission = { path = "../source-admission" }
+
+# The frozen admission crate enables a vendor-only sqlx feature. Cargo ignores
+# [patch] inside a path dependency, so this workspace root repeats that patch.
+[patch.crates-io]
+sqlx-core = { path = "../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../crates/oo-connectors/vendor/sqlx-postgres" }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

@@ -1,1 +1,0 @@
-name=oo-a151-pg kind=postgres owner=a151 status=Up 8 minutes

@@ -38,7 +38,7 @@ Hashes are SHA-256, 64 lowercase hex digits, of the exact UTF-8 bytes named belo
 | `binding.project` | slug, 1 to 63 bytes |
 | `binding.policy_id` | 64 lowercase hex digits, the Gateway request config digest |
 | `binding.policy_version` | 1 to 64 bytes of ASCII letters, digits, `.`, `_`, `+`, `-` |
-| `binding.knowledge_id` | dialogue slug, 1 to 63 bytes |
+| `binding.knowledge_id` | role-pack knowledge slug, 1 to 63 bytes |
 | `binding.knowledge_version` | same rule as `policy_version` |
 | `binding.as_of` | `YYYY-MM-DDThh:mm:ssZ` |
 | `endpoint.transport` | omitted or `production`, or the exact token `development_local` |
@@ -50,9 +50,11 @@ Hashes are SHA-256, 64 lowercase hex digits, of the exact UTF-8 bytes named belo
 | `secret.bearer_file` | bearer token file, at most 512 bytes |
 | `budget` | the ranges below |
 
-A dialogue slug is one ASCII lowercase letter or `_`, then lowercase letters, digits, or `_`. `oo_r_` plus the rest is at most 63 bytes, and the part after `oo_r_` is 1 to 58 bytes and starts with a lowercase letter or `_`. A hyphen is outside this slug. `know-a317` is `config` before any socket. The role-pack compiler keeps its own slug, which still allows a hyphen, and it does not rewrite the identifier. A knowledge id both the compiler and this command accept is the dialogue slug, for example `know_a317`.
+`binding.project` uses a dialogue slug: one ASCII lowercase letter or `_`, then lowercase letters, digits, or `_`, length 1 to 63. `binding.role` is `oo_r_` plus that slug. The whole role is at most 63 bytes, and the part after `oo_r_` is 1 to 58 bytes. A hyphen stays outside the project and role tokens.
 
-`binding.policy_id` is 64 lowercase hex digits. That value is the digest `query-pg` requires on `identity.policy_id`. Uppercase hex, any other length, a non-hex byte, a slash, or a control character is `config`. The role-pack compiler also accepts its existing slug as a policy id and does not rewrite a digest. A slug-only policy id can still be a legal role pack. This command accepts the digest form in `binding.policy_id`.
+`binding.knowledge_id` uses the role-pack knowledge slug from `contracts/builder/role-pack-v1.md`. The length is 1 to 63. The first byte is an ASCII lowercase letter. Later bytes are lowercase letters, digits, `_`, or `-`. `know-a317` and `know_a317` are both legal. This command copies the id the compiler emitted. It does not rewrite it. A leading `_` or `-`, uppercase, a length outside 1 to 63, `/`, a space, a newline, or a control character is `config` before any socket.
+
+`binding.policy_id` is 64 lowercase hex digits. That value is the digest the role-pack compiler copied from its policy id parameter into the pack manifest, and the digest `query-pg` requires on `identity.policy_id`. Uppercase hex, any other length, a non-hex byte, a slash, or a control character is `config`. The role-pack compiler also accepts its existing slug as a policy id and does not rewrite a digest. A slug-only policy id can still be a legal role pack. This command accepts the digest form in `binding.policy_id`. The loaded pack's `policy.id` must be that digest, and its `knowledge.id` must be the knowledge slug above.
 
 `residency_approved: true` is the caller's declaration that this origin is approved. It is not a residency certificate. On the production client the CA file is not a private key. A PEM window containing `PRIVATE KEY` is `config`. That client trusts that bundle and no platform roots.
 

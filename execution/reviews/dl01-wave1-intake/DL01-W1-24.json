@@ -1,0 +1,13 @@
+{
+  "task": "DL01-W1-24",
+  "fixed_review": "824b20735bd958c4298913838fb832058d17e512",
+  "author_source": "29597079f7feacc6e3934b5c803686fc80567a93",
+  "author_seal": "b7d16ceba42543eab0163ac42679e8a8d412d8b0",
+  "verified_sha_entries": 807,
+  "decision": "approve_original_frozen_child",
+  "actual_tests": "Linux1.94 lib5 + journey10; publicCLI calendar26 fail0; Clippy0 with recorded warning-level lints",
+  "contract_harness": "60 cases,2 known oracle mismatches retained; actual field existing_source_stopped false and corrected DOC_DRIFT probe recorded",
+  "scope": "source-support CLI/library only; parentHTTP/oo/allowlist/secretresolver/matrix/nightly not accepted",
+  "development_acceptance_delta": 1,
+  "source_acceptance_delta": 0
+}

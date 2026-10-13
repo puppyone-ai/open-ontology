@@ -1,6 +1,0 @@
-ERROR:  target generation or owner is stale
-CONTEXT:  PL/pgSQL function _load_held_generation(text,uuid,bigint) line 66 at RAISE
-SQL statement "SELECT _oo._load_held_generation(p_shard, p_owner, p_generation)"
-PL/pgSQL function full_import_assert_bound(text,uuid,bigint) line 6 at PERFORM
-SQL statement "SELECT _oo.full_import_assert_bound(v_run.shard_id, v_run.owner_token, v_run.target_generation)"
-PL/pgSQL function full_import_guard_shadow() line 14 at PERFORM

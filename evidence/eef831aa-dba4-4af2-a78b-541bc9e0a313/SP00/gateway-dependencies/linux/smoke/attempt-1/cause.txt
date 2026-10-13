@@ -1,8 +1,0 @@
-cargo 1.94.0 rejected `cargo fetch --locked -p oo-arch-check` with: unexpected argument '-p' found.
-fetch.exit=1
-metadata.exit=not_run
-check.exit=not_run
-docker-run.exit=1
-Root Cargo.toml and Cargo.lock were not edited.
-The container was removed by launch.sh. Volumes and the private network were kept.
-The inside.sh in this directory is the script that failed. The live linux/smoke/inside.sh is the retry.

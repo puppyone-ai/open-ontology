@@ -1,0 +1,16 @@
+{
+  "source_version": {
+    "status": 200,
+    "distribution": "opensearch",
+    "number": "3.9.0"
+  },
+  "runner_exit": 2,
+  "phase_exits": {
+    "cancel": 2,
+    "cancel-late": 0,
+    "deadline": 0
+  },
+  "source_acceptance": false,
+  "cleanup": "only owned source stopped; volumes/network/container/build preserved; reservations released",
+  "remaining": "owned channel close observed but no server cancellation reason; class unsupported must not substitute for original explicit cancel proof"
+}

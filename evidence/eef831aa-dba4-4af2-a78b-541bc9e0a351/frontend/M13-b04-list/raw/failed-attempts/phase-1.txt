@@ -1,1 +1,0 @@
-attempt1 drive.exit=1 edge.exit=0 b04-install.exit=0 b04-serve.exit=0 rust-ready.exit=0

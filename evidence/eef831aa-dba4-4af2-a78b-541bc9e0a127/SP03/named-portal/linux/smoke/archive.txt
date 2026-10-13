@@ -1,5 +1,0 @@
-attempt=2
-archive_method=git archive complete tree of b8e7bf1b1c25fbc0f8213898eb7de84b248f8211
-empty_catalog=present
-portal_rs=absent
-e8f408d6f66ef5361dc7c6d6185ca7942eaf1819

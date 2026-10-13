@@ -1,0 +1,110 @@
+{
+  "n": 100,
+  "presence_rule": "present * 10 >= n * 9",
+  "consistency_rule": "dominant_count * 100 >= present * 99",
+  "tie_break": "highest count, then bson type name ascending",
+  "null_counts_as_present": true,
+  "missing_is_absent_key": true,
+  "array_child_table": false,
+  "unclassified_default_visible": false,
+  "consistency_grade": "B",
+  "cdc_declared": false,
+  "fields": {
+    "_id": {"bucket": "stable", "dominant": "objectId", "present": 100, "dominant_count": 100, "pg_type": "text", "nullable": false},
+    "sku": {"bucket": "stable", "dominant": "string", "present": 100, "dominant_count": 100, "pg_type": "text", "nullable": false},
+    "units": {"bucket": "stable", "dominant": "int64", "present": 100, "dominant_count": 100, "pg_type": "bigint", "nullable": false},
+    "small_units": {"bucket": "stable", "dominant": "int64", "present": 100, "dominant_count": 100, "pg_type": "bigint", "nullable": false},
+    "price": {"bucket": "stable", "dominant": "decimal128", "present": 100, "dominant_count": 100, "pg_type": "numeric", "nullable": false, "value_reject": ["NaN", "Infinity", "-Infinity"]},
+    "warehouse": {"bucket": "stable", "dominant": "string", "present": 100, "dominant_count": 100, "pg_type": "text", "nullable": false},
+    "flag": {"bucket": "stable", "dominant": "int32", "present": 100, "dominant_count": 100, "pg_type": "int4", "nullable": false},
+    "created": {"bucket": "stable", "dominant": "date", "present": 100, "dominant_count": 100, "pg_type": "timestamptz", "nullable": false},
+    "uid": {"bucket": "stable", "dominant": "binary:04", "present": 100, "dominant_count": 100, "pg_type": "uuid", "nullable": false},
+    "blob": {"bucket": "stable", "dominant": "binary:00", "present": 100, "dominant_count": 100, "pg_type": "bytea", "nullable": false},
+    "weight": {"bucket": "stable", "dominant": "double", "present": 100, "dominant_count": 100, "pg_type": "float8", "nullable": false, "caveat": "binary64"},
+    "note_null_boundary": {"bucket": "stable", "dominant": "string", "present": 100, "dominant_count": 99, "pg_type": "text", "nullable": true},
+    "tags": {"bucket": "retained_in_doc", "dominant": "array", "present": 100, "dominant_count": 100, "reason": "array stays jsonb; no child table"},
+    "nested_arr": {"bucket": "retained_in_doc", "dominant": "array", "present": 100, "dominant_count": 100, "reason": "array of objects stays jsonb"},
+    "payload": {"bucket": "retained_in_doc", "dominant": "object", "present": 100, "dominant_count": 100, "reason": "subdocument is not a scalar"},
+    "explicit_null": {"bucket": "retained_in_doc", "dominant": "null", "present": 100, "dominant_count": 100, "reason": "explicit null is present and is not a scalar column type"},
+    "note_drift": {"bucket": "type_drift", "dominant": "string", "present": 100, "dominant_count": 98, "reason": "two explicit nulls drop consistency below 99/100"},
+    "mixed": {"bucket": "type_drift", "dominant": "int64", "present": 100, "dominant_count": 50, "reason": "tie string/int64 broken by type name; consistency 50/100"},
+    "count_drift": {"bucket": "type_drift", "dominant": "int64", "present": 100, "dominant_count": 97, "reason": "three int32 values"},
+    "rare_code": {"bucket": "unclassified", "dominant": "string", "present": 89, "dominant_count": 89, "default_visible": false},
+    "new_attr": {"bucket": "unclassified", "dominant": "string", "present": 5, "dominant_count": 5, "default_visible": false}
+  },
+  "anchors": {
+    "0": {
+      "sku": "SKU-000",
+      "units": "9007199254740993",
+      "small_units": "0",
+      "price": {"reject": "NaN"},
+      "flag": "0",
+      "created_ms": "1700000000000",
+      "note_null_boundary": "n0",
+      "note_drift": "d0",
+      "rare_code": "c0",
+      "new_attr": null,
+      "mixed": {"string": "m0"},
+      "count_drift": {"int64": "0"},
+      "blob_base64": "AAoAAA==",
+      "uid": "00000000-0000-4000-8000-000000000000",
+      "weight": 0.5,
+      "tags": ["a", "b"]
+    },
+    "3": {
+      "sku": "SKU-003",
+      "units": "9007199254740996",
+      "price": {"decimal": "100000000000000000003.00030001"},
+      "flag": "3",
+      "rare_code": "c3",
+      "new_attr": null,
+      "mixed": {"string": "m3"},
+      "count_drift": {"int64": "3"}
+    },
+    "50": {
+      "sku": "SKU-050",
+      "mixed": {"int64": "50"},
+      "count_drift": {"int64": "50"},
+      "rare_code": "c50",
+      "new_attr": null,
+      "tags": ["a", "b"],
+      "note_null_boundary": "n50"
+    },
+    "89": {
+      "rare_code": null,
+      "new_attr": null,
+      "mixed": {"int64": "89"},
+      "note_drift": "d89"
+    },
+    "97": {
+      "count_drift": {"int32": "97"},
+      "new_attr": "new-97",
+      "rare_code": null,
+      "note_drift": "d97",
+      "note_null_boundary": "n97"
+    },
+    "98": {
+      "note_drift": null,
+      "note_null_boundary": "n98",
+      "count_drift": {"int32": "98"},
+      "new_attr": "new-98"
+    },
+    "99": {
+      "sku": "SKU-099",
+      "units": "9007199254741092",
+      "small_units": "99",
+      "price": {"decimal": "100000000000000000099.00990001"},
+      "flag": "4",
+      "created_ms": "1700000099000",
+      "note_null_boundary": null,
+      "note_drift": null,
+      "rare_code": null,
+      "new_attr": "new-99",
+      "mixed": {"int64": "99"},
+      "count_drift": {"int32": "99"},
+      "blob_base64": "YwoAYw==",
+      "uid": "00000000-0000-4000-8000-000000000099",
+      "weight": 99.5
+    }
+  }
+}

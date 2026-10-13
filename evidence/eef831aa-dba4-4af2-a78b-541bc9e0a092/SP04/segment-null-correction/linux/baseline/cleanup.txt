@@ -1,8 +1,0 @@
-rm_container_exit=0
-rm_network_exit=0
-rm_cargo_volume_exit=0
-rm_target_volume_exit=0
-container_stderr=oo-a092-msrv-c19c5871-6b3e-4b98-8623-0a820532d71f
-network_stderr=oo-a092-c19c5871-6b3e-4b98-8623-0a820532d71f-net
-cargo_volume_stderr=oo-a092-c19c5871-6b3e-4b98-8623-0a820532d71f-cargo
-target_volume_stderr=oo-a092-c19c5871-6b3e-4b98-8623-0a820532d71f-target

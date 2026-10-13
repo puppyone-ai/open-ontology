@@ -1,1 +1,0 @@
-live passed through stdin, guards, and CA checks. pg_stat n_tup_ins moved from 0 to 3 after the fixture inserts became visible. row digest matched.

@@ -652,6 +652,44 @@ fn curated_pii_is_not_copied_and_money_needs_an_existing_unit() {
 }
 
 #[test]
+fn explicit_usd_classifies_money_and_unknown_or_absent_units_fail() {
+    let artifact = bare();
+    let mut usd_decisions = classified_columns(&artifact);
+    let mut usd = decision(&artifact, "public.customer", "email", "none", "money");
+    usd["unit"] = json!("USD");
+    usd_decisions.push(usd);
+    let output = reviewed(&command(&artifact, usd_decisions));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let email = column_of(&value["effective_oos"], "public.customer", "email");
+    assert_eq!(email["semantic_type"], "money");
+    assert_eq!(email["unit"], "USD");
+
+    for unit in ["unknown", "UNKNOWN", "Unknown"] {
+        let mut decisions = classified_columns(&artifact);
+        let mut bad = decision(&artifact, "public.customer", "email", "none", "money");
+        bad["unit"] = json!(unit);
+        decisions.push(bad);
+        assert_static_failure(&reviewed(&command(&artifact, decisions)), "/decision.invalid");
+    }
+
+    let mut absent = classified_columns(&artifact);
+    absent.push(decision(
+        &artifact,
+        "public.customer",
+        "email",
+        "none",
+        "money",
+    ));
+    assert_static_failure(&reviewed(&command(&artifact, absent)), "/oos.invalid");
+}
+
+#[test]
 fn rejected_column_leaves_the_effective_draft_and_the_decision_is_unknown() {
     let bare = bare();
     let reviews = json!([{

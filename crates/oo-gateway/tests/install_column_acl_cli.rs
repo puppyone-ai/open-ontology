@@ -13,11 +13,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use oo_gateway::{connect_require_tls, TlsEndpoint};
-use serde_json::{json, Value};
+use oo_gateway::{TlsEndpoint, connect_require_tls};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
+use tokio_postgres::types::ToSql;
 
 const PROTOCOL: &str = "oo.gateway.install-column-acl-cli/v1";
 const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -178,10 +178,8 @@ async fn private_tls_two_tables_two_roles() {
     let scan = run_cli(b"{".to_vec()).await;
     assert_line(&scan, 4, "install-column-acl: scan");
     assert_quiet(&scan.stderr, &bans, "scan stderr");
-    let malformed = run_cli(
-        br#"{"protocol":"oo.gateway.install-column-acl-cli/v1"}"#.to_vec(),
-    )
-    .await;
+    let malformed =
+        run_cli(br#"{"protocol":"oo.gateway.install-column-acl-cli/v1"}"#.to_vec()).await;
     assert_line(&malformed, 5, "install-column-acl: request");
     assert_eq!(role_count(&admin, "oo_r_").await, before);
     oracle.fact("malformed_scan", "scan");
@@ -232,8 +230,14 @@ async fn private_tls_two_tables_two_roles() {
     assert_eq!(clerk_body["effect"], "installed");
     assert_eq!(clerk_body["role"], "oo_r_clerk");
     assert_eq!(clerk_body["grantor"], ADMIN);
-    assert_eq!(clerk_body["tables"][0]["physical_table"], shadow.party.table);
-    assert_eq!(clerk_body["tables"][1]["physical_table"], shadow.ledger.table);
+    assert_eq!(
+        clerk_body["tables"][0]["physical_table"],
+        shadow.party.table
+    );
+    assert_eq!(
+        clerk_body["tables"][1]["physical_table"],
+        shadow.ledger.table
+    );
     assert_eq!(
         strings(&clerk_body["tables"][1]["physical_columns"]),
         vec![
@@ -279,9 +283,11 @@ async fn private_tls_two_tables_two_roles() {
     ))
     .await;
     let replay_body = assert_ok(&replay, &bans);
-    assert!(replay.stdout.starts_with(
-        br#"{"protocol":"oo.gateway.install-column-acl-cli/v1","effect":"replay""#
-    ));
+    assert!(
+        replay.stdout.starts_with(
+            br#"{"protocol":"oo.gateway.install-column-acl-cli/v1","effect":"replay""#
+        )
+    );
     assert_eq!(replay_body["tables"], clerk_body["tables"]);
     oracle.fact("clerk_replay", "replay");
     oracle.fact("replay_tables", "same");
@@ -366,9 +372,7 @@ fn run_cli_blocking(bytes: &[u8], args: &[&str]) -> Output {
         let mut stdin = child.stdin.take().expect("stdin");
         let _ = stdin.write_all(bytes);
     }
-    child
-        .wait_with_output()
-        .expect("wait install-column-acl")
+    child.wait_with_output().expect("wait install-column-acl")
 }
 
 async fn run_cli(bytes: Vec<u8>) -> Output {
@@ -630,20 +634,37 @@ async fn apply_frozen_schema(client: &mut Client) {
         "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
     )
     .await;
-    exec_named(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_named(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_named(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_named(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
@@ -709,7 +730,9 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
             "  ('{version}', '{checksum}', 'expand', '{filename}')"
         ));
     }
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}"
+    )
 }
 
 fn closed_token(value: &str) -> bool {
@@ -723,7 +746,12 @@ fn closed_token(value: &str) -> bool {
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_named(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_named(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
+    exec_named(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
     exec_named(
         &tx,
         "advisory-lock",
@@ -753,9 +781,10 @@ async fn exec_named(tx: &tokio_postgres::Transaction<'_>, name: &str, sql: &str)
 
 async fn create_login(client: &Client, name: &str, password: &str) {
     assert!(password.bytes().all(|byte| byte.is_ascii_hexdigit()));
-    assert!(name
-        .bytes()
-        .all(|byte| byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit()));
+    assert!(
+        name.bytes()
+            .all(|byte| byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit())
+    );
     client
         .batch_execute(&format!(
             "CREATE ROLE \"{name}\" LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE \
@@ -808,8 +837,16 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
             &map_key(CONFIG, generation, "namespace", "n", "", ""),
         )
         .await;
-        register(client, &map_key(CONFIG, generation, "table", "t", PARTY, "")).await;
-        register(client, &map_key(CONFIG, generation, "table", "t", LEDGER, "")).await;
+        register(
+            client,
+            &map_key(CONFIG, generation, "table", "t", PARTY, ""),
+        )
+        .await;
+        register(
+            client,
+            &map_key(CONFIG, generation, "table", "t", LEDGER, ""),
+        )
+        .await;
         for column in ["party_id", "display_name", "note", "ratio"] {
             register(
                 client,
@@ -880,7 +917,14 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
         &[23, 23, 25],
     )
     .await;
-    insert_rows(client, &party_table, &party_cols, &ledger_table, &ledger_cols).await;
+    insert_rows(
+        client,
+        &party_table,
+        &party_cols,
+        &ledger_table,
+        &ledger_cols,
+    )
+    .await;
     Shadow {
         party: PartyMap {
             table: party_table,
@@ -996,12 +1040,20 @@ async fn insert_rows(
     let tx = client.transaction().await.expect("insert begin");
     let first: [&(dyn ToSql + Sync); 5] = [&"1", &1_i32, &"alpha", &"secret-note", &"1.5"];
     let second: [&(dyn ToSql + Sync); 5] = [&"2", &2_i32, &"beta", &"other-note", &"2.5"];
-    tx.execute(&party_sql, &first).await.expect("insert party 1");
-    tx.execute(&party_sql, &second).await.expect("insert party 2");
+    tx.execute(&party_sql, &first)
+        .await
+        .expect("insert party 1");
+    tx.execute(&party_sql, &second)
+        .await
+        .expect("insert party 2");
     let entry_a: [&(dyn ToSql + Sync); 4] = [&"10", &10_i32, &1_i32, &"memo-a"];
     let entry_b: [&(dyn ToSql + Sync); 4] = [&"11", &11_i32, &2_i32, &"memo-b"];
-    tx.execute(&ledger_sql, &entry_a).await.expect("insert ledger 10");
-    tx.execute(&ledger_sql, &entry_b).await.expect("insert ledger 11");
+    tx.execute(&ledger_sql, &entry_a)
+        .await
+        .expect("insert ledger 10");
+    tx.execute(&ledger_sql, &entry_b)
+        .await
+        .expect("insert ledger 11");
     tx.commit().await.expect("insert commit");
 }
 
@@ -1282,16 +1334,19 @@ async fn expect_42501(client: &mut Client, role: Option<&str>, sql: &str) {
             .expect("set role");
     }
     let err = tx.query_one(sql, &[]).await.expect_err("expected denial");
-    let state = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let state = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     assert_eq!(state, "42501", "{err}");
     tx.rollback().await.expect("rollback denial");
 }
 
 fn quote_role(role: &str) -> String {
     assert!(
-        role.bytes().all(|byte| {
-            byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit()
-        }) && !role.is_empty()
+        role.bytes()
+            .all(|byte| { byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit() })
+            && !role.is_empty()
     );
     format!("\"{role}\"")
 }

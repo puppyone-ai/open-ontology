@@ -1,0 +1,12 @@
+{
+  "source": "offline_fixture_not_change_stream",
+  "event": {
+    "operationType": "delete",
+    "documentKey": {"_id": {"$oid": "64b0b1c0e1d2f3a4b5c60005"}}
+  },
+  "expect": {
+    "op": "delete",
+    "pk_hex": "64b0b1c0e1d2f3a4b5c60005",
+    "full_document": null
+  }
+}

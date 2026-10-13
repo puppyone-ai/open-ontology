@@ -13,6 +13,7 @@ use std::thread;
 use std::time::Duration;
 
 const LINE_LIMIT: usize = 1_048_576;
+const REASONING_SECRET: &str = "pi-harness-reasoning-secret";
 
 fn main() -> ExitCode {
     match run() {
@@ -85,7 +86,7 @@ fn serve(mode: &str) -> Result<(), String> {
         }
         if kind == "abort" {
             write_line(&mut stdout, &ok(&id, "abort", json!({})))?;
-            if mode == "abort" {
+            if mode == "abort" || mode == "abort-thinking" {
                 return Ok(());
             }
             continue;
@@ -171,6 +172,88 @@ fn serve(mode: &str) -> Result<(), String> {
                 write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
                 write_turn(&mut stdout, "stop", None)?;
             }
+            "thinking-tools" => {
+                // Protocol fixture. These bytes match the pinned Pi 1.0.4 wire shapes.
+                // They are not a Pi process and not a model answer.
+                write_thinking(&mut stdout, "thinking_start", None, None)?;
+                write_thinking(&mut stdout, "thinking_delta", Some(REASONING_SECRET), None)?;
+                write_thinking(&mut stdout, "thinking_end", None, Some(REASONING_SECRET))?;
+                write_line(&mut stdout, &ok("decoy", "prompt", json!({"disposition": "started"})))?;
+                write_line(&mut stdout, &event(json!({"type": "turn_start"})))?;
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_tool(&mut stdout, "call_read", "read", json!({"path": "README.md"}), "readme-bytes")?;
+                write_tool(
+                    &mut stdout,
+                    "call_bash",
+                    "bash",
+                    json!({"command": "printf 'query_id=q_fixed\\n'"}),
+                    "query_id=q_fixed\n",
+                )?;
+                write_line(&mut stdout, &text_delta("fixture-reply"))?;
+                let message = json!({
+                    "stopReason": "stop",
+                    "content": [{"type": "text", "text": "fixture-reply"}],
+                    "usage": {"input": 1, "output": 1, "totalTokens": 2}
+                });
+                write_line(&mut stdout, &event(json!({"type": "turn_end", "message": message})))?;
+                write_line(&mut stdout, &event(json!({"type": "agent_settled"})))?;
+            }
+            "thinking-eof" => {
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_line(&mut stdout, &event(json!({"type": "turn_start"})))?;
+                write_thinking(&mut stdout, "thinking_start", None, None)?;
+                write_thinking(&mut stdout, "thinking_delta", Some(REASONING_SECRET), None)?;
+                write_thinking(&mut stdout, "thinking_end", None, Some(REASONING_SECRET))?;
+                return Ok(());
+            }
+            "thinking-unknown" => {
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_thinking(&mut stdout, "thinking_start", None, None)?;
+                write_line(
+                    &mut stdout,
+                    &event(json!({
+                        "type": "message_update",
+                        "usage": pinned_usage(),
+                        "assistantMessageEvent": {"type": "thinking_partial", "contentIndex": 0}
+                    })),
+                )?;
+            }
+            "abort-thinking" => {
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_line(&mut stdout, &event(json!({"type": "turn_start"})))?;
+                write_thinking(&mut stdout, "thinking_start", None, None)?;
+                write_thinking(&mut stdout, "thinking_delta", Some(REASONING_SECRET), None)?;
+            }
+            "thinking-error" => {
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_line(
+                    &mut stdout,
+                    &event(json!({
+                        "type": "message_update",
+                        "usage": pinned_usage(),
+                        "assistantMessageEvent": {
+                            "type": "error",
+                            "reason": "error",
+                            "error": {
+                                "role": "assistant",
+                                "content": [{"type": "thinking", "thinking": REASONING_SECRET}],
+                                "stopReason": "error",
+                                "errorMessage": "provider failed"
+                            }
+                        }
+                    })),
+                )?;
+            }
+            "thinking-partial" => {
+                write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
+                write_thinking(&mut stdout, "thinking_start", None, None)?;
+                let partial = format!(
+                    "{{\"type\":\"message_update\",\"assistantMessageEvent\":{{\"type\":\"thinking_delta\",\"delta\":\"{REASONING_SECRET}\""
+                );
+                stdout.write_all(partial.as_bytes()).map_err(|err| format!("partial: {err}"))?;
+                stdout.flush().map_err(|err| format!("flush: {err}"))?;
+                return Ok(());
+            }
             "tools-61" => {
                 // not_upstream_real: sixty-one synthetic toolcall_end records, not a Pi transcript.
                 write_line(&mut stdout, &ok(&id, "prompt", json!({"disposition": "started"})))?;
@@ -217,6 +300,54 @@ fn write_turn(stdout: &mut impl Write, stop: &str, error: Option<&str>) -> Resul
 
 fn text_delta(text: &str) -> Vec<u8> {
     event(json!({"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": text}}))
+}
+
+fn pinned_usage() -> Value {
+    json!({
+        "input": 1,
+        "output": 1,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2,
+        "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}
+    })
+}
+
+fn write_thinking(stdout: &mut impl Write, kind: &str, delta: Option<&str>, content: Option<&str>) -> Result<(), String> {
+    let mut assistant = json!({"type": kind, "contentIndex": 0});
+    if let Some(delta) = delta {
+        assistant["delta"] = json!(delta);
+    }
+    if let Some(content) = content {
+        assistant["content"] = json!(content);
+    }
+    write_line(stdout, &event(json!({"type": "message_update", "usage": pinned_usage(), "assistantMessageEvent": assistant})))
+}
+
+fn write_tool(stdout: &mut impl Write, call_id: &str, name: &str, arguments: Value, output: &str) -> Result<(), String> {
+    write_line(
+        stdout,
+        &event(json!({
+            "type": "message_update",
+            "usage": pinned_usage(),
+            "assistantMessageEvent": {
+                "type": "toolcall_end",
+                "contentIndex": 1,
+                "toolCall": {"type": "toolCall", "id": call_id, "name": name, "arguments": arguments}
+            }
+        })),
+    )?;
+    write_line(
+        stdout,
+        &event(json!({
+            "type": "tool_execution_end",
+            "toolCallId": call_id,
+            "toolName": name,
+            "isError": false,
+            "result": {"content": [{"type": "text", "text": output}]}
+        })),
+    )
 }
 
 fn messages() -> Value {

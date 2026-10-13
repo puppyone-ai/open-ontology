@@ -1,6 +1,0 @@
-   Compiling mcp-gateway v0.1.0 (/src/tools/mcp-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
-     Running unittests src/lib.rs (target/child/debug/deps/mcp_gateway-2435db14ecb7234f)
-     Running unittests src/main.rs (target/child/debug/deps/mcp_gateway-47c33ed75651d6ab)
-     Running tests/live.rs (target/child/debug/deps/live-1265d0021b08164e)
-     Running tests/protocol.rs (target/child/debug/deps/protocol-0bf2ccf79a1639f0)

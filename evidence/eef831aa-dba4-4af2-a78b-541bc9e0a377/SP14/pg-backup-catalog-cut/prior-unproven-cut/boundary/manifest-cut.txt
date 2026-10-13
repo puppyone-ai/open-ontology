@@ -1,4 +1,0 @@
-7:  "cut_mode": "unproven",
-67:    "held": false,
-71:      {"database": "oo_a356_agent", "held": false, "relation": "shop.cut_seq", "sqlstate": "42809"},
-72:      {"database": "oo_a356_control", "held": false, "relation": "oo_key_fixture.cut_seq", "sqlstate": "42809"}

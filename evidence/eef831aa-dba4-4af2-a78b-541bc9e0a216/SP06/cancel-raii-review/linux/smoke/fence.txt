@@ -1,3 +1,0 @@
-cleanup_bound=104:const CLEANUP_BOUND: Duration = Duration::from_millis(750);
-cancel_handle_drop=absent
-reservation_guard=1

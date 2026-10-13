@@ -1,1 +1,0 @@
-attempt 3: cut-check tests passed. clippy -D warnings rejected unused is_hex64 in the copied sha256 module. product test and clippy stayed at exit 0.

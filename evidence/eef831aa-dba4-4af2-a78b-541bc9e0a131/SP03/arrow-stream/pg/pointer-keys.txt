@@ -1,9 +1,0 @@
-ca_file
-database
-host
-log_file
-password_dir
-port
-reader_user
-super_user
-writer_user

@@ -1,8 +1,0 @@
-run=c68e02ce-53fd-4924-b766-eca8b482d1ac
-container=oo-a093-green2-c68e02ce-53fd-4924-b766-eca8b482d1ac
-snapshot=baseline archive plus session.rs sql.rs model.rs live_pg.rs overlays
-note=rerun after ServerTls Debug derive; first live pass archived in green/first-pass
-command=bash /inside.sh
-locked=yes
-offline=yes
-fetch=no

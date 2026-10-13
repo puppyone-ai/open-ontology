@@ -1,1 +1,0 @@
-ack=true pid=62 killed=false waited=true exit=Some(0)

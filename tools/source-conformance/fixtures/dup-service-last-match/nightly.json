@@ -1,0 +1,29 @@
+{
+  "schema": "oo-source-conformance/nightly-registry/v1",
+  "entries": [
+    {
+      "target_id": "rev-w37-dup-match",
+      "capability": "batch_full",
+      "runs": [
+        {
+          "calendar_day": "2026-10-01",
+          "raw_exit": 0,
+          "evidence_id": "rev-w37-dup-match-0001",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-02",
+          "raw_exit": 0,
+          "evidence_id": "rev-w37-dup-match-0001",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-03",
+          "raw_exit": 0,
+          "evidence_id": "rev-w37-dup-match-0001",
+          "origin": "suite"
+        }
+      ]
+    }
+  ]
+}

@@ -13,9 +13,9 @@ use std::time::Duration;
 
 use oo_gateway::policy::catalog::{CatalogLimits, UnknownRows, load_policy_catalog};
 use oo_gateway::{
-    ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable,
-    PiiClass, PolicyCatalog, PolicyIdentity, TlsEndpoint, compile_column_acl, connect_require_tls,
-    guard_select, install_column_acl,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyCatalog,
+    PolicyIdentity, TlsEndpoint, compile_column_acl, connect_require_tls, guard_select,
+    install_column_acl,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -87,7 +87,11 @@ fn request_rejects_malformed_documents_without_leaking_the_password() {
     let password_path = dir.join("password");
     fs::write(&password_path, password).unwrap();
     let ca_path = dir.join("ca.pem");
-    fs::write(&ca_path, b"-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n").unwrap();
+    fs::write(
+        &ca_path,
+        b"-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n",
+    )
+    .unwrap();
     let audit = dir.join("audit.jsonl");
 
     let cases: Vec<(&str, &[u8])> = vec![
@@ -109,11 +113,18 @@ fn request_rejects_malformed_documents_without_leaking_the_password() {
         assert!(!bytes_have(&output.stdout, b"pw-a198"), "{name} stdout");
     }
 
-    let mut with_password_field = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
-    with_password_field
-        .as_object_mut()
-        .unwrap()
-        .insert("password".to_string(), Value::String("pw-a198-request-secret-value".to_string()));
+    let mut with_password_field = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
+    with_password_field.as_object_mut().unwrap().insert(
+        "password".to_string(),
+        Value::String("pw-a198-request-secret-value".to_string()),
+    );
     let leaked = dir.join("password-field.json");
     fs::write(&leaked, serde_json::to_vec(&with_password_field).unwrap()).unwrap();
     let output = run_raw(&["--request", leaked.to_str().unwrap()], None);
@@ -121,7 +132,14 @@ fn request_rejects_malformed_documents_without_leaking_the_password() {
     assert!(!bytes_have(&output.stderr, b"pw-a198-request-secret-value"));
     assert!(!bytes_have(&output.stdout, b"pw-a198-request-secret-value"));
 
-    let mut literal = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let mut literal = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     literal["statement"]["sql"] = Value::String("pw-a198-request-secret-value".to_string());
     let literal_path = dir.join("literal.json");
     fs::write(&literal_path, serde_json::to_vec(&literal).unwrap()).unwrap();
@@ -132,8 +150,18 @@ fn request_rejects_malformed_documents_without_leaking_the_password() {
     assert!(!bytes_have(&output.stderr, b"pw-a198-request-secret-value"));
     assert!(!audit.exists());
 
-    let mut stdin_doc = base_value(&password_path, &ca_path, &dir.join("stdin-audit.jsonl"), "desk", &["note"], "stdin");
-    stdin_doc["statement"].as_object_mut().unwrap().remove("sql");
+    let mut stdin_doc = base_value(
+        &password_path,
+        &ca_path,
+        &dir.join("stdin-audit.jsonl"),
+        "desk",
+        &["note"],
+        "stdin",
+    );
+    stdin_doc["statement"]
+        .as_object_mut()
+        .unwrap()
+        .remove("sql");
     let stdin_path = dir.join("stdin.json");
     fs::write(&stdin_path, serde_json::to_vec(&stdin_doc).unwrap()).unwrap();
     let mut lines = String::new();
@@ -142,7 +170,10 @@ fn request_rejects_malformed_documents_without_leaking_the_password() {
             "{{\"version\":\"oo.gateway.query-pg-turn/v1\",\"sql\":\"SELECT {index}\"}}\n"
         ));
     }
-    let output = run_raw(&["--request", stdin_path.to_str().unwrap()], Some(lines.as_bytes()));
+    let output = run_raw(
+        &["--request", stdin_path.to_str().unwrap()],
+        Some(lines.as_bytes()),
+    );
     assert_eq!(output.status.code(), Some(3));
     assert!(!dir.join("stdin-audit.jsonl").exists());
 }
@@ -157,7 +188,14 @@ fn policy_and_audit_and_ca_fail_closed() {
     let audit = dir.join("audit.jsonl");
 
     let row_filter = dir.join("row-filter.json");
-    let mut doc = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let mut doc = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     doc["policies"][0]["row_filter"] = json!({
         "kind": "claims",
         "column": "note",
@@ -171,15 +209,33 @@ fn policy_and_audit_and_ca_fail_closed() {
     assert!(!bytes_have(&output.stderr, b"local-password-value"));
 
     let mismatch = dir.join("mismatch.json");
-    let mut doc = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let mut doc = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     doc["identity"]["role"] = Value::String("desk".to_string());
     fs::write(&mismatch, serde_json::to_vec(&doc).unwrap()).unwrap();
     let output = run_raw(&["--request", mismatch.to_str().unwrap()], None);
-    assert_eq!(output.status.code(), Some(5), "identity slug is not the database role");
+    assert_eq!(
+        output.status.code(),
+        Some(5),
+        "identity slug is not the database role"
+    );
     assert!(!audit.exists());
 
     let mixed = dir.join("mixed.json");
-    let mut doc = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let mut doc = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     let peek = policy_value("peek", &["note"]);
     doc["policies"].as_array_mut().unwrap().push(peek);
     fs::write(&mixed, serde_json::to_vec(&doc).unwrap()).unwrap();
@@ -188,7 +244,14 @@ fn policy_and_audit_and_ca_fail_closed() {
     assert!(!audit.exists());
 
     let garbage = dir.join("garbage.json");
-    let doc = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let doc = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     fs::write(&garbage, serde_json::to_vec(&doc).unwrap()).unwrap();
     let output = run_raw(&["--request", garbage.to_str().unwrap()], None);
     assert_eq!(output.status.code(), Some(4));
@@ -199,7 +262,14 @@ fn policy_and_audit_and_ca_fail_closed() {
 
     let key_ca = dir.join("key.pem");
     fs::write(&key_ca, b"-----BEGIN PRIVATE KEY-----\nMIIB\n").unwrap();
-    let key_doc = base_value(&password_path, &key_ca, &dir.join("key-audit.jsonl"), "desk", &["note"], "request");
+    let key_doc = base_value(
+        &password_path,
+        &key_ca,
+        &dir.join("key-audit.jsonl"),
+        "desk",
+        &["note"],
+        "request",
+    );
     let key_path = dir.join("key.json");
     fs::write(&key_path, serde_json::to_vec(&key_doc).unwrap()).unwrap();
     let output = run_raw(&["--request", key_path.to_str().unwrap()], None);
@@ -209,7 +279,14 @@ fn policy_and_audit_and_ca_fail_closed() {
 
     fs::write(&audit, b"keep\n").unwrap();
     let existing = dir.join("existing.json");
-    let doc = base_value(&password_path, &ca_path, &audit, "desk", &["note"], "request");
+    let doc = base_value(
+        &password_path,
+        &ca_path,
+        &audit,
+        "desk",
+        &["note"],
+        "request",
+    );
     fs::write(&existing, serde_json::to_vec(&doc).unwrap()).unwrap();
     let output = run_raw(&["--request", existing.to_str().unwrap()], None);
     assert_eq!(output.status.code(), Some(7));
@@ -219,7 +296,14 @@ fn policy_and_audit_and_ca_fail_closed() {
     let parent = dir.join("not-a-directory");
     fs::write(&parent, b"x").unwrap();
     let blocked = parent.join("audit.jsonl");
-    let blocked_doc = base_value(&password_path, &ca_path, &blocked, "desk", &["note"], "request");
+    let blocked_doc = base_value(
+        &password_path,
+        &ca_path,
+        &blocked,
+        "desk",
+        &["note"],
+        "request",
+    );
     let blocked_path = dir.join("blocked.json");
     fs::write(&blocked_path, serde_json::to_vec(&blocked_doc).unwrap()).unwrap();
     let output = run_raw(&["--request", blocked_path.to_str().unwrap()], None);
@@ -228,7 +312,14 @@ fn policy_and_audit_and_ca_fail_closed() {
 
     let link = dir.join("password-link");
     std::os::unix::fs::symlink(&password_path, &link).unwrap();
-    let link_doc = base_value(&link, &ca_path, &dir.join("link-audit.jsonl"), "desk", &["note"], "request");
+    let link_doc = base_value(
+        &link,
+        &ca_path,
+        &dir.join("link-audit.jsonl"),
+        "desk",
+        &["note"],
+        "request",
+    );
     let link_path = dir.join("link.json");
     fs::write(&link_path, serde_json::to_vec(&link_doc).unwrap()).unwrap();
     let output = run_raw(&["--request", link_path.to_str().unwrap()], None);
@@ -286,10 +377,12 @@ async fn live_query_pg_against_private_postgres() {
         .await
         .expect("peek catalog");
     assert!(desk_catalog.relations[0].estimated_rows >= 1);
-    assert!(!desk_catalog.relations[0]
-        .columns
-        .iter()
-        .any(|column| column.name == "seal"));
+    assert!(
+        !desk_catalog.relations[0]
+            .columns
+            .iter()
+            .any(|column| column.name == "seal")
+    );
     assert_eq!(
         peek_catalog.relations[0]
             .columns
@@ -382,7 +475,11 @@ async fn live_query_pg_against_private_postgres() {
         explicit_turn.summary["executed_sha256"].as_str().unwrap(),
     );
     save_clean("desk-explicit.stdout", &explicit.stdout, &bans);
-    save_clean("desk-explicit.audit.jsonl", &fs::read(&explicit.audit).unwrap(), &bans);
+    save_clean(
+        "desk-explicit.audit.jsonl",
+        &fs::read(&explicit.audit).unwrap(),
+        &bans,
+    );
 
     let star_names = desk_catalog.relations[0]
         .columns
@@ -416,12 +513,20 @@ async fn live_query_pg_against_private_postgres() {
         &[("PGPASSWORD", ENV_PASSWORD)],
         &bans,
     );
-    assert_eq!(star.code, 0, "env password must not replace the password file");
+    assert_eq!(
+        star.code, 0,
+        "env password must not replace the password file"
+    );
     assert!(star.stderr.is_empty());
     let star_turn = one_turn(&star.lines);
     assert_cells(&star_turn.rows, &star_admin);
     assert_summary_hashes(&star_turn.summary, star_sql, &desk_identity, &desk_catalog);
-    assert!(!star.stdout.windows(ENV_PASSWORD.len()).any(|window| window == ENV_PASSWORD.as_bytes()));
+    assert!(
+        !star
+            .stdout
+            .windows(ENV_PASSWORD.len())
+            .any(|window| window == ENV_PASSWORD.as_bytes())
+    );
     oracle.fact("star_columns", &star_names.join(","));
     oracle.fact("star_rows", &star_turn.rows.len().to_string());
 
@@ -454,13 +559,22 @@ async fn live_query_pg_against_private_postgres() {
     assert_cells(&count_turn.rows, &count_admin);
     assert_eq!(count_turn.rows[0][0]["value"], "3");
     assert!(count_turn.rows[0][0]["value"].is_string());
-    assert_summary_hashes(&count_turn.summary, count_sql, &desk_identity, &desk_catalog);
+    assert_summary_hashes(
+        &count_turn.summary,
+        count_sql,
+        &desk_identity,
+        &desk_catalog,
+    );
     oracle.fact("count_star", "3");
 
     let peek_sql = "SELECT note FROM dispatch.ticket ORDER BY note";
     let peek_admin = fetch_typed(
         &admin,
-        &select_sql(&shadow.table, std::slice::from_ref(&shadow.note), &shadow.note),
+        &select_sql(
+            &shadow.table,
+            std::slice::from_ref(&shadow.note),
+            &shadow.note,
+        ),
         &[Kind::Text],
     )
     .await;
@@ -482,7 +596,12 @@ async fn live_query_pg_against_private_postgres() {
     let peek_turn = one_turn(&peek.lines);
     assert_cells(&peek_turn.rows, &peek_admin);
     assert_summary_hashes(&peek_turn.summary, peek_sql, &peek_identity, &peek_catalog);
-    assert!(!peek.stdout.windows(b"-9223372036854775808".len()).any(|w| w == b"-9223372036854775808"));
+    assert!(
+        !peek
+            .stdout
+            .windows(b"-9223372036854775808".len())
+            .any(|w| w == b"-9223372036854775808")
+    );
     oracle.fact("peek_rows", &peek_turn.rows.len().to_string());
 
     let peek_star_sql = "SELECT * FROM dispatch.ticket ORDER BY note";
@@ -564,7 +683,12 @@ async fn live_query_pg_against_private_postgres() {
     assert_eq!(grouped.len(), 2);
     assert_cells(&grouped[0].rows, &count_admin);
     assert_cells(&grouped[1].rows, &peek_admin);
-    assert_summary_hashes(&grouped[0].summary, count_sql, &peek_identity, &peek_catalog);
+    assert_summary_hashes(
+        &grouped[0].summary,
+        count_sql,
+        &peek_identity,
+        &peek_catalog,
+    );
     assert_summary_hashes(&grouped[1].summary, peek_sql, &peek_identity, &peek_catalog);
     let audit_lines = audit_values(&stdin_run.audit);
     assert_eq!(audit_lines.len(), 4);
@@ -576,7 +700,11 @@ async fn live_query_pg_against_private_postgres() {
     assert_eq!(audit_lines[0]["role"], "oo_r_peek");
     assert_quiet(&fs::read(&stdin_run.audit).unwrap(), &bans, "stdin audit");
     oracle.fact("stdin_audit_lines", "4");
-    save_clean("stdin.audit.jsonl", &fs::read(&stdin_run.audit).unwrap(), &bans);
+    save_clean(
+        "stdin.audit.jsonl",
+        &fs::read(&stdin_run.audit).unwrap(),
+        &bans,
+    );
 
     for (name, role, columns, sql) in [
         (
@@ -746,7 +874,11 @@ fn run_query(
     env_extra: &[(&str, &str)],
     bans: &[String],
 ) -> Run {
-    let audit = dir.join(format!("audit-{}-{}.jsonl", role, SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)));
+    let audit = dir.join(format!(
+        "audit-{}-{}.jsonl",
+        role,
+        SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     run_query_at(
         dir,
         password_file,
@@ -780,7 +912,10 @@ fn run_query_at(
     bans: &[String],
     audit: &Path,
 ) -> Run {
-    let request = dir.join(format!("request-{}.json", SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)));
+    let request = dir.join(format!(
+        "request-{}.json",
+        SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     let mut doc = base_value(password_file, ca_file, audit, role, columns, source);
     doc["endpoint"]["host"] = Value::String(HOST.to_string());
     doc["endpoint"]["port"] = json!(5432);
@@ -794,11 +929,7 @@ fn run_query_at(
     let bytes = serde_json::to_vec(&doc).unwrap();
     assert_quiet(&bytes, bans, "request");
     fs::write(&request, &bytes).unwrap();
-    let output = run_raw_env(
-        &["--request", request.to_str().unwrap()],
-        stdin,
-        env_extra,
-    );
+    let output = run_raw_env(&["--request", request.to_str().unwrap()], stdin, env_extra);
     assert_quiet(&output.stdout, bans, "stdout");
     assert_quiet(&output.stderr, bans, "stderr");
     if output.status.code() == Some(0) {
@@ -890,7 +1021,10 @@ fn assert_summary_hashes(
 ) {
     let plan = guard_select(identity, catalog, sql).unwrap_or_else(|err| {
         let text = err.to_string();
-        assert!(!text.contains("pt_"), "guard display named a physical table");
+        assert!(
+            !text.contains("pt_"),
+            "guard display named a physical table"
+        );
         panic!("guard failed");
     });
     assert_eq!(
@@ -1076,7 +1210,10 @@ fn policy_value(role: &str, columns: &[&str]) -> Value {
 }
 
 fn bytes_have(haystack: &[u8], needle: &[u8]) -> bool {
-    !needle.is_empty() && haystack.windows(needle.len()).any(|window| window == needle)
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
 }
 
 fn query_pg_exe() -> PathBuf {
@@ -1111,12 +1248,7 @@ fn run_raw_env(args: &[&str], stdin: Option<&[u8]>, env_extra: &[(&str, &str)]) 
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
         let mut child = command.spawn().expect("spawn");
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(bytes)
-            .expect("stdin");
+        child.stdin.take().unwrap().write_all(bytes).expect("stdin");
         child.wait_with_output().expect("wait")
     } else {
         command.output().expect("run")
@@ -1283,7 +1415,10 @@ async fn connect_db(database: &str, user: &str, password: &str, ca: &[u8]) -> Cl
             }
         }
     }
-    assert!(!last.contains(password), "connect error contained a password");
+    assert!(
+        !last.contains(password),
+        "connect error contained a password"
+    );
     panic!("tls connect failed");
 }
 
@@ -1351,7 +1486,10 @@ async fn exec_tx(tx: &tokio_postgres::Transaction<'_>, name: &str, sql: &str) {
 }
 
 fn fail_db(name: &str, err: &tokio_postgres::Error) -> ! {
-    let state = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let state = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     panic!("{name} sqlstate={state}");
 }
 
@@ -1371,20 +1509,37 @@ async fn apply_frozen_schema(client: &mut Client) {
         "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
     )
     .await;
-    exec_tx(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_tx(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_tx(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_tx(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
@@ -1407,7 +1562,11 @@ async fn apply_frozen_schema(client: &mut Client) {
     exec_tx(
         &tx,
         "marker-import",
-        &marker_sql(&[("full-import/v1", &full_import.1, "0005_full_import_expand.sql")]),
+        &marker_sql(&[(
+            "full-import/v1",
+            &full_import.1,
+            "0005_full_import_expand.sql",
+        )]),
     )
     .await;
     tx.commit().await.expect("commit full import");
@@ -1441,7 +1600,12 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_tx(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_tx(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
+    exec_tx(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
     exec_tx(
         &tx,
         "advisory-lock",

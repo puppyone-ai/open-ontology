@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-12T06:51:45.181724+00:00",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "low",
+  "purpose": "one minimal availability check after actual MySQL provider500; not product acceptance",
+  "customer_data_sent": false,
+  "http_status": 200,
+  "response_model": "gpt-6.1-sol",
+  "usage": {
+    "completion_tokens": 5,
+    "total_tokens": 310,
+    "prompt_tokens": 305,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "cached_creation_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    }
+  },
+  "has_choices": true
+}

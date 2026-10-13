@@ -1,8 +1,0 @@
-bind /extract-libclang.sh rw=false
-bind /tools rw=false
-bind /evidence rw=true
-volume /cargo-home rw=true
-volume /target rw=true
-bind /src rw=true
-bind /inside.sh rw=false
-

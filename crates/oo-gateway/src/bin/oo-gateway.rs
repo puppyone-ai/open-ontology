@@ -24,5 +24,9 @@ fn run() -> Result<(), &'static str> {
         .enable_all()
         .build()
         .map_err(|_| "runtime")?;
-    runtime.block_on(oo_gateway::http_gateway::serve(loaded.state, loaded.listen, &addr_path))
+    runtime.block_on(oo_gateway::http_gateway::serve(
+        loaded.state,
+        loaded.listen,
+        &addr_path,
+    ))
 }

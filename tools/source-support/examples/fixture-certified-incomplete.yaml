@@ -1,0 +1,9 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-09
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "owned incomplete certified fixture"
+targets:
+  - { id: fx-cert-bad, family: postgres, product: PostgreSQL, versions: ["16.4"], variant: self-managed,
+      driver: { path: P1, impl: sqlx/tokio-postgres },
+      caps: { cat: certified },
+      evidence: [{ capability: catalog, id: ev-cert-bad, commit: 577160c22de63adb9b38e0147f3bc2da893c4d9d, suite: conformance-catalog, sha256: b8357b7dc86d27ae28688b362ba7c890b846b55fbdaff64782d995b1fcc492fe, kind: container, generated: true, nights: 14, reviewers: [alice, bob, cara], tested_versions: ["16.4"], releases: 0 }] }

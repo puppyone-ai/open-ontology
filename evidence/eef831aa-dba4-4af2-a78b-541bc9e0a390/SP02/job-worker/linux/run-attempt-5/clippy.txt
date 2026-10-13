@@ -1,2 +1,0 @@
-    Checking job-worker v0.1.0 (/src/tools/job-worker)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s

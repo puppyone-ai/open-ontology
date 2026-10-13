@@ -1,0 +1,67 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "oo_dl01w1_44_local_pg",
+  "source_id": "oo_dl01w1_44",
+  "secret_ref": "secret://oo-dl01w1-44/opensearch",
+  "driver": {
+    "kind": "native-http",
+    "name": "os-reader",
+    "version": "3.9.0",
+    "digest": "0603773f30c73e03767ce6dd1b4dab3902432c9db14159d3930eefed93c44cc0"
+  },
+  "compat_mode": "opensearch-native",
+  "license_flags": [
+    "Apache-2.0"
+  ],
+  "permissions": [
+    {
+      "name": "indices:data/read/search",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "index": "oo-dl01w1-44-synthetic",
+        "observed": true
+      }
+    },
+    {
+      "name": "indices:data/read/mget",
+      "status": "known",
+      "granted": false,
+      "scope": {
+        "index": "oo-dl01w1-44-synthetic",
+        "observed": false
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": "None",
+      "budget_unit": "Rows",
+      "level": "experimental",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C5",
+      "write_class": "R0",
+      "consistency": "S0",
+      "token_order": "None",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {
+    "unit": "Rows",
+    "confidence": "unknown",
+    "estimate": "8"
+  },
+  "r1w": null
+}

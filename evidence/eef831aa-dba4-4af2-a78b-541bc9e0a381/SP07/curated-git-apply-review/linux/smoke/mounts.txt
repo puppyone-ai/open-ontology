@@ -1,3 +1,0 @@
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a381/SP07/curated-git-apply-review/linux/smoke/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a381/SP07/curated-git-apply-review/linux/smoke /evidence rw=true
-

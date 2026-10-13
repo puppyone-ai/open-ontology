@@ -1,5 +1,0 @@
-   Compiling oo-gateway-http-baseline-probe v0.0.0 (/probe)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
-     Running unittests src/lib.rs (/target/debug/deps/oo_gateway_http_baseline_probe-377d5f09b64c9a64)
-     Running tests/loopback.rs (/target/debug/deps/loopback-47d7fc8b1bdc4d78)
-   Doc-tests oo_gateway_http_baseline_probe

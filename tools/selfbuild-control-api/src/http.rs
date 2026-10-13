@@ -14,7 +14,8 @@ use axum::Router;
 use serde_json::{json, Value};
 
 use crate::canonical::canonical_sha256;
-use crate::config::{binaries_ready, project_input_hash, AppConfig};
+use crate::config::{project_input_hash, AppConfig};
+use crate::sealed;
 use crate::error::ApiError;
 use crate::identity::{self, VerifiedIdentity};
 use crate::ids::{build_id_ok, hex64, idempotency_ok, ident_ok, secret_ref_ok, session_cookie_ok};
@@ -45,6 +46,13 @@ pub fn router_from(state: Arc<AppState>) -> Router {
         .route("/control/v1/builds/{build_id}/cards", get(get_cards))
         .route("/control/v1/builds/{build_id}/candidates", get(get_candidates))
         .route("/control/v1/builds/{build_id}/pack", post(compile_pack).get(get_pack))
+        .route("/control/v1/builds/{build_id}/overlay", get(get_overlay))
+        .route("/control/v1/builds/{build_id}/maintenance", post(post_maintenance))
+        .route("/control/v1/builds/{build_id}/curated", post(post_curated))
+        .route("/control/v1/builds/{build_id}/review", post(post_review))
+        .route("/control/v1/builds/{build_id}/confirm", post(post_confirm))
+        .route("/control/v1/builds/{build_id}/role-pack", post(post_role_pack).get(get_role_pack))
+        .route("/control/v1/builds/{build_id}/gates", post(post_gates))
         .route("/control/v1/reviews", get(list_reviews))
         .route("/control/v1/reviews/preview", post(preview_reviews))
         .route("/control/v1/reviews/{item_id}", get(get_review))
@@ -110,7 +118,7 @@ async fn create_build(State(state): State<Arc<AppState>>, headers: HeaderMap, bo
     {
         return json_err(true, &ApiError::forbidden());
     }
-    if !binaries_ready(&state.config.binaries) {
+    if !sealed::admits_create(project, &state.config.binaries) {
         return json_err(true, &ApiError::not_ready());
     }
     let body_sha = canonical_sha256(&value);
@@ -134,7 +142,10 @@ async fn create_build(State(state): State<Arc<AppState>>, headers: HeaderMap, bo
     };
     match store::create_build(&state.config.postgres, &job).await {
         Ok(CreateOutcome::Created(row) | CreateOutcome::Replay(row)) => {
-            let stages = store::stages(&state.config.postgres, &row.build_id).await.unwrap_or_default();
+            let stages = match require_stages(&state.config.postgres, &row.build_id).await {
+                Ok(stages) => stages,
+                Err(error) => return json_err(true, &error),
+            };
             json_ok(202, &build_document("createBuild", &row, &stages))
         }
         Ok(CreateOutcome::Conflict) => json_err(true, &ApiError::idempotency()),
@@ -155,7 +166,10 @@ async fn list_builds(State(state): State<Arc<AppState>>, headers: HeaderMap, uri
         Ok(rows) => {
             let mut builds = Vec::new();
             for row in rows {
-                let stages = store::stages(&state.config.postgres, &row.build_id).await.unwrap_or_default();
+                let stages = match require_stages(&state.config.postgres, &row.build_id).await {
+                    Ok(stages) => stages,
+                    Err(error) => return json_err(true, &error),
+                };
                 builds.push(build_document("listBuilds", &row, &stages));
             }
             json_ok(
@@ -206,7 +220,10 @@ async fn cancel_build(State(state): State<Arc<AppState>>, headers: HeaderMap, Pa
     }
     match store::request_cancel(&state.config.postgres, &row.build_id, &identity.subject).await {
         Ok(updated) => {
-            let stages = store::stages(&state.config.postgres, &updated.build_id).await.unwrap_or_default();
+            let stages = match require_stages(&state.config.postgres, &updated.build_id).await {
+                Ok(stages) => stages,
+                Err(error) => return json_err(true, &error),
+            };
             json_ok(202, &build_document("cancelBuild", &updated, &stages))
         }
         Err(error) => json_err(true, &error),
@@ -715,14 +732,33 @@ async fn read_build(state: &Arc<AppState>, headers: &HeaderMap, build_id: &str, 
     let Some(row) = authorized_build(state, headers, build_id, scope_name).await else {
         return auth_failure_or_forbidden(state, headers, build_id, scope_name).await;
     };
-    let stages = store::stages(&state.config.postgres, &row.build_id).await.unwrap_or_default();
+    let stages = match require_stages(&state.config.postgres, &row.build_id).await {
+        Ok(stages) => stages,
+        Err(error) => return json_err(true, &error),
+    };
     json_ok(200, &build_document(operation, &row, &stages))
 }
 
 async fn authorized_build(state: &AppState, headers: &HeaderMap, build_id: &str, scope_name: &str) -> Option<BuildRow> {
     let cookie = session_cookie(headers)?;
-    let identity = fetch_state(state, &cookie).await.ok()?;
-    load_scoped_state(state, &identity, build_id, scope_name).await
+    for attempt in 0..3 {
+        let identity = match fetch_state(state, &cookie).await {
+            Ok(identity) => identity,
+            Err(_) if attempt < 2 => {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                continue;
+            }
+            Err(_) => return None,
+        };
+        match load_scoped_retry(state, &identity, build_id, scope_name).await {
+            Load::Found(row) => return Some(*row),
+            Load::Denied | Load::Retry if attempt < 2 => {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+            Load::Denied | Load::Retry => return None,
+        }
+    }
+    None
 }
 
 async fn auth_failure_or_forbidden(state: &AppState, headers: &HeaderMap, build_id: &str, scope_name: &str) -> Response {
@@ -769,17 +805,50 @@ async fn load_scoped(state: &AppState, identity: &VerifiedIdentity, build_id: &s
     load_scoped_state(state, identity, build_id, scope_name).await
 }
 
+enum Load {
+    Found(Box<BuildRow>),
+    Denied,
+    Retry,
+}
+
 async fn load_scoped_state(state: &AppState, identity: &VerifiedIdentity, build_id: &str, scope_name: &str) -> Option<BuildRow> {
+    match load_scoped_retry(state, identity, build_id, scope_name).await {
+        Load::Found(row) => Some(*row),
+        Load::Denied | Load::Retry => None,
+    }
+}
+
+async fn load_scoped_retry(state: &AppState, identity: &VerifiedIdentity, build_id: &str, scope_name: &str) -> Load {
     if !build_id_ok(build_id) {
-        return None;
+        return Load::Denied;
     }
-    let row = store::load_build_any(&state.config.postgres, build_id).await.ok()??;
-    let project = identity.project(&row.project_id)?;
+    let row = match store::load_build_any(&state.config.postgres, build_id).await {
+        Ok(Some(row)) => row,
+        Ok(None) | Err(_) => return Load::Retry,
+    };
+    let Some(project) = identity.project(&row.project_id) else {
+        return Load::Denied;
+    };
     if allows(&project.capabilities, scope_name) {
-        Some(row)
+        Load::Found(Box::new(row))
     } else {
-        None
+        Load::Denied
     }
+}
+
+async fn require_stages(endpoint: &crate::config::Endpoint, build_id: &str) -> Result<Vec<StageRow>, ApiError> {
+    let mut last = ApiError::not_ready();
+    for attempt in 0..3 {
+        match store::stages(endpoint, build_id).await {
+            Ok(rows) if rows.len() == store::STAGES.len() => return Ok(rows),
+            Ok(_) => last = ApiError::not_ready(),
+            Err(error) => last = error,
+        }
+        if attempt < 2 {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    }
+    Err(last)
 }
 
 async fn open_mutation(state: &AppState, headers: &HeaderMap, revision: i64) -> Result<VerifiedIdentity, ApiError> {
@@ -897,6 +966,112 @@ fn read_json_file(work_dir: &str, build_id: &str, name: &str) -> Option<Value> {
     let path = std::path::Path::new(work_dir).join("builds").join(build_id).join(name);
     let bytes = std::fs::read(path).ok()?;
     serde_json::from_slice(&bytes).ok()
+}
+
+async fn get_overlay(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>) -> Response {
+    let Some(row) = authorized_build(&state, &headers, &build_id, scope::BUILD_READ).await else {
+        return auth_failure_or_forbidden(&state, &headers, &build_id, scope::BUILD_READ).await;
+    };
+    match crate::overlay::view(&state.config, &row).await {
+        Ok(document) => json_ok(200, &document),
+        Err(error) => json_err(true, &error),
+    }
+}
+
+async fn post_maintenance(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::BUILD_CREATE, OverlayOp::Maintenance).await
+}
+
+async fn post_curated(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::CLASSIFICATION_CONFIRM, OverlayOp::Curated).await
+}
+
+async fn post_review(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::REVIEW_DECIDE, OverlayOp::Review).await
+}
+
+async fn post_confirm(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::CLASSIFICATION_CONFIRM, OverlayOp::Confirm).await
+}
+
+async fn post_role_pack(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::PACK_COMPILE, OverlayOp::RolePack).await
+}
+
+async fn get_role_pack(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, uri: Uri) -> Response {
+    let Some(role) = query_value(&uri, "role") else {
+        return json_err(false, &ApiError::malformed());
+    };
+    let Some(row) = authorized_build(&state, &headers, &build_id, scope::PACK_READ).await else {
+        return auth_failure_or_forbidden(&state, &headers, &build_id, scope::PACK_READ).await;
+    };
+    match crate::overlay::read_role_pack(&state.config, &row, &role).await {
+        Ok(document) => json_ok(200, &document),
+        Err(error) => json_err(true, &error),
+    }
+}
+
+async fn post_gates(State(state): State<Arc<AppState>>, headers: HeaderMap, Path(build_id): Path<String>, body: axum::body::Bytes) -> Response {
+    overlay_post(&state, &headers, &build_id, &body, scope::PACK_READ, OverlayOp::Gates).await
+}
+
+enum OverlayOp {
+    Maintenance,
+    Curated,
+    Review,
+    Confirm,
+    RolePack,
+    Gates,
+}
+
+async fn overlay_post(
+    state: &AppState,
+    headers: &HeaderMap,
+    build_id: &str,
+    body: &[u8],
+    scope_name: &str,
+    op: OverlayOp,
+) -> Response {
+    let value = match parse_exact(body) {
+        Ok(value) => value,
+        Err(error) => return json_err(false, &error),
+    };
+    if membership::reject_forged(&value).is_err() || owner_claim(&value).is_err() {
+        return json_err(false, &ApiError::malformed());
+    }
+    let revision = value.get("identity_revision").and_then(Value::as_i64).unwrap_or(0);
+    let identity = match open_mutation(state, headers, revision).await {
+        Ok(identity) => identity,
+        Err(error) => return mutation_denied(error),
+    };
+    let Some(row) = load_scoped(state, &identity, build_id, scope_name).await else {
+        return json_err(true, &ApiError::forbidden());
+    };
+    let body_sha = canonical_sha256(&value);
+    let result = match op {
+        OverlayOp::Maintenance => crate::overlay::maintenance(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::Curated => crate::overlay::curated(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::Review => crate::overlay::review(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::Confirm => crate::overlay::confirm(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::RolePack => crate::overlay::compile_role_pack(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::Gates => crate::overlay::gates(&state.config, &row, &value, &body_sha).await,
+    };
+    match result {
+        Ok(document) => json_ok(200, &document),
+        Err(error) => json_err(true, &error),
+    }
+}
+
+fn owner_claim(value: &Value) -> Result<(), ApiError> {
+    let Some(object) = value.as_object() else {
+        return Err(ApiError::malformed());
+    };
+    for key in ["published", "active", "business_owner_signed"] {
+        if object.get(key) == Some(&Value::Bool(true)) {
+            return Err(ApiError::malformed());
+        }
+    }
+    Ok(())
 }
 
 fn session_cookie(headers: &HeaderMap) -> Option<String> {

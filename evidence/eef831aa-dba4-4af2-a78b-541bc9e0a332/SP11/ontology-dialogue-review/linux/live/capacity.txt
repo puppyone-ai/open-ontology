@@ -1,1 +1,0 @@
-host_cargo=0 rust_builders=1 global=1 own=0 own_postgres=1 cap_global=10 cap_own=1

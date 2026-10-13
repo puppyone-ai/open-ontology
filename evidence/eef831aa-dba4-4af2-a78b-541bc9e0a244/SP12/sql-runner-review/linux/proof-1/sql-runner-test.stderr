@@ -1,6 +1,0 @@
-    Finished `test` profile [unoptimized] target(s) in 0.04s
-     Running unittests src/lib.rs (/target/debug/deps/oo_sql_runner-e3d3a1ab1241dc1d)
-     Running unittests src/main.rs (/target/debug/deps/sql_runner-d0f8d52cb9371295)
-     Running tests/cli.rs (/target/debug/deps/cli-f400db268a079399)
-     Running tests/sha256.rs (/target/debug/deps/sha256-f30e879b4760b356)
-   Doc-tests oo_sql_runner

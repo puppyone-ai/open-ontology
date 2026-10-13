@@ -1,9 +1,0 @@
-Removed only resources labeled oo.owner=a375 for session eef831aa-dba4-4af2-a78b-541bc9e0a375.
-
-containers removed: oo-a375-proof oo-a375-pg
-volumes removed: oo-a375-cargo oo-a375-work oo-a375-eef831aa-pgdata
-network removed: oo-a375-eef831aa-net
-secrets directory removed: /tmp/oo-a375-eef831aa-dba4-4af2-a78b-541bc9e0a375
-
-After removal, docker ps/volume/network filters for label oo.owner=a375 were empty.
-No prune. No foreign container, volume, or network was removed.

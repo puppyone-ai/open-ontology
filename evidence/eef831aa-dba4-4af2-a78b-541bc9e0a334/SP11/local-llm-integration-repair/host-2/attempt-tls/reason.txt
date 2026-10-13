@@ -1,1 +1,0 @@
-relay stderr was the static token tls. Host openssl was LibreSSL. The leaf was PKCS8 and had the SAN. Retry uses OpenSSL 3.6.4 and a new client token. The failed token file stays under the private tmp and is not copied here.

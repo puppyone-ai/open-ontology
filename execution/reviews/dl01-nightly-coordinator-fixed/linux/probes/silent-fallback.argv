@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/silent-fallback/matrix.yaml --package /harness/fixtures/silent-fallback/package

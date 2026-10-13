@@ -1,8 +1,0 @@
-bind /tmp/oo-a226-eef831aa-dba4-4af2-a78b-541bc9e0a226/overlay /overlay rw=true
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a226/SP11/reviewed-pg-composition/linux/chain/inside.sh /inside.sh rw=false
-volume /var/lib/docker/volumes/oo-a226-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a226-eef831aa-target/_data /target rw=true
-bind /tmp/oo-a226-eef831aa-dba4-4af2-a78b-541bc9e0a226/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a226/SP11/reviewed-pg-composition /evidence rw=true
-bind /tmp/oo-a226-eef831aa-dba4-4af2-a78b-541bc9e0a226/secrets /secrets rw=false
-

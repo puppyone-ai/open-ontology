@@ -1,4 +1,0 @@
-5e9d4ea1df97559bda5aeb11f133b7c592bbebe88883124722eb80180ae71c37  crates/oo-gateway/src/policy.rs
-2920211ec2278d7d74a8022cdad166a11cf97b3eea3d258bb8cf91c131b0bd9d  crates/oo-gateway/src/policy_catalog.rs
-122f28d02c3ff99fef3dd1fae63b755ba2149e8480757a6d4b02e57c6b010e83  crates/oo-gateway/tests/policy_catalog_pg_live.rs
-43bea6541f1cc99e5d8163ae6d7fff0137e46246fe43e78e876148222fd59c4e  contracts/gateway/policy-catalog-v1.md

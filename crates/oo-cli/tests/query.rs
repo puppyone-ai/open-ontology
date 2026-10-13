@@ -148,7 +148,9 @@ async fn help_and_usage_open_no_socket() {
     let text = String::from_utf8(help.stdout).unwrap();
     assert!(text.contains("oo query"));
     assert!(text.contains("--auth external"));
-    assert!(text.contains("Only query is implemented"));
+    assert!(text.contains("oo tables"));
+    assert!(text.contains("oo knowledge cat"));
+    assert!(text.contains("export, config, and mcp are not implemented"));
 
     let query_help = finish(
         &scratch,
@@ -227,9 +229,9 @@ async fn help_and_usage_open_no_socket() {
             "sql stdin is not supported",
         ),
         (vec!["export"], 2, "not implemented"),
-        (vec!["tables"], 2, "not implemented"),
-        (vec!["describe"], 2, "not implemented"),
-        (vec!["validate"], 2, "not implemented"),
+        (vec!["tables"], 4, "token source is missing"),
+        (vec!["describe"], 2, "table is missing"),
+        (vec!["validate"], 2, "sql is missing"),
         (vec!["config"], 2, "not implemented"),
     ];
     for (argv, code, needle) in cases {
@@ -1717,7 +1719,10 @@ fn hold_writer(path: &Path) -> std::fs::File {
     let (tx, rx) = std::sync::mpsc::channel();
     let owned = path.to_path_buf();
     std::thread::spawn(move || {
-        let opened = std::fs::OpenOptions::new().read(true).write(true).open(owned);
+        let opened = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(owned);
         let _ = tx.send(opened);
     });
     rx.recv_timeout(Duration::from_millis(500))
@@ -1756,7 +1761,13 @@ async fn reject_fast(scratch: &Scratch, door: &Door, argv: Vec<String>, code: i3
     assert_eq!(door.hits(), 0);
 }
 
-fn fifo_argv(scratch: &Scratch, url: &str, flag: &str, path: &Path, sql_on_cli: bool) -> Vec<String> {
+fn fifo_argv(
+    scratch: &Scratch,
+    url: &str,
+    flag: &str,
+    path: &Path,
+    sql_on_cli: bool,
+) -> Vec<String> {
     let mut argv = vec![
         "query".to_owned(),
         "--auth".to_owned(),
@@ -1791,9 +1802,27 @@ async fn fifo_opens_do_not_wait_for_a_peer() {
     let door = Door::open();
     let url = door.url();
     let cases = [
-        ("token-peerless", "--token-file", true, 4, "token file rejected: not-file"),
-        ("sql-peerless", "-f", false, 1, "sql file rejected: not-file"),
-        ("ca-peerless", "--ca-file", true, 1, "ca file rejected: not-file"),
+        (
+            "token-peerless",
+            "--token-file",
+            true,
+            4,
+            "token file rejected: not-file",
+        ),
+        (
+            "sql-peerless",
+            "-f",
+            false,
+            1,
+            "sql file rejected: not-file",
+        ),
+        (
+            "ca-peerless",
+            "--ca-file",
+            true,
+            1,
+            "ca file rejected: not-file",
+        ),
     ];
     for (name, flag, sql_on_cli, code, needle) in cases {
         let fifo = scratch.dir.join(name);
@@ -1808,9 +1837,21 @@ async fn fifo_opens_do_not_wait_for_a_peer() {
         .await;
     }
     for (name, flag, sql_on_cli, code, needle) in [
-        ("token-writer", "--token-file", true, 4, "token file rejected: not-file"),
+        (
+            "token-writer",
+            "--token-file",
+            true,
+            4,
+            "token file rejected: not-file",
+        ),
         ("sql-writer", "-f", false, 1, "sql file rejected: not-file"),
-        ("ca-writer", "--ca-file", true, 1, "ca file rejected: not-file"),
+        (
+            "ca-writer",
+            "--ca-file",
+            true,
+            1,
+            "ca file rejected: not-file",
+        ),
     ] {
         let fifo = scratch.dir.join(name);
         make_fifo(&fifo);
@@ -1868,7 +1909,12 @@ async fn file_bounds_and_links_stay() {
         None,
     )
     .await;
-    assert_eq!(outcome.code, 0, "{}", String::from_utf8_lossy(&outcome.stderr));
+    assert_eq!(
+        outcome.code,
+        0,
+        "{}",
+        String::from_utf8_lossy(&outcome.stderr)
+    );
     assert!(outcome.signal.is_none());
     assert_eq!(oracle.hits().len(), 1);
     assert_query(&oracle.hits()[0], "select 1", None, None);
@@ -1929,7 +1975,12 @@ async fn file_bounds_and_links_stay() {
         None,
     )
     .await;
-    assert_eq!(outcome.code, 0, "{}", String::from_utf8_lossy(&outcome.stderr));
+    assert_eq!(
+        outcome.code,
+        0,
+        "{}",
+        String::from_utf8_lossy(&outcome.stderr)
+    );
     assert!(outcome.signal.is_none());
     assert_eq!(oracle.hits().len(), 1);
     let text = std::str::from_utf8(&sql).unwrap();

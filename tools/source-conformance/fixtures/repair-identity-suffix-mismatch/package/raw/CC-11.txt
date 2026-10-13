@@ -1,0 +1,1 @@
+rev-w27-drift CC-11 driver digest was pinned before read

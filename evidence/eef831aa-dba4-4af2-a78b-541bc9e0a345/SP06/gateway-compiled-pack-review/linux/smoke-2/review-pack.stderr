@@ -1,3 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/target/work/crates/oo-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.97s
-     Running tests/review_pack.rs (target/debug/deps/review_pack-5dc8c2543b71d015)

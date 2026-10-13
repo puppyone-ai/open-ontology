@@ -1,8 +1,0 @@
-ExitCode=101
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a390-jw
-CapDrop=["ALL"]
-Memory=6442450944
-NanoCpus=1000000000
-PidsLimit=4096

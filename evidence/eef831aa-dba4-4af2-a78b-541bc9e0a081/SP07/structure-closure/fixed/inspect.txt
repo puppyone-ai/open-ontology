@@ -1,1 +1,0 @@
-ExitCode=0 Status=exited OOMKilled=false Error= Privileged=false NetworkMode=oo-a081-daa20988-8e6b-47b0-858d-0e29a7f7b6cc-net Memory=8589934592 MemorySwap=8589934592 NanoCpus=4000000000 PidsLimit=4096 ReadonlyRootfs=false CapDrop=["ALL"] CapAdd=null User=0:0 SecurityOpt=["no-new-privileges"] Tmpfs={"/tmp":"rw,nosuid,nodev,size=1g"}

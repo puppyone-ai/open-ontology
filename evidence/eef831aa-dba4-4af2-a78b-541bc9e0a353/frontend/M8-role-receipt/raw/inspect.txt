@@ -1,1 +1,0 @@
-name=/oo-a353-node-m8 exit=1 mem=4294967296 swap=4294967296 cpu=1000000000 pids=2048 capdrop=["ALL"] privileged=false net=none image=sha256:481d53bf381928c9e3bb5cedf90687d81a78986cf4d7fe5a5fdfc8de1c5fe413

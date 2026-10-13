@@ -1,9 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
-     Running unittests src/lib.rs (/target/provider/debug/deps/description_provider-8aab35a27ffa4fff)
-
-running 2 tests
-test chat::tests::sample_keys_are_refused_before_a_socket ... ok
-test price::tests::multiplies_without_rounding ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-

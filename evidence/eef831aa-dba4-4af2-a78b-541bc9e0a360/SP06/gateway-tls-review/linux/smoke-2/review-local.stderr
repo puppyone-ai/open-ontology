@@ -1,3 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/target/work/crates/oo-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.73s
-     Running tests/http_gateway_tls_review.rs (/target/debug/deps/http_gateway_tls_review-3262061544ac4640)

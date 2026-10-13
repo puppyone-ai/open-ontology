@@ -1,1 +1,0 @@
-Inventory attempt 1 exited 127 before writing SHA256SUMS. Container oo-a246-hash id 5e7522872b5afff3ef654708ae0575bc5b237a06ee07f264fdb448960d49ccb0. `bash -lc` reset PATH and rustc was not found. No manifest was written. The container was removed. The corrected command calls rustc on PATH /usr/local/cargo/bin without a login shell.

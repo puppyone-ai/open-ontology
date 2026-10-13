@@ -1,0 +1,29 @@
+# Actual native importer → Selfbuild control API
+
+Use an actual `catalog-import-native`/`catalog-import` export with protocol `oo.pipeline.sealed-import-catalog/v1`. Never change its engine, source_id, generations, OIDs, original source_type/caveat, physical mappings, or digests to PostgreSQL. The control API runs the existing native compiler and `pg-builder sealed` model path, rather than manufacturing PG cards.
+
+The server bundle contains `catalog.json` (exact importer bytes), `profile.json` (actual full imported-data/source profile, with the same source_id), `source_semantics.json` (actual source capture/quality contract), `read_logic.json` (actual approved metadata definitions, executed=false), `rules.json` (actual rule candidates), `suggestions.json` (unmerged candidates, certified/merged/ready false), `generation.json` (initial structural_draft, llm_calls0), and `roles.json` (`oo.selfbuild-control-api/sealed-roles/v1`, roles mapping each role to its exact approved schema.table.column set). Initial generation metadata is a pending input; it is not a model success or a publication receipt.
+
+Optional hash-bound `comments.json` preserves original metadata notes. Optional hash-bound `native-model.json` contains `settings`, `visibility`, `dataset` (an anchor included in visibility, without dropping other tables), and optional operator `declared_price` (only an explicitly declared non-billing estimate; no pricing proof). Settings/visibility project must match the actual authenticated API project. Visibility cannot exceed roles.json. Full source type/caveat metadata is kept in the native receipt; known local storage aliases and binary/time/float/CHAR/varchar/JSON remain valid OOS storage types. Original source semantics remain distinct from local storage.
+
+`manifest.json` has contract `oo.selfbuild-control-api/sealed-bundle/v1` and files mapping every required/optional filename to its exact SHA256. `SourceProtocol` uses the native catalog protocol, exact profile/semantics protocol strings, fixed producer source_commit/semantics_commit, and actual basis/audit references where applicable. Each configured project source.tables must match every logical importer table. Private server config/source credentials stay outside Git.
+
+Current retained actual fixture endpoint is `https://127.0.0.1:18443`; frontend/identity origin is `https://127.0.0.1:18441`. This is the implemented control-identity service with real PKCE/RS256 issuer fixture and durable product sessions, not a caller-produced identity envelope. Host private session files live at `/Users/redux/.cache/oo-dl01w1-71/native-identity-private/fixture-{admin,reviewer,steward,auditor,owner}.cookie`. API CA is `/Users/redux/.cache/oo-dl01w1-71/tls/api/ca.crt`; identity CA is `native-identity-private/ca.pem`. The actual service rotates CSRF on current; mutation callers must fetch current freshly, rather than reuse old CSRF bytes.
+
+```sh
+python3 tools/selfbuild-control-api/recipes/operator.py \
+  --endpoint https://127.0.0.1:18443 --origin https://127.0.0.1:18441 \
+  --ca /Users/redux/.cache/oo-dl01w1-71/tls/api/ca.crt \
+  --cookie-file /Users/redux/.cache/oo-dl01w1-71/native-identity-private/fixture-admin.cookie \
+  --identity-origin https://127.0.0.1:18441 \
+  --identity-ca /Users/redux/.cache/oo-dl01w1-71/native-identity-private/ca.pem \
+  --path /control/v1/builds --body-file /absolute/actual-create.json --out /absolute/unique-response.json
+```
+
+Create body is the existing seven fields in CALLERS.md. Actual getBuild must show each stage's genuine status/hash. S5 candidates remain pending until authenticated reviewer S9 decisions and owner S10 confirmations. `compiled_pack` is not publication; full actual native reviewed Gateway adapter and publisher checks remain separate. A source fixture is not customer owner certification.
+
+The unchanged approved model reference is `/tmp/oo-product-model-20261012/config.json` and owner-only `bearer`, exact gpt-6.1-sol/low on the existing local8317 proxy. Containers use `model_loopback_forward.py` only as an unlogged TCP transport to that same host proxy; provider URL/key/model are not replaced. No credential content is an argument or log.
+
+The retained identity fixture can renew expired management sessions through the existing OIDC code flow. Run the `native_retained_product_identity` test with `OO_NATIVE_IDENTITY_RESUME=1` against the same private certificate, signing keys, config and initialized PostgreSQL database. This branch skips install and bootstrap, signs in the existing five fixture subjects, and replaces only their owner-only cookie/CSRF files. It neither extends expired sessions in SQL nor changes project bindings. Keep the identity container reachable by the stable `oo-dl01w1-71-native-identity` network name used by API forwarders. Read `/control/v1/identity/current` after renewal and use the current CSRF for each mutation.
+
+MariaDB's isolated example runs at `https://127.0.0.1:18454`, with config `/Users/redux/.cache/oo-dl01w1-71/native-generic/maria39/runtime.json` and its original five-source bundle in `evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/product-loop/c5-window/canonical-gen3/selfbuild-bundle`. Its project is `mariadb`, with a separate `oo_mariadb_selfbuild` control database and the exact source IDs in the collection binding vector. Use the same operator recipe above with port 18454, `fixture-admin.cookie`, and a fresh seven-field create body matching that config. A create starts the asynchronous S5 path, so only the MariaDB source owner issues it once after checking the collection with `check_native_collection` and authenticated `GET /control/v1/builds?project_id=mariadb`. For Oracle use port 18452 and project `oracle`; its source owner retains the earlier `cost_unknown` refusal and alone issues a new priced-bundle create. A declared unit price is a nonbilling planning estimate, not provider billing evidence.

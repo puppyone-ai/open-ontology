@@ -1,1 +1,0 @@
-note=probe bin returned Err(&str) in edition 2024; dependencies had already compiled

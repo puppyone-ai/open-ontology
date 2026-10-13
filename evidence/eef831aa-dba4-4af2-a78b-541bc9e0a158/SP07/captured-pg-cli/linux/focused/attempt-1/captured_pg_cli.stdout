@@ -1,8 +1,0 @@
-
-running 3 tests
-test usage_unknown_and_extra_arguments_exit_2 ... ok
-test bad_json_utf8_and_oversize_exit_1_without_echo ... ok
-test captured_catalog_command_matches_the_public_api ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
-

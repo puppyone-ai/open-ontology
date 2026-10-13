@@ -1,0 +1,20 @@
+{
+  "fixed_source": "11194b3a490897744b70da46f20b971cd83ff181",
+  "manifests": [
+    {
+      "manifest": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight/SHA256SUMS",
+      "verified": 711
+    },
+    {
+      "manifest": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/SHA256SUMS",
+      "verified": 1255
+    }
+  ],
+  "scope": "non-model customer native16row jsonb import/profile/rolepage; not complete source acceptance",
+  "source_rows": 16,
+  "target_rows": 16,
+  "cells_differ": 0,
+  "source_full_accepted": false,
+  "ready": false,
+  "complete_model_yaml_maintenance_gateway_dialogue": "pending"
+}

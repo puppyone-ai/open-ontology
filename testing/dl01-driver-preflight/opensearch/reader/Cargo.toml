@@ -1,0 +1,30 @@
+[package]
+name = "os-reader"
+description = "Native OpenSearch HTTP reader for the DL01-W1-44 preflight. Not a shared connector."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+arrow-array.workspace = true
+arrow-buffer.workspace = true
+arrow-ipc.workspace = true
+arrow-schema.workspace = true
+base64.workspace = true
+cc.workspace = true
+find-msvc-tools.workspace = true
+hyper-util.workspace = true
+reqwest.workspace = true
+rustls-platform-verifier.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+yoke-derive.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

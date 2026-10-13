@@ -19,7 +19,8 @@ pub const SCHEMA_EXISTS: &str = "SELECT 1 FROM pg_catalog.pg_namespace WHERE nsp
 
 pub const INSERT_MANIFEST: &str = "\
 INSERT INTO oo_release_control.install_manifest (singleton, sql_sha256) VALUES (TRUE, $1)";
-pub const READ_MANIFEST: &str = "SELECT sql_sha256 FROM oo_release_control.install_manifest WHERE singleton";
+pub const READ_MANIFEST: &str =
+    "SELECT sql_sha256 FROM oo_release_control.install_manifest WHERE singleton";
 
 pub const INSERT_DEPLOYMENT: &str = "\
 INSERT INTO oo_release_control.deployment ( \
@@ -29,12 +30,14 @@ INSERT INTO oo_release_control.deployment ( \
     integrity_verified, customer_gate_verified, runsc_verified \
 ) VALUES (TRUE, $1, $2, 'bounded_local_fixture', $3, $4, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE)";
 
-pub const INSERT_AUTHORITY_GATE: &str = "INSERT INTO oo_release_control.authority_gate (gate_id) VALUES ($1)";
+pub const INSERT_AUTHORITY_GATE: &str =
+    "INSERT INTO oo_release_control.authority_gate (gate_id) VALUES ($1)";
 pub const READ_DEPLOYMENT: &str = "\
 SELECT project_id, authority_id, authority_statement_sha256, product_mode_can_activate, owner_authenticated, \
        credential_verified, integrity_verified, customer_gate_verified, runsc_verified, full_sp08_accepted \
 FROM oo_release_control.deployment WHERE singleton";
-pub const READ_AUTHORITY_GATES: &str = "SELECT gate_id FROM oo_release_control.authority_gate ORDER BY gate_id";
+pub const READ_AUTHORITY_GATES: &str =
+    "SELECT gate_id FROM oo_release_control.authority_gate ORDER BY gate_id";
 
 pub const INSERT_POINTER: &str = "\
 INSERT INTO oo_release_control.active_pointer (singleton, project_id, version, candidate_id, source_hash, pack_digest, manifest_sha256) \
@@ -87,8 +90,10 @@ UPDATE oo_release_control.candidate SET \
 WHERE candidate_id = $1 AND state IN ('candidate_built', 'gates_passed', 'failed')";
 
 pub const DELETE_GATES: &str = "DELETE FROM oo_release_control.gate_report WHERE candidate_id = $1";
-pub const DELETE_CHECKPOINTS: &str = "DELETE FROM oo_release_control.checkpoint WHERE candidate_id = $1";
-pub const DELETE_FILES: &str = "DELETE FROM oo_release_control.candidate_file WHERE candidate_id = $1";
+pub const DELETE_CHECKPOINTS: &str =
+    "DELETE FROM oo_release_control.checkpoint WHERE candidate_id = $1";
+pub const DELETE_FILES: &str =
+    "DELETE FROM oo_release_control.candidate_file WHERE candidate_id = $1";
 pub const INSERT_FILE: &str = "\
 INSERT INTO oo_release_control.candidate_file (candidate_id, path, sha256, byte_len) VALUES ($1, $2, $3, $4)";
 
@@ -130,9 +135,48 @@ pub const INSERT_AUDIT: &str = "\
 INSERT INTO oo_release_control.audit_event ( \
     audit_id, project_id, candidate_id, event, previous_version, new_version, source_hash, detail \
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)";
-pub const READ_AUDIT: &str = "SELECT detail FROM oo_release_control.audit_event WHERE audit_id = $1";
+pub const READ_AUDIT: &str =
+    "SELECT detail FROM oo_release_control.audit_event WHERE audit_id = $1";
 pub const READ_EVENT_AUDIT: &str = "\
 SELECT audit_id FROM oo_release_control.audit_event WHERE candidate_id = $1 AND event = $2";
 
 pub const READ_FILES: &str = "\
 SELECT path, sha256, byte_len FROM oo_release_control.candidate_file WHERE candidate_id = $1 ORDER BY path";
+
+pub const MAINTENANCE_SQL: &str = include_str!("../migrations/oo_release_maintenance_v1.sql");
+pub const TARGET_SQL: &str = include_str!("../migrations/oo_publish_target_v1.sql");
+pub const TARGET_ROLE: &str = "oo_target_admin";
+pub const MAINTAIN_LOCK: i64 = 881_275_360;
+
+pub const MAINTENANCE_TABLE: &str = "\
+SELECT 1 FROM pg_catalog.pg_class c \
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+WHERE n.nspname = 'oo_release_control' AND c.relname = 'maintenance_manifest'";
+pub const READ_MAINTENANCE_HASH: &str =
+    "SELECT sql_sha256 FROM oo_release_control.maintenance_manifest WHERE singleton";
+pub const INSERT_MAINTENANCE_HASH: &str = "\
+INSERT INTO oo_release_control.maintenance_manifest (singleton, sql_sha256) VALUES (TRUE, $1)";
+pub const READ_MAINTENANCE_GATES: &str = "\
+SELECT gate_id, disposition, evidence_sha256 FROM oo_release_control.maintenance_gate WHERE candidate_id = $1";
+pub const READ_BLOCKING_EXTERNAL: &str = "\
+SELECT gate_id FROM oo_release_control.gate_report \
+WHERE candidate_id = $1 AND status = 'fail' AND blocking \
+  AND gate_id IN ('G5a', 'G5b', 'G6', 'G10', 'G11', 'G12') \
+ORDER BY gate_id LIMIT 1";
+pub const UPSERT_MAINTENANCE_GATE: &str = "\
+INSERT INTO oo_release_control.maintenance_gate (candidate_id, gate_id, disposition, detail, evidence_sha256) \
+VALUES ($1, $2, $3, $4, $5) \
+ON CONFLICT (candidate_id, gate_id) DO UPDATE \
+SET disposition = EXCLUDED.disposition, detail = EXCLUDED.detail, evidence_sha256 = EXCLUDED.evidence_sha256";
+
+pub const READ_CANDIDATE_MAINTAIN: &str = "\
+SELECT state, source_hash, pack_digest, version, base_version, effective_oos, visibility_json, role_name \
+FROM oo_release_control.candidate WHERE candidate_id = $1";
+pub const READ_AUTHORITY_SHA: &str = "\
+SELECT authority_statement_sha256 FROM oo_release_control.deployment WHERE singleton";
+pub const READ_FILE_LENGTHS: &str = "\
+SELECT byte_len FROM oo_release_control.candidate_file WHERE candidate_id = $1 ORDER BY path";
+pub const READ_POINTER_PACK: &str = "\
+SELECT version, candidate_id, pack_digest FROM oo_release_control.active_pointer WHERE singleton";
+pub const LOCK_SESSION: &str = "SELECT pg_catalog.pg_advisory_lock($1::bigint)";
+pub const UNLOCK_SESSION: &str = "SELECT pg_catalog.pg_advisory_unlock($1::bigint)";

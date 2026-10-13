@@ -1,6 +1,0 @@
-cfac53998c2e oo-a247-pg 3aac91d19d5b a247 postgres
-030ebf6b9eab oo-a247-smoke 0f24958fa693 a247 rust-builder
-13681fae9e40 oo-a246-pg 3aac91d19d5b a246 postgres
-c49ca058da9e oo-a246-smoke 0f24958fa693 a246 rust-builder
-1447d96fd8cd oo-a248-smoke 0f24958fa693 a248 rust-builder
-ffab91fea754 oo-a244-pg 3aac91d19d5b a244 postgres

@@ -1,6 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/fail_rollback.sql:22: ERROR:  OO011: this backend does not hold the target lock
-CONTEXT:  PL/pgSQL function _load_held_generation(text,uuid,bigint) line 29 at RAISE
-SQL statement "SELECT _oo._load_held_generation(p_shard, p_owner, p_generation)"
-PL/pgSQL function commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea) line 75 at PERFORM
-SQL function "put_receipt" statement 1
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

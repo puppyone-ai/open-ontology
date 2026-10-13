@@ -1,2 +1,0 @@
-bc4d70f46861 oo-a327-smokemap 0f24958fa693 a327 rust-builder
-ed9e2bd1db73 oo-a337-pg 3aac91d19d5b a337 postgres

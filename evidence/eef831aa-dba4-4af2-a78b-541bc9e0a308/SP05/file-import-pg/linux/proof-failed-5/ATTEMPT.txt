@@ -1,1 +1,0 @@
-Attempt 5. clippy 0. live 101 at install. DROP DATABASE left cluster roles oo_target_owner and oo_pipeline_runtime, so bootstrap CREATE ROLE failed on the new database. Roles dropped before the next attempt.

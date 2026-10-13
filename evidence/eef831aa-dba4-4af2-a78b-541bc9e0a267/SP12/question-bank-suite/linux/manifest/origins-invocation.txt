@@ -1,1 +1,0 @@
-docker run --name oo-a267-manifest-origins --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 rustc --edition 2021 -D warnings sha256_manifest.rs

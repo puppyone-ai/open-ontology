@@ -5,10 +5,21 @@
 .specstory/
 
 # JavaScript build output for the web workspace.
-# Evidence, specs, crates, and source stay visible.
+# Product source, specs and test fixtures stay visible.
 node_modules/
 apps/web/dist/
 apps/web/storybook-static/
 apps/web/test-results/
 apps/web/playwright-report/
 apps/web/coverage/
+
+# Generated local evidence and execution output are not published.
+/evidence/
+*.log
+*.stdout
+*.stderr
+*.exit
+*.wal
+
+# Rust build directories also occur in standalone tools and test projects.
+**/target/

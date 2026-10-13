@@ -1,0 +1,99 @@
+{
+  "time": "2026-10-12T12:55:33.951434+08:00",
+  "authorization": "direct human switch to native GPT-6.1 Sol low; all Grok development stopped; no independent reviewers until complete first Goal loop and ten-source complete chains",
+  "old_cli_results": [
+    {
+      "task": "DL01-W1-02",
+      "session_uuid": "4b4fe410-d294-45d4-9a26-07a219de46a7",
+      "handle": 79568,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-04",
+      "session_uuid": "b0363a6a-3765-45b2-80c5-35b25f2e7e95",
+      "handle": 98178,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-06",
+      "session_uuid": "3f3d7460-4334-4839-838a-031f04497cea",
+      "handle": 62283,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-39",
+      "session_uuid": "d292793c-9f6e-4bf8-9305-fc8f78c86cbf",
+      "handle": 83566,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-40",
+      "session_uuid": "776e5d8e-f79b-473c-a33f-568612ef1f12",
+      "handle": 93998,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-41",
+      "session_uuid": "7a1f29d6-5985-4af7-a24b-da27c88576b5",
+      "handle": 25252,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-43",
+      "session_uuid": "d40de70d-11e7-4bc3-9fbb-b74645730197",
+      "handle": 76462,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-44",
+      "session_uuid": "9ef91f8b-ac9c-4c93-a136-0605ad6d5c82",
+      "handle": 11347,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-45",
+      "session_uuid": "330dd90e-676b-44c1-b6fc-759965eeea88",
+      "handle": 98465,
+      "exit": 0
+    },
+    {
+      "task": "DL01-W1-46",
+      "session_uuid": "ecc354bb-93e9-4edd-875d-9091f19660b9",
+      "handle": 4929,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-71",
+      "session_uuid": "28a4945c-ec78-47ce-82a8-fa9d395f9358",
+      "handle": 18911,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-73",
+      "session_uuid": "a44bcb6b-a546-410e-8fe8-051f694cf7dd",
+      "handle": 7437,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-74",
+      "session_uuid": "ea6333ee-2e8c-4a6f-8414-577c0399b9b5",
+      "handle": 4281,
+      "exit": 1
+    },
+    {
+      "task": "DL01-W1-78",
+      "session_uuid": "7c3864f0-545d-4134-9256-62661465a39d",
+      "handle": 72580,
+      "exit": 0
+    },
+    {
+      "task": "DL01-W1-79",
+      "session_uuid": "939f621d-12d2-414f-a355-47be5a34ff71",
+      "handle": 58528,
+      "exit": 1
+    }
+  ],
+  "managed_grok_processes_remaining": 0,
+  "backgrounds": "retained; new owner collects named resources before compilation; do not stop databases",
+  "no_product_acceptance": true
+}

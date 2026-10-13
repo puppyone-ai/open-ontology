@@ -1,5 +1,0 @@
-docker-run exit 101. OOMKilled false. Container removed.
-lib tests passed (4). Integration test rejected_column_stays_rejected_when_the_decision_is_fresh failed.
-review-pg-draft reject removes the column from effective via merge_effective (status rejected leaves the list).
-The compiler correctly returned decision.unknown. The contract and fixture were corrected to that merge.
-The still-present rejected column is covered by a library test of apply_decisions.

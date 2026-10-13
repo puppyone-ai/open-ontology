@@ -74,6 +74,14 @@ impl ApiError {
         Self::new(409, "pii.unknown", "unknown PII stays hidden", false)
     }
 
+    pub const fn pii_withheld() -> Self {
+        Self::new(409, "pii.withheld", "personal columns stay hidden", false)
+    }
+
+    pub const fn pack_refused() -> Self {
+        Self::new(409, "pack.refused", "the pack was refused", false)
+    }
+
     pub const fn accept_all() -> Self {
         Self::new(409, "batch.accept_all", "accept-all is refused", false)
     }

@@ -1,3 +1,0 @@
-review_harness=crates/oo-pipeline/tests/target_statistics_a230_review.rs
-review_harness=crates/oo-gateway/tests/target_statistics_a230_catalog.rs
-product_unchanged

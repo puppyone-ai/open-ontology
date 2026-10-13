@@ -1,1 +1,0 @@
-661:                        guard.bound_role = Some(request.role.to_string());

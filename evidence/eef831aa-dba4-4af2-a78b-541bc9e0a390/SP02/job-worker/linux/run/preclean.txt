@@ -1,5 +1,0 @@
-removed container oo-a390-jw-smoke
-removed container oo-a390-jw-smoke2
-absent volume oo-a390-jw-pgdata
-absent network oo-a390-jw
-kept volumes oo-a390-jw-cargo oo-a390-jw-target

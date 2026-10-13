@@ -1,0 +1,20 @@
+[
+  {
+    "task": "39",
+    "fixed_sha": "5f4ce8f5db7aaf5a2afb3727280e27f9de1483a6",
+    "manifest": "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/native-bind/SHA256SUMS",
+    "fixed_git_hashes_checked": 56,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "74",
+    "fixed_sha": "33a3dc98230b65f1ad4554499a6d238ea0a96382",
+    "manifest": "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/SHA256SUMS",
+    "fixed_git_hashes_checked": 556,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

@@ -1,0 +1,395 @@
+[
+  {
+    "name": "oo-a419-product-run",
+    "id": "9bf4bd374dbf1aa9cfcaa09af1dc238c7a843d0c433945cee09886ecf06654c9",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-09T02:11:54.881369922Z",
+    "finished_at": "2026-10-09T01:39:37.447344179Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/var/lib/oo/config"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/run-inside.sh"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a406-eef831aa-pi-kit",
+        "destination": "/opt/pi-runtime-kit"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a419-eef831aa-target",
+        "destination": "/target"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a419-eef831aa-loop",
+        "destination": "/var/lib/oo"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/var/lib/oo/private"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "product-runner",
+      "oo.owner": "a419",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a419",
+      "oo.task": "logistics-product-run"
+    }
+  },
+  {
+    "name": "oo-a419-src-pg",
+    "id": "ab31e067481634e3f40e5d23f3bc589b0aea9810b2968c3221454280d4d6515a",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T21:17:49.837543881Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a419-eef831aa-src-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a419",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a419",
+      "oo.task": "logistics-demo-pg"
+    }
+  },
+  {
+    "name": "oo-a419-dst-pg",
+    "id": "5a4099583ab7147cc29e421204a22837e3b6523dca2f6f20de965e2699ece3a5",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-09T01:39:38.111068637Z",
+    "finished_at": "2026-10-09T00:56:17.740727295Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a419-eef831aa-dst-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a419",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a419",
+      "oo.task": "logistics-demo-pg"
+    }
+  },
+  {
+    "name": "oo-a410-src",
+    "id": "4e28e4d0b4cdb59e4413afa3c74055ac93b4426ae96640365fd7cfc24a9f5a9c",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T14:30:19.007556426Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a410-eef831aa-srcdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a410",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a410",
+      "oo.task": "local-mirror-single-source"
+    }
+  },
+  {
+    "name": "oo-a410-tgt",
+    "id": "ef007e5c653508374cf9733772fc3c007394d9c00efa66567e9eb82c7cda38b3",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T14:30:19.325895801Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a410-eef831aa-tgtdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a410",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a410",
+      "oo.task": "local-mirror-single-source"
+    }
+  },
+  {
+    "name": "oo-a407-src-pg",
+    "id": "0adbf4746c76393548129eafc3f0feb6e73009c31350dc800c28bba12258c50b",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T14:29:18.056648717Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a407-eef831aa-src-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a407",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a407",
+      "oo.task": "minimal-loop-acceptance-fixture"
+    }
+  },
+  {
+    "name": "oo-a407-dst-pg",
+    "id": "fb76af197129e2256d0da1145185115b450244bfc0e0be33a4c089ecd41c382d",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T14:29:20.659279843Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a407-eef831aa-dst-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a407",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a407",
+      "oo.task": "minimal-loop-acceptance-fixture"
+    }
+  },
+  {
+    "name": "oo-a405-pg",
+    "id": "14c9502c6b9589247d074e73f4b857288e3f00da45eaa30228da5b82b71bbd4d",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T14:17:56.36921393Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a405-eef831aa-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a405",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a405",
+      "oo.task": "minimal-product-loop-partial"
+    }
+  },
+  {
+    "name": "oo-a397-pg",
+    "id": "5679ab438b351de7fb88792dcbe2091fc5027697ddb1e5d053f4dad1ccaf7c6e",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T09:03:03.59233038Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/docker-entrypoint-initdb.d"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a397-eef831aa-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a397",
+      "oo.project": "open-ontology",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a397",
+      "oo.task": "agent-entry"
+    }
+  },
+  {
+    "name": "oo-a373-pg",
+    "id": "9485a8bb9599b75e9d25626b4eb10dc5b417301b0c85d11721ac310a2f0bc7c8",
+    "state": "running",
+    "running": true,
+    "started_at": "2026-10-08T00:11:14.163241461Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "cpu_limit": 1.0,
+    "mounts": [
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/secrets"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/tls-in"
+      },
+      {
+        "type": "volume",
+        "name": "oo-a373-pgdata",
+        "destination": "/var/lib/postgresql/data"
+      },
+      {
+        "type": "bind",
+        "name": null,
+        "destination": "/fixture/pg-wrap.sh"
+      }
+    ],
+    "identity_labels": {
+      "oo.kind": "postgres",
+      "oo.owner": "a373",
+      "oo.session": "eef831aa-dba4-4af2-a78b-541bc9e0a373"
+    }
+  }
+]

@@ -1,2 +1,0 @@
-10:const CONTAINER: &str = "oo-a102-pg1710-jobs";
-300:#[ignore = "requires owned PostgreSQL 17.10 container oo-a102-pg1710-jobs"]

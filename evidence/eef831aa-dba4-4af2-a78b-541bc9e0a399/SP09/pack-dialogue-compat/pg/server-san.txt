@@ -1,3 +1,0 @@
-subject=CN=localhost
-X509v3 Subject Alternative Name: 
-    DNS:localhost

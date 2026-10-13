@@ -1,6 +1,0 @@
-Rust smoke recipe origin
-direct_parent_path=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/linux/precode/launch.sh
-direct_parent_sha256=65affec85e61821541c534165e507c9d0a0d3295e2c3decf440f37fc19f915bf
-minimal_changes=uuid a394; version and archive hash only; no cargo; no postgres; memory 6g; cpus 1
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-fixed_commit=53017ed29c98c49fb44a7eb18d5df6d5de273046

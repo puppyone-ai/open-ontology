@@ -1,2 +1,0 @@
-effect=installed
-grantor=oo_fixture_admin

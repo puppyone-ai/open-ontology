@@ -1,1 +1,0 @@
-test exit 101: init-pg exited 6 on the reused private cluster. Bootstrap roles oo_target_owner and oo_pipeline_runtime are cluster-wide and remained after the first successful init. Fresh databases then hit CREATE ROLE and the installer maps that to target catalog refused. Harness-only fix drops those two roles with the review roles before init. Product sources were not edited.

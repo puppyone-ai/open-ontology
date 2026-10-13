@@ -1,2 +1,0 @@
-pathdrift|config|{"search_path=pg_catalog, public"}
-pathdrift|result|accepted

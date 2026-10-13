@@ -1,2 +1,0 @@
-WARNING:  25P01: SET LOCAL can only be used in transaction blocks
-LOCATION:  CheckTransactionBlock, xact.c:3701

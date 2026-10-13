@@ -1,5 +1,0 @@
-tools/query-result-export/CONTRACT.md query-result-export-CONTRACT.md want=7fc04afd44a6ed7e239a39dbb85b62737610d38f got=7fc04afd44a6ed7e239a39dbb85b62737610d38f
-tools/query-result-export/src/csv.rs csv.rs want=bf66b61c21e848b349970b45ace48032e9f05ed1 got=bf66b61c21e848b349970b45ace48032e9f05ed1
-tools/query-result-export/src/parse.rs parse.rs want=e6d2a1b639052d35bb1ca28817098ef05b72faa4 got=e6d2a1b639052d35bb1ca28817098ef05b72faa4
-execution/decisions/numeric-query-contract-a327.md numeric-query-contract-a327.md want=41574d1a06046a3a6276d8ab49ceaabc2ecc2644 got=41574d1a06046a3a6276d8ab49ceaabc2ecc2644
-crates/oo-gateway/src/bin/query-pg.rs query-pg.rs want=b31256143811291d0155fcb2c604aea530e6e8f1 got=b31256143811291d0155fcb2c604aea530e6e8f1

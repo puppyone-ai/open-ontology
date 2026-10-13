@@ -1,1 +1,0 @@
-Overlay build and registry triple diff succeeded. Harness clippy -D warnings stopped on needless_as_bytes in expect_audit. Preserved before that fix.

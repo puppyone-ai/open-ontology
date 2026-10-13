@@ -1,0 +1,207 @@
+{
+  "authorization": "direct human removes all compilation and CPU restrictions",
+  "as_of": "2026-10-12T03:35:07.333688+08:00",
+  "containers": [
+    {
+      "container": "oo-dl01w1-43-runtime",
+      "id": "01346bbdb8fa",
+      "task": "DL01-W1-43",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-43-pg",
+      "id": "8f5294bb3063",
+      "task": "DL01-W1-43",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-46-tools",
+      "id": "eb5b8c114daa",
+      "task": "DL01-W1-46",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-46-tgt",
+      "id": "aa38983015fa",
+      "task": "DL01-W1-46",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-46-src",
+      "id": "b9b2815ad24d",
+      "task": "DL01-W1-46",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-04-p2-pg",
+      "id": "eb0ec24b748e",
+      "task": "DL01-W1-04",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-04-p2-oracle",
+      "id": "ffc81586acf3",
+      "task": "DL01-W1-04",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-06-pg",
+      "id": "9e49238c6b31",
+      "task": "DL01-W1-06",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    },
+    {
+      "container": "oo-dl01w1-06-mysql",
+      "id": "3e3c9a2ea48c",
+      "task": "DL01-W1-06",
+      "before": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "update_exit": 0,
+      "after": {
+        "NanoCpus": 1000000000,
+        "CpuQuota": -1,
+        "CpuPeriod": 0,
+        "CpusetCpus": ""
+      },
+      "state": "running",
+      "effective_update_exit": 0,
+      "cgroup_cpu_max": "max 100000",
+      "cpu_quota_removed": true
+    }
+  ],
+  "compiler_restart": false,
+  "memory_source_read_permissions_unchanged": true,
+  "initial_cpus_zero_attempt": "Docker update --cpus0 returned0 but retained NanoCpus; verify showed unchanged quota, corrected by --cpu-quota=-1 and actual cgroup max"
+}

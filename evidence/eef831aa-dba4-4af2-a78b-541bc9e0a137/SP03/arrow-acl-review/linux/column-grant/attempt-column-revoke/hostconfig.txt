@@ -1,7 +1,0 @@
-ExitCode=101
-Status=exited
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a137-eef831aa-net
-Memory=8589934592
-CapDrop=[ALL]

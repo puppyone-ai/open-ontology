@@ -1,0 +1,2 @@
+USE oo_dl01w1_43;
+SHOW STREAMS;

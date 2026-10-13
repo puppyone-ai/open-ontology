@@ -1,1 +1,0 @@
-psql: error: connection to server at "127.0.0.1", port 5432 failed: FATAL:  pg_hba.conf rejects connection for host "127.0.0.1", user "oo_a110_reader", database "typedb", no encryption

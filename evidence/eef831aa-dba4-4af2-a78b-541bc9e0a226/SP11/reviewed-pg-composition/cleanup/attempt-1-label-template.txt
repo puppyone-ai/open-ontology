@@ -1,6 +1,0 @@
-owner=a226
-session=eef831aa-dba4-4af2-a78b-541bc9e0a226
-started=2026-10-05T23:05:47Z
-absent container oo-a226-smoke
-absent container oo-a226-chain
-refusing container oo-a226-pg owner=<no value>

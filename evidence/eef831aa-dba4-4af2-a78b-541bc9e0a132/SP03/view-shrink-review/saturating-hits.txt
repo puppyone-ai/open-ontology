@@ -1,3 +1,0 @@
-540:            let growth = view_prepared.saturating_sub(view_before);
-600:            let net = view_done.saturating_sub(view_before);
-674:        let growth = view_prepared.saturating_sub(view_before);

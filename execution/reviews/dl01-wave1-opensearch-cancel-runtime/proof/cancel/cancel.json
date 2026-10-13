@@ -1,0 +1,158 @@
+{
+  "cancel_after_time_interval_sent": false,
+  "class": "unsupported",
+  "client_closed": true,
+  "dba_cancel_used": false,
+  "deadline_marker": "oo44workloaddeadline",
+  "elapsed_ms": 196,
+  "http_current_open_after": 2,
+  "http_current_open_after_status": 200,
+  "http_current_open_before": 2,
+  "http_current_open_before_status": 200,
+  "http_current_open_during": 3,
+  "http_current_open_during_status": 200,
+  "ipc_present": false,
+  "labeled_as_timeout": false,
+  "marker": "oo44usercancel",
+  "mechanism": "RestCancellableNodeClient http channel close",
+  "natural_completion_before_trigger": false,
+  "other_search_task_ids_before": [],
+  "outcome": "pending",
+  "owned_client": "dedicated-http1-channel",
+  "owned_response_excerpt": "",
+  "pit_close_status": 200,
+  "pit_held_status": 200,
+  "pit_open_status": 200,
+  "pit_reuse_status": 404,
+  "privilege": "reader search on the approved workload index; cluster task cancel is not granted",
+  "rejected_server_timer": "800ms",
+  "response_framing": "empty",
+  "search_path": "/oo-dl01w1-44-workload/_search?request_cache=false",
+  "search_workers_after": 0,
+  "search_workers_after_status": 200,
+  "search_workers_before": 0,
+  "search_workers_before_status": 200,
+  "search_workers_during": 1,
+  "search_workers_during_status": 200,
+  "server_error": null,
+  "server_status": 0,
+  "targeted_task_ids": [
+    "HkIsVOTUQ1uoWoJCCnE9Fg:308"
+  ],
+  "task": {
+    "action": "indices:data/read/search",
+    "cancellable": true,
+    "cancelled": false,
+    "description": "indices[oo-dl01w1-44-workload], search_type[QUERY_THEN_FETCH], source[{\"size\":0,\"query\":{\"script\":{\"script\":{\"source\":\"String userMarker = \\\"oo44usercancel\\\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && userMarker.length() > 0;\",\"lang\":\"painless\"},\"boost\":1.0}}}]",
+    "headers": {},
+    "id": 308,
+    "node": "HkIsVOTUQ1uoWoJCCnE9Fg",
+    "resource_stats": {
+      "average": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "max": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "min": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "thread_info": {
+        "active_threads": 0,
+        "thread_executions": 0
+      },
+      "total": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      }
+    },
+    "running_time_in_nanos": 80441000,
+    "start_time_in_millis": 1791675469538,
+    "task_id": "HkIsVOTUQ1uoWoJCCnE9Fg:308",
+    "type": "transport"
+  },
+  "task_after": {
+    "action": "indices:data/read/search",
+    "cancellable": true,
+    "cancellation_time_millis": 1791675469724,
+    "cancelled": true,
+    "description": "indices[oo-dl01w1-44-workload], search_type[QUERY_THEN_FETCH], source[{\"size\":0,\"query\":{\"script\":{\"script\":{\"source\":\"String userMarker = \\\"oo44usercancel\\\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && userMarker.length() > 0;\",\"lang\":\"painless\"},\"boost\":1.0}}}]",
+    "headers": {},
+    "id": 308,
+    "node": "HkIsVOTUQ1uoWoJCCnE9Fg",
+    "resource_stats": {
+      "average": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "max": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "min": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "thread_info": {
+        "active_threads": 0,
+        "thread_executions": 0
+      },
+      "total": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      }
+    },
+    "running_time_in_nanos": 274189458,
+    "start_time_in_millis": 1791675469538,
+    "task_id": "HkIsVOTUQ1uoWoJCCnE9Fg:308",
+    "type": "transport"
+  },
+  "task_before": {
+    "action": "indices:data/read/search",
+    "cancellable": true,
+    "cancelled": false,
+    "description": "indices[oo-dl01w1-44-workload], search_type[QUERY_THEN_FETCH], source[{\"size\":0,\"query\":{\"script\":{\"script\":{\"source\":\"String userMarker = \\\"oo44usercancel\\\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && userMarker.length() > 0;\",\"lang\":\"painless\"},\"boost\":1.0}}}]",
+    "headers": {},
+    "id": 308,
+    "node": "HkIsVOTUQ1uoWoJCCnE9Fg",
+    "resource_stats": {
+      "average": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "max": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "min": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "thread_info": {
+        "active_threads": 0,
+        "thread_executions": 0
+      },
+      "total": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      }
+    },
+    "running_time_in_nanos": 80441000,
+    "start_time_in_millis": 1791675469538,
+    "task_id": "HkIsVOTUQ1uoWoJCCnE9Fg:308",
+    "type": "transport"
+  },
+  "task_cancel_body": "{\"error\":{\"root_cause\":[{\"type\":\"security_exception\",\"reason\":\"no permissions for [cluster:admin/tasks/cancel] and User [name=oo_dl01w1_44_reader, backend_roles=[], requestedTenant=null]\"}],\"type\":\"security_exception\",\"reason\":\"no permissions for [cluster:admin/tasks/cancel] and User [name=oo_dl01w1_44_reader, backend_roles=[], requestedTenant=null]\"},\"status\":403}",
+  "task_cancel_http_status": 403,
+  "task_id_present_after": true,
+  "task_list_after_status": 200,
+  "terminal_reason": "",
+  "terminal_reason_source": "not_in_response",
+  "transport_error": "peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof",
+  "user_triggered_at": "2026-10-10T23:37:49.721Z",
+  "user_triggered_unix_ms": 1791675469721,
+  "workload_index": "oo-dl01w1-44-workload"
+}

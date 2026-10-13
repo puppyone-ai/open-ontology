@@ -1,7 +1,0 @@
-Rust impl recipe origin
-direct_parent_path=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/precode/launch.sh
-direct_parent_sha256=2b26de59d52c5a723c6a3f4f1577d44200629740663900a05f49847da091d6da
-direct_parent_inside=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/precode/inside.sh
-direct_parent_inside_sha256=1926654031dc97aae17489b9b0b5f28674e591c2b0a7c090e881bab419b844a1
-minimal_changes=uuid a387; mount session-control-api rw; siblings and root lock ro; private PG alias; one generate-lockfile for this workspace only
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5

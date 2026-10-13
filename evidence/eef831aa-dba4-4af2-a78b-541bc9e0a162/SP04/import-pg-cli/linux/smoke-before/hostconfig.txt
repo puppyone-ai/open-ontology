@@ -1,9 +1,0 @@
-ExitCode=0
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a162-eef831aa-net
-CapDrop=["ALL"]
-CapAdd=null
-Memory=8589934592
-PortBindings={}
-Id=7c1183b9f707eac4d6f81073a5c996ba00c272ebd5d1506dba337202099edf8f

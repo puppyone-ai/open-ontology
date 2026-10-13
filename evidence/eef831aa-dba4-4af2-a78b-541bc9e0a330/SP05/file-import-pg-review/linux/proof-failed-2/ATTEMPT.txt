@@ -1,3 +1,0 @@
-Attempt 2. docker exit 101. OOMKilled false. Memory 6442450944. NanoCpus 1000000000.
-fetch-offline 101 is the empty cargo home, then fetch 0. Author refuse 0 (6 passed), lock subset 0 (250 checksums), clippy 0, live 0 (1 passed in 4.64s).
-Review oracle did not compile: tests/review_oracle.rs moved `shadow` before `is_none`. clippy-review 101 is the same compile error. No oracle.txt. PostgreSQL stayed up. Container removed.

@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-23",
+  "review_sha": "ab174277c82c6c28722dae145ac843dff0e395ad",
+  "author_source": "970311b5872a4957beaacc19c1280827dda2a87b",
+  "author_seal": "d56631360d6f7852ff079431aaba735ad2416f0f",
+  "verified_sha_entries": 326,
+  "decision": "approve_setup_dependency",
+  "scope": "actualcpu1/4GiB freshnative StarRocks bounded reader cancel; notdriver/Arrow/PG/Builder/Pack/sourceacceptance",
+  "prior_failure_preserved": "8fb8fb334eb40f1261c4ff9cf702a8fed79cdc4d",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

@@ -1,0 +1,113 @@
+{
+  "schema": "oo-dl01-starrocks-oracle-v1",
+  "product": "StarRocks",
+  "rejected_products": ["MySQL", "MariaDB", "Apache Doris"],
+  "consistency_grade": "S0",
+  "capture_method": "C4",
+  "delete_detection": {
+    "dup_events": "partition_replace",
+    "pk_accounts": "native_if_delete_is_immediately_visible"
+  },
+  "notes": [
+    "Visible rows below are the typed expectation for StarRocks key models. They are not copied from a server result.",
+    "NULL amounts are absent from SUM. The row itself still distinguishes NULL from 0 and from the empty string.",
+    "Decimal values are exact base-10 strings. Comparison uses decimal quantization to the column scale, not binary float.",
+    "Cross-table reads have no shared snapshot token. Grade stays S0."
+  ],
+  "dup_events": {
+    "key_model": "DUPLICATE",
+    "partition_column": "bucket",
+    "partitions": {
+      "p202601": "bucket < 2026-02-01",
+      "p202602": "2026-02-01 <= bucket < 2026-03-01"
+    },
+    "columns": [
+      {"name": "event_id", "type": "int"},
+      {"name": "bucket", "type": "str"},
+      {"name": "amount", "type": "decimal", "scale": 4},
+      {"name": "note", "type": "str"}
+    ],
+    "visible_initial": [
+      {"event_id": 1, "bucket": "2026-01-15", "amount": "10.2500", "note": "alpha"},
+      {"event_id": 1, "bucket": "2026-01-15", "amount": "10.2500", "note": "alpha"},
+      {"event_id": 2, "bucket": "2026-01-20", "amount": null, "note": ""},
+      {"event_id": 5, "bucket": "2026-01-31", "amount": "0.0000", "note": "零"},
+      {"event_id": 3, "bucket": "2026-02-02", "amount": "-0.0001", "note": null},
+      {"event_id": 4, "bucket": "2026-02-28", "amount": "99999999999999.9999", "note": "边界"}
+    ],
+    "append": {"event_id": 6, "bucket": "2026-02-10", "amount": "1.0000", "note": "late"},
+    "partition_sums_initial": {
+      "p202601": {"row_count": 4, "amount_sum": "20.5000"},
+      "p202602": {"row_count": 2, "amount_sum": "99999999999999.9998"}
+    },
+    "partition_sums_after_append": {
+      "p202601": {"row_count": 4, "amount_sum": "20.5000"},
+      "p202602": {"row_count": 3, "amount_sum": "100000000000000.9998"}
+    }
+  },
+  "pk_accounts": {
+    "key_model": "PRIMARY",
+    "columns": [
+      {"name": "account_id", "type": "int"},
+      {"name": "balance", "type": "decimal", "scale": 9},
+      {"name": "nickname", "type": "str"}
+    ],
+    "inputs_in_order": [
+      {"account_id": 100, "balance": "0.100000000", "nickname": "first"},
+      {"account_id": 100, "balance": "12345678901234567890123456789.123456789", "nickname": "replaced"},
+      {"account_id": 101, "balance": null, "nickname": null},
+      {"account_id": 102, "balance": "0.000000000", "nickname": ""}
+    ],
+    "not_visible": [
+      {"account_id": 100, "balance": "0.100000000", "nickname": "first"}
+    ],
+    "visible_initial": [
+      {"account_id": 100, "balance": "12345678901234567890123456789.123456789", "nickname": "replaced"},
+      {"account_id": 101, "balance": null, "nickname": null},
+      {"account_id": 102, "balance": "0.000000000", "nickname": ""}
+    ],
+    "delete_account_id": 102,
+    "visible_after_delete": [
+      {"account_id": 100, "balance": "12345678901234567890123456789.123456789", "nickname": "replaced"},
+      {"account_id": 101, "balance": null, "nickname": null}
+    ]
+  },
+  "agg_metrics": {
+    "key_model": "AGGREGATE",
+    "columns": [
+      {"name": "metric_day", "type": "str"},
+      {"name": "metric_name", "type": "str"},
+      {"name": "qty", "type": "int"},
+      {"name": "revenue", "type": "decimal", "scale": 4}
+    ],
+    "inputs": [
+      {"metric_day": "2026-01-01", "metric_name": "clicks", "qty": 2, "revenue": "1.5000"},
+      {"metric_day": "2026-01-01", "metric_name": "clicks", "qty": 3, "revenue": "2.2500"},
+      {"metric_day": "2026-01-02", "metric_name": "views", "qty": 1, "revenue": "0.0000"}
+    ],
+    "visible": [
+      {"metric_day": "2026-01-01", "metric_name": "clicks", "qty": 5, "revenue": "3.7500"},
+      {"metric_day": "2026-01-02", "metric_name": "views", "qty": 1, "revenue": "0.0000"}
+    ]
+  },
+  "uniq_dim": {
+    "key_model": "UNIQUE",
+    "columns": [
+      {"name": "dim_id", "type": "int"},
+      {"name": "label", "type": "str"},
+      {"name": "score", "type": "decimal", "scale": 2}
+    ],
+    "inputs_in_order": [
+      {"dim_id": 7, "label": "first", "score": "1.10"},
+      {"dim_id": 7, "label": "second", "score": "2.20"},
+      {"dim_id": 8, "label": "keep", "score": null}
+    ],
+    "not_visible": [
+      {"dim_id": 7, "label": "first", "score": "1.10"}
+    ],
+    "visible": [
+      {"dim_id": 7, "label": "second", "score": "2.20"},
+      {"dim_id": 8, "label": "keep", "score": null}
+    ]
+  }
+}

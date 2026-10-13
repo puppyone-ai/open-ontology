@@ -1,8 +1,0 @@
-attempt: proof-2
-docker-run.exit: 101
-clippy.exit: 101
-phase: clippy_exit=101
-rustc.exit: 0
-pg up.exit: 0 (container removed after the clippy failure; cargo and target volumes kept)
-cause: crates/oo-gateway/tests/http_gateway_tls.rs used Result::expect_err. OperatorLoad does not implement Debug, so the test crate did not compile. The library target produced no clippy diagnostics. No loopback, TLS, or live gateway test ran. Smoke was not rerun.
-fix before proof-3: load_reason matches the static error without requiring Debug on OperatorLoad.

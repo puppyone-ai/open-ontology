@@ -1,0 +1,86 @@
+{
+  "client_closed": false,
+  "dba_cancel_used": false,
+  "elapsed_ms": 3091,
+  "http_current_open_after": 2,
+  "http_current_open_after_status": 200,
+  "http_current_open_before": 1,
+  "http_current_open_before_status": 200,
+  "http_current_open_during": 2,
+  "http_current_open_during_status": 200,
+  "ipc_present": false,
+  "outcome": "proved",
+  "pit_close_status": 200,
+  "pit_held_status": 200,
+  "pit_open_status": 200,
+  "pit_reuse_status": 404,
+  "server_error": {
+    "caused_by": {
+      "reason": "cancelled task with reason: Cancellation timeout of 2s is expired",
+      "type": "task_cancelled_exception"
+    },
+    "failed_shards": [
+      {
+        "index": "oo-dl01w1-44-workload",
+        "node": "HkIsVOTUQ1uoWoJCCnE9Fg",
+        "reason": {
+          "reason": "cancelled task with reason: Cancellation timeout of 2s is expired",
+          "type": "task_cancelled_exception"
+        },
+        "shard": 0
+      }
+    ],
+    "grouped": true,
+    "phase": "query",
+    "reason": "all shards failed",
+    "root_cause": [
+      {
+        "reason": "cancelled task with reason: Cancellation timeout of 2s is expired",
+        "type": "task_cancelled_exception"
+      }
+    ],
+    "type": "search_phase_execution_exception"
+  },
+  "server_interval_ms": 2000,
+  "server_status": 500,
+  "task": {
+    "action": "indices:data/read/search",
+    "cancellable": true,
+    "cancelled": false,
+    "description": "indices[oo-dl01w1-44-workload], search_type[QUERY_THEN_FETCH], source[{\"size\":0,\"query\":{\"script\":{\"script\":{\"source\":\"String deadlineMarker = \\\"oo44workloaddeadline\\\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && deadlineMarker.length() > 0;\",\"lang\":\"painless\"},\"boost\":1.0}}}]",
+    "headers": {},
+    "id": 684,
+    "node": "HkIsVOTUQ1uoWoJCCnE9Fg",
+    "resource_stats": {
+      "average": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "max": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "min": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      },
+      "thread_info": {
+        "active_threads": 0,
+        "thread_executions": 0
+      },
+      "total": {
+        "cpu_time_in_nanos": 0,
+        "memory_in_bytes": 0
+      }
+    },
+    "running_time_in_nanos": 2247833,
+    "start_time_in_millis": 1791675471436,
+    "task_id": "HkIsVOTUQ1uoWoJCCnE9Fg:684",
+    "type": "transport"
+  },
+  "task_id_present_after": false,
+  "task_list_after_status": 200,
+  "terminal_reason": "cancelled task with reason: Cancellation timeout of 2s is expired",
+  "timeout_ms": 20000,
+  "workload_index": "oo-dl01w1-44-workload"
+}

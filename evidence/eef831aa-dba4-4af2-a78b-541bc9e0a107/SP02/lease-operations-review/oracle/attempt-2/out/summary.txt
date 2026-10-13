@@ -1,1 +1,0 @@
-passed=23 failed=7 exit=1

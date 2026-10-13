@@ -1,0 +1,9 @@
+{
+  "task": "DL01-W1-34",
+  "fixed_packet": "645d37badf7a56dc26c90dc8cd3b007376489180",
+  "verified_sha_entries": 479,
+  "decision": "author_pending_independent_fixed_review",
+  "scope": "officialthin driver onactual23.26.3, nativeSCN/typedArrow subset/lossyrejections/driverdeadline andzeroWriteaudit; noOracle19c/TLS/fullsource/explicitcancel certification",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

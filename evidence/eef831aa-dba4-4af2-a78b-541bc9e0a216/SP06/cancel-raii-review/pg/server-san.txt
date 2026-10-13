@@ -1,3 +1,0 @@
-subject=CN=oo-a216-pg
-X509v3 Subject Alternative Name: 
-    DNS:oo-a189-pg, DNS:oo-a216-pg, DNS:oo-a216-proxy, DNS:oo-a216-observe

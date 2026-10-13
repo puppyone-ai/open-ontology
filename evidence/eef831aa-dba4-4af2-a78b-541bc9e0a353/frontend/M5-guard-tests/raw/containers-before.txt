@@ -1,9 +1,0 @@
-cga-eef831aa 0f24958fa693 Up 24 seconds
-oo-g3-a352-m5guard 481d53bf3819 Up 35 seconds
-oo-a376-proof 0f24958fa693 Up 19 minutes
-oo-a376-pg 3aac91d19d5b Up 19 minutes
-oo-a373-pg 3aac91d19d5b Up 44 minutes
-oo-a064-rust194-contract2 0f24958fa693 Exited (0) 6 days ago
-oo-a064-rust194-contract 0f24958fa693 Exited (101) 6 days ago
-oo-a064-pg1710-jobs 3aac91d19d5b Exited (0) 6 days ago
-oo-a064-rust194-smoke 0f24958fa693 Exited (0) 6 days ago

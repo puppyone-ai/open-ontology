@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-26",
+  "fixed_review": "6cc24699bbf5566ae45f9ec4ea363da8b747b867",
+  "source": "280bc35da56b1d7d018c54e79b136a1f99c7e1ab",
+  "seal": "d6a7e414a40768c03618c0bd74d74503ab218ef8",
+  "verified_sha_entries": 457,
+  "decision": "approve_original_frozen_planner_child",
+  "scope": "actualsealedspool/offsetreceipt bound eachselectedtable; positiveallbound and missing/position/epoch/source/schema/generation denies; notliveLoader/scheduler/GTID/matrix",
+  "development_acceptance_delta": 1,
+  "source_acceptance_delta": 0,
+  "old_request_changes_preserved": "d9060704a7a924b9d2ffedffe23ba1dd859fdc9c"
+}

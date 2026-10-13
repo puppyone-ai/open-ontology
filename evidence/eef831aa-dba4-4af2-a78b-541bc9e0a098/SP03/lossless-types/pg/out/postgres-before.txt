@@ -1,3 +1,0 @@
-observed_at=2026-10-02T12:26:56Z
-foreign_postgres:
-oo-a099-pg1710-3c4c956c-6a7c-4695-a563-83a03d42f2bb Up About a minute a099

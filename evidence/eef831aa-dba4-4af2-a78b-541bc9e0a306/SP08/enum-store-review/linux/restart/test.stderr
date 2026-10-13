@@ -1,5 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/repo/crates/oo-core)
-   Compiling enum-history v0.1.0 (/work/repo/tools/enum-history)
-   Compiling enum-store v0.1.0 (/work/repo/tools/enum-store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.00s
-     Running tests/a306_enum.rs (/target/debug/deps/a306_enum-5c9e52828a4bb642)

@@ -1,8 +1,0 @@
-Post-edit proof-6. Preserved. docker-run.exit 101.
-Focused tests passed. oo-builder Clippy passed. description-review Clippy passed.
-PHASE clippy-pack=101.
-description-pack lib Clippy -D warnings: collapsible_if in queue_projection at apply.rs:1399.
-Host fix uses one let chain for the optional column key.
-Container oo-a339-proof6 was removed by launch.sh.
-OOMKilled false. Memory 6442450944. NanoCpus 1000000000. CapDrop ALL.
-No a339 builder remained. Foreign builders were not removed.

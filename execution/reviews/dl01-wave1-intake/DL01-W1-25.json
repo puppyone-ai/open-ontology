@@ -1,0 +1,13 @@
+{
+  "task": "DL01-W1-25",
+  "collector": "Codex coordinator independent collection",
+  "fixed_review_or_seal": "4a7d85fa7db2233c256a994dc0696d7a1456e3a6",
+  "packet_entries_verified": 277,
+  "source_acceptance_delta": 0,
+  "verdict": "approve original frozen D02 admission policy/library/CLI + genuinePG report identity/deny + csvlog observe",
+  "approved_source": "fabc471609eedd313f7900009793ca153b61b187",
+  "author_seal": "bf617b5a90280a1826124f7882903e846eae35a2",
+  "fixed_review_commit": "4a7d85fa7db2233c256a994dc0696d7a1456e3a6",
+  "functional_acceptance_delta": 1,
+  "limitations": "complete synthetic policy report positive; actual legacyPG report correctly BUDGET_UNIT_UNKNOWN denial. DBXW02/source-loop/matrix/nightly not accepted."
+}

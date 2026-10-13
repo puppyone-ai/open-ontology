@@ -1,1 +1,0 @@
-{"ack_allowed":false,"epoch1_pos":"40","epoch1_txn":"txn-after","epoch2_pos":"100","epoch2_txn":"txn-e2","external_xack":false,"external_xtrim":false,"linearizable_multi_actor":false,"race_fault":"receipt_hash_conflict","receipts":10,"source_applied":false,"txn1_hash":"95537a00f6685831ce38aaf0b72a3bc6a3ba3f08d1c12328dbc31403cd9fa5c2","watermarks":2}

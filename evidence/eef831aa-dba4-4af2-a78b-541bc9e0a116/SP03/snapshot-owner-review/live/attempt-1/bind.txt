@@ -1,3 +1,0 @@
-bind_fail=canary
-cause=seed inserts ran after rev.bump triggers, so rev.canary.n was not 0
-action=reset canary to the preregistered 0 before the audit marker and before any SnapshotOwner

@@ -1,1 +1,0 @@
-{"protocol":"oo.gateway.install-column-acl-cli/v1","effect":"installed","role":"oo_r_clerk","grantor":"oo_fixture_admin","tables":[{"physical_table":"pt_a4ecc1e299446959b965a75bdb9ab3a9b4315ac28f8e376ff8cca6df476e","physical_columns":["pc_c34408bebc4d55815fee2070c75bb9b346f272c41015fc4c8b65a9bb2504"]}]}

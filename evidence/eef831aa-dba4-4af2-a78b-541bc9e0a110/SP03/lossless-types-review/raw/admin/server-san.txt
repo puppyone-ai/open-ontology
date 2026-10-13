@@ -1,3 +1,0 @@
-subject=CN=pg.a110.internal
-X509v3 Subject Alternative Name: 
-    DNS:pg.a110.internal

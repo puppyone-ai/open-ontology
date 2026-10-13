@@ -1,3 +1,0 @@
-   Compiling oo-sql-runner v0.1.0 (/src/benchmarks/sql-runner)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
-     Running tests/sha256.rs (/target/debug/deps/sha256-11acb4c3d45bccd2)

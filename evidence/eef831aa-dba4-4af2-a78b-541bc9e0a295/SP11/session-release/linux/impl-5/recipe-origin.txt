@@ -1,4 +1,0 @@
-parent_launch=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/precode/launch.sh
-2b26de59d52c5a723c6a3f4f1577d44200629740663900a05f49847da091d6da  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/precode/launch.sh
-1926654031dc97aae17489b9b0b5f28674e591c2b0a7c090e881bab419b844a1  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a295/SP11/session-release/linux/precode/inside.sh
-minimal_changes=new target volume oo-a295-eef831aa-target-impl; overlay tools/session-release; mount private fixture readonly; OO_ROOT_LOCK is the archived root lock; cargo test and clippy --locked --offline; signal probe before compile; no pull; no second postgres

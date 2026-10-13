@@ -1,5 +1,0 @@
-55056174f5ac1216c23590471b6ed40e84f2e84de940626bc27f564aeae99764  crates/oo-connectors/src/jsonl.rs
-b376d8190029591d7f0c46e5fbf9da6cb69a610e3369b2b485a1c47f897629fb  crates/oo-connectors/src/lib.rs
-ff104861ebe6c856e801b510b0b88226d6ee69cb08e3deb1ee5c7d5eca3f55d3  crates/oo-connectors/tests/jsonl_reader.rs
-8cafb6433afd4c3ca5d595e53c71ceb0adf6ea471baff654726bc843079349d1  crates/oo-connectors/tests/jsonl_reader_a185_review.rs
-f0aab42b850a225bafd1fb30c0d2d983113e112a20701daa14ef6817e5ee987d  contracts/source/jsonl-reader-v1.md

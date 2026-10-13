@@ -1,0 +1,27 @@
+{
+  "source_id": "oo_dl01w1_44",
+  "secret_ref": "secret://oo-dl01w1-44/opensearch",
+  "approved_index": "oo-dl01w1-44-ledger",
+  "approved_fields": [
+    "bin_value",
+    "doc_key",
+    "double_value",
+    "event_ms",
+    "flag",
+    "long_value",
+    "note",
+    "payload_json",
+    "quantities",
+    "scaled_value",
+    "seq_key",
+    "tags",
+    "thing"
+  ],
+  "requested_fields": ["doc_key", "event_ms", "long_value", "payload_json", "tags", "thing"],
+  "budget_unit": "Rows",
+  "budget_hard_limit": 40,
+  "target_id": "oo_dl01w1_44_ledger_pg",
+  "role": "oo_r_ledger",
+  "relation": "ledger_rows",
+  "index": "oo-dl01w1-44-ledger"
+}

@@ -1,0 +1,68 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "postgres-17-selfmanaged",
+  "source_id": "pg_selfmanaged",
+  "secret_ref": "secret://example/reader",
+  "driver": {
+    "kind": "native-rust",
+    "name": "sqlx",
+    "version": "0.9.0",
+    "digest": "sha256:not-a-grade-promotion"
+  },
+  "compat_mode": "postgres-native",
+  "license_flags": [],
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true},
+    {"name": "USAGE", "status": "known", "granted": true},
+    {"name": "CONNECT", "status": "known", "granted": true}
+  ],
+  "capabilities": [
+    {
+      "name": "Catalog",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "Budget",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": "Rows",
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "B"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C5",
+      "write_class": "R0",
+      "consistency": "B",
+      "token_order": "None",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {"unit": "Rows", "confidence": "known", "estimate": "catalog_reltuples"},
+  "r1w": null
+}

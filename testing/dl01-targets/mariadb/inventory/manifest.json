@@ -1,0 +1,60 @@
+{
+  "product": "MariaDB",
+  "image_digest": "sha256:0130d92c05fbf2d82adc2b86de742eaede65b2596c65d91786f8e03cd19e6a39",
+  "oci_labels": {
+    "org.opencontainers.image.authors": "MariaDB Community",
+    "org.opencontainers.image.base.name": "docker.io/library/ubuntu:noble",
+    "org.opencontainers.image.description": "MariaDB Database for relational SQL",
+    "org.opencontainers.image.documentation": "https://hub.docker.com/_/mariadb/",
+    "org.opencontainers.image.licenses": "GPL-2.0",
+    "org.opencontainers.image.source": "https://github.com/MariaDB/mariadb-docker",
+    "org.opencontainers.image.title": "MariaDB Database",
+    "org.opencontainers.image.url": "https://github.com/MariaDB/mariadb-docker",
+    "org.opencontainers.image.vendor": "MariaDB Community",
+    "org.opencontainers.image.version": "11.4.13"
+  },
+  "client": {
+    "binary": "/usr/bin/mariadb",
+    "version": "mariadb from 11.4.13-MariaDB, client 15.2 for debian-linux-gnu (aarch64) using  EditLine wrapper",
+    "sha256": "a3d08b2a8ca3709407e3c79632ac368ec287caf19c5e6abc6d226f252af29a26"
+  },
+  "server": {
+    "binary": "/usr/sbin/mariadbd",
+    "version": "mariadbd  Ver 11.4.13-MariaDB-ubu2404 for debian-linux-gnu on aarch64 (mariadb.org binary distribution)",
+    "sha256": "e50876f65a0b5ea156366ae6be5852e313af040f5794e6d03439083307732c1c"
+  },
+  "rust_driver_compiled": false,
+  "mysql_client_used": false,
+  "license_files": [
+    {
+      "path": "usr/share/doc/mariadb-backup/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    },
+    {
+      "path": "usr/share/doc/mariadb-client/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    },
+    {
+      "path": "usr/share/doc/mariadb-client-core/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    },
+    {
+      "path": "usr/share/doc/mariadb-common/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    },
+    {
+      "path": "usr/share/doc/mariadb-server/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    },
+    {
+      "path": "usr/share/doc/mariadb-server-core/copyright",
+      "sha256": "2c6eb2ec4b682e43969f1db4da02bbaed33cc51f16b7170f990ae6d50271bf5b",
+      "bytes": 2492
+    }
+  ]
+}

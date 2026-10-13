@@ -4,21 +4,21 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use axum::Router;
 use axum::body::Body;
 use axum::extract::{RawQuery, Request, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::Response;
 use axum::routing::{get, post};
-use axum::Router;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::rand::SystemRandom;
-use ring::signature::{RsaKeyPair, RSA_PKCS1_SHA256};
-use serde_json::{json, Value};
+use ring::signature::{RSA_PKCS1_SHA256, RsaKeyPair};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 
-use control_identity::{pkcs8_rsa_public, server_config, TlsListener};
+use control_identity::{TlsListener, pkcs8_rsa_public, server_config};
 
 struct Issued {
     challenge: String,
@@ -58,7 +58,15 @@ pub struct IdpParts<'a> {
 }
 
 pub async fn start(listener: TcpListener, parts: IdpParts<'_>) -> Idp {
-    let IdpParts { cert_pem, key_pem, issuer, client_id, client_secret, redirect_uri, der_keys } = parts;
+    let IdpParts {
+        cert_pem,
+        key_pem,
+        issuer,
+        client_id,
+        client_secret,
+        redirect_uri,
+        der_keys,
+    } = parts;
     let keys = der_keys
         .iter()
         .enumerate()
@@ -66,7 +74,12 @@ pub async fn start(listener: TcpListener, parts: IdpParts<'_>) -> Idp {
             let (n, e) = pkcs8_rsa_public(der).expect("public");
             let pair = RsaKeyPair::from_pkcs8(der).expect("pair");
             let kid = if index == 0 { "k1" } else { "k2" };
-            SigningKey { kid, pair, n: URL_SAFE_NO_PAD.encode(n), e: URL_SAFE_NO_PAD.encode(e) }
+            SigningKey {
+                kid,
+                pair,
+                n: URL_SAFE_NO_PAD.encode(n),
+                e: URL_SAFE_NO_PAD.encode(e),
+            }
         })
         .collect();
     let state = Arc::new(IdpState {
@@ -79,7 +92,10 @@ pub async fn start(listener: TcpListener, parts: IdpParts<'_>) -> Idp {
         subject: Mutex::new("fixture-admin".to_string()),
     });
     let tls = server_config(cert_pem, key_pem).expect("tls");
-    let incoming = TlsListener { tcp: listener, acceptor: TlsAcceptor::from(Arc::new(tls)) };
+    let incoming = TlsListener {
+        tcp: listener,
+        acceptor: TlsAcceptor::from(Arc::new(tls)),
+    };
     let router = router(Arc::clone(&state));
     tokio::spawn(async move {
         let _ = axum::serve(incoming, router).await;
@@ -126,7 +142,16 @@ async fn authorize(State(state): State<Arc<IdpState>>, RawQuery(query): RawQuery
     let Ok(map) = form_map(&query) else {
         return text(StatusCode::BAD_REQUEST);
     };
-    let required = ["response_type", "client_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method"];
+    let required = [
+        "response_type",
+        "client_id",
+        "redirect_uri",
+        "scope",
+        "state",
+        "nonce",
+        "code_challenge",
+        "code_challenge_method",
+    ];
     if map.len() != required.len() || required.iter().any(|key| !map.contains_key(*key)) {
         return text(StatusCode::BAD_REQUEST);
     }
@@ -144,20 +169,38 @@ async fn authorize(State(state): State<Arc<IdpState>>, RawQuery(query): RawQuery
     let code = random_token();
     state.codes.lock().expect("codes").insert(
         code.clone(),
-        Issued { challenge: map["code_challenge"].clone(), nonce: map["nonce"].clone(), used: false },
+        Issued {
+            challenge: map["code_challenge"].clone(),
+            nonce: map["nonce"].clone(),
+            used: false,
+        },
     );
-    redirect(&format!("{}?code={}&state={}", state.redirect_uri, url_encode(&code), url_encode(&map["state"])))
+    redirect(&format!(
+        "{}?code={}&state={}",
+        state.redirect_uri,
+        url_encode(&code),
+        url_encode(&map["state"])
+    ))
 }
 
 async fn token(State(state): State<Arc<IdpState>>, request: Request) -> Response {
-    let bytes = axum::body::to_bytes(request.into_body(), 8192).await.unwrap_or_default();
+    let bytes = axum::body::to_bytes(request.into_body(), 8192)
+        .await
+        .unwrap_or_default();
     let Ok(body) = std::str::from_utf8(&bytes) else {
         return text(StatusCode::BAD_REQUEST);
     };
     let Ok(fields) = form_map(body) else {
         return text(StatusCode::BAD_REQUEST);
     };
-    let required = ["grant_type", "code", "redirect_uri", "client_id", "code_verifier", "client_secret"];
+    let required = [
+        "grant_type",
+        "code",
+        "redirect_uri",
+        "client_id",
+        "code_verifier",
+        "client_secret",
+    ];
     if fields.len() != required.len() || required.iter().any(|key| !fields.contains_key(*key)) {
         return text(StatusCode::BAD_REQUEST);
     }
@@ -195,11 +238,19 @@ fn mint(state: &IdpState, subject: &str, nonce: &str) -> String {
 }
 
 fn sign(key: &SigningKey, payload: &str) -> String {
-    let header = URL_SAFE_NO_PAD.encode(format!(r#"{{"alg":"RS256","kid":"{}","typ":"JWT"}}"#, key.kid).as_bytes());
+    let header = URL_SAFE_NO_PAD
+        .encode(format!(r#"{{"alg":"RS256","kid":"{}","typ":"JWT"}}"#, key.kid).as_bytes());
     let body = URL_SAFE_NO_PAD.encode(payload.as_bytes());
     let input = format!("{header}.{body}");
     let mut signature = vec![0_u8; key.pair.public().modulus_len()];
-    key.pair.sign(&RSA_PKCS1_SHA256, &SystemRandom::new(), input.as_bytes(), &mut signature).expect("sign");
+    key.pair
+        .sign(
+            &RSA_PKCS1_SHA256,
+            &SystemRandom::new(),
+            input.as_bytes(),
+            &mut signature,
+        )
+        .expect("sign");
     format!("{input}.{}", URL_SAFE_NO_PAD.encode(signature))
 }
 
@@ -208,11 +259,20 @@ fn jwk(key: &SigningKey) -> Value {
 }
 
 fn control_identity_now() -> i64 {
-    i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)).unwrap_or(0)
+    i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+    )
+    .unwrap_or(0)
 }
 
 fn sha256_b64(value: &str) -> String {
-    URL_SAFE_NO_PAD.encode(ring::digest::digest(&ring::digest::SHA256, value.as_bytes()))
+    URL_SAFE_NO_PAD.encode(ring::digest::digest(
+        &ring::digest::SHA256,
+        value.as_bytes(),
+    ))
 }
 
 fn random_token() -> String {
@@ -228,7 +288,10 @@ fn form_map(body: &str) -> Result<HashMap<String, String>, ()> {
     }
     for pair in body.split('&') {
         let (key, value) = pair.split_once('=').ok_or(())?;
-        if map.insert(percent_decode(key)?, percent_decode(value)?).is_some() {
+        if map
+            .insert(percent_decode(key)?, percent_decode(value)?)
+            .is_some()
+        {
             return Err(());
         }
     }
@@ -269,7 +332,9 @@ fn url_encode(value: &str) -> String {
     let mut out = String::new();
     for byte in value.bytes() {
         match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(char::from(byte)),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(char::from(byte))
+            }
             _ => out.push_str(&format!("%{byte:02X}")),
         }
     }
@@ -306,7 +371,10 @@ fn redirect(location: &str) -> Response {
 }
 
 fn text(status: StatusCode) -> Response {
-    Response::builder().status(status).body(Body::from("rejected")).unwrap_or_else(|_| Response::new(Body::empty()))
+    Response::builder()
+        .status(status)
+        .body(Body::from("rejected"))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
 trait FillRandom {

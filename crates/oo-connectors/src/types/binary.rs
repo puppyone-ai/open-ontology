@@ -1,8 +1,8 @@
 //! PostgreSQL binary wire decoders. No text output function is called.
 
 use oo_core::canonical::{
-    classify_f64, parse_json, validate_date, JsonNode, LogicalField, LogicalType, LogicalValue,
-    ARBITRARY_DECIMAL_SCALE,
+    ARBITRARY_DECIMAL_SCALE, JsonNode, LogicalField, LogicalType, LogicalValue, classify_f64,
+    parse_json, validate_date,
 };
 use oo_core::decimal::{ExactDecimal, ExactInt};
 
@@ -280,12 +280,17 @@ fn decode_interval(bytes: &[u8]) -> Result<DecodedCell, CellReject> {
 
 fn int_field(value: i64) -> Result<oo_core::canonical::FieldValue, CellReject> {
     let exact = ExactInt::parse(&value.to_string()).map_err(|_| reject("interval_payload", 16))?;
-    Ok(oo_core::canonical::FieldValue::value(LogicalValue::Int(exact)))
+    Ok(oo_core::canonical::FieldValue::value(LogicalValue::Int(
+        exact,
+    )))
 }
 
 fn decode_numeric_cell(plan: &ColumnPlan, bytes: &[u8]) -> Result<DecodedCell, CellReject> {
     let exact = decode_numeric_binary(bytes)?;
-    let logical = plan.logical.clone().ok_or(reject("numeric_payload", bytes.len()))?;
+    let logical = plan
+        .logical
+        .clone()
+        .ok_or(reject("numeric_payload", bytes.len()))?;
     let exact = match &logical {
         LogicalType::Decimal { precision, scale } if *scale != ARBITRARY_DECIMAL_SCALE => {
             let target = i32::from(*scale);
@@ -301,7 +306,8 @@ fn decode_numeric_cell(plan: &ColumnPlan, bytes: &[u8]) -> Result<DecodedCell, C
     };
     let actual_precision = i32::try_from(exact.storage_precision()).ok();
     let actual_scale = exact.scale();
-    let arrow = numeric_arrow(plan, &exact).map_err(|_| reject("decimal_physical_range", bytes.len()))?;
+    let arrow =
+        numeric_arrow(plan, &exact).map_err(|_| reject("decimal_physical_range", bytes.len()))?;
     let mut cell = value_cell(LogicalValue::Decimal(exact), arrow, actual_precision);
     cell.actual_scale = Some(actual_scale);
     Ok(cell)
@@ -387,15 +393,11 @@ fn numeric_arrow(plan: &ColumnPlan, exact: &ExactDecimal) -> Result<ArrowScalar,
     match &plan.arrow {
         Some(ArrowPhysical::DecimalUtf8 { .. }) => Ok(ArrowScalar::Utf8(exact.to_plain_string())),
         Some(ArrowPhysical::Decimal128 { scale, .. }) => {
-            let unscaled = exact
-                .rescale_exact(i32::from(*scale))
-                .map_err(|_| ())?;
+            let unscaled = exact.rescale_exact(i32::from(*scale)).map_err(|_| ())?;
             Ok(ArrowScalar::Decimal128(coeff_i128(&unscaled)?))
         }
         Some(ArrowPhysical::Decimal256 { scale, .. }) => {
-            let unscaled = exact
-                .rescale_exact(i32::from(*scale))
-                .map_err(|_| ())?;
+            let unscaled = exact.rescale_exact(i32::from(*scale)).map_err(|_| ())?;
             Ok(ArrowScalar::Decimal256(coeff_i256(&unscaled)?))
         }
         _ => Err(()),
@@ -405,7 +407,11 @@ fn numeric_arrow(plan: &ColumnPlan, exact: &ExactDecimal) -> Result<ArrowScalar,
 fn coeff_i128(exact: &ExactDecimal) -> Result<i128, ()> {
     let mut value: i128 = 0;
     for byte in exact.coefficient().bytes() {
-        value = value.checked_mul(10).ok_or(())?.checked_add(i128::from(byte - b'0')).ok_or(())?;
+        value = value
+            .checked_mul(10)
+            .ok_or(())?
+            .checked_add(i128::from(byte - b'0'))
+            .ok_or(())?;
     }
     if exact.is_negative() {
         value = value.checked_neg().ok_or(())?;
@@ -431,11 +437,7 @@ fn mul_add_le(bytes: &mut [u8; 32], factor: u32, add: u32) -> Result<(), ()> {
         *byte = (wide & 0xFF) as u8;
         carry = wide >> 8;
     }
-    if carry == 0 {
-        Ok(())
-    } else {
-        Err(())
-    }
+    if carry == 0 { Ok(()) } else { Err(()) }
 }
 
 fn neg_le(bytes: &mut [u8; 32]) -> Result<(), ()> {
@@ -455,7 +457,10 @@ fn neg_le(bytes: &mut [u8; 32]) -> Result<(), ()> {
 }
 
 fn decode_array(plan: &ColumnPlan, bytes: &[u8]) -> Result<DecodedCell, CellReject> {
-    let element = plan.element.as_deref().ok_or(reject("array_payload", bytes.len()))?;
+    let element = plan
+        .element
+        .as_deref()
+        .ok_or(reject("array_payload", bytes.len()))?;
     if bytes.len() < 12 {
         return Err(reject("array_payload", bytes.len()));
     }
@@ -483,7 +488,9 @@ fn decode_array(plan: &ColumnPlan, bytes: &[u8]) -> Result<DecodedCell, CellReje
             return Err(reject("array_dimensions", bytes.len()));
         }
         let len_us = usize::try_from(len).map_err(|_| reject("array_dimensions", bytes.len()))?;
-        count = count.checked_mul(len_us).ok_or(reject("array_dimensions", bytes.len()))?;
+        count = count
+            .checked_mul(len_us)
+            .ok_or(reject("array_dimensions", bytes.len()))?;
         if count > 100_000 {
             return Err(reject("array_dimensions", bytes.len()));
         }
@@ -513,7 +520,9 @@ fn decode_array(plan: &ColumnPlan, bytes: &[u8]) -> Result<DecodedCell, CellReje
         let cell = decode_payload(element, payload);
         if cell.presence != CellPresence::Value {
             return Err(reject(
-                cell.reject.map(|item| item.reason).unwrap_or("array_element"),
+                cell.reject
+                    .map(|item| item.reason)
+                    .unwrap_or("array_element"),
                 bytes.len(),
             ));
         }
@@ -543,7 +552,11 @@ fn int_list(values: &[i32]) -> Result<Vec<oo_core::canonical::FieldValue>, CellR
     Ok(out)
 }
 
-fn value_cell(logical: LogicalValue, arrow: ArrowScalar, actual_precision: Option<i32>) -> DecodedCell {
+fn value_cell(
+    logical: LogicalValue,
+    arrow: ArrowScalar,
+    actual_precision: Option<i32>,
+) -> DecodedCell {
     DecodedCell {
         presence: CellPresence::Value,
         value: Some(logical),
@@ -613,7 +626,10 @@ struct JsonScan<'a> {
 
 impl JsonScan<'_> {
     fn skip(&mut self) {
-        while matches!(self.bytes.get(self.index), Some(b' ' | b'\n' | b'\r' | b'\t')) {
+        while matches!(
+            self.bytes.get(self.index),
+            Some(b' ' | b'\n' | b'\r' | b'\t')
+        ) {
             self.index += 1;
         }
     }
@@ -768,7 +784,9 @@ impl JsonScan<'_> {
 fn canonicalize_json(node: JsonNode) -> JsonNode {
     match node {
         JsonNode::Number(value) => JsonNode::Number(value.normalize_json()),
-        JsonNode::Array(items) => JsonNode::Array(items.into_iter().map(canonicalize_json).collect()),
+        JsonNode::Array(items) => {
+            JsonNode::Array(items.into_iter().map(canonicalize_json).collect())
+        }
         JsonNode::Object(items) => {
             let mut items: Vec<_> = items
                 .into_iter()
@@ -833,7 +851,9 @@ fn write_json(out: &mut String, node: &JsonNode) {
     }
 }
 
-pub(crate) fn field_value(cell: &DecodedCell) -> Result<oo_core::canonical::FieldValue, CellReject> {
+pub(crate) fn field_value(
+    cell: &DecodedCell,
+) -> Result<oo_core::canonical::FieldValue, CellReject> {
     match cell.presence {
         CellPresence::Null => Ok(oo_core::canonical::FieldValue::null()),
         CellPresence::Unavailable => Ok(oo_core::canonical::FieldValue::unavailable()),
@@ -851,5 +871,3 @@ pub(crate) fn logical_field(plan: &ColumnPlan) -> Option<LogicalField> {
         nullable: plan.mapping.nullable,
     })
 }
-
-

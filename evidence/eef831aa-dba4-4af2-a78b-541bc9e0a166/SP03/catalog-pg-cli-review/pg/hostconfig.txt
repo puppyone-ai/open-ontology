@@ -1,1 +1,0 @@
-status=running oom=false privileged=false network=oo-a166-eef831aa-net memory=1073741824 capdrop=["ALL"] capadd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] ports={}

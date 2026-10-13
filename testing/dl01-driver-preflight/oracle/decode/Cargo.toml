@@ -1,0 +1,15 @@
+[package]
+name = "oo-oracle-arrow-decode"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "oracle-arrow-decode"
+path = "src/main.rs"
+
+[dependencies]
+arrow-array = "=59.3.0"
+arrow-ipc = "=59.3.0"
+arrow-schema = "=59.3.0"
+serde_json = "1"

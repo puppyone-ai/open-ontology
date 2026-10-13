@@ -1,6 +1,0 @@
-statements=963
-ROLLBACK=36
-SELECT=843
-START=36
-WITH=48
-disallowed=none

@@ -14,16 +14,16 @@ use std::process::{Command, Output, Stdio};
 use std::collections::BTreeSet;
 
 use oo_gateway::policy::{
-    compile_column_acl_set, install_column_acl_set, COLUMN_ACL_SET_MAX_COLUMNS,
+    COLUMN_ACL_SET_MAX_COLUMNS, compile_column_acl_set, install_column_acl_set,
 };
 use oo_gateway::{
-    compile_column_acl, connect_require_tls, install_column_acl, ClassStatus, ColumnAclPolicy,
-    ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError, RowFilter, TlsEndpoint,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
+    RowFilter, TlsEndpoint, compile_column_acl, connect_require_tls, install_column_acl,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
+use tokio_postgres::types::ToSql;
 
 const HOST: &str = "oo-a218-pg";
 const DATABASE: &str = "oo_a218";
@@ -143,9 +143,11 @@ async fn two_tables_one_role_column_acl_set() {
             shadow.ledger.memo.clone(),
         ]
     );
-    assert!(!installed.tables[0]
-        .physical_columns
-        .contains(&shadow.party.ratio));
+    assert!(
+        !installed.tables[0]
+            .physical_columns
+            .contains(&shadow.party.ratio)
+    );
     oracle.fact("clerk_effect", "Installed");
     oracle.fact("grantor", &installed.grantor);
 
@@ -167,7 +169,10 @@ async fn two_tables_one_role_column_acl_set() {
         .await
         .expect("old api replays one table of the set");
     assert_eq!(party_only.effect, InstallEffect::Replay);
-    assert_eq!(party_only.physical_columns, installed.tables[0].physical_columns);
+    assert_eq!(
+        party_only.physical_columns,
+        installed.tables[0].physical_columns
+    );
     assert_eq!(
         select_columns(&admin, "oo_r_clerk", &shadow.ledger.table).await,
         BTreeSet::from([
@@ -228,7 +233,15 @@ async fn refuse_before_sql(admin: &mut Client, oracle: &mut Oracle) {
         install_column_acl_set(admin, &[]).await,
         Err(PolicyError::EmptyPolicySet)
     );
-    let party = acl("clerk", LOGIN, CONFIG, CURRENT_GENERATION, PARTY, &["party_id"], false);
+    let party = acl(
+        "clerk",
+        LOGIN,
+        CONFIG,
+        CURRENT_GENERATION,
+        PARTY,
+        &["party_id"],
+        false,
+    );
     assert_eq!(
         install_column_acl_set(admin, &[party.clone(), party.clone()]).await,
         Err(PolicyError::InvalidIdentifier { field: "table" })
@@ -317,9 +330,11 @@ async fn prove_legacy_split(admin: &mut Client, shadow: &Shadow, oracle: &mut Or
         install_column_acl(admin, &legacy_ledger).await,
         Err(PolicyError::GrantMismatch)
     );
-    assert!(select_columns(admin, "oo_r_legacy", &shadow.ledger.table)
-        .await
-        .is_empty());
+    assert!(
+        select_columns(admin, "oo_r_legacy", &shadow.ledger.table)
+            .await
+            .is_empty()
+    );
     let before = grant_text(admin, "oo_r_legacy").await;
     assert_eq!(
         install_column_acl_set(admin, &[legacy_party, legacy_ledger]).await,
@@ -438,10 +453,7 @@ async fn refuse_mutations(
     );
 
     let mut typed = clerk_set();
-    typed[0]
-        .table
-        .columns
-        .push(column("ratio"));
+    typed[0].table.columns.push(column("ratio"));
     assert_eq!(
         install_column_acl_set(admin, &typed).await,
         Err(PolicyError::TypeRefused {
@@ -756,10 +768,13 @@ fn run_query(
     } else {
         let mut body = String::new();
         for sql in statements {
-            body.push_str(&serde_json::to_string(&json!({
-                "version": "oo.gateway.query-pg-turn/v1",
-                "sql": sql
-            })).expect("turn"));
+            body.push_str(
+                &serde_json::to_string(&json!({
+                    "version": "oo.gateway.query-pg-turn/v1",
+                    "sql": sql
+                }))
+                .expect("turn"),
+            );
             body.push('\n');
         }
         Some(body)
@@ -1060,20 +1075,37 @@ async fn apply_frozen_schema(client: &mut Client) {
         "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
     )
     .await;
-    exec_named(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_named(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_named(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_named(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
@@ -1139,7 +1171,9 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
             "  ('{version}', '{checksum}', 'expand', '{filename}')"
         ));
     }
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}"
+    )
 }
 
 fn closed_token(value: &str) -> bool {
@@ -1153,7 +1187,12 @@ fn closed_token(value: &str) -> bool {
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_named(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_named(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
+    exec_named(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
     exec_named(
         &tx,
         "advisory-lock",
@@ -1164,13 +1203,10 @@ async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
 }
 
 async fn expect_sql(client: &Client, name: &str, sql: &str) {
-    client
-        .batch_execute(sql)
-        .await
-        .unwrap_or_else(|err| {
-            let detail = db_detail(&err);
-            panic!("{name} failed: {detail}");
-        });
+    client.batch_execute(sql).await.unwrap_or_else(|err| {
+        let detail = db_detail(&err);
+        panic!("{name} failed: {detail}");
+    });
 }
 
 fn db_detail(err: &tokio_postgres::Error) -> String {
@@ -1180,17 +1216,18 @@ fn db_detail(err: &tokio_postgres::Error) -> String {
 }
 
 async fn exec_named(tx: &tokio_postgres::Transaction<'_>, name: &str, sql: &str) {
-    tx.batch_execute(sql)
-        .await
-        .unwrap_or_else(|err| {
-            let detail = db_detail(&err);
-            panic!("{name} failed: {detail}");
-        });
+    tx.batch_execute(sql).await.unwrap_or_else(|err| {
+        let detail = db_detail(&err);
+        panic!("{name} failed: {detail}");
+    });
 }
 
 async fn create_login(client: &Client, name: &str, password: &str) {
     assert!(password.bytes().all(|byte| byte.is_ascii_hexdigit()));
-    assert!(name.bytes().all(|byte| byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit()));
+    assert!(
+        name.bytes()
+            .all(|byte| byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit())
+    );
     client
         .batch_execute(&format!(
             "CREATE ROLE \"{name}\" LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE \
@@ -1238,28 +1275,69 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
         .await
         .expect("bind");
     for generation in [STALE_GENERATION, CURRENT_GENERATION] {
-        register(client, &map_key(CONFIG, generation, "namespace", "n", "", "")).await;
-        register(client, &map_key(CONFIG, generation, "table", "t", PARTY, "")).await;
-        register(client, &map_key(CONFIG, generation, "table", "t", LEDGER, "")).await;
+        register(
+            client,
+            &map_key(CONFIG, generation, "namespace", "n", "", ""),
+        )
+        .await;
+        register(
+            client,
+            &map_key(CONFIG, generation, "table", "t", PARTY, ""),
+        )
+        .await;
+        register(
+            client,
+            &map_key(CONFIG, generation, "table", "t", LEDGER, ""),
+        )
+        .await;
         for column in ["party_id", "display_name", "note", "ratio"] {
-            register(client, &map_key(CONFIG, generation, "column", "c", PARTY, column)).await;
+            register(
+                client,
+                &map_key(CONFIG, generation, "column", "c", PARTY, column),
+            )
+            .await;
         }
         for column in ["entry_id", "party_id", "memo"] {
-            register(client, &map_key(CONFIG, generation, "column", "c", LEDGER, column)).await;
+            register(
+                client,
+                &map_key(CONFIG, generation, "column", "c", LEDGER, column),
+            )
+            .await;
         }
     }
     let party_table = lookup(client, "table", PARTY, "").await;
     let ledger_table = lookup(client, "table", LEDGER, "").await;
     let party_cols = vec![
-        ("party_id".to_string(), lookup(client, "column", PARTY, "party_id").await),
-        ("display_name".to_string(), lookup(client, "column", PARTY, "display_name").await),
-        ("note".to_string(), lookup(client, "column", PARTY, "note").await),
-        ("ratio".to_string(), lookup(client, "column", PARTY, "ratio").await),
+        (
+            "party_id".to_string(),
+            lookup(client, "column", PARTY, "party_id").await,
+        ),
+        (
+            "display_name".to_string(),
+            lookup(client, "column", PARTY, "display_name").await,
+        ),
+        (
+            "note".to_string(),
+            lookup(client, "column", PARTY, "note").await,
+        ),
+        (
+            "ratio".to_string(),
+            lookup(client, "column", PARTY, "ratio").await,
+        ),
     ];
     let ledger_cols = vec![
-        ("entry_id".to_string(), lookup(client, "column", LEDGER, "entry_id").await),
-        ("party_id".to_string(), lookup(client, "column", LEDGER, "party_id").await),
-        ("memo".to_string(), lookup(client, "column", LEDGER, "memo").await),
+        (
+            "entry_id".to_string(),
+            lookup(client, "column", LEDGER, "entry_id").await,
+        ),
+        (
+            "party_id".to_string(),
+            lookup(client, "column", LEDGER, "party_id").await,
+        ),
+        (
+            "memo".to_string(),
+            lookup(client, "column", LEDGER, "memo").await,
+        ),
     ];
     let run_id = open_run(client, target, &party_table, &ledger_table).await;
     prepare_one(
@@ -1282,7 +1360,14 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
         &[23, 23, 25],
     )
     .await;
-    insert_rows(client, &party_table, &party_cols, &ledger_table, &ledger_cols).await;
+    insert_rows(
+        client,
+        &party_table,
+        &party_cols,
+        &ledger_table,
+        &ledger_cols,
+    )
+    .await;
     Shadow {
         party: PartyMap {
             table: party_table,
@@ -1398,12 +1483,20 @@ async fn insert_rows(
     let tx = client.transaction().await.expect("insert begin");
     let first: [&(dyn ToSql + Sync); 5] = [&"1", &1_i32, &"甲公司", &"secret-note", &"1.5"];
     let second: [&(dyn ToSql + Sync); 5] = [&"2", &2_i32, &"乙部", &"other-note", &"2.5"];
-    tx.execute(&party_sql, &first).await.expect("insert party 1");
-    tx.execute(&party_sql, &second).await.expect("insert party 2");
+    tx.execute(&party_sql, &first)
+        .await
+        .expect("insert party 1");
+    tx.execute(&party_sql, &second)
+        .await
+        .expect("insert party 2");
     let entry_a: [&(dyn ToSql + Sync); 4] = [&"10", &10_i32, &1_i32, &"memo-a"];
     let entry_b: [&(dyn ToSql + Sync); 4] = [&"11", &11_i32, &2_i32, &"memo-b"];
-    tx.execute(&ledger_sql, &entry_a).await.expect("insert ledger 10");
-    tx.execute(&ledger_sql, &entry_b).await.expect("insert ledger 11");
+    tx.execute(&ledger_sql, &entry_a)
+        .await
+        .expect("insert ledger 10");
+    tx.execute(&ledger_sql, &entry_b)
+        .await
+        .expect("insert ledger 11");
     tx.commit().await.expect("insert commit");
 }
 
@@ -1575,7 +1668,15 @@ fn orphan_set() -> Vec<ColumnAclPolicy> {
 fn stale_set(generation: i64, role: &str) -> Vec<ColumnAclPolicy> {
     vec![
         acl(role, LOGIN, CONFIG, generation, PARTY, &["party_id"], false),
-        acl(role, LOGIN, CONFIG, generation, LEDGER, &["entry_id"], false),
+        acl(
+            role,
+            LOGIN,
+            CONFIG,
+            generation,
+            LEDGER,
+            &["entry_id"],
+            false,
+        ),
     ]
 }
 
@@ -1872,7 +1973,10 @@ async fn expect_42501(client: &mut Client, role: Option<&str>, sql: &str) {
             .expect("set role");
     }
     let err = tx.query_one(sql, &[]).await.expect_err("expected denial");
-    let state = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let state = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     assert_eq!(state, "42501", "{err}");
     tx.rollback().await.expect("rollback denial");
 }
@@ -1887,9 +1991,9 @@ async fn backend_pid(client: &Client) -> i32 {
 
 fn quote_role(role: &str) -> String {
     assert!(
-        role.bytes().all(|byte| {
-            byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit()
-        }) && !role.is_empty()
+        role.bytes()
+            .all(|byte| { byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit() })
+            && !role.is_empty()
     );
     format!("\"{role}\"")
 }

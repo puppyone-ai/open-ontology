@@ -1,7 +1,0 @@
-POST /v1/feedback HTTP/1.1
-Host: feedback.local
-Content-Length: 203
-Connection: close
-Content-Type: application/json
-
-{"items":[{"kind":"gap","project":"other","target":"logistics.shipment","text":"body project"}],"project":"other","protocol":"oo.feedback.receiver/v1","receipt_id":"a393a393-a393-4a93-8a93-a393a393a395"}

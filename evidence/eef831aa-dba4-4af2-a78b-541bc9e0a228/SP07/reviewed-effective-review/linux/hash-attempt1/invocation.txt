@@ -1,8 +1,0 @@
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-container=oo-a228-hash
-network=none
-memory=6g
-cpus=1
-pull=never
-privileged=no
-purpose=sha256-inventory

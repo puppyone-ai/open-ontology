@@ -1,5 +1,0 @@
-proposal_mtime=2026-10-08T01:50:24
-approval_mtime=2026-10-08T01:52:05
-operator_decision_mtime=2026-10-08T01:52:05
-approval_after_proposal=true
-container_wrote_approval=false

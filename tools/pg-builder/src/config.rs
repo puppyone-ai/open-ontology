@@ -16,6 +16,7 @@ pub struct Config {
     pub origin: String,
     pub path: String,
     pub model_id: String,
+    pub reasoning_effort: Option<String>,
     pub addr: SocketAddr,
     pub bearer_file: PathBuf,
     pub deadline: Duration,
@@ -75,7 +76,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
             "temperature",
         ],
     )?;
-    if map.len() != 10 && map.len() != 11 {
+    if map.keys().any(|key| !matches!(key.as_str(), "adapter" | "budget" | "declared_price" | "endpoint" | "namespace" | "protocol" | "purpose" | "sample_policy" | "secret" | "temperature" | "postgres" | "reasoning_effort")) {
         return Err(PgBuilderError::new("config.schema", "the config has an unknown key"));
     }
     eq(map, "protocol", "oo.pg-builder.config/v1")?;
@@ -95,7 +96,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
     let origin = string(endpoint, "origin")?.to_owned();
     let path = string(endpoint, "path")?.to_owned();
     let model_id = string(endpoint, "model_id")?.to_owned();
-    if path != "/v1/chat/completions" || model_id != "grok-4.7" {
+    if path != "/v1/chat/completions" || !matches!(model_id.as_str(), "grok-4.7" | "gpt-6.1-sol") {
         return Err(PgBuilderError::new("config.endpoint", "the endpoint path or model is not the builder endpoint"));
     }
     let addr = parse_origin(&origin, purpose)?;
@@ -130,17 +131,17 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
         None => None,
         Some(value) => Some(parse_postgres(value)?),
     };
-    if map.contains_key("postgres") && map.len() != 11 {
-        return Err(PgBuilderError::new("config.schema", "the config has an unknown key"));
-    }
-    if !map.contains_key("postgres") && map.len() != 10 {
-        return Err(PgBuilderError::new("config.schema", "the config has an unknown key"));
-    }
+    let reasoning_effort = match map.get("reasoning_effort") {
+        None => None,
+        Some(Value::String(value)) if value == "low" => Some(value.clone()),
+        _ => return Err(PgBuilderError::new("config.reasoning", "reasoning_effort must be low")),
+    };
     Ok(Config {
         purpose,
         origin,
         path,
         model_id,
+        reasoning_effort,
         addr,
         bearer_file,
         deadline: Duration::from_millis(deadline_ms),

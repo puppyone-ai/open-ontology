@@ -1,0 +1,29 @@
+{
+  "source_sha": "b1ffb079d7beec4297dbd3deec97219584c6775d",
+  "evidence_sha": "b0e64601a24d4a824fe30ed32cba038deb811ee7",
+  "producer_sha": "c6f628a3a8c34c731704e2008d31bf00ec6a7f9a",
+  "protocol": "oo.pipeline.sealed-import-catalog/v1",
+  "apis": [
+    "oo_builder::compile_sealed_import_catalog",
+    "oo_builder::compile_reviewed_sealed_import",
+    "oo_builder::compile_role_pack"
+  ],
+  "catalog_version": "draft.identity_hash",
+  "decisions": [
+    "draft.schema_digest",
+    "draft.fact_fingerprint(dataset,column)",
+    "unit required for money"
+  ],
+  "consumer_paths": [
+    "crates/oo-core",
+    "crates/oo-builder",
+    "contracts/schema/oos-v1.json",
+    "tools/source-semantics"
+  ],
+  "recipe": "evidence/1e7798c0-f799-4d4b-ab47-5e15599f60d9/DL01/semantics/sealed-import/HANDOFF.md",
+  "review_status": "fixed review approved scoped compiler revision; no MySQL source acceptance",
+  "schema": "overlay exact b1 oos schema (identical5bd); do not leave base577 schema incorrectly",
+  "source_target_identity": "source nativeengine preserved; localtype hint labeled postgresql_target_storage; never fakepgsql source",
+  "review_sha": "9fddf207bb4a15fc771a154ae8a9a00a3e8efac3",
+  "review_inventory_count": 276
+}

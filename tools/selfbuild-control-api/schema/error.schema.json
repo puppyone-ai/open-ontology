@@ -26,6 +26,8 @@
             "membership.refused",
             "classification.incomplete",
             "pii.unknown",
+            "pii.withheld",
+            "pack.refused",
             "batch.accept_all",
             "commit.unknown",
             "resume.uncertain"

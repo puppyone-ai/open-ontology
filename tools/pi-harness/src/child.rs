@@ -1,7 +1,7 @@
 //! Stdio child. Tokio bounds the event stream. The process itself is `std::process`.
 //! The reaped pid is the child this adapter spawned. That is not a containment claim.
 
-use crate::map::{map_record, MapResult};
+use crate::map::{map_record, redact_raw_line, MapResult};
 use crate::sha256::Hasher;
 use crate::{
     AbortOutcome, Error, ErrorKind, EventStream, ProductEvent, Sequenced, StreamItem, Termination,
@@ -24,8 +24,24 @@ use tokio::time::timeout;
 const STDERR_CAP: usize = 262_144;
 const RAW_CAP: u64 = 8 * 1_048_576;
 const POLL: Duration = Duration::from_millis(10);
+
+/// `O_NOFOLLOW` differs by architecture. aarch64 glibc uses `0x8000`.
+/// `0x20000` is not that flag there.
 #[cfg(target_os = "linux")]
-const O_NOFOLLOW: i32 = 0x20000;
+fn nofollow_flag() -> Option<i32> {
+    #[cfg(target_arch = "aarch64")]
+    {
+        Some(0x8000)
+    }
+    #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+    {
+        Some(0x2_0000)
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "x86")))]
+    {
+        None
+    }
+}
 
 enum Incoming {
     Line(Vec<u8>),
@@ -77,6 +93,21 @@ struct Inner {
     tool_limit: u32,
     ids: AtomicU64,
     runtime: Handle,
+    /// Same-uid process that signals the child. The broker has no `CAP_KILL`.
+    reaper: Mutex<Option<Child>>,
+    reaper_stdin: Mutex<Option<ChildStdin>>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct ChildIdentity {
+    uid: u32,
+    gid: u32,
+}
+
+impl ChildIdentity {
+    pub(crate) fn new(uid: u32, gid: u32) -> Self {
+        Self { uid, gid }
+    }
 }
 
 pub(crate) struct SpawnSpec {
@@ -95,6 +126,27 @@ pub(crate) struct SpawnSpec {
     pub tool_limit: u32,
     pub raw_log: Option<PathBuf>,
     pub runtime: Handle,
+    pub identity: Option<ChildIdentity>,
+}
+
+/// Apply a dropped uid and gid. Absent identity leaves the broker credentials.
+/// On Linux, `Command::uid` clears supplementary groups when `CAP_SETGID` is present.
+/// The pinned std path ignores `EPERM`, so the caller must read `Groups` after spawn.
+pub(crate) fn apply_identity(cmd: &mut Command, identity: Option<ChildIdentity>) -> Result<(), Error> {
+    let Some(identity) = identity else {
+        return Ok(());
+    };
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.uid(identity.uid).gid(identity.gid);
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (cmd, identity);
+        Err(crate::uid_boundary::unavailable("platform is not linux"))
+    }
 }
 
 impl ChildIo {
@@ -110,11 +162,23 @@ impl ChildIo {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        apply_identity(&mut cmd, spec.identity)?;
         let mut child = cmd.spawn().map_err(|err| Error::new(ErrorKind::Spawn, err.to_string()))?;
         let pid = child.id();
         let stdin = child.stdin.take().ok_or_else(|| Error::new(ErrorKind::Spawn, "stdin"))?;
         let stdout = child.stdout.take().ok_or_else(|| Error::new(ErrorKind::Spawn, "stdout"))?;
         let stderr_pipe = child.stderr.take().ok_or_else(|| Error::new(ErrorKind::Spawn, "stderr"))?;
+        let (reaper, reaper_stdin) = match spec.identity {
+            Some(identity) => match spawn_same_uid_reaper(pid, identity) {
+                Some((reaper, reaper_stdin)) => (Some(reaper), Some(reaper_stdin)),
+                None => {
+                    // Dropping `Child` waits after a failed kill and would hang.
+                    std::mem::forget(child);
+                    return Err(Error::new(ErrorKind::Spawn, "reaper did not start"));
+                }
+            },
+            None => (None, None),
+        };
         let (line_tx, line_rx) = mpsc::sync_channel(spec.event_bound);
         let stderr_buf = Arc::new(Mutex::new(Vec::new()));
         let (event_tx, event_rx) = async_mpsc::channel(spec.event_bound);
@@ -146,6 +210,8 @@ impl ChildIo {
             tool_limit: spec.tool_limit,
             ids: AtomicU64::new(1),
             runtime: spec.runtime.clone(),
+            reaper: Mutex::new(reaper),
+            reaper_stdin: Mutex::new(reaper_stdin),
         });
         let reader_inner = Arc::clone(&inner);
         let limit = spec.line_limit;
@@ -208,6 +274,20 @@ impl ChildIo {
         let _ = push_terminal(&self.inner, Termination::Incomplete { reason: "aborted".to_owned() });
         abort_and_reap(&self.inner).await
     }
+
+    /// Kill and reap without the Pi abort command. Used when credential verification fails
+    /// before the first prompt. `ack` stays false.
+    pub(crate) fn kill_for_failed_boundary(&self) -> Result<AbortOutcome, Error> {
+        self.inner.done.store(true, Ordering::Relaxed);
+        self.inner.shutdown.store(true, Ordering::Relaxed);
+        drop_stdin(&self.inner);
+        if let Some(done) = lock(&self.inner.reaped)?.clone() {
+            return Ok(done);
+        }
+        let outcome = reap(&self.inner, Duration::ZERO)?;
+        *lock(&self.inner.reaped)? = Some(outcome.clone());
+        Ok(outcome)
+    }
 }
 
 impl Drop for ChildIo {
@@ -217,8 +297,13 @@ impl Drop for ChildIo {
         if self.inner.reaped.lock().ok().and_then(|slot| slot.clone()).is_none() {
             let _ = kill_now(&self.inner);
         }
+        let waited = self.inner.reaped.lock().ok().and_then(|slot| slot.clone()).is_some_and(|outcome| outcome.waited);
         for handle in [self.reader.take(), self.demux.take(), self.stderr.take()].into_iter().flatten() {
-            let _ = handle.join();
+            if waited {
+                let _ = handle.join();
+            } else {
+                std::mem::forget(handle);
+            }
         }
     }
 }
@@ -344,45 +429,161 @@ fn parse_response(bytes: &[u8]) -> Result<Value, Error> {
 }
 
 fn reap(inner: &Inner, kill_wait: Duration) -> Result<AbortOutcome, Error> {
+    if lock(&inner.child)?.is_none() {
+        return Ok(outcome(inner.pid, None, false, false));
+    }
+    if let Some(status) = poll_child(inner, kill_wait)? {
+        finish_reaper(inner);
+        return Ok(outcome(inner.pid, status.code(), false, true));
+    }
+    let requested = request_termination(inner);
+    let follow = if kill_wait.is_zero() { inner.kill_wait } else { kill_wait };
+    if let Some(status) = poll_child(inner, follow)? {
+        finish_reaper(inner);
+        return Ok(outcome(inner.pid, status.code(), requested, true));
+    }
+    finish_reaper(inner);
+    abandon_child(inner);
+    Ok(outcome(inner.pid, None, false, false))
+}
+
+fn outcome(pid: u32, exit_code: Option<i32>, killed: bool, waited: bool) -> AbortOutcome {
+    AbortOutcome { ack: false, child_pid: pid, exit_code, killed, waited }
+}
+
+fn poll_child(inner: &Inner, budget: Duration) -> Result<Option<std::process::ExitStatus>, Error> {
     let started = Instant::now();
     loop {
         let mut slot = lock(&inner.child)?;
         let Some(child) = slot.as_mut() else {
-            return Ok(AbortOutcome {
-                ack: false,
-                child_pid: inner.pid,
-                exit_code: None,
-                killed: false,
-                waited: false,
-            });
+            return Ok(None);
         };
         match child.try_wait() {
-            Ok(Some(status)) => {
-                return Ok(AbortOutcome {
-                    ack: false,
-                    child_pid: inner.pid,
-                    exit_code: status.code(),
-                    killed: false,
-                    waited: true,
-                });
-            }
-            Ok(None) if started.elapsed() >= kill_wait => {
-                let killed = child.kill().is_ok();
-                let status = child.wait().map_err(|err| Error::new(ErrorKind::Io, err.to_string()))?;
-                return Ok(AbortOutcome {
-                    ack: false,
-                    child_pid: inner.pid,
-                    exit_code: status.code(),
-                    killed,
-                    waited: true,
-                });
-            }
+            Ok(Some(status)) => return Ok(Some(status)),
+            Ok(None) if started.elapsed() >= budget => return Ok(None),
             Ok(None) => {
                 drop(slot);
                 thread::sleep(POLL);
             }
             Err(err) => return Err(Error::new(ErrorKind::Io, err.to_string())),
         }
+    }
+}
+
+/// Direct `kill` works when the uids match. A dropped child is a different uid,
+/// and this broker has no `CAP_KILL`, so a same-uid helper delivers the signal.
+fn request_termination(inner: &Inner) -> bool {
+    let direct = lock(&inner.child).ok().and_then(|mut slot| slot.as_mut().map(|child| child.kill().is_ok())).unwrap_or(false);
+    let reaper = lock(&inner.reaper_stdin).ok().and_then(|mut slot| slot.take()).is_some();
+    direct || reaper
+}
+
+fn finish_reaper(inner: &Inner) {
+    if let Ok(mut slot) = inner.reaper_stdin.lock() {
+        slot.take();
+    }
+    let started = Instant::now();
+    loop {
+        let Ok(mut slot) = inner.reaper.lock() else {
+            return;
+        };
+        let Some(child) = slot.as_mut() else {
+            return;
+        };
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                slot.take();
+                return;
+            }
+            Ok(None) if started.elapsed() >= inner.kill_wait => {
+                if let Some(child) = slot.take() {
+                    std::mem::forget(child);
+                }
+                return;
+            }
+            Ok(None) => {
+                drop(slot);
+                thread::sleep(POLL);
+            }
+            Err(_) => {
+                if let Some(child) = slot.take() {
+                    std::mem::forget(child);
+                }
+                return;
+            }
+        }
+    }
+}
+
+fn abandon_child(inner: &Inner) {
+    if let Ok(mut slot) = inner.child.lock()
+        && let Some(child) = slot.take()
+    {
+        std::mem::forget(child);
+    }
+}
+
+/// Stop a child that may have a different uid. Never blocks past `budget`.
+pub(crate) fn terminate(mut child: Child, identity: Option<ChildIdentity>, budget: Duration) {
+    if child.try_wait().ok().flatten().is_some() {
+        return;
+    }
+    if child.kill().is_ok() && wait_child(&mut child, budget) {
+        return;
+    }
+    if let Some(identity) = identity
+        && let Some((mut helper, stdin)) = spawn_same_uid_reaper(child.id(), identity)
+    {
+        drop(stdin);
+        let exited = wait_child(&mut child, budget);
+        if !wait_child(&mut helper, budget) {
+            std::mem::forget(helper);
+        }
+        if exited {
+            return;
+        }
+    }
+    if !wait_child(&mut child, Duration::ZERO) {
+        std::mem::forget(child);
+    }
+}
+
+fn wait_child(child: &mut Child, budget: Duration) -> bool {
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) if started.elapsed() >= budget => return false,
+            Ok(None) => thread::sleep(POLL),
+            Err(_) => return false,
+        }
+    }
+}
+
+fn spawn_same_uid_reaper(target: u32, identity: ChildIdentity) -> Option<(Child, ChildStdin)> {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (target, identity);
+        return None;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::process::CommandExt;
+        let mut cmd = Command::new("/bin/sh");
+        cmd.arg("-c")
+            .arg("while IFS= read -r _; do :; done; kill -9 \"$1\"")
+            .arg("sh")
+            .arg(target.to_string())
+            .env_clear()
+            .current_dir("/tmp")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .uid(identity.uid)
+            .gid(identity.gid);
+        let mut child = cmd.spawn().ok()?;
+        let stdin = child.stdin.take()?;
+        Some((child, stdin))
     }
 }
 
@@ -416,9 +617,10 @@ fn demux(rx: Receiver<Incoming>, events: async_mpsc::Sender<StreamItem>, inner: 
                 if let Some(file) = raw_file.as_mut()
                     && raw_bytes < RAW_CAP
                 {
-                    let _ = file.write_all(&line);
+                    let stored = redact_raw_line(&line);
+                    let _ = file.write_all(&stored);
                     let _ = file.write_all(b"\n");
-                    raw_bytes = raw_bytes.saturating_add(line.len() as u64 + 1);
+                    raw_bytes = raw_bytes.saturating_add(stored.len() as u64 + 1);
                 }
                 if deliver_response(&inner, &line) {
                     continue;
@@ -749,7 +951,9 @@ fn open_nofollow(path: &Path) -> Result<File, Error> {
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(O_NOFOLLOW);
+        if let Some(flag) = nofollow_flag() {
+            options.custom_flags(flag);
+        }
     }
     options.open(path).map_err(|err| Error::new(ErrorKind::Io, err.to_string()))
 }

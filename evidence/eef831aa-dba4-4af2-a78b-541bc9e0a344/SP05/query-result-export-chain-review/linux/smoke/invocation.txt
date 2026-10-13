@@ -1,1 +1,0 @@
-exporter=62b4afecdd377fa94310f46467c48a01e61d14db image=pinned-rust-1.94 memory=6g cpus=1 network=oo-a344-eef831aa-net overlay=none

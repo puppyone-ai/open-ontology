@@ -1,0 +1,94 @@
+{
+  "cli_n": 50,
+  "sdk_n": 50,
+  "gold_n": 50,
+  "cli_eq_gold": true,
+  "sdk_eq_gold": true,
+  "cli_eq_sdk": true,
+  "cli_aligned_eq_gold": true,
+  "sdk_aligned_eq_gold": true,
+  "positional_mismatch": 0,
+  "knowledge_version": "2",
+  "policy_version": "2",
+  "warning_codes": [
+    "STALE_DATA"
+  ],
+  "publication_not_ready": true,
+  "stale": true,
+  "columns": [
+    {
+      "name": "note_id",
+      "type": "int8"
+    },
+    {
+      "name": "amount",
+      "precision": 38,
+      "scale": 4,
+      "type": "numeric"
+    },
+    {
+      "name": "receipt",
+      "type": "bytea"
+    },
+    {
+      "name": "note_token",
+      "type": "uuid"
+    },
+    {
+      "name": "signed_at",
+      "type": "timestamptz"
+    },
+    {
+      "name": "memo",
+      "type": "text"
+    }
+  ],
+  "row1": [
+    "1",
+    null,
+    null,
+    "00000000-0000-4000-8000-000000000001",
+    "2026-10-11T00:00:00.000000Z",
+    "note-1"
+  ],
+  "row2": [
+    "2",
+    "-0.0001",
+    "6162",
+    "00000000-0000-4000-8000-000000000002",
+    "2026-10-11T00:00:00.000000Z",
+    "note-2"
+  ],
+  "row3": [
+    "3",
+    "3.2500",
+    "6162",
+    "00000000-0000-4000-8000-000000000003",
+    null,
+    "note-3"
+  ],
+  "predicate_n": [
+    41,
+    41,
+    41
+  ],
+  "predicate_eq": true,
+  "predicate_aligned": true,
+  "freshness_cli_keys": [
+    "capture_method",
+    "deletion_guarantee",
+    "freshness",
+    "gap",
+    "imports",
+    "knowledge_version",
+    "mappings",
+    "policy_version",
+    "publication",
+    "quality_counts",
+    "receipts",
+    "replica_lag",
+    "runs",
+    "sources",
+    "warnings"
+  ]
+}

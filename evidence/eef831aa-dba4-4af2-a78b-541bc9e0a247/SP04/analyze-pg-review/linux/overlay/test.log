@@ -1,9 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.90s
-     Running tests/analyze_pg_a247_review.rs (/target/debug/deps/analyze_pg_a247_review-0b3d8554ef976dae)
-
-running 1 test
-test compiled_chain_unknown_then_catalog_query ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
-

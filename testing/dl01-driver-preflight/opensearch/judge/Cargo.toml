@@ -1,0 +1,16 @@
+[package]
+name = "os-judge"
+description = "Independent typed oracle for the DL01-W1-44 OpenSearch preflight."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

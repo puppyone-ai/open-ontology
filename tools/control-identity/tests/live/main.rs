@@ -738,7 +738,7 @@ struct Material {
 }
 
 fn certs(dir: &Path) -> Material {
-    openssl(dir, &["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "2", "-subj", "/CN=oo-a370-test-ca", "-addext", "basicConstraints=CA:TRUE"]);
+    openssl(dir, &["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "2", "-subj", "/CN=oo-a370-test-ca", "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign"]);
     openssl(dir, &["req", "-newkey", "rsa:2048", "-nodes", "-keyout", "srv.key", "-out", "srv.csr", "-subj", "/CN=127.0.0.1"]);
     fs::write(dir.join("ext.cnf"), "subjectAltName=IP:127.0.0.1\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n").expect("ext");
     openssl(dir, &["x509", "-req", "-in", "srv.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial", "-out", "srv.pem", "-days", "2", "-extfile", "ext.cnf"]);
@@ -815,4 +815,103 @@ fn live_env() -> LiveEnv {
 
 fn env_var(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("missing {name}"))
+}
+
+// Explicit non-production OIDC issuer fixture driving the actual durable product
+// session service. Never supplies caller-produced identity envelopes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_retained_product_identity() {
+    if std::env::var("OO_NATIVE_IDENTITY_SERVICE").ok().as_deref() != Some("1") { return; }
+    if std::env::var("OO_NATIVE_IDENTITY_RESUME").ok().as_deref() == Some("1") {
+        resume_native_product_identity().await;
+        return;
+    }
+    let env = live_env();
+    let dir = std::path::PathBuf::from(env_var("OO_NATIVE_IDENTITY_PRIVATE"));
+    fs::create_dir_all(&dir).unwrap();
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+    let material = certs(&dir);
+    let secret = openssl_hex(); write_secret(&dir.join("client.secret"), &secret);
+    let origin = "https://127.0.0.1:18441";
+    let issuer = "https://127.0.0.1:18442";
+    let callback = format!("{origin}/control/v1/auth/callback");
+    let config_path = dir.join("identity.json");
+    write_config(&config_path, &Endpoints { env: &env, dir: &dir, material: &material, origin, issuer, callback: &callback, port: 18441 });
+    let mut body: Value = serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    let projects = ["postgres", "mysql", "oracle", "mariadb", "mongodb", "clickhouse", "doris", "starrocks", "opensearch", "sqlserver"];
+    let roles = [("fixture-admin", Role::Admin), ("fixture-reviewer", Role::Reviewer), ("fixture-steward", Role::Steward), ("fixture-auditor", Role::Auditor), ("fixture-owner", Role::BusinessOwner)];
+    let mut bindings = Vec::new();
+    for (subject, role) in &roles { for project in &projects { bindings.push(Binding { subject: subject.to_string(), project_id: project.to_string(), role: *role }); } }
+    let bootstrap = bindings[0].clone();
+    let commit = canonical_commit(issuer, "oo-control", "oo-control-client", &[callback], &bindings, &bootstrap, 1).unwrap();
+    body["bindings"] = json!(bindings.iter().map(|v| json!({"subject":v.subject,"project_id":v.project_id,"role":v.role.as_str()})).collect::<Vec<_>>());
+    body["bootstrap"] = json!({"subject":bootstrap.subject,"project_id":bootstrap.project_id,"role":bootstrap.role.as_str()});
+    body["listen_host"] = json!("0.0.0.0");
+    body["config_commit"] = json!(commit); body["idle_seconds"] = json!(86400); body["absolute_seconds"] = json!(86400);
+    fs::write(&config_path, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600)).unwrap();
+    let config = load_config(&config_path).unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:18442").await.unwrap();
+    let der_keys = vec![fs::read(dir.join("k1.der")).unwrap(), fs::read(dir.join("k2.der")).unwrap()];
+    let idp = idp::start(listener, IdpParts { cert_pem:&material.cert, key_pem:&material.key, issuer, client_id:&config.client_id, configured_audience:&config.audience, client_secret:&secret, redirect_uri:&config.redirect_uris[0], der_keys:&der_keys }).await;
+    let exe = env!("CARGO_BIN_EXE_control-identity");
+    assert_eq!(cli(exe, &["install", "--config", config_path.to_str().unwrap()]).status, 0);
+    let mut proof = Proof { path:env.proof, cases:Vec::new(), forbidden:vec![secret] };
+    let token = issue_token(exe, &config_path, &dir.join("bootstrap.token"), &mut proof);
+    let mut server = ServerProc::spawn(exe, &config_path);
+    let mut http = Http::new(origin, &material.ca);
+    idp.set_subject("fixture-admin"); idp.set_mode(Mode::Ok);
+    let path = format!("/control/v1/auth/login?return_to=%2Fapp&bootstrap_token={token}");
+    assert_eq!(login_follow(&mut http, &path).await.status, 302);
+    for (subject, _) in &roles {
+        idp.set_subject(subject); idp.set_mode(Mode::Ok);
+        assert_eq!(login_follow(&mut http, "/control/v1/auth/login?return_to=%2Fapp").await.status,302);
+        let current = http.call("GET", "/control/v1/identity/current", None, false, None).await;
+        assert_eq!(current.status,200); assert_eq!(current.body["install_state"], "initialized");
+        assert_eq!(current.body["projects"].as_array().unwrap().len(), projects.len());
+        write_secret(&dir.join(format!("{subject}.cookie")), http.session.as_ref().unwrap());
+        write_secret(&dir.join(format!("{subject}.csrf")), current.body["csrf_token"].as_str().unwrap());
+    }
+    fs::write(dir.join("ready.json"), serde_json::to_vec_pretty(&json!({"origin":origin,"fixture_class":"explicit_test_fixture","config_commit":commit,"revision":1,"projects":projects,"authority":"actual_product_oidc_session","customer_integration":"not_claimed"})).unwrap()).unwrap();
+    eprintln!("actual native identity service ready; private session references only");
+    while !dir.join("stop").exists() { tokio::time::sleep(Duration::from_secs(30)).await; }
+    server.kill();
+}
+
+async fn resume_native_product_identity() {
+    let dir = std::path::PathBuf::from(env_var("OO_NATIVE_IDENTITY_PRIVATE"));
+    let config_path = dir.join("identity.json");
+    let config = load_config(&config_path).unwrap();
+    let material = Material {
+        ca: fs::read(dir.join("ca.pem")).unwrap(),
+        cert: fs::read(dir.join("srv.pem")).unwrap(),
+        key: fs::read(dir.join("srv.key")).unwrap(),
+    };
+    let secret = read_secret(dir.join("client.secret").to_str().unwrap());
+    let der_keys = vec![fs::read(dir.join("k1.der")).unwrap(), fs::read(dir.join("k2.der")).unwrap()];
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:18442").await.unwrap();
+    let idp = idp::start(listener, IdpParts {
+        cert_pem: &material.cert, key_pem: &material.key,
+        issuer: &config.issuer, client_id: &config.client_id,
+        configured_audience: &config.audience, client_secret: &secret,
+        redirect_uri: &config.redirect_uris[0], der_keys: &der_keys,
+    }).await;
+    let mut server = ServerProc::spawn(env!("CARGO_BIN_EXE_control-identity"), &config_path);
+    let mut http = Http::new(&config.https_origin, &material.ca);
+    for subject in ["fixture-admin", "fixture-reviewer", "fixture-steward", "fixture-auditor", "fixture-owner"] {
+        idp.set_subject(subject); idp.set_mode(Mode::Ok);
+        assert_eq!(login_follow(&mut http, "/control/v1/auth/login?return_to=%2Fapp").await.status, 302);
+        let current = http.call("GET", "/control/v1/identity/current", None, false, None).await;
+        assert_eq!(current.status, 200);
+        assert_eq!(current.body["install_state"], "initialized");
+        for (name, value) in [("cookie", http.session.as_ref().unwrap().as_str()), ("csrf", current.body["csrf_token"].as_str().unwrap())] {
+            let path = dir.join(format!("{subject}.{name}"));
+            let mut file = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&path).unwrap();
+            file.write_all(value.as_bytes()).unwrap();
+            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+    }
+    eprintln!("retained native identity sessions renewed through OIDC");
+    while !dir.join("stop").exists() { tokio::time::sleep(Duration::from_secs(30)).await; }
+    server.kill();
 }

@@ -1,8 +1,0 @@
-requests_scanned=10
-requests_with_secret=0
-requests_with_gold_path=0
-pass_exact_requests_differ=yes
-trunc_comparator_verdict=match
-trunc_comparator_has_cell=no
-trunc_comparator_bytes=90
-noend_audit=keep

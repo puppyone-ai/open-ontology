@@ -8,6 +8,8 @@
 
 状态为 **Proposed / Ready for implementation review**。规范中的产品命令、测试入口和交付物是实现的验收要求；已有代码的完成状态须由执行台账及实际验证证据确认，不能据此声称产品已经构建、测试或交付。
 
-建议阅读顺序：主规范第 1–5 章 → 第 17 章 Sprint Phase → 对应组件契约 → 第 18–21 章测试、审阅与发布 → 第 22–24 章追踪矩阵、风险与来源。
+数据库支持扩展：Spec 第 7A 章（统一准入路线、支持矩阵、能力与写入分类、一致性等级、驱动与套件）与 Plan 第 4A 章（DBX 数据库扩展轨道，独立分母）；完整设计与逐库画像见 [docs/database-support](../docs/database-support/README.md)。
+
+建议阅读顺序：主规范第 1–5 章（含第 7A 章） → 第 17 章 Sprint Phase → 对应组件契约 → 第 18–21 章测试、审阅与发布 → 第 22–24 章追踪矩阵、风险与来源。
 
 开始实施时先读Plan第1–3章工作协议，再领取第4章执行卡，并回到Spec相应契约/验收。文档核查：`python3 specs/scripts/check_spec.py --self-test`、`python3 specs/scripts/check_plan.py --self-test`；两者均不证明产品已实现或运行通过。

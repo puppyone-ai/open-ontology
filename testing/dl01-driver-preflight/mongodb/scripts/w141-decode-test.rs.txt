@@ -1,0 +1,64 @@
+#[cfg(test)]
+mod w141_customer_decode {
+    use super::{decode_bson_document, decode_hex};
+    use serde_json::json;
+
+    fn lines(path: &str) -> Vec<String> {
+        std::fs::read_to_string(path)
+            .unwrap_or_else(|err| panic!("read {path}: {err}"))
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    fn bytes(hex: &str) -> Vec<u8> {
+        decode_hex(hex, "/raw_bson_hex").unwrap_or_else(|err| panic!("{}", err.code))
+    }
+
+    #[test]
+    fn write_customer_decode() {
+        let full = lines("/capture/full-approved.bson.hex");
+        let seal = lines("/capture/seal-scope.bson.hex");
+        assert_eq!(full.len(), 16, "full rows");
+        assert_eq!(seal.len(), 16, "seal rows");
+        let mut full_out = String::new();
+        for (index, line) in full.iter().enumerate() {
+            let raw = bytes(line);
+            match decode_bson_document(&raw) {
+                Ok(_) => panic!("full row {index} decoded"),
+                Err(err) => {
+                    assert!(err.code.ends_with("/float.rejected"), "{}", err.code);
+                    full_out.push_str(&serde_json::json!({
+                        "index": index,
+                        "code": err.code,
+                        "path": err.path,
+                        "message": err.message,
+                    }).to_string());
+                    full_out.push('\n');
+                }
+            }
+        }
+        let mut seal_out = String::new();
+        for (index, line) in seal.iter().enumerate() {
+            let raw = bytes(line);
+            let value = decode_bson_document(&raw).unwrap_or_else(|err| panic!("seal {index} {}", err.code));
+            let object = value.as_object().unwrap_or_else(|| panic!("seal {index} root"));
+            assert!(!object.contains_key("weight"), "weight in seal {index}");
+            for key in object.keys() {
+                assert!(
+                    matches!(
+                        key.as_str(),
+                        "_id" | "code" | "flag" | "units" | "price" | "created" | "uid"
+                            | "blob" | "warehouse" | "whCode" | "lane" | "memo" | "marks" | "pack"
+                    ),
+                    "key {key}"
+                );
+            }
+            seal_out.push_str(&serde_json::json!({"index": index, "json": value}).to_string());
+            seal_out.push('\n');
+        }
+        std::fs::write("/evidence/decode-full.jsonl", full_out).unwrap();
+        std::fs::write("/evidence/decode-seal.jsonl", seal_out).unwrap();
+    }
+}

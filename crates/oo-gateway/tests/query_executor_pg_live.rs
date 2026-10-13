@@ -5,26 +5,26 @@
 
 use std::fs;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use oo_gateway::query_executor::{
-    observe_backend, AuditAdmission, CancelOutcome, Cell, CompletionRecord, CompletionStatus,
-    DedicatedSession, ExecError, QuerySummary, SelectRequest, SelectStream, StopClass,
-    UntrustedAdmission, UNTRUSTED_ADMISSION,
+    AuditAdmission, CancelOutcome, Cell, CompletionRecord, CompletionStatus, DedicatedSession,
+    ExecError, QuerySummary, SelectRequest, SelectStream, StopClass, UNTRUSTED_ADMISSION,
+    UntrustedAdmission, observe_backend,
 };
 use oo_gateway::{
-    connect_require_tls, guard_select, install_column_acl, rustls_connector, ClassStatus,
-    ColumnAclPolicy, ColumnSpec, GuardError, InstallEffect, LiteralTypes, LogicalTable, PiiClass,
-    PolicyCatalog, PolicyIdentity, ResolvedFunction, ResolvedOperator, TlsEndpoint, VisibleColumn,
-    VisibleRelation,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, GuardError, InstallEffect, LiteralTypes,
+    LogicalTable, PiiClass, PolicyCatalog, PolicyIdentity, ResolvedFunction, ResolvedOperator,
+    TlsEndpoint, VisibleColumn, VisibleRelation, connect_require_tls, guard_select,
+    install_column_acl, rustls_connector,
 };
 use sha2::{Digest, Sha256};
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
+use tokio_postgres::types::ToSql;
 
 const HOST: &str = "oo-a189-pg";
 const DATABASE: &str = "oo_a189";
@@ -108,7 +108,10 @@ struct LiveAudit {
 }
 
 impl AuditAdmission for LiveAudit {
-    async fn admit(&mut self, admission: &oo_gateway::query_executor::Admission<'_>) -> Result<(), ExecError> {
+    async fn admit(
+        &mut self,
+        admission: &oo_gateway::query_executor::Admission<'_>,
+    ) -> Result<(), ExecError> {
         if self.fail_admit {
             return Err(ExecError::AuditUnavailable);
         }
@@ -269,7 +272,10 @@ async fn direct_privileges(env: &mut Env) {
     );
     assert_eq!(sql_outcome(&reader, &secret_sql).await, "42501");
     assert_eq!(sql_outcome(&reader, &extra_sql).await, "42501");
-    reader.batch_execute("RESET ROLE").await.expect("reset role");
+    reader
+        .batch_execute("RESET ROLE")
+        .await
+        .expect("reset role");
     reader
         .batch_execute(&format!("SET ROLE {ROLE_B}"))
         .await
@@ -416,7 +422,8 @@ async fn prove_row_bound(env: &mut Env, identity: &PolicyIdentity, happy: &Polic
     // Pending pg_stat function counters flush when this backend exits.
     session.close();
     assert_eq!(calls_settled(&env.admin, 0).await, 3);
-    env.oracle.fact("row_bound", "rows:2 calls:3 truncated:true");
+    env.oracle
+        .fact("row_bound", "rows:2 calls:3 truncated:true");
 }
 
 async fn prove_byte_caps(
@@ -455,7 +462,8 @@ async fn prove_byte_caps(
     assert!(wide_summary.truncated());
     assert_eq!(wide_summary.returned_rows(), 0);
     assert_eq!(wide_summary.result_bytes(), 0);
-    env.oracle.fact("oversized", "rows:0 truncated:true status:succeeded");
+    env.oracle
+        .fact("oversized", "rows:0 truncated:true status:succeeded");
 }
 
 async fn prove_role_reuse(env: &mut Env, session: &mut DedicatedSession) {
@@ -608,7 +616,10 @@ async fn prove_type_refusal(env: &mut Env) {
     assert!(!session.is_open());
     assert_eq!(calls_settled(&env.admin, calls_before).await, calls_before);
     assert_eq!(audit_count(&env.admin).await, audit_before + 1);
-    env.oracle.fact("type_refused", &format!("oid:{} calls_delta:0", env.oids.numeric));
+    env.oracle.fact(
+        "type_refused",
+        &format!("oid:{} calls_delta:0", env.oids.numeric),
+    );
 }
 
 async fn prove_lying_extra(env: &mut Env) {
@@ -734,7 +745,8 @@ async fn prove_audit_fail(env: &mut Env) {
     assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
     assert!(session.is_open());
     session.close();
-    env.oracle.fact("audit_fail", "bound_then_other_role_refused");
+    env.oracle
+        .fact("audit_fail", "bound_then_other_role_refused");
 }
 
 async fn deadline_cancel_and_role_b(env: &mut Env) {
@@ -815,7 +827,11 @@ async fn prove_inflight_cancel(env: &mut Env, locker: &Client) {
         wait_user_query(&env.admin, pid, &env.shadow.table).await,
         "blocked select did not become active"
     );
-    let outcome = stream.cancel_handle().cancel(&env.admin).await.expect("cancel");
+    let outcome = stream
+        .cancel_handle()
+        .cancel(&env.admin)
+        .await
+        .expect("cancel");
     assert_eq!(outcome, CancelOutcome::Sent);
     let err = stream.next_row().await.expect_err("canceled row");
     drop(stream);
@@ -880,10 +896,17 @@ async fn prove_late_cancel(env: &mut Env, locker: &Client) {
     assert!(wait_user_query(&env.admin, pid, &env.shadow.table).await);
     let stale = old_handle.cancel(&env.admin).await.expect("stale cancel");
     assert_eq!(stale, CancelOutcome::NotSent);
-    let still = observe_backend(&env.admin, pid).await.expect("observe").expect("backend");
+    let still = observe_backend(&env.admin, pid)
+        .await
+        .expect("observe")
+        .expect("backend");
     assert_eq!(still.backend_start(), start);
     assert_eq!(still.state(), "active");
-    let sent = second.cancel_handle().cancel(&env.admin).await.expect("second cancel");
+    let sent = second
+        .cancel_handle()
+        .cancel(&env.admin)
+        .await
+        .expect("second cancel");
     assert_eq!(sent, CancelOutcome::Sent);
     let err = second.next_row().await.expect_err("second row");
     drop(second);
@@ -926,7 +949,10 @@ async fn prove_role_b_rows(env: &mut Env) {
         })
         .collect();
     values.sort_unstable();
-    assert_eq!(values, vec![i64::from(i32::MIN), -1, 1, i64::from(i32::MAX)]);
+    assert_eq!(
+        values,
+        vec![i64::from(i32::MIN), -1, 1, i64::from(i32::MAX)]
+    );
     session.close();
     env.oracle.fact("role_b", "rows:4 cols:1");
 }
@@ -1002,7 +1028,8 @@ async fn prove_fresh_guard_binds(env: &mut Env) {
     assert!(session.is_open());
     assert_eq!(session.bound_role().as_deref(), Some(ROLE_A));
     session.close();
-    env.oracle.fact("fresh_guard_bind", "other_role_rejected same_role_ran");
+    env.oracle
+        .fact("fresh_guard_bind", "other_role_rejected same_role_ran");
 }
 
 async fn prove_invalid_role_does_not_bind(env: &mut Env) {
@@ -1113,7 +1140,14 @@ async fn prove_login_flag_closes(env: &mut Env) {
     let identity = identity_for(ROLE_FLAG);
     let i4_name = env.shadow.i4.clone();
     let i4_oid = env.oids.int4;
-    let catalog = catalog(env, ROLE_FLAG, vec![("i4", &i4_name, i4_oid)], false, false, 0);
+    let catalog = catalog(
+        env,
+        ROLE_FLAG,
+        vec![("i4", &i4_name, i4_oid)],
+        false,
+        false,
+        0,
+    );
     let mut session = open_session(env).await;
     let audit_before = audit_count(&env.admin).await;
     let stream = session
@@ -1209,17 +1243,33 @@ async fn prove_held_drop(env: &mut Env, label: &str, sql: &str, catalog: &Policy
     let summary = session.summary().expect("held summary");
     env.oracle.fact(&format!("{label}_held_ms"), "3100");
     env.oracle.fact(&format!("{label}_wall_ms"), "8000");
-    env.oracle.fact(&format!("{label}_drop_ms"), &elapsed.as_millis().to_string());
-    env.oracle.fact(&format!("{label}_status"), summary.status().as_str());
-    env.oracle.fact(&format!("{label}_sqlstate"), summary.sqlstate().unwrap_or("none"));
-    env.oracle.fact(&format!("{label}_stop"), stop_name(summary.stop()));
+    env.oracle.fact(
+        &format!("{label}_drop_ms"),
+        &elapsed.as_millis().to_string(),
+    );
+    env.oracle
+        .fact(&format!("{label}_status"), summary.status().as_str());
+    env.oracle.fact(
+        &format!("{label}_sqlstate"),
+        summary.sqlstate().unwrap_or("none"),
+    );
+    env.oracle
+        .fact(&format!("{label}_stop"), stop_name(summary.stop()));
     env.oracle.fact(
         &format!("{label}_rollback"),
-        if summary.rollback_confirmed() { "yes" } else { "no" },
+        if summary.rollback_confirmed() {
+            "yes"
+        } else {
+            "no"
+        },
     );
     env.oracle.fact(
         &format!("{label}_socket"),
-        if summary.socket_dropped() { "yes" } else { "no" },
+        if summary.socket_dropped() {
+            "yes"
+        } else {
+            "no"
+        },
     );
     env.oracle.fact(
         &format!("{label}_end_audit"),
@@ -1230,7 +1280,10 @@ async fn prove_held_drop(env: &mut Env, label: &str, sql: &str, catalog: &Policy
     assert_ne!(summary.status(), CompletionStatus::Failed);
     assert_eq!(summary.stop(), Some(StopClass::Protocol));
     assert_eq!(summary.sqlstate(), None);
-    assert!(summary.rollback_confirmed(), "{label} rollback was not confirmed");
+    assert!(
+        summary.rollback_confirmed(),
+        "{label} rollback was not confirmed"
+    );
     assert!(summary.socket_dropped());
     assert!(summary.end_audit_ok());
     assert!(!session.is_open());
@@ -1280,7 +1333,10 @@ async fn prove_client_budget_spares_next(env: &mut Env, hold: &PolicyCatalog) {
     assert!(!session.is_open());
     assert!((Duration::from_millis(500)..=Duration::from_secs(5)).contains(&elapsed));
     assert!(backend_gone(&env.admin, pid, &start).await);
-    let stale = handle.cancel(&env.admin).await.expect("stale budget cancel");
+    let stale = handle
+        .cancel(&env.admin)
+        .await
+        .expect("stale budget cancel");
     assert_eq!(stale, CancelOutcome::NotSent);
     let mut next = open_session(env).await;
     let next_pid = next.backend_pid();
@@ -1304,7 +1360,10 @@ async fn prove_client_budget_spares_next(env: &mut Env, hold: &PolicyCatalog) {
     let late = handle.cancel(&env.admin).await.expect("late budget cancel");
     assert_eq!(late, CancelOutcome::NotSent);
     tokio::time::sleep(Duration::from_millis(400)).await;
-    assert!(backend_active(&env.admin, next_pid).await, "late cancel hit the next query");
+    assert!(
+        backend_active(&env.admin, next_pid).await,
+        "late cancel hit the next query"
+    );
     let dropped_at = Instant::now();
     drop(sleeping);
     next.wait_idle().await.expect("next idle");
@@ -1364,7 +1423,10 @@ async fn prove_finished_drop_spares_next(env: &mut Env, hold: &PolicyCatalog) {
         .expect("finished next");
     assert!(wait_user_query(&env.admin, pid, &env.shadow.table).await);
     tokio::time::sleep(Duration::from_millis(400)).await;
-    assert!(backend_active(&env.admin, pid).await, "finished drop canceled the next query");
+    assert!(
+        backend_active(&env.admin, pid).await,
+        "finished drop canceled the next query"
+    );
     let dropped_at = Instant::now();
     drop(sleeping);
     session.wait_idle().await.expect("finished next idle");
@@ -1416,7 +1478,10 @@ fn refused(result: Result<SelectStream, ExecError>) -> ExecError {
     }
 }
 
-async fn finish_ok(session: &mut DedicatedSession, mut stream: SelectStream) -> (Vec<Vec<Cell>>, QuerySummary) {
+async fn finish_ok(
+    session: &mut DedicatedSession,
+    mut stream: SelectStream,
+) -> (Vec<Vec<Cell>>, QuerySummary) {
     let mut rows = Vec::new();
     loop {
         match stream.next_row().await {
@@ -1431,7 +1496,10 @@ async fn finish_ok(session: &mut DedicatedSession, mut stream: SelectStream) -> 
     (rows, summary)
 }
 
-async fn finish_err(session: &mut DedicatedSession, mut stream: SelectStream) -> (ExecError, QuerySummary) {
+async fn finish_err(
+    session: &mut DedicatedSession,
+    mut stream: SelectStream,
+) -> (ExecError, QuerySummary) {
     let err = match stream.next_row().await {
         Err(err) => err,
         Ok(_) => panic!("expected an executor error"),
@@ -1443,7 +1511,10 @@ async fn finish_err(session: &mut DedicatedSession, mut stream: SelectStream) ->
 }
 
 fn canon_total(rows: &[Vec<Cell>]) -> u64 {
-    rows.iter().flatten().map(canon_len).fold(0, u64::saturating_add)
+    rows.iter()
+        .flatten()
+        .map(canon_len)
+        .fold(0, u64::saturating_add)
 }
 
 fn canon_len(cell: &Cell) -> u64 {
@@ -1473,6 +1544,8 @@ fn req<'a>(
         max_rows,
         max_result_bytes,
         wall_clock: Duration::from_millis(wall_ms),
+        read_quality: false,
+        quality_vector: None,
     }
 }
 
@@ -1526,11 +1599,25 @@ fn amount_catalog(env: &Env) -> PolicyCatalog {
 }
 
 fn role_b_catalog(env: &Env) -> PolicyCatalog {
-    catalog(env, ROLE_B, vec![("i4", &env.shadow.i4, env.oids.int4)], false, false, 1)
+    catalog(
+        env,
+        ROLE_B,
+        vec![("i4", &env.shadow.i4, env.oids.int4)],
+        false,
+        false,
+        1,
+    )
 }
 
 fn lying_catalog(env: &Env) -> PolicyCatalog {
-    catalog(env, ROLE_A, vec![("extra", "extra", env.oids.text)], false, false, 0)
+    catalog(
+        env,
+        ROLE_A,
+        vec![("extra", "extra", env.oids.text)],
+        false,
+        false,
+        0,
+    )
 }
 
 fn catalog(
@@ -1899,13 +1986,34 @@ async fn load_oids(client: &Client, shadow: &Shadow) -> Oids {
         bool: type_oid(client, "bool").await,
         numeric: type_oid(client, "numeric").await,
     };
-    assert_eq!(column_type(client, &shadow.table, &shadow.i2).await, oids.int2);
-    assert_eq!(column_type(client, &shadow.table, &shadow.i4).await, oids.int4);
-    assert_eq!(column_type(client, &shadow.table, &shadow.i8).await, oids.int8);
-    assert_eq!(column_type(client, &shadow.table, &shadow.label).await, oids.text);
-    assert_eq!(column_type(client, &shadow.table, &shadow.flag).await, oids.bool);
-    assert_eq!(column_type(client, &shadow.table, &shadow.note).await, oids.text);
-    assert_eq!(column_type(client, &shadow.table, &shadow.amount).await, oids.numeric);
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.i2).await,
+        oids.int2
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.i4).await,
+        oids.int4
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.i8).await,
+        oids.int8
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.label).await,
+        oids.text
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.flag).await,
+        oids.bool
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.note).await,
+        oids.text
+    );
+    assert_eq!(
+        column_type(client, &shadow.table, &shadow.amount).await,
+        oids.numeric
+    );
     oids
 }
 
@@ -2002,7 +2110,12 @@ async fn reset_database(client: &Client) {
         ),
     )
     .await;
-    expect_sql(client, "drop database", &format!("DROP DATABASE IF EXISTS \"{DATABASE}\"")).await;
+    expect_sql(
+        client,
+        "drop database",
+        &format!("DROP DATABASE IF EXISTS \"{DATABASE}\""),
+    )
+    .await;
     expect_sql(
         client,
         "drop fixture roles",
@@ -2048,28 +2161,55 @@ async fn apply_frozen_schema(client: &mut Client) {
     exec_named(&tx, "0000_bootstrap_roles.sql", &bootstrap.0).await;
     exec_named(&tx, "set-owner", "SET LOCAL ROLE oo_target_owner").await;
     exec_named(&tx, "0001_target_fence_expand.sql", &fence.0).await;
-    exec_named(&tx, "row-lock", "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
-    exec_named(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_named(
+        &tx,
+        "row-lock",
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
+    exec_named(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_named(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_named(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
     tx.commit().await.expect("commit target schema");
 
     let tx = begin_locked(client).await;
-    exec_named(&tx, "row-lock-import", "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
+    exec_named(
+        &tx,
+        "row-lock-import",
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
     exec_named(
         &tx,
         "stats-grant",
@@ -2081,7 +2221,11 @@ async fn apply_frozen_schema(client: &mut Client) {
     exec_named(
         &tx,
         "marker-import",
-        &marker_sql(&[("full-import/v1", &full_import.1, "0005_full_import_expand.sql")]),
+        &marker_sql(&[(
+            "full-import/v1",
+            &full_import.1,
+            "0005_full_import_expand.sql",
+        )]),
     )
     .await;
     tx.commit().await.expect("commit full import");
@@ -2115,16 +2259,30 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
         if index > 0 {
             values.push_str(",\n");
         }
-        values.push_str(&format!("  ('{version}', '{checksum}', 'expand', '{filename}')"));
+        values.push_str(&format!(
+            "  ('{version}', '{checksum}', 'expand', '{filename}')"
+        ));
     }
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}"
+    )
 }
 
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_named(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_named(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
-    exec_named(&tx, "advisory-lock", "SELECT pg_catalog.pg_advisory_xact_lock(6404202617)").await;
+    exec_named(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
+    exec_named(
+        &tx,
+        "advisory-lock",
+        "SELECT pg_catalog.pg_advisory_xact_lock(6404202617)",
+    )
+    .await;
     tx
 }
 
@@ -2175,7 +2333,9 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
         )
         .await
         .expect("bind");
-    let columns = ["i2", "i4", "i8", "label", "flag", "note", "amount", "secret"];
+    let columns = [
+        "i2", "i4", "i8", "label", "flag", "note", "amount", "secret",
+    ];
     for generation in [STALE_GENERATION, CURRENT_GENERATION] {
         register(client, generation, "namespace", "n", NAMESPACE, "", "").await;
         register(client, generation, "table", "t", NAMESPACE, TABLE, "").await;
@@ -2326,15 +2486,7 @@ async fn insert_rows(client: &mut Client, shadow: &Shadow) {
         let amount = row.amount.to_string();
         let secret = "classified-cell".to_string();
         let params: [&(dyn ToSql + Sync); 9] = [
-            &pos,
-            &row.i2,
-            &row.i4,
-            &row.i8,
-            &row.label,
-            &row.flag,
-            &note,
-            &amount,
-            &secret,
+            &pos, &row.i2, &row.i4, &row.i8, &row.label, &row.flag, &note, &amount, &secret,
         ];
         tx.execute(&sql, &params).await.expect("insert shadow row");
     }
@@ -2386,7 +2538,13 @@ async fn register(
         .expect("register");
 }
 
-async fn lookup(client: &Client, level: &str, namespace: &str, table: &str, column: &str) -> String {
+async fn lookup(
+    client: &Client,
+    level: &str,
+    namespace: &str,
+    table: &str,
+    column: &str,
+) -> String {
     let params: [&(dyn ToSql + Sync); 7] = [
         &SOURCE,
         &CONFIG,
@@ -2463,7 +2621,11 @@ async fn prove_stalled_drop(env: &mut Env, proxy: &StallProxy, upstream: &str) {
     drop(stream);
     let idle = tokio::time::timeout(Duration::from_millis(1_500), session.wait_idle()).await;
     let elapsed = dropped_at.elapsed();
-    assert!(idle.is_ok(), "stalled drop still blocked at {} ms", elapsed.as_millis());
+    assert!(
+        idle.is_ok(),
+        "stalled drop still blocked at {} ms",
+        elapsed.as_millis()
+    );
     idle.expect("stalled drop wait").expect("stalled drop idle");
     let summary = session.summary().expect("stalled drop summary");
     let seen = observe_backend(&env.admin, pid).await;
@@ -2475,7 +2637,11 @@ async fn prove_stalled_drop(env: &mut Env, proxy: &StallProxy, upstream: &str) {
             "ms:{} status:{} rollback:{} backend:{backend} slo:miss accepts:{accepts}",
             elapsed.as_millis(),
             summary.status().as_str(),
-            if summary.rollback_confirmed() { "yes" } else { "no" },
+            if summary.rollback_confirmed() {
+                "yes"
+            } else {
+                "no"
+            },
         ),
     );
     assert_eq!(summary.status(), CompletionStatus::Partial);
@@ -2538,7 +2704,10 @@ async fn prove_stalled_handle(env: &mut Env, proxy: &StallProxy, upstream: &str)
         "stalled handle transport was not accepted"
     );
     let row = brief.next_row().await.expect("brief row");
-    assert!(row.is_some(), "brief query did not finish while cancel was held");
+    assert!(
+        row.is_some(),
+        "brief query did not finish while cancel was held"
+    );
     let hold = hold_catalog(env);
     let busy = page_hold_select(&mut session, env, &identity, &hold).await;
     assert!(
@@ -2566,10 +2735,17 @@ async fn prove_stalled_handle(env: &mut Env, proxy: &StallProxy, upstream: &str)
             "ms:{} busy:yes status:{} closed:{session_closed} rollback:{}",
             elapsed.as_millis(),
             summary.status().as_str(),
-            if summary.rollback_confirmed() { "yes" } else { "no" },
+            if summary.rollback_confirmed() {
+                "yes"
+            } else {
+                "no"
+            },
         ),
     );
-    assert!(matches!(outcome, Err(ExecError::Timeout { sqlstate: None })));
+    assert!(matches!(
+        outcome,
+        Err(ExecError::Timeout { sqlstate: None })
+    ));
     assert_eq!(summary.status(), CompletionStatus::Succeeded);
     assert!(summary.rollback_confirmed());
     assert!(summary.socket_dropped());
@@ -2612,7 +2788,11 @@ async fn prove_whole_page_budget(env: &mut Env) {
         )
         .await
         .expect("pace stream");
-    let first = stream.next_row().await.expect("pace first").expect("pace row");
+    let first = stream
+        .next_row()
+        .await
+        .expect("pace first")
+        .expect("pace row");
     assert!(matches!(first.first(), Some(Cell::Int(_))));
     let err = stream.next_row().await.expect_err("pace deadline");
     drop(stream);
@@ -2620,7 +2800,9 @@ async fn prove_whole_page_budget(env: &mut Env) {
     let elapsed = started.elapsed();
     let summary = session.summary().expect("pace summary");
     match &err {
-        ExecError::Timeout { sqlstate } => assert!(sqlstate.is_none(), "pace sqlstate {sqlstate:?}"),
+        ExecError::Timeout { sqlstate } => {
+            assert!(sqlstate.is_none(), "pace sqlstate {sqlstate:?}")
+        }
         other => panic!("whole-page budget became {other}"),
     }
     assert_eq!(summary.status(), CompletionStatus::Failed);
@@ -2630,10 +2812,16 @@ async fn prove_whole_page_budget(env: &mut Env) {
     assert!(summary.socket_dropped());
     assert!(!session.is_open());
     assert!((Duration::from_millis(2_500)..=Duration::from_millis(4_500)).contains(&elapsed));
-    assert!(backend_gone(&env.admin, pid, &start).await, "pace backend stayed queryable");
+    assert!(
+        backend_gone(&env.admin, pid, &start).await,
+        "pace backend stayed queryable"
+    );
     env.oracle.fact(
         "whole_page_budget",
-        &format!("sqlstate:none elapsed_ms:{} rollback:no", elapsed.as_millis()),
+        &format!(
+            "sqlstate:none elapsed_ms:{} rollback:no",
+            elapsed.as_millis()
+        ),
     );
 }
 
@@ -2870,7 +3058,8 @@ impl CancelOnlyProxy {
                 };
                 let mut prefix = [0u8; 8];
                 let read =
-                    tokio::time::timeout(Duration::from_secs(3), sock.read_exact(&mut prefix)).await;
+                    tokio::time::timeout(Duration::from_secs(3), sock.read_exact(&mut prefix))
+                        .await;
                 if !matches!(read, Ok(Ok(_))) {
                     continue;
                 }
@@ -2879,10 +3068,10 @@ impl CancelOnlyProxy {
                 let armed = arm_task.load(Ordering::SeqCst);
                 if armed && cancelish {
                     holds_task.fetch_add(1, Ordering::SeqCst);
-                    held_task.lock().await.push(HeldPrefix {
-                        _sock: sock,
-                        code,
-                    });
+                    held_task
+                        .lock()
+                        .await
+                        .push(HeldPrefix { _sock: sock, code });
                 } else {
                     if armed {
                         unexpected_task.fetch_add(1, Ordering::SeqCst);
@@ -3062,16 +3251,29 @@ async fn prove_cancel_future_abort(env: &mut Env) {
         "aborted drop did not enter transport: {}",
         dropped.codes
     );
-    assert_eq!(success.join, "aborted", "success cancel future was not aborted");
-    assert_eq!(dropped.join, "aborted", "drop cancel future was not aborted");
+    assert_eq!(
+        success.join, "aborted",
+        "success cancel future was not aborted"
+    );
+    assert_eq!(
+        dropped.join, "aborted",
+        "drop cancel future was not aborted"
+    );
     assert_eq!(success.idle, "ok", "producer did not exit after abort");
-    assert_eq!(dropped.idle, "ok", "producer did not exit after aborted drop");
+    assert_eq!(
+        dropped.idle, "ok",
+        "producer did not exit after aborted drop"
+    );
     assert_eq!(
         success.during, "busy",
         "non-owning cancel released the reservation"
     );
     assert_eq!(success.retry, "not_sent");
-    assert_eq!(proxy.unexpected(), 0, "armed proxy forwarded an unexpected prefix");
+    assert_eq!(
+        proxy.unexpected(),
+        0,
+        "armed proxy forwarded an unexpected prefix"
+    );
     assert!(
         success.first == "closed" && success.later == "closed" && dropped.next == "closed",
         "owning cancel abort left {} after_1200ms:{}; aborted drop left {}",
@@ -3146,12 +3348,19 @@ async fn prove_aborted_success(env: &mut Env, proxy: &CancelOnlyProxy) -> AbortS
         Ok(Ok(None)) => "end",
         Ok(Err(_)) => "err",
     };
-    assert_eq!(row_label, "row", "brief row did not finish while cancel was held");
+    assert_eq!(
+        row_label, "row",
+        "brief row did not finish while cancel was held"
+    );
     let during_result = page_hold_select(&mut session, env, &identity, &hold_catalog(env)).await;
     let during = exec_label(&during_result);
-    assert!(during_result.is_err(), "pending cancel started another query");
+    assert!(
+        during_result.is_err(),
+        "pending cancel started another query"
+    );
     let clone_label = cancel_label(retry.cancel(&env.admin).await);
-    let during_again_result = page_hold_select(&mut session, env, &identity, &hold_catalog(env)).await;
+    let during_again_result =
+        page_hold_select(&mut session, env, &identity, &hold_catalog(env)).await;
     let during_again = exec_label(&during_again_result);
     let codes = proxy.codes().await;
     cancel_task.abort();

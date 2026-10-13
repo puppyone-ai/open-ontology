@@ -54,6 +54,7 @@ fn run() -> Result<ExitCode, MirrorError> {
                     let count: u64 = raw.parse().map_err(|_| MirrorError::new("config", "usage"))?;
                     CopyStop::StopAfterBatches(count)
                 }
+                Some("drop-after-snapshot") => CopyStop::DropAfterSnapshot,
                 _ => return Err(MirrorError::new("config", "usage")),
             };
             if args.next().is_some() {

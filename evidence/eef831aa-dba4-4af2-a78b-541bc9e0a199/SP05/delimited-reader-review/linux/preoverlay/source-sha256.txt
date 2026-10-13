@@ -1,4 +1,0 @@
-12583452df440852b8979d0dfa966966eebbbc53a04433d1c7bc41aa60cd4587  crates/oo-connectors/src/delimited.rs
-5ca17a403e2e8ee01bf074bc81af8a261ffd639a2aa660610cf0c240aaf0007d  crates/oo-connectors/src/lib.rs
-b33c4b136c1eb0bc772885e34889f6311c67a1ba39225edbcfa38a594f332f0c  crates/oo-connectors/tests/delimited.rs
-3641c6b750f1684c2116e08ec6092fd1ac7ed1df7bce2bc5e613613345c71623  contracts/connectors/delimited-reader-v1.md

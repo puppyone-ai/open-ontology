@@ -1,2 +1,0 @@
-29	0	tools/cdc-transaction/src/assemble.rs
-630	0	tools/cdc-transaction/tests/ordinal_range.rs

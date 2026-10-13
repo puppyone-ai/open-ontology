@@ -1,0 +1,14 @@
+[
+  {"database": "oo_dl01", "table": "readings", "name": "reading_id", "type": "UInt64", "position": 1, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "version", "type": "UInt64", "position": 2, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "amount", "type": "Decimal(76, 10)", "position": 3, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "note", "type": "Nullable(String)", "position": 4, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "code", "type": "LowCardinality(String)", "position": 5, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "code_or_null", "type": "LowCardinality(Nullable(String))", "position": 6, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "ts", "type": "DateTime64(9, 'UTC')", "position": 7, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "tags", "type": "Array(Int64)", "position": 8, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "labels", "type": "Array(Nullable(String))", "position": 9, "default_kind": "", "default_expression": ""},
+  {"database": "oo_dl01", "table": "readings", "name": "qty", "type": "Int64", "position": 10, "default_kind": "DEFAULT", "default_expression": "0"},
+  {"database": "oo_dl01", "table": "readings", "name": "label", "type": "String", "position": 11, "default_kind": "DEFAULT", "default_expression": "''"},
+  {"database": "oo_dl01", "table": "readings", "name": "wide_u64", "type": "UInt64", "position": 12, "default_kind": "", "default_expression": ""}
+]

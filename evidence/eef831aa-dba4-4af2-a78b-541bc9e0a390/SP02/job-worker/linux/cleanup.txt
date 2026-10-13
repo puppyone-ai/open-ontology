@@ -1,6 +1,0 @@
-removed container oo-a390-jw-pg
-removed volume oo-a390-jw-pgdata
-removed volume oo-a390-jw-cargo
-removed volume oo-a390-jw-target
-removed network oo-a390-jw
-removed secrets dir

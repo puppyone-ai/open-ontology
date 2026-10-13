@@ -1,2 +1,0 @@
-other=1
-shop=1

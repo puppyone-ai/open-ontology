@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/protocol_rollback.psql:20: ERROR:  OO003: forced migration failure
-CONTEXT:  PL/pgSQL function inline_code_block line 3 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

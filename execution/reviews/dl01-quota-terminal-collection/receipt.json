@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-10T03:35:18.825735+08:00",
+  "all_managed_cli_terminal": true,
+  "quota_error": "Grok Build usage balance exhausted / HTTP402",
+  "remaining_processes": {
+    "oo-dl01w1-39-rust": [
+      "docker-init",
+      "sleep",
+      "mariadb-probe"
+    ],
+    "oo-dl01w1-40-rust": [
+      "docker-init",
+      "sleep"
+    ]
+  },
+  "ownership": "retained, no foreign cleanup/restart/executor switch",
+  "complete_source_acceptance": 0,
+  "development_original_accepted": 6,
+  "pending_human_choice": "restore Grok balance or authorize executor transfer",
+  "scope": "coordinator runtime collection only, no fixed product acceptance"
+}

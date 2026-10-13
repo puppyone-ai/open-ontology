@@ -1,7 +1,0 @@
-a562c5a90e03bb98d47ab6c765be57bdac93e06cf70bdb47b84ed6e23d92aea2  crates/oo-pipeline/src/bin/validate-file.rs
-1cbce75887f446eb3300b98e076a344921e627bd842cc4f91d6a96d2db4b4f19  crates/oo-pipeline/tests/validate_file_cli.rs
-527efbeb8bd1bf832df898605e86527bb6d7ae1373be9b4a3540dfe5de844e6d  crates/oo-pipeline/tests/validate_file_a204_review.rs
-2e17088adc741e2414ef48cb6987beb2530e07d46fb401ec715cf442718340bf  contracts/pipeline/validate-file-cli-v1.md
-12583452df440852b8979d0dfa966966eebbbc53a04433d1c7bc41aa60cd4587  crates/oo-connectors/src/delimited.rs
-55056174f5ac1216c23590471b6ed40e84f2e84de940626bc27f564aeae99764  crates/oo-connectors/src/jsonl.rs
-5ca17a403e2e8ee01bf074bc81af8a261ffd639a2aa660610cf0c240aaf0007d  crates/oo-connectors/src/lib.rs

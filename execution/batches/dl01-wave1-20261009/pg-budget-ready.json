@@ -1,0 +1,13 @@
+{
+  "source_sha": "6590cff4acc1cb265d0ed05d460b0582251cf360",
+  "seal_sha": "6a732aaae6a27c6cf074e16df3e1cbb8c83cda0d",
+  "protocol": "oo.source.pgsql.budget/v1",
+  "cli": "admit-pg-budget",
+  "status": "author_complete_review_deferred",
+  "hashes_verified": 285,
+  "not_independent_approval": true,
+  "legacy_report": "adapt-pg budget unit unknown deny preserved",
+  "audit": "separate retained PG csvlog147 statements forbidden0, decision zero_write remainsnot_audited",
+  "original_scope": "native PG budget producer/consumer; no parent/source/integration acceptance",
+  "consumer_allowed": "fixed author chain usable per human2026-10-10; critical component review and full product closure still pending"
+}

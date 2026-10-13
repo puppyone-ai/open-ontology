@@ -1,6 +1,0 @@
-batch-0001|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|pg-commit-lsn/v1|src_main|1|42|false|2026-10-02 01:26:10.775454+00
-batch-bundle|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|pg-commit-lsn/v1|src_main|1|42|false|2026-10-02 01:26:11.790356+00
-batch-maxpos|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|mysql-binlog-pos/v1|src_alt|1|99999999999999999999999999999999999999|false|2026-10-02 01:26:11.795864+00
-batch-partial|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|snapshot-zero/v1|src_main|1|0|true|2026-10-02 01:26:11.79455+00
-batch-receipt-only|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|pg-commit-lsn/v1|src_main|1|42|false|2026-10-02 01:26:11.793124+00
-batch-segment|eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|batch-cursor-us/v1|src_main|1|42|false|2026-10-02 01:26:11.79538+00

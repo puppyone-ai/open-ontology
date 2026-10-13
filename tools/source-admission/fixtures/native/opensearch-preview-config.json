@@ -1,0 +1,27 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "oo_dl01w1_44_local_pg",
+  "source_id": "oo_dl01w1_44",
+  "secret_ref": "secret://oo-dl01w1-44/opensearch",
+  "compat_mode": "opensearch-native",
+  "permissions": [
+    {"name": "indices:data/read/search", "status": "known", "granted": true},
+    {"name": "indices:data/read/mget", "status": "known", "granted": true}
+  ],
+  "budget": {"unit": "Rows", "hard_limit": 1000, "confidence": "unknown"},
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null
+}

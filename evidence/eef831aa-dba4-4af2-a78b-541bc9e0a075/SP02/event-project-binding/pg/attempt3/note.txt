@@ -1,1 +1,0 @@
-Attempt 3 passed OO004, OO003, legal seed, upgrade, transitions, same-project insert, and ACL. assert_binding rejected pg_get_constraintdef because PostgreSQL 17 prints ON UPDATE RESTRICT before ON DELETE RESTRICT. The assertion pattern was updated to that catalog text. Product SQL was not changed.

@@ -1,0 +1,75 @@
+{
+  "task_id": "DL01-W1-09",
+  "parent": "DBX-W08",
+  "product": "SQL Server",
+  "matrix_id": "sqlserver-selfmanaged",
+  "selected": {
+    "repository": "mcr.microsoft.com/mssql/server",
+    "tag": "2022-CU27-ubuntu-22.04",
+    "manifest_digest": "sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090",
+    "manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+    "config_digest": "sha256:5b0916c7af8ca97ce9390be7e1182862d6fa90bff9f44f035dbe1626df140637",
+    "os": "linux",
+    "architecture": "amd64",
+    "arm64_manifest": false,
+    "product_label": "Microsoft SQL Server",
+    "version_label": "16.0.4295.3",
+    "ubuntu": "22.04",
+    "layer_count": 3,
+    "layer_bytes": 625930571,
+    "edition_pid": "Developer",
+    "edition_use": "development and test only",
+    "memory_cap": "4g",
+    "microsoft_minimum_ram": "2GB",
+    "entrypoint": "/opt/mssql/bin/launch_sqlservr.sh"
+  },
+  "moving_tag_observed_2026_10_09": {
+    "2022-latest": {
+      "manifest_digest": "sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090",
+      "same_digest_as_selected_tag": true,
+      "version_label": "16.0.4295.3"
+    }
+  },
+  "recorded_not_selected": [
+    {
+      "tag": "2019-CU32-ubuntu-20.04",
+      "manifest_digest": "sha256:7a879e9af3557e81a3b3ad14acd071e3638788387f394d27a9d3404b28e954ce",
+      "architecture": "amd64",
+      "version_label": "15.0.4430.1",
+      "why": "Matrix endpoint 2019. Not started. 2019-latest was a different digest and version 15.0.4490.9 on the same day."
+    },
+    {
+      "tag": "2025-CU9-ubuntu-22.04",
+      "manifest_digest": "sha256:b61a2ce00b3b23307efeff8e16af07c964ef64270c3fa0109cb5802403cf9e98",
+      "architecture": "amd64",
+      "version_label": "17.0.5005.3",
+      "why": "Outside the matrix version list 2019/2022. 2025-latest had the same version label and a different digest."
+    }
+  ],
+  "driver": {
+    "path": "P1",
+    "crate": "tiberius",
+    "version": "0.13.0",
+    "checksum_sha256": "e07324791de2bdaed058af4aa433a0b5ec5c0beac407a9797419c19805df2415",
+    "license": "MIT OR Apache-2.0",
+    "crates_io_license_field": "MIT/Apache-2.0",
+    "rust_version": "1.88",
+    "repository": "https://github.com/prisma/tiberius",
+    "published": "2026-09-25T11:57:12.141803Z",
+    "yanked": false,
+    "compiled_in_this_task": false,
+    "proposed_features": ["tds73", "rustls", "rust_decimal"],
+    "default_features_not_used": ["tds80", "winauth", "native-tls"]
+  },
+  "eula": {
+    "accepted_by_this_session": false,
+    "pid_when_an_amd64_runner_starts": "Developer",
+    "source": "https://learn.microsoft.com/en-us/sql/linux/sql-server-linux-docker-container-deployment?view=sql-server-ver17"
+  },
+  "host_observed": {
+    "uname_m": "arm64",
+    "docker_server": "linux/arm64",
+    "docker_architecture": "aarch64",
+    "usable_sql_server_container": false
+  }
+}

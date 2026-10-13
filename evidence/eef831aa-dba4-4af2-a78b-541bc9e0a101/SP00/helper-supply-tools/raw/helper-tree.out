@@ -1,7 +1,0 @@
-containment-supervisor v0.1.0 (/src/testing/harness/containment-supervisor)
-└── nix v0.31.3
-    ├── bitflags v2.13.2
-    ├── cfg-if v1.0.5
-    └── libc v0.2.189
-    [build-dependencies]
-    └── cfg_aliases v0.2.2

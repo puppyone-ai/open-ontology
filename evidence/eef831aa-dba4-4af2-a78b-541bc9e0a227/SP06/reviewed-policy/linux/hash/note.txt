@@ -1,1 +1,0 @@
-SHA256SUMS is rewritten after this directory exists. The rewrite container is --rm and its inspect is not stored here.

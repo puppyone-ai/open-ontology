@@ -1,2 +1,0 @@
-scan=old_stale_phrases
-old_phrases_present=0

@@ -1,1 +1,0 @@
-Focused overlay compile failed with exit 101. HostConfig Id=29250354ee0a273da8cb3c6478ed09b59e43f78241edd9815d938a558e6ce9b2. OOMKilled=false. Privileged=false. The lib did not compile: four borrow errors in delimited.rs (build_batch, pull_bytes window read, type_record/classify). Exits and logs in this directory stay as recorded. The next attempt is linux/focused-2.

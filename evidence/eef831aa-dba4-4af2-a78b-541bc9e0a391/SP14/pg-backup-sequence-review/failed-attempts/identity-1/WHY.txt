@@ -1,1 +1,0 @@
-attempt 1 failed before the fence: CREATE output was empty because deptype "char" could not be concatenated, then backup exited 1 with permission denied for schema oo_a391_probe. manifest absent. restore exit 4 is manifest absence, not an identity withhold.

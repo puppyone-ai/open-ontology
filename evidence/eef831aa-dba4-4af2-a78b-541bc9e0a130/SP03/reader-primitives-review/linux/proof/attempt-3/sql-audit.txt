@@ -1,7 +1,0 @@
-reader_statements=1072
-reader_verbs=BEGIN:1,RELEASE:17,ROLLBACK:66,SAVEPOINT:17,SELECT:912,SHOW:2,START:53,WITH:4
-reader_forbidden=0
-writer_statements=7
-writer_write_hits=6
-admin_statements=39
-admin_write_hits=20

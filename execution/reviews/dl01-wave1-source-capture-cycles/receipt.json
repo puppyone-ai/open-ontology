@@ -1,0 +1,71 @@
+{
+  "scope": "fixed source-side capture/scheduling evidence only; native shared Loader / YAML / agent whole lifecycle remain pending",
+  "results": [
+    {
+      "fixed_source": "c7678516a362a64d86d4b75c0a102741099134d1",
+      "manifests": [
+        {
+          "manifest": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/SHA256SUMS",
+          "fixed_git_verified": 1399
+        }
+      ],
+      "retained_ELF_verified": [],
+      "unfixed_entries": [],
+      "source_full_accepted": false
+    },
+    {
+      "fixed_source": "15e35662cdd83237514006bb638d2d586fe3830b",
+      "manifests": [
+        {
+          "manifest": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight/SHA256SUMS",
+          "fixed_git_verified": 765
+        },
+        {
+          "manifest": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/SHA256SUMS",
+          "fixed_git_verified": 1846
+        }
+      ],
+      "retained_ELF_verified": [],
+      "unfixed_entries": [],
+      "source_full_accepted": false
+    },
+    {
+      "fixed_source": "a5aed1167caa54e68e3a2be7335142465fb2d31a",
+      "manifests": [
+        {
+          "manifest": "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/SHA256SUMS",
+          "fixed_git_verified": 233
+        },
+        {
+          "manifest": "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/capture-live/SHA256SUMS",
+          "fixed_git_verified": 211
+        }
+      ],
+      "retained_ELF_verified": [
+        {
+          "manifest": "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/capture-live/SHA256SUMS",
+          "artifact": "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/capture-live/build/doris-reader",
+          "hash": "d5dc8555ad76ecc9d4550ac5d2abd6b00bb2fee6ca5a17c7c206d294b206010c",
+          "kind": "retained ELF outside Git"
+        }
+      ],
+      "unfixed_entries": [],
+      "source_full_accepted": false
+    },
+    {
+      "fixed_source": "eee2157a2886009a2de877c7624157359235a88f",
+      "manifests": [
+        {
+          "manifest": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/capture-schedule/SHA256SUMS",
+          "fixed_git_verified": 613
+        }
+      ],
+      "retained_ELF_verified": [],
+      "unfixed_entries": [],
+      "source_full_accepted": false
+    }
+  ],
+  "failed_starrocks_unique_update_preserved": true,
+  "complete_source_accepted": 0,
+  "first_verifier_failure": "Doris capture-live manifest included ignored build/doris-reader; root-root and manifest-parent resolution did not yield fixed Git blob; now explicitly separates retained ELF/missing artifacts"
+}

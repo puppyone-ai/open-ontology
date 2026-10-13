@@ -1,0 +1,1 @@
+inflight-activity.txt is a reviewer snapshot of pg_stat_activity on the data database while the public cancel was in flight. It shows the gateway rewritten SQL. It is not a CLI or SDK response. The public leak scan of stdout and stderr did not contain pt_1, pt_b, pc_, _oo_pos, physical_schema, or oo_target_owner.

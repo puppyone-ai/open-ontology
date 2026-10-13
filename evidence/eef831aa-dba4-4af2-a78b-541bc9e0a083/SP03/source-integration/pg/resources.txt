@@ -1,6 +1,0 @@
-run=f11d0c6c-51e6-4709-83cf-9301808e3098
-container=oo-a083-pg-f11d0c6c-51e6-4709-83cf-9301808e3098
-network=oo-a083-pgnet-f11d0c6c-51e6-4709-83cf-9301808e3098
-secrets=/tmp/oo-a083-secrets/f11d0c6c-51e6-4709-83cf-9301808e3098
-image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
-log_dir=/tmp/oo-a083-secrets/f11d0c6c-51e6-4709-83cf-9301808e3098/pglog

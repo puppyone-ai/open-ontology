@@ -28,7 +28,7 @@ An async Rust adapter over the pinned Pi RPC stdio process. Direct registry depe
 | Proxy origin | Explicit absolute `http` or `https` origin with no userinfo, query, or fragment. Written as the model `baseUrl`. |
 | Model | Explicit provider id and model id. |
 | Runtime mode | `DevelopmentLocalProcess(LocalProcessNotSandbox)` or `ProductionRunsc(RunscApproval)`. |
-| Raw event log | Optional explicit path. When set, the adapter appends the raw stdout records, capped at 8 MiB. It is not read from the environment. |
+| Raw event log | Optional explicit path. When set, the adapter appends stdout records, capped at 8 MiB. Thinking prose is replaced before that write. The path is not read from the environment. |
 
 `LocalProcessNotSandbox` is constructed only by `acknowledge()`. Its statement is `local-process-not-a-sandbox-certificate`. A development launch is a local process. It is not a sandbox certificate, not runsc, and not a gVisor claim.
 
@@ -70,6 +70,46 @@ Ignored bookkeeping, already observed: `text_start`, `text_end`, `agent_start`, 
 
 `turn_finished` carries the observed `stopReason`. Usage and answer text are copied only from fields present on that record. They are not invented. A `toolUse` turn end is not `turn_finished`. The later `turn_start` is another `turn_started`. The prompt is finished only by `stopReason` `stop`.
 
+### Reasoning lifecycle
+
+Pi 1.0.4 reasoning records are legitimate bookkeeping. They are not unknown, and they are not `turn_finished`. The shapes were read from the installed tree on volume `oo-a406-eef831aa-pi-kit` at `/opt/pi-runtime-kit`, producer commit `9f8d9064e8287ddb0629df6cc62940b880e48492`. `pi-coding-agent`, `pi-ai`, and `pi-agent-core` are all 1.0.4.
+
+`dist/modes/json-event.js` function `toJsonEvent` writes each `message_update` as exactly `{type, usage, assistantMessageEvent}` and strips `partial`. After that strip, `pi-ai` `AssistantMessageEvent` gives:
+
+| `assistantMessageEvent.type` | Exact keys besides `type` | Adapter result |
+| --- | --- | --- |
+| `thinking_start` | `contentIndex` number | ignored, no sequence number |
+| `thinking_delta` | `contentIndex` number, `delta` string | ignored, no sequence number |
+| `thinking_end` | `contentIndex` number, `content` string | ignored, no sequence number |
+| `error` | `reason` `aborted` or `error`, `error` object | `error`, then incomplete |
+
+`Usage` on those new records is `input`, `output`, `cacheRead`, `cacheWrite`, `totalTokens`, and `cost` with `input`, `output`, `cacheRead`, `cacheWrite`, and `total`. Optional `reasoning` and `cacheWrite1h` are numbers. `reasoning` is a token count, a subset of `output`, not prose. `pi-ai/dist/api/openai-completions.js` `parseChunkUsage` builds that object. Existing `text_delta` and tool records do not grow a usage requirement.
+
+A missing key, an extra key, or a non-integer `contentIndex` on a thinking or assistant-error event is `unsupported-event:message_update:<type>`. A non-string `delta` or `content`, or a usage object that is not the shape above, is a shape failure. Neither path emits `turn_finished`.
+
+The optional raw log stores `thinking_delta.delta`, `thinking_end.content`, a `thinking` content block's `thinking` string, and a string `usage.reasoning` as `redacted`. An unparsed line that names `thinking_start`, `thinking_delta`, `thinking_end`, or a `"thinking"` field is stored as `{"type":"redacted","reason":"unparsed-thinking"}`. A line that parses and contains no thinking prose stays byte-identical. Product events do not carry reasoning prose. `models.json` keeps `"reasoning": false`.
+
+Assistant-stream `error` is fail-closed. The product reason is `assistant-stream:error` or `assistant-stream:aborted`. The nested assistant message and its `errorMessage` are not copied.
+
+`start`, `done`, `thinking_partial`, and `thinking_level_changed` stay unknown. Any other type stays `incomplete` with `unsupported-event` and must not emit `turn_finished` afterward. This is not a permissive fallback. Truncation, disconnect, provider `errorMessage`, abort, the tool limit, and stdout backpressure stay fail-closed.
+
+Installed file SHA-256:
+
+| File | SHA-256 |
+| --- | --- |
+| `pi-coding-agent/dist/modes/json-event.js` | `5f3756470739fa4a1595feeaf1ce2dfd29e36a2cffd9e642f914fc23f540d606` |
+| `pi-coding-agent/dist/modes/json-event.d.ts` | `8ed959fe14cf0ce76f47309cf0a503d3e21a0ab86793b22e5759dd4d6f747e65` |
+| `pi-coding-agent/docs/json.md` | `839a2a2da8112298a7f8870afa71d1998db2d43b8f68c9c179a0c696b6477a5e` |
+| `pi-coding-agent/docs/message-types.md` | `c642db2a93e6433aadde1675f51e3c8b51520d9a6ee1ac805802e635aab10413` |
+| `pi-coding-agent/dist/index.d.ts` | `b254e36846b1dcc64ce1a8ba72e23fb410df4aa4408ba8c23e69e5b3f934e3cc` |
+| `pi-coding-agent/package.json` | `248decde30021109984def7ddc8f7bf4caf21ef04910a1303ab19604206c1bd5` |
+| `pi-ai/dist/types.d.ts` | `2c7f376a17195980ec4795d7ed0efd03bee4ff049b998dff7b26510d872d02b0` |
+| `pi-ai/dist/api/openai-completions.js` | `5a79cc5aa41dee180692695e65771720d1ea556e9a978649dc2040278be51753` |
+| `pi-ai/package.json` | `c4e921309a8d3a91ffce9bef0bd151463ad31f0f151a8534e39ae3528cc27834` |
+| `pi-agent-core/package.json` | `3aecf0b11ec6d69846d104c96fa0b529bafb72ee8ab6d4c289a5d86ae309ace8` |
+
+This section does not accept H-D02, the parent harness, or a release.
+
 ### Tool events from the fresh Pi 1.0.4 capture
 
 The raw records are `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/pi-capture-1/out/capture.ndjson`. The probe process exited 1 because it looked for a 14-byte `agent_settled` window; the token is 13 bytes and the file contains it. The mapping uses those bytes, not the upstream document.
@@ -83,7 +123,7 @@ The raw records are `evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harne
 
 `clarification_request` and `artifact_created` are not part of this unit. They were not observed. The parent harness item stays open.
 
-Any other `type`, or any other `assistantMessageEvent.type`, is an unknown event. The turn becomes `incomplete` with reason `unsupported-event`. The stream must not emit `turn_finished` afterward.
+Any other `type`, or any other `assistantMessageEvent.type`, is an unknown event. The recognized thinking records and the assistant-stream `error` record above are the only additions. The turn becomes `incomplete` with reason `unsupported-event`. The stream must not emit `turn_finished` afterward.
 
 `aborted`, a provider or message `errorMessage`, stdout EOF, and process disconnect are `error` or `incomplete`. They are not `turn_finished`.
 

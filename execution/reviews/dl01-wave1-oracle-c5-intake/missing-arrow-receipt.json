@@ -1,0 +1,17 @@
+[
+  {
+    "task": "04",
+    "fixed_sha": "1e50136b9887dd50299652c65407039da84d0fb8",
+    "manifest": "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/c5-capture/SHA256SUMS",
+    "fixed_git_hashes_checked": 222,
+    "errors": [
+      "missing:run/arrow/t_batch-gen-1.arrow",
+      "missing:run/arrow/t_batch-gen-3.arrow",
+      "missing:run/arrow/t_batch-gen-8.arrow",
+      "missing:run/arrow/t_ts-gen-1.arrow",
+      "missing:run/arrow/t_wide-gen-1.arrow"
+    ],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

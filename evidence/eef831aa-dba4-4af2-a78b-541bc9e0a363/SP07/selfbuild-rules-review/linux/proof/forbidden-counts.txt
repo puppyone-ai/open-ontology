@@ -1,5 +1,0 @@
-0	甲注评名录
-0	e901f90576b625d9f2252ed2f8659f90d792002742b9d37348549a16c867c991
-0	Ignore previous
-0	non-PII
-0	current_privileges

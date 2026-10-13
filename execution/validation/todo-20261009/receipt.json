@@ -1,0 +1,21 @@
+{
+  "scope": "coordination ledger/TODO/index/protocol only",
+  "base_commit": "f834d6b5b",
+  "new_product_acceptance": false,
+  "historical_counts_changed": false,
+  "covered_sp_parents": 87,
+  "covered_dbx_parents": 14,
+  "covered_phases": 16,
+  "covered_dbp": 8,
+  "checks": {
+    "todo": 0,
+    "mutations": 0,
+    "spec": 0,
+    "plan": 0,
+    "skill": 0,
+    "links": 0
+  },
+  "mutation_rejections": 4,
+  "local_links_checked": 136,
+  "automatic_update_scope": "generated TODO only; other files manually synchronized by coordinator under UPDATE-PROTOCOL"
+}

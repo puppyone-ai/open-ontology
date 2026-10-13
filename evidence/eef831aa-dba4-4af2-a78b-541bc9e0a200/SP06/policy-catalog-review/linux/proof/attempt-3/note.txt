@@ -1,1 +1,0 @@
-Attempt 3 reached the fixture and stopped because xact_start was read from the same backend that was executing the probe. The harness now reads that column from a second admin session. Product source was not edited.

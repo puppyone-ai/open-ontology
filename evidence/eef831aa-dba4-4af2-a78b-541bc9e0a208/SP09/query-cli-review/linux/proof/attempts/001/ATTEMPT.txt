@@ -1,6 +1,0 @@
-proof attempt 001 exit 1
-a190-live phase 0 and a190-oracle phase 0. OO_A190_LIVE=1 passed. Oracle keys were present.
-secret-scan.rs E0716: trim borrowed a temporary. The tool was not installed.
-query_pg_cli_a208_review.rs did not compile. assert_eq on Business required Debug. Gate and live phases exited 101.
-cargo clippy was not installed in this fresh container. The smoke container had added it to its own layer.
-lock-hash phase 0. Product hash phase 0. The smoke archive was not modified.

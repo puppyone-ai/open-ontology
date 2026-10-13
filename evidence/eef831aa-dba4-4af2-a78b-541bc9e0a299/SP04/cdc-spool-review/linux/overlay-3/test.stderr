@@ -1,3 +1,0 @@
-   Compiling cdc-spool v0.1.0 (/work/cdc-spool)
-    Finished `test` profile [unoptimized] target(s) in 1.04s
-     Running tests/a299_boundary.rs (/target/tool/debug/deps/a299_boundary-7e28d03624374e5c)

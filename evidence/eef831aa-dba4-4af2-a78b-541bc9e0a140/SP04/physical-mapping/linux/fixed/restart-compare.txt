@@ -1,4 +1,0 @@
-match=1
-physical_name=pn_d528fe7ee77dde914147ad1edc2b2d6f2f42b25106ccfe6f39d5f8996f1f
-identity_digest=d528fe7ee77dde914147ad1edc2b2d6f2f42b25106ccfe6f39d5f8996f1fc398
-server_version=17.10 (Debian 17.10-1.pgdg12+1)

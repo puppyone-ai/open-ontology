@@ -1,0 +1,1 @@
+{"contract":"oo.source-support.nightly/v1","target_id":"rv-pg","capability":"catalog","trigger":"nightly","existing_sources":[{"source_ref":"review_src","state":"running"},{"source_ref":"ledger_src","state":"running"}],"results":[{"day":"2026-01-31","ok":false},{"day":"2026-02-01","ok":false}]}

@@ -1,2 +1,0 @@
-live_fixture=pass
-lease_sha256=5cb2e9030a479903ecc57ce32fc3ee851f00d146e02ab3902fcbe7ab09501034

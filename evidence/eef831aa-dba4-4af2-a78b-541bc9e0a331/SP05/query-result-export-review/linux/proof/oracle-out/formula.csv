@@ -1,4 +1,0 @@
-lo,hi,zero,neg,eq,plus,minus,at,sp,tab,cr,lf,soh,nbsp,ideo,quote,nl,uni,empty,nil,flag,safe,apos,digits
--9223372036854775808,9223372036854775807,0,-1,'=1+1,'+1,'-2+3,'@SUM(A1),' =1,'	=1,"'=1","'
-=1",'=1,' =1,'　=1,"say ""hi"", next","line1
-line2",雪,,,false,hello,'=1,123

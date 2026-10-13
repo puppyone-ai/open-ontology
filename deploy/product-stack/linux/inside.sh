@@ -1,6 +1,6 @@
 #!/bin/bash
 # One linux/arm64 Rust 1.94 builder. Tests only oo-product-stack.
-# Fixed services are release builds. Source and release-control stay unmounted.
+# Fixed services are release builds from the mounted archive. Source stays unmounted.
 # No cargo update, no generate-lockfile, no root manifest edit.
 set -u
 EVIDENCE=/evidence
@@ -73,6 +73,9 @@ if [ "${OO_BUILD_SESSION:-0}" = 1 ]; then
 fi
 if [ "${OO_BUILD_SELFBUILD:-0}" = 1 ]; then
   build_one selfbuild-control-api /archive/tools/selfbuild-control-api/Cargo.toml selfbuild-control-api
+fi
+if [ "${OO_BUILD_RELEASE:-0}" = 1 ]; then
+  build_one release-control-api /archive/tools/release-control-api/Cargo.toml release-control-api
 fi
 echo "inside_end $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 exit 0

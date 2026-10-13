@@ -1,3 +1,0 @@
-listen=127.0.0.1:36051 mode=slow
-accept=127.0.0.1:55428
-handle-error=eof before header

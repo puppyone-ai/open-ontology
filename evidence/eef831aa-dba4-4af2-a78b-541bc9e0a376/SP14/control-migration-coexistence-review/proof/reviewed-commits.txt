@@ -1,9 +1,0 @@
-repair be4b596481d83435df2ede8abd9ebb2a8647c706
-archive daff88a3253bf2c5171bece48ade8309b17e7417
-head_at_oracle 55be6e88e191e89748c8e9e9905f074bda87e810
-head_at_report 0c3caa184c93bcd0af91c5d2aa75bc4ee96416d8
-repair_ancestor_of_archive yes
-archive_ancestor_of_head yes
-product_diff_be4b596_archive 0
-product_diff_be4b596_head 0
-paths tools/calendar-store tools/enum-store

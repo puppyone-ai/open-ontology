@@ -16,7 +16,7 @@ use std::fmt;
 use tokio_postgres::{Client, Error as PgError, Transaction};
 
 use crate::policy::catalog::grantable_base_type;
-use crate::policy::{compile_column_acl_set, ColumnAclPolicy, PolicyError};
+use crate::policy::{ColumnAclPolicy, PolicyError, compile_column_acl_set};
 
 const LOOKUP_FN: &str = "_oo.lookup_physical_mapping(text, text, bigint, text, text, text, text)";
 const REGISTER_FN: &str =
@@ -99,7 +99,9 @@ impl fmt::Display for MappingReaderError {
             Self::LoginMismatch => {
                 formatter.write_str("login argument does not match the policy set")
             }
-            Self::TlsRequired => formatter.write_str("mapping reader provision requires a TLS session"),
+            Self::TlsRequired => {
+                formatter.write_str("mapping reader provision requires a TLS session")
+            }
             Self::GrantorRefused => {
                 formatter.write_str("mapping reader grantor must not be oo_target_owner")
             }
@@ -110,9 +112,7 @@ impl fmt::Display for MappingReaderError {
                 )
             }
             Self::LoginAbsent => formatter.write_str("login role is absent or not usable"),
-            Self::OwnerMembership => {
-                formatter.write_str("login is a member of oo_target_owner")
-            }
+            Self::OwnerMembership => formatter.write_str("login is a member of oo_target_owner"),
             Self::MappingAbsent => formatter.write_str("stored physical mapping is absent"),
             Self::PhysicalAbsent => formatter.write_str("mapped relation is absent in _oo"),
             Self::Unsupported { column } => {
@@ -294,7 +294,10 @@ fn classify(privs: &MappingPriv) -> PrivilegeState {
 }
 
 fn db_error(err: PgError) -> MappingReaderError {
-    let sqlstate = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let sqlstate = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     if sqlstate == "OO024" {
         return MappingReaderError::MappingAbsent;
     }
@@ -334,7 +337,10 @@ async fn require_grantor(tx: &Transaction<'_>) -> Result<(), MappingReaderError>
     }
 }
 
-async fn ensure_generation(tx: &Transaction<'_>, prepared: &Prepared) -> Result<(), MappingReaderError> {
+async fn ensure_generation(
+    tx: &Transaction<'_>,
+    prepared: &Prepared,
+) -> Result<(), MappingReaderError> {
     let row = tx
         .query_one(
             "SELECT max(run_generation) FROM _oo.physical_mappings WHERE source = $1 AND config_digest = $2",
@@ -360,7 +366,16 @@ async fn resolve_tables(
     let mut resolved = Vec::with_capacity(prepared.tables.len());
     let mut seen_tables = BTreeSet::new();
     for table in &prepared.tables {
-        let physical_table = lookup(tx, prepared, "table", &table.namespace, &table.name, "", "pt_").await?;
+        let physical_table = lookup(
+            tx,
+            prepared,
+            "table",
+            &table.namespace,
+            &table.name,
+            "",
+            "pt_",
+        )
+        .await?;
         if !seen_tables.insert(physical_table.clone()) {
             return Err(MappingReaderError::PhysicalAbsent);
         }
@@ -544,7 +559,11 @@ async fn ensure_role(
     ensure_schema_usage(tx, role).await
 }
 
-async fn ensure_membership(tx: &Transaction<'_>, role: &str, login: &str) -> Result<(), MappingReaderError> {
+async fn ensure_membership(
+    tx: &Transaction<'_>,
+    role: &str,
+    login: &str,
+) -> Result<(), MappingReaderError> {
     let rows = tx
         .query(
             "SELECT member_role.rolname::text, membership.inherit_option, \
@@ -663,7 +682,10 @@ async fn ensure_schema_usage(tx: &Transaction<'_>, role: &str) -> Result<(), Map
     }
 }
 
-async fn mapping_priv(tx: &Transaction<'_>, login: &str) -> Result<MappingPriv, MappingReaderError> {
+async fn mapping_priv(
+    tx: &Transaction<'_>,
+    login: &str,
+) -> Result<MappingPriv, MappingReaderError> {
     let row = tx
         .query_one(
             "SELECT \

@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/owner_reassign_event.sql:6: ERROR:  23514: task event is immutable
-CONTEXT:  PL/pgSQL function reject_event_mutation() line 3 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,7 +1,0 @@
-removed_containers=oo-a139-pg oo-a139-msrv-smoke oo-a139-msrv-author oo-a139-msrv-probe oo-a139-msrv-probe2 oo-a139-msrv-probe3
-removed_volumes=oo-a139-eef831aa-cargo oo-a139-eef831aa-target oo-a139-eef831aa-pglog oo-a139-eef831aa-pgdata
-removed_network=oo-a139-eef831aa-net
-removed_tmp=/tmp/oo-a139-eef831aa /tmp/oo-a139-eef831aa-dba4-4af2-a78b-541bc9e0a139
-prune=no
-foreign_containers=untouched
-after=no oo.owner=a139 containers, volumes, or network left

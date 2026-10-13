@@ -1,0 +1,58 @@
+[
+  {
+    "reading_id": 101,
+    "version": 1,
+    "amount": "1.0000000000",
+    "note": "stale",
+    "code": "old",
+    "code_or_null": "old",
+    "ts": "2024-03-15 12:00:00.000000001",
+    "tags": [1],
+    "labels": ["stale"],
+    "qty": 1,
+    "label": "stale",
+    "wide_u64": "1"
+  },
+  {
+    "reading_id": 101,
+    "version": 2,
+    "amount": "1234567890123456789012345678901234567890.1234567890",
+    "note": null,
+    "code": "alpha",
+    "code_or_null": null,
+    "ts": "2024-03-15 12:34:56.123456789",
+    "tags": [1, -2, 0],
+    "labels": ["alpha", null, ""],
+    "qty": 7,
+    "label": "kept",
+    "wide_u64": "18446744073709551615"
+  },
+  {
+    "reading_id": 102,
+    "version": 1,
+    "amount": "0.0000000000",
+    "note": "",
+    "code": "alpha",
+    "code_or_null": "beta",
+    "ts": "2024-01-02 00:00:00.000000000",
+    "tags": [],
+    "labels": [null],
+    "qty": 0,
+    "label": "",
+    "wide_u64": "0"
+  },
+  {
+    "reading_id": 103,
+    "version": 1,
+    "amount": "-42.5000000000",
+    "note": "present",
+    "code": "gamma",
+    "code_or_null": "",
+    "ts": "2024-01-31 23:59:59.999999999",
+    "tags": [9223372036854775807, -9223372036854775808],
+    "labels": [],
+    "qty": 0,
+    "label": "",
+    "wide_u64": "42"
+  }
+]

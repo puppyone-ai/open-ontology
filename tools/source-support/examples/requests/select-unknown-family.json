@@ -1,0 +1,13 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "cockroach",
+    "product": "CockroachDB",
+    "version": "24.1",
+    "variant": "self-managed",
+    "driver": {"path": "P1"},
+    "profile": "production",
+    "sync": "catalog",
+    "driver_present": true
+  }
+}

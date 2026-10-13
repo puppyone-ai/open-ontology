@@ -1,3 +1,0 @@
-docker: Error response from daemon: invalid mount config for type "bind": bind source path does not exist: /host_mnt/private/tmp/oo-a334-eef831aa-dba4-4af2-a78b-541bc9e0a334/proof-3/archive
-
-Run 'docker run --help' for more information

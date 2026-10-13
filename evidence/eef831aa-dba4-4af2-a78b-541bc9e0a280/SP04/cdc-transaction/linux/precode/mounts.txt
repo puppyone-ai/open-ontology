@@ -1,5 +1,0 @@
-bind /tmp/oo-a280-eef831aa-dba4-4af2-a78b-541bc9e0a280/precode/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/precode/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/precode/probe.rs /probe.rs rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a280/SP04/cdc-transaction/linux/precode /evidence rw=true
-

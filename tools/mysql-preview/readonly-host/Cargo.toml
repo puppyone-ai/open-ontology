@@ -1,0 +1,13 @@
+[package]
+name = "oo-mysql-native-host"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+mysql_async = { version = "=0.36.1", default-features = false, features = ["minimal", "rustls-tls", "ring"] }
+sha2 = "=0.10.9"
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "time", "net"] }
+serde_json = "=1.0.151"
+
+[workspace]

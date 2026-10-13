@@ -1,6 +1,0 @@
-bind /proof rw=true
-volume /cargo-home rw=true
-volume /target rw=true
-bind /work rw=false
-bind /inside.sh rw=false
-

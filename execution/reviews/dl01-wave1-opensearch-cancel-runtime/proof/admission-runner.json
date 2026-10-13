@@ -1,0 +1,21 @@
+{
+  "task_id": "DL01-W1-44",
+  "session_uuid": "bc6cf794-2d14-4e98-bcb6-f7a9b3533a88",
+  "observed_at": "2026-10-10T23:37:48Z",
+  "phase": "rust",
+  "docker_rust_builders": [
+    "oo-dl01w1-43-runtime",
+    "oo-dl01w1-46-tools"
+  ],
+  "host_compiler_count": 0,
+  "other_reserved_rust_slots": 0,
+  "global_rust_count": 2,
+  "own_rust_count": 0,
+  "own_rust_slots": 0,
+  "reserved_cpus_before": 11.0,
+  "reserved_cpus_after": 12.0,
+  "reclaimable_bytes": 26850590720,
+  "headroom_after_reservation_bytes": 20408139776,
+  "admitted": true,
+  "reason": ""
+}

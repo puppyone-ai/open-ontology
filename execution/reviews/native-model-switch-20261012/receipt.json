@@ -1,0 +1,25 @@
+{
+  "time": "2026-10-12T13:17:56.444754+08:00",
+  "requested_model": "gpt-6.1-sol",
+  "requested_reasoning_effort": "low",
+  "endpoint_unchanged": true,
+  "existing_key_reused": true,
+  "probe_only_no_customer_data": true,
+  "http_status": 200,
+  "response_model": "gpt-6.1-sol",
+  "content_ok": true,
+  "usage": {
+    "completion_tokens": 5,
+    "total_tokens": 314,
+    "prompt_tokens": 309,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "cached_creation_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    }
+  },
+  "actual_api_call": true
+}

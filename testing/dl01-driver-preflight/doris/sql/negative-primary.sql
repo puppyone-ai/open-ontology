@@ -1,0 +1,8 @@
+USE oo_dl01w1_43;
+CREATE TABLE pk_denied (
+  id BIGINT NOT NULL,
+  n INT NULL
+)
+PRIMARY KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES ("replication_num" = "1");

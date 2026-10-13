@@ -1,2 +1,0 @@
-drwxr-xr-x@ 5 redux  wheel   160 Oct  8 13:24 [1m[36m/tmp/oo-a396-eef831aa-dba4-4af2-a78b-541bc9e0a396/stage-1791449127/src/tools/job-worker/ops[39;49m[0m
--rwxr-xr-x@ 1 redux  wheel  1128 Oct  8 13:24 [31m/tmp/oo-a396-eef831aa-dba4-4af2-a78b-541bc9e0a396/stage-1791449127/src/tools/job-worker/ops/pg-wrap.sh[39;49m[0m

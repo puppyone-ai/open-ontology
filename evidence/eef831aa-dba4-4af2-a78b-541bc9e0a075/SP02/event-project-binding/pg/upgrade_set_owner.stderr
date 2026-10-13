@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/set_role_owner.sql:2: ERROR:  42501: permission denied to set role "oo_jobs_owner"
-LOCATION:  call_string_check_hook, guc.c:6938

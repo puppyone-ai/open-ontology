@@ -1,7 +1,0 @@
-POST /v1/feedback HTTP/1.1
-Host: feedback.local
-Content-Length: 225
-Connection: close
-Content-Type: application/json
-
-{"extra":"A393_UNKNOWN","items":[{"kind":"gap","project":"shop","target":"logistics.shipment","text":"unknown field"}],"project":"shop","protocol":"oo.feedback.receiver/v1","receipt_id":"a393a393-a393-4a93-8a93-a393a393a39a"}

@@ -1,1 +1,0 @@
-Attempt 4 reached fresh repeat, OO001, and readiness. A bare runtime replay of 0002 returned 25P01 because LOCK TABLE outside a transaction is rejected for every role. The fixture now replays that file inside a transaction, which is how the owner applies it. Product SQL was not changed.

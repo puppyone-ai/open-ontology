@@ -1,0 +1,31 @@
+{
+  "effective_on": "2026-10-12",
+  "authority": "latest direct human 2026-10-12: native Codex GPT-6.1 Sol low, reviewers only after full Goal first loop and all ten-source full chains",
+  "routine_development": "autonomous whole capability development/self-validation/fixed commit/raw evidence; no separate review child for individual work",
+  "review_status": "explicitly deferred_to_integration; author delivery is not independent approval or product acceptance",
+  "critical_milestones": [
+    "first complete Goal product loop and all ten full source product chains ready together"
+  ],
+  "critical_rule": "independent review dispatch only after first full Goal loop and all ten complete import/selfbuild/sync/Pack/external/Gateway/dialogue chains are ready; coordinator validates evidence and actual critical runtime/data/permissions before acceptance",
+  "unchanged": [
+    "original full product inputs/outputs and real acceptance behavior",
+    "fixed dependencies and exclusive file ownership",
+    "preserve failures/no mock acceptance",
+    "development/integration/release/external counters separate",
+    "Grok-only, reliable target15; clock.sleep900seconds; no fixed CPU/jobs/build-slot limits"
+  ],
+  "first_loop_priority": "all ten real sources in parallel, MySQL and Oracle emphasized; one engineer per entire source; first actual complete loop accepted without dropping any other source",
+  "deferred_nonfatal": "record known issue at fixed SHA; no extra polish/review expansion, no claim that deferred test ran",
+  "executor": {
+    "kind": "native_codex_subagent",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "grok_new_dispatch": false
+  },
+  "dialogue_model": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "endpoint": "preserve existing product proxy URL",
+    "key": "preserve existing approved private key reference, never log"
+  }
+}

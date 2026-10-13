@@ -1,0 +1,28 @@
+[package]
+name = "source-admission-pg-report"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Emit one existing oo-connectors AccessReport. Build only against the frozen archive."
+
+[workspace]
+
+[dependencies]
+oo-connectors = { path = "../../../crates/oo-connectors" }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", default-features = false, features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[[bin]]
+name = "oo-source-admission-pg-report"
+path = "src/main.rs"
+
+[[bin]]
+name = "oo-source-admission-pg-budget"
+path = "src/budget_main.rs"
+
+[patch.crates-io]
+sqlx-core = { path = "../../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../../crates/oo-connectors/vendor/sqlx-postgres" }

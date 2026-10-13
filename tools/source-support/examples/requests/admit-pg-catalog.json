@@ -1,0 +1,23 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "postgres",
+    "product": "PostgreSQL",
+    "version": "16.2",
+    "variant": "self-managed",
+    "driver": {"path": "P1", "impl": "sqlx/tokio-postgres"},
+    "profile": "production",
+    "sync": "catalog",
+    "driver_present": true
+  },
+  "registration": {
+    "project_id": "project",
+    "identity_revision": 1,
+    "source_ref": "orders_src",
+    "kind": "pg_local",
+    "idempotency_key": "idem-1234567890abcd",
+    "secret_ref": "secret://project/orders_src",
+    "connection": {"host": "db.internal", "port": 5432, "database": "app", "username": "reader"},
+    "tables": [{"schema": "public", "table": "orders"}]
+  }
+}

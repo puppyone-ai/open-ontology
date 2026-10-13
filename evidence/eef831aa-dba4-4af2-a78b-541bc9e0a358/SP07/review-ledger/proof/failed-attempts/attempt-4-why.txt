@@ -1,1 +1,0 @@
-Rust 1.94 clippy -D warnings failed on review-ledger lib before tests. collapsible_if in model.rs reject_request_keys. too_many_arguments on insert_audit (9). Fixed by collapsing the fields check and passing one AuditWrite. Exit 101. OOM false. Memory 6442450944. CapDrop ALL.

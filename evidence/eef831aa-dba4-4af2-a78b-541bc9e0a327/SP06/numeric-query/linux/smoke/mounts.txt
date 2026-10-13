@@ -1,9 +1,0 @@
-bind /tmp/oo-a327-eef831aa-dba4-4af2-a78b-541bc9e0a327/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query/linux/smoke/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query/linux/smoke/extract-libclang.sh /extract-libclang.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query/tools/sha256.rs /tools/sha256.rs rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query/tools/select-debs.rs /tools/select-debs.rs rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a327/SP06/numeric-query /evidence rw=true
-volume /var/lib/docker/volumes/oo-a327-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a327-eef831aa-target/_data /target rw=true
-

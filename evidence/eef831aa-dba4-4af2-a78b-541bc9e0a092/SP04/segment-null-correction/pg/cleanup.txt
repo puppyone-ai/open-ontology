@@ -1,3 +1,0 @@
-rm_exit=0
-network_exit=0
-volume_exit=0

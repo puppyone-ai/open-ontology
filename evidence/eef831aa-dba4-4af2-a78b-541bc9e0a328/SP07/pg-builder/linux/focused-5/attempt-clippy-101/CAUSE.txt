@@ -1,1 +1,0 @@
-Builder tests passed (11). Clippy -D warnings failed on needless_borrow in generate.rs. Preserved. Not acceptance.

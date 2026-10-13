@@ -1,0 +1,97 @@
+{
+  "oracle_version": 1,
+  "authored": "before engine execution",
+  "basis": [
+    "Duplicate key keeps every written row, including full duplicates. The key is sort order only.",
+    "Aggregate SUM ignores NULL. A group whose quantities are all NULL stays NULL, distinct from zero. REPLACE overwrites with the new value, including NULL. REPLACE_IF_NOT_NULL is not used.",
+    "Unique key keeps one latest row per key. A later insert replaces the whole row. UPDATE and DELETE then apply to that one row.",
+    "DECIMAL is exact. 0.10 + 0.20 is 0.30. A 38-digit decimal is not a float. NULL is not zero. Empty string is not NULL.",
+    "RANGE partitions are half-open. January and February rows stay in the named partitions. A March insert and a missing partition name are rejected.",
+    "Apache Doris 3.x does not store a VARBINARY column as a table key. UTF-8 byte order of VARCHAR is not a binary-key facility. There is no external change stream."
+  ],
+  "cases": {
+    "dup": {
+      "mode": "strict",
+      "decimal_columns": [2],
+      "rows": [
+        ["7", "a", "1.50"],
+        ["7", "b", "2.25"],
+        ["8", "same", "3.00"],
+        ["8", "same", "3.00"],
+        ["9", "nil", null]
+      ]
+    },
+    "agg": {
+      "mode": "strict",
+      "decimal_columns": [1],
+      "rows": [
+        ["A", "15.00", "second"],
+        ["B", "4.00", "four"],
+        ["C", null, "none"],
+        ["D", "0.00", "zero"],
+        ["E", "1.00", null]
+      ]
+    },
+    "uniq": {
+      "mode": "strict",
+      "decimal_columns": [1],
+      "rows": [
+        ["1", "11.7500", "new"],
+        ["2", "-1.2500", "adj"],
+        ["4", "0.0000", ""]
+      ]
+    },
+    "decimal_rows": {
+      "mode": "strict",
+      "decimal_columns": [1, 2],
+      "rows": [
+        ["1", "0.0001", null],
+        ["2", "-1.2500", null],
+        ["3", "12345678901234.6789", "1234567890123456789012345678901234.5678"],
+        ["4", "0.0000", null],
+        ["5", null, null],
+        ["6", "0.1000", null],
+        ["7", "0.2000", null]
+      ]
+    },
+    "decimal_sum": {
+      "mode": "strict",
+      "decimal_columns": [0],
+      "rows": [["0.30"]]
+    },
+    "null_versus_zero": {
+      "mode": "strict",
+      "rows": [["1", "1"]]
+    },
+    "partition_p202601": {
+      "mode": "strict",
+      "decimal_columns": [2],
+      "rows": [["2026-01-15", "east", "10.00"]]
+    },
+    "partition_p202602": {
+      "mode": "strict",
+      "decimal_columns": [2],
+      "rows": [
+        ["2026-02-02", "east", "20.50"],
+        ["2026-02-20", "west", null]
+      ]
+    },
+    "str_order": {
+      "mode": "strict",
+      "rows": [
+        ["", "empty"],
+        ["A", "up"],
+        ["A ", "space"],
+        ["B", null],
+        ["a", "low"],
+        ["b", null],
+        ["中", "cjk"]
+      ]
+    }
+  },
+  "must_fail": ["negative_varbinary", "negative_partition", "negative_streams", "negative_reader_insert", "negative_reader_update", "negative_reader_delete", "negative_reader_create", "negative_reader_drop", "negative_reader_alter", "negative_reader_truncate", "negative_missing_partition"],
+  "identity": {
+    "version_marker": "3.1.4",
+    "reject_markers": ["starrocks", "mysql-community", "mariadb"]
+  }
+}

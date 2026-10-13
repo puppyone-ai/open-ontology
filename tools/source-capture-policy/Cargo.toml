@@ -1,0 +1,36 @@
+[package]
+name = "source-capture-policy"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Plan C1-C5 capture, consistency, retention, and repair. Not a loader or scheduler."
+autobins = false
+
+[workspace]
+resolver = "3"
+
+[[bin]]
+name = "source-capture-policy"
+path = "src/main.rs"
+
+[dependencies]
+cdc-offset-store = { path = "../cdc-offset-store" }
+cdc-spool = { path = "../cdc-spool" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+
+[dev-dependencies]
+serde_json = "=1.0.151"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+# Request and decision records are flat boolean gates.
+struct_excessive_bools = "allow"

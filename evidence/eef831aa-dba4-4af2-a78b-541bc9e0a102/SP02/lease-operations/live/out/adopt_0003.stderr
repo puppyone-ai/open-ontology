@@ -1,3 +1,0 @@
-psql:/fixture/migrations/0003_job_lease_operations_expand.sql:82: ERROR:  OO014: refusing to adopt an existing jobs function
-CONTEXT:  PL/pgSQL function inline_code_block line 37 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

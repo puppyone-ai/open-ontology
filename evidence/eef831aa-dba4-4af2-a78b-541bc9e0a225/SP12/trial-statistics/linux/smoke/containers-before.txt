@@ -1,2 +1,0 @@
-9062801f41f6 oo-a222-proof 0f24958fa693 a222 rust-builder
-3682794d143c oo-a222-pg 3aac91d19d5b a222 postgres

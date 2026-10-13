@@ -1,1 +1,0 @@
-wide multi-column fixture was unsealed so the refusal was seal; clippy collapsible_if in walk_text

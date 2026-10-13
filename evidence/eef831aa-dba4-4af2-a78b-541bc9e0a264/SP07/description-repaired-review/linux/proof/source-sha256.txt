@@ -1,4 +1,0 @@
-c392dd9ef7dfff45ea9f6298b257e8fc4bdeca04784acbfbb696ef644f884954  crates/oo-builder/src/description_candidate.rs
-c28297d86349507fff5bc67e5aa796a0f58836b8974cc9b1d7f08ade7d31798d  crates/oo-builder/src/bin/description-candidate.rs
-b3fc1b89d4cf0d950131a0689eeff2038db351a9bc4bfc141aa109152a525c01  crates/oo-builder/tests/description_candidate_a264.rs
-16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

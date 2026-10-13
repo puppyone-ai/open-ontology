@@ -1,3 +1,0 @@
-observed_at=2026-10-05T12:11:11Z
-name=oo-a180-pg kind=postgres owner=a180 status=Up 45 minutes
-host_toolchain_comm:

@@ -1,1 +1,0 @@
-preedit_smoke=linux/proof-2 source hash matched the crate before the public-client-version edit. Rust 1.94.0 tests and clippy already recorded there. proof-3 is the post-edit run.

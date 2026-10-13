@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-05",
+  "collector": "Codex immutable Git packet verification",
+  "fixed_seal_or_review": "8d6ace6f5607c88184dea4881ce13ea2f9da8ab7",
+  "packet": "evidence/1e7798c0-f799-4d4b-ab47-5e15599f60d9/DL01/semantics",
+  "verified_sha_entries": 345,
+  "decision": "author_fixed_child_review_pending",
+  "source_commit": "5bd6e414bf0b3ca008dc413fb39f2c6d0aa8bae5",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0,
+  "original_failures_preserved": true
+}

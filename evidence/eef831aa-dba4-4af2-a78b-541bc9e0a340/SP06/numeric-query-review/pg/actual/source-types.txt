@@ -1,6 +1,0 @@
-shop	entry	entry_id	int8	b	-1	20
-shop	entry	amount	numeric	b	1179656	1700
-shop	entry	wide	numeric	b	2490376	1700
-shop	entry	hidden	int8	b	-1	20
-shop	entry	loose	numeric	b	-1	1700
-shop	entry	over	numeric	b	2555912	1700

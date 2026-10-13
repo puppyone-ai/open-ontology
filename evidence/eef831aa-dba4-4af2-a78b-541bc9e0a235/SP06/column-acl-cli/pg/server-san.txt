@@ -1,3 +1,0 @@
-subject=CN=oo-a235-pg
-X509v3 Subject Alternative Name: 
-    DNS:oo-a235-pg

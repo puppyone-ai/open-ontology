@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-entry-v1/turn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "operation", "session_id", "turn_id", "status", "model_http_status", "complete", "harness_pid", "parent_acceptance"],
+  "properties": {
+    "contract": {"const": "agent-entry-v1"},
+    "operation": {"const": "beginTurn"},
+    "session_id": {"type": "string"},
+    "turn_id": {"type": "string"},
+    "status": {"const": "accepted"},
+    "model_http_status": {"type": "null"},
+    "complete": {"const": false},
+    "harness_pid": {"type": "integer", "minimum": 1},
+    "parent_acceptance": {"const": false}
+  }
+}

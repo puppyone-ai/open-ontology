@@ -1,1 +1,0 @@
-offline and live tests passed. clippy component was not in the fresh container layer.

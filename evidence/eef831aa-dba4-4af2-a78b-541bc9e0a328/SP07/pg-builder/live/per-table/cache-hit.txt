@@ -1,6 +1,0 @@
-pass1_outcome=structural_draft
-pass1_cache=miss
-hit_cache=miss
-hit_socket=opened
-hit_attempt=1
-candidate_bytes_same=true

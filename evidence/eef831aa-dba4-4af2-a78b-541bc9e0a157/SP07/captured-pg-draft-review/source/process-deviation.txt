@@ -1,3 +1,0 @@
-author audit.py is python; not rewritten
-evidence/eef831aa-dba4-4af2-a78b-541bc9e0a156/SP07/captured-pg-draft/pg/audit.py: Python script text executable, ASCII text
-     158 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a156/SP07/captured-pg-draft/pg/audit.py

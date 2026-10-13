@@ -1,3 +1,0 @@
-psql:/run-in/q-setval-control.sql:30: ERROR:  P0001: 55P03 setval
-CONTEXT:  PL/pgSQL function inline_code_block line 26 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,8 +1,0 @@
-deadline_aborts_get_opts=0
-deadline_aborts_bytes=0
-bytes_started_after_deadline_during_get_opts=1
-chunk_accepted_after_deadline=0
-complete_after_deadline=0
-drop_sets_stopped=1
-drop_stops_blocking_wait=0
-preemption_claimed=0

@@ -1,4 +1,0 @@
-93315b61e491 oo-a322-build 0f24958fa693 a322 rust-builder
-c067edebf700 oo-a322-pg 3aac91d19d5b a322 postgres
-35d0b348ed83 oo-a318-pg 3aac91d19d5b a318 postgres
-a68ce9caf5d6 oo-a300-pg 3aac91d19d5b a300 postgres

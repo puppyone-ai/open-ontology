@@ -1,9 +1,0 @@
-drive_let_chain=present
-abort_is_not_turn_finished_source=ok
-cargo_lock_packages=1
-rust_version=1.94.0
-unsafe_forbid_lines=4
-spike-package-lock=35fd666029cb44d3cceb5a372cbacd2aecc478c69daa14898f006af291d4d869
-spike-pi-license=0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48
-spike-node-license=c738ae413cf561f174e34f6961f8ca458aae2369a73640dda6234c629b98bcc4
-spike_ok

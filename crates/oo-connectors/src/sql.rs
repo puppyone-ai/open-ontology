@@ -116,10 +116,17 @@ pub(crate) const ROLLBACK_PROBE: &str = "ROLLBACK TO SAVEPOINT oo_probe_lock";
 
 pub(crate) const RELEASE_PROBE: &str = "RELEASE SAVEPOINT oo_probe_lock";
 
+/// Historical stream-lock text. The pull no longer sends it. Tests pin the
+/// spelling so a later edit cannot revive the forbidden statement quietly.
+#[cfg(test)]
 pub(crate) const SAVEPOINT_STREAM: &str = "SAVEPOINT oo_stream_lock";
 
+/// Historical stream-lock text. The pull no longer sends it.
+#[cfg(test)]
 pub(crate) const ROLLBACK_STREAM: &str = "ROLLBACK TO SAVEPOINT oo_stream_lock";
 
+/// Historical stream-lock text. The pull no longer sends it.
+#[cfg(test)]
 pub(crate) const RELEASE_STREAM: &str = "RELEASE SAVEPOINT oo_stream_lock";
 
 /// One current-catalog snapshot. `$1` and `$2` are the selected names.
@@ -449,6 +456,45 @@ FROM pg_catalog.pg_stat_activity a \
 WHERE a.pid = $1::int4 AND a.backend_start::text = $2 \
 LIMIT 1";
 
+/// Export the open repeatable-read snapshot. This is not a transaction command.
+pub(crate) const EXPORT_SNAPSHOT: &str = "\
+SELECT pg_catalog.pg_export_snapshot()::text LIMIT 1";
+
+/// Activity state for one backend key. No row means that backend is gone.
+pub(crate) const BACKEND_STATE: &str = "\
+SELECT a.state::text \
+FROM pg_catalog.pg_stat_activity a \
+WHERE a.pid = $1::int4 AND a.backend_start::text = $2 \
+LIMIT 1";
+
+/// Session settings applied by [`SESSION_GUARDS`]. Names are bound.
+/// `pg_settings.setting` is the numeric value in `unit`, not a display string.
+pub(crate) const BUDGET_SETTINGS: &str = "\
+SELECT s.name::text, s.setting::text, COALESCE(s.unit, '')::text \
+FROM pg_catalog.pg_settings s \
+WHERE s.name = ANY($1::text[]) \
+ORDER BY s.name LIMIT 8";
+
+/// Privilege facts for the selected tables. Names are bound. This does not GRANT.
+pub(crate) const BUDGET_PRIVILEGES: &str = "\
+SELECT n.nspname::text, c.relname::text, \
+pg_catalog.has_database_privilege(CURRENT_USER, pg_catalog.current_database(), 'CONNECT'), \
+pg_catalog.has_database_privilege(CURRENT_USER, pg_catalog.current_database(), 'TEMP'), \
+pg_catalog.has_database_privilege(CURRENT_USER, pg_catalog.current_database(), 'CREATE'), \
+pg_catalog.has_schema_privilege(CURRENT_USER, n.oid, 'USAGE'), \
+pg_catalog.has_schema_privilege(CURRENT_USER, n.oid, 'CREATE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'SELECT'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'INSERT'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'UPDATE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'DELETE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'TRUNCATE'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'REFERENCES'), \
+pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'TRIGGER') \
+FROM unnest($1::text[], $2::text[]) AS wanted(schema_name, table_name) \
+JOIN pg_catalog.pg_namespace n ON n.nspname = wanted.schema_name \
+JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid AND c.relname = wanted.table_name \
+LIMIT $3::int8";
+
 #[cfg(test)]
 const ALL: &[&str] = &[
     SESSION_GUARDS,
@@ -504,6 +550,10 @@ const ALL: &[&str] = &[
     SNAPSHOT_RELATION,
     SNAPSHOT_ATTRIBUTES,
     CANCEL_BACKEND,
+    EXPORT_SNAPSHOT,
+    BACKEND_STATE,
+    BUDGET_SETTINGS,
+    BUDGET_PRIVILEGES,
 ];
 
 #[cfg(test)]
@@ -517,7 +567,14 @@ mod tests {
 
     #[test]
     fn statements_are_read_only_and_carry_no_secret_marker() {
-        const ALLOWED: &[&str] = &["SELECT", "WITH", "START", "ROLLBACK", "SAVEPOINT", "RELEASE"];
+        const ALLOWED: &[&str] = &[
+            "SELECT",
+            "WITH",
+            "START",
+            "ROLLBACK",
+            "SAVEPOINT",
+            "RELEASE",
+        ];
         for sql in ALL {
             let verb = first_verb(sql);
             assert!(ALLOWED.contains(&verb), "{verb}");
@@ -563,6 +620,15 @@ mod tests {
         assert_eq!(first_verb(BEGIN_CURRENT), "START");
         assert!(BEGIN_CURRENT.contains("READ COMMITTED"));
         assert!(BEGIN.contains("REPEATABLE READ"));
+    }
+
+    #[test]
+    fn stream_source_does_not_execute_the_stream_lock() {
+        let source = include_str!("stream.rs");
+        assert!(!source.contains("SAVEPOINT_STREAM"));
+        assert!(!source.contains("ROLLBACK_STREAM"));
+        assert!(!source.contains("RELEASE_STREAM"));
+        assert!(!source.contains("oo_stream_lock"));
     }
 
     #[test]

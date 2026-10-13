@@ -1,8 +1,0 @@
-Rerun after linux/overlay docker-run.exit=101.
-That run compiled the fixed archive plus tests/a296_boundary.rs and stopped
-in rustc: Result::expect_err requires Debug on Harness, which is not Debug.
-The failing source is linux/overlay/a296_boundary.failed.rs.
-This run uses the same archive and the three launch-rejection checks rewritten
-as let-else. The command-deadline rejection still uses expect_err because its
-Ok type implements Debug. /bin/sleep is absolute because the child PATH is
-only the runtime directory.

@@ -1,5 +1,0 @@
-product_files_match=1
-compared=6
-method=sha256 of oracle snap paths against source/blobs.txt
-launch_sh_post_step=failed
-launch_sh_failure=shasum received the whole blobs.txt line as a path

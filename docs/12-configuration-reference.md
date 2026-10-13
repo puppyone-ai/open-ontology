@@ -61,15 +61,19 @@ llm_for_builder:                # Ontology Builder 使用的模型（与 Agent �
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `connector` | string | — | `mysql` \| `postgres` \| 插件名 |
+| `connector` | string | — | 连接器名；必须解析到[支持矩阵](database-support/support-matrix.yaml)中的目标 |
+| `target` | string | — | 矩阵目标 id（家族/产品/版本/变体/驱动）；未列出或能力未达等级时 `oo validate` 拒绝 |
+| `driver` | object | 目标默认 | 驱动路径与专有驱动卷（P2 worker 由客户提供，digest 记录） |
 | `connection` | object | — | `host`、`port`、`database`、`tls` 等（连接器定义） |
 | `read_from` | `primary`\|`replica` | `replica` | 登记为 replica 却连到主库时警告 |
 | `credential` | `secret://…` | — | 不允许明文 |
 | `timezone` | IANA 时区 | 部署时区 | 解释无时区时间 |
 | `tables.include` / `exclude` | glob 列表 | `["*"]` / `[]` | — |
-| `sync` | `auto`\|`cdc`\|`incremental`\|`full` | `auto` | 可按表覆盖 |
-| `snapshot` | `oo_chunked`\|`debezium_incremental` | `oo_chunked` | 见 [04 §4](04-pipeline.md) |
-| `consistency` | `transactional`\|`per_table` | `transactional` | 跨表一致性模式，见 [04 §5.2](04-pipeline.md)；改为 `per_table` 需管理员确认 |
+| `sync` | `auto`\|`cdc`\|`change_feed`\|`partition_refresh`\|`incremental`\|`full` | `auto` | 可按表覆盖；`auto` 只在已 verified 的能力中选择 |
+| `delete_detection` | `native`\|`reconcile`\|`partition_replace`\|`none` | 按捕获方法 | `reconcile` 含对账周期，并带 `DELETES_LAGGED` 披露 |
+| `budget` | object | 目标默认 | 计量单位（行/字节/积分/DBU/读容量）、硬上限与超时；未知单位 `block` |
+| `snapshot` | `oo_chunked` | `oo_chunked` | 见 [04 §4](04-pipeline.md)；Debezium 增量快照需要写源或信号表，默认不可用，仅可经 R1w 最小权限 ADR 启用 |
+| `consistency` | `transactional`\|`per_table` | `transactional`（仅 T 级 CDC 源） | 跨表一致性模式，见 [04 §5.2](04-pipeline.md)；改为 `per_table` 需管理员确认；对非 T 级源 `oo validate` 拒绝 `transactional` |
 | `max_txn_events` | int | `200000` | 超过则按超大事务分段写入并带质量警告 |
 | `max_snapshot_txn_seconds` | duration | `300s` | 批量路径一致性快照事务的时长上限 |
 | `freshness_expectation` | duration | `10m`（CDC）/ `2h`（批量） | 超过时 Gateway 返回 `STALE_DATA` 警告；可按表覆盖 |

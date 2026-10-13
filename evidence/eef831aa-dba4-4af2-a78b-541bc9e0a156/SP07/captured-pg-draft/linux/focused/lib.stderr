@@ -1,3 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
-     Running unittests src/lib.rs (/target/debug/deps/oo_builder-43061a3ef0c52471)

@@ -1,2 +1,0 @@
-name=oo-a158-builder-smoke kind=rust-builder owner=a158 status=Up 13 seconds
-name=oo-a154-pg kind=postgres owner=a154 status=Up 2 hours

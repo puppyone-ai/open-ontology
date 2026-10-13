@@ -1,4 +1,0 @@
- Downloading 0 crates                                                         error: failed to download `aws-lc-rs v1.18.1`
-
-Caused by:
-  attempting to make an HTTP request, but --offline was specified

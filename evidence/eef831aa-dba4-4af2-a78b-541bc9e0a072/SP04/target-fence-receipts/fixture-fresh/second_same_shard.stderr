@@ -1,5 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/second_adopt.sql:4: WARNING:  01000: you don't own a lock of type ExclusiveLock
-LOCATION:  LockRelease, lock.c:2004
-psql:/var/lib/oo-fixture/tests/fixtures/second_adopt.sql:4: ERROR:  55P03: target shard lock is held by another backend
-CONTEXT:  PL/pgSQL function adopt_target_generation(text,uuid) line 26 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

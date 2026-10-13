@@ -1,9 +1,0 @@
-   Compiling cdc-quarantine v0.1.0 (/src/tools/cdc-quarantine)
-error[E0425]: cannot find type `ControlEvent` in crate `cdc_quarantine`
-   --> tests/review_proof.rs:203:48
-    |
-203 | fn parse_line(bytes: &[u8]) -> cdc_quarantine::ControlEvent {
-    |                                                ^^^^^^^^^^^^ not found in `cdc_quarantine`
-
-For more information about this error, try `rustc --explain E0425`.
-error: could not compile `cdc-quarantine` (test "review_proof") due to 1 previous error

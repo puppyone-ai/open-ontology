@@ -1,9 +1,0 @@
-
-running 4 tests
-test import_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_IMPORT_PG_HOST must be set by the deciding run
-test usage_exits_2_without_echoing_arguments ... ok
-test invalid_json_version_field_and_duplicate_key ... ok
-test file_budget_deadline_and_generation_errors_keep_the_secret ... ok
-
-test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
-

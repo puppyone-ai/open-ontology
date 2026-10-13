@@ -76,6 +76,8 @@ req POST /control/v1/conversations /state/create.http "{}" "$cookie" "$csrf"
 cid=$(sed -n "s/.*\"conversation_id\":\"\\([^\"]*\\)\".*/\\1/p" /state/create.http | head -1)
 if [ -n "$cid" ]; then
   req POST "/control/v1/conversations/${cid}/cancel" /state/cancel.http "{}" "$cookie" "$csrf"
+elif [ -s /state/create.http ]; then
+  cp /state/create.http /state/cancel.http
 else
   printf "%s\n" "no conversation" > /state/cancel.http
 fi

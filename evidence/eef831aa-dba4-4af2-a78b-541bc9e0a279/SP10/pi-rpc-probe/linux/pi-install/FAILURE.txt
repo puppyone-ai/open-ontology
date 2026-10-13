@@ -1,1 +1,0 @@
-attempt 1 failed: tar restored uid 1001 and --cap-drop ALL rejected chown. attempt 2 uses tar --no-same-owner. checksum phase of attempt 1 exited 0.

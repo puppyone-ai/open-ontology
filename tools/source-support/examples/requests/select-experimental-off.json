@@ -1,0 +1,13 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "postgres",
+    "product": "PostgreSQL",
+    "version": "15",
+    "variant": "self-managed",
+    "driver": {"path": "P1", "impl": "sqlx/tokio-postgres"},
+    "profile": "non-production",
+    "sync": "catalog",
+    "driver_present": true
+  }
+}

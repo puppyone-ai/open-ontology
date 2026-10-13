@@ -1,0 +1,26 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "mongodb-8.0.32-community-standalone",
+  "source_id": "oo_w141",
+  "secret_ref": "secret://oo-dl01w1-41/reader",
+  "compat_mode": "mongodb-native",
+  "permissions": [
+    {"name": "read", "status": "known", "granted": true}
+  ],
+  "budget": {"unit": "Rows", "hard_limit": 16, "confidence": "unknown"},
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null
+}

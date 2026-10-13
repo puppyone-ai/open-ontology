@@ -1,0 +1,18 @@
+container=oo-dl01w1-08-mariadb
+network=oo-dl01w1-08
+volume=oo-dl01w1-08-mariadb-data
+publish=127.0.0.1:33108
+memory=1536m
+image_tag=oo-dl01w1-08/mariadb:11.4.13
+image_digest=sha256:0130d92c05fbf2d82adc2b86de742eaede65b2596c65d91786f8e03cd19e6a39
+image_id=sha256:0130d92c05fbf2d82adc2b86de742eaede65b2596c65d91786f8e03cd19e6a39
+platform=linux
+mariadb from 11.4.13-MariaDB, client 15.2 for debian-linux-gnu (aarch64) using  EditLine wrapper
+a3d08b2a8ca3709407e3c79632ac368ec287caf19c5e6abc6d226f252af29a26  /usr/bin/mariadb
+e50876f65a0b5ea156366ae6be5852e313af040f5794e6d03439083307732c1c  /usr/sbin/mariadbd
+package=mariadb-backup version=1:11.4.13+maria~ubu2404 arch=arm64
+package=mariadb-client version=1:11.4.13+maria~ubu2404 arch=arm64
+package=mariadb-client-core version=1:11.4.13+maria~ubu2404 arch=arm64
+package=mariadb-common version=1:11.4.13+maria~ubu2404 arch=all
+package=mariadb-server version=1:11.4.13+maria~ubu2404 arch=arm64
+package=mariadb-server-core version=1:11.4.13+maria~ubu2404 arch=arm64

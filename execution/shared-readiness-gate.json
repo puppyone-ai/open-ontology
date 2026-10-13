@@ -1,0 +1,323 @@
+{
+  "as_of": "2026-10-12T23:45:50.939756+00:00",
+  "status": "verified_shared_preview_reference",
+  "owner": "root",
+  "source_release_allowed": true,
+  "source_tasks": [
+    "DL01-W1-04",
+    "DL01-W1-06",
+    "DL01-W1-09",
+    "DL01-W1-39",
+    "DL01-W1-40",
+    "DL01-W1-41",
+    "DL01-W1-43",
+    "DL01-W1-44",
+    "DL01-W1-45",
+    "DL01-W1-46"
+  ],
+  "reference_only_tasks": [
+    "DL01-W1-06",
+    "DL01-W1-40"
+  ],
+  "policy": "Finish shared product chain and stabilize pinned contracts before resuming complete per-source workflows. No acceptance from isolated components, historical snapshots, diagnostic Packs or manufactured gates.",
+  "criteria": [
+    {
+      "id": "admission",
+      "owners": [
+        "DL01-W1-02",
+        "DL01-W1-79"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "Actual producer-bound typed C4 partition scope and BSON tag admission; tampering/missing scope denies without effects; trusted registry consumed by importer.",
+      "evidence": [
+        "85d805250bd9cd7266afd6ac3c19751645f7631e",
+        "62be3cebb1dc3ea9935d50c7f6cdc288da873a95",
+        "a641b85a0c065f655696a324866537022572b19d"
+      ],
+      "scope": "actual C4 and BSON approved producer inputs sealed and consumed by real targets; not ten-source product signoff",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    },
+    {
+      "id": "import_jobs",
+      "owners": [
+        "DL01-W1-79",
+        "DL01-W1-74"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "Real target full data equality, per-partition copy-forward/replacement/delete and atomic ACK CAS; both receipt readers bounded identically; restart/replay/permissions/budget failures preserve watermark and data.",
+      "evidence": [
+        "c4e601bae0379bfcc70f85c94e9c43ce4fac56c1",
+        "979367e4020d07fd206a00fc1d00dd953a9c8f86",
+        "473db486921d0ec6413478fb799361d7e79fbc52",
+        "2ff22a1b99aa091a8a0f7780bd3791067c193419",
+        "a641b85a0c065f655696a324866537022572b19d"
+      ],
+      "scope": "Verified MySQL current typed data, production worker replay and CAS/ACK reference; no blanket ten-source C4/C1 acceptance.",
+      "limitations": "MySQL TIME fidelity repaired and verified. New source-specific C4/C1/catalog/global-generation dependencies remain pending as listed.",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    },
+    {
+      "id": "selfbuild",
+      "owners": [
+        "DL01-W1-71"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "Current real complete reference collection, exact data/type/semantic vectors, genuine S0-S10 standard YAML, real review/curated maintenance and role Pack; actual model identity recorded.",
+      "evidence": [
+        "9adc937dbc9a3771773f3d1cd76fed4ff31c98f5",
+        "94745df46"
+      ],
+      "scope": "accurate currentbundle16hashverified/no-modeldraftcompiled; one actual502overload, no newAPIbuild/YAML/Pack/stages. prioroldtypePack historical",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    },
+    {
+      "id": "publication_gateway",
+      "owners": [
+        "DL01-W1-73",
+        "DL01-W1-71"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "For original DL01 authorized preview, actual current reviewed/maintained Pack+copied real target+roles/version vectors+public CLI correctness/audit/deny/cancel; clearly not formally published. Formal activation/maintenance/rollback and G1-G13/customer owner remain separate original SP08/DL02-DL05 requirements and may not be force-passed.",
+      "scope": "e891b362 currentvectorpreview was verifiedforpreviousinput; new interval/currentvalue_probe5 Pack vector needed",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    },
+    {
+      "id": "dialogue",
+      "owners": [
+        "DL01-W1-71",
+        "DL01-W1-73"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "No-model external CLI/auth/data preflight, then genuine autonomous multi-turn dialogue with actual tool calls, query IDs and audits; independent answers accurate, denied fields inaccessible.",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    },
+    {
+      "id": "handoff",
+      "owners": [
+        "root"
+      ],
+      "status": "verified_shared_preview_reference",
+      "exit": "Linux/MSRV checks on fixed implementation and binary SHAs, one compatible runtime manifest and complete real positive/negative raw evidence; root releases only once all shared exits pass.",
+      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+    }
+  ],
+  "model_catalog_receipt": "execution/reviews/native-model-switch-20261012/shared-gate-model-catalog.json",
+  "acceptance_delta": 0,
+  "full_sources_accepted": 0,
+  "required_sources": 10,
+  "independent_review": "deferred until user-defined first full Goal loop and all ten full source chains; no separate component review agents",
+  "reference_handoffs": {
+    "clickhouse_source_contract": {
+      "commit": "8d89e5bce16affc76c2786b2929596e87a897f20",
+      "scope": "same unchanged source observation; control generations1/2/3 for ordered target apply, actual admission a936d7c three positives and three deny negatives; no target ACK"
+    },
+    "mysql_current_collection": {
+      "path": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql/official-time-repair-20261012/collection-current-time.json",
+      "sha256": "19e0b3405ad0f7c69d393a685e489594e53d260da28a7dfd3e94366dd0e53ee4",
+      "scope": "actual5table7/4/4/5/4, newvalue_probe interval faithful; oldhubs7/others4 exceptvalueprobe5; no global snapshot",
+      "commit": "0a91e0629"
+    },
+    "mongo_tagged_bson": {
+      "commit": "2966545fc4389037a79ff22a5a5db6b8bae7a692",
+      "scope": "retained rawBSON actual14 approved rows/20 columns, trusted seal and actual typed target readback280 cells/difference0 verified; full source remains held"
+    }
+  },
+  "root_intake": {
+    "mysql_readonly_manifest": {
+      "verified": 10,
+      "errors": 0
+    },
+    "admission_manifest": {
+      "verified": 103,
+      "errors": 0
+    },
+    "acceptance_level": "fixed shared input evidence only; no integrated gate pass",
+    "final_shared_loader_manifest": {
+      "verified": 20,
+      "errors": 0
+    },
+    "final_admission_manifest": {
+      "verified": 143,
+      "errors": 0
+    },
+    "final_shared_elf_verified": true,
+    "worker_manifest": {
+      "verified": 53,
+      "errors": 0
+    },
+    "worker_fixed_elf_verified": true,
+    "mongo_current_target_recheck": {
+      "exit": 0,
+      "rows": 14,
+      "columns": 20,
+      "compared_cells": 280,
+      "difference_count": 0,
+      "evidence_commit": "a641b85a0c065f655696a324866537022572b19d"
+    },
+    "current_selfbuild_artifacts": {
+      "verified": 18,
+      "errors": 0,
+      "actual_model": "gpt-6.1-sol",
+      "S0_S10": "11/11 succeeded",
+      "API_S5": "same identity/cache hit/no socket",
+      "publication": "refused"
+    }
+  },
+  "shared_consumer": {
+    "source_commit": "02c611a529943506b7583e6f0b2970e35c05792e",
+    "evidence_commit": "4dc3add96b98bd80c3e78bc032ad1a55ef6988be",
+    "actual_mysql_projection": "5 tables/43 columns, per-dataset generation7/4 actual vector verified",
+    "actual_c4_consumer": "final acknowledged gen5 real2/0/0 catalog passed; fixed evidence2ff22a1b9; no model/Pack",
+    "running_api": "current identity-evidenced API18446; actual S0–S10 and cache identity verified; Gateway current-vector consumption pending73",
+    "diagnostic_pack": "not publishable; no actual S5 model review"
+  },
+  "c4_intermediate_integration": {
+    "target_catalog_sha256": "a5351523852348819933d226b0e4080e6f89163a6eadd78038b99e5f55c6e096",
+    "consumer_evidence_commit": "c24b6f8fca0fe23fe16f628e3fc4cec1dbe8c30e",
+    "result": "actual three partition transactions/CAS and real consumer vector positive/tamper rejection; intermediate only",
+    "remaining": "target sidecar acknowledged flag not yet enforced against actual jobs completion; final guard/post-CAS ACK and real worker retry path must pass",
+    "first_failure": "c4bootstrap batch token rejected; preserved and rerun using existing legal tokens without widening consumer"
+  },
+  "ack_fixed_dependency": {
+    "source_commit": "c4e601bae0379bfcc70f85c94e9c43ce4fac56c1",
+    "elf_sha256": "ae17f5fc3dc8a8a2474d249c313e28a0d5e25a5750e0d68879208c3caf9f7d43",
+    "scope": "actual separate control/target ACK, true source UPDATE/DELETE and same-run replay verified; fixed productionworker recovery verified by473db4869",
+    "evidence_commit": "f5447eb5aa81c75a8fe5becb73c339bd59c61f03",
+    "elf_path": "/tmp/oo-dl01w1-79-c4-ack-fixed/oo-pipeline"
+  },
+  "remaining_c4_truth": "Historical shared ClickHouse reference verified; new Doris/StarRocks C4 must pass actual apply/multiset/delete/worker-CAS-ACK; no blanket C4 source acceptance.",
+  "c4_final_reference": {
+    "source_capture_commit": "06152ac493d60d0793ad0054e544254110d487fc",
+    "admission_evidence_commit": "62be3cebb1dc3ea9935d50c7f6cdc288da873a95",
+    "target_catalog_sha256": "c97b151e53001d493b8b8f752ee9cbf6a2096902f0a4bc89cb5b94579250eed7",
+    "consumer_evidence_commit": "2ff22a1b99aa091a8a0f7780bd3791067c193419",
+    "result": "actual update qty0→9, physical delete ID101, target3→2 and complete2/0/0 acknowledged vector; productionworker crash/restart/replay verified"
+  },
+  "model_catalog_recheck_receipt": "execution/reviews/native-model-switch-20261012/shared-gate-model-catalog-recheck.json",
+  "historical_failures_preserved": [
+    "Maria receipt control bound fixed in only one reader at first; final two-reader shared code needs final Linux/runtime proof.",
+    "C4 partition target/vector consumer contract not yet integrated with actual sealed producer.",
+    "MySQL gen4 collection is historical while live target is gen7; current fixed reference required.",
+    "Product gpt-6.1-sol absent from current proxy catalog; real S5 timeout and dialogue 502 retained.",
+    "Publication applicable gates/freshness not ready; staged maintained Pack is not activation proof.",
+    "C4 prior sidecar could be considered authoritative before jobs success ACK; root requires real post-CAS production caller/retry proof before stable release."
+  ],
+  "remaining_blockers": [
+    "Ten source full chains individually await original full exits and unified review; shared MySQL preview is not ten-source proof.",
+    "Doris/StarRocks C4 and global source-target generation/fence, ClickHouse new partition catalog and PG multi-table C1 remain pending actual fixed-runtime proof.",
+    "SQL Server actual approved native amd64 instance/EULA/config missing; customer access, formal owner/G/nightly remain separate original gates.",
+    "Compact dialogue harness d39ffcaa4 verified by offline actual transcript replay; actual aggregate child/model token ratio <=20% has not been measured."
+  ],
+  "worker_production_chain": {
+    "source_commit": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
+    "evidence_commit": "473db486921d0ec6413478fb799361d7e79fbc52",
+    "elf_path": "/tmp/oo-dl01w1-74-979367e4020d07fd206a00fc1d00dd953a9c8f86-1bca9536-fixed/job-worker",
+    "elf_sha256": "1bca9536eb7e6904b6b2dce41ed6bedc9536b6476de62dc6862d0eff8f401809",
+    "result": "actual worker mirrors real control claim; CAS-after restart drains pending ACK without new claim/producer/COPY; CAS-before failure reclaims same task through generation4 and replays original run; exactly one apply receipt per partition; repeated ACK idempotent and wrong/control-not-complete/endpoint-hash negatives denied",
+    "resources": "owned74 test containers stopped; private directory and volume retained for evidence"
+  },
+  "admission_immutable_artifact_receipt": "execution/reviews/native-model-switch-20261012/shared-admission-artifact.json",
+  "model_revalidation": {
+    "request_model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "url_and_key": "unchanged",
+    "actual_response_model": "gpt-6.1-sol; root verified private envelope7f9f29f6...",
+    "actual_candidate_result": "schema-valid real CLI S5 and control API S5; ready=false/unreviewed/not_published",
+    "calls": 3,
+    "usage_reported": [
+      {
+        "prompt": 2386,
+        "completion": 1361,
+        "total": 3747
+      },
+      {
+        "prompt": 2386,
+        "completion": 1365,
+        "total": 3751
+      },
+      {
+        "prompt": 2386,
+        "completion": 1353,
+        "total": 3739
+      }
+    ],
+    "total_reported_tokens": 11237,
+    "cost_ratio_target_verified": false,
+    "unexpected_second_call": "API native path failed to import CLI cache despite same recomputed key; preserved as miss, not hit",
+    "shared_worker_failure": "old configuration worker claimed same-ledger new build, membership.refused after stages advanced; isolation alone not a production fix",
+    "next_action": "current final API cache identity matches actual proved S5, S0-S10 and maintenance complete; no additional S5 requests"
+  },
+  "preview_boundary_sources": [
+    "execution/PRODUCT-LOOPS.md: DL01 permits explicitly scoped unpublished preview; preserves later formal publication and external conditions",
+    "docs/06-ontology-layer.md §6: all gates required before formal tag",
+    "specs/open-ontology-v0.1-plan.md SP08-W04 and SP12: applicable original gates/real customer results retained"
+  ],
+  "model_identity_receipt": "execution/reviews/native-model-switch-20261012/actual-model-identity-receipt.json",
+  "root_current_selfbuild_intake": "execution/reviews/native-model-switch-20261012/current-selfbuild-intake.json",
+  "gateway_current_observation": {
+    "status": "root_verified_unpublished_reference",
+    "pack_digest": "7c4edd3a00326735b3703ce39911ccd0ef47be8083fdc7c3e4f22372b7e2ad20",
+    "implementation_commit": "bf59de6f6f869a3a90450be30e3a5da729d8f67b",
+    "evidence_commit": "90a429f0665414f5681cbe5581aa904fb0aa3947",
+    "intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json",
+    "freshness": "publication=not_ready/per_table/cross_table_consistent=false",
+    "signed_time": "-01:00:00.000000",
+    "dialogue": "actual four-turn eight independent gold matched, query WAL verified; formal publication remains pending"
+  },
+  "gateway_elf_intake": "execution/reviews/native-model-switch-20261012/current-gateway-fixed-elf-intake.json",
+  "parser_worker_limitation": "orphan wall <1s failed (2.901s); post-test no worker/grandchild observed; no safety containment failure observed, latency remains not passed",
+  "mysql_time_producer_reference": "execution/reviews/native-model-switch-20261012/mysql-time-reference-intake.json",
+  "mysql_time_repair_status": "current original value_probe new-generation5/fence/productionworker/CAS and all5currentcollection accurate proof fixed0a91e0629; root71manifest+31resources verified",
+  "mysql_time_loader_intake": "execution/reviews/native-model-switch-20261012/mysql-time-loader-intake.json",
+  "current_mysql_time_repair_intake": "execution/reviews/native-model-switch-20261012/current-mysql-time-repair-intake.json",
+  "current_time_s5_failure_intake": "execution/reviews/native-model-switch-20261012/current-time-s5-failure-intake.json",
+  "current_time_s5_status": {
+    "evidence_commit": "ce1aff673",
+    "actual_requests": 1,
+    "status": 502,
+    "provider_error": "server_is_overloaded",
+    "response_identity_usage": "absent",
+    "new_pack": false,
+    "retry_not_before_UTC": "2026-10-12 14:23:41 UTC",
+    "retry_authorization": "after complete15minclockbackoff exactly1 sameinput actual original model attempt; result pending"
+  },
+  "root_release_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json",
+  "release_scope": "originalDL01 scopedunpublished preview sharedproductchain; ready real-source owners may resume complete originalrequirements. Not10source/signoff/formalpublication/gradecompletion.",
+  "current_shared_dependencies": [
+    {
+      "scope": "Doris/StarRocks C4 and ClickHouse new-partition catalog",
+      "owner": "DL01-W1-79",
+      "status": "real_apply_and_ack_pending"
+    },
+    {
+      "scope": "same-source multi-binding global generation/fence",
+      "owner": "DL01-W1-74",
+      "status": "actual_worker_cas_ack_pending"
+    },
+    {
+      "scope": "PostgreSQL same factual LSN multi-table C1 and delta catalog",
+      "owner": "DL01-W1-79",
+      "status": "current_target_behind"
+    },
+    {
+      "scope": "per-source Selfbuild identity/API",
+      "owner": "DL01-W1-71",
+      "status": "OpenSearch real S0-S10 succeeded; others pending"
+    }
+  ],
+  "source_release_scope": "Verified MySQL unpublished shared reference only. Each new source must pass its own actual dependencies; Doris/StarRocks C4, ClickHouse catalog, PostgreSQL C1 remain held at affected interfaces.",
+  "historical_gateway_observation": {
+    "status": "author_delivered_fixed_partial_gate",
+    "owner": "DL01-W1-73",
+    "pack_digest": "1cb877e8bacec02bb3d8e1fa7082f6cc83ce7d7689fc7036c46524881e174de1",
+    "hubs_public_count": 2000,
+    "independent_source_count": 2000,
+    "query_id": "q_O3xg2cqCtuoxFdRWvpKypVOmhV",
+    "freshness": "publication=not_ready/per_table/cross_table_consistent=false",
+    "remaining": "root overall current accurate typed chain and actual dialogue pending; MySQL negative TIME loss blocks release",
+    "evidence_level": "author interim actual result, fixed root intake pending",
+    "implementation_commit": "e891b3624762e23f182fddec2a2994dcb24045d2",
+    "immutable_handoff_commit": "96141f431d1a97cf59fe0089a3062f6c2a8068ce"
+  },
+  "opensearch_complete_author_reference": "execution/reviews/native-model-switch-20261012/opensearch-complete-preview-intake-20261013.json"
+}

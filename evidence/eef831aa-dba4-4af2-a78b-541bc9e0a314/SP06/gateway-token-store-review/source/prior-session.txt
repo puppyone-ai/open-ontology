@@ -1,5 +1,0 @@
-Resumed 2026-10-07 after a 402 block. That block was not a product failure.
-At resume, this UUID had no evidence tree, no container, no volume, no network, and no /tmp directory.
-tools/gateway-token-store had no diff against 99ac19af42059a308ba9c418815619e5a081f407.
-The committed root Cargo.lock blob was 2990f901ea98a7b465f462cce8742bc5c51c13aa at 25dfc902, at 99ac19af, and at HEAD.
-No owned proof was overwritten because none existed.

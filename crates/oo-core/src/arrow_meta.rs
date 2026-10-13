@@ -44,6 +44,7 @@ pub enum ArrowTypeName {
     Binary,
     Date32,
     Time64Micros,
+    DurationMicros,
     TimestampMicrosNaive,
     TimestampMicrosUtc,
     Decimal128 { precision: u8, scale: i8 },
@@ -90,6 +91,7 @@ impl ArrowTypeName {
             Self::Binary => "binary".to_owned(),
             Self::Date32 => "date32".to_owned(),
             Self::Time64Micros => "time64[us]".to_owned(),
+            Self::DurationMicros => "duration[us]".to_owned(),
             Self::TimestampMicrosNaive => "timestamp[us]".to_owned(),
             Self::TimestampMicrosUtc => "timestamp[us,UTC]".to_owned(),
             Self::Decimal128 { precision, scale } => format!("decimal128({precision},{scale})"),
@@ -178,6 +180,7 @@ enum ArrowTypeDe {
     Binary,
     Date32,
     Time64Micros,
+    DurationMicros,
     TimestampMicrosNaive,
     TimestampMicrosUtc,
     Decimal128 { precision: u8, scale: i8 },
@@ -198,6 +201,7 @@ impl From<ArrowTypeDe> for ArrowTypeName {
             ArrowTypeDe::Binary => Self::Binary,
             ArrowTypeDe::Date32 => Self::Date32,
             ArrowTypeDe::Time64Micros => Self::Time64Micros,
+            ArrowTypeDe::DurationMicros => Self::DurationMicros,
             ArrowTypeDe::TimestampMicrosNaive => Self::TimestampMicrosNaive,
             ArrowTypeDe::TimestampMicrosUtc => Self::TimestampMicrosUtc,
             ArrowTypeDe::Decimal128 { precision, scale } => Self::Decimal128 { precision, scale },
@@ -235,6 +239,7 @@ enum ArrowTypeSer<'a> {
     Binary,
     Date32,
     Time64Micros,
+    DurationMicros,
     TimestampMicrosNaive,
     TimestampMicrosUtc,
     Decimal128 { precision: u8, scale: i8 },
@@ -255,6 +260,7 @@ impl<'a> From<&'a ArrowTypeName> for ArrowTypeSer<'a> {
             ArrowTypeName::Binary => Self::Binary,
             ArrowTypeName::Date32 => Self::Date32,
             ArrowTypeName::Time64Micros => Self::Time64Micros,
+            ArrowTypeName::DurationMicros => Self::DurationMicros,
             ArrowTypeName::TimestampMicrosNaive => Self::TimestampMicrosNaive,
             ArrowTypeName::TimestampMicrosUtc => Self::TimestampMicrosUtc,
             ArrowTypeName::Decimal128 { precision, scale } => Self::Decimal128 {
@@ -289,6 +295,7 @@ impl JsonSchema for ArrowTypeName {
                 unit_variant("binary"),
                 unit_variant("date32"),
                 unit_variant("time64_micros"),
+                unit_variant("duration_micros"),
                 unit_variant("timestamp_micros_naive"),
                 unit_variant("timestamp_micros_utc"),
                 decimal_variant("decimal128", 38),
@@ -386,6 +393,14 @@ mod tests {
     #[test]
     fn system_display_matches_the_spec_spelling() {
         assert_eq!(ArrowTypeName::Int8.series60().unwrap(), "int8");
+        assert_eq!(
+            ArrowTypeName::DurationMicros.series60().unwrap(),
+            "duration[us]"
+        );
+        assert_eq!(
+            serde_json::to_string(&ArrowTypeName::DurationMicros).unwrap(),
+            r#"{"kind":"duration_micros"}"#
+        );
         assert_eq!(DISPLAY_OP, "_oo_op:int8(1=upsert,2=delete,3=fill)");
         assert_eq!(
             format!(

@@ -1,1 +1,0 @@
-live exit 101. Offline tests and clippy passed. Privilege case exited 1 target database: to_regclass on _oo raises 42501 before install can return NotAdministrator. CLI now checks pg_roles and pg_has_role before install. Diagnostic database oo_a223_diag was dropped.

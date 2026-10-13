@@ -1,0 +1,9 @@
+{
+  "task": "DL01-W1-04",
+  "fixed_packet": "01a7d6cffaaf013ef56377514cab445ebf72599e",
+  "verified_sha_entries": 634,
+  "decision": "author_pending_independent_fixed_review",
+  "scope": "FD isolationrepair only; OCI/network/arbitrarynative schema remainpending",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

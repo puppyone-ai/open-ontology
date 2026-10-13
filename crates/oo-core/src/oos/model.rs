@@ -16,7 +16,7 @@ use crate::pattern_map::{PatternKey, PatternMap};
 use crate::schema_util::schema_object;
 use crate::text::{
     BoundedText, ColumnPath, HexDigest, Label, PluginName, QualifiedTable, SourceName, TableName,
-    TimezoneName,
+    TimezoneName, VersionToken,
 };
 
 crate::text::string_newtype_export!(ClassName, 1, 64, r"^[a-z][a-z0-9_]{0,63}$", class_name_ok);
@@ -392,6 +392,103 @@ pub struct DatasetColumn {
     pub review: Option<Review>,
 }
 
+/// Source consistency. These four tokens are not an A–F profile quality grade.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+pub enum SourceConsistencyGrade {
+    #[serde(rename = "T")]
+    T,
+    #[serde(rename = "S1")]
+    S1,
+    #[serde(rename = "S0")]
+    S0,
+    #[serde(rename = "B")]
+    B,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceConstraintKind {
+    PrimaryKey,
+    Unique,
+    ForeignKey,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceConstraintTrustLevel {
+    Enforced,
+    DeclaredOnly,
+    Absent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceConstraintDisposition {
+    Enforced,
+    Candidate,
+    Blocked,
+    Recorded,
+    Stripped,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceInclusion {
+    pub rows_checked: u64,
+    #[serde(deserialize_with = "ratio_thousandths")]
+    #[schemars(range(min = 0, max = 1000))]
+    pub ratio_thousandths: u32,
+}
+
+/// Column-scoped source caveat. The note is a token, not SQL text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceColumnSemantics {
+    pub column: TableName,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caveats: Vec<PluginName>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_note: Option<PluginName>,
+}
+
+/// One constraint-trust decision carried on the dataset that owns the columns.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceConstraintTrust {
+    pub name: SourceName,
+    pub kind: SourceConstraintKind,
+    pub columns: Vec<TableName>,
+    pub trust: SourceConstraintTrustLevel,
+    pub disposition: SourceConstraintDisposition,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inclusion: Option<SourceInclusion>,
+}
+
+/// Optional additive `oos/v1` source record. Absence matches a legacy dataset.
+///
+/// Fields are identifiers and tokens. There is no endpoint, credential, or SQL text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceSemantics {
+    pub family: SourceName,
+    pub product: SourceName,
+    pub version: VersionToken,
+    pub capture: SourceName,
+    /// Absent when the source observation did not record a consistency grade.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grade: Option<SourceConsistencyGrade>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caveats: Vec<PluginName>,
+    pub source_kind: SourceName,
+    /// Absent when the source observation did not record delete detection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delete_detection: Option<SourceName>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub columns: Vec<SourceColumnSemantics>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constraint_trust: Vec<SourceConstraintTrust>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DatasetFile {
@@ -421,6 +518,9 @@ pub struct DatasetFile {
     pub columns: Vec<DatasetColumn>,
     #[serde(default)]
     pub caveats: Vec<BoundedText<2000>>,
+    /// Missing on legacy documents. Serialization omits it so those bytes stay stable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_semantics: Option<SourceSemantics>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -1041,6 +1141,21 @@ fn small_count<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u32, D::Err
     }
 }
 
+fn ratio_thousandths<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+    let value = u32::deserialize(deserializer)?;
+    if value <= 1000 {
+        Ok(value)
+    } else {
+        Err(serde::de::Error::custom(
+            "ratio_thousandths is above 1000",
+        ))
+    }
+}
+
+const MAX_SOURCE_CAVEATS: usize = 32;
+const MAX_SOURCE_COLUMNS: usize = 256;
+const MAX_SOURCE_CONSTRAINTS: usize = 256;
+
 pub fn validate_dataset(file: &DatasetFile) -> Vec<crate::diagnostic::Diagnostic> {
     let mut out = Vec::new();
     for (index, column) in file.columns.iter().enumerate() {
@@ -1051,7 +1166,91 @@ pub fn validate_dataset(file: &DatasetFile) -> Vec<crate::diagnostic::Diagnostic
             ));
         }
     }
+    if let Some(semantics) = &file.source_semantics {
+        validate_source_semantics(semantics, file, &mut out);
+    }
     out
+}
+
+fn validate_source_semantics(
+    semantics: &SourceSemantics,
+    file: &DatasetFile,
+    out: &mut Vec<crate::diagnostic::Diagnostic>,
+) {
+    if semantics.caveats.len() > MAX_SOURCE_CAVEATS
+        || semantics.columns.len() > MAX_SOURCE_COLUMNS
+        || semantics.constraint_trust.len() > MAX_SOURCE_CONSTRAINTS
+    {
+        out.push(oos(
+            "/source_semantics",
+            "source semantics exceeds its list budget",
+        ));
+        return;
+    }
+    let mut seen_columns = Vec::new();
+    for (index, column) in semantics.columns.iter().enumerate() {
+        if column.caveats.len() > MAX_SOURCE_CAVEATS {
+            out.push(oos(
+                &format!("/source_semantics/columns/{index}/caveats"),
+                "source semantics exceeds its list budget",
+            ));
+        }
+        if !file
+            .columns
+            .iter()
+            .any(|item| item.name.as_str() == column.column.as_str())
+        {
+            out.push(oos(
+                &format!("/source_semantics/columns/{index}/column"),
+                "source semantics names a column that is not on the dataset",
+            ));
+        }
+        if seen_columns.iter().any(|name| name == &column.column) {
+            out.push(oos(
+                &format!("/source_semantics/columns/{index}/column"),
+                "source semantics repeats a column",
+            ));
+        }
+        seen_columns.push(column.column.clone());
+    }
+    let mut seen_constraints = Vec::new();
+    for (index, constraint) in semantics.constraint_trust.iter().enumerate() {
+        if constraint.columns.is_empty() {
+            out.push(oos(
+                &format!("/source_semantics/constraint_trust/{index}/columns"),
+                "a source constraint names no column",
+            ));
+        }
+        for name in &constraint.columns {
+            if !file
+                .columns
+                .iter()
+                .any(|item| item.name.as_str() == name.as_str())
+            {
+                out.push(oos(
+                    &format!("/source_semantics/constraint_trust/{index}/columns"),
+                    "source semantics names a column that is not on the dataset",
+                ));
+            }
+        }
+        if constraint
+            .inclusion
+            .as_ref()
+            .is_some_and(|inclusion| inclusion.ratio_thousandths > 1000)
+        {
+            out.push(oos(
+                &format!("/source_semantics/constraint_trust/{index}/inclusion/ratio_thousandths"),
+                "ratio_thousandths is above 1000",
+            ));
+        }
+        if seen_constraints.iter().any(|name| name == &constraint.name) {
+            out.push(oos(
+                &format!("/source_semantics/constraint_trust/{index}/name"),
+                "source semantics repeats a constraint",
+            ));
+        }
+        seen_constraints.push(constraint.name.clone());
+    }
 }
 
 pub fn validate_relationships(file: &RelationshipsFile) -> Vec<crate::diagnostic::Diagnostic> {
@@ -1299,4 +1498,120 @@ fn oos(path: &str, message: impl Into<String>) -> crate::diagnostic::Diagnostic 
         path,
         message,
     )
+}
+
+#[cfg(test)]
+mod source_semantics_contract {
+    use super::{validate_dataset, DatasetFile};
+    use serde_json::json;
+
+    fn legacy() -> serde_json::Value {
+        json!({
+            "schema_version": "oos/v1",
+            "dataset": "public.customer",
+            "label": "customer",
+            "tier": "raw",
+            "columns": [
+                {"name": "id", "semantic_type": "identifier"},
+                {"name": "amount", "semantic_type": "money", "unit": "USD"}
+            ]
+        })
+    }
+
+    #[test]
+    fn legacy_dataset_omits_source_semantics_and_keeps_money_unit() {
+        let file: DatasetFile = serde_json::from_value(legacy()).expect("legacy dataset");
+        assert!(file.source_semantics.is_none());
+        let encoded = serde_json::to_value(&file).expect("encode");
+        assert!(encoded.get("source_semantics").is_none());
+        assert!(validate_dataset(&file).is_empty());
+        let mut money = legacy();
+        money["columns"][1].as_object_mut().unwrap().remove("unit");
+        let bare: DatasetFile = serde_json::from_value(money).expect("money without unit");
+        assert!(
+            validate_dataset(&bare)
+                .iter()
+                .any(|item| item.message.contains("money requires unit"))
+        );
+    }
+
+    #[test]
+    fn source_semantics_accepts_consistency_grades_and_rejects_profile_grade_and_authority() {
+        let mut document = legacy();
+        document["source_semantics"] = json!({
+            "family": "oracle",
+            "product": "oracle",
+            "version": "19c",
+            "capture": "batch_full",
+            "grade": "B",
+            "source_kind": "oracle_table",
+            "delete_detection": "reconcile",
+            "columns": [{
+                "column": "amount",
+                "caveats": ["precision_loss"],
+                "native_note": "unconstrained_number"
+            }],
+            "constraint_trust": [{
+                "name": "customer_party_fk",
+                "kind": "foreign_key",
+                "columns": ["id"],
+                "trust": "declared_only",
+                "disposition": "candidate",
+                "inclusion": {"rows_checked": 1000, "ratio_thousandths": 980}
+            }]
+        });
+        let file: DatasetFile = serde_json::from_value(document.clone()).expect("grade B");
+        assert!(validate_dataset(&file).is_empty());
+        assert_eq!(
+            file.source_semantics.as_ref().unwrap().grade,
+            Some(super::SourceConsistencyGrade::B)
+        );
+        let mut unobserved = document.clone();
+        unobserved["source_semantics"]
+            .as_object_mut()
+            .unwrap()
+            .remove("grade");
+        unobserved["source_semantics"]
+            .as_object_mut()
+            .unwrap()
+            .remove("delete_detection");
+        let bare: DatasetFile = serde_json::from_value(unobserved).expect("grade omitted");
+        let bare_semantics = bare.source_semantics.as_ref().unwrap();
+        assert!(bare_semantics.grade.is_none());
+        assert!(bare_semantics.delete_detection.is_none());
+        let encoded = serde_json::to_value(bare_semantics).expect("encode");
+        assert!(encoded.get("grade").is_none());
+        assert!(encoded.get("delete_detection").is_none());
+
+        for grade in ["A", "C", "D", "E", "F"] {
+            let mut rejected = document.clone();
+            rejected["source_semantics"]["grade"] = json!(grade);
+            assert!(
+                serde_json::from_value::<DatasetFile>(rejected).is_err(),
+                "{grade} is a profile grade"
+            );
+        }
+
+        let mut endpoint = document.clone();
+        endpoint["source_semantics"]["endpoint"] = json!("secret://shop");
+        assert!(serde_json::from_value::<DatasetFile>(endpoint).is_err());
+
+        let mut sql = document.clone();
+        sql["source_semantics"]["caveats"] = json!(["select nvl(name, id) from customer"]);
+        assert!(serde_json::from_value::<DatasetFile>(sql).is_err());
+
+        let mut ratio = document.clone();
+        ratio["source_semantics"]["constraint_trust"][0]["inclusion"]["ratio_thousandths"] =
+            json!(1001);
+        assert!(serde_json::from_value::<DatasetFile>(ratio).is_err());
+
+        let mut missing = document.clone();
+        missing["source_semantics"]["columns"][0]["column"] = json!("not_a_column");
+        let orphan: DatasetFile = serde_json::from_value(missing).expect("parses");
+        assert!(
+            validate_dataset(&orphan)
+                .iter()
+                .any(|item| item.path.contains("/source_semantics/columns/"))
+        );
+    }
 }

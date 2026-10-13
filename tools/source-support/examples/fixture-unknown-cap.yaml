@@ -1,0 +1,8 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-09
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "owned unknown capability fixture"
+targets:
+  - { id: fx-unknown, family: postgres, product: PostgreSQL, versions: ["16.2"], variant: self-managed,
+      driver: { path: P1, impl: sqlx/tokio-postgres },
+      caps: { delete_native: designed } }

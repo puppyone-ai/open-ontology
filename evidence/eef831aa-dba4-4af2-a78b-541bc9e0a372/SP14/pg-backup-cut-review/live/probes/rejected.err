@@ -1,4 +1,0 @@
-psql:/run-in/q-reject.sql:3: ERROR:  55P03: canceling statement due to lock timeout
-LINE 1: UPDATE shop.entry SET amount = 1.0001 WHERE entry_id = 3;
-               ^
-LOCATION:  ProcessInterrupts, postgres.c:3399

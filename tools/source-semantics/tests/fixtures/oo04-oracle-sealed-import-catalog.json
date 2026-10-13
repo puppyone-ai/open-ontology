@@ -1,0 +1,115 @@
+{
+  "capture": "sealed_import",
+  "config_digest": "d8eadf809a0942e2043810a67a15e197fd5239c2c81155640a337bcd716d744e",
+  "engine": "oracle",
+  "hook_checked": false,
+  "input_digest": "5064f81e25162f8b183b9fe2c515907a29387d9509f1a7ea3d7b129976556f08",
+  "protocol": "oo.pipeline.sealed-import-catalog/v1",
+  "quality": {
+    "loss_concealed": false,
+    "manifest_reject_count": 0,
+    "payload_includes_reject_lines": false,
+    "stored_omits_manifest_rejects": false,
+    "stored_rejected_rows": 0,
+    "stored_rows": [
+      {
+        "accepted_rows": 5,
+        "attnum": null,
+        "batch_id": "t0.b0",
+        "key_digest": null,
+        "kind": "batch",
+        "physical_name": "pt_5e45333504445ee97e15bd788ec340a8bfc7df11ee5c0c3000653faa65c6",
+        "reason": null,
+        "rejected_rows": 0,
+        "row_index": null,
+        "value_len": null
+      }
+    ]
+  },
+  "run_id": "f9992961-632f-4c51-a85d-710733e2c398",
+  "schema_digest": "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc",
+  "shadows_queried": false,
+  "source_generation": 1,
+  "source_id": "oo04_t_batch",
+  "source_introspection": "not_used",
+  "state": "awaiting_publish",
+  "tables": [
+    {
+      "accepted_rows": 5,
+      "canonical_digest": "30623a6548a4df5b7f254fc63e6b0c4a46c634356f0727f157116b6c44497827",
+      "columns": [
+        {
+          "caveat": null,
+          "key": true,
+          "logical_name": "id",
+          "oid": 21,
+          "source_type": null,
+          "stored_physical": "pc_7c36e293163bbdce9671ca92b0f131a20643aa21fab053fdb86d832270c4",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "n16",
+          "oid": 1700,
+          "source_type": null,
+          "stored_physical": "pc_17f01fe9345cb1bbeb50ca1367ee9a1ff7d5e7a3f2c553ca6b71f72fcb26",
+          "typmod": 1048586
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "n1",
+          "oid": 21,
+          "source_type": null,
+          "stored_physical": "pc_f2a8c8d1f81631bbba8e516406fa550a20766fba250cb6143b1dd6d6c311",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "d",
+          "oid": 1114,
+          "source_type": null,
+          "stored_physical": "pc_09c4d2a06d2c4264487f86b78d4d607e256c09d3315979d9719da3f8a379",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "c6",
+          "oid": 1042,
+          "source_type": null,
+          "stored_physical": "pc_3a54caae82422bc5e16fc35468e05270bfde6714c2ba8652ff3d4ea5c97d",
+          "typmod": 10
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "v2",
+          "oid": 1043,
+          "source_type": null,
+          "stored_physical": "pc_4f0fe5da7ed71f2d417f7adc163854995514c5535f9c2767a204b4936988",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "r",
+          "oid": 17,
+          "source_type": null,
+          "stored_physical": "pc_ec44d47fb6e2fe0f4da7de3f25090b69d5c5eb5231fb52f224e0747ac491",
+          "typmod": -1
+        }
+      ],
+      "logical_schema": "batch",
+      "logical_table": "t_batch",
+      "rejects": [],
+      "stored_namespace": "pn_e0a787441ad6b4923adbbf5ab679e12f691d92fc0453d2b3e86289925ce5",
+      "stored_physical": "pt_5e45333504445ee97e15bd788ec340a8bfc7df11ee5c0c3000653faa65c6"
+    }
+  ],
+  "target_generation": 2,
+  "tool_hook_digest": "662e2712f520ddef1bc86759eba34a929f38464e76e69aa3958f794bf77bc756",
+  "type_digest": "ae32553abc785f74a5b84b6afac4a4f5008df340455b7eabc1e0c23fb47a1f11"
+}

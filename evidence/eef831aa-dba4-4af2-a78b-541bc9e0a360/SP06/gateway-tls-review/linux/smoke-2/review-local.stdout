@@ -1,9 +1,0 @@
-
-running 4 tests
-test abrupt_close_accepts_only_a_complete_body ... ok
-test public_bind_rejects_bad_material_and_unverified_leaves ... ok
-test response_budgets_stay_on_the_shared_router ... ok
-test verified_leaf_does_not_select_the_token_tuple ... ignored, requires OO_A360_LIVE=1 and the private PostgreSQL
-
-test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.48s
-

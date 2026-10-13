@@ -1,3 +1,0 @@
-psql:/fixture/migrations/0002_event_project_binding_expand.sql:36: ERROR:  OO004: refusing event project binding: 1 preexisting task_events row(s) do not match tasks.project_id; this migration does not rewrite, delete, or forge a correction
-CONTEXT:  PL/pgSQL function inline_code_block line 14 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

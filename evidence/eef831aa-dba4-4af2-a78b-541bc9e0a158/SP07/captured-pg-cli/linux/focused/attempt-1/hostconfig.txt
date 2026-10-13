@@ -1,9 +1,0 @@
-ExitCode=1
-Status=exited
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a158-eef831aa-net
-Memory=8589934592
-CapDrop=["ALL"]
-CapAdd=null
-PortBindings={}

@@ -1,0 +1,35 @@
+[package]
+name = "postgres-preview"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Operator CLI for one native PostgreSQL 17.10 controlled preview. Not a public gateway."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+arrow-array = "=60.0.0"
+arrow-ipc = "=60.0.0"
+arrow-schema = "=60.0.0"
+bytes = "=1.12.1"
+futures-util = { version = "=0.3.34", default-features = false, features = ["sink"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

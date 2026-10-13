@@ -16,10 +16,16 @@ mod config;
 mod error;
 mod generate;
 mod http;
+mod import;
+mod document_profile;
+mod source_contract;
+mod native_import;
+mod native_catalog;
 mod profile;
+mod sealed;
 
 pub use bridge::{
-    pack_combined, pack_pair, review_only, seal_request, scaffold_curated, CombinedIn, PackIn,
+    pack_combined, pack_pair, review_only, seal_request, seal_request_for_model, scaffold_curated, CombinedIn, PackIn,
 };
 pub use description_pack::apply_description_pack_combined;
 pub use cache::{cache_path, read_validated, store_validated};
@@ -32,6 +38,16 @@ pub use generate::{
     RawReply, ScriptedTransport,
 };
 pub use http::{post_loopback, HttpReply};
+pub use import::{
+    import_cards, import_seal, run_import, run_import_pg_catalog, CARDS_PROTOCOL, SEAL_PROTOCOL,
+};
+pub use native_import::{route, run_native_import, NativeRoute, ENVELOPE_PROTOCOL};
+pub use native_catalog::{gate_request, run_import_native_catalog, REQUEST_PROTOCOL as NATIVE_CATALOG_REQUEST};
+pub use sealed::{draft_only, sealed_build, SealedBuild, SealedTarget, DEPENDENCY_SHA};
+pub use document_profile::{compile_document_profile, DocumentProfileIn, PROTOCOL as DOCUMENT_PROFILE_PROTOCOL};
+pub use source_contract::{
+    bind_source_pack, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,
+};
 pub use profile::{catalog_request, read_comments, read_profile, run_catalog};
 
 pub const PROMPT_VERSION: &str = "oo.pg-builder.prompt/v2";

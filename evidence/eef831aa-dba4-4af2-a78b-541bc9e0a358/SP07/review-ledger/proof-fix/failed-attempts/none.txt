@@ -1,3 +1,0 @@
-This amendment had no failed cargo test, Clippy, or restart attempt.
-The pre-edit smoke in smoke-fix exited 0.
-Earlier failed attempts stay in proof/failed-attempts and belong to product f862683945a6e5a8803e3f9450d0f51cde5a98ad.

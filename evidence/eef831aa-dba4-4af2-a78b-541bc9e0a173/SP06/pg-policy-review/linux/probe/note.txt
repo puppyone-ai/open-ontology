@@ -1,4 +1,0 @@
-Harness assertion at overlay line 79 required the public error to contain "cert" or "UnknownIssuer".
-connect_require_tls refused the other CA. Display was: postgres sqlstate= error performing TLS handshake.
-No SQL ran. The container exit is 101. probe-2 classifies that handshake refusal instead of requiring the rustls source, which db_error drops.
-Clippy was not installed in this fresh container. The smoke container had added it under /usr/local/rustup, and that filesystem did not persist.

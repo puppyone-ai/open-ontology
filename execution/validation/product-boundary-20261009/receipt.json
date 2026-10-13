@@ -1,0 +1,17 @@
+{
+  "task": "product-boundary-doc-alignment",
+  "source_revision": 4,
+  "source_commit": "12cfdc48260636032429449d4e66253d54c1e3cd",
+  "owner_authority": "direct user correction and explicit request to align docs",
+  "checks": {
+    "spec": 0,
+    "plan": 0,
+    "todo": 0,
+    "references": 0
+  },
+  "local_references": 183,
+  "unchanged_code_examples": true,
+  "new_product_acceptance": false,
+  "new_workers": false,
+  "protected_foreign_changes": "preserved"
+}

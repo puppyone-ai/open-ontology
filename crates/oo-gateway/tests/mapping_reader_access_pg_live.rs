@@ -14,20 +14,20 @@ use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 
 use oo_gateway::mapping_reader_access::{
-    provision_mapping_reader, MappingReaderEffect, MappingReaderError, MappingReaderOutcome,
+    MappingReaderEffect, MappingReaderError, MappingReaderOutcome, provision_mapping_reader,
 };
-use oo_gateway::policy::catalog::{load_policy_catalog, CatalogError, CatalogLimits, UnknownRows};
+use oo_gateway::policy::catalog::{CatalogError, CatalogLimits, UnknownRows, load_policy_catalog};
 use oo_gateway::policy::{
-    compile_column_acl, connect_require_tls, install_column_acl_set, rustls_connector, ClassStatus,
-    ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError, RowFilter,
-    TlsEndpoint,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
+    RowFilter, TlsEndpoint, compile_column_acl, connect_require_tls, install_column_acl_set,
+    rustls_connector,
 };
 use oo_gateway::query_executor::{
-    AuditAdmission, Cell, CompletionRecord, CompletionStatus, DedicatedSession, ExecError, SelectRequest,
-    SelectStream,
+    AuditAdmission, Cell, CompletionRecord, CompletionStatus, DedicatedSession, ExecError,
+    SelectRequest, SelectStream,
 };
 use oo_gateway::{PolicyIdentity, TlsConnection};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio_postgres::Client;
 
 const HOST: &str = "oo-a240-pg";
@@ -97,7 +97,10 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     )
     .await;
     let server = server_facts(&admin).await;
-    assert!(server.starts_with("ssl=true\n") || server.starts_with("ssl=t\n"), "{server}");
+    assert!(
+        server.starts_with("ssl=true\n") || server.starts_with("ssl=t\n"),
+        "{server}"
+    );
     fs::write(format!("{LIVE_DIR}/server.txt"), &server).expect("server");
     oracle.fact("server", server.trim());
 
@@ -160,7 +163,9 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     assert_eq!(import_doc["state"], "awaiting_publish");
     assert_eq!(import_doc["table_count"], 2);
     assert_eq!(import_doc["source_generation"], GENERATION);
-    let target_generation = import_doc["target_generation"].as_i64().expect("target generation");
+    let target_generation = import_doc["target_generation"]
+        .as_i64()
+        .expect("target generation");
     assert_ne!(target_generation, GENERATION);
     oracle.fact("import_state", "awaiting_publish");
     oracle.fact("import_tables", "2");
@@ -178,7 +183,11 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     assert!(names.contains_key("customer"));
     assert!(names.contains_key("order_doc"));
 
-    let publications = count_sql(&target, "SELECT count(*)::int8 FROM pg_catalog.pg_publication").await;
+    let publications = count_sql(
+        &target,
+        "SELECT count(*)::int8 FROM pg_catalog.pg_publication",
+    )
+    .await;
     let runtime_owner = bool_sql(
         &target,
         "SELECT pg_catalog.pg_has_role('oo_pipeline_runtime', 'oo_target_owner', 'member')",
@@ -195,19 +204,27 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     oracle.fact("publication", "0");
     oracle.fact("runtime_owner", "false");
 
-    let clerk = role_set("clerk", LOGIN, &digest, &["customer_id", "display_name", "active"], &[
-        "order_id",
-        "customer_id",
-        "memo",
-        "posted",
-        "amount",
-        "clerk_note",
-    ]);
-    let peek = role_set("peek", LOGIN, &digest, &["customer_id", "display_name"], &[
-        "order_id",
-        "customer_id",
-        "amount",
-    ]);
+    let clerk = role_set(
+        "clerk",
+        LOGIN,
+        &digest,
+        &["customer_id", "display_name", "active"],
+        &[
+            "order_id",
+            "customer_id",
+            "memo",
+            "posted",
+            "amount",
+            "clerk_note",
+        ],
+    );
+    let peek = role_set(
+        "peek",
+        LOGIN,
+        &digest,
+        &["customer_id", "display_name"],
+        &["order_id", "customer_id", "amount"],
+    );
     assert_eq!(
         provision_mapping_reader(&mut target, LOGIN, &clerk).await,
         Err(MappingReaderError::MembershipMismatch)
@@ -234,11 +251,15 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     );
     oracle.fact("pure_refusals", "empty_filter_login");
 
-    let clerk_installed = install_column_acl_set(&mut target, &clerk).await.expect("clerk install");
+    let clerk_installed = install_column_acl_set(&mut target, &clerk)
+        .await
+        .expect("clerk install");
     assert_eq!(clerk_installed.effect, InstallEffect::Installed);
     assert_eq!(clerk_installed.role, "oo_r_clerk");
     assert_eq!(clerk_installed.tables.len(), 2);
-    let peek_installed = install_column_acl_set(&mut target, &peek).await.expect("peek install");
+    let peek_installed = install_column_acl_set(&mut target, &peek)
+        .await
+        .expect("peek install");
     assert_eq!(peek_installed.effect, InstallEffect::Installed);
     assert_eq!(peek_installed.role, "oo_r_peek");
     assert_eq!(peek_installed.tables.len(), 2);
@@ -310,7 +331,13 @@ async fn mapping_reader_provision_then_catalog_and_query() {
         provision_mapping_reader(&mut target, MEMBER, &member_set).await,
         Err(MappingReaderError::OwnerMembership)
     );
-    let unsupported = role_set("wide", LOGIN, &digest, &["customer_id", "ratio"], &["order_id"]);
+    let unsupported = role_set(
+        "wide",
+        LOGIN,
+        &digest,
+        &["customer_id", "ratio"],
+        &["order_id"],
+    );
     assert_eq!(
         provision_mapping_reader(&mut target, LOGIN, &unsupported).await,
         Err(MappingReaderError::Unsupported {
@@ -335,7 +362,11 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     oracle.fact("partial_set", "GrantMismatch");
 
     create_login(&admin, EXTRA, &extra_pass, "NOINHERIT").await;
-    exec(&admin, &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {EXTRA}")).await;
+    exec(
+        &admin,
+        &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {EXTRA}"),
+    )
+    .await;
     let extra_set = role_set(
         "extra",
         EXTRA,
@@ -401,19 +432,41 @@ async fn mapping_reader_provision_then_catalog_and_query() {
 
     let clerk_catalog = load_one(&login_pass, &ca, "oo_r_clerk", &digest, &clerk).await;
     let peek_catalog = load_one(&login_pass, &ca, "oo_r_peek", &digest, &peek).await;
-    assert_eq!(relation_names(&clerk_catalog), vec!["customer".to_string(), "order_doc".to_string()]);
-    assert_eq!(relation_names(&peek_catalog), vec!["customer".to_string(), "order_doc".to_string()]);
+    assert_eq!(
+        relation_names(&clerk_catalog),
+        vec!["customer".to_string(), "order_doc".to_string()]
+    );
+    assert_eq!(
+        relation_names(&peek_catalog),
+        vec!["customer".to_string(), "order_doc".to_string()]
+    );
     assert_eq!(
         column_names(&clerk_catalog, "customer"),
-        vec!["customer_id".to_string(), "display_name".to_string(), "active".to_string()]
+        vec![
+            "customer_id".to_string(),
+            "display_name".to_string(),
+            "active".to_string()
+        ]
     );
     assert_eq!(
         column_names(&peek_catalog, "customer"),
         vec!["customer_id".to_string(), "display_name".to_string()]
     );
-    assert!(!column_names(&clerk_catalog, "customer").iter().any(|name| name == "private_note"));
-    assert!(!column_names(&clerk_catalog, "customer").iter().any(|name| name == "ratio"));
-    assert!(!column_names(&peek_catalog, "order_doc").iter().any(|name| name == "clerk_note"));
+    assert!(
+        !column_names(&clerk_catalog, "customer")
+            .iter()
+            .any(|name| name == "private_note")
+    );
+    assert!(
+        !column_names(&clerk_catalog, "customer")
+            .iter()
+            .any(|name| name == "ratio")
+    );
+    assert!(
+        !column_names(&peek_catalog, "order_doc")
+            .iter()
+            .any(|name| name == "clerk_note")
+    );
     oracle.fact("catalog_tables", "2");
     oracle.fact("catalog_roles", "2");
 
@@ -429,9 +482,17 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     assert_eq!(
         clerk_rows,
         vec![
-            vec![Cell::Int("41".to_string()), Cell::Text("丙号".to_string()), Cell::Bool(true)],
+            vec![
+                Cell::Int("41".to_string()),
+                Cell::Text("丙号".to_string()),
+                Cell::Bool(true)
+            ],
             vec![Cell::Int("42".to_string()), Cell::Null, Cell::Bool(false)],
-            vec![Cell::Int("43".to_string()), Cell::Text("丁铺".to_string()), Cell::Bool(true)],
+            vec![
+                Cell::Int("43".to_string()),
+                Cell::Text("丁铺".to_string()),
+                Cell::Bool(true)
+            ],
         ]
     );
     let peek_rows = compiled_query(
@@ -446,8 +507,14 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     assert_eq!(
         peek_rows,
         vec![
-            vec![Cell::Int("701".to_string()), Cell::Int("-9223372036854775808".to_string())],
-            vec![Cell::Int("702".to_string()), Cell::Int("9223372036854775807".to_string())],
+            vec![
+                Cell::Int("701".to_string()),
+                Cell::Int("-9223372036854775808".to_string())
+            ],
+            vec![
+                Cell::Int("702".to_string()),
+                Cell::Int("9223372036854775807".to_string())
+            ],
             vec![Cell::Int("703".to_string()), Cell::Int("0".to_string())],
         ]
     );
@@ -487,16 +554,20 @@ async fn mapping_reader_provision_then_catalog_and_query() {
     );
     oracle.fact("source_writes", "reader_runtime_login_zero");
     oracle.fact("runtime_owner_after", "false");
-    assert!(!bool_sql(
-        &target,
-        "SELECT pg_catalog.pg_has_role('oo_pipeline_runtime', 'oo_target_owner', 'member')"
-    )
-    .await);
-    assert!(!bool_sql(
-        &target,
-        &format!("SELECT pg_catalog.pg_has_role('{LOGIN}', 'oo_target_owner', 'member')")
-    )
-    .await);
+    assert!(
+        !bool_sql(
+            &target,
+            "SELECT pg_catalog.pg_has_role('oo_pipeline_runtime', 'oo_target_owner', 'member')"
+        )
+        .await
+    );
+    assert!(
+        !bool_sql(
+            &target,
+            &format!("SELECT pg_catalog.pg_has_role('{LOGIN}', 'oo_target_owner', 'member')")
+        )
+        .await
+    );
     assert_eq!(login_shadow_column_grants(&target, LOGIN).await, 0);
     assert_eq!(
         login_mapping_column_grants(&target, LOGIN).await,
@@ -519,7 +590,11 @@ async fn mapping_reader_provision_then_catalog_and_query() {
         assert!(!outcome_text.contains(ban), "outcome contains a secret");
     }
     fs::write(format!("{LIVE_DIR}/outcome.json"), outcome_text).expect("outcome");
-    fs::write(format!("{LIVE_DIR}/outcome.txt"), "mapping_reader_access_recorded\n").expect("outcome text");
+    fs::write(
+        format!("{LIVE_DIR}/outcome.txt"),
+        "mapping_reader_access_recorded\n",
+    )
+    .expect("outcome text");
     oracle.fact("outcome", "mapping_reader_access_recorded");
 }
 
@@ -536,7 +611,13 @@ fn role_set(
     ]
 }
 
-fn table_policy(role: &str, login: &str, digest: &str, table: &str, columns: &[&str]) -> ColumnAclPolicy {
+fn table_policy(
+    role: &str,
+    login: &str,
+    digest: &str,
+    table: &str,
+    columns: &[&str],
+) -> ColumnAclPolicy {
     ColumnAclPolicy {
         project: SOURCE_ID.to_string(),
         config_digest: digest.to_string(),
@@ -588,7 +669,11 @@ fn limits() -> CatalogLimits {
 }
 
 fn relation_names(catalog: &oo_gateway::PolicyCatalog) -> Vec<String> {
-    let mut names: Vec<String> = catalog.relations.iter().map(|relation| relation.name.clone()).collect();
+    let mut names: Vec<String> = catalog
+        .relations
+        .iter()
+        .map(|relation| relation.name.clone())
+        .collect();
     names.sort();
     names
 }
@@ -613,9 +698,14 @@ async fn load_one(
     policies: &[ColumnAclPolicy],
 ) -> oo_gateway::PolicyCatalog {
     let mut client = connect_db(TARGET_DB, LOGIN, login_pass, ca).await;
-    load_policy_catalog(&mut client, &identity(role, digest), &compiled(policies), &limits())
-        .await
-        .expect("catalog")
+    load_policy_catalog(
+        &mut client,
+        &identity(role, digest),
+        &compiled(policies),
+        &limits(),
+    )
+    .await
+    .expect("catalog")
 }
 
 async fn compiled_query(
@@ -642,6 +732,8 @@ async fn compiled_query(
                 max_rows: 10,
                 max_result_bytes: 65_536,
                 wall_clock: Duration::from_millis(15_000),
+                read_quality: false,
+                quality_vector: None,
             },
             QuietAudit,
         )
@@ -673,7 +765,10 @@ async fn finish_ok(session: &mut DedicatedSession, mut stream: SelectStream) -> 
 struct QuietAudit;
 
 impl AuditAdmission for QuietAudit {
-    async fn admit(&mut self, _admission: &oo_gateway::query_executor::Admission<'_>) -> Result<(), ExecError> {
+    async fn admit(
+        &mut self,
+        _admission: &oo_gateway::query_executor::Admission<'_>,
+    ) -> Result<(), ExecError> {
         Ok(())
     }
 
@@ -682,7 +777,13 @@ impl AuditAdmission for QuietAudit {
     }
 }
 
-async fn hidden_denied(client: &Client, role: &str, names: &BTreeMap<String, String>, table: &str, column: &str) {
+async fn hidden_denied(
+    client: &Client,
+    role: &str,
+    names: &BTreeMap<String, String>,
+    table: &str,
+    column: &str,
+) {
     exec(client, &format!("SET ROLE \"{role}\"")).await;
     let sql = format!(
         "SELECT {} FROM \"_oo\".{}",
@@ -870,9 +971,10 @@ fn quote_physical(name: &str) -> String {
         .expect("prefix");
     assert_eq!(name.len(), 63);
     assert_eq!(rest.len(), 60);
-    assert!(rest
-        .bytes()
-        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+    assert!(
+        rest.bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    );
     format!("\"{name}\"")
 }
 
@@ -895,7 +997,9 @@ async fn source_audit(admin_pass: &str, ca: &[u8]) -> BTreeMap<String, i64> {
         )
         .await
         .expect("audit");
-    rows.into_iter().map(|row| (row.get(0), row.get(1))).collect()
+    rows.into_iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect()
 }
 
 async fn count_sql(client: &Client, sql: &str) -> i64 {
@@ -935,11 +1039,28 @@ async fn server_facts(client: &Client) -> String {
 
 async fn reset_cluster(admin: &Client) {
     for database in [SOURCE_DB, TARGET_DB] {
-        exec(admin, &format!("DROP DATABASE IF EXISTS {database} WITH (FORCE)")).await;
+        exec(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {database} WITH (FORCE)"),
+        )
+        .await;
     }
     for role in [
-        READER, WRITER, RUNTIME, LOGIN, EXTRA, MEMBER, SUPER, "oo_r_clerk", "oo_r_peek", "oo_r_extra",
-        "oo_r_wide", "oo_r_super_set", "oo_r_member_set", "oo_pipeline_runtime", "oo_target_owner",
+        READER,
+        WRITER,
+        RUNTIME,
+        LOGIN,
+        EXTRA,
+        MEMBER,
+        SUPER,
+        "oo_r_clerk",
+        "oo_r_peek",
+        "oo_r_extra",
+        "oo_r_wide",
+        "oo_r_super_set",
+        "oo_r_member_set",
+        "oo_pipeline_runtime",
+        "oo_target_owner",
     ] {
         let _ = admin
             .batch_execute(&format!(
@@ -964,7 +1085,10 @@ async fn reset_cluster(admin: &Client) {
 
 async fn create_login(admin: &Client, name: &str, password: &str, inherit: &str) {
     assert!(password.chars().all(|ch| ch.is_ascii_hexdigit()));
-    assert!(name.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_'));
+    assert!(
+        name.chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')
+    );
     exec(
         admin,
         &format!(
@@ -996,7 +1120,12 @@ async fn connect_db(database: &str, user: &str, password: &str, ca: &[u8]) -> Cl
     client
 }
 
-async fn connect_pair(database: &str, user: &str, password: &str, ca: &[u8]) -> (Client, TlsConnection) {
+async fn connect_pair(
+    database: &str,
+    user: &str,
+    password: &str,
+    ca: &[u8],
+) -> (Client, TlsConnection) {
     let endpoint = TlsEndpoint {
         host: HOST.to_string(),
         port: 5432,

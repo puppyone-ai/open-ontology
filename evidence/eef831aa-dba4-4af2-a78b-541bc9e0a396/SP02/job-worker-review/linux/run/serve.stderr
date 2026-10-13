@@ -1,4 +1,0 @@
-event=serve workers=1
-event=claimed worker=w-000 task=5960b635-44cd-474f-a1da-57b66c99371d generation=1
-event=complete status=succeeded task=5960b635-44cd-474f-a1da-57b66c99371d generation=1
-event=serve_stop

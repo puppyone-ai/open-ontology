@@ -1,3 +1,0 @@
-/usr/bin/aarch64-linux-gnu-gcc-14
-/usr/bin/aarch64-linux-gnu-gcc-14
-/usr/bin/aarch64-linux-gnu-gcc-14

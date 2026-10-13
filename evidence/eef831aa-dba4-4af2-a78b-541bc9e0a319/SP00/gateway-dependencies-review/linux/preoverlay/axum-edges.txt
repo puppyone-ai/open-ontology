@@ -1,2 +1,0 @@
-axum_edges=pass
-httpdate_edge=hyper-util-server-enables-hyper-server

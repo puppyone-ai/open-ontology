@@ -1,0 +1,24 @@
+{
+  "task": "DL01-W1-11",
+  "author_commit": "daff7345679701deaed9ff9b285d07a7b0f6c812",
+  "seal_commit": "7f73a9ac4aa7ba620735b2d5f9d6da30bf6c88a8",
+  "reviewer": "Codex coordinator intake, fixed independent runtime review still pending",
+  "packet_entries_verified": 441,
+  "status": "author_target_preparation_intact_runtime_review_pending",
+  "source_product_accepted": false,
+  "rust_driver_compiled": false,
+  "arrow_loader_builder_consumption_proven": false,
+  "development_delta": 0,
+  "source_delta": 0,
+  "consumer_prerequisites": [
+    "committed implemented shared source interface",
+    "independent decisive target preparation review",
+    "Rust/MSRV actual driver",
+    "same real source -> Arrow -> PG -> Builder/Pack -> nonPi consumer"
+  ],
+  "scope_limits": [
+    "Cancel was DBA KILL, not the future platform-reader cancel path.",
+    "Readonly source production path must not run fixture DBA DML/control or negative privilege attempts.",
+    "Exact Decimal256/trailing zeros and nanosecond original value must remain preserved in final adapter; representative data nonempty but no 100k PG/MySQL substitution."
+  ]
+}

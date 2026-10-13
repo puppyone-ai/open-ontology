@@ -296,16 +296,13 @@ pub fn prepare_description_request(input: &str) -> Result<String, DescriptionCan
 /// structural draft hashes and returns an empty candidate array.
 pub fn complete_description_candidates(input: &str) -> Result<String, DescriptionCandidateError> {
     let admitted = admit(input, true)?;
-    let response = admitted
-        .response
-        .clone()
-        .ok_or_else(|| {
-            DescriptionCandidateError::command(
-                "field.missing",
-                "/captured_response",
-                "complete requires a captured response",
-            )
-        })?;
+    let response = admitted.response.clone().ok_or_else(|| {
+        DescriptionCandidateError::command(
+            "field.missing",
+            "/captured_response",
+            "complete requires a captured response",
+        )
+    })?;
     match stage(admitted)? {
         Stage::Budget(document) => Ok(document),
         Stage::Ready(ready) => finish(apply_response(&ready, &response)?),
@@ -359,10 +356,7 @@ fn admit(input: &str, expect_response: bool) -> Result<Admission, DescriptionCan
 fn stage(admitted: Admission) -> Result<Stage, DescriptionCandidateError> {
     let max_tables = usize::try_from(admitted.budget.max_tables).unwrap_or(usize::MAX);
     if admitted.tables.len() > max_tables {
-        return Ok(Stage::Budget(budget_document(
-            &admitted,
-            "tables",
-        )?));
+        return Ok(Stage::Budget(budget_document(&admitted, "tables")?));
     }
     for table in &admitted.tables {
         let physical = admitted
@@ -380,7 +374,8 @@ fn stage(admitted: Admission) -> Result<Stage, DescriptionCandidateError> {
         }
     }
     let ready = build_request(admitted)?;
-    if ready.request_text.len() > usize::try_from(ready.budget.max_request_bytes).unwrap_or(usize::MAX)
+    if ready.request_text.len()
+        > usize::try_from(ready.budget.max_request_bytes).unwrap_or(usize::MAX)
     {
         let admitted = Admission {
             sealed: ready.sealed,
@@ -405,7 +400,10 @@ fn datasets_as_tables(datasets: &[String]) -> Vec<AdmittedTable> {
         .collect()
 }
 
-fn budget_document(admitted: &Admission, reason: &str) -> Result<String, DescriptionCandidateError> {
+fn budget_document(
+    admitted: &Admission,
+    reason: &str,
+) -> Result<String, DescriptionCandidateError> {
     let selected = selected_names(admitted);
     Ok(canonical_json(&outcome_value(
         &admitted.sealed,
@@ -455,7 +453,12 @@ fn build_request(admitted: Admission) -> Result<Ready, DescriptionCandidateError
             .physical
             .get(&(table.schema.clone(), table.name.clone()))
             .ok_or_else(seal_error)?;
-        let card = card_value(physical, &table.dataset, &selected_keys, &admitted.sealed.physical)?;
+        let card = card_value(
+            physical,
+            &table.dataset,
+            &selected_keys,
+            &admitted.sealed.physical,
+        )?;
         let digest = canonical_sha256(&card);
         let Some(object) = card_object(card, &digest) else {
             return Err(seal_error());
@@ -467,21 +470,77 @@ fn build_request(admitted: Admission) -> Result<Ready, DescriptionCandidateError
     let mut request = Map::new();
     insert(&mut request, "boundary", boundary_value(&cards, prompt));
     insert(&mut request, "budget", budget_value);
-    insert(&mut request, "budget_sha256", Value::String(budget_sha256.clone()));
-    insert(&mut request, "compiler", Value::String(DESCRIPTION_CANDIDATE_COMPILER.to_string()));
-    insert(&mut request, "config_hash", Value::String(admitted.sealed.config_hash.clone()));
-    insert(&mut request, "draft_hash", Value::String(admitted.sealed.draft_hash.clone()));
-    insert(&mut request, "evidence_hash", Value::String(admitted.sealed.evidence_hash.clone()));
-    insert(&mut request, "manifest_hash", Value::String(admitted.sealed.manifest_hash.clone()));
-    insert(&mut request, "model_id", Value::String(admitted.binding.model_id.clone()));
-    insert(&mut request, "prompt_sha256", Value::String(prompt_sha256.clone()));
-    insert(&mut request, "prompt_version", Value::String(prompt_version.to_string()));
-    insert(&mut request, "protocol", Value::String(DESCRIPTION_REQUEST_PROTOCOL.to_string()));
-    insert(&mut request, "schema_hash", Value::String(admitted.sealed.schema_hash.clone()));
-    insert(&mut request, "source_id", Value::String(admitted.sealed.source_id.clone()));
+    insert(
+        &mut request,
+        "budget_sha256",
+        Value::String(budget_sha256.clone()),
+    );
+    insert(
+        &mut request,
+        "compiler",
+        Value::String(DESCRIPTION_CANDIDATE_COMPILER.to_string()),
+    );
+    insert(
+        &mut request,
+        "config_hash",
+        Value::String(admitted.sealed.config_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "draft_hash",
+        Value::String(admitted.sealed.draft_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "evidence_hash",
+        Value::String(admitted.sealed.evidence_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "manifest_hash",
+        Value::String(admitted.sealed.manifest_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "model_id",
+        Value::String(admitted.binding.model_id.clone()),
+    );
+    insert(
+        &mut request,
+        "prompt_sha256",
+        Value::String(prompt_sha256.clone()),
+    );
+    insert(
+        &mut request,
+        "prompt_version",
+        Value::String(prompt_version.to_string()),
+    );
+    insert(
+        &mut request,
+        "protocol",
+        Value::String(DESCRIPTION_REQUEST_PROTOCOL.to_string()),
+    );
+    insert(
+        &mut request,
+        "schema_hash",
+        Value::String(admitted.sealed.schema_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "source_id",
+        Value::String(admitted.sealed.source_id.clone()),
+    );
     insert(&mut request, "statements", statements());
-    insert(&mut request, "type_hash", Value::String(admitted.sealed.type_hash.clone()));
-    insert(&mut request, "wrapper_hash", Value::String(admitted.sealed.wrapper_hash.clone()));
+    insert(
+        &mut request,
+        "type_hash",
+        Value::String(admitted.sealed.type_hash.clone()),
+    );
+    insert(
+        &mut request,
+        "wrapper_hash",
+        Value::String(admitted.sealed.wrapper_hash.clone()),
+    );
     let unsigned = Value::Object(request);
     let request_sha256 = canonical_sha256(&unsigned);
     let Some(mut object) = unsigned.as_object().cloned() else {
@@ -493,7 +552,8 @@ fn build_request(admitted: Admission) -> Result<Ready, DescriptionCandidateError
     );
     let request_text = canonical_json(&Value::Object(object));
     // Cards above stay in (schema, name) order. Outcomes list the dataset strings.
-    let mut selected_datasets: Vec<String> = tables.into_iter().map(|table| table.dataset).collect();
+    let mut selected_datasets: Vec<String> =
+        tables.into_iter().map(|table| table.dataset).collect();
     selected_datasets.sort();
     Ok(Ready {
         request_text,
@@ -721,7 +781,10 @@ fn comment_value(value: &Value) -> Result<Value, DescriptionCandidateError> {
     }
 }
 
-fn apply_response(ready: &Ready, captured: &CapturedResponse) -> Result<String, DescriptionCandidateError> {
+fn apply_response(
+    ready: &Ready,
+    captured: &CapturedResponse,
+) -> Result<String, DescriptionCandidateError> {
     if captured.status != "complete" {
         return non_complete(ready, captured);
     }
@@ -785,7 +848,10 @@ fn apply_v2(ready: &Ready, value: Value) -> Result<String, DescriptionCandidateE
     accept_v2(ready, parsed.candidates, parsed.columns)
 }
 
-fn non_complete(ready: &Ready, captured: &CapturedResponse) -> Result<String, DescriptionCandidateError> {
+fn non_complete(
+    ready: &Ready,
+    captured: &CapturedResponse,
+) -> Result<String, DescriptionCandidateError> {
     if !matches!(
         captured.status.as_str(),
         "truncated" | "incomplete" | "provider_failure" | "budget_failure"
@@ -945,7 +1011,9 @@ fn column_rows(ready: &Ready, columns: Vec<ColumnIn>) -> Rows {
     });
     let mut out = Vec::with_capacity(ordered.len());
     for column in ordered {
-        let Some(sealed) = ready.columns.get(&(column.dataset.clone(), column.column.clone()))
+        let Some(sealed) = ready
+            .columns
+            .get(&(column.dataset.clone(), column.column.clone()))
         else {
             return Rows::Incomplete;
         };
@@ -982,7 +1050,8 @@ fn column_refusal(column: &ColumnIn, budget: &BudgetIn) -> Option<&'static str> 
         return Some(refusal);
     }
     if column.caveats.len() > usize::try_from(budget.max_caveats).unwrap_or(usize::MAX)
-        || column.open_questions.len() > usize::try_from(budget.max_open_questions).unwrap_or(usize::MAX)
+        || column.open_questions.len()
+            > usize::try_from(budget.max_open_questions).unwrap_or(usize::MAX)
     {
         return Some("bounds");
     }
@@ -1012,7 +1081,8 @@ fn candidate_refusal(candidate: &CandidateIn, budget: &BudgetIn) -> Option<&'sta
             .or_else(|| text_refusal(&candidate.grain, budget.max_grain_chars, false));
     }
     if candidate.caveats.len() > usize::try_from(budget.max_caveats).unwrap_or(usize::MAX)
-        || candidate.open_questions.len() > usize::try_from(budget.max_open_questions).unwrap_or(usize::MAX)
+        || candidate.open_questions.len()
+            > usize::try_from(budget.max_open_questions).unwrap_or(usize::MAX)
     {
         return Some("bounds");
     }
@@ -1033,7 +1103,10 @@ fn candidate_refusal(candidate: &CandidateIn, budget: &BudgetIn) -> Option<&'sta
 }
 
 fn text_refusal(value: &str, max_chars: u32, allow_empty: bool) -> Option<&'static str> {
-    if value.chars().any(|ch| ch == '\0' || is_forbidden_control(ch)) {
+    if value
+        .chars()
+        .any(|ch| ch == '\0' || is_forbidden_control(ch))
+    {
         return Some("type");
     }
     let count = value.chars().count();
@@ -1233,9 +1306,9 @@ fn check_binding(binding: &BindingIn, sealed: &Sealed) -> Result<(), Description
 fn valid_model_id(value: &str) -> bool {
     let bytes = value.as_bytes();
     (1..=128).contains(&bytes.len())
-        && bytes.iter().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-')
-        })
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-'))
 }
 
 fn bind_selection(
@@ -1244,7 +1317,8 @@ fn bind_selection(
 ) -> Result<Vec<AdmittedTable>, DescriptionCandidateError> {
     require_hash(&selection.evidence_hash, "/selection/evidence_hash")?;
     require_hash(&selection.schema_hash, "/selection/schema_hash")?;
-    if selection.evidence_hash != sealed.evidence_hash || selection.schema_hash != sealed.schema_hash
+    if selection.evidence_hash != sealed.evidence_hash
+        || selection.schema_hash != sealed.schema_hash
     {
         return Err(DescriptionCandidateError::new(
             "selection.stale",
@@ -1384,7 +1458,8 @@ fn open_sealed(artifact: &Value) -> Result<Sealed, DescriptionCandidateError> {
     {
         return Err(seal_error());
     }
-    let recomputed = compile_structure_draft(&canonical_json(envelope)).map_err(|_| seal_error())?;
+    let recomputed =
+        compile_structure_draft(&canonical_json(envelope)).map_err(|_| seal_error())?;
     let embedded = object.get("draft").ok_or_else(seal_error)?;
     if !embedded.is_object() || canonical_json(embedded) != recomputed {
         return Err(seal_error());
@@ -1519,7 +1594,10 @@ fn require_str<'a>(value: &'a Value, key: &str) -> Result<&'a str, DescriptionCa
 }
 
 fn json_i64(value: &Value, key: &str) -> Result<i64, DescriptionCandidateError> {
-    value.get(key).and_then(Value::as_i64).ok_or_else(seal_error)
+    value
+        .get(key)
+        .and_then(Value::as_i64)
+        .ok_or_else(seal_error)
 }
 
 fn json_bool(value: &Value, key: &str) -> Result<bool, DescriptionCandidateError> {
@@ -1539,9 +1617,9 @@ fn seal_error() -> DescriptionCandidateError {
 
 fn map_scan(err: DiagnosticList) -> DescriptionCandidateError {
     let item = err.items.first();
-    let code = item.map(|diag| diag.code.clone()).unwrap_or_else(|| {
-        format!("{DESCRIPTION_REQUEST_COMMAND_PROTOCOL}/json.syntax")
-    });
+    let code = item
+        .map(|diag| diag.code.clone())
+        .unwrap_or_else(|| format!("{DESCRIPTION_REQUEST_COMMAND_PROTOCOL}/json.syntax"));
     let path = item
         .map(|diag| diag.path.clone())
         .unwrap_or_else(|| "/".to_string());
@@ -1583,7 +1661,11 @@ fn map_command(err: serde_json::Error) -> DescriptionCandidateError {
 }
 
 fn scan_refusal(err: &DiagnosticList) -> &'static str {
-    let code = err.items.first().map(|diag| diag.code.as_str()).unwrap_or("");
+    let code = err
+        .items
+        .first()
+        .map(|diag| diag.code.as_str())
+        .unwrap_or("");
     if code.ends_with("/json.duplicate_key") {
         "duplicate_key"
     } else if code.ends_with("/json.budget.bytes")

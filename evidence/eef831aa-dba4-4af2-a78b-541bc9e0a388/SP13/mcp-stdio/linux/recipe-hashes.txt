@@ -1,5 +1,0 @@
-238d2d9828dab0e2f8402cc935adf324890b4802aeba842679bd3473e49ebbf6 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a326/SP06/gateway-http/pg/pg-wrap.sh
-a84c4fda4ae913e894f460f6fbaabf767c7ba174e738b0701be05c5379491f94 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a326/SP06/gateway-http/pg/init-roles.sh
-54204d3c868f8bf55ab54a11c0929b6e57aa95c6229807a82b5dcc4025d85644 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a326/SP06/gateway-http/pg/../tools/select-debs.rs
-55779e18239912415f84413ac2bc3be34e71bbae10231db01ab5406af7b8a19e /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a326/SP06/gateway-http/pg/../tools/sha256.rs
-33a79ac02e2aa3ca4cab4965f6b0cf90703491b55cc3938092090468637fa277 /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a345/SP06/gateway-compiled-pack-review/linux/smoke-3/extract-libclang.sh

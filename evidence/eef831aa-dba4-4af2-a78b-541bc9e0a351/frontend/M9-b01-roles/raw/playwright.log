@@ -1,6 +1,0 @@
-
-Running 1 test using 1 worker
-
-  ✓  1 design/e2e/b01.roles.spec.ts:17:1 › test issuer guards every management role and shows that role on the account page (7.1s)
-
-  1 passed (7.7s)

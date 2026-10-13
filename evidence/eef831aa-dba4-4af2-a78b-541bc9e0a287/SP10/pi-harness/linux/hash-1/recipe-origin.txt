@@ -1,6 +1,0 @@
-origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a288/SP07/description-review-review/linux/manifest/launch.sh
-origin_commit=8e363e1b
-changes=two sequential network-none rustc runs; first also hashes tools/pi-harness and origin/; a287 volume and network removal between the runs; rewrite container id recorded before start; rewrite stdout compared to tool-stdout.txt
-tool=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
-copied=origin/INDEX.txt
-inspect_shape=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a287/SP10/pi-harness/linux/pi-live-1/launch.sh

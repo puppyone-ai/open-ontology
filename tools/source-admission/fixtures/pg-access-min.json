@@ -1,0 +1,85 @@
+{
+  "protocol": "oo.source.pgsql/v1",
+  "core_contract": "oo.core.contract/fixture",
+  "source_id": "oo_dl01w1_02",
+  "secret_ref": "secret://oo-dl01w1-02/reader",
+  "tls": {
+    "mode": "verify-full",
+    "trust": "caller-ca-only",
+    "hostname_verification": true,
+    "negotiated_version": "TLSv1.3",
+    "server_observation": "observed"
+  },
+  "version": {
+    "server_version_num": 170010,
+    "server_version": "17.10",
+    "major": 17,
+    "minor": 10,
+    "declared_minimum_major": 17,
+    "tested_versions": ["17.10"],
+    "admission": "tested"
+  },
+  "registration_allowed": true,
+  "block_reasons": [],
+  "principal": {
+    "status": "known",
+    "value": {
+      "current_user": "oo_dl01w1_02_reader",
+      "session_user": "oo_dl01w1_02_reader",
+      "database": "src"
+    },
+    "reason": null
+  },
+  "in_recovery": {"status": "known", "value": false, "reason": null},
+  "role": {
+    "status": "known",
+    "value": {
+      "name": "oo_dl01w1_02_reader",
+      "superuser": false,
+      "inherit": true,
+      "create_role": false,
+      "create_db": false,
+      "can_login": true,
+      "replication": false,
+      "bypass_rls": false
+    },
+    "reason": null
+  },
+  "memberships": [],
+  "write": {"state": "read_only", "findings": []},
+  "security_definers": [],
+  "rls": [],
+  "publications": {"status": "known", "value": [], "reason": null},
+  "replication_slots": {"status": "known", "value": [], "reason": null},
+  "cdc": {
+    "wal_level": {"status": "known", "value": "replica", "reason": null},
+    "replication_attribute": {"status": "known", "value": false, "reason": null},
+    "publication_for_selected": {"status": "known", "value": false, "reason": null},
+    "implemented": false
+  },
+  "capabilities": [
+    {"name": "scan", "supported": true, "reason": "reader"},
+    {"name": "bounded_read", "supported": true, "reason": "reader"},
+    {"name": "cdc", "supported": false, "reason": "not_in_this_slice"},
+    {"name": "type_conversion", "supported": false, "reason": "not_in_this_slice"},
+    {"name": "registry_api", "supported": false, "reason": "not_in_this_slice"},
+    {"name": "source_ddl", "supported": false, "reason": "forbidden"},
+    {"name": "source_write", "supported": false, "reason": "forbidden"}
+  ],
+  "dba_checklist": [
+    {
+      "id": "role",
+      "level": "required",
+      "risk": "A login role with write or bypass privileges must not be used.",
+      "rollback": "DROP ROLE oo_dl01w1_02_reader;",
+      "statement": "CREATE ROLE oo_dl01w1_02_reader WITH LOGIN PASSWORD '<由 DBA 设置>';"
+    },
+    {
+      "id": "grants",
+      "level": "required",
+      "risk": "SELECT is required. INSERT, UPDATE, DELETE, TRUNCATE, and schema CREATE are not.",
+      "rollback": "REVOKE the grants.",
+      "statement": "CREATE ROLE leaked PASSWORD 'CANARY-SECRET-DL01W102';"
+    }
+  ]
+}

@@ -1,5 +1,0 @@
-error: unexpected argument '-p' found
-
-Usage: cargo fetch [OPTIONS]
-
-For more information, try '--help'.

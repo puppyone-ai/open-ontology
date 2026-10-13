@@ -1,8 +1,10 @@
 //! Map Pi RPC records onto the product events frozen in CONTRACT.md.
-//! Tool product events stay unbound until a fresh Pi run records the bytes.
+//! Recognized thinking records are bookkeeping. Their text is redacted and is not a finish.
 
 use crate::{Error, ErrorKind, ProductEvent, Usage};
-use serde_json::Value;
+use serde_json::{Map, Value};
+
+pub(crate) const REDACTED_TEXT: &str = "redacted";
 
 #[derive(Debug)]
 pub(crate) enum MapResult {
@@ -79,8 +81,213 @@ fn map_update(value: &Value) -> Result<MapResult, Error> {
         }
         "text_start" | "text_end" | "toolcall_start" | "toolcall_delta" => Ok(MapResult::Ignored),
         "toolcall_end" => map_toolcall_end(event),
+        "thinking_start" | "thinking_delta" | "thinking_end" => accept_thinking(value, event, kind),
+        "error" => accept_assistant_error(value, event),
         other => Ok(MapResult::Unknown(format!("message_update:{other}"))),
     }
+}
+
+fn accept_thinking(parent: &Value, event: &Value, kind: &str) -> Result<MapResult, Error> {
+    let Some(event_obj) = event.as_object() else {
+        return Err(Error::new(ErrorKind::Shape, "thinking event"));
+    };
+    let allowed: &[&str] = match kind {
+        "thinking_start" => &["type", "contentIndex"],
+        "thinking_delta" => &["type", "contentIndex", "delta"],
+        "thinking_end" => &["type", "contentIndex", "content"],
+        _ => return Ok(MapResult::Unknown(format!("message_update:{kind}"))),
+    };
+    if !exact_keys(event_obj, allowed) || require_index(event).is_err() {
+        return Ok(MapResult::Unknown(format!("message_update:{kind}")));
+    }
+    match kind {
+        "thinking_delta" => {
+            if event.get("delta").and_then(Value::as_str).is_none() {
+                return Err(Error::new(ErrorKind::Shape, "thinking_delta"));
+            }
+        }
+        "thinking_end" => {
+            if event.get("content").and_then(Value::as_str).is_none() {
+                return Err(Error::new(ErrorKind::Shape, "thinking_end"));
+            }
+        }
+        _ => {}
+    }
+    require_update_keys(parent)?;
+    require_usage(parent)?;
+    Ok(MapResult::Ignored)
+}
+
+fn accept_assistant_error(parent: &Value, event: &Value) -> Result<MapResult, Error> {
+    let Some(event_obj) = event.as_object() else {
+        return Err(Error::new(ErrorKind::Shape, "assistant error"));
+    };
+    if !exact_keys(event_obj, &["type", "reason", "error"]) {
+        return Ok(MapResult::Unknown("message_update:error".to_owned()));
+    }
+    let reason = event.get("reason").and_then(Value::as_str).unwrap_or("");
+    if reason != "aborted" && reason != "error" {
+        return Ok(MapResult::Unknown("message_update:error".to_owned()));
+    }
+    if !event.get("error").is_some_and(Value::is_object) {
+        return Err(Error::new(ErrorKind::Shape, "assistant error"));
+    }
+    require_update_keys(parent)?;
+    require_usage(parent)?;
+    Ok(MapResult::Event(ProductEvent::Error {
+        reason: format!("assistant-stream:{reason}"),
+    }))
+}
+
+fn require_update_keys(parent: &Value) -> Result<(), Error> {
+    let Some(map) = parent.as_object() else {
+        return Err(Error::new(ErrorKind::Shape, "message_update"));
+    };
+    if exact_keys(map, &["type", "usage", "assistantMessageEvent"]) {
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::Shape, "message_update"))
+    }
+}
+
+fn require_index(event: &Value) -> Result<(), Error> {
+    if event.get("contentIndex").and_then(Value::as_u64).is_some() {
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::Shape, "thinking contentIndex"))
+    }
+}
+
+fn require_usage(parent: &Value) -> Result<(), Error> {
+    let Some(usage) = parent.get("usage").and_then(Value::as_object) else {
+        return Err(Error::new(ErrorKind::Shape, "thinking usage"));
+    };
+    const ALLOWED: &[&str] = &[
+        "input",
+        "output",
+        "cacheRead",
+        "cacheWrite",
+        "cacheWrite1h",
+        "reasoning",
+        "totalTokens",
+        "cost",
+    ];
+    if usage.keys().any(|key| !ALLOWED.contains(&key.as_str())) {
+        return Err(Error::new(ErrorKind::Shape, "thinking usage"));
+    }
+    for key in ["input", "output", "cacheRead", "cacheWrite", "totalTokens"] {
+        require_number(usage.get(key))?;
+    }
+    if let Some(value) = usage.get("reasoning") {
+        require_number(Some(value))?;
+    }
+    if let Some(value) = usage.get("cacheWrite1h") {
+        require_number(Some(value))?;
+    }
+    let Some(cost) = usage.get("cost").and_then(Value::as_object) else {
+        return Err(Error::new(ErrorKind::Shape, "thinking usage"));
+    };
+    const COST: &[&str] = &["input", "output", "cacheRead", "cacheWrite", "total"];
+    if cost.len() != COST.len() || COST.iter().any(|key| !cost.contains_key(*key)) {
+        return Err(Error::new(ErrorKind::Shape, "thinking usage"));
+    }
+    for key in COST {
+        require_number(cost.get(*key))?;
+    }
+    Ok(())
+}
+
+fn require_number(value: Option<&Value>) -> Result<(), Error> {
+    let Some(Value::Number(number)) = value else {
+        return Err(Error::new(ErrorKind::Shape, "thinking usage"));
+    };
+    match number.as_f64() {
+        Some(number) if number.is_finite() && number >= 0.0 => Ok(()),
+        _ => Err(Error::new(ErrorKind::Shape, "thinking usage")),
+    }
+}
+
+fn exact_keys(map: &Map<String, Value>, allowed: &[&str]) -> bool {
+    map.len() == allowed.len() && allowed.iter().all(|key| map.contains_key(*key))
+}
+
+pub(crate) fn redact_raw_line(line: &[u8]) -> Vec<u8> {
+    let Ok(mut value) = serde_json::from_slice::<Value>(line) else {
+        if line_mentions_thinking(line) {
+            return br#"{"type":"redacted","reason":"unparsed-thinking"}"#.to_vec();
+        }
+        return line.to_vec();
+    };
+    if !redact_value(&mut value) {
+        return line.to_vec();
+    }
+    serde_json::to_vec(&value).unwrap_or_else(|_| br#"{"type":"redacted","reason":"unparsed-thinking"}"#.to_vec())
+}
+
+fn line_mentions_thinking(line: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(line);
+    text.contains("thinking_delta") || text.contains("thinking_end") || text.contains("thinking_start") || text.contains("\"thinking\"")
+}
+
+fn redact_value(value: &mut Value) -> bool {
+    match value {
+        Value::Array(items) => {
+            let mut changed = false;
+            for item in items {
+                changed |= redact_value(item);
+            }
+            changed
+        }
+        Value::Object(map) => redact_object(map),
+        _ => false,
+    }
+}
+
+fn redact_object(map: &mut Map<String, Value>) -> bool {
+    let mut changed = false;
+    let event_kind = map
+        .get("assistantMessageEvent")
+        .and_then(|event| event.get("type"))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    if let Some(kind) = event_kind.as_deref()
+        && let Some(Value::Object(event)) = map.get_mut("assistantMessageEvent")
+    {
+        changed |= redact_assistant_event(kind, event);
+    }
+    if map.get("type").and_then(Value::as_str) == Some("thinking")
+        && let Some(Value::String(text)) = map.get_mut("thinking")
+        && text != REDACTED_TEXT
+    {
+        text.clear();
+        text.push_str(REDACTED_TEXT);
+        changed = true;
+    }
+    if let Some(Value::Object(usage)) = map.get_mut("usage")
+        && let Some(Value::String(text)) = usage.get_mut("reasoning")
+        && text != REDACTED_TEXT
+    {
+        text.clear();
+        text.push_str(REDACTED_TEXT);
+        changed = true;
+    }
+    for value in map.values_mut() {
+        changed |= redact_value(value);
+    }
+    changed
+}
+
+fn redact_assistant_event(kind: &str, event: &mut Map<String, Value>) -> bool {
+    let field = match kind {
+        "thinking_delta" => "delta",
+        "thinking_end" => "content",
+        _ => return false,
+    };
+    if event.get(field).and_then(Value::as_str) == Some(REDACTED_TEXT) {
+        return false;
+    }
+    event.insert(field.to_owned(), Value::String(REDACTED_TEXT.to_owned()));
+    true
 }
 
 fn map_toolcall_end(event: &Value) -> Result<MapResult, Error> {
@@ -297,5 +504,150 @@ mod tests {
         }
         let tool_use = json!({"type": "turn_end", "message": {"stopReason": "toolUse", "content": []}});
         assert!(matches!(map_record(&tool_use).unwrap(), MapResult::Ignored));
+    }
+
+    fn usage_value() -> serde_json::Value {
+        json!({
+            "input": 1,
+            "output": 1,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 2,
+            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}
+        })
+    }
+
+    #[test]
+    fn thinking_lifecycle_is_ignored_and_redacted() {
+        let secret = "pi-harness-reasoning-secret";
+        let start = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {"type": "thinking_start", "contentIndex": 0}
+        });
+        assert!(matches!(map_record(&start).unwrap(), MapResult::Ignored));
+        let delta = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {"type": "thinking_delta", "contentIndex": 0, "delta": secret}
+        });
+        assert!(matches!(map_record(&delta).unwrap(), MapResult::Ignored));
+        let end = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {"type": "thinking_end", "contentIndex": 0, "content": secret}
+        });
+        assert!(matches!(map_record(&end).unwrap(), MapResult::Ignored));
+        let mut without_reasoning = usage_value();
+        without_reasoning.as_object_mut().unwrap().remove("reasoning");
+        let start_without = json!({
+            "type": "message_update",
+            "usage": without_reasoning,
+            "assistantMessageEvent": {"type": "thinking_start", "contentIndex": 2}
+        });
+        assert!(matches!(map_record(&start_without).unwrap(), MapResult::Ignored));
+        let redacted = super::redact_raw_line(serde_json::to_vec(&delta).unwrap().as_slice());
+        let text = String::from_utf8(redacted).unwrap();
+        assert!(!text.contains(secret), "{text}");
+        assert!(text.contains("\"delta\":\"redacted\""), "{text}");
+        let nested = json!({
+            "type": "message_end",
+            "message": {"content": [{"type": "thinking", "thinking": secret}]}
+        });
+        let redacted = super::redact_raw_line(&serde_json::to_vec(&nested).unwrap());
+        let text = String::from_utf8(redacted).unwrap();
+        assert!(!text.contains(secret), "{text}");
+        assert!(text.contains("\"thinking\":\"redacted\""), "{text}");
+        let bare = json!({
+            "type": "message_update",
+            "usage": {"reasoning": secret},
+            "assistantMessageEvent": {"type": "thinking_delta", "contentIndex": 0, "delta": "x"}
+        });
+        let redacted = super::redact_raw_line(&serde_json::to_vec(&bare).unwrap());
+        let text = String::from_utf8(redacted).unwrap();
+        assert!(!text.contains(secret), "{text}");
+        let ordinary = br#"{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"thinking about fixtures"}}"#;
+        assert_eq!(super::redact_raw_line(ordinary), ordinary);
+        let numeric = serde_json::to_vec(&json!({"usage": {"reasoning": 0, "totalTokens": 1}})).unwrap();
+        assert_eq!(super::redact_raw_line(&numeric), numeric);
+    }
+
+    #[test]
+    fn thinking_shape_failures_do_not_finish_or_echo_text() {
+        let secret = "pi-harness-reasoning-secret";
+        let extra = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {"type": "thinking_start", "contentIndex": 0, "delta": secret}
+        });
+        match map_record(&extra).unwrap() {
+            MapResult::Unknown(kind) => {
+                assert_eq!(kind, "message_update:thinking_start");
+                assert!(!kind.contains(secret));
+            }
+            other => panic!("{other:?}"),
+        }
+        let bad_usage = json!({
+            "type": "message_update",
+            "usage": {"input": 1, "output": 1, "cacheRead": 0, "cacheWrite": 0, "reasoning": secret, "totalTokens": 2, "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}},
+            "assistantMessageEvent": {"type": "thinking_delta", "contentIndex": 0, "delta": secret}
+        });
+        let err = map_record(&bad_usage).unwrap_err();
+        assert_eq!(err.kind, crate::ErrorKind::Shape);
+        assert_eq!(err.detail, "thinking usage");
+        assert!(!err.detail.contains(secret));
+        for kind in ["start", "done", "thinking_partial"] {
+            let value = json!({
+                "type": "message_update",
+                "assistantMessageEvent": {"type": kind}
+            });
+            match map_record(&value).unwrap() {
+                MapResult::Unknown(name) => assert_eq!(name, format!("message_update:{kind}")),
+                other => panic!("{kind} {other:?}"),
+            }
+        }
+        let level = json!({"type": "thinking_level_changed", "level": "high"});
+        assert!(matches!(map_record(&level).unwrap(), MapResult::Unknown(kind) if kind == "thinking_level_changed"));
+    }
+
+    #[test]
+    fn assistant_stream_error_is_fail_closed_without_thinking_text() {
+        let secret = "pi-harness-reasoning-secret";
+        let value = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {
+                "type": "error",
+                "reason": "error",
+                "error": {
+                    "role": "assistant",
+                    "content": [{"type": "thinking", "thinking": secret}],
+                    "stopReason": "error",
+                    "errorMessage": "provider failed"
+                }
+            }
+        });
+        match map_record(&value).unwrap() {
+            MapResult::Event(ProductEvent::Error { reason }) => {
+                assert_eq!(reason, "assistant-stream:error");
+                assert!(!reason.contains(secret));
+                assert!(!reason.contains("provider failed"));
+            }
+            other => panic!("{other:?}"),
+        }
+        let aborted = json!({
+            "type": "message_update",
+            "usage": usage_value(),
+            "assistantMessageEvent": {
+                "type": "error",
+                "reason": "aborted",
+                "error": {"role": "assistant", "content": [], "stopReason": "aborted"}
+            }
+        });
+        match map_record(&aborted).unwrap() {
+            MapResult::Event(ProductEvent::Error { reason }) => assert_eq!(reason, "assistant-stream:aborted"),
+            other => panic!("{other:?}"),
+        }
     }
 }

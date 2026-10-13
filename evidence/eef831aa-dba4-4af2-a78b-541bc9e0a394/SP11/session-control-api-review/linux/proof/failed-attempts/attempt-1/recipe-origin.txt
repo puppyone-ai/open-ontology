@@ -1,7 +1,0 @@
-Rust proof recipe origin
-direct_parent_path=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/linux/impl/launch.sh
-direct_parent_sha256=c522fe7bd898d640bbf9d9b4047d2bec74bb18c81e3c04fd7c75d1448bf8b88e
-direct_parent_inside=/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/linux/impl/inside.sh
-direct_parent_inside_sha256=c88f4b4d71fa919b81555a8d54678640cb2a92c5496770fb2b7ed8ce38e0abe3
-minimal_changes=uuid a394; mount immutable archive readonly; copy oracle into the writable build tree; private PG alias oo-a394-pg; no generate-lockfile
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5

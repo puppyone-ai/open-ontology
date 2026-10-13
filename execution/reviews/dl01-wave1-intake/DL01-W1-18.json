@@ -1,0 +1,99 @@
+{
+  "task": "DL01-W1-18",
+  "reviewer": "Codex coordinator, separate from Grok author",
+  "author_commit": "09da5e17b20ae59091fee4cb651735702deb7b6f",
+  "receipt_commit": "d7bccd02e8740085a2724c866e3fd1949a28f2f8",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "packet_entries_verified": 20,
+  "packet_hashes": [
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/FINDINGS.md",
+      "sha256": "fe318e64875916a3547a604751301a506ed59b5c9afcc493a5b6914c90df83a0"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/HANDOFF.md",
+      "sha256": "4c6df818e561fa0a48d39e6444011661907d7b627978bb23cbfc30c102e08495"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/REPORT.md",
+      "sha256": "fdbcee6fda133d43ad755cb13d814ec23cca4de5f75378082d57ed1fa53ff211"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/admission.json",
+      "sha256": "f6db784cfe3ecdb9b8f0a0515fa9af2d46a63e8dc1117b295e99489631db8729"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/ancestors.json",
+      "sha256": "4992c3a0497694e40ad46076daf9d9b7b9c04ef50c3e59646070dcfb0eb4f6b0"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/commands.txt",
+      "sha256": "194a0fdb538aa2056da8e99bfecbadebc6d7a1c664f8d6f16441a2727887fea8"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/curated-source-inventory.json",
+      "sha256": "f76bc6f1e122da6e9823123b85335fe12bdfe01b54933b7cbf952cbcc9d8e1d8"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/doc-pins.json",
+      "sha256": "017c79cdfd85ab0f5c9517e5ac1926c1d43fec4a131360bebd6df023fe793191"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/frontier.json",
+      "sha256": "91faaa664bd614280da583bdd9836cc64745e9f1de700901ac0b4aa1d11ee2e5"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/git-identity.json",
+      "sha256": "bf026b0935d1a2162aeb9bb6006e628674b26f5162ce4264a627767a0d25d617"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/hash-verify-first-pass.json",
+      "sha256": "70b647f81b6c20cbf07943ee2048fc820a19ad5786334c12192c2fa9067a06b9"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/hash-verify.json",
+      "sha256": "512db2887c92c92d5ff7e8127c3e51b3a0a78a2bea397ef986ef008398ab9c33"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/last-commits.json",
+      "sha256": "b749d781a328452371dbe08a624a6326fb435facd109ef257889e6af24c6c8d8"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/modules.json",
+      "sha256": "c0d7bfd33f7f786288580d087fa80e8b7e7b9d1970cc3fe5e3dcfe0961752e59"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/pins.json",
+      "sha256": "a5151cdc61af9e48dda222675094af250fce2cf3d3295b46b56f6aa785722be1"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/tip-diffs-rest.txt",
+      "sha256": "281bfd468b3f8084ab87cc5d4d5f66ccfe09f8ef3ba9fc8a6377a80ce60a488a"
+    },
+    {
+      "path": "evidence/8a00aded-d6ea-43ea-ab3e-683533508f88/DL01/selfbuild-fixed/raw/tip-diffs.txt",
+      "sha256": "d27e0a19b4d142c363fca63e1ab9bf43c3057adf09c1cc52066ffcbb8458ad0a"
+    },
+    {
+      "path": "execution/reviews/dl01-wave1-selfbuild/FINDINGS.md",
+      "sha256": "dab56675e3591a098b8ad0f4ccdd1e01b11023b940c4ce8a0f66eef817553f30"
+    },
+    {
+      "path": "execution/reviews/dl01-wave1-selfbuild/HANDOFF.md",
+      "sha256": "cd0dba9940b48c4cc93737482ef78ccb3b8bad4c1149d2b78bd553e6eca8e9eb"
+    },
+    {
+      "path": "execution/reviews/dl01-wave1-selfbuild/REPORT.md",
+      "sha256": "1dc23e3027ec5a5cd17f524d9babf2250c745c97eeb29bfc806ad2147f9470ee"
+    }
+  ],
+  "verdict": "approve bounded evidence frontier; all affected parents/delivery remain pending",
+  "runtime_reexecution": false,
+  "product_acceptance_delta": 0,
+  "resources_created_by_author": [],
+  "qualifications": [
+    "Historical source inventories must be checked at their original fixed SHA; W18 current-worktree mismatches indicate drift only and are not evidence corruption. Do not propagate them as original hash failures.",
+    "Prior dirty curated-git-apply remains foreign owned and is not adopted; any handoff needs owner/terminal proof.",
+    "S0-S10 author success with real model is pending fixed independent runtime review; no publication inferred."
+  ]
+}

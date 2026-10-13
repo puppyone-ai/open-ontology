@@ -1,0 +1,16 @@
+{
+  "task": "DL01-W1-76",
+  "verdict": "REQUEST_CHANGES",
+  "base_commit": "91031011238c39e571a28a90831b012f225862d6",
+  "reviewer_session": "72f2dc43-1371-481f-bbe2-85e9765847c6",
+  "resource_prefix": "oo-dl01w1-76",
+  "blocking": [
+    "sdk example public_call connects before rejecting token mode 000, mode 644, and symlink"
+  ],
+  "denominator_change": false,
+  "source_signoff": false,
+  "release_signoff": false,
+  "export_mcp": "pending",
+  "publication": "not_ready",
+  "cleanup": "cleanup.json"
+}

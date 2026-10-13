@@ -1,6 +1,0 @@
-psql:/fixture/tests/fixtures/lease_operations/lock_holder.sql:5: FATAL:  57P01: terminating connection due to administrator command
-LOCATION:  ProcessInterrupts, postgres.c:3316
-psql:/fixture/tests/fixtures/lease_operations/lock_holder.sql:5: server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-psql:/fixture/tests/fixtures/lease_operations/lock_holder.sql:5: error: connection to server was lost

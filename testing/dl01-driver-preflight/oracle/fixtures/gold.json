@@ -1,0 +1,46 @@
+{
+  "task": "DL01-W1-34",
+  "schema_owner": "OO34_FIX",
+  "table": "T_BATCH",
+  "row_budget": 8,
+  "byte_budget": 65536,
+  "deadline_seconds": 20,
+  "scn_before_date_id_41": "2026-10-10T07:11:42",
+  "scn_after_date_id_41": "2026-10-10T19:44:15",
+  "columns": [
+    {"name": "ID", "arrow": "Int16"},
+    {"name": "N16", "arrow": "Decimal128(16,6)"},
+    {"name": "N1", "arrow": "Int8"},
+    {"name": "D", "arrow": "Timestamp(Microsecond,None)"},
+    {"name": "C6", "arrow": "Utf8"},
+    {"name": "V2", "arrow": "Utf8"},
+    {"name": "R", "arrow": "Binary"}
+  ],
+  "rows": [
+    {"ID": 41, "N16": "3141592653.589793", "N1": 0, "D": "2026-10-10T07:11:42", "C6": "ZQ    ", "V2": "alpha", "R": "0001ff00"},
+    {"ID": 42, "N16": "-0.000001", "N1": 1, "D": "2026-10-10T00:00:00", "C6": "      ", "V2": null, "R": null},
+    {"ID": 43, "N16": null, "N1": null, "D": "2026-10-10T23:59:59", "C6": "Z     ", "V2": null, "R": "00"},
+    {"ID": 44, "N16": "9999999999.999999", "N1": 0, "D": "2026-10-10T12:00:01", "C6": "AB C  ", "V2": " ", "R": "dead00be"},
+    {"ID": 45, "N16": "0", "N1": 1, "D": "2028-02-29T18:45:07", "C6": "n     ", "V2": "x", "R": "00000000"}
+  ],
+  "wide": [
+    {"ID": 71, "N_FREE": "88888888888888888888888888888888888888"},
+    {"ID": 72, "N_FREE": "1E-130"},
+    {"ID": 73, "N_FREE": null},
+    {"ID": 74, "N_FREE": "0"}
+  ],
+  "timestamps": [
+    {
+      "ID": 81,
+      "TS": "2026-10-10T07:11:42.123456789",
+      "TZ_HOUR": 8,
+      "TZ_MINUTE": 0
+    },
+    {
+      "ID": 82,
+      "TS": "2026-10-10T07:11:42.000000001",
+      "TZ_HOUR": -5,
+      "TZ_MINUTE": 30
+    }
+  ]
+}

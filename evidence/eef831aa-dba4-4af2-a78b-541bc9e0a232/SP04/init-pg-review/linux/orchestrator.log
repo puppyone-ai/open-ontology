@@ -1,6 +1,0 @@
-orchestrator_start 2026-10-05T22:59:11Z
-postgres_ready name=oo-a232-pg
-PHASE pg_exit=0
-PHASE smoke_exit=0
-PHASE proof_exit=101
-orchestrator_stop proof

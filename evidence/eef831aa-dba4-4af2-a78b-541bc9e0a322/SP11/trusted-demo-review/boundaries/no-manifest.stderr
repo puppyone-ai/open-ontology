@@ -1,1 +1,0 @@
-usage: ./deploy/trusted-demo/start.sh --manifest FILE --public-fixture|--smoke|--stop|--clean

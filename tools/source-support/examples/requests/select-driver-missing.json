@@ -1,0 +1,13 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "oracle",
+    "product": "Oracle Database",
+    "version": "19c",
+    "variant": "self-managed",
+    "driver": {"path": "P2", "impl": "待 DBP1 选定"},
+    "profile": "production",
+    "sync": "catalog",
+    "driver_present": false
+  }
+}

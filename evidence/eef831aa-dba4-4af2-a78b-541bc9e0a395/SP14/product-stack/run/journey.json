@@ -1,1 +1,0 @@
-{"ready":false,"production_signed":false,"parent_accepted":false,"goal_accepted":false,"deployment":"localprocess","reasons":["journey_incomplete"],"missing":["oidc_current","catalog","pack","release","session_close","audit_ack"]}

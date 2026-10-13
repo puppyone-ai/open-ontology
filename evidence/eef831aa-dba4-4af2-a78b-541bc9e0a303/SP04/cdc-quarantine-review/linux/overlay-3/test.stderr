@@ -1,3 +1,0 @@
-   Compiling cdc-quarantine v0.1.0 (/src/tools/cdc-quarantine)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
-     Running tests/review_proof.rs (/target/debug/deps/review_proof-75427040fe200b72)

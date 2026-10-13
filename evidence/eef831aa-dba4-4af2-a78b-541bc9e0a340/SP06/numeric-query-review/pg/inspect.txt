@@ -1,1 +1,0 @@
-id=9bb4a1b0693029a35d7235e656596cc4e1855376fd6d80c3e35035dd65fb5717 status=running exit=0 oom=false privileged=false network=oo-a340-eef831aa-net memory=1073741824 nano_cpus=1000000000

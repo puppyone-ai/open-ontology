@@ -1,7 +1,0 @@
-oo_task=sp06-parser-reap-bounds-red3
-phase=red-attempt-3
-=== std api probe 3 ===
-phase_exit=1 phase=std-api-compile-3
-phase_exit=1 phase=std-api-3
-=== red grandchild stdout attempt 3 ===
-phase_exit=101 phase=red-3

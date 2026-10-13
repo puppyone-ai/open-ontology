@@ -1,4 +1,0 @@
-manifest=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a341/SP06/gateway-compiled-pack/SHA256SUMS
-entries=188
-ok=188
-failed=0

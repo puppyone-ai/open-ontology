@@ -1,1 +1,0 @@
-{oo_fixture_admin=CTc/oo_fixture_admin,oo_calendar_admin=Cc/oo_fixture_admin,oo_r_calendar=c/oo_fixture_admin,oo_r_other=c/oo_fixture_admin}

@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-31",
+  "collector": "Codex immutable Git packet verification",
+  "fixed_seal_or_review": "b43408b143bc2b519978e9a600194523e11d24b1",
+  "packet": "evidence/22c54fa1-bd04-4ad5-b730-47496a793178/DL01/mongodb-fixed-review",
+  "verified_sha_entries": 184,
+  "decision": "approve_setup_dependency",
+  "source_commit": "b24610ca75a7f9aa5d245a171aac1fa681409c55",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0,
+  "original_failures_preserved": true
+}

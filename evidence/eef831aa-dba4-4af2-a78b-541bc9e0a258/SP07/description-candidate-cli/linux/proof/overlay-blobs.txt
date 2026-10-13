@@ -1,3 +1,0 @@
-crates/oo-builder/src/bin/description-candidate.rs want=273de1e7cba3835150766545ba320320f56e65eb got=273de1e7cba3835150766545ba320320f56e65eb
-crates/oo-builder/tests/description_candidate_cli.rs want=a4f1f7377ce2dcc47d3c9d882bebeefc47d2218a got=a4f1f7377ce2dcc47d3c9d882bebeefc47d2218a
-contracts/builder/description-candidate-cli-v1.md want=1d6f461677a32705a7463c153ae15fecb109b77a got=1d6f461677a32705a7463c153ae15fecb109b77a

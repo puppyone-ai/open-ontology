@@ -740,6 +740,7 @@ fn physical_json(physical: &ArrowPhysical) -> serde_json::Value {
         ArrowPhysical::Binary => serde_json::json!({"kind": "binary"}),
         ArrowPhysical::Date32 => serde_json::json!({"kind": "date32"}),
         ArrowPhysical::Time64Micros => serde_json::json!({"kind": "time64_us"}),
+        ArrowPhysical::DurationMicros => serde_json::json!({"kind": "duration_us"}),
         ArrowPhysical::TimestampMicrosNaive => serde_json::json!({"kind": "timestamp_us"}),
         ArrowPhysical::TimestampMicrosUtc => serde_json::json!({"kind": "timestamp_us_utc"}),
         ArrowPhysical::Decimal128 { precision, scale } => {
@@ -769,6 +770,7 @@ fn scalar_json(value: &ArrowScalar) -> serde_json::Value {
         }
         ArrowScalar::Date32(item) => serde_json::json!({"t": "date32", "v": item}),
         ArrowScalar::Time64(item) => serde_json::json!({"t": "time64", "v": item}),
+        ArrowScalar::DurationMicros(item) => serde_json::json!({"t": "duration_us", "v": item}),
         ArrowScalar::TimestampNaive(item) => serde_json::json!({"t": "ts", "v": item}),
         ArrowScalar::TimestampUtc(item) => serde_json::json!({"t": "ts_utc", "v": item}),
         ArrowScalar::Decimal128(item) => serde_json::json!({"t": "d128", "v": item.to_string()}),

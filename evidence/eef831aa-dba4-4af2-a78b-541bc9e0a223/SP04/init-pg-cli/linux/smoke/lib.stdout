@@ -1,8 +1,0 @@
-
-running 3 tests
-test target_installer::tests::compiled_digests_match_the_frozen_files ... ok
-test target_installer::tests::full_import_digest_matches_the_contract_file ... ok
-test target_installer::tests::routes_do_not_execute_v2_and_do_not_repair ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.02s
-

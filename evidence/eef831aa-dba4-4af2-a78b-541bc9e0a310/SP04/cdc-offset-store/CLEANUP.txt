@@ -1,8 +1,0 @@
-Removed only this task's resources after impl-5 and restart-2. No docker prune. Foreign containers were not touched. Pinned images were kept.
-
-docker rm -f oo-a310-pg
-docker volume rm oo-a310-eef831aa-pgdata oo-a310-eef831aa-cargo oo-a310-eef831aa-target
-docker network rm oo-a310-eef831aa-net
-rm -rf /tmp/oo-a310-eef831aa-dba4-4af2-a78b-541bc9e0a310
-
-The network had no other containers. A later listing by session label returned no containers and no volumes. Builders oo-a310-precode, oo-a310-impl-1, oo-a310-impl-2, oo-a310-impl-3, oo-a310-impl-4, oo-a310-impl-5, oo-a310-restart, and oo-a310-restart-2 were already removed by their launch scripts.

@@ -1,0 +1,125 @@
+{
+  "fixed_tree": "8c4cd815488a33c67db849cee9cfd9a6a3dd71c4",
+  "source_count_delta": 0,
+  "findings": [
+    {
+      "path": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-08-bytea/catalog-faithful.json",
+      "sha256": "90e203bfab5dd580395d5d7ef84e0cddfbf498ae2fdc7577e7289038aa82fdb8",
+      "keys": [
+        "capture",
+        "config_digest",
+        "engine",
+        "hook_checked",
+        "input_digest",
+        "protocol",
+        "quality",
+        "run_id",
+        "schema_digest",
+        "shadows_queried",
+        "source_generation",
+        "source_id",
+        "source_introspection",
+        "state",
+        "tables",
+        "target_generation",
+        "tool_hook_digest",
+        "type_digest"
+      ],
+      "tables": [
+        {
+          "logical_schema": "readings",
+          "logical_table": "final",
+          "columns": [
+            "reading_id",
+            "version",
+            "amount",
+            "note",
+            "code",
+            "code_or_null",
+            "qty",
+            "label",
+            "wide_u64"
+          ]
+        }
+      ],
+      "run_id": "4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de",
+      "source_id": "clickhouse_268"
+    },
+    {
+      "path": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-08-bytea/builder/result.json",
+      "sha256": "7accf8f8abd0580343bf9a530ed649b8400907eb9201121784e84bcc3930d414",
+      "keys": [
+        "attempt",
+        "cache",
+        "cache_store",
+        "compiler",
+        "config_digest",
+        "dependency_sha",
+        "evidence_hash",
+        "identity_hash",
+        "input_digest",
+        "input_sha256",
+        "model",
+        "model_input_sha256",
+        "normalized_representation",
+        "outcome",
+        "pack",
+        "pack_digest",
+        "prompt_version",
+        "protocol",
+        "publication",
+        "ready"
+      ],
+      "identity_hash": "b1c6bb9eca85ed565640b806295eb0b7bfb7a22e8fd30e1e18a6929ccf066b16",
+      "outcome": "packed",
+      "model": "called",
+      "pack": "produced",
+      "pack_digest": "182324dbd09f19804f9898b4997e0be186478c20d43bdd1824a72dfafdb334db",
+      "source_id": "clickhouse_268"
+    },
+    {
+      "path": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-11-http401/plan/request-approved.json",
+      "sha256": "135d29e02af9c1924a0d8dffc3cd4b37d3195f1752da4f3d43a06049c9ed2be6",
+      "keys": [
+        "object",
+        "fields"
+      ],
+      "fields": [
+        "reading_id",
+        "ts",
+        "amount",
+        "note",
+        "qty"
+      ]
+    },
+    {
+      "path": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-11-http401/out/raw/seal-customer.json",
+      "sha256": "4fd7ef6e2bc881514cd17694eb1c15202e57692cad5b04fa03cef2616d8d6a03",
+      "keys": [
+        "compiler",
+        "config_digest",
+        "dependency_sha",
+        "identity_hash",
+        "input_digest",
+        "model",
+        "normalized_representation",
+        "outcome",
+        "pack",
+        "protocol",
+        "publication",
+        "ready",
+        "schema_digest",
+        "source_engine",
+        "source_generation",
+        "source_id",
+        "target_generation",
+        "type_digest"
+      ],
+      "identity_hash": "ee499c466e9cb518fb15c425b7842014130119b7ba9430cfd83b9fd588515c0c",
+      "outcome": "draft_compiled",
+      "model": "not_called",
+      "pack": "not_produced",
+      "source_id": "clickhouse_268"
+    }
+  ]
+}

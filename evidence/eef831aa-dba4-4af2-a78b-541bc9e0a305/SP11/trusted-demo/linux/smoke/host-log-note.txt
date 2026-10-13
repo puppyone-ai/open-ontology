@@ -1,1 +1,0 @@
-wrapper log covers public-attempt-3 and the following smoke phase

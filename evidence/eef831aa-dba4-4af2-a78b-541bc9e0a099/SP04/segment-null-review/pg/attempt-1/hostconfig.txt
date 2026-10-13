@@ -1,1 +1,0 @@
-privileged=false capdrop=["ALL"] capadd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"] ports={} net=oo-a099-pg-2953befa-9b60-48c9-a06f-707571da017f-net tmpfs={"/tmp":"rw,nosuid,nodev,size=256m"} security=["no-new-privileges:true"]

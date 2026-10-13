@@ -1,8 +1,0 @@
-   Compiling ontology-dialogue v0.1.0 (/src/tools/ontology-dialogue)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.56s
-     Running unittests src/lib.rs (/target/debug/deps/ontology_dialogue-5c5d124daaf43a05)
-     Running unittests src/main.rs (/target/debug/deps/ontology_dialogue-6d3b6b4e9b54afc5)
-     Running tests/execute_approval.rs (/target/debug/deps/execute_approval-604f41875e07c716)
-     Running tests/live.rs (/target/debug/deps/live-89d6369fbc4b243d)
-     Running tests/propose.rs (/target/debug/deps/propose-3353d0a4e14ebdb4)
-   Doc-tests ontology_dialogue

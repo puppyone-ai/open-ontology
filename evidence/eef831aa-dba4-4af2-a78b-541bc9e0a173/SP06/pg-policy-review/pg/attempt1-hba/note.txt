@@ -1,1 +1,0 @@
-psql default role postgres does not exist; empty pg_hba was not reloaded

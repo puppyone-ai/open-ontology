@@ -1,0 +1,11 @@
+[
+  {
+    "task": "71",
+    "fixed_sha": "d09b8df24e9b6f6c60a17e9e24b9d27aecc3cdb9",
+    "manifest": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/core-bind/SHA256SUMS",
+    "fixed_git_hashes_checked": 136,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

@@ -1,1 +1,0 @@
-relay archive has no rust-toolchain.toml

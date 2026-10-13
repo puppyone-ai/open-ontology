@@ -1,5 +1,0 @@
-registry_checksums_subset_of_root=yes
-forbidden_newer_versions=none
-path_packages=oo-builder,oo-core,oo-jobs,release-coordinator
-generate_lockfile=not_used
-source=cargo_fetch_edge_rewrite_of_root_closure

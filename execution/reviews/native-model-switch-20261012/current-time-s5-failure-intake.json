@@ -1,0 +1,15 @@
+{
+  "evidence_commit": "ce1aff673",
+  "summary_sha256": "f5e6d561a1cb020d5a723fb33a81b66734a26f1ac20be5ab36b8866597b18154",
+  "files_verified": 16,
+  "errors": 0,
+  "fixed_input": "19e0b340/vector7/4/4/5/4",
+  "actual_request": "originalgpt6.1/low/sameURLkey",
+  "provider_status": 502,
+  "provider_error": "service_unavailable_error/server_is_overloaded",
+  "response_model_id_usage": "absent",
+  "new_pack": false,
+  "new_S0_S10": "not_started",
+  "retry_not_before_UTC": "2026-10-12 14:23:41 UTC",
+  "policy": "one 15-minute clock.sleep backoff, then root may explicitly resume one same-input original-model retry; no repeated model catalog polls or fallback"
+}

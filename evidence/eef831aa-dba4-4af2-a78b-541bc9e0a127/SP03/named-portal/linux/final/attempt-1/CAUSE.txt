@@ -1,8 +1,0 @@
-docker_run_exit=101
-lib_exit=101
-focused_exit=101
-clippy_exit=101
-cause=sqlx-postgres lib failed to compile
-error_E0106=portal.rs prefix(self) -> &[u8] missing return lifetime
-error_E0308=portal.rs flush error is std::io::Error and was returned as sqlx_core::Error
-assertions_changed=no

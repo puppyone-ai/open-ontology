@@ -1,6 +1,0 @@
-Pre-edit smoke container oo-a362-smoke exited 1 before clippy.
-Toolchain phase 0. Archive locks 0. Fetch 0. pg-builder tests 12 passed. description-pack tests 21 passed.
-clippy-builder exited 1 because cargo-clippy is not installed for 1.94.0-aarch64-unknown-linux-gnu.
-The recipe's rustup component add clippy step was omitted. This console was not overwritten.
-The follow-up is linux/smoke-2, which adds that component on the same private volumes and then runs clippy.
-No product file was edited.

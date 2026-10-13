@@ -103,13 +103,16 @@ pub enum RootTrust {
     OnlyPem(Vec<u8>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ClientConfig {
     transport: TransportMode,
     timeouts: Timeouts,
     bytes: ByteCaps,
     retry: RetryPolicy,
     trust: RootTrust,
+    /// PEM holding the client certificate and its private key. `Debug` says
+    /// only whether it is present.
+    identity: Option<Vec<u8>>,
 }
 
 impl ClientConfig {
@@ -120,6 +123,7 @@ impl ClientConfig {
             bytes: ByteCaps::contract(),
             retry: RetryPolicy::admission_default(),
             trust: RootTrust::Platform,
+            identity: None,
         }
     }
 
@@ -192,7 +196,60 @@ impl ClientConfig {
         Ok(self)
     }
 
+    /// Client certificate and private key for the gateway workload check.
+    /// Empty, oversized, or NUL-bearing material is refused before a socket.
+    pub fn with_identity(mut self, pem: Vec<u8>) -> Result<Self, QueryError> {
+        if pem.is_empty() || pem.len() > QUERY_HTTP_MAX_BYTES || pem.contains(&0) {
+            return Err(QueryError::Local(LocalError::Trust));
+        }
+        self.identity = Some(pem);
+        Ok(self)
+    }
+
     pub(crate) fn trust(&self) -> &RootTrust {
         &self.trust
+    }
+
+    pub(crate) fn identity(&self) -> Option<&[u8]> {
+        self.identity.as_deref()
+    }
+}
+
+impl std::fmt::Debug for ClientConfig {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ClientConfig")
+            .field("transport", &self.transport)
+            .field("timeouts", &self.timeouts)
+            .field("bytes", &self.bytes)
+            .field("retry", &self.retry)
+            .field("trust", &self.trust)
+            .field("identity", &self.identity.as_ref().map(|_| "present"))
+            .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identity_is_redacted_and_rejected_when_empty_or_nul() {
+        assert!(matches!(
+            ClientConfig::production().with_identity(Vec::new()),
+            Err(QueryError::Local(LocalError::Trust))
+        ));
+        assert!(matches!(
+            ClientConfig::production().with_identity(vec![b'a', 0]),
+            Err(QueryError::Local(LocalError::Trust))
+        ));
+        let pem = b"not-a-real-key-material".to_vec();
+        let config = ClientConfig::production()
+            .with_identity(pem.clone())
+            .expect("bounded pem");
+        let rendered = format!("{config:?}");
+        assert!(rendered.contains("present"));
+        assert!(!rendered.contains("not-a-real-key-material"));
+        assert_ne!(config, ClientConfig::production());
     }
 }

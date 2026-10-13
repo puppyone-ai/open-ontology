@@ -1,4 +1,0 @@
-e6eb4d6e88c4c26b88dd10758d144eaf30d97cd4667e465e3687bc6625108bf7  tools/cdc-transaction/CONTRACT.md
-421944a6eeacaa00cf1720d01b76787f0e08e3cb488336b5aa313e84afb8ee1d  tools/cdc-transaction/Cargo.toml
-4f2abdc20f88225bba1b91c7b7dbc1af26102e08144e45dc6f16e04664b1f26a  tools/cdc-transaction/Cargo.lock
-eac61aa8d9d0eebe935be0d438b6877b40845656601c4c5a8180edd97963f037  tools/cdc-transaction/src/sha256.rs

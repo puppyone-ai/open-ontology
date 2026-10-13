@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/driver-bad/matrix.yaml --package /harness/fixtures/driver-bad/package

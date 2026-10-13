@@ -1,0 +1,11 @@
+{
+  "task": "DL01-W1-21",
+  "source": "f2357a026033fbac5beb20b4bf8555d808881fe7",
+  "seal": "7d1ca1c1eda67299b6833b298829036f96a830f9",
+  "inventory": "inventory-seal-binding.sha256",
+  "verified_sha_entries": 153,
+  "decision": "author_binding_repair_pending_independent_review",
+  "original_inventory_preserved": true,
+  "source_acceptance_delta": 0,
+  "functional_acceptance_delta": 0
+}

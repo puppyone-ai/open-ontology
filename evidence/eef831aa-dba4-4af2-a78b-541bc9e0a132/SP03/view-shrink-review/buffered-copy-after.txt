@@ -1,2 +1,0 @@
-buffered_copy_after_pin=same
-buffered_copy_after_test=same

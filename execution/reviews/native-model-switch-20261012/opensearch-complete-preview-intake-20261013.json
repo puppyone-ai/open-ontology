@@ -1,0 +1,18 @@
+{
+  "task": "DL01-W1-44",
+  "source_commit": "7ac93aac4",
+  "evidence_manifest_git_blobs_verified": 93,
+  "actual_stage_checkpoints": "S0-S10 all succeeded",
+  "autonomous_dialogue": "4 turns, 4 gold matched query IDs with admit/complete WAL",
+  "source_stop": "actual stopped during successful dialogue, restored afterward",
+  "cancel": "public cancel exit0 and original query SQLSTATE57014; no active queries",
+  "role": "separate LOGIN direct business SELECT false and NOLOGIN NOINHERIT query role",
+  "level": "complete unpublished preview author delivery; unified independent review deferred",
+  "counter_delta": {
+    "author_full_preview": 1,
+    "signed_full_source": 0,
+    "parent": 0,
+    "release": 0
+  },
+  "whole_goal": "active, remaining eight source full author chains pending; ten-source independent acceptance pending"
+}

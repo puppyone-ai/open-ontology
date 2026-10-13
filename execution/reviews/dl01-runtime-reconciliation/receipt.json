@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-10T22:46:14.547838+08:00",
+  "live": {
+    "DL01-W1-06": 70240,
+    "DL01-W1-21": 95114,
+    "DL01-W1-39": 72780,
+    "DL01-W1-40": 29288,
+    "DL01-W1-41": 60528,
+    "DL01-W1-43": 58326,
+    "DL01-W1-45": 18870
+  },
+  "source_acceptance_count": 0,
+  "kind": "runtime observation only; no new product acceptance",
+  "source_owner_map_updated": true
+}

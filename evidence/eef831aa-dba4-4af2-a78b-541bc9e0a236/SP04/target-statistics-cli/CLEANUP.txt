@@ -1,9 +1,0 @@
-Own cleanup only. No prune. Foreign containers were left running.
-
-Removed container oo-a236-pg (stopped, then rm).
-Removed containers oo-a236-proof and oo-a236-smoke during their launch scripts (container-removed.txt).
-Removed volumes oo-a236-eef831aa-cargo, oo-a236-eef831aa-target, oo-a236-eef831aa-pgdata.
-Removed network oo-a236-eef831aa-net.
-Removed /tmp/oo-a236-eef831aa-dba4-4af2-a78b-541bc9e0a236 (secrets, builder-secrets, archive, and proof tree).
-
-After cleanup, docker ps --filter label=oo.owner=a236 was empty. The volume and network names were gone. The tmp directory was gone.

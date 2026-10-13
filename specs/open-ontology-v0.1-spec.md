@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 全部 19 份文档；来源 revision 2，Git HEAD `34fae5ddd73ff250fde6f51aa681fb0f7fbd0362`；原 HEAD `e271542aa645aa181da7887d416de0698752a805` 保留在来源变更记录 |
+| 输入基线 | `docs/` 全部 19 份文档（另有扩展设计目录 `docs/database-support/`，见第 7A 章，不在哈希基线内）；来源 revision 4，Git HEAD `12cfdc48260636032429449d4e66253d54c1e3cd`（按项目负责人本次明确指令对齐产品定义，见 [变更记录](../execution/decisions/source-baseline-revision-4.md)）；上一基线 revision 3 的 HEAD `b504fd8f4369750f6a329075c77dcc4bf3720702`；上一基线 revision 2 的 HEAD `34fae5ddd73ff250fde6f51aa681fb0f7fbd0362` 与更早的 `e271542aa645aa181da7887d416de0698752a805` 保留在来源变更记录 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -42,6 +42,7 @@
 | `AT-<域>-NN` | 验收场景；第 18 章定义输入、动作、判定与证据 |
 | `G1`–`G13`，含 `G5a/G5b` | Ontology 发布门禁，保留原文编号 |
 | `P1`–`P16` | M0 技术原型，保留原文编号 |
+| `DBX-Wnn`、`DBP1`–`DBP8` | 第 7A 章数据库扩展轨道的工作项与原型；独立计数，不属于 87 个 `SPxx-Wyy`，也不改变 SP00–SP15 的退出条件 |
 
 每个 issue 至少包含：需求 ID、输入/输出契约、依赖、目标 crate、故障行为、验收 ID、预计交付文件、owner、reviewer。每个 Phase 通过后生成 `evidence/<release-or-run>/<phase>/manifest.json`；公开与私有证据使用不同存储边界。
 
@@ -50,6 +51,8 @@
 ### 2.1 Ontology 的定义
 
 **Open Ontology 是企业数据库面向 Agent 的上下文入口。Ontology = Agent 专用 PostgreSQL 数据副本 + 可审核的语义资产 + 按最终用户权限执行的访问层。** 它不是知识图谱，不引入 RDF/OWL、三元组数据库或图查询作为核心存储。
+
+产品交付是生成、审核、发布和维护上述Ontology的系统，以及可供外部harness消费的标准YAML、审核overlay、Git版本、角色Knowledge Pack和Gateway接口。CLI、HTTP/SDK、MCP按所声明协议提供同一数据与授权契约，核心产物取得和使用不依赖内置Pi会话。Pi、网页和IM保留为内置体验及内部验证入口，其原定安全、状态释放与质量验收仍须完成。外接验收须使用非内置Pi的真实调用方，并记录实际客户端、协议和版本；通用接口方向不等于所有harness已经验证。
 
 Self-build 是自动生成带证据与置信度的语义草稿，涵盖结构、含义、关系、码表、实体、业务日历、指标与示例。权限策略、个人信息分类、实体自动合并规则和认证统计口径必须按本规范审核；不能将 LLM 输出直接视为事实或发布授权。
 
@@ -64,7 +67,7 @@ Self-build 是自动生成带证据与置信度的语义草稿，涵盖结构、
 | REQ-PROD-05 | 配置即代码、审核发布、完整释放、公开与客户私有评测 | 从 MVP 起即存在，不能延后为生产化补丁 |
 | REQ-PROD-06 | Compose standard 一键启动；模型可切换为私有端点 | 离线部署、双架构、备份恢复、升级在 v0.x 发布前全部验收 |
 
-“任何数据库”是连接器架构的北极星。实际支持必须公布数据库版本、批量/CDC 能力、类型边界、删除语义、托管限制与最后验收版本。未支持的库返回 `CONNECTOR_UNSUPPORTED`，提供文件/dump 或审核外部连接器路径，不静默套用通用 SQL 驱动。
+“任何数据库”是连接器架构的北极星。实际支持必须公布数据库版本、批量/CDC 能力、类型边界、删除语义、托管限制与最后验收版本。未支持的库返回 `CONNECTOR_UNSUPPORTED`，提供文件/dump 或审核外部连接器路径，不静默套用通用 SQL 驱动。统一准入路线、支持矩阵与逐库适配契约见第 7A 章及 [数据库支持扩展设计](../docs/database-support/README.md)。
 
 ### 2.3 非目标
 
@@ -339,6 +342,119 @@ REQ-SRC-07：replace→LOGGED shadow+原子换表；append 每上传版本+行�
 | audit-anchors/ | 客户合规配置 | WORM 可选，根哈希公开性由客户决定 |
 
 自动删除必须有可审计计划和重试；下载 URL、缓存、multipart、版本对象一起核查。用户删除请求覆盖记录/产出物/快照，审计按客户确定的留存与假名化策略处理。
+
+## 7A. 数据库支持矩阵与连接器准入（DBX 扩展）
+
+本章把“任何数据库”的北极星变成可验收的准入路线。它**追加**而不削弱 REQ-SRC-01 至 REQ-SRC-07、I-SRC-1 至 I-SRC-4；与 [03](../docs/03-sources-and-ingestion.md) 第 2、8 节的数据库路线表冲突时，以本章为准，03/04/05/06/07/12 等已按来源基线 revision 3 回填（见 [06 §4](../docs/database-support/06-risks-open-questions-and-sources.md)）。完整设计与逐库画像见 [docs/database-support](../docs/database-support/README.md)；其中的联网检索事实未经本项目真实实例验证，凡依赖外部产品行为的条款在下表或原型中标为“待验证”。
+
+### 7A.1 范围与不变量
+
+1. **汇聚点不变。** 所有源经 Arrow 归一后写入 PostgreSQL Agent DB；Gateway、授权、Knowledge Pack、沙盒只面对 PG 方言，源方言 SQL 永不进入 Gateway 或 Agent 可执行示例。一个目标若要求改变这一点，不得准入，须另立 ADR。
+2. **准入单位是“目标”**：`(家族, 产品, 版本区间, 部署变体, 驱动)`；等级逐能力判定。托管变体、兼容层与兼容模式分别成目标，**不得由 MySQL/PG/Oracle 的支持推导**（协议兼容不等于 CDC、权限、类型或位点兼容）。
+3. **分母隔离。** 本章引入的 DBX 工作项和原型不增加 87 个 `SPxx-Wyy`，不修改 SP00–SP15 的退出条件，也不改变已记录的验收计数；其进度单独计数。
+4. **没有证据不宣称。** 当前矩阵无任何目标处于 `verified`。已被限定批准的实现切片不构成目标验收。
+
+### 7A.2 准入等级与支持矩阵
+
+REQ-SRC-08：支持矩阵是数据库支持的唯一真相源，机器可读并随契约版本化。等级为 `candidate`、`designed`、`experimental`、`verified`、`certified`、`excluded`，逐能力（catalog、logic、query_log、batch_full、batch_incremental、change_feed、cdc、delete_native/delete_reconcile、snapshot_token、replica_read、budget）定级。晋升条件：
+
+| 等级 | 最低条件 |
+|---|---|
+| designed | 目标 ADR：能力声明、写入分类（7A.3）、DBA 清单草案、威胁评审、驱动与许可决定、成本模型 |
+| experimental | 实现默认关闭；夹具套件在至少一个真实实例通过；仅非生产 profile；`sync: auto` 不得选用 |
+| verified | 每个声明版本与变体在真实实例通过完整套件；源端审计零写；夜间回归连续 14 天通过；数据、DBA、安全独立 reviewer 签字；限制清单公开；证据包 hash 固定 |
+| certified | verified 之上：真实客户或等价规模运行证据、规模与故障演练、DBA Runbook 经演练、连续三个发布无回归 |
+
+规则：`verified`/`certified` 单元格只能由证据包生成，手写由 CI 拒绝；新版本、新变体、新驱动、新兼容模式从 `designed` 起，仅补丁级版本可在重跑套件通过后沿用；不在矩阵的家族返回 `CONNECTOR_UNSUPPORTED`，检测版本/变体未验证返回 `TARGET_VERSION_UNVERIFIED`，所请求能力未验证返回 `CAPABILITY_UNVERIFIED`，兼容模式未知返回 `COMPAT_MODE_UNKNOWN`，驱动缺失返回 `DRIVER_MISSING`，均不得降级到通用驱动。`experimental` 能力不得在生产 profile 打开；例外须书面记录且不改变矩阵。降级：夜间/发布前套件在 `verified` 目标上连续两次失败自动降为 `experimental`；安全失败立即阻断该能力；已有源不得被静默停止同步，状态变化必须出现在新鲜度、控制台与审计。客户私有目标以 `scope: deployment-local` 记录，不进入公开发行矩阵。
+
+### 7A.3 能力声明与源端写入分类
+
+REQ-SRC-09：连接器能力必须是结构化声明（含 CursorKind、FeedKind、CdcKind、位点序 TokenOrder、预算单位），AccessReport 追加 `target_id`、各能力等级、驱动出处与 digest、每个捕获方法的写入分类、保留窗口、一致性等级、成本模型、兼容模式与许可标记；未知权限、兼容模式或计费单位一律 `block`。源端写入分类：
+
+| 类别 | 定义 | 准入 |
+|---|---|---|
+| R0 | 只读查询 | 准入 |
+| R1 | DBA 手工创建/配置的对象或参数，平台只读取（publication、复制槽、binlog 设置、CDC/Change Tracking/change history/CDF 的启用、补充日志等） | 准入，必须在 DBA 清单并带风险与回滚 |
+| R1w | DBA 预创建的平台专用技术辅助对象，连接器需写入它但不触碰业务表 | 默认禁用；须最小权限 ADR（DEC-17）与源审计证明写入范围 |
+| R2 | 平台在源库创建对象（信号表、Stream、触发器、槽、存储过程） | 不准入 |
+| R3 | 需要业务表写权限或会修改业务数据 | 不准入 |
+
+Debezium 仅用于已验证的日志 CDC：不得启用增量快照/信号表、心跳写入或自动建表，初始快照仍由 OO 分块完成；上游示例 GRANT 不得直接采用，账号权限以本项目最小权限清单为准。
+
+### 7A.4 捕获方法、位点序与一致性等级
+
+REQ-SRC-10：捕获方法为目录而非二选一——C1 日志 CDC、C2 引擎原生变更读取（SQL Server Change Tracking、Snowflake `CHANGES`、BigQuery `CHANGES`/`APPENDS`、Delta CDF、Iceberg 快照差）、C3 游标增量、C4 分区刷新、C5 全量差分。每个目标/表声明删除感知方式、保留窗口、位点序与一致性等级，并满足：
+
+1. 位点序 `Total`/`PerPartition`/`Opaque`/`None`；只有 `Total` 位点可用于去重、修复与一致性声明，其余只可续读。
+2. 一致性等级 T（源事务原子应用）、S1（同一 token 跨表快照）、S0（单表快照）、B（尽力）。`consistency: transactional` 只对 T 级源有效，对其他源 `oo validate` 必须拒绝；`get_freshness` 与查询结果返回每表 `consistency_grade` 与 `capture_method`；涉及不同源或低于 T 的多表 JOIN 返回 `CROSS_TABLE_SKEW`（沿用 DEC-15）。
+3. 有限保留窗口：滞后超过窗口 50% 告警（`STALE_RISK`），超过 80% 暂停发布新一代；位点不在窗口内为 `POSITION_EXPIRED`，必须新 generation 重快照后原子换表，不得从最近位置继续；`AS OF token` 读取耗时不得超过 token 保留，无法满足则拒绝该模式。
+4. 删除检测：`native`、`partition_replace`、`reconcile`（键集对账，表级质量状态 `DELETES_LAGGED`）、`none`（`DELETES_UNDETECTED`）；软删除列不替代物理删除检测。
+5. 游标安全：游标源必须被分类为 `commit_ordered`、`statement_time`、`app_maintained`、`coarse`；`statement_time` 要求 overlap ≥ 源最大事务年龄并配置对账，`app_maintained` 不得由 `sync: auto` 选用，`coarse` 不得单独作游标；亚微秒精度被截断的列不得作游标或主键，除非保留原文列作键。
+6. 初始加载沿用 8.2 的 CDC 优先正确性论证（C1）；C2 采用 token 锚定快照加变更重放；C4 在单个 Agent DB 事务内替换分区；C5 在 shadow 中差分并披露。
+
+`_oo.table_quality` 追加状态值 `POSITION_EXPIRED`、`STALE_RISK`、`DELETES_LAGGED`、`DELETES_UNDETECTED`、`SOURCE_BUDGET_EXHAUSTED`（追加式迁移，不改变既有语义）。
+
+### 7A.5 驱动策略与进程隔离
+
+REQ-SRC-11：驱动分五类并记录于矩阵——P1 进程内纯 Rust 驱动、P2 外部驱动 worker（ODBC/JDBC/ADBC/厂商原生库，沿用 03 §3.1 的版本化控制协议与 Arrow IPC，镜像 digest 锁定）、P3 REST/SDK、P4 Debezium Server、P5 外部 CDC 生产者（仅经 SP15-W03 的 buffer 适配器，不在 v0.1 内）。专有驱动默认由客户提供，不由项目分发；缺失返回 `DRIVER_MISSING`；任何驱动的再分发须法务逐目标确认并进入 SBOM/NOTICE。worker 不持有 Agent DB、Gateway、模型凭证，网络仅到该源，受 CPU/内存/行/字节/时长预算与取消约束，崩溃不影响已发布数据。native/JVM 库不得进入 Gateway、Loader 或核心 crate 的进程。
+
+### 7A.6 源语义与 Self-build、Pack、Gateway 复用
+
+REQ-SRC-12：连接器把各家 catalog 归一为 `SourceCatalog`（对象、列、键及 `constraint_trust: enforced|declared_only|absent`、物理提示、带 `dialect` 的视图/过程、可选带许可标记的查询历史、统计），并在 type_map 时生成 `semantic_caveats`（至少：`empty_string_is_null`、`source_collation_ci`、`trailing_space_insensitive`、`precision_loss`、`offset_lost`、`default_for_missing`、`synthetic_binlog`、`unenforced_constraints`、`append_only_source`/`eventual_consistency`、`lossy_type_fallback`）。要求：
+
+1. 声明约束 `declared_only` 的关系不得作为确定外键，S3 必须做包含依赖检验。
+2. 源方言 SQL 只能作为 Evidence 与翻译提示（`translated_unverified`），不得用于授权，不得出现在 Agent 可执行示例；S8 示例仅经 Gateway 在 Agent DB 验证。
+3. caveats 与 `consistency_grade`、`delete_detection`、`capture_method` 必须出现在 Knowledge Pack 的表页与 `get_freshness`；Pack 顶层固定声明所有 SQL 为 PG 方言。
+4. 字符串/二进制主键分块必须强制二进制排序（`chunk_key_order`），否则改用哈希分块或 `read_keys`。
+5. OOS 生成层可追加可选字段 `datasets[].source_semantics`，属 `oos/v1` 追加式契约变更，须由 F0 契约 owner 先合入。
+
+### 7A.7 读取预算与计量源
+
+REQ-SRC-13：每个目标声明计量单位（行、字节、积分、DBU、读容量、时长）。`estimate()` 返回 `{unit, value, confidence}`；`confidence=unknown` 只能在管理员硬上限内执行。云仓必须使用专用小型计算资源与自动挂起设置，取消必须传递到云端作业（job/statement）并验证无残留，不得为保持唤醒而长连接，同一源按窗口合并执行；预算耗尽暂停并标记 `SOURCE_BUDGET_EXHAUSTED`，不静默跳过或无限重试。
+
+### 7A.8 文档与半结构化源映射
+
+REQ-SRC-14：文档/KV 源映射为每集合一张主表（主键列 + 保真的 `doc jsonb` + 稳定字段类型化投影）。稳定字段按出现率与类型一致率阈值推断（初始 0.9/0.99，DBP6 标定）；类型混用字段只留在 `doc`；新增字段作为新列进入 I-DB-5 的“新列默认不可见 + 分类”流程；数组默认保持 `jsonb`，拆子表须经审核；BSON ObjectId、Decimal128、Int64 等不得经浮点；无事务语义的源一致性不超过 B。不满足拓扑前提（如 MongoDB standalone 无 change stream）必须明确拒绝 CDC 而非降级。
+
+### 7A.9 一致性套件与证据
+
+REQ-SRC-15：所有目标运行同一黑盒套件（CC-01 至 CC-13：声明诚实性、源端零写审计、类型保真、分块覆盖、游标与重叠、变更读取与过期、删除收敛、取消与预算、故障与恢复、权限最小化、驱动与供应链、语义传递、文档映射）。声明的每个能力必须有通过的用例，未声明的能力必须有拒绝用例；零写由源端自身审计记录证明；证据类型 `container`、`managed_cloud`、`customer` 分别标注，只有容器证据的托管变体不得声称托管能力 `verified`；云目标回归受预算约束，超预算时单元格必须标为“本周期未验证”。
+
+### 7A.10 波次、DBX 工作项与实施决策
+
+波次（优先级而非日期承诺）：0 现行 PG/MySQL/文件；1 PG/MySQL 托管变体、MariaDB、SQL Server；2 Oracle、Db2、HANA 与国产库（先批量）；3 云数仓、OLAP、湖表；4 文档与 KV。明确不接入：Redis/Valkey 作为源、HANA 触发器复制、平台安装的 Db2 ASN、任何需平台在源库建对象或写表的方案。
+
+| 工作项 | 范围 | 前置 | 对应需求/验收 |
+|---|---|---|---|
+| DBX-W01 | 矩阵契约、错误码、`oo sources supported`、CI 一致性检查 | SP03-W05 | REQ-SRC-08；AT-SRC-06 |
+| DBX-W02 | 能力模型、AccessReport 扩展、写入分类 | SP03-W01/W02 | REQ-SRC-09；AT-SRC-07 |
+| DBX-W03 | 捕获目录、一致性等级、保留窗口、删除收敛、游标安全 | SP04-W01/W02/W06 | REQ-SRC-10；AT-SRC-08/09 |
+| DBX-W04 | P2 外部驱动 worker、ODBC/JDBC/ADBC 桥 | SP02-W04、SP03-W03 | REQ-SRC-11；AT-SRC-10 |
+| DBX-W05 | SourceCatalog、caveats、Builder/Pack/Gateway 接线、chunk_key_order | SP07-W02/W06、SP06-W05 | REQ-SRC-12；AT-SRC-11 |
+| DBX-W06 | MySQL 家族扩展（MariaDB、托管、国产兼容层批量） | DBX-W01–W03 | REQ-SRC-08/10；AT-SRC-06/08 |
+| DBX-W07 | PG 家族扩展（托管、国产 PG 兼容、Redshift 批量） | DBX-W01–W03 | 同上 |
+| DBX-W08 | SQL Server（含 Azure SQL、RDS）批量/CT/CDC | DBX-W01–W03、DBP2 | 同上 |
+| DBX-W09 | Oracle 批量，LogMiner 例外路径 | DBX-W02/W04、DBP1 | REQ-SRC-09/11；AT-SRC-07/10 |
+| DBX-W10 | Db2、HANA、达梦、神通（批量，P2） | DBX-W04、DBP5 | REQ-SRC-11；AT-SRC-10 |
+| DBX-W11 | Snowflake、BigQuery、Databricks、Redshift 与预算 | DBX-W03/W04、DBP4 | REQ-SRC-13；AT-SRC-12 |
+| DBX-W12 | ClickHouse、StarRocks、Doris、Iceberg/Delta、Trino | DBX-W03、DBX-W11 | REQ-SRC-10/13；AT-SRC-08/09/12 |
+| DBX-W13 | MongoDB、DynamoDB、ES/OpenSearch、Cassandra/Scylla | DBX-W03/W05、DBP6 | REQ-SRC-14；AT-SRC-13 |
+| DBX-W14 | 套件、版本矩阵、夜间回归、自动降级 | DBX-W01 | REQ-SRC-15；AT-SRC-14 |
+
+原型（DBP1–DBP8，出口：证据或安全替代；失败则相关能力保持 `candidate`/`designed`）：DBP1 Oracle LogMiner 的源端写入面与 OpenLogReplicator 可行性；DBP2 SQL Server CDC 事务边界、LSN 与副本读取；DBP3 Aurora/RDS/Cloud SQL 故障转移后位点与槽、读副本回放屏障；DBP4 Snowflake/BigQuery 变更读取窗口、dry-run 与成本；DBP5 ODBC/JDBC 桥的流式、取消与背压（Db2、HANA、达梦）；DBP6 MongoDB change stream 的事务/resume 与文档映射阈值；DBP7 TiDB/OceanBase/GaussDB 的兼容层位点与认证；DBP8 各引擎二进制排序分块。
+
+实施决策：
+
+- **DEC-19（采用）** 准入单位为目标×能力，等级逐能力；矩阵为唯一真相源，`verified` 单元格只由证据生成。
+- **DEC-20（采用）** 捕获方法所需源端写入分类须 ≤ R1；R1w 默认禁用并需 ADR；Debezium 不使用增量快照/信号表/心跳写入；Snowflake 使用 `CHANGES` 而非 Stream。
+- **DEC-21（原型门禁 DBP1–DBP8）** 外部产品行为（Oracle 辅助表写入、SQL Server 副本读取、Aurora 位点保留、ODBC 取消、兼容层认证与位点、二进制排序）在原型证实前不得写成已验证。
+- **DEC-22（采用）** `consistency: transactional` 只对 T 级源有效，其他源必须显式选择等级并披露，不得静默降级。
+- **DEC-23（采用）** 专有驱动默认由客户提供，再分发须逐项法务确认；不因“能连接”而放宽 7A.2 的准入。
+- **DEC-24（采用）** 基线文档按来源基线 revision 3 回填：I-SRC-1 例外收窄为“DBA 创建且平台只读”，连接器写入型辅助对象默认禁用；`consistency: transactional` 只对 T 级源有效。其余 REQ/AT/不变量语义不变。
+
+### 7A.11 与既有 Phase 的关系
+
+REQ-SRC-08、REQ-SRC-09、REQ-SRC-15 的框架部分由 SP03 的连接器与 catalog 契约承载，REQ-SRC-10 由 SP04 的 Loader 与恢复契约承载，REQ-SRC-12 由 SP07 的 Builder/Pack 承载；这些要求对已纳入 v0.1 的 PG/MySQL 目标的追加验收，须由数据 owner 与规范 owner 确认后登记到开发台账，**不得在未经确认时改变 SP03/SP04 现有的 Phase 退出条件和已记录的验收计数**。适用于其他数据库的部分（驱动 worker、各家族目标、云预算、文档映射）归 SP15 的 SP15-W02 扩展包，默认关闭，不阻塞 M1/M2。
 
 ## 8. 同步管线、正确性与恢复
 
@@ -1040,7 +1156,7 @@ Phase按接口和验收拆分，不按日历承诺；每Phase的工作项可以�
 | 工作项 | 实施边界 | 退出条件 |
 |---|---|---|
 | SP15-W01 | Helm、PGoperator对接、agent-sandbox/E2B/Kata驱动 | 同B/C/S1–S11；NetworkPolicy默认deny；真实集群演练 |
-| SP15-W02 | SQLServer/仓库批量连接器；逐数据库版本发布 | 类型双路径/删除/位点/事务/零写/对账0；不自动涵盖所有SQL库 |
+| SP15-W02 | 新数据库连接器；按第7A章DBX轨道逐目标、逐版本、逐能力发布（SQLServer/Oracle/国产库/云数仓/文档库等） | 类型双路径/删除/位点/事务/零写/对账0；不自动涵盖所有SQL库；每目标满足7A.2等级与AT-SRC-06至AT-SRC-14 |
 | SP15-W03 | Kafka buffer替代、位点/consumer迁移与回滚 | A与P11/P15等价；可重放性/许可审计 |
 | SP15-W04 | compile_metric、OSI/dbt/Cube导出、catalog导入 | 指标语义/权限不扩大、schema roundtrip、D/E增益 |
 | SP15-W05 | 列式加速扩展/索引与分区策略 | RLS/列授权/只读/解析配套全部通过，性能收益实测 |
@@ -1088,6 +1204,15 @@ Phase按接口和验收拆分，不按日历承诺；每Phase的工作项可以�
 | AT-SRC-03 | 所有类型边界分别CDC与批量、文件与loader读取 | schema与规范值/hash一致，金额无损；逐类型diff |
 | AT-SRC-04 | sparse/composite/string/quoted长标识符/碰撞/无PK，中文/大小写/重音/尾空格/二进制键跨库排序 | canonical键集合覆盖不漏不重，map唯一稳定，无PK只full；键集合与映射 |
 | AT-SRC-05 | 脏值/修正/同事件重放、PII未分类raw value | 保留所有行，reject去重/解决正确且raw掩码；reject与quality对照 |
+| AT-SRC-06 | 注册矩阵外家族、未验证版本/变体/能力、experimental于生产profile、伪造证据引用、矩阵与文档漂移、verified目标夜间连续失败 | 分别返回CONNECTOR_UNSUPPORTED/TARGET_VERSION_UNVERIFIED/CAPABILITY_UNVERIFIED；experimental拒绝生产；无证据的verified单元格CI失败；降级写入发布说明且已有源继续同步并显示警告；矩阵/证据/错误响应 |
+| AT-SRC-07 | 对每个目标运行启动、体检、读取、重连、no_data、取消、对账；尝试启用信号表/心跳写入/Stream创建/触发器及无ADR的R1w | 源端语句级审计中平台身份无DML/DDL（R1w仅限已批准辅助对象）；R2/R3选项被validate/plan拒绝；DBA清单含回滚；各引擎审计原文 |
+| AT-SRC-08 | 位点过期、托管故障转移/槽丢失、窗口临界滞后、不可比位点；T/S1/S0/B混合的跨表JOIN | 过期进入POSITION_EXPIRED并经新generation重快照后原子换表，旧位点不推进；STALE_RISK按阈值告警；不可比位点禁止修复与一致性宣称；freshness返回grade/capture_method，低于T的多表JOIN返回CROSS_TABLE_SKEW；transactional对非T源被拒绝；位点与窗口记录 |
+| AT-SRC-09 | 无原生删除的表：源删除/更新、语句时间赋值的长事务晚提交、相等游标、亚微秒精度游标列；对账周期 | 对账周期内删除收敛并返回DELETES_LAGGED；overlap与对账检出漏读并修复；cursor_safety分类正确；精度截断列不可作游标/PK；差异报告 |
+| AT-SRC-10 | 外部驱动worker：缺驱动、驱动digest变更、worker崩溃、越权访问Agent DB/Secret/其他源网络、厂商库崩溃 | DRIVER_MISSING阻止且不回退通用驱动；digest入AccessReport与审计；worker无Agent DB凭证且网络仅到该源；崩溃不影响已发布数据、租约恢复；镜像digest与网络测试 |
+| AT-SRC-11 | 源语义夹具（Oracle空串、CI排序/尾空格、datetime2(7)与TIMESTAMP(9)精度、列式引擎缺失默认值、declared_only约束、字符串键二进制排序）经catalog、Builder、Pack、freshness全链 | caveats逐项出现在catalog/Pack/表质量；精度损失列作PK/游标被block；declared_only关系须包含依赖检验才入候选；源方言SQL不出现在可执行示例；分块无漏无重；caveat对照 |
+| AT-SRC-12 | 云仓/计量源读取：dry-run估算、预算上限、预算耗尽、取消、长时间空闲 | 估算先于读取；超预算block；SOURCE_BUDGET_EXHAUSTED暂停且不静默重试；取消后云端作业无残留；不保持空闲会话；计费与作业日志 |
+| AT-SRC-13 | 文档/半结构化源：混合类型字段、新增字段、嵌套数组、Decimal128/Int64/ObjectId、仅主键的删除事件、不满足拓扑的实例 | 稳定字段投影与doc列保真且无精度损失；新字段进入未分类队列且默认不可见；混合类型仅留doc；删除按主键收敛；不支持拓扑明确拒绝CDC；映射diff |
+| AT-SRC-14 | 目标声明能力集；删除一个用例或新增未映射声明；请求未声明能力；套件同跑PG/MySQL与至少一个新家族目标 | CI因声明无测试而失败；未声明能力返回CAPABILITY_UNVERIFIED且不降级；声明与用例映射报告；证据类型分别标注 |
 
 #### 18.2.2 同步和文件
 
@@ -1436,6 +1561,14 @@ Release candidate:
 | REQ-SRC-05 | SP05 | AT-FILE-01、AT-FILE-05 | [03-sources-and-ingestion.md](../docs/03-sources-and-ingestion.md) |
 | REQ-SRC-06 | SP05 | AT-FILE-02、AT-FILE-03、AT-FILE-04 | [03-sources-and-ingestion.md](../docs/03-sources-and-ingestion.md) |
 | REQ-SRC-07 | SP05 | AT-FILE-06 | [03-sources-and-ingestion.md](../docs/03-sources-and-ingestion.md) |
+| REQ-SRC-08 | SP03 | AT-SRC-06、AT-SRC-14 | [database-support](../docs/database-support/01-admission-and-support-matrix.md) |
+| REQ-SRC-09 | SP03 | AT-SRC-07 | [database-support](../docs/database-support/03-change-capture-and-consistency.md) |
+| REQ-SRC-10 | SP04 | AT-SRC-08、AT-SRC-09 | [database-support](../docs/database-support/03-change-capture-and-consistency.md) |
+| REQ-SRC-11 | SP15 | AT-SRC-10 | [database-support](../docs/database-support/02-connector-architecture.md) |
+| REQ-SRC-12 | SP07 | AT-SRC-11 | [database-support](../docs/database-support/02-connector-architecture.md) |
+| REQ-SRC-13 | SP15 | AT-SRC-12 | [database-support](../docs/database-support/02-connector-architecture.md) |
+| REQ-SRC-14 | SP15 | AT-SRC-13 | [database-support](../docs/database-support/02-connector-architecture.md) |
+| REQ-SRC-15 | SP03 | AT-SRC-14 | [database-support](../docs/database-support/05-conformance-and-evidence.md) |
 | REQ-PL-01 | SP04 | AT-SRC-03、AT-PL-07 | [04-pipeline.md](../docs/04-pipeline.md) |
 | REQ-PL-02 | SP04 | AT-PL-01、AT-PL-02、AT-PL-08 | [04-pipeline.md](../docs/04-pipeline.md) |
 | REQ-PL-03 | SP04 | AT-PL-04 | [04-pipeline.md](../docs/04-pipeline.md) |
@@ -1541,6 +1674,8 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 ### 24.1 全量来源阅读记录
 
 本规范依据以下19份文档全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+revision 3（项目负责人 2026-10-09 批准）按[数据库支持扩展设计](../docs/database-support/README.md)回填 docs/README、02、03、04、05、06、07、12、14、16：收窄 I-SRC-1 的 DBA 对象例外、`consistency: transactional` 仅对 T 级源有效、追加质量状态/配置字段/OOS 可选字段/ADR-014；不新增或删除 REQ-SRC-01 至 07、不变量或 Phase，新增的 REQ-SRC-08 至 15 与 AT-SRC-06 至 14 见第 7A 章：[变更记录](../execution/decisions/source-baseline-revision-3.md)。
 
 1.0.1仅更新已独立审阅的来源revision 2：[变更审阅记录](../execution/decisions/source-baseline-revision-2.md)。docs/17新增源privateCA/verify-full、TLS统计unknown与role GUC封闭拒绝说明，落实REQ-SRC-02及零源写要求；不新增或删除REQ/AT/工作项/Phase，不把限定组件批准改为Phase签收。
 

@@ -6,7 +6,12 @@ mkdir -p "${EVIDENCE}/run"
 build_image() {
   local bin="$1" tag="$2"
   if [ ! -x "${STATE}/bin/${bin}" ]; then
-    echo "absent ${bin}" >> "${EVIDENCE}/run/images.txt"
+    if docker image inspect "$tag" >/dev/null 2>&1; then
+      docker image inspect --format '{{.Id}}' "$tag" >> "${EVIDENCE}/run/images.txt"
+      echo "reused ${tag}" >> "${EVIDENCE}/run/images.txt"
+    else
+      echo "absent ${bin}" >> "${EVIDENCE}/run/images.txt"
+    fi
     return 0
   fi
   docker build --pull=false --network=none --platform linux/arm64 \
@@ -25,6 +30,6 @@ build_image control-identity oo-a395-identity:local
 build_image audit-ingest oo-a395-audit:local
 build_image session-control-api oo-a395-session:local
 build_image selfbuild-control-api oo-a395-selfbuild:local
+build_image release-control-api oo-a395-release:local
 echo "source-control-api recipe_only" >> "${EVIDENCE}/run/images.txt"
-echo "release-control-api recipe_only" >> "${EVIDENCE}/run/images.txt"
 printf '%s\n' 0 > "${EVIDENCE}/run/images.exit"

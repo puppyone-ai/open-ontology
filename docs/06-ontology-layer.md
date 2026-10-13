@@ -2,13 +2,15 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 > 依赖：[03 数据源](03-sources-and-ingestion.md)、[05 Agent DB](05-agent-db.md)
 > 被依赖：[07 Gateway](07-gateway.md)、[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[13 评测](13-evaluation-and-benchmarks.md)
 
 ## 1. 目标
 
-Ontology 层回答 Agent 写 SQL 之前必须知道、但 schema 里没有写的东西：
+本层产出可由不同harness消费的语义资产：标准OOS YAML、人工审核overlay、Git版本，以及按角色编译的Knowledge Pack。文件可按已批准角色取得，公开接口可读取同一发布版本；生成和读取这些内容不要求启动Pi或内置对话。动态数据仍经Gateway查询，取得Pack不等于取得数据库账号或额外数据权限。
+
+Ontology层回答Agent写SQL之前必须知道、但schema里没有写的东西：
 
 | Agent 的问题 | Ontology 中对应的元素 |
 |---|---|
@@ -155,7 +157,16 @@ columns:
     review: { state: approved, by: finance.li, at: 2026-10-12 }
 caveats:
   - 2019 年前的数据存在重复客户，已在 logistics.customer 中合并。
+source_semantics:                          # 可选，生成层；由连接器的 semantic_caveats 与捕获方法填充
+  family: mysql
+  product: MySQL
+  version: "8.0"
+  capture: c1_cdc
+  grade: T
+  caveats: [source_collation_ci, trailing_space_insensitive]
 ```
+
+`source_semantics` 是 `oos/v1` 的追加式可选字段，记录来源家族、版本、捕获方法、一致性等级与源语义 caveats（定义见 [database-support/02 §6](database-support/02-connector-architecture.md)）；Builder 把它写入描述起草的输入，Knowledge Pack 在表页渲染“来源与语义”，缺省时按未知处理。
 
 **语义类型（`semantic_type`）枚举：** `identifier`、`foreign_key`、`entity_name`、`code`、`status_code`、`category`、`boolean_flag`、`money`、`quantity`、`ratio`、`event_time`、`date`、`audit_time`、`geo`、`address`、`phone`、`email`、`person_name`、`free_text`、`json`、`system`。它们驱动编译（例如 `money` 必须带 `unit`）、画像（例如 `status_code` 必须有码表）和 PII 默认策略。
 

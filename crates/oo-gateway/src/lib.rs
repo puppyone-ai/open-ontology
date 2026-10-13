@@ -6,8 +6,10 @@
 //! session for a trusted runtime. `parser_worker` runs the guard in a one-shot
 //! child process and kills that child at 500 ms. Kernel network, filesystem, and
 //! memory isolation are not provided, so untrusted admission stays blocked.
-//! `http_gateway` serves loopback HTTP from the accepted opaque token store.
-//! Durable audit and row-level security are not implemented here.
+//! `http_gateway` serves loopback HTTP and TLS from the accepted opaque token store.
+//! `public_surface` serves the authenticated query, knowledge, describe, tables,
+//! validate, freshness, and cancel routes. Its audit record is a local fsync
+//! WAL. Row filters stay refused. Export and MCP are not served.
 
 #![forbid(unsafe_code)]
 
@@ -19,22 +21,23 @@ pub mod mapping_reader_access;
 pub mod pack_catalog;
 pub mod parser_worker;
 pub mod policy;
+pub mod public_surface;
 pub mod query_executor;
 pub mod reviewed_policy;
 pub mod sql_guard;
 
 pub use policy::{
-    compile_column_acl, connect_require_tls, install_column_acl, rustls_connector, ClassStatus,
-    ColumnAclPolicy, ColumnSpec, CompiledPolicy, InstallEffect, InstallOutcome, LogicalTable,
-    PiiClass, PolicyError, RowFilter, TlsConnection, TlsEndpoint,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, CompiledPolicy, InstallEffect, InstallOutcome,
+    LogicalTable, PiiClass, PolicyError, RowFilter, TlsConnection, TlsEndpoint, compile_column_acl,
+    connect_require_tls, install_column_acl, rustls_connector,
 };
 pub use reviewed_policy::{
-    compile_reviewed_policies, ReviewedAllow, ReviewedBinding, ReviewedColumnPolicies,
-    ReviewedIdentity, ReviewedPolicyError, ReviewedSourceSeal,
+    ReviewedAllow, ReviewedBinding, ReviewedColumnPolicies, ReviewedIdentity, ReviewedPolicyError,
+    ReviewedSourceSeal, compile_reviewed_policies,
 };
 pub use sql_guard::{
-    guard_select, BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError,
-    GuardedPlan, LiteralKind, LiteralTypes, OutputItem, PolicyCatalog, PolicyIdentity,
-    RecognizedBindings, ResolvedFunction, ResolvedOperator, StarExpansion, VisibleColumn,
-    VisibleRelation, DEPTH_BUDGET, NODE_BUDGET, PINNED_PARSER_VERSION, SQL_BYTE_BUDGET,
+    BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, DEPTH_BUDGET, GuardError,
+    GuardedPlan, LiteralKind, LiteralTypes, NODE_BUDGET, OutputItem, PINNED_PARSER_VERSION,
+    PolicyCatalog, PolicyIdentity, RecognizedBindings, ResolvedFunction, ResolvedOperator,
+    SQL_BYTE_BUDGET, StarExpansion, VisibleColumn, VisibleRelation, guard_select,
 };

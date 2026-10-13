@@ -1,1 +1,0 @@
-{"deployment":"lab","namespace":"builder","previous_version":1,"project_id":"alpha","secret_ref":"secret://lab/alpha/builder/db","version":2,"workload":"urn:oo:workload:builder.one"}

@@ -1,9 +1,0 @@
-memory_object_bytes=8388608
-memory_store_stream_max_chunk=8192
-memory_store_stream_total=8388608
-memory_hwm_before_kib=4252
-memory_hwm_after_kib=20660
-memory_hwm_delta_bytes=16801792
-memory_rss_before_kib=4252
-memory_rss_after_kib=20660
-memory_manifest_size=8388608

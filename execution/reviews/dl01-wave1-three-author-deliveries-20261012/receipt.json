@@ -1,0 +1,29 @@
+[
+  {
+    "task": "39",
+    "fixed_sha": "bdddde642f1b418c36bc0d89e3c21fe4cb556df0",
+    "manifest": "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/c5-cycle/SHA256SUMS",
+    "fixed_git_hashes_checked": 121,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "46",
+    "fixed_sha": "4c8c10cf121eaa2390c98d5ee012b0421aab6e80",
+    "manifest": "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/SHA256SUMS",
+    "fixed_git_hashes_checked": 1773,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "71",
+    "fixed_sha": "c02cbf2caa28ffe42ff59a13ff1fc3fee3173f08",
+    "manifest": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/SHA256SUMS",
+    "fixed_git_hashes_checked": 259,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

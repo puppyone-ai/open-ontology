@@ -1,5 +1,0 @@
-red-source.sha256 is the worktree source that panicked.
-buffered.rs matches /tmp/oo-a129-eef831aa/red-snapshot at the panic run.
-console.log unit_exit=101 at buffered.rs:590: incoming view shrank during advance.
-red/red-source.sha256 is an earlier chunk shape that did not panic.
-PATCH.md in this hash is still the pre-fix wording.

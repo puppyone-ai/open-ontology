@@ -1,6 +1,0 @@
-docker run exit 125. The daemon reported that the bind source
-/private/tmp/oo-a274-eef831aa-dba4-4af2-a78b-541bc9e0a274/preoverlay/archive/tools/pg-onboarding
-did not exist. The launch script had just removed and re-extracted that directory, and the
-host check for outcome.rs had passed. Attempt 1 had mounted the same path successfully.
-Attempt 3 extracts into a new directory and checks the directory again immediately before docker run.
-The test name correction in this attempt's inside.sh was not reached.

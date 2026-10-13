@@ -1,1 +1,0 @@
-own=0 global=2 own_docker=0 own_host=0 global_docker=0 global_host=2 cap_global=10 cap_own=1

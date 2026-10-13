@@ -1,6 +1,0 @@
- contracts/builder/structure-draft/README.md    |   8 +-
- crates/oo-builder/src/draft.rs                 | 123 ++++
- crates/oo-builder/src/draft_tests.rs           | 897 +++++++++++++++++++++++++
- crates/oo-builder/src/pgsql.rs                 | 143 +++-
- crates/oo-builder/tests/structure_draft_cli.rs |  57 ++
- 5 files changed, 1200 insertions(+), 28 deletions(-)

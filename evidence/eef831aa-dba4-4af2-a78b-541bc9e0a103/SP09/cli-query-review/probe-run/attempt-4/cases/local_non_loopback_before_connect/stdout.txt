@@ -1,1 +1,0 @@
-{"class":"local","exit":1,"message":"endpoint rejected: plaintext is only for an explicit loopback base","retry":{"attempt_count":"unknown","max_extra_attempts":3,"max_wait_ms":2000,"nested_cli_retries":0,"outcome":"not_applicable"},"retryable":false}

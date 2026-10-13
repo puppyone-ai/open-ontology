@@ -1,0 +1,1 @@
+rev-w37-compat CC-03 decimal and int64 values stayed exact

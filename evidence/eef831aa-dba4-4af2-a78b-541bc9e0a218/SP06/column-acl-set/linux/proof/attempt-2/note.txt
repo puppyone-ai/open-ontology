@@ -1,1 +1,0 @@
-query-pg exit 5 policy: login lacked USAGE/SELECT/EXECUTE on physical mappings; fixture grant added, column role unchanged

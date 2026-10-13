@@ -1,5 +1,0 @@
-CREATE UNIQUE INDEX physical_mappings_column_scope_unique ON _oo.physical_mappings USING btree (scope_namespace_physical, scope_table_physical, physical_name) NULLS NOT DISTINCT
-CREATE UNIQUE INDEX physical_mappings_identity_digest_unique ON _oo.physical_mappings USING btree (identity_digest)
-CREATE UNIQUE INDEX physical_mappings_physical_name_unique ON _oo.physical_mappings USING btree (physical_name)
-CREATE UNIQUE INDEX physical_mappings_pkey ON _oo.physical_mappings USING btree (source, config_digest, run_generation, level, logical_namespace, logical_table, logical_column)
-CREATE UNIQUE INDEX physical_mappings_table_scope_unique ON _oo.physical_mappings USING btree (scope_namespace_physical, physical_name)

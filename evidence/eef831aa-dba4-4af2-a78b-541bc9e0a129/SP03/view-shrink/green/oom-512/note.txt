@@ -1,5 +1,0 @@
-Fixed meter, 512 frames, 64-byte init_mut chunks.
-unit_exit=101 signal 9 SIGKILL. hostconfig OOMKilled=true. Container memory 8589934592.
-lib 55, pg_wire_bounds 13, pg_wire_accounting 12, pg_portal_bounds 6, pg_wire_view_shrink 1, clippy 0 all passed in this same run.
-The panic expect is absent. init_mut commits the spare, so each later read doubles the live view until the cgroup kills the test.
-green-source.sha256 in this directory is that 512-frame source.

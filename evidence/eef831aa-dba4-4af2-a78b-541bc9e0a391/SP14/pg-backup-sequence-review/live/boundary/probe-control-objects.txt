@@ -1,6 +1,0 @@
-schema|oo_a391_probe|oo_a356_admin
-rel|S|oo_a391_probe.seq|oo_a356_admin
-rel|r|oo_a391_probe.added|oo_a356_admin
-rel|v|oo_a391_probe.v|oo_a356_admin
-row|7
-seq|1|t|32

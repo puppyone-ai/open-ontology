@@ -1,0 +1,138 @@
+{
+  "documents": [
+    {
+      "_id": "src-05ee",
+      "source": {
+        "bin_value": "AA==",
+        "doc_key": "k-05ee",
+        "double_value": 0.0,
+        "event_ms": 0,
+        "flag": false,
+        "long_value": -9223372036854775808,
+        "note": "",
+        "payload_json": {},
+        "quantities": [],
+        "scaled_value": 0,
+        "seq_key": 5,
+        "tags": [],
+        "thing": {"label": "", "n": 0}
+      }
+    },
+    {
+      "_id": "src-10aa",
+      "source": {
+        "bin_value": "AP8Q",
+        "doc_key": "k-10aa",
+        "double_value": 0.5,
+        "event_ms": 1577934245000,
+        "flag": true,
+        "long_value": 10,
+        "note": "alpha",
+        "payload_json": {"keep": "exact", "n": 1},
+        "quantities": [1, 2, 3],
+        "scaled_value": 1.25,
+        "seq_key": 10,
+        "tags": ["red", "blue"],
+        "thing": {"label": "nest", "n": 7}
+      }
+    },
+    {
+      "_id": "src-20cc",
+      "source": {
+        "bin_value": null,
+        "doc_key": "k-20cc",
+        "double_value": -1.5,
+        "event_ms": null,
+        "flag": null,
+        "long_value": null,
+        "note": null,
+        "payload_json": null,
+        "quantities": [null, 4],
+        "scaled_value": -2.5,
+        "seq_key": 20,
+        "tags": null,
+        "thing": null,
+        "where_point": {"lat": 1.0, "lon": 2.0}
+      }
+    },
+    {
+      "_id": "src-30bb",
+      "source": {
+        "bin_value": "dzQ0LWJsb2I=",
+        "doc_key": "k-30bb",
+        "double_value": 2.0,
+        "event_ms": -86400000,
+        "flag": true,
+        "long_value": 9223372036854775807,
+        "note": "cafe snow",
+        "payload_json": {"ok": false, "z": [1, 2]},
+        "quantities": [-5, 0],
+        "scaled_value": 0.25,
+        "seq_key": 30,
+        "tags": ["", "gamma"],
+        "thing": {"label": "inner", "n": null}
+      }
+    },
+    {
+      "_id": "src-41c0",
+      "source": {
+        "doc_key": "k-41c0",
+        "seq_key": 40
+      }
+    },
+    {
+      "_id": "src-50dd",
+      "source": {
+        "bin_value": "AA==",
+        "doc_key": "k-50dd",
+        "double_value": 0.0,
+        "event_ms": 1,
+        "flag": false,
+        "long_value": 42,
+        "note": "middle",
+        "payload_json": {"k": "v"},
+        "quantities": [9],
+        "scaled_value": 1.5,
+        "seq_key": 50,
+        "tags": ["one"],
+        "thing": {"n": 3}
+      }
+    },
+    {
+      "_id": "src-60ff",
+      "source": {
+        "bin_value": "AP8Q",
+        "doc_key": "k-60ff",
+        "double_value": 0.5,
+        "event_ms": 1577934245000,
+        "flag": true,
+        "long_value": 0,
+        "note": "page-tail",
+        "payload_json": {"role": "tail"},
+        "quantities": [60],
+        "scaled_value": 0,
+        "seq_key": 60,
+        "tags": ["z"],
+        "thing": {"label": "t", "n": 1}
+      }
+    },
+    {
+      "_id": "src-del",
+      "source": {
+        "bin_value": "AA==",
+        "doc_key": "k-del",
+        "double_value": 2.0,
+        "event_ms": 70,
+        "flag": false,
+        "long_value": 70,
+        "note": "reconcile-me",
+        "payload_json": {"role": "delete-key"},
+        "quantities": [70],
+        "scaled_value": 1.25,
+        "seq_key": 70,
+        "tags": ["gone"],
+        "thing": {"label": "del", "n": 70}
+      }
+    }
+  ]
+}

@@ -1094,6 +1094,7 @@ fn generated_value(plans: &[TablePlan]) -> Result<Value, DraftError> {
             time_columns: Vec::new(),
             columns,
             caveats: Vec::new(),
+            source_semantics: None,
         };
         if !validate_dataset(&dataset).is_empty() {
             return Err(DraftError::new(
@@ -2067,11 +2068,10 @@ fn endpoint_presence(
     let Some(columns) = end.get("columns").and_then(Value::as_array) else {
         return EndpointPresence::MissingColumn;
     };
-    if columns.iter().any(|column| {
-        column
-            .as_str()
-            .is_none_or(|name| !present.contains(name))
-    }) {
+    if columns
+        .iter()
+        .any(|column| column.as_str().is_none_or(|name| !present.contains(name)))
+    {
         EndpointPresence::MissingColumn
     } else {
         EndpointPresence::Present
@@ -2114,8 +2114,8 @@ fn strip_dangling_relationships(
         return;
     };
     let mut closed = Vec::new();
-    relationships.retain(|relationship| {
-        match relationship_gap(relationship, &index) {
+    relationships.retain(
+        |relationship| match relationship_gap(relationship, &index) {
             None => true,
             Some(detail) => {
                 if let Some(name) = relationship.get("name").and_then(Value::as_str) {
@@ -2123,8 +2123,8 @@ fn strip_dangling_relationships(
                 }
                 false
             }
-        }
-    });
+        },
+    );
     closed.sort_by(|left, right| left.0.cmp(&right.0));
     for (name, detail) in closed {
         let Some(fk) = plans.iter().find_map(|plan| {

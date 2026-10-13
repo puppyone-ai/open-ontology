@@ -1,0 +1,33 @@
+{
+  "fixed_hashes": [
+    {
+      "sha": "471e96994477a07b7198d47cceab6291e88357a7",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/jsonb-document-import/delivery-sha256.txt",
+      "verified": 4
+    },
+    {
+      "sha": "471e96994477a07b7198d47cceab6291e88357a7",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/jsonb-document-import/raw/SHA256SUMS",
+      "verified": 141
+    },
+    {
+      "sha": "9d922b49b1795cc4696bacb385493250cb012dec",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-admission/SHA256SUMS",
+      "verified": 5
+    },
+    {
+      "sha": "9d922b49b1795cc4696bacb385493250cb012dec",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-admission/delivery-sha256.txt",
+      "verified": 4
+    },
+    {
+      "sha": "9d922b49b1795cc4696bacb385493250cb012dec",
+      "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-admission/raw/SHA256SUMS",
+      "verified": 63
+    }
+  ],
+  "scope": "fixed author function evidence, not complete Oracle/MySQL/Mongo source approval",
+  "native_admission_cli_tested": false,
+  "oracle_loss_caveat_pack_produced": false,
+  "independent_review": "deferred_to_connected_product"
+}

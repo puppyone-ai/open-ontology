@@ -1,4 +1,0 @@
-5d18146445c3 oo-a220-build03 0f24958fa693 a220 rust-builder
-3682794d143c oo-a222-pg 3aac91d19d5b a222 postgres
-01a2ba652c50 oo-a219-pg 3aac91d19d5b a219 postgres
-431d3dd9d2a0 oo-a218-pg 3aac91d19d5b a218 postgres

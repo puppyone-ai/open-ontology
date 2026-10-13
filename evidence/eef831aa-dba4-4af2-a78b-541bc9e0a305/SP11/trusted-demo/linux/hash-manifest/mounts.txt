@@ -1,1 +1,0 @@
-[{"Type":"bind","Source":"/tmp/oo-a305-cleanup-snapshot/sha256_manifest.rs","Destination":"/src/sha256_manifest.rs","Mode":"","RW":false,"Propagation":"rprivate"},{"Type":"bind","Source":"/Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a305/SP11/trusted-demo","Destination":"/evidence","Mode":"","RW":true,"Propagation":"rprivate"}]

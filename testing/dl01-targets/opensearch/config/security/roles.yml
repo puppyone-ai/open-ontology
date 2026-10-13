@@ -1,0 +1,34 @@
+---
+_meta:
+  type: "roles"
+  config_version: 2
+
+all_access:
+  reserved: false
+  cluster_permissions:
+    - "cluster:*"
+  index_permissions:
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "indices:*"
+  tenant_permissions: []
+
+oo_dl01w1_15_reader:
+  reserved: false
+  cluster_permissions: []
+  index_permissions:
+    - index_patterns:
+        - "oo-dl01w1-15-synthetic"
+      allowed_actions:
+        - "indices:data/read/search"
+        - "indices:data/read/search*"
+        - "indices:data/read/get"
+        - "indices:data/read/mget"
+        - "indices:data/read/count"
+        - "indices:admin/mappings/get"
+        - "indices:admin/mappings/fields/get"
+        - "indices:admin/get"
+        - "indices:data/read/point_in_time/create"
+        - "indices:data/read/point_in_time/delete"
+  tenant_permissions: []

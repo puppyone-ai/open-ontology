@@ -1,9 +1,0 @@
-pg-wrap origin a274 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/pg/pg-wrap.sh d53f478805b2e721c81d5d8befafe70d4e6bac71af6136d2531149f70afe2bbb
-up flags origin a274 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a274/SP11/pg-onboarding-review/pg/up.sh ec1dd1087fddfebfe22c89ee21677ed6c81eba75f7ba4e6a55b2d867daa02c76
-up flags reviewed copy a361 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a361/SP14/pg-backup-restore-review/pg/up.sh 0492cc6f951aca262be3efee9cfee933ea4f81d87e8167658bfc5183539539c6
-smoke shape a366 evidence/eef831aa-dba4-4af2-a78b-541bc9e0a366/SP08/release-coordinator-review/linux/smoke-before.sh
-product commit 6b3a92c2e06a2e91a74393b739ec8f1c565ae17b
-rust image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-pg image docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb
-a367 names, network, volumes, secrets, and database oo_a367_oracle are private.
-The author live test hardcodes database oo_a358_review. That database is created only inside this private cluster.

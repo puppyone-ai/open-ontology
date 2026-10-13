@@ -1,6 +1,0 @@
-    Updating crates.io index
-     Locking 81 packages to latest compatible versions
-      Adding cc v1.4.7 (available: v1.5.1)
-      Adding find-msvc-tools v0.1.13 (available: v0.1.14)
-      Adding lazy_static v1.5.0 (available: v1.5.1)
-      Adding pg_query v6.2.0 (available: v6.2.1)

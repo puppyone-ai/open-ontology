@@ -1,1 +1,0 @@
-attempt 1 docker-run exit 101. captured_pg passed. review_pg_cli panicked at fs::read of evidence fixtures omitted from the partial archive. Product overlay was absent. Attempt 2 adds those two fixed-commit fixture paths and does not change product code.

@@ -16,6 +16,8 @@ use crate::error::ApiError;
 use crate::tlsutil::client_config;
 use crate::MIGRATION_SQL;
 
+const OVERLAY_SQL: &str = include_str!("../migrations/oo_selfbuild_overlay_v1.sql");
+
 pub const STAGES: [&str; 11] = ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"];
 
 #[derive(Clone, Debug)]
@@ -80,6 +82,20 @@ impl Drop for Secret {
 }
 
 pub async fn connect(endpoint: &Endpoint) -> Result<Client, ApiError> {
+    let mut last = ApiError::not_ready();
+    for attempt in 0..3 {
+        match connect_once(endpoint).await {
+            Ok(client) => return Ok(client),
+            Err(error) => last = error,
+        }
+        if attempt < 2 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+    Err(last)
+}
+
+async fn connect_once(endpoint: &Endpoint) -> Result<Client, ApiError> {
     let mut secret = read_secret(&endpoint.password_file)?;
     if secret.0.ends_with(b"\n") {
         secret.0.pop();
@@ -112,6 +128,11 @@ pub async fn connect(endpoint: &Endpoint) -> Result<Client, ApiError> {
 
 pub async fn install_schema(endpoint: &Endpoint) -> Result<(), ApiError> {
     let mut client = connect(endpoint).await?;
+    install_v1(&mut client).await?;
+    install_overlay(&mut client).await
+}
+
+async fn install_v1(client: &mut Client) -> Result<(), ApiError> {
     let hash = sha256_hex(MIGRATION_SQL.as_bytes());
     match client
         .query_opt("SELECT sql_sha256 FROM oo_selfbuild_api.install_manifest WHERE singleton", &[])
@@ -125,10 +146,45 @@ pub async fn install_schema(endpoint: &Endpoint) -> Result<(), ApiError> {
                 Err(ApiError::new(409, "membership.refused", "the install hash drifted", false))
             }
         }
-        Ok(None) => apply_migration(&mut client, &hash).await,
-        Err(error) if missing_schema(&error) => apply_migration(&mut client, &hash).await,
+        Ok(None) => apply_migration(client, &hash).await,
+        Err(error) if missing_schema(&error) => apply_migration(client, &hash).await,
         Err(_) => Err(ApiError::not_ready()),
     }
+}
+
+async fn install_overlay(client: &mut Client) -> Result<(), ApiError> {
+    let hash = sha256_hex(OVERLAY_SQL.as_bytes());
+    match client
+        .query_opt("SELECT sql_sha256 FROM oo_selfbuild_api.overlay_manifest WHERE singleton", &[])
+        .await
+    {
+        Ok(Some(row)) => {
+            let stored: String = row.get(0);
+            if stored == hash {
+                Ok(())
+            } else {
+                Err(ApiError::new(409, "membership.refused", "the overlay install hash drifted", false))
+            }
+        }
+        Ok(None) => apply_overlay(client, &hash).await,
+        Err(error) if missing_schema(&error) => apply_overlay(client, &hash).await,
+        Err(_) => Err(ApiError::not_ready()),
+    }
+}
+
+async fn apply_overlay(client: &mut Client, hash: &str) -> Result<(), ApiError> {
+    let tx = client.transaction().await.map_err(|_| ApiError::not_ready())?;
+    tx.batch_execute("SET LOCAL synchronous_commit = on")
+        .await
+        .map_err(|_| ApiError::not_ready())?;
+    tx.batch_execute(OVERLAY_SQL).await.map_err(|_| ApiError::not_ready())?;
+    tx.execute(
+        "INSERT INTO oo_selfbuild_api.overlay_manifest (singleton, sql_sha256) VALUES (true, $1)",
+        &[&hash],
+    )
+    .await
+    .map_err(|_| ApiError::not_ready())?;
+    tx.commit().await.map_err(|_| ApiError::commit_unknown())
 }
 
 async fn apply_migration(client: &mut Client, hash: &str) -> Result<(), ApiError> {
@@ -358,7 +414,11 @@ pub async fn request_cancel(endpoint: &Endpoint, build_id: &str, subject: &str) 
         .await
         .map_err(|_| ApiError::not_ready())?;
     tx.execute(
-        "UPDATE oo_selfbuild_api.build_job SET status = 'cancel_requested', updated_at = now()
+        "UPDATE oo_selfbuild_api.build_job
+         SET status = 'cancel_requested',
+             child_exited = CASE WHEN child_pid IS NULL THEN true ELSE child_exited END,
+             lease_until = NULL,
+             updated_at = now()
          WHERE build_id = $1 AND status IN ('queued', 'running')",
         &[&build_id],
     )
@@ -395,7 +455,11 @@ pub async fn audit_update_fails(endpoint: &Endpoint) -> Result<(), ApiError> {
     }
 }
 
-pub async fn claim(client: &Client, owner: &str) -> Result<Option<BuildRow>, ApiError> {
+pub async fn claim(client: &Client, owner: &str, eligible: &[(String, String, String)]) -> Result<Option<BuildRow>, ApiError> {
+    if eligible.is_empty() { return Ok(None); }
+    let projects: Vec<String> = eligible.iter().map(|item| item.0.clone()).collect();
+    let inputs: Vec<String> = eligible.iter().map(|item| item.1.clone()).collect();
+    let commits: Vec<String> = eligible.iter().map(|item| item.2.clone()).collect();
     let row = client
         .query_opt(
             "UPDATE oo_selfbuild_api.build_job AS j
@@ -407,6 +471,8 @@ pub async fn claim(client: &Client, owner: &str) -> Result<Option<BuildRow>, Api
              WHERE j.build_id = (
                  SELECT b.build_id FROM oo_selfbuild_api.build_job b
                  WHERE b.status IN ('queued', 'running', 'cancel_requested')
+                   AND EXISTS (SELECT 1 FROM unnest($2::text[], $3::text[], $4::text[]) AS allowed(project_id, input_sha256, config_commit)
+                               WHERE allowed.project_id = b.project_id AND allowed.input_sha256 = b.input_sha256 AND allowed.config_commit = b.config_commit)
                    AND (b.lease_until IS NULL OR b.lease_until < now())
                    AND NOT (
                        b.status = 'running'
@@ -430,20 +496,25 @@ pub async fn claim(client: &Client, owner: &str) -> Result<Option<BuildRow>, Api
              RETURNING build_id, project_id, status, stage, identity_revision, input_sha256, failure_code,
                        body_sha256, config_commit, source_ref, allowance_id, subject, role_name,
                        child_exited, child_pid, lease_generation",
-            &[&owner],
+            &[&owner, &projects, &inputs, &commits],
         )
         .await
         .map_err(|_| ApiError::not_ready())?;
     Ok(row.map(build_from))
 }
 
-pub async fn heartbeat(client: &Client, build_id: &str, generation: i64) -> Result<bool, ApiError> {
-    let params: [&(dyn ToSql + Sync); 2] = [&build_id, &generation];
+pub async fn bind_worker_lease(client: &Client, owner: &str, generation: i64) -> Result<(), ApiError> {
+    client.query_one("SELECT set_config('oo.worker_owner', $1, false), set_config('oo.worker_generation', $2, false)", &[&owner, &generation.to_string()]).await.map_err(|_| ApiError::not_ready())?;
+    Ok(())
+}
+
+pub async fn heartbeat(client: &Client, build_id: &str, generation: i64, owner: &str) -> Result<bool, ApiError> {
+    let params: [&(dyn ToSql + Sync); 3] = [&build_id, &generation, &owner];
     let count = client
         .execute(
             "UPDATE oo_selfbuild_api.build_job
              SET lease_until = now() + interval '30 seconds', updated_at = now()
-             WHERE build_id = $1 AND lease_generation = $2",
+             WHERE build_id = $1 AND lease_generation = $2 AND lease_owner = $3 AND status IN ('running', 'cancel_requested')",
             &params,
         )
         .await
@@ -509,9 +580,14 @@ pub async fn set_stage(
     ];
     let count = client
         .execute(
-            "UPDATE oo_selfbuild_api.stage_checkpoint
+            "UPDATE oo_selfbuild_api.stage_checkpoint AS s
              SET status = $3, output_sha256 = $4, detail_code = $5
-             WHERE build_id = $1 AND stage = $2 AND input_sha256 = $6",
+             WHERE s.build_id = $1 AND s.stage = $2 AND s.input_sha256 = $6
+               AND (nullif(current_setting('oo.worker_generation', true), '') IS NULL OR EXISTS (
+                   SELECT 1 FROM oo_selfbuild_api.build_job j WHERE j.build_id = s.build_id
+                   AND j.lease_owner = current_setting('oo.worker_owner', true)
+                   AND j.lease_generation::text = current_setting('oo.worker_generation', true)
+                   AND j.lease_until > now()))",
             &params,
         )
         .await
@@ -522,7 +598,11 @@ pub async fn set_stage(
             .execute(
                 "UPDATE oo_selfbuild_api.build_job
                  SET stage = $2, updated_at = now()
-                 WHERE build_id = $1 AND status IN ('queued', 'running', 'cancel_requested')",
+                 WHERE build_id = $1 AND status IN ('queued', 'running', 'cancel_requested')
+                   AND (nullif(current_setting('oo.worker_generation', true), '') IS NULL OR (
+                       lease_owner = current_setting('oo.worker_owner', true)
+                       AND lease_generation::text = current_setting('oo.worker_generation', true)
+                       AND lease_until > now()))",
                 &job_params,
             )
             .await
@@ -544,7 +624,11 @@ pub async fn set_job(
         .execute(
             "UPDATE oo_selfbuild_api.build_job
              SET status = $2, stage = $3, failure_code = $4, updated_at = now()
-             WHERE build_id = $1 AND input_sha256 = $5",
+             WHERE build_id = $1 AND input_sha256 = $5
+               AND (nullif(current_setting('oo.worker_generation', true), '') IS NULL OR (
+                   lease_owner = current_setting('oo.worker_owner', true)
+                   AND lease_generation::text = current_setting('oo.worker_generation', true)
+                   AND lease_until > now()))",
             &params,
         )
         .await
@@ -571,7 +655,11 @@ pub async fn finish_reviewed_client(client: &Client, build: &BuildRow) -> Result
                )
                AND EXISTS (
                    SELECT 1 FROM oo_selfbuild_api.pack_record p WHERE p.build_id = j.build_id
-               )",
+               )
+               AND (nullif(current_setting('oo.worker_generation', true), '') IS NULL OR (
+                   j.lease_owner = current_setting('oo.worker_owner', true)
+                   AND j.lease_generation::text = current_setting('oo.worker_generation', true)
+                   AND j.lease_until > now()))",
             &params,
         )
         .await
@@ -603,7 +691,11 @@ pub async fn note_waiting_pack(client: &Client, build: &BuildRow) -> Result<bool
                )
                AND NOT EXISTS (
                    SELECT 1 FROM oo_selfbuild_api.pack_record p WHERE p.build_id = j.build_id
-               )",
+               )
+               AND (nullif(current_setting('oo.worker_generation', true), '') IS NULL OR (
+                   j.lease_owner = current_setting('oo.worker_owner', true)
+                   AND j.lease_generation::text = current_setting('oo.worker_generation', true)
+                   AND j.lease_until > now()))",
             &params,
         )
         .await
@@ -1058,5 +1150,3 @@ pub async fn new_build_id() -> Result<String, ApiError> {
     }
     Ok(out)
 }
-
-

@@ -1,9 +1,0 @@
-captured_at=2026-10-03T09:03:33Z
-host_cargo=0
-rust_builders=0
-global=0
-own_take=1
-slot=A
-slot_b=a124_handle_97117_vendor_meter_writer
-fixed=ae8f9bb371997445da3b1110c8baec31c250f383
-product=2b6dd57a0dc3d36e098268638c0364af247d07fb

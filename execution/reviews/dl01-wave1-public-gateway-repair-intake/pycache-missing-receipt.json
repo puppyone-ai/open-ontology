@@ -1,0 +1,13 @@
+[
+  {
+    "task": "72",
+    "fixed_sha": "91031011238c39e571a28a90831b012f225862d6",
+    "manifest": "evidence/7e719805-ed88-4354-a5a1-f869f34da49b/DL01/public-gateway-cli/hash-manifest.txt",
+    "fixed_git_hashes_checked": 1017,
+    "errors": [
+      "missing:driver/__pycache__/check-repair.cpython-314.pyc"
+    ],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

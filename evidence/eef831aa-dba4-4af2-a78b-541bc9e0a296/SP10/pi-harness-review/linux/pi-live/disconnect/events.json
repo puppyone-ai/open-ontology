@@ -1,1 +1,0 @@
-[Event(Sequenced { sequence: 0, event: TurnStarted }), Event(Sequenced { sequence: 1, event: AssistantDelta { text: "fixture-reply" } }), Terminated(Incomplete { reason: "stdout-eof" })]

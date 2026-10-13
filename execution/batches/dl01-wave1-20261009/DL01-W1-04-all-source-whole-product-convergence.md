@@ -1,0 +1,10 @@
+# 原DL01-W1-04十源并行完整产品长跑
+
+先读原完整卡 `execution/batches/dl01-wave1-20261009/DL01-W1-04-whole-source-current-delivery-continue.md` 及executionINDEX/GOAL/PRODUCT-LOOPS/CONTROL/UPDATE-PROTOCOL/review-policy、skill和该源对应原docs/Spec/Plan，独占路径/原全退出继承。
+
+Oracle唯一完整源，重点推进。450db最新全原名字典/SCN/审计与C5真实数据已就绪，COPY单mapping已5e1c实测修复可复用，不再用原4673重复拒绝；新的合法admission/witness必须真实源Oracle类型/SCN/C5 grade/租约，交02/06。完成维护C5_NOTE、TIMESTAMP精度/emptyString/NUMBER等原全部语义在标准YAML与rolePack/freshness实际可见；同源更新删除不复活+源恢复权限原退出保持。
+
+## 最新收敛规则
+直接人类要求十源全部做，MySQL/Oracle重点；每源一个完整自主Grok工程师，非只PG/非细碎功能。可运行固定代码+必要真实测试即可先联结；一般组件审阅、风格、小问题延后。无法运行、数据不准确、越权/secret暴露、伪造信任或接受不真实结果必须修。原完整输入/Plan/Goal/量化退出不改，source0/10不因组件变绿晋升；模型approved路径空目录只挡真实S5/Agent对话，不偷找foreignkey。
+新固定可复用：02内容b0df708e494eaca7d8739c963f73447250e6d1ba/回执cbc88efdcfd944eb1a1f768f237956ed13653314；Linux1.94 validator ELF e465241fc1292b6eb5a13cf12efbffe360a9fbf1cbb03c02affb0241a4e58e1f，合法DorisR0 witness C5/C4/public无secretref，其他源需源自身真实witness不借他源。06 e37a6f9dead618283d654c70c65302f14c430d37新ELF56514ae7e734ab211365c37b8889644f93a979dc82326708a7cfc3a7012e9866，单向registry_preimage、真实工件/活lease、expired/consistency/replayTruth/leaseRequired门，不能用历史4673自写receipt的source_bound声称trusted。02新ELF allowlist以及大driver正常配额尚需sole06实际接通，jobs.claim/fence接口尚需sole06/74，不手造SQL lease/cert。已绿物理导入不为新证据重跑无变化的旧窗口。
+每源自主完成可用产品全闭环：本源真实schema/全批准类型/独立源audit/配置捕获周期和增删改收敛→真正sealed importer→Selfbuild真实S0S10/OOS YAML/curated有效版本和维护→实际KnowledgePack→Gateway OOCLI或现有声明protocol→独立Agent真实多轮准确。准备独占真实原始producer/witness与明确调用请求，消费shared新固定接口，新API拒绝属工程问题由确切owner改，不拿旧同拒绝循环来凑并发。不让仅后台启动终结CLI，先收自己具名任务终态；任务卡完整版三报告、fixedSHA/ELF/raw/hash/resource一次交付。无foreign/rootCargo/ledgerwrites，无新agents/worktrees，无CPU/jobs/槽限制；不得重启旧paused源，可新自有隔离非生产批准namespace，保持现有资源。

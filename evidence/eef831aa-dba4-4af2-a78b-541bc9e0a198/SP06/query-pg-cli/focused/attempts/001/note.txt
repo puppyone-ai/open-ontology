@@ -1,1 +1,0 @@
-docker run exited 126. launch.sh had set -e, so it did not write focused/launch.exit. check failed on the help string and test byte contains. lock-edge binary was written to noexec /tmp.

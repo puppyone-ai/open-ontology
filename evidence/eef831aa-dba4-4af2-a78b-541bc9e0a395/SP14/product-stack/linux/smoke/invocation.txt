@@ -1,1 +1,0 @@
-docker run --name oo-a395-smoke --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 rustc -vV

@@ -1,6 +1,0 @@
-node=v24.21.0
-memory.max=4294967296
-cpu.max=100000 100000
-73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e  /src/pnpm-lock.yaml
-bd3f8367b353276b7c8e2a3385c9a48bdaf9be1a010413a6d70cb94eaf66d40b  apps/web/public/fonts/NotoSansSC-full.woff2
-67de1ac1e892e832f070d5544da0bb225f9ec711d8347ba3b8b46f0f92fd4640  apps/web/public/fonts/NotoSansSC-400-subset.woff2

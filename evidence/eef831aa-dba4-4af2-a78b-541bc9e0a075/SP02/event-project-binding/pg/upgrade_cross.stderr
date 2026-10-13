@@ -1,6 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/insert_cross_project.sql:13: ERROR:  23503: insert or update on table "task_events" violates foreign key constraint "task_events_task_project_fkey"
-DETAIL:  Key (task_id, project_id)=(a0750001-0001-4000-8000-000000000012, 22222222-2222-4222-8222-222222222222) is not present in table "tasks".
-SCHEMA NAME:  jobs
-TABLE NAME:  task_events
-CONSTRAINT NAME:  task_events_task_project_fkey
-LOCATION:  ri_ReportViolation, ri_triggers.c:2599

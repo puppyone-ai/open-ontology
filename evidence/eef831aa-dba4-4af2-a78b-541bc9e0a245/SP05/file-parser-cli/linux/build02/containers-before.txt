@@ -1,3 +1,0 @@
-1447d96fd8cd oo-a248-smoke 0f24958fa693 a248 rust-builder
-67afd1256a6f oo-a244-proof 0f24958fa693 a244 rust-builder
-ffab91fea754 oo-a244-pg 3aac91d19d5b a244 postgres

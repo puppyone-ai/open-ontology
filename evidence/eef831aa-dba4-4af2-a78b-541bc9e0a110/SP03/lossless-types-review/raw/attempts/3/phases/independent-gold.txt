@@ -1,5 +1,0 @@
-facts version=17.10 (Debian 17.10-1.pgdg12+1) bpchar=616220 jsonb=017b2261223a20332c20227a223a20317d time24=000000141dd76000 units=000100000000000004b0 place=00010001000000000001 negzero=0000000000000000 flag=16392 d_int=16394 d_outer=16396 hue=16398
-connected
-registration=true blocks=[] write=read_only
-catalog scale 2046
-record batch built

@@ -1,0 +1,19 @@
+-- Production-shaped DBA checklist for a real SQL Server source.
+-- Every line is a comment. This preparation does not execute it.
+-- The platform reader must not receive sysadmin, db_owner, db_datawriter, or db_ddladmin.
+-- CDC and Change Tracking stay with DBP2. Do not run sp_cdc_enable_db or enable change tracking from this task.
+--
+-- CREATE LOGIN oo_reader WITH PASSWORD set by the DBA outside git.
+-- CREATE USER oo_reader FOR LOGIN oo_reader;
+-- GRANT SELECT ON SCHEMA::dbo TO oo_reader;
+-- GRANT VIEW DEFINITION TO oo_reader;
+-- GRANT VIEW DATABASE STATE TO oo_reader;
+-- Do not grant db_datareader. A new schema would become visible.
+--
+-- Audit or Extended Events filtered to that login are the zero-write evidence.
+-- The reader does not create those objects.
+--
+-- Not in this checklist's executed surface:
+-- EXEC sys.sp_cdc_enable_db;
+-- ALTER DATABASE ... SET CHANGE_TRACKING = ON;
+-- Debezium signal tables and incremental snapshots are out of scope.

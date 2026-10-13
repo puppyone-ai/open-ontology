@@ -1,0 +1,40 @@
+{
+  "consistency_grade": "S0",
+  "capture_method": "C4",
+  "token_order": "PerPartition",
+  "delete_detection": "partition_replace",
+  "write_class_for_reader": "R0",
+  "cdc": "absent",
+  "multi_statement_transaction": false,
+  "product_read_uses_final": true,
+  "nofinal_keeps_superseded_version": {
+    "reading_id": 101,
+    "versions": [1, 2]
+  },
+  "default_for_missing": {
+    "reading_id_explicit_zero": 102,
+    "reading_id_omitted_default": 103,
+    "stored_qty": 0,
+    "stored_label": "",
+    "indistinguishable": true
+  },
+  "precision_loss": {
+    "column": "ts",
+    "source_type": "DateTime64(9, 'UTC')",
+    "agent_db_limit": "PostgreSQL timestamp microseconds",
+    "key_column": false,
+    "block_if_used_as_key_or_cursor": true
+  },
+  "decimal256": {
+    "column": "amount",
+    "native_type": "Decimal(76, 10)",
+    "example": "1234567890123456789012345678901234567890.1234567890",
+    "fits_decimal128": false
+  },
+  "low_cardinality": "logical type is the inner type",
+  "nullable_kept": true,
+  "arrays_pending_consumer_mapping": true,
+  "lightweight_delete": "asynchronous; this prep records whether lag was visible and does not invent it",
+  "matrix_grade": "designed",
+  "promotion": "not claimed"
+}

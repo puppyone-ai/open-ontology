@@ -1,0 +1,25 @@
+{
+  "fixed_hashes": [
+    {
+      "fixed_source": "31e86afd4e890cd83fe3535f7f37a0a446fee442",
+      "manifests": [
+        {
+          "manifest": "evidence/1e7798c0-f799-4d4b-ab47-5e15599f60d9/DL01/semantics/oracle-source-bound/SHA256SUMS",
+          "verified": 616
+        }
+      ]
+    },
+    {
+      "fixed_source": "7fc55d25a83282485a1003411dae478dbd93a654",
+      "manifests": [
+        {
+          "manifest": "evidence/bc6cf794-2d14-4e98-bcb6-f7a9b3533a88/DL01/opensearch-driver-preflight/c5-loop-20261012/SHA256SUMS",
+          "verified": 1056
+        }
+      ]
+    }
+  ],
+  "scope": "author source-bound core semantics and OpenSearch source C5 capture; no whole-source approval",
+  "consumer_pg_builder_still_rejects_source_flags": true,
+  "complete_source_accepted": 0
+}

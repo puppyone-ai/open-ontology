@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/drop_nobody.sql:1: ERROR:  role "oo_jobs_nobody" cannot be dropped because some objects depend on it
-DETAIL:  2 objects in database oo_control

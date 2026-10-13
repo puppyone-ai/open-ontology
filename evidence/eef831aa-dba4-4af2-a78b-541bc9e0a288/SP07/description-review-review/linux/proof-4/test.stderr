@@ -1,3 +1,0 @@
-   Compiling description-review v0.1.0 (/work/tree/tools/description-review)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.37s
-     Running tests/a288_sealed.rs (/target/debug/deps/a288_sealed-53a909fb38b5644b)

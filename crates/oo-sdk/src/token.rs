@@ -86,7 +86,8 @@ mod tests {
             assert!(bearer.secret().bytes().eq(token.bytes()));
             let shown = format!("{bearer:?} {bearer}");
             assert!(
-                shown == "BearerToken([redacted]) BearerToken([redacted])" && !shown.contains(token),
+                shown == "BearerToken([redacted]) BearerToken([redacted])"
+                    && !shown.contains(token),
                 "token debug length {}",
                 shown.len()
             );

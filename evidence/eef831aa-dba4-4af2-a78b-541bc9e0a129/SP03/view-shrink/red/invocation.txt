@@ -1,9 +1,0 @@
-source_commit=61d2898c03c4dca726ec6cfaca9ed50f038d2dbb
-source_parent=094e19c4fae20fa020b4c14ecf02ada5ebec818a
-source_tree=099f57c166b320530394afe63846fc39d84fdfae
-overlay=buffered.rs with panic expects kept plus tests/pg_wire_view_shrink.rs
-image=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
-platform=linux/arm64
-toolchain=1.94.0
-msrv_override=RUSTUP_TOOLCHAIN=1.94.0
-phase=red-unfixed

@@ -1,4 +1,0 @@
-launch.sh ran `git diff -- "$PARENT" "$FIXED" -- crates/oo-builder/tests/structure_draft_cli.rs`.
-The leading `--` made the two commits pathspecs, so that command wrote an empty file.
-structure-draft-cli.diff is the output of `git diff 476d21c7a031c53fb8b582fb49c6a5dafd2a0b4c 2283f904f71c9f04738a554f9c67439fa1db9bfc -- crates/oo-builder/tests/structure_draft_cli.rs`.
-The product tree was not edited.

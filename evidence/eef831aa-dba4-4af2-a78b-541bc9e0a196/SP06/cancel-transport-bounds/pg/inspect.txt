@@ -1,1 +1,0 @@
-id=7a524e461eff8887d3e08c0c92df784cd665bb918aa23482704837c6b544ed8c status=running exit=0 oom=false privileged=false network=oo-a196-net

@@ -1,8 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/tree/crates/oo-core)
-   Compiling business-calendar v0.1.0 (/work/tree/tools/business-calendar)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.61s
-     Running unittests src/lib.rs (/target/debug/deps/business_calendar-128d36099292cca8)
-     Running unittests src/main.rs (/target/debug/deps/business_calendar-cea9a5b5a77468ab)
-     Running tests/cli.rs (/target/debug/deps/cli-695ec911b5f10af6)
-     Running tests/handcomputed.rs (/target/debug/deps/handcomputed-2d7f7769737f1256)
-   Doc-tests business_calendar

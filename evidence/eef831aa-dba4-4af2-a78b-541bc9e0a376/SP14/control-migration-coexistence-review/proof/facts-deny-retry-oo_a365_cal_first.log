@@ -1,6 +1,0 @@
-NOTICE:  deny|oo_a365_cal_first|oo_r_enum|open|42501
-NOTICE:  denymsg|oo_a365_cal_first|oo_r_enum|open|permission denied for schema oo_calendar_control
-NOTICE:  deny|oo_a365_cal_first|oo_r_enum|grant|42501
-NOTICE:  denymsg|oo_a365_cal_first|oo_r_enum|grant|permission denied for schema oo_calendar_control
-NOTICE:  deny|oo_a365_cal_first|oo_r_enum|create|42501
-NOTICE:  denymsg|oo_a365_cal_first|oo_r_enum|create|permission denied for schema oo_dict

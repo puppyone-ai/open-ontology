@@ -1,7 +1,0 @@
-git fsck --no-progress exit 0
-dangling_tree 32
-dangling_blob 0
-dangling_commit 0
-git fsck --connectivity-only --no-progress exit 0
-connectivity_dangling_tree 32
-count-objects: count 742 loose, in-pack 7892, packs 4, garbage 0

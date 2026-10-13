@@ -1,0 +1,8 @@
+{
+  "task": "DL01-W1-33",
+  "fixed_packet": "0f2173b8fc00178dd3dc52ba5ca34845a2379445",
+  "verified_sha_entries": 433,
+  "decision": "approve_original_preview_consumer_child",
+  "functional_acceptance_delta": 1,
+  "source_acceptance_delta": 0
+}

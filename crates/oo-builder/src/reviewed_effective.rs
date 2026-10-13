@@ -3,7 +3,8 @@
 //! A sealed `oo.builder.captured-pg-draft-command/v1` artifact is recompiled.
 //! A column becomes classified only when a decision names that effective
 //! column, repeats its schema hash and structural fingerprint, and carries a
-//! PII level, a semantic type, and a reviewer. Curated echoes and
+//! PII level, a semantic type, and a reviewer. An optional unit is copied
+//! onto that column. `unknown` is not a unit. Curated echoes and
 //! `classification.auto_accept` are not decisions. This module does not
 //! connect, grant, authenticate, or publish.
 
@@ -13,20 +14,27 @@ use std::fmt;
 use serde::Deserialize;
 use serde_json::Value;
 
+use oo_core::config::version::OosVersion;
 use oo_core::config::{PiiLevel, SampleValues};
 use oo_core::diagnostic::DiagnosticList;
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
 use oo_core::oos::{
-    CivilDate, ClassState, ClassificationRecord, DatasetFile, ItemStatus, OntologyFile,
-    Relationship, RelationshipsFile, SemanticType, validate_dataset, validate_relationships,
+    CivilDate, ClassState, ClassificationRecord, ColumnProvenance, DatasetFile, ItemStatus,
+    OntologyFile, Relationship, RelationshipsFile, SemanticType, Tier, validate_dataset,
+    validate_relationships,
 };
-use oo_core::text::{Label, TableName};
+use oo_core::text::{Label, QualifiedTable, TableName};
 
 use crate::canonical::{canonical_json, canonical_sha256, sha256_hex};
 use crate::captured_pg::{CAPTURED_COMPILER, CAPTURED_PROTOCOL};
 use crate::draft::{self, DRAFT_PROTOCOL, compile_structure_draft, manifest_preimage_hash};
 use crate::role_pack::EFFECTIVE_PROTOCOL;
+use crate::sealed_import::{
+    REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL, REVIEWED_SEALED_IMPORT_COMPILER, SealedImportDraft,
+    SealedImportError, compile_sealed_import_catalog, compile_sealed_import_collection,
+    SEALED_IMPORT_COLLECTION_PROTOCOL,
+};
 
 pub const REVIEWED_EFFECTIVE_PROTOCOL: &str = "oo.builder.reviewed-effective-oos/v1";
 pub const REVIEWED_EFFECTIVE_COMPILER: &str = "oo-builder/reviewed-effective-oos/v1";
@@ -124,6 +132,8 @@ struct DecisionIn {
     fact_fingerprint: String,
     pii: PiiLevel,
     semantic_type: SemanticType,
+    #[serde(default)]
+    unit: Option<Label>,
     reviewer: ReviewerIn,
 }
 
@@ -198,6 +208,340 @@ pub fn compile_reviewed_effective(input: &str) -> Result<String, ReviewedEffecti
     })?;
     let result = command_result(&sealed, &command.decisions, &effective, &hidden, &omitted);
     finish(canonical_json(&result))
+}
+
+/// Compile one sealed import plus explicit decisions into effective OOS.
+///
+/// `input` is `oo.builder.reviewed-sealed-import-command/v1`. The catalog
+/// bytes are compiled again. `settings.catalog_version` must be the identity
+/// hash from that compile. This entry does not accept a captured PostgreSQL
+/// wrapper.
+pub fn compile_reviewed_sealed_import(
+    input: &str,
+) -> Result<String, SealedImportError> {
+    let value = parse_json_value(input, REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL)
+        .map_err(map_sealed_scan)?;
+    let command: SealedCommandIn = serde_json::from_value(value).map_err(map_sealed_command)?;
+    if command.protocol != REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL {
+        return Err(SealedImportError::command(
+            "protocol.mismatch",
+            "/protocol",
+            "the command protocol is not the reviewed sealed import command",
+        ));
+    }
+    if !command.catalog.is_object() || !command.settings.is_object() || !command.decisions.is_array()
+    {
+        return Err(SealedImportError::command(
+            "schema.invalid",
+            "/",
+            "catalog, settings, or decisions has the wrong JSON shape",
+        ));
+    }
+    let collection = command.catalog.get("protocol").and_then(Value::as_str) == Some(SEALED_IMPORT_COLLECTION_PROTOCOL);
+    let compiled = if collection {
+        compile_sealed_import_collection(&canonical_json(&command.catalog))?
+    } else {
+        compile_sealed_import_catalog(&canonical_json(&command.catalog))?
+    };
+    let settings: SettingsIn =
+        serde_json::from_value(command.settings.clone()).map_err(|err| as_sealed(map_settings(err)))?;
+    check_settings(&settings).map_err(as_sealed)?;
+    if settings.catalog_version != compiled.identity_hash {
+        return Err(SealedImportError::draft(
+            "binding.catalog_version",
+            "/settings/catalog_version",
+            "catalog version is not the sealed identity hash",
+        ));
+    }
+    let decisions = bind_decisions(&command.decisions).map_err(as_sealed)?;
+    let datasets = datasets_from_sealed(&compiled)?;
+    let mut fingerprints = BTreeMap::new();
+    for column in &compiled.columns {
+        fingerprints.insert(
+            (column.dataset.clone(), column.name.clone()),
+            column.fact_fingerprint.clone(),
+        );
+    }
+    let sealed = SealedDraft {
+        datasets,
+        relationships: Vec::new(),
+        fingerprints,
+        schema_hash: if collection { compiled.identity_hash.clone() } else { compiled.schema_digest.clone() },
+        draft_hash: sha256_hex(compiled.document.as_bytes()),
+        wrapper_hash: compiled.identity_hash.clone(),
+        generated_sha256: sha256_hex(compiled.document.as_bytes()),
+        curated_sha256: sha256_hex(b""),
+        sealed_source_sha256: canonical_sha256(&command.catalog),
+    };
+    let (mut datasets, hidden) = apply_decisions(&sealed, &decisions).map_err(as_sealed)?;
+    apply_sealed_curated_labels(&mut datasets, &sealed, &command.curated_labels)?;
+    check_schemas(&settings, &datasets).map_err(as_sealed)?;
+    validate_datasets(&datasets).map_err(as_sealed)?;
+    let (relationships, omitted) =
+        partition_relationships(&sealed.relationships, &column_index(&datasets)).map_err(as_sealed)?;
+    validate_relationship_file(&settings, &relationships).map_err(as_sealed)?;
+    let effective = effective_document(&settings, &datasets, &relationships).map_err(as_sealed)?;
+    let effective_text = canonical_json(&effective);
+    if effective_text.len() > DOCUMENT_MAX_BYTES {
+        return Err(SealedImportError::draft(
+            "budget.bytes",
+            "/effective_oos",
+            "effective document exceeds the byte budget",
+        ));
+    }
+    parse_json_value(&effective_text, EFFECTIVE_PROTOCOL).map_err(|_| {
+        SealedImportError::draft(
+            "oos.invalid",
+            "/effective_oos",
+            "effective document is not oo.builder.effective-oos/v1",
+        )
+    })?;
+    let mut result = serde_json::json!({
+        "compiler": REVIEWED_SEALED_IMPORT_COMPILER,
+        "effective_oos": effective,
+        "hidden": hidden,
+        "omitted_relationships": omitted,
+        "protocol": REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL,
+        "provenance": {
+            "authentication": "not_claimed",
+            "authorization": "not_claimed",
+            "config_digest": compiled.config_digest,
+            "decisions_sha256": canonical_sha256(&command.decisions),
+            "grants": "not_claimed",
+            "identity_hash": compiled.identity_hash,
+            "input_digest": compiled.input_digest,
+            "live_database": "not_connected",
+            "normalized_representation": compiled.normalized_representation,
+            "publication": "not_claimed",
+            "schema_digest": compiled.schema_digest,
+            "source_connection": "not_used",
+            "source_engine": compiled.source_engine,
+            "source_generation": compiled.source_generation,
+            "source_id": compiled.source_id,
+            "source_introspection": "not_used",
+            "source_protocol": if collection { SEALED_IMPORT_COLLECTION_PROTOCOL } else { oo_core::sealed_import::SEALED_IMPORT_CATALOG_PROTOCOL },
+            "target_generation": compiled.target_generation,
+            "type_digest": compiled.type_digest,
+        }
+    });
+    if let Some(vector) = &compiled.binding_vector {
+        result["provenance"]["binding_vector"] = vector.clone();
+        result["provenance"]["collection_sha256"] = serde_json::json!(compiled.identity_hash);
+        result["provenance"]["generation_semantics"] = serde_json::json!("per_dataset_binding_vector");
+        for key in ["config_digest", "input_digest", "schema_digest", "type_digest", "source_generation", "target_generation"] {
+            result["provenance"].as_object_mut().expect("object").remove(key);
+        }
+    }
+    if let Some(vector) = &compiled.partition_vector {
+        result["provenance"]["partition_vector"] = vector.clone();
+    }
+    if !command.curated_labels.is_empty() {
+        result["provenance"]["curated_labels_sha256"] = serde_json::json!(canonical_sha256(&serde_json::to_value(&command.curated_labels).map_err(|_| SealedImportError::command("curated.invalid", "/curated_labels", "curated labels cannot be encoded"))?));
+    }
+    let text = canonical_json(&result);
+    if text.len() > DOCUMENT_MAX_BYTES {
+        return Err(SealedImportError::draft(
+            "budget.bytes",
+            "/",
+            "effective document exceeds the byte budget",
+        ));
+    }
+    parse_json_value(&text, REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL).map_err(|_| {
+        SealedImportError::command(
+            "schema.invalid",
+            "/",
+            "command result is not an object",
+        )
+    })?;
+    Ok(text)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SealedCommandIn {
+    protocol: String,
+    catalog: Value,
+    settings: Value,
+    decisions: Value,
+    #[serde(default)]
+    curated_labels: Vec<SealedCuratedLabel>,
+}
+
+#[derive(Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct SealedCuratedLabel {
+    dataset: String,
+    column: String,
+    fact_fingerprint: String,
+    label: String,
+}
+
+fn apply_sealed_curated_labels(datasets: &mut [DatasetFile], sealed: &SealedDraft, labels: &[SealedCuratedLabel]) -> Result<(), SealedImportError> {
+    let mut seen = BTreeSet::new();
+    for item in labels {
+        let key = (item.dataset.clone(), item.column.clone());
+        if !seen.insert(key.clone()) || sealed.fingerprints.get(&key) != Some(&item.fact_fingerprint) {
+            return Err(SealedImportError::draft("curated.stale", "/curated_labels", "curated label is duplicated or bound to another source fact"));
+        }
+        let column = datasets.iter_mut().find(|d| d.dataset.as_str() == item.dataset).and_then(|d| d.columns.iter_mut().find(|c| c.name.as_str() == item.column)).ok_or_else(|| SealedImportError::draft("curated.scope", "/curated_labels", "curated column is not in the reviewed effective model"))?;
+        column.label = Some(Label::new(item.label.clone()).map_err(|_| SealedImportError::draft("curated.label", "/curated_labels", "curated label is invalid"))?);
+        column.provenance = Some(ColumnProvenance::Human);
+    }
+    Ok(())
+}
+
+fn datasets_from_sealed(
+    compiled: &SealedImportDraft,
+) -> Result<Vec<DatasetFile>, SealedImportError> {
+    let mut datasets = Vec::with_capacity(compiled.tables.len());
+    for table in &compiled.tables {
+        let qualified = QualifiedTable::new(table.dataset.clone()).map_err(|_| {
+            SealedImportError::draft(
+                "oos.invalid",
+                "/catalog/tables",
+                "logical table is not a dataset name",
+            )
+        })?;
+        let label_text = table
+            .dataset
+            .rsplit_once('.')
+            .map(|(_, name)| name)
+            .unwrap_or(table.dataset.as_str());
+        let label = Label::new(label_text.to_string()).map_err(|_| {
+            SealedImportError::draft(
+                "oos.invalid",
+                "/catalog/tables",
+                "logical table is not a dataset name",
+            )
+        })?;
+        let mut columns = Vec::new();
+        let mut primary_key = Vec::new();
+        for column in compiled
+            .columns
+            .iter()
+            .filter(|item| item.dataset == table.dataset)
+        {
+            let name = TableName::new(column.name.clone()).map_err(|_| {
+                SealedImportError::draft(
+                    "oos.invalid",
+                    "/catalog/tables/columns",
+                    "logical column is not a column name",
+                )
+            })?;
+            if column.key {
+                primary_key.push(name.clone());
+            }
+            let data_type = Label::new(column.target_type.clone()).map_err(|_| {
+                SealedImportError::draft(
+                    "oos.invalid",
+                    "/catalog/tables/columns",
+                    "normalized type is not a label",
+                )
+            })?;
+            columns.push(oo_core::oos::DatasetColumn {
+                name,
+                label: None,
+                data_type: Some(data_type),
+                semantic_type: None,
+                searchable: None,
+                pii: None,
+                classification: None,
+                enum_ref: None,
+                status: None,
+                replaced_by: None,
+                deprecated_at: None,
+                unit: None,
+                description: None,
+                provenance: Some(ColumnProvenance::Generated),
+                review: None,
+            });
+        }
+        datasets.push(DatasetFile {
+            schema_version: OosVersion,
+            dataset: qualified,
+            source_name: None,
+            label,
+            description: None,
+            tier: Tier::Raw,
+            recommended: Some(false),
+            superseded_by: None,
+            grain: None,
+            primary_key,
+            entity: None,
+            row_count_estimate: Some(table.accepted_rows),
+            time_columns: Vec::new(),
+            columns,
+            caveats: Vec::new(),
+            source_semantics: None,
+        });
+    }
+    datasets.sort_by(|left, right| left.dataset.as_str().cmp(right.dataset.as_str()));
+    Ok(datasets)
+}
+
+fn map_sealed_scan(err: DiagnosticList) -> SealedImportError {
+    let item = err.items.first();
+    let code = item.map(|diag| diag.code.clone()).unwrap_or_else(|| {
+        format!("{}/json.syntax", REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL)
+    });
+    let path = item
+        .map(|diag| diag.path.clone())
+        .unwrap_or_else(|| "/".to_string());
+    let name = code.rsplit('/').next().unwrap_or("json.syntax");
+    let message = match name {
+        "json.budget.bytes" => "document exceeds the byte budget",
+        "json.budget.depth" => "JSON nesting exceeds the depth budget",
+        "json.budget.nodes" => "JSON node count exceeds the budget",
+        "json.duplicate_key" => "duplicate JSON object key",
+        _ => "reviewed sealed import command JSON is not valid",
+    };
+    SealedImportError::from_full(code, path, message)
+}
+
+fn map_sealed_command(err: serde_json::Error) -> SealedImportError {
+    let text = err.to_string();
+    if text.contains("unknown field") {
+        SealedImportError::command(
+            "field.unknown",
+            "/",
+            "reviewed sealed import command has an unknown field",
+        )
+    } else if text.contains("missing field") {
+        SealedImportError::command(
+            "field.missing",
+            "/",
+            "reviewed sealed import command is missing a required field",
+        )
+    } else {
+        SealedImportError::command(
+            "schema.invalid",
+            "/",
+            "reviewed sealed import command is not protocol, catalog, settings, and decisions",
+        )
+    }
+}
+
+fn as_sealed(err: ReviewedEffectiveError) -> SealedImportError {
+    let name = match err.code.rsplit('/').next().unwrap_or("schema.invalid") {
+        "settings.invalid" => "settings.invalid",
+        "settings.schema" => "settings.schema",
+        "decision.invalid" => "decision.invalid",
+        "decision.duplicate" => "decision.duplicate",
+        "decision.unknown" => "decision.unknown",
+        "decision.unbound" => "decision.unbound",
+        "budget.decisions" => "budget.decisions",
+        "budget.bytes" => "budget.bytes",
+        "oos.invalid" => "oos.invalid",
+        "field.unknown" => "field.unknown",
+        "field.missing" => "field.missing",
+        "schema.invalid" => "schema.invalid",
+        _ => "schema.invalid",
+    };
+    if matches!(name, "field.unknown" | "field.missing") {
+        SealedImportError::command(name, err.path, err.message)
+    } else {
+        SealedImportError::draft(name, err.path, err.message)
+    }
 }
 
 fn map_scan(err: DiagnosticList) -> ReviewedEffectiveError {
@@ -549,8 +893,8 @@ fn check_policy_id(value: &str, path: &str) -> Result<(), ReviewedEffectiveError
 }
 
 fn check_knowledge_id(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> {
-    // Knowledge stays on the existing slug. Dialogue still rejects a hyphen.
-    // This compiler does not rewrite the identifier.
+    // Knowledge stays on the existing slug, including `_` and `-`.
+    // Dialogue uses that same rule. This compiler does not rewrite the id.
     check_slug(value, path)
 }
 
@@ -785,6 +1129,16 @@ fn write_classification(
     };
     column.pii = Some(decision.pii);
     column.semantic_type = Some(decision.semantic_type);
+    if let Some(unit) = &decision.unit {
+        if unit.as_str().eq_ignore_ascii_case("unknown") {
+            return Err(ReviewedEffectiveError::new(
+                "decision.invalid",
+                "/decisions",
+                DECISION_MESSAGE,
+            ));
+        }
+        column.unit = Some(unit.clone());
+    }
     column.classification = Some(ClassificationRecord {
         state: ClassState::Confirmed,
         by: Some(decision.reviewer.by.clone()),

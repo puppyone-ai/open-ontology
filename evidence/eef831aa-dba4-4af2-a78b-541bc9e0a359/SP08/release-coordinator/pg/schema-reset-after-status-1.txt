@@ -1,1 +1,0 @@
-Dropped oo_release_control after the passing test and the first restart status. The status label version_mismatch on the active candidate was corrected so a pointer that names that candidate is not reported as a mismatch. The next run needs a fresh install.

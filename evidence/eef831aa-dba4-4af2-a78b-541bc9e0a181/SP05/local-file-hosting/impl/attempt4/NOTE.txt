@@ -1,1 +1,0 @@
-attempt4_exit=101 reason=checksum test hardcoded expected_size 16 while the fixture is 15 bytes, so the assertion fired before complete. Five other tests passed.

@@ -1,3 +1,0 @@
-/run/oo-a235/fixture/admin.pass
-/run/oo-a235/fixture/ca.crt
-/run/oo-a235/fixture/login.pass

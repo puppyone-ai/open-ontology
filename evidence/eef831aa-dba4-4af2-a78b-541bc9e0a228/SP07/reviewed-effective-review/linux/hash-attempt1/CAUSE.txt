@@ -1,1 +1,0 @@
-rustc wrote /tmp/sha256 and the kernel returned Permission denied. The hash tmpfs was not executable. The rerun writes the binary to /usr/local/bin/sha256 inside the container. Container 77a83a21d09db00660ec3c5a15b4c5c444fb0ed96952f0650c5fd6b8680ce77e was removed. No SHA256SUMS was written.

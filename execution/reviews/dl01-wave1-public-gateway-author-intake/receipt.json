@@ -1,0 +1,11 @@
+[
+  {
+    "task": "72",
+    "fixed_sha": "a6d27fcbad45d482fe7a0ba89b91119dab2f2de7",
+    "manifest": "evidence/7e719805-ed88-4354-a5a1-f869f34da49b/DL01/public-gateway-cli/SHA256SUMS",
+    "fixed_git_hashes_checked": 315,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

@@ -1,1 +1,0 @@
-docker run --name oo-a261-manifest --platform linux/arm64 --pull never --network none --cap-drop ALL --memory 6g --cpus 1 rustc sha256_manifest

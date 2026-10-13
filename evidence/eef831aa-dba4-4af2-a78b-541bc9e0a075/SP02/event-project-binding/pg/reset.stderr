@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/reset_cluster.sql:11: NOTICE:  database "oo_control" does not exist, skipping
-psql:/fixture/tests/fixtures/event_project/reset_cluster.sql:13: NOTICE:  database "oo_control_bad" does not exist, skipping
-psql:/fixture/tests/fixtures/event_project/reset_cluster.sql:14: NOTICE:  database "oo_control_rollback" does not exist, skipping

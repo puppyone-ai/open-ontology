@@ -2,19 +2,21 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 > 依赖：[07 Gateway](07-gateway.md)、[06 Ontology](06-ontology-layer.md)
 > 被依赖：[09 沙盒与运行时](09-sandbox-and-agent-runtime.md)
 
 ## 1. 职责与原则
 
-Wrapper 把 Gateway 的同一组能力包装成几种接入形式，**能力相同、门禁全部在 Gateway**，Wrapper 不加业务逻辑。
+Wrapper把Gateway的同一组能力包装成不同接入形式，所有授权和数据检查仍在Gateway，Wrapper不增加业务逻辑。这里是Ontology系统的对外交付接口，使用方可以是企业自己的harness、通用Agent客户端或普通程序，接口不依赖Pi的事件格式或内置会话。
+
+CLI适用于能执行命令的调用方，HTTP/SDK适用于能发请求或使用客户端库的调用方，MCP适用于实现对应协议的客户端。Knowledge文件和接口提供同一发布版本的角色视图。各形态按实现进度交付，某一形态通过不代表其余形态已经可用；外接验收使用非内置Pi的真实调用方，核对Knowledge版本、查询结果、权限拒绝和审计。
 
 | 形式 | 运行位置 | 使用方 |
 |---|---|---|
 | HTTP API | Gateway 自身的接口（OpenAPI 3.1） | IM 机器人、企业系统、其他语言的客户端 |
 | Rust SDK / TS SDK | 调用方进程内的客户端库 | 企业自研 Agent；Rust 客户端程序 |
-| `oo` CLI | 调用方机器上的命令，Rust 原生二进制，复用 oo-sdk | **沙盒内 harness 的主要接口** |
+| `oo` CLI | 调用方机器上的命令，Rust 原生二进制，复用 oo-sdk | 能执行命令的外部harness或程序；也是内置沙盒harness的主要接口 |
 | MCP Server | Gateway 旁的无状态服务（远程 Streamable HTTP），或本地 stdio 进程 | Claude Code、Codex、Cursor 等不在我们沙盒里的 Agent |
 
 面向 Agent 的接口设计原则：

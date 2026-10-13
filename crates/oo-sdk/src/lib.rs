@@ -1,19 +1,19 @@
-//! Bounded HTTP client for `POST /v1/query`.
+//! Bounded HTTP client for the public gateway.
 //!
-//! The client sends a [`QueryRequest`] and returns a [`QueryResponse`] or a
-//! sanitized error. It checks the frozen `oo-core` JSON door before the
-//! request is sent and again on the response. `reqwest`'s JSON helper is not
-//! used. This crate does not open a database, cache query results, or read
-//! tokens from the environment or the filesystem.
+//! `query` sends a [`QueryRequest`] and returns a [`QueryResponse`]. Knowledge,
+//! describe, tables, validate, freshness, operations, status, and cancel call
+//! the same origin. A server id (`s_`) uses `/v1/operations`. A query id (`q_`)
+//! uses `/v1/queries`. `reqwest`'s JSON helper is not used. This crate does not open a
+//! database, cache results, or read tokens from the environment or the filesystem.
 //!
 //! Automatic retry is only for a complete `RATE_LIMITED` or `OVERLOADED`
-//! gateway envelope, and only when the caller left that policy enabled.
-//! Transport failures are not replayed. A client timeout means this process
-//! stopped waiting. It is not a confirmation that a database backend cancelled
-//! work.
+//! response to `query`, and only when the caller left that policy enabled.
+//! Other calls are one attempt. Transport failures are not replayed. A client
+//! timeout means this process stopped waiting. It is not a confirmation that
+//! a database backend cancelled work.
 //!
-//! Export, Arrow, discover, describe, resolve, search, freshness, sandbox
-//! environment loading, and query cancellation are not implemented.
+//! Export, Arrow, discover, resolve, search-values, sandbox environment
+//! loading, and an OpenAPI client are not implemented.
 
 #![forbid(unsafe_code)]
 
@@ -41,11 +41,8 @@ pub const UNSUPPORTED: &[&str] = &[
     "export",
     "arrow",
     "discover",
-    "describe",
     "resolve",
     "search_values",
-    "freshness",
     "from_sandbox_env",
-    "query_cancellation",
     "openapi_client",
 ];

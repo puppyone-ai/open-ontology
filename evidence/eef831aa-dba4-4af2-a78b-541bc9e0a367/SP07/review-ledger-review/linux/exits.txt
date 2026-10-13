@@ -1,7 +1,0 @@
-smoke-before docker-run.exit=0
-pg up.exit=0
-author test.exit=0
-author clippy.exit=0
-author restart.exit=0
-author oracle.exit=0
-proof.exit=0

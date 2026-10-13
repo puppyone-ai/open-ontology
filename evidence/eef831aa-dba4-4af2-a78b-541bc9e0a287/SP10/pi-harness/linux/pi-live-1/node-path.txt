@@ -1,1 +1,0 @@
-/opt/pi-prefix/node/bin/node

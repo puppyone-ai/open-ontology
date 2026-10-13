@@ -1744,6 +1744,7 @@ dependencies = [
 name = "release-coordinator"
 version = "0.1.0"
 dependencies = [
+ "jsonschema",
  "oo-builder",
  "postgres-protocol",
  "postgres-types",

@@ -1,4 +1,0 @@
-k9000|0
-owner|S|oo_a391_probe.seq|oo_a377_owner
-owner|r|oo_a391_probe.added|oo_a377_owner
-owner|v|oo_a391_probe.v|oo_a377_owner

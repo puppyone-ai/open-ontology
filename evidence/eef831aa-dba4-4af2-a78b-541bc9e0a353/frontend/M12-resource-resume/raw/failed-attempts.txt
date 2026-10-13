@@ -1,3 +1,0 @@
-no container launched
-no test rerun
-no foreign container stopped

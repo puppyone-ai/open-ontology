@@ -1,3 +1,0 @@
-7604e5ee02bd493c5cc03e355c4c98f0c69f36bd601a07dcb6b76b67153df094  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/source/blobs/crates/oo-gateway/src/query_executor.rs
-fb775ed2d040bb266d453fa27282494c89f6dcf1867a146712047b91453cb0f2  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/source/blobs/crates/oo-gateway/tests/query_executor_pg_live.rs
-ec218bb896c7a56600cfc108ae40bd8c2f3c0c90b791fa0ff663af3d08fc9a47  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a210/SP06/cancel-future-raii/source/blobs/contracts/gateway/query-executor-v1.md

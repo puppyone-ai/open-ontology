@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/exhausted_retry.sql:7: ERROR:  23514: attempts are exhausted
-CONTEXT:  PL/pgSQL function enforce_task_update() line 65 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

@@ -1,5 +1,0 @@
-Preserved failed attempt. docker-run.exit and test.exit are 101.
-oo-connectors lib test include_str of contracts/source/pgsql/empty-catalog.json
-failed because this archive contained Cargo.toml, Cargo.lock, rust-toolchain.toml,
-.cargo, and crates only. The replacement preedit-2 archive also contains contracts.
-This is an archive input gap, not a product edit. Image, hostconfig, and exits stay as recorded.

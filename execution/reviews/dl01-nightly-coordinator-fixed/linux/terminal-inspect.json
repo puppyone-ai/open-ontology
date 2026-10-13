@@ -1,0 +1,280 @@
+[
+    {
+        "Id": "c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30",
+        "Created": "2026-10-09T19:38:24.397428053Z",
+        "Path": "bash",
+        "Args": [
+            "/evidence/inside.sh"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-09T19:38:24.448758261Z",
+            "FinishedAt": "2026-10-09T19:38:47.503647216Z"
+        },
+        "Image": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+        "ResolvConfPath": "/var/lib/docker/containers/c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30/hostname",
+        "HostsPath": "/var/lib/docker/containers/c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30/hosts",
+        "LogPath": "/var/lib/docker/containers/c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30/c01dd9f8772465c0cff64e537cca6d332112d5073c56f343166bf8b62c8bff30-json.log",
+        "Name": "/oo-dl01-coordinator-nightly-rust",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "bridge",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 6442450944,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 12884901888,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/.cache/oo-dl01-coordinator-nightly/src",
+                    "Target": "/src",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/execution/reviews/dl01-nightly-coordinator-fixed/linux",
+                    "Target": "/evidence"
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/Users/redux/puppy-one/open-ontology/execution/reviews/dl01-nightly-coordinator-fixed/harness",
+                    "Target": "/harness",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-dl01-coordinator-nightly-cargo",
+                    "Target": "/cargo"
+                },
+                {
+                    "Type": "volume",
+                    "Source": "oo-dl01-coordinator-nightly-target",
+                    "Target": "/target"
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "oo-dl01-coordinator-nightly-target",
+                "Source": "/var/lib/docker/volumes/oo-dl01-coordinator-nightly-target/_data",
+                "Destination": "/target",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/.cache/oo-dl01-coordinator-nightly/src",
+                "Destination": "/src",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/execution/reviews/dl01-nightly-coordinator-fixed/linux",
+                "Destination": "/evidence",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/Users/redux/puppy-one/open-ontology/execution/reviews/dl01-nightly-coordinator-fixed/harness",
+                "Destination": "/harness",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "volume",
+                "Name": "oo-dl01-coordinator-nightly-cargo",
+                "Source": "/var/lib/docker/volumes/oo-dl01-coordinator-nightly-cargo/_data",
+                "Destination": "/cargo",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "c01dd9f87724",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "RUSTUP_HOME=/usr/local/rustup",
+                "CARGO_HOME=/usr/local/cargo",
+                "RUST_VERSION=1.94.0"
+            ],
+            "Cmd": [
+                "bash",
+                "/evidence/inside.sh"
+            ],
+            "Image": "docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "Labels": {
+                "oo.kind": "rust-builder",
+                "oo.owner": "coordinator-nightly",
+                "oo.project": "open-ontology",
+                "org.opencontainers.image.source": "https://github.com/rust-lang/docker-rust"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "fd9502812a448a373477bf3ee38e66683bf50d58ad6325cc44d09de325a3c1b0",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5",
+            "size": 1936,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            }
+        }
+    }
+]

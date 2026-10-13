@@ -1,6 +1,0 @@
-bind /tmp/oo-a272-eef831aa-dba4-4af2-a78b-541bc9e0a272/lockcheck/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/oracle /oracle rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/tools/lock_subset.rs /tools/lock_subset.rs rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/linux/lockcheck/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a272/SP11/session-transition-review/linux/lockcheck /evidence rw=true
-

@@ -1,0 +1,37 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "dorispreview",
+  "source_id": "dorispreview",
+  "secret_ref": "secret://oo-dl01w1-43/reader",
+  "driver": {
+    "kind": "native",
+    "name": "mysql_async",
+    "version": "0.36.1",
+    "digest": "unbuilt"
+  },
+  "compat_mode": "doris",
+  "license_flags": ["Apache-2.0"],
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true}
+  ],
+  "capabilities": [
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "experimental",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [],
+  "cost_model": {
+    "unit": "Rows",
+    "confidence": "unknown",
+    "estimate": "configured reader cap; Doris did not publish a billing unit"
+  },
+  "r1w": null
+}

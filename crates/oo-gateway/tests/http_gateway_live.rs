@@ -14,7 +14,8 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use oo_gateway::http_gateway::{
-    harness_install, harness_issue, harness_revoke_token, CurrentTuple, Endpoint, IssueGrant, TokenKind,
+    CurrentTuple, Endpoint, IssueGrant, TokenKind, harness_install, harness_issue,
+    harness_revoke_token,
 };
 use serde_json::Value;
 use zeroize::Zeroize;
@@ -25,7 +26,10 @@ const AUDIENCE: &str = "https://gateway.loopback.invalid/v1";
 #[ignore = "requires OO_A326_LIVE=1 and the private PostgreSQL"]
 async fn issued_token_reads_its_pack_and_failures_stay_closed() {
     let live = std::env::var("OO_A326_LIVE").unwrap_or_default();
-    assert_eq!(live, "1", "OO_A326_LIVE=1 is required; refusing a green skip");
+    assert_eq!(
+        live, "1",
+        "OO_A326_LIVE=1 is required; refusing a green skip"
+    );
     let host = required_env("OO_A326_PG_HOST");
     let port: u16 = required_env("OO_A326_PG_PORT").parse().expect("port");
     let database = required_env("OO_A326_PG_DATABASE");
@@ -44,13 +48,25 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
         database: database.clone(),
     };
     let admin_password = trim_secret(&admin);
-    harness_install(endpoint.clone(), admin_password, &ca).await.expect("install");
-    let mut picker = harness_issue(endpoint.clone(), admin_password, &ca, client_grant("oo_r_picker", "picker-user"))
+    harness_install(endpoint.clone(), admin_password, &ca)
         .await
-        .expect("issue picker");
-    let mut auditor = harness_issue(endpoint.clone(), admin_password, &ca, client_grant("oo_r_auditor", "auditor-user"))
-        .await
-        .expect("issue auditor");
+        .expect("install");
+    let mut picker = harness_issue(
+        endpoint.clone(),
+        admin_password,
+        &ca,
+        client_grant("oo_r_picker", "picker-user"),
+    )
+    .await
+    .expect("issue picker");
+    let mut auditor = harness_issue(
+        endpoint.clone(),
+        admin_password,
+        &ca,
+        client_grant("oo_r_auditor", "auditor-user"),
+    )
+    .await
+    .expect("issue auditor");
     let mut session = harness_issue(endpoint.clone(), admin_password, &ca, session_grant())
         .await
         .expect("issue session");
@@ -69,8 +85,14 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
 
     let (status, body) = http(addr, "GET", "/v1/pack/metadata", Some(&picker_token), None);
     assert_eq!(status, 200, "picker metadata");
-    assert!(body_text(&body).contains("picker_note"), "picker column missing");
-    assert!(!body_text(&body).contains("auditor_phone"), "auditor column leaked");
+    assert!(
+        body_text(&body).contains("picker_note"),
+        "picker column missing"
+    );
+    assert!(
+        !body_text(&body).contains("auditor_phone"),
+        "auditor column leaked"
+    );
     assert!(!body_text(&body).contains(&picker_token), "bearer echoed");
     let meta: Value = serde_json::from_slice(&body).expect("metadata json");
     assert_eq!(meta["project_id"], "depot");
@@ -82,17 +104,39 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
     assert_eq!(meta["idp"], false);
     assert_eq!(meta["protocol"], "oo.builder.role-pack/v1");
 
-    for (name, value) in [("X-OO-Role", "oo_r_auditor"), ("X-OO-Project", "other"), ("X-OO-Scope", "session")] {
-        let (status, body) = http(addr, "GET", "/v1/pack/metadata", Some(&picker_token), Some((name, value)));
+    for (name, value) in [
+        ("X-OO-Role", "oo_r_auditor"),
+        ("X-OO-Project", "other"),
+        ("X-OO-Scope", "session"),
+    ] {
+        let (status, body) = http(
+            addr,
+            "GET",
+            "/v1/pack/metadata",
+            Some(&picker_token),
+            Some((name, value)),
+        );
         assert_eq!(status, 403, "{name}");
         let text = body_text(&body);
-        assert!(!text.contains("picker_note") && !text.contains("auditor_phone"), "hidden pack bytes");
+        assert!(
+            !text.contains("picker_note") && !text.contains("auditor_phone"),
+            "hidden pack bytes"
+        );
         assert!(!text.contains(&picker_token), "bearer echoed");
     }
 
-    let (status, body) = http(addr, "GET", "/v1/session/current", Some(&session_token), None);
+    let (status, body) = http(
+        addr,
+        "GET",
+        "/v1/session/current",
+        Some(&session_token),
+        None,
+    );
     assert_eq!(status, 401, "session token is not an external client");
-    assert!(!body_text(&body).contains(&session_token), "session bearer echoed");
+    assert!(
+        !body_text(&body).contains(&session_token),
+        "session bearer echoed"
+    );
 
     let (status, _) = http(addr, "GET", "/v1/pack/metadata", None, None);
     assert_eq!(status, 401, "missing bearer");
@@ -100,11 +144,17 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
     let query = format!("/v1/pack/metadata?access_token={picker_token}");
     let (status, body) = http(addr, "GET", &query, Some(&picker_token), None);
     assert_eq!(status, 400, "query");
-    assert!(!body_text(&body).contains(&picker_token), "query bearer echoed");
+    assert!(
+        !body_text(&body).contains(&picker_token),
+        "query bearer echoed"
+    );
 
     let (status, body) = http(addr, "POST", "/v1/sql", Some(&picker_token), None);
     assert_eq!(status, 501, "sql");
-    assert!(!body_text(&body).contains(&picker_token), "sql bearer echoed");
+    assert!(
+        !body_text(&body).contains(&picker_token),
+        "sql bearer echoed"
+    );
 
     let mut admin = read_secret(&admin_path);
     harness_revoke_token(
@@ -128,10 +178,20 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
     assert_eq!(status, 401, "revoked after restart");
     let (status, body) = http(addr, "GET", "/v1/pack/metadata", Some(&auditor_token), None);
     assert_eq!(status, 200, "auditor after restart");
-    assert!(body_text(&body).contains("auditor_phone"), "auditor column missing");
-    assert!(!body_text(&body).contains("picker_note"), "picker column leaked");
+    assert!(
+        body_text(&body).contains("auditor_phone"),
+        "auditor column missing"
+    );
+    assert!(
+        !body_text(&body).contains("picker_note"),
+        "picker column leaked"
+    );
 
-    std::fs::write(config.join("endpoint.json"), format!("{{\"host\":\"127.0.0.1\",\"port\":1,\"database\":\"{database}\"}}\n")).expect("outage endpoint");
+    std::fs::write(
+        config.join("endpoint.json"),
+        format!("{{\"host\":\"127.0.0.1\",\"port\":1,\"database\":\"{database}\"}}\n"),
+    )
+    .expect("outage endpoint");
     std::thread::sleep(Duration::from_millis(5_200));
     let (status, _) = http(addr, "GET", "/v1/pack/metadata", Some(&auditor_token), None);
     assert_eq!(status, 401, "database outage");
@@ -149,14 +209,26 @@ async fn issued_token_reads_its_pack_and_failures_stay_closed() {
 
     let stderr = std::fs::read(config.join("stderr.txt")).unwrap_or_default();
     let stderr_text = String::from_utf8_lossy(&stderr);
-    assert!(!stderr_text.contains(runtime.trim_end_matches(['\n', '\r'])), "password in stderr");
+    assert!(
+        !stderr_text.contains(runtime.trim_end_matches(['\n', '\r'])),
+        "password in stderr"
+    );
     assert!(!stderr_text.contains("ooct_"), "client bearer in stderr");
     assert!(!stderr_text.contains("oost_"), "session bearer in stderr");
-    assert!(!stderr_text.contains(&picker_token), "picker bearer in stderr");
+    assert!(
+        !stderr_text.contains(&picker_token),
+        "picker bearer in stderr"
+    );
     let cmdline = std::fs::read(format!("/proc/{}/cmdline", child.id())).expect("cmdline");
     let joined = String::from_utf8_lossy(&cmdline);
-    assert!(!joined.contains(runtime.trim_end_matches(['\n', '\r'])), "password in argv");
-    assert!(!joined.contains("ooct_") && !joined.contains("oost_"), "bearer in argv");
+    assert!(
+        !joined.contains(runtime.trim_end_matches(['\n', '\r'])),
+        "password in argv"
+    );
+    assert!(
+        !joined.contains("ooct_") && !joined.contains("oost_"),
+        "bearer in argv"
+    );
 
     runtime.zeroize();
     picker.0.zeroize();
@@ -222,7 +294,13 @@ fn read_secret(path: &std::path::Path) -> String {
     text
 }
 
-fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host: &str, port: u16, database: &str) -> PathBuf {
+fn write_config(
+    runtime_file: &std::path::Path,
+    ca_file: &std::path::Path,
+    host: &str,
+    port: u16,
+    database: &str,
+) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("oo-a326-http-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("packs")).expect("config dir");
@@ -235,13 +313,32 @@ fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host:
     .expect("endpoint");
     let packs = dir.join("packs");
     let fixture_dir = PathBuf::from(required_env("OO_A341_FIXTURE_DIR"));
-    let (picker_text, picker_digest) = compile_pack(&packs, &fixture_dir, "visibility-picker.json", "picker.json");
-    let (auditor_text, auditor_digest) = compile_pack(&packs, &fixture_dir, "visibility-auditor.json", "auditor.json");
-    assert_ne!(picker_digest, auditor_digest, "the two roles sealed the same digest");
+    let (picker_text, picker_digest) = compile_pack(
+        &packs,
+        &fixture_dir,
+        "visibility-picker.json",
+        "picker.json",
+    );
+    let (auditor_text, auditor_digest) = compile_pack(
+        &packs,
+        &fixture_dir,
+        "visibility-auditor.json",
+        "auditor.json",
+    );
+    assert_ne!(
+        picker_digest, auditor_digest,
+        "the two roles sealed the same digest"
+    );
     let picker_artifact: Value = serde_json::from_str(&picker_text).expect("picker artifact");
     let auditor_artifact: Value = serde_json::from_str(&auditor_text).expect("auditor artifact");
-    assert_eq!(picker_artifact["pack_digest"].as_str(), Some(picker_digest.as_str()));
-    assert_eq!(auditor_artifact["pack_digest"].as_str(), Some(auditor_digest.as_str()));
+    assert_eq!(
+        picker_artifact["pack_digest"].as_str(),
+        Some(picker_digest.as_str())
+    );
+    assert_eq!(
+        auditor_artifact["pack_digest"].as_str(),
+        Some(auditor_digest.as_str())
+    );
     std::fs::remove_file(packs.join("picker.json.digest")).expect("picker digest");
     std::fs::remove_file(packs.join("auditor.json.digest")).expect("auditor digest");
     let mut names = Vec::new();
@@ -250,7 +347,10 @@ fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host:
         names.push(entry.file_name().into_string().expect("pack name"));
     }
     names.sort();
-    assert_eq!(names, vec!["auditor.json".to_owned(), "picker.json".to_owned()]);
+    assert_eq!(
+        names,
+        vec!["auditor.json".to_owned(), "picker.json".to_owned()]
+    );
     let config = format!(
         "{{\"listen\":\"127.0.0.1:0\",\"audience\":\"{AUDIENCE}\",\"runtime_user\":\"oo_token_runtime\",\"password_file\":\"runtime.pass\",\"ca_file\":\"ca.crt\",\"endpoint_file\":\"endpoint.json\",\"pack_dir\":\"packs\",\"body_limit\":1048576,\"request_timeout_ms\":5000,\"global_concurrency\":1}}\n"
     );
@@ -258,7 +358,12 @@ fn write_config(runtime_file: &std::path::Path, ca_file: &std::path::Path, host:
     dir
 }
 
-fn compile_pack(work: &Path, fixture_dir: &Path, visibility: &str, output_name: &str) -> (String, String) {
+fn compile_pack(
+    work: &Path,
+    fixture_dir: &Path,
+    visibility: &str,
+    output_name: &str,
+) -> (String, String) {
     let output = work.join(output_name);
     let digest_path = work.join(format!("{output_name}.digest"));
     let produced = Command::new(required_env("OO_A341_FIXTURE_BIN"))
@@ -277,11 +382,21 @@ fn compile_pack(work: &Path, fixture_dir: &Path, visibility: &str, output_name: 
         .output()
         .expect("fixture spawn");
     let tool_stderr = String::from_utf8_lossy(&produced.stderr).into_owned();
-    assert!(produced.status.success(), "compile {visibility} failed: {tool_stderr}");
+    assert!(
+        produced.status.success(),
+        "compile {visibility} failed: {tool_stderr}"
+    );
     let text = std::fs::read_to_string(&output).expect("compiled pack");
-    let digest = std::fs::read_to_string(&digest_path).expect("digest").trim().to_owned();
+    let digest = std::fs::read_to_string(&digest_path)
+        .expect("digest")
+        .trim()
+        .to_owned();
     assert_eq!(digest.len(), 64, "compiler digest length");
-    assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert!(
+        digest
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    );
     (text, digest)
 }
 
@@ -327,8 +442,15 @@ fn stop(child: &mut Child) {
     let _ = child.wait();
 }
 
-fn http(addr: SocketAddr, method: &str, path: &str, bearer: Option<&str>, extra: Option<(&str, &str)>) -> (u16, Vec<u8>) {
-    let mut request = format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
+fn http(
+    addr: SocketAddr,
+    method: &str,
+    path: &str,
+    bearer: Option<&str>,
+    extra: Option<(&str, &str)>,
+) -> (u16, Vec<u8>) {
+    let mut request =
+        format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
     if let Some(token) = bearer {
         request.push_str(&format!("Authorization: Bearer {token}\r\n"));
     }
@@ -341,7 +463,9 @@ fn http(addr: SocketAddr, method: &str, path: &str, bearer: Option<&str>, extra:
         request.push_str("\r\n");
     }
     let mut stream = TcpStream::connect(addr).expect("connect");
-    stream.set_read_timeout(Some(Duration::from_secs(8))).expect("timeout");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(8)))
+        .expect("timeout");
     stream.write_all(request.as_bytes()).expect("write");
     let mut bytes = Vec::new();
     let _ = stream.read_to_end(&mut bytes);
@@ -349,10 +473,21 @@ fn http(addr: SocketAddr, method: &str, path: &str, bearer: Option<&str>, extra:
 }
 
 fn parse_response(bytes: &[u8]) -> (u16, Vec<u8>) {
-    let split = bytes.windows(4).position(|window| window == b"\r\n\r\n").expect("header terminator");
+    let split = bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .expect("header terminator");
     let head = std::str::from_utf8(&bytes[..split]).expect("header");
     let rest = &bytes[split + 4..];
-    let status: u16 = head.lines().next().expect("status").split_whitespace().nth(1).expect("code").parse().expect("number");
+    let status: u16 = head
+        .lines()
+        .next()
+        .expect("status")
+        .split_whitespace()
+        .nth(1)
+        .expect("code")
+        .parse()
+        .expect("number");
     let length = head.lines().find_map(|line| {
         let (name, value) = line.split_once(':')?;
         if name.eq_ignore_ascii_case("content-length") {

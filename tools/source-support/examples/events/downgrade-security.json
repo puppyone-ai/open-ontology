@@ -1,0 +1,7 @@
+{
+  "contract": "oo.source-support.nightly/v1",
+  "target_id": "fx-pg",
+  "capability": "catalog",
+  "trigger": "security",
+  "existing_sources": [{"source_ref": "orders_src", "state": "running"}]
+}

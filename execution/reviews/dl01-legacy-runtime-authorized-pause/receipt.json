@@ -1,0 +1,22 @@
+{
+  "authority": "direct human2026-10-10: 授权暂停旧容器",
+  "action": "docker stop --timeout30 exact10; no deletion/prune/image/volume mutation or oldCLI interruption",
+  "at": "2026-10-10T17:06:33.879672+08:00",
+  "paused": [
+    "oo-a419-product-run",
+    "oo-a419-src-pg",
+    "oo-a419-dst-pg",
+    "oo-a410-src",
+    "oo-a410-tgt",
+    "oo-a407-src-pg",
+    "oo-a407-dst-pg",
+    "oo-a405-pg",
+    "oo-a397-pg",
+    "oo-a373-pg"
+  ],
+  "released_cpu_limits": 10,
+  "all_stopped": true,
+  "mounts_preserved": true,
+  "exit": 0,
+  "preserved_failure": "initial order-sensitive mounts assertion failed after stop0; mount order differs on inspect, normalized membership all matches; operation itself succeeded"
+}

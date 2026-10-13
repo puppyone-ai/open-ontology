@@ -1,0 +1,62 @@
+{
+  "selfbuild_impl": "c04ad55d2",
+  "selfbuild_evidence": "3941d1a4b",
+  "gateway_impl": "bf59de6f6f869a3a90450be30e3a5da729d8f67b",
+  "gateway_evidence": "90a429f0665414f5681cbe5581aa904fb0aa3947",
+  "dialogue_evidence": "bfd92d1cf",
+  "dialogue_manifest_verified": 25,
+  "selfbuild_manifest_verified": 15,
+  "gateway_ELFs_verified": 2,
+  "actual_model_responses": 14,
+  "dialogue_turns": 4,
+  "query_ids": [
+    "q_5vuKBwNaJ6IdVY5UbNUJoVmrx3",
+    "q_5xNeUmtoy1E4DVls0G3dHLzrnn",
+    "q_9jcN3Sz8bQCPkr0SXdQI8jWXAD",
+    "q_C5ML89pDRbWqX0VKAe14BSaaFW",
+    "q_MY4fpd7mY6JXh2VhWHfi6Ure8T",
+    "q_X4w8toHfJBhwf2RuFZ0syPkTwV",
+    "q_ao1EwUNYNKDmo8WRjFG3TA1hne",
+    "q_jAvxZwSL44eKGZrWIN7YHPi3Lu"
+  ],
+  "gold_comparisons": {
+    "all_match": true,
+    "clock_probe_2": "23:59:59.000000",
+    "clock_probe_6": "-01:00:00.000000",
+    "join_count": 90000,
+    "status_count_and_weight_sum": {
+      "delayed": [
+        2667,
+        "9223372047266929807"
+      ],
+      "delivered": [
+        2666,
+        "-9223372026453286808"
+      ],
+      "in_transit": [
+        2667,
+        "10406830000"
+      ]
+    },
+    "table_counts": {
+      "hubs": 2000,
+      "range_gap": 3,
+      "shipments": 8000,
+      "tracking_events": 90000,
+      "value_probe": 6
+    }
+  },
+  "successful_run_usage": {
+    "completion_tokens": 2829,
+    "prompt_tokens": 169227,
+    "total_tokens": 172056
+  },
+  "failed_run_usage": {
+    "completion_tokens": 1137,
+    "prompt_tokens": 59615,
+    "total_tokens": 60752
+  },
+  "verified_scope": "originalDL01 authorized unpublished real shared preview reference, continuous source/import/accurate current five-table collection/S0-S10/OOS/maintenance/rolePack/publicGateway/actualautonomousdialogue and audit; not ten-source acceptance or formal publication",
+  "preview_consistency": "per_table/cross_tablefalse/not_ready",
+  "formal_publication": "refused/business_ownerfalse/externalgatespending"
+}

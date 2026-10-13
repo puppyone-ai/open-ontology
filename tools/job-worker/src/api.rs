@@ -17,7 +17,7 @@ pub const BOOT_SHA: &str = "445d7248aa252a96a4103ae1b0be0000744eef2c0603037c19df
 pub const CONTROL_SHA: &str = "b6181331d68360e6eec5395b4400ba0141276aebffe21abc15c8b4b8f0310b75";
 pub const EVENT_SHA: &str = "4ede04e8f848eff002da7e3a12628ac731c7bca02ba345daa6d036790e894fee";
 pub const LEASE_SHA: &str = "5cb2e9030a479903ecc57ce32fc3ee851f00d146e02ab3902fcbe7ab09501034";
-pub const ADAPT_SHA: &str = "8ba28e94b8b861f640a1aa5dc8021ba6bbd44cb64a7c8a13a1fefae421331bcd";
+pub const ADAPT_SHA: &str = "3d345212706d5d185706477bccb3084aebc2e3cf12e1ed77ec364d2494deddf7";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskRequest {
@@ -207,6 +207,14 @@ pub struct LeaseResult {
 #[cfg(test)]
 mod tests {
     use super::{heartbeat_due, payload_text, LeaseStatus, Work, HEARTBEAT_SECONDS, LEASE_SECONDS};
+
+    #[test]
+    fn adapt_bytes_match_the_pinned_checksum() {
+        assert_eq!(
+            crate::sha256::sha256_hex(include_str!("../adapt.sql").as_bytes()),
+            super::ADAPT_SHA
+        );
+    }
 
     #[test]
     fn heartbeat_boundary_matches_the_frozen_constant() {

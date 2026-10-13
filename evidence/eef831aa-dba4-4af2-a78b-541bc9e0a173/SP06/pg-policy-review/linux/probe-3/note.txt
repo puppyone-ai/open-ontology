@@ -1,4 +1,0 @@
-TLS refusal and clippy still passed. RowFilterRefused matched.
-The commit delta was 4, and the harness expected 2.
-psql's simple query counts one transaction per statement. tokio-postgres prepares a `&str` statement and then executes it, which is two transactions on this driver.
-The product refusal was the pure error. probe-4 compares each refusal with a no-SQL measurement and with a read-plus-rollback measurement on the same session, so the protocol's extra prepares cancel out.

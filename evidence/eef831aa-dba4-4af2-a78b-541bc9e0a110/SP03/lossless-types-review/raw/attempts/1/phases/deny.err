@@ -1,7 +1,0 @@
-error: unexpected argument '--config' found
-
-  tip: to pass '--config' as a value, use '-- --config'
-
-Usage: cargo-deny check [OPTIONS] [WHICH]...
-
-For more information, try '--help'.

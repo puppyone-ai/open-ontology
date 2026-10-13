@@ -8,12 +8,12 @@ use std::fs;
 use std::path::Path;
 
 use oo_gateway::{
-    compile_column_acl, connect_require_tls, install_column_acl, ClassStatus, ColumnAclPolicy,
-    ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError, RowFilter, TlsEndpoint,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
+    RowFilter, TlsEndpoint, compile_column_acl, connect_require_tls, install_column_acl,
 };
 use sha2::{Digest, Sha256};
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
+use tokio_postgres::types::ToSql;
 
 const HOST: &str = "oo-a171-pg";
 const DATABASE: &str = "oo_a171";
@@ -125,7 +125,11 @@ async fn shadow_column_acl_installs_and_denies() {
         })
     );
     assert_eq!(
-        install_column_acl(&mut admin, &sample("orphan", "oo_absent_login", false, false)).await,
+        install_column_acl(
+            &mut admin,
+            &sample("orphan", "oo_absent_login", false, false)
+        )
+        .await,
         Err(PolicyError::LoginAbsent)
     );
     assert_eq!(role_count(&admin, "oo_r_").await, before);
@@ -269,20 +273,37 @@ async fn apply_frozen_schema(client: &mut Client) {
         "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
     )
     .await;
-    exec_named(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_named(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_named(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_named(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
@@ -384,7 +405,9 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
             "  ('{version}', '{checksum}', 'expand', '{filename}')"
         ));
     }
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}"
+    )
 }
 
 fn closed_token(value: &str) -> bool {
@@ -398,7 +421,12 @@ fn closed_token(value: &str) -> bool {
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_named(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_named(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
+    exec_named(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
     exec_named(
         &tx,
         "advisory-lock",
@@ -535,7 +563,9 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
     );
     let tx = client.transaction().await.expect("insert begin");
     let params: [&(dyn ToSql + Sync); 4] = [&"1", &42_i32, &"west", &"hidden-value"];
-    tx.execute(&insert, &params).await.expect("insert shadow row");
+    tx.execute(&insert, &params)
+        .await
+        .expect("insert shadow row");
     tx.commit().await.expect("insert commit");
     Shadow {
         table,
@@ -590,7 +620,13 @@ async fn register(
         .expect("register");
 }
 
-async fn lookup(client: &Client, level: &str, namespace: &str, table: &str, column: &str) -> String {
+async fn lookup(
+    client: &Client,
+    level: &str,
+    namespace: &str,
+    table: &str,
+    column: &str,
+) -> String {
     let params: [&(dyn ToSql + Sync); 7] = [
         &SOURCE,
         &CONFIG,
@@ -642,10 +678,7 @@ fn sample(role: &str, login: &str, row_filter: bool, stale: bool) -> ColumnAclPo
 
 fn unknown_pii() -> ColumnAclPolicy {
     let mut policy = sample("pii_secret", LOGIN, false, false);
-    policy.table.columns = vec![column(
-        "secret",
-        PiiClass::Unknown,
-    )];
+    policy.table.columns = vec![column("secret", PiiClass::Unknown)];
     policy
 }
 
@@ -762,14 +795,17 @@ async fn assert_catalog(client: &Client, shadow: &Shadow, oracle: &mut Oracle) {
             .collect::<std::collections::BTreeSet<_>>()
     );
     let clerk = column_privileges(client, "oo_r_clerk", &shadow.table).await;
-    assert_eq!(clerk, std::collections::BTreeSet::from([shadow.order_id.clone()]));
-    assert_eq!(table_privileges(client, "oo_r_dispatcher", &shadow.table).await, 0);
-    assert_eq!(table_privileges(client, "PUBLIC", &shadow.table).await, 0);
-    assert_eq!(table_privileges(client, LOGIN, &shadow.table).await, 0);
     assert_eq!(
-        public_column_privileges(client, &shadow.table).await,
+        clerk,
+        std::collections::BTreeSet::from([shadow.order_id.clone()])
+    );
+    assert_eq!(
+        table_privileges(client, "oo_r_dispatcher", &shadow.table).await,
         0
     );
+    assert_eq!(table_privileges(client, "PUBLIC", &shadow.table).await, 0);
+    assert_eq!(table_privileges(client, LOGIN, &shadow.table).await, 0);
+    assert_eq!(public_column_privileges(client, &shadow.table).await, 0);
     let relacl: String = client
         .query_one(
             "SELECT COALESCE(relation.relacl::text, 'null') \
@@ -808,7 +844,10 @@ async fn assert_catalog(client: &Client, shadow: &Shadow, oracle: &mut Oracle) {
         } else {
             assert!(!acl.contains("oo_r_dispatcher"), "{name} {acl}");
         }
-        assert!(!acl.contains("{=") && !acl.contains(",="), "{name} public acl {acl}");
+        assert!(
+            !acl.contains("{=") && !acl.contains(",="),
+            "{name} public acl {acl}"
+        );
     }
     let session: String = client
         .query_one("SELECT session_user::text", &[])
@@ -954,11 +993,7 @@ async fn exercise_reader(client: &mut Client, shadow: &Shadow, pid: i32, oracle:
     oracle.fact("same_backend_after_rollback", "true");
 }
 
-async fn query_as_role(
-    client: &mut Client,
-    role: &str,
-    sql: &str,
-) -> tokio_postgres::Row {
+async fn query_as_role(client: &mut Client, role: &str, sql: &str) -> tokio_postgres::Row {
     let tx = client.transaction().await.expect("begin read");
     tx.batch_execute(&format!("SET LOCAL ROLE {}", quote_role(role)))
         .await
@@ -976,16 +1011,19 @@ async fn expect_42501(client: &mut Client, role: Option<&str>, sql: &str) {
             .expect("set role");
     }
     let err = tx.query_one(sql, &[]).await.expect_err("expected denial");
-    let state = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let state = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     assert_eq!(state, "42501", "{err}");
     tx.rollback().await.expect("rollback denial");
 }
 
 fn quote_role(role: &str) -> String {
     assert!(
-        role.bytes().all(|byte| {
-            byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit()
-        }) && !role.is_empty()
+        role.bytes()
+            .all(|byte| { byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit() })
+            && !role.is_empty()
     );
     format!("\"{role}\"")
 }

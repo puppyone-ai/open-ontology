@@ -1,6 +1,6 @@
 # Local product stack. dev is localprocess and is not production.
 # standard and minimal include a runsc sandbox gate. They do not fall back to runc.
-# source-fixed and release-fixed stay off until those services have a locked image.
+# source-fixed stays off. release-fixed starts only when the local image exists.
 # No host ports, host network, privileged mode, or Docker socket.
 
 name: oo-a395
@@ -153,11 +153,21 @@ services:
   selfbuild-control-api:
     profiles: ["selfbuild"]
     image: ${OO_A395_SELFBUILD_IMAGE:-oo-a395-selfbuild:absent}
+    container_name: oo-a395-selfbuild
     platform: linux/arm64
     pull_policy: never
+    hostname: selfbuild-control-api
+    command: ["serve", "--config", "/config/selfbuild.json"]
+    volumes:
+      - ${OO_A395_STATE}/config:/config:ro
+      - ${OO_A395_STATE}/secrets:/secrets:ro
+      - ${OO_A395_STATE}/work:/work
     networks: [ctl]
+    depends_on: [control-db, control-identity]
     mem_limit: 512m
+    memswap_limit: 512m
     cpus: 0.5
+    pids_limit: 128
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     privileged: false
@@ -168,6 +178,8 @@ services:
       oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
       oo.kind: service
       oo.service: selfbuild-control-api
+      oo.deployment: localprocess
+      oo.production: "false"
 
   source-control-api:
     profiles: ["source-fixed"]
@@ -188,18 +200,32 @@ services:
   release-control-api:
     profiles: ["release-fixed"]
     image: ${OO_A395_RELEASE_IMAGE:-oo-a395-release:absent}
+    container_name: oo-a395-release
     platform: linux/arm64
     pull_policy: never
+    hostname: release-control-api
+    command: ["serve", "--config", "/config/release.json"]
+    volumes:
+      - ${OO_A395_STATE}/config:/config:ro
+      - ${OO_A395_STATE}/secrets:/secrets:ro
+      - ${OO_A395_STATE}/packs:/packs:ro
     networks: [ctl]
+    depends_on: [control-db, control-identity]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     privileged: false
     restart: "no"
     labels:
+      oo.project: open-ontology
       oo.owner: a395
       oo.session: eef831aa-dba4-4af2-a78b-541bc9e0a395
+      oo.kind: service
       oo.service: release-control-api
-      oo.status: recipe_only
+      oo.production: "false"
 
   sandbox-gate:
     profiles: ["standard", "minimal"]

@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/event_project/assert_binding.sql:99: ERROR:  event project foreign key drifted: FOREIGN KEY (task_id, project_id) REFERENCES jobs.tasks(id, project_id) ON UPDATE RESTRICT ON DELETE RESTRICT
-CONTEXT:  PL/pgSQL function inline_code_block line 25 at RAISE

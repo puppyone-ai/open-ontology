@@ -1,0 +1,18 @@
+-- Fixture DBA note. Do not execute these as SQL against this server.
+-- ClickHouse 26.8 stores users.d accounts in the readonly users_xml storage.
+-- Attempt-03 recorded ACCESS_STORAGE_READONLY (code 495) for GRANT to the reader.
+-- The same privileges are loaded from the generated users file before the server
+-- accepts connections. A user entry that sets access_management beside grants
+-- does not start: attempt-02 recorded BAD_ARGUMENTS, code 36.
+--
+-- GRANT SELECT ON oo_dl01.*
+-- GRANT SELECT ON system.columns
+-- GRANT SELECT ON system.tables
+-- GRANT SELECT ON system.databases
+-- GRANT SELECT ON system.parts
+-- GRANT SELECT ON system.query_log
+-- GRANT SELECT ON system.mutations
+-- GRANT SELECT ON system.processes
+-- GRANT SELECT ON system.grants
+-- GRANT SELECT ON system.settings
+-- GRANT SHOW DATABASES ON *.*

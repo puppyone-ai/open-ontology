@@ -1,1 +1,0 @@
-This walk hashed deploy/trusted-demo before the README wording fix. The delivered walk is linux/hash-source.

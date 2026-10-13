@@ -1,1 +1,0 @@
-docker run --name oo-a191-proof --platform linux/arm64 --pull never --network oo-a191-net --cap-drop ALL image=pinned-rust-1.94 bash /inside.sh env=OO_A191_LIVE,OO_A191_HOST,OO_A191_PORT,OO_A191_ADMIN_PASS_FILE,OO_A191_LOGIN_PASS_FILE,OO_A191_CA,OO_A191_ORACLE,OO_A191_PROXY_HOST,OO_A191_PROXY_PORT secrets=readonly-files

@@ -255,9 +255,24 @@ fn shop_tables(email_name: &'static str, customer_rls: bool) -> Vec<TableSpec> {
             name: "customer",
             rls: customer_rls,
             columns: vec![
-                Col { attnum: 1, name: "id", oid: 23, type_name: "int4" },
-                Col { attnum: 2, name: email_name, oid: 25, type_name: "text" },
-                Col { attnum: 3, name: "active", oid: 16, type_name: "bool" },
+                Col {
+                    attnum: 1,
+                    name: "id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 2,
+                    name: email_name,
+                    oid: 25,
+                    type_name: "text",
+                },
+                Col {
+                    attnum: 3,
+                    name: "active",
+                    oid: 16,
+                    type_name: "bool",
+                },
             ],
             pk: vec![(1, "id")],
         },
@@ -265,9 +280,24 @@ fn shop_tables(email_name: &'static str, customer_rls: bool) -> Vec<TableSpec> {
             name: "purchase",
             rls: false,
             columns: vec![
-                Col { attnum: 1, name: "id", oid: 23, type_name: "int4" },
-                Col { attnum: 2, name: "customer_id", oid: 23, type_name: "int4" },
-                Col { attnum: 3, name: "note", oid: 25, type_name: "text" },
+                Col {
+                    attnum: 1,
+                    name: "id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 2,
+                    name: "customer_id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 3,
+                    name: "note",
+                    oid: 25,
+                    type_name: "text",
+                },
             ],
             pk: vec![(1, "id")],
         },
@@ -379,12 +409,54 @@ fn shop_decisions(
     email_name: &str,
 ) -> Vec<Value> {
     vec![
-        decision(fingerprints, schema_hash, "public.customer", "id", "none", "identifier"),
-        decision(fingerprints, schema_hash, "public.customer", email_name, "personal", "email"),
-        decision(fingerprints, schema_hash, "public.customer", "active", "none", "boolean_flag"),
-        decision(fingerprints, schema_hash, "public.purchase", "id", "none", "identifier"),
-        decision(fingerprints, schema_hash, "public.purchase", "customer_id", "none", "foreign_key"),
-        decision(fingerprints, schema_hash, "public.purchase", "note", "sensitive", "free_text"),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            "id",
+            "none",
+            "identifier",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            email_name,
+            "personal",
+            "email",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            "active",
+            "none",
+            "boolean_flag",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "id",
+            "none",
+            "identifier",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "customer_id",
+            "none",
+            "foreign_key",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "note",
+            "sensitive",
+            "free_text",
+        ),
     ]
 }
 
@@ -472,6 +544,7 @@ fn binding(chain: &Chain, role: &str, login: &str, allow: Vec<ReviewedAllow>) ->
         generation: 4,
         role: role.to_string(),
         login: login.to_string(),
+        binding_vector: None,
         allow,
     }
 }
@@ -561,7 +634,12 @@ fn schema_preimage_matches_the_captured_catalog_vector() {
     let one = [TableSpec {
         name: "customer",
         rls: false,
-        columns: vec![Col { attnum: 1, name: "id", oid: 23, type_name: "int4" }],
+        columns: vec![Col {
+            attnum: 1,
+            name: "id",
+            oid: 23,
+            type_name: "int4",
+        }],
         pk: vec![(1, "id")],
     }];
     assert_eq!(schema_preimage(&one), ONE_COLUMN_PREIMAGE);
@@ -586,21 +664,49 @@ fn two_tables_and_two_roles_compile_from_the_reviewed_command() {
     assert_eq!(id.pii, PiiClass::None);
     let email = column(&clerk.policies[0], "email");
     assert_eq!(email.semantic_type, "email");
-    assert_eq!(email.pii, PiiClass::Declared { explicit_allow: true });
-    assert_eq!(column(&clerk.policies[0], "active").semantic_type, "boolean_flag");
+    assert_eq!(
+        email.pii,
+        PiiClass::Declared {
+            explicit_allow: true
+        }
+    );
+    assert_eq!(
+        column(&clerk.policies[0], "active").semantic_type,
+        "boolean_flag"
+    );
     assert_eq!(column(&clerk.policies[0], "active").pii, PiiClass::None);
-    assert_eq!(column(&clerk.policies[1], "customer_id").semantic_type, "foreign_key");
-    assert_eq!(column(&clerk.policies[1], "note").semantic_type, "free_text");
+    assert_eq!(
+        column(&clerk.policies[1], "customer_id").semantic_type,
+        "foreign_key"
+    );
+    assert_eq!(
+        column(&clerk.policies[1], "note").semantic_type,
+        "free_text"
+    );
     assert_eq!(
         column(&clerk.policies[1], "note").pii,
-        PiiClass::Declared { explicit_allow: true }
+        PiiClass::Declared {
+            explicit_allow: true
+        }
     );
     let peek = compile_with(&chain, "peek", "peek_login", peek_allow()).expect("peek");
     assert_eq!(peek.compiled.role(), "oo_r_peek");
     assert_eq!(peek.compiled.len(), 2);
     shared(&peek.policies, "peek", "peek_login");
-    assert!(peek.policies[0].table.columns.iter().all(|column| column.name != "email"));
-    assert!(peek.policies[1].table.columns.iter().all(|column| column.name != "note"));
+    assert!(
+        peek.policies[0]
+            .table
+            .columns
+            .iter()
+            .all(|column| column.name != "email")
+    );
+    assert!(
+        peek.policies[1]
+            .table
+            .columns
+            .iter()
+            .all(|column| column.name != "note")
+    );
     assert_eq!(peek.policies[0].table.columns.len(), 2);
     assert_eq!(peek.policies[1].table.columns.len(), 2);
 }
@@ -624,9 +730,13 @@ fn stale_fact_refuses_the_whole_allowlist() {
     decisions[1]["fact_fingerprint"] = json!("ab".repeat(32));
     let chain = compile_tables(&tables, decisions);
     let hidden = serde_json::from_str::<Value>(&chain.command_json).unwrap();
-    assert!(hidden["hidden"].as_array().unwrap().iter().any(|item| {
-        item["column"] == "email" && item["reason"] == "decision.stale_fact"
-    }));
+    assert!(
+        hidden["hidden"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| { item["column"] == "email" && item["reason"] == "decision.stale_fact" })
+    );
     let err = compile_with(
         &chain,
         "clerk",
@@ -746,9 +856,13 @@ fn missing_decision_refuses_even_when_auto_accept_is_set() {
         command["effective_oos"]["ontology"]["classification"]["auto_accept"],
         "rule_high_confidence"
     );
-    assert!(command["hidden"].as_array().unwrap().iter().any(|item| {
-        item["column"] == "id" && item["reason"] == "classification.absent"
-    }));
+    assert!(
+        command["hidden"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| { item["column"] == "id" && item["reason"] == "classification.absent" })
+    );
     let err = compile_with(
         &chain,
         "clerk",
@@ -813,7 +927,8 @@ fn rejected_column_refuses_the_set() {
             .as_array()
             .unwrap()
             .iter()
-            .find(|item| item["item_id"] == "column/public.customer/email" && item["kind"] == "structural_column")
+            .find(|item| item["item_id"] == "column/public.customer/email"
+                && item["kind"] == "structural_column")
             .unwrap()["state"],
         "rejected"
     );
@@ -926,9 +1041,10 @@ fn identity_must_match_the_effective_document() {
     )
     .expect_err("project");
     assert!(matches!(err, ReviewedPolicyError::Identity));
-    assert!(err
-        .to_string()
-        .contains("reviewed document identity does not match the administrative binding"));
+    assert!(
+        err.to_string()
+            .contains("reviewed document identity does not match the administrative binding")
+    );
 }
 
 #[test]
@@ -941,8 +1057,7 @@ fn seal_tamper_refuses() {
             .to_string();
         let mut chars: Vec<u8> = hash.into_bytes();
         chars[63] = if chars[63] == b'0' { b'1' } else { b'0' };
-        command["provenance"]["sealed_source_sha256"] =
-            json!(String::from_utf8(chars).unwrap());
+        command["provenance"]["sealed_source_sha256"] = json!(String::from_utf8(chars).unwrap());
     });
     let bound = binding(&chain, "clerk", "clerk_login", clerk_allow());
     let err = compile_reviewed_policies(
@@ -982,8 +1097,9 @@ fn pretty_output_and_protocol_only_json_refuse() {
     let chain = compile_shop("email", false);
     let bound = binding(&chain, "clerk", "clerk_login", clerk_allow());
     let pretty = format!("{}\n", chain.command_json);
-    let err = compile_reviewed_policies(&pretty, &chain.artifact_json, &chain.decisions_json, &bound)
-        .expect_err("newline");
+    let err =
+        compile_reviewed_policies(&pretty, &chain.artifact_json, &chain.decisions_json, &bound)
+            .expect_err("newline");
     assert!(matches!(err, ReviewedPolicyError::Protocol));
     let only = r#"{"protocol":"oo.builder.reviewed-effective-oos-command/v1"}"#;
     let err = compile_reviewed_policies(only, &chain.artifact_json, &chain.decisions_json, &bound)
@@ -995,7 +1111,14 @@ fn pretty_output_and_protocol_only_json_refuse() {
 fn credentials_row_filter_and_raw_sample_are_forbidden() {
     let chain = compile_shop("email", false);
     let bound = binding(&chain, "clerk", "clerk_login", clerk_allow());
-    for key in ["credentials", "row_filter", "samples", "password", "secret", "privileges"] {
+    for key in [
+        "credentials",
+        "row_filter",
+        "samples",
+        "password",
+        "secret",
+        "privileges",
+    ] {
         let command_json = recanon_command(&chain, |command| {
             command
                 .as_object_mut()
@@ -1009,7 +1132,10 @@ fn credentials_row_filter_and_raw_sample_are_forbidden() {
             &bound,
         )
         .expect_err(key);
-        assert!(matches!(err, ReviewedPolicyError::Forbidden), "{key} -> {err}");
+        assert!(
+            matches!(err, ReviewedPolicyError::Forbidden),
+            "{key} -> {err}"
+        );
     }
     let raw = recanon_command(&chain, |command| {
         command["effective_oos"]["ontology"]["compile"]["sample_values"]["default"] = json!("raw");
@@ -1048,12 +1174,20 @@ fn unsupported_semantic_types_and_float4_refuse() {
             vec![allow("public.purchase", "note", true)],
         )
         .expect_err(semantic);
-        assert!(matches!(err, ReviewedPolicyError::Semantic), "{semantic} -> {err}");
+        assert!(
+            matches!(err, ReviewedPolicyError::Semantic),
+            "{semantic} -> {err}"
+        );
     }
     let float_table = [TableSpec {
         name: "measure",
         rls: false,
-        columns: vec![Col { attnum: 1, name: "amount", oid: 700, type_name: "float4" }],
+        columns: vec![Col {
+            attnum: 1,
+            name: "amount",
+            oid: 700,
+            type_name: "float4",
+        }],
         pk: vec![(1, "amount")],
     }];
     let catalog = catalog_json(&float_table);
@@ -1068,7 +1202,14 @@ fn unsupported_semantic_types_and_float4_refuse() {
         .unwrap()
         .to_string();
     let prints = fingerprints_of(&artifact);
-    let decisions = vec![decision(&prints, &schema_hash, "public.measure", "amount", "none", "identifier")];
+    let decisions = vec![decision(
+        &prints,
+        &schema_hash,
+        "public.measure",
+        "amount",
+        "none",
+        "identifier",
+    )];
     let chain = compile_tables(&float_table, decisions);
     let err = compile_with(
         &chain,
@@ -1098,7 +1239,10 @@ fn rls_on_an_allowlisted_table_refuses() {
 fn empty_allowlist_is_the_existing_empty_policy_set() {
     let chain = compile_shop("email", false);
     let err = compile_with(&chain, "clerk", "clerk_login", Vec::new()).expect_err("empty");
-    assert!(matches!(err, ReviewedPolicyError::Policy(PolicyError::EmptyPolicySet)));
+    assert!(matches!(
+        err,
+        ReviewedPolicyError::Policy(PolicyError::EmptyPolicySet)
+    ));
 }
 
 #[test]
@@ -1153,7 +1297,10 @@ fn output_classification_must_match_the_decision() {
             .unwrap()["columns"]
             .as_array_mut()
             .unwrap();
-        let id = columns.iter_mut().find(|column| column["name"] == "id").unwrap();
+        let id = columns
+            .iter_mut()
+            .find(|column| column["name"] == "id")
+            .unwrap();
         id["pii"] = json!("personal");
     });
     let bound = binding(

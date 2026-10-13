@@ -1,6 +1,0 @@
-docker-run.exit=35
-phase=npm-tarball
-curl exit 35: TLS connect error, unexpected eof while reading
-The Node tarball, git tag, GitHub tarball, and npm metadata phases had already passed.
-This directory was not overwritten. The retry is linux/pi-reinstall-2.
-Volumes were left in place for that retry. The retry script removes and reinstalls the prefix contents.

@@ -1,0 +1,23 @@
+{
+  "schema": "oo-source-conformance/nightly-registry/v1",
+  "entries": [
+    {
+      "target_id": "fixture-pg",
+      "capability": "batch_full",
+      "runs": [
+        {
+          "calendar_day": "2026-10-01",
+          "raw_exit": 1,
+          "evidence_id": "fix-20261001",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-02",
+          "raw_exit": 1,
+          "evidence_id": "fix-20261002",
+          "origin": "suite"
+        }
+      ]
+    }
+  ]
+}

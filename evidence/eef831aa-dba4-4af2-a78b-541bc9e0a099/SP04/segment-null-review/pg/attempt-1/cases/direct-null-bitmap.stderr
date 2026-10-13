@@ -1,6 +1,0 @@
-ERROR:  23502: null value in column "segment_bitmap" of relation "apply_receipts" violates not-null constraint
-DETAIL:  Failing row contains (warehouse, orders_g1, direct-null-bmp, config/v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, type-policy/v1, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc, dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd, eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, batch/v1, pg-commit-lsn/v1, src_main, 1, 0, f, t, t, null, null, null, direct-null-bmp, 1, 2026-10-02 12:18:08.155487+00).
-SCHEMA NAME:  _oo
-TABLE NAME:  apply_receipts
-COLUMN NAME:  segment_bitmap
-LOCATION:  ExecConstraints, execMain.c:2022

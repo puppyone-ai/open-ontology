@@ -16,6 +16,7 @@ pub struct ColumnRecord {
     pub name: String,
     pub attnum: i32,
     pub oid: i64,
+    pub typmod: i32,
     pub physical_name: String,
 }
 
@@ -25,6 +26,7 @@ pub struct TableRecord {
     pub name: String,
     pub physical_name: Option<String>,
     pub rows: u64,
+    pub canonical_digest: String,
     pub columns: Vec<ColumnRecord>,
 }
 
@@ -71,6 +73,15 @@ pub struct Manifest {
     pub tables_completed: Vec<TableRecord>,
     pub tables_incomplete: Vec<TableRecord>,
     pub quarantine: Vec<Quarantine>,
+    pub snapshot_id: Option<String>,
+    pub source_backend_pid: Option<i64>,
+    pub source_read_only: bool,
+    pub source_write_tuples: Option<i64>,
+    pub import_generation: Option<i64>,
+    pub import_hash: Option<String>,
+    pub spool_state: String,
+    pub index_count: u64,
+    pub analyze_tables: u64,
     pub manifest_sha256: String,
 }
 
@@ -94,11 +105,133 @@ pub fn store_target_config(path: &Path, bytes: &[u8]) -> Result<(), MirrorError>
 }
 
 pub fn store_manifest(path: &Path, manifest: &mut Manifest) -> Result<(), MirrorError> {
-    manifest.customer_complete = false;
-    manifest.enterprise = "not_configured".to_string();
-    manifest.manifest_sha256 = sha256_hex(canonical(manifest)?.as_bytes());
+    finish_manifest(manifest)?;
     let text = manifest_json(manifest)?;
     write_new_private(path, text.as_bytes(), "manifest_conflict")
+}
+
+pub fn replace_manifest(path: &Path, manifest: &mut Manifest) -> Result<(), MirrorError> {
+    finish_manifest(manifest)?;
+    let text = manifest_json(manifest)?;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| MirrorError::new("config", "manifest_path"))?;
+    let next = path
+        .parent()
+        .ok_or_else(|| MirrorError::new("config", "manifest_path"))?
+        .join(format!("{name}.next"));
+    if let Ok(meta) = fs::symlink_metadata(&next) {
+        if meta.file_type().is_symlink() || !meta.is_file() {
+            return Err(MirrorError::new("manifest_conflict", "symlink"));
+        }
+        fs::remove_file(&next).map_err(|_| MirrorError::new("config", "manifest_path"))?;
+    }
+    write_new_private(&next, text.as_bytes(), "manifest_conflict")?;
+    fs::rename(&next, path).map_err(|_| MirrorError::new("config", "manifest_path"))?;
+    Ok(())
+}
+
+fn finish_manifest(manifest: &mut Manifest) -> Result<(), MirrorError> {
+    manifest.customer_complete = false;
+    manifest.enterprise = "not_configured".to_string();
+    if manifest.mirror_state == "complete" {
+        manifest.import_hash = Some(import_hash(manifest)?);
+    } else {
+        manifest.import_hash = None;
+        manifest.import_generation = None;
+    }
+    manifest.manifest_sha256 = sha256_hex(canonical(manifest)?.as_bytes());
+    Ok(())
+}
+
+pub struct SealedImport {
+    pub import_generation: i64,
+    pub import_hash: String,
+    pub plan_sha256: String,
+    pub manifest_sha256: String,
+    pub target_config_sha256: String,
+    pub snapshot_id: String,
+}
+
+pub fn sealed_import(manifest: &Manifest) -> Result<SealedImport, MirrorError> {
+    if manifest.mirror_state != "complete"
+        || manifest.consistency != "single_snapshot"
+        || manifest.customer_complete
+    {
+        return Err(MirrorError::new("refused", "not_complete"));
+    }
+    let generation = manifest
+        .import_generation
+        .ok_or_else(|| MirrorError::new("manifest_tamper", "import_generation"))?;
+    let import_hash = manifest
+        .import_hash
+        .clone()
+        .ok_or_else(|| MirrorError::new("manifest_tamper", "import_hash"))?;
+    let snapshot_id = manifest
+        .snapshot_id
+        .clone()
+        .ok_or_else(|| MirrorError::new("manifest_tamper", "snapshot_id"))?;
+    if import_hash != import_hash_of(manifest)? {
+        return Err(MirrorError::new("manifest_tamper", "import_hash"));
+    }
+    Ok(SealedImport {
+        import_generation: generation,
+        import_hash,
+        plan_sha256: manifest.plan_sha256.clone(),
+        manifest_sha256: manifest.manifest_sha256.clone(),
+        target_config_sha256: manifest.target_config_sha256.clone(),
+        snapshot_id,
+    })
+}
+
+fn import_hash(manifest: &Manifest) -> Result<String, MirrorError> {
+    import_hash_of(manifest)
+}
+
+fn import_hash_of(manifest: &Manifest) -> Result<String, MirrorError> {
+    let generation = manifest
+        .import_generation
+        .ok_or_else(|| MirrorError::new("manifest_tamper", "import_generation"))?;
+    let snapshot = manifest
+        .snapshot_id
+        .as_deref()
+        .ok_or_else(|| MirrorError::new("manifest_tamper", "snapshot_id"))?;
+    if snapshot.is_empty() || snapshot.contains('\n') || snapshot.contains('\r') {
+        return Err(MirrorError::new("manifest_tamper", "snapshot_id"));
+    }
+    let mut body = String::from("local-pg-mirror/v1 sealed-import\n");
+    body.push_str("plan=");
+    body.push_str(&manifest.plan_sha256);
+    body.push('\n');
+    body.push_str("generation=");
+    body.push_str(&generation.to_string());
+    body.push('\n');
+    body.push_str("snapshot=");
+    body.push_str(snapshot);
+    body.push('\n');
+    body.push_str("rows=");
+    body.push_str(&manifest.rows.to_string());
+    body.push('\n');
+    for table in &manifest.tables_completed {
+        if !hex_lower(&table.canonical_digest) {
+            return Err(MirrorError::new("manifest_tamper", "canonical_digest"));
+        }
+        body.push_str("table=");
+        body.push_str(&table.schema);
+        body.push('.');
+        body.push_str(&table.name);
+        body.push_str(" rows=");
+        body.push_str(&table.rows.to_string());
+        body.push_str(" digest=");
+        body.push_str(&table.canonical_digest);
+        body.push('\n');
+    }
+    Ok(sha256_hex(body.as_bytes()))
+}
+
+fn hex_lower(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 pub fn load_manifest(path: &Path) -> Result<Option<Manifest>, MirrorError> {
@@ -125,11 +258,23 @@ pub fn load_manifest(path: &Path) -> Result<Option<Manifest>, MirrorError> {
     if manifest.customer_complete || manifest.enterprise != "not_configured" {
         return Err(MirrorError::new("manifest_tamper", "customer_complete"));
     }
+    if !matches!(manifest.mirror_state.as_str(), "complete" | "incomplete" | "refused") {
+        return Err(MirrorError::new("manifest_tamper", "mirror_state"));
+    }
+    if !matches!(manifest.spool_state.as_str(), "none" | "partial" | "complete") {
+        return Err(MirrorError::new("manifest_tamper", "spool_state"));
+    }
     if manifest.mirror_state == "complete" {
         if manifest.consistency != "single_snapshot" {
             return Err(MirrorError::new("manifest_tamper", "consistency"));
         }
-    } else if manifest.consistency != "not_a_snapshot" {
+        if manifest.import_hash.as_deref() != Some(import_hash_of(&manifest)?.as_str()) {
+            return Err(MirrorError::new("manifest_tamper", "import_hash"));
+        }
+    } else if manifest.consistency != "not_a_snapshot"
+        || manifest.import_generation.is_some()
+        || manifest.import_hash.is_some()
+    {
         return Err(MirrorError::new("manifest_tamper", "consistency"));
     }
     Ok(Some(manifest))
@@ -203,6 +348,30 @@ fn canonical(manifest: &Manifest) -> Result<String, MirrorError> {
     field(&mut out, "tables_completed", &tables_json(&manifest.tables_completed)?)?;
     field(&mut out, "tables_incomplete", &tables_json(&manifest.tables_incomplete)?)?;
     field(&mut out, "quarantine", &quarantine_json(&manifest.quarantine)?)?;
+    match &manifest.snapshot_id {
+        Some(value) => field(&mut out, "snapshot_id", &json_string(value)?)?,
+        None => field(&mut out, "snapshot_id", "null")?,
+    }
+    match manifest.source_backend_pid {
+        Some(value) => field(&mut out, "source_backend_pid", &value.to_string())?,
+        None => field(&mut out, "source_backend_pid", "null")?,
+    }
+    field(&mut out, "source_read_only", bool_text(manifest.source_read_only))?;
+    match manifest.source_write_tuples {
+        Some(value) => field(&mut out, "source_write_tuples", &value.to_string())?,
+        None => field(&mut out, "source_write_tuples", "null")?,
+    }
+    match manifest.import_generation {
+        Some(value) => field(&mut out, "import_generation", &value.to_string())?,
+        None => field(&mut out, "import_generation", "null")?,
+    }
+    match &manifest.import_hash {
+        Some(value) => field(&mut out, "import_hash", &json_string(value)?)?,
+        None => field(&mut out, "import_hash", "null")?,
+    }
+    field(&mut out, "spool_state", &json_string(&manifest.spool_state)?)?;
+    field(&mut out, "index_count", &manifest.index_count.to_string())?;
+    field(&mut out, "analyze_tables", &manifest.analyze_tables.to_string())?;
     if out.ends_with(',') {
         out.pop();
     }
@@ -236,6 +405,7 @@ fn tables_json(tables: &[TableRecord]) -> Result<String, MirrorError> {
             None => field(&mut out, "physical_name", "null")?,
         }
         field(&mut out, "rows", &table.rows.to_string())?;
+        field(&mut out, "canonical_digest", &json_string(&table.canonical_digest)?)?;
         let mut columns = String::from("[");
         for (column_index, column) in table.columns.iter().enumerate() {
             if column_index > 0 {
@@ -245,6 +415,7 @@ fn tables_json(tables: &[TableRecord]) -> Result<String, MirrorError> {
             field(&mut columns, "name", &json_string(&column.name)?)?;
             field(&mut columns, "attnum", &column.attnum.to_string())?;
             field(&mut columns, "oid", &column.oid.to_string())?;
+            field(&mut columns, "typmod", &column.typmod.to_string())?;
             field(&mut columns, "physical_name", &json_string(&column.physical_name)?)?;
             if columns.ends_with(',') {
                 columns.pop();
@@ -329,6 +500,15 @@ fn manifest_from_map(map: &Map<String, Value>) -> Result<Manifest, MirrorError> 
             "tables_completed",
             "tables_incomplete",
             "quarantine",
+            "snapshot_id",
+            "source_backend_pid",
+            "source_read_only",
+            "source_write_tuples",
+            "import_generation",
+            "import_hash",
+            "spool_state",
+            "index_count",
+            "analyze_tables",
             "manifest_sha256",
         ],
     )
@@ -376,8 +556,36 @@ fn manifest_from_map(map: &Map<String, Value>) -> Result<Manifest, MirrorError> 
         tables_completed: parse_tables(map.get("tables_completed"))?,
         tables_incomplete: parse_tables(map.get("tables_incomplete"))?,
         quarantine: parse_quarantine(map.get("quarantine"))?,
+        snapshot_id: opt_string(map, "snapshot_id")?,
+        source_backend_pid: opt_i64(map, "source_backend_pid")?,
+        source_read_only: take_bool(map, "source_read_only")?,
+        source_write_tuples: opt_i64(map, "source_write_tuples")?,
+        import_generation: opt_i64(map, "import_generation")?,
+        import_hash: opt_string(map, "import_hash")?,
+        spool_state: take_str(map, "spool_state")?.to_string(),
+        index_count: take_u64(map, "index_count")?,
+        analyze_tables: take_u64(map, "analyze_tables")?,
         manifest_sha256: take_str(map, "manifest_sha256")?.to_string(),
     })
+}
+
+fn opt_string(map: &Map<String, Value>, key: &str) -> Result<Option<String>, MirrorError> {
+    match map.get(key) {
+        Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        _ => Err(MirrorError::new("manifest_tamper", "field")),
+    }
+}
+
+fn opt_i64(map: &Map<String, Value>, key: &str) -> Result<Option<i64>, MirrorError> {
+    match map.get(key) {
+        Some(Value::Null) => Ok(None),
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .map(Some)
+            .ok_or_else(|| MirrorError::new("manifest_tamper", "field")),
+        _ => Err(MirrorError::new("manifest_tamper", "field")),
+    }
 }
 
 fn parse_tables(value: Option<&Value>) -> Result<Vec<TableRecord>, MirrorError> {
@@ -389,7 +597,7 @@ fn parse_tables(value: Option<&Value>) -> Result<Vec<TableRecord>, MirrorError> 
         let Value::Object(map) = item else {
             return Err(MirrorError::new("manifest_tamper", "tables"));
         };
-        exact_keys(map, &["schema", "name", "physical_name", "rows", "columns"])
+        exact_keys(map, &["schema", "name", "physical_name", "rows", "canonical_digest", "columns"])
             .map_err(|_| MirrorError::new("manifest_tamper", "tables"))?;
         let mut columns = Vec::new();
         let Value::Array(raw_columns) = map.get("columns").ok_or_else(|| MirrorError::new("manifest_tamper", "tables"))? else {
@@ -399,12 +607,13 @@ fn parse_tables(value: Option<&Value>) -> Result<Vec<TableRecord>, MirrorError> 
             let Value::Object(column) = column else {
                 return Err(MirrorError::new("manifest_tamper", "tables"));
             };
-            exact_keys(column, &["name", "attnum", "oid", "physical_name"])
+            exact_keys(column, &["name", "attnum", "oid", "typmod", "physical_name"])
                 .map_err(|_| MirrorError::new("manifest_tamper", "tables"))?;
             columns.push(ColumnRecord {
                 name: take_str(column, "name")?.to_string(),
                 attnum: i32::try_from(take_i64(column, "attnum")?).map_err(|_| MirrorError::new("manifest_tamper", "attnum"))?,
                 oid: take_i64(column, "oid")?,
+                typmod: i32::try_from(take_i64(column, "typmod")?).map_err(|_| MirrorError::new("manifest_tamper", "typmod"))?,
                 physical_name: take_str(column, "physical_name")?.to_string(),
             });
         }
@@ -413,11 +622,16 @@ fn parse_tables(value: Option<&Value>) -> Result<Vec<TableRecord>, MirrorError> 
             Some(Value::String(value)) => Some(value.clone()),
             _ => return Err(MirrorError::new("manifest_tamper", "tables")),
         };
+        let canonical_digest = take_str(map, "canonical_digest")?.to_string();
+        if !canonical_digest.is_empty() && !hex_lower(&canonical_digest) {
+            return Err(MirrorError::new("manifest_tamper", "canonical_digest"));
+        }
         tables.push(TableRecord {
             schema: take_str(map, "schema")?.to_string(),
             name: take_str(map, "name")?.to_string(),
             physical_name,
             rows: take_u64(map, "rows")?,
+            canonical_digest,
             columns,
         });
     }

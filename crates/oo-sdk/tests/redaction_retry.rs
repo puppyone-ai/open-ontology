@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use common::{
-    Action, ERROR_RATE_LIMITED, ERROR_SQL, ERROR_UNAUTHENTICATED, Hit, Oracle, QUERY_RESPONSE_EMPTY,
-    json_response, local_config, open, sample_request,
+    Action, ERROR_RATE_LIMITED, ERROR_SQL, ERROR_UNAUTHENTICATED, Hit, Oracle,
+    QUERY_RESPONSE_EMPTY, json_response, local_config, open, sample_request,
 };
 use oo_core::api::{ErrorCode, QueryRequest, parse_api_json};
 use oo_sdk::{ClientConfig, QueryError, RetryPolicy, Timeouts};
@@ -49,7 +49,9 @@ async fn short_accepted_tokens_are_removed_from_accessors() {
             &format!("{error} {error:?}"),
             token,
         );
-        if gateway.status() != 400 || gateway.code() != ErrorCode::SqlParseError || gateway.retryable()
+        if gateway.status() != 400
+            || gateway.code() != ErrorCode::SqlParseError
+            || gateway.retryable()
         {
             failures.push(format!("meta:len={}", token.len()));
         }
@@ -62,9 +64,21 @@ async fn short_accepted_tokens_are_removed_from_accessors() {
         note_wire(&mut failures, hits.first(), token, "select 1");
     }
 
-    let (error, _) = reflect("!", "select 1", 429, "Too Many Requests", ERROR_RATE_LIMITED).await;
+    let (error, _) = reflect(
+        "!",
+        "select 1",
+        429,
+        "Too Many Requests",
+        ERROR_RATE_LIMITED,
+    )
+    .await;
     let gateway = error.gateway().expect("rate");
-    note_eq(&mut failures, "rate_message", gateway.message(), "slow down");
+    note_eq(
+        &mut failures,
+        "rate_message",
+        gateway.message(),
+        "slow down",
+    );
     note_eq(
         &mut failures,
         "rate_hint",
@@ -74,7 +88,12 @@ async fn short_accepted_tokens_are_removed_from_accessors() {
     let (error, _) = reflect("!", "select 1", 400, "Bad Request", ERROR_SQL).await;
     let gateway = error.gateway().expect("sql fixture");
     note_eq(&mut failures, "sql_message", gateway.message(), "parse");
-    note_eq(&mut failures, "sql_hint", gateway.hint().unwrap_or(""), "fix");
+    note_eq(
+        &mut failures,
+        "sql_hint",
+        gateway.hint().unwrap_or(""),
+        "fix",
+    );
 
     finish(failures);
 }
@@ -131,7 +150,8 @@ async fn percent_and_escaped_secret_forms_are_removed_once() {
     let bearer_plus = format!("Bearer+{token}");
     let bearer_encoded = format!("Bearer%20{encoded}");
     let doubled = "%2541bcdEF12";
-    let message = format!("{partial} {encoded} {mixed} {bearer_pct} {bearer_plus} {bearer_encoded}");
+    let message =
+        format!("{partial} {encoded} {mixed} {bearer_pct} {bearer_plus} {bearer_encoded}");
     let (error, hits) = reflect(
         token,
         "select 1",
@@ -151,7 +171,12 @@ async fn percent_and_escaped_secret_forms_are_removed_once() {
         bearer_encoded.as_str(),
     ] {
         note_absent(&mut failures, "encoded", gateway.message(), secret);
-        note_absent(&mut failures, "encoded_hint", gateway.hint().unwrap_or(""), secret);
+        note_absent(
+            &mut failures,
+            "encoded_hint",
+            gateway.hint().unwrap_or(""),
+            secret,
+        );
     }
     if !gateway.hint().unwrap_or("").contains(doubled) {
         failures.push("double_decode_removed".to_owned());
@@ -235,8 +260,18 @@ async fn mount_path_and_locator_reflections_are_removed() {
         sql,
     ] {
         note_absent(&mut failures, "locator", gateway.message(), secret);
-        note_absent(&mut failures, "locator_hint", gateway.hint().unwrap_or(""), secret);
-        note_absent(&mut failures, "locator_debug", &format!("{error} {error:?}"), secret);
+        note_absent(
+            &mut failures,
+            "locator_hint",
+            gateway.hint().unwrap_or(""),
+            secret,
+        );
+        note_absent(
+            &mut failures,
+            "locator_debug",
+            &format!("{error} {error:?}"),
+            secret,
+        );
     }
     let client_debug = format!("{client:?}");
     for secret in [token, sql, "http://", "https://", "/mount", "/v1/query"] {
@@ -266,7 +301,12 @@ async fn field_is_omitted_when_redaction_cannot_keep_a_short_token() {
     if gateway.message().len() > 64 {
         failures.push(format!("bang_len={}", gateway.message().len()));
     }
-    note_eq(&mut failures, "bang_hint", gateway.hint().unwrap_or(""), "retry later");
+    note_eq(
+        &mut failures,
+        "bang_hint",
+        gateway.hint().unwrap_or(""),
+        "retry later",
+    );
     if gateway.code() != ErrorCode::RateLimited || gateway.status() != 429 {
         failures.push("bang_meta".to_owned());
     }
@@ -281,7 +321,12 @@ async fn field_is_omitted_when_redaction_cannot_keep_a_short_token() {
     .await;
     let gateway = error.gateway().expect("letter");
     note_absent(&mut failures, "letter_message", gateway.message(), "a");
-    note_absent(&mut failures, "letter_hint", gateway.hint().unwrap_or(""), "a");
+    note_absent(
+        &mut failures,
+        "letter_hint",
+        gateway.hint().unwrap_or(""),
+        "a",
+    );
     finish(failures);
 }
 
@@ -292,28 +337,48 @@ async fn decimal_retry_after_at_or_above_max_does_not_retry() {
         &mut failures,
         "nine_digit",
         &[("retry-after", "100000000")],
-        expect_stop(3, Duration::from_secs(2), Duration::from_secs(3), Some(Duration::from_secs(100_000_000))),
+        expect_stop(
+            3,
+            Duration::from_secs(2),
+            Duration::from_secs(3),
+            Some(Duration::from_secs(100_000_000)),
+        ),
     )
     .await;
     note_retry(
         &mut failures,
         "leading_zero_nine",
         &[("retry-after", "000000003")],
-        expect_stop(3, Duration::from_secs(2), Duration::from_secs(3), Some(Duration::from_secs(3))),
+        expect_stop(
+            3,
+            Duration::from_secs(2),
+            Duration::from_secs(3),
+            Some(Duration::from_secs(3)),
+        ),
     )
     .await;
     note_retry(
         &mut failures,
         "equal_max",
         &[("retry-after", "2")],
-        expect_stop(1, Duration::from_secs(2), Duration::from_secs(5), Some(Duration::from_secs(2))),
+        expect_stop(
+            1,
+            Duration::from_secs(2),
+            Duration::from_secs(5),
+            Some(Duration::from_secs(2)),
+        ),
     )
     .await;
     note_retry(
         &mut failures,
         "overloaded_nine",
         &[("retry-after", "100000000")],
-        expect_stop(1, Duration::from_secs(2), Duration::from_secs(3), Some(Duration::from_secs(100_000_000))),
+        expect_stop(
+            1,
+            Duration::from_secs(2),
+            Duration::from_secs(3),
+            Some(Duration::from_secs(100_000_000)),
+        ),
     )
     .await;
     finish(failures);
@@ -372,7 +437,13 @@ async fn declared_backoff_and_retry_bounds_stay() {
         backoff,
     )
     .await;
-    note_retry(&mut failures, "fraction", &[("retry-after", "1.5")], backoff).await;
+    note_retry(
+        &mut failures,
+        "fraction",
+        &[("retry-after", "1.5")],
+        backoff,
+    )
+    .await;
     note_retry(
         &mut failures,
         "http_date",
@@ -384,14 +455,24 @@ async fn declared_backoff_and_retry_bounds_stay() {
         &mut failures,
         "eight_digit_above_max",
         &[("retry-after", "00000003")],
-        expect_stop(1, Duration::from_secs(2), Duration::from_secs(2), Some(Duration::from_secs(3))),
+        expect_stop(
+            1,
+            Duration::from_secs(2),
+            Duration::from_secs(2),
+            Some(Duration::from_secs(3)),
+        ),
     )
     .await;
     note_retry(
         &mut failures,
         "wall_budget",
         &[("retry-after", "1")],
-        expect_stop(3, Duration::from_secs(2), Duration::from_millis(400), Some(Duration::from_secs(1))),
+        expect_stop(
+            3,
+            Duration::from_secs(2),
+            Duration::from_millis(400),
+            Some(Duration::from_secs(1)),
+        ),
     )
     .await;
 
@@ -528,7 +609,12 @@ async fn note_sql(
     for secret in secrets {
         note_absent(failures, "sql_message", gateway.message(), secret);
         note_absent(failures, "sql_hint", gateway.hint().unwrap_or(""), secret);
-        note_absent(failures, "sql_display", &format!("{error} {error:?}"), secret);
+        note_absent(
+            failures,
+            "sql_display",
+            &format!("{error} {error:?}"),
+            secret,
+        );
     }
     if gateway.code() != ErrorCode::SqlParseError || gateway.status() != 400 {
         failures.push("sql_meta".to_owned());
@@ -539,10 +625,8 @@ async fn note_sql(
 async fn scripted() -> (Oracle, Arc<Mutex<Vec<u8>>>) {
     let payload = Arc::new(Mutex::new(Vec::new()));
     let stored = Arc::clone(&payload);
-    let oracle = Oracle::spawn(move |_, _| {
-        Action::Raw(stored.lock().expect("payload").clone())
-    })
-    .await;
+    let oracle =
+        Oracle::spawn(move |_, _| Action::Raw(stored.lock().expect("payload").clone())).await;
     (oracle, payload)
 }
 
@@ -680,9 +764,8 @@ async fn note_retry(
         )
         .await
     };
-    let mut bad = (!expect.ok && attempt.ok)
-        || (expect.ok && !attempt.ok)
-        || attempt.hits != expect.hits;
+    let mut bad =
+        (!expect.ok && attempt.ok) || (expect.ok && !attempt.ok) || attempt.hits != expect.hits;
     if !expect.ok && expect.after != attempt.retry_after {
         bad = true;
     }
@@ -773,4 +856,3 @@ fn retry_config(max_extra: u8, max_wait: Duration, overall: Duration) -> ClientC
         })
         .expect("timeouts")
 }
-

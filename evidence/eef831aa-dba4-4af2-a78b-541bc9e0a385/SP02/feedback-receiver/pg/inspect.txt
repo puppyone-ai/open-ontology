@@ -1,1 +1,0 @@
-id=7c97c00ffb57a73df0c28470e50fff29afa73f365f31f08fc30c2aca148c6d2b status=running privileged=false network=oo-a385-net memory=1073741824 cpus=1000000000 pids=256

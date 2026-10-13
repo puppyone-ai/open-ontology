@@ -1,0 +1,17 @@
+{
+  "implementation_commit": "e891b3624762e23f182fddec2a2994dcb24045d2",
+  "handoff_commit": "96141f431d1a97cf59fe0089a3062f6c2a8068ce",
+  "artifacts": [
+    {
+      "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-gateway-eb2303e233a36db5faf57607f149fcf3a8654985895b4a3c6cb2f7e5e6a44021",
+      "sha256": "eb2303e233a36db5faf57607f149fcf3a8654985895b4a3c6cb2f7e5e6a44021",
+      "mode": "0555"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703",
+      "sha256": "fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703",
+      "mode": "0555"
+    }
+  ],
+  "acceptance": "fixed artifacts only; shared TIME fidelity and current accurate dialogue pending; no source release"
+}

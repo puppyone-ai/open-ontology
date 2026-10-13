@@ -1,3 +1,0 @@
-bind /Users/redux/puppy-one/open-ontology/deploy/trusted-demo /deploy rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a312/SP11/trusted-demo-identity/linux/post-edit-drive-attempt-2 /work rw=true
-

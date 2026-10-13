@@ -1,1 +1,0 @@
-Proof container oo-a362-proof3 exited 101 at clippy-pack. Tests passed. pg-builder clippy passed. description-pack clippy rejected document() in tools/description-pack/src/combined.rs for 8 arguments. reseal_count is now derived from the seal inside that function. Container removed. This directory was not overwritten.

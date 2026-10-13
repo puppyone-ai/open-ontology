@@ -1,3 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.03s
-     Running tests/a160_oracle.rs (/target/debug/deps/a160_oracle-a99b5e52ee9f3838)

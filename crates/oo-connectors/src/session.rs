@@ -63,7 +63,9 @@ impl Drop for ConnPermit {
 }
 
 fn ledger() -> Result<std::sync::MutexGuard<'static, BTreeMap<String, SourceEntry>>, SourceError> {
-    LEDGER.lock().map_err(|_| SourceError::budget("max_connections"))
+    LEDGER
+        .lock()
+        .map_err(|_| SourceError::budget("max_connections"))
 }
 
 fn prepare(entries: &mut BTreeMap<String, SourceEntry>, now: Instant) {
@@ -99,7 +101,9 @@ pub(crate) fn try_reserve(source_id: &str, count: u8) -> Result<Vec<ConnPermit>,
         return Err(SourceError::budget("max_connections"));
     } else {
         entries.insert(source_id.to_string(), fresh_entry(now));
-        entries.get_mut(source_id).ok_or_else(|| SourceError::budget("max_connections"))?
+        entries
+            .get_mut(source_id)
+            .ok_or_else(|| SourceError::budget("max_connections"))?
     };
     if u16::from(entry.in_use) + u16::from(count) > u16::from(MAX_CONNECTIONS) {
         return Err(SourceError::budget("max_connections"));
@@ -120,7 +124,9 @@ pub(crate) fn try_charge_rows(source_id: &str, rows: u32) -> Result<(), SourceEr
 }
 
 fn debit_rows(source_id: &str, rows: u32) -> Result<Instant, SourceError> {
-    let mut entries = LEDGER.lock().map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+    let mut entries = LEDGER
+        .lock()
+        .map_err(|_| SourceError::budget("max_rows_per_sec"))?;
     let now = Instant::now();
     prepare(&mut entries, now);
     let entry = if let Some(entry) = entries.get_mut(source_id) {
@@ -129,7 +135,9 @@ fn debit_rows(source_id: &str, rows: u32) -> Result<Instant, SourceError> {
         return Err(SourceError::budget("max_connections"));
     } else {
         entries.insert(source_id.to_string(), fresh_entry(now));
-        entries.get_mut(source_id).ok_or_else(|| SourceError::budget("max_rows_per_sec"))?
+        entries
+            .get_mut(source_id)
+            .ok_or_else(|| SourceError::budget("max_rows_per_sec"))?
     };
     if entry.rows_left < rows {
         return Err(SourceError::budget("max_rows_per_sec"));
@@ -139,6 +147,7 @@ fn debit_rows(source_id: &str, rows: u32) -> Result<Instant, SourceError> {
 }
 
 /// Debit held until `settle`. Dropping the hold keeps the full debit.
+#[derive(Debug)]
 pub(crate) struct RowHold {
     source_id: String,
     reserved: u32,
@@ -152,7 +161,11 @@ impl RowHold {
         if observed >= self.reserved {
             return;
         }
-        settle_rows(&self.source_id, self.reserved - observed, self.window_started);
+        settle_rows(
+            &self.source_id,
+            self.reserved - observed,
+            self.window_started,
+        );
     }
 }
 
@@ -166,6 +179,73 @@ pub(crate) fn try_reserve_rows(source_id: &str, rows: u32) -> Result<RowHold, So
         reserved: rows,
         window_started,
     })
+}
+
+impl RowHold {
+    /// Start of the one-second window that accepted this debit.
+    pub(crate) fn window_started(&self) -> Instant {
+        self.window_started
+    }
+}
+
+/// One paced debit. `waited` is true when this call slept for the next window.
+#[derive(Debug)]
+pub(crate) struct PacedReserve {
+    pub hold: RowHold,
+    pub waited: bool,
+}
+
+/// Reserve `rows` in the current window, or wait until that window refills.
+///
+/// `try_reserve_rows` still refuses immediately. A request above
+/// [`MAX_ROWS_PER_SEC`] refuses immediately too. A closed `deadline` refuses
+/// without sleeping. This does not raise the rate.
+pub(crate) async fn pace_reserve_rows(
+    source_id: &str,
+    rows: u32,
+    deadline: Instant,
+) -> Result<PacedReserve, SourceError> {
+    if rows == 0 || rows > MAX_ROWS_PER_SEC {
+        return Err(SourceError::budget("max_rows_per_sec"));
+    }
+    let mut waited = false;
+    loop {
+        if Instant::now() >= deadline {
+            return Err(SourceError::budget("deadline"));
+        }
+        match try_reserve_rows(source_id, rows) {
+            Ok(hold) => {
+                return Ok(PacedReserve { hold, waited });
+            }
+            Err(err) if err.fact() == Some("max_rows_per_sec") => {
+                let wait = pace_wait(source_id)?;
+                let left = deadline.saturating_duration_since(Instant::now());
+                if wait.is_zero() {
+                    continue;
+                }
+                if wait >= left {
+                    return Err(SourceError::budget("deadline"));
+                }
+                waited = true;
+                tokio::time::sleep(wait).await;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+}
+
+fn pace_wait(source_id: &str) -> Result<Duration, SourceError> {
+    let mut entries = ledger()?;
+    let now = Instant::now();
+    prepare(&mut entries, now);
+    let Some(entry) = entries.get(source_id) else {
+        return Ok(Duration::from_millis(1));
+    };
+    if entry.rows_left > 0 {
+        return Ok(Duration::ZERO);
+    }
+    let age = now.saturating_duration_since(entry.window_started);
+    Ok(ROW_WINDOW.saturating_sub(age) + Duration::from_millis(1))
 }
 
 /// Refund unused allowance only into the same open window. An expired, refilled,
@@ -201,7 +281,10 @@ pub(crate) enum Admit {
     /// Reserve `wanted` in full or refuse before SQL.
     Exact { wanted: u32, natural: bool },
     /// Reserve `min(wanted, window, available)`. Natural only when `wanted` itself is reserved.
-    Ceiling { wanted: u32, natural_when_full: bool },
+    Ceiling {
+        wanted: u32,
+        natural_when_full: bool,
+    },
 }
 
 pub(crate) fn admit_limit(source_id: &str, admit: Admit) -> Result<AdmittedLimit, SourceError> {
@@ -234,7 +317,9 @@ pub(crate) fn admit_limit(source_id: &str, admit: Admit) -> Result<AdmittedLimit
 }
 
 fn rows_available(source_id: &str) -> Result<u32, SourceError> {
-    let mut entries = LEDGER.lock().map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+    let mut entries = LEDGER
+        .lock()
+        .map_err(|_| SourceError::budget("max_rows_per_sec"))?;
     let now = Instant::now();
     prepare(&mut entries, now);
     if let Some(entry) = entries.get(source_id) {
@@ -262,17 +347,30 @@ pub(crate) fn scale_rows(count: usize, per: u32) -> (u32, bool) {
 
 /// Natural cardinality of a count or a scan product. Zero reserves one row.
 /// A product that does not fit the window reserves the window and is not natural.
-pub(crate) fn admit_cardinality(source_id: &str, natural_max: i64) -> Result<AdmittedLimit, SourceError> {
+pub(crate) fn admit_cardinality(
+    source_id: &str,
+    natural_max: i64,
+) -> Result<AdmittedLimit, SourceError> {
     if natural_max < 0 {
         return Err(SourceError::budget("max_rows_per_sec"));
     }
     if natural_max == 0 {
-        return admit_limit(source_id, Admit::Exact { wanted: 1, natural: true });
+        return admit_limit(
+            source_id,
+            Admit::Exact {
+                wanted: 1,
+                natural: true,
+            },
+        );
     }
     match u32::try_from(natural_max) {
-        Ok(wanted) if wanted <= MAX_ROWS_PER_SEC => {
-            admit_limit(source_id, Admit::Exact { wanted, natural: true })
-        }
+        Ok(wanted) if wanted <= MAX_ROWS_PER_SEC => admit_limit(
+            source_id,
+            Admit::Exact {
+                wanted,
+                natural: true,
+            },
+        ),
         _ => admit_limit(
             source_id,
             Admit::Ceiling {
@@ -394,7 +492,10 @@ impl PgConnector {
 
     /// Open one session on a permit reserved by the caller.
     /// The permit stays held until the socket closes.
-    pub(crate) async fn connect_reserved(&self, permit: ConnPermit) -> Result<PgSession, SourceError> {
+    pub(crate) async fn connect_reserved(
+        &self,
+        permit: ConnPermit,
+    ) -> Result<PgSession, SourceError> {
         let options = PgConnectOptions::from_explicit()
             .host(self.config.endpoint().host())
             .port(self.config.endpoint().port())
@@ -745,7 +846,10 @@ impl PgSession {
         }
     }
 
-    pub(crate) async fn finish<T>(&mut self, result: Result<T, SourceError>) -> Result<T, SourceError> {
+    pub(crate) async fn finish<T>(
+        &mut self,
+        result: Result<T, SourceError>,
+    ) -> Result<T, SourceError> {
         let rolled = self.rollback().await;
         match (result, rolled) {
             (Ok(value), Ok(())) => Ok(value),
@@ -973,6 +1077,29 @@ pub(crate) async fn fetch_all(
     }
 }
 
+/// One control lookup that is not a table export.
+///
+/// Cancel and backend-state checks share the data source id. Charging them
+/// against the row window would let a full export window block `pg_cancel_backend`
+/// or turn a finished read into `max_rows_per_sec`. These statements return at
+/// most one row and do not raise [`MAX_ROWS_PER_SEC`].
+pub(crate) async fn fetch_control(
+    session: &mut PgSession,
+    query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
+) -> Result<sqlx::postgres::PgRow, SourceError> {
+    session.ensure_open()?;
+    let budget = session.budget.statement_timeout();
+    let result = tokio::time::timeout(budget, query.fetch_one(&mut session.conn)).await;
+    match result {
+        Ok(Ok(row)) => Ok(row),
+        Ok(Err(err)) => Err(map_sqlx(err)),
+        Err(_) => {
+            session.poisoned = true;
+            Err(SourceError::budget("statement_timeout"))
+        }
+    }
+}
+
 pub(crate) async fn fetch_one(
     session: &mut PgSession,
     query: sqlx::query::Query<'_, sqlx::Postgres, sqlx::postgres::PgArguments>,
@@ -1132,7 +1259,9 @@ mod tests {
     #[test]
     fn reservation_settles_the_unused_allowance() {
         let _lock = super::lock_ledger();
-        super::try_reserve_rows("a128_settle", 100).unwrap().settle(25);
+        super::try_reserve_rows("a128_settle", 100)
+            .unwrap()
+            .settle(25);
         assert_eq!(super::raw_rows_left("a128_settle"), Some(49_975));
         let over = match super::try_reserve_rows("a128_settle", 49_976) {
             Err(err) => err,
@@ -1142,7 +1271,9 @@ mod tests {
             }
         };
         assert_eq!(over.fact(), Some("max_rows_per_sec"));
-        super::try_reserve_rows("a128_settle", 49_975).unwrap().settle(49_975);
+        super::try_reserve_rows("a128_settle", 49_975)
+            .unwrap()
+            .settle(49_975);
         assert_eq!(super::raw_rows_left("a128_settle"), Some(0));
         for index in 0..63 {
             let permit = super::try_reserve(&format!("a128_pad_{index}"), 1).unwrap();
@@ -1172,7 +1303,9 @@ mod tests {
             }
         };
         assert_eq!(over.fact(), Some("max_rows_per_sec"));
-        super::try_reserve_rows("a128_abandon", 49_920).unwrap().settle(0);
+        super::try_reserve_rows("a128_abandon", 49_920)
+            .unwrap()
+            .settle(0);
         assert_eq!(super::raw_rows_left("a128_abandon"), Some(49_920));
     }
 
@@ -1185,5 +1318,52 @@ mod tests {
         assert_eq!(super::raw_rows_left("a128_roll"), Some(49_900));
         assert_eq!(super::ASSUMABLE_LIMIT, 65);
         assert!(crate::sql::ASSUMABLE.contains("LIMIT 65"));
+    }
+
+    #[tokio::test]
+    async fn pace_waits_until_the_window_refills() {
+        let _lock = super::lock_ledger();
+        let id = "pace_wait_window";
+        super::try_reserve_rows(id, super::MAX_ROWS_PER_SEC)
+            .unwrap()
+            .settle(usize::try_from(super::MAX_ROWS_PER_SEC).unwrap_or(0));
+        let refused = super::try_reserve_rows(id, 1).unwrap_err();
+        assert_eq!(refused.fact(), Some("max_rows_per_sec"));
+        let started = std::time::Instant::now();
+        let deadline = started + std::time::Duration::from_secs(3);
+        let paced = super::pace_reserve_rows(id, 1, deadline).await.unwrap();
+        assert!(paced.waited);
+        assert!(started.elapsed() >= std::time::Duration::from_millis(900));
+        assert!(started.elapsed() < std::time::Duration::from_millis(2_500));
+        paced.hold.settle(1);
+    }
+
+    #[tokio::test]
+    async fn pace_refuses_a_closed_deadline_without_sleeping() {
+        let _lock = super::lock_ledger();
+        let id = "pace_closed_deadline";
+        super::try_reserve_rows(id, super::MAX_ROWS_PER_SEC)
+            .unwrap()
+            .settle(usize::try_from(super::MAX_ROWS_PER_SEC).unwrap_or(0));
+        let started = std::time::Instant::now();
+        let err = super::pace_reserve_rows(id, 1, started).await.unwrap_err();
+        assert_eq!(err.fact(), Some("deadline"));
+        assert!(started.elapsed() < std::time::Duration::from_millis(200));
+    }
+
+    #[tokio::test]
+    async fn pace_refuses_a_request_above_the_rate() {
+        let _lock = super::lock_ledger();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let over =
+            super::pace_reserve_rows("pace_over_rate", super::MAX_ROWS_PER_SEC + 1, deadline)
+                .await
+                .unwrap_err();
+        assert_eq!(over.fact(), Some("max_rows_per_sec"));
+        let zero = super::pace_reserve_rows("pace_zero_rate", 0, deadline)
+            .await
+            .unwrap_err();
+        assert_eq!(zero.fact(), Some("max_rows_per_sec"));
+        assert_eq!(super::MAX_ROWS_PER_SEC, 50_000);
     }
 }

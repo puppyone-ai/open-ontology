@@ -1,0 +1,216 @@
+{
+  "task": "DL01-W1-78",
+  "kind": "real_customer_readonly_precheck",
+  "official_attempt": 2,
+  "probe": "oo-cmysql-ro-78",
+  "exit": 1,
+  "both_data_planes_ok": false,
+  "source_unavailable_claimed": false,
+  "platform_admitted_reader": false,
+  "product_source_modified": false,
+  "denominator_change": false,
+  "g1_g13_promoted": false,
+  "whole_source_signoff": false,
+  "model_status": "pending_external_condition",
+  "sql_server_status": "pending_external_condition",
+  "started_unix_ms": 1791778611269,
+  "started_local": "2026-10-12 12:16:51 CST",
+  "elapsed_ms": 6021,
+  "client": {
+    "connect_timeout_ms": 10000,
+    "connections_per_target": 1,
+    "features": [
+      "minimal",
+      "rustls-tls",
+      "ring"
+    ],
+    "kind": "host_rust_mysql_async",
+    "mysql_async": "0.36.1",
+    "statement_timeout_ms": 5000,
+    "tls_reason": "target file has no instance CA; verification was not disabled",
+    "tls_session": "not_requested"
+  },
+  "runtime": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)",
+    "product_mysql_preview_rust_version": "1.94.0",
+    "probe_is_product_binary": false,
+    "binary_sha256": "4cf37f0385230593cca1081a2922950c803d0ab99b7e3f4a034ffcaf4103f8f6",
+    "binary_file": "Mach-O 64-bit executable arm64",
+    "binary_bytes": 18388400,
+    "binary_path_private": "/tmp/oo-customer-mysql-readonly-20261012/probe/target/debug/oo-cmysql-ro-78"
+  },
+  "time_l": {
+    "real_s": 7.27,
+    "user_s": 0.0,
+    "sys_s": 0.0,
+    "maximum_resident_set_size": 14024704,
+    "peak_memory_footprint": 3310216,
+    "page_reclaims": 1122,
+    "page_faults": 0,
+    "block_input_operations": 0,
+    "block_output_operations": 0,
+    "messages_sent": 25,
+    "messages_received": 25,
+    "voluntary_context_switches": 11,
+    "involuntary_context_switches": 88,
+    "instructions_retired": 60604047,
+    "cycles_elapsed": 38378768
+  },
+  "targets": [
+    {
+      "alias": "target_a",
+      "auth_ok": false,
+      "connect_diag": {
+        "kind": "UnexpectedEof",
+        "os_errno": null,
+        "variant": "io"
+      },
+      "connect_ms": 3007,
+      "data_plane": {
+        "auth_ok": false,
+        "rows_read_ok": false
+      },
+      "database_configured": true,
+      "dns": {
+        "address_count": 1,
+        "class": "intermediate_198_18_15",
+        "elapsed_ms": 6,
+        "failure_class": null,
+        "intermediate_198_18_15": true,
+        "rds_ip_signoff": false
+      },
+      "failure_class": "network",
+      "minimal_missing_condition": "host route did not complete; VPN or firewall, not a source-unavailable finding",
+      "platform_admitted_reader": false,
+      "port": 3306,
+      "provider_class": "aliyun_rds",
+      "server_errno": null,
+      "source_unavailable_claimed": false
+    },
+    {
+      "alias": "target_b",
+      "auth_ok": false,
+      "connect_diag": {
+        "kind": "UnexpectedEof",
+        "os_errno": null,
+        "variant": "io"
+      },
+      "connect_ms": 3004,
+      "data_plane": {
+        "auth_ok": false,
+        "rows_read_ok": false
+      },
+      "database_configured": true,
+      "dns": {
+        "address_count": 1,
+        "class": "intermediate_198_18_15",
+        "elapsed_ms": 2,
+        "failure_class": null,
+        "intermediate_198_18_15": true,
+        "rds_ip_signoff": false
+      },
+      "failure_class": "network",
+      "minimal_missing_condition": "host route did not complete; VPN or firewall, not a source-unavailable finding",
+      "platform_admitted_reader": false,
+      "port": 3306,
+      "provider_class": "aliyun_rds",
+      "server_errno": null,
+      "source_unavailable_claimed": false
+    }
+  ],
+  "route_tcp_nocredential": {
+    "credentials_sent": false,
+    "part_of_named_probe": false,
+    "observations": [
+      {
+        "label": "recv_cap_2s",
+        "connect_timeout_s": 5,
+        "recv_cap_s": 2,
+        "results": [
+          {
+            "alias": "target_a",
+            "start_to_result_ms": 2003,
+            "intermediate": true,
+            "recv": "recv_timeout"
+          },
+          {
+            "alias": "target_b",
+            "start_to_result_ms": 2003,
+            "intermediate": true,
+            "recv": "recv_timeout"
+          }
+        ]
+      },
+      {
+        "label": "recv_cap_8s",
+        "connect_timeout_s": 10,
+        "recv_cap_s": 8,
+        "results": [
+          {
+            "alias": "target_a",
+            "connect_ms": 2,
+            "total_ms": 3004,
+            "intermediate": true,
+            "recv": "eof",
+            "nbytes": 0
+          },
+          {
+            "alias": "target_b",
+            "connect_ms": 2,
+            "total_ms": 3004,
+            "intermediate": true,
+            "recv": "eof",
+            "nbytes": 0
+          }
+        ]
+      }
+    ]
+  },
+  "superseded_attempt_1": {
+    "exit": 1,
+    "elapsed_ms": 6014,
+    "failure_class": "protocol",
+    "status": "withdrawn",
+    "reason": "Display-string classifier missed Io UnexpectedEof",
+    "archive": "/tmp/oo-customer-mysql-readonly-20261012/run/attempt-1"
+  },
+  "unobserved": [
+    "server_version",
+    "identity",
+    "charset",
+    "timezone",
+    "grants",
+    "table_metadata",
+    "rows",
+    "performance_schema",
+    "source_audit"
+  ],
+  "session_statements_reached": false,
+  "source_dml_ddl": false,
+  "schema_install": false,
+  "row_files_written": false,
+  "grants_files_written": false,
+  "host_clients_absent": [
+    "mysql",
+    "mariadb",
+    "pymysql",
+    "MySQLdb"
+  ],
+  "docker": {
+    "desktop": "29.4.1",
+    "approved_image_started": false,
+    "image": "mysql-8.4.10",
+    "platform": "linux/arm64",
+    "pin_sha256": "3f616910ccd923d5089d7889d491cefa65e24fcfa79d74db4084729f48c9cab1",
+    "pin_file": "testing/infra/images.pins"
+  },
+  "private_paths": {
+    "targets_json": "/tmp/oo-customer-mysql-20261012/targets.json",
+    "targets_dir_mode": "0700",
+    "secret_mode": "0600",
+    "probe_tree": "/tmp/oo-customer-mysql-readonly-20261012",
+    "probe_tree_mode": "0700",
+    "official_stdout": "/tmp/oo-customer-mysql-readonly-20261012/run/stdout.json"
+  },
+  "source_engineer": "DL01-W1-06"
+}

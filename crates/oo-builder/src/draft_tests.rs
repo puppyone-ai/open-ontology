@@ -937,7 +937,10 @@ fn orders_tables() -> Vec<Value> {
 fn employee_tables() -> Vec<Value> {
     vec![table(
         "employee",
-        vec![int4(1, "id", true, None), int4(2, "manager_id", false, None)],
+        vec![
+            int4(1, "id", true, None),
+            int4(2, "manager_id", false, None),
+        ],
         vec![key_col(1, "id")],
         Some(false),
         Vec::new(),
@@ -991,9 +994,11 @@ fn relationship_named<'a>(draft: &'a Value, layer: &str, name: &str) -> Option<&
 }
 
 fn queue_item_opt<'a>(draft: &'a Value, item_id: &str, kind: &str) -> Option<&'a Value> {
-    draft["review_queue"].as_array().unwrap().iter().find(|item| {
-        item["item_id"] == item_id && item["kind"] == kind
-    })
+    draft["review_queue"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["item_id"] == item_id && item["kind"] == kind)
 }
 
 fn assert_queue_sorted(draft: &Value) {
@@ -1124,11 +1129,7 @@ fn fresh_from_endpoint_rejection_closes_only_that_relationship() {
         "Kept label"
     );
     assert_eq!(
-        queue_item(
-            &draft,
-            "column/public.orders/bill_to",
-            "structural_column"
-        )["state"],
+        queue_item(&draft, "column/public.orders/bill_to", "structural_column")["state"],
         "rejected"
     );
     assert_eq!(
@@ -1320,9 +1321,7 @@ fn composite_member_rejection_closes_the_whole_relationship() {
         "relationship/public.invoice/invoice_account_fkey",
         "from_column_not_effective",
     );
-    assert!(
-        column_of(dataset(&local, "effective", "public.invoice"), "tenant_id").is_some()
-    );
+    assert!(column_of(dataset(&local, "effective", "public.invoice"), "tenant_id").is_some());
     assert_eq!(
         end_columns(&local, "generated", "invoice_account_fkey", "from"),
         vec!["tenant_id".to_string(), "account_id".to_string()]
@@ -1420,7 +1419,11 @@ fn accepted_relationship_closes_when_its_column_is_rejected() {
     );
     assert_eq!(draft["provenance"]["publication"], "unavailable");
     assert_eq!(
-        queue_item(&draft, relationship_id, "relationship_endpoint_not_effective")["publishable"],
+        queue_item(
+            &draft,
+            relationship_id,
+            "relationship_endpoint_not_effective"
+        )["publishable"],
         false
     );
 }
@@ -1439,7 +1442,13 @@ fn stale_column_rejection_keeps_the_relationship() {
         "bill_to_fkey",
         "relationship/public.orders/bill_to_fkey",
     );
-    assert!(column_of(dataset(&schema_stale, "effective", "public.orders"), "bill_to").is_some());
+    assert!(
+        column_of(
+            dataset(&schema_stale, "effective", "public.orders"),
+            "bill_to"
+        )
+        .is_some()
+    );
     assert_eq!(
         queue_item(
             &schema_stale,
@@ -1472,7 +1481,13 @@ fn stale_column_rejection_keeps_the_relationship() {
         "bill_to_fkey",
         "relationship/public.orders/bill_to_fkey",
     );
-    assert!(column_of(dataset(&fact_stale, "effective", "public.orders"), "bill_to").is_some());
+    assert!(
+        column_of(
+            dataset(&fact_stale, "effective", "public.orders"),
+            "bill_to"
+        )
+        .is_some()
+    );
     assert_eq!(
         queue_item(
             &fact_stale,
@@ -1728,12 +1743,7 @@ fn legitimate_composite_order_and_shared_columns_stay() {
         vec!["tenant_id".to_string(), "account_id".to_string()]
     );
     assert_eq!(
-        end_columns(
-            &reversed_draft,
-            "generated",
-            "invoice_account_fkey",
-            "from"
-        ),
+        end_columns(&reversed_draft, "generated", "invoice_account_fkey", "from"),
         vec!["account_id".to_string(), "tenant_id".to_string()]
     );
 
@@ -1747,13 +1757,30 @@ fn legitimate_composite_order_and_shared_columns_stay() {
     );
     let orders = table(
         "orders",
-        vec![int4(1, "id", true, None), int4(2, "customer_id", true, None)],
+        vec![
+            int4(1, "id", true, None),
+            int4(2, "customer_id", true, None),
+        ],
         vec![key_col(1, "id")],
         Some(false),
         Vec::new(),
         vec![
-            fk_one("orders_customer_a_fkey", 2, "customer_id", "customer", 1, "id"),
-            fk_one("orders_customer_b_fkey", 2, "customer_id", "customer", 1, "id"),
+            fk_one(
+                "orders_customer_a_fkey",
+                2,
+                "customer_id",
+                "customer",
+                1,
+                "id",
+            ),
+            fk_one(
+                "orders_customer_b_fkey",
+                2,
+                "customer_id",
+                "customer",
+                1,
+                "id",
+            ),
         ],
     );
     let draft = compile(envelope(vec![customer, orders]));

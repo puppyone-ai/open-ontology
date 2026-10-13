@@ -1,1 +1,0 @@
-/tmp/clang-root/usr/lib/llvm-19/lib

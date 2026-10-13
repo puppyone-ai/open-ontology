@@ -1,5 +1,0 @@
-hostile_private|0
-drift|oo_a365_cal_first|enums|security_invoker=true
-drift|oo_a365_enum_first|calendar|security_invoker=true
-drift_schemas|oo_a365_cal_first|2
-drift_schemas|oo_a365_enum_first|2

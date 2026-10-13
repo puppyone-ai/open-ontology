@@ -1,0 +1,16 @@
+{
+  "business_read": false,
+  "cdc_password_present": true,
+  "checklist_executed_by_platform": false,
+  "connected": false,
+  "fallback": "none",
+  "generation": 1,
+  "inspect_role": "cdc",
+  "method": "c1-logical",
+  "platform_creates_publication": false,
+  "platform_creates_slot": false,
+  "protocol": "oo.postgres-preview.capture-check/v1",
+  "publication": "oo_dl01w1_46_pub",
+  "route": "c1-logical",
+  "slot": "oo_dl01w1_46_slot"
+}

@@ -1,4 +1,0 @@
-oo_task=sp08-enum-store-restart
-oo_uuid=eef831aa-dba4-4af2-a78b-541bc9e0a293
-oo_platform=linux/arm64
-phase_exit=0 phase=restart-test

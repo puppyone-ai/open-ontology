@@ -1,0 +1,18 @@
+{
+  "product": "OpenSearch",
+  "tag": "3.9.0",
+  "repository": "docker.io/opensearchproject/opensearch",
+  "index_digest": "sha256:adfa61f85025d06b4aeb562e7e74fde7e31c437039c93c3862c17e9acebd6c7c",
+  "arm64_manifest_digest": "sha256:cf05462a958be93fe2172aea2c6757debc7d3a1e4a6838d39e56af591a3dcdbb",
+  "image_id": "sha256:cf05462a958be93fe2172aea2c6757debc7d3a1e4a6838d39e56af591a3dcdbb",
+  "os_arch": "linux/arm64",
+  "size_bytes": 884925044,
+  "created": "2026-09-23T02:19:19.641615597Z",
+  "license": "Apache-2.0",
+  "license_file": "licenses/OPENSEARCH-LICENSE.txt",
+  "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+  "notice_path_in_image": "/usr/share/opensearch/NOTICE.txt",
+  "notice_bytes": 410647,
+  "notice_sha256": "4bb6e19a6e82d204dac2685012f3d2e791e8bf12032e06e291d817e1c0373609",
+  "pulled_by": "docker pull opensearchproject/opensearch@sha256:cf05462a958be93fe2172aea2c6757debc7d3a1e4a6838d39e56af591a3dcdbb"
+}

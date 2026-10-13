@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/create_extension.sql:3: ERROR:  42501: permission denied to create extension "pg_trgm"
-HINT:  Must have CREATE privilege on current database to create this extension.
-LOCATION:  execute_extension_script, extension.c:1062

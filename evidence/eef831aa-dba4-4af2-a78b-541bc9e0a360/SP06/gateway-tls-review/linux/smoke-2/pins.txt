@@ -1,3 +1,0 @@
-axum = { version = "=0.8.9", default-features = false, features = ["http1", "tokio"] }
-rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
-tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }

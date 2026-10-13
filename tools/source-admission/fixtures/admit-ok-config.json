@@ -1,0 +1,28 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "postgres-17-selfmanaged",
+  "source_id": "pg_selfmanaged",
+  "secret_ref": "secret://example/reader",
+  "compat_mode": "postgres-native",
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true},
+    {"name": "USAGE", "status": "known", "granted": true},
+    {"name": "CONNECT", "status": "known", "granted": true}
+  ],
+  "budget": {"unit": "Rows", "hard_limit": 1000, "confidence": "known"},
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null
+}

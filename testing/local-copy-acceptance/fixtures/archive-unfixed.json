@@ -1,0 +1,60 @@
+{
+  "protocol": "oo.acceptance.local-copy/v1",
+  "provenance": "archive",
+  "fixture_class": "public",
+  "customer_complete": false,
+  "producer": {
+    "owner": "eef831aa-dba4-4af2-a78b-541bc9e0a408",
+    "binary_sha256": "",
+    "binary_present": false,
+    "invoked": false,
+    "fixed_single_connection": false,
+    "source_socket_fact": "verified_reader_guard",
+    "source_socket_peak": 2,
+    "exit_code": null,
+    "argv": []
+  },
+  "fingerprints": {
+    "source": {"system_identifier": "", "postmaster_start": "", "database": ""},
+    "target": {"system_identifier": "", "postmaster_start": "", "database": ""}
+  },
+  "snapshot": {
+    "isolation": "",
+    "read_only": false,
+    "catalog_snapshot_id": "",
+    "data_snapshot_id": "",
+    "proof": "",
+    "later_count": false,
+    "opened_second_source_connection": false
+  },
+  "writes": {
+    "ddl": false,
+    "dml": false,
+    "heartbeat": false,
+    "privilege": false,
+    "explain": false,
+    "count_star": false
+  },
+  "budgets": {
+    "batch_rows": 1000,
+    "statement_timeout_ms": 30000,
+    "lock_timeout_ms": 1000,
+    "snapshot_deadline_ms": 300000
+  },
+  "samples": [],
+  "tables": [],
+  "faults": [],
+  "after_seal": {
+    "source_secret_in_subsequent_process": false,
+    "public_fixture_source_blocked": false,
+    "enterprise_stop_requested": false,
+    "network_to_source": true,
+    "generation": "",
+    "audits": []
+  },
+  "mp02_06": {
+    "owner": "eef831aa-dba4-4af2-a78b-541bc9e0a407",
+    "repeated_here": false,
+    "reused_artifact_sha256": ""
+  }
+}

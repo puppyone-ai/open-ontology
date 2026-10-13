@@ -1,3 +1,0 @@
-3ef960fe13c4dda5f7ca82e9e99f06b57d28cae8b63e6287319e53fe928e4901  /Users/redux/puppy-one/open-ontology/crates/oo-builder/src/role_pack.rs
-05a90ea74708818b3462e2d5230392c6db9a9c7c9d88346966d3fd9736bf372f  /Users/redux/puppy-one/open-ontology/crates/oo-builder/tests/role_pack.rs
-8e2a578e4434550f179e771e0097a9d406c1e009b64204647f7f4b2e7cf8d62c  /Users/redux/puppy-one/open-ontology/contracts/builder/role-pack-v1.md

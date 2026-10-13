@@ -13,6 +13,7 @@ resolver = "3"
 [dependencies]
 oo-builder = { path = "../../crates/oo-builder", version = "=0.1.0" }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+jsonschema = { version = "=0.57.0", default-features = false }
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }

@@ -1,1 +1,0 @@
-psql:/schemas/tools/enum-store/migrations/oo_enum_control_v1.sql:252: ERROR:  schema "oo_dict" already exists

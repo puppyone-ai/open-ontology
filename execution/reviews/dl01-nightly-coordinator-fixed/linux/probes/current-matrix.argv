@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /src/docs/database-support/support-matrix.yaml --historical-pg /src/evidence/gpt-minimal-closure

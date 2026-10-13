@@ -1,3 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.56s
-     Running tests/ontology_artifact_diff.rs (/target/debug/deps/ontology_artifact_diff-9bd66d27d02c2627)

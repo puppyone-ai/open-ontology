@@ -1,4 +1,0 @@
-Attempt 01 stopped in cargo clippy because tests/independent/main.rs did not typecheck.
-Five E0308 errors: push received a String, and two resolve_transport calls passed a namespace string where a pair was required.
-No HTTP call ran. PostgreSQL stayed up. The product tree was not edited.
-The next resume reuses the same private database volume and cargo volume.

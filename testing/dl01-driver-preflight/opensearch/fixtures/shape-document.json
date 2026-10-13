@@ -1,0 +1,7 @@
+{
+  "_id": "shape-1",
+  "source": {
+    "doc_key": "shape-1",
+    "payload": {"flag": "inside", "n": 1, "nested": {"ok": true}}
+  }
+}

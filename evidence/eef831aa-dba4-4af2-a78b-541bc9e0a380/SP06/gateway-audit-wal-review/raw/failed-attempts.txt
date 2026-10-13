@@ -1,5 +1,0 @@
-Attempt 1. raw/attempt-1. Builder exit 1, inside exit 1, boundary exit 101. Author unit tests, Clippy, fetch, libclang, and the ingest build exited 0. The independent boundary did not compile: Result::expect_err requires Debug on SelectStream (boundary.rs lines 656, 669, 682, 696, and 728). Product files were not edited. Volumes, the network, and the secret directory were kept.
-
-Attempt 2. raw/attempt-2. Boundary exit 101. The test compiled and panicked at tests/boundary.rs:800. The source oracle searched all of tools/audit-ingest/src/lib.rs for the substring x-project. The unit test headers_do_not_select_a_project contains that literal. handle() does not. Partial result: untrusted=blocked and product_sha=ok. Product files were not edited.
-
-Attempt 3. Builder exit 0, inside exit 0, boundary=ok. The phase exits under linux/proof/phases/ are this run. The launch trap then replaced this file with the single word none. This text restores attempts 1 and 2.

@@ -1,1 +1,0 @@
-clippy exit 101. The overlay did not compile: open_stream returned ExecError inside String results, a Guard match moved the error before display_clean, hold_ms compared u64 with u128, and finish_ok borrowed the stream mutably. Library tests had already passed. No live fixture ran.

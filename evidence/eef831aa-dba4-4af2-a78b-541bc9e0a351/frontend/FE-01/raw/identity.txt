@@ -1,3 +1,0 @@
-node=v24.21.0
-arch=aarch64
-os=debian-12

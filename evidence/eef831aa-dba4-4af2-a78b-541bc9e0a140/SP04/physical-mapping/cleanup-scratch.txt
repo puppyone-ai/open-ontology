@@ -1,6 +1,0 @@
-observed_at=2026-10-03T22:07:54Z
-scratch_rm_exit=0
-removed=/tmp/a140-source-msg.txt exit=0
-removed=/tmp/a140-reserved.txt exit=0
-removed=/tmp/a140-k.txt exit=0
-scratch_remains=no

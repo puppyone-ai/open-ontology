@@ -1,0 +1,8 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-09
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "owned deployment-local fixture"
+targets:
+  - { id: fx-private, family: postgres, product: PostgreSQL, versions: ["16.2"], variant: self-managed, scope: deployment-local,
+      driver: { path: P1, impl: sqlx/tokio-postgres },
+      caps: { cat: designed } }

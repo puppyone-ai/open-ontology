@@ -1,4 +1,0 @@
-admit=backend_pid,backend_start,executed_sha256,fingerprint_hex,original_sha256,policy_id,project,protocol,record,role
-complete=backend_pid,backend_start,executed_sha256,fingerprint_hex,original_sha256,policy_id,project,protocol,record,result_bytes,returned_rows,role,rollback_confirmed,socket_dropped,sqlstate,status,stop,truncated
-summary=end_audit_ok,executed_sha256,original_sha256,record,result_bytes,returned_rows,rollback_confirmed,socket_dropped,sqlstate,status,stop,truncated,turn
-summary_turn=stdout_only

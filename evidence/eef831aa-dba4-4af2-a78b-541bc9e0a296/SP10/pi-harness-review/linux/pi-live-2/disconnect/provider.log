@@ -1,4 +1,0 @@
-listen=127.0.0.1:40333 mode=slow
-accept=127.0.0.1:57444
-method=POST path=/v1/chat/completions local_host=true auth_ok=true auth_other=false body_bytes=5856 followup=false
-sent-first

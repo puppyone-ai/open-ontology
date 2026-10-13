@@ -1,5 +1,0 @@
-Attempt 1 is preserved. docker-run.exit, test.exit, and console.log stay as written.
-
-The snapshot was Cargo.toml, Cargo.lock, rust-toolchain.toml, crates, and .cargo. crates/oo-core/tests/fixtures_pg_mysql.rs reads contracts/fixtures/pg-mysql/cases.json via CARGO_MANIFEST_DIR. That path was not in the snapshot. The test panicked with NotFound. schema_contract.rs and frozen_corrections.rs also read contracts/ and examples/ and were not reached because cargo test stops on the first failing target.
-
-Attempt 2 adds contracts and examples to the same commit archive. It does not replace attempt 1's exit files.

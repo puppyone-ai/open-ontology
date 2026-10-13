@@ -1,0 +1,11 @@
+[
+  {
+    "task": "06",
+    "fixed_sha": "f0060dfbc217ec3cf1376dc7e873878acee88081",
+    "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-loader/SHA256SUMS",
+    "fixed_git_hashes_checked": 207,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

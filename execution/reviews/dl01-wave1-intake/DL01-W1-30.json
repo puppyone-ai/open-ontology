@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-30",
+  "collector": "Codex immutable Git packet verification",
+  "fixed_seal_or_review": "b3fe4f5351aa728af461cdc1754fdebe08fa809c",
+  "packet": "evidence/db7f91a7-f6c3-40f6-a734-502b3e851722/DL01/doris-fixed-review",
+  "verified_sha_entries": 783,
+  "decision": "approve_setup_dependency",
+  "source_commit": "d93d595fa41771385c510e704378862ec14e3716",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0,
+  "original_failures_preserved": true
+}

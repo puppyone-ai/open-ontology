@@ -1,5 +1,0 @@
-docker-run.exit 1 after frozen_smoke=ok, build-harness 0, lock-diff 0, clippy-harness 0.
-harness.exit 1. stop.json step=captured-pg-draft detail=stdout shape.
-The catalog owner field was the leak marker, and captured-pg-draft echoes that catalog fact.
-The retry uses owner lot_owner. The marker a259_owner_do_not_leak is only the preimage of a comment sha256.
-The draft must not contain the comment body. Product source was not edited.

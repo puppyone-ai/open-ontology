@@ -1,7 +1,0 @@
-num-bigint v0.5.1
-└── arrow-buffer v60.0.0
-    ├── arrow-array v60.0.0
-    │   └── oo-connectors v0.1.0 (/src/crates/oo-connectors)
-    ├── arrow-data v60.0.0
-    │   └── arrow-array v60.0.0 (*)
-    └── oo-connectors v0.1.0 (/src/crates/oo-connectors)

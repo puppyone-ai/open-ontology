@@ -2,12 +2,12 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 > 依赖：无。本文是其余所有文档的前提。
 
 ## 1. 一句话
 
-**Open Ontology（简称 OO）把企业任何一个陈旧的业务数据库，自动变成一个 Agent 能安全、准确、可追溯地读懂和查询的数据层，并一键接上 Agent harness 进行对话。**
+Open Ontology（简称OO）把企业业务数据自动构建成可审核、可发布、可由外部Agent使用的Ontology。交付内容包括数据副本、语义资产、Knowledge Pack，以及经Gateway访问数据的标准接口。用户可以将这些产物和接口接到自己的harness；内置Pi负责快速体验和内部验证。
 
 ## 2. 要解决的问题
 
@@ -45,6 +45,10 @@ OO 的定位是第 1 类的易用性 + 第 2 类的语义严谨 + 第 3 类的�
 “Self-build” 指语义面的**初稿由系统自动生成**（catalog 内省、数据画像、关系推断、LLM 起草），人只需要审核和补充关键口径，而不是从零建模。见 [06 Ontology 层](06-ontology-layer.md)。
 
 ## 4. 产品形态
+
+OO的核心交付是产出和维护Ontology的系统。用户能取得有版本的标准YAML、审核overlay、Git记录和按角色编译的Knowledge Pack，并通过CLI、HTTP/SDK、MCP等已实现的接入形式使用Gateway。消费这些内容无需由OO启动或持有Pi会话。外部harness能调用所选协议或工具，即可按该接口的授权和数据契约接入；各客户端、协议和版本的实际支持范围须有验证记录。
+
+内置Pi让用户能立即体验“接入后就能问”，也是构建质量和接口可用性的验证客户端。下面的内置对话旅程仍要实现和验收；仅Pi回答成功，尚不能证明Ontology可供外部使用。验证外接形态时，直接取得发布产物，由非内置Pi的真实调用方经公开接口读取Knowledge和查询数据，再核版本、结果、权限及审计。
 
 ### 4.1 目标用户体验（北极星）
 

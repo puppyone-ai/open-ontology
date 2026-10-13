@@ -1,7 +1,0 @@
-Checker rerun. linux/preoverlay-msrv remains the author-suite record.
-Its source oracle exited 1 with stderr "review_oracle: lib refusal missing"
-because that build searched src/lib.rs for "export and restore are not commands".
-The sentence is in src/child.rs. tools/review_oracle.rs now requires that
-sentence in child.rs. This directory compiles that file and reruns registry
-and source against the same fixed archive and root lock. It does not rerun
-cargo test or clippy.

@@ -1,0 +1,34 @@
+---
+_meta:
+  type: "audit"
+  config_version: 2
+
+config:
+  enabled: true
+  audit:
+    enable_rest: true
+    disabled_rest_categories: []
+    enable_transport: false
+    disabled_transport_categories:
+      - AUTHENTICATED
+      - GRANTED_PRIVILEGES
+    ignore_users: []
+    ignore_requests: []
+    resolve_bulk_requests: true
+    log_request_body: false
+    resolve_indices: true
+    exclude_sensitive_headers: true
+  compliance:
+    enabled: true
+    internal_config: true
+    external_config: false
+    read_metadata_only: true
+    read_watched_fields:
+      "oo-dl01w1-44-synthetic":
+        - "*"
+    read_ignore_users: []
+    write_metadata_only: true
+    write_log_diffs: false
+    write_watched_indices:
+      - "oo-dl01w1-44-synthetic"
+    write_ignore_users: []

@@ -1,3 +1,0 @@
-5216c3a103ae oo-a318-pg 3aac91d19d5b a318 postgres
-c067edebf700 oo-a322-pg 3aac91d19d5b a322 postgres
-a68ce9caf5d6 oo-a300-pg 3aac91d19d5b a300 postgres

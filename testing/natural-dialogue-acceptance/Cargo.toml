@@ -1,0 +1,23 @@
+[package]
+name = "natural-dialogue-acceptance"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Public checks for natural questions. This crate does not accept the parent goal."
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+minimal-product-loop = { path = "../../tools/minimal-product-loop", version = "=0.1.0" }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

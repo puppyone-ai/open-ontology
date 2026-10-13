@@ -1,0 +1,16 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-10
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "oo-dl01w1-37 independent review input; not an author fixture and not a grade promotion"
+targets:
+  - id: rev-w37-yard
+    family: postgres
+    product: Review Yard Postgres
+    versions: ["16.9"]
+    variant: self-managed
+    wave: 0
+    driver: review-native-w37
+    caps:
+      batch_full: verified
+    limits: ["independent review input only"]
+    evidence: []

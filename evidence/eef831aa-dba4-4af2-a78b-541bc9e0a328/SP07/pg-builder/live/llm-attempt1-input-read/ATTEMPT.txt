@@ -1,1 +1,0 @@
-cause=relative config path resolved outside live/llm; every generate/review/pack exited 1 with input.read; no generation JSON; no socket

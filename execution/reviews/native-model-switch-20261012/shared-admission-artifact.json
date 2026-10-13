@@ -1,0 +1,7 @@
+{
+  "source": "/tmp/oo-dl01w1-02-mongo-admission-20261012",
+  "destination": "/tmp/oo-shared-runtime-20261012/dfbf38a73c047567cc7183fcc47932874dc7f531bb691054ebd7551b80bbd805/source-admission",
+  "sha256": "dfbf38a73c047567cc7183fcc47932874dc7f531bb691054ebd7551b80bbd805",
+  "scope": "immutable copy of fixed85d805250 admission binary, no build or runtime switch",
+  "earlier_candidate": "old generic path rejected by hash; never used"
+}

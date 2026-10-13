@@ -1,6 +1,0 @@
-4b9f84f013554cee19dcb40209181b0276135a88d098c7261331dc6a7fab740c  /src/tools/curated-git-apply/CONTRACT.md
-bb3fc1d805cad0766a9197b28a543263b1f699b2f8986a9ed2f64a92ad84cfd4  /src/tools/curated-git-apply/PINNED
-b65c89692e7825c56b96d24819426d21bc0dc2728e0f59c662b993f4d59f6dc5  /src/tools/curated-git-apply/Cargo.toml
-5c7d530fe87af07175734644cfc9d9246332a4c349e10a62ee95c581686f3c30  /src/tools/curated-git-apply/Cargo.lock
-b772f8fb4873885fcfac747eb24163559031bb9192ba99e8a8472571c75822bc  /src/Cargo.toml
-7553618f800829444096beea3dce84c3d07585efda504c19adb6787369bbd9e8  /src/rust-toolchain.toml

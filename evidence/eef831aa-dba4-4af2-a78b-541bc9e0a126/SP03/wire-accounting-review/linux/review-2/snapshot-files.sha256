@@ -1,6 +1,0 @@
-24b22aa55ecfd1f739fa87a0e95b86bd3f4ab7d4f26305fd51eda85f73476687  crates/oo-connectors/vendor/sqlx-core/src/net/socket/buffered.rs
-583c0aa7ffba55726f9c74a4d2275966c5e8d5444ad076dfcb48259a11a96981  crates/oo-connectors/vendor/sqlx-postgres/src/connection/stream.rs
-a2057da12adbf73d83e20282bdcea21ce373d1b0c00f63595ace2124710afdf5  crates/oo-connectors/vendor/sqlx-postgres/src/connection/mod.rs
-24ea8ccbc3e3596b76891401bffecbd2679ca7ebaff949a2218dc5454c4c3720  crates/oo-connectors/vendor/PATCH.md
-d234aa8b51caf746a5c1f4de85fbd560e9652af7a6b7e5badfdefbd6bf0697d8  crates/oo-connectors/tests/pg_wire_bounds.rs
-404c6a7b9cb4579aeb6e1ce27dc2696fcfef144109201bc15111e6103a5595cb  crates/oo-connectors/tests/pg_wire_accounting.rs

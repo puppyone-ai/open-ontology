@@ -1,8 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-     Running tests/policy_catalog_pg_live.rs (/target/debug/deps/policy_catalog_pg_live-0bf7e6429ec9681e)
-
-running 1 test
-test policy_catalog_loads_from_postgres_and_executes ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
-

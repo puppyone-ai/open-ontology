@@ -23,6 +23,7 @@ pub async fn supervise(
     cancels: Arc<Mutex<BTreeMap<String, Arc<AtomicBool>>>>,
 ) {
     let owner = format!("pid-{}", std::process::id());
+    let eligible: Vec<(String, String, String)> = config.projects.iter().map(|project| (project.project_id.clone(), project_input_hash(project), project.config_commit.clone())).collect();
     while !stop.load(Ordering::SeqCst) {
         let client = match store::connect(&config.postgres).await {
             Ok(client) => client,
@@ -31,14 +32,38 @@ pub async fn supervise(
                 continue;
             }
         };
-        let job = match store::claim(&client, &owner).await {
+        let job = match store::claim(&client, &owner, &eligible).await {
             Ok(Some(job)) => job,
             _ => {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };
-        let _ = drive(&client, &config, job, &cancels).await;
+        if store::bind_worker_lease(&client, &owner, job.lease_generation).await.is_err() { continue; }
+        let lease_held = Arc::new(AtomicBool::new(true));
+        let heartbeat_stop = Arc::new(AtomicBool::new(false));
+        let heartbeat = {
+            let endpoint = config.postgres.clone(); let build_id = job.build_id.clone(); let owner = owner.clone();
+            let held = lease_held.clone(); let stop = heartbeat_stop.clone(); let cancels = cancels.clone(); let generation = job.lease_generation;
+            tokio::spawn(async move {
+                while !stop.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_secs(8)).await;
+                    if stop.load(Ordering::SeqCst) { break; }
+                    let ok = match store::connect(&endpoint).await {
+                        Ok(client) => store::heartbeat(&client, &build_id, generation, &owner).await.unwrap_or(false),
+                        Err(_) => false,
+                    };
+                    if !ok {
+                        held.store(false, Ordering::SeqCst);
+                        if let Ok(map) = cancels.lock() && let Some(cancel) = map.get(&build_id) { cancel.store(true, Ordering::SeqCst); }
+                        break;
+                    }
+                }
+            })
+        };
+        let _ = drive(&client, &config, job, &cancels, &lease_held).await;
+        heartbeat_stop.store(true, Ordering::SeqCst);
+        heartbeat.abort();
     }
 }
 
@@ -47,6 +72,7 @@ async fn drive(
     config: &AppConfig,
     job: BuildRow,
     cancels: &Arc<Mutex<BTreeMap<String, Arc<AtomicBool>>>>,
+    lease_held: &Arc<AtomicBool>,
 ) -> Result<(), ()> {
     let Some(project) = config.projects.iter().find(|item| item.project_id == job.project_id) else {
         let _ = store::set_job(client, &job.build_id, "failed", &job.stage, Some("membership.refused"), &job.input_sha256).await;
@@ -60,20 +86,34 @@ async fn drive(
     if job.status == "cancel_requested" {
         return settle_cancel(client, &job).await;
     }
-    if !binaries_ready(&config.binaries) {
+    if project.sealed_bundle.is_empty() {
+        if !binaries_ready(&config.binaries) {
+            let _ = store::set_job(client, &job.build_id, "failed", &job.stage, Some("dependency.not_ready"), &job.input_sha256).await;
+            return Err(());
+        }
+    } else if !crate::sealed::bundle_ready(&project.sealed_bundle) {
         let _ = store::set_job(client, &job.build_id, "failed", &job.stage, Some("dependency.not_ready"), &job.input_sha256).await;
         return Err(());
     }
     let dir = PathBuf::from(&config.work_dir).join("builds").join(&job.build_id);
     std::fs::create_dir_all(&dir).map_err(|_| ())?;
     loop {
+        if !lease_held.load(Ordering::SeqCst) { return Err(()); }
+        if fresh_cancel(client, &job.build_id).await {
+            return settle_cancel(client, &job).await;
+        }
         let stages = store::stage_rows(client, &job.build_id).await.map_err(|_| ())?;
         let Some(row) = next_stage(&stages) else {
             break;
         };
         match stages::resume_action(&row.stage, &row.status, row.output_sha256.as_deref()) {
             Resume::Skip => continue,
-            Resume::Await => return Ok(()),
+            Resume::Await => {
+                if fresh_cancel(client, &job.build_id).await {
+                    return settle_cancel(client, &job).await;
+                }
+                return Ok(());
+            }
             Resume::Failed => {
                 let _ = store::set_job(client, &job.build_id, "failed", &row.stage, row.detail_code.as_deref(), &job.input_sha256).await;
                 return Err(());
@@ -130,7 +170,7 @@ async fn fresh_cancel(client: &Client, build_id: &str) -> bool {
 
 async fn settle_cancel(client: &Client, job: &BuildRow) -> Result<(), ()> {
     if job.child_pid.is_some() && !job.child_exited {
-        let _ = store::heartbeat(client, &job.build_id, job.lease_generation).await;
+        let _ = store::heartbeat(client, &job.build_id, job.lease_generation, &format!("pid-{}", std::process::id())).await;
         return Err(());
     }
     let _ = store::mark_child_exited(client, &job.build_id).await;
@@ -154,6 +194,21 @@ async fn run_stage(
     cancel: &Arc<AtomicBool>,
 ) -> bool {
     let _ = store::set_stage(client, &job.build_id, stage, "running", &job.input_sha256, None, None).await;
+    if !project.sealed_bundle.is_empty() {
+        let reviewer = config
+            .principals
+            .iter()
+            .find(|item| item.ledger_role == "reviewer")
+            .map(|item| item.reviewer_label.as_str())
+            .unwrap_or("");
+        let link = crate::sealed::ModelLink {
+            pg_builder: &config.binaries.pg_builder,
+            catalog_bin: &config.binaries.catalog,
+            model_cache_dir: &config.model_cache_dir,
+            reviewer_label: reviewer,
+        };
+        return crate::sealed::run(client, project, job, stage, dir, cancel, &link).await;
+    }
     match stage {
         "S0" => s0(client, config, project, job, dir, cancel.clone()).await,
         "S1" => s1(client, config, project, job, dir, cancel.clone()).await,

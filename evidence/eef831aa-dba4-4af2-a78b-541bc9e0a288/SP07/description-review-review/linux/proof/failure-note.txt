@@ -1,1 +1,0 @@
-proof exited 2 before tests. rustc -vV printed release 1.94.0. The check used grep -q on that pipe under pipefail, so SIGPIPE made the pipeline non-zero. Container id 551d023b7fe8a290d866e1dd77d46c1870533daae4a4485f3f307f1ffd1bf887. No tests ran. This directory is unchanged.

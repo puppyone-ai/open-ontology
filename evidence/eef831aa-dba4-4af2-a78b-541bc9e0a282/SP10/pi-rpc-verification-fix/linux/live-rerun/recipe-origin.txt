@@ -1,9 +1,0 @@
-origin=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/linux/pi-live-src/inside-retest.sh
-origin_launch=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a279/SP10/pi-rpc-probe/linux/pi-live-src/launch-retest-3.sh
-reason=drive.rs collapsible_if edit is on the pi-rpc-live path
-pin=Pi v1.0.4 commit 7c10bd4337495ee613f2224843ecdf349b80d1df
-command=cargo run --offline --locked --bin pi-rpc-live -- <pi> <node-dir> <mock> <out>
-network=none
-memory=6442450944
-cpus=1
-changes=uuid a282; readonly snapshot of the edited spike; no clippy in this container and no synthetic exit 127; live exit is the cargo run status; prefix and mock come from linux/pi-reinstall

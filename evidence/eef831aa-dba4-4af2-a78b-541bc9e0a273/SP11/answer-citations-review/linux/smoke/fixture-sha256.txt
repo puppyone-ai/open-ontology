@@ -1,2 +1,0 @@
-8efbfb0748ad65073a2204909d8b79310c7006161e924893d11b15399d624783  tools/answer-citations/tests/fixtures/desk-explicit.audit.jsonl
-8efbfb0748ad65073a2204909d8b79310c7006161e924893d11b15399d624783  /evidence/source/blobs/desk-explicit-a242.audit.jsonl

@@ -1,0 +1,91 @@
+{
+  "task_id": "DL01-W1-10",
+  "parent": "DBX-W09",
+  "kind": "target_preparation",
+  "session_uuid": "18da73a5-ad34-477a-8edf-0dc51122c1dd",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "matrix_ids_not_promoted": [
+    "oracle-19c-selfmanaged",
+    "oracle-23ai-selfmanaged",
+    "oracle-xstream"
+  ],
+  "image": {
+    "repository": "docker.io/gvenzl/oracle-free",
+    "tag_observed": "23.26.3-faststart-arm64",
+    "same_digest_tags_observed_2026-10-09": [
+      "23.26.3-faststart-arm64",
+      "23-faststart-arm64",
+      "latest-faststart-arm64"
+    ],
+    "digest": "sha256:cdc5b3a3685da4f1785daeee24f74de8a9768b7629192ea9abdaeeea343d12a8",
+    "platform": "linux/arm64",
+    "flavor": "regular-faststart",
+    "hub_full_size_bytes": 1492631840,
+    "hub_last_updated": "2026-08-30T23:39:33.05884Z",
+    "source_repo": "https://github.com/gvenzl/oci-oracle-free",
+    "support_note": "gvenzl tag family 23.26.3 is marked Supported. 23.26.2 is Deprecated. 23.9 and older are Unsupported."
+  },
+  "database_license": {
+    "program": "Oracle AI Database Free / Oracle Database Free",
+    "terms": "Oracle Free Use Terms and Conditions",
+    "terms_url": "https://www.oracle.com/downloads/licenses/oracle-free-license.html",
+    "terms_updated": "2021-06-09",
+    "offering_url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/dblic/Licensing-Information.html",
+    "limits_url": "https://www.oracle.com/database/free/",
+    "published_limits": {
+      "cpus": 2,
+      "ram": "2 GB",
+      "user_data": "12 GB"
+    },
+    "paid_account_or_contract_accepted": false,
+    "oracle_account_created": false,
+    "redistribution_by_this_repo": false
+  },
+  "driver_route": {
+    "selected": "oracle/rust-oracledb",
+    "crate": "oracledb",
+    "version": "26.0.0-beta.4",
+    "mode": "thin",
+    "language": "Rust",
+    "client_libraries_required": false,
+    "license": "UPL-1.0 OR Apache-2.0",
+    "license_url": "https://github.com/oracle/rust-oracledb/blob/main/LICENSE.txt",
+    "repository": "https://github.com/oracle/rust-oracledb",
+    "docs": "https://oracle.github.io/rust-oracledb/",
+    "crates_io": "https://crates.io/crates/oracledb",
+    "rust_version": "1.89",
+    "maturity": "beta",
+    "compiled_in_this_task": false,
+    "arrow_feature": "optional feature arrow; not enabled here",
+    "not_selected": [
+      {
+        "impl": "kubo/rust-oracle",
+        "reason": "ODPI-C binding. Requires Oracle Client libraries. Instant Client redistribution is a separate license and is not assumed."
+      },
+      {
+        "impl": "Oracle Instant Client",
+        "reason": "Not installed. OTN/client license is not the Free database license. Default project rule is customer-supplied client volume, not project redistribution."
+      },
+      {
+        "impl": "JDBC",
+        "reason": "Not the Rust worker route. Would put a JVM in the driver worker."
+      },
+      {
+        "impl": "sqlplus",
+        "reason": "Native client shipped inside Database Free. Used only as the preparation probe, not as the product driver."
+      }
+    ]
+  },
+  "forbidden_in_this_preparation": [
+    "AWR and other Diagnostic/Tuning Pack views",
+    "LogMiner start, supplemental log DDL, ARCHIVELOG change",
+    "XStream and GoldenGate",
+    "FLASHBACK ANY TABLE, SELECT ANY TABLE, LOGMINING",
+    "matrix grade promotion",
+    "source-driver-worker edits"
+  ],
+  "resource_prefix": "oo-dl01w1-10",
+  "container_memory": "6g",
+  "container_cpus": 2,
+  "shm_size": "1g"
+}

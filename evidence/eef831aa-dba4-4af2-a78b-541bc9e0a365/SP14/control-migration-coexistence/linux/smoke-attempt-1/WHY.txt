@@ -1,1 +1,0 @@
-lock shape check expected package_names=1 source_lines=0 from the a361 leaf recipe. calendar and enum locks are registry subsets: package_names=211 source_lines=208. Smoke exited 1 before inside.exit. Corrected smoke pins that shape.

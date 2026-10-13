@@ -15,7 +15,7 @@
 - **I-PL-3** 收敛性：停止源库写入且管线追平后，Agent DB 与源库逐行一致（由对账工具判定）。
 - **I-PL-4** 部分完成的表对 Agent 不可见（[05 I-DB-4](05-agent-db.md)）。
 - **I-PL-5** 管线故障不能伤到源库：限速、优先从库、监控日志积压。
-- **I-PL-6** 源事务原子可见（`consistency: transactional`，CDC 源的默认值）：同一个源事务对多张表的修改，在 Agent DB 中要么全部可见、要么全部不可见（§5.2）；无法保证时（`per_table` 模式、超大事务分段期间），通过 `_oo.source_watermark` 与质量标记如实告知（§5.7）。
+- **I-PL-6** 源事务原子可见（`consistency: transactional`，**事务级（T 级）CDC 源**的默认值；对游标增量、变更读取、分区刷新、全量差分等不具备源事务边界的源，该模式无效，须显式声明一致性等级 S1/S0/B，见 [database-support/03 §3](database-support/03-change-capture-and-consistency.md)）：同一个源事务对多张表的修改，在 Agent DB 中要么全部可见、要么全部不可见（§5.2）；无法保证时（`per_table` 模式、超大事务分段期间），通过 `_oo.source_watermark` 与质量标记如实告知（§5.7）。
 - **I-PL-7** 不静默改值：任何类型转换失败、非法值替换都按行记录到拒绝日志，并汇总进 `_oo.table_quality`（§5.6）；行本身保留，不丢行。
 - **I-PL-8** 新列默认不可见：源库新增的列只进入 Agent DB，不授予任何 `oo_r_*` 角色，直到完成分类并随 Ontology 发布（§5.4，[05 I-DB-5](05-agent-db.md)）。
 
@@ -122,6 +122,8 @@
 | `transactional`（默认） | 该源所有表 + 事务元数据路由到**同一个 stream**（`oo:<source>`），提交顺序须通过 M0 验证 | 每源库一个 Loader 分片 | 普通源事务原子可见；无分段/暂停等降级且 cross_table_consistent=true 时为全源一致切面 | 绝大多数业务库 |
 | `per_table` | 每表一个 stream | 每表一个分片，可并行 | 每张表各自最终一致；跨表**无**一致性保证 | 变更量极大、单消费者吞吐不够，且业务上跨表 JOIN 少或可接受短暂不一致的源 |
 
+`transactional` 只对能提供源事务边界与可比较位点的 CDC 源有效；`oo validate` 对其他源（游标增量、`change_feed`、分区刷新、全量差分）拒绝 `consistency: transactional`，而不是静默按 `per_table` 处理。这些源的一致性等级（S1/S0/B）与捕获方法随 freshness 一并暴露。
+
 **`transactional` 模式的实现：**
 
 1. Debezium 开启 `provide.transaction.metadata=true`：每个数据事件带事务 ID 与事务内序号，另外产生事务 BEGIN/END 事件（END 携带该事务的事件总数）。
@@ -200,7 +202,7 @@ PG 默认 `REPLICA IDENTITY` 下，UPDATE 事件不携带未变化的 TOAST 列�
 以下两张表在 Agent DB 的 `_oo` schema 中（定义见 [05 §6](05-agent-db.md)），由管线在写数据的**同一个事务**里更新，因此从库上读到的水位与质量状态精确描述该从库上的数据：
 
 - **`_oo.source_watermark`**：每个源一行——一致性模式、`applied_pos`、对应的源提交时间、状态（`live` / `lagging` / `applying_large_txn` / `paused_tables`）。只有 transactional 且 `cross_table_consistent = true` 时，当前源表才在 `applied_pos` 处构成一致切面；超大事务分段或表暂停期间标为 false，保留最后完整水位，不代表当前全部可见数据。`per_table` 模式下这一行只给出各表位点的最小值，并标注 `cross_table_consistent = false`。
-- **`_oo.table_quality`**：每张表一行——未解决的拒绝数（按列）、最近一次对账结果、未释义码值（[06 §3.6](06-ontology-layer.md)）、未分类的隐藏列数、是否有超大事务分段进行中、实体解析不变量是否通过（[06 §3.10](06-ontology-layer.md)）。写入者分别是 Loader、对账任务、码值巡检任务（每小时在从库上统计各码表列中不在已发布码表内的值）与实体解析任务。
+- **`_oo.table_quality`**：每张表一行——捕获方法、一致性等级、删除检测方式、位点/保留窗口状态与读取预算状态（`POSITION_EXPIRED`、`STALE_RISK`、`DELETES_LAGGED`、`DELETES_UNDETECTED`、`SOURCE_BUDGET_EXHAUSTED`，见 [database-support/03 §4–5](database-support/03-change-capture-and-consistency.md)）、未解决的拒绝数（按列）、最近一次对账结果、未释义码值（[06 §3.6](06-ontology-layer.md)）、未分类的隐藏列数、是否有超大事务分段进行中、实体解析不变量是否通过（[06 §3.10](06-ontology-layer.md)）。写入者分别是 Loader、对账任务、码值巡检任务（每小时在从库上统计各码表列中不在已发布码表内的值）与实体解析任务。
 
 ### 5.8 缓冲的持久性与背压
 

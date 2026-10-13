@@ -1,2 +1,0 @@
-psql copy aborted: /var/lib/postgresql/a361-oracle/shop/party.copy did not exist. run-all exit 3 is psql ON_ERROR_STOP, not builder capacity. Prefix phases were left in place.
-The first resume then matched its own scan needle in the two live-phases copies. Those copies no longer contain that contiguous needle. resume-tail.console.1 keeps the false-match message. No key material was in the tree.

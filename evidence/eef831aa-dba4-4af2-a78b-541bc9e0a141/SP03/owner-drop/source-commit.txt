@@ -1,7 +1,0 @@
-6b95d6f2fd2259edfcbffc27a6338518a64dd0fc
-parent=6cdb559b45ea9d0fed709ca74d80eecf264d8016
-subject=connectors: drop the reader socket after bounded rollback
-fixed_input=58afa97ded85a7dd89c72532bfc8973c45255d7c
-fixed_tree=543fd103532a8366ce92a0b4eaea4e089eb76d2d
-files=crates/oo-connectors/src/snapshot.rs crates/oo-connectors/src/session.rs crates/oo-connectors/tests/pg_reader_drop_live.rs contracts/source/pgsql/reader-lifecycle-v1.md
-unchanged_from_fixed=crates/oo-connectors/src/stream.rs crates/oo-connectors/tests/pg_reader_cancel_live.rs crates/oo-connectors/tests/pg_reader_keys_live.rs

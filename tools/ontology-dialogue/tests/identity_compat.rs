@@ -50,7 +50,12 @@ fn identity_mismatches_are_config_before_any_socket() {
         (String::new(), "know_a317".to_string()),
         ("pol-a317".to_string(), "know_a317".to_string()),
         ("pol\nshop".to_string(), "know_a317".to_string()),
-        (DIGEST.to_string(), "know-a317".to_string()),
+        (DIGEST.to_string(), "_know".to_string()),
+        (DIGEST.to_string(), "-know".to_string()),
+        (DIGEST.to_string(), "Know-a317".to_string()),
+        (DIGEST.to_string(), "know/a317".to_string()),
+        (DIGEST.to_string(), "know a317".to_string()),
+        (DIGEST.to_string(), "a".repeat(64)),
     ];
     for (policy, knowledge) in &cases {
         let err = propose(&files.config(&origin, "", policy, knowledge, true)).expect_err("config");
@@ -88,6 +93,23 @@ fn development_local_rejects_other_hosts_and_short_production_bearers() {
     let err = propose(&spaced.config(&loopback, "development_local", DIGEST, "know_a317", false)).expect_err("space");
     assert_eq!(err, Fault::config());
     assert_eq!(server.hits(), 0, "a refused bearer or origin opened a socket");
+}
+
+#[test]
+fn hyphen_knowledge_matches_the_compiler_slug() {
+    install_crypto();
+    let body = completion(SQL);
+    let server = HttpMock::spawn(200, body);
+    let files = Fixture::new(SHORT);
+    fs::write(files.dir.join("pack.json"), pack_artifact(DIGEST, "know-a317")).expect("pack");
+    let origin = format!("http://127.0.0.1:{}", server.port);
+    let proposal = propose(&files.config(&origin, "development_local", DIGEST, "know-a317", false)).expect("proposal");
+    let doc: Value = serde_json::from_slice(&proposal).expect("proposal json");
+    assert_eq!(doc["knowledge_id"], "know-a317");
+    assert_eq!(doc["policy_id"], DIGEST);
+    assert_eq!(doc["sql"], SQL);
+    assert_eq!(doc["auto_execute"], false);
+    assert_eq!(server.hits(), 1);
 }
 
 #[test]

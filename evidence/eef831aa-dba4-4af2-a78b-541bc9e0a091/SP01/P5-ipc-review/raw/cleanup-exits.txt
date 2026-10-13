@@ -1,7 +1,0 @@
-msrv_rm=0
-probe_rm=0
-probe2_rm=0
-network_rm=0
-cargo_vol_rm=0
-target_vol_rm=0
-tmpdir_rm=0

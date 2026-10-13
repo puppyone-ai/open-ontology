@@ -1,0 +1,201 @@
+{
+  "admitted": false,
+  "cdc_default": "off",
+  "columns": {
+    "T_BATCH": [
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [],
+        "name": "ID",
+        "nullable": "N",
+        "position": 1,
+        "precision": 4,
+        "scale": 0,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [],
+        "name": "N16",
+        "nullable": "Y",
+        "position": 2,
+        "precision": 16,
+        "scale": 6,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [],
+        "name": "N1",
+        "nullable": "Y",
+        "position": 3,
+        "precision": 1,
+        "scale": 0,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 0,
+        "data_type": "DATE",
+        "flags": [],
+        "name": "D",
+        "nullable": "Y",
+        "position": 4,
+        "precision": null,
+        "scale": null,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 6,
+        "data_type": "CHAR",
+        "flags": [
+          "empty_string_is_null"
+        ],
+        "name": "C6",
+        "nullable": "Y",
+        "position": 5,
+        "precision": null,
+        "scale": null,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 20,
+        "data_type": "VARCHAR2",
+        "flags": [
+          "empty_string_is_null"
+        ],
+        "name": "V2",
+        "nullable": "Y",
+        "position": 6,
+        "precision": null,
+        "scale": null,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 0,
+        "data_type": "RAW",
+        "flags": [],
+        "name": "R",
+        "nullable": "Y",
+        "position": 7,
+        "precision": null,
+        "scale": null,
+        "table": "T_BATCH"
+      },
+      {
+        "char_length": 20,
+        "data_type": "VARCHAR2",
+        "flags": [
+          "empty_string_is_null"
+        ],
+        "name": "C5_NOTE",
+        "nullable": "Y",
+        "position": 8,
+        "precision": null,
+        "scale": null,
+        "table": "T_BATCH"
+      }
+    ],
+    "T_TS": [
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [],
+        "name": "ID",
+        "nullable": "N",
+        "position": 1,
+        "precision": 4,
+        "scale": 0,
+        "table": "T_TS"
+      },
+      {
+        "char_length": 0,
+        "data_type": "TIMESTAMP(9)",
+        "flags": [
+          "precision_loss"
+        ],
+        "name": "TS",
+        "nullable": "N",
+        "position": 2,
+        "precision": null,
+        "scale": 9,
+        "table": "T_TS"
+      },
+      {
+        "char_length": 0,
+        "data_type": "TIMESTAMP(9) WITH TIME ZONE",
+        "flags": [
+          "precision_loss"
+        ],
+        "name": "TSTZ",
+        "nullable": "N",
+        "position": 3,
+        "precision": null,
+        "scale": 9,
+        "table": "T_TS"
+      }
+    ],
+    "T_WIDE": [
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [],
+        "name": "ID",
+        "nullable": "N",
+        "position": 1,
+        "precision": 4,
+        "scale": 0,
+        "table": "T_WIDE"
+      },
+      {
+        "char_length": 0,
+        "data_type": "NUMBER",
+        "flags": [
+          "unconstrained_number"
+        ],
+        "name": "N_FREE",
+        "nullable": "Y",
+        "position": 2,
+        "precision": null,
+        "scale": null,
+        "table": "T_WIDE"
+      }
+    ]
+  },
+  "consistency_grade_with_token": "S0",
+  "consistency_grade_without_token": "B",
+  "delete_detection": "reconcile",
+  "delete_quality": "DELETES_LAGGED",
+  "fixed_importer_sha": null,
+  "initial_load": "shadow_diff",
+  "log_cdc": false,
+  "logminer_used": false,
+  "loss_flags": {
+    "empty_string_is_null": [
+      "OO04_FIX.T_BATCH.C5_NOTE",
+      "OO04_FIX.T_BATCH.C6",
+      "OO04_FIX.T_BATCH.V2"
+    ],
+    "precision_loss": [
+      "OO04_FIX.T_TS.TS",
+      "OO04_FIX.T_TS.TSTZ"
+    ],
+    "unconstrained_number": [
+      "OO04_FIX.T_WIDE.N_FREE"
+    ]
+  },
+  "method": "C5",
+  "native_loader": false,
+  "offset_lost": false,
+  "protocol": "oo.oracle.c5-producer-profile/v1",
+  "publication": "not_published",
+  "schema_digest": null,
+  "sealed_import_claimed": false,
+  "sealed_import_grade_requested": "S1",
+  "source_acceptance": "not_claimed",
+  "source_engine": "oracle",
+  "time_ambiguous": false,
+  "xstream": "not_used"
+}

@@ -1,0 +1,1 @@
+rev-w37-dup-esc CC-03 decimal and int64 values stayed exact

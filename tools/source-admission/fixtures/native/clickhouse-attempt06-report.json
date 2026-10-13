@@ -1,0 +1,188 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "clickhouse-26-8-selfmanaged",
+  "source_id": "clickhouse_268",
+  "secret_ref": "secret://oo-dl01w1-40/reader",
+  "driver": {
+    "kind": "native-http",
+    "name": "ch-reader",
+    "version": "0.1.0",
+    "digest": "8b88485c0940e298a8edad500731f0a7688c61a135a943b217f9597e191c7f93"
+  },
+  "compat_mode": "clickhouse-native",
+  "license_flags": [],
+  "permissions": [
+    {
+      "name": "SHOW DATABASES",
+      "status": "known",
+      "granted": true
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "oo_dl01w40"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "columns"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "databases"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "grants"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "mutations"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "parts"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "processes"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "query_log"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "settings"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "tables"
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "Catalog",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "SnapshotToken",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": "PerPartition",
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "Budget",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": "Rows",
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C4",
+      "write_class": "R0",
+      "consistency": "S0",
+      "token_order": "PerPartition",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {
+    "unit": "Rows",
+    "confidence": "unknown",
+    "estimate": "configured_max_result_rows"
+  },
+  "r1w": null,
+  "native": {
+    "clickhouse": {
+      "readonly": "1",
+      "max_execution_time": "8",
+      "quota": {
+        "duration_seconds": 3600,
+        "queries": 400,
+        "errors": 80,
+        "result_rows": 1000000,
+        "read_rows": 10000000,
+        "execution_time_seconds": 300
+      }
+    }
+  }
+}

@@ -1,4 +1,0 @@
-psql:/run-in/m-identity.sql:35: NOTICE:  identity-name mech.ident_row_id_seq
-psql:/run-in/m-identity.sql:35: NOTICE:  identity-none 0A000 cannot change ownership of identity sequence
-psql:/run-in/m-identity.sql:35: NOTICE:  identity-same 0A000 cannot change ownership of identity sequence
-psql:/run-in/m-identity.sql:35: NOTICE:  ident-data|1|f|0

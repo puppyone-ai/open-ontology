@@ -1,0 +1,23 @@
+{
+  "scope": "controlled nonproduction complete PostgreSQL source preview",
+  "approved": true,
+  "fixed_evidence": [
+    {
+      "sha": "4dceeb495b9decf95a73daef67afd52ea7cd8585",
+      "manifest": "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/SHA256SUMS",
+      "verified": 1461
+    },
+    {
+      "sha": "82ade23c2c25505cbc9e24109f6bb4c88cdc53fc",
+      "manifest": "evidence/602a5af3-f2b2-469a-9e81-9b79c8d9f2f9/DL01/full-source-review/SHA256SUMS",
+      "verified": 29
+    }
+  ],
+  "customer_rows": 50,
+  "customer_cells": 300,
+  "mismatches": 0,
+  "source_write_attempts": 0,
+  "current_generation": 2,
+  "old_generation_role_privileges": 0,
+  "formal_grade_parent_integration_release_accepted": false
+}

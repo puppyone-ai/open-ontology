@@ -1,0 +1,7 @@
+{
+  "protocol": "oo.operator-preview.query/v1",
+  "sql": "SELECT id, qty, amount, note FROM public.batch_c ORDER BY id",
+  "max_rows": 2000,
+  "max_result_bytes": 262144,
+  "wall_clock_ms": 5000
+}

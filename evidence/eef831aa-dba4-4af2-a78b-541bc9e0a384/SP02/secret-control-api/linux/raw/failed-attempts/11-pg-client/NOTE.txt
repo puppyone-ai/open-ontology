@@ -1,1 +1,0 @@
-Attempt 11. confirm 403 bootstrap.rejected, current 200 len 830, create begin, then pg client with no SQLSTATE. INSERT failed in the driver before PostgreSQL reported an error.

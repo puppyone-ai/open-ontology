@@ -1,294 +1,0 @@
-    Updating crates.io index
-       Fetch 1 complete; 1 pending                                             Downloading 0 crates                                                          Downloading 1 crate                                                            Downloaded cargo-deny v0.20.2
- Downloading 0 crates                                                           Downloaded 1 crate (212.6KiB) in 0.39s
-       Fetch 0 complete; 1 pending                                                   Fetch 1 complete; 1 pending                                              Installing cargo-deny v0.20.2
-    Updating crates.io index
-       Fetch 36 complete; 2 pending                                                  Fetch 38 complete; 62 pending                                                 Fetch 100 complete; 40 pending                                                Fetch 140 complete; 28 pending                                                Fetch 168 complete; 13 pending                                                Fetch 181 complete; 12 pending                                                Fetch 193 complete; 6 pending                                                 Fetch 198 complete; 1 pending                                                 Fetch 199 complete; 5 pending                                                 Fetch 204 complete; 1 pending                                                 Fetch 0 complete; 1 pending                                                   Fetch 1 complete; 205 pending                                                 Fetch 101 complete; 105 pending                                               Fetch 205 complete; 1 pending                                              Updating crates.io index
-       Fetch 84 complete; 27 pending                                                 Fetch 111 complete; 26 pending                                                Fetch 137 complete; 12 pending                                                Fetch 149 complete; 11 pending                                                Fetch 160 complete; 4 pending                                                 Fetch 164 complete; 1 pending                                           Downloading 0 crates                                                          Downloading 1 crate                                                           Downloading 2 crates                                                          Downloading 3 crates                                                          Downloading 4 crates                                                          Downloading 5 crates                                                          Downloading 6 crates                                                          Downloading 7 crates                                                          Downloading 8 crates                                                          Downloading 9 crates                                                          Downloading 10 crates                                                         Downloading 11 crates                                                         Downloading 12 crates                                                         Downloading 13 crates                                                         Downloading 14 crates                                                         Downloading 15 crates                                                         Downloading 16 crates                                                         Downloading 17 crates                                                         Downloading 18 crates                                                         Downloading 19 crates                                                         Downloading 20 crates                                                         Downloading 21 crates                                                         Downloading 22 crates                                                         Downloading 23 crates                                                         Downloading 24 crates                                                         Downloading 25 crates                                                         Downloading 26 crates                                                         Downloading 27 crates                                                         Downloading 28 crates                                                         Downloading 29 crates                                                         Downloading 30 crates                                                         Downloading 31 crates                                                         Downloading 32 crates                                                         Downloading 33 crates                                                         Downloading 34 crates                                                         Downloading 35 crates                                                         Downloading 36 crates                                                         Downloading 37 crates                                                         Downloading 38 crates                                                         Downloading 39 crates                                                         Downloading 40 crates                                                         Downloading 41 crates                                                         Downloading 42 crates                                                         Downloading 43 crates                                                         Downloading 44 crates                                                         Downloading 45 crates                                                         Downloading 46 crates                                                         Downloading 47 crates                                                         Downloading 48 crates                                                         Downloading 49 crates                                                         Downloading 50 crates                                                         Downloading 51 crates                                                         Downloading 52 crates                                                         Downloading 53 crates                                                         Downloading 54 crates                                                         Downloading 55 crates                                                         Downloading 56 crates                                                         Downloading 57 crates                                                         Downloading 58 crates                                                         Downloading 59 crates                                                         Downloading 60 crates                                                         Downloading 61 crates                                                         Downloading 62 crates                                                         Downloading 63 crates                                                         Downloading 64 crates                                                         Downloading 65 crates                                                         Downloading 66 crates                                                         Downloading 67 crates                                                         Downloading 68 crates                                                         Downloading 69 crates                                                         Downloading 70 crates                                                         Downloading 71 crates                                                         Downloading 72 crates                                                         Downloading 73 crates                                                         Downloading 74 crates                                                         Downloading 75 crates                                                         Downloading 76 crates                                                         Downloading 77 crates                                                         Downloading 78 crates                                                         Downloading 79 crates                                                         Downloading 80 crates                                                         Downloading 81 crates                                                         Downloading 82 crates                                                         Downloading 83 crates                                                         Downloading 84 crates                                                         Downloading 85 crates                                                         Downloading 86 crates                                                         Downloading 87 crates                                                         Downloading 88 crates                                                         Downloading 89 crates                                                         Downloading 90 crates                                                         Downloading 91 crates                                                         Downloading 92 crates                                                         Downloading 93 crates                                                         Downloading 94 crates                                                         Downloading 95 crates                                                         Downloading 96 crates                                                         Downloading 97 crates                                                         Downloading 98 crates                                                         Downloading 99 crates                                                         Downloading 100 crates                                                        Downloading 101 crates                                                        Downloading 102 crates                                                        Downloading 103 crates                                                        Downloading 104 crates                                                        Downloading 105 crates                                                        Downloading 106 crates                                                        Downloading 107 crates                                                        Downloading 108 crates                                                        Downloading 109 crates                                                        Downloading 110 crates                                                        Downloading 111 crates                                                        Downloading 112 crates                                                        Downloading 113 crates                                                        Downloading 114 crates                                                        Downloading 115 crates                                                        Downloading 116 crates                                                        Downloading 117 crates                                                        Downloading 118 crates                                                        Downloading 119 crates                                                        Downloading 120 crates                                                        Downloading 121 crates                                                        Downloading 122 crates                                                        Downloading 123 crates                                                        Downloading 124 crates                                                        Downloading 125 crates                                                        Downloading 126 crates                                                        Downloading 127 crates                                                        Downloading 128 crates                                                        Downloading 129 crates                                                        Downloading 130 crates                                                        Downloading 131 crates                                                        Downloading 132 crates                                                        Downloading 133 crates                                                        Downloading 134 crates                                                        Downloading 135 crates                                                        Downloading 136 crates                                                        Downloading 137 crates                                                        Downloading 138 crates                                                        Downloading 139 crates                                                        Downloading 140 crates                                                        Downloading 141 crates                                                              Fetch 165 complete; 1 pending                                            Downloaded aho-corasick v1.1.4
- Downloading 141 crates, remaining bytes: 172.1KiB                              Downloaded semver v1.0.28
- Downloading 140 crates, remaining bytes: 120.1KiB                              Downloaded goblin v0.10.5
- Downloading 139 crates                                                         Downloaded colorchoice v1.0.5
- Downloading 138 crates, remaining bytes: 8.9MiB                                Downloaded crossbeam-deque v0.8.6
- Downloading 137 crates, remaining bytes: 8.9MiB                                Downloaded bytes v1.11.1
- Downloading 136 crates, remaining bytes: 8.9MiB                                Downloaded camino v1.2.2
- Downloading 135 crates, remaining bytes: 8.9MiB                                Downloaded equivalent v1.0.2
- Downloading 134 crates, remaining bytes: 8.9MiB                                Downloaded getrandom v0.2.17
- Downloading 133 crates, remaining bytes: 8.9MiB                                Downloaded crossbeam-utils v0.8.21
- Downloading 132 crates, remaining bytes: 8.9MiB                                Downloaded cpufeatures v0.2.17
- Downloading 131 crates, remaining bytes: 8.9MiB                                Downloaded displaydoc v0.2.5
- Downloading 130 crates, remaining bytes: 8.9MiB                                Downloaded allocator-api2 v0.2.21
- Downloading 129 crates, remaining bytes: 8.9MiB                                Downloaded digest v0.10.7
- Downloading 128 crates, remaining bytes: 8.9MiB                                Downloaded form_urlencoded v1.2.2
- Downloading 127 crates, remaining bytes: 8.9MiB                                Downloaded jobserver v0.1.34
- Downloading 126 crates, remaining bytes: 8.9MiB                                Downloaded crypto-common v0.1.7
- Downloading 125 crates, remaining bytes: 8.9MiB                                Downloaded crossbeam v0.8.4
- Downloading 124 crates, remaining bytes: 8.8MiB                                Downloaded crossbeam-queue v0.3.12
- Downloading 123 crates, remaining bytes: 8.7MiB                                Downloaded itoa v1.0.18
- Downloading 122 crates, remaining bytes: 8.7MiB                                Downloaded radium v0.7.0
- Downloading 121 crates, remaining bytes: 8.6MiB                                Downloaded same-file v1.0.6
- Downloading 120 crates, remaining bytes: 8.4MiB                                Downloaded scroll_derive v0.13.1
- Downloading 119 crates, remaining bytes: 8.2MiB                                Downloaded heck v0.5.0
- Downloading 118 crates, remaining bytes: 8.1MiB                                Downloaded idna_adapter v1.2.2
- Downloading 117 crates, remaining bytes: 7.9MiB                                Downloaded anstyle-query v1.1.5
- Downloading 116 crates, remaining bytes: 7.6MiB                                Downloaded percent-encoding v2.3.2
- Downloading 115 crates, remaining bytes: 7.5MiB                                Downloaded is_terminal_polyfill v1.70.2
- Downloading 114 crates, remaining bytes: 7.5MiB                                Downloaded generic-array v0.14.7
- Downloading 113 crates, remaining bytes: 7.5MiB                                Downloaded scopeguard v1.2.0
- Downloading 112 crates, remaining bytes: 7.5MiB                                Downloaded clap_lex v1.1.0
- Downloading 111 crates, remaining bytes: 7.5MiB                                Downloaded block-buffer v0.10.4
- Downloading 110 crates, remaining bytes: 7.5MiB                                Downloaded potential_utf v0.1.5
- Downloading 109 crates, remaining bytes: 7.5MiB                                Downloaded cfg-if v1.0.4
- Downloading 108 crates, remaining bytes: 7.5MiB                                Downloaded codespan v0.13.1
- Downloading 107 crates, remaining bytes: 7.5MiB                                Downloaded cfg_aliases v0.2.1
- Downloading 106 crates, remaining bytes: 7.5MiB                                Downloaded funty v2.0.0
- Downloading 105 crates, remaining bytes: 7.5MiB                                Downloaded globset v0.4.18
- Downloading 104 crates, remaining bytes: 7.5MiB                                Downloaded either v1.16.0
- Downloading 103 crates, remaining bytes: 7.5MiB                                Downloaded fixedbitset v0.5.7
- Downloading 102 crates, remaining bytes: 7.5MiB                                Downloaded lock_api v0.4.14
- Downloading 101 crates, remaining bytes: 7.5MiB                                Downloaded anstyle-parse v1.0.0
- Downloading 100 crates, remaining bytes: 7.5MiB                                Downloaded foldhash v0.1.5
- Downloading 99 crates, remaining bytes: 7.4MiB                                 Downloaded pkg-config v0.3.33
- Downloading 98 crates, remaining bytes: 7.4MiB                                 Downloaded anstyle v1.0.14
- Downloading 97 crates, remaining bytes: 7.4MiB                                 Downloaded plain v0.2.3
- Downloading 96 crates, remaining bytes: 7.4MiB                                 Downloaded shlex v1.3.0
- Downloading 95 crates, remaining bytes: 7.4MiB                                 Downloaded find-msvc-tools v0.1.9
- Downloading 94 crates, remaining bytes: 7.4MiB                                 Downloaded nu-ansi-term v0.50.3
- Downloading 93 crates, remaining bytes: 7.2MiB                                 Downloaded anstream v1.0.0
- Downloading 92 crates, remaining bytes: 5.8MiB                                 Downloaded quote v1.0.45
- Downloading 91 crates, remaining bytes: 5.8MiB                                 Downloaded crossbeam-epoch v0.9.20
- Downloading 90 crates, remaining bytes: 5.2MiB                                 Downloaded parking_lot_core v0.9.12
- Downloading 89 crates, remaining bytes: 5.0MiB                                 Downloaded litemap v0.8.2
- Downloading 88 crates, remaining bytes: 4.9MiB                                 Downloaded memmap2 v0.9.11
- Downloading 87 crates, remaining bytes: 4.9MiB                                 Downloaded smallvec v1.15.1
- Downloading 86 crates, remaining bytes: 4.9MiB                                 Downloaded cfg-expr v0.20.7
- Downloading 85 crates, remaining bytes: 4.9MiB                                 Downloaded strum v0.28.0
- Downloading 84 crates, remaining bytes: 4.6MiB                                 Downloaded rustc-stable-hash v0.1.2
- Downloading 83 crates, remaining bytes: 4.5MiB                                 Downloaded anyhow v1.0.103
- Downloading 82 crates, remaining bytes: 4.4MiB                                 Downloaded parking_lot v0.12.5
- Downloading 81 crates, remaining bytes: 4.1MiB                                 Downloaded krates v0.21.2
- Downloading 80 crates, remaining bytes: 3.7MiB                                 Downloaded sha2 v0.10.9
- Downloading 79 crates, remaining bytes: 3.7MiB                                 Downloaded scroll v0.13.0
- Downloading 78 crates, remaining bytes: 3.4MiB                                 Downloaded icu_properties v2.2.0
- Downloading 77 crates, remaining bytes: 3.4MiB                                 Downloaded serde_core v1.0.228
- Downloading 76 crates, remaining bytes: 3.2MiB                                 Downloaded proc-macro2 v1.0.106
- Downloading 75 crates, remaining bytes: 2.9MiB                                 Downloaded clap v4.6.1
- Downloading 74 crates, remaining bytes: 2.8MiB                                 Downloaded serde_derive v1.0.228
- Downloading 73 crates, remaining bytes: 2.5MiB                                 Downloaded icu_provider v2.2.0
- Downloading 72 crates, remaining bytes: 2.5MiB                                 Downloaded codespan-reporting v0.13.1
- Downloading 71 crates, remaining bytes: 2.5MiB                                 Downloaded log v0.4.29
- Downloading 70 crates, remaining bytes: 1.7MiB                                 Downloaded icu_normalizer v2.2.0
- Downloading 69 crates, remaining bytes: 961.7KiB                               Downloaded icu_locale_core v2.2.0
- Downloading 68 crates, remaining bytes: 519.4KiB                               Downloaded rayon-core v1.13.0
- Downloading 67 crates, remaining bytes: 55.2KiB                                Downloaded crossbeam-channel v0.5.15
- Downloading 66 crates                                                          Downloaded icu_normalizer_data v2.2.0
- Downloading 65 crates                                                          Downloaded borsh v1.6.1
- Downloading 64 crates                                                          Downloaded icu_collections v2.2.0
- Downloading 63 crates                                                          Downloaded http v1.4.0
- Downloading 62 crates                                                          Downloaded serde v1.0.228
- Downloading 61 crates                                                          Downloaded memchr v2.8.0
- Downloading 60 crates                                                          Downloaded cc v1.2.62
- Downloading 59 crates                                                          Downloaded tame-index v0.26.3
- Downloading 58 crates                                                          Downloaded indexmap v2.14.0
- Downloading 57 crates                                                          Downloaded idna v1.1.0
- Downloading 56 crates                                                          Downloaded hashbrown v0.15.5
- Downloading 55 crates                                                          Downloaded hashbrown v0.17.1
- Downloading 54 crates                                                          Downloaded icu_properties_data v2.2.0
- Downloading 53 crates                                                          Downloaded regex v1.12.3
- Downloading 52 crates                                                          Downloaded serde_json v1.0.150
- Downloading 51 crates                                                          Downloaded clap_builder v4.6.0
- Downloading 50 crates                                                          Downloaded rayon v1.12.0
- Downloading 49 crates                                                          Downloaded tinystr v0.8.3
- Downloading 48 crates                                                          Downloaded writeable v0.6.3
- Downloading 47 crates                                                          Downloaded bitvec v1.0.1
- Downloading 46 crates                                                          Downloaded twox-hash v2.1.2
- Downloading 45 crates                                                          Downloaded zerofrom-derive v0.1.7
- Downloading 44 crates                                                          Downloaded strsim v0.11.1
- Downloading 43 crates                                                          Downloaded fern v0.7.1
- Downloading 42 crates                                                          Downloaded typenum v1.20.0
- Downloading 41 crates                                                          Downloaded tinyvec_macros v0.1.1
- Downloading 40 crates                                                          Downloaded target-lexicon v0.13.3
- Downloading 39 crates                                                          Downloaded zerotrie v0.2.4
- Downloading 38 crates                                                          Downloaded bstr v1.12.1
- Downloading 37 crates                                                          Downloaded zstd v0.13.3
- Downloading 36 crates                                                          Downloaded tinyvec v1.11.0
- Downloading 35 crates                                                          Downloaded regex-syntax v0.8.10
- Downloading 34 crates                                                          Downloaded zstd-safe v7.2.4
- Downloading 33 crates                                                          Downloaded version_check v0.9.5
- Downloading 32 crates                                                          Downloaded utf8parse v0.2.2
- Downloading 31 crates                                                          Downloaded toml-span v0.7.1
- Downloading 30 crates                                                          Downloaded yoke-derive v0.8.2
- Downloading 29 crates                                                          Downloaded zmij v1.0.21
- Downloading 28 crates                                                          Downloaded url v2.5.8
- Downloading 27 crates                                                          Downloaded regex-automata v0.4.14
- Downloading 26 crates, extracting regex-automata ...                           Downloaded jiff v0.2.24
- Downloading 25 crates, extracting jiff ...                                     Downloaded libc v0.2.186
- Downloading 24 crates, extracting libc ...                                     Downloaded petgraph v0.8.1
- Downloading 23 crates, extracting petgraph ...                                 Downloaded ring v0.17.14
- Downloading 22 crates, extracting ring ...                                     Downloaded synstructure v0.13.2
- Downloading 21 crates                                                          Downloaded zerovec-derive v0.11.3
- Downloading 20 crates                                                          Downloaded walkdir v2.5.0
- Downloading 19 crates                                                          Downloaded unicode-normalization v0.1.25
- Downloading 18 crates                                                          Downloaded yoke v0.8.2
- Downloading 17 crates                                                          Downloaded unicode-ident v1.0.24
- Downloading 16 crates                                                          Downloaded syn v2.0.117
- Downloading 15 crates                                                          Downloaded zerofrom v0.1.8
- Downloading 14 crates                                                          Downloaded termcolor v1.4.1
- Downloading 13 crates                                                          Downloaded stable_deref_trait v1.2.1
- Downloading 12 crates                                                          Downloaded thiserror-impl v2.0.18
- Downloading 11 crates                                                          Downloaded tap v1.0.1
- Downloading 10 crates                                                          Downloaded zerovec v0.11.6
- Downloading 9 crates                                                           Downloaded wyz v0.5.1
- Downloading 8 crates                                                           Downloaded untrusted v0.9.0
- Downloading 7 crates                                                           Downloaded thiserror v2.0.18
- Downloading 6 crates                                                           Downloaded strum_macros v0.28.0
- Downloading 5 crates                                                           Downloaded utf8_iter v1.0.4
- Downloading 4 crates                                                           Downloaded unicode-width v0.2.2
- Downloading 3 crates                                                           Downloaded zstd-sys v2.0.16+zstd.1.5.7
- Downloading 2 crates, extracting zstd-sys ...                                  Downloaded smol_str v0.3.2
- Downloading 1 crate                                                            Downloaded spdx v0.13.4
- Downloading 0 crates, extracting spdx ...                                      Downloaded 142 crates (15.5MiB) in 1.22s (largest was `spdx` at 2.9MiB)
-   Compiling proc-macro2 v1.0.106
-   Compiling unicode-ident v1.0.24
-    Building [                           ] 0/188: proc-macro2(build.rs), unic…   Compiling quote v1.0.45
-    Building [                           ] 1/188: proc-macro2(build.rs), quot…    Building [                           ] 3/188: proc-macro2(build), quote(b…   Compiling libc v0.2.186
-    Building [                           ] 4/188: proc-macro2(build), libc(bu…    Building [                           ] 5/188: proc-macro2, libc(build.rs)     Building [                           ] 6/188: proc-macro2, libc(build)        Building [>                          ] 7/188: libc(build), quote             Compiling syn v2.0.117
-    Building [>                          ] 8/188: syn, libc(build)               Compiling stable_deref_trait v1.2.1
-    Building [>                          ] 9/188: syn, stable_deref_trait         Building [>                         ] 10/188: syn, libc                      Compiling serde_core v1.0.228
-    Building [>                         ] 11/188: syn, serde_core(build.rs)       Building [>                         ] 12/188: syn, serde_core(build)         Compiling synstructure v0.13.2
-    Building [>                         ] 13/188: syn, synstructure              Compiling jobserver v0.1.34
-    Building [>                         ] 14/188: syn, jobserver                 Compiling zerofrom-derive v0.1.7
-    Building [=>                        ] 15/188: jobserver, zerofrom-derive     Compiling yoke-derive v0.8.2
-    Building [=>                        ] 16/188: yoke-derive, zerofrom-derive   Compiling zerofrom v0.1.8
-    Building [=>                        ] 17/188: yoke-derive, zerofrom          Compiling zerovec-derive v0.11.3
-    Building [=>                        ] 18/188: zerovec-derive, zerofrom       Compiling yoke v0.8.2
-    Building [=>                        ] 19/188: yoke, zerofrom                 Compiling find-msvc-tools v0.1.9
-    Building [=>                        ] 20/188: yoke, find-msvc-tools          Compiling smallvec v1.15.1
-    Building [=>                        ] 21/188: yoke, smallvec                 Compiling shlex v1.3.0
-    Building [==>                       ] 22/188: yoke, shlex                    Compiling cc v1.2.62
-    Building [==>                       ] 23/188: yoke, cc                       Compiling zerovec v0.11.6
-    Building [==>                       ] 24/188: zerovec, cc                    Compiling displaydoc v0.2.5
-    Building [==>                       ] 25/188: zerovec, displaydoc             Building [==>                       ] 26/188: displaydoc, serde_core         Compiling crossbeam-utils v0.8.21
-    Building [==>                       ] 27/188: crossbeam-utils(build.rs), …    Building [==>                       ] 28/188: crossbeam-utils(build), ser…    Building [===>                      ] 29/188: libc(build), serde_core        Compiling memchr v2.8.0
-    Building [===>                      ] 30/188: memchr, serde_core              Building [===>                      ] 31/188: memchr, libc                    Building [===>                      ] 32/188: crossbeam-utils, libc          Compiling version_check v0.9.5
-    Building [===>                      ] 33/188: crossbeam-utils, version_ch…   Compiling serde v1.0.228
-    Building [===>                      ] 34/188: crossbeam-utils, serde(buil…   Compiling generic-array v0.14.7
-    Building [===>                      ] 35/188: serde(build.rs), generic-ar…   Compiling tinystr v0.8.3
-    Building [===>                      ] 36/188: serde(build.rs), tinystr        Building [====>                     ] 37/188: serde(build), tinystr          Compiling serde_derive v1.0.228
-    Building [====>                     ] 38/188: serde_derive, tinystr          Compiling writeable v0.6.3
-    Building [====>                     ] 39/188: serde_derive, writeable        Compiling pkg-config v0.3.33
-    Building [====>                     ] 40/188: serde_derive, pkg-config       Compiling litemap v0.8.2
-    Building [====>                     ] 41/188: serde_derive, litemap          Compiling crossbeam-epoch v0.9.20
-    Building [====>                     ] 42/188: serde_derive, crossbeam-epo…    Building [====>                     ] 43/188: serde_derive, crossbeam-epo…   Compiling icu_locale_core v2.2.0
-    Building [=====>                    ] 44/188: serde_derive, icu_locale_co…    Building [=====>                    ] 45/188: serde, icu_locale_core         Compiling zstd-sys v2.0.16+zstd.1.5.7
-    Building [=====>                    ] 46/188: serde, zstd-sys(build.rs)       Building [=====>                    ] 47/188: generic-array(build), zstd-…   Compiling zerotrie v0.2.4
-    Building [=====>                    ] 48/188: generic-array(build), zerot…   Compiling potential_utf v0.1.5
-    Building [=====>                    ] 49/188: generic-array(build), poten…   Compiling icu_normalizer_data v2.2.0
-    Building [=====>                    ] 50/188: generic-array(build), icu_n…   Compiling utf8_iter v1.0.4
-    Building [======>                   ] 51/188: generic-array(build), utf8_…   Compiling icu_properties_data v2.2.0
-    Building [======>                   ] 52/188: generic-array(build), icu_p…   Compiling cfg-if v1.0.4
-    Building [======>                   ] 53/188: cfg-if, icu_properties_data…   Compiling typenum v1.20.0
-    Building [======>                   ] 54/188: typenum, icu_properties_dat…    Building [======>                   ] 55/188: typenum, icu_properties_dat…    Building [======>                   ] 56/188: icu_properties_data(build),…   Compiling icu_collections v2.2.0
-    Building [======>                   ] 57/188: icu_collections, generic-ar…    Building [=======>                  ] 58/188: icu_normalizer_data(build),…   Compiling icu_provider v2.2.0
-    Building [=======>                  ] 59/188: icu_normalizer_data(build),…    Building [=======>                  ] 60/188: icu_normalizer_data(build),…    Building [=======>                  ] 61/188: crossbeam-epoch, zstd-sys(b…   Compiling zmij v1.0.21
-    Building [=======>                  ] 62/188: zmij(build.rs), zstd-sys(bu…    Building [=======>                  ] 63/188: zstd-sys(build), zmij(build)   Compiling crossbeam-deque v0.8.6
-    Building [=======>                  ] 64/188: crossbeam-deque, zstd-sys(b…    Building [=======>                  ] 65/188: zstd-sys(build), icu_normal…    Building [========>                 ] 66/188: icu_properties_data, zstd-s…   Compiling aho-corasick v1.1.4
-    Building [========>                 ] 67/188: zstd-sys(build), aho-corasi…   Compiling regex-syntax v0.8.10
-    Building [========>                 ] 68/188: zstd-sys(build), regex-synt…   Compiling target-lexicon v0.13.3
-    Building [========>                 ] 69/188: zstd-sys(build), target-lex…   Compiling serde_json v1.0.150
-    Building [========>                 ] 70/188: serde_json(build.rs), zstd-…   Compiling utf8parse v0.2.2
-    Building [========>                 ] 71/188: utf8parse, zstd-sys(build)     Compiling rayon-core v1.13.0
-    Building [========>                 ] 72/188: zstd-sys(build), rayon-core…   Compiling zstd-safe v7.2.4
-    Building [=========>                ] 73/188: zstd-safe(build.rs), zstd-s…   Compiling camino v1.2.2
-    Building [=========>                ] 74/188: camino(build.rs), zstd-sys(…   Compiling itoa v1.0.18
-    Building [=========>                ] 75/188: zstd-sys(build), itoa          Compiling termcolor v1.4.1
-    Building [=========>                ] 76/188: termcolor, zstd-sys(build)     Compiling equivalent v1.0.2
-    Building [=========>                ] 77/188: zstd-sys(build), equivalent    Compiling unicode-width v0.2.2
-    Building [=========>                ] 78/188: unicode-width, zstd-sys(bui…   Compiling codespan-reporting v0.13.1
-    Building [=========>                ] 79/188: zstd-sys(build), codespan-r…    Building [==========>               ] 80/188: zstd-sys(build), camino(bui…    Building [==========>               ] 81/188: rayon-core(build), zstd-sys…   Compiling anstyle-parse v1.0.0
-    Building [==========>               ] 82/188: zstd-sys(build), anstyle-pa…    Building [==========>               ] 83/188: serde_json(build), zstd-sys…    Building [==========>               ] 84/188: zstd-sys(build), target-lex…   Compiling regex-automata v0.4.14
-    Building [==========>               ] 85/188: regex-automata, zstd-sys(bu…   Compiling icu_properties v2.2.0
-    Building [==========>               ] 86/188: icu_properties, zstd-sys(bu…   Compiling icu_normalizer v2.2.0
-    Building [===========>              ] 87/188: zstd-sys(build), icu_normal…    Building [===========>              ] 88/188: zstd-sys(build), zmij          Compiling crypto-common v0.1.7
-    Building [===========>              ] 89/188: zstd-sys(build), crypto-com…   Compiling block-buffer v0.10.4
-    Building [===========>              ] 90/188: block-buffer, zstd-sys(buil…   Compiling anstyle v1.0.14
-    Building [===========>              ] 91/188: anstyle, zstd-sys(build)       Compiling foldhash v0.1.5
-    Building [===========>              ] 92/188: foldhash, zstd-sys(build)      Compiling tinyvec_macros v0.1.1
-    Building [===========>              ] 93/188: tinyvec_macros, zstd-sys(bu…   Compiling log v0.4.29
-    Building [============>             ] 94/188: log, zstd-sys(build)           Compiling parking_lot_core v0.9.12
-    Building [============>             ] 95/188: zstd-sys(build), parking_lo…   Compiling anstyle-query v1.1.5
-    Building [============>             ] 96/188: anstyle-query, zstd-sys(bui…   Compiling thiserror v2.0.18
-    Building [============>             ] 97/188: thiserror(build.rs), zstd-s…   Compiling radium v0.7.0
-    Building [============>             ] 98/188: radium(build.rs), zstd-sys(…   Compiling allocator-api2 v0.2.21
-    Building [============>             ] 99/188: allocator-api2, zstd-sys(bu…   Compiling is_terminal_polyfill v1.70.2
-    Building [============>            ] 100/188: zstd-sys(build), is_termina…   Compiling hashbrown v0.17.1
-    Building [============>            ] 101/188: hashbrown, zstd-sys(build)     Compiling colorchoice v1.0.5
-    Building [============>            ] 102/188: colorchoice, zstd-sys(build)   Compiling anstream v1.0.0
-    Building [============>            ] 103/188: anstream, zstd-sys(build)      Compiling indexmap v2.14.0
-    Building [============>            ] 104/188: indexmap, zstd-sys(build)      Compiling hashbrown v0.15.5
-    Building [============>            ] 105/188: hashbrown, zstd-sys(build)      Building [=============>           ] 106/188: hashbrown, zstd-sys             Building [=============>           ] 107/188: hashbrown, zstd-safe(build)     Building [=============>           ] 108/188: zstd-safe(build), radium(bu…    Building [=============>           ] 109/188: zstd-safe, radium(build)        Building [=============>           ] 110/188: zstd-safe, thiserror(build)     Building [=============>           ] 111/188: thiserror(build), parking_l…   Compiling tinyvec v1.11.0
-    Building [=============>           ] 112/188: thiserror(build), tinyvec      Compiling digest v0.10.7
-    Building [==============>          ] 113/188: tinyvec, digest                 Building [==============>          ] 114/188: tinyvec, serde_json            Compiling idna_adapter v1.2.2
-    Building [==============>          ] 115/188: idna_adapter, serde_json        Building [==============>          ] 116/188: target-lexicon, serde_json      Building [==============>          ] 117/188: rayon-core, serde_json          Building [==============>          ] 118/188: camino, serde_json             Compiling cpufeatures v0.2.17
-    Building [==============>          ] 119/188: camino, cpufeatures            Compiling semver v1.0.28
-    Building [==============>          ] 120/188: camino, semver                 Compiling ring v0.17.14
-    Building [===============>         ] 121/188: semver, ring(build.rs)         Compiling thiserror-impl v2.0.18
-    Building [===============>         ] 122/188: ring(build.rs), thiserror-i…   Compiling scroll_derive v0.13.1
-    Building [===============>         ] 123/188: scroll_derive, thiserror-im…   Compiling either v1.16.0
-    Building [===============>         ] 124/188: either, thiserror-impl         Compiling anyhow v1.0.103
-    Building [===============>         ] 125/188: anyhow(build.rs), thiserror…   Compiling percent-encoding v2.3.2
-    Building [===============>         ] 126/188: anyhow(build.rs), percent-e…   Compiling strsim v0.11.1
-    Building [===============>         ] 127/188: percent-encoding, strsim       Compiling fixedbitset v0.5.7
-    Building [================>        ] 128/188: fixedbitset, strsim            Compiling heck v0.5.0
-    Building [================>        ] 129/188: heck, strsim                   Compiling tap v1.0.1
-    Building [================>        ] 130/188: tap, strsim                    Compiling bytes v1.11.1
-    Building [================>        ] 131/188: tap, bytes                     Compiling scopeguard v1.2.0
-    Building [================>        ] 132/188: scopeguard, bytes              Compiling clap_lex v1.1.0
-    Building [================>        ] 133/188: clap_lex, bytes                Compiling clap_builder v4.6.0
-    Building [================>        ] 134/188: clap_builder, bytes            Compiling http v1.4.0
-    Building [================>        ] 135/188: clap_builder, http             Compiling lock_api v0.4.14
-    Building [=================>       ] 136/188: lock_api, clap_builder         Compiling wyz v0.5.1
-    Building [=================>       ] 137/188: wyz, clap_builder              Compiling strum_macros v0.28.0
-    Building [=================>       ] 138/188: strum_macros, clap_builder     Compiling petgraph v0.8.1
-    Building [=================>       ] 139/188: clap_builder, petgraph          Building [=================>       ] 140/188: clap_builder, anyhow(build)    Compiling form_urlencoded v1.2.2
-    Building [=================>       ] 141/188: clap_builder, form_urlencod…    Building [=================>       ] 142/188: clap_builder, thiserror        Compiling rayon v1.12.0
-    Building [==================>      ] 143/188: rayon, thiserror               Compiling scroll v0.13.0
-    Building [==================>      ] 144/188: rayon, scroll                   Building [==================>      ] 145/188: rayon, ring(build)             Compiling sha2 v0.10.9
-    Building [==================>      ] 146/188: sha2, ring(build)              Compiling cfg-expr v0.20.7
-    Building [==================>      ] 147/188: cfg-expr, ring(build)          Compiling idna v1.1.0
-    Building [==================>      ] 148/188: idna, ring(build)              Compiling unicode-normalization v0.1.25
-    Building [==================>      ] 149/188: unicode-normalization, ring…    Building [==================>      ] 150/188: parking_lot_core, ring(buil…    Building [===================>     ] 151/188: radium, ring(build)            Compiling zstd v0.13.3
-    Building [===================>     ] 152/188: zstd, ring(build)              Compiling regex v1.12.3
-    Building [===================>     ] 153/188: regex, ring(build)             Compiling toml-span v0.7.1
-    Building [===================>     ] 154/188: toml-span, ring(build)         Compiling getrandom v0.2.17
-    Building [===================>     ] 155/188: getrandom, ring(build)         Compiling smol_str v0.3.2
-    Building [===================>     ] 156/188: smol_str, ring(build)          Compiling crossbeam-queue v0.3.12
-    Building [===================>     ] 157/188: crossbeam-queue, ring(build)   Compiling crossbeam-channel v0.5.15
-    Building [====================>    ] 158/188: crossbeam-channel, ring(bui…   Compiling bstr v1.12.1
-    Building [====================>    ] 159/188: crossbeam-channel, bstr        Compiling rustc-stable-hash v0.1.2
-    Building [====================>    ] 160/188: rustc-stable-hash, bstr        Compiling untrusted v0.9.0
-    Building [====================>    ] 161/188: untrusted, bstr                Compiling plain v0.2.3
-    Building [====================>    ] 162/188: plain, bstr                    Compiling twox-hash v2.1.2
-    Building [====================>    ] 163/188: twox-hash, bstr                Compiling funty v2.0.0
-    Building [====================>    ] 164/188: funty, bstr                    Compiling same-file v1.0.6
-    Building [====================>    ] 165/188: funty, same-file               Compiling walkdir v2.5.0
-    Building [=====================>   ] 166/188: funty, walkdir                 Compiling bitvec v1.0.1
-    Building [=====================>   ] 167/188: funty, bitvec                  Compiling tame-index v0.26.3
-    Building [=====================>   ] 168/188: bitvec, tame-index             Compiling globset v0.4.18
-    Building [=====================>   ] 169/188: globset, tame-index            Compiling goblin v0.10.5
-    Building [=====================>   ] 170/188: goblin, tame-index              Building [=====================>   ] 171/188: goblin, ring                   Compiling crossbeam v0.8.4
-    Building [=====================>   ] 172/188: goblin, crossbeam              Compiling spdx v0.13.4
-    Building [======================>  ] 173/188: goblin, spdx                   Compiling parking_lot v0.12.5
-    Building [======================>  ] 174/188: goblin, parking_lot            Compiling url v2.5.8
-    Building [======================>  ] 175/188: goblin, url                    Compiling krates v0.21.2
-    Building [======================>  ] 176/188: krates, url                     Building [======================>  ] 177/188: krates, anyhow                 Compiling strum v0.28.0
-    Building [======================>  ] 178/188: krates, strum                  Compiling clap v4.6.1
-    Building [======================>  ] 179/188: krates, clap                   Compiling fern v0.7.1
-    Building [======================>  ] 180/188: krates, fern                   Compiling codespan v0.13.1
-    Building [=======================> ] 181/188: codespan, krates               Compiling memmap2 v0.9.11
-    Building [=======================> ] 182/188: memmap2, krates                Compiling jiff v0.2.24
-    Building [=======================> ] 183/188: jiff, krates                   Compiling nu-ansi-term v0.50.3
-    Building [=======================> ] 184/188: jiff, nu-ansi-term             Compiling cargo-deny v0.20.2
-    Building [=======================> ] 185/188: jiff, cargo-deny                Building [=======================> ] 186/188: cargo-deny                      Building [=======================> ] 187/188: cargo-deny(bin)                 Finished `release` profile [optimized] target(s) in 1m 39s
-  Installing /tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/deny-home/bin/cargo-deny
-   Installed package `cargo-deny v0.20.2` (executable `cargo-deny`)
-warning: be sure to add `/tmp/oo-a067-32680b16-6285-466e-a244-7f50e87e2b44/deny-home/bin` to your PATH to be able to run the installed binaries

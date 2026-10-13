@@ -1,0 +1,54 @@
+{
+  "protocol": "oo.minimal-product-loop.config/v1",
+  "mode": "operator-development",
+  "development_preview": true,
+  "publication": "not_published",
+  "llm_review": "unreviewed",
+  "runtime_acknowledgement": "local-process-not-a-sandbox-certificate",
+  "database": {
+    "type": "postgresql",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "name": "shop",
+    "username": "reader",
+    "tls": "require",
+    "secret_ref": "secret://pg/operator/reader",
+    "password_file": "/var/lib/oo/password",
+    "ca_file": "/var/lib/oo/ca.pem"
+  },
+  "tables": [
+    {"schema": "shop", "table": "party"},
+    {"schema": "shop", "table": "account"},
+    {"schema": "shop", "table": "entry"}
+  ],
+  "llm": {
+    "model_id": "grok-4.7",
+    "origin": "http://127.0.0.1:8317",
+    "path": "/v1/chat/completions",
+    "bearer_file": "/var/lib/oo/llm-token",
+    "deadline_ms": 30000
+  },
+  "gateway": {
+    "oo": "/usr/local/bin/oo",
+    "query_pg": "/usr/local/bin/query-pg",
+    "policy_file": "/var/lib/oo/query-pg-policy.json",
+    "token_file": "/var/lib/oo/gateway-token"
+  },
+  "pi": {
+    "executable": "/opt/pi/bin/pi",
+    "executable_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "runtime": "/opt/node/bin/node",
+    "runtime_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "provider": "grok",
+    "model": "grok-4.7"
+  },
+  "paths": {
+    "catalog_bin": "/usr/local/bin/oo-pipeline",
+    "knowledge": "/var/lib/oo/knowledge",
+    "work": "/var/lib/oo/work"
+  },
+  "operator": {
+    "label": "operator",
+    "at": "2026-10-08T00:00:00Z"
+  }
+}

@@ -1,5 +1,0 @@
- tools/calendar-store/src/adopt.rs | 78 +++++++++++++++++++++++++++++++++++++--
- tools/calendar-store/src/sql.rs   |  4 +-
- tools/enum-store/src/adopt.rs     | 78 +++++++++++++++++++++++++++++++++++++--
- tools/enum-store/src/sql.rs       |  4 +-
- 4 files changed, 152 insertions(+), 12 deletions(-)

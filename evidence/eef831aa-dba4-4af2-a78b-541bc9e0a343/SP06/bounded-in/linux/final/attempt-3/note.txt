@@ -1,1 +1,0 @@
-Unit assertions rejected the existing output alias AS entry_id, and IN (-1) is a signed integer constant rather than a unary operator node. The private query-pg fixture already wrote live/oracle.txt with the expected row counts.

@@ -1,0 +1,8 @@
+{
+  "task": "DL01-W1-06",
+  "fixed_packet": "131279c54572f612d10945ccb5a17a3a9c638f9e",
+  "verified_sha_entries": 710,
+  "decision": "author100ksealedimport_only_coreModelPackPending",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

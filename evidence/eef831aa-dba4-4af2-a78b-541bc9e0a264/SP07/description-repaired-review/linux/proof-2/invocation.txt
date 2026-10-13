@@ -1,1 +1,0 @@
-docker run --name oo-a264-proof2 --platform linux/arm64 --pull never --network oo-a264-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 bash /inside.sh

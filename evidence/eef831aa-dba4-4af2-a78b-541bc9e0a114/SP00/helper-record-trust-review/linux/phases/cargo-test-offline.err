@@ -1,7 +1,0 @@
-   Compiling helper-evidence-check v0.1.0 (/archive/testing/harness/helper-evidence-check)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
-     Running unittests src/lib.rs (/target/checker/debug/deps/helper_evidence_check-265edb90de654aa5)
-     Running unittests src/main.rs (/target/checker/debug/deps/helper_evidence_check-7b8b07ab186ce393)
-     Running tests/closure.rs (/target/checker/debug/deps/closure-8151fa3cdc96efae)
-     Running tests/trust.rs (/target/checker/debug/deps/trust-7e6277877254ab44)
-   Doc-tests helper_evidence_check

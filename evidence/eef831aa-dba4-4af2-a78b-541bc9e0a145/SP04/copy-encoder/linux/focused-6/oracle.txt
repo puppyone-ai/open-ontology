@@ -1,9 +1,0 @@
-server_version=17.10 (Debian 17.10-1.pgdg12+1)
-server_version_num=170010
-count=2
-md5=bfb64118b3d931be583473c4e5d942e9
-local_md5=bfb64118b3d931be583473c4e5d942e9
-chunks=4
-1|a "quote"	and
-line|true|-9223372036854775808|00ff22090a|-123456.78|2000-01-01|8000000000000000
-2|NULL|false|7|NULL|0.00|1970-01-01|3ff4000000000000

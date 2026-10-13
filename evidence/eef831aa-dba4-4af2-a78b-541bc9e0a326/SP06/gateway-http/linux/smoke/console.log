@@ -1,6 +1,0 @@
-PHASE rustc_exit=0
-PHASE overlay_absent=0
-=== cargo check oo-arch-check ===
-PHASE arch_check_exit=0
-=== cargo check oo-gateway ===
-PHASE gateway_check_exit=101

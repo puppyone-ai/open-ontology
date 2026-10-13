@@ -1,8 +1,0 @@
-bind /tmp/oo-a249-eef831aa-dba4-4af2-a78b-541bc9e0a249/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli/tools /tools rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli/linux/smoke/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli/linux/smoke/extract-libclang.sh /extract-libclang.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a249/SP06/mapping-reader-cli /evidence rw=true
-volume /var/lib/docker/volumes/oo-a249-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a249-eef831aa-target/_data /target rw=true
-

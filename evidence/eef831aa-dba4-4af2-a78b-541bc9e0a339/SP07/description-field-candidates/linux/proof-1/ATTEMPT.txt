@@ -1,5 +1,0 @@
-Post-edit proof-1. Preserved. docker-run.exit 101.
-PHASE toolchain=0 overlay=0 test-candidate=101.
-oo-builder did not compile. description_candidate.rs:465 borrowed digest after card_hashes.insert moved it.
-No product files were changed inside the container. The host fix clones digest before the insert.
-Container oo-a339-proof1 was removed by launch.sh. Volumes and network were left in place.

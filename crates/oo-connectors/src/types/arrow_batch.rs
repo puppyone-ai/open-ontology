@@ -4,8 +4,8 @@
 use std::sync::Arc;
 
 use arrow_array::types::{
-    Date32Type, Float64Type, Int16Type, Int32Type, Int64Type, Time64MicrosecondType,
-    TimestampMicrosecondType,
+    Date32Type, DurationMicrosecondType, Float64Type, Int16Type, Int32Type, Int64Type,
+    Time64MicrosecondType, TimestampMicrosecondType,
 };
 use arrow_array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Decimal128Array, Decimal256Array, PrimitiveArray,
@@ -33,8 +33,8 @@ pub(crate) fn record_batch(columns: &[ArrowColumn]) -> Result<RecordBatch, Sourc
                 .values
                 .iter()
                 .any(|value| matches!(value, ArrowScalar::Null));
-        let field = Field::new(&column.name, array.data_type().clone(), nullable)
-            .with_metadata(metadata);
+        let field =
+            Field::new(&column.name, array.data_type().clone(), nullable).with_metadata(metadata);
         if field.data_type() != array.data_type() {
             return Err(SourceError::protocol("arrow_batch_type"));
         }
@@ -86,16 +86,26 @@ fn build_array(physical: &ArrowPhysical, values: &[ArrowScalar]) -> Result<Array
             ArrowScalar::Date32(value) => Ok(*value),
             _ => Err(SourceError::protocol("arrow_batch_value")),
         }),
-        ArrowPhysical::Time64Micros => primitive::<Time64MicrosecondType>(values, |item| match item {
-            ArrowScalar::Time64(value) => Ok(*value),
-            _ => Err(SourceError::protocol("arrow_batch_value")),
-        }),
+        ArrowPhysical::Time64Micros => {
+            primitive::<Time64MicrosecondType>(values, |item| match item {
+                ArrowScalar::Time64(value) => Ok(*value),
+                _ => Err(SourceError::protocol("arrow_batch_value")),
+            })
+        }
+        ArrowPhysical::DurationMicros => {
+            primitive::<DurationMicrosecondType>(values, |item| match item {
+                ArrowScalar::DurationMicros(value) => Ok(*value),
+                _ => Err(SourceError::protocol("arrow_batch_value")),
+            })
+        }
         ArrowPhysical::TimestampMicrosNaive => {
             let parsed = opt_map(values, |item| match item {
                 ArrowScalar::TimestampNaive(value) => Ok(*value),
                 _ => Err(SourceError::protocol("arrow_batch_value")),
             })?;
-            Ok(Arc::new(PrimitiveArray::<TimestampMicrosecondType>::from(parsed)))
+            Ok(Arc::new(PrimitiveArray::<TimestampMicrosecondType>::from(
+                parsed,
+            )))
         }
         ArrowPhysical::TimestampMicrosUtc => {
             let parsed = opt_map(values, |item| match item {
@@ -142,7 +152,8 @@ fn build_list(item: &ArrowPhysical, values: &[ArrowScalar]) -> Result<ArrayRef, 
             ArrowScalar::List(items) => {
                 valid.push(true);
                 flat.extend(items.iter().cloned());
-                let next = i32::try_from(flat.len()).map_err(|_| SourceError::protocol("arrow_batch_list"))?;
+                let next = i32::try_from(flat.len())
+                    .map_err(|_| SourceError::protocol("arrow_batch_list"))?;
                 offsets.push(next);
             }
             _ => return Err(SourceError::protocol("arrow_batch_list")),

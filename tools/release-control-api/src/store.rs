@@ -4,23 +4,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use release_coordinator::{
-    activate, checkpoint, gate_record, install as producer_install, plan, recover, status, CheckpointRequest, Endpoint,
-    GateRequest, InstallRequest, PlanRequest, Receipt, RecoverRequest, StageRequest, StoreError, GATE_IDS,
+    CheckpointRequest, ControlConn, Endpoint, GATE_IDS, GateRequest, InstallRequest,
+    MaintainRequest, PlanRequest, Receipt, RecoverRequest, StageRequest, StoreError, TargetConn,
+    activate, checkpoint, gate_record, install as producer_install, maintain_activate,
+    maintain_recover, plan, recover, stage, status,
 };
-use release_coordinator::stage;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::{Client, Transaction};
 
+use crate::PRODUCER_CONTRACT;
 use crate::config::{Config, PgEndpoint};
-use crate::error::{ApiError, Fault, CONTRACT};
+use crate::error::{ApiError, CONTRACT, Fault};
 use crate::identity::{self, VerifiedIdentity};
 use crate::ids::{detail_ok, hex64, operation_id_ok};
-use crate::pack::{self, permission_compatible, Intake, Lineage, LineageFields, Prepared};
+use crate::pack::{self, Intake, Lineage, LineageFields, Prepared, permission_compatible};
 use crate::sha256::sha256_hex;
 use crate::tls::pg_tls;
-use crate::PRODUCER_CONTRACT;
 
 const MIGRATION_SQL: &str = include_str!("../migrations/oo_release_api_v1.sql");
 const SCHEMA: &str = "oo_release_api";
@@ -170,7 +171,8 @@ impl Runtime {
         require_user(&reader, READER_ROLE).await?;
         require_tls(&api).await?;
         require_tls(&reader).await?;
-        let identity = identity::identity_client(&config.identity_ca_pem).map_err(|_| Fault::refused("dependency.not_ready"))?;
+        let identity = identity::identity_client(&config.identity_ca_pem)
+            .map_err(|_| Fault::refused("dependency.not_ready"))?;
         Ok(Self {
             inner: Arc::new(Inner {
                 config,
@@ -216,7 +218,10 @@ impl Runtime {
                     let _ = self.execute(&id).await;
                 }
                 Ok(None) => tokio::time::sleep(Duration::from_millis(40)).await,
-                Err(ApiError { code: "commit.unknown", .. }) => {
+                Err(ApiError {
+                    code: "commit.unknown",
+                    ..
+                }) => {
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
                 Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
@@ -242,11 +247,21 @@ impl Runtime {
             return Err(ApiError::not_ready("producer"));
         };
         Ok(PointerView {
-            version: row.try_get(0).map_err(|_| ApiError::not_ready("producer"))?,
-            candidate_id: row.try_get(1).map_err(|_| ApiError::not_ready("producer"))?,
-            source_hash: row.try_get(2).map_err(|_| ApiError::not_ready("producer"))?,
-            pack_digest: row.try_get(3).map_err(|_| ApiError::not_ready("producer"))?,
-            manifest_sha256: row.try_get(4).map_err(|_| ApiError::not_ready("producer"))?,
+            version: row
+                .try_get(0)
+                .map_err(|_| ApiError::not_ready("producer"))?,
+            candidate_id: row
+                .try_get(1)
+                .map_err(|_| ApiError::not_ready("producer"))?,
+            source_hash: row
+                .try_get(2)
+                .map_err(|_| ApiError::not_ready("producer"))?,
+            pack_digest: row
+                .try_get(3)
+                .map_err(|_| ApiError::not_ready("producer"))?,
+            manifest_sha256: row
+                .try_get(4)
+                .map_err(|_| ApiError::not_ready("producer"))?,
         })
     }
 
@@ -357,8 +372,14 @@ impl Runtime {
     }
 
     pub async fn role_status(&self, operation: &Operation) -> Result<Receipt, ApiError> {
-        let candidate = operation.candidate_id.as_deref().ok_or(ApiError::conflict("inactive"))?;
-        let source = operation.source_hash.as_deref().ok_or(ApiError::conflict("inactive"))?;
+        let candidate = operation
+            .candidate_id
+            .as_deref()
+            .ok_or(ApiError::conflict("inactive"))?;
+        let source = operation
+            .source_hash
+            .as_deref()
+            .ok_or(ApiError::conflict("inactive"))?;
         let endpoint = self.endpoint();
         let config = &self.inner.config;
         let request = PlanRequest {
@@ -372,7 +393,9 @@ impl Runtime {
             scope: "test_scope",
             expected_version: operation.base_version.as_deref(),
         };
-        status(&request).await.map_err(|_| ApiError::not_ready("producer"))
+        status(&request)
+            .await
+            .map_err(|_| ApiError::not_ready("producer"))
     }
 
     async fn insert_operation(&self, row: NewOperation<'_>) -> Result<Queued, ApiError> {
@@ -463,15 +486,26 @@ impl Runtime {
         if let Some(hash) = pack_file_sha.as_deref() {
             insert_audit(&tx, operation_id, &project, "pack.file", hash).await?;
         }
-        let operation = load_id(&tx, operation_id).await?.ok_or(ApiError::not_ready("postgres"))?;
+        let operation = load_id(&tx, operation_id)
+            .await?
+            .ok_or(ApiError::not_ready("postgres"))?;
         commit_api(tx).await?;
-        Ok(Queued { operation, replay: false })
+        Ok(Queued {
+            operation,
+            replay: false,
+        })
     }
 
-    async fn read_conflict(&self, operation_id: &str, body_sha256: &str) -> Result<Queued, ApiError> {
+    async fn read_conflict(
+        &self,
+        operation_id: &str,
+        body_sha256: &str,
+    ) -> Result<Queued, ApiError> {
         let mut client = self.inner.api.lock().await;
         let tx = begin_api(&mut client).await?;
-        let existing = load_id(&tx, operation_id).await?.ok_or(ApiError::not_ready("postgres"))?;
+        let existing = load_id(&tx, operation_id)
+            .await?
+            .ok_or(ApiError::not_ready("postgres"))?;
         commit_api(tx).await?;
         replay_or_conflict(existing, body_sha256)
     }
@@ -492,11 +526,18 @@ impl Runtime {
         let mut client = self.inner.reader.lock().await;
         let tx = begin_fault(&mut client).await?;
         let found = tx
-            .query_opt("SELECT version FROM oo_release_control.publication_status", &[])
+            .query_opt(
+                "SELECT version FROM oo_release_control.publication_status",
+                &[],
+            )
             .await
             .map_err(|_| Fault::refused("dependency.not_ready"))?;
         commit_fault(tx).await?;
-        if found.is_some() { Ok(()) } else { Err(Fault::refused("dependency.not_ready")) }
+        if found.is_some() {
+            Ok(())
+        } else {
+            Err(Fault::refused("dependency.not_ready"))
+        }
     }
 
     async fn reconcile(&self) -> Result<(), Fault> {
@@ -514,8 +555,12 @@ impl Runtime {
             .map_err(|_| Fault::refused("dependency.not_ready"))?;
         let mut pending = Vec::new();
         for row in &rows {
-            let candidate: Option<String> = row.try_get(1).map_err(|_| Fault::refused("dependency.not_ready"))?;
-            let source: Option<String> = row.try_get(2).map_err(|_| Fault::refused("dependency.not_ready"))?;
+            let candidate: Option<String> = row
+                .try_get(1)
+                .map_err(|_| Fault::refused("dependency.not_ready"))?;
+            let source: Option<String> = row
+                .try_get(2)
+                .map_err(|_| Fault::refused("dependency.not_ready"))?;
             if let (Some(candidate), Some(source)) = (candidate, source) {
                 pending.push((candidate, source));
             }
@@ -547,6 +592,16 @@ impl Runtime {
             Err(StoreError::CommitUnknown) => return Err(Fault::commit_unknown()),
             Err(_) => return Ok(()),
         };
+        if self.inner.config.target.is_some() {
+            return match self
+                .maintain_call(&endpoint, candidate, source, None, false)
+                .await
+            {
+                Ok(_) => Ok(()),
+                Err(Control::Uncertain) => Err(Fault::commit_unknown()),
+                Err(_) => Ok(()),
+            };
+        }
         if receipt.body.get("state").and_then(Value::as_str) != Some("applying") {
             return Ok(());
         }
@@ -584,7 +639,11 @@ impl Runtime {
         if receipt.code != 0 {
             return Err(Fault::refused("install_drift"));
         }
-        let hash = receipt.body.get("authority_statement_sha256").and_then(Value::as_str).unwrap_or("");
+        let hash = receipt
+            .body
+            .get("authority_statement_sha256")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !hex64(hash) {
             return Err(Fault::refused("install_drift"));
         }
@@ -614,7 +673,9 @@ impl Runtime {
             commit_api(tx).await?;
             return Ok(None);
         };
-        let id: String = row.try_get(0).map_err(|_| ApiError::not_ready("postgres"))?;
+        let id: String = row
+            .try_get(0)
+            .map_err(|_| ApiError::not_ready("postgres"))?;
         let updated = tx
             .execute(
                 "UPDATE oo_release_api.operation SET status = 'running' WHERE operation_id = $1 AND status = 'queued'",
@@ -652,25 +713,42 @@ impl Runtime {
             Ok(prepared) => prepared,
             Err(_) => return refused_control("pack", None, None, None),
         };
-        let stored_hash = match self.audit_detail(&operation.operation_id, "pack.file").await {
+        let stored_hash = match self
+            .audit_detail(&operation.operation_id, "pack.file")
+            .await
+        {
             Ok(Some(hash)) => hash,
             Ok(None) => return refused_control("pack", None, None, None),
-            Err(ApiError { code: "commit.unknown", .. }) => return Control::Uncertain,
+            Err(ApiError {
+                code: "commit.unknown",
+                ..
+            }) => return Control::Uncertain,
             Err(_) => return refused_control("producer", None, None, None),
         };
         if stored_hash != prepared.bytes_sha256 || prepared.columns_text != operation.columns_text {
             return refused_control("pack_changed", None, None, None);
         }
-        let intake = match pack::load_intake(self.pack_dir(), &config_commit) {
-            Ok(intake) => intake,
-            Err(_) => return refused_control("pack", None, None, None),
+        let targeted = self.inner.config.target.is_some();
+        let intake = if targeted {
+            None
+        } else {
+            match pack::load_intake(self.pack_dir(), &config_commit) {
+                Ok(intake) => Some(intake),
+                Err(_) => return refused_control("pack", None, None, None),
+            }
         };
         match self.producer_install().await {
             Ok(()) => {}
             Err(fault) if fault.code == "commit.unknown" => return Control::Uncertain,
             Err(_) => return refused_control("producer", None, None, None),
         }
-        let authority = self.inner.authority.lock().await.clone().unwrap_or_default();
+        let authority = self
+            .inner
+            .authority
+            .lock()
+            .await
+            .clone()
+            .unwrap_or_default();
         if !hex64(&authority) {
             return refused_control("producer", None, None, None);
         }
@@ -692,7 +770,11 @@ impl Runtime {
         let Some(source_hash) = source.clone() else {
             return refused_control("producer", source, digest, manifest);
         };
-        if let Err(control) = self.record_intake(&endpoint, operation, &intake, &source_hash, &authority).await {
+        if let Some(intake) = intake.as_ref()
+            && let Err(control) = self
+                .record_intake(&endpoint, operation, intake, &source_hash, &authority)
+                .await
+        {
             return match control {
                 Control::Finish(mut finish) => {
                     finish.source_hash = finish.source_hash.or(source);
@@ -705,14 +787,39 @@ impl Runtime {
         }
         let scope = operation.scope_name.as_deref().unwrap_or("");
         if scope == "production" {
-            let receipt = match self.activate_of(&endpoint, operation, &source_hash, "production").await {
+            let receipt = match self
+                .activate_of(&endpoint, operation, &source_hash, "production")
+                .await
+            {
                 Ok(receipt) => receipt,
                 Err(Control::Uncertain) => return Control::Uncertain,
                 Err(other) => return other,
             };
             return production_finish(&receipt, source, digest, manifest);
         }
-        let planned = match self.plan_of(&endpoint, operation, &source_hash, "test_scope").await {
+        if targeted {
+            if scope != "test_scope" {
+                return refused_control("scope", source, digest, manifest);
+            }
+            return match self
+                .maintain_call(
+                    &endpoint,
+                    operation.candidate_id.as_deref().unwrap_or(""),
+                    &source_hash,
+                    operation.base_version.as_deref(),
+                    true,
+                )
+                .await
+            {
+                Ok(receipt) => publish_finish(&receipt, source, digest, manifest),
+                Err(Control::Uncertain) => Control::Uncertain,
+                Err(other) => other,
+            };
+        }
+        let planned = match self
+            .plan_of(&endpoint, operation, &source_hash, "test_scope")
+            .await
+        {
             Ok(receipt) => receipt,
             Err(Control::Uncertain) => return Control::Uncertain,
             Err(other) => return other,
@@ -720,7 +827,10 @@ impl Runtime {
         if !plan_admissible(&planned) {
             return finish_receipt(&planned, "not_issued", "refused");
         }
-        match self.activate_of(&endpoint, operation, &source_hash, "test_scope").await {
+        match self
+            .activate_of(&endpoint, operation, &source_hash, "test_scope")
+            .await
+        {
             Ok(receipt) => publish_finish(&receipt, source, digest, manifest),
             Err(Control::Uncertain) => Control::Uncertain,
             Err(other) => other,
@@ -734,15 +844,23 @@ impl Runtime {
         let target = match self.operation(&target_id).await {
             Ok(Some(target)) => target,
             Ok(None) => return refused_control("compat", None, None, None),
-            Err(ApiError { code: "commit.unknown", .. }) => return Control::Uncertain,
+            Err(ApiError {
+                code: "commit.unknown",
+                ..
+            }) => return Control::Uncertain,
             Err(_) => return refused_control("producer", None, None, None),
         };
         let pointer = match self.pointer().await {
             Ok(pointer) => pointer,
-            Err(ApiError { code: "commit.unknown", .. }) => return Control::Uncertain,
+            Err(ApiError {
+                code: "commit.unknown",
+                ..
+            }) => return Control::Uncertain,
             Err(_) => return refused_control("producer", None, None, None),
         };
-        if pointer.version.as_deref() != operation.expected_version.as_deref() || target.version.as_deref() != pointer.version.as_deref() {
+        if pointer.version.as_deref() != operation.expected_version.as_deref()
+            || target.version.as_deref() != pointer.version.as_deref()
+        {
             return refused_control("pointer", None, None, None);
         }
         let active = lineage_of_op(&target);
@@ -751,7 +869,10 @@ impl Runtime {
             Some(version) => match self.succeeded_publish(version).await {
                 Ok(Some(row)) => Some(lineage_of_op(&row)),
                 Ok(None) => return refused_control("compat", None, None, None),
-                Err(ApiError { code: "commit.unknown", .. }) => return Control::Uncertain,
+                Err(ApiError {
+                    code: "commit.unknown",
+                    ..
+                }) => return Control::Uncertain,
                 Err(_) => return refused_control("producer", None, None, None),
             },
         };
@@ -774,16 +895,49 @@ impl Runtime {
             expected_version: operation.expected_version.as_deref(),
         };
         match recover(&request).await {
-            Ok(receipt) => rollback_finish(&receipt),
+            Ok(receipt) => {
+                if receipt.code == 0 && self.inner.config.target.is_some() {
+                    let Some(source_hash) = target.source_hash.clone() else {
+                        return refused_control("producer", None, None, None);
+                    };
+                    return match self
+                        .maintain_call(
+                            &endpoint,
+                            &candidate,
+                            &source_hash,
+                            operation.expected_version.as_deref(),
+                            false,
+                        )
+                        .await
+                    {
+                        Ok(maintained) if maintained.code == 0 => rollback_finish(&receipt),
+                        Ok(maintained) => finish_receipt(&maintained, "not_issued", "refused"),
+                        Err(Control::Uncertain) => Control::Uncertain,
+                        Err(other) => other,
+                    };
+                }
+                rollback_finish(&receipt)
+            }
             Err(StoreError::CommitUnknown) => Control::Uncertain,
             Err(_) => refused_control("producer", None, None, None),
         }
     }
 
-    async fn stage_of(&self, endpoint: &Endpoint, operation: &Operation, prepared: &Prepared) -> Result<Receipt, Control> {
+    async fn stage_of(
+        &self,
+        endpoint: &Endpoint,
+        operation: &Operation,
+        prepared: &Prepared,
+    ) -> Result<Receipt, Control> {
         let config = &self.inner.config;
-        let candidate = operation.candidate_id.as_deref().ok_or_else(|| refused_control("producer", None, None, None))?;
-        let version = operation.version.as_deref().ok_or_else(|| refused_control("producer", None, None, None))?;
+        let candidate = operation
+            .candidate_id
+            .as_deref()
+            .ok_or_else(|| refused_control("producer", None, None, None))?;
+        let version = operation
+            .version
+            .as_deref()
+            .ok_or_else(|| refused_control("producer", None, None, None))?;
         let request = StageRequest {
             endpoint,
             user: &config.producer_pg.user,
@@ -804,10 +958,20 @@ impl Runtime {
         stage(&request).await.map_err(store_control)
     }
 
-    async fn record_intake(&self, endpoint: &Endpoint, operation: &Operation, intake: &Intake, source_hash: &str, authority: &str) -> Result<(), Control> {
-        let candidate = operation.candidate_id.as_deref().ok_or_else(|| refused_control("producer", None, None, None))?;
+    async fn record_intake(
+        &self,
+        endpoint: &Endpoint,
+        operation: &Operation,
+        intake: &Intake,
+        source_hash: &str,
+        authority: &str,
+    ) -> Result<(), Control> {
+        let candidate = operation
+            .candidate_id
+            .as_deref()
+            .ok_or_else(|| refused_control("producer", None, None, None))?;
+        let _ = authority;
         for gate in &intake.gates {
-            let authority_hash = if gate.issuer_class == "fixture_authority" { Some(authority) } else { None };
             let request = GateRequest {
                 endpoint,
                 user: &self.inner.config.producer_pg.user,
@@ -821,7 +985,7 @@ impl Runtime {
                 status: &gate.status,
                 blocking: gate.blocking,
                 report_type: &gate.report_type,
-                authority_statement_sha256: authority_hash,
+                authority_statement_sha256: None,
             };
             let receipt = gate_record(&request).await.map_err(store_control)?;
             if receipt.code != 0 {
@@ -829,7 +993,6 @@ impl Runtime {
             }
         }
         for checkpoint_in in &intake.checkpoints {
-            let authority_hash = if checkpoint_in.issuer_class == "fixture_authority" { Some(authority) } else { None };
             let request = CheckpointRequest {
                 endpoint,
                 user: &self.inner.config.producer_pg.user,
@@ -843,7 +1006,7 @@ impl Runtime {
                 barrier: &checkpoint_in.barrier,
                 sessions_terminated: checkpoint_in.sessions_terminated,
                 issuer_class: &checkpoint_in.issuer_class,
-                authority_statement_sha256: authority_hash,
+                authority_statement_sha256: None,
             };
             let receipt = checkpoint(&request).await.map_err(store_control)?;
             if receipt.code != 0 {
@@ -853,16 +1016,40 @@ impl Runtime {
         Ok(())
     }
 
-    async fn plan_of(&self, endpoint: &Endpoint, operation: &Operation, source_hash: &str, scope: &str) -> Result<Receipt, Control> {
-        self.scope_call(endpoint, operation, source_hash, scope, true).await
+    async fn plan_of(
+        &self,
+        endpoint: &Endpoint,
+        operation: &Operation,
+        source_hash: &str,
+        scope: &str,
+    ) -> Result<Receipt, Control> {
+        self.scope_call(endpoint, operation, source_hash, scope, true)
+            .await
     }
 
-    async fn activate_of(&self, endpoint: &Endpoint, operation: &Operation, source_hash: &str, scope: &str) -> Result<Receipt, Control> {
-        self.scope_call(endpoint, operation, source_hash, scope, false).await
+    async fn activate_of(
+        &self,
+        endpoint: &Endpoint,
+        operation: &Operation,
+        source_hash: &str,
+        scope: &str,
+    ) -> Result<Receipt, Control> {
+        self.scope_call(endpoint, operation, source_hash, scope, false)
+            .await
     }
 
-    async fn scope_call(&self, endpoint: &Endpoint, operation: &Operation, source_hash: &str, scope: &str, planning: bool) -> Result<Receipt, Control> {
-        let candidate = operation.candidate_id.as_deref().ok_or_else(|| refused_control("producer", None, None, None))?;
+    async fn scope_call(
+        &self,
+        endpoint: &Endpoint,
+        operation: &Operation,
+        source_hash: &str,
+        scope: &str,
+        planning: bool,
+    ) -> Result<Receipt, Control> {
+        let candidate = operation
+            .candidate_id
+            .as_deref()
+            .ok_or_else(|| refused_control("producer", None, None, None))?;
         let request = PlanRequest {
             endpoint,
             user: &self.inner.config.producer_pg.user,
@@ -874,7 +1061,11 @@ impl Runtime {
             scope,
             expected_version: operation.base_version.as_deref(),
         };
-        let result = if planning { plan(&request).await } else { activate(&request).await };
+        let result = if planning {
+            plan(&request).await
+        } else {
+            activate(&request).await
+        };
         result.map_err(store_control)
     }
 
@@ -924,7 +1115,11 @@ impl Runtime {
         commit_api(tx).await
     }
 
-    async fn audit_detail(&self, operation_id: &str, event_name: &str) -> Result<Option<String>, ApiError> {
+    async fn audit_detail(
+        &self,
+        operation_id: &str,
+        event_name: &str,
+    ) -> Result<Option<String>, ApiError> {
         let mut client = self.inner.api.lock().await;
         let tx = begin_api(&mut client).await?;
         let row = tx
@@ -935,11 +1130,65 @@ impl Runtime {
             .await
             .map_err(|_| ApiError::not_ready("postgres"))?;
         let detail = match row {
-            Some(row) => Some(row.try_get(0).map_err(|_| ApiError::not_ready("postgres"))?),
+            Some(row) => Some(
+                row.try_get(0)
+                    .map_err(|_| ApiError::not_ready("postgres"))?,
+            ),
             None => None,
         };
         commit_api(tx).await?;
         Ok(detail)
+    }
+
+    async fn maintain_call(
+        &self,
+        endpoint: &Endpoint,
+        candidate_id: &str,
+        source_hash: &str,
+        expected_version: Option<&str>,
+        activate: bool,
+    ) -> Result<Receipt, Control> {
+        let Some(binding) = &self.inner.config.target else {
+            return Err(refused_control("producer", None, None, None));
+        };
+        if candidate_id.is_empty() {
+            return Err(refused_control("producer", None, None, None));
+        }
+        let target_endpoint = Endpoint {
+            host: binding.pg.host.clone(),
+            port: binding.pg.port,
+            database: binding.pg.database.clone(),
+        };
+        let request = MaintainRequest {
+            native_mapping: binding.native_mapping.as_ref(),
+            control: ControlConn {
+                endpoint,
+                user: &self.inner.config.producer_pg.user,
+                password: &self.inner.config.producer_pg.password,
+                ca_pem: &self.inner.config.producer_pg.ca_pem,
+            },
+            target: TargetConn {
+                endpoint: &target_endpoint,
+                user: &binding.pg.user,
+                password: &binding.pg.password,
+                ca_pem: &binding.pg.ca_pem,
+            },
+            reader_user: &binding.reader_user,
+            reader_password: &binding.reader_password,
+            project_id: &self.inner.config.project_id,
+            candidate_id,
+            source_hash,
+            expected_version,
+            schema_name: &binding.schema_name,
+            relation_name: &binding.relation_name,
+            role_name: &binding.role_name,
+        };
+        let result = if activate {
+            maintain_activate(&request).await
+        } else {
+            maintain_recover(&request).await
+        };
+        result.map_err(store_control)
     }
 
     fn endpoint(&self) -> Endpoint {
@@ -959,18 +1208,31 @@ pub async fn install(config: &Config) -> Result<Value, Fault> {
     require_user(&client, API_ROLE).await?;
     require_tls(&client).await?;
     let tx = begin_fault(&mut client).await?;
-    tx.execute("SELECT pg_catalog.pg_advisory_xact_lock($1::bigint)", &[&INSTALL_LOCK]).await.map_err(|_| Fault::refused("dependency.not_ready"))?;
+    tx.execute(
+        "SELECT pg_catalog.pg_advisory_xact_lock($1::bigint)",
+        &[&INSTALL_LOCK],
+    )
+    .await
+    .map_err(|_| Fault::refused("dependency.not_ready"))?;
     let hash = migration_sha256();
     let exists = tx
-        .query_opt("SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = $1", &[&SCHEMA])
+        .query_opt(
+            "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = $1",
+            &[&SCHEMA],
+        )
         .await
         .map_err(|_| Fault::refused("dependency.not_ready"))?
         .is_some();
     let outcome = if !exists {
-        tx.batch_execute(MIGRATION_SQL).await.map_err(|_| Fault::refused("dependency.not_ready"))?;
-        tx.execute("INSERT INTO oo_release_api.install_manifest (singleton, sql_sha256) VALUES (TRUE, $1)", &[&hash])
+        tx.batch_execute(MIGRATION_SQL)
             .await
             .map_err(|_| Fault::refused("dependency.not_ready"))?;
+        tx.execute(
+            "INSERT INTO oo_release_api.install_manifest (singleton, sql_sha256) VALUES (TRUE, $1)",
+            &[&hash],
+        )
+        .await
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
         "installed"
     } else {
         match manifest_hash(&tx).await? {
@@ -998,7 +1260,10 @@ pub(crate) fn operation_id(project: &str, key: &str) -> String {
 
 fn replay_or_conflict(existing: Operation, body_sha256: &str) -> Result<Queued, ApiError> {
     if existing.body_sha256 == body_sha256 {
-        Ok(Queued { operation: existing, replay: true })
+        Ok(Queued {
+            operation: existing,
+            replay: true,
+        })
     } else {
         Err(ApiError::idempotency())
     }
@@ -1012,22 +1277,36 @@ const SELECT_OP: &str = "SELECT operation_id, project_id, body_sha256, kind, sta
 
 async fn load_id(tx: &Transaction<'_>, operation_id: &str) -> Result<Option<Operation>, ApiError> {
     let row = tx
-        .query_opt(&format!("{SELECT_OP} WHERE operation_id = $1"), &[&operation_id])
+        .query_opt(
+            &format!("{SELECT_OP} WHERE operation_id = $1"),
+            &[&operation_id],
+        )
         .await
         .map_err(|_| ApiError::not_ready("postgres"))?;
     match row {
-        Some(row) => Ok(Some(read_op(&row).map_err(|_| ApiError::not_ready("postgres"))?)),
+        Some(row) => Ok(Some(
+            read_op(&row).map_err(|_| ApiError::not_ready("postgres"))?,
+        )),
         None => Ok(None),
     }
 }
 
-async fn load_key(tx: &Transaction<'_>, project: &str, operation_id: &str) -> Result<Option<Operation>, ApiError> {
+async fn load_key(
+    tx: &Transaction<'_>,
+    project: &str,
+    operation_id: &str,
+) -> Result<Option<Operation>, ApiError> {
     let row = tx
-        .query_opt(&format!("{SELECT_OP} WHERE project_id = $1 AND operation_id = $2"), &[&project, &operation_id])
+        .query_opt(
+            &format!("{SELECT_OP} WHERE project_id = $1 AND operation_id = $2"),
+            &[&project, &operation_id],
+        )
         .await
         .map_err(|_| ApiError::not_ready("postgres"))?;
     match row {
-        Some(row) => Ok(Some(read_op(&row).map_err(|_| ApiError::not_ready("postgres"))?)),
+        Some(row) => Ok(Some(
+            read_op(&row).map_err(|_| ApiError::not_ready("postgres"))?,
+        )),
         None => Ok(None),
     }
 }
@@ -1065,7 +1344,13 @@ fn read_op(row: &tokio_postgres::Row) -> Result<Operation, ()> {
     })
 }
 
-async fn insert_audit(tx: &Transaction<'_>, operation_id: &str, project: &str, event_name: &str, detail: &str) -> Result<(), ApiError> {
+async fn insert_audit(
+    tx: &Transaction<'_>,
+    operation_id: &str,
+    project: &str,
+    event_name: &str,
+    detail: &str,
+) -> Result<(), ApiError> {
     if !detail_ok(event_name) || !detail_ok(detail) {
         return Err(ApiError::not_ready("postgres"));
     }
@@ -1081,11 +1366,17 @@ async fn insert_audit(tx: &Transaction<'_>, operation_id: &str, project: &str, e
 
 async fn manifest_hash(tx: &Transaction<'_>) -> Result<Option<String>, Fault> {
     let row = tx
-        .query_opt("SELECT sql_sha256 FROM oo_release_api.install_manifest WHERE singleton", &[])
+        .query_opt(
+            "SELECT sql_sha256 FROM oo_release_api.install_manifest WHERE singleton",
+            &[],
+        )
         .await
         .map_err(|_| Fault::refused("dependency.not_ready"))?;
     match row {
-        Some(row) => Ok(Some(row.try_get(0).map_err(|_| Fault::refused("dependency.not_ready"))?)),
+        Some(row) => Ok(Some(
+            row.try_get(0)
+                .map_err(|_| Fault::refused("dependency.not_ready"))?,
+        )),
         None => Ok(None),
     }
 }
@@ -1101,7 +1392,10 @@ async fn connect_pg(endpoint: &PgEndpoint) -> Result<Client, Fault> {
     config.application_name("oo-release-control-api");
     config.connect_timeout(Duration::from_secs(10));
     let tls = pg_tls(&endpoint.ca_pem)?;
-    let (client, connection) = config.connect(tls).await.map_err(|_| Fault::refused("dependency.not_ready"))?;
+    let (client, connection) = config
+        .connect(tls)
+        .await
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
     tokio::spawn(async move {
         let _ = connection.await;
     });
@@ -1109,9 +1403,18 @@ async fn connect_pg(endpoint: &PgEndpoint) -> Result<Client, Fault> {
 }
 
 async fn require_user(client: &Client, expected: &str) -> Result<(), Fault> {
-    let row = client.query_one("SELECT current_user", &[]).await.map_err(|_| Fault::refused("dependency.not_ready"))?;
-    let user: String = row.try_get(0).map_err(|_| Fault::refused("dependency.not_ready"))?;
-    if user == expected { Ok(()) } else { Err(Fault::refused("login_role")) }
+    let row = client
+        .query_one("SELECT current_user", &[])
+        .await
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
+    let user: String = row
+        .try_get(0)
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
+    if user == expected {
+        Ok(())
+    } else {
+        Err(Fault::refused("login_role"))
+    }
 }
 
 async fn require_tls(client: &Client) -> Result<(), Fault> {
@@ -1119,8 +1422,12 @@ async fn require_tls(client: &Client) -> Result<(), Fault> {
         .query_one("SELECT ssl, version FROM pg_catalog.pg_stat_ssl WHERE pid = pg_catalog.pg_backend_pid()", &[])
         .await
         .map_err(|_| Fault::refused("dependency.not_ready"))?;
-    let ssl: bool = row.try_get(0).map_err(|_| Fault::refused("dependency.not_ready"))?;
-    let version: Option<String> = row.try_get(1).map_err(|_| Fault::refused("dependency.not_ready"))?;
+    let ssl: bool = row
+        .try_get(0)
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
+    let version: Option<String> = row
+        .try_get(1)
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
     match version {
         Some(version) if ssl && version.starts_with("TLSv1.") => Ok(()),
         _ => Err(Fault::refused("dependency.not_ready")),
@@ -1128,7 +1435,10 @@ async fn require_tls(client: &Client) -> Result<(), Fault> {
 }
 
 async fn begin_api(client: &mut Client) -> Result<Transaction<'_>, ApiError> {
-    let tx = client.transaction().await.map_err(|_| ApiError::not_ready("postgres"))?;
+    let tx = client
+        .transaction()
+        .await
+        .map_err(|_| ApiError::not_ready("postgres"))?;
     if let Err(err) = tx.batch_execute(SET_LOCAL).await {
         let _ = tx.rollback().await;
         return Err(db_api(err, false));
@@ -1144,10 +1454,17 @@ async fn commit_api(tx: Transaction<'_>) -> Result<(), ApiError> {
 }
 
 async fn begin_fault(client: &mut Client) -> Result<Transaction<'_>, Fault> {
-    let tx = client.transaction().await.map_err(|_| Fault::refused("dependency.not_ready"))?;
+    let tx = client
+        .transaction()
+        .await
+        .map_err(|_| Fault::refused("dependency.not_ready"))?;
     if let Err(err) = tx.batch_execute(SET_LOCAL).await {
         let _ = tx.rollback().await;
-        return Err(if err.code().is_none() { Fault::commit_unknown() } else { Fault::refused("dependency.not_ready") });
+        return Err(if err.code().is_none() {
+            Fault::commit_unknown()
+        } else {
+            Fault::refused("dependency.not_ready")
+        });
     }
     Ok(tx)
 }
@@ -1155,12 +1472,20 @@ async fn begin_fault(client: &mut Client) -> Result<Transaction<'_>, Fault> {
 async fn commit_fault(tx: Transaction<'_>) -> Result<(), Fault> {
     match tx.commit().await {
         Ok(()) => Ok(()),
-        Err(err) => Err(if err.code().is_none() { Fault::commit_unknown() } else { Fault::refused("dependency.not_ready") }),
+        Err(err) => Err(if err.code().is_none() {
+            Fault::commit_unknown()
+        } else {
+            Fault::refused("dependency.not_ready")
+        }),
     }
 }
 
 fn db_api(err: tokio_postgres::Error, commit: bool) -> ApiError {
-    if commit && err.code().is_none() { ApiError::commit_unknown() } else { ApiError::not_ready("postgres") }
+    if commit && err.code().is_none() {
+        ApiError::commit_unknown()
+    } else {
+        ApiError::not_ready("postgres")
+    }
 }
 
 fn store_fault(err: StoreError) -> Fault {
@@ -1195,12 +1520,20 @@ fn lineage_of_op(operation: &Operation) -> Lineage {
 
 fn text_field(body: &Value, key: &str) -> Option<String> {
     let text = body.get(key).and_then(Value::as_str)?;
-    if hex64(text) { Some(text.to_owned()) } else { None }
+    if hex64(text) {
+        Some(text.to_owned())
+    } else {
+        None
+    }
 }
 
 fn token_field(value: Option<&str>) -> Option<String> {
     let text = value?;
-    if (1..=64).contains(&text.len()) && text.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_') {
+    if (1..=64).contains(&text.len())
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
         Some(text.to_owned())
     } else {
         None
@@ -1208,9 +1541,18 @@ fn token_field(value: Option<&str>) -> Option<String> {
 }
 
 fn unsafe_claim(body: &Value) -> bool {
-    ["production_ready_certificate", "customer_gate_verified", "owner_authenticated", "runsc_verified", "production_ready", "credential_verified", "integrity_verified", "full_sp08_accepted"]
-        .iter()
-        .any(|key| body.get(*key) == Some(&Value::Bool(true)))
+    [
+        "production_ready_certificate",
+        "customer_gate_verified",
+        "owner_authenticated",
+        "runsc_verified",
+        "production_ready",
+        "credential_verified",
+        "integrity_verified",
+        "full_sp08_accepted",
+    ]
+    .iter()
+    .any(|key| body.get(*key) == Some(&Value::Bool(true)))
 }
 
 fn gates_text(body: &Value) -> String {
@@ -1218,7 +1560,10 @@ fn gates_text(body: &Value) -> String {
     if let Some(gates) = body.get("gates").and_then(Value::as_array) {
         for gate in gates {
             let gate_id = gate.get("gate_id").and_then(Value::as_str).unwrap_or("");
-            let disposition = gate.get("disposition").and_then(Value::as_str).unwrap_or("");
+            let disposition = gate
+                .get("disposition")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if token_field(Some(gate_id)).is_none() || token_field(Some(disposition)).is_none() {
                 continue;
             }
@@ -1255,13 +1600,21 @@ fn plan_admissible(receipt: &Receipt) -> bool {
     matches!(outcome, Some("planned") | Some("replay")) && state == Some("gates_passed")
 }
 
-fn publish_finish(receipt: &Receipt, source: Option<String>, digest: Option<String>, manifest: Option<String>) -> Control {
+fn publish_finish(
+    receipt: &Receipt,
+    source: Option<String>,
+    digest: Option<String>,
+    manifest: Option<String>,
+) -> Control {
     if unsafe_claim(&receipt.body) {
         return refused_control("false_claim", source, digest, manifest);
     }
     let outcome = receipt.body.get("outcome").and_then(Value::as_str);
     let state = receipt.body.get("state").and_then(Value::as_str);
-    let class = receipt.body.get("certificate_class").and_then(Value::as_str);
+    let class = receipt
+        .body
+        .get("certificate_class")
+        .and_then(Value::as_str);
     let ok = outcome == Some("activated") || (outcome == Some("replay") && state == Some("active"));
     if ok && state == Some("active") && class == Some("test_scope_not_production") {
         Control::Finish(Finish {
@@ -1279,7 +1632,12 @@ fn publish_finish(receipt: &Receipt, source: Option<String>, digest: Option<Stri
     }
 }
 
-fn production_finish(receipt: &Receipt, source: Option<String>, digest: Option<String>, manifest: Option<String>) -> Control {
+fn production_finish(
+    receipt: &Receipt,
+    source: Option<String>,
+    digest: Option<String>,
+    manifest: Option<String>,
+) -> Control {
     let mut finish = match finish_receipt(receipt, "not_issued", "refused") {
         Control::Finish(finish) => finish,
         other => return other,
@@ -1301,7 +1659,8 @@ fn rollback_finish(receipt: &Receipt) -> Control {
     }
     let outcome = receipt.body.get("outcome").and_then(Value::as_str);
     let state = receipt.body.get("state").and_then(Value::as_str);
-    let ok = outcome == Some("rolled_back") || (outcome == Some("replay") && state == Some("inactive"));
+    let ok =
+        outcome == Some("rolled_back") || (outcome == Some("replay") && state == Some("inactive"));
     if !ok {
         return finish_receipt(receipt, "not_issued", "refused");
     }
@@ -1319,11 +1678,20 @@ fn rollback_finish(receipt: &Receipt) -> Control {
 
 fn finish_receipt(receipt: &Receipt, class: &'static str, status: &'static str) -> Control {
     if unsafe_claim(&receipt.body) {
-        return refused_control("false_claim", text_field(&receipt.body, "source_hash"), text_field(&receipt.body, "pack_digest"), text_field(&receipt.body, "manifest_sha256"));
+        return refused_control(
+            "false_claim",
+            text_field(&receipt.body, "source_hash"),
+            text_field(&receipt.body, "pack_digest"),
+            text_field(&receipt.body, "manifest_sha256"),
+        );
     }
     let outcome = token_field(receipt.body.get("outcome").and_then(Value::as_str));
     let reason = token_field(receipt.body.get("reason").and_then(Value::as_str)).or_else(|| {
-        if status == "refused" { Some("refused".to_owned()) } else { None }
+        if status == "refused" {
+            Some("refused".to_owned())
+        } else {
+            None
+        }
     });
     Control::Finish(Finish {
         status,
@@ -1337,7 +1705,12 @@ fn finish_receipt(receipt: &Receipt, class: &'static str, status: &'static str) 
     })
 }
 
-fn refused_control(reason: &str, source: Option<String>, digest: Option<String>, manifest: Option<String>) -> Control {
+fn refused_control(
+    reason: &str,
+    source: Option<String>,
+    digest: Option<String>,
+    manifest: Option<String>,
+) -> Control {
     Control::Finish(Finish {
         status: "refused",
         outcome: Some("refused".to_owned()),

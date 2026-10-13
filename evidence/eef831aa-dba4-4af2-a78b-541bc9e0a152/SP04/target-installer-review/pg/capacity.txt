@@ -1,1 +1,0 @@
-own_postgres_running=0 other_postgres_running=1

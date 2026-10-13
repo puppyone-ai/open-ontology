@@ -1,1 +1,0 @@
-docker run --name oo-a197-focused-3 --platform linux/arm64 --pull never --network oo-a197-eef831aa-net --cap-drop ALL image=pinned-rust-1.94 bash /inside.sh

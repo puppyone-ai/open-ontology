@@ -1,0 +1,17 @@
+{
+  "task": "DL01-W1-36",
+  "fixed_review": "cb5b71e37528f0181e11449fab3391242f66fbec",
+  "source": "5bd6e414bf0b3ca008dc413fb39f2c6d0aa8bae5",
+  "seal": "8d6ace6f5607c88184dea4881ce13ea2f9da8ab7",
+  "verified_sha_entries": 133,
+  "decision": "approve_frozen_semantics_compiler_child",
+  "scope": "native optionalOOS semantics/quality versus consistency/unit/declaredFK/rolePack source section; fixture compiler not liveDB/DBP8/freshness/source",
+  "failed_review_harness_runs_preserved": [
+    1,
+    101
+  ],
+  "actual_corrected_cli_rerun": 0,
+  "development_acceptance_delta": 1,
+  "source_acceptance_delta": 0,
+  "new_sealed_catalog_compiler_W05_live_owner_preserved": true
+}

@@ -27,6 +27,10 @@
 //! Token counts are unsupported. Byte and entry ceilings are enforced and are
 //! not token budgets. Domain files, file splitting, search, mount, and a
 //! publish gate are unsupported.
+//!
+//! README states that every SQL example is PostgreSQL, whatever the source
+//! was. A dataset `source_semantics` record renders `## 来源与语义` on that
+//! table page. Hidden columns and hidden datasets are omitted from the section.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -40,9 +44,9 @@ use oo_core::json_scan::parse_json_value;
 use oo_core::oos::{
     CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EnumFile,
     EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile, OntologyFile,
-    RelationProvenance, Relationship, RelationshipsFile, ReviewState, Term, TermStatus,
-    VerifiedExample, validate_calendar, validate_dataset, validate_enum, validate_glossary,
-    validate_metrics, validate_relationships,
+    RelationProvenance, Relationship, RelationshipsFile, ReviewState, SourceSemantics, Term,
+    TermStatus, VerifiedExample, validate_calendar, validate_dataset, validate_enum,
+    validate_glossary, validate_metrics, validate_relationships,
 };
 use oo_core::text::{BoundedText, Label, TableName};
 
@@ -69,6 +73,8 @@ const MAX_ENUMS: usize = 128;
 const MAX_ENUM_VALUES: usize = 256;
 const MAX_ENTITIES: usize = 64;
 const MAX_PATH_BYTES: usize = 256;
+
+const PG_DIALECT_SENTENCE: &str = "所有 SQL 为 PostgreSQL 方言，无论数据来自何种源库";
 
 const UNREVIEWED_TOKENS: &[&str] = &[
     "column_descriptions",
@@ -2007,6 +2013,8 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
     line(&mut text, &format!("role: `{}`", model.role.as_str()));
     text.push('\n');
     text.push_str("This file is a read-only role pack. It does not authenticate the caller and it does not grant privileges. Visibility came from a supplied policy snapshot.\n\n");
+    text.push_str(PG_DIALECT_SENTENCE);
+    text.push_str("\n\n");
     text.push_str("Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n");
     text.push_str("Visible schemas: ");
     text.push_str(&schemas.into_iter().collect::<Vec<_>>().join(", "));
@@ -2188,7 +2196,118 @@ fn render_table(
     if !any {
         text.push_str("None.\n");
     }
+    render_source_semantics(&mut text, dataset, grant)?;
     finish(text)
+}
+
+fn render_source_semantics(
+    text: &mut String,
+    dataset: &DatasetFile,
+    grant: &Grant,
+) -> Result<(), RolePackError> {
+    let Some(semantics) = &dataset.source_semantics else {
+        return Ok(());
+    };
+    let hidden: BTreeSet<&str> = dataset
+        .columns
+        .iter()
+        .filter(|column| !grant.columns.contains(column.name.as_str()))
+        .map(|column| column.name.as_str())
+        .collect();
+    text.push_str("\n## 来源与语义\n\n");
+    line(
+        text,
+        &format!("source_kind: {}", semantics.source_kind.as_str()),
+    );
+    if let Some(grade) = semantics.grade {
+        line(
+            text,
+            &format!("consistency_grade: {}", enum_token(&grade)?),
+        );
+    }
+    if let Some(delete_detection) = &semantics.delete_detection {
+        line(
+            text,
+            &format!("delete_detection: {}", delete_detection.as_str()),
+        );
+    }
+    line(text, &format!("family: {}", semantics.family.as_str()));
+    line(text, &format!("product: {}", semantics.product.as_str()));
+    line(text, &format!("version: {}", semantics.version.as_str()));
+    line(text, &format!("capture: {}", semantics.capture.as_str()));
+    let mut tokens = BTreeSet::new();
+    for caveat in &semantics.caveats {
+        if !hidden.contains(caveat.as_str()) {
+            tokens.insert(caveat.as_str());
+        }
+    }
+    for column in visible_source_columns(semantics, &hidden, grant) {
+        for caveat in &column.caveats {
+            if !hidden.contains(caveat.as_str()) {
+                tokens.insert(caveat.as_str());
+            }
+        }
+    }
+    if tokens.is_empty() {
+        line(text, "caveats: none");
+    } else {
+        line(
+            text,
+            &format!(
+                "caveats: {}",
+                tokens.into_iter().collect::<Vec<_>>().join(", ")
+            ),
+        );
+    }
+    for column in visible_source_columns(semantics, &hidden, grant) {
+        if let Some(note) = &column.native_note
+            && !hidden.contains(note.as_str())
+        {
+            line(
+                text,
+                &format!("native: {} {}", column.column.as_str(), note.as_str()),
+            );
+        }
+    }
+    for constraint in &semantics.constraint_trust {
+        if hidden.contains(constraint.name.as_str()) {
+            continue;
+        }
+        if constraint.columns.iter().any(|column| {
+            hidden.contains(column.as_str()) || !grant.columns.contains(column.as_str())
+        }) {
+            continue;
+        }
+        let mut row = format!(
+            "constraint: {} kind {} trust {} disposition {}",
+            constraint.name.as_str(),
+            enum_token(&constraint.kind)?,
+            enum_token(&constraint.trust)?,
+            enum_token(&constraint.disposition)?,
+        );
+        if let Some(inclusion) = &constraint.inclusion {
+            row.push_str(&format!(
+                " rows {} ratio_thousandths {}",
+                inclusion.rows_checked, inclusion.ratio_thousandths
+            ));
+        }
+        line(text, &row);
+    }
+    Ok(())
+}
+
+fn visible_source_columns<'a>(
+    semantics: &'a SourceSemantics,
+    hidden: &BTreeSet<&str>,
+    grant: &Grant,
+) -> Vec<&'a oo_core::oos::SourceColumnSemantics> {
+    semantics
+        .columns
+        .iter()
+        .filter(|column| {
+            !hidden.contains(column.column.as_str()) && grant.columns.contains(column.column.as_str())
+        })
+        .collect()
 }
 
 fn column_notes(model: &Model, column: &DatasetColumn) -> Result<String, RolePackError> {
@@ -2865,9 +2984,9 @@ fn check_policy_id(value: &str, path: &str) -> Result<(), RolePackError> {
 }
 
 fn check_knowledge_id(value: &str, path: &str) -> Result<(), RolePackError> {
-    // The role-pack slug is the existing knowledge token. A hyphen stays
-    // legal here and illegal in ontology-dialogue. This compiler does not
-    // rewrite `know-a317` or any other identifier.
+    // Knowledge uses this slug: a lowercase letter, then lowercase letters,
+    // digits, `_`, or `-`, length 1..=63. Dialogue uses the same rule.
+    // This compiler does not rewrite `know-a317`.
     check_slug(value, path)
 }
 

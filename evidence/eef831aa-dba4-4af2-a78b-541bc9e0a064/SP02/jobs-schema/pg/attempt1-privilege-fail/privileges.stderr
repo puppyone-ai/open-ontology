@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/assert_privileges.sql:97: ERROR:  future object leaked a public grant
-CONTEXT:  PL/pgSQL function inline_code_block line 18 at RAISE

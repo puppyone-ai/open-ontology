@@ -1,8 +1,0 @@
-Proof attempt 2. docker-run.exit 101. proof.exit 101. phases/test.exit 101.
-Container 3e30fb467916 was removed by the launch script. Lib policy tests passed. Product hashes matched the smoke.
-
-The live test passed the P0001 and product-message checks, then panicked because a229_second_hit was 0. oracle.txt records post_grant_fault=raised, post_grant_sqlstate=P0001, post_grant_product_message=db_error, and stops before the rollback facts.
-
-postgres-fault.log: `a229 post-grant fault grant 4 hit f detail <NULL>`. pg_event_trigger_ddl_commands() returned a row whose non-null concatenation was wiped by a null objid or command tag, and pg_class.relname did not match the second table. This attempt does not prove rollback.
-
-The next overlay reads current_query() as well, and still checks role absence when the table name stays unresolved.

@@ -1,0 +1,10 @@
+{
+  "task": "DL01-W1-29",
+  "collector": "Codex coordinator independent immutable packet collection",
+  "fixed_review_or_seal": "fd909f00d8007829cc0f28bbfa75a5d108100da7",
+  "entries_verified": 260,
+  "decision": "approve_setup_dependency",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0,
+  "scope": "real native setup only; Rust driver/Arrow/PG/Builder/Pack/source-loop remain pending"
+}

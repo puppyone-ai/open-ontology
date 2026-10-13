@@ -1,5 +1,0 @@
-PHASE toolchain=0
-PHASE arch=0
-PHASE overlay=0
-PHASE freeze=0
-smoke=ok

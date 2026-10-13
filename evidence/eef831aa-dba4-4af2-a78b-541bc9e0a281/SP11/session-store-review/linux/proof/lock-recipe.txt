@@ -1,1 +1,0 @@
-committed lock; cargo fetch --locked; no generate-lockfile; no cargo update

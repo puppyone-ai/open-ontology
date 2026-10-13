@@ -1,5 +1,0 @@
-volume /opt/pi-prefix rw=true
-bind /inside.sh rw=false
-bind /evidence rw=true
-volume /npm-cache rw=true
-

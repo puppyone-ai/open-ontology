@@ -1,8 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/tree/crates/oo-core)
-   Compiling enum-history v0.1.0 (/work/tree/tools/enum-history)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.38s
-     Running unittests src/lib.rs (/target/debug/deps/enum_history-5f6d621a40a2ea8f)
-     Running unittests src/main.rs (/target/debug/deps/enum_history-99b9c05e64ce6732)
-     Running tests/cli.rs (/target/debug/deps/cli-8a9abc35605770d8)
-     Running tests/handcomputed.rs (/target/debug/deps/handcomputed-6215cc3d3d9f58cf)
-   Doc-tests enum_history

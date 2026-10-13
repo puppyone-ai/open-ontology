@@ -1,3 +1,0 @@
-Attempt 2. docker-run exit 101. refuse exit 101. lock subset exit 0.
-Library compiled. The refuse test did not: expect_err requires Debug on ImportRequest, which stays without Debug.
-OOMKilled false. PostgreSQL stayed up. Container removed.

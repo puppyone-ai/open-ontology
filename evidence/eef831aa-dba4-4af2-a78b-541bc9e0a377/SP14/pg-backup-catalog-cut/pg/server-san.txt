@@ -1,3 +1,0 @@
-subject=CN=oo-a377-pg
-X509v3 Subject Alternative Name: 
-    DNS:oo-a377-pg

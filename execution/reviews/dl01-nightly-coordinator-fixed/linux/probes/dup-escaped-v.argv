@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/dup-escaped-v/matrix.yaml --package /harness/fixtures/dup-escaped-v/package

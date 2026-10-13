@@ -1,9 +1,0 @@
-origin_commit=a587031c719a484830d78e493605f48e2056cae4
-origin_subject=evidence: record the a200 policy catalog review
-25712207f986b11e122bd992d5a695881e1e86625e0edf2d0b683b023ebfdd2f  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/pg-wrap.sh
-96613a159f6c05b4a8d8d1fb79bb2613ae9b3e9a00a7b942196548a00964da45  evidence/eef831aa-dba4-4af2-a78b-541bc9e0a200/SP06/policy-catalog-review/pg/up.sh
-pg-wrap.sh in this packet is the same bytes.
-up.sh keeps the image digest, capability set, memory, cpu, private bridge, and secret-file entrypoint. Resource names are a379-private.
-init-roles.sh follows the a375 identity role script with a379 temp paths. It creates oo_identity_runtime and oo_identity_admin and the identity database. It does not TRUNCATE.
-The Rust builder uses image docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5, cap-drop ALL, no-new-privileges, 6 GiB, 1 CPU, and a private cargo volume.
-PostgreSQL image docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb, 1 GiB, 1 CPU, no host port.

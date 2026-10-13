@@ -1,3 +1,0 @@
-smoke_overlay=0
-oracle_overlay=tests/a148_copy_oracle.rs
-production_blobs_match_fixed=1

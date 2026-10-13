@@ -1,6 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/owner_max_high.sql:16: ERROR:  23514: new row for relation "tasks" violates check constraint "tasks_max_attempts_check"
-DETAIL:  Failing row contains (aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa16, 11111111-1111-4111-8111-111111111111, snapshot_block, 1, {"v": 1}, cfg-1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, max-high, queued, 2026-10-01 23:27:49.02352+00, 0, 33, null, null, 0, null, 2026-10-01 23:27:49.02352+00, 2026-10-01 23:27:49.02352+00).
-SCHEMA NAME:  jobs
-TABLE NAME:  tasks
-CONSTRAINT NAME:  tasks_max_attempts_check
-LOCATION:  ExecConstraints, execMain.c:2074

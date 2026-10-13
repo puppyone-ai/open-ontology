@@ -1,1 +1,0 @@
-policy.rs rustfmt --check rewrites pre-existing lines. Attempt 1 kept that log. This run checks the test file only.

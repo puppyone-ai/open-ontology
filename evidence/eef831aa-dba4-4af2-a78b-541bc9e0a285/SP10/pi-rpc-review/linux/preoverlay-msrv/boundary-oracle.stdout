@@ -1,7 +1,0 @@
-boundary pairs_response_id_and_keeps_the_event=ok
-boundary pairs_out_of_order_ids=ok
-boundary reports_clean_eof=ok
-boundary reports_a_partial_line_at_eof=ok
-boundary deadline_elapses_before_a_late_process=ok
-boundary observed_fixtures_map_without_inventing_tool_events=ok
-boundary_ok

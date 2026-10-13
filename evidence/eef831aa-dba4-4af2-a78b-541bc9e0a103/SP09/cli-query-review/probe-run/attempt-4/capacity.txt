@@ -1,4 +1,0 @@
-labeled_rust_builders=1
-own_rust_builders=0
-host_toolchain_comms=0
-global=1

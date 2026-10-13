@@ -1,3 +1,0 @@
-name=oo-a079-pg1710 image=3aac91d19d5b status=Up 5 minutes
-name=oo-a080-msrv-f669cc94 image=0f24958fa693 status=Up 10 minutes
-name=oo-a072-pg1710-7c1a0e2b-4f63-4b0a-9c2d-11a072fence01 image=3aac91d19d5b status=Up About an hour

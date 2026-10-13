@@ -1,1 +1,0 @@
-The host invoked clippy-resume.sh without execute permission. Exit 126. No container started. The next invocation is bash clippy-resume.sh.

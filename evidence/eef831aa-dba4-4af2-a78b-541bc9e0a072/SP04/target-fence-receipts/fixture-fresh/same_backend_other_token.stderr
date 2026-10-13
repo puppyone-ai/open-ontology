@@ -1,3 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/oo017.sql:9: ERROR:  OO017: this backend already holds the shard
-CONTEXT:  PL/pgSQL function adopt_target_generation(text,uuid) line 76 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

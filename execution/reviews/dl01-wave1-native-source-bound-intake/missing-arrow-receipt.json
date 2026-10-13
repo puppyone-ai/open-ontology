@@ -1,0 +1,15 @@
+[
+  {
+    "task": "06",
+    "fixed_sha": "2e0bd098363ace48bda9b9127f5fabe6d3a1647d",
+    "manifest": "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import/source-bound-loader/SHA256SUMS",
+    "fixed_git_hashes_checked": 202,
+    "errors": [
+      "missing:raw/arrow/canonical.arrow",
+      "missing:raw/arrow/gen1.arrow",
+      "missing:raw/arrow/gen2.arrow"
+    ],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

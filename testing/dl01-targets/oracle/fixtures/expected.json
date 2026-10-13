@@ -1,0 +1,40 @@
+{
+  "number_exact_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "number_not_binary64_ids": [5, 6],
+  "number_overflow": {
+    "to_number_1e126": "accepted_code_0",
+    "to_number_1e131": "underflow_to_0",
+    "power_10_126": -6502,
+    "power_10_130": -6502,
+    "number_38_10_overflow": -1438,
+    "plsql_literal_1e126": "PLS-00569 compile failure preserved in attempts/1"
+  },
+  "text": {
+    "empty_literal_is_null": "Y",
+    "inserted_empty_is_null": "Y",
+    "inserted_null_is_null": "Y",
+    "space_is_null": "N",
+    "space_length": 1,
+    "char_padded_length": 4,
+    "char_empty_is_null": "Y"
+  },
+  "date": {
+    "1": "2024-03-15 00:00:00",
+    "2": "2024-03-15 13:45:59",
+    "3": "2024-03-15 00:00:01"
+  },
+  "date_after_dba_update_id2": "2024-03-15 23:59:58",
+  "timestamp9": {
+    "1": "2024-03-15 13:45:59.123456789",
+    "2": "2024-03-15 13:45:59.123456000",
+    "3": "9999-12-31 23:59:59.999999999"
+  },
+  "reader_dml_sqlcodes": [-1031, -41900],
+  "reader_ddl_sqlcode": -1031,
+  "noflash_sqlcodes": [-1031, -41900],
+  "stale_scn_sqlcodes": [-1555, -8180, -8181, -1466],
+  "audit_allow_actions": ["SELECT", "LOGON", "LOGOFF", "LOGOFF BY CLEANUP", "SESSION REC", "EXECUTE", "CALL", "PL/SQL EXECUTE", "ALTER SESSION", "COMMIT"],
+  "audit_forbid_actions": ["INSERT", "UPDATE", "DELETE", "CREATE TABLE", "ALTER DATABASE", "ALTER TABLE", "DROP TABLE", "GRANT", "LOGMINING"],
+  "cancel_marker": "oo-dl01w1-10-cancel",
+  "cancel_sqlcode": -1013
+}

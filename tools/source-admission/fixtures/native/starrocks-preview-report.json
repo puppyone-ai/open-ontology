@@ -1,0 +1,46 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "starrocks_w45",
+  "source_id": "sr_w45",
+  "secret_ref": "secret://oo-dl01w1-45/reader",
+  "driver": {
+    "kind": "native",
+    "name": "starrocks-probe",
+    "version": "3.5.21-85fccf8",
+    "digest": "abababababababababababababababababababababababababababababababab"
+  },
+  "compat_mode": "starrocks-native",
+  "license_flags": [],
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true},
+    {"name": "USAGE", "status": "known", "granted": true},
+    {"name": "CONNECT", "status": "known", "granted": true}
+  ],
+  "capabilities": [
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "experimental",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C4",
+      "write_class": "R0",
+      "consistency": "S0",
+      "token_order": "None",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {"unit": "Rows", "confidence": "unknown", "estimate": "1000"},
+  "r1w": null
+}

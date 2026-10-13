@@ -1,5 +1,0 @@
-bind_try=1 exit=125
-bind_try=2 exit=125
-bind_try=3 exit=125
-bind_try=4 exit=125
-bind_try=5 exit=125

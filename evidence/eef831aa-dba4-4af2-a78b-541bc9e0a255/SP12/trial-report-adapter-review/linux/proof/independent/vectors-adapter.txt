@@ -1,6 +1,0 @@
-left desk:pass,fail;gate:fail,fail;note:needs_reannotation,needs_reannotation;slow:fail,fail;drop:pass,pass
-right desk:pass,pass;gate:fail,fail;note:needs_reannotation,needs_reannotation;slow:pass,pass;drop:pass,fail
-
-left desk:fail,fail,fail,fail
-right desk:fail,fail,fail,fail
-

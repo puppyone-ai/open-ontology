@@ -1,1 +1,0 @@
-CapDrop=["ALL"] Privileged=false PortBindings={} NetworkMode=oo-a100-5dd178d8-net Tmpfs={"/tmp":"rw,nosuid,nodev,noexec,size=1g"} SecurityOpt=["no-new-privileges"] Memory=6442450944 NanoCpus=4000000000 PidsLimit=2048

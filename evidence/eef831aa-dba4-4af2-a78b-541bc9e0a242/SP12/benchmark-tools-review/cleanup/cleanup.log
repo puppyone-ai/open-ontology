@@ -1,7 +1,0 @@
-removed container oo-a242-pg
-removed volume oo-a242-eef831aa-cargo
-removed volume oo-a242-eef831aa-target
-removed volume oo-a242-eef831aa-pgdata
-removed network oo-a242-eef831aa-net
-removed tmp
-cleanup_ok

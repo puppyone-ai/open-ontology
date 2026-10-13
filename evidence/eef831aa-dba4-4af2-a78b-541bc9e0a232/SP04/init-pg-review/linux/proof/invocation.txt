@@ -1,1 +1,0 @@
-docker run --name oo-a232-proof --platform linux/arm64 --pull never --network oo-a232-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 attempt=1 bash /inside.sh

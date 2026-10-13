@@ -1,9 +1,0 @@
-tls_other_ca=handshake_reason_omitted
-tls_other_name=handshake_reason_omitted
-admin_tls=true
-login_rolinherit=true
-physical_table=pt_f79809783ebf2a7dfb549c414d95e4a05169de72684566385f1ebd09fa6b
-stale_physical_table=pt_9c1ecd15349f1c01aeaf938c758b57b3f74be6d11c4fab2834638dae4a1c
-generation_scoped=11
-generation_source_only=99
-generation_digest_only=50

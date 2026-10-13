@@ -1,7 +1,0 @@
-observed_at=2026-10-05T19:52:31Z
-name=oo-a212-smoke kind=rust-builder owner=a212 status=Up 22 seconds
-name=oo-a213-preoverlay kind=rust-builder owner=a213 status=Up About a minute
-name=oo-a210-pg kind=postgres owner=a210 status=Up 8 minutes
-name=oo-a208-pg kind=postgres owner=a208 status=Up 14 minutes
-name=oo-a203-pg kind=postgres owner=a203 status=Up About an hour
-host_toolchain_comm:

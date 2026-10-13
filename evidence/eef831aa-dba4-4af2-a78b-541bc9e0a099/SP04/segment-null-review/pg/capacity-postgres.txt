@@ -1,4 +1,0 @@
-when=2026-10-02T12:25:21Z
-attempt=3
-own_pg_all=0
-running_rust_builders=0

@@ -1,3 +1,0 @@
-7a2dd3ffdb56 oo-a210-pg 3aac91d19d5b a210 postgres
-d86414cd626e oo-a208-pg 3aac91d19d5b a208 postgres
-2fa76563fc84 oo-a203-pg 3aac91d19d5b a203 postgres

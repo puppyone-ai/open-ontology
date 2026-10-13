@@ -1,3 +1,0 @@
-host_rust_comm=0
-rust_image_containers=0
-total=0

@@ -1,1 +1,0 @@
-CHECK ((((segment_count IS NULL) AND (segment_index IS NULL) AND (octet_length(segment_bitmap) = 0)) OR ((segment_count >= 1) AND (segment_index >= 0) AND (segment_index < segment_count) AND ((octet_length(segment_bitmap) >= 1) AND (octet_length(segment_bitmap) <= 8192)))))

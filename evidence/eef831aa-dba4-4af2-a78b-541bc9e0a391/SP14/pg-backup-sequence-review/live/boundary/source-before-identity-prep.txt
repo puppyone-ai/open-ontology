@@ -1,3 +1,0 @@
-party|1
-amount|1.0001
-seq|41|t|32

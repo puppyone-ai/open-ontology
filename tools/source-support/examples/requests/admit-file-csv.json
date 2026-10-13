@@ -1,0 +1,21 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "file",
+    "product": "CSV/TSV/Excel/Parquet/JSONL/SQLite/SQL dump",
+    "version": "",
+    "variant": "upload",
+    "driver": {"path": "in-process-worker"},
+    "profile": "production",
+    "sync": "batch_full",
+    "format": "csv",
+    "driver_present": true
+  },
+  "registration": {
+    "project_id": "project",
+    "identity_revision": 1,
+    "source_ref": "orders_src",
+    "kind": "file_local",
+    "idempotency_key": "idem-1234567890abcd"
+  }
+}

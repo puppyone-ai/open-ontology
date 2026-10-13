@@ -8,23 +8,23 @@
 use std::fmt;
 
 use sha2::{Digest, Sha256};
-use sqlx::postgres::PgConnection;
 use sqlx::Connection;
+use sqlx::postgres::PgConnection;
 
 use oo_connectors::types::{ColumnMapping, ColumnPlan, TYPE_CONVERSION_PROTOCOL};
 use oo_connectors::{
     SnapshotBinding, SnapshotOwner, SnapshotRequest, SourceColumn, SourceError, StreamBudget,
     StreamItem,
 };
-use oo_core::canonical::{LogicalType, ARBITRARY_DECIMAL_SCALE};
 use oo_core::TYPE_POLICY_V1;
+use oo_core::canonical::{ARBITRARY_DECIMAL_SCALE, LogicalType};
 
 use crate::copy_encoder::{
     ArrowPhysical, CellPresence, CopyBudgets, CopyColumn, ExactDecimal, MapDecision, TypedBatch,
 };
 use crate::copy_sink::{self, SinkError};
 use crate::physical_mapping::{
-    plan_physical_mapping, quote_physical_name, Level, MappingRequest, PlanError,
+    Level, MappingRequest, PlanError, plan_physical_mapping, quote_physical_name,
 };
 use crate::target_installer::{sha256_hex, verify_full_import_readiness};
 
@@ -247,7 +247,10 @@ impl fmt::Display for ImportError {
             Self::Conflict => formatter.write_str("apply receipt identity conflict"),
             Self::Binding(message) | Self::Source(message) => formatter.write_str(message),
             Self::Database { sqlstate, message } => {
-                write!(formatter, "full import failed sqlstate={sqlstate} {message}")
+                write!(
+                    formatter,
+                    "full import failed sqlstate={sqlstate} {message}"
+                )
             }
         }
     }
@@ -327,7 +330,10 @@ pub async fn import_unpublished(
 
 impl ImportSession {
     /// Adopt the shard, open the source snapshot, and create the unpublished run.
-    pub async fn open(conn: &mut PgConnection, request: ImportRequest) -> Result<Self, ImportError> {
+    pub async fn open(
+        conn: &mut PgConnection,
+        request: ImportRequest,
+    ) -> Result<Self, ImportError> {
         verify_full_import_readiness(&mut *conn)
             .await
             .map_err(|_| ImportError::NotReady)?;
@@ -356,13 +362,8 @@ impl ImportSession {
         let input_digest = hex_bytes(&binding.input_digest);
         let schema_digest = binding.schema_hash.clone();
         let hook = hook_digest();
-        let tables = register_tables(
-            &mut *conn,
-            &binding,
-            source_generation,
-            &config_digest,
-        )
-        .await?;
+        let tables =
+            register_tables(&mut *conn, &binding, source_generation, &config_digest).await?;
         let run_id = match open_run(
             &mut *conn,
             &request.shard,
@@ -397,7 +398,14 @@ impl ImportSession {
         )
         .await
         {
-            let _ = retire_run(&mut *conn, &request.shard, &owner, target_generation, &run_id).await;
+            let _ = retire_run(
+                &mut *conn,
+                &request.shard,
+                &owner,
+                target_generation,
+                &run_id,
+            )
+            .await;
             let _ = reader.abort().await;
             return Err(error);
         }
@@ -531,10 +539,20 @@ impl ImportSession {
             || complete.schema_hash != self.schema_digest
         {
             let _ = self.retire_current(conn).await;
-            return Err(ImportError::Binding("run complete binding mismatch".to_string()));
+            return Err(ImportError::Binding(
+                "run complete binding mismatch".to_string(),
+            ));
         }
-        let selected_schema: Vec<String> = self.tables.iter().map(|table| table.schema_ident.clone()).collect();
-        let selected_table: Vec<String> = self.tables.iter().map(|table| table.table_ident.clone()).collect();
+        let selected_schema: Vec<String> = self
+            .tables
+            .iter()
+            .map(|table| table.schema_ident.clone())
+            .collect();
+        let selected_table: Vec<String> = self
+            .tables
+            .iter()
+            .map(|table| table.table_ident.clone())
+            .collect();
         let sealed: String = sqlx::query_scalar(
             "SELECT _oo.full_import_seal_run($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11::text[], $12::text[])",
         )
@@ -554,7 +572,9 @@ impl ImportSession {
         .await
         .map_err(database_error)?;
         if sealed != "awaiting_publish" {
-            return Err(ImportError::Binding("seal did not await publish".to_string()));
+            return Err(ImportError::Binding(
+                "seal did not await publish".to_string(),
+            ));
         }
         Ok(RunSummary {
             run_id: self.run_id,
@@ -566,10 +586,7 @@ impl ImportSession {
         })
     }
 
-    async fn hold_next<'c>(
-        &mut self,
-        conn: &'c mut PgConnection,
-    ) -> Result<Held<'c>, ImportError> {
+    async fn hold_next<'c>(&mut self, conn: &'c mut PgConnection) -> Result<Held<'c>, ImportError> {
         self.ensure_stream(conn).await?;
         let pulled = {
             let reader = self
@@ -693,7 +710,9 @@ impl ImportSession {
         .map_err(sink_error)?;
         if sent.hasher.finalize() != hashed.hasher.finalize() {
             let _ = tx.rollback().await;
-            return Err(ImportError::Binding("copy bytes changed between passes".to_string()));
+            return Err(ImportError::Binding(
+                "copy bytes changed between passes".to_string(),
+            ));
         }
         let wrote: String = sqlx::query_scalar(
             "SELECT _oo.full_import_write_batch($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::numeric, $16, $17, $18::text[], $19::bigint[], $20::integer[], $21::bigint[], $22::text[])",
@@ -779,10 +798,17 @@ impl ImportSession {
             .ok_or_else(|| ImportError::Binding("table end is not selected".to_string()))?;
         if self.tables[index].rows != rows {
             let _ = self.fail_reader(conn).await;
-            return Err(ImportError::Binding("table row coverage mismatch".to_string()));
+            return Err(ImportError::Binding(
+                "table row coverage mismatch".to_string(),
+            ));
         }
         if rows == 0 && self.tables[index].batches == 0 {
-            let empty = empty_batch(&self.tables[index], &self.source_id, self.source_generation, &self.input_digest)?;
+            let empty = empty_batch(
+                &self.tables[index],
+                &self.source_id,
+                self.source_generation,
+                &self.input_digest,
+            )?;
             match self.hold_batch(conn, &empty).await? {
                 Held::Open(pending) => {
                     let memory = pending.memory.clone();
@@ -797,18 +823,20 @@ impl ImportSession {
         }
         let digest = hex_bytes(self.tables[index].hasher.clone().finalize().as_ref());
         let rows_applied = i64::try_from(self.tables[index].rows).unwrap_or(i64::MAX);
-        sqlx::query("SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)")
-            .bind(&self.shard)
-            .bind(&self.owner)
-            .bind(self.target_generation)
-            .bind(&self.run_id)
-            .bind(i32::try_from(index).unwrap_or(i32::MAX))
-            .bind(rows_applied)
-            .bind(&digest)
-            .bind(&self.source_id)
-            .execute(&mut *conn)
-            .await
-            .map_err(database_error)?;
+        sqlx::query(
+            "SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)",
+        )
+        .bind(&self.shard)
+        .bind(&self.owner)
+        .bind(self.target_generation)
+        .bind(&self.run_id)
+        .bind(i32::try_from(index).unwrap_or(i32::MAX))
+        .bind(rows_applied)
+        .bind(&digest)
+        .bind(&self.source_id)
+        .execute(&mut *conn)
+        .await
+        .map_err(database_error)?;
         self.tables[index].exhausted = true;
         self.tables[index].canonical = digest;
         Ok(())
@@ -845,7 +873,9 @@ impl ImportSession {
             )
         };
         let batch_id = format!("t0.refuse.{}", self.run_id);
-        let payload = sha256_hex(quality_bytes(&batch_id, 0, rows.len() as u64, &self.input_digest, &[]).as_slice());
+        let payload = sha256_hex(
+            quality_bytes(&batch_id, 0, rows.len() as u64, &self.input_digest, &[]).as_slice(),
+        );
         let mut tx = conn.begin().await.map_err(database_error)?;
         sqlx::query(
             "SELECT _oo.full_import_record_refusal($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9::text[], $10::bigint[], $11::integer[], $12::bigint[], $13::text[])",
@@ -942,16 +972,15 @@ pub async fn recover(
     batch_id: &str,
     payload_digest: &str,
 ) -> Result<Recovery, ImportError> {
-    let result: Result<String, ImportError> = sqlx::query_scalar(
-        "SELECT _oo.full_import_recover($1, $2, $3, $4)",
-    )
-    .bind(source)
-    .bind(physical)
-    .bind(batch_id)
-    .bind(payload_digest)
-    .fetch_one(&mut *conn)
-    .await
-    .map_err(database_error);
+    let result: Result<String, ImportError> =
+        sqlx::query_scalar("SELECT _oo.full_import_recover($1, $2, $3, $4)")
+            .bind(source)
+            .bind(physical)
+            .bind(batch_id)
+            .bind(payload_digest)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(database_error);
     match result {
         Ok(value) if value == "replay" => Ok(Recovery::Replay),
         Ok(value) if value == "absent" => Ok(Recovery::Absent),
@@ -997,7 +1026,9 @@ pub async fn replay_batch(
     .map_err(database_error)?;
     tx.rollback().await.map_err(database_error)?;
     if decision != "replay" {
-        return Err(ImportError::Binding("replay was not the stored receipt".to_string()));
+        return Err(ImportError::Binding(
+            "replay was not the stored receipt".to_string(),
+        ));
     }
     Ok(ApplyStep::Replay {
         batch_id: commit.batch_id.clone(),
@@ -1139,6 +1170,32 @@ fn approved_catalog(binding: &SnapshotBinding) -> Result<(), ImportError> {
     Ok(())
 }
 
+/// One approved physical column. `typmod` is the stored `atttypmod`.
+/// This function does not invent a typmod from the column name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ApprovedColumn {
+    pub oid: i64,
+    pub typmod: i32,
+}
+
+/// Approve `columns` as `(oid, atttypmod)` pairs.
+/// A domain must be passed as its base oid. An unknown oid refuses the whole list.
+pub fn approved_columns(columns: &[(i64, i32)]) -> Result<Vec<ApprovedColumn>, &'static str> {
+    columns
+        .iter()
+        .map(|(oid, typmod)| approved_column_typmod(*oid, *typmod))
+        .collect()
+}
+
+/// Approve one base oid and return its physical typmod unchanged.
+pub fn approved_column_typmod(oid: i64, typmod: i32) -> Result<ApprovedColumn, &'static str> {
+    if APPROVED_OIDS.contains(&oid) {
+        Ok(ApprovedColumn { oid, typmod })
+    } else {
+        Err("unsupported type")
+    }
+}
+
 fn approved_column(column: &SourceColumn) -> Result<i64, ImportError> {
     if column.typtype != "b" && column.typtype != "d" {
         return Err(unsupported(column));
@@ -1148,11 +1205,9 @@ fn approved_column(column: &SourceColumn) -> Result<i64, ImportError> {
     } else {
         column.type_oid
     };
-    if APPROVED_OIDS.contains(&oid) {
-        Ok(oid)
-    } else {
-        Err(unsupported(column))
-    }
+    approved_column_typmod(oid, column.typmod)
+        .map(|approved| approved.oid)
+        .map_err(|_| unsupported(column))
 }
 
 fn unsupported(column: &SourceColumn) -> ImportError {
@@ -1257,35 +1312,34 @@ async fn register_one(
         logical_column: column.to_string(),
     };
     let plan = plan_physical_mapping(&request).map_err(plan_error)?;
-    sqlx::query(
-        "SELECT _oo.register_physical_mapping($1, $2, $3, $4, $5, $6, $7, $8)",
-    )
-    .bind(source)
-    .bind(config_digest)
-    .bind(source_generation)
-    .bind(level.as_str())
-    .bind(namespace)
-    .bind(table)
-    .bind(column)
-    .bind(plan.identity_digest.as_slice())
-    .execute(&mut *conn)
-    .await
-    .map_err(database_error)?;
-    let stored: String = sqlx::query_scalar(
-        "SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)",
-    )
-    .bind(source)
-    .bind(config_digest)
-    .bind(source_generation)
-    .bind(level.as_str())
-    .bind(namespace)
-    .bind(table)
-    .bind(column)
-    .fetch_one(&mut *conn)
-    .await
-    .map_err(database_error)?;
+    sqlx::query("SELECT _oo.register_physical_mapping($1, $2, $3, $4, $5, $6, $7, $8)")
+        .bind(source)
+        .bind(config_digest)
+        .bind(source_generation)
+        .bind(level.as_str())
+        .bind(namespace)
+        .bind(table)
+        .bind(column)
+        .bind(plan.identity_digest.as_slice())
+        .execute(&mut *conn)
+        .await
+        .map_err(database_error)?;
+    let stored: String =
+        sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)")
+            .bind(source)
+            .bind(config_digest)
+            .bind(source_generation)
+            .bind(level.as_str())
+            .bind(namespace)
+            .bind(table)
+            .bind(column)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(database_error)?;
     if stored != plan.physical_name {
-        return Err(ImportError::Binding("stored physical name mismatch".to_string()));
+        return Err(ImportError::Binding(
+            "stored physical name mismatch".to_string(),
+        ));
     }
     Ok(stored)
 }
@@ -1304,8 +1358,14 @@ async fn open_run(
     schema_digest: &str,
     tables: &[TableCursor],
 ) -> Result<String, ImportError> {
-    let schemas: Vec<String> = tables.iter().map(|table| table.schema_ident.clone()).collect();
-    let names: Vec<String> = tables.iter().map(|table| table.table_ident.clone()).collect();
+    let schemas: Vec<String> = tables
+        .iter()
+        .map(|table| table.schema_ident.clone())
+        .collect();
+    let names: Vec<String> = tables
+        .iter()
+        .map(|table| table.table_ident.clone())
+        .collect();
     let physical: Vec<String> = tables.iter().map(|table| table.physical.clone()).collect();
     let mut tx = conn.begin().await.map_err(database_error)?;
     let run_id: String = sqlx::query_scalar(
@@ -1344,7 +1404,11 @@ async fn prepare_shadows(
 ) -> Result<(), ImportError> {
     let mut tx = conn.begin().await.map_err(database_error)?;
     for table in tables {
-        let idents: Vec<String> = table.columns.iter().map(|column| column.ident.clone()).collect();
+        let idents: Vec<String> = table
+            .columns
+            .iter()
+            .map(|column| column.ident.clone())
+            .collect();
         let oids: Vec<i64> = table.columns.iter().map(|column| column.oid).collect();
         let typmods: Vec<i32> = table.columns.iter().map(|column| column.typmod).collect();
         let required: Vec<bool> = table.columns.iter().map(|column| column.not_null).collect();
@@ -1494,14 +1558,39 @@ fn reject_rows(batch: &TypedBatch) -> Vec<RejectByte> {
         .collect()
 }
 
-fn quality_bytes(
+/// One masked reject line in the full-import quality preimage.
+///
+/// `key_digest` is empty when the source did not capture one. The line does
+/// not contain the rejected value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QualityReject {
+    /// Closed reason token.
+    pub reason: String,
+    /// Wire length. Not the value.
+    pub value_len: i64,
+    /// Source attribute number.
+    pub attnum: i32,
+    /// Zero-based row index inside the batch.
+    pub row_index: i64,
+    /// Key digest, or empty when absent.
+    pub key_digest: String,
+}
+
+/// Bytes mixed into a payload digest after the COPY payload.
+///
+/// The first line is `full-import/v1 quality`. A batch with no reject lines
+/// and a rejected count of zero is the historical preimage. A later batch
+/// records one `reject` line per masked loss. The value itself is not a field.
+pub fn quality_preimage(
     batch_id: &str,
     accepted: u64,
     rejected: u64,
     input_digest: &str,
-    rejects: &[RejectByte],
+    rejects: &[QualityReject],
 ) -> Vec<u8> {
-    let mut text = format!("full-import/v1 quality\nbatch\t{batch_id}\t{accepted}\t{rejected}\t{input_digest}\n");
+    let mut text = format!(
+        "full-import/v1 quality\nbatch\t{batch_id}\t{accepted}\t{rejected}\t{input_digest}\n"
+    );
     for reject in rejects {
         text.push_str(&format!(
             "reject\t{}\t{}\t{}\t{}\t{}\t{input_digest}\n",
@@ -1509,6 +1598,26 @@ fn quality_bytes(
         ));
     }
     text.into_bytes()
+}
+
+fn quality_bytes(
+    batch_id: &str,
+    accepted: u64,
+    rejected: u64,
+    input_digest: &str,
+    rejects: &[RejectByte],
+) -> Vec<u8> {
+    let owned: Vec<QualityReject> = rejects
+        .iter()
+        .map(|reject| QualityReject {
+            reason: reject.reason.clone(),
+            value_len: reject.value_len,
+            attnum: reject.attnum,
+            row_index: reject.row_index,
+            key_digest: reject.key_digest.clone(),
+        })
+        .collect();
+    quality_preimage(batch_id, accepted, rejected, input_digest, &owned)
 }
 
 fn empty_batch(
@@ -1710,13 +1819,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn approved_columns_keep_the_physical_typmod() {
+        let numeric = approved_column_typmod(1700, 2_490_376).expect("numeric");
+        assert_eq!(numeric.typmod, 2_490_376);
+        let uuid = approved_column_typmod(2950, -1).expect("uuid");
+        assert_eq!(uuid.typmod, -1);
+        let rows = approved_columns(&[(1700, 2_490_376), (2950, -1)]).expect("rows");
+        assert_eq!(rows[0].typmod, 2_490_376);
+        assert_eq!(rows[1].oid, 2950);
+        assert!(approved_column_typmod(99999, -1).is_err());
+        assert!(approved_columns(&[(2950, -1), (1700, -1), (1, -1)]).is_err());
+    }
+
+    #[test]
     fn hook_digest_is_sixty_four_hex_and_snapshot_finished_is_not_used() {
         let digest = hook_digest();
         assert_eq!(digest.len(), 64);
-        assert!(digest.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(
+            digest
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        );
         let source = include_str!("full_import.rs");
         let banned = ["Snapshot", "Finished"].concat();
         assert!(!source.contains(&banned));
         assert!(source.contains("finish_complete"));
+    }
+
+    #[test]
+    fn quality_preimage_keeps_a_zero_reject_line_and_records_a_loss() {
+        let clear = quality_preimage("t0.b0", 5, 0, "abc", &[]);
+        assert_eq!(clear, b"full-import/v1 quality\nbatch\tt0.b0\t5\t0\tabc\n");
+        let loss = quality_preimage(
+            "t0.b0",
+            5,
+            1,
+            "abc",
+            &[QualityReject {
+                reason: "zero_date".to_string(),
+                value_len: 10,
+                attnum: 12,
+                row_index: 1,
+                key_digest: String::new(),
+            }],
+        );
+        let text = String::from_utf8(loss).expect("utf8");
+        assert!(text.starts_with("full-import/v1 quality\nbatch\tt0.b0\t5\t1\tabc\n"));
+        assert!(text.contains("reject\tzero_date\t10\t12\t1\t\tabc\n"));
+        assert!(!text.contains("raw"));
     }
 }

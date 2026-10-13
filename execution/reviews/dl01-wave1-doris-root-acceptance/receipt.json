@@ -1,0 +1,24 @@
+{
+  "source": "66c7d5bd24bdcf894976da9508cc963356079e06",
+  "evidence": "84bae33fd281e1bd29660b0f3de0bb6361fadda0",
+  "review": "881381eb7475f4146999986aeacbbff8651b5310",
+  "hash_checks": [
+    {
+      "tree": "84bae33fd281e1bd29660b0f3de0bb6361fadda0",
+      "manifest": "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/closure-run/SHA256SUMS",
+      "total": 146,
+      "verified": 146,
+      "bad": []
+    },
+    {
+      "tree": "881381eb7475f4146999986aeacbbff8651b5310",
+      "manifest": "evidence/8b618c52-fa81-4dbb-8876-6cb5458f5c4d/DL01/full-source-review/SHA256SUMS",
+      "total": 14,
+      "verified": 14,
+      "bad": []
+    }
+  ],
+  "scope": "complete controlled seven-table nonproduction preview only; formal DBA/nightly/matrix/parent/release open",
+  "source_count_before": 3,
+  "source_count_after": 4
+}

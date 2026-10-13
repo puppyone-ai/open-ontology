@@ -1,1 +1,0 @@
-Import reached awaiting_publish. mapping run_generation is source_generation 11. target_generation is 1. The harness compared those two and stopped. Preserved before comparing run_generation to source_generation.

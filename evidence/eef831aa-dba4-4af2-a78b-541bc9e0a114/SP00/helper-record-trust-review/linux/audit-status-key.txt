@@ -1,6 +1,0 @@
-status_key=False
-last_commit=117edb3bed98e9be112f277b7615eea3252e7c43
-last_updated=2026-10-02T10:58:33+02:00
-advisory_count=1280
-dependency_count=6
-vulnerabilities={"found":false,"count":0,"list":[]}

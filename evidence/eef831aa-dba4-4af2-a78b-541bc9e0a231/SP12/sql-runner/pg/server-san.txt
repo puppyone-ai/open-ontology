@@ -1,3 +1,0 @@
-subject=CN=oo-a231-pg
-X509v3 Subject Alternative Name: 
-    DNS:oo-a231-pg, DNS:oo-a198-pg

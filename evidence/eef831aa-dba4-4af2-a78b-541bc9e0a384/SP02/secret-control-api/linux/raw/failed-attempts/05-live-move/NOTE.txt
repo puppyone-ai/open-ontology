@@ -1,1 +1,0 @@
-cargo-clippy 101. absent(impl AsRef<str>) moved String values that were used again. Library still compiled. Tests skipped.

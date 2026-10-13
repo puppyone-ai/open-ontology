@@ -1,0 +1,23 @@
+{
+  "source": "9e95d6bdb4d062019fb4c01501ce04ba10dd2965",
+  "review": "e2ef111211ce132f5fb80ae5ea7112b2110b2301",
+  "hash_checks": [
+    {
+      "tree": "9e95d6bdb4d062019fb4c01501ce04ba10dd2965",
+      "manifest": "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/SHA256SUMS",
+      "total": 1725,
+      "verified": 1725,
+      "bad": []
+    },
+    {
+      "tree": "e2ef111211ce132f5fb80ae5ea7112b2110b2301",
+      "manifest": "evidence/52711bbe-e6bb-41ce-a299-60c21fc5ff99/DL01/clickhouse-full-source-review/SHA256SUMS",
+      "total": 15,
+      "verified": 15,
+      "bad": []
+    }
+  ],
+  "scope": "complete controlled nonproduction five-approved-column source preview; timeout/499 localfault injection explicitly scoped, fresh/cache/unknowncost actualupstream; formal DBA/nightly/matrix/parent/release open",
+  "source_count_before": 4,
+  "source_count_after": 5
+}

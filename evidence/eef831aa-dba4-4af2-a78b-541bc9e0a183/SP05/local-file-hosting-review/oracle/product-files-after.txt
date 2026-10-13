@@ -1,9 +1,0 @@
-product_files_after_run:
-computed_by=host follow-up after launch.sh path parser failed
-docker_run_exit=0
-1e9b9377cb2bdf951ab22f7f0a4b68649cb70e563f6ef13adad5852e1c72c657  Cargo.lock
-93388de344d1b932547b07c5308b3ef15b9958cce92fa1211d3b317b07444359  contracts/control/local-file-hosting-v1.md
-c39dd947f6e1a7b865e37698d9bcdbf178428baa0ff649c1cf4fee546f67bc14  crates/oo-control/Cargo.toml
-4443cc7b540645c499f32e414af3634ac742fe1e950ec140b64641272d8662fb  crates/oo-control/src/lib.rs
-be04737cdb78dda5d65ca46d1f0edf828843a5bb15a0c4005174390f86d7c9f2  crates/oo-control/src/file_hosting.rs
-f0bdbf128d697d2caf69b2dffe94611764cd29e75f9ac35881fdbea19b097540  crates/oo-control/tests/file_hosting.rs

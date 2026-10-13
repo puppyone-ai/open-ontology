@@ -1,0 +1,29 @@
+[
+  {
+    "task": "71",
+    "fixed_sha": "ed16eb71a48c7e0c4a1c65c3f601a45077742922",
+    "manifest": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/source-adapt/SHA256SUMS",
+    "fixed_git_hashes_checked": 153,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "41",
+    "fixed_sha": "9e1db7657c7a59cce92bf89a118afd68fb43270f",
+    "manifest": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/SHA256SUMS",
+    "fixed_git_hashes_checked": 1489,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "74",
+    "fixed_sha": "007025c2e693c8addbab049c5edb217be9765079",
+    "manifest": "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/INVENTORY.txt",
+    "fixed_git_hashes_checked": 332,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  }
+]

@@ -1,3 +1,0 @@
-/tmp/oo-a241-eef831aa-dba4-4af2-a78b-541bc9e0a241/fixture/admin.pass
-/tmp/oo-a241-eef831aa-dba4-4af2-a78b-541bc9e0a241/fixture/ca.crt
-/tmp/oo-a241-eef831aa-dba4-4af2-a78b-541bc9e0a241/fixture/login.pass

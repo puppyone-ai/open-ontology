@@ -1,1 +1,0 @@
-current_user=oo_a131_reader has_table=true has_column=true table_acl=true column_acl=false expr=Some(true) arrow_id=3 generation=1 data_pid=206 data_start=2026-10-03 17:47:42.991967+00 finish=SnapshotFinished backends=2 reader_writes=0 scans=2

@@ -1,4 +1,0 @@
-d384a3be5a409bfa4db7f5e78a929f52c9322daa5c57144accb2d21d3fba6559  /tmp/oo-a350-eef831aa-dba4-4af2-a78b-541bc9e0a350/proof-2/archive/crates/oo-gateway/src/http_gateway.rs
-21508340112cc4ab719d58790c3de0d7e8aad9d1f87d3f98304d4b44479e6d48  /tmp/oo-a350-eef831aa-dba4-4af2-a78b-541bc9e0a350/proof-2/archive/crates/oo-gateway/src/bin/oo-gateway.rs
-2870084816f5c6047101e3ca7adf7b5ded5e3910119b4305202d3e5aa8da0343  /tmp/oo-a350-eef831aa-dba4-4af2-a78b-541bc9e0a350/proof-2/archive/crates/oo-gateway/tests/http_gateway_tls.rs
-b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /tmp/oo-a350-eef831aa-dba4-4af2-a78b-541bc9e0a350/proof-2/archive/Cargo.lock

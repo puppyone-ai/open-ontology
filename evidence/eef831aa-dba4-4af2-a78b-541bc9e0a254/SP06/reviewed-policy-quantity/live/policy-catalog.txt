@@ -1,2 +1,0 @@
-customer estimated_rows=3 pending_unclassified=2 columns=customer_id,display_name,active
-order_doc estimated_rows=3 pending_unclassified=1 columns=order_id,customer_id,memo,posted,amount,clerk_note

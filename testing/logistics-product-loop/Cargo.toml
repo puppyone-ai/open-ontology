@@ -1,0 +1,24 @@
+[package]
+name = "logistics-product-loop"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+publish = false
+description = "Logistics fixture, independent gold, and the closed product-loop acceptance card."
+
+[workspace]
+resolver = "3"
+
+[[bin]]
+name = "logistics-product-loop"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

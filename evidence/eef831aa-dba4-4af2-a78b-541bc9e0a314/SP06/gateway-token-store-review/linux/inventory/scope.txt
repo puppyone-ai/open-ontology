@@ -1,7 +1,0 @@
-manifest_tool=tools/sha256_manifest.rs
-manifest_output=MANIFEST.sha256
-manifest_excludes_itself=true
-crate_recheck_written_before_walk=linux/inventory/crate-manifest-recheck.sha256
-fixed_crate_recheck_written_before_walk=linux/inventory/fixed-crate-recheck.sha256
-post_exit_outside_manifest=linux/inventory/docker-run.exit linux/inventory/hostconfig.txt linux/inventory/container-removed.txt linux/inventory/console.log linux/inventory/tmp-removed.txt
-console_during_run=/tmp/oo-a314-eef831aa-dba4-4af2-a78b-541bc9e0a314/inventory-console.log

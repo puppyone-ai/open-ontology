@@ -1,8 +1,0 @@
-followup cleanup 2026-10-07
-removed volumes oo-a328-eef831aa-cargo oo-a328-eef831aa-target
-removed network oo-a328-eef831aa-net
-removed tmp /tmp/oo-a328-eef831aa-dba4-4af2-a78b-541bc9e0a328
-no prune
-no foreign volume names were passed to docker volume rm
-a339 volumes oo-a339-eef831aa-cargo and oo-a339-eef831aa-target were still present afterward
-customer token file left in place

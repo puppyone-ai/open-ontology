@@ -1,4 +1,0 @@
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"41"},{"kind":"text","value":"丙号"}]}
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"42"},{"kind":"null"}]}
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"43"},{"kind":"text","value":"丁铺"}]}
-{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":18,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"6d065c52ad5b6298993d992f5ceab76163bd14e3fcad343e44f4dd61a41af586","executed_sha256":"f9d02e19a90ee212843513030745ebfb3659e936dab9878d59e8d598a3350dc1","stop":null,"sqlstate":null}

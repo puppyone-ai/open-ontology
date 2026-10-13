@@ -14,6 +14,22 @@ pub struct Config {
     pub admin_password: String,
     pub ca_pem: Vec<u8>,
     pub migrations: PathBuf,
+    pub target_database: Option<String>,
+    pub target_runtime_user: Option<String>,
+    pub target_runtime_password: Option<String>,
+    pub pipeline_migrations: Option<PathBuf>,
+    pub capture_root: Option<PathBuf>,
+    pub secret_ref: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaptureConfig {
+    pub target_database: String,
+    pub target_runtime_user: String,
+    pub target_runtime_password: String,
+    pub pipeline_migrations: PathBuf,
+    pub capture_root: PathBuf,
+    pub secret_ref: PathBuf,
 }
 
 impl Config {
@@ -28,6 +44,12 @@ impl Config {
         let mut admin_password_file = None;
         let mut ca_file = None;
         let mut migrations = None;
+        let mut target_database = None;
+        let mut target_runtime_user = None;
+        let mut target_runtime_password_file = None;
+        let mut pipeline_migrations = None;
+        let mut capture_root = None;
+        let mut secret_ref = None;
         for line in text.lines() {
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -50,12 +72,24 @@ impl Config {
                 "admin_password_file" => admin_password_file = Some(PathBuf::from(value)),
                 "ca_file" => ca_file = Some(PathBuf::from(value)),
                 "migrations" => migrations = Some(PathBuf::from(value)),
+                "target_database" => target_database = Some(value.to_string()),
+                "target_runtime_user" => target_runtime_user = Some(value.to_string()),
+                "target_runtime_password_file" => {
+                    target_runtime_password_file = Some(PathBuf::from(value));
+                }
+                "pipeline_migrations" => pipeline_migrations = Some(PathBuf::from(value)),
+                "capture_root" => capture_root = Some(PathBuf::from(value)),
+                "secret_ref" => secret_ref = Some(PathBuf::from(value)),
                 _ => return Err(Error::new("config")),
             }
         }
         let runtime_password = read_secret(runtime_password_file.as_deref())?;
         let admin_password = read_secret(admin_password_file.as_deref())?;
-        let ca_pem = fs::read(ca_file.ok_or_else(|| Error::new("config"))?).map_err(|_| Error::new("config"))?;
+        let ca_pem = match ca_file {
+            Some(path) => fs::read(path).map_err(|_| Error::new("config"))?,
+            None if host.as_deref().is_some_and(|h| h.starts_with('/') && !h.contains("..")) => Vec::new(),
+            None => return Err(Error::new("config")),
+        };
         Ok(Self {
             host: host.ok_or_else(|| Error::new("config"))?,
             port: port.ok_or_else(|| Error::new("config"))?,
@@ -66,6 +100,41 @@ impl Config {
             admin_password,
             ca_pem,
             migrations: migrations.ok_or_else(|| Error::new("config"))?,
+            target_database,
+            target_runtime_user,
+            target_runtime_password: match target_runtime_password_file {
+                Some(path) => Some(read_secret(Some(path.as_path()))?),
+                None => None,
+            },
+            pipeline_migrations,
+            capture_root,
+            secret_ref,
+        })
+    }
+
+    pub fn capture(&self) -> Result<CaptureConfig> {
+        Ok(CaptureConfig {
+            target_database: self
+                .target_database
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
+            target_runtime_user: self
+                .target_runtime_user
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
+            target_runtime_password: self
+                .target_runtime_password
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
+            pipeline_migrations: self
+                .pipeline_migrations
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
+            capture_root: self
+                .capture_root
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
+            secret_ref: self.secret_ref.clone().ok_or_else(|| Error::new("config"))?,
         })
     }
 }

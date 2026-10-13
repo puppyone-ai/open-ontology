@@ -1,1 +1,0 @@
-/opt/pi-prefix/install/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js

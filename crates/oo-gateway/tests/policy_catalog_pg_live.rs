@@ -1340,6 +1340,8 @@ fn request<'a>(
         max_rows: 20,
         max_result_bytes: 4_096,
         wall_clock: Duration::from_millis(30_000),
+        read_quality: false,
+        quality_vector: None,
     }
 }
 

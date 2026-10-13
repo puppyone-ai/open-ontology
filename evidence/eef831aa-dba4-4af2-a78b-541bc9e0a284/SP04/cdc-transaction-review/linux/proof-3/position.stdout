@@ -1,8 +1,0 @@
-
-running 3 tests
-test frozen_positions_fit_oo_core_position ... ok
-test max_epoch_and_lsn_fit_and_wider_values_do_not ... ok
-test sample_timestamps_keep_the_stored_spelling ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-

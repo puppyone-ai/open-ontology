@@ -1,1 +1,0 @@
-Rust 1.94 clippy -D warnings passed the library and failed tests/support/world.rs:536 needless_borrows_for_generic_args on serde_json::to_value. Removed the extra borrow. Exit 101. OOM false.

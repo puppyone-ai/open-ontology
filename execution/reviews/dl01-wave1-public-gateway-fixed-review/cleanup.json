@@ -1,0 +1,27 @@
+{
+  "prefix": "oo-dl01w1-76",
+  "removed_containers": [
+    "oo-dl01w1-76-caller",
+    "oo-dl01w1-76-gw-closed",
+    "oo-dl01w1-76-gw",
+    "oo-dl01w1-76-pg",
+    "oo-dl01w1-76-rust"
+  ],
+  "removed_network": "oo-dl01w1-76-net",
+  "removed_network_id": "28b3b4bebc3252fc77732c8b52fc5acfd7a5e264a374c01056cf9d390be180e4",
+  "removed_volumes": [
+    "oo-dl01w1-76-pgdata",
+    "oo-dl01w1-76-target"
+  ],
+  "host_tmp_removed": true,
+  "remaining_76_containers": [],
+  "remaining_76_networks": [],
+  "remaining_76_volumes": [],
+  "left_running": {
+    "oo-dl01w1-46-tgt": "running 2026-10-10T21:24:53.463368972Z",
+    "oo-dl01w1-46-src": "running 2026-10-11T20:25:20.870255502Z",
+    "oo-dl01w1-46-tools": "running 2026-10-10T21:24:53.670246389Z"
+  },
+  "author_cache_present": true,
+  "active_queries_from_gateway_ip_before_removal": 0
+}

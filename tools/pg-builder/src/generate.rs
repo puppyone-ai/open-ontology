@@ -44,6 +44,27 @@ pub struct LoopbackTransport {
 
 impl ChatTransport for LoopbackTransport {
     fn post(&mut self, body: &[u8]) -> Result<RawReply, PgBuilderError> {
+        let mut last = None;
+        for _ in 0..3 {
+            let reply = self.post_once(body)?;
+            let broken = reply.http_status == 0
+                && matches!(reply.refusal, Some("malformed_envelope" | "unavailable" | "partial"));
+            if !broken {
+                return Ok(reply);
+            }
+            last = Some(reply);
+        }
+        Ok(last.unwrap_or(RawReply {
+            http_status: 0,
+            body: Vec::new(),
+            latency_ms: 0,
+            refusal: Some("malformed_envelope"),
+        }))
+    }
+}
+
+impl LoopbackTransport {
+    fn post_once(&self, body: &[u8]) -> Result<RawReply, PgBuilderError> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -90,7 +111,12 @@ impl ChatTransport for ScriptedTransport {
         let usage = self.usage.map(|(prompt, completion, total)| {
             json!({"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": total})
         });
+        let requested_model = serde_json::from_slice::<Value>(body).ok()
+            .and_then(|request| request.get("model").and_then(Value::as_str).map(str::to_owned))
+            .unwrap_or_default();
         let envelope = json!({
+            "id": "chatcmpl-scripted",
+            "model": requested_model,
             "choices": [{
                 "finish_reason": self.finish_reason,
                 "message": {"role": "assistant", "content": self.content}
@@ -617,20 +643,20 @@ fn store_draft(input: &GenerateIn<'_>, exchange: Exchange<'_>, kept: Kept) -> Re
     Ok(doc)
 }
 
-struct Parsed {
-    status: &'static str,
-    refusal: Option<&'static str>,
-    finish_reason: Option<String>,
-    usage: Option<(u64, u64, u64)>,
-    http_status: u16,
-    latency_ms: u128,
-    raw: Vec<u8>,
-    content: String,
-    secret_echo: bool,
-    budget_reason: Option<&'static str>,
+pub(crate) struct Parsed {
+    pub(crate) status: &'static str,
+    pub(crate) refusal: Option<&'static str>,
+    pub(crate) finish_reason: Option<String>,
+    pub(crate) usage: Option<(u64, u64, u64)>,
+    pub(crate) http_status: u16,
+    pub(crate) latency_ms: u128,
+    pub(crate) raw: Vec<u8>,
+    pub(crate) content: String,
+    pub(crate) secret_echo: bool,
+    pub(crate) budget_reason: Option<&'static str>,
 }
 
-fn parse_completion(config: &Config, token: &str, reply: &RawReply) -> Result<Parsed, PgBuilderError> {
+pub(crate) fn parse_completion(config: &Config, token: &str, reply: &RawReply) -> Result<Parsed, PgBuilderError> {
     if let Some(refusal) = reply.refusal {
         let status = if refusal == "timeout" || refusal == "unavailable" || refusal == "redirect" {
             "provider_failure"
@@ -960,17 +986,25 @@ fn confidence_ok(text: &str) -> bool {
 }
 
 fn chat_body(config: &Config, user: &str) -> Result<Value, PgBuilderError> {
-    Ok(json!({
+    chat_request(config, PROMPT, user)
+}
+
+pub(crate) fn chat_request(config: &Config, system: &str, user: &str) -> Result<Value, PgBuilderError> {
+    let mut body = json!({
         "model": config.model_id,
         "temperature": 0,
         "stream": false,
         "max_completion_tokens": config.max_completion_tokens,
         "messages": [
-            {"role": "system", "content": PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": user}
         ],
         "response_format": {"type": "json_object"}
-    }))
+    });
+    if let Some(effort) = &config.reasoning_effort {
+        body["reasoning_effort"] = json!(effort);
+    }
+    Ok(body)
 }
 
 fn captured_command(command: &str, status: &str, body: Option<&str>) -> Result<String, PgBuilderError> {
@@ -997,6 +1031,7 @@ fn captured_command(command: &str, status: &str, body: Option<&str>) -> Result<S
 fn input_hash(config: &Config, cards: &Value, request: &Value, scope: &BatchScope<'_>) -> Result<String, PgBuilderError> {
     let key = json!({
         "protocol": "oo.pg-builder.cache-key/v2",
+        "reasoning_effort": config.reasoning_effort,
         "card_schema": crate::CARD_SCHEMA,
         "prompt_version": PROMPT_VERSION,
         "prompt_sha256": prompt_sha256(),

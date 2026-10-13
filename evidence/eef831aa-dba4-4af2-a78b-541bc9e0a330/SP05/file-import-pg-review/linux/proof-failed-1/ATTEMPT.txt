@@ -1,3 +1,0 @@
-Attempt 1. docker exit 1. OOMKilled false. Memory 6442450944. NanoCpus 1000000000.
-cargo 1.94 fetch rejects -p. The commands were `cargo fetch --locked --offline -p oo-connectors` and `cargo fetch --locked -p oo-connectors`. fetch.stderr is the raw refusal. fetch-offline and fetch both exited 1 before any download. The copy of inside.sh in this directory was taken after that line was removed, so this note is the command record.
-Author tests did not run. The container was removed. PostgreSQL stayed up.

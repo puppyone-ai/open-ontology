@@ -1,3 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
-     Running tests/captured_pg_cli.rs (/target/debug/deps/captured_pg_cli-8c7c78c23da21436)

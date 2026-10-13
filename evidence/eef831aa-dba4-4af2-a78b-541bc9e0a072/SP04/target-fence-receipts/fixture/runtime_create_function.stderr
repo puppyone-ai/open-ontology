@@ -1,2 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/reject_create_function.sql:5: ERROR:  42501: permission denied for schema public
-LOCATION:  aclcheck_error, aclchk.c:2843

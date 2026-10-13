@@ -1,4 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.06s
-     Running tests/http_gateway_tls.rs (/target/debug/deps/http_gateway_tls-bd6ef696b728cdd5)
-error: test failed, to rerun pass `-p oo-gateway --test http_gateway_tls`

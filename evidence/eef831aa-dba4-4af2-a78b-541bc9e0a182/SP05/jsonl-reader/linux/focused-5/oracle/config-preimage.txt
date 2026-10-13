@@ -1,7 +1,0 @@
-oo-jsonl-config-identity/v1
-oo-jsonl-profile/v1
-id=people
-column=name	utf8	1
-column=ok	bool	0
-column=n	int64	0
-expected_sha256=0d156573993aad8c4060dd56f3ec57d61c211c6157ce3cd8f822c6598daf7898

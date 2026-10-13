@@ -8,14 +8,14 @@ use std::path::Path;
 
 use oo_core::api::ErrorCode;
 use oo_gateway::{
-    connect_require_tls, guard_select, install_column_acl, ClassStatus, ColumnAclPolicy,
-    ColumnSpec, GuardError, GuardedPlan, InstallEffect, LiteralKind, LiteralTypes, LogicalTable,
-    OutputItem, PiiClass, PolicyCatalog, PolicyIdentity, ResolvedFunction, ResolvedOperator,
-    TlsEndpoint, VisibleColumn, VisibleRelation, PINNED_PARSER_VERSION, SQL_BYTE_BUDGET,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, GuardError, GuardedPlan, InstallEffect, LiteralKind,
+    LiteralTypes, LogicalTable, OutputItem, PINNED_PARSER_VERSION, PiiClass, PolicyCatalog,
+    PolicyIdentity, ResolvedFunction, ResolvedOperator, SQL_BYTE_BUDGET, TlsEndpoint,
+    VisibleColumn, VisibleRelation, connect_require_tls, guard_select, install_column_acl,
 };
 use sha2::{Digest, Sha256};
-use tokio_postgres::types::ToSql;
 use tokio_postgres::Client;
+use tokio_postgres::types::ToSql;
 
 const INT_OID: u32 = 11;
 const TEXT_OID: u32 = 13;
@@ -167,13 +167,73 @@ fn assert_silent(err: &GuardError, tokens: &[&str]) {
 }
 
 fn assert_physical(plan: &GuardedPlan, sql: &str) {
-    assert!(plan.executed_sql.contains("_oo"), "{sql}\n{}", plan.executed_sql);
+    assert!(
+        plan.executed_sql.contains("_oo"),
+        "{sql}\n{}",
+        plan.executed_sql
+    );
     assert!(
         plan.executed_sql.contains("pt_ship"),
         "{sql}\n{}",
         plan.executed_sql
     );
-    assert!(!plan.executed_sql.contains("secret"), "{sql}\n{}", plan.executed_sql);
+    assert!(
+        !plan.executed_sql.contains("secret"),
+        "{sql}\n{}",
+        plan.executed_sql
+    );
+}
+
+#[test]
+fn integer_literal_uses_the_numeric_operator() {
+    const NUM_OID: u32 = 1700;
+    const NUM_GT: u32 = 901;
+    let mut relations = vec![shipment(10)];
+    relations[0]
+        .columns
+        .push(col("amount", "pc_amount", NUM_OID));
+    let mut catalog = catalog(relations);
+    catalog.operators.push(ResolvedOperator {
+        oid: NUM_GT,
+        procedure_oid: 902,
+        schema: "pg_catalog".to_string(),
+        name: ">".to_string(),
+        left_type_oid: NUM_OID,
+        right_type_oid: NUM_OID,
+    });
+    let plan = guard_select(
+        &identity(),
+        &catalog,
+        "SELECT order_id FROM logistics.shipment WHERE amount > 10",
+    )
+    .expect("numeric comparison");
+    assert!(plan.bindings.operators.iter().any(|op| op.oid == NUM_GT));
+    assert!(plan.executed_sql.contains("pc_amount"));
+    assert!(plan.executed_sql.contains('>'));
+    let floated = guard_select(
+        &identity(),
+        &catalog,
+        "SELECT order_id FROM logistics.shipment WHERE amount > 10.5",
+    );
+    assert!(matches!(
+        floated,
+        Err(GuardError::Unsupported {
+            construct: "float literal"
+        })
+    ));
+    let int_column = guard_select(
+        &identity(),
+        &catalog,
+        "SELECT order_id FROM logistics.shipment WHERE order_id > 10",
+    );
+    assert!(matches!(int_column, Err(GuardError::FunctionNotAllowed)));
+    catalog.operators.pop();
+    let denied = guard_select(
+        &identity(),
+        &catalog,
+        "SELECT order_id FROM logistics.shipment WHERE amount > 10",
+    );
+    assert!(matches!(denied, Err(GuardError::FunctionNotAllowed)));
 }
 
 #[test]
@@ -186,7 +246,11 @@ fn comment_select_rewrites_through_the_parser() {
     assert_eq!(plan.executed_sha256, digest(&plan.executed_sql));
     assert_eq!(plan.parser_version, PINNED_PARSER_VERSION);
     assert!(!plan.fingerprint_hex.is_empty());
-    assert!(plan.fingerprint_hex.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    assert!(
+        plan.fingerprint_hex
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    );
     assert_eq!(plan.identity, identity());
     assert!(plan.star_expansions.is_empty());
     assert_eq!(plan.bindings.relations.len(), 1);
@@ -203,19 +267,37 @@ fn comment_select_rewrites_through_the_parser() {
         other => panic!("{other:?}"),
     }
     assert_physical(&plan, sql);
-    assert!(plan.executed_sql.contains("pc_order"), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("pc_region"), "{}", plan.executed_sql);
+    assert!(
+        plan.executed_sql.contains("pc_order"),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("pc_region"),
+        "{}",
+        plan.executed_sql
+    );
 }
 
 #[test]
 fn alias_hides_the_table_name() {
     let plan = admit(&small(), "SELECT s.order_id FROM logistics.shipment AS s");
     assert_eq!(plan.bindings.relations[0].alias.as_deref(), Some("s"));
-    assert!(plan.executed_sql.contains("pc_order"), "{}", plan.executed_sql);
-    let err = refuse(&small(), "SELECT shipment.order_id FROM logistics.shipment AS s");
+    assert!(
+        plan.executed_sql.contains("pc_order"),
+        "{}",
+        plan.executed_sql
+    );
+    let err = refuse(
+        &small(),
+        "SELECT shipment.order_id FROM logistics.shipment AS s",
+    );
     assert!(matches!(
         err,
-        GuardError::ColumnNotAllowed { ambiguous: false, .. }
+        GuardError::ColumnNotAllowed {
+            ambiguous: false,
+            ..
+        }
     ));
     assert_silent(&err, &["shipment"]);
     let renamed = admit(&small(), "SELECT order_id AS id FROM logistics.shipment");
@@ -224,7 +306,10 @@ fn alias_hides_the_table_name() {
         other => panic!("{other:?}"),
     }
     assert_eq!(
-        refuse(&small(), "SELECT order_id AS \"Bad\" FROM logistics.shipment"),
+        refuse(
+            &small(),
+            "SELECT order_id AS \"Bad\" FROM logistics.shipment"
+        ),
         GuardError::Unsupported {
             construct: "output alias"
         }
@@ -238,9 +323,20 @@ fn visible_star_expands_in_catalog_order() {
     assert_eq!(plan.star_expansions[0].qualifier, "");
     assert_eq!(plan.star_expansions[0].columns, ["order_id", "region"]);
     assert_physical(&plan, "star");
-    assert!(plan.executed_sql.contains("pc_order"), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("pc_region"), "{}", plan.executed_sql);
-    let qualified = admit(&small(), "SELECT logistics.shipment.* FROM logistics.shipment");
+    assert!(
+        plan.executed_sql.contains("pc_order"),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("pc_region"),
+        "{}",
+        plan.executed_sql
+    );
+    let qualified = admit(
+        &small(),
+        "SELECT logistics.shipment.* FROM logistics.shipment",
+    );
     assert_eq!(qualified.star_expansions[0].qualifier, "logistics.shipment");
     let aliased = admit(&small(), "SELECT s.* FROM logistics.shipment AS s");
     assert_eq!(aliased.star_expansions[0].qualifier, "s");
@@ -250,7 +346,10 @@ fn visible_star_expands_in_catalog_order() {
     );
     assert!(matches!(
         missed,
-        GuardError::ColumnNotAllowed { ambiguous: false, .. }
+        GuardError::ColumnNotAllowed {
+            ambiguous: false,
+            ..
+        }
     ));
     assert!(!missed.to_string().contains("logistics"));
     assert!(!format!("{missed:?}").contains("logistics"));
@@ -289,7 +388,10 @@ fn unknown_qualifier_is_not_echoed() {
     let err = refuse(&small(), "SELECT nope_zz.order_id FROM logistics.shipment");
     assert!(matches!(
         err,
-        GuardError::ColumnNotAllowed { ambiguous: false, .. }
+        GuardError::ColumnNotAllowed {
+            ambiguous: false,
+            ..
+        }
     ));
     assert_silent(&err, &["nope_zz"]);
 }
@@ -358,12 +460,17 @@ fn writes_are_rejected_including_inside_a_cte() {
 fn read_cte_and_subquery_are_unsupported() {
     let cat = small();
     assert_eq!(
-        refuse(&cat, "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t"),
+        refuse(
+            &cat,
+            "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t"
+        ),
         GuardError::Unsupported { construct: "CTE" }
     );
     assert_eq!(
         refuse(&cat, "SELECT * FROM (SELECT 1) AS s"),
-        GuardError::Unsupported { construct: "subquery" }
+        GuardError::Unsupported {
+            construct: "subquery"
+        }
     );
 }
 
@@ -398,9 +505,15 @@ fn functions_and_operators_need_one_oid_signature() {
         ),
         GuardError::FunctionNotAllowed
     );
-    let text = admit(&cat, "SELECT region FROM logistics.shipment WHERE region = 'west'");
+    let text = admit(
+        &cat,
+        "SELECT region FROM logistics.shipment WHERE region = 'west'",
+    );
     assert_eq!(text.bindings.operators[0].oid, 303);
-    let integer = admit(&cat, "SELECT order_id FROM logistics.shipment WHERE order_id = 1");
+    let integer = admit(
+        &cat,
+        "SELECT order_id FROM logistics.shipment WHERE order_id = 1",
+    );
     assert_eq!(integer.bindings.operators[0].oid, 301);
     assert_eq!(integer.bindings.operators[0].procedure_oid, 302);
 }
@@ -496,8 +609,15 @@ fn large_star_without_a_real_filter_is_refused() {
 
 #[test]
 fn a_real_filter_or_an_explicit_column_allows_a_large_table() {
-    let filtered = admit(&large(), "SELECT * FROM logistics.shipment WHERE order_id = 1");
-    assert!(filtered.executed_sql.contains("pc_order"), "{}", filtered.executed_sql);
+    let filtered = admit(
+        &large(),
+        "SELECT * FROM logistics.shipment WHERE order_id = 1",
+    );
+    assert!(
+        filtered.executed_sql.contains("pc_order"),
+        "{}",
+        filtered.executed_sql
+    );
     assert!(!filtered.star_expansions.is_empty());
     let compared = admit(&large(), "SELECT * FROM logistics.shipment WHERE 1 = 1");
     assert!(!compared.star_expansions.is_empty());
@@ -505,7 +625,11 @@ fn a_real_filter_or_an_explicit_column_allows_a_large_table() {
     assert!(!false_where.star_expansions.is_empty());
     let explicit = admit(&large(), "SELECT order_id FROM logistics.shipment");
     assert!(explicit.star_expansions.is_empty());
-    assert!(explicit.executed_sql.contains("pc_order"), "{}", explicit.executed_sql);
+    assert!(
+        explicit.executed_sql.contains("pc_order"),
+        "{}",
+        explicit.executed_sql
+    );
 }
 
 #[test]
@@ -517,8 +641,16 @@ fn join_star_charges_the_starred_relation() {
     );
     assert_eq!(small_star.star_expansions.len(), 1);
     assert_eq!(small_star.star_expansions[0].name, "customer");
-    assert!(small_star.executed_sql.contains("pc_cust"), "{}", small_star.executed_sql);
-    assert!(!small_star.executed_sql.contains("pc_order"), "{}", small_star.executed_sql);
+    assert!(
+        small_star.executed_sql.contains("pc_cust"),
+        "{}",
+        small_star.executed_sql
+    );
+    assert!(
+        !small_star.executed_sql.contains("pc_order"),
+        "{}",
+        small_star.executed_sql
+    );
     let err = refuse(
         &joined(),
         "SELECT * FROM logistics.customer AS c \
@@ -549,8 +681,16 @@ fn explicit_joins_of_base_relations_are_admitted() {
         "SELECT c.customer_id, s.order_id FROM logistics.customer AS c, logistics.shipment AS s",
     ] {
         let plan = admit(&cat, sql);
-        assert!(plan.executed_sql.contains("pt_cust"), "{sql}\n{}", plan.executed_sql);
-        assert!(plan.executed_sql.contains("pt_ship"), "{sql}\n{}", plan.executed_sql);
+        assert!(
+            plan.executed_sql.contains("pt_cust"),
+            "{sql}\n{}",
+            plan.executed_sql
+        );
+        assert!(
+            plan.executed_sql.contains("pt_ship"),
+            "{sql}\n{}",
+            plan.executed_sql
+        );
         assert_eq!(plan.bindings.relations.len(), 2, "{sql}");
     }
     assert_eq!(
@@ -615,27 +755,52 @@ fn identity_and_catalog_shape_are_required() {
 #[test]
 fn order_null_and_shape_limits() {
     let cat = small();
-    let ordered = admit(&cat, "SELECT order_id FROM logistics.shipment ORDER BY order_id");
-    assert!(ordered.executed_sql.contains("pc_order"), "{}", ordered.executed_sql);
+    let ordered = admit(
+        &cat,
+        "SELECT order_id FROM logistics.shipment ORDER BY order_id",
+    );
+    assert!(
+        ordered.executed_sql.contains("pc_order"),
+        "{}",
+        ordered.executed_sql
+    );
     assert_eq!(
         refuse(&cat, "SELECT order_id FROM logistics.shipment ORDER BY 1"),
-        GuardError::Unsupported { construct: "order key" }
+        GuardError::Unsupported {
+            construct: "order key"
+        }
     );
-    let null_test = admit(&cat, "SELECT order_id FROM logistics.shipment WHERE order_id IS NULL");
+    let null_test = admit(
+        &cat,
+        "SELECT order_id FROM logistics.shipment WHERE order_id IS NULL",
+    );
     assert_eq!(null_test.bindings.null_tests, 1);
     let mut blocked = small();
     blocked.null_test_allowed = false;
     assert_eq!(
-        refuse(&blocked, "SELECT order_id FROM logistics.shipment WHERE order_id IS NULL"),
+        refuse(
+            &blocked,
+            "SELECT order_id FROM logistics.shipment WHERE order_id IS NULL"
+        ),
         GuardError::FunctionNotAllowed
     );
     assert_eq!(
         refuse(&cat, "SELECT DISTINCT order_id FROM logistics.shipment"),
-        GuardError::Unsupported { construct: "DISTINCT" }
+        GuardError::Unsupported {
+            construct: "DISTINCT"
+        }
     );
+    let grouped = admit(
+        &cat,
+        "SELECT order_id FROM logistics.shipment GROUP BY order_id",
+    );
+    assert!(grouped.executed_sql.contains("GROUP BY"));
     assert_eq!(
-        refuse(&cat, "SELECT order_id FROM logistics.shipment GROUP BY order_id"),
-        GuardError::Unsupported { construct: "GROUP BY" }
+        refuse(
+            &cat,
+            "SELECT order_id FROM logistics.shipment GROUP BY secret_zz"
+        ),
+        refuse(&cat, "SELECT secret_zz FROM logistics.shipment")
     );
     assert_eq!(
         refuse(
@@ -667,10 +832,15 @@ fn order_null_and_shape_limits() {
     );
     assert_eq!(
         refuse(&cat, "SELECT $1"),
-        GuardError::Unsupported { construct: "parameter" }
+        GuardError::Unsupported {
+            construct: "parameter"
+        }
     );
     assert_eq!(
-        refuse(&cat, "SELECT region FROM logistics.shipment WHERE region LIKE 'w%'"),
+        refuse(
+            &cat,
+            "SELECT region FROM logistics.shipment WHERE region LIKE 'w%'"
+        ),
         GuardError::Unsupported {
             construct: "LIKE predicate"
         }
@@ -698,7 +868,10 @@ fn ambiguous_column_lists_visible_labels_only() {
     assert!(text.contains("column reference is ambiguous"), "{text}");
     assert!(text.contains("c.region"), "{text}");
     assert!(text.contains("s.region"), "{text}");
-    assert!(text.contains("1 columns are pending classification"), "{text}");
+    assert!(
+        text.contains("1 columns are pending classification"),
+        "{text}"
+    );
     assert_silent(&err, &["secret", "pc_"]);
     assert_eq!(err.code(), ErrorCode::ColumnNotAllowed);
 }
@@ -794,8 +967,14 @@ async fn run_live() {
     oracle.fact("dispatcher_role", &installed.role);
 
     let catalog = live_catalog(&admin, &shadow).await;
-    oracle.fact("int_oid", &catalog.literal_types.integer.unwrap_or(0).to_string());
-    oracle.fact("text_oid", &catalog.literal_types.text.unwrap_or(0).to_string());
+    oracle.fact(
+        "int_oid",
+        &catalog.literal_types.integer.unwrap_or(0).to_string(),
+    );
+    oracle.fact(
+        "text_oid",
+        &catalog.literal_types.text.unwrap_or(0).to_string(),
+    );
     oracle.fact("count_oid", &catalog.functions[0].oid.to_string());
 
     let star = guard_select(
@@ -804,10 +983,26 @@ async fn run_live() {
         "SELECT * FROM logistics.shipment",
     )
     .expect("guard star");
-    assert!(star.executed_sql.contains(&shadow.order_id), "{}", star.executed_sql);
-    assert!(star.executed_sql.contains(&shadow.region), "{}", star.executed_sql);
-    assert!(!star.executed_sql.contains(&shadow.secret), "{}", star.executed_sql);
-    assert!(!star.executed_sql.contains("secret"), "{}", star.executed_sql);
+    assert!(
+        star.executed_sql.contains(&shadow.order_id),
+        "{}",
+        star.executed_sql
+    );
+    assert!(
+        star.executed_sql.contains(&shadow.region),
+        "{}",
+        star.executed_sql
+    );
+    assert!(
+        !star.executed_sql.contains(&shadow.secret),
+        "{}",
+        star.executed_sql
+    );
+    assert!(
+        !star.executed_sql.contains("secret"),
+        "{}",
+        star.executed_sql
+    );
     assert_eq!(star.parser_version, PINNED_PARSER_VERSION);
     oracle.fact("parser_version", &star.parser_version.to_string());
     oracle.fact("executed_sha256", &star.executed_sha256);
@@ -834,9 +1029,7 @@ async fn run_live() {
     oracle.fact("star_order_id", &order_id.to_string());
     oracle.fact("star_region", &region);
 
-    let original = reader
-        .query("SELECT * FROM logistics.shipment", &[])
-        .await;
+    let original = reader.query("SELECT * FROM logistics.shipment", &[]).await;
     let state = match original {
         Ok(_) => panic!("unguarded star succeeded under the column role"),
         Err(err) => sqlstate(&err),
@@ -1089,7 +1282,12 @@ async fn reset_database(client: &Client) {
         ),
     )
     .await;
-    expect_sql(client, "drop database", &format!("DROP DATABASE IF EXISTS \"{DATABASE}\"")).await;
+    expect_sql(
+        client,
+        "drop database",
+        &format!("DROP DATABASE IF EXISTS \"{DATABASE}\""),
+    )
+    .await;
     expect_sql(
         client,
         "drop fixture roles",
@@ -1139,20 +1337,37 @@ async fn apply_frozen_schema(client: &mut Client) {
         "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
     )
     .await;
-    exec_named(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_named(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_named(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_named(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
             (
                 "target-fence-receipts/3",
                 &preflight.1,
                 "0003_target_segment_preflight_expand.sql",
             ),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
@@ -1223,7 +1438,12 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_named(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_named(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
+    exec_named(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
     exec_named(
         &tx,
         "advisory-lock",
@@ -1360,7 +1580,9 @@ async fn prepare_shadow(client: &mut Client) -> Shadow {
     );
     let tx = client.transaction().await.expect("insert begin");
     let params: [&(dyn ToSql + Sync); 4] = [&"1", &42_i32, &"west", &"hidden-value"];
-    tx.execute(&insert, &params).await.expect("insert shadow row");
+    tx.execute(&insert, &params)
+        .await
+        .expect("insert shadow row");
     tx.commit().await.expect("insert commit");
     Shadow {
         table,
@@ -1415,7 +1637,13 @@ async fn register(
         .expect("register");
 }
 
-async fn lookup(client: &Client, level: &str, namespace: &str, table: &str, column: &str) -> String {
+async fn lookup(
+    client: &Client,
+    level: &str,
+    namespace: &str,
+    table: &str,
+    column: &str,
+) -> String {
     let params: [&(dyn ToSql + Sync); 7] = [
         &SOURCE,
         &CONFIG,

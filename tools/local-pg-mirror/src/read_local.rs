@@ -16,11 +16,19 @@ pub struct ReadRequest {
     pub ca: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnView {
+    pub name: String,
+    pub oid: i64,
+    pub typmod: i32,
+}
+
 #[derive(Debug)]
 pub struct LocalTable {
     pub schema: String,
     pub name: String,
     pub rows: Vec<Vec<Option<String>>>,
+    pub catalog: Vec<ColumnView>,
 }
 
 #[derive(Debug)]
@@ -63,7 +71,7 @@ pub async fn read_local(request: ReadRequest) -> Result<LocalRead, MirrorError> 
         .execute(&mut *tx)
         .await
         .map_err(pg::map_sqlx)?;
-    sqlx::query("SET LOCAL statement_timeout = '30s'")
+    sqlx::query("SET LOCAL statement_timeout = '120s'")
         .execute(&mut *tx)
         .await
         .map_err(pg::map_sqlx)?;
@@ -112,14 +120,55 @@ pub async fn read_local(request: ReadRequest) -> Result<LocalRead, MirrorError> 
             }
             rows.push(cells);
         }
+        let catalog = read_catalog(&mut tx, physical, &table.columns).await?;
         tables.push(LocalTable {
             schema: table.schema.clone(),
             name: table.name.clone(),
             rows,
+            catalog,
         });
     }
     tx.commit().await.map_err(pg::map_sqlx)?;
     Ok(LocalRead { tables })
+}
+
+async fn read_catalog(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    physical: &str,
+    columns: &[crate::manifest::ColumnRecord],
+) -> Result<Vec<ColumnView>, MirrorError> {
+    let attrs = sqlx::query(
+        "SELECT a.attname::text, a.atttypid::int8, a.atttypmod::int4 \
+         FROM pg_catalog.pg_attribute AS a \
+         JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid \
+         JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace \
+         WHERE n.nspname = '_oo' AND c.relname = $1 AND a.attnum > 0 AND NOT a.attisdropped \
+         ORDER BY a.attnum",
+    )
+    .bind(physical)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(pg::map_sqlx)?;
+    if attrs.len() != columns.len() + 1 {
+        return Err(MirrorError::new("refused", "type_mismatch"));
+    }
+    let mut catalog = Vec::with_capacity(attrs.len());
+    for attr in &attrs {
+        catalog.push(ColumnView {
+            name: attr.try_get(0).map_err(pg::map_sqlx)?,
+            oid: attr.try_get(1).map_err(pg::map_sqlx)?,
+            typmod: attr.try_get(2).map_err(pg::map_sqlx)?,
+        });
+    }
+    if catalog[0].name != "_oo_pos" || catalog[0].oid != 1700 {
+        return Err(MirrorError::new("refused", "type_mismatch"));
+    }
+    for (view, column) in catalog.iter().skip(1).zip(columns.iter()) {
+        if view.oid != column.oid || view.typmod != column.typmod || view.name != column.physical_name {
+            return Err(MirrorError::new("refused", "type_mismatch"));
+        }
+    }
+    Ok(catalog)
 }
 
 fn select_expr(physical: &str, oid: i64) -> Result<String, MirrorError> {

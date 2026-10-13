@@ -1,1 +1,0 @@
-image=sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb status=running privileged=false network=oo-a180-net oom=false

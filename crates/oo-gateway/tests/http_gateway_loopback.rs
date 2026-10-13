@@ -45,7 +45,9 @@ async fn query_strings_are_rejected_without_an_echo() {
     let marker = "query-must-not-echo";
     let (status, body) = exchange(
         addr,
-        &format!("GET /health?token={marker} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"),
+        &format!(
+            "GET /health?token={marker} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
+        ),
     )
     .await;
     assert_eq!(status, ApiCode::QueryNotAllowed.status());
@@ -65,7 +67,12 @@ async fn sql_at_the_body_limit_is_unsupported_and_one_extra_byte_is_413() {
     let over = "b".repeat(BODY_LIMIT + 1);
     let (status, body) = exchange(addr, &post_sql(&over, None)).await;
     assert_eq!(status, LAYER_BODY_LIMIT_STATUS);
-    assert!(!body.windows(over.len()).any(|window| window == over.as_bytes()), "rejected body was echoed");
+    assert!(
+        !body
+            .windows(over.len())
+            .any(|window| window == over.as_bytes()),
+        "rejected body was echoed"
+    );
     let _ = shutdown.send(());
 }
 
@@ -73,10 +80,17 @@ async fn sql_at_the_body_limit_is_unsupported_and_one_extra_byte_is_413() {
 async fn slow_route_returns_408_before_the_handler_finishes() {
     let (addr, shutdown) = spawn_probe().await;
     let started = Instant::now();
-    let (status, body) = exchange(addr, "GET /slow HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await;
+    let (status, body) = exchange(
+        addr,
+        "GET /slow HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
     assert_eq!(status, LAYER_TIMEOUT_STATUS);
     assert_ne!(body, b"{\"status\":\"late\"}");
-    assert!(started.elapsed() < Duration::from_secs(2), "handler sleep completed");
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "handler sleep completed"
+    );
     let _ = shutdown.send(());
 }
 
@@ -90,13 +104,21 @@ async fn second_request_waits_for_the_single_permit() {
     });
     let state = AppState::for_probe(PackCatalog::empty(), BODY_LIMIT, Arc::clone(&hooks));
     let (addr, shutdown) = spawn(state).await;
-    let (status, _) = exchange(addr, "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await;
+    let (status, _) = exchange(
+        addr,
+        "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
     assert_eq!(status, 200);
     assert_eq!(hooks.health_started.load(Ordering::SeqCst), 1);
 
     let hold_hooks = Arc::clone(&hooks);
     let hold = tokio::spawn(async move {
-        exchange(addr, "GET /hold HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await
+        exchange(
+            addr,
+            "GET /hold HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+        )
+        .await
     });
     let entered = Instant::now();
     while !hold_hooks.hold_entered.load(Ordering::SeqCst) {
@@ -106,10 +128,18 @@ async fn second_request_waits_for_the_single_permit() {
         tokio::task::yield_now().await;
     }
     let health = tokio::spawn(async move {
-        exchange(addr, "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await
+        exchange(
+            addr,
+            "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+        )
+        .await
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert_eq!(hooks.health_started.load(Ordering::SeqCst), 1, "health ran while hold held the permit");
+    assert_eq!(
+        hooks.health_started.load(Ordering::SeqCst),
+        1,
+        "health ran while hold held the permit"
+    );
     release_tx.send(()).expect("release");
     let (hold_status, hold_body) = hold.await.expect("hold task");
     assert_eq!(hold_status, 200);
@@ -123,7 +153,11 @@ async fn second_request_waits_for_the_single_permit() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unknown_paths_and_methods_use_the_error_schema() {
     let (addr, shutdown) = spawn_probe().await;
-    let (status, body) = exchange(addr, "GET /missing HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await;
+    let (status, body) = exchange(
+        addr,
+        "GET /missing HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
     assert_eq!(status, ApiCode::NotFound.status());
     assert_eq!(error_code(&body), "NOT_FOUND");
     let (status, body) = exchange(addr, "POST /health HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
@@ -136,11 +170,35 @@ async fn unknown_paths_and_methods_use_the_error_schema() {
 async fn production_router_does_not_mount_the_probe() {
     let state = AppState::for_limits(PackCatalog::empty(), BODY_LIMIT);
     let (addr, shutdown) = spawn(state).await;
-    let (status, body) = exchange(addr, "GET /slow HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await;
+    let (status, body) = exchange(
+        addr,
+        "GET /slow HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
     assert_eq!(status, ApiCode::NotFound.status());
     assert_eq!(error_code(&body), "NOT_FOUND");
-    let (status, _) = exchange(addr, "GET /ready HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").await;
+    let (status, _) = exchange(
+        addr,
+        "GET /ready HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
     assert_eq!(status, 200);
+    let _ = shutdown.send(());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn public_tables_without_a_bearer_is_unauthenticated() {
+    let (addr, shutdown) = spawn_probe().await;
+    let (status, body) = exchange(
+        addr,
+        "GET /v1/tables HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    )
+    .await;
+    assert_eq!(status, 401);
+    let value: Value = serde_json::from_slice(&body).expect("json");
+    assert_eq!(value["error"]["code"], "UNAUTHENTICATED");
+    assert_eq!(value["error"]["retryable"], false);
+    assert!(value["error"].get("query_id").is_none());
     let _ = shutdown.send(());
 }
 
@@ -154,8 +212,14 @@ fn http_sources_do_not_name_the_sql_executor() {
     let executor = ["query", "_executor"].concat();
     let trusted = ["execute", "_trusted_select"].concat();
     for source in sources {
-        assert!(!source.contains(&executor), "http source names the executor");
-        assert!(!source.contains(&trusted), "http source names trusted select");
+        assert!(
+            !source.contains(&executor),
+            "http source names the executor"
+        );
+        assert!(
+            !source.contains(&trusted),
+            "http source names trusted select"
+        );
     }
 }
 
@@ -218,11 +282,19 @@ async fn exchange(addr: SocketAddr, request: &str) -> (u16, Vec<u8>) {
 }
 
 fn parse_response(bytes: &[u8]) -> (u16, Vec<u8>) {
-    let split = bytes.windows(4).position(|window| window == b"\r\n\r\n").expect("header terminator");
+    let split = bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .expect("header terminator");
     let head = std::str::from_utf8(&bytes[..split]).expect("header utf8");
     let rest = &bytes[split + 4..];
     let status_line = head.lines().next().expect("status line");
-    let status: u16 = status_line.split_whitespace().nth(1).expect("status").parse().expect("status number");
+    let status: u16 = status_line
+        .split_whitespace()
+        .nth(1)
+        .expect("status")
+        .parse()
+        .expect("status number");
     let length = head.lines().find_map(|line| {
         let (name, value) = line.split_once(':')?;
         if name.eq_ignore_ascii_case("content-length") {

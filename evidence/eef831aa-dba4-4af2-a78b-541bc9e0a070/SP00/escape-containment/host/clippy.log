@@ -1,4 +1,0 @@
-image_n=0 label_n=0 host_n=0
-    Checking xtask v0.1.0 (/private/tmp/oo-a070-fixed-7b753993-c087-4c9b-9aa7-5ba409e11708/snapshot/crates/xtask)
-    Building [=======================> ] 145/150: xtask, xtask(test)              Building [=======================> ] 146/150: xtask(bin test), cli(test),…    Building [=======================> ] 147/150: xtask(bin test), cli(test),…    Building [=======================> ] 148/150: xtask(bin test), cli(test)      Building [=======================> ] 149/150: cli(test)                       Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.59s
-CLIPPY_EXIT:0

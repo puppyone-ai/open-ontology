@@ -1,3 +1,0 @@
-Attempt 1 stopped while compiling the review harness. PostgreSQL was not contacted and no oracle was written. bins.exit and bin-hash.exit are 0. test.exit is 101.
-
-clerk_columns returns Vec<&str>. iter() yields &&str, and &&str cannot be compared with &str. The harness now dereferences the item. This is not a product failure.

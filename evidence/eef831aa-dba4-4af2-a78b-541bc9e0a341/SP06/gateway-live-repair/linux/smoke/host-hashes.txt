@@ -1,6 +1,0 @@
-b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /tmp/oo-a341-eef831aa-dba4-4af2-a78b-541bc9e0a341/proof/archive/Cargo.lock
-bf36227775bf0af367ec0bfe6e98c7ba2c81acfa7bb6b1d957c1fd0552045dd1  /tmp/oo-a341-eef831aa-dba4-4af2-a78b-541bc9e0a341/proof/archive/crates/oo-gateway/src/http_gateway.rs
-d68ce8c113f9028d2dac659c332879c9eac875cc687f2fb28c7c02eaf880f5d4  /tmp/oo-a341-eef831aa-dba4-4af2-a78b-541bc9e0a341/proof/archive/crates/oo-gateway/src/pack_catalog.rs
-306a4ad6137d0de687dc04437d57e8e6a526da9e14ba4e0a3c312bd607acccae  /tmp/oo-a341-eef831aa-dba4-4af2-a78b-541bc9e0a341/proof/archive/crates/oo-gateway/tests/http_gateway_live.rs
-59e0a940f6fed9f63e7ebc0da37ddc189f287bab17e50ca794b5316eb41c9059  /Users/redux/puppy-one/open-ontology/crates/oo-gateway/tests/http_gateway_live.rs
-b3b3a6daaaed24c5e74435ede846c409fa0ea876a6ffadca5f340f3e6be6340f  /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a341/SP06/gateway-live-repair/CONTRACT.md

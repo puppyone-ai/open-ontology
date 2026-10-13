@@ -1,2 +1,0 @@
-verify_start=2026-10-03T11:57:41Z
-verify_end=2026-10-03T11:58:09Z

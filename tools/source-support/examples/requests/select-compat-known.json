@@ -1,0 +1,14 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "native-cn",
+    "product": "达梦 DM8",
+    "version": "",
+    "variant": "self-managed",
+    "driver": {"path": "P2"},
+    "profile": "production",
+    "sync": "catalog",
+    "compat_mode": "oracle",
+    "driver_present": true
+  }
+}

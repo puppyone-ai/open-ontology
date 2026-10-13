@@ -1,3 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/owner_truncate.sql:3: ERROR:  OO014: target fence relations cannot be truncated
-CONTEXT:  PL/pgSQL function _oo.reject_direct_write() line 4 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

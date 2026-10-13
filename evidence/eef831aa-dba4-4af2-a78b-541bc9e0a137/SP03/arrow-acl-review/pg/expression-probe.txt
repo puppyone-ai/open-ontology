@@ -1,7 +1,0 @@
-CREATE TABLE
-REVOKE
-GRANT
-SET
-column_only|oo_a131_reader|false|true|false|true|true
-RESET
-DROP TABLE

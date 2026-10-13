@@ -1,6 +1,0 @@
-crates/oo-gateway/src/policy.rs policy.rs want=84a86e85ef82bc2a459a5e2faef5827d077ca6cc got=84a86e85ef82bc2a459a5e2faef5827d077ca6cc
-crates/oo-gateway/src/lib.rs lib.rs want=db17b187a886ffbb12642401e1cc2e0fe96a5029 got=db17b187a886ffbb12642401e1cc2e0fe96a5029
-crates/oo-gateway/tests/column_acl_set_pg_live.rs column_acl_set_pg_live.rs want=69897c46a1f3c5607936b0dffc3a63d3824ce2e4 got=69897c46a1f3c5607936b0dffc3a63d3824ce2e4
-contracts/gateway/column-acl-set-v1.md column-acl-set-v1.md want=1bc75704e7930fea79b743c55a9f0721697fa3e2 got=1bc75704e7930fea79b743c55a9f0721697fa3e2
-Cargo.lock Cargo.lock want=2990f901ea98a7b465f462cce8742bc5c51c13aa got=2990f901ea98a7b465f462cce8742bc5c51c13aa
-crates/oo-gateway/Cargo.toml oo-gateway-Cargo.toml want=8a78503420468aa9f99aee83a5401c42f91ee40a got=8a78503420468aa9f99aee83a5401c42f91ee40a

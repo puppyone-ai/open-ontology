@@ -1,0 +1,39 @@
+[
+  {
+    "task": "39",
+    "fixed_sha": "09d4bb51c2ba8b802cdef26329c08ed813434a7e",
+    "manifest": "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/c5-cycle/SHA256SUMS",
+    "fixed_git_hashes_checked": 115,
+    "errors": [
+      "missing:__pycache__/compare_cells.cpython-314.pyc"
+    ],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "46",
+    "fixed_sha": "4c8c10cf121eaa2390c98d5ee012b0421aab6e80",
+    "manifest": "evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/SHA256SUMS",
+    "fixed_git_hashes_checked": 1773,
+    "errors": [],
+    "retained_external": [],
+    "full_source_acceptance": false
+  },
+  {
+    "task": "71",
+    "fixed_sha": "d1867deb8adf3bab3b755eb924a3669fae81fe08",
+    "manifest": "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full/SHA256SUMS",
+    "fixed_git_hashes_checked": 8,
+    "errors": [
+      "missing:phases/*.exit"
+    ],
+    "retained_external": [
+      {
+        "path": "/Users/redux/.cache/oo-dl01w1-71/selfbuild-control-api",
+        "elf": true,
+        "hash_matches": true
+      }
+    ],
+    "full_source_acceptance": false
+  }
+]

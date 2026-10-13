@@ -1,4 +1,0 @@
-   Compiling oo-gateway v0.1.0 (/src/crates/oo-gateway)
-   Compiling oo-core v0.1.0 (/src/crates/oo-core)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.90s
-     Running unittests src/lib.rs (/target/debug/deps/oo_gateway-e588fdbf5df98249)

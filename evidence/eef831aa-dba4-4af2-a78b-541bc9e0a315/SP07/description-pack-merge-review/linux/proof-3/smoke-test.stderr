@@ -1,7 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/tree/crates/oo-core)
-   Compiling oo-jobs v0.1.0 (/work/tree/crates/oo-jobs)
-   Compiling oo-builder v0.1.0 (/work/tree/crates/oo-builder)
-   Compiling description-review v0.1.0 (/work/tree/tools/description-review)
-   Compiling description-pack v0.1.0 (/work/tree/tools/description-pack)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.32s
-     Running tests/pack.rs (/target/debug/deps/pack-b59d7697e34baccf)

@@ -54,12 +54,17 @@ pub async fn import_pg() -> Result<(), u8> {
 
 async fn execute() -> Result<String, Stop> {
     let text = read_stdin()?;
-    let value = parse_json_value(&text, REQUEST_PROTOCOL).map_err(|_| Stop::Fixed("invalid input"))?;
-    let mut request: Request = serde_json::from_value(value).map_err(|_| Stop::Fixed("invalid input"))?;
+    let value =
+        parse_json_value(&text, REQUEST_PROTOCOL).map_err(|_| Stop::Fixed("invalid input"))?;
+    let mut request: Request =
+        serde_json::from_value(value).map_err(|_| Stop::Fixed("invalid input"))?;
     if request.protocol != REQUEST_PROTOCOL {
         return Err(Stop::Fixed("invalid version"));
     }
-    if !valid_owner(&request.owner) || !valid_shard(&request.shard) || request.source.tables.is_empty() {
+    if !valid_owner(&request.owner)
+        || !valid_shard(&request.shard)
+        || request.source.tables.is_empty()
+    {
         return Err(Stop::Fixed("invalid input"));
     }
     let policy = type_policy(request.type_policy)?;
@@ -78,12 +83,28 @@ async fn execute() -> Result<String, Stop> {
         return Err(Stop::Fixed("invalid generation"));
     }
     let config = build_source(&request.source, source_password, &source_ca, budget)?;
-    PgEndpoint::new(&request.target.host, request.target.port, &request.target.database)
+    PgEndpoint::new(
+        &request.target.host,
+        request.target.port,
+        &request.target.database,
+    )
+    .map_err(from_source)?;
+    PgCredentials::new(&request.target.runtime_principal, target_password.as_str())
         .map_err(from_source)?;
-    PgCredentials::new(&request.target.runtime_principal, target_password.as_str()).map_err(from_source)?;
     let deadline = Instant::now() + Duration::from_millis(deadline_ms);
-    let mut conn = connect_target(&request.target, &target_password, &target_ca, budget.connect_timeout()).await?;
-    expect_principal(&mut conn, &request.target.runtime_principal, budget.statement_timeout()).await?;
+    let mut conn = connect_target(
+        &request.target,
+        &target_password,
+        &target_ca,
+        budget.connect_timeout(),
+    )
+    .await?;
+    expect_principal(
+        &mut conn,
+        &request.target.runtime_principal,
+        budget.statement_timeout(),
+    )
+    .await?;
     verify_full_import_readiness(&mut conn)
         .await
         .map_err(|_| Stop::Fixed("target schema is not ready"))?;
@@ -218,8 +239,12 @@ async fn expect_principal(
         Ok(Ok(row)) => row,
         _ => return Err(Stop::Fixed("target principal")),
     };
-    let current: String = row.try_get(0).map_err(|_| Stop::Fixed("target principal"))?;
-    let session: String = row.try_get(1).map_err(|_| Stop::Fixed("target principal"))?;
+    let current: String = row
+        .try_get(0)
+        .map_err(|_| Stop::Fixed("target principal"))?;
+    let session: String = row
+        .try_get(1)
+        .map_err(|_| Stop::Fixed("target principal"))?;
     if current == principal && session == principal {
         Ok(())
     } else {
@@ -415,7 +440,10 @@ fn valid_shard(shard: &str) -> bool {
 }
 
 fn valid_digest(text: &str) -> bool {
-    text.len() == 64 && text.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    text.len() == 64
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn valid_table_physical(name: &str) -> bool {
@@ -560,7 +588,10 @@ fn push_string(out: &mut String, value: &str) {
 
 pub(crate) enum Stop {
     Fixed(&'static str),
-    Source { kind: &'static str, fact: &'static str },
+    Source {
+        kind: &'static str,
+        fact: &'static str,
+    },
     Noted(String),
 }
 

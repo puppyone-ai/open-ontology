@@ -1,0 +1,30 @@
+{
+  "task": "five cumulative usable products mapped to complete Plan",
+  "date": "2026-10-09",
+  "base_commit": "88d43644c1d46bd5e91bf5451022cac8b883ad42",
+  "required_sp_parents": 80,
+  "required_phases": 15,
+  "required_dbx_parents": 14,
+  "deferred_sp15_parents": 7,
+  "product_loops": 5,
+  "current_loop": "DL01",
+  "accepted_loops": 0,
+  "source_minimum": 10,
+  "mandatory_products": [
+    "mysql",
+    "oracle"
+  ],
+  "checks": {
+    "todo": 0,
+    "spec": 0,
+    "plan": 0,
+    "links": 0,
+    "transitions": 0
+  },
+  "invalid_transitions_rejected": 10,
+  "local_links": 134,
+  "new_product_implementation_or_acceptance": false,
+  "new_workers": false,
+  "validation_scope": "declaration and document consistency only; real proof still independently reviewed",
+  "foreign_changes": "preserved"
+}

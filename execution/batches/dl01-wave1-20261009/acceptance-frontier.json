@@ -1,0 +1,203 @@
+{
+  "created_at": "2026-10-09T22:27:27.529909+08:00",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "current_loop": "DL01",
+  "exit": "all ten real source products meet 2026-10-12 full CDC/YAML/maintained ontology/actual agent Pack/Gateway conversation requirements",
+  "source_products": [
+    "postgresql",
+    "mysql",
+    "mariadb",
+    "sqlserver",
+    "oracle",
+    "clickhouse",
+    "doris",
+    "starrocks",
+    "mongodb",
+    "opensearch"
+  ],
+  "per_source_required": [
+    "exact product/version/deployment/driver/license identity",
+    "real least-privilege preflight and approved object selection",
+    "source statement-level zero-write audit",
+    "bounded genuine Arrow and type-preserving local PG import",
+    "sealed import, target source isolation and secret exclusion",
+    "real Builder fresh/cache/failure and unknown cost honesty",
+    "actual draft/Pack preview and non-mocked local consumption",
+    "independent typed oracle/permissions/cancel/failure cleanup",
+    "fixed implementation/binary/fixture/evidence identity",
+    "independent fixed-commit review and resource receipt",
+    "每源实际导入独立本地数据库，按原docs逐源C1–C5支持持续检测、更新、拉取与用户自定义检测/拉取及对账周期，真实新增/修改/删除后准确追平并证明恢复/权限/零源写",
+    "完整Self-build按docs输出标准YAML Ontology，真实表结构、类型、关系和业务含义准确；能维护、更新并绑定数据及语义版本",
+    "产出实际Agent消费的Knowledge Pack，与Ontology/YAML/角色权限/本地数据同版本可追溯",
+    "Gateway经OO CLI及声明可用的MCP或其他现有入口供独立Agent直接调用，完成真实多轮对话/查询及独立准确性验证",
+    "固定实现/运行制品/原始证据/独立完整复审，缺CDC/模型凭据/人工审批/实例等保持待验，历史受控preview不替代完整签收"
+  ],
+  "source_acceptance_count": 0,
+  "reusable_pg_milestone": {
+    "source": "3b70b151552ad5d5e905a6148860812a3f84ac82",
+    "evidence": "34d14adef756c07f1540eafdad17f3ff3a3bbbb9",
+    "review": "execution/reviews/gpt-minimal-closure-fixed-review.md",
+    "limit": "historical unreviewed/unpublished PG draft; target-level DL01 reconciliation pending"
+  },
+  "next_wave_rule": "real preparation target + accepted committed admission/worker/catalog contracts before source consumer dispatch; no fabricated missing dependency",
+  "waiting_rule": "clock.sleep900seconds ordinary wait, terminal known handles batch; no shortpoll/live-logtail",
+  "acceptance_separation": {
+    "development_new_frozen_units": 8,
+    "development_accepted": 8,
+    "target_preparation_units": 8,
+    "independent_reconciliation_units": 5,
+    "integration": "no new acceptance",
+    "release": "no new acceptance",
+    "external": "license/architecture/endpoint/customer/CI/runsc do not count as development",
+    "independent_review_cards": 16,
+    "author_or_prep_is_not_acceptance": true,
+    "accepted_units": {
+      "DL01-W1-02": {
+        "source": "fabc471609eedd313f7900009793ca153b61b187",
+        "review": "4a7d85fa7db2233c256a994dc0696d7a1456e3a6",
+        "scope": "original policy/report-identity/audit child, not positive admission of legacyPG report or parent"
+      },
+      "DL01-W1-01": {
+        "source": "29597079f7feacc6e3934b5c803686fc80567a93",
+        "review": "824b20735bd958c4298913838fb832058d17e512",
+        "scope": "source-support CLI/library only; parentHTTP/oo/allowlist/secretresolver/matrix/nightly not accepted"
+      },
+      "DL01-W1-05": {
+        "source": "5bd6e414bf0b3ca008dc413fb39f2c6d0aa8bae5",
+        "review": "cb5b71e37528f0181e11449fab3391242f66fbec",
+        "scope": "original frozen semantics/OOS/native rolePack compiler child only; new sealed import catalog API still live and unreviewed"
+      },
+      "DL01-W1-03": {
+        "source": "280bc35da56b1d7d018c54e79b136a1f99c7e1ab",
+        "review": "6cc24699bbf5566ae45f9ec4ea363da8b747b867",
+        "scope": "original planner child only, actual receipt tablebinding; parentliveLoader/scheduler/GTIDpending"
+      },
+      "DL01-W1-21": {
+        "source": "f2357a026033fbac5beb20b4bf8555d808881fe7",
+        "review": "0f2173b8fc00178dd3dc52ba5ca34845a2379445",
+        "scope": "originaltrusted localCLI actualrolePack/query binding/typed/audit/cancel; notpublicGateway/source/fullBuilder"
+      },
+      "DL01-W1-04": {
+        "source": "7de78381be5f692ae53c2559b759ce00ad807303",
+        "review": "5829c110256e1f10294de2920c54190128af1dda",
+        "scope": "originalv1 bounded supervisor only; liveOCI/P2parentextension notapproved"
+      },
+      "DL01-W1-07": {
+        "source": "876b3b916d6ff8ba5bb79e2c0e1beee283d69a40",
+        "review": "641ffcce9915a7fd93e97ebf9b78d10361124bb6",
+        "scope": "original checker D07 independent coordinator 15tests 57assertions; no parent/nightly/source grade"
+      },
+      "DL01-W1-06": {
+        "source": "e4f9131c6c3634e30f5f73b6b3db19ab7aa06f7d",
+        "evidence": "0abaca9acaf9337690e5888e5c644bf2969dcb4a",
+        "review": "2f9127f7e3f2306ac5bec55c0c5013d137621b10",
+        "scope": "D06 experimental100k MySQL complete author chain independentlyreplayed; target-level source0/10 unchanged, parent/open drafts/notpublished"
+      }
+    }
+  },
+  "external_target_gaps": {
+    "sqlserver": "native Linux amd64 SQLServer2022 actual environment requested; default product list unchanged"
+  },
+  "minimum_scale": {
+    "postgresql": {
+      "rows": 100000,
+      "domain": "logistics",
+      "oracle": "independent typed",
+      "current_gap": "historical run can be reused only within original fixed scope; fresh source audit/full same-run preview still required"
+    },
+    "mysql": {
+      "rows": 100000,
+      "domain": "logistics",
+      "oracle": "independent typed",
+      "current_author_scale": 100009,
+      "scale_exit_met": true,
+      "fixed_review": "2f9127f7e3f2306ac5bec55c0c5013d137621b10",
+      "current_scope": "100009 rows across5tables independentlysource/targetmatched; no entireten sourceacceptance"
+    },
+    "other_products": "nonempty representative scale matching original acceptance, independent types/key/null/bad-value cases; not empty or single-row connection probe"
+  },
+  "last_acceleration": {
+    "at": "2026-10-10T01:42:36.250276+08:00",
+    "development_live": 4,
+    "review_live": 5,
+    "oracle_driver_preflight_live": 1,
+    "rust_reserved": 9,
+    "source_acceptance_delta": 0,
+    "functional_acceptance_delta": 0
+  },
+  "development_parent_extensions": {
+    "DBX-W02-BUDGET": {
+      "frozen": 1,
+      "accepted": 0,
+      "task": "DL01-W1-38"
+    }
+  },
+  "formal_support_grade_check": {
+    "mariadb": {
+      "controlled_preview_source_accepted": true,
+      "formal_matrix_promotion": "not_applied",
+      "reason": "01-admission experimental also requires external/customer DBA walkthrough; not supplied. DBX parent/default feature profile/signoff distinct from controlled nonproduction full source proof; verified/nightly/certified not claimed.",
+      "matrix": "docs/database-support/support-matrix.yaml",
+      "requirement": "docs/database-support/01-admission-and-support-matrix.md section2"
+    }
+  },
+  "postgres_current_acceptance": {
+    "source": "4dceeb495b9decf95a73daef67afd52ea7cd8585",
+    "review": "82ade23c2c25505cbc9e24109f6bb4c88cdc53fc",
+    "hashes_verified": 1490,
+    "scope": "controlled nonproduction source preview",
+    "source_count": 6,
+    "formal_grade": false
+  },
+  "controlled_preview_accepted_source_products": {
+    "mariadb": {
+      "source": "0adf27b9f737af0a00d28586598e6e5e0f498043",
+      "review": "24b206d5bf5e1d2b4ff5732c66cfd5f63c54cb52",
+      "scope": "complete controlled experimental source preview, not verified/certified/parent/release",
+      "version": "11.4.13-MariaDB-ubu2404-log",
+      "review_hashes_verified": 23
+    },
+    "opensearch": {
+      "source": "e582db56ce2aca2552f48e83e3a273743a1cc9d9",
+      "evidence": "bbff190f6cfb8fee129adfacd586216b423ca105",
+      "review": "5d47e3dace67b90581924bd05ed8d2c2bd0f6602",
+      "scope": "complete controlled nonproduction source preview only; formal DBA/matrix/nightly/parent/release open",
+      "version": "3.9.0",
+      "author_hashes_verified": 942,
+      "review_hashes_verified": 10,
+      "root_receipt": "execution/reviews/dl01-wave1-opensearch-root-acceptance/receipt.json"
+    },
+    "starrocks": {
+      "source": "e8a3e4c6085ff8871aaf7af845b26ccd913ae530",
+      "review": "3ec53ac231f300951d63123cb508ff13b4389c8e",
+      "scope": "complete controlled nonproduction five-table source preview only; formal matrix DBA/nightly/verified/parent/release open",
+      "version": "3.5.21-85fccf8",
+      "product_hashes_verified": 2852,
+      "driver_hashes_verified": 1032,
+      "review_hashes_verified": 10,
+      "root_receipt": "execution/reviews/dl01-wave1-starrocks-root-acceptance/receipt.json"
+    },
+    "doris": {
+      "source": "66c7d5bd24bdcf894976da9508cc963356079e06",
+      "evidence": "84bae33fd281e1bd29660b0f3de0bb6361fadda0",
+      "review": "881381eb7475f4146999986aeacbbff8651b5310",
+      "scope": "complete controlled seven-table nonproduction preview only; formal DBA/nightly/matrix/parent/release open",
+      "product_hashes_verified": 146,
+      "review_hashes_verified": 14,
+      "root_receipt": "execution/reviews/dl01-wave1-doris-root-acceptance/receipt.json"
+    },
+    "clickhouse": {
+      "source": "9e95d6bdb4d062019fb4c01501ce04ba10dd2965",
+      "review": "e2ef111211ce132f5fb80ae5ea7112b2110b2301",
+      "scope": "complete controlled nonproduction five-approved-column preview; localfault timeout/499 explicit, realupstream fresh/cache/unknowncost; formal DBA/matrix/nightly/parent/release open",
+      "version": "26.8.21.10",
+      "product_hashes_verified": 1725,
+      "review_hashes_verified": 15,
+      "root_receipt": "execution/reviews/dl01-wave1-clickhouse-root-acceptance/receipt.json"
+    }
+  },
+  "controlled_source_preview_count": 6,
+  "accepted_source_products": {},
+  "source_requirement_audit": "execution/reviews/full-source-original-requirements-audit-20261012.md",
+  "human_capture_method_resolution": "按原docs逐源方法，验证可配置周期与更新、删除收敛；C1/C2/C3/C4/C5分别标注能力、一致性、删除检测"
+}

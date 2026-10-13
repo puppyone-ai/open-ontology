@@ -1,3 +1,0 @@
-when=2026-10-02T11:11:10Z
-rust_containers:
-host_compilers:

@@ -1,7 +1,0 @@
-tool=shasum -a 256
-host_path=/usr/bin/shasum
-empty=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-abc=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
-rust_manifest_executed=no
-rust_manifest_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
-note=MANIFEST.sha256 lists this evidence directory and skips itself. source-spike.sha256 lists testing/spikes/p09-pi-rpc.

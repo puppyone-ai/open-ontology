@@ -1,8 +1,0 @@
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a307/SP11/session-release-review/linux/preoverlay /evidence rw=true
-bind /tmp/oo-a307-eef831aa-dba4-4af2-a78b-541bc9e0a307/fixture /run/oo-a307/fixture rw=false
-volume /var/lib/docker/volumes/oo-a307-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a307-eef831aa-target/_data /target rw=true
-bind /tmp/oo-a307-eef831aa-dba4-4af2-a78b-541bc9e0a307/preoverlay/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a307/SP11/session-release-review/linux/preoverlay/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a307/SP11/session-release-review/tools /review rw=false
-

@@ -1,3 +1,0 @@
-bfd0b0fd321c oo-a279-pi-live-restore 0f24958fa693 a279 pi-runtime
-ab0826e894ba oo-a276-pg 3aac91d19d5b a276 postgres
-32cdfa906e1e oo-a275-pg 3aac91d19d5b a275 postgres

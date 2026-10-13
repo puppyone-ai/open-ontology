@@ -1,1 +1,0 @@
-exit 101: compile. guard_then_other_role bound the name catalog, which shadowed fn catalog. unused_mut on root.

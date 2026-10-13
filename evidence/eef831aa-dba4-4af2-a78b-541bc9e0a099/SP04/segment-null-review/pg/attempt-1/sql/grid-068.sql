@@ -1,2 +1,0 @@
-SELECT 'ADOPT|' || _oo.adopt_target_generation('fgrid068', '11111111-1111-4111-8111-111111111111'::uuid)::text;
-SELECT 'RESULT|' || _oo.commit_apply_receipt('fgrid068', '11111111-1111-4111-8111-111111111111'::uuid, 1, 'warehouse', 'orders_g1', 'grid-068', repeat('a', 64), repeat('b', 64), repeat('c', 64), repeat('d', 64), repeat('e', 64), 'pg-commit-lsn/v1', 'src_main', 1, 0, false, true, true, -1, 0, '\x01'::bytea);

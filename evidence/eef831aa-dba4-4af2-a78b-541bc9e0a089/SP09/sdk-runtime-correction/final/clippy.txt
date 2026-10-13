@@ -1,2 +1,0 @@
-    Checking oo-sdk v0.1.0 (/src/crates/oo-sdk)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s

@@ -22,7 +22,7 @@ Public authentication against the real identity service waits until that fixed s
 
 ## Operations
 
-These are the only HTTP operations. Anything else is `not_found` or `method.not_allowed`. There is no publish, rollback, grant, or secret-read route.
+The operation IDs below stay frozen. Overlay routes are additive and use the same identity, CSRF, and error envelope. Anything else, including `POST /control/v1/builds/{build_id}/publish`, is `not_found` or `method.not_allowed`. There is no publish, rollback, grant, or secret-read route.
 
 | operationId | Method and path | Success |
 |---|---|---|
@@ -41,8 +41,16 @@ These are the only HTTP operations. Anything else is `not_found` or `method.not_
 | `confirmClassifications` | `POST /control/v1/classifications/confirm` | 200 |
 | `compileBuildPack` | `POST /control/v1/builds/{build_id}/pack` | 200 |
 | `getBuildPack` | `GET /control/v1/builds/{build_id}/pack` | 200 |
+| `getOverlay` | `GET /control/v1/builds/{build_id}/overlay` | 200 |
+| `postMaintenance` | `POST /control/v1/builds/{build_id}/maintenance` | 200, `llm_calls` 0 |
+| `postCurated` | `POST /control/v1/builds/{build_id}/curated` | 200, does not rewrite generated |
+| `postReview` | `POST /control/v1/builds/{build_id}/review` | 200, `business_owner_signed` false |
+| `postConfirm` | `POST /control/v1/builds/{build_id}/confirm` | 200, still not a business-owner signature |
+| `compileRolePack` | `POST /control/v1/builds/{build_id}/role-pack` | 200, `compiled_pack` `not_published` |
+| `getRolePack` | `GET /control/v1/builds/{build_id}/role-pack` | 200 |
+| `postGates` | `POST /control/v1/builds/{build_id}/gates` | 200, `publication` `refused` |
 
-`cancelBuild` is `POST /control/v1/builds/{build_id}/cancel`, not `DELETE` on the build. `previewReviewBatch` is a static path and is not an item id.
+`cancelBuild` is `POST /control/v1/builds/{build_id}/cancel`, not `DELETE` on the build. `previewReviewBatch` is a static path and is not an item id. A sealed project reads the operator directory named by `sealed_bundle` and does not spawn the foreign binaries. The same HTTP calls serve every source adapter. Sources do not each carry a copy of this service.
 
 A missing dependency returns `503` `dependency.not_ready`. It does not return a successful identity, job, or pack. Errors are JSON and are not HTTP 200. Unknown fields, duplicate JSON keys, and trailing bytes are `400` `malformed`.
 
@@ -106,6 +114,8 @@ The worker is serial per project. It reads the server-approved source through ex
 
 `sample_policy` is `none`. Partial stage failures stay stored. Later stages are not marked succeeded. An unavailable or timed-out model leaves a structural draft or an S5 failure. It does not create an approved review, a pack, or a publication.
 
+A project may set server-side `source_protocol`. That object is not part of `createBuild`. It names the capture, compare, and source-semantics protocols, the source and semantics commits, one to eight sealed type-basis files by absolute path and sha256, and up to four schema-audit logs by absolute path and sha256. The HTTP body stays the seven create fields. The selected protocol is included in the project input hash. Bytes that do not match the selected protocol, a basis hash, or a closed OOS type are `sealed.malformed` at the stage boundary. A column whose PostgreSQL OID has no closed OOS equivalent stays unknown, is omitted from generated YAML, and is not approved. `consistency_grade` and `delete_detection` stay unknown when the semantics profile has null. On this path S5 does not treat `structural_draft` as model success. A missing bearer file sets S5 `awaiting` with `detail_code` `model.blocked`, `llm_calls` 0, `builder_spawned` false, cards `ready` false, and no role pack. The service writes `oo.pg-builder.config/v1` and does not spawn. A present bearer file uses the existing `pg-builder` argv: `approve`, then `generate` (`--config`, `--seal`, `--cards`, `--approval`, `--cache`, `--out`), then `curated`. A missing binary is `builder.absent`. Missing seal, cards, catalog, or config inputs are `builder.inputs_absent`. A non-zero exit, a secret leak, or an outcome other than `validated` is `generate.failed` or `curated.failed`. None of those set Ready, a role pack, or publication. When pinned schema audits are present, S0 builds the catalog from the audited DDL and writes the producer seal and cards. A missing bearer still leaves S5 awaiting `model.blocked` and does not call the model. `compiled_pack` stays `not_published`. There is still no publish route.
+
 Restart resumes a checkpoint only when the input hash, project, and config revision still match and the output hash is recorded. A running S5 checkpoint without an output hash is `resume.uncertain` and does not call the model again. A lost control-database commit is not replayed blindly.
 
 Cancellation sets `cancel_requested` in the audit transaction, then kills the child and waits for that child to exit before `canceled`. A kill that does not reap the child leaves the job `cancel_requested`.
@@ -146,7 +156,13 @@ Stdout is one JSON object and contains no cookie, CSRF token, password, bearer, 
 
 ## Dependencies
 
-Direct pins already in the repository root lock. No new crate, no version bump, no root manifest edit, no root lock edit, no `cargo update`. `rust-version` is 1.94.0. Safe Rust only.
+`rust-version` is 1.94.0. Safe Rust only. The root `Cargo.toml` and root `Cargo.lock` stay untouched. This crate is not published and it does not add a new public package.
+
+After `ed16eb71a48c7e0c4a1c65c3f601a45077742922`, the coordinator allowed this crate's own `Cargo.toml` and `Cargo.lock` to path-depend on the existing `oo-core` at fixed commit `983577c9b89453b08ab4e1a02cab88df78c3e005` (it contains the `8397fd5b984df364cc3638ffa1e69ea06e125d74` source-bound derivation). The path is `../../../crates/oo-core`. It resolves when this crate is overlaid at `stage/w1/selfbuild-control-api` inside a read-only git archive of that commit. The archive's `crates/oo-core` is the compile input. Dirty workspace HEAD is not. Locked dependencies are the versions that path already requires. They are downloaded at those admitted versions and recorded in this crate's lock together with the core SHA and the archive hash. This replaces the earlier blanket ban on a path dependency. It does not relax OOS types, PII approval, curated overlay, or publication. `compiled_pack` remains `not_published`.
+
+The same overlay calls the existing `pg-builder` already in that archive. The path is `../../../tools/pg-builder`. `seal_request`, `assemble_cards`, and `import_seal` are the functions whose source matches that commit. This crate does not copy them and does not edit `tools/pg-builder`. A capture-check file is not retagged. With pinned schema audits and a sealed type basis, S0 builds a catalog from the audited DDL and calls `seal_request` and `assemble_cards`. Without those audits the capture stays a compiler refusal and does not become `seal.json`. `oo.pipeline.native-sealed-catalog/v1` is not called. The root `Cargo.toml` and root `Cargo.lock` stay untouched.
+
+A measured source dictionary uses the same `source_protocol` object. `catalog` is `oo.source.<engine>/v1`, `profile` and `semantics` are the protocols of the measured profile and audit bytes, and `type_basis` may be empty. The bytes are not rewritten into `oo.postgres-preview.capture-check/v1`. `oo.source.pgsql/v1` calls `seal_request` and `assemble_cards`. Another `oo.source.*` dictionary is not sent to that sealer and is not retagged. A type name maps only when it is already a closed OOS type. `bytea` stays null. A source identifier such as `_id` is kept and is not renamed. Unknown grade, unknown delete, and unknown PII are not approved. `compiled_pack` stays `not_published`. A missing model bearer leaves S5 `model_blocked`.
 
 ## Still required
 

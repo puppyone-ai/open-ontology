@@ -1,0 +1,14 @@
+{
+  "contract": "oo.source-support.admit/v1",
+  "detected": {
+    "family": "mysql",
+    "product": "MySQL",
+    "version": "8.0.36",
+    "variant": "self-managed",
+    "driver": {"path": "P1", "impl": "sqlx"},
+    "profile": "production",
+    "sync": "catalog",
+    "driver_present": true,
+    "patch_evidence": "ev-patch-8036"
+  }
+}

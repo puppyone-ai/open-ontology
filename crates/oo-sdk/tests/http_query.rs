@@ -30,12 +30,9 @@ fn unsupported_capabilities_are_explicit() {
         "export",
         "arrow",
         "discover",
-        "describe",
         "resolve",
         "search_values",
-        "freshness",
         "from_sandbox_env",
-        "query_cancellation",
         "openapi_client",
     ] {
         assert!(UNSUPPORTED.contains(&name), "{name}");

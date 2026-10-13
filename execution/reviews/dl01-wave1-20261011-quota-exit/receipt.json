@@ -1,0 +1,106 @@
+{
+  "observed_at": "2026-10-11T07:18:38.024021+08:00",
+  "tasks": [
+    {
+      "task": "DL01-W1-06",
+      "handle": 56319,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-06-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-43",
+      "handle": 55153,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-43-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-44",
+      "handle": 96452,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-44-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-41",
+      "handle": 53077,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-41-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-60",
+      "handle": 5123,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-60-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-61",
+      "handle": 58260,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-61-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-62",
+      "handle": 14383,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-62-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-63",
+      "handle": 7137,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-63-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-05",
+      "handle": 29638,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-05-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-21",
+      "handle": 46733,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-21-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    },
+    {
+      "task": "DL01-W1-18",
+      "handle": 60453,
+      "cli_exit": 1,
+      "http_status": 402,
+      "reason": "Grok Build usage balance exhausted",
+      "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-18-20261011-continuation.log",
+      "background_status": "must collect independently; CLI terminal does not release resources"
+    }
+  ],
+  "source_acceptance_count": 1,
+  "retry_policy": "no repeated failing dispatch; preserve work/resources and collect own existing evidence; complete source review remains required"
+}

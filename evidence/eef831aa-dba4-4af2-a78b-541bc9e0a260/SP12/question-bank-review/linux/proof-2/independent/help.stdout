@@ -1,5 +1,0 @@
-question-bank reads oo.benchmark.question-bank/v1 from stdin.
-It writes oo.benchmark.question-bank-report/v1 to stdout.
-exit 0 fully approved labels
-exit 1 needs reannotation
-exit 2 config

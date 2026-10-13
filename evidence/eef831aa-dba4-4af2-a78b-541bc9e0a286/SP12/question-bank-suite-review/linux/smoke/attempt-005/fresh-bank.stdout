@@ -1,9 +1,0 @@
-scorer_agent_separated=1
-manifest_sha256=e2fe024fa54aced6ebb84831260c88ee7ff6237155731ad1022b4e1b0739d2d6
-bad_decimal=bank
-top_level_null=schema
-mixed_as_of=group
-unsupported_whole_compile=1
-flipped_hash=refused
-template_empty_result=schema
-null_cell_copied=1

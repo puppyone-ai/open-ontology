@@ -1,7 +1,0 @@
-when=2026-10-02T12:16:01Z
-running_rust_builders=0
-exited_rust_builders=1
-host_cargo=0
-host_rustc=0
-own_pg=0
-note=exited builders are not a live slot; one foreign rust builder is up; this compile is the single owned host rustc

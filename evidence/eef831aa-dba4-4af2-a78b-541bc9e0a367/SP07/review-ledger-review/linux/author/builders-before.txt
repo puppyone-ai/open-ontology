@@ -1,1 +1,0 @@
-own=0 global=1 host_tools=0

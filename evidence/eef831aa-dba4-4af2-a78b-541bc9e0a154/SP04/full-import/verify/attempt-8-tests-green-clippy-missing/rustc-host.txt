@@ -1,1 +1,0 @@
-rustc_host=aarch64-unknown-linux-gnu

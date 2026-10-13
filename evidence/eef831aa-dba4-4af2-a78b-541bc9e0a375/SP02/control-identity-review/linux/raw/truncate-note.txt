@@ -1,3 +1,0 @@
-audit_event owner=oo_identity_admin
-trigger=CREATE TRIGGER audit_event_append_only BEFORE DELETE OR UPDATE ON oo_identity_control.audit_event FOR EACH ROW EXECUTE FUNCTION oo_identity_control.reject_mutation()
-The append-only trigger is BEFORE UPDATE OR DELETE. It does not cover TRUNCATE. The table owner can TRUNCATE. This review retains that note and does not run TRUNCATE or an unrelated database campaign. The service does not issue TRUNCATE.

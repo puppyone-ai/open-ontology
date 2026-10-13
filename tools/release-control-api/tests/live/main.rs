@@ -15,16 +15,21 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use control_identity::{canonical_commit, listen as identity_listen, load_config as load_identity, serve as identity_serve, Binding, Role, Store};
+use control_identity::{
+    Binding, Role, Store, canonical_commit, listen as identity_listen,
+    load_config as load_identity, serve as identity_serve,
+};
 use release_control_api::sha256_hex;
-use release_coordinator::{rustls_connector, GATE_IDS};
-use serde_json::{json, Value};
+use release_coordinator::{GATE_IDS, rustls_connector};
+use serde_json::{Value, json};
 use tokio::net::TcpListener;
-use tokio_postgres::config::SslMode;
 use tokio_postgres::Client;
+use tokio_postgres::config::SslMode;
 
 use idp::{Idp, IdpParts};
-use shop::{pack_digest, shop, CATALOG_VERSION, KNOWLEDGE_ID, KNOWLEDGE_VERSION, POLICY_ID, POLICY_VERSION};
+use shop::{
+    CATALOG_VERSION, KNOWLEDGE_ID, KNOWLEDGE_VERSION, POLICY_ID, POLICY_VERSION, pack_digest, shop,
+};
 
 const PROJECT: &str = "shop";
 const ROLE: &str = "oo_r_clerk";
@@ -45,31 +50,78 @@ async fn private_postgres_publish_and_rollback() {
 
     let (effective, narrow_vis) = shop(&["contact"], ROLE);
     let (same, wide_vis) = shop(&["contact", "id"], ROLE);
-    assert_eq!(effective, same, "visibility does not change the reviewed effective");
+    assert_eq!(
+        effective, same,
+        "visibility does not change the reviewed effective"
+    );
     let (_, audit_narrow) = shop(&["contact"], AUDIT_ROLE);
     let (_, audit_wide) = shop(&["contact", "id"], AUDIT_ROLE);
     let narrow_digest = pack_digest(&effective, &narrow_vis);
     let wide_digest = pack_digest(&effective, &wide_vis);
     let audit_narrow_digest = pack_digest(&effective, &audit_narrow);
     let audit_wide_digest = pack_digest(&effective, &audit_wide);
-    assert_ne!(narrow_digest, wide_digest, "column visibility changes the pack digest");
+    assert_ne!(
+        narrow_digest, wide_digest,
+        "column visibility changes the pack digest"
+    );
 
     let narrow_commit = sha256_hex(b"a392-narrow");
     let wide_commit = sha256_hex(b"a392-wide");
     let omit_commit = sha256_hex(b"a392-omit-g7");
     let prod_commit = sha256_hex(b"a392-production");
     let fake_commit = sha256_hex(b"a392-fabricated");
-    write_pack(&pack_dir, &narrow_commit, &effective, &narrow_vis, &audit_narrow, &narrow_digest, &audit_narrow_digest);
-    write_pack(&pack_dir, &wide_commit, &effective, &wide_vis, &audit_wide, &wide_digest, &audit_wide_digest);
-    write_pack(&pack_dir, &omit_commit, &effective, &narrow_vis, &audit_narrow, &narrow_digest, &audit_narrow_digest);
-    write_pack(&pack_dir, &prod_commit, &effective, &narrow_vis, &audit_narrow, &narrow_digest, &audit_narrow_digest);
-    write_pack(&pack_dir, &fake_commit, &effective, &narrow_vis, &audit_narrow, &narrow_digest, &audit_narrow_digest);
+    write_pack(
+        &pack_dir,
+        &narrow_commit,
+        &effective,
+        &narrow_vis,
+        &audit_narrow,
+        &narrow_digest,
+        &audit_narrow_digest,
+    );
+    write_pack(
+        &pack_dir,
+        &wide_commit,
+        &effective,
+        &wide_vis,
+        &audit_wide,
+        &wide_digest,
+        &audit_wide_digest,
+    );
+    write_pack(
+        &pack_dir,
+        &omit_commit,
+        &effective,
+        &narrow_vis,
+        &audit_narrow,
+        &narrow_digest,
+        &audit_narrow_digest,
+    );
+    write_pack(
+        &pack_dir,
+        &prod_commit,
+        &effective,
+        &narrow_vis,
+        &audit_narrow,
+        &narrow_digest,
+        &audit_narrow_digest,
+    );
+    write_pack(
+        &pack_dir,
+        &fake_commit,
+        &effective,
+        &narrow_vis,
+        &audit_narrow,
+        &narrow_digest,
+        &audit_narrow_digest,
+    );
     write_intake(&pack_dir, &narrow_commit, &[], false);
     write_intake(&pack_dir, &wide_commit, &[], false);
     write_intake(&pack_dir, &omit_commit, &["G7"], false);
     write_intake(&pack_dir, &prod_commit, &[], false);
     write_intake(&pack_dir, &fake_commit, &[], true);
-    let narrow_file_hash = sha256_hex(&fs::read(pack_dir.join(format!("{narrow_commit}.json"))).expect("narrow file"));
+    let narrow_file_hash =
+        sha256_hex(&fs::read(pack_dir.join(format!("{narrow_commit}.json"))).expect("narrow file"));
     let narrow_columns = columns_text(&narrow_vis);
 
     let idp_listener = TcpListener::bind("127.0.0.1:0").await.expect("idp bind");
@@ -79,29 +131,45 @@ async fn private_postgres_publish_and_rollback() {
     let identity_origin = format!("https://127.0.0.1:{identity_port}");
     let callback = format!("{identity_origin}/control/v1/auth/callback");
     let identity_config = dir.join("identity.json");
-    write_identity_config(&identity_config, &env, &secret_path, &identity_origin, &issuer, &callback, identity_port);
+    write_identity_config(
+        &identity_config,
+        &env,
+        &secret_path,
+        &identity_origin,
+        &issuer,
+        &callback,
+        identity_port,
+    );
     let identity = Arc::new(load_identity(&identity_config).expect("identity config"));
     Store::install(&identity).await.expect("identity install");
     let token_path = dir.join("bootstrap.token");
-    Store::issue_bootstrap(&identity, &token_path).await.expect("bootstrap");
+    Store::issue_bootstrap(&identity, &token_path)
+        .await
+        .expect("bootstrap");
     let token = fs::read_to_string(&token_path).expect("token file");
     let token = token.trim_end_matches(['\n', '\r']).to_string();
     assert_eq!(token.len(), 43);
     proof.forbid(&token);
     let _ = fs::remove_file(&token_path);
 
-    let der_keys = vec![fs::read(env.cert_dir.join("k1.der")).expect("k1"), fs::read(env.cert_dir.join("k2.der")).expect("k2")];
+    let der_keys = vec![
+        fs::read(env.cert_dir.join("k1.der")).expect("k1"),
+        fs::read(env.cert_dir.join("k2.der")).expect("k2"),
+    ];
     let secret = fs::read_to_string(&secret_path).expect("secret");
     let secret = secret.trim_end_matches(['\n', '\r']).to_string();
-    let idp = idp::start(idp_listener, IdpParts {
-        cert_pem: &env.cert,
-        key_pem: &env.key,
-        issuer: &issuer,
-        client_id: "oo-control-client",
-        client_secret: &secret,
-        redirect_uri: &callback,
-        der_keys: &der_keys,
-    })
+    let idp = idp::start(
+        idp_listener,
+        IdpParts {
+            cert_pem: &env.cert,
+            key_pem: &env.key,
+            issuer: &issuer,
+            client_id: "oo-control-client",
+            client_secret: &secret,
+            redirect_uri: &callback,
+            der_keys: &der_keys,
+        },
+    )
     .await;
     let identity_listener = identity_listen(&identity).await.expect("identity listen");
     let identity_task = tokio::spawn(async move {
@@ -119,7 +187,14 @@ async fn private_postgres_publish_and_rollback() {
     let api_port = probe_port().await;
     let api_origin = format!("https://127.0.0.1:{api_port}");
     let api_config = dir.join("api.json");
-    write_api_config(&api_config, &env, &pack_dir, &api_origin, &identity_origin, api_port);
+    write_api_config(
+        &api_config,
+        &env,
+        &pack_dir,
+        &api_origin,
+        &identity_origin,
+        api_port,
+    );
     let install = Command::new(env.exe.as_os_str())
         .args(["install", "--config"])
         .arg(&api_config)
@@ -133,7 +208,13 @@ async fn private_postgres_publish_and_rollback() {
     assert_eq!(install.status.code(), Some(0), "{install_body}");
     assert_eq!(install_body["production_ready"], false);
     assert_eq!(install_body["full_sp08_accepted"], false);
-    proof.step("install", 0, install_body["outcome"].as_str().unwrap_or(""), "", Value::Null);
+    proof.step(
+        "install",
+        0,
+        install_body["outcome"].as_str().unwrap_or(""),
+        "",
+        Value::Null,
+    );
 
     let mut server = ServerProc::spawn(&env.exe, &api_config);
     let mut api = Http::new(&api_origin, &env.https_ca);
@@ -141,7 +222,12 @@ async fn private_postgres_publish_and_rollback() {
     api.csrf = Some(admin.csrf.clone());
 
     let (reviewer, auditor, owner, other) = {
-        let mut sessions = Sessions { identity_origin: identity_origin.clone(), cert: env.https_ca.clone(), idp: &idp, proof: &mut proof };
+        let mut sessions = Sessions {
+            identity_origin: identity_origin.clone(),
+            cert: env.https_ca.clone(),
+            idp: &idp,
+            proof: &mut proof,
+        };
         let reviewer = sessions.open("fixture-reviewer").await;
         let auditor = sessions.open("fixture-auditor").await;
         let owner = sessions.open("fixture-owner").await;
@@ -151,52 +237,158 @@ async fn private_postgres_publish_and_rollback() {
 
     proof.step("active-empty", 0, "", "", active_version(&api).await);
     assert!(active_version(&api).await.is_null(), "pointer starts empty");
-    let empty_pack = api.call("GET", &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"), None, false).await;
+    let empty_pack = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(empty_pack.status, 409);
     assert_eq!(empty_pack.body["detail"], "inactive");
-    proof.step("pack-inactive", empty_pack.status, empty_pack.body["code"].as_str().unwrap_or(""), "inactive", Value::Null);
+    proof.step(
+        "pack-inactive",
+        empty_pack.status,
+        empty_pack.body["code"].as_str().unwrap_or(""),
+        "inactive",
+        Value::Null,
+    );
 
     let before = operation_count(&env).await;
     let mut bare = api.clone_client();
     bare.session = None;
     bare.csrf = None;
     bare.login = None;
-    let no_cookie = bare.call("POST", "/control/v1/releases", Some("{"), false).await;
+    let no_cookie = bare
+        .call("POST", "/control/v1/releases", Some("{"), false)
+        .await;
     assert_eq!(no_cookie.status, 401, "auth runs before the body parser");
     assert_eq!(operation_count(&env).await, before);
-    proof.step("no-cookie", no_cookie.status, no_cookie.body["code"].as_str().unwrap_or(""), no_cookie.body["detail"].as_str().unwrap_or(""), Value::Null);
+    proof.step(
+        "no-cookie",
+        no_cookie.status,
+        no_cookie.body["code"].as_str().unwrap_or(""),
+        no_cookie.body["detail"].as_str().unwrap_or(""),
+        Value::Null,
+    );
 
-    let duplicate = api.call("POST", "/control/v1/releases", Some(r#"{"project_id":"shop","project_id":"shop"}"#), true).await;
+    let duplicate = api
+        .call(
+            "POST",
+            "/control/v1/releases",
+            Some(r#"{"project_id":"shop","project_id":"shop"}"#),
+            true,
+        )
+        .await;
     assert_eq!(duplicate.status, 400);
     assert_eq!(operation_count(&env).await, before);
-    proof.step("duplicate-key", duplicate.status, "malformed", duplicate.body["detail"].as_str().unwrap_or(""), Value::Null);
+    proof.step(
+        "duplicate-key",
+        duplicate.status,
+        "malformed",
+        duplicate.body["detail"].as_str().unwrap_or(""),
+        Value::Null,
+    );
 
-    let waiver = api.call("POST", "/control/v1/releases", Some(r#"{"force":false}"#), true).await;
+    let waiver = api
+        .call(
+            "POST",
+            "/control/v1/releases",
+            Some(r#"{"force":false}"#),
+            true,
+        )
+        .await;
     assert_eq!(waiver.status, 400);
     assert_eq!(operation_count(&env).await, before);
-    proof.step("waiver", waiver.status, "malformed", waiver.body["detail"].as_str().unwrap_or(""), Value::Null);
+    proof.step(
+        "waiver",
+        waiver.status,
+        "malformed",
+        waiver.body["detail"].as_str().unwrap_or(""),
+        Value::Null,
+    );
 
     let hash_before = session_csrf_hash(&env, "fixture-admin").await;
-    let bad_origin = api.call_origin("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-origin", "ver-origin", None, "test_scope", "key-origin-00000001")), "https://127.0.0.1:9").await;
+    let bad_origin = api
+        .call_origin(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json(
+                &omit_commit,
+                "cand-origin",
+                "ver-origin",
+                None,
+                "test_scope",
+                "key-origin-00000001",
+            )),
+            "https://127.0.0.1:9",
+        )
+        .await;
     assert_eq!(bad_origin.status, 403);
     assert_eq!(bad_origin.body["code"], "origin.rejected");
     assert_eq!(operation_count(&env).await, before);
     assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
-    proof.step("origin", bad_origin.status, "origin.rejected", "origin", Value::Null);
+    proof.step(
+        "origin",
+        bad_origin.status,
+        "origin.rejected",
+        "origin",
+        Value::Null,
+    );
 
-    let bad_shape = api.call_csrf("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-csrf", "ver-csrf", None, "test_scope", "key-csrf-shape-00001")), "short-token").await;
+    let bad_shape = api
+        .call_csrf(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json(
+                &omit_commit,
+                "cand-csrf",
+                "ver-csrf",
+                None,
+                "test_scope",
+                "key-csrf-shape-00001",
+            )),
+            "short-token",
+        )
+        .await;
     assert_eq!(bad_shape.status, 403);
     assert_eq!(bad_shape.body["code"], "csrf.rejected");
     assert_eq!(operation_count(&env).await, before);
     assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
-    proof.step("csrf-shape", bad_shape.status, "csrf.rejected", "csrf", Value::Null);
+    proof.step(
+        "csrf-shape",
+        bad_shape.status,
+        "csrf.rejected",
+        "csrf",
+        Value::Null,
+    );
 
-    let missing_csrf = api.call_no_csrf("POST", "/control/v1/releases", Some(&create_json(&omit_commit, "cand-csrf-missing", "ver-csrf-missing", None, "test_scope", "key-csrf-missing-001"))).await;
+    let missing_csrf = api
+        .call_no_csrf(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json(
+                &omit_commit,
+                "cand-csrf-missing",
+                "ver-csrf-missing",
+                None,
+                "test_scope",
+                "key-csrf-missing-001",
+            )),
+        )
+        .await;
     assert_eq!(missing_csrf.status, 403);
     assert_eq!(missing_csrf.body["code"], "csrf.rejected");
     assert_eq!(operation_count(&env).await, before);
     assert_eq!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
-    proof.step("csrf-missing", missing_csrf.status, "csrf.rejected", "csrf", Value::Null);
+    proof.step(
+        "csrf-missing",
+        missing_csrf.status,
+        "csrf.rejected",
+        "csrf",
+        Value::Null,
+    );
 
     let shaped = "a".repeat(43);
     let unverified = api
@@ -212,78 +404,252 @@ async fn private_postgres_publish_and_rollback() {
     assert_eq!(unverified.body["detail"], "scope");
     assert_eq!(operation_count(&env).await, before);
     assert_ne!(session_csrf_hash(&env, "fixture-admin").await, hash_before);
-    proof.step("csrf-unverified", unverified.status, "forbidden", "scope", Value::Null);
+    proof.step(
+        "csrf-unverified",
+        unverified.status,
+        "forbidden",
+        "scope",
+        Value::Null,
+    );
 
     refresh_csrf(&mut identity_http, &mut api).await;
-    let bad_revision = api.call("POST", "/control/v1/releases", Some(&create_json_revision(&omit_commit, "cand-rev", "ver-rev", None, "test_scope", "key-revision-000001", 2)), true).await;
+    let bad_revision = api
+        .call(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json_revision(
+                &omit_commit,
+                "cand-rev",
+                "ver-rev",
+                None,
+                "test_scope",
+                "key-revision-000001",
+                2,
+            )),
+            true,
+        )
+        .await;
     assert_eq!(bad_revision.status, 409);
     assert_eq!(bad_revision.body["code"], "revision.conflict");
     assert_eq!(operation_count(&env).await, before);
-    proof.step("revision", bad_revision.status, "revision.conflict", "revision", Value::Null);
+    proof.step(
+        "revision",
+        bad_revision.status,
+        "revision.conflict",
+        "revision",
+        Value::Null,
+    );
 
-    let missing = api.call("GET", "/control/v1/releases/op_0123456789abcdef0123456789abcdef", None, false).await;
+    let missing = api
+        .call(
+            "GET",
+            "/control/v1/releases/op_0123456789abcdef0123456789abcdef",
+            None,
+            false,
+        )
+        .await;
     assert_eq!(missing.status, 403);
     assert_eq!(missing.body["detail"], "scope");
-    proof.step("missing-op", missing.status, "forbidden", "scope", Value::Null);
+    proof.step(
+        "missing-op",
+        missing.status,
+        "forbidden",
+        "scope",
+        Value::Null,
+    );
 
     let unknown = api.call("GET", "/control/v1/no-such", None, false).await;
     assert_eq!(unknown.status, 404);
-    proof.step("unknown-route", unknown.status, unknown.body["code"].as_str().unwrap_or(""), "route", Value::Null);
-    let method = api.call("POST", "/control/v1/releases/active", Some("{}"), true).await;
+    proof.step(
+        "unknown-route",
+        unknown.status,
+        unknown.body["code"].as_str().unwrap_or(""),
+        "route",
+        Value::Null,
+    );
+    let method = api
+        .call("POST", "/control/v1/releases/active", Some("{}"), true)
+        .await;
     assert_eq!(method.status, 405);
-    proof.step("method", method.status, method.body["code"].as_str().unwrap_or(""), "method", Value::Null);
+    proof.step(
+        "method",
+        method.status,
+        method.body["code"].as_str().unwrap_or(""),
+        "method",
+        Value::Null,
+    );
 
     let mut reviewer_http = api.with_session(&reviewer);
     refresh_session(&identity_origin, &env.https_ca, &mut reviewer_http).await;
-    let reviewer_rollback = reviewer_http.call("POST", "/control/v1/releases/op_0123456789abcdef0123456789abcdef/rollback", Some(&rollback_json("ver-missing", "key-reviewer-rollback")), true).await;
+    let reviewer_rollback = reviewer_http
+        .call(
+            "POST",
+            "/control/v1/releases/op_0123456789abcdef0123456789abcdef/rollback",
+            Some(&rollback_json("ver-missing", "key-reviewer-rollback")),
+            true,
+        )
+        .await;
     assert_eq!(reviewer_rollback.status, 403);
     assert_eq!(reviewer_rollback.body["detail"], "capability");
     assert_eq!(operation_count(&env).await, before);
-    proof.step("reviewer-rollback", reviewer_rollback.status, "forbidden", "capability", Value::Null);
+    proof.step(
+        "reviewer-rollback",
+        reviewer_rollback.status,
+        "forbidden",
+        "capability",
+        Value::Null,
+    );
 
     let mut other_http = api.with_session(&other);
-    let other_shop = other_http.call("GET", &format!("/control/v1/releases?project_id={PROJECT}"), None, false).await;
+    let other_shop = other_http
+        .call(
+            "GET",
+            &format!("/control/v1/releases?project_id={PROJECT}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(other_shop.status, 403);
     assert_eq!(other_shop.body["detail"], "scope");
-    let other_project = other_http.call("GET", "/control/v1/releases?project_id=otherproj", None, false).await;
+    let other_project = other_http
+        .call(
+            "GET",
+            "/control/v1/releases?project_id=otherproj",
+            None,
+            false,
+        )
+        .await;
     assert_eq!(other_project.status, 403);
     assert_eq!(other_project.body["detail"], "scope");
-    proof.step("cross-project", other_shop.status, "forbidden", "scope", Value::Null);
+    proof.step(
+        "cross-project",
+        other_shop.status,
+        "forbidden",
+        "scope",
+        Value::Null,
+    );
 
     let mut owner_http = api.with_session(&owner);
     refresh_session(&identity_origin, &env.https_ca, &mut owner_http).await;
-    let owner_publish = owner_http.call("POST", "/control/v1/releases", Some(&create_json(&narrow_commit, "cand-owner", "ver-owner", None, "test_scope", "key-owner-publish01")), true).await;
+    let owner_publish = owner_http
+        .call(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json(
+                &narrow_commit,
+                "cand-owner",
+                "ver-owner",
+                None,
+                "test_scope",
+                "key-owner-publish01",
+            )),
+            true,
+        )
+        .await;
     assert_eq!(owner_publish.status, 403);
     assert_eq!(owner_publish.body["detail"], "capability");
     assert_eq!(operation_count(&env).await, before);
-    proof.step("owner-publish", owner_publish.status, "forbidden", "capability", Value::Null);
+    proof.step(
+        "owner-publish",
+        owner_publish.status,
+        "forbidden",
+        "capability",
+        Value::Null,
+    );
 
-    let omit = publish_and_wait(&mut identity_http, &mut api, &create_json(&omit_commit, "cand-omit", "ver-omit", None, "test_scope", "key-omit-g7-000001")).await;
+    let omit = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &omit_commit,
+            "cand-omit",
+            "ver-omit",
+            None,
+            "test_scope",
+            "key-omit-g7-000001",
+        ),
+    )
+    .await;
     assert_eq!(omit["status"], "refused", "{omit}");
     assert_eq!(omit["certificate_class"], "not_issued");
     assert!(gate_has(&omit, "G7_missing"), "{omit}");
     assert!(active_version(&api).await.is_null());
     assert_flags(&omit);
-    proof.step("omit-g7", 200, omit["status"].as_str().unwrap_or(""), omit["producer_reason"].as_str().unwrap_or(""), Value::Null);
+    proof.step(
+        "omit-g7",
+        200,
+        omit["status"].as_str().unwrap_or(""),
+        omit["producer_reason"].as_str().unwrap_or(""),
+        Value::Null,
+    );
 
-    let fake = publish_and_wait(&mut identity_http, &mut api, &create_json(&fake_commit, "cand-fake", "ver-fake", None, "test_scope", "key-fake-fence-0001")).await;
+    let fake = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &fake_commit,
+            "cand-fake",
+            "ver-fake",
+            None,
+            "test_scope",
+            "key-fake-fence-0001",
+        ),
+    )
+    .await;
     assert_eq!(fake["status"], "refused", "{fake}");
     assert!(gate_has(&fake, "stale_fence"), "{fake}");
     assert!(active_version(&api).await.is_null());
-    proof.step("fabricated-fence", 200, "refused", fake["producer_reason"].as_str().unwrap_or(""), Value::Null);
+    proof.step(
+        "fabricated-fence",
+        200,
+        "refused",
+        fake["producer_reason"].as_str().unwrap_or(""),
+        Value::Null,
+    );
 
-    let prod0 = publish_and_wait(&mut identity_http, &mut api, &create_json(&prod_commit, "cand-prod0", "ver-prod0", None, "production", "key-prod-empty-0001")).await;
+    let prod0 = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &prod_commit,
+            "cand-prod0",
+            "ver-prod0",
+            None,
+            "production",
+            "key-prod-empty-0001",
+        ),
+    )
+    .await;
     assert_eq!(prod0["status"], "refused", "{prod0}");
     assert_eq!(prod0["certificate_class"], "not_issued");
     assert_eq!(prod0["producer_reason"], "production_blocked");
-    for token in ["authenticated_owner_missing", "runsc_missing", "customer_not_production_admissible", "replica_not_production_admissible", "fence_not_production_admissible"] {
+    for token in [
+        "authenticated_owner_missing",
+        "runsc_missing",
+        "customer_not_production_admissible",
+        "replica_not_production_admissible",
+        "fence_not_production_admissible",
+    ] {
         assert!(gate_has(&prod0, token), "{token} missing from {prod0}");
     }
     assert_flags(&prod0);
     assert!(active_version(&api).await.is_null());
-    proof.step("production-blocked-empty", 200, "refused", "production_blocked", Value::Null);
+    proof.step(
+        "production-blocked-empty",
+        200,
+        "refused",
+        "production_blocked",
+        Value::Null,
+    );
 
-    let narrow_body = create_json(&narrow_commit, "cand-n", "ver-n", None, "test_scope", "key-narrow-v1-00001");
+    let narrow_body = create_json(
+        &narrow_commit,
+        "cand-n",
+        "ver-n",
+        None,
+        "test_scope",
+        "key-narrow-v1-00001",
+    );
     let narrow = publish_and_wait(&mut identity_http, &mut api, &narrow_body).await;
     assert_eq!(narrow["status"], "succeeded", "{narrow}");
     assert_eq!(narrow["certificate_class"], "test_scope_not_production");
@@ -291,53 +657,148 @@ async fn private_postgres_publish_and_rollback() {
     assert_flags(&narrow);
     assert_eq!(active_version(&api).await, json!("ver-n"));
     let narrow_id = narrow["operation_id"].as_str().expect("id").to_string();
-    proof.step("publish-narrow", 200, "succeeded", "test_scope_not_production", json!("ver-n"));
+    proof.step(
+        "publish-narrow",
+        200,
+        "succeeded",
+        "test_scope_not_production",
+        json!("ver-n"),
+    );
 
     refresh_csrf(&mut identity_http, &mut api).await;
-    let replay = api.call("POST", "/control/v1/releases", Some(&narrow_body), true).await;
+    let replay = api
+        .call("POST", "/control/v1/releases", Some(&narrow_body), true)
+        .await;
     assert_eq!(replay.status, 202);
     assert_eq!(replay.body["replay"], true);
     assert_eq!(replay.body["operation_id"], narrow_id);
     assert_eq!(replay.body["status"], "succeeded");
-    proof.step("idempotency-replay", replay.status, "succeeded", "replay", json!("ver-n"));
-    let conflict_body = create_json(&narrow_commit, "cand-other", "ver-other", None, "test_scope", "key-narrow-v1-00001");
+    proof.step(
+        "idempotency-replay",
+        replay.status,
+        "succeeded",
+        "replay",
+        json!("ver-n"),
+    );
+    let conflict_body = create_json(
+        &narrow_commit,
+        "cand-other",
+        "ver-other",
+        None,
+        "test_scope",
+        "key-narrow-v1-00001",
+    );
     refresh_csrf(&mut identity_http, &mut api).await;
-    let conflict = api.call("POST", "/control/v1/releases", Some(&conflict_body), true).await;
+    let conflict = api
+        .call("POST", "/control/v1/releases", Some(&conflict_body), true)
+        .await;
     assert_eq!(conflict.status, 409);
     assert_eq!(conflict.body["code"], "idempotency.conflict");
-    proof.step("idempotency-conflict", conflict.status, "idempotency.conflict", "idempotency", json!("ver-n"));
+    proof.step(
+        "idempotency-conflict",
+        conflict.status,
+        "idempotency.conflict",
+        "idempotency",
+        json!("ver-n"),
+    );
 
     let count_at_narrow = operation_count(&env).await;
     refresh_csrf(&mut identity_http, &mut api).await;
-    let mismatch = api.call("POST", "/control/v1/releases", Some(&create_json(&wide_commit, "cand-mismatch", "ver-mismatch", None, "test_scope", "key-base-mismatch01")), true).await;
+    let mismatch = api
+        .call(
+            "POST",
+            "/control/v1/releases",
+            Some(&create_json(
+                &wide_commit,
+                "cand-mismatch",
+                "ver-mismatch",
+                None,
+                "test_scope",
+                "key-base-mismatch01",
+            )),
+            true,
+        )
+        .await;
     assert_eq!(mismatch.status, 409);
     assert_eq!(mismatch.body["detail"], "pointer");
     assert_eq!(operation_count(&env).await, count_at_narrow);
     assert_eq!(active_version(&api).await, json!("ver-n"));
-    proof.step("base-mismatch", mismatch.status, "conflict", "pointer", json!("ver-n"));
+    proof.step(
+        "base-mismatch",
+        mismatch.status,
+        "conflict",
+        "pointer",
+        json!("ver-n"),
+    );
 
-    let prod1 = publish_and_wait(&mut identity_http, &mut api, &create_json(&prod_commit, "cand-prod1", "ver-prod1", Some("ver-n"), "production", "key-prod-active-0001")).await;
+    let prod1 = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &prod_commit,
+            "cand-prod1",
+            "ver-prod1",
+            Some("ver-n"),
+            "production",
+            "key-prod-active-0001",
+        ),
+    )
+    .await;
     assert_eq!(prod1["status"], "refused", "{prod1}");
     assert_eq!(prod1["certificate_class"], "not_issued");
     assert_eq!(prod1["customer_gate_verified"], false);
     assert!(gate_has(&prod1, "authenticated_owner_missing"));
     assert!(gate_has(&prod1, "runsc_missing"));
     assert_eq!(active_version(&api).await, json!("ver-n"));
-    proof.step("production-blocked-active", 200, "refused", "production_blocked", json!("ver-n"));
+    proof.step(
+        "production-blocked-active",
+        200,
+        "refused",
+        "production_blocked",
+        json!("ver-n"),
+    );
 
-    let wide = publish_and_wait(&mut identity_http, &mut api, &create_json(&wide_commit, "cand-w", "ver-w", Some("ver-n"), "test_scope", "key-wide-v2-0000001")).await;
+    let wide = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &wide_commit,
+            "cand-w",
+            "ver-w",
+            Some("ver-n"),
+            "test_scope",
+            "key-wide-v2-0000001",
+        ),
+    )
+    .await;
     assert_eq!(wide["status"], "succeeded", "{wide}");
     assert_eq!(wide["certificate_class"], "test_scope_not_production");
     assert_eq!(active_version(&api).await, json!("ver-w"));
     let wide_id = wide["operation_id"].as_str().expect("wide").to_string();
-    proof.step("publish-wide", 200, "succeeded", "test_scope_not_production", json!("ver-w"));
+    proof.step(
+        "publish-wide",
+        200,
+        "succeeded",
+        "test_scope_not_production",
+        json!("ver-w"),
+    );
 
     assert_reader(&env, Some("ver-w")).await;
     assert_admin_cannot_read_view(&env).await;
     let mut auditor_http = api.with_session(&auditor);
-    let auditor_pack = auditor_http.call("GET", &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"), None, false).await;
+    let auditor_pack = auditor_http
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(auditor_pack.status, 200, "{}", auditor_pack.body);
-    assert_eq!(auditor_pack.body["certificate_class"], "test_scope_not_production");
+    assert_eq!(
+        auditor_pack.body["certificate_class"],
+        "test_scope_not_production"
+    );
     assert_eq!(auditor_pack.body["replica_production_admissible"], false);
     assert_eq!(auditor_pack.body["production_ready"], false);
     let files = auditor_pack.body["files"].as_array().expect("files");
@@ -349,60 +810,176 @@ async fn private_postgres_publish_and_rollback() {
         assert_eq!(sha.len(), 64);
         assert!(file["bytes"].as_i64().expect("bytes") >= 0);
     }
-    proof.step("auditor-pack", 200, "getActiveRolePack", "test_scope_not_production", json!("ver-w"));
-    let reviewer_pack = reviewer_http.call("GET", &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"), None, false).await;
+    proof.step(
+        "auditor-pack",
+        200,
+        "getActiveRolePack",
+        "test_scope_not_production",
+        json!("ver-w"),
+    );
+    let reviewer_pack = reviewer_http
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(reviewer_pack.status, 403);
     assert_eq!(reviewer_pack.body["detail"], "capability");
-    proof.step("reviewer-pack", reviewer_pack.status, "forbidden", "capability", json!("ver-w"));
-    let wrong_role = api.call("GET", &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={AUDIT_ROLE}"), None, false).await;
+    proof.step(
+        "reviewer-pack",
+        reviewer_pack.status,
+        "forbidden",
+        "capability",
+        json!("ver-w"),
+    );
+    let wrong_role = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={AUDIT_ROLE}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(wrong_role.status, 403);
     assert_eq!(wrong_role.body["detail"], "role");
-    proof.step("role-mismatch", wrong_role.status, "forbidden", "role", json!("ver-w"));
+    proof.step(
+        "role-mismatch",
+        wrong_role.status,
+        "forbidden",
+        "role",
+        json!("ver-w"),
+    );
 
-    let rolled = rollback_and_wait(&mut identity_http, &mut api, &wide_id, "ver-w", "key-rollback-wide-01").await;
+    let rolled = rollback_and_wait(
+        &mut identity_http,
+        &mut api,
+        &wide_id,
+        "ver-w",
+        "key-rollback-wide-01",
+    )
+    .await;
     assert_eq!(rolled["status"], "succeeded", "{rolled}");
     assert_eq!(rolled["kind"], "rollback");
     assert_eq!(rolled["certificate_class"], "not_issued");
     assert_eq!(rolled["producer_outcome"], "rolled_back");
     assert_eq!(active_version(&api).await, json!("ver-n"));
-    let still = api.call("GET", &format!("/control/v1/releases/{narrow_id}"), None, false).await;
+    let still = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/{narrow_id}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(still.body["status"], "succeeded");
-    let wide_still = api.call("GET", &format!("/control/v1/releases/{wide_id}"), None, false).await;
+    let wide_still = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/{wide_id}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(wide_still.body["status"], "succeeded");
     assert_producer_state(&env, "cand-n", "active").await;
     assert_producer_state(&env, "cand-w", "inactive").await;
     assert_producer_audit(&env, "cand-w", "rolled_back").await;
     assert_reader(&env, Some("ver-n")).await;
-    proof.step("rollback-wide", 200, "rolled_back", "not_issued", json!("ver-n"));
+    proof.step(
+        "rollback-wide",
+        200,
+        "rolled_back",
+        "not_issued",
+        json!("ver-n"),
+    );
 
-    let wide2 = publish_and_wait(&mut identity_http, &mut api, &create_json(&wide_commit, "cand-w2", "ver-w2", Some("ver-n"), "test_scope", "key-wide-again-0001")).await;
+    let wide2 = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &wide_commit,
+            "cand-w2",
+            "ver-w2",
+            Some("ver-n"),
+            "test_scope",
+            "key-wide-again-0001",
+        ),
+    )
+    .await;
     assert_eq!(wide2["status"], "succeeded", "{wide2}");
-    let narrow2 = publish_and_wait(&mut identity_http, &mut api, &create_json(&narrow_commit, "cand-n2", "ver-n2", Some("ver-w2"), "test_scope", "key-narrow-again-01")).await;
+    let narrow2 = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &narrow_commit,
+            "cand-n2",
+            "ver-n2",
+            Some("ver-w2"),
+            "test_scope",
+            "key-narrow-again-01",
+        ),
+    )
+    .await;
     assert_eq!(narrow2["status"], "succeeded", "{narrow2}");
     assert_eq!(active_version(&api).await, json!("ver-n2"));
     let narrow2_id = narrow2["operation_id"].as_str().expect("n2").to_string();
     let count_before_compat = operation_count(&env).await;
     refresh_csrf(&mut identity_http, &mut api).await;
-    let compat = api.call("POST", &format!("/control/v1/releases/{narrow2_id}/rollback"), Some(&rollback_json("ver-n2", "key-compat-refuse01")), true).await;
+    let compat = api
+        .call(
+            "POST",
+            &format!("/control/v1/releases/{narrow2_id}/rollback"),
+            Some(&rollback_json("ver-n2", "key-compat-refuse01")),
+            true,
+        )
+        .await;
     assert_eq!(compat.status, 409, "{}", compat.body);
     assert_eq!(compat.body["code"], "compat.refused");
     assert_eq!(operation_count(&env).await, count_before_compat);
     assert_eq!(active_version(&api).await, json!("ver-n2"));
-    proof.step("rollback-widen-refused", compat.status, "compat.refused", "permission", json!("ver-n2"));
+    proof.step(
+        "rollback-widen-refused",
+        compat.status,
+        "compat.refused",
+        "permission",
+        json!("ver-n2"),
+    );
 
     server.kill();
     let running_id = format!("op_{}", &sha256_hex(b"a392-running-row")[..32]);
     insert_running(&env, &running_id).await;
     server = ServerProc::spawn(&env.exe, &api_config);
-    let resumed = api.call("GET", &format!("/control/v1/releases/{running_id}"), None, false).await;
+    let resumed = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/{running_id}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(resumed.status, 200, "{}", resumed.body);
     assert_eq!(resumed.body["status"], "resume_uncertain");
     assert_eq!(active_version(&api).await, json!("ver-n2"));
-    proof.step("restart-uncertain", resumed.status, "resume_uncertain", "", json!("ver-n2"));
+    proof.step(
+        "restart-uncertain",
+        resumed.status,
+        "resume_uncertain",
+        "",
+        json!("ver-n2"),
+    );
 
     server.kill();
     let restart_id = format!("op_{}", &sha256_hex(b"a392-queued-restart")[..32]);
-    insert_queued(&env, &restart_id, &narrow_commit, &narrow_file_hash, &narrow_columns).await;
+    insert_queued(
+        &env,
+        &restart_id,
+        &narrow_commit,
+        &narrow_file_hash,
+        &narrow_columns,
+    )
+    .await;
     server = ServerProc::spawn(&env.exe, &api_config);
     let restarted = wait_id(&api, &restart_id).await;
     assert_eq!(restarted["status"], "succeeded", "{restarted}");
@@ -412,10 +989,25 @@ async fn private_postgres_publish_and_rollback() {
     assert_audit_immutable(&env).await;
     let rejected = identity_audit_count(&env, "bootstrap_rejected").await;
     let consumed = identity_audit_count(&env, "bootstrap_consumed").await;
-    assert_eq!(rejected, 0, "product mutations must not write bootstrap_rejected");
+    assert_eq!(
+        rejected, 0,
+        "product mutations must not write bootstrap_rejected"
+    );
     assert_eq!(consumed, 1, "only the fixture login consumes bootstrap");
-    proof.step("restart-queued", 200, "succeeded", "test_scope_not_production", json!("ver-restart"));
-    proof.step("identity-audit", 0, "bootstrap_rejected", "0", json!(consumed));
+    proof.step(
+        "restart-queued",
+        200,
+        "succeeded",
+        "test_scope_not_production",
+        json!("ver-restart"),
+    );
+    proof.step(
+        "identity-audit",
+        0,
+        "bootstrap_rejected",
+        "0",
+        json!(consumed),
+    );
 
     drop(server);
     proof.finish(&env);
@@ -442,11 +1034,21 @@ struct LiveEnv {
 
 impl LiveEnv {
     fn load() -> Self {
-        let host = env::var("OO_A392_PG_HOST").unwrap_or_else(|_| panic!("OO_A392_PG_HOST is required for the private postgres test"));
-        let port = env::var("OO_A392_PG_PORT").unwrap_or_else(|_| panic!("OO_A392_PG_PORT is required")).parse().expect("port");
-        let database = env::var("OO_A392_PG_DATABASE").unwrap_or_else(|_| panic!("OO_A392_PG_DATABASE is required"));
-        let cert_dir = PathBuf::from(env::var("OO_A392_CERT_DIR").unwrap_or_else(|_| panic!("OO_A392_CERT_DIR is required")));
-        let pg_ca_file = PathBuf::from(env::var("OO_A392_PG_CA").unwrap_or_else(|_| panic!("OO_A392_PG_CA is required")));
+        let host = env::var("OO_A392_PG_HOST").unwrap_or_else(|_| {
+            panic!("OO_A392_PG_HOST is required for the private postgres test")
+        });
+        let port = env::var("OO_A392_PG_PORT")
+            .unwrap_or_else(|_| panic!("OO_A392_PG_PORT is required"))
+            .parse()
+            .expect("port");
+        let database = env::var("OO_A392_PG_DATABASE")
+            .unwrap_or_else(|_| panic!("OO_A392_PG_DATABASE is required"));
+        let cert_dir = PathBuf::from(
+            env::var("OO_A392_CERT_DIR").unwrap_or_else(|_| panic!("OO_A392_CERT_DIR is required")),
+        );
+        let pg_ca_file = PathBuf::from(
+            env::var("OO_A392_PG_CA").unwrap_or_else(|_| panic!("OO_A392_PG_CA is required")),
+        );
         Self {
             host,
             port,
@@ -456,10 +1058,22 @@ impl LiveEnv {
             key: fs::read(cert_dir.join("srv.key")).expect("srv.key"),
             https_ca: fs::read(cert_dir.join("ca.pem")).expect("https ca"),
             ca: fs::read(&pg_ca_file).expect("pg ca"),
-            api_password_file: PathBuf::from(env::var("OO_A392_API_PASSWORD_FILE").unwrap_or_else(|_| panic!("OO_A392_API_PASSWORD_FILE is required"))),
-            producer_password_file: PathBuf::from(env::var("OO_A392_PRODUCER_PASSWORD_FILE").unwrap_or_else(|_| panic!("OO_A392_PRODUCER_PASSWORD_FILE is required"))),
-            reader_password_file: PathBuf::from(env::var("OO_A392_READER_PASSWORD_FILE").unwrap_or_else(|_| panic!("OO_A392_READER_PASSWORD_FILE is required"))),
-            identity_password_file: PathBuf::from(env::var("OO_A392_IDENTITY_PASSWORD_FILE").unwrap_or_else(|_| panic!("OO_A392_IDENTITY_PASSWORD_FILE is required"))),
+            api_password_file: PathBuf::from(
+                env::var("OO_A392_API_PASSWORD_FILE")
+                    .unwrap_or_else(|_| panic!("OO_A392_API_PASSWORD_FILE is required")),
+            ),
+            producer_password_file: PathBuf::from(
+                env::var("OO_A392_PRODUCER_PASSWORD_FILE")
+                    .unwrap_or_else(|_| panic!("OO_A392_PRODUCER_PASSWORD_FILE is required")),
+            ),
+            reader_password_file: PathBuf::from(
+                env::var("OO_A392_READER_PASSWORD_FILE")
+                    .unwrap_or_else(|_| panic!("OO_A392_READER_PASSWORD_FILE is required")),
+            ),
+            identity_password_file: PathBuf::from(
+                env::var("OO_A392_IDENTITY_PASSWORD_FILE")
+                    .unwrap_or_else(|_| panic!("OO_A392_IDENTITY_PASSWORD_FILE is required")),
+            ),
             pg_ca_file,
             cert_dir,
             proof_path: env::var("OO_A392_PROOF").ok().map(PathBuf::from),
@@ -521,40 +1135,80 @@ impl Http {
             .timeout(Duration::from_secs(20))
             .build()
             .expect("client");
-        Self { client, origin: origin.to_string(), login: None, session: None, csrf: None }
+        Self {
+            client,
+            origin: origin.to_string(),
+            login: None,
+            session: None,
+            csrf: None,
+        }
     }
 
     fn with_session(&self, session: &Session) -> Self {
-        Self { client: self.client.clone(), origin: self.origin.clone(), login: None, session: Some(session.cookie.clone()), csrf: Some(session.csrf.clone()) }
+        Self {
+            client: self.client.clone(),
+            origin: self.origin.clone(),
+            login: None,
+            session: Some(session.cookie.clone()),
+            csrf: Some(session.csrf.clone()),
+        }
     }
 
     async fn call(&mut self, method: &str, path: &str, body: Option<&str>, mutate: bool) -> Reply {
         if mutate {
             let origin = self.origin.clone();
             let csrf = self.csrf.clone().unwrap_or_default();
-            self.send(method, path, body, Some(&origin), Some(&csrf), true).await
+            self.send(method, path, body, Some(&origin), Some(&csrf), true)
+                .await
         } else {
             self.send(method, path, body, None, None, true).await
         }
     }
 
-    async fn call_csrf(&mut self, method: &str, path: &str, body: Option<&str>, csrf: &str) -> Reply {
+    async fn call_csrf(
+        &mut self,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+        csrf: &str,
+    ) -> Reply {
         let origin = self.origin.clone();
-        self.send(method, path, body, Some(&origin), Some(csrf), true).await
+        self.send(method, path, body, Some(&origin), Some(csrf), true)
+            .await
     }
 
     async fn call_no_csrf(&mut self, method: &str, path: &str, body: Option<&str>) -> Reply {
         let origin = self.origin.clone();
-        self.send(method, path, body, Some(&origin), None, true).await
+        self.send(method, path, body, Some(&origin), None, true)
+            .await
     }
 
-    async fn call_origin(&mut self, method: &str, path: &str, body: Option<&str>, origin: &str) -> Reply {
+    async fn call_origin(
+        &mut self,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+        origin: &str,
+    ) -> Reply {
         let csrf = self.csrf.clone().unwrap_or_default();
-        self.send(method, path, body, Some(origin), Some(&csrf), true).await
+        self.send(method, path, body, Some(origin), Some(&csrf), true)
+            .await
     }
 
-    async fn send(&mut self, method: &str, path: &str, body: Option<&str>, origin: Option<&str>, csrf: Option<&str>, send_cookie: bool) -> Reply {
-        let url = if path.starts_with("https://") { path.to_string() } else { format!("{}{path}", self.origin) };
+    async fn send(
+        &mut self,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+        origin: Option<&str>,
+        csrf: Option<&str>,
+        send_cookie: bool,
+    ) -> Reply {
+        let url = if path.starts_with("https://") {
+            path.to_string()
+        } else {
+            format!("{}{path}", self.origin)
+        };
         let mut request = self.client.request(method.parse().expect("method"), &url);
         if send_cookie && let Some(cookie) = self.cookie_header() {
             request = request.header("cookie", cookie);
@@ -566,7 +1220,9 @@ impl Http {
             request = request.header("x-oo-csrf", csrf);
         }
         if let Some(body) = body {
-            request = request.header("content-type", "application/json").body(body.to_string());
+            request = request
+                .header("content-type", "application/json")
+                .body(body.to_string());
         }
         let response = request.send().await.expect("request");
         self.absorb(&response);
@@ -586,15 +1242,25 @@ impl Http {
         if let Some(value) = &self.session {
             parts.push(format!("__Host-oo-session={value}"));
         }
-        if parts.is_empty() { None } else { Some(parts.join("; ")) }
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join("; "))
+        }
     }
 
     fn absorb(&mut self, response: &reqwest::Response) {
         for value in response.headers().get_all(reqwest::header::SET_COOKIE) {
             let Ok(text) = value.to_str() else { continue };
             let (pair, _) = text.split_once(';').unwrap_or((text, ""));
-            let Some((name, cookie)) = pair.split_once('=') else { continue };
-            let stored = if cookie.is_empty() { None } else { Some(cookie.to_string()) };
+            let Some((name, cookie)) = pair.split_once('=') else {
+                continue;
+            };
+            let stored = if cookie.is_empty() {
+                None
+            } else {
+                Some(cookie.to_string())
+            };
             if name == "__Host-oo-login" {
                 self.login = stored;
             } else if name == "__Host-oo-session" {
@@ -606,13 +1272,27 @@ impl Http {
 
 async fn reply_from(response: reqwest::Response) -> Reply {
     let status = response.status().as_u16();
-    let location = response.headers().get(reqwest::header::LOCATION).and_then(|value| value.to_str().ok()).unwrap_or("").to_string();
+    let location = response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("")
+        .to_string();
     let bytes = response.bytes().await.unwrap_or_default();
     let body = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    Reply { status, location, body }
+    Reply {
+        status,
+        location,
+        body,
+    }
 }
 
-async fn login_session(http: &mut Http, idp: &Idp, bootstrap: Option<&str>, subject: &str) -> Session {
+async fn login_session(
+    http: &mut Http,
+    idp: &Idp,
+    bootstrap: Option<&str>,
+    subject: &str,
+) -> Session {
     idp.set_subject(subject);
     let path = match bootstrap {
         Some(token) => format!("/control/v1/auth/login?return_to=%2Fapp&bootstrap_token={token}"),
@@ -620,13 +1300,26 @@ async fn login_session(http: &mut Http, idp: &Idp, bootstrap: Option<&str>, subj
     };
     let done = follow_login(http, &path).await;
     assert_eq!(done.status, 302, "login status {}", done.status);
-    assert!(done.location.starts_with(&format!("{}/app", http.origin)) || done.location.contains("/app"), "return {}", done.location);
-    let current = http.call("GET", "/control/v1/identity/current", None, false).await;
+    assert!(
+        done.location.starts_with(&format!("{}/app", http.origin))
+            || done.location.contains("/app"),
+        "return {}",
+        done.location
+    );
+    let current = http
+        .call("GET", "/control/v1/identity/current", None, false)
+        .await;
     assert_eq!(current.status, 200, "current {}", current.status);
     Session {
         cookie: http.session.clone().expect("session"),
-        csrf: current.body["csrf_token"].as_str().expect("csrf").to_string(),
-        subject: current.body["subject"].as_str().expect("subject").to_string(),
+        csrf: current.body["csrf_token"]
+            .as_str()
+            .expect("csrf")
+            .to_string(),
+        subject: current.body["subject"]
+            .as_str()
+            .expect("subject")
+            .to_string(),
         revision: current.body["revision"].as_i64().expect("revision"),
     }
 }
@@ -649,7 +1342,10 @@ async fn follow_login(http: &mut Http, path: &str) -> Reply {
             if external.status != 302 {
                 return external;
             }
-            let next = external.location.trim_start_matches(&http.origin).to_string();
+            let next = external
+                .location
+                .trim_start_matches(&http.origin)
+                .to_string();
             reply = http.call("GET", &next, None, false).await;
         }
     }
@@ -657,9 +1353,16 @@ async fn follow_login(http: &mut Http, path: &str) -> Reply {
 }
 
 async fn refresh_csrf(identity: &mut Http, api: &mut Http) {
-    let current = identity.call("GET", "/control/v1/identity/current", None, false).await;
+    let current = identity
+        .call("GET", "/control/v1/identity/current", None, false)
+        .await;
     assert_eq!(current.status, 200, "csrf refresh {}", current.body);
-    api.csrf = Some(current.body["csrf_token"].as_str().expect("csrf").to_string());
+    api.csrf = Some(
+        current.body["csrf_token"]
+            .as_str()
+            .expect("csrf")
+            .to_string(),
+    );
 }
 
 async fn refresh_session(identity_origin: &str, ca: &[u8], api: &mut Http) {
@@ -671,26 +1374,54 @@ async fn refresh_session(identity_origin: &str, ca: &[u8], api: &mut Http) {
 async fn publish_and_wait(identity: &mut Http, api: &mut Http, body: &str) -> Value {
     refresh_csrf(identity, api).await;
     let mut http = api.clone_client();
-    let created = http.call("POST", "/control/v1/releases", Some(body), true).await;
+    let created = http
+        .call("POST", "/control/v1/releases", Some(body), true)
+        .await;
     assert_eq!(created.status, 202, "{}", created.body);
     assert_eq!(created.body["replay"], false);
-    let id = created.body["operation_id"].as_str().expect("operation").to_string();
+    let id = created.body["operation_id"]
+        .as_str()
+        .expect("operation")
+        .to_string();
     wait_id(&http, &id).await
 }
 
-async fn rollback_and_wait(identity: &mut Http, api: &mut Http, operation_id: &str, version: &str, key: &str) -> Value {
+async fn rollback_and_wait(
+    identity: &mut Http,
+    api: &mut Http,
+    operation_id: &str,
+    version: &str,
+    key: &str,
+) -> Value {
     refresh_csrf(identity, api).await;
     let mut http = api.clone_client();
-    let created = http.call("POST", &format!("/control/v1/releases/{operation_id}/rollback"), Some(&rollback_json(version, key)), true).await;
+    let created = http
+        .call(
+            "POST",
+            &format!("/control/v1/releases/{operation_id}/rollback"),
+            Some(&rollback_json(version, key)),
+            true,
+        )
+        .await;
     assert_eq!(created.status, 202, "{}", created.body);
-    let id = created.body["operation_id"].as_str().expect("rollback id").to_string();
+    let id = created.body["operation_id"]
+        .as_str()
+        .expect("rollback id")
+        .to_string();
     wait_id(&http, &id).await
 }
 
 async fn wait_id(api: &Http, operation_id: &str) -> Value {
     let mut http = api.clone_client();
     for _ in 0..300 {
-        let reply = http.call("GET", &format!("/control/v1/releases/{operation_id}"), None, false).await;
+        let reply = http
+            .call(
+                "GET",
+                &format!("/control/v1/releases/{operation_id}"),
+                None,
+                false,
+            )
+            .await;
         assert_eq!(reply.status, 200, "{}", reply.body);
         let status = reply.body["status"].as_str().unwrap_or("");
         if status != "queued" && status != "running" {
@@ -703,7 +1434,14 @@ async fn wait_id(api: &Http, operation_id: &str) -> Value {
 
 async fn active_version(api: &Http) -> Value {
     let mut http = api.clone_client();
-    let reply = http.call("GET", &format!("/control/v1/releases/active?project_id={PROJECT}"), None, false).await;
+    let reply = http
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active?project_id={PROJECT}"),
+            None,
+            false,
+        )
+        .await;
     assert_eq!(reply.status, 200, "{}", reply.body);
     assert_eq!(reply.body["reader"], "oo_release_reader");
     assert_eq!(reply.body["production_ready"], false);
@@ -727,11 +1465,26 @@ impl Http {
     }
 }
 
-fn create_json(commit: &str, candidate: &str, version: &str, base: Option<&str>, scope: &str, key: &str) -> String {
+fn create_json(
+    commit: &str,
+    candidate: &str,
+    version: &str,
+    base: Option<&str>,
+    scope: &str,
+    key: &str,
+) -> String {
     create_json_revision(commit, candidate, version, base, scope, key, 1)
 }
 
-fn create_json_revision(commit: &str, candidate: &str, version: &str, base: Option<&str>, scope: &str, key: &str, revision: i64) -> String {
+fn create_json_revision(
+    commit: &str,
+    candidate: &str,
+    version: &str,
+    base: Option<&str>,
+    scope: &str,
+    key: &str,
+    revision: i64,
+) -> String {
     json!({
         "base_version": base,
         "candidate_id": candidate,
@@ -758,16 +1511,33 @@ fn rollback_json(version: &str, key: &str) -> String {
 }
 
 fn assert_flags(body: &Value) {
-    for key in ["production_ready", "customer_gate_verified", "owner_authenticated", "runsc_verified", "full_sp08_accepted", "half_published"] {
+    for key in [
+        "production_ready",
+        "customer_gate_verified",
+        "owner_authenticated",
+        "runsc_verified",
+        "full_sp08_accepted",
+        "half_published",
+    ] {
         assert_eq!(body[key], false, "{key}");
     }
 }
 
 fn gate_has(body: &Value, token: &str) -> bool {
-    body["gates"].as_array().is_some_and(|gates| gates.iter().any(|gate| gate["gate_id"] == token))
+    body["gates"]
+        .as_array()
+        .is_some_and(|gates| gates.iter().any(|gate| gate["gate_id"] == token))
 }
 
-fn write_pack(dir: &Path, commit: &str, effective: &Value, clerk: &Value, audit: &Value, clerk_digest: &str, audit_digest: &str) {
+fn write_pack(
+    dir: &Path,
+    commit: &str,
+    effective: &Value,
+    clerk: &Value,
+    audit: &Value,
+    clerk_digest: &str,
+    audit_digest: &str,
+) {
     let producer = json!({
         "authenticated": false,
         "outcome": "packed",
@@ -798,7 +1568,11 @@ fn write_pack(dir: &Path, commit: &str, effective: &Value, clerk: &Value, audit:
         "protocol": "oo.release-control.reviewed-pack/v1",
         "roles": [clerk, audit]
     });
-    fs::write(dir.join(format!("{commit}.json")), serde_json::to_vec(&wrapper).expect("wrapper")).expect("write pack");
+    fs::write(
+        dir.join(format!("{commit}.json")),
+        serde_json::to_vec(&wrapper).expect("wrapper"),
+    )
+    .expect("write pack");
 }
 
 fn write_intake(dir: &Path, commit: &str, skip: &[&str], fabricated: bool) {
@@ -828,7 +1602,11 @@ fn write_intake(dir: &Path, commit: &str, skip: &[&str], fabricated: bool) {
         "protocol": "oo.release-control.gate-intake/v1",
         "skip": skip
     });
-    fs::write(dir.join(format!("{commit}.gates.json")), serde_json::to_vec(&intake).expect("intake")).expect("write intake");
+    fs::write(
+        dir.join(format!("{commit}.gates.json")),
+        serde_json::to_vec(&intake).expect("intake"),
+    )
+    .expect("write intake");
 }
 
 fn columns_text(visibility: &Value) -> String {
@@ -843,21 +1621,63 @@ fn columns_text(visibility: &Value) -> String {
 }
 
 fn write_secret(path: &Path, text: &str) {
-    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(path).expect("secret");
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+        .expect("secret");
     file.write_all(text.as_bytes()).expect("secret write");
 }
 
-fn write_identity_config(path: &Path, env: &LiveEnv, secret: &Path, origin: &str, issuer: &str, callback: &str, port: u16) {
+fn write_identity_config(
+    path: &Path,
+    env: &LiveEnv,
+    secret: &Path,
+    origin: &str,
+    issuer: &str,
+    callback: &str,
+    port: u16,
+) {
     let bindings = vec![
-        Binding { subject: "fixture-admin".into(), project_id: "shop".into(), role: Role::Admin },
-        Binding { subject: "fixture-reviewer".into(), project_id: "shop".into(), role: Role::Reviewer },
-        Binding { subject: "fixture-auditor".into(), project_id: "shop".into(), role: Role::Auditor },
-        Binding { subject: "fixture-owner".into(), project_id: "shop".into(), role: Role::BusinessOwner },
-        Binding { subject: "fixture-other".into(), project_id: "otherproj".into(), role: Role::Admin },
+        Binding {
+            subject: "fixture-admin".into(),
+            project_id: "shop".into(),
+            role: Role::Admin,
+        },
+        Binding {
+            subject: "fixture-reviewer".into(),
+            project_id: "shop".into(),
+            role: Role::Reviewer,
+        },
+        Binding {
+            subject: "fixture-auditor".into(),
+            project_id: "shop".into(),
+            role: Role::Auditor,
+        },
+        Binding {
+            subject: "fixture-owner".into(),
+            project_id: "shop".into(),
+            role: Role::BusinessOwner,
+        },
+        Binding {
+            subject: "fixture-other".into(),
+            project_id: "otherproj".into(),
+            role: Role::Admin,
+        },
     ];
     let bootstrap = bindings[0].clone();
     let redirects = vec![callback.to_string()];
-    let commit = canonical_commit(issuer, "oo-control", "oo-control-client", &redirects, &bindings, &bootstrap, 1).expect("commit");
+    let commit = canonical_commit(
+        issuer,
+        "oo-control",
+        "oo-control-client",
+        &redirects,
+        &bindings,
+        &bootstrap,
+        1,
+    )
+    .expect("commit");
     let body = json!({
         "https_origin": origin,
         "listen_host": "127.0.0.1",
@@ -891,7 +1711,14 @@ fn write_identity_config(path: &Path, env: &LiveEnv, secret: &Path, origin: &str
     fs::write(path, serde_json::to_vec(&body).expect("identity config")).expect("write identity");
 }
 
-fn write_api_config(path: &Path, env: &LiveEnv, pack_dir: &Path, origin: &str, identity_origin: &str, port: u16) {
+fn write_api_config(
+    path: &Path,
+    env: &LiveEnv,
+    pack_dir: &Path,
+    origin: &str,
+    identity_origin: &str,
+    port: u16,
+) {
     let pg = |user: &str, password: &Path| {
         json!({
             "ca_file": env.pg_ca_file,
@@ -945,7 +1772,8 @@ async fn connect_as(env: &LiveEnv, user: &str, password_file: &Path) -> Client {
 }
 
 fn read_secret(path: &Path) -> String {
-    let mut text = fs::read_to_string(path).unwrap_or_else(|_| panic!("secret file {}", path.display()));
+    let mut text =
+        fs::read_to_string(path).unwrap_or_else(|_| panic!("secret file {}", path.display()));
     if text.ends_with('\n') {
         text.pop();
     }
@@ -967,7 +1795,10 @@ async fn session_csrf_hash(env: &LiveEnv, subject: &str) -> String {
 async fn identity_audit_count(env: &LiveEnv, action: &str) -> i64 {
     let client = connect_as(env, "oo_identity_admin", &env.identity_password_file).await;
     let row = client
-        .query_one("SELECT count(*) FROM oo_identity_control.audit_event WHERE action = $1::text", &[&action])
+        .query_one(
+            "SELECT count(*) FROM oo_identity_control.audit_event WHERE action = $1::text",
+            &[&action],
+        )
         .await
         .expect("identity audit");
     row.get(0)
@@ -975,7 +1806,10 @@ async fn identity_audit_count(env: &LiveEnv, action: &str) -> i64 {
 
 async fn operation_count(env: &LiveEnv) -> i64 {
     let client = connect_as(env, "oo_release_api_admin", &env.api_password_file).await;
-    let row = client.query_one("SELECT count(*) FROM oo_release_api.operation", &[]).await.expect("count");
+    let row = client
+        .query_one("SELECT count(*) FROM oo_release_api.operation", &[])
+        .await
+        .expect("count");
     row.get(0)
 }
 
@@ -997,13 +1831,25 @@ async fn assert_reader(env: &LiveEnv, version: Option<&str>) {
 
 async fn assert_admin_cannot_read_view(env: &LiveEnv) {
     let client = connect_as(env, "oo_release_api_admin", &env.api_password_file).await;
-    let err = client.query_one("SELECT version FROM oo_release_control.publication_status", &[]).await.expect_err("admin view");
+    let err = client
+        .query_one(
+            "SELECT version FROM oo_release_control.publication_status",
+            &[],
+        )
+        .await
+        .expect_err("admin view");
     assert_eq!(err.code().map(|code| code.code()), Some("42501"));
 }
 
 async fn assert_producer_state(env: &LiveEnv, candidate: &str, state: &str) {
     let client = connect_as(env, "oo_release_admin", &env.producer_password_file).await;
-    let row = client.query_one("SELECT state FROM oo_release_control.candidate WHERE candidate_id = $1", &[&candidate]).await.expect("candidate");
+    let row = client
+        .query_one(
+            "SELECT state FROM oo_release_control.candidate WHERE candidate_id = $1",
+            &[&candidate],
+        )
+        .await
+        .expect("candidate");
     let found: String = row.get(0);
     assert_eq!(found, state);
 }
@@ -1020,7 +1866,13 @@ async fn assert_producer_audit(env: &LiveEnv, candidate: &str, event: &str) {
 
 async fn assert_audit_immutable(env: &LiveEnv) {
     let client = connect_as(env, "oo_release_api_admin", &env.api_password_file).await;
-    let err = client.execute("UPDATE oo_release_api.audit_event SET detail = 'tamper'", &[]).await.expect_err("audit update");
+    let err = client
+        .execute(
+            "UPDATE oo_release_api.audit_event SET detail = 'tamper'",
+            &[],
+        )
+        .await
+        .expect_err("audit update");
     assert_eq!(err.code().map(|code| code.code()), Some("42501"));
 }
 
@@ -1041,7 +1893,13 @@ async fn insert_running(env: &LiveEnv, operation_id: &str) {
         .expect("insert running");
 }
 
-async fn insert_queued(env: &LiveEnv, operation_id: &str, commit: &str, file_hash: &str, columns: &str) {
+async fn insert_queued(
+    env: &LiveEnv,
+    operation_id: &str,
+    commit: &str,
+    file_hash: &str,
+    columns: &str,
+) {
     let client = connect_as(env, "oo_release_api_admin", &env.api_password_file).await;
     let body = sha256_hex(b"a392-queued-restart");
     let audit_id = sha256_hex(format!("{operation_id}:pack.file").as_bytes());
@@ -1154,12 +2012,17 @@ impl ServerProc {
             let _ = stderr.read_to_end(&mut local);
             *stderr_buffer.lock().expect("stderr") = local;
         });
-        let line = receiver.recv_timeout(Duration::from_secs(30)).expect("listening");
+        let line = receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("listening");
         let text = String::from_utf8(line).expect("utf8");
         let value: Value = serde_json::from_str(text.trim()).unwrap_or(Value::Null);
         assert_eq!(value["outcome"], "listening", "{text}");
         assert_eq!(value["production_ready"], false);
-        Self { child: Some(child), stderr: buffer }
+        Self {
+            child: Some(child),
+            stderr: buffer,
+        }
     }
 
     fn kill(&mut self) {
@@ -1189,3 +2052,338 @@ impl Drop for TaskGuard {
     }
 }
 
+fn w73_live() -> LiveEnv {
+    let cert_dir = PathBuf::from(env::var("OO_W73_CERT_DIR").expect("OO_W73_CERT_DIR"));
+    let pg_ca_file = PathBuf::from(env::var("OO_W73_CA_FILE").expect("OO_W73_CA_FILE"));
+    let port = env::var("OO_W73_PG_PORT")
+        .expect("OO_W73_PG_PORT")
+        .parse()
+        .expect("port");
+    LiveEnv {
+        host: env::var("OO_W73_PG_HOST").expect("OO_W73_PG_HOST"),
+        port,
+        database: env::var("OO_W73_CONTROL_DATABASE").expect("OO_W73_CONTROL_DATABASE"),
+        exe: PathBuf::from(env!("CARGO_BIN_EXE_release-control-api")),
+        cert: fs::read(cert_dir.join("srv.pem")).expect("srv.pem"),
+        key: fs::read(cert_dir.join("srv.key")).expect("srv.key"),
+        https_ca: fs::read(cert_dir.join("ca.pem")).expect("https ca"),
+        ca: fs::read(&pg_ca_file).expect("pg ca"),
+        api_password_file: PathBuf::from(
+            env::var("OO_W73_API_PASSWORD_FILE").expect("OO_W73_API_PASSWORD_FILE"),
+        ),
+        producer_password_file: PathBuf::from(
+            env::var("OO_W73_ADMIN_PASSWORD_FILE").expect("OO_W73_ADMIN_PASSWORD_FILE"),
+        ),
+        reader_password_file: PathBuf::from(
+            env::var("OO_W73_READER_PASSWORD_FILE").expect("OO_W73_READER_PASSWORD_FILE"),
+        ),
+        identity_password_file: PathBuf::from(
+            env::var("OO_W73_IDENTITY_PASSWORD_FILE").expect("OO_W73_IDENTITY_PASSWORD_FILE"),
+        ),
+        pg_ca_file,
+        cert_dir,
+        proof_path: None,
+    }
+}
+
+fn write_api_config_w73(
+    path: &Path,
+    env: &LiveEnv,
+    pack_dir: &Path,
+    origin: &str,
+    identity_origin: &str,
+    port: u16,
+) {
+    let target_database = env::var("OO_W73_TARGET_DATABASE").expect("OO_W73_TARGET_DATABASE");
+    let target_password = PathBuf::from(
+        env::var("OO_W73_TARGET_PASSWORD_FILE").expect("OO_W73_TARGET_PASSWORD_FILE"),
+    );
+    let clerk_password =
+        PathBuf::from(env::var("OO_W73_ROLE_PASSWORD_FILE").expect("OO_W73_ROLE_PASSWORD_FILE"));
+    let pg = |user: &str, database: &str, password: &Path| {
+        json!({
+            "ca_file": env.pg_ca_file,
+            "database": database,
+            "host": env.host,
+            "password_file": password,
+            "port": env.port,
+            "user": user
+        })
+    };
+    let body = json!({
+        "native_mapping": {"source": "shop", "config_digest": sha256_hex(b"shop\npublic.customer\nid"), "generation": 1},
+        "api_pg": pg("oo_release_api_admin", &env.database, &env.api_password_file),
+        "authority_id": "w73-shop",
+        "deployment_origins": [origin],
+        "https_origin": origin,
+        "identity_ca_file": env.cert_dir.join("ca.pem"),
+        "identity_origin": identity_origin,
+        "listen_host": "127.0.0.1",
+        "listen_port": port,
+        "pack_dir": pack_dir,
+        "producer_pg": pg("oo_release_admin", &env.database, &env.producer_password_file),
+        "project_id": PROJECT,
+        "reader_pg": pg("oo_release_reader", &env.database, &env.reader_password_file),
+        "target_pg": pg("oo_target_admin", &target_database, &target_password),
+        "target_reader_password_file": clerk_password,
+        "target_reader_user": ROLE,
+        "target_relation": "customer",
+        "target_role": ROLE,
+        "target_schema": "public",
+        "tls_cert_file": env.cert_dir.join("srv.pem"),
+        "tls_key_file": env.cert_dir.join("srv.key")
+    });
+    fs::write(path, serde_json::to_vec(&body).expect("api config")).expect("write api");
+}
+
+async fn connect_db(env: &LiveEnv, database: &str, user: &str, password_file: &Path) -> Client {
+    let password = read_secret(password_file);
+    let tls = rustls_connector(&env.ca).expect("tls");
+    let mut config = tokio_postgres::Config::new();
+    config.user(user);
+    config.password(&password);
+    config.host(&env.host);
+    config.port(env.port);
+    config.dbname(database);
+    config.ssl_mode(SslMode::Require);
+    config.application_name("oo-w73-api-proof");
+    let (client, connection) = config.connect(tls).await.expect("pg");
+    tokio::spawn(async move {
+        let _ = connection.await;
+    });
+    client
+}
+
+async fn column_privilege(client: &Client, column: &str) -> bool {
+    let row = client
+        .query_one(
+            "SELECT has_column_privilege(current_user, 'public.customer'::regclass, $1, 'SELECT')",
+            &[&column],
+        )
+        .await
+        .expect("privilege");
+    row.get(0)
+}
+
+/// One real HTTP publish through the control API. Gateway 72 stays pending and is not fixtured.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn w73_control_api_publishes_one_test_scope_pack() {
+    if env::var("OO_W73_API").ok().as_deref() != Some("1") {
+        return;
+    }
+    let env = w73_live();
+    let target_database = env::var("OO_W73_TARGET_DATABASE").expect("target database");
+    let reader = connect_as(&env, "oo_release_reader", &env.reader_password_file).await;
+    let current: Option<String> = reader
+        .query_one(
+            "SELECT version FROM oo_release_control.publication_status",
+            &[],
+        )
+        .await
+        .expect("pointer")
+        .get(0);
+    drop(reader);
+    let id_only = current.is_some();
+    let columns: &[&str] = if id_only { &["id"] } else { &["contact", "id"] };
+    let (effective, visibility) = shop(columns, ROLE);
+    let (_, audit) = shop(columns, AUDIT_ROLE);
+    let digest = pack_digest(&effective, &visibility);
+    let audit_digest = pack_digest(&effective, &audit);
+    let dir = env::temp_dir().join(format!("oo-w73-api-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).expect("work");
+    let pack_dir = dir.join("packs");
+    fs::create_dir_all(&pack_dir).expect("packs");
+    let commit = sha256_hex(b"w73-api-pack");
+    write_pack(
+        &pack_dir,
+        &commit,
+        &effective,
+        &visibility,
+        &audit,
+        &digest,
+        &audit_digest,
+    );
+    write_intake(&pack_dir, &commit, &[], false);
+
+    let secret_path = dir.join("client.secret");
+    write_secret(&secret_path, "fixture-client-secret-w73\n");
+    let idp_listener = TcpListener::bind("127.0.0.1:0").await.expect("idp bind");
+    let idp_port = idp_listener.local_addr().expect("idp port").port();
+    let identity_port = probe_port().await;
+    let issuer = format!("https://127.0.0.1:{idp_port}");
+    let identity_origin = format!("https://127.0.0.1:{identity_port}");
+    let callback = format!("{identity_origin}/control/v1/auth/callback");
+    let identity_config = dir.join("identity.json");
+    write_identity_config(
+        &identity_config,
+        &env,
+        &secret_path,
+        &identity_origin,
+        &issuer,
+        &callback,
+        identity_port,
+    );
+    let identity = Arc::new(load_identity(&identity_config).expect("identity config"));
+    Store::install(&identity).await.expect("identity install");
+    let token_path = dir.join("bootstrap.token");
+    Store::issue_bootstrap(&identity, &token_path)
+        .await
+        .expect("bootstrap");
+    let token = fs::read_to_string(&token_path)
+        .expect("token")
+        .trim_end_matches(['\n', '\r'])
+        .to_string();
+    let _ = fs::remove_file(&token_path);
+    let der_keys = vec![
+        fs::read(env.cert_dir.join("k1.der")).expect("k1"),
+        fs::read(env.cert_dir.join("k2.der")).expect("k2"),
+    ];
+    let secret = fs::read_to_string(&secret_path)
+        .expect("secret")
+        .trim_end_matches(['\n', '\r'])
+        .to_string();
+    let idp = idp::start(
+        idp_listener,
+        IdpParts {
+            cert_pem: &env.cert,
+            key_pem: &env.key,
+            issuer: &issuer,
+            client_id: "oo-control-client",
+            client_secret: &secret,
+            redirect_uri: &callback,
+            der_keys: &der_keys,
+        },
+    )
+    .await;
+    let identity_listener = identity_listen(&identity).await.expect("identity listen");
+    let identity_task = tokio::spawn(async move {
+        let _ = identity_serve(identity, identity_listener).await;
+    });
+    let _identity_guard = TaskGuard(identity_task);
+    let mut identity_http = Http::new(&identity_origin, &env.https_ca);
+    let admin = login_session(&mut identity_http, &idp, Some(&token), "fixture-admin").await;
+
+    let api_port = probe_port().await;
+    let api_origin = format!("https://127.0.0.1:{api_port}");
+    let api_config = dir.join("api.json");
+    write_api_config_w73(
+        &api_config,
+        &env,
+        &pack_dir,
+        &api_origin,
+        &identity_origin,
+        api_port,
+    );
+    let install = Command::new(env.exe.as_os_str())
+        .args(["install", "--config"])
+        .arg(&api_config)
+        .env_clear()
+        .env("HOME", "/tmp")
+        .env("PATH", "/usr/bin:/bin")
+        .output()
+        .expect("install");
+    assert!(
+        install.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&install.stderr)
+    );
+    let install_body: Value = serde_json::from_slice(&install.stdout).expect("install json");
+    assert_eq!(install.status.code(), Some(0), "{install_body}");
+    let mut server = ServerProc::spawn(&env.exe, &api_config);
+    let mut api = Http::new(&api_origin, &env.https_ca);
+    api.session = Some(admin.cookie.clone());
+    api.csrf = Some(admin.csrf.clone());
+
+    let base = current.as_deref();
+    let published = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &commit,
+            "cand-api",
+            "ver-api",
+            base,
+            "test_scope",
+            "key-w73-publish-0001",
+        ),
+    )
+    .await;
+    assert_eq!(published["status"], "succeeded", "{published}");
+    assert_eq!(
+        published["certificate_class"], "test_scope_not_production",
+        "{published}"
+    );
+    assert_eq!(published["pack_digest"], digest, "{published}");
+    assert_flags(&published);
+    assert_eq!(active_version(&api).await, json!("ver-api"));
+    let pack = api
+        .call(
+            "GET",
+            &format!("/control/v1/releases/active/pack?project_id={PROJECT}&role={ROLE}"),
+            None,
+            false,
+        )
+        .await;
+    assert_eq!(pack.status, 200, "{}", pack.body);
+    assert_eq!(pack.body["certificate_class"], "test_scope_not_production");
+    assert_eq!(pack.body["pack_digest"], digest);
+    assert!(pack.body.get("compiled_pack").is_none());
+    assert_flags(&pack.body);
+
+    let clerk_file = PathBuf::from(env::var("OO_W73_ROLE_PASSWORD_FILE").expect("clerk"));
+    let clerk = connect_db(&env, &target_database, ROLE, &clerk_file).await;
+    assert!(column_privilege(&clerk, "id").await);
+    assert!(!column_privilege(&clerk, "note").await);
+    if id_only {
+        assert!(
+            !column_privilege(&clerk, "contact").await,
+            "revoked contact stays revoked"
+        );
+    } else {
+        assert!(column_privilege(&clerk, "contact").await);
+    }
+    drop(clerk);
+    let target_file = PathBuf::from(env::var("OO_W73_TARGET_PASSWORD_FILE").expect("target"));
+    let fence = connect_db(&env, &target_database, "oo_target_admin", &target_file).await;
+    let mapping_digest = sha256_hex(b"shop\npublic.customer\nid");
+    let mapped_table: String = fence
+        .query_one(
+            "SELECT _oo.lookup_physical_mapping($1,$2,1::bigint,'table','public','customer','')",
+            &[&PROJECT, &mapping_digest],
+        )
+        .await
+        .expect("actual mapping")
+        .get(0);
+    let opened:String=fence.query_one("SELECT opened_pack_digest FROM oo_publish_target.fence WHERE schema_name='_oo' AND relation_name=$1 AND role_name=$2",&[&mapped_table,&ROLE]).await.expect("fence").get(0);
+    assert_eq!(opened, digest);
+
+    let produced = publish_and_wait(
+        &mut identity_http,
+        &mut api,
+        &create_json(
+            &commit,
+            "cand-api-prod",
+            "ver-api-prod",
+            Some("ver-api"),
+            "production",
+            "key-w73-production01",
+        ),
+    )
+    .await;
+    assert_eq!(produced["status"], "refused", "{produced}");
+    assert_eq!(produced["certificate_class"], "not_issued", "{produced}");
+    assert_eq!(
+        produced["producer_reason"], "production_blocked",
+        "{produced}"
+    );
+    assert_flags(&produced);
+    let opened_after:String=fence.query_one("SELECT opened_pack_digest FROM oo_publish_target.fence WHERE schema_name='_oo' AND relation_name=$1 AND role_name=$2",&[&mapped_table,&ROLE]).await.expect("fence").get(0);
+    assert_eq!(
+        opened_after, digest,
+        "production scope does not move the fence"
+    );
+    assert_eq!(active_version(&api).await, json!("ver-api"));
+    server.kill();
+    let _ = fs::remove_dir_all(&dir);
+}

@@ -1,6 +1,0 @@
-removed exited oo-a373-rust after the green builder
-left oo-a373-pg running
-left volumes oo-a373-cargo oo-a373-target oo-a373-pgdata
-did not drop oo_selfbuild oo_identity oo_review oo_fixture oo_selfbuild_shop oo_review_shop oo_review_converge
-did not delete ledger control files or ledger credentials
-left /tmp/oo-a373 and /tmp/oo-a373-secrets in place; they are not repo paths

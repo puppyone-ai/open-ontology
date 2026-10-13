@@ -1,0 +1,149 @@
+{
+  "schema": "oo-source-conformance/nightly-registry/v1",
+  "entries": [
+    {
+      "target_id": "postgres-selfmanaged",
+      "capability": "batch_full",
+      "runs": [
+        {
+          "calendar_day": "2026-10-01",
+          "raw_exit": 0,
+          "evidence_id": "fix-20261001",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-02",
+          "raw_exit": 0,
+          "evidence_id": "fix-20261002",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-03",
+          "raw_exit": 0,
+          "evidence_id": "fix-20261003",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-05",
+          "raw_exit": 0,
+          "evidence_id": "fix-20261005",
+          "origin": "suite"
+        }
+      ]
+    },
+    {
+      "target_id": "postgres-selfmanaged",
+      "capability": "catalog",
+      "runs": [
+        {
+          "calendar_day": "2026-08-01",
+          "raw_exit": 0,
+          "evidence_id": "manual-pg-cat-0801",
+          "origin": "manual"
+        },
+        {
+          "calendar_day": "2026-09-01",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260901",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-02",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260902",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-03",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260903",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-04",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260904",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-05",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260905",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-06",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260906",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-07",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260907",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-08",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260908",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-09",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260909",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-10",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260910",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-11",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260911",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-12",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260912",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-13",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260913",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-09-14",
+          "raw_exit": 0,
+          "evidence_id": "fix-20260914",
+          "origin": "suite"
+        }
+      ]
+    },
+    {
+      "target_id": "mysql8-selfmanaged",
+      "capability": "cdc",
+      "runs": [
+        {
+          "calendar_day": "2026-10-01",
+          "raw_exit": 1,
+          "evidence_id": "fix-20261001",
+          "origin": "suite"
+        },
+        {
+          "calendar_day": "2026-10-02",
+          "raw_exit": 1,
+          "evidence_id": "fix-20261002",
+          "origin": "suite"
+        }
+      ]
+    }
+  ]
+}

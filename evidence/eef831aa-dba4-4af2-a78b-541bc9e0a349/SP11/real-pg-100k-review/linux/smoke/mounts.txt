@@ -1,6 +1,0 @@
-bind /tmp/oo-a349-eef831aa-dba4-4af2-a78b-541bc9e0a349/in-smoke/archive/tools/pg-onboarding /onboarding rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a349/SP11/real-pg-100k-review/linux/smoke/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a349/SP11/real-pg-100k-review /evidence rw=true
-volume /var/lib/docker/volumes/oo-a349-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a349-eef831aa-target/_data /target rw=true
-

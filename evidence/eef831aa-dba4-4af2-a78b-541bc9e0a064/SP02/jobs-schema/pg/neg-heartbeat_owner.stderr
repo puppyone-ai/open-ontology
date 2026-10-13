@@ -1,3 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/heartbeat_owner.sql:6: ERROR:  23514: lease owner change requires a new generation
-CONTEXT:  PL/pgSQL function enforce_task_update() line 28 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

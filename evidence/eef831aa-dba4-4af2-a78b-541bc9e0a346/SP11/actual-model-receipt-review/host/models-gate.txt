@@ -1,1 +1,0 @@
-model_available=true selected_model_id=grok-4.7 chat_out=absent

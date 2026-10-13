@@ -1,5 +1,0 @@
-target_statistics.rs
-lib.rs
-target_statistics_pg_live.rs
-target-statistics-v1.md
-oo-gateway/tests/target_statistics_catalog_proof.rs

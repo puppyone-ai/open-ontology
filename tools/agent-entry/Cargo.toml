@@ -1,0 +1,53 @@
+[package]
+name = "agent-entry"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+publish = false
+license = "Apache-2.0"
+description = "Real agent Q&A entry for one localprocess session. Not a production signature."
+
+[workspace]
+resolver = "3"
+
+[lib]
+name = "agent_entry"
+path = "src/lib.rs"
+
+[[bin]]
+name = "agent-entry"
+path = "src/main.rs"
+
+[dependencies]
+pi-harness = { path = "../pi-harness" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time", "fs"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+
+[dev-dependencies]
+base64 = "=0.22.1"
+ring = "=0.17.14"
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+serde_json = "=1.0.151"
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time", "fs"] }
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+tokio-postgres-rustls = { version = "=0.14.0", default-features = false, features = ["aws-lc-rs"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["tls12", "aws-lc-rs"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+too_many_arguments = "allow"
+cognitive_complexity = "allow"
+uninlined_format_args = "allow"

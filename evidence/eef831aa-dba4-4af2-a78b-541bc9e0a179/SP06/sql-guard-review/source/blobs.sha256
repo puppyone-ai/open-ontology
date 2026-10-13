@@ -1,6 +1,0 @@
-f9d55dde46b355ba631e03652455cb5f3efe449c8f82e813979ebd2cfb314845  Cargo.lock
-2861543be44c9d8356449fdcd1a6b1f31efdf9a78dfa14f6998234c573c60e57  contracts/gateway/sql-guard-v1.md
-e1c7a908660eb32d35eba2ecf032209c7c10a54394dc79493f46882bc89f2fe3  crates/oo-gateway/Cargo.toml
-362c6cb93b93d74df016f1874b7af0ab7f03bfab5ac461c6540ff1f8586af3cb  crates/oo-gateway/src/lib.rs
-40ee2a5cd58d1c4c7460944312583ce69b20d2e8ce38fbcb8ff2bd648626df6c  crates/oo-gateway/src/sql_guard.rs
-d80cbbe47f620a04996fdd29151596755938b0a495ea6809feead8565b33f8fa  crates/oo-gateway/tests/sql_guard.rs

@@ -1,3 +1,0 @@
-subject=CN=pg
-X509v3 Subject Alternative Name: 
-    DNS:pg

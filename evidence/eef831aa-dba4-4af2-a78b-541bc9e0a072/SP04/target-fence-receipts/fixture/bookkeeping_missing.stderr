@@ -1,3 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/protocol_repeat.psql:27: ERROR:  OO002: migration bookkeeping incomplete
-CONTEXT:  PL/pgSQL function inline_code_block line 13 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

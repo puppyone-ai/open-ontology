@@ -1,1 +1,0 @@
-Builder tests failed one case. loopback_timeout_redirect_and_chunked_body expected refusal redirect and observed unavailable. The fixture server wrote its response after a single short read, so the client write could fail. Clippy exited 0. Preserved. Not acceptance.

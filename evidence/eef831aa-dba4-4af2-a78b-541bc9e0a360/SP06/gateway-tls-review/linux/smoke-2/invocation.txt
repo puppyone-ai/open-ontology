@@ -1,1 +1,0 @@
-docker run --name oo-a360-smoke-2 --platform linux/arm64 --pull never --network oo-a360-eef831aa-net --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 reused-target=oo-a360-eef831aa-target bash /inside-continue.sh

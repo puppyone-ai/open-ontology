@@ -1,1 +1,0 @@
-Id=8e294e65878dc3b77973b2212058bcb44c3a7687281799e96d029c03261ec031 Image=sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5 Platform=linux Privileged=false NetworkMode=oo-a109-f760a961-386b-46c2-a505-109e54a6748a-net CapDrop=["ALL"] SecurityOpt=["no-new-privileges"] Memory=8589934592 MemorySwap=8589934592 NanoCpus=4000000000 PidsLimit=4096

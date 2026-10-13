@@ -1,9 +1,0 @@
-73cb84555227eff9c862a40cbd1ffb1d35fd3a5c11cfa757b0ad18436d60c80e  pnpm-lock.yaml
-b0e85fd326168281f6d796a1de39f989b5bb79783f3282fb3c226c5fbd8d91c4  apps/web/src/app/router.tsx
-dfd4cd377f8561dfc68f723efb39d62fc45d313b10f46837d0fac510fb157f0a  apps/web/src/app/module-registration.ts
-97c9770de99aceba94fced4e01a48bf100fa7ecf7976b2d0a6df63af2cd7e43d  apps/web/src/app/admin-gate.tsx
-5b96088907643a003d662365c6f18858323a48b26fd37f803393cec4ebd2da42  apps/web/src/styles/tokens.css
-43dd297361739ce310f0b8d5ece99185708a8f156e9038f2d7bd5ea633c0815f  packages/sdk-ts/src/bindings.ts
-ea2180d3b27ff1f01769cc342b7b607945d447e3e9fc44019324ef6431fd4625  apps/web/src/components/shared/wizard.tsx
-ce9f75c03280ae04d74a1cb334155ddfeae369be880b8f9fadddb36812efb7da  apps/web/src/components/shared/review-decision-form.tsx
-2ec7be471b4e579c25d7c68f99fd4d567d68a2637315d93053a3f1e0105ec343  apps/web/src/components/shared/app-shell.tsx

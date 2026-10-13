@@ -1,3 +1,0 @@
-dump_flags_seen=1
-backup_seconds=4
-restore_seconds=1

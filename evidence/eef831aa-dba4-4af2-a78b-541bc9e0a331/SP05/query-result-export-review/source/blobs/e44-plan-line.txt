@@ -1,1 +1,0 @@
-1319:- [ ] E44 / FILE-D04 CSV typed-query export frozen BEFORE code (0/1): sourcequeryhash/types/null/exactdecimal/truncation sidecar + spreadsheet formula-safe bounded CSV, actual query fixture/handgold/limits; tools/query-result-export, a325.

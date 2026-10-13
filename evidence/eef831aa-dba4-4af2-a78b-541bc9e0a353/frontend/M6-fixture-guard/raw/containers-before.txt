@@ -1,7 +1,0 @@
-oo-a377-pg 3aac91d19d5b Up 7 minutes
-oo-a373-rust 0f24958fa693 Exited (101) 12 minutes ago
-oo-a373-pg 3aac91d19d5b Up 4 hours
-oo-a064-rust194-contract2 0f24958fa693 Exited (0) 6 days ago
-oo-a064-rust194-contract 0f24958fa693 Exited (101) 6 days ago
-oo-a064-pg1710-jobs 3aac91d19d5b Exited (0) 6 days ago
-oo-a064-rust194-smoke 0f24958fa693 Exited (0) 6 days ago

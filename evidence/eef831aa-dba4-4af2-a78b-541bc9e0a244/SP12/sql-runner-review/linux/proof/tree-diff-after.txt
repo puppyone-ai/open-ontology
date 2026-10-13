@@ -1,2 +1,0 @@
-Only in /archive: rust-toolchain.toml
-Only in /src: rust-toolchain.toml.repo

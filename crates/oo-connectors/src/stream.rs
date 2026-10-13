@@ -3,6 +3,8 @@
 //! `next_batch` polls the only drive. That drive writes `Execute` while the
 //! caller is waiting. There is no background reader and no unbounded queue.
 //! One owner, one repeatable-read transaction, every selected table.
+//! The pull does not emit `SAVEPOINT`, `ROLLBACK TO`, or `RELEASE`. A failed
+//! statement aborts that transaction. The owner releases it with `ROLLBACK`.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -16,13 +18,13 @@ use sqlx::postgres::{
 };
 use sqlx::{Row, ValueRef};
 
-use crate::error::{self, SourceError};
+use crate::error::{self, SourceError, SourceErrorKind, SqlState};
 use crate::session::{self, PgSession};
 use crate::snapshot::{self, RecheckCut, StreamGuard};
 use crate::sql;
 use crate::types::{
-    assemble_batch, arrow_buffer_preimage, decode_payload, require_binary, ColumnPlan,
-    DecodedCell, MapDecision, RunBinding, TypedBatch,
+    ColumnPlan, DecodedCell, MapDecision, RunBinding, TypedBatch, arrow_buffer_preimage,
+    assemble_batch, decode_payload, require_binary,
 };
 
 /// Stream protocol. This is not the snapshot protocol and not the whole reader.
@@ -580,7 +582,6 @@ async fn scan(
                     ensure_deadline(plan.deadline)?;
                     snapshot::recheck_stream(data, &table.cut).await?;
                     snapshot::guard_still_current(guard, &plan.guard).await?;
-                    data.execute_control(sql::SAVEPOINT_STREAM).await?;
                     if let Err(err) = install_bounds(data, plan, table.result_columns) {
                         return prefer(err, rollback_only(data).await);
                     }
@@ -590,7 +591,7 @@ async fn scan(
                     };
                     // A lock wait can sit in Parse/Bind, before any Execute. Watch that
                     // open on the same future the caller is already polling. The portal
-                    // borrow ends inside this block, before rollback uses `data` again.
+                    // borrow ends inside this block. The outer transaction stays open.
                     let opened_exit = {
                         let opened = await_cancellable(
                             guard,
@@ -638,11 +639,11 @@ async fn scan(
                     };
                     match exit {
                         Hold::Stop { closed } => {
-                            settle_after(data, closed, true, acc).await?;
+                            settle_after(data, closed, acc).await?;
                             return Ok(());
                         }
                         Hold::Fail { err, closed } => {
-                            return prefer(err, settle_after(data, closed, true, acc).await);
+                            return prefer(err, settle_after(data, closed, acc).await);
                         }
                         Hold::Done {
                             closed,
@@ -650,10 +651,9 @@ async fn scan(
                             rows,
                             pending,
                         } => {
-                            settle_after(data, closed, true, acc).await?;
+                            settle_after(data, closed, acc).await?;
                             if let Some(rows) = rows {
-                                let item =
-                                    make_batch(table, plan, rows, acc, pending.is_some())?;
+                                let item = make_batch(table, plan, rows, acc, pending.is_some())?;
                                 if matches!(emit_item(gate, id, item).await, Signal::Stop) {
                                     return Ok(());
                                 }
@@ -754,7 +754,10 @@ async fn hold_portal(
 }
 
 enum Filled {
-    Batch { rows: Vec<Vec<DecodedCell>>, eof: bool },
+    Batch {
+        rows: Vec<Vec<DecodedCell>>,
+        eof: bool,
+    },
     Eof,
 }
 
@@ -859,11 +862,14 @@ async fn pull_one(
     if Instant::now() >= plan.deadline {
         return Err(SourceError::budget("deadline"));
     }
-    let hold = session::try_reserve_rows(&plan.source_id, 1)?;
+    // One Execute reserves one row and waits for the next rate window.
+    // The cap remains [`session::MAX_ROWS_PER_SEC`].
+    let paced = session::pace_reserve_rows(&plan.source_id, 1, plan.deadline).await?;
+    let hold = paced.hold;
     acc.reserved_rows += 1;
     acc.executes += 1;
-    let allowance = PgPortalAllowance::positive(1)
-        .map_err(|_| SourceError::protocol("portal_allowance"))?;
+    let allowance =
+        PgPortalAllowance::positive(1).map_err(|_| SourceError::protocol("portal_allowance"))?;
     let step = await_cancellable(guard, plan, Box::pin(portal.pull(allowance))).await?;
     accept_step(step, plan, hold, acc)
 }
@@ -958,13 +964,14 @@ fn classify_pull(mapped: SourceError, plan: &StreamPlan) -> SourceError {
     if mapped.sqlstate() != Some("57014") {
         return mapped;
     }
+    let state = mapped.sqlstate().and_then(SqlState::parse);
     if plan.cancel.load(Ordering::Relaxed) {
-        return SourceError::protocol("cancelled");
+        return SourceError::new(SourceErrorKind::Protocol, Some("cancelled"), state);
     }
     if Instant::now() >= plan.deadline {
-        return SourceError::budget("deadline");
+        return SourceError::new(SourceErrorKind::Budget, Some("deadline"), state);
     }
-    SourceError::budget("statement_timeout")
+    SourceError::new(SourceErrorKind::Budget, Some("statement_timeout"), state)
 }
 
 fn decode_scanned(
@@ -1085,7 +1092,6 @@ async fn close_owned(portal: PgNamedPortal<'_>) -> Result<(), SourceError> {
 async fn settle_after(
     data: &mut PgSession,
     closed: Result<(), SourceError>,
-    rollback: bool,
     acc: &mut Acc,
 ) -> Result<(), SourceError> {
     sample(data, acc);
@@ -1103,10 +1109,6 @@ async fn settle_after(
     data.conn
         .set_incoming_bounds(None)
         .map_err(error::map_sqlx)?;
-    if rollback {
-        data.execute_control(sql::ROLLBACK_STREAM).await?;
-        data.execute_control(sql::RELEASE_STREAM).await?;
-    }
     Ok(())
 }
 
@@ -1118,8 +1120,6 @@ async fn rollback_only(data: &mut PgSession) -> Result<(), SourceError> {
     data.conn
         .set_incoming_bounds(None)
         .map_err(error::map_sqlx)?;
-    data.execute_control(sql::ROLLBACK_STREAM).await?;
-    data.execute_control(sql::RELEASE_STREAM).await?;
     Ok(())
 }
 
@@ -1167,13 +1167,9 @@ fn install_bounds(
         .ok_or_else(|| SourceError::config("incoming_bounds"))?
         .max(MESSAGE_FLOOR);
     let columns = u16::try_from(columns).map_err(|_| SourceError::protocol("row_width"))?;
-    let bounds = PgIncomingBounds::try_new(
-        message,
-        plan.max_value_bytes,
-        plan.max_row_bytes,
-        columns,
-    )
-    .map_err(|_| SourceError::config("incoming_bounds"))?;
+    let bounds =
+        PgIncomingBounds::try_new(message, plan.max_value_bytes, plan.max_row_bytes, columns)
+            .map_err(|_| SourceError::config("incoming_bounds"))?;
     data.conn
         .set_incoming_bounds(Some(bounds))
         .map_err(error::map_sqlx)

@@ -5,7 +5,8 @@ use std::path::Path;
 fn registry_pins_are_a_subset_of_the_root_lock() {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let ours = std::fs::read_to_string(manifest.join("Cargo.lock")).expect("child lock");
-    let root = std::fs::read_to_string(manifest.join("../../Cargo.lock")).expect("root lock");
+    let root_lock = root_lock_path(manifest);
+    let root = std::fs::read_to_string(&root_lock).unwrap_or_else(|_| panic!("root lock {}", root_lock.display()));
     let our_regs = registry_pins(&ours);
     let root_regs = registry_pins(&root);
     assert!(!our_regs.is_empty(), "child lock has no registry pins");
@@ -17,6 +18,14 @@ fn registry_pins_are_a_subset_of_the_root_lock() {
     }
     assert!(ours.contains("name = \"selfbuild-control-api\""));
     assert!(!package_has_registry_source(&ours, "selfbuild-control-api"));
+}
+
+fn root_lock_path(manifest: &Path) -> std::path::PathBuf {
+    let overlay = manifest.join("../../../Cargo.lock");
+    if overlay.is_file() {
+        return overlay;
+    }
+    manifest.join("../../Cargo.lock")
 }
 
 fn package_has_registry_source(text: &str, name: &str) -> bool {

@@ -1,3 +1,0 @@
-Attempt 2 exited 125 before the container started.
-Docker Desktop reported that the freshly recreated export-archive bind source did not exist.
-The host path existed after the client returned. The archives were left in place and rechecked instead of being deleted again.

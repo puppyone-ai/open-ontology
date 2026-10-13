@@ -1,2 +1,0 @@
-host=aarch64-unknown-linux-gnu
-release=1.94.0

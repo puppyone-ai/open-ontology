@@ -1,0 +1,51 @@
+{
+  "task": "DL01-W1-16",
+  "reviewer": "Codex coordinator, separate from Grok author",
+  "author_commit": "7caae25cf7ded311f75f0ec6aedf48b9f5bbd36c",
+  "receipt_commit": "9187802b6526683e6a8a4980e4bcf2413ed3ffeb",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "packet_entries_verified": 8,
+  "packet_hashes": [
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/FINDINGS.md",
+      "sha256": "100761445ec6a509dcdd6ef98d048b7dadd6cd46c94ab53911ffb82b8a28dcb4"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/HANDOFF.md",
+      "sha256": "6d61010febb7e1c260d7967365d6f3f6c08731a4859b3902aa7db5d7af819d68"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/REPORT.md",
+      "sha256": "ecf006479ee6ee8c86de5436204ad4c96fc1030b011affe70b6f369e7c14859b"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/clauses.json",
+      "sha256": "58a04cc91d4a19544e7dd0fe0eecf82a23d352a4f7eb7e844b6e8b6c69a3bb43"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/raw/decisive-exits.txt",
+      "sha256": "603fb12399cc8136f83df997705a6522cc32f3779408a1db58a482aa32567f24"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/raw/hash-verify.txt",
+      "sha256": "72fba36199f52dc286c8067e7ab0a94379fa2f6bc4a8e8735423f55e8239744d"
+    },
+    {
+      "path": "evidence/d96e34c0-bc03-4d2c-8366-799760eea878/DL01/pg-fixed/raw/preflight.txt",
+      "sha256": "b129671e83bd95961ba518c268bf41dcd5c29acc0ba35daffac5a8bbe918d0b5"
+    },
+    {
+      "path": "execution/reviews/dl01-wave1-pg/REVIEW.md",
+      "sha256": "16c3e5c9e659b550a5a1298b0379f217122744c95e18d42a7ab8135357607d3a"
+    }
+  ],
+  "verdict": "approve bounded evidence frontier; all affected parents/delivery remain pending",
+  "runtime_reexecution": false,
+  "product_acceptance_delta": 0,
+  "resources_created_by_author": [],
+  "qualifications": [
+    "PG13-16 matrix is original SP03 parent/DL04 remainder, not a prerequisite for DL01 one real PG version. DL01 still requires current PG17.10 actual preflight and statement zero-write audit, complete fresh bounded journey, type/cleanup/standalone consumption.",
+    "Source detach proof and fresh sealed import are different fixed runs; must not join into one current run.",
+    "Binary digests listed in historical report are not independently rehashed bytes."
+  ]
+}

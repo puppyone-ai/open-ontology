@@ -1,1 +1,0 @@
-privileged=false network=oo-a102-pg-net memory=2147483648 pids=512 oom=false

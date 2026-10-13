@@ -1,1 +1,0 @@
-id=009d7ad80ec86e607ac6f86bb528e68db84cd2adb040e1dc3c356a84bb006ee5 status=exited exit=0 oom=false privileged=false network=oo-a180-net capdrop=["ALL"]

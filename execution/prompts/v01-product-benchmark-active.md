@@ -13,3 +13,5 @@ QUOTA RECOVERY HANDOFF: 402余额耗尽时不要launch。Codex核验report/REPOR
 USER QUOTA RESTORED 2026-10-08: 用户明确额度恢复，原CLI此前均terminal，续此原UUID。FIRST收已有自己builder/PG/phase真实exit与残留资源，禁止重复启动仍运行builder/重载已审100k/重跑green不变campaign。继续本卡完整产品能力成功/失败/部署/固定提交/独立证据，不以helper/schema/mock/未接接口替代完成。并行15会话但Rustglobal10/task1、Node2/browser2/task1、PGtask1配额保持，资源满排队。完整Plan最终scope不缩；currentE54固定a6f92已独立验收、E55已验，ordinary100kE51原child已验但PITR/identitysequence/全状态仍pending。B04实际100kSelfbuild与真实Agent闭环优先。frontend仅原3UUID、主卡唯一入口。
 
 LATEST USER PRIORITY: 完整读specs/minimal-product-loop-plan.md。当前先单用户真实接库→Selfbuild标准YAML/Packfolder→Pi read/bash oo SQL→真正Gateway→答案/close。management/admin/multiuserAPI依赖排后，不因此阻塞已有真实CLI/lib闭环；无mock/no自动LLMapproved/no伪productionpub，明确draftdevelopment预览。a405唯一用户流程编排消费固定producer，各ownerpaths不变。docs09§6.2明确Pi不依赖MCP。原完整Plan/OC主链保留Todo，不签未实现部分。
+
+FINAL SHORT-GOAL CLOSURE: 30440terminal0，当前shortgoal真实单用户Pi链为主，原benchmarkgold不改。399唯一owner修真实knowledge/transport对齐，READYCHECK实际fixed配置能parse且packsourcepolicyknowledgehash全对应；等待其稳定fixedhandoff后复用100k和freshmodel证据跑qentrycount真正90000/citationok，wholeproductnotrun如实。CLI/lib输入可以合法真实compiler生成不是手改pack，不以savedfixture无法改而永久阻塞。

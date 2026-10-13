@@ -1,8 +1,0 @@
-archive=/tmp/oo-a345-eef831aa-dba4-4af2-a78b-541bc9e0a345/proof/archive
-commit=6001e18ee15d7f6a12d7e5f9c9cd89c8cd8a7b5c
-compiler=crates/oo-builder/src/canonical.rs
-gateway=crates/oo-gateway/src/pack_catalog.rs
-write_value body_equal=1 bytes=696
-write_object body_equal=1 bytes=381
-push_string body_equal_after_dropping_pub=1 compiler_pub=1 gateway_pub=0 compiler_bytes=612 gateway_bytes=608
-note=The four-byte difference is the compiler function's pub keyword. The match arms, including the \\u{:04x} control escape, are the same bytes.

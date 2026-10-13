@@ -1,5 +1,0 @@
-psql:<stdin>:6: FATAL:  terminating connection due to administrator command
-psql:<stdin>:6: server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-psql:<stdin>:6: error: connection to server was lost

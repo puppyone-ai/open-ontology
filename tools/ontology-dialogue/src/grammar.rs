@@ -8,6 +8,18 @@ pub fn slug(value: &str, max: usize) -> bool {
             .all(|byte| *byte == b'_' || byte.is_ascii_lowercase() || byte.is_ascii_digit())
 }
 
+/// Role-pack knowledge slug. Length 1..=63. The first byte is an ASCII
+/// lowercase letter. Later bytes are lowercase letters, digits, `_`, or `-`.
+pub fn knowledge_id_ok(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes[0].is_ascii_lowercase()
+        && bytes[1..].iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
+        })
+}
+
 pub fn role_name(value: &str) -> bool {
     let Some(rest) = value.strip_prefix("oo_r_") else {
         return false;

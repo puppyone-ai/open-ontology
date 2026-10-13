@@ -1,6 +1,0 @@
-canonical_ok=1
-canonical_quota=3
-canonical_reserved=8
-decoy_unchanged=1
-sibling_basename_reserved=8
-lock_outside_store=1

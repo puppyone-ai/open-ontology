@@ -1,0 +1,1 @@
+rev-w37-major CC-11 driver digest was pinned before read

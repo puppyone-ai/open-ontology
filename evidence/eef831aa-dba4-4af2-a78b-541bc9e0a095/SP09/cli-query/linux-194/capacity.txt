@@ -1,8 +1,0 @@
-host_uname=arm64
-running_containers_before:
-host_toolchain_comms:
-note=capacity counted by container label and comm only
-labeled_rust_builders=0
-own_rust_builders=0
-host_toolchain_comms=0
-global=0

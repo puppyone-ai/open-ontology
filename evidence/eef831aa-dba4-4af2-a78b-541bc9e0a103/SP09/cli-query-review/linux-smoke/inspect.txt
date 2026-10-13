@@ -1,1 +1,0 @@
-ExitCode=0 OOMKilled=false Error= Privileged=false NetworkMode=oo-a103-445980e9-64e0-402a-a0a1-d8a8d6bd6f6b-net CapDrop=["ALL"] CapAdd=null SecurityOpt=["no-new-privileges:true"] Memory=8589934592 MemorySwap=8589934592 NanoCpus=4000000000 PidsLimit=4096 Binds=null

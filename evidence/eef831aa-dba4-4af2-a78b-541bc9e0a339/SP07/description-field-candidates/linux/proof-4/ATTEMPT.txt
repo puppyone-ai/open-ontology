@@ -1,8 +1,0 @@
-Post-edit proof-4. Preserved. docker-run.exit 101.
-Tests passed before Clippy: candidate 10 and 5, lib 2, review 21, pack 21, provider 23.
-PHASE clippy-component=0 clippy-builder=101.
-oo-builder lib Clippy -D warnings reported two lints in description_candidate.rs:
-too_many_arguments on outcome_value (8/7) and collapsible_if around the columns insert.
-Host fix puts candidates and columns in one Listed value and uses a let chain.
-Container oo-a339-proof4 was removed by launch.sh.
-OOMKilled false. Memory 6442450944. NanoCpus 1000000000. CapDrop ALL.

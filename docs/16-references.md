@@ -120,6 +120,10 @@
 | promptfoo / garak / PyRIT | 红队工具 | https://github.com/promptfoo/promptfoo · https://github.com/NVIDIA/garak · https://github.com/microsoft/PyRIT |
 | Toxiproxy | 故障注入 | https://github.com/Shopify/toxiproxy |
 
+## 5A. 数据库支持扩展调研（2026-10-09）
+
+各数据库 CDC、权限、类型、保留窗口、驱动、许可与连接器准入实践的检索事实及来源 URL、以及“未核实”清单，集中维护在 [数据库支持扩展：风险、开放问题与检索来源](database-support/06-risks-open-questions-and-sources.md) §3，不在此重复。
+
 ## 6. 待核实项
 
 - Rust 锁定版本的传递依赖及原生源码 LICENSE/NOTICE、SBOM；pg_query 内嵌 PG 大版本配套与完整门禁回归（[02 §5](02-technology-stack.md)、[17](17-rust-implementation.md)）。

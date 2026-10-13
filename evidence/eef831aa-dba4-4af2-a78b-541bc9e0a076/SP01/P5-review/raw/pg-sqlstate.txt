@@ -1,4 +1,0 @@
-ERROR:  42501: permission denied for table orders
-LOCATION:  aclcheck_error, aclchk.c:2843
-ERROR:  42501: permission denied for table orders
-LOCATION:  aclcheck_error, aclchk.c:2843

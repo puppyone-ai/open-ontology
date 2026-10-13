@@ -10,14 +10,18 @@
 
 登记企业已有的数据库与文件，让管线知道读什么、怎么读。
 
-- **I-SRC-1** 平台对源库只读：不写业务数据，不在源库建表、视图、触发器、存储过程。唯一的例外是 DBA 按清单**手工**创建的 CDC 所需对象（PG publication / Debezium signaling 表），平台代码不自动创建它们。
+- **I-SRC-1** 平台对源库只读：不写业务数据，不在源库建表、视图、触发器、存储过程。唯一的例外是 DBA 按清单**手工**创建、平台只读取的 CDC 所需对象或设置（PG publication 与复制槽、MySQL binlog 设置、SQL Server CDC/Change Tracking 的启用、Oracle 补充日志等），平台代码不自动创建它们。连接器需要**写入**的辅助对象（Debezium signaling/心跳/flush 表等）不属于该例外：默认禁用，仅在最小权限 ADR 与源端审计证明写入范围后才可作为 R1w 例外启用（分类见 [database-support/03 §1](database-support/03-change-capture-and-consistency.md)）。
 - **I-SRC-2** 凭证不以明文出现在配置中；只以 `secret://` 引用。
 - **I-SRC-3** 能写业务表的凭证默认拒绝登记。
 - **I-SRC-4** 所有读取受限速，优先从只读从库读。
 
 “任何数据库”的承诺按以下方式兑现：**CDC 能力取决于已验证的 Debezium 连接器；批量接入需受支持的只读驱动/连接器与 `SELECT` 权限**，因此具有受支持 Rust 驱动或已审核外部连接器、且能执行 SELECT 的库可以批量接入；仅有 SQL 接口不等于首版已支持该数据库；文件和数据库导出文件（dump）作为第三条路径。
 
+> **数据库范围与准入的权威位置：** 本文 §2、§8 的数据库类型与路线表是早期草案。哪些数据库、哪些版本、哪些能力已被接受，由[支持矩阵与准入路线](database-support/01-admission-and-support-matrix.md)和 Spec 第 7A 章决定；能力模型、捕获方法、一致性等级、驱动策略与逐库设计见[数据库支持扩展设计](database-support/README.md)。两者冲突时以后者为准。
+
 ## 2. 源的类型
+
+> 下表只是源的分类示意，不代表已支持。“第一版/第二批/第三批”等字样不是承诺，也不替代支持矩阵中的等级。
 
 | 类型 | 例子 | 同步方式 | 第一版 |
 |---|---|---|---|
@@ -101,6 +105,8 @@ pub trait Connector: Send + Sync {
 
 - `read_chunk` 返回有界异步 Arrow RecordBatch 流。首版用 SQLx 的 PG/MySQL 驱动流式取行，再用 Arrow builders 按行数与字节预算组批；不是驱动天然零拷贝列式读取。ADBC / ConnectorX 的 Rust 路径作为可选优化，驱动覆盖、许可证、类型转换与取消语义验证后启用。
 - `type_map` 是**连接器的职责**：批量路径与 CDC 路径必须产出同样的 Arrow 类型，否则对账会误报。每个连接器都要有“同一行经两条路径读取、schema 与规范值一致”的一致性测试。
+- `capabilities()` 与 `AccessReport` 必须是结构化声明（能力种类、游标/变更读取/CDC 种类、位点序、预算单位、各捕获方法所需的源端写入分类、保留窗口、一致性等级、驱动出处与兼容模式），不得用连接器名称字符串判断路径；字段与等级见 [database-support/02 §2](database-support/02-connector-architecture.md)。未知权限、兼容模式或计费单位按 `block` 处理。
+- 字符串/二进制主键的分块必须强制二进制排序，否则改用哈希分块或 `read_keys`（[database-support/05 §3](database-support/05-conformance-and-evidence.md)）。
 - 分块按主键范围（`plan_chunks` 用主键的 min/max 与统计直方图切分；主键不均匀时用 `LIMIT` 游标式分块），每块默认 5 万行。
 
 ## 5. 权限体检（`check_access`）
@@ -240,6 +246,8 @@ files:
 同一个对象存储还承载：导出结果（Gateway `export` 产生的中间文件由客户端在沙盒内写入，不经服务端落盘）、会话产出物（`/workspace/outputs/` 回收后的图表、CSV）、会话记录、Knowledge Pack。按前缀设置不同保留期，见 [11 运维](11-deployment-and-operations.md)。
 
 ## 8. 数据库支持路线
+
+> 本节已被[统一准入与支持矩阵](database-support/01-admission-and-support-matrix.md)取代：波次、同步方式和 DBA 动作以[逐库画像](database-support/04-database-profiles.md)与[支持矩阵](database-support/support-matrix.yaml)为准。下表保留作历史对照；其中“接入一种 Debezium 支持的数据库只需实现连接器”的说法过于乐观，不再成立（写入分类、保留窗口、位点序、一致性等级、驱动与许可都需逐目标验收）。
 
 | 顺序 | 数据库 | 同步方式 | DBA 要做的事 |
 |---|---|---|---|

@@ -1,3 +1,0 @@
-ERROR:  OO021: refusing target segment correction: preexisting apply receipts violate the closed segment rule; this migration does not delete, rewrite, or mutate receipts
-CONTEXT:  PL/pgSQL function inline_code_block line 22 at RAISE
-LOCATION:  exec_stmt_raise, pl_exec.c:3897

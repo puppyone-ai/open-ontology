@@ -1,5 +1,0 @@
-The files in this directory are not the first probe run.
-
-probe.exit is 0 and probe.stdout shows 9 passed, including parked_cancel_charges_once_then_frames_plateau. probe.stderr still warns that BufMut is unused. console.log is byte-identical to attempt2/console.log (the later run that reached TLS and the stream tests). The first-failure copy was overwritten before this review resumed.
-
-The first run's captured excerpt is recovered-panic-excerpt.txt. It records probe_exit=101 and the panic "cancel dropped the reserve charge" at a135_tail_probe.rs:151. That assert required reserved_additional > 0 immediately after dropping a 5-byte parked read. The ask fits in the initial spare, so the charge stays 0 until the next short read. The assert was removed. The unit rerun in attempt2 passed.

@@ -1,0 +1,57 @@
+{
+  "build_id": "b_dbe7d3c41d47795b7c2a6e8062495d0e",
+  "acceptance": "actual_artifact_intake_not_full_source_acceptance",
+  "files": [
+    {
+      "relative_path": "native-model-output/command.json",
+      "sha256": "ceb7e5233823abf8b09756ce8c1cda2c0023dbbd653aad6255f44afa8e8f8984",
+      "bytes": 27042
+    },
+    {
+      "relative_path": "native-model-output/reviewed.json",
+      "sha256": "24c05a1d85bec973fe767fb0edc1b185b7ed063600b1cb3feb8c2d89606500da",
+      "bytes": 17465
+    },
+    {
+      "relative_path": "native-model-output/effective.json",
+      "sha256": "3dc1d9a05b17405ffc8209bc420e82de39eced0de3579f7ec55cfd4c792cbf13",
+      "bytes": 16728
+    },
+    {
+      "relative_path": "native-model-output/decisions.json",
+      "sha256": "59140d3ffbaab16018d9c3cff2e1e5283372a63d509b7a527f46bb5b6fdec739",
+      "bytes": 13690
+    },
+    {
+      "relative_path": "native-model-output/catalog.json",
+      "sha256": "1412bfe3058081d937d42949e4739e97b47a966c4cb8468c8bd648da9e515ac3",
+      "bytes": 12614
+    },
+    {
+      "relative_path": "native-model-output/visibility.json",
+      "sha256": "49835ca16ec2da3bcf9a89d3ae91fdb754647fae9b78fc7dc3b1d4533d024baa",
+      "bytes": 1385
+    },
+    {
+      "relative_path": "native-model-output/role-pack/pack.json",
+      "sha256": "a4440c39dd2fd5a428d374b5b88d04bf9d5961275372c993f33cbbbacc4e7242",
+      "bytes": 9488
+    },
+    {
+      "relative_path": "generated.yaml",
+      "sha256": "7a7f54737326e90f3b40cf3aa9950d591ea1300c2b5c7ecd411d7a0fc25dd521",
+      "bytes": 13668
+    }
+  ],
+  "effective_datasets": 5,
+  "source_tables": 5,
+  "not_proven": [
+    "scheduled_update_delete_convergence",
+    "whole_target_typed_oracle",
+    "published_gateway_and_autonomous_dialogue",
+    "production_business_owner_signature",
+    "curated_overlay_projected_into_native_effective_and_pack"
+  ],
+  "source_evidence_commit": "3da6048ff90a50219f0bd3f7a3f73aee9d7f1023",
+  "different_pack_scopes": "maintained control rolePack 4fe1ff... is distinct from inspected native rolePack a4440c...; no equivalence claimed"
+}

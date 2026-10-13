@@ -1,5 +1,0 @@
-e8bb9e480323 oo-a218-proof 0f24958fa693 a218 rust-builder
-8a310916f8c2 oo-a220-build01 0f24958fa693 a220 rust-builder
-01a2ba652c50 oo-a219-pg 3aac91d19d5b a219 postgres
-df2c2552fecb oo-a223-pg 3aac91d19d5b a223 postgres
-431d3dd9d2a0 oo-a218-pg 3aac91d19d5b a218 postgres

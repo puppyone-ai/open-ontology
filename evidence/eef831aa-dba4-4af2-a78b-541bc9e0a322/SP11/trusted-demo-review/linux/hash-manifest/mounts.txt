@@ -1,3 +1,0 @@
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a322/SP11/trusted-demo-review /evidence rw=true
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a322/SP11/trusted-demo-review/source/deploy/trusted-demo /deploy rw=false
-

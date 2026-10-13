@@ -1,0 +1,7 @@
+{
+  "attempt_01_profile": "Cargo profile debug = \"line\" is rejected by Rust 1.94. Preserved under raw/pre-edit/attempt-01. Corrected to debug = 1 before the next compile.",
+  "attempt_02_features": "default-features = false and features = [compat-3-0-0] reached cargo build and failed in mongodb 3.3.0 src/runtime.rs: compile_error requires rustls-tls or openssl-tls. Preserved under raw/pre-edit/attempt-02.",
+  "correction": "enable rustls-tls. Do not enable openssl-tls. Server connection remains plaintext. This is not a crate version substitution.",
+  "mongocrypt": "compat-3-0-0 enables bson-2, whose feature line mongocrypt/bson-2 turns on optional mongocrypt and mongocrypt-sys. in-use-encryption stays off, so the CSFLE API is not compiled in. The sys crate is the native libmongocrypt build that this feature graph compiles. It is not linked into Gateway or Loader.",
+  "macros": "Unpinned resolution selected mongodb-internal-macros 3.9.1. The driver archive lock pins 3.3.0. The smoke package now depends on =3.3.0."
+}

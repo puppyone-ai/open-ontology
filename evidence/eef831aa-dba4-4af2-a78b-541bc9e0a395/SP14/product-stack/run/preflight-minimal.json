@@ -1,1 +1,0 @@
-{"allow":false,"profile":"minimal","deployment":"refused","production_signed":false,"runc_substituted":false,"physical_replica":false,"replica":"not_claimed","runsc":"absent","other_arch":"x86_64_integration_node","parent_accepted":false,"goal_accepted":false,"reasons":["runtime_unavailable"]}

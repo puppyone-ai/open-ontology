@@ -1,9 +1,0 @@
-rustc=rustc 1.94.0 (4a4ef493e 2026-03-02)
-cargo=cargo 1.94.0 (85eff7c80 2026-01-15)
-git version 2.47.3
-control_test_exit=0
-control_clippy_exit=1
-binding_test_exit=0
-binding_clippy_exit=1
-binding_build_exit=0
-compile_done

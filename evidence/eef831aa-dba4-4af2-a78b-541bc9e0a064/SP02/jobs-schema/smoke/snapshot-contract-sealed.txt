@@ -1,3 +1,0 @@
-files=173
-tree_sha256=46a3d7358668b567618ee8273703dc5c5d7c5142ab5476338422d344f21b2057
-method=sha256 of sorted sha256 relpath lines; base is the pre-edit smoke snapshot; overlay is crates/oo-jobs and contracts/jobs/control-schema only

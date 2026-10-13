@@ -1,1 +1,0 @@
-own=0 global=2 host_cargo=0 cap_global=10 cap_own=1

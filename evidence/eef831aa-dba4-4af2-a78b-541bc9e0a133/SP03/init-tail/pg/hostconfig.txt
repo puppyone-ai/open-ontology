@@ -1,9 +1,0 @@
-ExitCode=0
-Status=running
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a133-eef831aa-net
-Memory=1073741824
-CapDrop=["ALL"]
-CapAdd=["CAP_CHOWN","CAP_DAC_OVERRIDE","CAP_FOWNER","CAP_SETGID","CAP_SETUID"]
-PortBindings={}

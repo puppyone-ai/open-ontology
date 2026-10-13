@@ -1,1 +1,0 @@
-cargo deny --log-level debug --config /evidence/controls/x86_64-only.toml --locked check

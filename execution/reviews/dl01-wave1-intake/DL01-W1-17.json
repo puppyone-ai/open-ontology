@@ -1,0 +1,50 @@
+{
+  "task": "DL01-W1-17",
+  "reviewer": "Codex coordinator, separate from Grok author",
+  "author_commit": "bbf2d5183cc166e3b18ec9b6a31afb37dd33d180",
+  "receipt_commit": "91dc775ac3528e0a5823c9b8dc632f1d73cb7fb3",
+  "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
+  "packet_entries_verified": 8,
+  "packet_hashes": [
+    {
+      "path": "execution/reviews/dl01-wave1-sp02/CLAUSE-MAP.md",
+      "sha256": "890e8f2a457f7b422bcfe4e794feafb75337640b11dc88d9b3210c6823245af8"
+    },
+    {
+      "path": "execution/reviews/dl01-wave1-sp02/REVIEW.md",
+      "sha256": "4da28036ce5ca2b1007155cd1ed045b57274a6f9d798010a6fbd7c44aa681c31"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/FINDINGS.md",
+      "sha256": "aefe0a103e15944b337f0f1d6af18bedcb00d7be9516552a9beec912bc856636"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/HANDOFF.md",
+      "sha256": "526cf84a35675dd68680ee53ec58bbdb1538dcca4a1273c2030a5632d6298f7e"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/REPORT.md",
+      "sha256": "91ff708e0b8083eee6611c409e6b4212acf1978accb2a136893c23d8e3ff7c2c"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/raw/admission.json",
+      "sha256": "b6e8490f2918bc7014ea10a336849a5e69e954b33efba25bc10f89d8ae2327ea"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/raw/commands.txt",
+      "sha256": "2f48a6735d7c5de1c9e78ed562980fe575e13e8871ea30745a28222b879a7ac0"
+    },
+    {
+      "path": "evidence/add1dfc8-a1a3-4617-b890-dd9416161161/DL01/sp02-fixed/raw/hash-verify.txt",
+      "sha256": "7bf4f4ca274862f36073fd8f570fcec9f543cf45bdf2b7752f2543135f71f5c2"
+    }
+  ],
+  "verdict": "approve bounded evidence frontier; all affected parents/delivery remain pending",
+  "runtime_reexecution": false,
+  "product_acceptance_delta": 0,
+  "resources_created_by_author": [],
+  "qualifications": [
+    "Source registration uses private operator secret_ref→file map; real central secret resolver integration is missing. This gap must be fixed in product join, not inferred from secret store child approval.",
+    "Current identity/source registration services need separate current fixed reviews; SP02 full original clauses remain open."
+  ]
+}

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value};
 
 use crate::error::Fault;
-use crate::ids::{ident_ok, origin_ok, token_ok};
+use crate::ids::{ident_ok, origin_ok, role_ok, token_ok};
 use crate::jsonutil::parse_document;
 
 pub struct PgEndpoint {
@@ -17,6 +17,16 @@ pub struct PgEndpoint {
     pub user: String,
     pub password: String,
     pub ca_pem: Vec<u8>,
+}
+
+pub struct TargetBinding {
+    pub pg: PgEndpoint,
+    pub schema_name: String,
+    pub relation_name: String,
+    pub role_name: String,
+    pub reader_user: String,
+    pub reader_password: String,
+    pub native_mapping: Option<Value>,
 }
 
 pub struct Config {
@@ -34,31 +44,22 @@ pub struct Config {
     pub api_pg: PgEndpoint,
     pub producer_pg: PgEndpoint,
     pub reader_pg: PgEndpoint,
+    pub target: Option<TargetBinding>,
 }
 
 pub fn load_config(path: &Path) -> Result<Config, Fault> {
     let bytes = read_limited(path, 65_536)?;
     let value = parse_document(&bytes).map_err(|_| Fault::malformed())?;
     let object = value.as_object().ok_or(Fault::malformed())?;
-    require_keys(
-        object,
-        &[
-            "api_pg",
-            "authority_id",
-            "deployment_origins",
-            "https_origin",
-            "identity_ca_file",
-            "identity_origin",
-            "listen_host",
-            "listen_port",
-            "pack_dir",
-            "producer_pg",
-            "project_id",
-            "reader_pg",
-            "tls_cert_file",
-            "tls_key_file",
-        ],
-    )?;
+    let with_target = object.contains_key("target_pg");
+    let mut keys = control_keys(with_target);
+    if object.contains_key("native_mapping") {
+        if !with_target {
+            return Err(Fault::malformed());
+        }
+        keys.push("native_mapping");
+    }
+    require_keys(object, &keys)?;
     let directory = path.parent().unwrap_or_else(|| Path::new("."));
     let https_origin = require_str(object, "https_origin")?;
     if !origin_ok(&https_origin) {
@@ -68,7 +69,9 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
     if !origin_ok(&identity_origin) {
         return Err(Fault::malformed());
     }
-    let listen_host: IpAddr = require_str(object, "listen_host")?.parse().map_err(|_| Fault::malformed())?;
+    let listen_host: IpAddr = require_str(object, "listen_host")?
+        .parse()
+        .map_err(|_| Fault::malformed())?;
     let listen_port = require_port(object, "listen_port")?;
     let project_id = require_str(object, "project_id")?;
     let authority_id = require_str(object, "authority_id")?;
@@ -80,15 +83,29 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
     if !pack_dir.is_dir() {
         return Err(Fault::malformed());
     }
-    let tls_cert_pem = read_limited(&resolve(directory, &require_str(object, "tls_cert_file")?), 65_536)?;
-    let tls_key_pem = read_limited(&resolve(directory, &require_str(object, "tls_key_file")?), 65_536)?;
-    let identity_ca_pem = read_limited(&resolve(directory, &require_str(object, "identity_ca_file")?), 65_536)?;
+    let tls_cert_pem = read_limited(
+        &resolve(directory, &require_str(object, "tls_cert_file")?),
+        65_536,
+    )?;
+    let tls_key_pem = read_limited(
+        &resolve(directory, &require_str(object, "tls_key_file")?),
+        65_536,
+    )?;
+    let identity_ca_pem = read_limited(
+        &resolve(directory, &require_str(object, "identity_ca_file")?),
+        65_536,
+    )?;
     let api_pg = endpoint(directory, object.get("api_pg"), "oo_release_api_admin")?;
     let producer_pg = endpoint(directory, object.get("producer_pg"), "oo_release_admin")?;
     let reader_pg = endpoint(directory, object.get("reader_pg"), "oo_release_reader")?;
     if api_pg.database != producer_pg.database || api_pg.database != reader_pg.database {
         return Err(Fault::malformed());
     }
+    let target = if with_target {
+        Some(target_binding(directory, object)?)
+    } else {
+        None
+    };
     Ok(Config {
         https_origin,
         listen_host,
@@ -104,28 +121,115 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
         api_pg,
         producer_pg,
         reader_pg,
+        target,
+    })
+}
+
+fn control_keys(with_target: bool) -> Vec<&'static str> {
+    let mut keys = vec![
+        "api_pg",
+        "authority_id",
+        "deployment_origins",
+        "https_origin",
+        "identity_ca_file",
+        "identity_origin",
+        "listen_host",
+        "listen_port",
+        "pack_dir",
+        "producer_pg",
+        "project_id",
+        "reader_pg",
+        "tls_cert_file",
+        "tls_key_file",
+    ];
+    if with_target {
+        keys.extend([
+            "target_pg",
+            "target_reader_password_file",
+            "target_reader_user",
+            "target_relation",
+            "target_role",
+            "target_schema",
+        ]);
+    }
+    keys
+}
+
+fn target_binding(directory: &Path, object: &Map<String, Value>) -> Result<TargetBinding, Fault> {
+    let pg = endpoint(directory, object.get("target_pg"), "oo_target_admin")?;
+    let schema_name = require_str(object, "target_schema")?;
+    let relation_name = require_str(object, "target_relation")?;
+    let role_name = require_str(object, "target_role")?;
+    let reader_user = require_str(object, "target_reader_user")?;
+    if !ident_ok(&schema_name)
+        || !ident_ok(&relation_name)
+        || !role_ok(&role_name)
+        || reader_user != role_name
+    {
+        return Err(Fault::malformed());
+    }
+    let reader_password = read_secret(&resolve(
+        directory,
+        &require_str(object, "target_reader_password_file")?,
+    ))?;
+    Ok(TargetBinding {
+        pg,
+        schema_name,
+        relation_name,
+        role_name,
+        reader_user,
+        reader_password,
+        native_mapping: object.get("native_mapping").cloned(),
     })
 }
 
 fn endpoint(directory: &Path, value: Option<&Value>, user: &str) -> Result<PgEndpoint, Fault> {
     let object = value.and_then(Value::as_object).ok_or(Fault::malformed())?;
-    require_keys(object, &["ca_file", "database", "host", "password_file", "port", "user"])?;
+    require_keys(
+        object,
+        &[
+            "ca_file",
+            "database",
+            "host",
+            "password_file",
+            "port",
+            "user",
+        ],
+    )?;
     let got = require_str(object, "user")?;
     let database = require_str(object, "database")?;
     let host = require_str(object, "host")?;
-    if got != user || !ident_ok(&database) || host.is_empty() || host.len() > 253 || host.as_bytes().contains(&0) {
+    if got != user
+        || !ident_ok(&database)
+        || host.is_empty()
+        || host.len() > 253
+        || host.as_bytes().contains(&0)
+    {
         return Err(Fault::malformed());
     }
     let password = read_secret(&resolve(directory, &require_str(object, "password_file")?))?;
-    let ca_pem = read_limited(&resolve(directory, &require_str(object, "ca_file")?), 65_536)?;
+    let ca_pem = read_limited(
+        &resolve(directory, &require_str(object, "ca_file")?),
+        65_536,
+    )?;
     if !ca_text(&ca_pem) {
         return Err(Fault::malformed());
     }
-    Ok(PgEndpoint { host, port: require_port(object, "port")?, database, user: got, password, ca_pem })
+    Ok(PgEndpoint {
+        host,
+        port: require_port(object, "port")?,
+        database,
+        user: got,
+        password,
+        ca_pem,
+    })
 }
 
 fn origins(object: &Map<String, Value>, https_origin: &str) -> Result<Vec<String>, Fault> {
-    let values = object.get("deployment_origins").and_then(Value::as_array).ok_or(Fault::malformed())?;
+    let values = object
+        .get("deployment_origins")
+        .and_then(Value::as_array)
+        .ok_or(Fault::malformed())?;
     if values.is_empty() || values.len() > 8 {
         return Err(Fault::malformed());
     }
@@ -155,17 +259,29 @@ fn require_keys(object: &Map<String, Value>, keys: &[&str]) -> Result<(), Fault>
 }
 
 fn require_str(object: &Map<String, Value>, key: &str) -> Result<String, Fault> {
-    object.get(key).and_then(Value::as_str).filter(|text| !text.is_empty()).map(str::to_owned).ok_or(Fault::malformed())
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
+        .ok_or(Fault::malformed())
 }
 
 fn require_port(object: &Map<String, Value>, key: &str) -> Result<u16, Fault> {
-    let value = object.get(key).and_then(Value::as_u64).ok_or(Fault::malformed())?;
+    let value = object
+        .get(key)
+        .and_then(Value::as_u64)
+        .ok_or(Fault::malformed())?;
     u16::try_from(value).map_err(|_| Fault::malformed())
 }
 
 fn resolve(directory: &Path, value: &str) -> PathBuf {
     let path = Path::new(value);
-    if path.is_absolute() { path.to_path_buf() } else { directory.join(path) }
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        directory.join(path)
+    }
 }
 
 fn read_limited(path: &Path, limit: usize) -> Result<Vec<u8>, Fault> {
@@ -174,7 +290,11 @@ fn read_limited(path: &Path, limit: usize) -> Result<Vec<u8>, Fault> {
         return Err(Fault::malformed());
     }
     let bytes = fs::read(path).map_err(|_| Fault::malformed())?;
-    if bytes.is_empty() || bytes.len() > limit { Err(Fault::malformed()) } else { Ok(bytes) }
+    if bytes.is_empty() || bytes.len() > limit {
+        Err(Fault::malformed())
+    } else {
+        Ok(bytes)
+    }
 }
 
 fn read_secret(path: &Path) -> Result<String, Fault> {
@@ -183,7 +303,11 @@ fn read_secret(path: &Path) -> Result<String, Fault> {
     if text.ends_with('\n') {
         text.pop();
     }
-    if text.is_empty() || text.bytes().any(|byte| byte.is_ascii_whitespace() || !byte.is_ascii()) {
+    if text.is_empty()
+        || text
+            .bytes()
+            .any(|byte| byte.is_ascii_whitespace() || !byte.is_ascii())
+    {
         return Err(Fault::malformed());
     }
     Ok(text)

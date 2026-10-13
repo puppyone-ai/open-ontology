@@ -1,3 +1,0 @@
-oo_a356_admin|t|t|t
-oo_a377_operator|f|t|f
-oo_a377_owner|f|f|f

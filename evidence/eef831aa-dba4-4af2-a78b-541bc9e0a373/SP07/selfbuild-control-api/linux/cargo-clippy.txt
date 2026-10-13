@@ -1,2 +1,0 @@
-    Checking selfbuild-control-api v0.1.0 (/tmp/crate)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.23s

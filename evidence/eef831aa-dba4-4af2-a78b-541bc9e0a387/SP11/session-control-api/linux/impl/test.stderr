@@ -1,7 +1,0 @@
-   Compiling session-control-api v0.1.0 (/src/tools/session-control-api)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.47s
-     Running unittests src/lib.rs (/target/debug/deps/session_control_api-cd6d80d55900a7b0)
-     Running unittests src/main.rs (/target/debug/deps/session_control_api-2596210978a8de3b)
-     Running tests/contract.rs (/target/debug/deps/contract-8249682a54a56cba)
-     Running tests/live.rs (/target/debug/deps/live-fc6cfb1088f94dfa)
-     Running tests/lock_subset.rs (/target/debug/deps/lock_subset-010e0b3828e9dc9f)

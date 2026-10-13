@@ -1,9 +1,0 @@
-attempt=2
-result=compile_failed
-oracle_exit=101
-clippy_exit=1
-owner_opened=no
-database_mutated=no
-cause=Ctx fields host, wrong_host, reader_user, writer_user, guc_user, and log_path are String but req() returns &str. rustc also warned unused_mut on the add-column owner and an unused initial log buffer. cargo clippy is not installed in the 1.94.0 toolchain image.
-container=eef831aa-dba4-4af2-a78b-541bc9e0a116-rust-review
-preserved=yes

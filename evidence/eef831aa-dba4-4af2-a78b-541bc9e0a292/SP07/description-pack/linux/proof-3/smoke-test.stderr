@@ -1,9 +1,0 @@
-   Compiling oo-core v0.1.0 (/work/tree/crates/oo-core)
-   Compiling oo-jobs v0.1.0 (/work/tree/crates/oo-jobs)
-   Compiling oo-builder v0.1.0 (/work/tree/crates/oo-builder)
-   Compiling description-review v0.1.0 (/work/tree/tools/description-review)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.77s
-     Running unittests src/lib.rs (/target/debug/deps/description_review-355c6ea55934b779)
-     Running unittests src/main.rs (/target/debug/deps/description_review-06b0bee419a974fc)
-     Running tests/review.rs (/target/debug/deps/review-6da45a554e46ea25)
-   Doc-tests description_review

@@ -1,2 +1,0 @@
-oo-a076-msrv-81b3f22f
-rust_rm_exit=0

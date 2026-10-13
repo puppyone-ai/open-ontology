@@ -1,7 +1,0 @@
-bind /tmp/oo-a260-eef831aa-dba4-4af2-a78b-541bc9e0a260/proof-2/archive /src rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a260/SP12/question-bank-review/tools /review rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a260/SP12/question-bank-review/linux/proof-2/inside.sh /inside.sh rw=false
-bind /Users/redux/puppy-one/open-ontology/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a260/SP12/question-bank-review/linux/proof-2 /evidence rw=true
-volume /var/lib/docker/volumes/oo-a260-eef831aa-cargo/_data /cargo-home rw=true
-volume /var/lib/docker/volumes/oo-a260-eef831aa-target/_data /target rw=true
-

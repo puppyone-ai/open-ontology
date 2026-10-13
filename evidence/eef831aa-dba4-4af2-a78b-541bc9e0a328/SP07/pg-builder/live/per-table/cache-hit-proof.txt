@@ -1,3 +1,0 @@
-cache_hit_proof=false
-reason=no validated draft was stored; the second process opened a socket
-candidate_bytes_same compares two structural drafts with empty candidate arrays

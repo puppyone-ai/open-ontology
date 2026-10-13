@@ -1,1 +1,0 @@
-SELECT (( (NULL IS NULL AND NULL IS NULL AND octet_length('\x01'::bytea) = 0) OR (1 >= 1 AND NULL >= 0 AND NULL < 1 AND octet_length('\x01'::bytea) BETWEEN 1 AND 8192) ) IS NULL)::text || '|' || (( (NULL IS NULL AND NULL IS NULL AND octet_length('\x01'::bytea) = 0) OR (1 >= 1 AND NULL >= 0 AND NULL < 1 AND octet_length('\x01'::bytea) BETWEEN 1 AND 8192) ) IS TRUE)::text;

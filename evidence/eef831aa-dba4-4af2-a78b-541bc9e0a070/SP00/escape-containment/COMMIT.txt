@@ -1,4 +1,0 @@
-harness_commit=5ef3d6d819fd72fdd5e86f79eb9e719910f7e6e0
-harness_tree=61350c8287dcaf1689f0181a92dfc68793959fe6
-harness_parent=9c7b98e4f7e92ab99a064ea4a839afe30319e4df
-harness_subject=xtask: refuse a seal when descendants can outlive the capture

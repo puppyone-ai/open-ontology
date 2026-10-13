@@ -1,1 +1,0 @@
-psql: error: connection to server at "127.0.0.1", port 5432 failed: FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "oo_a173_grantor", database "postgres", no encryption

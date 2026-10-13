@@ -1,0 +1,1 @@
+SHOW PARTITIONS FROM part_day;

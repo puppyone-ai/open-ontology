@@ -316,7 +316,10 @@ fn match_span(text: &[u8], start: usize, needle: &Needle, work: &mut u64) -> Spa
             secret += 1;
             continue;
         }
-        if expected == b'/' && index + 1 < text.len() && text[index] == b'\\' && text[index + 1] == b'/'
+        if expected == b'/'
+            && index + 1 < text.len()
+            && text[index] == b'\\'
+            && text[index + 1] == b'/'
         {
             index += 2;
             secret += 1;

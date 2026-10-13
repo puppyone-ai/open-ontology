@@ -1,3 +1,0 @@
-f3f9a12596c1e8dab66649145fbb43a7232242018e3279a932e35a110427acb7  source/blobs/crates/oo-control/src/file_hosting.rs
-d1ea989e3adc1fbe2d0198cf17238ca4f6397b6e3d94b3621ddaf60e0e7e6042  source/blobs/crates/oo-control/tests/file_hosting.rs
-ba9db89fbb8515e4650560bf3e133e4c724fc40334b41593890a402a9510b496  source/blobs/contracts/control/local-file-hosting-v1.md

@@ -72,6 +72,56 @@ pub async fn dial(
     Ok(conn)
 }
 
+/// Source login. `application_name` is a startup field, not an options string.
+/// The snapshot transaction is opened by the caller.
+pub async fn dial_source(
+    plan: &Plan,
+    password: &str,
+    ca_pem: &[u8],
+    connect_timeout: Duration,
+) -> Result<PgConnection, MirrorError> {
+    let options = PgConnectOptions::from_explicit()
+        .host(&plan.config.host)
+        .port(plan.config.port)
+        .username(&plan.config.user)
+        .password(password)
+        .database(&plan.config.database)
+        .ssl_mode(PgSslMode::VerifyFull)
+        .ssl_root_cert_from_pem(ca_pem.to_vec())
+        .application_name("oo-pg-source");
+    if options.get_options().is_some() {
+        return Err(MirrorError::new("config", "connect_options"));
+    }
+    let options = options.disable_statement_logging();
+    let connect = tokio::time::timeout(connect_timeout, options.connect()).await;
+    let mut conn = match connect {
+        Ok(Ok(conn)) => conn,
+        Ok(Err(err)) => return Err(map_sqlx(err)),
+        Err(_) => return Err(MirrorError::new("connect", "connect_timeout")),
+    };
+    set_text(&mut conn, "statement_timeout", &format!("{}ms", plan.config.statement_timeout_ms)).await?;
+    set_text(&mut conn, "lock_timeout", &format!("{}ms", plan.config.lock_timeout_ms)).await?;
+    set_text(
+        &mut conn,
+        "idle_in_transaction_session_timeout",
+        &format!("{}ms", plan.config.snapshot_deadline_ms),
+    )
+    .await?;
+    set_text(&mut conn, "default_transaction_read_only", "on").await?;
+    set_text(&mut conn, "search_path", "pg_catalog").await?;
+    Ok(conn)
+}
+
+async fn set_text(conn: &mut PgConnection, name: &str, value: &str) -> Result<(), MirrorError> {
+    sqlx::query("SELECT pg_catalog.set_config($1, $2, false)")
+        .bind(name)
+        .bind(value)
+        .execute(&mut *conn)
+        .await
+        .map_err(map_sqlx)?;
+    Ok(())
+}
+
 pub async fn prepare_target(conn: &mut PgConnection, plan: &Plan) -> Result<(), MirrorError> {
     let admin = plan.config.target_admin_user.as_str();
     let runtime = plan.config.target_runtime_user.as_str();
@@ -208,36 +258,6 @@ pub fn map_source(err: &oo_connectors::SourceError) -> MirrorError {
     };
     let fact = known_fact(err.fact());
     match err.sqlstate().and_then(parse_sqlstate) {
-        Some(state) => MirrorError::with_sqlstate(code, fact, state),
-        None => MirrorError::new(code, fact),
-    }
-}
-
-pub fn map_source_text(text: &str) -> MirrorError {
-    let code = match text.strip_prefix("source error: ").and_then(|rest| rest.split_whitespace().next()) {
-        Some("config") => "config",
-        Some("connect") => "connect",
-        Some("auth") => "auth",
-        Some("tls") => "tls",
-        Some("privilege") => "privilege",
-        Some("version") => "version",
-        Some("budget") => "budget",
-        Some("catalog") => "catalog",
-        Some("identifier") => "identifier",
-        Some("protocol") => "protocol",
-        _ => "source",
-    };
-    let fact = known_fact(text.split("fact=").nth(1).map(|rest| {
-        let end = rest
-            .find(|ch: char| !ch.is_ascii_lowercase() && !ch.is_ascii_digit() && ch != '_')
-            .unwrap_or(rest.len());
-        &rest[..end]
-    }));
-    let sqlstate = text.split("sqlstate=").nth(1).and_then(|rest| {
-        let bytes = rest.as_bytes();
-        if bytes.len() >= 5 { parse_sqlstate(std::str::from_utf8(&bytes[..5]).ok()?) } else { None }
-    });
-    match sqlstate {
         Some(state) => MirrorError::with_sqlstate(code, fact, state),
         None => MirrorError::new(code, fact),
     }

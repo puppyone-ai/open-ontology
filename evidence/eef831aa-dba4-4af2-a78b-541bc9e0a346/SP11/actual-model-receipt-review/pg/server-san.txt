@@ -1,3 +1,0 @@
-        Subject: CN=oo-a346-pg
-            X509v3 Subject Alternative Name: 
-                DNS:oo-a346-pg

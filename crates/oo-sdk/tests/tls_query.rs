@@ -124,7 +124,10 @@ async fn tls_short_token_is_omitted_from_the_error_accessors() {
         token,
         trust(CA_PEM),
     );
-    let error = client.query(sample_request()).await.expect_err("tls redact");
+    let error = client
+        .query(sample_request())
+        .await
+        .expect_err("tls redact");
     let gateway = error.gateway().expect("gateway");
     assert!(
         gateway.status() == 400 && gateway.code() == oo_sdk::ErrorCode::SqlParseError,
@@ -182,7 +185,11 @@ async fn tls_oracle(cert_pem: &'static str, key_pem: &'static str) -> TlsOracle 
     .await
 }
 
-async fn tls_oracle_body(cert_pem: &'static str, key_pem: &'static str, body: Vec<u8>) -> TlsOracle {
+async fn tls_oracle_body(
+    cert_pem: &'static str,
+    key_pem: &'static str,
+    body: Vec<u8>,
+) -> TlsOracle {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let cert = CertificateDer::from(pem_block(cert_pem, "CERTIFICATE"));
     let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(pem_block(key_pem, "PRIVATE KEY")));

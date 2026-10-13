@@ -1,5 +1,0 @@
-GET /v1/reviews HTTP/1.1
-Host: feedback.local
-Content-Length: 0
-Connection: close
-

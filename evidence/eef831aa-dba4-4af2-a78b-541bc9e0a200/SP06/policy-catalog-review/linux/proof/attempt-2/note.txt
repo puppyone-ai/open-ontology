@@ -1,1 +1,0 @@
-Attempt 2 compiled the overlay and stopped on ten borrow errors. The product tree was not edited. The harness was fixed and rerun.

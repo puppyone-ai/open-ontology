@@ -1,3 +1,0 @@
-   Compiling session-control-api v0.1.0 (/src/tools/session-control-api)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.77s
-     Running tests/live.rs (/target/debug/deps/live-fc6cfb1088f94dfa)

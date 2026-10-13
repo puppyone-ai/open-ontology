@@ -1,0 +1,31 @@
+{
+  "source": "e8a3e4c6085ff8871aaf7af845b26ccd913ae530",
+  "review": "3ec53ac231f300951d63123cb508ff13b4389c8e",
+  "hash_checks": [
+    {
+      "tree": "e8a3e4c6085ff8871aaf7af845b26ccd913ae530",
+      "manifest": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/SHA256SUMS",
+      "verified": 2852,
+      "total": 2852,
+      "bad": []
+    },
+    {
+      "tree": "e8a3e4c6085ff8871aaf7af845b26ccd913ae530",
+      "manifest": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight/SHA256SUMS",
+      "verified": 1032,
+      "total": 1032,
+      "bad": []
+    },
+    {
+      "tree": "3ec53ac231f300951d63123cb508ff13b4389c8e",
+      "manifest": "evidence/a0e647e1-c02b-46a5-90e0-59d653cd0d7f/DL01/full-source-review/SHA256SUMS",
+      "verified": 10,
+      "total": 10,
+      "bad": []
+    }
+  ],
+  "scope": "complete controlled nonproduction StarRocks3.5.21-85fccf8 five-table preview; formal matrix DBA/nightly/verified/parent/release open",
+  "source_count_before": 2,
+  "source_count_after": 3,
+  "preserved_verifier_failure": "hash-discrepancy.json used wrong repo-relative path assumption; correct manifest-parent resolution allmatch"
+}

@@ -1,5 +1,0 @@
-/cargo-home/advisory-dbs
-/cargo-home/advisory-dbs/advisory-db-3157b0e258782691/.git/HEAD
-/cargo-home/advisory-dbs/advisory-db-3157b0e258782691/.git/logs/HEAD
-/cargo-home/advisory-dbs/advisory-db-3157b0e258782691/.git/logs/refs/remotes/origin/HEAD
-/cargo-home/advisory-dbs/advisory-db-3157b0e258782691/.git/refs/remotes/origin/HEAD

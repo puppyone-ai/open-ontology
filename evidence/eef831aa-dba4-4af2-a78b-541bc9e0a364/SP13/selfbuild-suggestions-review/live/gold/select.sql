@@ -1,1 +1,0 @@
-SELECT party_key FROM shop.account WHERE party_key IS NOT NULL LIMIT 1

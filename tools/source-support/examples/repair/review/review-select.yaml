@@ -1,0 +1,13 @@
+schema: oo-support-matrix/v1
+captured: 2026-10-10
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "DL01-W1-24 independent review fixture"
+targets:
+  - { id: rv-pg, family: postgres, product: PostgreSQL, versions: [16.9], variant: self-managed, driver: { path: P1, impl: sqlx/tokio-postgres }, caps: { cat: verified, cdc: designed, full: experimental }, limits: ["review catalog limit"], evidence: [{ capability: catalog, id: rv-ev-cat, commit: e4e400235d5b6891df099308854501d6684965db, suite: review-cc-01, sha256: a2277ec3ed94e9c121efe600628e59d506140cab8a10cc7252a710b07cb9f4b2, kind: container, generated: true, nights: 14, reviewers: [mina, otto, rhea], tested_versions: ["16.9"], releases: 0 }] }
+  - { id: rv-exp, family: postgres, product: PostgreSQL, versions: [15.4], variant: self-managed, driver: { path: P1, impl: sqlx/tokio-postgres }, caps: { cat: experimental }, limits: ["review experimental limit"] }
+  - { id: rv-cert, family: postgres, product: PostgreSQL, versions: [16.8], variant: self-managed, driver: { path: P1, impl: sqlx/tokio-postgres }, caps: { cat: certified }, evidence: [{ capability: catalog, id: rv-ev-cert, commit: e4e400235d5b6891df099308854501d6684965db, suite: review-cc-01, sha256: 48c7c28aeff8f1accceaf04c192ac39e850207bd20028b849e34df4e33100af0, kind: customer, generated: true, nights: 14, reviewers: [mina, otto, rhea], tested_versions: ["16.8"], releases: 3 }] }
+  - { id: rv-mysql, family: mysql, product: MySQL, versions: [8.4], variant: self-managed, driver: { path: P1, impl: sqlx }, caps: { cat: verified }, evidence: [{ capability: catalog, id: rv-ev-mysql, commit: e4e400235d5b6891df099308854501d6684965db, suite: review-cc-01, sha256: 4a068f0927174a303ee58f9dc45022e450b3c0da98401f1971ad7d3f3e86042e, kind: container, generated: true, nights: 14, reviewers: [mina, otto, rhea], tested_versions: ["8.4"], releases: 0 }] }
+  - { id: rv-pin, family: postgres, product: "PostgreSQL Pin", versions: [16.1], variant: self-managed, driver: { path: P1, impl: sqlx/tokio-postgres }, caps: { cat: designed } }
+  - { id: rv-amb-a, family: warehouse, product: ReviewHouse, versions: [1.0], variant: self-managed, driver: { path: P1, impl: review }, caps: { cat: designed } }
+  - { id: rv-amb-b, family: warehouse, product: ReviewHouse, versions: [1.0], variant: self-managed, driver: { path: P1, impl: review }, caps: { cat: designed } }
+  - { id: rv-p2, family: oracle, product: "Review Oracle", versions: [19c], variant: self-managed, driver: { path: P2, impl: review-driver }, caps: { cat: designed } }

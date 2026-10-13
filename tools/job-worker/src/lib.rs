@@ -3,10 +3,14 @@
 
 pub mod api;
 pub mod apply;
+pub mod capture;
+pub mod capture_plan;
+pub mod capture_source;
 pub mod cmd;
 pub mod config;
 pub mod error;
 pub mod lease;
+pub mod native_schedule;
 pub mod prepare;
 pub mod report;
 pub mod schedule;

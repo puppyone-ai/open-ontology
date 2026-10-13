@@ -1,6 +1,0 @@
-proof-1 exit 101 before the overlay.
-cargo test --locked --offline compiled business-calendar and stopped in tests/handcomputed.rs:
-include_str!("../../../examples/schema/calendar.yaml") was not in the archive.
-Lock subset passed: registry_triples=115 missing=0 mismatch=0 path_packages=2.
-Offline fetch exit 101 on the empty cargo volume. Online fetch --locked exit 0.
-No product file was edited. proof-2 adds that one sealed example file and reuses the private cargo and target volumes.

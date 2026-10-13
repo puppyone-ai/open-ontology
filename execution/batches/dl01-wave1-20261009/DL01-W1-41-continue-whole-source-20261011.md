@@ -1,0 +1,3 @@
+先读 execution/INDEX.md、GOAL.md、PRODUCT-LOOPS.md、CONTROL.md、UPDATE-PROTOCOL.md、.codex/skills/codex-grok/SKILL.md，以及对应原source任务卡和Spec/Plan/docs。完整原十源出口，不以局部成功/fixture代替通用客户同链。固定Git archive证据，不读取他人dirty代码编译。保留失败。Rust global10/task1、CPU16/headroom10GiB、先真实资源准入；no nested/subagents/worktree，不改协调台账/源数据/他人资源。
+独立复审dd992590返回五项，逐项完整修复：通用客户secretref/获准namespace字段并读前拒绝；REQ-SRC-14整行doc jsonb缺失；401必须真实模型代理不是OO_PROXY_MODE模拟；初始化hello/isMaster/saslStart实际审计不暴露秘密；native80/50ms取消实际completed必须实际inflight CancelToken/deadline及serverend。shared core/pipeline/Gateway只能读固定，先调查JSONB契约，向root写精确依赖缺口，不越权改共享文件。完成能独立做的整源修复，原始失败保留。
+继续原collection_prompt及独占路径，不因单小功能结束整源。最终三报告/固定commit_owned/真实测试证据和资源回执。

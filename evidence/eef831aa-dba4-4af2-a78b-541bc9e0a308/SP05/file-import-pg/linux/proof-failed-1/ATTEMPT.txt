@@ -1,5 +1,0 @@
-Attempt 1. docker-run exit 101. refuse exit 101. lock subset exit 0 (tool_checksums=250).
-Worker build exit 0. PostgreSQL stayed up. Container removed. OOMKilled false.
-Compile errors: ChildRequest binding shadowed fn child; object binding shadowed fn object;
-project.rs missing sha2::Digest; GenericArray::as_slice deprecation; column vec needed a type.
-Those source fixes are in the next attempt. This directory is the unchanged failed output.

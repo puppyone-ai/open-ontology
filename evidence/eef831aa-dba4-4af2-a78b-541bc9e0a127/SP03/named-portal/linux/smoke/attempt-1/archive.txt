@@ -1,9 +1,0 @@
-archive_ok
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/describe.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/establish.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/executor.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/mod.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/resolve.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/sasl.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/stream.rs
-/tmp/oo-a127-eef831aa/smoke-snapshot/crates/oo-connectors/vendor/sqlx-postgres/src/connection/tls.rs

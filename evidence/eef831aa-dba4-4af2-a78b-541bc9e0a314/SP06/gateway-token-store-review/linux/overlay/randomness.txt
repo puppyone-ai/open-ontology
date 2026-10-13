@@ -1,4 +1,0 @@
-distinct_draws=true
-quality_claim=false
-production_wall=system
-injected_wall=injected

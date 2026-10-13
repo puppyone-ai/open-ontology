@@ -1,0 +1,10 @@
+{
+  "task": "DL01-W1-42",
+  "source": "645d37badf7a56dc26c90dc8cd3b007376489180",
+  "review": "cbf03fe0ef4443c27b2e7f2eaee539a519ea8250",
+  "verified_sha_entries": 123,
+  "decision": "approve_native_preflight",
+  "scope": "actual23.26.3/oracledb26beta4/typedArrow subset/lossyrejections/SCN/driverdeadline/no sourceDMLaudit; notexplicitusercancel/TLS/P2/fullsource",
+  "source_acceptance_delta": 0,
+  "original8_functional_acceptance_delta": 0
+}

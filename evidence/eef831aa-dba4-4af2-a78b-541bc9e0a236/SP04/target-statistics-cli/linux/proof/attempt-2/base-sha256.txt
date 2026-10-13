@@ -1,8 +1,0 @@
-crates/oo-pipeline/src/target_statistics.rs: OK
-crates/oo-pipeline/src/import_cli.rs: OK
-crates/oo-pipeline/src/bin/init-pg.rs: OK
-crates/oo-pipeline/src/bin/oo-pipeline.rs: OK
-crates/oo-pipeline/src/lib.rs: OK
-crates/oo-pipeline/Cargo.toml: OK
-Cargo.toml: OK
-Cargo.lock: OK

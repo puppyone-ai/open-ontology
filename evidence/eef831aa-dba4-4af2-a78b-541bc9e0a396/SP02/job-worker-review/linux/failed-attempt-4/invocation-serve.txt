@@ -1,1 +1,0 @@
-docker run --name oo-a396-jw-rust --platform linux/arm64 --pull never --network oo-a396-jw --cap-drop ALL --memory 6g --cpus 1 image=pinned-rust-1.94 bash /evidence/ops/inside-serve.sh

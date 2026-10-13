@@ -1,6 +1,0 @@
-builders
-postgres
-oo-a390-jw-pg Up About a minute
-oo-a391-pg Up 11 minutes
-oo-a384-pg Up 48 minutes
-oo-a373-pg Up 5 hours

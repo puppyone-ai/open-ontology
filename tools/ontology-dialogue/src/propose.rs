@@ -6,8 +6,8 @@ use serde_json::{Map, Value};
 
 use crate::error::Fault;
 use crate::grammar::{
-    self, as_of, development_local_origin, hex64, in_range, model_id, origin_ok, role_name, slug,
-    version_token,
+    self, as_of, development_local_origin, hex64, in_range, knowledge_id_ok, model_id, origin_ok,
+    role_name, slug, version_token,
 };
 use crate::http;
 use crate::json::{self, JsonError};
@@ -232,7 +232,7 @@ fn parse_config(text: &str) -> Result<ProposeConfig, Fault> {
         || !slug(&config.binding.project, 63)
         || !hex64(&config.binding.policy_id)
         || !version_token(&config.binding.policy_version)
-        || !slug(&config.binding.knowledge_id, 63)
+        || !knowledge_id_ok(&config.binding.knowledge_id)
         || !version_token(&config.binding.knowledge_version)
         || !as_of(&config.binding.as_of)
         || !grammar::endpoint_path(&config.endpoint.path)

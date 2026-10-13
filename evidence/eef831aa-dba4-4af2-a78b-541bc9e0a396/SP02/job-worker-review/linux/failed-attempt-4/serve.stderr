@@ -1,2 +1,0 @@
-event=serve workers=1
-event=serve_stop

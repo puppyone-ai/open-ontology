@@ -1,0 +1,16 @@
+<clickhouse>
+    <!-- DL01-W1-40 container cap is 2 GiB. This file is not the W11 limits file. -->
+    <max_server_memory_usage>1600000000</max_server_memory_usage>
+    <max_server_memory_usage_to_ram_ratio>0.8</max_server_memory_usage_to_ram_ratio>
+    <mlock_executable>false</mlock_executable>
+    <mark_cache_size>268435456</mark_cache_size>
+    <uncompressed_cache_size>0</uncompressed_cache_size>
+    <logger>
+        <level>warning</level>
+        <console>1</console>
+    </logger>
+    <!-- Lets a readonly profile change only the constrained deadline and caps. -->
+    <access_control_improvements>
+        <settings_constraints_replace_previous>true</settings_constraints_replace_previous>
+    </access_control_improvements>
+</clickhouse>

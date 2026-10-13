@@ -1,5 +1,0 @@
-clippy_component_exit=0
-fetch_exit=1
-test_exit=101
-clippy_exit=101
-cause=cargo-1.94-fetch-rejects-package-flag

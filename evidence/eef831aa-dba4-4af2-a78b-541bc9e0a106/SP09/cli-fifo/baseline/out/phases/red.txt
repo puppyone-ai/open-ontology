@@ -1,3 +1,0 @@
-reproduced=3
-expected=3
-product_pass=no

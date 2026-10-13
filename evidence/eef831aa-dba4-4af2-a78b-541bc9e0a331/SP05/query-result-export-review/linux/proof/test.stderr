@@ -1,7 +1,0 @@
-   Compiling query-result-export v0.1.0 (/src/tools/query-result-export)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
-     Running unittests src/lib.rs (/target/debug/deps/query_result_export-b16b63544c1f1c27)
-     Running unittests src/main.rs (/target/debug/deps/query_result_export-b0817717257be802)
-     Running tests/api.rs (/target/debug/deps/api-c54f11721c047dd0)
-     Running tests/cli.rs (/target/debug/deps/cli-c20cb70995e0557f)
-   Doc-tests query_result_export

@@ -14,10 +14,10 @@ use oo_core::api::ErrorCode;
 use oo_gateway::policy::catalog::{CatalogLimits, UnknownRows, load_policy_catalog};
 use oo_gateway::sql_guard::IN_LIST_LIMIT;
 use oo_gateway::{
-    ClassStatus, ColumnAclPolicy, ColumnSpec, GuardError, GuardedPlan, InstallEffect,
-    LiteralTypes, LogicalTable, OutputItem, PiiClass, PolicyCatalog, PolicyIdentity,
-    ResolvedFunction, ResolvedOperator, TlsEndpoint, VisibleColumn, VisibleRelation,
-    compile_column_acl, connect_require_tls, guard_select, install_column_acl,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, GuardError, GuardedPlan, InstallEffect, LiteralTypes,
+    LogicalTable, OutputItem, PiiClass, PolicyCatalog, PolicyIdentity, ResolvedFunction,
+    ResolvedOperator, TlsEndpoint, VisibleColumn, VisibleRelation, compile_column_acl,
+    connect_require_tls, guard_select, install_column_acl,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -35,7 +35,8 @@ const NE_SAME: u32 = 404;
 const EQ_TEXT: u32 = 405;
 const EQ_BOOL: u32 = 407;
 
-const QTY_SQL: &str = "SELECT entry_id, qty FROM shop.entry WHERE entry_id IN (0, 1, 2) ORDER BY entry_id";
+const QTY_SQL: &str =
+    "SELECT entry_id, qty FROM shop.entry WHERE entry_id IN (0, 1, 2) ORDER BY entry_id";
 
 fn identity() -> PolicyIdentity {
     PolicyIdentity {
@@ -121,7 +122,8 @@ fn large() -> PolicyCatalog {
 }
 
 fn admit(catalog: &PolicyCatalog, sql: &str) -> GuardedPlan {
-    guard_select(&catalog.identity, catalog, sql).unwrap_or_else(|err| panic!("{sql}\n{err}\n{err:?}"))
+    guard_select(&catalog.identity, catalog, sql)
+        .unwrap_or_else(|err| panic!("{sql}\n{err}\n{err:?}"))
 }
 
 fn refuse(catalog: &PolicyCatalog, sql: &str) -> GuardError {
@@ -150,9 +152,21 @@ fn assert_kept_in(plan: &GuardedPlan, marker: &str) {
     assert_eq!(plan.executed_sha256, digest(&plan.executed_sql));
     assert!(plan.executed_sql.contains(marker), "{}", plan.executed_sql);
     assert!(!plan.executed_sql.contains(" OR "), "{}", plan.executed_sql);
-    assert!(!plan.executed_sql.contains(" AND "), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("pt_entry"), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("pc_entry"), "{}", plan.executed_sql);
+    assert!(
+        !plan.executed_sql.contains(" AND "),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("pt_entry"),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("pc_entry"),
+        "{}",
+        plan.executed_sql
+    );
     assert!(!plan.executed_sql.contains("shop"), "{}", plan.executed_sql);
     assert!(
         !plan.executed_sql.contains("entry_id IN") && !plan.executed_sql.contains(".entry_id"),
@@ -167,10 +181,18 @@ fn entry_id_in_three_literals_keeps_exact_values() {
     assert_eq!(plan.original_sql, QTY_SQL);
     assert_kept_in(&plan, "IN (0, 1, 2)");
     assert_eq!(plan.bindings.operators.len(), 3);
-    assert!(plan.bindings.operators.iter().all(|op| op.oid == EQ_CROSS && op.name == "="));
+    assert!(
+        plan.bindings
+            .operators
+            .iter()
+            .all(|op| op.oid == EQ_CROSS && op.name == "=")
+    );
     assert_eq!(plan.bindings.relations[0].physical_schema, "_oo");
     assert_eq!(plan.bindings.relations[0].physical_name, "pt_entry");
-    let negative = admit(&small(), "SELECT entry_id FROM shop.entry WHERE entry_id IN (-1)");
+    let negative = admit(
+        &small(),
+        "SELECT entry_id FROM shop.entry WHERE entry_id IN (-1)",
+    );
     assert_kept_in(&negative, "IN (-1)");
     assert_eq!(negative.bindings.operators.len(), 1);
     assert_eq!(negative.bindings.operators[0].oid, EQ_CROSS);
@@ -211,7 +233,12 @@ fn null_and_not_in_stay_in_the_tree() {
     );
     assert_kept_in(&not_in, "NOT IN (0, NULL)");
     assert_eq!(
-        not_in.bindings.operators.iter().map(|op| op.oid).collect::<Vec<_>>(),
+        not_in
+            .bindings
+            .operators
+            .iter()
+            .map(|op| op.oid)
+            .collect::<Vec<_>>(),
         vec![NE_CROSS, NE_SAME]
     );
 
@@ -225,8 +252,15 @@ fn null_and_not_in_stay_in_the_tree() {
 
 #[test]
 fn text_and_bool_lists_use_their_literal_types() {
-    let text = admit(&small(), "SELECT label FROM shop.entry WHERE label IN ('a', 'b')");
-    assert!(text.executed_sql.contains("IN ('a', 'b')"), "{}", text.executed_sql);
+    let text = admit(
+        &small(),
+        "SELECT label FROM shop.entry WHERE label IN ('a', 'b')",
+    );
+    assert!(
+        text.executed_sql.contains("IN ('a', 'b')"),
+        "{}",
+        text.executed_sql
+    );
     assert!(text.bindings.operators.iter().all(|op| op.oid == EQ_TEXT));
     assert!(!text.executed_sql.contains(" OR "), "{}", text.executed_sql);
 
@@ -239,7 +273,13 @@ fn text_and_bool_lists_use_their_literal_types() {
         "{}",
         boolean.executed_sql
     );
-    assert!(boolean.bindings.operators.iter().all(|op| op.oid == EQ_BOOL));
+    assert!(
+        boolean
+            .bindings
+            .operators
+            .iter()
+            .all(|op| op.oid == EQ_BOOL)
+    );
 }
 
 #[test]
@@ -268,11 +308,26 @@ fn list_length_stops_at_the_explicit_bound() {
 #[test]
 fn unsupported_in_shapes_fail_closed() {
     let cases = [
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN ()", "parse"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (-qty)", "unary operator"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (1.5)", "float literal"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (qty)", "IN predicate"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (memo)", "IN predicate"),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN ()",
+            "parse",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (-qty)",
+            "unary operator",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (1.5)",
+            "float literal",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (qty)",
+            "IN predicate",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (memo)",
+            "IN predicate",
+        ),
         (
             "SELECT entry_id FROM shop.entry WHERE entry_id IN (SELECT entry_id FROM shop.entry)",
             "subquery",
@@ -285,13 +340,34 @@ fn unsupported_in_shapes_fail_closed() {
             "SELECT entry_id FROM shop.entry WHERE entry_id = ANY (ARRAY[0, 1, 2])",
             "ANY predicate",
         ),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (abs(0))", "function"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN (0::int8)", "cast"),
-        ("SELECT active FROM shop.entry WHERE active IN ('t'::bool)", "cast"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id IN ($1)", "parameter"),
-        ("SELECT entry_id FROM shop.entry WHERE (entry_id, qty) IN ((0, 1))", "IN predicate"),
-        ("SELECT label FROM shop.entry WHERE label LIKE 'a'", "LIKE predicate"),
-        ("SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN 0 AND 2", "BETWEEN predicate"),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (abs(0))",
+            "function",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (0::int8)",
+            "cast",
+        ),
+        (
+            "SELECT active FROM shop.entry WHERE active IN ('t'::bool)",
+            "cast",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN ($1)",
+            "parameter",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE (entry_id, qty) IN ((0, 1))",
+            "IN predicate",
+        ),
+        (
+            "SELECT label FROM shop.entry WHERE label LIKE 'a'",
+            "LIKE predicate",
+        ),
+        (
+            "SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN 0 AND 2",
+            "BETWEEN predicate",
+        ),
     ];
     for (sql, expect) in cases {
         let err = refuse(&small(), sql);
@@ -310,7 +386,9 @@ fn unsupported_in_shapes_fail_closed() {
 fn hidden_column_is_not_granted_by_in() {
     let err = refuse(&small(), "SELECT memo FROM shop.entry WHERE memo IN (1)");
     match err {
-        GuardError::ColumnNotAllowed { pending, ambiguous, .. } => {
+        GuardError::ColumnNotAllowed {
+            pending, ambiguous, ..
+        } => {
             assert_eq!(pending, 1);
             assert!(!ambiguous);
         }
@@ -323,7 +401,10 @@ fn hidden_column_is_not_granted_by_in() {
 
 fn err_text(sql: &str) -> String {
     let err = refuse(&small(), sql);
-    assert!(matches!(err, GuardError::ColumnNotAllowed { .. }), "{err:?}");
+    assert!(
+        matches!(err, GuardError::ColumnNotAllowed { .. }),
+        "{err:?}"
+    );
     let text = err.to_string();
     assert!(!format!("{err:?}").contains("memo"));
     text
@@ -335,7 +416,10 @@ fn missing_operator_and_literal_type_refuse() {
     ops.retain(|op| op.oid != NE_CROSS && op.oid != NE_SAME);
     let no_not = catalog(10, ops, Some(INT4_OID));
     assert!(matches!(
-        refuse(&no_not, "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (0, 1)"),
+        refuse(
+            &no_not,
+            "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (0, 1)"
+        ),
         GuardError::FunctionNotAllowed
     ));
 
@@ -343,18 +427,34 @@ fn missing_operator_and_literal_type_refuse() {
     ops.retain(|op| op.oid != EQ_SAME);
     let no_same = catalog(10, ops, Some(INT4_OID));
     assert!(matches!(
-        refuse(&no_same, "SELECT entry_id FROM shop.entry WHERE entry_id IN (NULL)"),
+        refuse(
+            &no_same,
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (NULL)"
+        ),
         GuardError::FunctionNotAllowed
     ));
-    assert!(admit(&no_same, "SELECT entry_id FROM shop.entry WHERE entry_id IN (0)").executed_sql.contains("IN (0)"));
+    assert!(
+        admit(
+            &no_same,
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (0)"
+        )
+        .executed_sql
+        .contains("IN (0)")
+    );
 
     let unresolved = catalog(10, operators(), None);
     assert!(matches!(
-        refuse(&unresolved, "SELECT entry_id FROM shop.entry WHERE entry_id IN (0, 1)"),
+        refuse(
+            &unresolved,
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (0, 1)"
+        ),
         GuardError::FunctionNotAllowed
     ));
     assert!(matches!(
-        refuse(&small(), "SELECT entry_id FROM shop.entry WHERE entry_id IN ('no')"),
+        refuse(
+            &small(),
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN ('no')"
+        ),
         GuardError::FunctionNotAllowed
     ));
 }
@@ -362,20 +462,33 @@ fn missing_operator_and_literal_type_refuse() {
 #[test]
 fn existing_guards_still_apply() {
     assert!(matches!(
-        refuse(&small(), "INSERT INTO shop.entry (entry_id, qty) VALUES (1, 1)"),
+        refuse(
+            &small(),
+            "INSERT INTO shop.entry (entry_id, qty) VALUES (1, 1)"
+        ),
         GuardError::Write
     ));
     assert_eq!(
-        construct(&refuse(&small(), "SELECT entry_id FROM shop.entry WHERE entry_id = $1")),
+        construct(&refuse(
+            &small(),
+            "SELECT entry_id FROM shop.entry WHERE entry_id = $1"
+        )),
         "parameter"
     );
     let compared = admit(&small(), "SELECT qty FROM shop.entry WHERE entry_id = 0");
     assert_eq!(compared.bindings.operators.len(), 1);
     assert_eq!(compared.bindings.operators[0].oid, EQ_CROSS);
-    assert!(!compared.executed_sql.contains(" IN "), "{}", compared.executed_sql);
+    assert!(
+        !compared.executed_sql.contains(" IN "),
+        "{}",
+        compared.executed_sql
+    );
 
     let counted = admit(&small(), "SELECT count(*) FROM shop.entry");
-    assert!(matches!(counted.bindings.outputs[0], OutputItem::Function(_)));
+    assert!(matches!(
+        counted.bindings.outputs[0],
+        OutputItem::Function(_)
+    ));
 
     match refuse(&large(), "SELECT * FROM shop.entry") {
         GuardError::CostTooHigh { relation } => {
@@ -384,11 +497,25 @@ fn existing_guards_still_apply() {
         }
         other => panic!("{other:?}"),
     }
-    let filtered = admit(&large(), "SELECT * FROM shop.entry WHERE entry_id IN (0, 1, 2)");
-    assert!(filtered.executed_sql.contains("IN (0, 1, 2)"), "{}", filtered.executed_sql);
-    assert!(!filtered.executed_sql.contains('*'), "{}", filtered.executed_sql);
+    let filtered = admit(
+        &large(),
+        "SELECT * FROM shop.entry WHERE entry_id IN (0, 1, 2)",
+    );
+    assert!(
+        filtered.executed_sql.contains("IN (0, 1, 2)"),
+        "{}",
+        filtered.executed_sql
+    );
+    assert!(
+        !filtered.executed_sql.contains('*'),
+        "{}",
+        filtered.executed_sql
+    );
     assert!(matches!(
-        refuse(&large(), "SELECT * FROM shop.entry WHERE true OR entry_id IN (0)"),
+        refuse(
+            &large(),
+            "SELECT * FROM shop.entry WHERE true OR entry_id IN (0)"
+        ),
         GuardError::CostTooHigh { .. }
     ));
     assert!(matches!(
@@ -396,7 +523,9 @@ fn existing_guards_still_apply() {
             &large(),
             "SELECT * FROM shop.entry JOIN shop.entry other ON entry.entry_id IN (0)"
         ),
-        GuardError::Unsupported { construct: "duplicate range name" } | GuardError::CostTooHigh { .. }
+        GuardError::Unsupported {
+            construct: "duplicate range name"
+        } | GuardError::CostTooHigh { .. }
     ));
 
     let mut long = String::from("SELECT entry_id FROM shop.entry WHERE entry_id IN (0)");
@@ -459,7 +588,9 @@ async fn live_query_pg_executes_bounded_in() {
     let shadow = prepare_entry(&mut admin).await;
     analyze_shadow(&admin, &shadow.table).await;
     let policy = acl(&["entry_id", "qty"]);
-    let installed = install_column_acl(&mut admin, &policy).await.expect("install");
+    let installed = install_column_acl(&mut admin, &policy)
+        .await
+        .expect("install");
     assert_eq!(installed.effect, InstallEffect::Installed);
     assert_eq!(installed.role, "oo_r_wide");
     let compiled = compile_column_acl(&policy).expect("compile");
@@ -468,14 +599,24 @@ async fn live_query_pg_executes_bounded_in() {
         .await
         .expect("catalog");
     assert!(loaded.relations[0].estimated_rows >= 1);
-    assert!(!loaded.relations[0].columns.iter().any(|column| column.name == "memo"));
+    assert!(
+        !loaded.relations[0]
+            .columns
+            .iter()
+            .any(|column| column.name == "memo")
+    );
     let before = fetch_stored(&admin, &shadow).await;
 
     let work = scratch();
     let password_file = Path::new(SECRET_DIR).join("login.pass");
     let ca_file = Path::new(SECRET_DIR).join("ca.crt");
     let qty = run_query(&work, &password_file, &ca_file, QTY_SQL, 3, &bans);
-    assert_eq!(qty.code, 0, "stderr {}", String::from_utf8_lossy(&qty.stderr));
+    assert_eq!(
+        qty.code,
+        0,
+        "stderr {}",
+        String::from_utf8_lossy(&qty.stderr)
+    );
     let qty_turn = one_turn(&qty.lines);
     assert_eq!(
         int_rows(&qty_turn.rows),
@@ -486,35 +627,65 @@ async fn live_query_pg_executes_bounded_in() {
         ]
     );
     let plan = assert_plan_hashes(&qty_turn.summary, QTY_SQL, &loaded);
-    assert!(plan.executed_sql.contains("IN (0, 1, 2)"), "{}", plan.executed_sql);
+    assert!(
+        plan.executed_sql.contains("IN (0, 1, 2)"),
+        "{}",
+        plan.executed_sql
+    );
     assert!(!plan.executed_sql.contains(" OR "), "{}", plan.executed_sql);
-    assert_eq!(admin_ints(&admin, &plan.executed_sql, 2).await, int_rows(&qty_turn.rows));
+    assert_eq!(
+        admin_ints(&admin, &plan.executed_sql, 2).await,
+        int_rows(&qty_turn.rows)
+    );
     assert_audit(&qty.audit, QTY_SQL, &loaded, &bans);
 
-    let with_null = "SELECT entry_id FROM shop.entry WHERE entry_id IN (0, NULL, 2) ORDER BY entry_id";
+    let with_null =
+        "SELECT entry_id FROM shop.entry WHERE entry_id IN (0, NULL, 2) ORDER BY entry_id";
     let null_run = run_query(&work, &password_file, &ca_file, with_null, 10, &bans);
     assert_eq!(null_run.code, 0);
     let null_turn = one_turn(&null_run.lines);
-    assert_eq!(int_rows(&null_turn.rows), vec![vec!["0".to_string()], vec!["2".to_string()]]);
+    assert_eq!(
+        int_rows(&null_turn.rows),
+        vec![vec!["0".to_string()], vec!["2".to_string()]]
+    );
     let null_plan = assert_plan_hashes(&null_turn.summary, with_null, &loaded);
-    assert!(null_plan.executed_sql.contains("IN (0, NULL, 2)"), "{}", null_plan.executed_sql);
+    assert!(
+        null_plan.executed_sql.contains("IN (0, NULL, 2)"),
+        "{}",
+        null_plan.executed_sql
+    );
     assert!(!null_plan.executed_sql.contains(" OR "));
-    assert_eq!(admin_ints(&admin, &null_plan.executed_sql, 1).await, int_rows(&null_turn.rows));
+    assert_eq!(
+        admin_ints(&admin, &null_plan.executed_sql, 1).await,
+        int_rows(&null_turn.rows)
+    );
 
-    let not_null = "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (0, NULL) ORDER BY entry_id";
+    let not_null =
+        "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (0, NULL) ORDER BY entry_id";
     let not_null_run = run_query(&work, &password_file, &ca_file, not_null, 10, &bans);
     assert_eq!(not_null_run.code, 0);
     let not_null_turn = one_turn(&not_null_run.lines);
     assert!(not_null_turn.rows.is_empty());
     let not_null_plan = assert_plan_hashes(&not_null_turn.summary, not_null, &loaded);
-    assert!(not_null_plan.executed_sql.contains("NOT IN (0, NULL)"), "{}", not_null_plan.executed_sql);
-    assert!(admin_ints(&admin, &not_null_plan.executed_sql, 1).await.is_empty());
+    assert!(
+        not_null_plan.executed_sql.contains("NOT IN (0, NULL)"),
+        "{}",
+        not_null_plan.executed_sql
+    );
+    assert!(
+        admin_ints(&admin, &not_null_plan.executed_sql, 1)
+            .await
+            .is_empty()
+    );
 
     let not_in = "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (0, 1) ORDER BY entry_id";
     let not_in_run = run_query(&work, &password_file, &ca_file, not_in, 10, &bans);
     assert_eq!(not_in_run.code, 0);
     let not_in_turn = one_turn(&not_in_run.lines);
-    assert_eq!(int_rows(&not_in_turn.rows), vec![vec!["2".to_string()], vec!["4".to_string()]]);
+    assert_eq!(
+        int_rows(&not_in_turn.rows),
+        vec![vec!["2".to_string()], vec!["4".to_string()]]
+    );
     let not_in_plan = assert_plan_hashes(&not_in_turn.summary, not_in, &loaded);
     assert!(not_in_plan.executed_sql.contains("NOT IN (0, 1)"));
     assert!(!not_in_plan.executed_sql.contains(" AND "));
@@ -619,9 +790,22 @@ struct Turn {
     summary: Value,
 }
 
-fn run_query(dir: &Path, password_file: &Path, ca_file: &Path, sql: &str, max_rows: u64, bans: &[String]) -> Run {
-    let audit = dir.join(format!("audit-{}.jsonl", SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)));
-    let request = dir.join(format!("request-{}.json", SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)));
+fn run_query(
+    dir: &Path,
+    password_file: &Path,
+    ca_file: &Path,
+    sql: &str,
+    max_rows: u64,
+    bans: &[String],
+) -> Run {
+    let audit = dir.join(format!(
+        "audit-{}.jsonl",
+        SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
+    let request = dir.join(format!(
+        "request-{}.json",
+        SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     let columns = ["entry_id", "qty"]
         .iter()
         .map(|name| {
@@ -755,7 +939,10 @@ fn int_rows(rows: &[Vec<Value>]) -> Vec<Vec<String>> {
 fn assert_plan_hashes(summary: &Value, sql: &str, catalog: &PolicyCatalog) -> GuardedPlan {
     let plan = guard_select(&identity_live(), catalog, sql).expect("guard");
     assert_eq!(summary["original_sha256"].as_str().unwrap(), digest(sql));
-    assert_eq!(summary["executed_sha256"].as_str().unwrap(), plan.executed_sha256);
+    assert_eq!(
+        summary["executed_sha256"].as_str().unwrap(),
+        plan.executed_sha256
+    );
     assert_eq!(summary["status"], "succeeded");
     assert_eq!(summary["truncated"], false);
     plan
@@ -771,9 +958,15 @@ fn assert_audit(path: &Path, sql: &str, catalog: &PolicyCatalog, bans: &[String]
     assert_eq!(values[1]["record"], "complete");
     let plan = guard_select(&identity_live(), catalog, sql).expect("audit guard");
     assert_eq!(values[0]["original_sha256"].as_str().unwrap(), digest(sql));
-    assert_eq!(values[0]["executed_sha256"].as_str().unwrap(), plan.executed_sha256);
+    assert_eq!(
+        values[0]["executed_sha256"].as_str().unwrap(),
+        plan.executed_sha256
+    );
     assert_eq!(values[1]["executed_sha256"], values[0]["executed_sha256"]);
-    assert_eq!(values[0]["fingerprint_hex"].as_str().unwrap(), plan.fingerprint_hex);
+    assert_eq!(
+        values[0]["fingerprint_hex"].as_str().unwrap(),
+        plan.fingerprint_hex
+    );
 }
 
 fn json_lines(bytes: &[u8]) -> Vec<Value> {
@@ -831,7 +1024,10 @@ async fn connect_db(database: &str, user: &str, password: &str, ca: &[u8]) -> Cl
             }
         }
     }
-    assert!(!last.contains(password), "connect error contained a password");
+    assert!(
+        !last.contains(password),
+        "connect error contained a password"
+    );
     panic!("tls connect failed");
 }
 
@@ -846,7 +1042,12 @@ async fn reset_database(admin_pass: &str, ca: &[u8]) {
         ),
     )
     .await;
-    exec_hidden(&maintenance, "drop-database", &format!("DROP DATABASE IF EXISTS \"{DATABASE}\"")).await;
+    exec_hidden(
+        &maintenance,
+        "drop-database",
+        &format!("DROP DATABASE IF EXISTS \"{DATABASE}\""),
+    )
+    .await;
     exec_hidden(
         &maintenance,
         "drop-roles",
@@ -890,30 +1091,70 @@ async fn apply_frozen_schema(client: &mut Client) {
     exec_tx(&tx, "0000_bootstrap_roles.sql", &bootstrap.0).await;
     exec_tx(&tx, "set-owner", "SET LOCAL ROLE oo_target_owner").await;
     exec_tx(&tx, "0001_target_fence_expand.sql", &fence.0).await;
-    exec_tx(&tx, "row-lock", "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
-    exec_tx(&tx, "0003_target_segment_preflight_expand.sql", &preflight.0).await;
+    exec_tx(
+        &tx,
+        "row-lock",
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
+    exec_tx(
+        &tx,
+        "0003_target_segment_preflight_expand.sql",
+        &preflight.0,
+    )
+    .await;
     exec_tx(&tx, "0004_physical_mapping.sql", &mapping.0).await;
     exec_tx(
         &tx,
         "markers-target",
         &marker_sql(&[
-            ("target-bootstrap/1", &bootstrap.1, "0000_bootstrap_roles.sql"),
-            ("target-fence-receipts/1", &fence.1, "0001_target_fence_expand.sql"),
-            ("target-fence-receipts/3", &preflight.1, "0003_target_segment_preflight_expand.sql"),
-            ("physical-mapping/v1", &mapping.1, "0004_physical_mapping.sql"),
+            (
+                "target-bootstrap/1",
+                &bootstrap.1,
+                "0000_bootstrap_roles.sql",
+            ),
+            (
+                "target-fence-receipts/1",
+                &fence.1,
+                "0001_target_fence_expand.sql",
+            ),
+            (
+                "target-fence-receipts/3",
+                &preflight.1,
+                "0003_target_segment_preflight_expand.sql",
+            ),
+            (
+                "physical-mapping/v1",
+                &mapping.1,
+                "0004_physical_mapping.sql",
+            ),
         ]),
     )
     .await;
     tx.commit().await.expect("commit target schema");
     let tx = begin_locked(client).await;
-    exec_tx(&tx, "row-lock-import", "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
-    exec_tx(&tx, "stats-grant", "GRANT pg_read_all_stats TO oo_target_owner WITH INHERIT TRUE, SET FALSE").await;
+    exec_tx(
+        &tx,
+        "row-lock-import",
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
+    exec_tx(
+        &tx,
+        "stats-grant",
+        "GRANT pg_read_all_stats TO oo_target_owner WITH INHERIT TRUE, SET FALSE",
+    )
+    .await;
     exec_tx(&tx, "set-owner-import", "SET LOCAL ROLE oo_target_owner").await;
     exec_tx(&tx, "0005_full_import_expand.sql", &full_import.0).await;
     exec_tx(
         &tx,
         "marker-import",
-        &marker_sql(&[("full-import/v1", &full_import.1, "0005_full_import_expand.sql")]),
+        &marker_sql(&[(
+            "full-import/v1",
+            &full_import.1,
+            "0005_full_import_expand.sql",
+        )]),
     )
     .await;
     tx.commit().await.expect("commit full import");
@@ -945,16 +1186,30 @@ fn marker_sql(rows: &[(&str, &str, &str)]) -> String {
         if index > 0 {
             values.push_str(",\n");
         }
-        values.push_str(&format!("  ('{version}', '{checksum}', 'expand', '{filename}')"));
+        values.push_str(&format!(
+            "  ('{version}', '{checksum}', 'expand', '{filename}')"
+        ));
     }
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values}"
+    )
 }
 
 async fn begin_locked(client: &mut Client) -> tokio_postgres::Transaction<'_> {
     let tx = client.transaction().await.expect("begin");
     exec_tx(&tx, "lock-timeout", "SET LOCAL lock_timeout = '15s'").await;
-    exec_tx(&tx, "statement-timeout", "SET LOCAL statement_timeout = '60s'").await;
-    exec_tx(&tx, "advisory-lock", &format!("SELECT pg_catalog.pg_advisory_xact_lock({ADVISORY_LOCK})")).await;
+    exec_tx(
+        &tx,
+        "statement-timeout",
+        "SET LOCAL statement_timeout = '60s'",
+    )
+    .await;
+    exec_tx(
+        &tx,
+        "advisory-lock",
+        &format!("SELECT pg_catalog.pg_advisory_xact_lock({ADVISORY_LOCK})"),
+    )
+    .await;
     tx
 }
 
@@ -987,7 +1242,10 @@ async fn grant_mapping_read(client: &Client) {
 
 async fn prepare_entry(client: &mut Client) -> Shadow {
     let target: i64 = client
-        .query_one("SELECT _oo.adopt_target_generation($1, ($2::text)::uuid)", &[&SHARD, &OWNER])
+        .query_one(
+            "SELECT _oo.adopt_target_generation($1, ($2::text)::uuid)",
+            &[&SHARD, &OWNER],
+        )
         .await
         .unwrap_or_else(|err| fail_db("adopt", &err))
         .get(0);
@@ -1067,7 +1325,12 @@ async fn prepare_entry(client: &mut Client) -> Shadow {
         .unwrap_or_else(|err| fail_db("prepare", &err))
         .get(0);
     assert_eq!(prepared, table);
-    let shadow = Shadow { table, entry_id, qty, memo };
+    let shadow = Shadow {
+        table,
+        entry_id,
+        qty,
+        memo,
+    };
     insert_rows(client, &shadow).await;
     shadow
 }
@@ -1087,24 +1350,71 @@ async fn type_oid(client: &Client, name: &str) -> i64 {
     i64::from(oid)
 }
 
-async fn register(client: &Client, level: &str, letter: &str, namespace: &str, table: &str, column: &str) {
-    let payload: [&(dyn ToSql + Sync); 7] = [&SOURCE, &CONFIG, &GENERATION, &letter, &namespace, &table, &column];
+async fn register(
+    client: &Client,
+    level: &str,
+    letter: &str,
+    namespace: &str,
+    table: &str,
+    column: &str,
+) {
+    let payload: [&(dyn ToSql + Sync); 7] = [
+        &SOURCE,
+        &CONFIG,
+        &GENERATION,
+        &letter,
+        &namespace,
+        &table,
+        &column,
+    ];
     let digest: Vec<u8> = client
-        .query_one("SELECT _oo.pm_sha256(_oo.pm_payload($1, $2, $3, $4, $5, $6, $7))", &payload)
+        .query_one(
+            "SELECT _oo.pm_sha256(_oo.pm_payload($1, $2, $3, $4, $5, $6, $7))",
+            &payload,
+        )
         .await
         .unwrap_or_else(|err| fail_db("digest", &err))
         .get(0);
-    let bind: [&(dyn ToSql + Sync); 8] = [&SOURCE, &CONFIG, &GENERATION, &level, &namespace, &table, &column, &digest];
+    let bind: [&(dyn ToSql + Sync); 8] = [
+        &SOURCE,
+        &CONFIG,
+        &GENERATION,
+        &level,
+        &namespace,
+        &table,
+        &column,
+        &digest,
+    ];
     client
-        .execute("SELECT _oo.register_physical_mapping($1, $2, $3, $4, $5, $6, $7, $8)", &bind)
+        .execute(
+            "SELECT _oo.register_physical_mapping($1, $2, $3, $4, $5, $6, $7, $8)",
+            &bind,
+        )
         .await
         .unwrap_or_else(|err| fail_db("register", &err));
 }
 
-async fn lookup(client: &Client, level: &str, namespace: &str, table: &str, column: &str) -> String {
-    let params: [&(dyn ToSql + Sync); 7] = [&SOURCE, &CONFIG, &GENERATION, &level, &namespace, &table, &column];
+async fn lookup(
+    client: &Client,
+    level: &str,
+    namespace: &str,
+    table: &str,
+    column: &str,
+) -> String {
+    let params: [&(dyn ToSql + Sync); 7] = [
+        &SOURCE,
+        &CONFIG,
+        &GENERATION,
+        &level,
+        &namespace,
+        &table,
+        &column,
+    ];
     client
-        .query_one("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)", &params)
+        .query_one(
+            "SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)",
+            &params,
+        )
         .await
         .unwrap_or_else(|err| fail_db("lookup", &err))
         .get(0)
@@ -1138,12 +1448,20 @@ fn quote_physical(name: &str, prefix: &str) -> String {
     let rest = name.strip_prefix(prefix).unwrap_or("");
     assert_eq!(name.len(), 63, "physical length");
     assert_eq!(rest.len(), 60, "physical body");
-    assert!(rest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+    assert!(
+        rest.bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    );
     format!("\"{name}\"")
 }
 
 async fn analyze_shadow(client: &Client, table: &str) {
-    exec_hidden(client, "analyze", &format!("ANALYZE \"_oo\".{}", quote_physical(table, "pt_"))).await;
+    exec_hidden(
+        client,
+        "analyze",
+        &format!("ANALYZE \"_oo\".{}", quote_physical(table, "pt_")),
+    )
+    .await;
 }
 
 async fn fetch_stored(client: &Client, shadow: &Shadow) -> Vec<(i64, i64, String)> {
@@ -1154,14 +1472,20 @@ async fn fetch_stored(client: &Client, shadow: &Shadow) -> Vec<(i64, i64, String
         qty = quote_physical(&shadow.qty, "pc_"),
         memo = quote_physical(&shadow.memo, "pc_"),
     );
-    let rows = client.query(&sql, &[]).await.unwrap_or_else(|err| fail_db("stored", &err));
+    let rows = client
+        .query(&sql, &[])
+        .await
+        .unwrap_or_else(|err| fail_db("stored", &err));
     rows.iter()
         .map(|row| (row.get(0), row.get(1), row.get(2)))
         .collect()
 }
 
 async fn admin_ints(client: &Client, sql: &str, width: usize) -> Vec<Vec<String>> {
-    let rows = client.query(sql, &[]).await.unwrap_or_else(|err| fail_db("admin-read", &err));
+    let rows = client
+        .query(sql, &[])
+        .await
+        .unwrap_or_else(|err| fail_db("admin-read", &err));
     rows.iter()
         .map(|row| {
             (0..width)
@@ -1172,14 +1496,22 @@ async fn admin_ints(client: &Client, sql: &str, width: usize) -> Vec<Vec<String>
 }
 
 async fn exec_hidden(client: &Client, name: &str, sql: &str) {
-    client.batch_execute(sql).await.unwrap_or_else(|err| fail_db(name, &err));
+    client
+        .batch_execute(sql)
+        .await
+        .unwrap_or_else(|err| fail_db(name, &err));
 }
 
 async fn exec_tx(tx: &tokio_postgres::Transaction<'_>, name: &str, sql: &str) {
-    tx.batch_execute(sql).await.unwrap_or_else(|err| fail_db(name, &err));
+    tx.batch_execute(sql)
+        .await
+        .unwrap_or_else(|err| fail_db(name, &err));
 }
 
 fn fail_db(name: &str, err: &tokio_postgres::Error) -> ! {
-    let state = err.code().map(|code| code.code().to_string()).unwrap_or_default();
+    let state = err
+        .code()
+        .map(|code| code.code().to_string())
+        .unwrap_or_default();
     panic!("{name} sqlstate={state}");
 }

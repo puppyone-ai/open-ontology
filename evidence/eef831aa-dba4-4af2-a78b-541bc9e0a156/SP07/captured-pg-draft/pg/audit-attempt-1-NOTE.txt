@@ -1,1 +1,0 @@
-note=first classifier ignored extended-protocol execute lines and rejected START TRANSACTION

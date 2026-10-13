@@ -1,0 +1,45 @@
+USE oo_dl01w1_43;
+
+INSERT INTO dup_events VALUES
+  (11, 'p', CAST('4.25' AS DECIMAL(10,2))),
+  (11, 'q', CAST('8.75' AS DECIMAL(10,2))),
+  (12, 'twin', CAST('6.50' AS DECIMAL(10,2))),
+  (12, 'twin', CAST('6.50' AS DECIMAL(10,2))),
+  (13, 'gap', NULL);
+
+INSERT INTO agg_qty VALUES ('M', CAST('6.50' AS DECIMAL(10,2)), 'first');
+INSERT INTO agg_qty VALUES ('M', CAST('3.25' AS DECIMAL(10,2)), 'later');
+INSERT INTO agg_qty VALUES ('N', NULL, 'n1');
+INSERT INTO agg_qty VALUES ('N', CAST('2.50' AS DECIMAL(10,2)), 'n2');
+INSERT INTO agg_qty VALUES ('P', NULL, 'p1');
+INSERT INTO agg_qty VALUES ('P', NULL, 'p2');
+INSERT INTO agg_qty VALUES ('Q', CAST('0.00' AS DECIMAL(10,2)), 'q');
+INSERT INTO agg_qty VALUES ('R', CAST('7.00' AS DECIMAL(10,2)), 'r1');
+INSERT INTO agg_qty VALUES ('R', NULL, NULL);
+
+INSERT INTO uniq_acct VALUES (1, CAST('10.0000' AS DECIMAL(18,4)), 'first');
+INSERT INTO uniq_acct VALUES (1, CAST('12.5000' AS DECIMAL(18,4)), 'second');
+INSERT INTO uniq_acct VALUES (2, CAST('3.0000' AS DECIMAL(18,4)), 'keep');
+INSERT INTO uniq_acct VALUES (3, CAST('8.0000' AS DECIMAL(18,4)), 'upd');
+INSERT INTO uniq_acct VALUES (4, CAST('1.0000' AS DECIMAL(18,4)), 'gone');
+
+INSERT INTO dec_exact VALUES
+  (1, CAST('0.3000' AS DECIMAL(18,4)), NULL, NULL),
+  (2, CAST('0.4000' AS DECIMAL(18,4)), NULL, NULL),
+  (3, CAST('0.7000' AS DECIMAL(18,4)), CAST('-1.2500' AS DECIMAL(18,4)), CAST('12345678901234567890.123456789012345678' AS DECIMAL(38,18)));
+
+INSERT INTO part_day VALUES ('2026-03-11', 'west', CAST('33.25' AS DECIMAL(12,2)));
+INSERT INTO part_day VALUES ('2026-04-04', 'north', CAST('44.10' AS DECIMAL(12,2)));
+INSERT INTO part_day VALUES ('2026-04-18', 'south', NULL);
+
+INSERT INTO str_key VALUES ('', 'empty');
+INSERT INTO str_key VALUES ('M', 'upper');
+INSERT INTO str_key VALUES ('M ', 'trail');
+INSERT INTO str_key VALUES ('N', 'en');
+INSERT INTO str_key VALUES ('m', 'low');
+INSERT INTO str_key VALUES ('n', 'en2');
+INSERT INTO str_key VALUES ('日', 'cjk');
+
+INSERT INTO nz_obs VALUES (1, NULL);
+INSERT INTO nz_obs VALUES (2, NULL);
+INSERT INTO nz_obs VALUES (3, CAST('0.00' AS DECIMAL(10,2)));

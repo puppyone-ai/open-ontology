@@ -1,1 +1,0 @@
-own=0 global=3 host_cargo=0 cap_own=1 cap_global=10 memory=6g cpus=1

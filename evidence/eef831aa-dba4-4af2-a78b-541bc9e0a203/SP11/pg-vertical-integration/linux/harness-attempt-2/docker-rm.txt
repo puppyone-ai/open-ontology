@@ -1,2 +1,0 @@
-oo-a203-harness
-rm_exit:0

@@ -1,6 +1,7 @@
 #!/bin/bash
 # dev profile plus fixed service profiles whose local images exist.
-# standard, minimal, selfbuild, source-fixed, and release-fixed stay off.
+# standard, minimal, and source-fixed stay off.
+# release-fixed and selfbuild are added by load_profiles when those local images exist.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 mkdir -p "${EVIDENCE}/run" "${STATE}/install"
@@ -52,6 +53,20 @@ if [ ! -f "${STATE}/install/marker" ]; then
     code=$?
     set -e
     printf '%s\n' "$code" > "${EVIDENCE}/run/session-install.exit"
+  fi
+  if docker image inspect oo-a395-release:local >/dev/null 2>&1; then
+    set +e
+    compose --profile dev --profile identity --profile release-fixed run --rm --no-deps --entrypoint /usr/local/bin/service release-control-api install --config /config/release.json > "${EVIDENCE}/run/release-install.log" 2>&1
+    code=$?
+    set -e
+    printf '%s\n' "$code" > "${EVIDENCE}/run/release-install.exit"
+  fi
+  if docker image inspect oo-a395-selfbuild:local >/dev/null 2>&1; then
+    set +e
+    compose --profile dev --profile identity --profile selfbuild run --rm --no-deps --entrypoint /usr/local/bin/service selfbuild-control-api install --config /config/selfbuild.json > "${EVIDENCE}/run/selfbuild-install.log" 2>&1
+    code=$?
+    set -e
+    printf '%s\n' "$code" > "${EVIDENCE}/run/selfbuild-install.exit"
   fi
   : > "${STATE}/install/marker"
 fi

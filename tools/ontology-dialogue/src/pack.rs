@@ -160,6 +160,9 @@ fn manifest_fields(text: &str) -> Result<(String, String, String, String, String
     let policy_version = required_string(policy, "version")?;
     let knowledge_id = required_string(knowledge, "id")?;
     let knowledge_version = required_string(knowledge, "version")?;
+    if !crate::grammar::hex64(&policy_id) || !crate::grammar::knowledge_id_ok(&knowledge_id) {
+        return Err(Fault::pack());
+    }
     Ok((
         project,
         role,

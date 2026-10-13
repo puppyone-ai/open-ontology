@@ -120,12 +120,18 @@ impl ApiError {
     /// Bytes of `{"error":{code,message,hint,retryable}}`. `query_id` is absent.
     pub fn body(self) -> Vec<u8> {
         let mut error = Map::new();
-        error.insert("code".to_owned(), Value::String(self.code.as_str().to_owned()));
+        error.insert(
+            "code".to_owned(),
+            Value::String(self.code.as_str().to_owned()),
+        );
         error.insert(
             "message".to_owned(),
             Value::String(self.code.message().to_owned()),
         );
-        error.insert("hint".to_owned(), Value::String(self.code.hint().to_owned()));
+        error.insert(
+            "hint".to_owned(),
+            Value::String(self.code.hint().to_owned()),
+        );
         error.insert("retryable".to_owned(), Value::Bool(self.code.retryable()));
         let mut root = Map::new();
         root.insert("error".to_owned(), Value::Object(error));
@@ -154,7 +160,10 @@ mod tests {
             let value: Value = serde_json::from_str(&text).expect("json");
             let error = value.get("error").expect("error");
             assert!(error.get("query_id").is_none());
-            assert_eq!(error.get("code").and_then(Value::as_str), Some(code.as_str()));
+            assert_eq!(
+                error.get("code").and_then(Value::as_str),
+                Some(code.as_str())
+            );
             assert_eq!(
                 error.get("message").and_then(Value::as_str),
                 Some(code.message())

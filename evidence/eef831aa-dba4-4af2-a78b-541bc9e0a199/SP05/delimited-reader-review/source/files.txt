@@ -1,4 +1,0 @@
-contracts/connectors/delimited-reader-v1.md
-crates/oo-connectors/src/delimited.rs
-crates/oo-connectors/src/lib.rs
-crates/oo-connectors/tests/delimited.rs

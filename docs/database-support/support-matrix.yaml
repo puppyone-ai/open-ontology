@@ -1,0 +1,187 @@
+# Open Ontology 数据库支持矩阵（初稿，手工维护）
+#
+# 重要：
+#  - 当前没有任何目标处于 verified/certified。verified 起的单元格必须由证据包生成，不得手写。
+#  - 等级含义见 docs/database-support/01-admission-and-support-matrix.md。
+#  - 未出现在本文件的数据库一律视为不支持（CONNECTOR_UNSUPPORTED）。
+#  - 能力缩写：cat=catalog, logic, qlog=query_log, full=batch_full, inc=batch_incremental,
+#    feed=change_feed, cdc, del=delete(native|reconcile|none), snap=snapshot_token, rep=replica_read, bud=budget
+#  - grade：T 事务 / S1 同 token 快照 / S0 单表快照 / B 尽力（见 03 §3）
+schema: oo-support-matrix/v1
+captured: 2026-10-09
+levels: [candidate, designed, experimental, verified, certified, excluded]
+note: "initial hand-written draft; no evidence packs exist yet"
+
+targets:
+  # ---- 波次 0：现行 Spec 范围（实现进行中，尚无 verified 声明）----
+  - { id: postgres-selfmanaged, family: postgres, product: PostgreSQL, versions: ["13-17"], variant: self-managed, wave: 0,
+      driver: { path: P1, impl: sqlx/tokio-postgres }, grade: { cdc: T, inc: B },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, cdc: designed, del: designed, snap: designed, rep: designed, bud: designed },
+      status_note: "SP03-W01 开发中；仅限定切片被批准，不构成 verified" }
+  - { id: mysql8-selfmanaged, family: mysql, product: MySQL, versions: ["8.0", "8.4"], variant: self-managed, wave: 0,
+      driver: { path: P1, impl: sqlx }, grade: { cdc: T, inc: B },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, cdc: designed, del: designed, snap: designed, rep: designed, bud: designed },
+      status_note: "SP03-W02 未开始验收" }
+  - { id: files-and-dumps, family: file, product: "CSV/TSV/Excel/Parquet/JSONL/SQLite/SQL dump", variant: upload, wave: 0,
+      driver: { path: in-process-worker }, grade: { full: S0 },
+      caps: { full: designed }, status_note: "见 Spec 7.4；独立于数据库准入" }
+
+  # ---- 波次 1：同家族托管变体、MariaDB、SQL Server ----
+  - { id: postgres-rds, family: postgres, product: "RDS for PostgreSQL", versions: ["13-17"], variant: rds, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed, rep: candidate },
+      limits: ["decoderbufs 不可用，使用 pgoutput", "failover slot 保留待 DBP3"] }
+  - { id: postgres-aurora, family: postgres, product: "Aurora PostgreSQL", versions: ["13-17"], variant: aurora, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed, rep: candidate },
+      limits: ["读副本槽与 failover 行为待 DBP3"] }
+  - { id: postgres-cloudsql, family: postgres, product: "Cloud SQL for PostgreSQL", versions: ["13-17"], variant: cloud-sql, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
+      limits: ["cloudsql.logical_decoding 与 wal_level 一致性需体检验证"] }
+  - { id: postgres-alloydb, family: postgres, product: AlloyDB, versions: ["14-16"], variant: alloydb, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
+      limits: ["只读池建槽限制未核实"] }
+  - { id: mysql-rds, family: mysql, product: "RDS for MySQL", versions: ["8.0", "8.4"], variant: rds, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
+      limits: ["binlog 保留上限 168 小时"] }
+  - { id: mysql-aurora, family: mysql, product: "Aurora MySQL", versions: ["3.x"], variant: aurora, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed, rep: candidate },
+      limits: ["binlog 仅 writer 可读", "开启 binlog 开销显著", "副本回放屏障待 DBP3"] }
+  - { id: mysql-cloudsql, family: mysql, product: "Cloud SQL for MySQL", versions: ["8.0", "8.4"], variant: cloud-sql, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
+      limits: ["binlog 依赖 PITR"] }
+  - { id: mysql-polardb, family: mysql, product: "PolarDB for MySQL", versions: ["8.0"], variant: polardb, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: candidate, del: designed },
+      limits: ["binlog 默认关闭，需开启"] }
+  - { id: mariadb-lts, family: mysql, product: MariaDB, versions: ["10.11", "11.4", "11.8"], variant: self-managed, wave: 1,
+      driver: { path: P1 }, grade: { cdc: T },
+      caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
+      limits: ["独立 Debezium MariaDB 连接器", "JSON 为 LONGTEXT 别名", "GTID 格式不同"] }
+  - { id: sqlserver-selfmanaged, family: mssql, product: "SQL Server", versions: ["2019", "2022"], variant: self-managed, wave: 1,
+      driver: { path: P1, impl: tiberius }, grade: { cdc: T, feed: S1, inc: B },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, feed: designed, cdc: designed, del: designed, snap: designed, bud: designed },
+      limits: ["CDC/CT 由 DBA 启用", "datetime2(7) 等精度截断", "CI 排序规则语义"] }
+  - { id: sqlserver-azure-mi, family: mssql, product: "Azure SQL Managed Instance", variant: azure-sql, wave: 1,
+      driver: { path: P1, impl: tiberius }, grade: { cdc: T, feed: S1 },
+      caps: { cat: designed, full: designed, feed: designed, cdc: designed, del: designed } }
+  - { id: sqlserver-azure-db, family: mssql, product: "Azure SQL Database", variant: azure-sql, wave: 1,
+      driver: { path: P1, impl: tiberius }, grade: { cdc: T, feed: S1 },
+      caps: { cat: designed, full: designed, feed: designed, cdc: candidate, del: designed },
+      limits: ["无 SQL Server Agent，CDC 由内置 scheduler 执行，频率不可定制"] }
+  - { id: sqlserver-rds, family: mssql, product: "RDS for SQL Server", variant: rds, wave: 1,
+      driver: { path: P1, impl: tiberius }, grade: { cdc: T, feed: S1 },
+      caps: { cat: designed, full: designed, feed: designed, cdc: designed, del: designed } }
+
+  # ---- 波次 2：Oracle/Db2/HANA、国产库 ----
+  - { id: oracle-19c-selfmanaged, family: oracle, product: "Oracle Database", versions: ["19c"], variant: self-managed, wave: 2,
+      driver: { path: P2, impl: "待 DBP1 选定" }, grade: { snap: S1, inc: B },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, snap: designed, del: designed, bud: designed, cdc: candidate },
+      limits: ["CDC(LogMiner) 属 R1w 例外，默认关闭", "空串即 NULL", "AWR 需 Diagnostic Pack 许可", "DATE 含时间"] }
+  - { id: oracle-23ai-selfmanaged, family: oracle, product: "Oracle Database", versions: ["23ai"], variant: self-managed, wave: 2,
+      driver: { path: P2 }, grade: { snap: S1, inc: B },
+      caps: { cat: designed, full: designed, inc: designed, snap: designed, del: designed, cdc: candidate } }
+  - { id: oracle-xstream, family: oracle, product: "Oracle XStream", variant: any, wave: 2,
+      caps: { cdc: excluded }, limits: ["需要 GoldenGate 许可并创建出站服务器"] }
+  - { id: db2-luw-11_5, family: db2, product: "Db2 LUW", versions: ["11.5"], variant: self-managed, wave: 2,
+      driver: { path: P2 }, grade: { inc: B },
+      caps: { cat: designed, full: designed, inc: designed, del: designed, cdc: excluded },
+      limits: ["ASN 需 IIDR 许可并写控制对象；平台不安装"] }
+  - { id: hana-2_0, family: hana, product: "SAP HANA", versions: ["2.0 SPS07+"], variant: self-managed, wave: 2,
+      driver: { path: P2 }, grade: { inc: B },
+      caps: { cat: designed, full: designed, inc: designed, del: designed, cdc: excluded },
+      limits: ["无只读日志 CDC；触发器复制属 R2"] }
+  - { id: dm8, family: native-cn, product: "达梦 DM8", variant: self-managed, wave: 2,
+      driver: { path: P2 }, grade: { inc: B },
+      caps: { cat: candidate, full: candidate, inc: candidate, cdc: excluded },
+      limits: ["兼容模式建库时固定，须体检读取", "标准驱动不可用"] }
+  - { id: oscar, family: native-cn, product: "神通 OSCAR", variant: self-managed, wave: 2,
+      driver: { path: P2 }, grade: { inc: B },
+      caps: { cat: candidate, full: candidate, inc: candidate } }
+  - { id: tidb, family: mysql-compat, product: TiDB, variant: self-managed, wave: 2,
+      driver: { path: P1 }, grade: { full: S1, inc: B },
+      caps: { cat: designed, full: designed, inc: designed, snap: candidate, cdc: candidate },
+      limits: ["不支持 MySQL 复制协议；CDC 仅 TiCDC（P5）"] }
+  - { id: oceanbase-mysql, family: mysql-compat, product: "OceanBase (MySQL mode)", variant: self-managed, wave: 2,
+      driver: { path: P1 }, grade: { inc: B },
+      caps: { cat: designed, full: designed, inc: designed, cdc: candidate },
+      limits: ["binlog 为合成格式（5.7/ROW/租户粒度）"] }
+  - { id: polardbx, family: mysql-compat, product: "PolarDB-X", variant: polardb, wave: 2,
+      driver: { path: P1 }, grade: { inc: B }, caps: { cat: designed, full: designed, inc: designed, cdc: candidate } }
+  - { id: goldendb, family: mysql-compat, product: GoldenDB, variant: self-managed, wave: 2,
+      driver: { path: P1 }, grade: { inc: B }, caps: { cat: candidate, full: candidate, inc: candidate } }
+  - { id: tdsql, family: mysql-compat, product: "TDSQL (按形态拆分)", variant: managed, wave: 2,
+      driver: { path: P1 }, grade: { inc: B }, caps: { cat: candidate, full: candidate, inc: candidate } }
+  - { id: opengauss-gaussdb, family: postgres-compat, product: "openGauss / GaussDB", variant: self-managed, wave: 2,
+      driver: { path: "P1 或 P2（视认证）" }, grade: { inc: B },
+      caps: { cat: designed, full: designed, inc: designed, cdc: candidate },
+      limits: ["SHA256 认证与标准驱动兼容性待 DBP7"] }
+  - { id: kingbase-pg-mode, family: postgres-compat, product: "KingbaseES (PG mode)", variant: self-managed, wave: 2,
+      driver: { path: P1 }, grade: { inc: B }, caps: { cat: designed, full: designed, inc: designed, cdc: candidate } }
+  - { id: highgo, family: postgres-compat, product: "瀚高 HighGo", variant: self-managed, wave: 2,
+      driver: { path: P1 }, grade: { inc: B }, caps: { cat: candidate, full: candidate, inc: candidate },
+      limits: ["安全版三权分立，目录读取权限需体检确认"] }
+
+  # ---- 波次 3：云数仓、湖表、OLAP ----
+  - { id: snowflake, family: warehouse, product: Snowflake, variant: saas, wave: 3,
+      driver: { path: "P2 ADBC / P3 REST" }, grade: { feed: S1, full: S1 },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, feed: designed, snap: designed, del: designed, bud: designed },
+      limits: ["不创建 Stream（R2）", "约束仅声明", "按 warehouse 计费，最低 60 秒"] }
+  - { id: bigquery, family: warehouse, product: BigQuery, variant: saas, wave: 3,
+      driver: { path: "P3 Storage Read API" }, grade: { feed: S1, full: S1 },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, feed: designed, snap: designed, del: designed, bud: designed },
+      limits: ["变更历史受 time travel 窗口限制", "按扫描字节计费"] }
+  - { id: databricks-delta, family: warehouse, product: "Databricks / Delta", variant: saas, wave: 3,
+      driver: { path: "P3 REST / delta-rs" }, grade: { feed: S0, full: S0 },
+      caps: { cat: designed, full: designed, feed: designed, snap: designed, del: designed, bud: designed },
+      limits: ["CDF 受 VACUUM/日志保留约束"] }
+  - { id: redshift, family: warehouse, product: Redshift, variant: aws, wave: 3,
+      driver: { path: "P1 PG 线协议 / P3 Data API" }, grade: { full: S0, inc: B },
+      caps: { cat: designed, full: designed, inc: designed, del: designed, bud: designed },
+      limits: ["无行级 CDC", "约束仅信息性"] }
+  - { id: clickhouse, family: olap, product: ClickHouse, variant: self-managed, wave: 3,
+      driver: { path: "P1 官方 HTTP crate" }, grade: { inc: S0 },
+      caps: { cat: designed, full: designed, inc: designed, del: designed, bud: designed },
+      limits: ["无 CDC/事务", "ReplacingMergeTree 最终去重", "非 Nullable 默认值代替缺失"] }
+  - { id: starrocks, family: olap, product: StarRocks, variant: self-managed, wave: 3,
+      driver: { path: "P1 MySQL 协议" }, grade: { inc: S0 }, caps: { cat: designed, full: designed, inc: designed, del: designed } }
+  - { id: doris, family: olap, product: "Apache Doris", versions: ["2.x", "3.x"], variant: self-managed, wave: 3,
+      driver: { path: "P1 MySQL 协议" }, grade: { inc: S0 }, caps: { cat: designed, full: designed, inc: designed, del: designed } }
+  - { id: iceberg, family: lake-table, product: "Apache Iceberg", variant: object-store, wave: 3,
+      driver: { path: P3 }, grade: { feed: S0 }, caps: { cat: designed, full: designed, feed: candidate, snap: designed },
+      limits: ["Rust 库无跨快照增量读，需自实现快照差"] }
+  - { id: trino, family: federation, product: Trino, variant: self-managed, wave: 3,
+      driver: { path: P3 }, grade: { full: B }, caps: { cat: candidate, full: candidate },
+      limits: ["联邦引擎，一致性与删除取决于底层 connector"] }
+
+  # ---- 波次 4：文档与键值 ----
+  - { id: mongodb, family: document, product: MongoDB, versions: ["7.0", "8.0"], variant: replica-set, wave: 4,
+      driver: { path: "P1 官方 crate + P4" }, grade: { cdc: B, full: S0 },
+      caps: { cat: designed, full: designed, cdc: designed, del: designed, snap: candidate },
+      limits: ["单机 standalone 不支持 change stream", "resume token 受 oplog 窗口限制"] }
+  - { id: dynamodb, family: kv-stream, product: DynamoDB, variant: aws, wave: 4,
+      driver: { path: P3 }, grade: { cdc: B, full: B },
+      caps: { cat: designed, full: designed, cdc: designed, del: designed, bud: designed },
+      limits: ["Streams 保留 24 小时", "记录序仅分区键内"] }
+  - { id: elasticsearch-opensearch, family: document, product: "Elasticsearch/OpenSearch", variant: self-managed, wave: 4,
+      driver: { path: P3 }, grade: { full: B }, caps: { cat: designed, full: designed, inc: designed, del: designed },
+      limits: ["无变更流；删除靠对账"] }
+  - { id: scylladb, family: document, product: ScyllaDB, variant: self-managed, wave: 4,
+      driver: { path: P2 }, grade: { cdc: B }, caps: { cat: candidate, full: candidate, cdc: candidate } }
+  - { id: cassandra, family: document, product: Cassandra, variant: self-managed, wave: 4,
+      caps: { cat: candidate, full: candidate, cdc: excluded }, limits: ["官方 CDC 需每节点本地 agent"] }
+  - { id: kafka-topic, family: kv-stream, product: "Kafka topic", variant: self-managed, wave: 4,
+      caps: { cdc: candidate }, limits: ["仅经 SP15-W03 buffer 适配器"] }
+
+  # ---- 明确不接入 ----
+  - { id: redis-valkey-source, family: kv-stream, product: "Redis / Valkey", caps: { cdc: excluded },
+      limits: ["keyspace 通知为有损 pub/sub，无持久变更日志"] }
+  - { id: hana-trigger-replication, family: hana, product: "SAP HANA trigger-based replication", caps: { cdc: excluded },
+      limits: ["需在源库创建触发器与影子表（R2）"] }
+  - { id: debezium-incremental-snapshot-signal, family: any, product: "Debezium 增量快照/信号表/心跳写入", caps: { cdc: excluded },
+      limits: ["需写源库（R2）；快照由 OO 分块完成"] }

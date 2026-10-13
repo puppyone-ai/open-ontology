@@ -1,0 +1,17 @@
+{
+  "approved_index": "oo-dl01w1-44-workload",
+  "index": "oo-dl01w1-44-workload",
+  "approved_fields": ["seq", "note"],
+  "fields": ["seq", "note"],
+  "documents": 400,
+  "chunk": 100,
+  "iterations": 400000,
+  "cancel_after_time_interval": "800ms",
+  "deadline_server_interval": "2000ms",
+  "cancel_marker": "oo44usercancel",
+  "deadline_marker": "oo44workloaddeadline",
+  "late_marker": "oo44latecancel",
+  "user_script": "String userMarker = \"oo44usercancel\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && userMarker.length() > 0;",
+  "deadline_script": "String deadlineMarker = \"oo44workloaddeadline\"; double s = 1.0; for (int i = 0; i < 400000; ++i) { s = Math.sqrt(s + i); s = Math.sin(s); s = Math.cos(s); s = Math.log(Math.abs(s) + 1.0); s = Math.exp(s - Math.floor(s)); s = s + i; } return s > 0 && deadlineMarker.length() > 0;",
+  "late_script": "String lateMarker = \"oo44latecancel\"; return lateMarker.length() > 0;"
+}

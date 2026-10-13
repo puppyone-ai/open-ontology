@@ -1,8 +1,0 @@
-captured_before_commit=yes
-workspace_tip=3a06e6042de6dda92fd1c7e6b011fef002aeca56
-workspace_subject=coordination: record driver bounds execution handle
-host_cargo=0
-running_rust_builders=0
-own_postgres=eef831aa-dba4-4af2-a78b-541bc9e0a116-pg running
-own_rust_containers=exited only
-slot=A

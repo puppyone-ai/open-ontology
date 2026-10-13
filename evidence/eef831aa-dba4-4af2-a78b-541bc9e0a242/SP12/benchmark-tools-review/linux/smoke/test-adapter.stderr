@@ -1,9 +1,0 @@
-   Compiling oo-query-result-adapter v0.1.0 (/src/benchmarks/query-result-adapter)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.72s
-     Running unittests src/lib.rs (target/bench/debug/deps/oo_query_result_adapter-b1adfb28b97c420d)
-     Running unittests src/main.rs (target/bench/debug/deps/query_result_adapter-e8b78e4852a883e1)
-     Running tests/adapt.rs (target/bench/debug/deps/adapt-d98b4d7158cf72a7)
-     Running tests/cli.rs (target/bench/debug/deps/cli-347e50af5466a504)
-     Running tests/proof.rs (target/bench/debug/deps/proof-71889c6b3dd8024e)
-     Running tests/sha256.rs (target/bench/debug/deps/sha256-d749544b59f8f86a)
-   Doc-tests oo_query_result_adapter

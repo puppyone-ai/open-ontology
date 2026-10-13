@@ -1,4 +1,0 @@
-contracts/builder/role-pack-v1.md
-crates/oo-builder/src/lib.rs
-crates/oo-builder/src/role_pack.rs
-crates/oo-builder/tests/role_pack.rs

@@ -1,1 +1,0 @@
-cargo test and cargo run failed to compile bin pi-rpc-live. map_err(ToString::to_string) is fn(&T) -> String, not fn(T) -> String. 50 errors, exit 101. cargo clippy exited 1 because component clippy is not installed for toolchain 1.94.0 and the container network is none. This attempt is preserved.

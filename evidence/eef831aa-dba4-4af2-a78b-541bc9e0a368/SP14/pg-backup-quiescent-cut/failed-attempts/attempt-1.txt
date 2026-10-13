@@ -1,1 +1,0 @@
-attempt 1: cut-check did not compile. format string used a function call inside braces. product test exit 0, product clippy exit 0, clippy component exit 0, check-test exit 101.

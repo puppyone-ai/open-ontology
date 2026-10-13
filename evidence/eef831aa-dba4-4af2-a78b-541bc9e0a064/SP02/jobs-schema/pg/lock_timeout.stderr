@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/try_migration_lock.sql:5: ERROR:  55P03: canceling statement due to lock timeout
-LOCATION:  ProcessInterrupts, postgres.c:3399

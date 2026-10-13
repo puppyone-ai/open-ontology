@@ -1,6 +1,0 @@
-oo_task=sp06-parser-reap-bounds-proof
-phase=proof
-=== parser_worker tests ===
-phase_exit=0 phase=test
-=== clippy ===
-phase_exit=1 phase=clippy

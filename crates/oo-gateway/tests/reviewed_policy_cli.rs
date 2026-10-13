@@ -10,8 +10,8 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use oo_gateway::policy::{
-    compile_column_acl_set, ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass,
-    PolicyError, RowFilter,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, PolicyError, RowFilter,
+    compile_column_acl_set,
 };
 use oo_gateway::reviewed_policy::{
     ReviewedAllow, ReviewedBinding, ReviewedIdentity, ReviewedSourceSeal, compile_reviewed_policies,
@@ -267,9 +267,24 @@ fn shop_tables() -> Vec<TableSpec> {
             name: "customer",
             rls: false,
             columns: vec![
-                Col { attnum: 1, name: "id", oid: 23, type_name: "int4" },
-                Col { attnum: 2, name: "email", oid: 25, type_name: "text" },
-                Col { attnum: 3, name: "active", oid: 16, type_name: "bool" },
+                Col {
+                    attnum: 1,
+                    name: "id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 2,
+                    name: "email",
+                    oid: 25,
+                    type_name: "text",
+                },
+                Col {
+                    attnum: 3,
+                    name: "active",
+                    oid: 16,
+                    type_name: "bool",
+                },
             ],
             pk: vec![(1, "id")],
         },
@@ -277,9 +292,24 @@ fn shop_tables() -> Vec<TableSpec> {
             name: "purchase",
             rls: false,
             columns: vec![
-                Col { attnum: 1, name: "id", oid: 23, type_name: "int4" },
-                Col { attnum: 2, name: "customer_id", oid: 23, type_name: "int4" },
-                Col { attnum: 3, name: "note", oid: 25, type_name: "text" },
+                Col {
+                    attnum: 1,
+                    name: "id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 2,
+                    name: "customer_id",
+                    oid: 23,
+                    type_name: "int4",
+                },
+                Col {
+                    attnum: 3,
+                    name: "note",
+                    oid: 25,
+                    type_name: "text",
+                },
             ],
             pk: vec![(1, "id")],
         },
@@ -413,12 +443,54 @@ fn shop_decisions(
     schema_hash: &str,
 ) -> Vec<Value> {
     vec![
-        decision(fingerprints, schema_hash, "public.customer", "id", "none", "identifier"),
-        decision(fingerprints, schema_hash, "public.customer", "email", "personal", "email"),
-        decision(fingerprints, schema_hash, "public.customer", "active", "none", "boolean_flag"),
-        decision(fingerprints, schema_hash, "public.purchase", "id", "none", "identifier"),
-        decision(fingerprints, schema_hash, "public.purchase", "customer_id", "none", "foreign_key"),
-        decision(fingerprints, schema_hash, "public.purchase", "note", "sensitive", "free_text"),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            "id",
+            "none",
+            "identifier",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            "email",
+            "personal",
+            "email",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.customer",
+            "active",
+            "none",
+            "boolean_flag",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "id",
+            "none",
+            "identifier",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "customer_id",
+            "none",
+            "foreign_key",
+        ),
+        decision(
+            fingerprints,
+            schema_hash,
+            "public.purchase",
+            "note",
+            "sensitive",
+            "free_text",
+        ),
     ]
 }
 
@@ -490,7 +562,12 @@ fn allow(dataset: &str, column: &str, explicit_allow: bool) -> ReviewedAllow {
     }
 }
 
-fn binding(chain: &Chain, role: &str, login: &str, allow_list: Vec<ReviewedAllow>) -> ReviewedBinding {
+fn binding(
+    chain: &Chain,
+    role: &str,
+    login: &str,
+    allow_list: Vec<ReviewedAllow>,
+) -> ReviewedBinding {
     ReviewedBinding {
         identity: ReviewedIdentity {
             project: "shop".to_string(),
@@ -511,6 +588,7 @@ fn binding(chain: &Chain, role: &str, login: &str, allow_list: Vec<ReviewedAllow
         generation: 4,
         role: role.to_string(),
         login: login.to_string(),
+        binding_vector: None,
         allow: allow_list,
     }
 }
@@ -768,8 +846,17 @@ fn two_roles_deserialize_into_compile_column_acl_set() {
         .expect("email");
     assert_eq!(email.status, ClassStatus::Confirmed);
     assert_eq!(email.semantic_type, "email");
-    assert_eq!(email.pii, PiiClass::Declared { explicit_allow: true });
-    assert!(clerk.stdout.contains("\"class\":\"declared\",\"explicit_allow\":true"));
+    assert_eq!(
+        email.pii,
+        PiiClass::Declared {
+            explicit_allow: true
+        }
+    );
+    assert!(
+        clerk
+            .stdout
+            .contains("\"class\":\"declared\",\"explicit_allow\":true")
+    );
     assert!(clerk.stdout.contains("\"class\":\"none\""));
     assert!(!clerk.stdout.contains("\"explicit_allow\":false"));
 
@@ -886,8 +973,11 @@ fn malformed_oversize_usage_and_request_are_bounded() {
     assert_line(&usage, 2, USAGE);
 
     let chain = compile_shop();
-    let mut doc: Value = serde_json::from_str(&operator(&chain, "clerk", "clerk_login", clerk_allow())).unwrap();
-    doc.as_object_mut().unwrap().insert(String::from("extra"), json!(1));
+    let mut doc: Value =
+        serde_json::from_str(&operator(&chain, "clerk", "clerk_login", clerk_allow())).unwrap();
+    doc.as_object_mut()
+        .unwrap()
+        .insert(String::from("extra"), json!(1));
     let extra = run_cli(&serde_json::to_string(&doc).unwrap(), &[]);
     assert_line(&extra, 5, "reviewed-policy: request\n");
 

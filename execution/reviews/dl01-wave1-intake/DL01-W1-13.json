@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-13",
+  "collector": "Codex immutable Git packet verification",
+  "fixed_seal_or_review": "d56631360d6f7852ff079431aaba735ad2416f0f",
+  "packet": "evidence/6f476a94-2648-4c2a-8154-d0b9f8b086fc/DL01/starrocks",
+  "verified_sha_entries": 289,
+  "decision": "author_cancel_repair_review_pending",
+  "source_commit": "970311b5872a4957beaacc19c1280827dda2a87b",
+  "development_acceptance_delta": 0,
+  "source_acceptance_delta": 0,
+  "original_failures_preserved": true
+}

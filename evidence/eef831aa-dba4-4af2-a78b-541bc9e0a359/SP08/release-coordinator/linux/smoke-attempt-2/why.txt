@@ -1,1 +1,0 @@
-attempt 1 used bash -lc and dropped /usr/local/cargo/bin; rustc was not found and the shell still exited 0. This attempt requires rustc 1.94.

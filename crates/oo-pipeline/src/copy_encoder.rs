@@ -2,12 +2,13 @@
 //!
 //! The caller pulls a header, row chunks, and a trailer. Nothing here opens a
 //! connection, writes a target, or admits the reader. See `copy-encoder/v1`.
+//! `json` oid 114 is the cell text. `jsonb` oid 3802 is one version byte `1`
+//! plus that same text. The text is not rendered again.
 
 use std::fmt;
 
 use oo_core::canonical::{ARBITRARY_DECIMAL_SCALE, LogicalType, classify_f64, validate_date};
-
-pub use oo_core::canonical::{FloatClass, LogicalValue};
+pub use oo_core::canonical::{FloatClass, LogicalValue, parse_json};
 pub use oo_core::{ExactDecimal, ExactInt};
 
 pub use oo_connectors::types::{
@@ -20,6 +21,26 @@ pub use oo_connectors::{
 
 /// Protocol name for this encoder.
 pub const PROTOCOL: &str = "copy-encoder/v1";
+
+/// Accept one BSON document envelope and return the PostgreSQL jsonb text.
+///
+/// The text is the caller's `pg_jsonb_text` after [`oo_core::jsonb_doc::seal_bson_jsonb_document`]
+/// accepts the raw BSON, the version-byte file, and the exact number lexemes.
+/// This does not render the value through a float.
+pub fn accept_jsonb_document(envelope: &str) -> Result<String, CopyError> {
+    oo_core::jsonb_doc::seal_bson_jsonb_document(envelope)
+        .map_err(|_| CopyError::new("type_not_encoded", "jsonb"))?;
+    let value: serde_json::Value =
+        serde_json::from_str(envelope).map_err(|_| CopyError::new("type_not_encoded", "jsonb"))?;
+    let text = value
+        .get("pg_jsonb_text")
+        .and_then(|item| item.as_str())
+        .ok_or_else(|| CopyError::new("type_not_encoded", "jsonb"))?;
+    if text.is_empty() || text.as_bytes().contains(&0) {
+        return Err(CopyError::new("type_not_encoded", "jsonb"));
+    }
+    Ok(text.to_string())
+}
 
 /// Binary COPY signature, flags, and header-extension length.
 pub const HEADER_LEN: usize = 19;
@@ -164,10 +185,12 @@ enum Kind {
     Float8,
     Text { limit: Option<usize> },
     Json,
+    Jsonb,
     Bytes,
     Uuid,
     Date,
     Time,
+    Interval,
     Timestamp,
     Timestamptz,
     Numeric,
@@ -416,6 +439,7 @@ impl<'a> CopyEncoder<'a> {
             }
             Kind::Text { limit } => self.text_of(row, column, limit)?.len(),
             Kind::Json => self.text_of(row, column, None)?.len(),
+            Kind::Jsonb => self.jsonb_of(row, column)?.len(),
             Kind::Bytes | Kind::Uuid => self.bytes_of(row, column)?.len(),
             Kind::Date => {
                 let _checked = self.date_of(row, column)?;
@@ -424,6 +448,10 @@ impl<'a> CopyEncoder<'a> {
             Kind::Time => {
                 let _checked = self.time_of(row, column)?;
                 8
+            }
+            Kind::Interval => {
+                let _checked = self.interval_of(row, column)?;
+                16
             }
             Kind::Timestamp | Kind::Timestamptz => {
                 let _checked = self.timestamp_of(row, column)?;
@@ -512,6 +540,10 @@ impl<'a> CopyEncoder<'a> {
                 out.extend_from_slice(self.text_of(row, column, None)?.as_bytes());
                 Ok(())
             }
+            Kind::Jsonb => {
+                out.extend_from_slice(&self.jsonb_of(row, column)?);
+                Ok(())
+            }
             Kind::Bytes | Kind::Uuid => {
                 out.extend_from_slice(self.bytes_of(row, column)?);
                 Ok(())
@@ -522,6 +554,12 @@ impl<'a> CopyEncoder<'a> {
             }
             Kind::Time => {
                 out.extend_from_slice(&self.time_of(row, column)?.to_be_bytes());
+                Ok(())
+            }
+            Kind::Interval => {
+                out.extend_from_slice(&self.interval_of(row, column)?.to_be_bytes());
+                out.extend_from_slice(&0_i32.to_be_bytes());
+                out.extend_from_slice(&0_i32.to_be_bytes());
                 Ok(())
             }
             Kind::Timestamp | Kind::Timestamptz => {
@@ -690,6 +728,34 @@ impl<'a> CopyEncoder<'a> {
         }
     }
 
+    fn jsonb_of(&self, row: u32, column: &Resolved) -> Result<Vec<u8>, CopyError> {
+        let cell = self.required(row, column)?;
+        self.plain_cell(row, column, cell)?;
+        let Some(LogicalValue::Json(node)) = cell.value.as_ref() else {
+            return Err(CopyError::new("value_mismatch", "jsonb").at(row, column.attnum));
+        };
+        let Some(ArrowScalar::Utf8(text)) = cell.arrow.as_ref() else {
+            return Err(CopyError::new("value_mismatch", "jsonb").at(row, column.attnum));
+        };
+        if text.as_bytes().contains(&0) {
+            return Err(CopyError::new("text_nul", "").at(row, column.attnum));
+        }
+        let parsed = parse_json(text)
+            .map_err(|_| CopyError::new("value_mismatch", "jsonb").at(row, column.attnum))?;
+        if &parsed != node {
+            return Err(CopyError::new("value_mismatch", "jsonb").at(row, column.attnum));
+        }
+        let mut wire = Vec::with_capacity(text.len().saturating_add(1));
+        wire.push(oo_core::jsonb_doc::JSONB_SEND_VERSION);
+        wire.extend_from_slice(text.as_bytes());
+        let file = oo_core::jsonb_doc::inspect_jsonb_send(&wire)
+            .map_err(|_| CopyError::new("value_mismatch", "jsonb").at(row, column.attnum))?;
+        if file.text != *text {
+            return Err(CopyError::new("value_mismatch", "jsonb").at(row, column.attnum));
+        }
+        Ok(wire)
+    }
+
     fn bytes_of(&self, row: u32, column: &Resolved) -> Result<&[u8], CopyError> {
         let cell = self.required(row, column)?;
         self.plain_cell(row, column, cell)?;
@@ -742,6 +808,18 @@ impl<'a> CopyEncoder<'a> {
                 Err(CopyError::new("time_range", "").at(row, column.attnum))
             }
             _ => Err(CopyError::new("value_mismatch", "time").at(row, column.attnum)),
+        }
+    }
+
+    fn interval_of(&self, row: u32, column: &Resolved) -> Result<i64, CopyError> {
+        let cell = self.required(row, column)?;
+        self.plain_cell(row, column, cell)?;
+        match (cell.value.as_ref(), cell.arrow.as_ref()) {
+            (
+                Some(LogicalValue::DurationMicros(value)),
+                Some(ArrowScalar::DurationMicros(arrow)),
+            ) if value == arrow => Ok(*value),
+            _ => Err(CopyError::new("value_mismatch", "interval").at(row, column.attnum)),
         }
     }
 
@@ -912,6 +990,15 @@ fn kind_of(plan: &ColumnPlan) -> Result<Kind, CopyError> {
             limit: char_limit(plan)?,
         },
         OID_JSON => Kind::Json,
+        OID_JSONB => {
+            if plan.mapping.precision.is_some()
+                || plan.mapping.scale.is_some()
+                || plan.mapping.timezone.is_some()
+            {
+                return Err(CopyError::new("type_not_encoded", "jsonb").at(0, attnum));
+            }
+            Kind::Jsonb
+        }
         OID_BYTEA => Kind::Bytes,
         OID_UUID => Kind::Uuid,
         OID_DATE => Kind::Date,
@@ -919,8 +1006,7 @@ fn kind_of(plan: &ColumnPlan) -> Result<Kind, CopyError> {
         OID_TIMESTAMP => Kind::Timestamp,
         OID_TIMESTAMPTZ => Kind::Timestamptz,
         OID_NUMERIC => numeric_kind(plan, logical, attnum)?,
-        OID_JSONB => return Err(CopyError::new("type_not_encoded", "jsonb").at(0, attnum)),
-        OID_INTERVAL => return Err(CopyError::new("type_not_encoded", "interval").at(0, attnum)),
+        OID_INTERVAL => Kind::Interval,
         _ => return Err(CopyError::new("type_not_encoded", "oid").at(0, attnum)),
     };
     if !logical_matches(logical, kind) || !arrow_matches(arrow, kind) {
@@ -973,9 +1059,11 @@ fn logical_matches(logical: &LogicalType, kind: Kind) -> bool {
             | (Kind::Int2 | Kind::Int4 | Kind::Int8, LogicalType::Int)
             | (Kind::Float4 | Kind::Float8, LogicalType::Float64)
             | (Kind::Text { .. } | Kind::Json, LogicalType::Text)
+            | (Kind::Jsonb, LogicalType::Json)
             | (Kind::Bytes | Kind::Uuid, LogicalType::Bytes)
             | (Kind::Date, LogicalType::Date)
             | (Kind::Time, LogicalType::Time)
+            | (Kind::Interval, LogicalType::DurationMicros)
             | (Kind::Timestamp, LogicalType::TimestampNaive)
             | (Kind::Timestamptz, LogicalType::TimestampTz)
             | (Kind::Numeric, LogicalType::Decimal { .. })
@@ -990,10 +1078,14 @@ fn arrow_matches(arrow: &ArrowPhysical, kind: Kind) -> bool {
             | (Kind::Int4, ArrowPhysical::Int32)
             | (Kind::Int8, ArrowPhysical::Int64)
             | (Kind::Float4 | Kind::Float8, ArrowPhysical::Float64)
-            | (Kind::Text { .. } | Kind::Json, ArrowPhysical::Utf8)
+            | (
+                Kind::Text { .. } | Kind::Json | Kind::Jsonb,
+                ArrowPhysical::Utf8
+            )
             | (Kind::Bytes | Kind::Uuid, ArrowPhysical::Binary)
             | (Kind::Date, ArrowPhysical::Date32)
             | (Kind::Time, ArrowPhysical::Time64Micros)
+            | (Kind::Interval, ArrowPhysical::DurationMicros)
             | (Kind::Timestamp, ArrowPhysical::TimestampMicrosNaive)
             | (Kind::Timestamptz, ArrowPhysical::TimestampMicrosUtc)
             | (
@@ -1178,7 +1270,7 @@ fn mul_add_le(bytes: &mut [u8; 32], factor: u32, add: u32) -> Result<(), ()> {
     for byte in bytes.iter_mut() {
         let wide = u32::from(*byte) * factor + carry;
         *byte = (wide & 0xff) as u8;
-        carry >>= 8;
+        carry = wide >> 8;
     }
     if carry == 0 { Ok(()) } else { Err(()) }
 }
@@ -1188,7 +1280,7 @@ fn neg_le(bytes: &mut [u8; 32]) -> Result<(), ()> {
     for byte in bytes.iter_mut() {
         let wide = u16::from(!*byte) + carry;
         *byte = (wide & 0xff) as u8;
-        carry >>= 8;
+        carry = wide >> 8;
     }
     if bytes.last().is_some_and(|byte| byte & 0x80 != 0) {
         Ok(())

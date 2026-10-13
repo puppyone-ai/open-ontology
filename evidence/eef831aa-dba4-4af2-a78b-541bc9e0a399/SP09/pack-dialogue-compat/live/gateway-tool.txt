@@ -1,3 +1,0 @@
-proposal_sql_bytes=47
-proposal_starts_select=yes
-policy_id=e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e

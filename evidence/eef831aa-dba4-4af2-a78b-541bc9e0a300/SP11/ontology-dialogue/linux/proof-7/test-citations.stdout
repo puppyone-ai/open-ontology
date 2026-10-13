@@ -1,8 +1,0 @@
-
-running 3 tests
-test approved_child_receipt_uses_the_citations_module ... ok
-test guard_refusal_has_no_query_id ... ok
-test stale_pack_sql_tamper_and_bad_binary_do_not_spawn ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
-

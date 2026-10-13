@@ -15,19 +15,19 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use oo_gateway::parser_worker::{
-    decode_frame, decode_plan, decode_refusal, decode_request, encode_frame, encode_plan,
-    encode_refusal, encode_request, supervise, supervise_with, AdmitRequest, CancelFlag,
-    CodecError, ParserResponse, ProcessReport, RestrictionCapability, SuperviseError,
-    TrustedWorker, WorkerPathError, CATALOG_REASONS, CONSTRUCTS, KIND_PLAN, KIND_REFUSAL,
-    KIND_REQUEST, MAGIC, MAX_FRAME_BODY, PARSE_DEADLINE, PROTOCOL_VERSION, RESTRICTION_CAPABILITY,
-    SERIALIZE_REASONS,
+    AdmitRequest, CATALOG_REASONS, CONSTRUCTS, CancelFlag, CodecError, KIND_PLAN, KIND_REFUSAL,
+    KIND_REQUEST, MAGIC, MAX_FRAME_BODY, PARSE_DEADLINE, PROTOCOL_VERSION, ParserResponse,
+    ProcessReport, RESTRICTION_CAPABILITY, RestrictionCapability, SERIALIZE_REASONS,
+    SuperviseError, TrustedWorker, WorkerPathError, decode_frame, decode_plan, decode_refusal,
+    decode_request, encode_frame, encode_plan, encode_refusal, encode_request, supervise,
+    supervise_with,
 };
-use oo_gateway::query_executor::{UntrustedAdmission, UNTRUSTED_ADMISSION};
+use oo_gateway::query_executor::{UNTRUSTED_ADMISSION, UntrustedAdmission};
 use oo_gateway::{
-    guard_select, BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError,
-    GuardedPlan, LiteralKind, LiteralTypes, OutputItem, PolicyCatalog, PolicyIdentity,
-    RecognizedBindings, ResolvedFunction, ResolvedOperator, StarExpansion, VisibleColumn,
-    VisibleRelation, PINNED_PARSER_VERSION, SQL_BYTE_BUDGET,
+    BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError, GuardedPlan,
+    LiteralKind, LiteralTypes, OutputItem, PINNED_PARSER_VERSION, PolicyCatalog, PolicyIdentity,
+    RecognizedBindings, ResolvedFunction, ResolvedOperator, SQL_BYTE_BUDGET, StarExpansion,
+    VisibleColumn, VisibleRelation, guard_select,
 };
 use sha2::{Digest, Sha256};
 
@@ -203,7 +203,11 @@ fn fault_paths() -> &'static Vec<(String, PathBuf)> {
 }
 
 fn compile_faults() -> Vec<(String, PathBuf)> {
-    let dir = std::env::current_exe().unwrap().parent().unwrap().join("a187-fault");
+    let dir = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("a187-fault");
     fs::create_dir_all(&dir).unwrap();
     let src = dir.join("fault.rs");
     fs::write(&src, FAULT_SRC).unwrap();
@@ -364,7 +368,11 @@ fn start_ticks(pid: u32) -> u64 {
 fn live_child(pid: u32, worker: &TrustedWorker) -> u64 {
     let start = start_ticks(pid);
     let pgrp = proc_field(pid, 2).unwrap_or_else(|| panic!("no pgrp for {pid}"));
-    assert_eq!(pgrp, u64::from(pid), "worker did not get its own process group");
+    assert_eq!(
+        pgrp,
+        u64::from(pid),
+        "worker did not get its own process group"
+    );
     let env = fs::read(format!("/proc/{pid}/environ")).unwrap();
     assert!(
         env.is_empty(),
@@ -372,7 +380,10 @@ fn live_child(pid: u32, worker: &TrustedWorker) -> u64 {
         env.len()
     );
     let cmd = fs::read(format!("/proc/{pid}/cmdline")).unwrap();
-    let parts: Vec<_> = cmd.split(|byte| *byte == 0).filter(|part| !part.is_empty()).collect();
+    let parts: Vec<_> = cmd
+        .split(|byte| *byte == 0)
+        .filter(|part| !part.is_empty())
+        .collect();
     assert_eq!(parts, vec![worker.path().as_os_str().as_bytes()]);
     let exe = fs::read_link(format!("/proc/{pid}/exe")).unwrap();
     assert_eq!(exe, worker.path());
@@ -612,7 +623,9 @@ fn wait_limited(child: &mut Child, limit: Duration) -> ExitStatus {
 
 fn collect_worker(input: &[u8], configure: impl FnOnce(&mut Command)) -> (i32, Vec<u8>, Vec<u8>) {
     let mut cmd = Command::new(bin_path());
-    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     configure(&mut cmd);
     let mut child = cmd.spawn().unwrap();
     let mut stdin = child.stdin.take().unwrap();
@@ -661,7 +674,10 @@ fn admission_stays_blocked_and_the_sandbox_is_unsupported() {
         SuperviseError::RequestBudget.to_string(),
         "parser request exceeds its budget"
     );
-    assert_eq!(CodecError::Limit.to_string(), "frame field exceeds its budget");
+    assert_eq!(
+        CodecError::Limit.to_string(),
+        "frame field exceeds its budget"
+    );
     assert_eq!(
         WorkerPathError::NotAbsolute.to_string(),
         "worker path is not absolute"
@@ -823,13 +839,24 @@ fn tags_and_trailing_bytes_are_rejected() {
 fn plans_and_every_refusal_class_roundtrip() {
     let plan = sample_plan();
     assert_eq!(decode_plan(&encode_plan(&plan).unwrap()).unwrap(), plan);
-    let admitted = guard_select(&small().identity, &small(), "SELECT * FROM logistics.shipment")
-        .unwrap();
-    assert_eq!(decode_plan(&encode_plan(&admitted).unwrap()).unwrap(), admitted);
+    let admitted = guard_select(
+        &small().identity,
+        &small(),
+        "SELECT * FROM logistics.shipment",
+    )
+    .unwrap();
+    assert_eq!(
+        decode_plan(&encode_plan(&admitted).unwrap()).unwrap(),
+        admitted
+    );
     for err in refusal_matrix() {
         let bytes = encode_refusal(&err).unwrap();
         assert_eq!(decode_refusal(&bytes).unwrap(), err);
-        assert!(!bytes.windows(CANARY.len()).any(|item| item == CANARY.as_bytes()));
+        assert!(
+            !bytes
+                .windows(CANARY.len())
+                .any(|item| item == CANARY.as_bytes())
+        );
     }
 }
 
@@ -841,8 +868,10 @@ fn identifier_length_is_enforced_at_the_codec_boundary() {
     assert_eq!(back.catalog.relations[0].name.len(), 63);
     req.catalog.relations[0].name = "a".repeat(64);
     let started = Cell::new(false);
-    let err = supervise_with(&fault("slow"), &req, &CancelFlag::new(), |_| started.set(true))
-        .unwrap_err();
+    let err = supervise_with(&fault("slow"), &req, &CancelFlag::new(), |_| {
+        started.set(true)
+    })
+    .unwrap_err();
     assert!(matches!(err, SuperviseError::RequestBudget));
     assert!(!started.get());
 }
@@ -853,8 +882,16 @@ fn legal_select_matches_the_guard_including_hash_and_physical_names() {
     let plan = expect_plan(&small(), sql);
     assert_eq!(plan.original_sql, sql);
     assert_ne!(plan.executed_sql, sql);
-    assert!(plan.executed_sql.contains("pt_ship"), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("pc_order"), "{}", plan.executed_sql);
+    assert!(
+        plan.executed_sql.contains("pt_ship"),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("pc_order"),
+        "{}",
+        plan.executed_sql
+    );
     assert_eq!(plan.original_sha256, digest(sql));
     assert_eq!(plan.executed_sha256, digest(&plan.executed_sql));
     assert_eq!(plan.parser_version, PINNED_PARSER_VERSION);
@@ -903,7 +940,12 @@ fn alias_and_literals_match_the_guard() {
 #[test]
 fn static_refusals_match_the_guard_and_hide_the_sql() {
     let distinct = expect_refusal(&small(), "SELECT DISTINCT order_id FROM logistics.shipment");
-    assert_eq!(distinct, GuardError::Unsupported { construct: "DISTINCT" });
+    assert_eq!(
+        distinct,
+        GuardError::Unsupported {
+            construct: "DISTINCT"
+        }
+    );
     let write = expect_refusal(
         &small(),
         "INSERT INTO logistics.shipment (order_id) VALUES (1)",
@@ -919,11 +961,20 @@ fn static_refusals_match_the_guard_and_hide_the_sql() {
             construct: "LIKE predicate"
         }
     );
-    let into = expect_refusal(&small(), "SELECT order_id INTO result FROM logistics.shipment");
+    let into = expect_refusal(
+        &small(),
+        "SELECT order_id INTO result FROM logistics.shipment",
+    );
     assert_eq!(into, GuardError::Into);
-    let locking = expect_refusal(&small(), "SELECT order_id FROM logistics.shipment FOR UPDATE");
+    let locking = expect_refusal(
+        &small(),
+        "SELECT order_id FROM logistics.shipment FOR UPDATE",
+    );
     assert_eq!(locking, GuardError::Locking);
-    let hidden = expect_refusal(&small(), &format!("SELECT {CANARY} FROM logistics.shipment"));
+    let hidden = expect_refusal(
+        &small(),
+        &format!("SELECT {CANARY} FROM logistics.shipment"),
+    );
     assert!(matches!(hidden, GuardError::ColumnNotAllowed { .. }));
     assert!(!hidden.to_string().contains(CANARY), "{}", hidden);
     assert!(!format!("{hidden:?}").contains(CANARY));
@@ -932,7 +983,11 @@ fn static_refusals_match_the_guard_and_hide_the_sql() {
     assert_eq!(parsed.to_string(), "SQL parse failed");
     assert!(!format!("{parsed:?}").contains(CANARY));
     let bytes = encode_refusal(&parsed).unwrap();
-    assert!(!bytes.windows(CANARY.len()).any(|item| item == CANARY.as_bytes()));
+    assert!(
+        !bytes
+            .windows(CANARY.len())
+            .any(|item| item == CANARY.as_bytes())
+    );
     let cost = expect_refusal(&large(), "SELECT * FROM logistics.shipment");
     assert_eq!(
         cost,
@@ -1074,9 +1129,14 @@ fn cancel_before_spawn_has_no_pid() {
     let flag = CancelFlag::new();
     flag.cancel();
     let started = Cell::new(false);
-    let err = supervise_with(&fault("slow"), &request(&small(), "SELECT 1"), &flag, |_| {
-        started.set(true);
-    })
+    let err = supervise_with(
+        &fault("slow"),
+        &request(&small(), "SELECT 1"),
+        &flag,
+        |_| {
+            started.set(true);
+        },
+    )
     .unwrap_err();
     assert!(matches!(err, SuperviseError::Cancelled(None)));
     assert!(!started.get());
@@ -1112,10 +1172,15 @@ fn slow_worker_is_killed_inside_the_deadline_and_the_pid_is_gone() {
     let worker = fault("slow");
     let pid = Cell::new(0u32);
     let start = Cell::new(0u64);
-    let err = supervise_with(&worker, &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
-        pid.set(child);
-        start.set(live_child(child, &worker));
-    })
+    let err = supervise_with(
+        &worker,
+        &request(&small(), "SELECT 1"),
+        &CancelFlag::new(),
+        |child| {
+            pid.set(child);
+            start.set(live_child(child, &worker));
+        },
+    )
     .unwrap_err();
     let SuperviseError::TimedOut(report) = err else {
         panic!("slow worker was not timed out");
@@ -1133,10 +1198,15 @@ fn crash_worker_is_reaped_with_its_exit_code() {
     let worker = fault("crash");
     let pid = Cell::new(0u32);
     let start = Cell::new(0u64);
-    let err = supervise_with(&worker, &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
-        pid.set(child);
-        start.set(start_ticks(child));
-    })
+    let err = supervise_with(
+        &worker,
+        &request(&small(), "SELECT 1"),
+        &CancelFlag::new(),
+        |child| {
+            pid.set(child);
+            start.set(start_ticks(child));
+        },
+    )
     .unwrap_err();
     let SuperviseError::Crashed(report) = err else {
         panic!("crash was not classified");
@@ -1155,10 +1225,15 @@ fn oversize_header_kills_without_waiting_out_the_sleep() {
     let worker = fault("oversize");
     let pid = Cell::new(0u32);
     let start = Cell::new(0u64);
-    let err = supervise_with(&worker, &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
-        pid.set(child);
-        start.set(live_child(child, &worker));
-    })
+    let err = supervise_with(
+        &worker,
+        &request(&small(), "SELECT 1"),
+        &CancelFlag::new(),
+        |child| {
+            pid.set(child);
+            start.set(live_child(child, &worker));
+        },
+    )
     .unwrap_err();
     let SuperviseError::Oversize(report) = err else {
         panic!("oversize was not classified");
@@ -1178,12 +1253,16 @@ fn bad_version_magic_kind_and_trailer_are_malformed() {
         let worker = fault(mode);
         let pid = Cell::new(0u32);
         let start = Cell::new(0u64);
-        let err =
-            supervise_with(&worker, &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
+        let err = supervise_with(
+            &worker,
+            &request(&small(), "SELECT 1"),
+            &CancelFlag::new(),
+            |child| {
                 pid.set(child);
                 start.set(start_ticks(child));
-            })
-            .unwrap_err();
+            },
+        )
+        .unwrap_err();
         let SuperviseError::Malformed(report) = err else {
             panic!("{mode} was not malformed");
         };
@@ -1248,7 +1327,10 @@ fn a_timeout_does_not_kill_the_next_child() {
         started.elapsed() < Duration::from_secs(2),
         "the next child did not finish on its own"
     );
-    assert_eq!(response, ParserResponse::Refusal(GuardError::IdentityMismatch));
+    assert_eq!(
+        response,
+        ParserResponse::Refusal(GuardError::IdentityMismatch)
+    );
     assert_ne!(second_pid.get(), 0);
 }
 
@@ -1351,12 +1433,21 @@ fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
         let wall = Instant::now();
         let pid = Cell::new(0u32);
         let start = Cell::new(0u64);
-        let err = supervise_with(&fault(mode), &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
-            pid.set(child);
-            start.set(live_child(child, &fault(mode)));
-        });
+        let err = supervise_with(
+            &fault(mode),
+            &request(&small(), "SELECT 1"),
+            &CancelFlag::new(),
+            |child| {
+                pid.set(child);
+                start.set(live_child(child, &fault(mode)));
+            },
+        );
         let report = expect_timeout(err, mode);
-        assert!(wall.elapsed() < Duration::from_secs(1), "{mode} wall {:?}", wall.elapsed());
+        assert!(
+            wall.elapsed() < Duration::from_secs(1),
+            "{mode} wall {:?}",
+            wall.elapsed()
+        );
         assert_killed(&report);
         assert_gone(&report, pid.get(), start.get());
     }
@@ -1364,12 +1455,21 @@ fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
     let wall = Instant::now();
     let pid = Cell::new(0u32);
     let start = Cell::new(0u64);
-    let err = supervise_with(&fault("late"), &request(&small(), "SELECT 1"), &CancelFlag::new(), |child| {
-        pid.set(child);
-        start.set(live_child(child, &fault("late")));
-    });
+    let err = supervise_with(
+        &fault("late"),
+        &request(&small(), "SELECT 1"),
+        &CancelFlag::new(),
+        |child| {
+            pid.set(child);
+            start.set(live_child(child, &fault("late")));
+        },
+    );
     let report = expect_timeout(err, "late frame was accepted");
-    assert!(wall.elapsed() < Duration::from_secs(1), "late wall {:?}", wall.elapsed());
+    assert!(
+        wall.elapsed() < Duration::from_secs(1),
+        "late wall {:?}",
+        wall.elapsed()
+    );
     assert_killed(&report);
     assert!(
         report.elapsed < Duration::from_millis(690),
@@ -1402,7 +1502,11 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
             wait_for_grandchild(pid, &grand);
         });
         let report = expect_timeout(err, mode);
-        assert!(wall.elapsed() < Duration::from_secs(1), "{mode} wall {:?}", wall.elapsed());
+        assert!(
+            wall.elapsed() < Duration::from_secs(1),
+            "{mode} wall {:?}",
+            wall.elapsed()
+        );
         assert_killed(&report);
         assert_gone(&report, child_pid.get(), child_start.get());
         let grandchild = grand.get();
@@ -1411,7 +1515,11 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
             panic!("{mode} grandchild {grandchild} still alive start {now}");
         }
         assert_group_gone(child_pid.get());
-        assert_eq!(proc_field(neighbor_pid, 19), Some(neighbor_start), "neighbor was killed");
+        assert_eq!(
+            proc_field(neighbor_pid, 19),
+            Some(neighbor_start),
+            "neighbor was killed"
+        );
     }
 
     let _ = neighbor.kill();
@@ -1446,7 +1554,11 @@ fn escaped_session_is_not_reaped_and_the_parent_still_returns() {
         },
     );
     let report = expect_timeout(err, "setsid stdout blocked the parent");
-    assert!(wall.elapsed() < Duration::from_secs(1), "setsid wall {:?}", wall.elapsed());
+    assert!(
+        wall.elapsed() < Duration::from_secs(1),
+        "setsid wall {:?}",
+        wall.elapsed()
+    );
     assert_killed(&report);
     assert_gone(&report, child_pid.get(), child_start.get());
     assert_eq!(proc_field(neighbor_pid, 19), Some(neighbor_start));

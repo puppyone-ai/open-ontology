@@ -1,2 +1,0 @@
-psql:/fixture/tests/fixtures/negatives/lock_migration.sql:3: ERROR:  42501: permission denied for table migration_lock
-LOCATION:  aclcheck_error, aclchk.c:2843

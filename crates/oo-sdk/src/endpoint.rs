@@ -76,6 +76,45 @@ impl Endpoint {
     pub(crate) fn as_str(&self) -> &str {
         self.url.as_str()
     }
+
+    /// Path beside `/v1/query`, keeping a mount prefix.
+    pub(crate) fn sibling(&self, suffix: &str) -> Result<Url, EndpointError> {
+        if !suffix.starts_with("/v1/")
+            || suffix.contains('?')
+            || suffix.contains('#')
+            || suffix.contains('\\')
+            || suffix.contains('%')
+        {
+            return Err(EndpointError::AmbiguousPath);
+        }
+        let Some(prefix) = self.url.path().strip_suffix("/v1/query") else {
+            return Err(EndpointError::AmbiguousPath);
+        };
+        let mut parts = Vec::new();
+        if !prefix.is_empty() && prefix != "/" {
+            for segment in prefix.trim_start_matches('/').split('/') {
+                if !segment_ok(segment) || segment == "." || segment == ".." {
+                    return Err(EndpointError::AmbiguousPath);
+                }
+                parts.push(segment);
+            }
+        }
+        for segment in suffix.trim_start_matches('/').split('/') {
+            if segment.is_empty() || segment == "." || segment == ".." || !segment_ok(segment) {
+                return Err(EndpointError::AmbiguousPath);
+            }
+            parts.push(segment);
+        }
+        let path = format!("/{}", parts.join("/"));
+        let mut url = self.url.clone();
+        url.set_path(&path);
+        url.set_query(None);
+        url.set_fragment(None);
+        if url.path() != path || url.query().is_some() || url.fragment().is_some() {
+            return Err(EndpointError::AmbiguousPath);
+        }
+        Ok(url)
+    }
 }
 
 fn query_path(url: &Url) -> Result<String, EndpointError> {
@@ -222,6 +261,18 @@ mod tests {
         let endpoint = Endpoint::parse("http://127.0.0.2:9", TransportMode::LocalDevelopment)
             .expect("loopback");
         assert_eq!(endpoint.as_str(), "http://127.0.0.2:9/v1/query");
+        let tables = endpoint.sibling("/v1/tables").expect("tables");
+        assert_eq!(tables.as_str(), "http://127.0.0.2:9/v1/tables");
+        let mounted = Endpoint::parse("https://gateway.example/mount/", TransportMode::Production)
+            .expect("mount");
+        let item = mounted
+            .sibling("/v1/knowledge/tables/orders.md")
+            .expect("knowledge");
+        assert_eq!(
+            item.as_str(),
+            "https://gateway.example/mount/v1/knowledge/tables/orders.md"
+        );
+        assert!(endpoint.sibling("/v1/../secret").is_err());
         assert!(Endpoint::parse("http://[::1]/", TransportMode::LocalDevelopment).is_ok());
         assert!(Endpoint::parse("http://localhost/", TransportMode::LocalDevelopment).is_ok());
         assert!(Endpoint::parse("http://example.test/", TransportMode::LocalDevelopment).is_err());

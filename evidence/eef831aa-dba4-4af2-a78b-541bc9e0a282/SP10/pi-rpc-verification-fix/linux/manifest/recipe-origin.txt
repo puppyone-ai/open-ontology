@@ -1,9 +1,0 @@
-origin_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/linux/manifest/launch.sh
-origin_commit=b2b3adabd05de94723d8ed13b33be0144a0de1f9
-origin_hash_file=linux/manifest/origin-manifest.sha256
-origin_hash_line=./launch.sh
-origin_launch_sha256=9b28b43d9a9afe9cad69a5f086d7d96af4758f58c7e053a25efa52567a69cdd8
-tool_path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
-tool_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
-tool_recheck=linux/hash-verify/tool-compare.stdout bad=0
-changes=memory 8g to 6g; cpus 4 to 1; owner a282; cap_global 10; network none; NanoCpus, mounts, and tmpfs recorded; pass1 copies console.log in after the container exits; pass2 rewrites MANIFEST.sha256 and does not overwrite pass1 logs; pass2 stdout is copied to rewrite-stdout.txt after that write, so that one file is not a manifest entry

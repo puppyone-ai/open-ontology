@@ -1,4 +1,0 @@
-attempts=1
-container=oo-a353-node-m7
-rerun=no
-product_edit_after_run=no

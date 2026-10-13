@@ -1,0 +1,181 @@
+{
+  "oracle_version": 1,
+  "product": "OpenSearch",
+  "index": "oo-dl01w1-15-synthetic",
+  "page_size": 4,
+  "sort_field": "doc_key",
+  "documents": [
+    {
+      "doc_key": "d01",
+      "source": {
+        "doc_key": "d01",
+        "case_name": "full",
+        "text_value": "alpha",
+        "empty_text": "present",
+        "nullable_keyword": "k",
+        "long_value": 42,
+        "double_value": 1.5,
+        "scaled_value": 1.25,
+        "quantities": [1, 2],
+        "tags": ["red", "blue"],
+        "note": "full row"
+      }
+    },
+    {
+      "doc_key": "d02",
+      "source": {
+        "doc_key": "d02",
+        "case_name": "empty",
+        "text_value": "",
+        "empty_text": "",
+        "nullable_keyword": "",
+        "note": "",
+        "tags": [""],
+        "quantities": []
+      }
+    },
+    {
+      "doc_key": "d03",
+      "source": {
+        "doc_key": "d03",
+        "case_name": "null",
+        "text_value": null,
+        "empty_text": null,
+        "nullable_keyword": null,
+        "long_value": null,
+        "double_value": null,
+        "scaled_value": null,
+        "quantities": null,
+        "tags": null,
+        "note": null
+      }
+    },
+    {
+      "doc_key": "d04",
+      "source": {
+        "doc_key": "d04",
+        "case_name": "missing"
+      }
+    },
+    {
+      "doc_key": "d05",
+      "source": {
+        "doc_key": "d05",
+        "case_name": "zero",
+        "long_value": 0,
+        "double_value": 0.0,
+        "scaled_value": 0.0,
+        "quantities": [0],
+        "tags": ["zero"],
+        "text_value": "0",
+        "note": "zero"
+      }
+    },
+    {
+      "doc_key": "d06",
+      "source": {
+        "doc_key": "d06",
+        "case_name": "negative",
+        "long_value": -1,
+        "double_value": -1.5,
+        "scaled_value": -1.25,
+        "quantities": [-2, -3],
+        "text_value": "neg",
+        "note": "negative"
+      }
+    },
+    {
+      "doc_key": "d07",
+      "source": {
+        "doc_key": "d07",
+        "case_name": "long_max",
+        "long_value": 9223372036854775807,
+        "text_value": "long-max",
+        "note": "int64 max"
+      }
+    },
+    {
+      "doc_key": "d08",
+      "source": {
+        "doc_key": "d08",
+        "case_name": "long_min",
+        "long_value": -9223372036854775808,
+        "text_value": "long-min",
+        "note": "int64 min"
+      }
+    },
+    {
+      "doc_key": "d09",
+      "source": {
+        "doc_key": "d09",
+        "case_name": "multi",
+        "tags": ["red", "blue", "green"],
+        "quantities": [1, 2, 3],
+        "text_value": "multi",
+        "note": "three values"
+      }
+    },
+    {
+      "doc_key": "d10",
+      "source": {
+        "doc_key": "d10",
+        "case_name": "multi_one",
+        "tags": ["only"],
+        "quantities": [9],
+        "text_value": "one",
+        "note": "single element array"
+      }
+    },
+    {
+      "doc_key": "d11",
+      "source": {
+        "doc_key": "d11",
+        "case_name": "multi_empty",
+        "tags": [],
+        "quantities": [],
+        "text_value": "empty-array",
+        "note": "empty arrays"
+      }
+    },
+    {
+      "doc_key": "d12",
+      "source": {
+        "doc_key": "d12",
+        "case_name": "text",
+        "text_value": "café 雪",
+        "note": "line1\nline2",
+        "tags": ["雪", "café"]
+      }
+    }
+  ],
+  "field_oracle": [
+    {"doc_key": "d02", "field": "empty_text", "kind": "empty"},
+    {"doc_key": "d02", "field": "text_value", "kind": "empty"},
+    {"doc_key": "d02", "field": "note", "kind": "empty"},
+    {"doc_key": "d03", "field": "nullable_keyword", "kind": "null"},
+    {"doc_key": "d03", "field": "long_value", "kind": "null"},
+    {"doc_key": "d03", "field": "double_value", "kind": "null"},
+    {"doc_key": "d03", "field": "tags", "kind": "null"},
+    {"doc_key": "d03", "field": "text_value", "kind": "null"},
+    {"doc_key": "d04", "field": "text_value", "kind": "missing"},
+    {"doc_key": "d04", "field": "long_value", "kind": "missing"},
+    {"doc_key": "d04", "field": "tags", "kind": "missing"},
+    {"doc_key": "d04", "field": "double_value", "kind": "missing"},
+    {"doc_key": "d01", "field": "long_value", "kind": "numeric"},
+    {"doc_key": "d01", "field": "double_value", "kind": "numeric"},
+    {"doc_key": "d01", "field": "scaled_value", "kind": "numeric"},
+    {"doc_key": "d05", "field": "long_value", "kind": "numeric"},
+    {"doc_key": "d06", "field": "long_value", "kind": "numeric"},
+    {"doc_key": "d06", "field": "double_value", "kind": "numeric"},
+    {"doc_key": "d07", "field": "long_value", "kind": "numeric"},
+    {"doc_key": "d08", "field": "long_value", "kind": "numeric"},
+    {"doc_key": "d01", "field": "text_value", "kind": "text"},
+    {"doc_key": "d12", "field": "text_value", "kind": "text"},
+    {"doc_key": "d12", "field": "note", "kind": "text"},
+    {"doc_key": "d09", "field": "tags", "kind": "multivalued"},
+    {"doc_key": "d09", "field": "quantities", "kind": "multivalued"},
+    {"doc_key": "d10", "field": "tags", "kind": "multivalued"},
+    {"doc_key": "d11", "field": "tags", "kind": "multivalued"},
+    {"doc_key": "d02", "field": "tags", "kind": "multivalued"}
+  ]
+}

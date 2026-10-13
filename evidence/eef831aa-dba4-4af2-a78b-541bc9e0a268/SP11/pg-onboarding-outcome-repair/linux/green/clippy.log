@@ -1,8 +1,0 @@
-    Checking serde_core v1.0.229
-    Checking zmij v1.0.23
-    Checking itoa v1.0.18
-    Checking memchr v2.8.3
-    Checking serde_json v1.0.151
-    Checking serde v1.0.229
-    Checking pg-onboarding v0.1.0 (/onboarding)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.15s

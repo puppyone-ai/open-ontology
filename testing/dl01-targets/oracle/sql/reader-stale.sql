@@ -1,0 +1,21 @@
+-- Necessary negative: SCN 1 is outside the undo window.
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET DEFINE OFF
+SET FEEDBACK OFF
+SET HEADING OFF
+SET PAGESIZE 0
+
+DECLARE
+  v VARCHAR2(40);
+BEGIN
+  EXECUTE IMMEDIATE
+    'SELECT TO_CHAR(d, ''YYYY-MM-DD HH24:MI:SS'') FROM oo_fix.t_date AS OF SCN 1 WHERE id = 2'
+    INTO v;
+  DBMS_OUTPUT.PUT_LINE('stale|accepted|' || v);
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('stale|rejected|' || SQLCODE || '|' || SQLERRM);
+END;
+/
+PROMPT reader_stale|done
+EXIT

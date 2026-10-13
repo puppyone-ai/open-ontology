@@ -1,0 +1,1 @@
+rev-w27-drift CC-03 decimal and int64 values stayed exact

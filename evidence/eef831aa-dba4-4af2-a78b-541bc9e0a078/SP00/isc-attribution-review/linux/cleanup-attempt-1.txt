@@ -1,9 +1,0 @@
-rm_container=0
-rm_cargo_vol=0
-rm_target_vol=0
-rm_net=0
-removed_container=oo-a078-msrv-4ebcaafc-8442-4e95-9706-59ca03b0b1cb
-removed_volumes=oo-a078-4ebcaafc-8442-4e95-9706-59ca03b0b1cb-cargo oo-a078-4ebcaafc-8442-4e95-9706-59ca03b0b1cb-target
-removed_network=oo-a078-4ebcaafc-8442-4e95-9706-59ca03b0b1cb-net
-foreign_containers_not_removed=yes
-prune=no

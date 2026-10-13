@@ -1,0 +1,14 @@
+{
+  "implementation": "c04ad55d2",
+  "evidence": "3941d1a4b",
+  "summarySHA": "f1e04a81ceb2e74f048b7c968db7a1daf393ba8a736aa3594738ebe47201c354",
+  "fixedfiles_verified": 14,
+  "actualmodel": "gpt-6.1-sol",
+  "model_response_id": "resp_0bb680a90ddb13b1016accedd0e67c87d086381fe370a97ebd",
+  "envelopeSHA": "99212e33ec55c1248298f41a1612818edf75fa89c8d9ab7fd66057860c93fca1",
+  "api_cache": "hit/socketnotopened",
+  "current_API_S0_S10": "11/11 succeeded",
+  "publication": "refused",
+  "businessowner": false,
+  "scope": "actualcurrent repairedTIME S0-S10/maintenance/rolePack sharedreference; formalgatespending"
+}

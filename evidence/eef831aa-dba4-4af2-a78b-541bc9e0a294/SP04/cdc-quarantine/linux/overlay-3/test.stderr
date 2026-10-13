@@ -1,5 +1,0 @@
-   Compiling cdc-quarantine v0.1.0 (/src/tools/cdc-quarantine)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.19s
-     Running unittests src/lib.rs (/target/debug/deps/cdc_quarantine-53da1e739ad807ca)
-     Running unittests src/main.rs (/target/debug/deps/cdc_quarantine-879aa908264164e1)
-     Running tests/proof.rs (/target/debug/deps/proof-22e06ec345480d1c)

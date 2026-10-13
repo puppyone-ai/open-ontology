@@ -1,1 +1,0 @@
-host_cargo=0 rust_builders=0 global=0 own_take=1 postgres_not_counted_as_rust=1 empty_does_not_grant_second=1

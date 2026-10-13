@@ -1,5 +1,0 @@
-   Compiling a286-fresh-bank v0.0.0 (/oracle)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.17s
-     Running `/target/a286-oracle/debug/a286-fresh-bank`
-fresh stage=fail detail=evaluate: question-bank: schema /questions/0/expected/typed_gold/rows/0/0/presence
-

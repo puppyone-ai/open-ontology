@@ -1,3 +1,0 @@
-   Compiling oo-builder v0.1.0 (/src/crates/oo-builder)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.97s
-     Running tests/structure_draft_cli.rs (/target/debug/deps/structure_draft_cli-2128ea11b6cd52a6)

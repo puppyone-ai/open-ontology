@@ -1,1 +1,0 @@
-attempt 5: live backup, lock rejection 55P03, committed value update, corrupt-dump refusal, and restore all finished. The host cp of saved/dumps/. failed on macOS. The checker had not run.

@@ -1,8 +1,0 @@
-crates/oo-connectors/src/bin/oo-file-parser-worker.rs: OK
-crates/oo-connectors/tests/file_parser_worker.rs: OK
-contracts/connectors/file-parser-worker-v1.md: OK
-crates/oo-connectors/Cargo.toml: OK
-Cargo.lock: OK
-crates/oo-connectors/src/delimited.rs: OK
-crates/oo-connectors/src/jsonl.rs: OK
-crates/oo-connectors/src/lib.rs: OK

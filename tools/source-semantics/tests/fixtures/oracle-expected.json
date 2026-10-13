@@ -1,0 +1,75 @@
+{
+  "oracle": {
+    "status": "packed",
+    "semantic_caveats": [
+      "empty_string_is_null",
+      "precision_loss",
+      "source_collation_ci",
+      "trailing_space_insensitive"
+    ],
+    "native_notes": [
+      {"column": "public.customer.amount", "note": "unconstrained_number"},
+      {"column": "public.customer.opened", "note": "oracle_date_includes_time"}
+    ],
+    "column_caveats": {
+      "public.customer.amount": [],
+      "public.customer.code": ["empty_string_is_null", "trailing_space_insensitive"],
+      "public.customer.name": ["empty_string_is_null", "source_collation_ci"],
+      "public.customer.opened": [],
+      "public.customer.touched": ["precision_loss"]
+    },
+    "trust": {
+      "customer_account_fk": {"disposition": "enforced", "trust": "enforced"},
+      "customer_party_fk": {"disposition": "candidate", "ratio_thousandths": 980, "trust": "declared_only"},
+      "customer_pkey": {"disposition": "enforced", "trust": "enforced"}
+    },
+    "chunk_decision": "not_applicable",
+    "live_binary_sort_proof": "not_run",
+    "page_contains": [
+      "来源与语义",
+      "source_kind: oracle_table",
+      "consistency_grade: B",
+      "delete_detection: reconcile",
+      "trust declared_only",
+      "disposition candidate",
+      "unit USD",
+      "empty_string_is_null",
+      "source_collation_ci",
+      "trailing_space_insensitive",
+      "precision_loss",
+      "oracle_date_includes_time",
+      "unconstrained_number",
+      "customer_account_fk"
+    ],
+    "page_absent": ["consistency_grade: A", "NVL", "ROWNUM"],
+    "verified_contains": "select id from public.customer where name is null",
+    "verified_absent": ["NVL", "TOP", "ROWNUM", "CONNECT BY", "ISNULL", "(+)"],
+    "rejected_ids": ["oracle-nvl", "oracle-rownum", "oracle-top"],
+    "readme_contains_pg_dialect_sentence": true,
+    "dedicated_heading_emitted": true,
+    "caveat_fence_contains_heading": false,
+    "live_database": "not_connected",
+    "source_connection": "not_used",
+    "contract": "native_dataset_field",
+    "gateway_get_freshness": "not_called"
+  },
+  "blocks": {
+    "precision_loss_key": "precision_loss_key",
+    "precision_loss_key_raw_column_present": "precision_loss_key",
+    "precision_loss_cursor": "precision_loss_cursor",
+    "declared_only_fk_untested": "declared_only_fk_untested",
+    "declared_only_fk_empty_sample": "declared_only_fk_empty_sample",
+    "declared_only_fk_below_threshold": "declared_only_fk_below_threshold",
+    "unique_precision_loss": "precision_loss_key",
+    "snowflake_enforced_becomes_declared_only": "declared_only_fk_untested"
+  },
+  "allows": {
+    "raw_text_key": "packed"
+  },
+  "chunks": {
+    "forced": "binary",
+    "unavailable_hash": "hash",
+    "index_unusable": "read_keys",
+    "omitted": "read_keys"
+  }
+}

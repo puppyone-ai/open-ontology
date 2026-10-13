@@ -1,1 +1,0 @@
-{"record":"header","version":"oo.benchmark.query-result-adapter/v1","turn":0,"max_rows":20,"max_result_bytes":__TRUNC__,"columns":[{"name":"lane","type":"int64","ordinal":0},{"name":"rank","type":"int64","ordinal":1},{"name":"stamp","type":"int64","ordinal":2},{"name":"note","type":"text","ordinal":3},{"name":"open","type":"bool","ordinal":4}]}

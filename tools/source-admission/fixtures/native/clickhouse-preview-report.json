@@ -1,0 +1,82 @@
+{
+  "protocol": "oo.source-admission.report/v1",
+  "target_id": "clickhouse-26-8-selfmanaged",
+  "source_id": "clickhouse_268",
+  "secret_ref": "secret://oo-dl01w1-40/reader",
+  "driver": {
+    "kind": "native-http",
+    "name": "ch-reader",
+    "version": "0.1.0",
+    "digest": "sha256:8b88485c0940e298a8edad500731f0a7688c61a135a943b217f9597e191c7f93"
+  },
+  "compat_mode": "clickhouse-native",
+  "license_flags": [],
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true},
+    {"name": "INSERT", "status": "known", "granted": false}
+  ],
+  "capabilities": [
+    {
+      "name": "Catalog",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "BatchFull",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "SnapshotToken",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": "PerPartition",
+      "budget_unit": null,
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    },
+    {
+      "name": "Budget",
+      "cursor": null,
+      "feed": null,
+      "cdc": null,
+      "token_order": null,
+      "budget_unit": "Rows",
+      "level": "designed",
+      "write_class": "R0",
+      "consistency": "S0"
+    }
+  ],
+  "capture_methods": [
+    {
+      "method": "C4",
+      "write_class": "R0",
+      "consistency": "S0",
+      "token_order": "PerPartition",
+      "retention_window": null,
+      "cursor": null,
+      "feed": null,
+      "cdc": null
+    }
+  ],
+  "cost_model": {
+    "unit": "Rows",
+    "confidence": "unknown",
+    "estimate": "configured_max_result_rows"
+  },
+  "r1w": null
+}

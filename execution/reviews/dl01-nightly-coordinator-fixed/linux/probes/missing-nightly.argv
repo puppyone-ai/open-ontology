@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/missing/matrix.yaml --package /harness/fixtures/missing/package --nightly /harness/fixtures/missing/nightly.json

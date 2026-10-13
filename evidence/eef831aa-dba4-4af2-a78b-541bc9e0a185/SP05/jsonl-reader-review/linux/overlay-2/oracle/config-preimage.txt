@@ -1,8 +1,0 @@
-oo-jsonl-config-identity/v1
-oo-jsonl-profile/v1
-id=review
-column=name	utf8	1
-column=ok	bool	0
-column=n	int64	0
-column=j	json_text	1
-expected_sha256=d988fc1a3142a23b8cd89fe4483f7159ec6525808bcf6879769b7e2a1d75ef11

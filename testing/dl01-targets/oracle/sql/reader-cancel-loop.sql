@@ -1,0 +1,20 @@
+-- Third cancel target. No DBMS_SESSION privilege required.
+SET DEFINE OFF
+SET FEEDBACK OFF
+SET HEADING OFF
+SET PAGESIZE 0
+SET SERVEROUTPUT ON SIZE UNLIMITED
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+
+DECLARE
+  n NUMBER := 0;
+BEGIN
+  /* oo-dl01w1-10-cancel */
+  WHILE n < 1000000000 LOOP
+    n := n + 1;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE('loop|finished|' || n);
+END;
+/
+PROMPT reader_cancel_loop|finished
+EXIT

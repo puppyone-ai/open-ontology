@@ -1,1 +1,0 @@
-lib compile failed: ids.rs subject_ok RangeInclusive::contains expected &u8; tlsutil client_config returned ClientConfig where Result was required. unused import get was a warning.

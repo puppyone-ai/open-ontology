@@ -1,0 +1,12 @@
+-- Generated preamble is not required. The sid and serial are substitution values.
+SET DEFINE ON
+SET VERIFY OFF
+SET FEEDBACK OFF
+SET HEADING OFF
+SET PAGESIZE 0
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+
+ALTER SESSION SET CONTAINER = CDB$ROOT;
+ALTER SYSTEM CANCEL SQL '&1,&2';
+PROMPT cancel_issued|&1|&2
+EXIT

@@ -1,4 +1,0 @@
-still|10|t|32
-usable|11
-after-use|20|t|22
-plain-still|41|f|0

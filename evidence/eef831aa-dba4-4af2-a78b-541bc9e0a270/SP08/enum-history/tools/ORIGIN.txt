@@ -1,8 +1,0 @@
-sha256_manifest.rs origin
-commit_hint=a204 reviewed manifest tool, byte copy of the a199 tool
-path=evidence/eef831aa-dba4-4af2-a78b-541bc9e0a204/SP05/file-validation-cli-review/tools/sha256_manifest.rs
-sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
-local=tools/sha256_manifest.rs
-local_sha256=d2172fbd1c61d9ad869e2f596c4c2a35334e9f877df102e67e17d720e4ef8eb3
-minimal_changes=none; the file is a byte copy
-launch_delta=owner a270; memory 8g to 6g; cpus 4 to 1; cap_global 6 to 10; network is the private bridge for the compile and none is not required here

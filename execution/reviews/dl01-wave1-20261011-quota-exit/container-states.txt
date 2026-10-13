@@ -1,0 +1,20 @@
+oo-dl01w1-44-rust	Exited (0) 32 minutes ago
+oo-dl01w1-43-runtime	Up 35 minutes
+oo-dl01w1-43-pg	Up 35 minutes
+oo-dl01w1-43-be	Exited (137) 32 minutes ago
+oo-dl01w1-43-fe	Exited (137) 32 minutes ago
+oo-dl01w1-06-customer	Exited (101) 49 minutes ago
+oo-dl01w1-04-closure2-build	Exited (0) 2 hours ago
+oo-dl01w1-46-tools	Up 2 hours
+oo-dl01w1-46-tgt	Up 2 hours
+oo-dl01w1-46-src	Exited (0) 2 hours ago
+oo-dl01w1-41-pg	Up 3 hours
+oo-dl01w1-41-mongodb	Exited (0) 2 hours ago
+oo-dl01w1-04-p2-product	Exited (143) 16 hours ago
+oo-dl01w1-04-p2-pg	Up 16 hours
+oo-dl01w1-04-p2-oracle	Up 52 minutes
+oo-dl01w1-21-product	Exited (143) 4 hours ago
+oo-dl01w1-21-pg	Up 10 minutes
+oo-dl01w1-06-pg	Up 32 hours
+oo-dl01w1-06-mysql	Up 32 hours
+oo-dl01w1-06-smoke	Exited (0) 33 hours ago

@@ -1,7 +1,0 @@
-argv=cargo test --manifest-path Cargo.toml --locked --offline -p oo-cli --test a103_probe -- --test-threads=1 --nocapture
-network=none
-offline=yes
-fetch=not_run
-clippy=not_run
-airgap_claim=no
-elapsed_seconds=41

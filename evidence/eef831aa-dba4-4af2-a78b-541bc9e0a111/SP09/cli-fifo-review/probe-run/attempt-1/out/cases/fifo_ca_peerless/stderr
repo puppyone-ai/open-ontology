@@ -1,4 +1,0 @@
-error: local ca file rejected: not-file
-retryable: false
-retry_outcome: not_applicable
-retry_policy: max_extra_attempts=3 max_wait_ms=2000 nested_cli_retries=0 attempt_count=unknown

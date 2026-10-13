@@ -1,4 +1,0 @@
-tools/cdc-transaction/CONTRACT.md: OK
-tools/cdc-transaction/Cargo.toml: OK
-tools/cdc-transaction/Cargo.lock: OK
-tools/cdc-transaction/src/sha256.rs: OK

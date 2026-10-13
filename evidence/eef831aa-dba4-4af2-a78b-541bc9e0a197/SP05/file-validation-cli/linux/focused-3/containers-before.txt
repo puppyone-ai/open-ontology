@@ -1,2 +1,0 @@
-5fef53fc989b oo-a196-red 0f24958fa693 a196 rust-builder
-7a524e461eff oo-a196-pg 3aac91d19d5b a196 postgres

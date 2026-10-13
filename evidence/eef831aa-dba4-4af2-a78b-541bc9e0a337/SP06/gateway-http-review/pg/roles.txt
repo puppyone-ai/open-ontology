@@ -1,5 +1,0 @@
-CREATE ROLE
-CREATE ROLE
-REVOKE
-GRANT
-roles_ready

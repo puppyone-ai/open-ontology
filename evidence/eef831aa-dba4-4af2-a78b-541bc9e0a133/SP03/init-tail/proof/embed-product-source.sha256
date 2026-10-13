@@ -1,3 +1,0 @@
-b56fe942de40260bfaf39e83f32af8630ded0d739bc758480940099124cfe7d5  crates/oo-connectors/vendor/sqlx-core/src/net/socket/buffered.rs
-20a4e7f4c6ecccedbd82d3d26f5de596d6a306935852ac26f1d672fe73187ab6  crates/oo-connectors/vendor/PATCH.md
-22062f65cccd4073c1cc35ee9859c92b062cdb635204f2ea53c7296a8493d3f9  crates/oo-connectors/tests/pg_wire_tls_tail.rs

@@ -1,4 +1,0 @@
-path business-calendar 0.1.0
-path calendar-store 0.1.0
-path oo-core 0.1.0
-registry=208 path=3 missing=0 mismatch=0 names=true

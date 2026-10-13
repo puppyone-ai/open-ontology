@@ -1,1 +1,0 @@
-attempt-2 tests compiled. lib unit 7 passed, closure 25 passed, trust 10 passed and 1 failed before spawn because inventory has three MIT choices. clippy --all-targets exit 101 on pre-existing timeutil assert, file not in this slice. Raw logs kept.

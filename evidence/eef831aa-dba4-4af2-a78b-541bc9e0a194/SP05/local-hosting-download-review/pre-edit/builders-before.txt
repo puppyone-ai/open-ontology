@@ -1,7 +1,0 @@
-observed_at=2026-10-05T16:12:58Z
-name=oo-a191-pg image=3aac91d19d5b status=Up 22 minutes
-name=oo-a190-pg image=3aac91d19d5b status=Up 35 minutes
-labeled:
-name=oo-a191-pg kind=postgres owner=a191 status=Up 22 minutes
-name=oo-a190-pg kind=postgres owner=a190 status=Up 35 minutes
-host_toolchain_comm:

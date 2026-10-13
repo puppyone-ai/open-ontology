@@ -18,12 +18,12 @@ use std::process::ExitCode;
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
 use oo_gateway::mapping_reader_access::{
-    provision_mapping_reader, MappingReaderEffect, MappingReaderError,
+    MappingReaderEffect, MappingReaderError, provision_mapping_reader,
 };
 use oo_gateway::policy::compile_column_acl_set;
 use oo_gateway::{
-    connect_require_tls, ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass,
-    PolicyError, RowFilter, TlsEndpoint,
+    ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, PolicyError, RowFilter,
+    TlsEndpoint, connect_require_tls,
 };
 use serde::Deserialize;
 use serde::Serialize;
@@ -139,7 +139,10 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
 }
 
 fn endpoint_from(doc: EndpointDoc) -> Result<TlsEndpoint, Fail> {
-    if doc.port == 0 || !host_ok(&doc.host) || !plain_ident(&doc.database) || !plain_ident(&doc.user)
+    if doc.port == 0
+        || !host_ok(&doc.host)
+        || !plain_ident(&doc.database)
+        || !plain_ident(&doc.user)
     {
         return Err(Fail::Request);
     }
@@ -178,9 +181,9 @@ async fn provision(prepared: Prepared) -> Result<String, Fail> {
 
 fn from_connect(err: PolicyError) -> Fail {
     match err {
-        PolicyError::CertificateRejected | PolicyError::TlsRequired | PolicyError::Database { .. } => {
-            Fail::Tls
-        }
+        PolicyError::CertificateRejected
+        | PolicyError::TlsRequired
+        | PolicyError::Database { .. } => Fail::Tls,
         PolicyError::InvalidIdentifier { .. } => Fail::Request,
         other => from_policy(other),
     }
@@ -253,7 +256,10 @@ fn reject_null(value: &Value) -> Result<(), Fail> {
 }
 
 fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
-    !needle.is_empty() && haystack.windows(needle.len()).any(|window| window == needle)
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
 }
 
 fn host_ok(host: &str) -> bool {
@@ -486,7 +492,10 @@ impl Fail {
             Self::Usage => (EXIT_USAGE, "provision-mapping-reader: usage".to_string()),
             Self::Budget => (EXIT_BUDGET, "provision-mapping-reader: budget".to_string()),
             Self::Scan => (EXIT_SCAN, "provision-mapping-reader: scan".to_string()),
-            Self::Request => (EXIT_REQUEST, "provision-mapping-reader: request".to_string()),
+            Self::Request => (
+                EXIT_REQUEST,
+                "provision-mapping-reader: request".to_string(),
+            ),
             Self::Tls => (EXIT_TLS, "provision-mapping-reader: tls".to_string()),
             Self::Policy(reason) => (
                 EXIT_POLICY,

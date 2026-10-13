@@ -1,2 +1,0 @@
-bf043d4cecc1a23d1ced7fdb75a4a139bcf69bffa8058858f2d33bffab18d7b1  tools/description-pack/tests/a302_sealed.rs
-f51e6023c4356c06572cd4622f30eb62f3bba9ae78eda1358d356df1d0e370ce  tools/description-pack/tests/a315_sealed.rs

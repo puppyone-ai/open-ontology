@@ -1,2 +1,0 @@
-proof_ok
-DRIVER_EXIT:0

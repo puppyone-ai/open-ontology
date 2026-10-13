@@ -1,1 +1,0 @@
-provision_mapping_reader_cli_recorded

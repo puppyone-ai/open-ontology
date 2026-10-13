@@ -4,7 +4,8 @@
 set -u
 ROOT=/Users/redux/puppy-one/open-ontology
 UUID=eef831aa-dba4-4af2-a78b-541bc9e0a395
-STATE=/tmp/oo-a395-${UUID}
+# Docker Desktop does not share /tmp. Runtime files stay in this gitignored directory, not $HOME.
+STATE=${ROOT}/deploy/product-stack/.run
 EVIDENCE=${ROOT}/evidence/${UUID}/SP14/product-stack/linux/build
 PARENT=${ROOT}/evidence/eef831aa-dba4-4af2-a78b-541bc9e0a387/SP11/session-control-api/linux/impl/launch.sh
 IMAGE=docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5
@@ -24,7 +25,7 @@ fi
   echo "product-stack builder recipe origin"
   echo "direct_parent_path=${PARENT}"
   echo "direct_parent_sha256=$(shasum -a 256 "$PARENT" | awk '{print $1}')"
-  echo "minimal_changes=uuid a395; private net and cargo volumes; oracle tests only; fixed-service release builds; no source or release-control mount; no generate-lockfile"
+  echo "minimal_changes=uuid a395; private net and cargo volumes; oracle tests only; release closure from git archive HEAD committed blobs including path deps, not the dirty identity worktree; selfbuild from git archive HEAD; no source mount; no generate-lockfile; state under deploy/product-stack/.run"
   echo "image=${IMAGE}"
 } > "$EVIDENCE/recipe-origin.txt"
 
@@ -49,6 +50,7 @@ OO_BUILD_IDENTITY=0
 OO_BUILD_AUDIT=0
 OO_BUILD_SESSION=0
 OO_BUILD_SELFBUILD=0
+OO_BUILD_RELEASE=0
 if [ ! -s "$EVIDENCE/pin-diff.txt" ] || ! grep -q '^ tools/' "$EVIDENCE/pin-diff.txt"; then
   clean_tree tools/control-identity && OO_BUILD_IDENTITY=1
   clean_tree tools/audit-ingest && OO_BUILD_AUDIT=1
@@ -56,25 +58,56 @@ if [ ! -s "$EVIDENCE/pin-diff.txt" ] || ! grep -q '^ tools/' "$EVIDENCE/pin-diff
     OO_BUILD_SESSION=1
   fi
 fi
-# Selfbuild is built from git archive of HEAD, never the dirty worktree.
+# Archives use committed blobs. A dirty worktree is not mounted.
+# control-identity here is only the release lock's dev-dependency. The identity
+# service image stays the a6f92 pin and is not rebuilt.
+# oo-builder inherits edition from the real workspace root, so the archive
+# includes that Cargo.toml and the workspace crates. It does not edit them.
 if git -C "$ROOT" cat-file -e HEAD:tools/selfbuild-control-api/Cargo.lock 2>/dev/null; then
-  rm -rf "$STATE/src/tools"
-  git -C "$ROOT" archive HEAD tools/selfbuild-control-api | tar -x -C "$STATE/src"
   OO_BUILD_SELFBUILD=1
+fi
+if [ -x "$STATE/bin/selfbuild-control-api" ]; then
+  OO_BUILD_SELFBUILD=0
+fi
+if clean_tree tools/release-control-api && clean_tree tools/release-coordinator && git -C "$ROOT" cat-file -e HEAD:tools/release-control-api/Cargo.lock 2>/dev/null; then
+  OO_BUILD_RELEASE=1
 fi
 if [ "${OO_ORACLE_ONLY:-0}" = 1 ]; then
   OO_BUILD_IDENTITY=0
   OO_BUILD_AUDIT=0
   OO_BUILD_SESSION=0
   OO_BUILD_SELFBUILD=0
+  OO_BUILD_RELEASE=0
+fi
+rm -rf "$STATE/src"
+mkdir -p "$STATE/src"
+if [ "$OO_BUILD_SELFBUILD" = 1 ]; then
+  git -C "$ROOT" archive HEAD tools/selfbuild-control-api | tar -x -C "$STATE/src"
+fi
+if [ "$OO_BUILD_RELEASE" = 1 ]; then
+  git -C "$ROOT" archive HEAD \
+    Cargo.toml \
+    crates \
+    tools/release-control-api \
+    tools/release-coordinator \
+    tools/control-identity | tar -x -C "$STATE/src"
 fi
 {
   echo "OO_BUILD_IDENTITY=${OO_BUILD_IDENTITY}"
   echo "OO_BUILD_AUDIT=${OO_BUILD_AUDIT}"
   echo "OO_BUILD_SESSION=${OO_BUILD_SESSION}"
   echo "OO_BUILD_SELFBUILD=${OO_BUILD_SELFBUILD}"
+  echo "OO_BUILD_RELEASE=${OO_BUILD_RELEASE}"
   echo "source=recipe_only"
-  echo "release=recipe_only"
+  if [ "$OO_BUILD_RELEASE" = 1 ]; then
+    echo "release=$(git -C "$ROOT" log -1 --format=%H -- tools/release-control-api)"
+    echo "release_closure=HEAD committed blobs; workspace Cargo.toml and crates; path deps release-coordinator control-identity oo-builder oo-core oo-jobs; identity service image is not rebuilt"
+  else
+    echo "release=not_built"
+  fi
+  if [ -x "$STATE/bin/selfbuild-control-api" ]; then
+    echo "selfbuild_binary=present"
+  fi
 } > "$EVIDENCE/build-selection.txt"
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
@@ -115,6 +148,12 @@ if docker container inspect "$NAME" >/dev/null 2>&1; then
   printf '%s\n' 2 > "$EVIDENCE/docker-run.exit"
   exit 2
 fi
+if [ ! -d "$STATE/src" ] || [ ! -d "$STATE/bin" ]; then
+  echo "state directories are absent" >&2
+  printf '%s\n' 2 > "$EVIDENCE/docker-run.exit"
+  exit 2
+fi
+ls "$STATE/src" >/dev/null
 docker image inspect --format 'id={{.Id}} os={{.Os}} arch={{.Architecture}}' "$IMAGE" > "$EVIDENCE/image.txt"
 grep -q 'arch=arm64' "$EVIDENCE/image.txt"
 printf '%s\n' "docker run --name ${NAME} --platform linux/arm64 --pull never --network ${NET} --cap-drop ALL --memory 6g --cpus 1" > "$EVIDENCE/invocation.txt"
@@ -140,7 +179,7 @@ if [ "$OO_BUILD_SESSION" = 1 ]; then
     --mount "type=bind,source=${ROOT}/tools/gateway-token-store,target=/src/tools/gateway-token-store,readonly"
   )
 fi
-if [ "$OO_BUILD_SELFBUILD" = 1 ]; then
+if [ "$OO_BUILD_SELFBUILD" = 1 ] || [ "$OO_BUILD_RELEASE" = 1 ]; then
   mounts+=(--mount "type=bind,source=${STATE}/src,target=/archive,readonly")
 fi
 
@@ -168,6 +207,7 @@ docker run --name "$NAME" \
   -e OO_BUILD_AUDIT="$OO_BUILD_AUDIT" \
   -e OO_BUILD_SESSION="$OO_BUILD_SESSION" \
   -e OO_BUILD_SELFBUILD="$OO_BUILD_SELFBUILD" \
+  -e OO_BUILD_RELEASE="$OO_BUILD_RELEASE" \
   "${mounts[@]}" \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=512m \
   --mount "type=volume,source=${CARGO_VOL},target=/cargo-home" \

@@ -1,4 +1,0 @@
-Attempt 1 builder exit 1. PostgreSQL 17.10 came up and shop.entry rowcount was 6.
-audit-ingest did not compile: Client::transaction needs &mut self, and Transaction::rollback takes self by value.
-gateway-audit-wal did not compile: pg_query bindgen panicked because libclang was absent under cap-drop ALL.
-Locks and fetches exited 0. Secret scan exited 0. Volumes, network, and the secret directory were kept.

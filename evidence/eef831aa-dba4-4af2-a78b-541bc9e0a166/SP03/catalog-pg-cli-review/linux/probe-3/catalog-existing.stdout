@@ -1,8 +1,0 @@
-
-running 3 tests
-test catalog_pg_binary_on_private_postgres ... ignored, one private PostgreSQL 17.10; OO_CATALOG_PG_HOST must be set by the deciding run
-test usage_exits_2_without_echoing_arguments ... ok
-test malformed_version_and_unknown_field_keep_the_secret ... ok
-
-test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
-

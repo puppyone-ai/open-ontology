@@ -1,0 +1,5 @@
+b772f8fb4873885fcfac747eb24163559031bb9192ba99e8a8472571c75822bc  /src/Cargo.toml
+b9aead241de2ef7e1703272b94e9e3828866393a1576b0d2b33050c1ddd4b474  /src/Cargo.lock
+7411d0c659fa33143565efdd7cae5f9d70f873ee8f556898866df306bd1a3931  /src/crates/oo-core/Cargo.toml
+2bc137e2c53af3c8503db1278e334fa199f694d5f546d86add55cdc0f5ffc367  /src/crates/oo-builder/Cargo.toml
+48432a164cba1e42c28790ad499850a8f3b76abc0b3fb863d9538b6dbe279462  /src/contracts/schema/oos-v1.json

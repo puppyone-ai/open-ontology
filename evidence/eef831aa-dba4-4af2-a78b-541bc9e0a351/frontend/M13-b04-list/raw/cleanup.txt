@@ -1,6 +1,0 @@
-2026-10-08 after refuse.exit 0.
-docker ps -a names matching oo-fe01-m13: none
-docker volume names matching m13: none
-docker network names matching m13: none
-/tmp/oo-fe01-eef831aa-dba4-4af2-a78b-541bc9e0a351/m13-secrets: absent
-No foreign container, volume, or network was removed.

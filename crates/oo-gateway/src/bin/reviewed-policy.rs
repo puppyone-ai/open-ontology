@@ -149,6 +149,7 @@ fn binding_from(doc: BindingDoc) -> ReviewedBinding {
         generation: doc.generation,
         role: doc.role,
         login: doc.login,
+        binding_vector: None,
         allow: doc
             .allow
             .into_iter()

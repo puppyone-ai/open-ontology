@@ -1,7 +1,0 @@
-8951038a0f0fb9ea53532e7dca2b1cd5e26757fd882213b38f120cd3b97c348d  apps/web/config/eslint.config.mjs
-04569303348117a09168c54721820abe0f8affdbebaa45c270dd10861e1fadaa  apps/web/deploy/README.md
-67fa8fcb5a5c8821a5122b4a09b23e695a3428e939c75bb9a8c7ff17cd0d9309  apps/web/deploy/b01-adapter.example.json
-0742e5b9da55d276515e509083fb9bda4815fb2502a733da7150c6136e9a4006  apps/web/deploy/b01-adapter.mjs
-54328ef8abbf92664cd3335512aca0289ced956ce739c168c4c7236d3cea4445  apps/web/deploy/b01-adapter.test.mjs
-d5fac293a14df2551e1fd6d7b57ee0e30fda016835a32616db184a3f4327217d  apps/web/design/APIBINDING.md
-a7276cf9ed74ab4d2e92402674964c2da017130b959bf870084b929c2c3102d0  apps/web/versions.md

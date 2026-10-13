@@ -1,5 +1,0 @@
-bytes_started_after_deadline_during_get_opts=1
-deadline_dropped_get_opts=0
-stopped=Stopped
-stopped_text=download stopped before the object was verified
-complete=0

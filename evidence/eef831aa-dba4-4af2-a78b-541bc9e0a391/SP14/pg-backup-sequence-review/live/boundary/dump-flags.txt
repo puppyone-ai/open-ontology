@@ -1,2 +1,0 @@
-dbname=oo_a356_control snapshot=0000000C-0000000D-1 deferrable=absent format=custom schema_filter=absent table_filter=absent
-dbname=oo_a356_agent snapshot=00000013-0000000A-1 deferrable=absent format=custom schema_filter=absent table_filter=absent

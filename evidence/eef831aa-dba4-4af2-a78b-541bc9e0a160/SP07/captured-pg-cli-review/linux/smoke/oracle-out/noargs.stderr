@@ -1,6 +1,0 @@
-oo-builder: process entry is not implemented (SP00-W01 skeleton)
-oo-builder: public draft commands read one JSON document from stdin and take no arguments
-oo-builder:   structure-draft       one oo.builder.catalog-evidence/v1 envelope
-oo-builder:   captured-pg-draft     one oo.source.pgsql/v1 catalog
-oo-builder: curated overlays and review decisions stay on the library API
-oo-builder: captured-pg-draft does not connect, call a model, import rows, grant, certify, or publish

@@ -1,5 +1,0 @@
-calendar-store solo coexist exited 101. Lib tests and the enum lib tests had already exited 0. Fetch on the archive overlay had exited 0.
-The installer returned InstallDrift { check: "public_acl" } and rolled back. oo_a365_solo has no oo_ schema.
-PostgreSQL 17 stores the schema owner in nspacl as oo_calendar_admin=UC/oo_calendar_admin.
-DICT_UNEXPECTED_GRANTEE treated that owner entry as an extra grant.
-The replacement excludes n.nspowner and does not rerun fetch, calendar lib, or enum lib.

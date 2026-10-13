@@ -1,7 +1,7 @@
 //! Seal a candidate by calling the role-pack compiler. No second compiler.
 
-use oo_builder::{compile_role_pack, normalize_pack_path, RolePack};
-use serde_json::{json, Map, Value};
+use oo_builder::{RolePack, compile_role_pack, normalize_pack_path};
+use serde_json::{Map, Value, json};
 
 use crate::canon::{canonical, canonical_sha};
 use crate::sha256::sha256_hex;
@@ -55,7 +55,11 @@ pub fn authority_statement(authority_id: &str, covers: &[String]) -> Value {
     })
 }
 
-pub fn compile_seal(effective: &Value, visibility: &Value, expected: &Expectation<'_>) -> Result<Seal, &'static str> {
+pub fn compile_seal(
+    effective: &Value,
+    visibility: &Value,
+    expected: &Expectation<'_>,
+) -> Result<Seal, &'static str> {
     let effective_text = canonical(effective);
     let visibility_text = canonical(visibility);
     if effective_text.len() > 1_048_576 || visibility_text.len() > 1_048_576 {
@@ -70,7 +74,11 @@ pub fn compile_seal(effective: &Value, visibility: &Value, expected: &Expectatio
     require_claim(manifest_map, "authorization", "not_claimed")?;
     require_claim(manifest_map, "samples", "omitted")?;
     require_claim(manifest_map, "mount", "not_performed")?;
-    if manifest_map.get("row_security_reproven").and_then(Value::as_bool) != Some(false) {
+    if manifest_map
+        .get("row_security_reproven")
+        .and_then(Value::as_bool)
+        != Some(false)
+    {
         return Err("compiler_claim");
     }
     let project = text_field(manifest_map, "project")?;
@@ -135,7 +143,12 @@ pub fn compile_seal(effective: &Value, visibility: &Value, expected: &Expectatio
     })
 }
 
-pub fn recompile_g8(effective: &str, visibility: &str, pack_digest: &str, manifest_sha256: &str) -> Result<(), &'static str> {
+pub fn recompile_g8(
+    effective: &str,
+    visibility: &str,
+    pack_digest: &str,
+    manifest_sha256: &str,
+) -> Result<(), &'static str> {
     let pack = compile_role_pack(effective, visibility).map_err(|_| "compiler")?;
     if pack.pack_digest != pack_digest || pack.manifest_sha256 != manifest_sha256 {
         return Err("recompile_mismatch");
@@ -148,8 +161,15 @@ pub fn recompile_g8(effective: &str, visibility: &str, pack_digest: &str, manife
     Ok(())
 }
 
-fn pack_files(pack: &RolePack, manifest: &Map<String, Value>, manifest_text: &str) -> Result<Vec<PackFile>, &'static str> {
-    let listed = manifest.get("files").and_then(Value::as_array).ok_or("files")?;
+fn pack_files(
+    pack: &RolePack,
+    manifest: &Map<String, Value>,
+    manifest_text: &str,
+) -> Result<Vec<PackFile>, &'static str> {
+    let listed = manifest
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or("files")?;
     if listed.is_empty() || listed.len() > 127 {
         return Err("files");
     }
@@ -160,7 +180,12 @@ fn pack_files(pack: &RolePack, manifest: &Map<String, Value>, manifest_text: &st
         let sha = object.get("sha256").and_then(Value::as_str).ok_or("file")?;
         let bytes = object.get("bytes").and_then(Value::as_u64).ok_or("file")?;
         let normalized = normalize_pack_path(path).map_err(|_| "path")?;
-        if normalized != path || path == "manifest.json" || sha.len() != 64 || bytes == 0 || bytes > 1_048_576 {
+        if normalized != path
+            || path == "manifest.json"
+            || sha.len() != 64
+            || bytes == 0
+            || bytes > 1_048_576
+        {
             return Err("path");
         }
         let text = pack.file(path).map_err(|_| "path")?;
@@ -168,14 +193,22 @@ fn pack_files(pack: &RolePack, manifest: &Map<String, Value>, manifest_text: &st
             return Err("file_hash");
         }
         let byte_len = i32::try_from(bytes).map_err(|_| "file")?;
-        files.push(PackFile { path: path.to_owned(), sha256: sha.to_owned(), byte_len });
+        files.push(PackFile {
+            path: path.to_owned(),
+            sha256: sha.to_owned(),
+            byte_len,
+        });
     }
     let manifest_sha = sha256_hex(manifest_text.as_bytes());
     if manifest_sha != pack.manifest_sha256 {
         return Err("file_hash");
     }
     let byte_len = i32::try_from(manifest_text.len()).map_err(|_| "file")?;
-    files.push(PackFile { path: "manifest.json".to_owned(), sha256: manifest_sha, byte_len });
+    files.push(PackFile {
+        path: "manifest.json".to_owned(),
+        sha256: manifest_sha,
+        byte_len,
+    });
     Ok(files)
 }
 
@@ -188,23 +221,108 @@ fn require_claim(map: &Map<String, Value>, key: &str, want: &str) -> Result<(), 
 }
 
 fn text_field<'a>(map: &'a Map<String, Value>, key: &str) -> Result<&'a str, &'static str> {
-    map.get(key).and_then(Value::as_str).filter(|text| !text.is_empty()).ok_or("manifest_field")
+    map.get(key)
+        .and_then(Value::as_str)
+        .filter(|text| !text.is_empty())
+        .ok_or("manifest_field")
 }
 
-fn pair_field<'a>(map: &'a Map<String, Value>, key: &str) -> Result<(&'a str, &'a str), &'static str> {
-    let object = map.get(key).and_then(Value::as_object).ok_or("manifest_field")?;
-    let id = object.get("id").and_then(Value::as_str).filter(|text| !text.is_empty()).ok_or("manifest_field")?;
-    let version = object.get("version").and_then(Value::as_str).filter(|text| !text.is_empty()).ok_or("manifest_field")?;
+fn pair_field<'a>(
+    map: &'a Map<String, Value>,
+    key: &str,
+) -> Result<(&'a str, &'a str), &'static str> {
+    let object = map
+        .get(key)
+        .and_then(Value::as_object)
+        .ok_or("manifest_field")?;
+    let id = object
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|text| !text.is_empty())
+        .ok_or("manifest_field")?;
+    let version = object
+        .get("version")
+        .and_then(Value::as_str)
+        .filter(|text| !text.is_empty())
+        .ok_or("manifest_field")?;
     Ok((id, version))
+}
+
+pub struct CompiledFile {
+    pub path: String,
+    pub text: String,
+}
+
+pub struct CompiledPack {
+    pub artifact: String,
+    pub files: Vec<CompiledFile>,
+}
+
+impl CompiledPack {
+    /// Digest of the artifact a Gateway can serve. Activation must refuse when
+    /// this differs from the staged candidate digest: the readable pack and the
+    /// pointer would not be the same version.
+    pub fn accessible_pack_digest(&self) -> Result<String, &'static str> {
+        let value: Value = serde_json::from_str(&self.artifact).map_err(|_| "artifact")?;
+        let digest = value
+            .get("pack_digest")
+            .and_then(Value::as_str)
+            .ok_or("artifact")?;
+        if !hex64(digest) {
+            return Err("artifact");
+        }
+        let listed = value
+            .get("files")
+            .and_then(Value::as_array)
+            .ok_or("artifact")?;
+        if listed.len() != self.files.len() || listed.is_empty() {
+            return Err("artifact");
+        }
+        Ok(digest.to_owned())
+    }
+}
+
+pub fn compiled_pack(effective: &Value, visibility: &Value) -> Result<CompiledPack, &'static str> {
+    let pack =
+        compile_role_pack(&canonical(effective), &canonical(visibility)).map_err(|_| "compiler")?;
+    let artifact: Value = serde_json::from_str(&pack.artifact).map_err(|_| "artifact")?;
+    let listed = artifact
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or("artifact")?;
+    if listed.is_empty() {
+        return Err("artifact");
+    }
+    let mut files = Vec::with_capacity(listed.len());
+    for file in listed {
+        let path = file.get("path").and_then(Value::as_str).ok_or("artifact")?;
+        let text = file.get("text").and_then(Value::as_str).ok_or("artifact")?;
+        if path.is_empty() {
+            return Err("artifact");
+        }
+        files.push(CompiledFile {
+            path: path.to_owned(),
+            text: text.to_owned(),
+        });
+    }
+    Ok(CompiledPack {
+        artifact: pack.artifact,
+        files,
+    })
 }
 
 pub fn token_ok(value: &str) -> bool {
     let bytes = value.as_bytes();
     (1..=64).contains(&bytes.len())
         && bytes[0].is_ascii_alphanumeric()
-        && bytes[1..].iter().all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b':' | b'-'))
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b':' | b'-'))
 }
 
 pub fn hex64(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }

@@ -1,0 +1,17 @@
+{
+  "task": "DL01-W1-27",
+  "collector": "Codex coordinator separate from Grok author and reviewer",
+  "fixed_review_commit": "8788aadd2692bbf8abecfe2a01048c53e10cf74e",
+  "packet_entries_verified": 215,
+  "acceptance_scope": "request_changes: original exact-version/identity exit not met",
+  "source_acceptance_delta": 0,
+  "functional_acceptance_delta": 0,
+  "reviewer_provisional_verdict": "approved bounded child based on author CONTRACT, not accepted by coordinator",
+  "reason": "Original W07 card requires hashes/raw exits/identity and exact version; docs/database-support/05-conformance-and-evidence.md sections5/CC01 require actual tested version identity. A narrower authored CONTRACT cannot waive contradictory runtime identity.",
+  "decisive_input": "evidence/28b6fc31-611c-4b9a-bcd9-996589ca83ae/DL01/suite-fixed-review/harness/fixtures/identity-drift/package/manifest.json",
+  "decisive_output": "evidence/28b6fc31-611c-4b9a-bcd9-996589ca83ae/DL01/suite-fixed-review/linux/probes/identity-drift.stdout",
+  "reproduced_behavior": "16.9 claimed,15.2 service identity; exit0, experimental passed; original gate failed",
+  "implementation": "tools/source-conformance/src/package.rs:133-178 parses versions independently; evaluate usable packages ignores service_version binding",
+  "repair_owner": "67e443da-e8bf-43ee-874b-a6267f2e19df",
+  "original_failure_preserved": true
+}

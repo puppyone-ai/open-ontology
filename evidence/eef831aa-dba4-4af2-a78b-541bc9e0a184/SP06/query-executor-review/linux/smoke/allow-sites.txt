@@ -1,4 +1,0 @@
-run_producer allow=yes args=12
-drive allow=yes args=10
-read_pages allow=yes args=8
-classify_pg_false_callsites=7

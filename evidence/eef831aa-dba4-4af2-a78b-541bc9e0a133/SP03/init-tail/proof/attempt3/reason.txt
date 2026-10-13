@@ -1,1 +1,0 @@
-sqlx-core exit 101: cargo rejects --features for a package outside the workspace

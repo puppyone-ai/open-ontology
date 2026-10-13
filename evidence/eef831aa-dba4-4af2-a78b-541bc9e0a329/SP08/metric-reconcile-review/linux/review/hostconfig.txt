@@ -1,6 +1,0 @@
-ExitCode=101
-OOMKilled=false
-Privileged=false
-NetworkMode=oo-a329-eef831aa-net
-Memory=6442450944
-NanoCpus=1000000000

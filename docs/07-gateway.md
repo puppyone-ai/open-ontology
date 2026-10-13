@@ -167,6 +167,10 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `PARTIAL_TRANSACTION` | 涉及的表有超大源事务正在分段写入 | “ERP 正在写入一笔大批量变更（月结），相关数据尚未完整” |
 | `CROSS_TABLE_SKEW` | 源有暂停表，或批量一致性降级；per_table 模式下跨表 JOIN 无一致性保证（位点差用于说明偏差程度） | “当前源未处于跨表一致切面，JOIN 结果可能不一致” |
 | `ENTITY_CHECK_FAILED` | 引用了 `oo_entity` 或其成员关系，且实体解析不变量未通过 | “客户合并关系今晚的校验未通过，按客户汇总的结果可能有偏差” |
+| `POSITION_EXPIRED` | 源端位点已超出保留窗口，正在或需要重新快照 | “该表正在重新同步，当前数据为上一代” |
+| `STALE_RISK` | 位点滞后已超过保留窗口的安全比例 | “同步滞后接近源端保留上限” |
+| `DELETES_LAGGED` / `DELETES_UNDETECTED` | 表的删除只靠周期对账感知，或源端无法检测删除 | “源端删除最多延迟一个对账周期才反映” |
+| `SOURCE_BUDGET_EXHAUSTED` | 源读取预算耗尽，同步暂停 | “该源本周期读取预算已用尽” |
 | `STALE_DATA` | 新鲜度超过该表配置的期望值 | “erp_mysql.ysk 数据截至 3 小时前” |
 
 - 警告是结构化的（`code`、涉及的表/列、数量、说明文本），同时写入审计；
@@ -258,7 +262,7 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `GET /v1/tables/{schema.table}` | 结构 + Knowledge 中的说明（按角色编译版本） | 认证 + 可见性 |
 | `POST /v1/entities/{entity}/resolve` | 把用户说的名称解析为 `entity_key`（分层规则见 §9.1） | 全套门禁；在用户角色 + RLS 下执行；独立限频 |
 | `POST /v1/values/search` | 在非实体的 `searchable` 列（线路编码、仓库名等）上做模糊检索（`pg_trgm`），在用户角色 + RLS 下执行 `SELECT DISTINCT col ... ORDER BY similarity LIMIT 10` | 全套门禁（SQL 由 Gateway 生成）；同 §9.1 的最短长度与防枚举规则 |
-| `GET /v1/freshness` | 各可见表的 `_oo.table_freshness`、所属源的 `_oo.source_watermark`、`_oo.table_quality` 摘要与从库回放延迟 | 认证 |
+| `GET /v1/freshness` | 各可见表的 `_oo.table_freshness`、所属源的 `_oo.source_watermark`、`_oo.table_quality` 摘要（含 `consistency_grade`、`capture_method`、`delete_detection`）与从库回放延迟 | 认证 |
 | `GET /v1/knowledge/{path}` / `POST /v1/knowledge/search` | 读取/检索按角色编译的 Knowledge Pack | 认证 |
 | `POST /v1/sql/validate` | 只做 ③–⑥，不执行；返回是否可执行与提示 | 同 query（计入限流） |
 | `POST /v1/feedback/gap` | Agent 报告知识缺口，进入 Ontology 审核队列 | 认证；限频；内容作为不可信文本存储 |

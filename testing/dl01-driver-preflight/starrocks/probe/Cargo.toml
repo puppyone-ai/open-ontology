@@ -1,0 +1,20 @@
+[package]
+name = "starrocks-probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+description = "StarRocks 3.5 native typed Arrow preflight. The MySQL wire is not a MySQL or Doris result."
+
+[dependencies]
+mysql_async = { version = "=0.36.1", default-features = false, features = ["minimal", "rustls-tls", "ring"] }
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+serde_json = "=1.0.151"
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+
+[lints]
+workspace = true

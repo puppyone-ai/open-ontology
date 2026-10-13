@@ -1,1 +1,0 @@
-Rust 1.94.0 write phase: unit 1 passed, contract 7 passed, private_postgres_matrix passed in 1.42s. The same container then exited 1 because cargo-clippy is not installed on the image toolchain. write.log keeps both. Clippy was rerun as its own command so this log was not overwritten. OOM false. Memory 6442450944. NanoCpus 1000000000. CapDrop ALL.

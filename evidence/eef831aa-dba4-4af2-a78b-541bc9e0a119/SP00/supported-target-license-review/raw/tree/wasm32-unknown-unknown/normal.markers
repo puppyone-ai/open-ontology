@@ -1,8 +1,0 @@
-absent	core_detect
-present	multiversion
-absent	multiversion-macros
-absent	rustversion
-present	tiny-keccak
-present	webpki-root-certs
-absent	rustls-native-certs
-present	arrow-array

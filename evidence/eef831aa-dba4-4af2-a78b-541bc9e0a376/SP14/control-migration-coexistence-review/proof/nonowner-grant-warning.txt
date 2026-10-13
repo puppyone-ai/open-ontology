@@ -1,6 +1,0 @@
-Copied from the proof driver stderr after the rolled-back non-owner GRANT.
-Source log: session terminal call-111127f6-6b13-4aea-afdc-b92a57da828b-83.log lines 19-20.
-The privilege result is proof/facts-green.txt lines beginning noop|.
-
-WARNING:  no privileges were granted for "oo_dict"
-WARNING:  no privileges were granted for "oo_dict"

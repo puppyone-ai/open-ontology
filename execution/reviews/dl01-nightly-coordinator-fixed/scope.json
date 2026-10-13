@@ -1,0 +1,9 @@
+{
+  "reviewer": "Codex coordinator, independent from Grok author",
+  "source_sha": "876b3b916d6ff8ba5bb79e2c0e1beee283d69a40",
+  "seal_sha": "a2ee57f1d0de5ce34626a9431bd16cb07e60c6f4",
+  "previous_review_sha": "95e491416cfd877816e6696cf07586c1eada5d03",
+  "production_writes": false,
+  "fixture_origin": "previous fixed review harness, replay inputs only, no old result reuse",
+  "scope": "original frozen D07 checker and nightly-credit defect; no source/parent/nightly grade acceptance"
+}

@@ -1,4 +1,0 @@
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"701"},{"kind":"int","value":"41"},{"kind":"bool","value":true}]}
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"702"},{"kind":"int","value":"41"},{"kind":"bool","value":false}]}
-{"record":"row","turn":0,"cells":[{"kind":"int","value":"703"},{"kind":"int","value":"43"},{"kind":"bool","value":true}]}
-{"record":"summary","turn":0,"status":"succeeded","truncated":false,"returned_rows":3,"result_bytes":28,"rollback_confirmed":true,"socket_dropped":false,"end_audit_ok":true,"original_sha256":"7691b72987d998276595d8ddb18b563daa9f2a668e87678a96135867b8d15fc1","executed_sha256":"588cc4f45ff16c024c811a038b83c46e5c88e44c7995440b4753438c00c0559b","stop":null,"sqlstate":null}

@@ -1,4 +1,0 @@
-added	arrow-cmp	60.0.0
-added	arrow-ipc	60.0.0
-added	arrow-select	60.0.0
-added	flatbuffers	25.12.19

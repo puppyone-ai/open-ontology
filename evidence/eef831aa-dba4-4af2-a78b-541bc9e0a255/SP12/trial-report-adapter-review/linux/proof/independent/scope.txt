@@ -1,5 +1,0 @@
-postgres=not_used
-private_tls=not_claimed
-pgpassword=unset
-snapshot=declared_label
-model_lane=trusted_sql

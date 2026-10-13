@@ -1,6 +1,0 @@
-captured_at=2026-10-03T11:50:23Z
-host_cargo=0
-rust_builders=1
-global=1
-own_take=1
-source=working-tree

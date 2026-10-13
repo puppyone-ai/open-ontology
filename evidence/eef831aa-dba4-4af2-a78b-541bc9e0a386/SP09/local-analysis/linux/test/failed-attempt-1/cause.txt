@@ -1,2 +1,0 @@
-svg.rs mul_small indexed out with out.len() while out was mutably borrowed. rustc E0502. test.exit 101.
-cargo clippy then reported that cargo-clippy is not installed for toolchain 1.94.0-aarch64-unknown-linux-gnu. The container was removed. No component was fetched.

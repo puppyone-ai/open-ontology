@@ -1,3 +1,0 @@
-contracts/gateway/query-pg-cli-v1.md query-pg-cli-v1.md want=18d63146589b35ac6192dbf08849ece852cd52e6 got=18d63146589b35ac6192dbf08849ece852cd52e6
-crates/oo-gateway/src/bin/query-pg.rs query-pg.rs want=b91238462eb5097de0059ec75e73776ccb2488d0 got=b91238462eb5097de0059ec75e73776ccb2488d0
-Cargo.lock Cargo.lock want=2990f901ea98a7b465f462cce8742bc5c51c13aa got=2990f901ea98a7b465f462cce8742bc5c51c13aa

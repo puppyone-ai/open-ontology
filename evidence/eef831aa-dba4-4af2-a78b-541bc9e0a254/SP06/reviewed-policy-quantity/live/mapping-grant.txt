@@ -1,9 +1,0 @@
-label=provision_mapping_reader
-before=absent
-after=present
-clerk=installed
-peek=replay
-public=false,false,false
-explicit_allow_source=reviewed_policy_binding
-role_login_binding=configuration_not_auth
-hand_classified_policies=false

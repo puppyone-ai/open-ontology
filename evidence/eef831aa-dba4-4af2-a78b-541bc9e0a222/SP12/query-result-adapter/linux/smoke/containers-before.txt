@@ -1,5 +1,0 @@
-649ab5c3797f oo-a223-smoke 0f24958fa693 a223 rust-builder
-5ac4b17533ea oo-a221-smoke 0f24958fa693 a221 rust-builder
-8354f474240f oo-a217-smoke 0f24958fa693 a217 rust-builder
-52abe1a39ae8 oo-a218-smoke 0f24958fa693 a218 rust-builder
-431d3dd9d2a0 oo-a218-pg 3aac91d19d5b a218 postgres

@@ -1,2 +1,0 @@
-psql:/var/lib/oo-fixture/tests/fixtures/reset_databases.sql:23: NOTICE:  00000: schema "probe" does not exist, skipping
-LOCATION:  does_not_exist_skipping, dropcmds.c:521

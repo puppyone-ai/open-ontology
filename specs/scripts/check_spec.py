@@ -39,8 +39,8 @@ def inspect(text: str, baseline: dict) -> tuple[list[str], dict]:
     traced = re.findall(rf'^\| ({ID}) \|', trace, re.M)
     reqs = set(definitions)
     stats['requirements'] = len(reqs)
-    if len(reqs) != 80:
-        errors.append(f'Expected 80 requirements, found {len(reqs)}')
+    if len(reqs) != 88:
+        errors.append(f'Expected 88 requirements, found {len(reqs)}')
     for label, values in [('requirement definitions', definitions), ('trace rows', traced)]:
         if duplicate_ids(values):
             errors.append(f'Duplicate {label}: {duplicate_ids(values)}')
@@ -54,8 +54,8 @@ def inspect(text: str, baseline: dict) -> tuple[list[str], dict]:
     acceptance = re.findall(rf'^\| ({AT}) \|', acceptance_section, re.M)
     ats = set(acceptance)
     stats['acceptance_cases'] = len(ats)
-    if len(ats) != 96 or duplicate_ids(acceptance):
-        errors.append(f'AT definitions: expected 96 unique; count={len(ats)}, duplicates={duplicate_ids(acceptance)}')
+    if len(ats) != 105 or duplicate_ids(acceptance):
+        errors.append(f'AT definitions: expected 105 unique; count={len(ats)}, duplicates={duplicate_ids(acceptance)}')
     unknown = set(re.findall(AT, text)) - ats
     if unknown:
         errors.append(f'Undefined acceptance references: {sorted(unknown)}')

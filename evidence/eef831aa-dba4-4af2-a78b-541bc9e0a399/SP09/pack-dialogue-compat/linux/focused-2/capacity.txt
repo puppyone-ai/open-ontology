@@ -1,6 +1,0 @@
-host_cargo=0
-host_rustc=0
-host_rustdoc=0
-host_rustup=0
-rust_builders=0
-global_running=3

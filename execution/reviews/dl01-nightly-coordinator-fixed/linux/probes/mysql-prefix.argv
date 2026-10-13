@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/mysql-prefix/matrix.yaml --package /harness/fixtures/mysql-prefix/package

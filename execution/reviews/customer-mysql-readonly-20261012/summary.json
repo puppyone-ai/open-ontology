@@ -1,0 +1,85 @@
+{
+  "both_data_planes_ok": false,
+  "client": {
+    "connect_timeout_ms": 10000,
+    "connections_per_target": 1,
+    "features": [
+      "minimal",
+      "rustls-tls",
+      "ring"
+    ],
+    "kind": "host_rust_mysql_async",
+    "mysql_async": "0.36.1",
+    "statement_timeout_ms": 5000,
+    "tls_reason": "target file has no instance CA; verification was not disabled",
+    "tls_session": "not_requested"
+  },
+  "elapsed_ms": 6021,
+  "platform_admitted_reader": false,
+  "probe": "oo-cmysql-ro-78",
+  "product_source_modified": false,
+  "source_unavailable_claimed": false,
+  "started_unix_ms": 1791778611269,
+  "targets": [
+    {
+      "alias": "target_a",
+      "auth_ok": false,
+      "connect_diag": {
+        "kind": "UnexpectedEof",
+        "os_errno": null,
+        "variant": "io"
+      },
+      "connect_ms": 3007,
+      "data_plane": {
+        "auth_ok": false,
+        "rows_read_ok": false
+      },
+      "database_configured": true,
+      "dns": {
+        "address_count": 1,
+        "class": "intermediate_198_18_15",
+        "elapsed_ms": 6,
+        "failure_class": null,
+        "intermediate_198_18_15": true,
+        "rds_ip_signoff": false
+      },
+      "failure_class": "network",
+      "minimal_missing_condition": "host route did not complete; VPN or firewall, not a source-unavailable finding",
+      "platform_admitted_reader": false,
+      "port": 3306,
+      "provider_class": "aliyun_rds",
+      "server_errno": null,
+      "source_unavailable_claimed": false
+    },
+    {
+      "alias": "target_b",
+      "auth_ok": false,
+      "connect_diag": {
+        "kind": "UnexpectedEof",
+        "os_errno": null,
+        "variant": "io"
+      },
+      "connect_ms": 3004,
+      "data_plane": {
+        "auth_ok": false,
+        "rows_read_ok": false
+      },
+      "database_configured": true,
+      "dns": {
+        "address_count": 1,
+        "class": "intermediate_198_18_15",
+        "elapsed_ms": 2,
+        "failure_class": null,
+        "intermediate_198_18_15": true,
+        "rds_ip_signoff": false
+      },
+      "failure_class": "network",
+      "minimal_missing_condition": "host route did not complete; VPN or firewall, not a source-unavailable finding",
+      "platform_admitted_reader": false,
+      "port": 3306,
+      "provider_class": "aliyun_rds",
+      "server_errno": null,
+      "source_unavailable_claimed": false
+    }
+  ]
+}

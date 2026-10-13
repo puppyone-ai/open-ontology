@@ -1,7 +1,0 @@
-Attempt 3. Builder exit 1. test.exit 101. clippy.exit 101. lock-mode seeded. inside.exit 1.
-
-live_feedback_queue reached stored=ok: accept, dedup, restart replay, conflict 409, cross_project 403, body_project 403, oversized 400, bound 400, stranger 403, admin 405, other_project, review, and receipt counts. The test then panicked at tests/live.rs:263. sqlstate of the published:true insert was none, not 23514. The parameter was sent as $3::jsonb with a Rust string, so the client rejected the type before the receipt_not_published check ran. UPDATE, DELETE, TRUNCATE, and SELECT pg_authid had already returned 42501. privileges=ok and audit isolation were not reached.
-
-Clippy -D warnings failed only on tests/rules.rs: cloned_ref_to_slice_refs, bool_assert_comparison, and collapsible_if.
-
-The kept volume oo-a385-pgdata held the shop and other receipts from this run. That volume is removed before the next launch. oo-a385-cargo and oo-a385-target stay.

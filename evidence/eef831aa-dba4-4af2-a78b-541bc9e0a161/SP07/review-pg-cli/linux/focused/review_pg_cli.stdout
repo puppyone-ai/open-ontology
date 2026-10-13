@@ -1,9 +1,0 @@
-
-running 4 tests
-test unknown_input_and_arguments_exit_without_echo ... ok
-test stale_schema_and_fact_decisions_stay_pending ... ok
-test fresh_accept_reject_and_override_bind_the_captured_items ... ok
-test bare_captured_catalog_matches_the_public_api_and_preserved_hashes ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
-

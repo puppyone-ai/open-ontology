@@ -1,4 +1,0 @@
-synced benchmarks/query-result-adapter/tests/adapt.rs
-synced benchmarks/question-bank-suite/tests/compile.rs
-synced benchmarks/question-bank-suite/tests/proof.rs
-synced benchmarks/sql-runner/tests/cli.rs

@@ -1,4 +1,0 @@
-ce0ff74acdd8672f6826e33da2d4cb2a4f53f0fcff4d9c57a16d96333548fb4e  crates/oo-builder/src/bin/ontology-artifact-diff.rs
-857205c2251e837be44b0b9ce517f218fcebcd96804295182e816b0842677fc0  crates/oo-builder/tests/ontology_artifact_diff.rs
-a02b18507a65ed0997909eb79684d029e382a7a4cc3c2c166dc5190ffd4f4fc7  crates/oo-builder/tests/ontology_artifact_diff_a243_review.rs
-a139649d0c19f83e040046bc76ecc7a110b5aed873b96113dcc0e26bbb8f9d6e  contracts/builder/artifact-diff-v1.md

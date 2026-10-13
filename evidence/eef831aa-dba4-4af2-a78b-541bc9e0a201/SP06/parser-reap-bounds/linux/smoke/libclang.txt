@@ -1,3 +1,0 @@
-LIBCLANG_PATH=/cargo-home/a201-clang-root/usr/lib/aarch64-linux-gnu
-LD_LIBRARY_PATH=/cargo-home/a201-clang-root/usr/lib/aarch64-linux-gnu:/cargo-home/a201-clang-root/usr/lib/aarch64-linux-gnu
-stdbool.h=present

@@ -1,0 +1,27 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "clickhouse-26-8-selfmanaged",
+  "source_id": "clickhouse_268",
+  "secret_ref": "secret://oo-dl01w1-40/reader",
+  "compat_mode": "clickhouse-native",
+  "permissions": [
+    {"name": "SELECT", "status": "known", "granted": true},
+    {"name": "INSERT", "status": "known", "granted": false}
+  ],
+  "budget": {"unit": "Rows", "hard_limit": 100000, "confidence": "unknown"},
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null
+}

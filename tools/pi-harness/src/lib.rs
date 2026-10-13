@@ -9,6 +9,7 @@
 mod child;
 mod map;
 mod sha256;
+mod uid_boundary;
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -21,6 +22,7 @@ use tokio::runtime::Handle;
 
 pub use child::hash_file;
 pub use sha256::{hex, sha256};
+pub use uid_boundary::{DevelopmentUidBoundary, UidBoundaryReceipt};
 
 pub const HARNESS_NAME: &str = "pi";
 pub const PINNED_PI_VERSION: &str = "1.0.4";
@@ -195,6 +197,8 @@ pub enum ErrorKind {
     Unsupported,
     Hash,
     Path,
+    UidBoundaryUnavailable,
+    UidBoundaryUnverified,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -207,6 +211,24 @@ pub struct Error {
 impl Error {
     pub(crate) fn new(kind: ErrorKind, detail: impl Into<String>) -> Self {
         Self { kind, detail: detail.into(), reap: None }
+    }
+
+    pub fn category(&self) -> &'static str {
+        match self.kind {
+            ErrorKind::Spawn => "spawn",
+            ErrorKind::Io => "io",
+            ErrorKind::Shape => "shape",
+            ErrorKind::Protocol => "protocol",
+            ErrorKind::TooBig => "too_big",
+            ErrorKind::Eof => "eof",
+            ErrorKind::Deadline => "deadline",
+            ErrorKind::Bound => "bound",
+            ErrorKind::Unsupported => "unsupported",
+            ErrorKind::Hash => "hash",
+            ErrorKind::Path => "path",
+            ErrorKind::UidBoundaryUnavailable => "uid_boundary_unavailable",
+            ErrorKind::UidBoundaryUnverified => "uid_boundary_unverified",
+        }
     }
 }
 
@@ -221,6 +243,7 @@ impl std::error::Error for Error {}
 pub struct Harness {
     child: child::ChildIo,
     request: LaunchRequest,
+    uid_boundary: Option<UidBoundaryReceipt>,
 }
 
 impl Harness {
@@ -232,12 +255,30 @@ impl Harness {
         self.child.pid()
     }
 
+    /// Receipt from the kernel status read taken after spawn and before the first prompt.
+    /// [`Harness::launch`] and [`Harness::restore`] leave this empty.
+    pub fn uid_boundary_receipt(&self) -> Option<&UidBoundaryReceipt> {
+        self.uid_boundary.as_ref()
+    }
+
     pub fn stderr_tail(&self) -> String {
         self.child.stderr_tail()
     }
 
     pub async fn launch(request: LaunchRequest) -> Result<Self, Error> {
-        launch_with(request, false).await
+        launch_with(request, false, None).await
+    }
+
+    /// Spawn under `boundary` and return only after the child status matches.
+    ///
+    /// Same harness operations as [`Harness::launch`]. The generic launch path is unchanged
+    /// and keeps the broker uid. This is a development credential drop, not runsc and not
+    /// a network or filesystem sandbox. Directory modes are the caller's job.
+    pub async fn launch_with_uid_boundary(
+        request: LaunchRequest,
+        boundary: DevelopmentUidBoundary,
+    ) -> Result<Self, Error> {
+        launch_with(request, false, Some(boundary)).await
     }
 
     pub async fn send(&self, message: UserMessage) -> Result<PromptAcceptance, Error> {
@@ -302,7 +343,7 @@ impl Harness {
         if sha256(&bytes) != session_sha256 {
             return Err(Error::new(ErrorKind::Hash, "session hash mismatch"));
         }
-        let harness = launch_with(request, true).await?;
+        let harness = launch_with(request, true, None).await?;
         let path = utf8_path(session_path)?;
         let switched = harness.child.command("switch_session", &[("sessionPath", Value::String(path))]).await?;
         let cancelled = switched.value.get("data").and_then(|data| data.get("cancelled")).and_then(Value::as_bool);
@@ -314,7 +355,11 @@ impl Harness {
     }
 }
 
-async fn launch_with(request: LaunchRequest, restore: bool) -> Result<Harness, Error> {
+async fn launch_with(
+    request: LaunchRequest,
+    restore: bool,
+    boundary: Option<DevelopmentUidBoundary>,
+) -> Result<Harness, Error> {
     validate(&request)?;
     match &request.runtime_mode {
         RuntimeMode::DevelopmentLocalProcess(flag) => {
@@ -332,6 +377,9 @@ async fn launch_with(request: LaunchRequest, restore: bool) -> Result<Harness, E
             ));
         }
     }
+    if let Some(boundary) = &boundary {
+        boundary.recheck()?;
+    }
     let runtime = Handle::try_current().map_err(|_| Error::new(ErrorKind::Spawn, "async runtime required"))?;
     verify_digest(&request.executable, request.executable_sha256, "executable")?;
     verify_digest(&request.runtime, request.runtime_sha256, "runtime")?;
@@ -342,7 +390,8 @@ async fn launch_with(request: LaunchRequest, restore: bool) -> Result<Harness, E
     reject_symlink_chain(&request.agent_dir)?;
     reject_symlink_chain(&request.session_dir)?;
     write_models_json(&request)?;
-    check_version(&request)?;
+    let identity = boundary.as_ref().map(DevelopmentUidBoundary::identity);
+    check_version(&request, identity)?;
     let path = request
         .runtime
         .parent()
@@ -365,9 +414,26 @@ async fn launch_with(request: LaunchRequest, restore: bool) -> Result<Harness, E
         tool_limit: request.bounds.tool_limit,
         raw_log: request.raw_event_log.clone(),
         runtime,
+        identity,
     };
-    let child = child::ChildIo::spawn(&spec)?;
-    Ok(Harness { child, request })
+    let child = match child::ChildIo::spawn(&spec) {
+        Ok(child) => child,
+        Err(err) if boundary.is_some() && err.kind == ErrorKind::Spawn => {
+            return Err(uid_boundary::unavailable("child process did not start"));
+        }
+        Err(err) => return Err(err),
+    };
+    let Some(boundary) = boundary else {
+        return Ok(Harness { child, request, uid_boundary: None });
+    };
+    match uid_boundary::verify_child(child.pid(), &boundary) {
+        Ok(receipt) => Ok(Harness { child, request, uid_boundary: Some(receipt) }),
+        Err(mut err) => {
+            err.reap = child.kill_for_failed_boundary().ok();
+            drop(child);
+            Err(err)
+        }
+    }
 }
 
 pub fn write_models_json(request: &LaunchRequest) -> Result<(), Error> {
@@ -557,13 +623,13 @@ fn verify_digest(path: &Path, expected: [u8; 32], label: &str) -> Result<(), Err
     Ok(())
 }
 
-fn check_version(request: &LaunchRequest) -> Result<(), Error> {
+fn check_version(request: &LaunchRequest, identity: Option<child::ChildIdentity>) -> Result<(), Error> {
     let path = request
         .runtime
         .parent()
         .ok_or_else(|| Error::new(ErrorKind::Path, "runtime has no directory"))?;
-    let mut child = std::process::Command::new(&request.executable)
-        .arg("--version")
+    let mut cmd = std::process::Command::new(&request.executable);
+    cmd.arg("--version")
         .current_dir(&request.workspace)
         .env_clear()
         .env("HOME", &request.home)
@@ -572,18 +638,23 @@ fn check_version(request: &LaunchRequest) -> Result<(), Error> {
         .env("PI_CODING_AGENT_DIR", &request.agent_dir)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|err| Error::new(ErrorKind::Spawn, err.to_string()))?;
+        .stderr(std::process::Stdio::piped());
+    child::apply_identity(&mut cmd, identity)?;
+    let mut child = cmd.spawn().map_err(|err| {
+        if identity.is_some() {
+            uid_boundary::unavailable("version process did not start")
+        } else {
+            Error::new(ErrorKind::Spawn, err.to_string())
+        }
+    })?;
     let started = Instant::now();
     let status = loop {
+        if started.elapsed() >= request.bounds.command_deadline {
+            child::terminate(child, identity, Duration::from_secs(2));
+            return Err(Error::new(ErrorKind::Deadline, "version check"));
+        }
         match child.try_wait().map_err(|err| Error::new(ErrorKind::Io, err.to_string()))? {
             Some(status) => break status,
-            None if started.elapsed() >= request.bounds.command_deadline => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(Error::new(ErrorKind::Deadline, "version check"));
-            }
             None => thread::sleep(VERSION_POLL),
         }
     };

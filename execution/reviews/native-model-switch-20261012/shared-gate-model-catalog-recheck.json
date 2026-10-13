@@ -1,0 +1,9 @@
+{
+  "at_utc": "2026-10-12T10:54:00.656395+00:00",
+  "scope": "one catalog availability recheck after shared implementation progressed; no inference or proxy/model/key mutation",
+  "http_status": 200,
+  "model_count": 31,
+  "exact_requested_model_advertised": false,
+  "temporary_engineer_model_advertised": true,
+  "catalog_digest": "696a4b1852e067613bffdbb90863b56507f993e4a2065214387d6b568d917a48"
+}

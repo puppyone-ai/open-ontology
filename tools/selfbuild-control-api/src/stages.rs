@@ -73,9 +73,10 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
         "purpose": "generate",
         "sample_policy": "none",
         "temperature": 0,
+        "reasoning_effort": "low",
         "endpoint": {
-            "model_id": "grok-4.7",
-            "origin": "http://127.0.0.1:8317",
+            "model_id": project.llm.model_id,
+            "origin": project.llm.origin,
             "path": "/v1/chat/completions"
         },
         "secret": {"bearer_file": project.llm.bearer_file},

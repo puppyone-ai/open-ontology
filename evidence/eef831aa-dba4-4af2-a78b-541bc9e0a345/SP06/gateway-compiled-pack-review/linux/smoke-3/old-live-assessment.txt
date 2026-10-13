@@ -1,5 +1,0 @@
-entrypoint=crates/oo-gateway/tests/http_gateway_live.rs
-test=issued_token_reads_its_pack_and_failures_stay_closed
-env=OO_A326_LIVE=1
-exit=101
-result=legacy_unsupported

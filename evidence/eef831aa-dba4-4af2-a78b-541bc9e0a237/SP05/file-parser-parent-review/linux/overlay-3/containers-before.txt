@@ -1,5 +1,0 @@
-8e20453b84ea oo-a235-pg 3aac91d19d5b a235 postgres
-2765a6241502 oo-a235-smoke 0f24958fa693 a235 rust-builder
-da49f8ecde0e oo-a236-pg 3aac91d19d5b a236 postgres
-51eeb4f24e8b oo-a231-pg 3aac91d19d5b a231 postgres
-b306c0a3a7f3 oo-a229-pg 3aac91d19d5b a229 postgres

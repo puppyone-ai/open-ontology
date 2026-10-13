@@ -1,5 +1,0 @@
-observed_at=2026-10-05T17:53:57Z
-name=oo-a201-red2 kind=rust-builder owner=a201 status=Up 6 minutes
-name=oo-a200-pg kind=postgres owner=a200 status=Up 9 minutes
-name=oo-a198-pg kind=postgres owner=a198 status=Up 34 minutes
-host_toolchain_comm:

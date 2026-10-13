@@ -1,0 +1,1 @@
+/target/suite/debug/source-conformance check --matrix /harness/fixtures/suffix-same/matrix.yaml --package /harness/fixtures/suffix-same/package

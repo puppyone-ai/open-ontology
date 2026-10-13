@@ -1,1 +1,0 @@
-Attempt 1 exited 101 before PostgreSQL. cargo test -p oo-pipeline --lib target_statistics failed E0499: Transaction borrowed the connection while abort also borrowed it. OOMKilled=false. Memory=6442450944. NanoCpus=1000000000. Container removed. The product rollback was changed so the transaction ends before the connection is probed. This log is the failed attempt.

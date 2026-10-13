@@ -1,1 +1,0 @@
-attempt3_exit=101 reason=integration test could not see idempotency_key, MAX_OBJECT_BYTES, or MAX_PART_COUNT because lib.rs did not re-export them. The library itself compiled.

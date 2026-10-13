@@ -1,10 +1,12 @@
 # Open Ontology 设计文档
 
-> Status: Proposed — 目标设计，尚无实现代码
+> Status: Proposed（设计文档；实际实现与验收范围见Spec、Plan和固定证据）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-09
 
-Open Ontology（OO）是一个开源项目：企业登记（或上传）自己的任何数据库，系统单向同步到一个只供 Agent 使用的 PostgreSQL，自动构建一个面向 Agent 的语义与访问层（本项目所说的 **ontology**，不是知识图谱），并一键接上 Agent harness 进行对话。Agent 在没有任何密钥的沙盒中工作，通过只读、按最终用户权限执行、可审计的 Gateway 访问数据。
+Open Ontology（OO）是生成、审核、发布和维护Ontology的开源系统。企业登记数据源后，系统把获准读取的数据汇聚到独立PostgreSQL，产出标准语义资产和Knowledge Pack，并通过Gateway及CLI、HTTP/SDK、MCP等接口供外部harness使用。这里的ontology是Agent理解和访问企业数据的语义与访问层。
+
+内置Pi和网页对话提供快速体验，也用于内部端到端验证。用户取得产物并使用外部接口时，不依赖内置Pi会话。已实现哪些协议、验证过哪些客户端和版本，分别按证据声明；“面向任意harness”是接口设计方向，不代表所有现有客户端已经测过。内置沙盒仍遵守无可复用凭证、只读及最终用户权限边界。
 
 ## 阅读顺序
 
@@ -28,6 +30,7 @@ Open Ontology（OO）是一个开源项目：企业登记（或上传）自己�
 | 15 | [术语表](15-glossary.md) | 所有人 | — |
 | 16 | [参考资料](16-references.md) | 工程 | 调研来源与待核实项 |
 | 17 | [Rust 实现契约与迁移验收](17-rust-implementation.md) | 工程、安全 | crate 关系、任务与取消、FFI/插件隔离、类型/托管、构建与验收 |
+| 附 | [数据库支持扩展设计](database-support/README.md) | 工程、DBA、安全、客户交付 | 统一准入路线与支持矩阵（等级、晋升/降级）、能力模型与源库写入分类、各类捕获方法与一致性等级、驱动策略、Self-build/Pack/Gateway 复用、逐库画像（MySQL/PG 家族、SQL Server、Oracle、Db2、HANA、国产库、云数仓、OLAP、文档/KV）、一致性套件与证据。数据库范围与准入以其及 Spec 第 7A 章为准，覆盖 03 §2、§8 的路线表 |
 
 ## 文档约定
 

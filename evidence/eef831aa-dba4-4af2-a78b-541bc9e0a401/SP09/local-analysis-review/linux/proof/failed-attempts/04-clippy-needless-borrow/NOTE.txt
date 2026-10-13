@@ -1,3 +1,0 @@
-Attempt 4 reached analysis-proof ok and focused-test exit 0.
-cargo clippy --all-targets -D warnings exited 101 on tests/a401_bounds.rs:436 needless_borrows_for_generic_args.
-The overlay dropped the needless borrow. This resume reruns only the focused test and Clippy. The export artifacts stay.

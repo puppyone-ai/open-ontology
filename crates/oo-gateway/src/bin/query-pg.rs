@@ -28,13 +28,13 @@ use oo_core::parse_json_value;
 use oo_gateway::policy::catalog::{CatalogLimits, UnknownRows, load_policy_catalog};
 use oo_gateway::query_executor::{
     Admission, AuditAdmission, Cell, CompletionRecord, CompletionStatus, DedicatedSession,
-    ExecError, QuerySummary, SelectRequest, StopClass, MAX_QUERY_BYTES, MAX_QUERY_ROWS,
-    MAX_QUERY_WALL,
+    ExecError, MAX_QUERY_BYTES, MAX_QUERY_ROWS, MAX_QUERY_WALL, QuerySummary, SelectRequest,
+    StopClass,
 };
 use oo_gateway::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, CompiledPolicy, LogicalTable, PiiClass,
-    PolicyIdentity, RowFilter, TlsConnection, TlsEndpoint, compile_column_acl, connect_require_tls,
-    rustls_connector, SQL_BYTE_BUDGET,
+    PolicyIdentity, RowFilter, SQL_BYTE_BUDGET, TlsConnection, TlsEndpoint, compile_column_acl,
+    connect_require_tls, rustls_connector,
 };
 use serde::Deserialize;
 use serde::Serialize;
@@ -271,6 +271,8 @@ async fn execute(loaded: Loaded) -> Result<(), Fail> {
             max_rows: loaded.max_rows,
             max_result_bytes: loaded.max_result_bytes,
             wall_clock: loaded.wall,
+            read_quality: false,
+            quality_vector: None,
         };
         let mut stream = match session.execute_trusted_select(request, hook).await {
             Ok(stream) => stream,
@@ -563,7 +565,10 @@ fn compile_policies(doc: &RequestDoc) -> Result<Vec<CompiledPolicy>, Fail> {
 }
 
 fn endpoint_from(doc: &EndpointDoc) -> Result<TlsEndpoint, Fail> {
-    if !host_ok(&doc.host) || doc.port == 0 || !plain_ident(&doc.database) || !plain_ident(&doc.user)
+    if !host_ok(&doc.host)
+        || doc.port == 0
+        || !plain_ident(&doc.database)
+        || !plain_ident(&doc.user)
     {
         return Err(Fail::Request);
     }
@@ -1151,7 +1156,8 @@ mod tests {
             r#"{"kind":"bool","value":false}"#
         );
         assert_eq!(
-            serde_json::to_string(&out_cell(&Cell::Int("-9223372036854775808".to_string()))).unwrap(),
+            serde_json::to_string(&out_cell(&Cell::Int("-9223372036854775808".to_string())))
+                .unwrap(),
             r#"{"kind":"int","value":"-9223372036854775808"}"#
         );
         assert_eq!(
@@ -1173,8 +1179,8 @@ mod a327_live {
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
 
-    use oo_gateway::{connect_require_tls, TlsEndpoint};
-    use serde_json::{json, Value};
+    use oo_gateway::{TlsEndpoint, connect_require_tls};
+    use serde_json::{Value, json};
     use sha2::{Digest, Sha256};
     use tokio_postgres::Client;
 
@@ -1205,7 +1211,10 @@ mod a327_live {
 
     impl Stop {
         fn new(step: &str, detail: impl std::fmt::Display) -> Self {
-            Self { step: step.to_string(), detail: detail.to_string() }
+            Self {
+                step: step.to_string(),
+                detail: detail.to_string(),
+            }
         }
     }
 
@@ -1234,7 +1243,9 @@ mod a327_live {
 
     impl Env {
         fn load() -> Result<Self, Stop> {
-            let port = env_var("OO_A327_PORT")?.parse::<u16>().map_err(|_| Stop::new("env", "port"))?;
+            let port = env_var("OO_A327_PORT")?
+                .parse::<u16>()
+                .map_err(|_| Stop::new("env", "port"))?;
             let admin_password = read_secret(&env_var("OO_A327_ADMIN_PASSWORD_FILE")?)?;
             let reader_password = read_secret(&env_var("OO_A327_READER_PASSWORD_FILE")?)?;
             let runtime_password = read_secret(&env_var("OO_A327_RUNTIME_PASSWORD_FILE")?)?;
@@ -1316,7 +1327,10 @@ mod a327_live {
     enum CellExpect {
         Int(&'static str),
         Null,
-        Dec { negative: bool, coefficient: &'static str },
+        Dec {
+            negative: bool,
+            coefficient: &'static str,
+        },
     }
 
     #[test]
@@ -1336,12 +1350,20 @@ mod a327_live {
         match runtime.block_on(run()) {
             Ok(outcome) => {
                 let dir = PathBuf::from(&evidence);
-                fs::write(dir.join("outcome.json"), serde_json::to_vec_pretty(&outcome).expect("outcome")).expect("write outcome");
-                fs::write(dir.join("outcome.txt"), "numeric_query_recorded\n").expect("write outcome text");
+                fs::write(
+                    dir.join("outcome.json"),
+                    serde_json::to_vec_pretty(&outcome).expect("outcome"),
+                )
+                .expect("write outcome");
+                fs::write(dir.join("outcome.txt"), "numeric_query_recorded\n")
+                    .expect("write outcome text");
             }
             Err(stop) => {
                 let body = json!({"step": stop.step, "detail": stop.detail});
-                let _ = fs::write(Path::new(&evidence).join("stop.json"), serde_json::to_vec_pretty(&body).unwrap_or_default());
+                let _ = fs::write(
+                    Path::new(&evidence).join("stop.json"),
+                    serde_json::to_vec_pretty(&body).unwrap_or_default(),
+                );
                 panic!("stop step={} detail={}", stop.step, stop.detail);
             }
         }
@@ -1349,11 +1371,18 @@ mod a327_live {
 
     async fn run() -> Result<Value, Stop> {
         let env = Env::load()?;
-        fs::create_dir_all(env.evidence.join("steps")).map_err(|_| Stop::new("evidence", "steps"))?;
-        fs::create_dir_all(env.evidence.join("requests")).map_err(|_| Stop::new("evidence", "requests"))?;
-        fs::create_dir_all(env.evidence.join("audits")).map_err(|_| Stop::new("evidence", "audits"))?;
+        fs::create_dir_all(env.evidence.join("steps"))
+            .map_err(|_| Stop::new("evidence", "steps"))?;
+        fs::create_dir_all(env.evidence.join("requests"))
+            .map_err(|_| Stop::new("evidence", "requests"))?;
+        fs::create_dir_all(env.evidence.join("audits"))
+            .map_err(|_| Stop::new("evidence", "audits"))?;
         let admin = Session::open(&env, "postgres", &env.admin_user, &env.admin_password).await?;
-        let ssl = scalar(&admin.client, "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()").await?;
+        let ssl = scalar(
+            &admin.client,
+            "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()",
+        )
+        .await?;
         let version = scalar(&admin.client, "SHOW server_version").await?;
         if ssl != "true" && ssl != "t" {
             return Err(Stop::new("tls", "ssl is not true"));
@@ -1367,14 +1396,34 @@ mod a327_live {
         exec(&source.client, &fixture_sql()).await?;
         source.close().await;
 
-        let catalog = run_bin(&env, &env.pipeline, &["catalog-pg"], &to_vec(&source_request(&env)?)?, "catalog-pg")?;
+        let catalog = run_bin(
+            &env,
+            &env.pipeline,
+            &["catalog-pg"],
+            &to_vec(&source_request(&env)?)?,
+            "catalog-pg",
+        )?;
         require_exit(&env, "catalog-pg", &catalog, 0)?;
-        let captured = run_bin(&env, &env.builder, &["captured-pg-draft"], &catalog.stdout, "captured-pg-draft")?;
+        let captured = run_bin(
+            &env,
+            &env.builder,
+            &["captured-pg-draft"],
+            &catalog.stdout,
+            "captured-pg-draft",
+        )?;
         require_exit(&env, "captured-pg-draft", &captured, 0)?;
         let captured_value = parse_json(&captured.stdout, "captured-pg-draft")?;
         let reviews = structural_reviews(&captured_value)?;
-        let review_in = to_vec(&json!({"catalog": parse_json(&catalog.stdout, "catalog-pg")?, "reviews": reviews}))?;
-        let reviewed = run_bin(&env, &env.builder, &["review-pg-draft"], &review_in, "review-pg-draft")?;
+        let review_in = to_vec(
+            &json!({"catalog": parse_json(&catalog.stdout, "catalog-pg")?, "reviews": reviews}),
+        )?;
+        let reviewed = run_bin(
+            &env,
+            &env.builder,
+            &["review-pg-draft"],
+            &review_in,
+            "review-pg-draft",
+        )?;
         require_exit(&env, "review-pg-draft", &reviewed, 0)?;
         let artifact_text = exact_text(&reviewed.stdout, "review-pg-draft")?;
         let artifact = parse_json(artifact_text.as_bytes(), "review-pg-draft")?;
@@ -1383,21 +1432,31 @@ mod a327_live {
         }
         let schema_hash = text_at(&artifact, "/draft/provenance/schema_hash", "schema_hash")?;
         let decisions = decision_list(&artifact, &schema_hash)?;
-        let decisions_text = serde_json::to_string(&decisions).map_err(|_| Stop::new("decisions", "encode"))?;
+        let decisions_text =
+            serde_json::to_string(&decisions).map_err(|_| Stop::new("decisions", "encode"))?;
         let effective_in = to_vec(&json!({
             "protocol": "oo.builder.reviewed-effective-oos-command/v1",
             "artifact": artifact,
             "settings": settings(),
             "decisions": decisions
         }))?;
-        let effective_out = run_bin(&env, &env.reviewed, &[], &effective_in, "reviewed-effective-oos")?;
+        let effective_out = run_bin(
+            &env,
+            &env.reviewed,
+            &[],
+            &effective_in,
+            "reviewed-effective-oos",
+        )?;
         require_exit(&env, "reviewed-effective-oos", &effective_out, 0)?;
         let command_text = exact_text(&effective_out.stdout, "reviewed-effective-oos")?;
         let command = parse_json(command_text.as_bytes(), "reviewed-effective-oos")?;
         if command["protocol"] != "oo.builder.reviewed-effective-oos-command/v1" {
             return Err(Stop::new("reviewed-effective-oos", "protocol"));
         }
-        let effective = command.get("effective_oos").cloned().ok_or_else(|| Stop::new("reviewed-effective-oos", "effective_oos"))?;
+        let effective = command
+            .get("effective_oos")
+            .cloned()
+            .ok_or_else(|| Stop::new("reviewed-effective-oos", "effective_oos"))?;
         check_applied(&effective)?;
         let visibility = visibility_from(&effective)?;
         let pack_in = to_vec(&json!({
@@ -1423,23 +1482,58 @@ mod a327_live {
         let bundle = run_bin(
             &env,
             &env.bundle,
-            &["--request", request_path.to_str().ok_or_else(|| Stop::new("role-pack-bundle", "path"))?, "--output", bundle_path.to_str().ok_or_else(|| Stop::new("role-pack-bundle", "path"))?],
+            &[
+                "--request",
+                request_path
+                    .to_str()
+                    .ok_or_else(|| Stop::new("role-pack-bundle", "path"))?,
+                "--output",
+                bundle_path
+                    .to_str()
+                    .ok_or_else(|| Stop::new("role-pack-bundle", "path"))?,
+            ],
             b"",
             "role-pack-bundle",
         )?;
         require_exit(&env, "role-pack-bundle", &bundle, 0)?;
 
-        let early = run_bin(&env, &env.pipeline, &["import-pg"], &to_vec(&import_request(&env)?)?, "import-pg-not-ready")?;
+        let early = run_bin(
+            &env,
+            &env.pipeline,
+            &["import-pg"],
+            &to_vec(&import_request(&env)?)?,
+            "import-pg-not-ready",
+        )?;
         if early.code == 0 {
             return Err(Stop::new("import-pg-not-ready", "target was already ready"));
         }
-        let init = run_bin(&env, &env.init_pg, &[], &to_vec(&init_request(&env)?)?, "init-pg")?;
+        let init = run_bin(
+            &env,
+            &env.init_pg,
+            &[],
+            &to_vec(&init_request(&env)?)?,
+            "init-pg",
+        )?;
         require_exit(&env, "init-pg", &init, 0)?;
         let admin = Session::open(&env, "postgres", &env.admin_user, &env.admin_password).await?;
-        exec(&admin.client, &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {RUNTIME}, {LOGIN}")).await?;
-        exec(&admin.client, &format!("GRANT oo_pipeline_runtime TO {RUNTIME}")).await?;
+        exec(
+            &admin.client,
+            &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {RUNTIME}, {LOGIN}"),
+        )
+        .await?;
+        exec(
+            &admin.client,
+            &format!("GRANT oo_pipeline_runtime TO {RUNTIME}"),
+        )
+        .await?;
         admin.close().await;
-        let imported = run_bin(&env, &env.pipeline, &["import-pg"], &to_vec(&import_request(&env)?)?, "import-pg")?;
+        let imported = run_bin(
+            &env,
+            &env.pipeline,
+            &["import-pg"],
+            &to_vec(&import_request(&env)?)?,
+            "import-pg",
+        )?;
         require_exit(&env, "import-pg", &imported, 0)?;
         let target = Session::open(&env, TARGET_DB, &env.admin_user, &env.admin_password).await?;
         let (digest, generation) = mapping_identity(&target.client).await?;
@@ -1462,7 +1556,10 @@ mod a327_live {
         if policy_doc["protocol"] != "oo.gateway.reviewed-policy-cli/v1" {
             return Err(Stop::new("reviewed-policy", "protocol"));
         }
-        let policies = policy_doc.get("policies").cloned().ok_or_else(|| Stop::new("reviewed-policy", "policies"))?;
+        let policies = policy_doc
+            .get("policies")
+            .cloned()
+            .ok_or_else(|| Stop::new("reviewed-policy", "policies"))?;
         if policies.as_array().map(Vec::len).unwrap_or(0) != 1 {
             return Err(Stop::new("reviewed-policy", "table count"));
         }
@@ -1471,11 +1568,23 @@ mod a327_live {
         assert_mapping_grants_absent(&target.client).await?;
         target.close().await;
         let loose_policy = one_column_policy(&policies, "loose")?;
-        let loose = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &loose_policy)?, "provision-loose")?;
+        let loose = run_bin(
+            &env,
+            &env.mapping,
+            &[],
+            &mapping_request(&env, &loose_policy)?,
+            "provision-loose",
+        )?;
         require_exit(&env, "provision-loose", &loose, 7)?;
         expect_stderr(&loose, "provision-mapping-reader: policy type\n")?;
         let over_policy = one_column_policy(&policies, "over")?;
-        let over = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &over_policy)?, "provision-over")?;
+        let over = run_bin(
+            &env,
+            &env.mapping,
+            &[],
+            &mapping_request(&env, &over_policy)?,
+            "provision-over",
+        )?;
         require_exit(&env, "provision-over", &over, 7)?;
         expect_stderr(&over, "provision-mapping-reader: policy type\n")?;
         let target = Session::open(&env, TARGET_DB, &env.admin_user, &env.admin_password).await?;
@@ -1490,7 +1599,13 @@ mod a327_live {
         }))?;
         let install = run_bin(&env, &env.install, &[], &install_in, "install-column-acl")?;
         require_exit(&env, "install-column-acl", &install, 0)?;
-        let mapping = run_bin(&env, &env.mapping, &[], &mapping_request(&env, &policies)?, "provision-mapping-reader")?;
+        let mapping = run_bin(
+            &env,
+            &env.mapping,
+            &[],
+            &mapping_request(&env, &policies)?,
+            "provision-mapping-reader",
+        )?;
         require_exit(&env, "provision-mapping-reader", &mapping, 0)?;
 
         let before = query_once(&env, "before-analyze", &policies, &digest, SUCCESS_SQL)?;
@@ -1518,7 +1633,8 @@ mod a327_live {
         }
 
         let bundle_bytes = fs::read(&bundle_path).map_err(|_| Stop::new("bundle", "read"))?;
-        fs::write(env.evidence.join("role-pack-bundle.json"), &bundle_bytes).map_err(|_| Stop::new("bundle", "copy"))?;
+        fs::write(env.evidence.join("role-pack-bundle.json"), &bundle_bytes)
+            .map_err(|_| Stop::new("bundle", "copy"))?;
         let bundle_sha256 = sha256_hex(&bundle_bytes);
         Ok(json!({
             "fixed_ancestor": "e6ebf93b5ac261c097a24d145611e0300e4f88b5",
@@ -1550,10 +1666,21 @@ mod a327_live {
     }
 
     fn success_rows() -> Vec<Vec<CellExpect>> {
-        let dec = |negative: bool, coefficient: &'static str| CellExpect::Dec { negative, coefficient };
+        let dec = |negative: bool, coefficient: &'static str| CellExpect::Dec {
+            negative,
+            coefficient,
+        };
         vec![
-            vec![CellExpect::Int("1"), dec(false, AMOUNT_COEFF), dec(false, WIDE_COEFF)],
-            vec![CellExpect::Int("2"), dec(true, AMOUNT_COEFF), dec(true, WIDE_COEFF)],
+            vec![
+                CellExpect::Int("1"),
+                dec(false, AMOUNT_COEFF),
+                dec(false, WIDE_COEFF),
+            ],
+            vec![
+                CellExpect::Int("2"),
+                dec(true, AMOUNT_COEFF),
+                dec(true, WIDE_COEFF),
+            ],
             vec![CellExpect::Int("3"), dec(false, "1"), dec(false, "1")],
             vec![CellExpect::Int("4"), dec(true, "1"), dec(true, "1")],
             vec![CellExpect::Int("5"), dec(false, "0"), dec(false, "0")],
@@ -1580,48 +1707,89 @@ mod a327_live {
     }
 
     async fn prepare_cluster(client: &Client, env: &Env) -> Result<(), Stop> {
-        let _ = client.batch_execute(&format!("DROP DATABASE IF EXISTS {SOURCE_DB} WITH (FORCE)")).await;
-        let _ = client.batch_execute(&format!("DROP DATABASE IF EXISTS {TARGET_DB} WITH (FORCE)")).await;
-        for role in [READER, RUNTIME, LOGIN, "oo_r_clerk", "oo_pipeline_runtime", "oo_target_owner"] {
-            let _ = client.batch_execute(&format!("DROP ROLE IF EXISTS {role}")).await;
+        let _ = client
+            .batch_execute(&format!("DROP DATABASE IF EXISTS {SOURCE_DB} WITH (FORCE)"))
+            .await;
+        let _ = client
+            .batch_execute(&format!("DROP DATABASE IF EXISTS {TARGET_DB} WITH (FORCE)"))
+            .await;
+        for role in [
+            READER,
+            RUNTIME,
+            LOGIN,
+            "oo_r_clerk",
+            "oo_pipeline_runtime",
+            "oo_target_owner",
+        ] {
+            let _ = client
+                .batch_execute(&format!("DROP ROLE IF EXISTS {role}"))
+                .await;
         }
         create_role(client, READER, &env.reader_password, "INHERIT").await?;
         create_role(client, RUNTIME, &env.runtime_password, "INHERIT").await?;
         create_role(client, LOGIN, &env.login_password, "NOINHERIT").await?;
         exec(client, &format!("CREATE DATABASE {SOURCE_DB} TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'")).await?;
         exec(client, &format!("CREATE DATABASE {TARGET_DB} TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'")).await?;
-        exec(client, &format!("GRANT CONNECT ON DATABASE {SOURCE_DB} TO {READER}")).await?;
-        exec(client, &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {RUNTIME}, {LOGIN}")).await?;
+        exec(
+            client,
+            &format!("GRANT CONNECT ON DATABASE {SOURCE_DB} TO {READER}"),
+        )
+        .await?;
+        exec(
+            client,
+            &format!("GRANT CONNECT ON DATABASE {TARGET_DB} TO {RUNTIME}, {LOGIN}"),
+        )
+        .await?;
         Ok(())
     }
 
-    async fn create_role(client: &Client, name: &str, password: &str, inherit: &str) -> Result<(), Stop> {
+    async fn create_role(
+        client: &Client,
+        name: &str,
+        password: &str,
+        inherit: &str,
+    ) -> Result<(), Stop> {
         exec(client, &format!("CREATE ROLE {name} LOGIN PASSWORD '{password}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION {inherit}")).await
     }
 
     async fn exec(client: &Client, sql: &str) -> Result<(), Stop> {
         client.batch_execute(sql).await.map_err(|err| {
-            let state = err.code().map(|code| code.code().to_string()).unwrap_or_else(|| "none".to_string());
+            let state = err
+                .code()
+                .map(|code| code.code().to_string())
+                .unwrap_or_else(|| "none".to_string());
             Stop::new("sql", format!("sqlstate={state}"))
         })
     }
 
     async fn scalar(client: &Client, sql: &str) -> Result<String, Stop> {
-        let row = client.query_one(sql, &[]).await.map_err(|_| Stop::new("sql", "scalar"))?;
+        let row = client
+            .query_one(sql, &[])
+            .await
+            .map_err(|_| Stop::new("sql", "scalar"))?;
         row.try_get(0).map_err(|_| Stop::new("sql", "scalar"))
     }
 
     async fn mapping_identity(client: &Client) -> Result<(String, i64), Stop> {
         let rows = client
-            .query("SELECT DISTINCT source, config_digest, run_generation FROM _oo.physical_mappings", &[])
+            .query(
+                "SELECT DISTINCT source, config_digest, run_generation FROM _oo.physical_mappings",
+                &[],
+            )
             .await
             .map_err(|_| Stop::new("mapping", "read"))?;
         if rows.len() != 1 {
             return Err(Stop::new("mapping", format!("rows={}", rows.len())));
         }
-        let source: String = rows[0].try_get(0).map_err(|_| Stop::new("mapping", "source"))?;
-        let digest: String = rows[0].try_get(1).map_err(|_| Stop::new("mapping", "digest"))?;
-        let generation: i64 = rows[0].try_get(2).map_err(|_| Stop::new("mapping", "generation"))?;
+        let source: String = rows[0]
+            .try_get(0)
+            .map_err(|_| Stop::new("mapping", "source"))?;
+        let digest: String = rows[0]
+            .try_get(1)
+            .map_err(|_| Stop::new("mapping", "digest"))?;
+        let generation: i64 = rows[0]
+            .try_get(2)
+            .map_err(|_| Stop::new("mapping", "generation"))?;
         if source != PROJECT || digest.len() != 64 {
             return Err(Stop::new("mapping", "identity"));
         }
@@ -1733,19 +1901,31 @@ mod a327_live {
     }
 
     fn structural_reviews(captured: &Value) -> Result<Value, Stop> {
-        let schema_hash = captured["wrapper"]["schema_hash"].as_str().ok_or_else(|| Stop::new("captured-pg-draft", "schema_hash"))?;
-        let queue = captured["draft"]["review_queue"].as_array().ok_or_else(|| Stop::new("captured-pg-draft", "review_queue"))?;
+        let schema_hash = captured["wrapper"]["schema_hash"]
+            .as_str()
+            .ok_or_else(|| Stop::new("captured-pg-draft", "schema_hash"))?;
+        let queue = captured["draft"]["review_queue"]
+            .as_array()
+            .ok_or_else(|| Stop::new("captured-pg-draft", "review_queue"))?;
         let mut reviews = Vec::new();
         for item in queue {
             let kind = item["kind"].as_str().unwrap_or("");
-            if kind != "structural_column" && kind != "structural_primary_key" && kind != "candidate_relationship" {
+            if kind != "structural_column"
+                && kind != "structural_primary_key"
+                && kind != "candidate_relationship"
+            {
                 continue;
             }
             let item_id = item["item_id"].as_str().unwrap_or("");
-            if item_id.starts_with("pii/") || item_id.starts_with("semantic/") || item_id.starts_with("type/") {
+            if item_id.starts_with("pii/")
+                || item_id.starts_with("semantic/")
+                || item_id.starts_with("type/")
+            {
                 continue;
             }
-            let fingerprint = item["fact_fingerprint"].as_str().ok_or_else(|| Stop::new("captured-pg-draft", "fact_fingerprint"))?;
+            let fingerprint = item["fact_fingerprint"]
+                .as_str()
+                .ok_or_else(|| Stop::new("captured-pg-draft", "fact_fingerprint"))?;
             reviews.push(json!({
                 "item_id": item_id,
                 "action": "accept",
@@ -1763,7 +1943,9 @@ mod a327_live {
         let mut out = Vec::new();
         for (dataset, column, pii, semantic) in DECISIONS {
             let item_id = format!("column/{dataset}/{column}");
-            let queue = artifact["draft"]["review_queue"].as_array().ok_or_else(|| Stop::new("decisions", "review_queue"))?;
+            let queue = artifact["draft"]["review_queue"]
+                .as_array()
+                .ok_or_else(|| Stop::new("decisions", "review_queue"))?;
             let fingerprint = queue
                 .iter()
                 .find(|item| item["kind"] == "structural_column" && item["item_id"] == item_id)
@@ -1786,41 +1968,69 @@ mod a327_live {
         for (dataset, column, pii, semantic) in DECISIONS {
             let found = find_column(effective, dataset, column)?;
             if found["pii"] != *pii || found["semantic_type"] != *semantic {
-                return Err(Stop::new("reviewed-effective-oos", format!("applied {dataset}.{column}")));
+                return Err(Stop::new(
+                    "reviewed-effective-oos",
+                    format!("applied {dataset}.{column}"),
+                ));
             }
             if (*column == "amount" || *column == "wide") && found["data_type"] != "numeric" {
-                return Err(Stop::new("reviewed-effective-oos", format!("data_type {dataset}.{column}")));
+                return Err(Stop::new(
+                    "reviewed-effective-oos",
+                    format!("data_type {dataset}.{column}"),
+                ));
             }
         }
         Ok(())
     }
 
-    fn find_column<'a>(effective: &'a Value, dataset: &str, column: &str) -> Result<&'a Value, Stop> {
-        let datasets = effective["datasets"].as_array().ok_or_else(|| Stop::new("effective", "datasets"))?;
+    fn find_column<'a>(
+        effective: &'a Value,
+        dataset: &str,
+        column: &str,
+    ) -> Result<&'a Value, Stop> {
+        let datasets = effective["datasets"]
+            .as_array()
+            .ok_or_else(|| Stop::new("effective", "datasets"))?;
         for item in datasets {
             if item["dataset"].as_str() != Some(dataset) {
                 continue;
             }
-            let columns = item["columns"].as_array().ok_or_else(|| Stop::new("effective", "columns"))?;
+            let columns = item["columns"]
+                .as_array()
+                .ok_or_else(|| Stop::new("effective", "columns"))?;
             for found in columns {
                 if found["name"].as_str() == Some(column) {
                     return Ok(found);
                 }
             }
         }
-        Err(Stop::new("effective", format!("missing {dataset}.{column}")))
+        Err(Stop::new(
+            "effective",
+            format!("missing {dataset}.{column}"),
+        ))
     }
 
     fn visibility_from(effective: &Value) -> Result<Value, Stop> {
-        let datasets = effective["datasets"].as_array().ok_or_else(|| Stop::new("visibility", "datasets"))?;
+        let datasets = effective["datasets"]
+            .as_array()
+            .ok_or_else(|| Stop::new("visibility", "datasets"))?;
         let mut listed = Vec::new();
         for item in datasets {
-            let name = item["dataset"].as_str().ok_or_else(|| Stop::new("visibility", "dataset"))?;
-            let columns = item["columns"].as_array().ok_or_else(|| Stop::new("visibility", "columns"))?;
+            let name = item["dataset"]
+                .as_str()
+                .ok_or_else(|| Stop::new("visibility", "dataset"))?;
+            let columns = item["columns"]
+                .as_array()
+                .ok_or_else(|| Stop::new("visibility", "columns"))?;
             let mut names = Vec::new();
             for column in columns {
-                let column_name = column["name"].as_str().ok_or_else(|| Stop::new("visibility", "column"))?;
-                if DECISIONS.iter().any(|(dataset, decided, _, _)| *dataset == name && *decided == column_name) {
+                let column_name = column["name"]
+                    .as_str()
+                    .ok_or_else(|| Stop::new("visibility", "column"))?;
+                if DECISIONS
+                    .iter()
+                    .any(|(dataset, decided, _, _)| *dataset == name && *decided == column_name)
+                {
                     names.push(column_name);
                 }
             }
@@ -1902,7 +2112,9 @@ mod a327_live {
             .and_then(|items| items.first())
             .cloned()
             .ok_or_else(|| Stop::new("policy", "clone"))?;
-        let slot = policy.pointer_mut("/table/columns").ok_or_else(|| Stop::new("policy", "columns"))?;
+        let slot = policy
+            .pointer_mut("/table/columns")
+            .ok_or_else(|| Stop::new("policy", "columns"))?;
         *slot = json!([{
             "name": column,
             "status": "confirmed",
@@ -1951,15 +2163,26 @@ mod a327_live {
 
     async fn scalar_step(client: &Client, sql: &str, step: &str) -> Result<String, Stop> {
         let row = client.query_one(sql, &[]).await.map_err(|err| {
-            let state = err.code().map(|code| code.code().to_string()).unwrap_or_else(|| "none".to_string());
+            let state = err
+                .code()
+                .map(|code| code.code().to_string())
+                .unwrap_or_else(|| "none".to_string());
             Stop::new(step, format!("sqlstate={state}"))
         })?;
         row.try_get(0).map_err(|_| Stop::new(step, "scalar"))
     }
 
-    fn query_once(env: &Env, name: &str, policies: &Value, digest: &str, sql: &str) -> Result<CmdOut, Stop> {
+    fn query_once(
+        env: &Env,
+        name: &str,
+        policies: &Value,
+        digest: &str,
+        sql: &str,
+    ) -> Result<CmdOut, Stop> {
         let audit_path = env.evidence.join(format!("audits/{name}.jsonl"));
-        let audit = audit_path.to_str().ok_or_else(|| Stop::new(name, "audit path"))?;
+        let audit = audit_path
+            .to_str()
+            .ok_or_else(|| Stop::new(name, "audit path"))?;
         let request = json!({
             "version": "oo.gateway.query-pg/v1",
             "endpoint": {"host": env.host, "port": env.port, "database": TARGET_DB, "user": LOGIN},
@@ -1994,17 +2217,23 @@ mod a327_live {
             return Err(Stop::new("amounts", format!("lines={}", lines.len())));
         }
         for (index, expect) in rows.iter().enumerate() {
-            if lines[index]["record"].as_str() != Some("row") || lines[index]["turn"].as_i64() != Some(0) {
+            if lines[index]["record"].as_str() != Some("row")
+                || lines[index]["turn"].as_i64() != Some(0)
+            {
                 return Err(Stop::new("amounts", "row header"));
             }
-            let cells = lines[index]["cells"].as_array().ok_or_else(|| Stop::new("amounts", "cells"))?;
+            let cells = lines[index]["cells"]
+                .as_array()
+                .ok_or_else(|| Stop::new("amounts", "cells"))?;
             if cells.len() != expect.len() {
                 return Err(Stop::new("amounts", "width"));
             }
             for (cell, expected) in cells.iter().zip(expect.iter()) {
                 match expected {
                     CellExpect::Int(value) => {
-                        if cell["kind"].as_str() != Some("int") || cell["value"].as_str() != Some(*value) {
+                        if cell["kind"].as_str() != Some("int")
+                            || cell["value"].as_str() != Some(*value)
+                        {
                             return Err(Stop::new("amounts", "int"));
                         }
                     }
@@ -2013,7 +2242,10 @@ mod a327_live {
                             return Err(Stop::new("amounts", "null"));
                         }
                     }
-                    CellExpect::Dec { negative, coefficient } => {
+                    CellExpect::Dec {
+                        negative,
+                        coefficient,
+                    } => {
                         if cell["kind"].as_str() != Some("decimal")
                             || cell["negative"].as_bool() != Some(*negative)
                             || cell["coefficient"].as_str() != Some(*coefficient)
@@ -2025,7 +2257,9 @@ mod a327_live {
                 }
             }
         }
-        let summary = lines.last().ok_or_else(|| Stop::new("amounts", "summary"))?;
+        let summary = lines
+            .last()
+            .ok_or_else(|| Stop::new("amounts", "summary"))?;
         if summary["record"].as_str() != Some("summary")
             || summary["status"].as_str() != Some("succeeded")
             || summary["returned_rows"].as_u64() != Some(rows.len() as u64)
@@ -2086,7 +2320,13 @@ mod a327_live {
         Ok(out)
     }
 
-    fn run_bin(env: &Env, bin: &Path, args: &[&str], stdin: &[u8], name: &str) -> Result<CmdOut, Stop> {
+    fn run_bin(
+        env: &Env,
+        bin: &Path,
+        args: &[&str],
+        stdin: &[u8],
+        name: &str,
+    ) -> Result<CmdOut, Stop> {
         if exposes_secret(stdin, &env.passwords()) && !stdin_is_request(name) {
             return Err(Stop::new(name, "stdin contains a password"));
         }
@@ -2097,20 +2337,51 @@ mod a327_live {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|_| Stop::new(name, "spawn"))?;
-        child.stdin.take().ok_or_else(|| Stop::new(name, "stdin"))?.write_all(stdin).map_err(|_| Stop::new(name, "write"))?;
-        let output = child.wait_with_output().map_err(|_| Stop::new(name, "wait"))?;
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| Stop::new(name, "stdin"))?
+            .write_all(stdin)
+            .map_err(|_| Stop::new(name, "write"))?;
+        let output = child
+            .wait_with_output()
+            .map_err(|_| Stop::new(name, "wait"))?;
         let code = output.status.code().unwrap_or(127);
         let stdout = redact(&output.stdout, &env.passwords());
         let stderr = redact(&output.stderr, &env.passwords());
         let dir = env.evidence.join("steps");
-        fs::write(dir.join(format!("{name}.stdout")), &stdout).map_err(|_| Stop::new(name, "evidence"))?;
-        fs::write(dir.join(format!("{name}.stderr")), &stderr).map_err(|_| Stop::new(name, "evidence"))?;
-        fs::write(dir.join(format!("{name}.exit")), format!("{code}\n")).map_err(|_| Stop::new(name, "evidence"))?;
-        Ok(CmdOut { code, stdout, stderr })
+        fs::write(dir.join(format!("{name}.stdout")), &stdout)
+            .map_err(|_| Stop::new(name, "evidence"))?;
+        fs::write(dir.join(format!("{name}.stderr")), &stderr)
+            .map_err(|_| Stop::new(name, "evidence"))?;
+        fs::write(dir.join(format!("{name}.exit")), format!("{code}\n"))
+            .map_err(|_| Stop::new(name, "evidence"))?;
+        Ok(CmdOut {
+            code,
+            stdout,
+            stderr,
+        })
     }
 
     fn stdin_is_request(name: &str) -> bool {
-        matches!(name, "catalog-pg" | "import-pg" | "import-pg-not-ready" | "init-pg" | "analyze-pg" | "install-column-acl" | "provision-mapping-reader" | "provision-loose" | "provision-over" | "amounts" | "nan" | "pos-inf" | "neg-inf" | "hidden" | "before-analyze")
+        matches!(
+            name,
+            "catalog-pg"
+                | "import-pg"
+                | "import-pg-not-ready"
+                | "init-pg"
+                | "analyze-pg"
+                | "install-column-acl"
+                | "provision-mapping-reader"
+                | "provision-loose"
+                | "provision-over"
+                | "amounts"
+                | "nan"
+                | "pos-inf"
+                | "neg-inf"
+                | "hidden"
+                | "before-analyze"
+        )
     }
 
     fn require_exit(env: &Env, name: &str, output: &CmdOut, code: i32) -> Result<(), Stop> {
@@ -2118,7 +2389,11 @@ mod a327_live {
             return Ok(());
         }
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut detail = format!("exit {} stderr={}", output.code, stderr.chars().take(300).collect::<String>());
+        let mut detail = format!(
+            "exit {} stderr={}",
+            output.code,
+            stderr.chars().take(300).collect::<String>()
+        );
         for secret in env.passwords() {
             if !secret.is_empty() {
                 detail = detail.replace(secret, "[redacted]");
@@ -2137,7 +2412,9 @@ mod a327_live {
 
     fn exposes_secret(bytes: &[u8], secrets: &[&str]) -> bool {
         let text = String::from_utf8_lossy(bytes);
-        secrets.iter().any(|secret| !secret.is_empty() && text.contains(secret))
+        secrets
+            .iter()
+            .any(|secret| !secret.is_empty() && text.contains(secret))
     }
 
     fn parse_json(bytes: &[u8], step: &str) -> Result<Value, Stop> {
@@ -2153,7 +2430,11 @@ mod a327_live {
     }
 
     fn text_at(value: &Value, pointer: &str, step: &str) -> Result<String, Stop> {
-        value.pointer(pointer).and_then(Value::as_str).map(str::to_string).ok_or_else(|| Stop::new(step, "missing"))
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| Stop::new(step, "missing"))
     }
 
     fn to_vec(value: &Value) -> Result<Vec<u8>, Stop> {
@@ -2161,7 +2442,10 @@ mod a327_live {
     }
 
     fn sha256_hex(bytes: &[u8]) -> String {
-        Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
+        Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
     }
 
     fn env_var(name: &str) -> Result<String, Stop> {

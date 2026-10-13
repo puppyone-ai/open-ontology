@@ -1,0 +1,6 @@
+/usr/share/doc/mariadb-backup/copyright
+/usr/share/doc/mariadb-client-core/copyright
+/usr/share/doc/mariadb-client/copyright
+/usr/share/doc/mariadb-common/copyright
+/usr/share/doc/mariadb-server-core/copyright
+/usr/share/doc/mariadb-server/copyright

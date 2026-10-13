@@ -1,9 +1,0 @@
-tools/query-result-export/CONTRACT.md
-tools/query-result-export/src/csv.rs
-tools/query-result-export/src/json.rs
-tools/query-result-export/src/lib.rs
-tools/query-result-export/src/limits.rs
-tools/query-result-export/src/main.rs
-tools/query-result-export/src/parse.rs
-tools/query-result-export/src/sidecar.rs
-tools/query-result-export/tests/api.rs

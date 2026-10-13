@@ -1,1 +1,0 @@
-description-review.single-request: the aggregate generation has no single complete command. Per-table review uses each call complete command. Field publication remains description-candidate.dataset_only.

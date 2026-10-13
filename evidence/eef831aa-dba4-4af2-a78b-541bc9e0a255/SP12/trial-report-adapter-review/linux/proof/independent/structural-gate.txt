@@ -1,9 +1,0 @@
-allfail_statistics_exit=0
-allfail_gate=passed
-allfail_question_count=1
-allfail_reannotation_count=0
-allfail_trial_count=4
-allfail_pass_k_count=0,0
-meaning=structural
-quality_winner=no
-reason=The consumed trial-statistics gate is passed when reannotation_count is 0. Both pass_k_count values are 0. The word passed does not say either side won.

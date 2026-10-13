@@ -1,0 +1,137 @@
+{
+  "protocol": "oo.source-admission.config/v1",
+  "target_id": "clickhouse-26-8-selfmanaged",
+  "source_id": "clickhouse_268",
+  "secret_ref": "secret://oo-dl01w1-40/reader",
+  "compat_mode": "clickhouse-native",
+  "permissions": [
+    {
+      "name": "SHOW DATABASES",
+      "status": "known",
+      "granted": true
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "oo_dl01w40"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "columns"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "databases"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "grants"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "mutations"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "parts"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "processes"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "query_log"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "settings"
+      }
+    },
+    {
+      "name": "SELECT",
+      "status": "known",
+      "granted": true,
+      "scope": {
+        "database": "system",
+        "table": "tables"
+      }
+    }
+  ],
+  "budget": {
+    "unit": "Rows",
+    "hard_limit": 100000,
+    "confidence": "unknown"
+  },
+  "write_options": {
+    "signal_table": false,
+    "heartbeat_write": false,
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "debezium": {
+    "signal_data_collection": null,
+    "heartbeat_action_query": null,
+    "snapshot_mode": "never",
+    "create_stream": false,
+    "create_trigger": false
+  },
+  "requested_write_class": "R0",
+  "r1w": null,
+  "native": {
+    "clickhouse": {
+      "readonly": "1",
+      "max_execution_time": "8",
+      "quota": {
+        "duration_seconds": 3600,
+        "queries": 400,
+        "errors": 80,
+        "result_rows": 1000000,
+        "read_rows": 10000000,
+        "execution_time_seconds": 300
+      }
+    }
+  }
+}

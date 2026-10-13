@@ -1,0 +1,14 @@
+{
+  "summary_sha256": "49e476c0ba41b7e3f0de39de68d0edfdaf4b670c54f0e7e019a5083c7c5bc28e",
+  "artifacts_verified": 18,
+  "errors": [],
+  "source_commit": "9adc937dbc9a3771773f3d1cd76fed4ff31c98f5",
+  "evidence_commit": "94745df46",
+  "build_id": "b_b5f008a6da20b9596a6fc6550f13b92a",
+  "all_S0_S10_succeeded": true,
+  "actual_response_model": "gpt-6.1-sol",
+  "same_identity_cache_no_socket": true,
+  "publication": "refused",
+  "business_owner_signed": false,
+  "scope": "root verified current genuine Selfbuild and maintained artifacts; DL01 Gateway preview pending; formal publication not accepted"
+}

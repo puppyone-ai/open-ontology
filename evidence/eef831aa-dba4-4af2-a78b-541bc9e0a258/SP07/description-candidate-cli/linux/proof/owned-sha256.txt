@@ -1,4 +1,0 @@
-c28297d86349507fff5bc67e5aa796a0f58836b8974cc9b1d7f08ade7d31798d  crates/oo-builder/src/bin/description-candidate.rs
-96e0ab7ddb35280ef6eb3deee8b8799bc386e87042070b3d493941e5bead0c9d  crates/oo-builder/tests/description_candidate_cli.rs
-bd37f499bbba86dae2905bc45e1770a5342193f8facc7d62dcd34458f3156d64  contracts/builder/description-candidate-cli-v1.md
-16e6afda29ae4bae251d569f3c4ad16459527f0d0323598d8e4e0971818d458a  Cargo.lock

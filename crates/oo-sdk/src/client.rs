@@ -1,11 +1,12 @@
 //! One query attempt, then the narrow admission retry.
 
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use reqwest::header::{
     ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, HeaderMap, RETRY_AFTER, TRANSFER_ENCODING,
 };
-use reqwest::{Certificate, StatusCode};
+use reqwest::{Certificate, Method, StatusCode};
 
 use oo_core::api::{ErrorCode, QueryRequest, QueryResponse};
 
@@ -25,9 +26,18 @@ pub struct Client {
     endpoint: Endpoint,
     token: BearerToken,
     config: ClientConfig,
+    auth_cache_remaining_ms: Mutex<Option<u128>>,
 }
 
 impl Client {
+    /// Accepts an origin and credentials the caller has already read.
+    ///
+    /// This function does not open a file and does not connect. The bearer,
+    /// trust PEM, and client identity are in-memory values. A caller that is
+    /// handed a path has to reject the mode, the owner, and a symlink before
+    /// it builds a client. The `public_call` example does that, and only then
+    /// calls `new`. Passing bytes that were read earlier is outside that file
+    /// gate: this library never sees the path.
     pub fn new(base: &str, token: BearerToken, config: ClientConfig) -> Result<Self, QueryError> {
         let endpoint = Endpoint::parse(base, config.transport())
             .map_err(|error| QueryError::Local(LocalError::Endpoint(error)))?;
@@ -37,7 +47,25 @@ impl Client {
             endpoint,
             token,
             config,
+            auth_cache_remaining_ms: Mutex::new(None),
         })
+    }
+
+    /// Remaining server lookup-cache time from the last response that sent it.
+    pub fn auth_cache_remaining_ms(&self) -> Option<u128> {
+        self.auth_cache_remaining_ms
+            .lock()
+            .ok()
+            .and_then(|slot| *slot)
+    }
+
+    fn note_auth_cache(&self, headers: &HeaderMap) {
+        let Some(ms) = note_header_remaining(headers) else {
+            return;
+        };
+        if let Ok(mut slot) = self.auth_cache_remaining_ms.lock() {
+            *slot = Some(ms);
+        }
     }
 
     pub fn query_url(&self) -> &str {
@@ -120,6 +148,7 @@ impl Client {
         }
         let status = response.status();
         let headers = response.headers().clone();
+        self.note_auth_cache(&headers);
         let retry_after = parse_retry_after(&headers);
         let bytes = read_capped(response, self.config.byte_caps().response).await?;
         interpret(
@@ -130,6 +159,109 @@ impl Client {
             self.token.secret(),
             sql,
             self.endpoint.as_str(),
+        )
+    }
+
+    pub async fn tables(&self) -> Result<serde_json::Value, QueryError> {
+        self.get_object("/v1/tables").await
+    }
+
+    pub async fn describe(&self, table: &str) -> Result<serde_json::Value, QueryError> {
+        self.get_object(&one_public_path("/v1/tables", table)?)
+            .await
+    }
+
+    pub async fn sql_validate(&self, sql: &str) -> Result<serde_json::Value, QueryError> {
+        let body = serde_json::json!({"sql": sql});
+        self.post_object("/v1/sql/validate", &body).await
+    }
+
+    pub async fn freshness(&self) -> Result<serde_json::Value, QueryError> {
+        self.get_object("/v1/freshness").await
+    }
+
+    pub async fn knowledge(&self, path: &str) -> Result<serde_json::Value, QueryError> {
+        self.get_object(&public_path("/v1/knowledge", path)?).await
+    }
+
+    pub async fn knowledge_search(&self, needle: &str) -> Result<serde_json::Value, QueryError> {
+        let body = serde_json::json!({"q": needle});
+        self.post_object("/v1/knowledge/search", &body).await
+    }
+
+    pub async fn operations(&self) -> Result<serde_json::Value, QueryError> {
+        self.get_object("/v1/operations").await
+    }
+
+    pub async fn query_status(&self, query_id: &str) -> Result<serde_json::Value, QueryError> {
+        self.get_object(&one_public_path(&id_prefix(query_id), query_id)?)
+            .await
+    }
+
+    pub async fn cancel(&self, query_id: &str) -> Result<serde_json::Value, QueryError> {
+        let path = format!(
+            "{}/cancel",
+            one_public_path(&id_prefix(query_id), query_id)?
+        );
+        self.post_object(&path, &serde_json::json!({})).await
+    }
+
+    async fn get_object(&self, path: &str) -> Result<serde_json::Value, QueryError> {
+        self.exchange(Method::GET, path, None).await
+    }
+
+    async fn post_object(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value, QueryError> {
+        let bytes =
+            serde_json::to_vec(body).map_err(|_| QueryError::Local(LocalError::RequestRejected))?;
+        self.exchange(Method::POST, path, Some(bytes)).await
+    }
+
+    async fn exchange(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<Vec<u8>>,
+    ) -> Result<serde_json::Value, QueryError> {
+        let url = self
+            .endpoint
+            .sibling(path)
+            .map_err(|error| QueryError::Local(LocalError::Endpoint(error)))?;
+        let per_attempt = self.config.timeouts().request;
+        let mut request = self
+            .http
+            .request(method, url.clone())
+            .timeout(per_attempt)
+            .header(ACCEPT, "application/json")
+            .header(AUTHORIZATION, self.token.authorization());
+        if let Some(bytes) = body {
+            request = request.header(CONTENT_TYPE, "application/json").body(bytes);
+        }
+        let response = request.send().await.map_err(|error| {
+            if error.is_redirect() {
+                QueryError::Protocol(ProtocolError::Redirect)
+            } else {
+                QueryError::Transport(classify_transport(&error))
+            }
+        })?;
+        if response.url().as_str() != url.as_str() {
+            return Err(QueryError::Protocol(ProtocolError::Redirect));
+        }
+        let status = response.status();
+        let headers = response.headers().clone();
+        self.note_auth_cache(&headers);
+        let retry_after = parse_retry_after(&headers);
+        let bytes = read_capped(response, self.config.byte_caps().response).await?;
+        interpret_value(
+            status,
+            &headers,
+            retry_after,
+            &bytes,
+            self.token.secret(),
+            url.as_str(),
         )
     }
 }
@@ -165,6 +297,11 @@ fn build_http(config: &ClientConfig) -> Result<reqwest::Client, QueryError> {
             return Err(QueryError::Local(LocalError::Trust));
         }
         builder = builder.tls_certs_only(certs);
+    }
+    if let Some(pem) = config.identity() {
+        let identity =
+            reqwest::Identity::from_pem(pem).map_err(|_| QueryError::Local(LocalError::Trust))?;
+        builder = builder.identity(identity);
     }
     builder
         .build()
@@ -306,6 +443,90 @@ fn interpret(
         scrub_text(envelope.error.message().as_str(), token, sql, endpoint),
         hint,
     )))
+}
+
+fn interpret_value(
+    status: StatusCode,
+    headers: &HeaderMap,
+    admission: AdmissionWait,
+    bytes: &[u8],
+    token: &str,
+    endpoint: &str,
+) -> Result<serde_json::Value, QueryError> {
+    let code = status.as_u16();
+    if (300..400).contains(&code) {
+        return Err(QueryError::Protocol(ProtocolError::Redirect));
+    }
+    if !json_content_type(headers) {
+        return Err(QueryError::Protocol(ProtocolError::ContentType));
+    }
+    if code == 200 {
+        let value: serde_json::Value = serde_json::from_slice(bytes)
+            .map_err(|_| QueryError::Protocol(ProtocolError::Rejected))?;
+        if !value.is_object() {
+            return Err(QueryError::Protocol(ProtocolError::Rejected));
+        }
+        return Ok(value);
+    }
+    let envelope = decode_error(bytes)?;
+    if envelope.error.code().http_status() != code || !envelope.consistent() {
+        return Err(QueryError::Protocol(ProtocolError::Status { status: code }));
+    }
+    let query_id = envelope.error.query_id().cloned();
+    let hint = envelope
+        .error
+        .hint()
+        .map(|text| scrub_text(text.as_str(), token, "", endpoint));
+    Err(QueryError::Gateway(GatewayError::new(
+        code,
+        envelope.error.code(),
+        envelope.error.retryable(),
+        query_id,
+        admission,
+        scrub_text(envelope.error.message().as_str(), token, "", endpoint),
+        hint,
+    )))
+}
+
+fn one_public_path(prefix: &str, segment: &str) -> Result<String, QueryError> {
+    public_path(prefix, segment)
+}
+
+fn id_prefix(query_id: &str) -> String {
+    if query_id.starts_with("s_") {
+        "/v1/operations".to_string()
+    } else {
+        "/v1/queries".to_string()
+    }
+}
+
+fn note_header_remaining(headers: &HeaderMap) -> Option<u128> {
+    let value = headers.get("x-oo-auth-cache-remaining-ms")?;
+    let text = value.to_str().ok()?;
+    text.parse().ok()
+}
+
+fn public_path(prefix: &str, path: &str) -> Result<String, QueryError> {
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.contains('\\')
+        || path.contains('\0')
+        || path.contains('%')
+    {
+        return Err(QueryError::Local(LocalError::RequestRejected));
+    }
+    for segment in path.split('/') {
+        if segment.is_empty()
+            || segment == "."
+            || segment == ".."
+            || !segment.bytes().all(|byte| {
+                byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'~' | b'-')
+            })
+        {
+            return Err(QueryError::Local(LocalError::RequestRejected));
+        }
+    }
+    Ok(format!("{prefix}/{path}"))
 }
 
 fn json_content_type(headers: &HeaderMap) -> bool {

@@ -1,9 +1,0 @@
-Attempt 1 fetch exited 101 before any test ran.
-The builder mounted calendar-store, business-calendar, enum-store, enum-history, and oo-core as separate trees.
-oo-core inherits edition, license, publish, rust-version, version, and lints from the repository workspace.
-Cargo reported: failed to find a workspace root for /src/crates/oo-core.
-PostgreSQL 17.10 stayed up. oo_a365_solo and the calendar roles were created. No enum role and no test command ran.
-The replacement builder uses the reviewed archive overlay and the same postgres container.
-Origin of the overlay: evidence/eef831aa-dba4-4af2-a78b-541bc9e0a289/SP08/calendar-store/linux/impl-1/launch.sh
-and evidence/eef831aa-dba4-4af2-a78b-541bc9e0a293/SP08/enum-store/linux/impl-1/launch.sh.
-The child Cargo.lock files stay in place. No cargo update and no root manifest edit.

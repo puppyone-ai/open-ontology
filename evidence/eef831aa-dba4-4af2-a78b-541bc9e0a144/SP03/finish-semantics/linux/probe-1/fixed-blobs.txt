@@ -1,4 +1,0 @@
-f1a71fa73064dfb3b83d7d0183f43c6e1a9751a7 crates/oo-connectors/src/snapshot.rs
-7e191eacbf61439680cbd92a7109ded6c8a05596 crates/oo-connectors/src/session.rs
-ba9b215a059440a4681578200e7d719cf22407e2 crates/oo-connectors/src/stream.rs
-0f08c66c16333f68ac30719fc4b631b0baf8c2b9 contracts/source/pgsql/reader-lifecycle-v1.md

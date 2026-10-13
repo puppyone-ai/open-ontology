@@ -1,7 +1,0 @@
-ts=2026-10-07T23:45:26Z
-global_rust=1
-own_rust=0
-own_pg=0
-global_pg=1
-oo-a365-proof kind=rust-builder owner=a365 status=Up 52 minutes
-oo-a365-pg kind=postgres owner=a365 status=Up About an hour

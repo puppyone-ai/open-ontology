@@ -1,9 +1,0 @@
-Removed only a262 resources after the CLI proof.
-
-Containers: none remained. smoke 14c34807829e47473082d73de96bf02e6b2d22b192c9879cd474ad1e491038f3, red f9a874a2eccf7335d29f60d597f737261585027ee31f76ad353dc5710576df17, proof 3b5228e2bc26550d638ad9657473dda4f9f2d1143bac1ea1e4fec3537d3781fb, and cli 9d307d9b14001ec7ba61ce078381ea0b658e244e854017ba7ff77ea0dbb014e0 were removed by their launch scripts.
-
-Volumes removed: oo-a262-eef831aa-cargo, oo-a262-eef831aa-target.
-Network removed: oo-a262-eef831aa-net (44b78f92d519).
-Private tmp removed: /tmp/oo-a262-eef831aa-dba4-4af2-a78b-541bc9e0a262.
-
-No prune. No other owner's containers, volumes, or networks were removed.

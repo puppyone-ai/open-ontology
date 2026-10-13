@@ -1,0 +1,12 @@
+{"bytes_in":302,"bytes_out":143,"class":"late_cancel","error":null,"identity":"reader","method":"POST","n":1,"path":"/oo-dl01w1-44-workload/_search?request_cache=false","status":200}
+{"bytes_in":21,"bytes_out":0,"class":"setup_write","error":null,"identity":"dba","method":"DELETE","n":1,"path":"/oo-dl01w1-44-workload","status":200}
+{"bytes_in":80,"bytes_out":177,"class":"setup_write","error":null,"identity":"dba","method":"PUT","n":2,"path":"/oo-dl01w1-44-workload","status":200}
+{"bytes_in":18426,"bytes_out":6290,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":3,"path":"/oo-dl01w1-44-workload/_bulk","status":200}
+{"bytes_in":49,"bytes_out":2,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":4,"path":"/oo-dl01w1-44-workload/_refresh","status":200}
+{"bytes_in":18535,"bytes_out":6400,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":5,"path":"/oo-dl01w1-44-workload/_bulk","status":200}
+{"bytes_in":49,"bytes_out":2,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":6,"path":"/oo-dl01w1-44-workload/_refresh","status":200}
+{"bytes_in":18535,"bytes_out":6400,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":7,"path":"/oo-dl01w1-44-workload/_bulk","status":200}
+{"bytes_in":49,"bytes_out":2,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":8,"path":"/oo-dl01w1-44-workload/_refresh","status":200}
+{"bytes_in":18536,"bytes_out":6400,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":9,"path":"/oo-dl01w1-44-workload/_bulk","status":200}
+{"bytes_in":49,"bytes_out":2,"class":"setup_write","error":null,"identity":"dba","method":"POST","n":10,"path":"/oo-dl01w1-44-workload/_refresh","status":200}
+{"bytes_in":12,"bytes_out":0,"class":"control_stats","error":null,"identity":"dba","method":"GET","n":11,"path":"/_tasks?actions=*search*&detailed=true","status":200}

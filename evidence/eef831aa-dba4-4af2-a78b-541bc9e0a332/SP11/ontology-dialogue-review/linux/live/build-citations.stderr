@@ -1,9 +1,0 @@
-   Compiling proc-macro2 v1.0.107
-   Compiling quote v1.0.47
-   Compiling syn v3.0.6
-   Compiling serde_derive v1.0.229
-   Compiling memchr v2.8.3
-   Compiling serde_json v1.0.151
-   Compiling serde v1.0.229
-   Compiling answer-citations v0.1.0 (/src/tools/answer-citations)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.47s

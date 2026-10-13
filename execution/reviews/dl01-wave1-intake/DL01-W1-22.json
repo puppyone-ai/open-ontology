@@ -1,0 +1,12 @@
+{
+  "task": "DL01-W1-22",
+  "reviewer": "Codex coordinator independent packet collection",
+  "fixed_review_commit": "d655cb9e93073ad8593f7b73a0dcdd55de298800",
+  "packet": "evidence/1f05190d-5fc1-48da-84f8-7963566f8b56/DL01/clickhouse-fixed-review",
+  "entries_verified": 342,
+  "errors": [],
+  "original_verdict": "approve_setup_dependency",
+  "acceptance_scope": "setup dependency only",
+  "functional_acceptance_delta": 0,
+  "source_acceptance_delta": 0
+}

@@ -8,7 +8,7 @@ if [ -f "${EVIDENCE}/run/init.exit" ]; then
   exit 2
 fi
 umask 077
-mkdir -p "${STATE}/secrets/init" "${STATE}/config" "${STATE}/bin" "${STATE}/probe"
+mkdir -p "${STATE}/secrets/init" "${STATE}/config" "${STATE}/bin" "${STATE}/probe" "${STATE}/packs" "${STATE}/work"
 chmod 700 "${STATE}" "${STATE}/secrets" "${STATE}/config"
 if [ ! -f "${STATE}/secrets/ca.crt" ]; then
   openssl req -x509 -newkey rsa:2048 -nodes -keyout "${STATE}/secrets/ca.key" -out "${STATE}/secrets/ca.crt" -days 7 -subj "/CN=oo-a395-ca" >/dev/null 2>&1
@@ -44,7 +44,23 @@ keyUsage=digitalSignature
 extendedKeyUsage=clientAuth
 EOF
   openssl x509 -req -in "${STATE}/secrets/audit-client.csr" -CA "${STATE}/secrets/ca.crt" -CAkey "${STATE}/secrets/ca.key" -CAcreateserial -out "${STATE}/secrets/audit-client.crt" -days 7 -extfile "${STATE}/secrets/audit-client.cnf" >/dev/null 2>&1
-  for name in fixture-admin identity-admin identity-runtime audit session-admin session-runtime session-cancel session-query token-admin token-runtime api-admin api-runtime client; do
+  openssl req -newkey rsa:2048 -nodes -keyout "${STATE}/secrets/release.key" -out "${STATE}/secrets/release.csr" -subj "/CN=release-control-api" >/dev/null 2>&1
+  cat > "${STATE}/secrets/release-san.cnf" <<'EOF'
+basicConstraints=CA:FALSE
+subjectAltName=DNS:release-control-api
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+EOF
+  openssl x509 -req -in "${STATE}/secrets/release.csr" -CA "${STATE}/secrets/ca.crt" -CAkey "${STATE}/secrets/ca.key" -CAcreateserial -out "${STATE}/secrets/release.crt" -days 7 -extfile "${STATE}/secrets/release-san.cnf" >/dev/null 2>&1
+  openssl req -newkey rsa:2048 -nodes -keyout "${STATE}/secrets/selfbuild.key" -out "${STATE}/secrets/selfbuild.csr" -subj "/CN=selfbuild-control-api" >/dev/null 2>&1
+  cat > "${STATE}/secrets/selfbuild-san.cnf" <<'EOF'
+basicConstraints=CA:FALSE
+subjectAltName=DNS:selfbuild-control-api
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+EOF
+  openssl x509 -req -in "${STATE}/secrets/selfbuild.csr" -CA "${STATE}/secrets/ca.crt" -CAkey "${STATE}/secrets/ca.key" -CAcreateserial -out "${STATE}/secrets/selfbuild.crt" -days 7 -extfile "${STATE}/secrets/selfbuild-san.cnf" >/dev/null 2>&1
+  for name in fixture-admin identity-admin identity-runtime audit session-admin session-runtime session-cancel session-query token-admin token-runtime api-admin api-runtime client release-api release-producer release-reader selfbuild-api selfbuild-source llm reviewer; do
     openssl rand -hex 24 > "${STATE}/secrets/${name}.pass"
   done
 fi
@@ -70,6 +86,11 @@ names = {
     "identity_admin": read("identity-admin.pass"),
     "audit": read("audit.pass"),
     "fixture": read("fixture-admin.pass"),
+    "release_api": read("release-api.pass"),
+    "release_producer": read("release-producer.pass"),
+    "release_reader": read("release-reader.pass"),
+    "selfbuild_api": read("selfbuild-api.pass"),
+    "selfbuild_source": read("selfbuild-source.pass"),
 }
 sql = f"""CREATE ROLE oo_identity_runtime NOLOGIN;
 CREATE ROLE oo_identity_admin LOGIN PASSWORD '{names["identity_admin"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
@@ -83,10 +104,15 @@ CREATE ROLE oo_token_admin LOGIN PASSWORD '{names["token_admin"]}' NOSUPERUSER N
 CREATE ROLE oo_token_runtime LOGIN PASSWORD '{names["token_runtime"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE oo_session_api_admin LOGIN PASSWORD '{names["api_admin"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE oo_session_api_runtime LOGIN PASSWORD '{names["api_runtime"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE ROLE oo_release_api_admin LOGIN PASSWORD '{names["release_api"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE ROLE oo_release_admin LOGIN PASSWORD '{names["release_producer"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE ROLE oo_release_reader LOGIN PASSWORD '{names["release_reader"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE ROLE oo_selfbuild_api_admin LOGIN PASSWORD '{names["selfbuild_api"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE ROLE oo_selfbuild_source LOGIN PASSWORD '{names["selfbuild_source"]}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
 CREATE DATABASE oo_a395 OWNER oo_session_admin;
 REVOKE ALL ON DATABASE oo_a395 FROM PUBLIC;
-GRANT CONNECT, CREATE ON DATABASE oo_a395 TO oo_session_admin, oo_token_admin, oo_session_api_admin, oo_identity_admin;
-GRANT CONNECT ON DATABASE oo_a395 TO oo_session_runtime, oo_fixture_query, oo_session_cancel, oo_token_runtime, oo_session_api_runtime, audit_ingest;
+GRANT CONNECT, CREATE ON DATABASE oo_a395 TO oo_session_admin, oo_token_admin, oo_session_api_admin, oo_identity_admin, oo_release_admin, oo_release_api_admin, oo_selfbuild_api_admin;
+GRANT CONNECT ON DATABASE oo_a395 TO oo_session_runtime, oo_fixture_query, oo_session_cancel, oo_token_runtime, oo_session_api_runtime, audit_ingest, oo_release_reader, oo_selfbuild_source;
 """
 path = sec / "init" / "01-roles.sql"
 path.write_text(sql)
@@ -195,7 +221,116 @@ session = {
 path = state / "config" / "session.json"
 path.write_text(json.dumps(session))
 path.chmod(0o600)
+def pg(user, password):
+    return {
+        "ca_file": "/secrets/ca.crt",
+        "database": "oo_a395",
+        "host": "control-db",
+        "password_file": password,
+        "port": 5432,
+        "user": user,
+    }
+release = {
+    "api_pg": pg("oo_release_api_admin", "/secrets/release-api.pass"),
+    "authority_id": "shop-authority",
+    "deployment_origins": ["https://release-control-api:8446"],
+    "https_origin": "https://release-control-api:8446",
+    "identity_ca_file": "/secrets/ca.crt",
+    "identity_origin": "https://control-identity:8443",
+    "listen_host": "0.0.0.0",
+    "listen_port": 8446,
+    "pack_dir": "/packs",
+    "producer_pg": pg("oo_release_admin", "/secrets/release-producer.pass"),
+    "project_id": "alpha",
+    "reader_pg": pg("oo_release_reader", "/secrets/release-reader.pass"),
+    "tls_cert_file": "/secrets/release.crt",
+    "tls_key_file": "/secrets/release.key",
+}
+path = state / "config" / "release.json"
+path.write_text(json.dumps(release, separators=(",", ":")))
+path.chmod(0o600)
+preimage = b"oo-a395-selfbuild-config-not-a-git-commit"
+import hashlib
+config_commit = hashlib.sha256(preimage).hexdigest()
+(state / "config" / "selfbuild-commit-preimage.txt").write_text(preimage.decode() + "\n")
+(state / "config" / "selfbuild-commit-preimage.txt").chmod(0o600)
+(state / "config" / "role-policy.json").write_text('{"roles":[]}\n')
+(state / "config" / "role-policy.json").chmod(0o600)
+def endpoint(user, password):
+    return {
+        "host": "control-db",
+        "port": 5432,
+        "database": "oo_a395",
+        "user": user,
+        "password_file": password,
+        "ca_file": "/secrets/ca.crt",
+        "server_name": "control-db",
+    }
+selfbuild = {
+    "contract": "oo.selfbuild-control-api.config/v1",
+    "deployment_origins": ["https://selfbuild-control-api:8447"],
+    "listen": {
+        "bind": "0.0.0.0:8447",
+        "cert_file": "/secrets/selfbuild.crt",
+        "key_file": "/secrets/selfbuild.key",
+    },
+    "identity": {"origin": "https://control-identity:8443", "ca_file": "/secrets/ca.crt"},
+    "postgres": endpoint("oo_selfbuild_api_admin", "/secrets/selfbuild-api.pass"),
+    "work_dir": "/work",
+    "model_cache_dir": "",
+    "binaries": {
+        "catalog": "/producers/catalog",
+        "pg_builder": "/producers/pg-builder",
+        "rules": "/producers/rules",
+        "suggestions": "/producers/suggestions",
+        "review_ledger": "/producers/review-ledger",
+    },
+    "projects": [{
+        "project_id": "alpha",
+        "config_commit": config_commit,
+        "source_ref": "shop_source",
+        "allowance_id": "shop_allowance",
+        "llm_secret_ref": "secret://llm/bearer",
+        "source_secret_ref": "secret://source/shop",
+        "source": {
+            "host": "control-db",
+            "port": 5432,
+            "database": "oo_a395",
+            "username": "oo_selfbuild_source",
+            "password_file": "/secrets/selfbuild-source.pass",
+            "ca_file": "/secrets/ca.crt",
+            "tables": [
+                {"schema": "shop", "table": "party"},
+                {"schema": "shop", "table": "account"},
+                {"schema": "shop", "table": "entry"},
+            ],
+        },
+        "sample_policy": "none",
+        "rules_auto_accept": "none",
+        "llm": {
+            "bearer_file": "/secrets/llm.pass",
+            "origin": "http://127.0.0.1:8317",
+            "model_id": "grok-4.7",
+        },
+        "role_policy_file": "/config/role-policy.json",
+        "hidden_columns": ["shop.entry.memo"],
+        "visible_columns": ["shop.party.id", "shop.account.id"],
+    }],
+    "ledger": endpoint("oo_selfbuild_api_admin", "/secrets/selfbuild-api.pass"),
+    "principals": [{
+        "subject": "fixture-admin",
+        "ledger_role": "reviewer",
+        "principal_id": "fixture-admin",
+        "reviewer_label": "fixture-admin",
+        "credential_file": "/secrets/reviewer.pass",
+        "object_scope": ["shop.party"],
+    }],
+}
+path = state / "config" / "selfbuild.json"
+path.write_text(json.dumps(selfbuild, separators=(",", ":")))
+path.chmod(0o600)
 print("config_commit", commit)
+print("selfbuild_config_commit", config_commit)
 PY
 
 create_net() {

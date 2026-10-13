@@ -1,1 +1,0 @@
-Linux 989aea8200e0 6.12.76-linuxkit #1 SMP Fri Apr 17 14:56:37 UTC 2026 aarch64 GNU/Linux

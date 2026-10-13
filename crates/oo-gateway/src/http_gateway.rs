@@ -18,16 +18,16 @@ use std::time::{Duration, Instant};
 use axum::body::{Body, Bytes};
 use axum::extract::connect_info::{ConnectInfo, Connected};
 use axum::extract::{RawQuery, Request, State};
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
-use axum::middleware::{from_fn_with_state, Next};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::middleware::{Next, from_fn_with_state};
 use axum::response::Response;
 use axum::routing::{get, post};
 use axum::serve::{IncomingStream, Listener};
 use axum::{Extension, Router};
+use rustls::RootCertStore;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::server::{ServerConfig, WebPkiClientVerifier};
-use rustls::RootCertStore;
 use serde_json::{Map as JsonMap, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -41,14 +41,16 @@ use zeroize::Zeroize;
 
 pub use crate::accepted_token_store::{CurrentTuple, Endpoint, IssueGrant, TokenKind};
 use crate::accepted_token_store::{
-    lookup, rustls_connector, token_hash, DeclaredTransport, LookupCache, LookupRequest, RevokeScope,
-    TrustedControlAdapter,
+    DeclaredTransport, LookupCache, LookupRequest, RevokeScope, TrustedControlAdapter, lookup,
+    rustls_connector, token_hash,
 };
 use crate::http_error::{ApiCode, ApiError, JSON_MEDIA_TYPE};
 use crate::pack_catalog::{PackCatalog, PackMetadata};
+use oo_core::api::ErrorCode;
 
 const READ_TOKEN: &str = "SELECT token_kind, project_id, principal_id, role_name, claims_canonical, policy_version, knowledge_version, audience_url, sandbox_id, session_id, issued_at_ms, idle_deadline_ms, absolute_deadline_ms, revocation_floor FROM oo_token_control.token_record WHERE token_sha256 = $1";
-const TLS_FACT: &str = "SELECT ssl, version FROM pg_catalog.pg_stat_ssl WHERE pid = pg_catalog.pg_backend_pid()";
+const TLS_FACT: &str =
+    "SELECT ssl, version FROM pg_catalog.pg_stat_ssl WHERE pid = pg_catalog.pg_backend_pid()";
 const TUPLE_CACHE_TTL: Duration = Duration::from_millis(5_000);
 const RUNTIME_USER: &str = "oo_token_runtime";
 const ADMIN_USER: &str = "oo_token_admin";
@@ -68,7 +70,10 @@ const FORGED_CERT_HEADERS: &[&str] = &[
 
 enum Transport {
     Loopback,
-    Tls { acceptor: TlsAcceptor, handshake_timeout: Duration },
+    Tls {
+        acceptor: TlsAcceptor,
+        handshake_timeout: Duration,
+    },
 }
 
 struct TupleEntry {
@@ -91,6 +96,7 @@ struct Inner {
     probe: Option<Arc<ProbeHooks>>,
     log_probe_paths: bool,
     transport: Transport,
+    plane: Option<Arc<crate::public_surface::Plane>>,
 }
 
 impl Drop for Inner {
@@ -113,7 +119,21 @@ pub struct ProbeHooks {
 struct Identity {
     tuple: CurrentTuple,
     scope: &'static str,
+    auth_remaining_ms: u128,
+    auth_cache_hit: bool,
 }
+
+/// Authenticated public caller. The tuple comes from the token store, not from headers.
+pub(crate) struct PublicCaller {
+    pub tuple: CurrentTuple,
+    pub scope: &'static str,
+    /// Milliseconds left on the token-store positive cache. Zero when absent.
+    pub auth_remaining_ms: u128,
+    /// True when this lookup did not read the token database.
+    pub auth_cache_hit: bool,
+}
+
+pub(crate) type PublicPeer = Option<Extension<ConnectInfo<TlsPeer>>>;
 
 pub struct OperatorLoad {
     pub state: AppState,
@@ -155,8 +175,17 @@ impl AppState {
                 probe,
                 log_probe_paths,
                 transport: Transport::Loopback,
+                plane: None,
             }),
         }
+    }
+
+    pub(crate) fn pack_catalog(&self) -> &PackCatalog {
+        &self.inner.catalog
+    }
+
+    pub(crate) fn data_plane(&self) -> Option<Arc<crate::public_surface::Plane>> {
+        self.inner.plane.clone()
     }
 }
 
@@ -171,7 +200,9 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
             return Err("config");
         }
     }
-    let listen = required_text(object, "listen")?.parse::<SocketAddr>().map_err(|_| "listen")?;
+    let listen = required_text(object, "listen")?
+        .parse::<SocketAddr>()
+        .map_err(|_| "listen")?;
     if !tls && listen.ip() != IpAddr::V4(Ipv4Addr::LOCALHOST) {
         return Err("listen");
     }
@@ -189,7 +220,11 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
     if body_limit == 0 || timeout_ms == 0 || global_concurrency == 0 {
         return Err("limits");
     }
-    let loaded_tls = if tls { Some(load_tls_acceptor(dir, object)?) } else { None };
+    let loaded_tls = if tls {
+        Some(load_tls_acceptor(dir, object)?)
+    } else {
+        None
+    };
     let mut password = fs::read_to_string(dir.join(password_file)).map_err(|_| "password")?;
     if password.ends_with('\n') {
         password.pop();
@@ -219,8 +254,18 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
         password.zeroize();
         return Err(reason);
     }
+    let plane = match crate::public_surface::load_plane(dir, object) {
+        Ok(plane) => plane,
+        Err(reason) => {
+            password.zeroize();
+            return Err(reason);
+        }
+    };
     let transport = match loaded_tls {
-        Some((acceptor, handshake_timeout)) => Transport::Tls { acceptor, handshake_timeout },
+        Some((acceptor, handshake_timeout)) => Transport::Tls {
+            acceptor,
+            handshake_timeout,
+        },
         None => Transport::Loopback,
     };
     Ok(OperatorLoad {
@@ -239,16 +284,24 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
                 probe: None,
                 log_probe_paths: false,
                 transport,
+                plane,
             }),
         },
         listen,
     })
 }
 
-pub async fn serve(state: AppState, listen: SocketAddr, addr_path: &Path) -> Result<(), &'static str> {
+pub async fn serve(
+    state: AppState,
+    listen: SocketAddr,
+    addr_path: &Path,
+) -> Result<(), &'static str> {
     let tls = match &state.inner.transport {
         Transport::Loopback => None,
-        Transport::Tls { acceptor, handshake_timeout } => Some((acceptor.clone(), *handshake_timeout)),
+        Transport::Tls {
+            acceptor,
+            handshake_timeout,
+        } => Some((acceptor.clone(), *handshake_timeout)),
     };
     if let Some((acceptor, handshake_timeout)) = tls {
         return serve_tls(state, listen, addr_path, acceptor, handshake_timeout).await;
@@ -262,7 +315,9 @@ pub async fn serve(state: AppState, listen: SocketAddr, addr_path: &Path) -> Res
         return Err("listen");
     }
     fs::write(addr_path, format!("{bound}\n")).map_err(|_| "addr")?;
-    axum::serve(listener, router(state)).await.map_err(|_| "serve")
+    axum::serve(listener, router(state))
+        .await
+        .map_err(|_| "serve")
 }
 
 async fn serve_tls(
@@ -278,7 +333,11 @@ async fn serve_tls(
         return Err("listen");
     }
     fs::write(addr_path, format!("{bound}\n")).map_err(|_| "addr")?;
-    let listener = TlsListener { tcp, acceptor, handshake_timeout };
+    let listener = TlsListener {
+        tcp,
+        acceptor,
+        handshake_timeout,
+    };
     let make = router(state).into_make_service_with_connect_info::<TlsPeer>();
     axum::serve(listener, make).await.map_err(|_| "serve")
 }
@@ -291,21 +350,24 @@ fn assemble(state: AppState) -> Router {
     let mut router = Router::new();
     if probe {
         // The short deadline applies to `/slow` only. Routes added after this layer are outside it.
-        router = router.route("/slow", get(slow)).route_layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            Duration::from_millis(150),
-        ));
+        router = router
+            .route("/slow", get(slow))
+            .route_layer(TimeoutLayer::with_status_code(
+                StatusCode::REQUEST_TIMEOUT,
+                Duration::from_millis(150),
+            ));
     }
     router = router
         .route("/health", get(health))
         .route("/ready", get(ready))
         .route("/v1/session/current", get(session_current))
         .route("/v1/pack/metadata", get(pack_metadata))
-        .route("/v1/sql", post(sql_unsupported))
-        .route_layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            timeout,
-        ));
+        .route("/v1/sql", post(sql_unsupported));
+    router = crate::public_surface::mount(router);
+    router = router.route_layer(TimeoutLayer::with_status_code(
+        StatusCode::REQUEST_TIMEOUT,
+        timeout,
+    ));
     if probe {
         router = router.route("/hold", get(hold));
     }
@@ -332,7 +394,10 @@ async fn access_log(State(state): State<AppState>, request: Request, next: Next)
     }
     let path = logged_path(&path_raw, state.inner.log_probe_paths);
     let response = next.run(request).await;
-    eprintln!("method={method} path={path} status={}", response.status().as_u16());
+    eprintln!(
+        "method={method} path={path} status={}",
+        response.status().as_u16()
+    );
     response
 }
 
@@ -343,9 +408,72 @@ fn logged_path(path: &str, probe: bool) -> &'static str {
         "/v1/session/current" => "/v1/session/current",
         "/v1/pack/metadata" => "/v1/pack/metadata",
         "/v1/sql" => "/v1/sql",
+        "/v1/tables" => "/v1/tables",
+        "/v1/sql/validate" => "/v1/sql/validate",
+        "/v1/query" => "/v1/query",
+        "/v1/freshness" => "/v1/freshness",
+        "/v1/knowledge/search" => "/v1/knowledge/search",
+        "/v1/operations" => "/v1/operations",
         "/slow" if probe => "/slow",
         "/hold" if probe => "/hold",
+        path if path.starts_with("/v1/tables/") => "/v1/tables/item",
+        path if path.starts_with("/v1/knowledge/") => "/v1/knowledge/item",
+        path if path.starts_with("/v1/queries/") && path.ends_with("/cancel") => {
+            "/v1/queries/cancel"
+        }
+        path if path.starts_with("/v1/queries/") => "/v1/queries/item",
+        path if path.starts_with("/v1/operations/") && path.ends_with("/cancel") => {
+            "/v1/operations/cancel"
+        }
+        path if path.starts_with("/v1/operations/") => "/v1/operations/item",
         _ => "unknown",
+    }
+}
+
+pub(crate) async fn public_caller(
+    state: &AppState,
+    headers: &HeaderMap,
+    query: &Option<String>,
+    peer: PublicPeer,
+) -> Result<PublicCaller, Box<Response>> {
+    if query.is_some() {
+        return Err(Box::new(crate::public_surface::error_response(
+            ErrorCode::SchemaInvalid,
+            "query string is not allowed",
+            None,
+            None,
+        )));
+    }
+    if let Err(code) = verified_peer(state, peer) {
+        let public = match code {
+            ApiCode::Internal => (ErrorCode::Internal, "peer is not verified"),
+            _ => (ErrorCode::Unauthenticated, "authentication failed"),
+        };
+        return Err(Box::new(crate::public_surface::error_response(
+            public.0, public.1, None, None,
+        )));
+    }
+    match authenticate(state, headers).await {
+        Ok(identity) if identity.scope == "session" => {
+            Err(Box::new(crate::public_surface::error_response(
+                ErrorCode::SchemaInvalid,
+                "session token is not served",
+                None,
+                None,
+            )))
+        }
+        Ok(identity) => Ok(PublicCaller {
+            tuple: identity.tuple,
+            scope: identity.scope,
+            auth_remaining_ms: identity.auth_remaining_ms,
+            auth_cache_hit: identity.auth_cache_hit,
+        }),
+        Err(_) => Err(Box::new(crate::public_surface::error_response(
+            ErrorCode::Unauthenticated,
+            "authentication failed",
+            None,
+            None,
+        ))),
     }
 }
 
@@ -361,7 +489,14 @@ async fn health(
     if let Some(probe) = &state.inner.probe {
         probe.health_started.fetch_add(1, Ordering::SeqCst);
     }
-    json_value(200, boundary_body("up", peer.as_ref(), &[("sql_execution", Value::String("unsupported".to_owned()))]))
+    json_value(
+        200,
+        boundary_body(
+            "up",
+            peer.as_ref(),
+            &[("sql_execution", Value::String("unsupported".to_owned()))],
+        ),
+    )
 }
 
 async fn ready(
@@ -500,7 +635,10 @@ fn gate(
     verified_peer(state, peer)
 }
 
-fn verified_peer(state: &AppState, peer: Option<Extension<ConnectInfo<TlsPeer>>>) -> Result<Option<TlsPeer>, ApiCode> {
+fn verified_peer(
+    state: &AppState,
+    peer: Option<Extension<ConnectInfo<TlsPeer>>>,
+) -> Result<Option<TlsPeer>, ApiCode> {
     match &state.inner.transport {
         Transport::Loopback => Ok(None),
         Transport::Tls { .. } => match peer {
@@ -511,7 +649,9 @@ fn verified_peer(state: &AppState, peer: Option<Extension<ConnectInfo<TlsPeer>>>
 }
 
 fn forged_certificate_header(headers: &HeaderMap) -> bool {
-    FORGED_CERT_HEADERS.iter().any(|name| headers.contains_key(*name))
+    FORGED_CERT_HEADERS
+        .iter()
+        .any(|name| headers.contains_key(*name))
 }
 
 async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Identity, ApiError> {
@@ -545,7 +685,19 @@ async fn authenticate_token(state: &AppState, token: &str) -> Result<Identity, A
                 TokenKind::Client => "client",
                 TokenKind::Session => "session",
             };
-            Ok(Identity { tuple, scope })
+            let auth_remaining_ms = state
+                .inner
+                .cache
+                .remaining_ms(&hash)
+                .ok()
+                .flatten()
+                .unwrap_or(0);
+            Ok(Identity {
+                tuple,
+                scope,
+                auth_remaining_ms,
+                auth_cache_hit: !receipt.database_used,
+            })
         }
         Err(err) => {
             eprintln!("auth_reason={}", err.reason());
@@ -555,12 +707,18 @@ async fn authenticate_token(state: &AppState, token: &str) -> Result<Identity, A
     }
 }
 
-async fn load_tuple(state: &AppState, hash: &str) -> Result<(CurrentTuple, Endpoint, bool), ApiError> {
+async fn load_tuple(
+    state: &AppState,
+    hash: &str,
+) -> Result<(CurrentTuple, Endpoint, bool), ApiError> {
     if let Some(hit) = fresh_tuple(state, hash) {
         return Ok((hit.0, hit.1, true));
     }
-    let endpoint = read_endpoint(&state.inner.endpoint_path).map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
-    let client = connect(state, &endpoint).await.map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
+    let endpoint = read_endpoint(&state.inner.endpoint_path)
+        .map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
+    let client = connect(state, &endpoint)
+        .await
+        .map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
     let row = client
         .query_opt(READ_TOKEN, &[&hash])
         .await
@@ -577,12 +735,16 @@ fn fresh_tuple(state: &AppState, hash: &str) -> Option<(CurrentTuple, Endpoint)>
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    let expired = guard.get(hash).is_some_and(|entry| Instant::now() >= entry.expires);
+    let expired = guard
+        .get(hash)
+        .is_some_and(|entry| Instant::now() >= entry.expires);
     if expired {
         guard.remove(hash);
         return None;
     }
-    guard.get(hash).map(|entry| (entry.tuple.clone(), entry.endpoint.clone()))
+    guard
+        .get(hash)
+        .map(|entry| (entry.tuple.clone(), entry.endpoint.clone()))
 }
 
 fn remember_tuple(state: &AppState, hash: &str, tuple: CurrentTuple, endpoint: Endpoint) {
@@ -612,7 +774,11 @@ fn forget_tuple(state: &AppState, hash: &str) {
 }
 
 async fn connect(state: &AppState, endpoint: &Endpoint) -> Result<tokio_postgres::Client, ()> {
-    if endpoint.host.is_empty() || endpoint.database.is_empty() || endpoint.port == 0 || state.inner.password.is_empty() {
+    if endpoint.host.is_empty()
+        || endpoint.database.is_empty()
+        || endpoint.port == 0
+        || state.inner.password.is_empty()
+    {
         return Err(());
     }
     let mut config = tokio_postgres::Config::new();
@@ -684,7 +850,11 @@ fn read_endpoint(path: &Path) -> Result<Endpoint, &'static str> {
     if host.is_empty() || database.is_empty() || port == 0 {
         return Err("endpoint");
     }
-    Ok(Endpoint { host, port, database })
+    Ok(Endpoint {
+        host,
+        port,
+        database,
+    })
 }
 
 fn bearer(headers: &HeaderMap) -> Result<String, ()> {
@@ -721,20 +891,48 @@ fn session_body(identity: &Identity, peer: Option<&TlsPeer>) -> Value {
 fn session_map(identity: &Identity, peer: Option<&TlsPeer>) -> JsonMap<String, Value> {
     let mut body = JsonMap::new();
     insert_auth(&mut body, peer);
-    body.insert("project_id".to_owned(), Value::String(identity.tuple.project_id.clone()));
-    body.insert("principal_id".to_owned(), Value::String(identity.tuple.principal_id.clone()));
-    body.insert("role".to_owned(), Value::String(identity.tuple.role.clone()));
-    body.insert("policy_version".to_owned(), Value::String(identity.tuple.policy_version.clone()));
-    body.insert("knowledge_version".to_owned(), Value::String(identity.tuple.knowledge_version.clone()));
-    body.insert("audience_url".to_owned(), Value::String(identity.tuple.audience_url.clone()));
+    body.insert(
+        "project_id".to_owned(),
+        Value::String(identity.tuple.project_id.clone()),
+    );
+    body.insert(
+        "principal_id".to_owned(),
+        Value::String(identity.tuple.principal_id.clone()),
+    );
+    body.insert(
+        "role".to_owned(),
+        Value::String(identity.tuple.role.clone()),
+    );
+    body.insert(
+        "policy_version".to_owned(),
+        Value::String(identity.tuple.policy_version.clone()),
+    );
+    body.insert(
+        "knowledge_version".to_owned(),
+        Value::String(identity.tuple.knowledge_version.clone()),
+    );
+    body.insert(
+        "audience_url".to_owned(),
+        Value::String(identity.tuple.audience_url.clone()),
+    );
     body.insert("scope".to_owned(), Value::String(identity.scope.to_owned()));
     body.insert(
         "sandbox_id".to_owned(),
-        identity.tuple.sandbox_id.clone().map(Value::String).unwrap_or(Value::Null),
+        identity
+            .tuple
+            .sandbox_id
+            .clone()
+            .map(Value::String)
+            .unwrap_or(Value::Null),
     );
     body.insert(
         "session_id".to_owned(),
-        identity.tuple.session_id.clone().map(Value::String).unwrap_or(Value::Null),
+        identity
+            .tuple
+            .session_id
+            .clone()
+            .map(Value::String)
+            .unwrap_or(Value::Null),
     );
     body
 }
@@ -742,14 +940,26 @@ fn session_map(identity: &Identity, peer: Option<&TlsPeer>) -> JsonMap<String, V
 fn insert_auth(body: &mut JsonMap<String, Value>, peer: Option<&TlsPeer>) {
     match peer {
         None => {
-            body.insert("authentication".to_owned(), Value::String("loopback-http".to_owned()));
+            body.insert(
+                "authentication".to_owned(),
+                Value::String("loopback-http".to_owned()),
+            );
             body.insert("external_mtls".to_owned(), Value::Bool(false));
         }
         Some(peer) => {
-            body.insert("authentication".to_owned(), Value::String("verified-certificate".to_owned()));
+            body.insert(
+                "authentication".to_owned(),
+                Value::String("verified-certificate".to_owned()),
+            );
             body.insert("external_mtls".to_owned(), Value::Bool(true));
-            body.insert("peer_workload".to_owned(), Value::String(peer.workload.clone()));
-            body.insert("peer_source".to_owned(), Value::String("verified-certificate".to_owned()));
+            body.insert(
+                "peer_workload".to_owned(),
+                Value::String(peer.workload.clone()),
+            );
+            body.insert(
+                "peer_source".to_owned(),
+                Value::String("verified-certificate".to_owned()),
+            );
         }
     }
     body.insert("oauth".to_owned(), Value::Bool(false));
@@ -758,8 +968,14 @@ fn insert_auth(body: &mut JsonMap<String, Value>, peer: Option<&TlsPeer>) {
 
 fn pack_body(identity: &Identity, pack: &PackMetadata, peer: Option<&TlsPeer>) -> Value {
     let mut object = session_map(identity, peer);
-    object.insert("pack_digest".to_owned(), Value::String(pack.pack_digest.clone()));
-    object.insert("protocol".to_owned(), Value::String(crate::pack_catalog::ROLE_PACK_PROTOCOL.to_owned()));
+    object.insert(
+        "pack_digest".to_owned(),
+        Value::String(pack.pack_digest.clone()),
+    );
+    object.insert(
+        "protocol".to_owned(),
+        Value::String(crate::pack_catalog::ROLE_PACK_PROTOCOL.to_owned()),
+    );
     let files = pack
         .files
         .iter()
@@ -801,16 +1017,31 @@ fn json_bytes(status: u16, body: Vec<u8>) -> Response {
     let code = StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     let mut response = Response::new(Body::from(body));
     *response.status_mut() = code;
-    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON_MEDIA_TYPE));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(JSON_MEDIA_TYPE),
+    );
     response
 }
 
-fn required_text<'a>(object: &'a JsonMap<String, Value>, key: &str) -> Result<&'a str, &'static str> {
-    object.get(key).and_then(Value::as_str).filter(|value| !value.is_empty()).ok_or("config")
+fn required_text<'a>(
+    object: &'a JsonMap<String, Value>,
+    key: &str,
+) -> Result<&'a str, &'static str> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or("config")
 }
 
 fn one_segment(value: &str) -> Result<&str, &'static str> {
-    if value.is_empty() || value.contains('/') || value.contains('\\') || value == "." || value == ".." {
+    if value.is_empty()
+        || value.contains('/')
+        || value.contains('\\')
+        || value == "."
+        || value == ".."
+    {
         Err("config")
     } else {
         Ok(value)
@@ -832,7 +1063,7 @@ fn u16_field(object: &JsonMap<String, Value>, key: &str) -> Result<u16, &'static
 }
 
 #[derive(Clone, Debug)]
-struct TlsPeer {
+pub(crate) struct TlsPeer {
     workload: String,
 }
 
@@ -858,7 +1089,8 @@ impl Listener for TlsListener {
                 }
             };
             let handshake = self.acceptor.accept(tcp);
-            let Ok(Ok(stream)) = tokio::time::timeout(self.handshake_timeout, handshake).await else {
+            let Ok(Ok(stream)) = tokio::time::timeout(self.handshake_timeout, handshake).await
+            else {
                 continue;
             };
             let Some(workload) = workload_from_stream(&stream) else {
@@ -870,7 +1102,9 @@ impl Listener for TlsListener {
 
     fn local_addr(&self) -> io::Result<Self::Addr> {
         self.tcp.local_addr()?;
-        Ok(TlsPeer { workload: String::new() })
+        Ok(TlsPeer {
+            workload: String::new(),
+        })
     }
 }
 
@@ -881,7 +1115,10 @@ impl Connected<IncomingStream<'_, TlsListener>> for TlsPeer {
 }
 
 fn is_connection_error(error: &io::Error) -> bool {
-    matches!(error.kind(), ErrorKind::ConnectionRefused | ErrorKind::ConnectionAborted | ErrorKind::ConnectionReset)
+    matches!(
+        error.kind(),
+        ErrorKind::ConnectionRefused | ErrorKind::ConnectionAborted | ErrorKind::ConnectionReset
+    )
 }
 
 fn transport_name(object: &JsonMap<String, Value>) -> Result<&str, &'static str> {
@@ -907,11 +1144,18 @@ fn allowed_config_key(tls: bool, key: &str) -> bool {
             | "request_timeout_ms"
             | "global_concurrency"
             | "transport"
-    ) || (tls
-        && matches!(key, "tls_key_file" | "tls_chain_file" | "client_ca_file" | "handshake_timeout_ms"))
+    ) || crate::public_surface::data_config_key(key)
+        || (tls
+            && matches!(
+                key,
+                "tls_key_file" | "tls_chain_file" | "client_ca_file" | "handshake_timeout_ms"
+            ))
 }
 
-fn load_tls_acceptor(dir: &Path, object: &JsonMap<String, Value>) -> Result<(TlsAcceptor, Duration), &'static str> {
+fn load_tls_acceptor(
+    dir: &Path,
+    object: &JsonMap<String, Value>,
+) -> Result<(TlsAcceptor, Duration), &'static str> {
     let key_name = tls_filename(object, "tls_key_file", "tls_key")?;
     let chain_name = tls_filename(object, "tls_chain_file", "tls_chain")?;
     let ca_name = tls_filename(object, "client_ca_file", "client_ca")?;
@@ -939,15 +1183,24 @@ fn load_tls_acceptor(dir: &Path, object: &JsonMap<String, Value>) -> Result<(Tls
     let ca = parse_client_ca(&ca_bytes)?;
     let mut roots = RootCertStore::empty();
     roots.add(ca).map_err(|_| "client_ca")?;
-    let verifier = WebPkiClientVerifier::builder(Arc::new(roots)).build().map_err(|_| "tls")?;
+    let verifier = WebPkiClientVerifier::builder(Arc::new(roots))
+        .build()
+        .map_err(|_| "tls")?;
     let config = ServerConfig::builder()
         .with_client_cert_verifier(verifier)
         .with_single_cert(chain, key)
         .map_err(|_| "tls")?;
-    Ok((TlsAcceptor::from(Arc::new(config)), Duration::from_millis(timeout_ms)))
+    Ok((
+        TlsAcceptor::from(Arc::new(config)),
+        Duration::from_millis(timeout_ms),
+    ))
 }
 
-fn tls_filename<'a>(object: &'a JsonMap<String, Value>, key: &str, missing: &'static str) -> Result<&'a str, &'static str> {
+fn tls_filename<'a>(
+    object: &'a JsonMap<String, Value>,
+    key: &str,
+    missing: &'static str,
+) -> Result<&'a str, &'static str> {
     let Some(Value::String(value)) = object.get(key) else {
         return Err(missing);
     };
@@ -958,7 +1211,10 @@ fn tls_filename<'a>(object: &'a JsonMap<String, Value>, key: &str, missing: &'st
 }
 
 fn parse_private_key(bytes: &[u8]) -> Result<PrivateKeyDer<'static>, &'static str> {
-    if bytes.is_empty() || !contains_ascii(bytes, b"PRIVATE KEY") || contains_ascii(bytes, b"ENCRYPTED PRIVATE KEY") {
+    if bytes.is_empty()
+        || !contains_ascii(bytes, b"PRIVATE KEY")
+        || contains_ascii(bytes, b"ENCRYPTED PRIVATE KEY")
+    {
         return Err("tls_key");
     }
     PrivateKeyDer::from_pem_slice(bytes).map_err(|_| "tls_key")
@@ -969,7 +1225,11 @@ fn parse_chain(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, &'static st
         return Err("tls_chain");
     }
     let certs = pem_certs(bytes).map_err(|_| "tls_chain")?;
-    if certs.is_empty() { Err("tls_chain") } else { Ok(certs) }
+    if certs.is_empty() {
+        Err("tls_chain")
+    } else {
+        Ok(certs)
+    }
 }
 
 fn parse_client_ca(bytes: &[u8]) -> Result<CertificateDer<'static>, &'static str> {
@@ -984,7 +1244,9 @@ fn parse_client_ca(bytes: &[u8]) -> Result<CertificateDer<'static>, &'static str
 }
 
 fn pem_certs(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, ()> {
-    CertificateDer::pem_slice_iter(bytes).collect::<Result<Vec<_>, _>>().map_err(|_| ())
+    CertificateDer::pem_slice_iter(bytes)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| ())
 }
 
 fn contains_ascii(bytes: &[u8], needle: &[u8]) -> bool {
@@ -1090,7 +1352,10 @@ fn parse_san_uri(value: &[u8]) -> Result<String, ()> {
     if remainder.is_empty() || remainder.len() > 128 {
         return Err(());
     }
-    if !remainder.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-')) {
+    if !remainder
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
+    {
         return Err(());
     }
     Ok(text.to_owned())
@@ -1142,7 +1407,11 @@ impl<'a> Der<'a> {
         }
         let mut value = 0usize;
         for byte in bytes {
-            value = value.checked_shl(8).ok_or(())?.checked_add(usize::from(*byte)).ok_or(())?;
+            value = value
+                .checked_shl(8)
+                .ok_or(())?
+                .checked_add(usize::from(*byte))
+                .ok_or(())?;
         }
         if value < 0x80 { Err(()) } else { Ok(value) }
     }
@@ -1169,17 +1438,28 @@ pub async fn harness_tls_exchange(
             if chain.is_empty() {
                 return Err("client_cert".to_owned());
             }
-            let key = PrivateKeyDer::from_pem_slice(key_pem).map_err(|_| "client_key".to_owned())?;
-            builder.with_client_auth_cert(chain, key).map_err(|_| "client_cert".to_owned())?
+            let key =
+                PrivateKeyDer::from_pem_slice(key_pem).map_err(|_| "client_key".to_owned())?;
+            builder
+                .with_client_auth_cert(chain, key)
+                .map_err(|_| "client_cert".to_owned())?
         }
         _ => return Err("client_cert".to_owned()),
     };
     let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-    let tcp = TcpStream::connect(addr).await.map_err(|_| "connect".to_owned())?;
+    let tcp = TcpStream::connect(addr)
+        .await
+        .map_err(|_| "connect".to_owned())?;
     let server_name = ServerName::<'static>::from(addr.ip());
-    let tls = connector.connect(server_name, tcp).await.map_err(|_| "handshake".to_owned())?;
+    let tls = connector
+        .connect(server_name, tcp)
+        .await
+        .map_err(|_| "handshake".to_owned())?;
     let (mut reader, mut writer) = tokio::io::split(tls);
-    writer.write_all(request).await.map_err(|_| "write".to_owned())?;
+    writer
+        .write_all(request)
+        .await
+        .map_err(|_| "write".to_owned())?;
     writer.flush().await.map_err(|_| "write".to_owned())?;
     let mut buffer = Vec::new();
     // The gateway closes the socket after Connection: close and does not send a TLS close_notify.
@@ -1221,16 +1501,32 @@ fn http_message_complete(bytes: &[u8]) -> bool {
     length.is_some_and(|length| body.len() >= length)
 }
 
-pub async fn harness_install(endpoint: Endpoint, password: &str, ca_pem: &[u8]) -> Result<(), String> {
+pub async fn harness_install(
+    endpoint: Endpoint,
+    password: &str,
+    ca_pem: &[u8],
+) -> Result<(), String> {
     let adapter = TrustedControlAdapter::new(endpoint, ADMIN_USER, password, ca_pem.to_vec())
         .map_err(|err| err.reason().to_owned())?;
-    adapter.install().await.map(|_| ()).map_err(|err| err.reason().to_owned())
+    adapter
+        .install()
+        .await
+        .map(|_| ())
+        .map_err(|err| err.reason().to_owned())
 }
 
-pub async fn harness_issue(endpoint: Endpoint, password: &str, ca_pem: &[u8], grant: IssueGrant) -> Result<(String, String), String> {
+pub async fn harness_issue(
+    endpoint: Endpoint,
+    password: &str,
+    ca_pem: &[u8],
+    grant: IssueGrant,
+) -> Result<(String, String), String> {
     let adapter = TrustedControlAdapter::new(endpoint, ADMIN_USER, password, ca_pem.to_vec())
         .map_err(|err| err.reason().to_owned())?;
-    let receipt = adapter.issue(grant).await.map_err(|err| err.reason().to_owned())?;
+    let receipt = adapter
+        .issue(grant)
+        .await
+        .map_err(|err| err.reason().to_owned())?;
     let token = receipt.token.reveal_once();
     Ok((token, receipt.hash))
 }
