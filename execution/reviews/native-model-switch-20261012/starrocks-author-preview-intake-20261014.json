@@ -1,0 +1,40 @@
+{
+  "acceptance": "complete author preview, independent review deferred",
+  "source_sha": "20b6a4d11789a561d88fcf7d9c6f2cf970c94b29",
+  "verified_entries": 1262,
+  "references": {
+    "EVIDENCE-SHA256.json": {
+      "path": "/tmp/oo-star-runtime-finish/EVIDENCE-SHA256.json",
+      "sha256": "71b71cec4f1bef132c89fc0e739a61af60c15e01fa957045f569adac580fb338"
+    },
+    "FIXED-RECEIPT.json": {
+      "path": "/tmp/oo-star-runtime-finish/FIXED-RECEIPT.json",
+      "sha256": "bb425fe7199f1e730d045f7d1aed5c0d4882c16b51120339270071b957483e7f"
+    },
+    "PRODUCT-VERIFICATION.json": {
+      "path": "/tmp/oo-star-runtime-finish/PRODUCT-VERIFICATION.json",
+      "sha256": "7c434387a8bc600bf478d46d895512a9df8386fe033014fe956951a99f9e34e1"
+    },
+    "merged-nine-gold.json": {
+      "path": "/tmp/oo-star-runtime-finish/merged-nine-gold.json",
+      "sha256": "e77a862864b3185dc0341dd07d437e6c032d8c203e5493ed85f39368cf87d771"
+    },
+    "HANDOFF.md": {
+      "path": "/tmp/oo-star-runtime-finish/HANDOFF.md",
+      "sha256": "76b4e175986c550bc7d727edd5ced54a5897a5221ed5de2a6fba6f4c9e77a69c"
+    },
+    "TERMINAL-CONTROL.json": {
+      "path": "/tmp/oo-star-runtime-finish/TERMINAL-CONTROL.json",
+      "sha256": "1ffa2ed7a59c6af903fef660b02af3db8b5d65867ef02741f6aa256a9e7e1b9f"
+    }
+  },
+  "new_model_calls": 0,
+  "limits": {
+    "source_commit_clock": "unmeasured C4/C5; source_committed_at=NULL",
+    "applied_at": "actual Loader transaction timestamp retained",
+    "freshness_projection": "omitted because public as_of requires source commit timestamp",
+    "publication": "not_ready/awaiting_publish; formal gate unchanged",
+    "warnings": "STALE_DATA and native deletion warnings retained"
+  },
+  "formal_signed_delta": 0
+}

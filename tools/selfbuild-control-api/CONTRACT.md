@@ -167,3 +167,21 @@ A measured source dictionary uses the same `source_protocol` object. `catalog` i
 ## Still required
 
 The fixed a370 identity service and its OIDC test IdP, customer IdP confirmation, full role permission, publication, harness, and the rest of SP07. This contract does not close those.
+
+### Native source generation maintenance
+
+`POST /control/v1/builds/{build_id}/maintenance` accepts trigger
+`source_generation_advanced` with exactly `identity_revision`, `idempotency_key`,
+`trigger`, and `catalog_sha256`. The SHA pins `catalog.json` in the project's
+operator-configured sealed bundle; HTTP cannot supply a catalog or directory.
+The existing bundle manifest and source protocol validate the bytes used.
+Only a sealed collection with identical source/dataset identities, schema,
+types, native semantics, rules, visibility and model settings may reuse the
+original reviewed decisions. Generations cannot rewind or change an existing
+run's data identity. Structural, semantic, classification or role changes
+require a new genuine Selfbuild. The immutable model output remains unchanged.
+A successful operation appends a zero-model native-maintenance receipt and
+artifacts bound to the original build/decision digest and current collection,
+bundle file hashes and per-table binding vector. Role Pack compilation uses the
+latest accepted binding and refuses an operator bundle that has since changed
+without maintenance. Neither maintenance nor a compiled Pack publishes data.

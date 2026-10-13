@@ -95,6 +95,15 @@ pub fn role_columns(dir: &str, protocol: Option<&crate::config::SourceProtocol>,
     bundle.roles.get(role).cloned().ok_or_else(ApiError::membership)
 }
 
+pub(crate) type NativeMaintenanceInputs = (BTreeMap<String, Vec<u8>>, BTreeMap<String, String>);
+
+pub(crate) fn native_maintenance_inputs(
+    dir: &str, protocol: Option<&crate::config::SourceProtocol>,
+) -> Result<NativeMaintenanceInputs, ApiError> {
+    let bundle = load_for(dir, protocol)?;
+    Ok((bundle.raw, bundle.file_sha))
+}
+
 pub fn declared_money_units(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Result<BTreeMap<String, String>, ApiError> {
     let bundle = load_for(dir, protocol)?;
     money_units(&bundle.rules)

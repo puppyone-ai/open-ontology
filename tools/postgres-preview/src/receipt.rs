@@ -1169,7 +1169,7 @@ fn write_delta(
         let mut tombstones = table.tombstones.clone();
         if scope.is_some() { tombstones.sort(); }
         let bytes = if table.rows.is_empty() {
-            Vec::new()
+            encode_page(&table.columns, &[])?
         } else {
             let pages = split_pages(&table.columns, &table.rows, PAGE_LIMIT)?;
             if pages.len() != 1 {
@@ -1749,6 +1749,10 @@ mod tests {
         assert_eq!(seen, 20);
         let empty = encode_page(std::slice::from_ref(&column), &[]).unwrap();
         assert!(!empty.is_empty());
+        let mut stream = arrow_ipc::reader::StreamReader::try_new(std::io::Cursor::new(&empty), None).unwrap();
+        assert_eq!(stream.schema().field(0), &arrow_field(&column));
+        assert_eq!(stream.next().unwrap().unwrap().num_rows(), 0);
+        assert!(stream.next().is_none());
         let schema_hash = arrow_schema_sha256(&empty).unwrap();
         assert_eq!(schema_hash.len(), 64);
         assert_ne!(schema_hash, sha256(&[]));

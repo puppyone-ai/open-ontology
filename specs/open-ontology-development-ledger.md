@@ -1,5 +1,9 @@
 # Open Ontology 开发任务清单与并行工程表
 
+## 2026-10-14 StarRocks完整作者链收取
+
+StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。
+
 ## 2026-10-14 最小持续链收口
 
 2026-10-14：StarRocks 135项固定源证据、最后真实对话三事实及实际sent/durable取消三WAL核验通过；四问合并和freshness not_ready/STALE_DATA处置仍待，不提前计完整作者。PG固定Loader/worker已官方安装注册，四表gold/拒绝策略及原状态不变；冻结x803 producer仍缺真正持续CDC，pg_runtime_finish（GPT-6.1 Sol low）独占/tmp/oo-pg46-runtime-finish接续新自有fixture持续链，无付费模型调用。完整作者7/10、正式0/10保持；原Plan/分母/父项、整版、矩阵、前端不晋级。证据见starrocks-final-dialogue-facts-intake-20261013.json及postgres-runtime-intake-20261014.json。

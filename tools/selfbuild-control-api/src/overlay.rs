@@ -62,8 +62,9 @@ pub async fn maintenance(config: &AppConfig, row: &BuildRow, value: &Value, body
     }
     let docs = load_docs(&client, &row.build_id).await?;
     let note_sha = note.as_deref().map(|item| sha256_hex(item.as_bytes())).unwrap_or_default();
-    let cache_key = maintenance_key(row, trigger, edit.as_ref(), &note_sha, &docs);
-    if let Some(hit) = cache_hit(&client, &cache_key, &row.build_id, "maintenance", key_of(value)?, body_sha).await? {
+    let mut cache_key = maintenance_key(row, trigger, edit.as_ref(), &note_sha, &docs);
+    if trigger == "source_generation_advanced" { cache_key = canonical_sha256(&json!({"maintenance":cache_key,"catalog_sha256":value["catalog_sha256"]})); }
+    if trigger != "source_generation_advanced" && let Some(hit) = cache_hit(&client, &cache_key, &row.build_id, "maintenance", key_of(value)?, body_sha).await? {
         return Ok(hit);
     }
     if trigger == "schema_changed" {
@@ -81,6 +82,14 @@ pub async fn maintenance(config: &AppConfig, row: &BuildRow, value: &Value, body
     response["operation"] = json!("postMaintenance");
     response["trigger"] = json!(trigger);
     response["stale_count"] = json!(docs.effective.stale.len());
+    if trigger == "source_generation_advanced" {
+        let sha = value.get("catalog_sha256").and_then(Value::as_str).filter(|s| hex64(s)).ok_or_else(ApiError::malformed)?;
+        let rebound = native_source_rebind(config, row, sha)?;
+        if let Some(previous) = latest_native_rebind(&client, row).await? {
+            check_generation_progress(&previous["binding_vector"], &rebound["catalog"]["binding_vector"])?;
+        }
+        response["native_maintenance"] = compile_native_maintenance(config, row, &docs, Some(&rebound))?;
+    }
     remember(&client, Remember {
         cache_key: &cache_key,
         build_id: &row.build_id,
@@ -242,7 +251,8 @@ pub async fn compile_role_pack(config: &AppConfig, row: &BuildRow, value: &Value
     let docs = load_docs(&client, &row.build_id).await?;
     ensure_source_money(&docs.effective, &sealed::declared_money_units(bundle, protocol)?)?;
     let pack = oosyaml::render_pack(&docs.effective, &role, &columns, &policy)?;
-    let native_maintenance = compile_native_maintenance(config, row, &docs)?;
+    let rebound = accepted_native_rebind(config, &client, row).await?;
+    let native_maintenance = compile_native_maintenance(config, row, &docs, rebound.as_ref())?;
     let cache_key = canonical_sha256(&json!({
         "build": row.build_id,
         "columns": columns,
@@ -573,6 +583,7 @@ fn maintenance_fields(value: &Value) -> Result<(&str, Option<Value>, Option<Stri
     let object = value.as_object().ok_or_else(ApiError::malformed)?;
     let trigger = object.get("trigger").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
     let keys: &[&str] = match trigger {
+        "source_generation_advanced" => &["catalog_sha256", "identity_revision", "idempotency_key", "trigger"],
         "schema_changed" | "source_fact_corrected" => &["fact_edit", "identity_revision", "idempotency_key", "trigger"],
         "feedback" => &["identity_revision", "idempotency_key", "note", "trigger"],
         "table_ready" | "scheduled" | "manual" => &["identity_revision", "idempotency_key", "trigger"],
@@ -976,9 +987,79 @@ pub async fn insert_generated_model(client: &Client, build_id: &str, yaml: &str)
     insert_doc(client, build_id, "generated", yaml, &sha256_hex(yaml.as_bytes())).await
 }
 
+fn semantic_basis(mut value: Value) -> Value {
+    if let Some(object) = value.as_object_mut() {
+        for key in ["source_generation", "target_generation", "table_generations", "binding_vector_sha256", "collection_sha256"] { object.remove(key); }
+    }
+    value
+}
+
+fn check_generation_progress(previous: &Value, current: &Value) -> Result<(), ApiError> {
+    let previous = previous.as_array().ok_or_else(ApiError::pack_refused)?;
+    let current = current.as_array().ok_or_else(ApiError::pack_refused)?;
+    if previous.len() != current.len() { return Err(ApiError::pack_refused()); }
+    for old in previous {
+        let new = current.iter().find(|new| new["dataset"] == old["dataset"]).ok_or_else(ApiError::pack_refused)?;
+        if new["source_id"] != old["source_id"] { return Err(ApiError::pack_refused()); }
+        for key in ["source_generation", "target_generation"] {
+            let a = old[key].as_i64().ok_or_else(ApiError::pack_refused)?;
+            let b = new[key].as_i64().ok_or_else(ApiError::pack_refused)?;
+            if b < a { return Err(ApiError::pack_refused()); }
+            if b == a && (new["run_id"] != old["run_id"] || new["input_digest"] != old["input_digest"] || new["stored_physical"] != old["stored_physical"]) { return Err(ApiError::pack_refused()); }
+        }
+    }
+    Ok(())
+}
+
+fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str) -> Result<Value, ApiError> {
+    let project = config.projects.iter().find(|p| p.project_id == row.project_id).ok_or_else(ApiError::forbidden)?;
+    let (raw, hashes) = sealed::native_maintenance_inputs(&project.sealed_bundle, project.source_protocol.as_ref())?;
+    if hashes.get("catalog.json").map(String::as_str) != Some(expected_sha) { return Err(ApiError::pack_refused()); }
+    let parse = |bytes: &[u8]| serde_json::from_slice::<Value>(bytes).map_err(|_| ApiError::pack_refused());
+    let read = |name: &str| raw.get(name).ok_or_else(ApiError::pack_refused).and_then(|b| parse(b));
+    let root = Path::new(&config.work_dir).join("builds").join(&row.build_id);
+    let original = |name: &str| std::fs::read(root.join(name)).map_err(|_| ApiError::not_ready()).and_then(|b| parse(&b));
+    let command = original("native-model-output/command.json")?;
+    let catalog = read("catalog.json")?;
+    if catalog["protocol"] != oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL || command["catalog"]["protocol"] != catalog["protocol"] { return Err(ApiError::pack_refused()); }
+    let old = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&command["catalog"])).map_err(|_| ApiError::pack_refused())?;
+    let new = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&catalog)).map_err(|_| ApiError::pack_refused())?;
+    if old.columns != new.columns || read("native-model.json")? != original("native-model.json")?
+        || hashes.get("rules.json").map(String::as_str) != original("S2.request.json")?["rules_sha256"].as_str()
+        || semantic_basis(read("source_semantics.json")?) != semantic_basis(original("S0.response.json")?["source_adapt"]["source_semantics"].clone()) { return Err(ApiError::pack_refused()); }
+    let mut allowed: Vec<String> = original("native-model.json")?["visibility"]["datasets"].as_array().ok_or_else(ApiError::pack_refused)?.iter().flat_map(|d| d["columns"].as_array().into_iter().flatten().filter_map(|c| c.as_str().map(|c| format!("{}.{}",d["dataset"].as_str().unwrap_or(""),c)))).collect();
+    let model = original("native-model.json")?;
+    let role = model["visibility"]["role"].as_str().ok_or_else(ApiError::pack_refused)?;
+    let mut declared: Vec<String> = read("roles.json")?["roles"][role].as_array().ok_or_else(ApiError::pack_refused)?.iter().map(|v| v.as_str().map(str::to_owned).ok_or_else(ApiError::pack_refused)).collect::<Result<_,_>>()?;
+    allowed.sort(); declared.sort(); if allowed != declared { return Err(ApiError::pack_refused()); }
+    check_generation_progress(&command["catalog"]["binding_vector"], &catalog["binding_vector"])?;
+    let before = command["catalog"]["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
+    let after = catalog["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
+    for old in before {
+        let new = after.iter().find(|e| e["tables"][0]["logical_schema"] == old["tables"][0]["logical_schema"] && e["tables"][0]["logical_table"] == old["tables"][0]["logical_table"]).ok_or_else(ApiError::pack_refused)?;
+        for key in ["source_id", "engine", "config_digest", "schema_digest", "type_digest", "capture", "state", "hook_checked", "source_introspection", "tool_hook_digest"] {
+            if new[key] != old[key] { return Err(ApiError::pack_refused()); }
+        }
+        let quality = |v: &Value| { let mut q=v["quality"].clone(); if let Some(o)=q.as_object_mut(){o.remove("stored_rows");} q };
+        if quality(new) != quality(old) { return Err(ApiError::pack_refused()); }
+    }
+    Ok(json!({"catalog":catalog,"catalog_sha256":expected_sha,"bundle_files":hashes}))
+}
+
+async fn latest_native_rebind(client: &Client, row: &BuildRow) -> Result<Option<Value>, ApiError> {
+    let result = client.query_opt("SELECT (response_text::jsonb->'native_maintenance'->'source_rebind')::text FROM oo_selfbuild_api.maintenance_receipt WHERE build_id=$1 AND route='maintenance' AND response_text::jsonb->'native_maintenance'->'source_rebind'->>'catalog_sha256' IS NOT NULL ORDER BY created_at DESC, idempotency_key DESC LIMIT 1", &[&row.build_id]).await.map_err(|_| ApiError::not_ready())?;
+    result.map(|r| { let text: String = r.try_get(0).map_err(|_| ApiError::not_ready())?; serde_json::from_str(&text).map_err(|_| ApiError::not_ready()) }).transpose()
+}
+
+async fn accepted_native_rebind(config: &AppConfig, client: &Client, row: &BuildRow) -> Result<Option<Value>, ApiError> {
+    let Some(receipt) = latest_native_rebind(client, row).await? else { return Ok(None); };
+    let sha = receipt["catalog_sha256"].as_str().ok_or_else(ApiError::pack_refused)?;
+    native_source_rebind(config, row, sha).map(Some)
+}
+
 // Reuse the reviewed native compiler after durable owner curation. The sealed
 // catalog and decisions are unchanged; only fact-bound descriptive labels pass.
-fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -> Result<Value, ApiError> {
+fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, rebound: Option<&Value>) -> Result<Value, ApiError> {
     let units = source_money_units(config, row)?;
     ensure_source_money(&docs.effective, &units)?;
     let root = Path::new(&config.work_dir).join("builds").join(&row.build_id);
@@ -986,6 +1067,9 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
     if !original.join("command.json").is_file() { return Ok(Value::Null); }
     let read = |path: &Path| -> Result<Value, ApiError> { serde_json::from_slice(&std::fs::read(path).map_err(|_| ApiError::not_ready())?).map_err(|_| ApiError::pack_refused()) };
     let mut command = read(&original.join("command.json"))?;
+    let original_command_sha = canonical_sha256(&command);
+    let original_decisions_sha = canonical_sha256(&command["decisions"]);
+    if let Some(rebound) = rebound { command["catalog"] = rebound["catalog"].clone(); }
     let catalog = command.get("catalog").ok_or_else(ApiError::pack_refused)?;
     let catalog_text = crate::canonical::canonical_json(catalog);
     let compiled = if catalog.get("protocol").and_then(Value::as_str) == Some(oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL) {
@@ -993,6 +1077,14 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
     } else {
         oo_builder::compile_sealed_import_catalog(&catalog_text)
     }.map_err(|_| ApiError::pack_refused())?;
+    if rebound.is_some() {
+        let previous = command["settings"]["catalog_version"].clone();
+        for decision in command["decisions"].as_array_mut().ok_or_else(ApiError::pack_refused)? {
+            if decision["schema_hash"] != previous { return Err(ApiError::pack_refused()); }
+            decision["schema_hash"] = json!(compiled.identity_hash);
+        }
+        command["settings"]["catalog_version"] = json!(compiled.identity_hash);
+    }
     let mut labels = Vec::new();
     for (dataset, entry) in &docs.effective.datasets {
         for (name, column) in &entry.columns {
@@ -1015,9 +1107,10 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
         let after = item.get("source_declared")?.get("unit")?.as_str()?;
         (before != after).then(|| json!({"column":item["column"],"candidate_unit":before,"declared_unit":after}))
     }).collect();
-    let visibility = read(&original.join("visibility.json"))?;
+    let mut visibility = read(&original.join("visibility.json"))?;
+    if rebound.is_some() { visibility["catalog_version"] = json!(compiled.identity_hash); }
     let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
-    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0});
+    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0,"source_rebind":rebound.map(|v| json!({"catalog_sha256":v["catalog_sha256"],"bundle_files":v["bundle_files"],"binding_vector":v["catalog"]["binding_vector"],"original_command_sha256":original_command_sha,"original_decisions_sha256":original_decisions_sha,"rebound_decisions_sha256":canonical_sha256(&command["decisions"])}))});
     let digest = canonical_sha256(&receipt);
     let dest = root.join("native-maintenance").join(&digest);
     let mut files = BTreeMap::new();
@@ -1045,6 +1138,25 @@ mod source_money_tests {
     use crate::oosyaml::generated_from_inputs;
     use serde_json::json;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn source_rebind_rejects_rewind_identity_and_same_generation_drift() {
+        let old = json!([{"dataset":"s.t","source_id":"source","source_generation":3,"target_generation":5,"run_id":"r","input_digest":"i","stored_physical":"p"}]);
+        let mut new = old.clone();
+        new[0]["source_generation"] = json!(4); new[0]["target_generation"] = json!(6);
+        assert!(super::check_generation_progress(&old, &new).is_ok());
+        new[0]["source_id"] = json!("foreign");
+        assert!(super::check_generation_progress(&old, &new).is_err());
+        new = old.clone(); new[0]["source_generation"] = json!(2);
+        assert!(super::check_generation_progress(&old, &new).is_err());
+        new = old.clone(); new[0]["input_digest"] = json!("replacement");
+        assert!(super::check_generation_progress(&old, &new).is_err());
+        let semantic = json!({"source_id":"source","source_generation":3,"consistency_grade":"B","quality":{"t":["DELETES_UNDETECTED"]}});
+        let mut changed = semantic.clone(); changed["source_generation"] = json!(4);
+        assert_eq!(super::semantic_basis(semantic.clone()), super::semantic_basis(changed.clone()));
+        changed["consistency_grade"] = json!("S0");
+        assert_ne!(super::semantic_basis(semantic), super::semantic_basis(changed));
+    }
 
     #[test]
     fn role_pack_rejects_unsupported_model_currency() {
