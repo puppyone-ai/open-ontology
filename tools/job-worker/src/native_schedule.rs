@@ -104,11 +104,113 @@ async fn confirmed_generation(config:&Config,control:&tokio_postgres::Client,sou
  if applied!=base && (applied!=replay_generation.unwrap_or(-1) || applied!=base+1) {return Err(Error::new("target_ahead"))}
  Ok(base)
 }
+// C1 generations belong to a table binding. The source watermark is a
+// cross-table position barrier and can be many generations ahead of a table.
+async fn confirmed_c1_generation(config:&Config,control:&tokio_postgres::Client,source:&str,database:&str,binding:&str,task:&str,stored:&Option<String>)->Result<i64> {
+ let active=control.query_opt("SELECT active_task_id::text FROM jw_native.source_progress WHERE source_id=$1 AND target_database=$2",&[&source,&database]).await.map_err(Error::sql)?;
+ if active.and_then(|r|r.get::<_,Option<String>>(0)).as_deref()!=Some(task) {return Err(Error::new("source_active"))}
+ let prior=control.query_opt("SELECT w.source_generation,w.applied_pos,t.state,o.request::text,w.result::text FROM jw_native.watermarks w JOIN jobs.tasks t ON t.id=w.task_id JOIN jw_native.occurrences o ON o.task_id=w.task_id WHERE w.binding_id=$1::text::uuid",&[&binding]).await.map_err(Error::sql)?;
+ let replay:Option<Value>=stored.as_ref().map(|s|serde_json::from_str(s).map_err(|_|Error::new("request"))).transpose()?;
+ let base=prior.as_ref().map(|r|r.get::<_,i64>(0)).unwrap_or(0);
+ let lineage=prior.as_ref().map(|r|serde_json::from_str::<Value>(&r.get::<_,String>(3)).map_err(|_|Error::new("unconfirmed_baseline"))).transpose()?;
+ if prior.as_ref().is_some_and(|r|r.get::<_,String>(2)!="succeeded") {return Err(Error::new("unconfirmed_baseline"))}
+ let identity=replay.as_ref().or(lineage.as_ref());
+ if let Some(request)=identity {
+  let schema=request.get("logical_schema").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+  let table=request.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+  if request.get("source_id").and_then(Value::as_str)!=Some(source)
+   || lineage.as_ref().is_some_and(|p|p.get("logical_schema")!=request.get("logical_schema") || p.get("logical_table")!=request.get("logical_table")) {return Err(Error::new("unconfirmed_baseline"))}
+  let target=target_owner(config,database).await?;
+  if let Some(prior)=prior.as_ref() {
+   let old=lineage.as_ref().ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let result:Value=serde_json::from_str(&prior.get::<_,String>(4)).map_err(|_|Error::new("unconfirmed_baseline"))?;
+   let run=result.get("run_id").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let physical=result.get("physical_name").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let target_generation=result.get("target_generation").and_then(Value::as_i64).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let digest=result.get("payload_digest").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let batch=old.get("batch_id").and_then(Value::as_str).ok_or_else(||Error::new("unconfirmed_baseline"))?;
+   let previous:String=prior.get(1);
+   let sealed:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.full_import_run r JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE r.run_id=$1::text::uuid AND r.state='awaiting_publish' AND r.source_id=$2 AND r.source_generation=$3 AND r.target_generation=$4 AND ft.schema_ident=$5 AND ft.table_ident=$6 AND ft.physical_name=$7 AND ft.exhausted AND ar.txn_or_batch_id=$8 AND ar.payload_digest=$9 AND ar.applied_pos=$10::text::numeric AND ar.txn_complete)",&[&run,&source,&base,&target_generation,&schema,&table,&physical,&batch,&digest,&previous]).await.map_err(Error::sql)?.get(0);
+   if !sealed {return Err(Error::new("unconfirmed_baseline"))}
+  }
+  let row=target.query_opt("SELECT source_generation,last_pos::text FROM _oo.table_freshness WHERE source=$1 AND schema_name=$2 AND table_name=$3",&[&source,&schema,&table]).await.map_err(Error::sql)?;
+  let next=replay.as_ref().and_then(|v|v.get("source_generation")).and_then(Value::as_i64);
+  match (prior.as_ref(),row) {
+   (Some(prior),Some(row))=>{
+    let applied:i64=row.get(0);let pos:Option<String>=row.get(1);
+    let previous:String=prior.get(1);
+    if !(applied==base && pos.as_deref()==Some(previous.as_str())
+      || next==Some(base+1) && applied==base+1) {return Err(Error::new("unconfirmed_baseline"))}
+   }
+   (None,None)=>{},
+   (None,Some(row)) if next==Some(1) && row.get::<_,i64>(0)==1=>{},
+   _=>return Err(Error::new("unconfirmed_baseline")),
+  }
+ }
+ Ok(base)
+}
 async fn verify_applied(config:&Config,source:&str,database:&str,generation:i64)->Result<()> {
  let target=target_owner(config,database).await?;
  let row=target.query_opt("SELECT source_generation FROM _oo.source_watermark WHERE source=$1",&[&source]).await.map_err(Error::sql)?;
  if row.map(|r|r.get::<_,i64>(0))!=Some(generation) {return Err(Error::new("target_generation"))}
  Ok(())
+}
+async fn verify_c1_applied(config:&Config,source:&str,database:&str,request:&Value)->Result<()> {
+ let target=target_owner(config,database).await?;
+ let schema=request.get("logical_schema").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ let table=request.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ let generation=request.get("source_generation").and_then(Value::as_i64).ok_or_else(||Error::new("position"))?;
+ let pos=request.get("applied_pos").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ let codec=request.get("position_codec").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ if !["pg-commit-lsn/v1","snapshot-zero/v1"].contains(&codec) {return Err(Error::new("position"))}
+ let valid:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.source_watermark w ON w.source=f.source WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND w.position_codec=$6 AND w.applied_pos>=$5::text::numeric AND ($6='pg-commit-lsn/v1' AND w.consistency='transactional' AND w.consistency_grade='T' AND w.cross_table_consistent OR $6='snapshot-zero/v1' AND w.consistency_grade='S1' AND NOT w.cross_table_consistent))",&[&source,&schema,&table,&generation,&pos,&codec]).await.map_err(Error::sql)?.get(0);
+ if !valid {return Err(Error::new("target_generation"))} Ok(())
+}
+async fn adopt_claim(control:&tokio_postgres::Client,source:&str,database:&str,project:&str,task:&str,worker:&str,generation:i64)->Result<()> {
+ // Upgrade old queued occurrences only after a real jobs.claim. This records
+ // the active fence, never a source generation, ACK, or substitute request.
+ let n=control.execute("INSERT INTO jw_native.source_progress(source_id,target_database,active_task_id) SELECT $1,$2,t.id FROM jobs.tasks t WHERE t.id=$3::text::uuid AND t.project_id=$4::text::uuid AND t.state='running' AND t.lease_owner=$5 AND t.generation=$6 AND t.lease_until>clock_timestamp() ON CONFLICT(source_id,target_database) DO UPDATE SET active_task_id=EXCLUDED.active_task_id WHERE jw_native.source_progress.active_task_id IS NULL OR jw_native.source_progress.active_task_id=EXCLUDED.active_task_id",&[&source,&database,&task,&project,&worker,&generation]).await.map_err(Error::sql)?;
+ if n!=1 {return Err(Error::new("source_active"))} Ok(())
+}
+async fn release_terminal_c4(config:&Config,project:&str)->Result<()> {
+ let control=session::runtime(config).await?;
+ let rows=control.query("SELECT p.source_id,p.target_database,p.active_task_id::text,o.request::text FROM jw_native.source_progress p JOIN jobs.tasks t ON t.id=p.active_task_id JOIN jw_native.occurrences o ON o.task_id=t.id JOIN jw_native.bindings b ON b.id=o.binding_id WHERE b.project_id=$1::text::uuid AND b.method='C4' AND t.state IN ('failed','cancelled') AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&project]).await.map_err(Error::sql)?;
+ for row in rows {
+  let source:String=row.get(0);let database:String=row.get(1);let task:String=row.get(2);let stored:Option<String>=row.get(3);
+  if database!=target_database(config,"C4")? {continue}
+  let base=match confirmed_generation(config,&control,&source,&database,&task,&stored).await {
+   Ok(base)=>base,Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",e.kind);continue}
+  };
+  let target=match target_owner(config,&database).await {
+   Ok(target)=>target,Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",e.kind);continue}
+  };
+  let applied=match target.query_opt("SELECT source_generation FROM _oo.source_watermark WHERE source=$1",&[&source]).await {
+   Ok(row)=>row.map(|r|r.get::<_,i64>(0)).unwrap_or(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
+  };
+  let sidecar:bool=match target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::text::uuid)",&[&task]).await {
+   Ok(row)=>row.get(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
+  };
+  if applied!=base || sidecar {continue}
+  let n=control.execute("UPDATE jw_native.source_progress p SET active_task_id=NULL WHERE p.source_id=$1 AND p.target_database=$2 AND p.active_task_id=$3::text::uuid AND EXISTS(SELECT 1 FROM jobs.tasks t WHERE t.id=p.active_task_id AND t.state IN ('failed','cancelled')) AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=$3::text::uuid)",&[&source,&database,&task]).await.map_err(Error::sql)?;
+  if n==1 {println!("source_active=released_terminal task={task} source={source}")}
+ }
+ Ok(())
+}
+pub async fn cancel_c4(config:&Config,project:&str,task:&str,worker:&str,generation:i64)->Result<()> {
+ if !crate::api::is_uuid(project) || !crate::api::is_uuid(task) || generation<0 {return Err(Error::new("input"))}
+ let control=session::runtime(config).await?;
+ let row=control.query_opt("SELECT b.source_id,b.target_database,o.request::text FROM jw_native.occurrences o JOIN jw_native.bindings b ON b.id=o.binding_id JOIN jobs.tasks t ON t.id=o.task_id JOIN jw_native.source_progress p ON p.source_id=b.source_id AND p.target_database=b.target_database AND p.active_task_id=t.id WHERE t.id=$1::text::uuid AND t.project_id=$2::text::uuid AND b.method='C4' AND t.state IN ('queued','running') AND t.generation=$3 AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&task,&project,&generation]).await.map_err(Error::sql)?.ok_or_else(||Error::new("cancel_identity"))?;
+ let source:String=row.get(0);let database:String=row.get(1);let stored:Option<String>=row.get(2);
+ if database!=target_database(config,"C4")? {return Err(Error::new("target_database"))}
+ let base=confirmed_generation(config,&control,&source,&database,task,&stored).await?;
+ let target=target_owner(config,&database).await?;
+ let applied=target.query_opt("SELECT source_generation FROM _oo.source_watermark WHERE source=$1",&[&source]).await.map_err(Error::sql)?.map(|r|r.get::<_,i64>(0)).unwrap_or(0);
+ let sidecar:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::text::uuid)",&[&task]).await.map_err(Error::sql)?.get(0);
+ if applied!=base || sidecar {return Err(Error::new("cancel_target"))}
+ let cancelled=lease::cancel(&control,project,task,worker,generation).await?;
+ if cancelled.status!=LeaseStatus::Cancelled {return Err(Error::new("cancel_lease"))}
+ release_terminal_c4(config,project).await?;
+ println!("native_cancel=cancelled task={task} generation={generation}");Ok(())
 }
 pub async fn install(config:&Config)->Result<()> {
  let c=session::admin_db(config,&config.database).await?;
@@ -129,6 +231,7 @@ pub async fn enabled(config:&Config,binding:&str,value:bool)->Result<()> {
  println!("schedule_enabled={value} rows={n}");Ok(())
 }
 pub async fn fire(config:&Config,project:&str)->Result<()> {
+ release_terminal_c4(config,project).await?;
  let mut c=session::runtime(config).await?;let tx=c.transaction().await.map_err(Error::sql)?;
  let rows=tx.query("SELECT id::text FROM jw_native.bindings WHERE project_id=$1::text::uuid AND enabled AND target_database IS NOT NULL AND next_run_at<=clock_timestamp() ORDER BY next_run_at,id",&[&project]).await.map_err(Error::sql)?;
  for row in rows {
@@ -194,6 +297,7 @@ async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration
  serde_json::from_slice(&bytes).map_err(|_|Error::new("protocol"))
 }
 pub async fn step(config:&Config,project:&str,worker:&str)->Result<()> {
+ release_terminal_c4(config,project).await?;
  let mut c=session::runtime(config).await?;
  let pending=c.query("SELECT a.task_id::text FROM jw_native.pending_acks a JOIN jw_native.bindings b ON b.id=a.binding_id WHERE b.project_id=$1::text::uuid AND a.acknowledged_at IS NULL ORDER BY a.task_id",&[&project]).await.map_err(Error::sql)?;
  let mut ack_error=None;
@@ -206,10 +310,19 @@ pub async fn step(config:&Config,project:&str,worker:&str)->Result<()> {
   }
  }
  if acknowledged {return Ok(())}
- let r=lease::claim(&c,project,&[KIND.into()],worker).await?;
+ let selected_install=c.query_opt("SELECT checksum,filename FROM jobs.schema_migrations WHERE version='jobs-claim-selected/1'",&[]).await.map_err(Error::sql)?;
+ if !selected_install.is_some_and(|r|r.get::<_,String>(0)=="d2daaedcdfec509334df7eda09e5ac6fa277ae2291b16d12293e1deb4270b9d0" && r.get::<_,String>(1)=="0009_claim_selected_expand.sql") {return Err(Error::new("claim_selected_install"))}
+ // Select the immutable occurrence before claiming it. An older retry may
+ // have a later run_at than its sibling; generic jobs.claim could steal the
+ // sibling while the source's active fence still belongs to the retry.
+ let candidate=c.query_opt("WITH waiting AS (SELECT t.id,t.project_id,t.run_at,t.state,t.lease_until,p.active_task_id,ROW_NUMBER() OVER (PARTITION BY b.source_id,b.target_database ORDER BY CASE WHEN b.method='C1' THEN (o.request->>'source_generation')::bigint END NULLS LAST,o.scheduled_at,t.id) AS source_order FROM jw_native.occurrences o JOIN jw_native.bindings b ON b.id=o.binding_id JOIN jobs.tasks t ON t.id=o.task_id LEFT JOIN jw_native.source_progress p ON p.source_id=b.source_id AND p.target_database=b.target_database WHERE t.kind='native_capture' AND t.state IN ('queued','running') AND b.target_database IS NOT NULL) SELECT id::text FROM waiting WHERE project_id=$1::text::uuid AND (active_task_id=id OR active_task_id IS NULL AND source_order=1) AND (state='queued' AND run_at<=clock_timestamp() OR state='running' AND lease_until<=clock_timestamp()) ORDER BY run_at,id LIMIT 1",&[&project]).await.map_err(Error::sql)?;
+ let Some(candidate)=candidate else {println!("claim=none");return ack_error.map_or(Ok(()),Err)};
+ let selected:String=candidate.get(0);
+ let r=lease::claim_selected(&c,project,&selected,&[KIND.into()],worker).await?;
  if r.status==LeaseStatus::None {println!("claim=none");return ack_error.map_or(Ok(()),Err)}
  if r.status!=LeaseStatus::Claimed{return Err(Error::new("claim"))}
  let task=r.task_id.ok_or_else(||Error::new("claim"))?;let generation=r.generation.ok_or_else(||Error::new("claim"))?;
+ if task!=selected {return Err(Error::new("claim_identity"))}
  println!("claim=claimed task={task} generation={generation} worker={worker}");
  match apply(config,&mut c,project,worker,&task,generation).await {
   Ok(())=>Ok(()),Err(e)=>{
@@ -227,7 +340,10 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  let parsed=crate::capture_plan::CapturePayload::parse(&payload)?;
  let artifact:String=row.get(6);
  if canonical(&m)?.1!=pinned || parsed.binding!=binding || parsed.pin!=pin || artifact!=sha256_hex(crate::capture_plan::CapturePayload::text(&binding,pin).as_bytes()){return Err(Error::new("manifest_changed"))}
- let base=confirmed_generation(config,c,&m.source_id,&database,task,&stored).await?;
+ adopt_claim(c,&m.source_id,&database,project,task,worker,generation).await?;
+ let base=if m.method=="C1" {
+  confirmed_c1_generation(config,c,&m.source_id,&database,&binding,task,&stored).await?
+ } else {confirmed_generation(config,c,&m.source_id,&database,task,&stored).await?};
  let mut request=match stored {
   Some(s)=>serde_json::from_str(&s).map_err(|_|Error::new("request"))?,
   None=>{
@@ -265,10 +381,8 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  };
  // mirror is an invocation-only policy, excluded from the native source payload digest.
  // Preserve original stored request; require actual Loader mirror recovery before CAS.
- if m.method!="C4" {
-  request.as_object_mut().ok_or_else(||Error::new("request"))?.insert("mirror".into(),Value::Bool(true));
-  println!("invocation_mirror=true source_request_rewritten=false");
- } else if request.get("mirror").and_then(Value::as_bool)!=Some(false) {return Err(Error::new("c4_mirror"))}
+ invocation_mirror(&mut request,&m.method)?;
+ println!("invocation_mirror={} source_request_rewritten=false",m.method!="C4");
  let target=if m.method=="C4" {Some(mirror_claim(config,c,project,task,worker,generation,&effective.loader).await?)} else {None};
  let result=exec(config,&effective.loader,"loader",serde_json::to_vec(&request).unwrap(),effective.registration.as_ref(),&binding,pin,project,task,worker,generation,target.as_ref()).await?;
  let lease_id=result.pointer("/jobs_lease_receipt/id").and_then(Value::as_str);
@@ -291,7 +405,8 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  let raw_pos=if m.method=="C4" {result.pointer("/partition_target_receipt/partition_scope/partition_id")} else {request.get("applied_pos")}.ok_or_else(||Error::new("position"))?;
  let pos=raw_pos.as_str().map(str::to_owned).unwrap_or_else(||raw_pos.to_string());
  let state=result.get("load_state").and_then(Value::as_str).unwrap_or("").to_string();let result_text=result.to_string();
- verify_applied(config,&m.source_id,&database,source_generation).await?;
+ if m.method=="C1" {verify_c1_applied(config,&m.source_id,&database,&request).await?}
+ else {verify_applied(config,&m.source_id,&database,source_generation).await?}
  let tx=c.transaction().await.map_err(Error::sql)?;
  if m.method=="C4" {
   let ack=ack_request(&result,task,generation)?;
@@ -307,7 +422,11 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
  if done.status!=LeaseStatus::Succeeded{return Err(Error::new("lost_lease"))}
  tx.execute("INSERT INTO jw_native.watermarks(binding_id,pin,task_id,generation,source_generation,applied_pos,load_state,result) VALUES($1::text::uuid,$2,$3::text::uuid,$4,$5,$6,$7,$8::text::jsonb) ON CONFLICT(binding_id) DO UPDATE SET pin=EXCLUDED.pin,task_id=EXCLUDED.task_id,generation=EXCLUDED.generation,source_generation=EXCLUDED.source_generation,applied_pos=EXCLUDED.applied_pos,load_state=EXCLUDED.load_state,result=EXCLUDED.result,advanced_at=clock_timestamp() WHERE jw_native.watermarks.pin<EXCLUDED.pin",&[&binding,&pin,&task,&generation,&source_generation,&pos,&state,&result_text]).await.map_err(Error::sql)?;
  tx.execute("UPDATE jw_native.occurrences SET result=$2::text::jsonb WHERE task_id=$1::text::uuid",&[&task,&result_text]).await.map_err(Error::sql)?;
- let n=tx.execute("UPDATE jw_native.source_progress SET source_generation=$3,task_id=$4::text::uuid,binding_id=$5::text::uuid,active_task_id=NULL,confirmed_at=clock_timestamp() WHERE source_id=$1 AND target_database=$2 AND COALESCE(source_generation,0)=$6 AND active_task_id=$4::text::uuid",&[&m.source_id,&database,&source_generation,&task,&binding,&base]).await.map_err(Error::sql)?;
+ let n=if m.method=="C1" {
+  tx.execute("UPDATE jw_native.source_progress SET active_task_id=NULL WHERE source_id=$1 AND target_database=$2 AND active_task_id=$3::text::uuid",&[&m.source_id,&database,&task]).await.map_err(Error::sql)?
+ } else {
+  tx.execute("UPDATE jw_native.source_progress SET source_generation=$3,task_id=$4::text::uuid,binding_id=$5::text::uuid,active_task_id=NULL,confirmed_at=clock_timestamp() WHERE source_id=$1 AND target_database=$2 AND COALESCE(source_generation,0)=$6 AND active_task_id=$4::text::uuid",&[&m.source_id,&database,&source_generation,&task,&binding,&base]).await.map_err(Error::sql)?
+ };
  if n!=1 {return Err(Error::new("source_active"))}
  tx.commit().await.map_err(Error::sql)?;
  println!("complete=succeeded binding={binding} pin={pin} task={task} generation={generation} load_state={state} applied_pos={pos}");Ok(())
@@ -454,6 +573,29 @@ fn method_token(method:&str)->Result<&'static str> {
 }
 fn request_protocol(method:&str)->&'static str {
  if method=="C4" {"oo.pipeline.native-partition/v1"} else {"oo.pipeline.native-update/v1"}
+}
+
+fn invocation_mirror(request:&mut Value,method:&str)->Result<()> {
+ let object=request.as_object_mut().ok_or_else(||Error::new("request"))?;
+ if method=="C4" {
+  if object.get("mirror").is_some_and(|v|v.as_bool()!=Some(false)) {return Err(Error::new("c4_mirror"))}
+  object.insert("mirror".into(),Value::Bool(false));
+ } else {object.insert("mirror".into(),Value::Bool(true));}
+ Ok(())
+}
+
+#[cfg(test)]
+mod invocation_tests {
+ use super::*;
+ #[test]
+ fn frozen_c4_without_mirror_is_invoked_without_target_cas() {
+  let frozen=json!({"protocol":"oo.pipeline.native-partition/v1","source_generation":7});
+  let mut invoked=frozen.clone();
+  invocation_mirror(&mut invoked,"C4").expect("invocation");
+  assert!(frozen.get("mirror").is_none());
+  assert_eq!(invoked["mirror"],false);
+  assert!(invocation_mirror(&mut json!({"mirror":true}),"C4").is_err());
+ }
 }
 
 /// Read only the last successfully CAS-committed occurrence, never a capture candidate.

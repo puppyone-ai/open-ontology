@@ -1,0 +1,9 @@
+{
+  "kind": "coordinator_evidence_intake_not_independent_review",
+  "source_commit": "c13bfb787a901cafbab96297b8de99191759ca5a",
+  "evidence_commit": "d706d879a418e3cb8c544aa7fe1bd1626575188d",
+  "manifest_sha256": "d566fdc7a405cda5af752f1510b9d62f3d96a744c4e70f19ddfae181332137d9",
+  "verified_fixed_git_blobs": 194,
+  "scope": "shared native collection Gateway Oracle3/Maria5 CLI typed gold/deny/cancel/WAL; source autonomous dialogue separately pending; formal publication/business gates not accepted",
+  "accepted_source_count_delta": 0
+}

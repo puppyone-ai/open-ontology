@@ -10,6 +10,10 @@ pub const CLAIM: &str = "\
 SELECT status, task_id::text, project_id::text, kind, state, attempt, generation, lease_owner, run_at::text
 FROM jobs.claim($1::text::uuid, $2::text[], $3)";
 
+pub const CLAIM_SELECTED: &str = "\
+SELECT status, task_id::text, project_id::text, kind, state, attempt, generation, lease_owner, run_at::text
+FROM jobs.claim_selected($1::text::uuid, $2::text::uuid, $3::text[], $4)";
+
 pub const HEARTBEAT: &str = "\
 SELECT status, task_id::text, project_id::text, kind, state, attempt, generation, lease_owner, run_at::text
 FROM jobs.heartbeat($1::text::uuid, $2::text::uuid, $3, $4)";

@@ -20,7 +20,7 @@
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
-- DL01-W1-04 / driver：source_product_development；native_running；Plan DBX-W04；固定依赖 577160c22de6。
+- DL01-W1-04 / driver：source_product_development；author_partial_dialogue_pack_content_pending；Plan DBX-W04；固定依赖 577160c22de6。
 - DL01-W1-05 / semantics：development；historical_terminal_ownership_transferred；Plan DBX-W05；固定依赖 577160c22de6。
 - DL01-W1-06 / mysql：development；author_complete_deferred_connected_review；Plan SP03-W02；固定依赖 577160c22de6。
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
@@ -55,8 +55,8 @@
 - DL01-W1-36 / semantics-review：independent_review；fixed_review_passed；Plan DBX-W05；固定依赖 b1ffb079d7be。
 - DL01-W1-37 / suite-repair-review：independent_review；fixed_review_passed；Plan DBX-W14；固定依赖 876b3b916d6f。
 - DL01-W1-38 / budget-report：development_parent_extension；historical_terminal_ownership_transferred；Plan DBX-W02；固定依赖 577160c22de6。
-- DL01-W1-39 / mariadb-driver-preflight：source_product_development；native_running；Plan DBX-W06；固定依赖 577160c22de6。
-- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；native_waiting_dependency；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-39 / mariadb-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W06；固定依赖 577160c22de6。
+- DL01-W1-40 / clickhouse-driver-preflight：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-41 / mongodb-driver-preflight：source_product_development；native_running；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
 - DL01-W1-43 / doris-driver-preflight：source_product_development；native_running；Plan DBX-W12；固定依赖 577160c22de6。
@@ -89,13 +89,13 @@
 - DL01-W1-70 / mysql-full-source-review：critical_review；review_return；Plan SP03-W02；固定依赖 84e123025c52。
 - DL01-W1-71 / full-selfbuild-yaml-maintenance：shared_complete_capability；native_running；Plan SP07-W01；固定依赖 13ad15b4bc66。
 - DL01-W1-72 / public-gateway-sdk-cli-complete：shared_complete_capability；author_complete_deferred_connected_review；Plan SP09-W01；固定依赖 8405b4585。
-- DL01-W1-73 / ontology-publish-maintenance：shared_complete_capability；author_shared_gateway_preview_delivered；Plan SP08-W04；固定依赖 e2bd526e9617。
+- DL01-W1-73 / ontology-publish-maintenance：shared_complete_capability；native_running；Plan SP08-W04；固定依赖 e2bd526e9617。
 - DL01-W1-74 / capture-jobs-schedule-lease：shared_complete_capability；native_running；Plan SP04-W06；固定依赖 1c4797e2f846。
 - DL01-W1-75 / publish-maintenance-fixed-critical-review：critical_review；critical_review_request_changes；Plan SP08-W04；固定依赖 699ca96df609。
 - DL01-W1-76 / public-gateway-fixed-critical-review：critical_review；critical_review_request_changes；Plan SP09-W01；固定依赖 91031011238c。
 - DL01-W1-77 / native-loader-fixed-critical-review：critical_review；critical_review_request_changes；Plan DBX-W05；固定依赖 f0060dfbc217。
 - DL01-W1-78 / customer-mysql-readonly-validation：real_customer_readonly_validation；author_readonly_probe_terminal；Plan DBX-W06；固定依赖 ebae1fa23。
-- DL01-W1-79 / shared-native-source-product-loader：continued_shared_product_capability；native_running；Plan SP03-W02；固定依赖 56bcab6b8d85。
+- DL01-W1-79 / shared-native-source-product-loader：continued_shared_product_capability；author_shared_loader_recovery_delivered；Plan SP03-W02；固定依赖 56bcab6b8d85。
 
 ## 最近下一步与当前派发
 
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。
+完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。

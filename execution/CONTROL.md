@@ -1088,3 +1088,7 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-13T16:50:09.411954+08:00 固定派发及资源交接
 
 共享71源码6b6709f41及priced配置证据51854571b固定交付：原逐表source身份/真实OIDC续签/Oracle与Maria独立API，无模型严格settings/price与原封印预检。Oracle修复后新build b_487a4949da9204caaa530cc20dc4fdba、Mariapricedbuild202仍在后续，不计完成。79 f1037e08f/f792只代码参考，真实多跳lease mirror重绑定与74实测继续。原失败不删、新旧canonicalkey不冒充cache、无新replay框架；作者预览2/10、统一0/10保持。完整task/UUID/路径/固定SHA/句柄见dispatch.json及task-ledger。原能力返工不增加分母；历史开发8/8、完整源0/10源验收，parent/集成/发行无变化。主Plan原退出保留；无整版签收，无需切换PRODUCT-LOOPS/Goal；矩阵与前端无变更。
+
+### 2026-10-13 MariaDB完整作者预览入账
+
+完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。 Gateway共享固定194个Git证据blob已核d706d879a清单SHA d566fdc7a405cda5af752f1510b9d62f3d96a744c4e70f19ddfae181332137d9。开发、集成、发行及等级分母不变；不勾父项、不切PRODUCT-LOOPS、不改整体Goal范围。净化远端snapshot39a9ebc79对应本地c2277974，非重写开发历史。

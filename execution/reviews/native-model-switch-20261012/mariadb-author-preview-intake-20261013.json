@@ -1,0 +1,27 @@
+{
+  "level": "complete_author_preview_not_formal_acceptance",
+  "source_commit": "6cc58d0c7300594bca8adc5a54d2082d17d13de1",
+  "local_manifest": "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product/final-author/LOCAL-SHA256SUMS",
+  "local_manifest_sha256": "d0b202445ee9b740e4ff6c39467c2078df360dbb8b8fbfc5e7a531d7fc15a1a0",
+  "verified_local_files": 24,
+  "coordinator_dialogue_replay_exit": 0,
+  "dialogue_replay": {
+    "status": "author_preview_dialogue_verified",
+    "followup": "actual_OO_validate_rejected_before_query_admission",
+    "followup_tool_calls": 2,
+    "followup_code": "COLUMN_NOT_ALLOWED",
+    "followup_query_id": null,
+    "original_turns": 4,
+    "original_query_ids_in_completion_wal": 8,
+    "original_independent_gold_facts": 9,
+    "external_denied_query_id": "q_70LlfinKROr0MC5YptSbiDZEsc",
+    "raw_followup_sha256": "1d6694b18a929e73358e90107e2c4ea21744923a8cfd4c4f644f07ba204464ec",
+    "old_strict_verdict_preserved": true,
+    "formal_publication": false
+  },
+  "rows": 100006,
+  "typed_cells": 828021,
+  "typed_differences": 0,
+  "review": "deferred_to_unified_connected_loop_review",
+  "formal_signed_source_delta": 0
+}

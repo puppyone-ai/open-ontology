@@ -1,7 +1,7 @@
 {
   "batch": "dl01-wave1-20261009",
   "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
-  "as_of": "2026-10-13T18:14:45.935835+08:00",
+  "as_of": "2026-10-13T18:29:48.450504+08:00",
   "tasks": [
     {
       "task_id": "DL01-W1-01",
@@ -185,7 +185,7 @@
       "resource_prefix": "oo-dl01w1-04",
       "rust_slots": 1,
       "database_memory_gib": 6,
-      "status": "native_running",
+      "status": "author_partial_dialogue_pack_content_pending",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-04-grok-longrun-complete-source.log",
       "process_identity": [
@@ -1634,7 +1634,7 @@
       "resource_prefix": "oo-dl01w1-39",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "native_running",
+      "status": "author_complete_deferred_connected_review",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-39-grok-longrun-complete-source.log",
       "exit_receipt_prefix": "DL01-W1-39-whole-collection",
@@ -1655,7 +1655,7 @@
       "pre_edit_failure": "whole mutable repository RW mounted; builder Exited1, invalid fixed smoke, original owner must repair archive recipe",
       "author_commit": "6263fdf3e8be39a5b5c91397e69234229388ce45",
       "evidence_commit": "5d0b317602df964e6ee0a062cf715d6a9a07db0d",
-      "next_action": "人类确认原生额度恢复；原完整任务续接，Ponytail5.1.1最小关键修复，真实共享依赖/完整源退出与固定证据，不重复模型。",
+      "next_action": "Complete author preview; unified independent ten-source loop review deferred. Business/customer/nightly/grade/publication remain pending.",
       "whole_evidence_commit": "0adf27b9f737af0a00d28586598e6e5e0f498043",
       "whole_hashes_verified": 369,
       "critical_review_task": "DL01-W1-55",
@@ -1722,7 +1722,8 @@
       "capacity_handoff": "execution/batches/native-full-source-20261012/CAPACITY-HANDOFF.md",
       "status_before_shared_hold": "native_running",
       "shared_reference_only": false,
-      "latest_observed_at": "2026-10-13T08:35:05.602529+00:00"
+      "latest_observed_at": "2026-10-13T08:35:05.602529+00:00",
+      "source_commit": "6cc58d0c7300594bca8adc5a54d2082d17d13de1"
     },
     {
       "task_id": "DL01-W1-40",
@@ -1743,7 +1744,7 @@
       "resource_prefix": "oo-dl01w1-40",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "native_waiting_dependency",
+      "status": "native_running",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-40-grok-longrun-complete-source.log",
       "resource_terminal": "prior CLI terminal for human-directed scope consolidation; existing background resources stay same owner and must be collected",
@@ -3065,7 +3066,7 @@
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-73-current-complete-product-longrun.md",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-73-current-complete-product-longrun.md",
       "resource_prefix": "oo-dl01w1-73",
-      "status": "author_shared_gateway_preview_delivered",
+      "status": "native_running",
       "tool_handle": null,
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-73-ontology-publish-maintenance.log",
@@ -3306,7 +3307,7 @@
         "tools/source-admission/src/capture.rs"
       ],
       "resource_prefix": "oo-dl01w1-79",
-      "status": "native_running",
+      "status": "author_shared_loader_recovery_delivered",
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-79-native-source-product-loader.log",
       "denominator_change": false,

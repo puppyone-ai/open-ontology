@@ -39,6 +39,7 @@ async fn run() -> Result<()> {
         Some("native-state") => job_worker::native_schedule::state(&config, &required(&flags,"binding")?).await,
         Some("native-fire") => job_worker::native_schedule::fire(&config, &required(&flags,"project")?).await,
         Some("native-step") => job_worker::native_schedule::step(&config, &required(&flags,"project")?, &required(&flags,"worker")?).await,
+        Some("native-cancel") => job_worker::native_schedule::cancel_c4(&config, &required(&flags,"project")?, &required(&flags,"task")?, &required(&flags,"worker")?, required(&flags,"generation")?.parse().map_err(|_|Error::new("usage"))?).await,
         Some("native-serve") => job_worker::native_schedule::serve(&config, &required(&flags,"project")?, &required(&flags,"worker")?, required(&flags,"seconds")?.parse().map_err(|_|Error::new("usage"))?).await,
         Some("apply") => job_worker::apply::apply(&config).await,
         Some("reset") => job_worker::apply::reset(&config).await,

@@ -1041,3 +1041,7 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ## 2026-10-13 当前接续与净化快照
 
 共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。 产品Selfbuild及对话已获准Grok-4.7备用，同URL/key保留真实模型及失败，不复用旧模型缓存；原生开发者策略不变。普通等待1080秒，clock.sleep，通知即收。净化同步仅源码、短状态与本地证据SHA；原始evidence/log/stdout/stderr/exit保持本地，不force-add。172bfd192修复对话真实工具要求及可恢复的明确表名错误，并保留导出NDJSON测试夹具；25项导出测试通过，非十源签收。整版、父项及支持等级未晋级，PRODUCT-LOOPS不变。
+
+### 2026-10-13 MariaDB完整作者预览入账
+
+完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。 Gateway共享固定194个Git证据blob已核d706d879a清单SHA d566fdc7a405cda5af752f1510b9d62f3d96a744c4e70f19ddfae181332137d9。开发、集成、发行及等级分母不变；不勾父项、不切PRODUCT-LOOPS、不改整体Goal范围。净化远端snapshot39a9ebc79对应本地c2277974，非重写开发历史。

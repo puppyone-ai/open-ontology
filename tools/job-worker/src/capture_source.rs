@@ -1354,7 +1354,7 @@ mod tests {
     #[test]
     fn producer_receipt_uses_the_arrow_schema_message_and_hides_the_secret() {
         let arrow = include_bytes!(
-            "../../../evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/linux/run-source-2/tick-a/pin1-str_key.arrow"
+            "../tests/fixtures/pin1-str_key.arrow"
         );
         let schema = arrow_schema_sha256(arrow).expect("schema");
         assert_eq!(schema, "a918657aae66d6bbbf6c746de67fa67e3354fd0cc35815de0a21a43eaf8df999");

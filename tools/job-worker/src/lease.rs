@@ -64,6 +64,16 @@ pub async fn claim(
     one(client, sql::CLAIM, &[&project_id, &kinds, &worker]).await
 }
 
+pub async fn claim_selected(
+    client: &impl GenericClient,
+    project_id: &str,
+    task_id: &str,
+    kinds: &[String],
+    worker: &str,
+) -> Result<LeaseResult> {
+    one(client, sql::CLAIM_SELECTED, &[&project_id, &task_id, &kinds, &worker]).await
+}
+
 pub async fn heartbeat(
     client: &impl GenericClient,
     project_id: &str,

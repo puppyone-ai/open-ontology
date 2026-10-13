@@ -5008,7 +5008,7 @@
       "resource_prefix": "oo-dl01w1-04",
       "rust_slots": 1,
       "database_memory_gib": 6,
-      "status": "native_running",
+      "status": "author_partial_dialogue_pack_content_pending",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-04-grok-longrun-complete-source.log",
       "process_identity": [
@@ -6457,7 +6457,7 @@
       "resource_prefix": "oo-dl01w1-39",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "native_running",
+      "status": "author_complete_deferred_connected_review",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-39-grok-longrun-complete-source.log",
       "exit_receipt_prefix": "DL01-W1-39-whole-collection",
@@ -6478,7 +6478,7 @@
       "pre_edit_failure": "whole mutable repository RW mounted; builder Exited1, invalid fixed smoke, original owner must repair archive recipe",
       "author_commit": "6263fdf3e8be39a5b5c91397e69234229388ce45",
       "evidence_commit": "5d0b317602df964e6ee0a062cf715d6a9a07db0d",
-      "next_action": "人类确认原生额度恢复；原完整任务续接，Ponytail5.1.1最小关键修复，真实共享依赖/完整源退出与固定证据，不重复模型。",
+      "next_action": "Complete author preview; unified independent ten-source loop review deferred. Business/customer/nightly/grade/publication remain pending.",
       "whole_evidence_commit": "0adf27b9f737af0a00d28586598e6e5e0f498043",
       "whole_hashes_verified": 369,
       "critical_review_task": "DL01-W1-55",
@@ -6545,7 +6545,8 @@
       "capacity_handoff": "execution/batches/native-full-source-20261012/CAPACITY-HANDOFF.md",
       "status_before_shared_hold": "native_running",
       "shared_reference_only": false,
-      "latest_observed_at": "2026-10-13T08:35:05.602529+00:00"
+      "latest_observed_at": "2026-10-13T08:35:05.602529+00:00",
+      "source_commit": "6cc58d0c7300594bca8adc5a54d2082d17d13de1"
     },
     {
       "task_id": "DL01-W1-40",
@@ -6566,7 +6567,7 @@
       "resource_prefix": "oo-dl01w1-40",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "native_waiting_dependency",
+      "status": "native_running",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-40-grok-longrun-complete-source.log",
       "resource_terminal": "prior CLI terminal for human-directed scope consolidation; existing background resources stay same owner and must be collected",
@@ -7888,7 +7889,7 @@
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-73-current-complete-product-longrun.md",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-73-current-complete-product-longrun.md",
       "resource_prefix": "oo-dl01w1-73",
-      "status": "author_shared_gateway_preview_delivered",
+      "status": "native_running",
       "tool_handle": null,
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-73-ontology-publish-maintenance.log",
@@ -8129,7 +8130,7 @@
         "tools/source-admission/src/capture.rs"
       ],
       "resource_prefix": "oo-dl01w1-79",
-      "status": "native_running",
+      "status": "author_shared_loader_recovery_delivered",
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-79-native-source-product-loader.log",
       "denominator_change": false,
@@ -8170,7 +8171,7 @@
       "latest_observed_at": "2026-10-13T08:35:05.602538+00:00"
     }
   ],
-  "current_execution_note": "共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。",
+  "current_execution_note": "完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -8243,5 +8244,16 @@
   "source_requirement_audit": "execution/reviews/full-source-original-requirements-audit-20261012.md",
   "human_capture_method_resolution": "按原docs逐源方法，验证可配置周期与更新、删除收敛；C1/C2/C3/C4/C5分别标注能力、一致性、删除检测",
   "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
-  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence."
+  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
+  "current_full_chain_author_previews": {
+    "count": 3,
+    "required": 10,
+    "sources": [
+      "mysql",
+      "opensearch",
+      "mariadb"
+    ],
+    "formal_signed_sources": 0,
+    "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json"
+  }
 }

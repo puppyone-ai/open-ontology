@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-13T18:14:45.935835+08:00",
+  "as_of": "2026-10-13T18:29:48.450504+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -131,7 +131,7 @@
     }
   },
   "priority_frontier": {
-    "status": "共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览2/10、正式完整源0/10保持；SQLServer缺原生真实实例。",
+    "status": "完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。",
     "p0": "DL01 ten distinct actual sources incl MySQL/Oracle: per-docs sustained capture + maintained standard OOS YAML + real Knowledge Pack + Gateway and independent Agent dialogue; full0/10, historical preview6/10",
     "parallel": "current delivery critical path first; later cards may develop with implemented pinned dependencies, exclusive paths and actual spare capacity",
     "later_preparation": "prepare customer questions/authorization and per-target nightly early; later delivery acceptance remains ordered; preserve existing code"
@@ -1094,27 +1094,15 @@
   },
   "managed_live_native_agents": [
     {
-      "task": "DL01-W1-04",
-      "native_agent_name": "/root/closure_oracle_04",
+      "task": "DL01-W1-40",
+      "native_agent_name": "/root/closure_clickhouse_40",
       "status": "native_running",
       "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
       "write_paths": [
-        "tools/source-driver-worker",
-        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver",
-        "tools/oracle-preview",
-        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product"
-      ]
-    },
-    {
-      "task": "DL01-W1-39",
-      "native_agent_name": "/root/closure_mariadb_39",
-      "status": "native_running",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "testing/dl01-driver-preflight/mariadb",
-        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-driver-preflight",
-        "tools/mariadb-preview",
-        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product"
+        "testing/dl01-driver-preflight/clickhouse",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
+        "tools/clickhouse-preview",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product"
       ]
     },
     {
@@ -1171,6 +1159,18 @@
       ]
     },
     {
+      "task": "DL01-W1-73",
+      "native_agent_name": "/root/sol_recovery_publish",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/release-control-api",
+        "tools/release-coordinator",
+        "evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance",
+        "crates/oo-gateway"
+      ]
+    },
+    {
       "task": "DL01-W1-74",
       "native_agent_name": "/root/sol_recovery_capture_jobs",
       "status": "native_running",
@@ -1178,22 +1178,6 @@
       "write_paths": [
         "tools/job-worker",
         "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
-      ]
-    },
-    {
-      "task": "DL01-W1-79",
-      "native_agent_name": "/root/sol_recovery_loader",
-      "status": "native_running",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "crates/oo-pipeline",
-        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
-        "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
-        "crates/oo-connectors",
-        "crates/oo-jobs",
-        "Cargo.toml",
-        "Cargo.lock",
-        "tools/source-admission/src/capture.rs"
       ]
     }
   ],
@@ -1269,5 +1253,16 @@
     "remaining_shared_runtime_proof": "C4/C1/catalog/global-generation and remaining source full chains"
   },
   "ordinary_event_wait_seconds": 1080,
-  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence."
+  "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
+  "current_full_chain_author_previews": {
+    "count": 3,
+    "required": 10,
+    "sources": [
+      "mysql",
+      "opensearch",
+      "mariadb"
+    ],
+    "formal_signed_sources": 0,
+    "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json"
+  }
 }
