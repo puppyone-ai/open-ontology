@@ -467,6 +467,33 @@ fn ensure_source_money(model: &oosyaml::Model, units: &BTreeMap<String, String>)
     Ok(())
 }
 
+fn project_native_source_money(effective: &mut Value, model: &oosyaml::Model, units: &BTreeMap<String, String>) -> Result<Vec<Value>, ApiError> {
+    let mut corrections = Vec::new();
+    for (id, unit) in units {
+        let (dataset_name, column_name) = id.rsplit_once('.').ok_or_else(ApiError::pack_refused)?;
+        let source = model.datasets.get(dataset_name).and_then(|dataset| dataset.columns.get(column_name)).ok_or_else(ApiError::pack_refused)?;
+        if source.semantic_type != "money" || &source.unit != unit || source.provenance != "declared" { return Err(ApiError::pack_refused()); }
+        if source.pii == "unknown" && source.classification_state != "pending" { return Err(ApiError::pack_refused()); }
+        let datasets = effective.get_mut("datasets").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+        let mut matches = datasets.iter_mut().filter(|dataset| dataset.get("dataset").and_then(Value::as_str) == Some(dataset_name)).collect::<Vec<_>>();
+        if matches.len() != 1 { return Err(ApiError::pack_refused()); }
+        let columns = matches.pop().ok_or_else(ApiError::pack_refused)?.get_mut("columns").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+        let mut matches = columns.iter_mut().filter(|column| column.get("name").and_then(Value::as_str) == Some(column_name)).collect::<Vec<_>>();
+        if matches.len() != 1 { return Err(ApiError::pack_refused()); }
+        let column = matches.pop().ok_or_else(ApiError::pack_refused)?;
+        let original = column.clone();
+        column["semantic_type"] = json!("money");
+        column["unit"] = json!(unit);
+        column["pii"] = if source.pii == "unknown" { Value::Null } else { json!(source.pii) };
+        column["provenance"] = json!("declared");
+        let state = if matches!(source.classification_state.as_str(), "confirmed" | "auto_accepted") { "confirmed" } else { "pending" };
+        if state == "pending" { column["classification"] = json!({"state":"pending","by":null,"at":null}); }
+        else { column["classification"]["state"] = json!("confirmed"); }
+        if *column != original { corrections.push(json!({"column":id,"reviewed_candidate":original,"source_declared":column})); }
+    }
+    Ok(corrections)
+}
+
 async fn apply_source_unit_correction(client: &Client, build_id: &str, docs: &Docs, edit: Value, units: &BTreeMap<String, String>) -> Result<(), ApiError> {
     let object = edit.as_object().ok_or_else(ApiError::malformed)?;
     if object.len() != 3 { return Err(ApiError::malformed()); }
@@ -982,30 +1009,15 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
     let mut effective = reviewed.get("effective_oos").cloned().ok_or_else(ApiError::pack_refused)?;
     let native_input = read(&root.join("native-model.json"))?;
     pg_builder::project_sealed_source_contract(&mut effective, &command["catalog"], native_input.get("source_contract")).map_err(|error| { eprintln!("native-maintenance source refused: {}", error.code); ApiError::pack_refused() })?;
-    let mut source_unit_corrections = Vec::new();
-    for (id, unit) in &units {
-        let datasets = effective.get_mut("datasets").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
-        let mut found = 0;
-        for dataset in datasets {
-            let Some(name) = dataset.get("dataset").and_then(Value::as_str) else { return Err(ApiError::pack_refused()); };
-            let Some(column_name) = id.strip_prefix(&format!("{name}.")) else { continue; };
-            let columns = dataset.get_mut("columns").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
-            for column in columns {
-                if column.get("name").and_then(Value::as_str) != Some(column_name) { continue; }
-                found += 1;
-                if column.get("semantic_type").and_then(Value::as_str) != Some("money") { return Err(ApiError::pack_refused()); }
-                let old = column.get("unit").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
-                if old != unit {
-                    source_unit_corrections.push(json!({"column":id,"candidate_unit":old,"declared_unit":unit}));
-                    column["unit"] = json!(unit);
-                }
-            }
-        }
-        if found != 1 { return Err(ApiError::pack_refused()); }
-    }
+    let source_fact_corrections = project_native_source_money(&mut effective, &docs.effective, &units)?;
+    let source_unit_corrections: Vec<Value> = source_fact_corrections.iter().filter_map(|item| {
+        let before = item.get("reviewed_candidate")?.get("unit")?.as_str()?;
+        let after = item.get("source_declared")?.get("unit")?.as_str()?;
+        (before != after).then(|| json!({"column":item["column"],"candidate_unit":before,"declared_unit":after}))
+    }).collect();
     let visibility = read(&original.join("visibility.json"))?;
     let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
-    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0});
+    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0});
     let digest = canonical_sha256(&receipt);
     let dest = root.join("native-maintenance").join(&digest);
     let mut files = BTreeMap::new();
@@ -1029,7 +1041,7 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
 
 #[cfg(test)]
 mod source_money_tests {
-    use super::ensure_source_money;
+    use super::{ensure_source_money, project_native_source_money};
     use crate::oosyaml::generated_from_inputs;
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -1043,5 +1055,26 @@ mod source_money_tests {
         assert!(ensure_source_money(&model, &units).is_ok());
         model.datasets.get_mut("oo_w141.shipments").unwrap().columns.get_mut("price").unwrap().unit = "USD".to_owned();
         assert!(ensure_source_money(&model, &units).is_err());
+    }
+
+    #[test]
+    fn native_maintenance_keeps_hidden_source_money_unknown_and_pending() {
+        let catalog = json!({"tables":[{"schema":"oo_w141","table":"shipments","columns":[{"name":"price","data_type":"numeric"}]}]});
+        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","pii":"unknown","unit":"unspecified","confidence":"high"}],"relationships":[]});
+        let (mut model, _) = generated_from_inputs(&catalog, &rules, "none").unwrap();
+        let units = BTreeMap::from([("oo_w141.shipments.price".to_owned(), "unspecified".to_owned())]);
+        let original = json!({"dataset":"oo_w141.shipments","columns":[{"name":"price","semantic_type":"money","unit":"USD","pii":"none","provenance":"generated","classification":{"state":"confirmed","by":"test","at":"2026-10-13"}}]});
+        let mut effective = json!({"datasets":[original]});
+        let receipt = project_native_source_money(&mut effective, &model, &units).unwrap();
+        let price = &effective["datasets"][0]["columns"][0];
+        assert_eq!(price["unit"], "unspecified");
+        assert!(price["pii"].is_null());
+        assert_eq!(price["classification"]["state"], "pending");
+        assert!(price["classification"]["by"].is_null());
+        assert_eq!(price["provenance"], "declared");
+        assert_eq!(receipt[0]["reviewed_candidate"]["unit"], "USD");
+        model.datasets.get_mut("oo_w141.shipments").unwrap().columns.get_mut("price").unwrap().classification_state = "confirmed".to_owned();
+        assert!(project_native_source_money(&mut effective, &model, &units).is_err());
+        assert!(project_native_source_money(&mut json!({"datasets":[]}), &model, &units).is_err());
     }
 }

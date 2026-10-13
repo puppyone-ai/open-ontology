@@ -1,0 +1,28 @@
+{
+  "event": "root fixed Mongo author intake; not independent review",
+  "source_commit": "28f27730c",
+  "exit_receipt": {
+    "path": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/raw/native-c5-20261012/cfc-gateway/author-preview-exit.json",
+    "sha256": "aa6f4a207b36966ab6f652f4aa58564629a9cb77bf2ef3be9c5d79d2e5ac3bf7"
+  },
+  "verified_artifacts": {
+    "a2f699b879a0cce616ba96e5f0fc42bf1c8fe26c375872d26e1d0650a1142102": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/raw/native-c5-20261012/cfc-gateway/identity-correction-once/transcript.json",
+    "3ff31731296f311a33c39588efad230d74b9dd428de39cd0f39c909caa15e655": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/raw/native-c5-20261012/cfc-gateway/dialogue-a663-grok-identity-final/verdict.json",
+    "d26a585b6f2f9b1ae1e1561598126b60356f17b52f36ddba290176cdc74b6d61": "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product/raw/native-c5-20261012/cfc-gateway/dialogue-a663-grok-identity-final/transcript.json"
+  },
+  "completion_wal": {
+    "path": "/tmp/oo-dl01w1-41-gateway-preview/wal",
+    "sha256": "16a2e6bf3ccc69de9674ca748b7787ba4ba543a1e18c44669bfc033ecd7b0bde",
+    "files": 41,
+    "successful_query_ids": [
+      "q_1lBuqqn2xUGGrFG5B9i2eojPJn",
+      "q_I5ikuwWPypNADu7NTprpWDEBC5",
+      "q_oc2qOrM51rEqJMfphtBqUNkE4x",
+      "q_rAjXttDxcEhfuYUiH7DtRBeRhL",
+      "q_rTZD7RWZHYh91OYkF05Q7lO1M2"
+    ]
+  },
+  "answer_check": "Actual distinct result cells: row_count14, total_units108086391056937532; update1/delete0/insert1, independent result and named evidence checked. Original unsupported source liveness claim retained; two-response actual freshness correction expressly withdraws it and separates process state from publication/freshness.",
+  "scope": "owned fixture complete unpublished author preview, formal source/release gates pending",
+  "formal_counter_delta": 0
+}

@@ -71,6 +71,7 @@ pub const VERSION_NATIVE_PG_TRANSACTION_GROUP: &str = "native-pg-transaction-gro
 pub const VERSION_NATIVE_EMPTY_CATALOG: &str = "native-empty-sealed-catalog/v1";
 pub const VERSION_NATIVE_PG_GROUP_RECEIPT: &str = "native-pg-group-receipt/v1";
 pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
+pub const VERSION_NATIVE_PG_GROUP_GENERATION: &str = "native-pg-group-generation/v1";
 
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
 ///
@@ -99,6 +100,7 @@ const FILE_NATIVE_PG_TRANSACTION_GROUP: &str = "0017_native_pg_transaction_group
 const FILE_NATIVE_EMPTY_CATALOG: &str = "0018_native_empty_sealed_catalog.sql";
 const FILE_NATIVE_PG_GROUP_RECEIPT: &str = "0019_native_pg_group_receipt.sql";
 const FILE_NATIVE_PG_GROUP_PRIOR: &str = "0020_native_pg_group_prior.sql";
+const FILE_NATIVE_PG_GROUP_GENERATION: &str = "0021_native_pg_group_generation.sql";
 const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
 const FILE_JOBS_MIRROR_SYNC: &str = "0007_verified_mirror_sync_expand.sql";
@@ -125,6 +127,7 @@ const SCRIPT_NATIVE_PG_TRANSACTION_GROUP: &str = include_str!("../migrations/001
 const SCRIPT_NATIVE_EMPTY_CATALOG: &str = include_str!("../migrations/0018_native_empty_sealed_catalog.sql");
 const SCRIPT_NATIVE_PG_GROUP_RECEIPT: &str = include_str!("../migrations/0019_native_pg_group_receipt.sql");
 const SCRIPT_NATIVE_PG_GROUP_PRIOR: &str = include_str!("../migrations/0020_native_pg_group_prior.sql");
+const SCRIPT_NATIVE_PG_GROUP_GENERATION: &str = include_str!("../migrations/0021_native_pg_group_generation.sql");
 const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
 const SCRIPT_JOBS_MIRROR_SYNC: &str = include_str!("../../oo-jobs/migrations/0007_verified_mirror_sync_expand.sql");
@@ -247,6 +250,10 @@ pub fn compiled_native_pg_group_receipt_digest() -> String {
 
 pub fn compiled_native_pg_group_prior_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_PG_GROUP_PRIOR.as_bytes())
+}
+
+pub fn compiled_native_pg_group_generation_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_PG_GROUP_GENERATION.as_bytes())
 }
 
 pub fn compiled_jobs_mirror_rebind_digest() -> String {
@@ -1337,6 +1344,44 @@ pub async fn install_native_pg_group_prior(conn: &mut PgConnection) -> Result<()
         exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
         exec_script(&mut tx, SCRIPT_NATIVE_PG_GROUP_PRIOR).await?;
         insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_GROUP_PRIOR, &digest, FILE_NATIVE_PG_GROUP_PRIOR)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Seal the whole-source generation independently of per-table generations.
+pub async fn install_native_pg_group_generation(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_pg_group_prior_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PG_GROUP_PRIOR), Some(row)
+        if row_exact(row, VERSION_NATIVE_PG_GROUP_PRIOR, &prior, FILE_NATIVE_PG_GROUP_PRIOR)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "group generation requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_pg_group_generation_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PG_GROUP_GENERATION) {
+        if !row_exact(row, VERSION_NATIVE_PG_GROUP_GENERATION, &digest, FILE_NATIVE_PG_GROUP_GENERATION) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_PG_GROUP_GENERATION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PG_GROUP_GENERATION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_GROUP_GENERATION, &digest, FILE_NATIVE_PG_GROUP_GENERATION)]).await?;
         Ok::<(), InstallError>(())
     }.await;
     if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }

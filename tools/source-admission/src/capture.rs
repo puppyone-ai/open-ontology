@@ -501,7 +501,7 @@ fn observe(
         blocks.push(block("GRADE_CONTRADICTION", "quality"));
     }
     let quality = quality_token(quality_value);
-    let cross_table = cross_token(capturer.get("cross_table_consistency"), &mut blocks);
+    let cross_table = cross_token(capturer.get("cross_table_consistency"), grade.as_deref(), &mut blocks);
     let row_len = table
         .or(producer.then_some(capturer))
         .and_then(|table| row_len(table, producer, &mut blocks));
@@ -1146,9 +1146,10 @@ fn quality_token(value: Option<&Value>) -> Option<String> {
     }
 }
 
-fn cross_token(value: Option<&Value>, blocks: &mut Vec<Block>) -> Option<String> {
+fn cross_token(value: Option<&Value>, grade: Option<&str>, blocks: &mut Vec<Block>) -> Option<String> {
     let value = value?;
     match value.as_str() {
+        Some("per_table") if grade == Some("S1") => Some("S1".to_string()),
         Some(text) if known(CONSISTENCY, text) => Some(text.to_string()),
         _ => {
             blocks.push(block("CONSISTENCY_UNKNOWN", "cross_table_consistency"));
@@ -2693,6 +2694,20 @@ fn align8(value: usize) -> Option<usize> {
 #[cfg(test)]
 mod native_type_tests {
     use super::*;
+
+    #[test]
+    fn pg_per_table_observation_only_binds_s1() {
+        let value = serde_json::json!("per_table");
+        let mut blocks = Vec::new();
+        assert_eq!(cross_token(Some(&value), Some("S1"), &mut blocks), Some("S1".to_string()));
+        assert!(blocks.is_empty());
+        for grade in [Some("T"), Some("S0"), Some("B"), None] {
+            blocks.clear();
+            assert_eq!(cross_token(Some(&value), grade, &mut blocks), None);
+            assert_eq!(blocks.len(), 1);
+            assert_eq!(blocks[0].code, "CONSISTENCY_UNKNOWN");
+        }
+    }
 
     #[test]
     fn date_default_day_is_valid_and_unknown_unit_is_refused() {

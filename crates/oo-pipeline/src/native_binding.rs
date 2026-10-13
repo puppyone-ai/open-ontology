@@ -140,6 +140,9 @@ pub const ADMISSION_BIN_SHA256_OLAP_C4: &str =
 /// Sealed PostgreSQL multi-table transaction scope, Linux Rust 1.94.
 pub const ADMISSION_BIN_SHA256_PG_TRANSACTION: &str =
     "9ae6dd2808576a17f45e76f1b3577291f758f29cbf31698f1338e8ace4979473";
+/// Exact S1 per-table PostgreSQL capture alias validator, Linux Rust 1.94.
+pub const ADMISSION_BIN_SHA256_PG_PER_TABLE: &str =
+    "07e7651a98b4ef76582f67666e1245065546db204a50899554981619efc05dbf";
 
 /// Trusted runtime allowlist. A manifest field cannot add a program.
 pub fn approved_admission_bin(digest: &str) -> bool {
@@ -156,6 +159,7 @@ pub fn approved_admission_bin(digest: &str) -> bool {
         || digest == ADMISSION_BIN_SHA256_DURATION_MICROS
         || digest == ADMISSION_BIN_SHA256_OLAP_C4
         || digest == ADMISSION_BIN_SHA256_PG_TRANSACTION
+        || digest == ADMISSION_BIN_SHA256_PG_PER_TABLE
 }
 
 const ENV_BIN: &str = "OO_NATIVE_ADMISSION_BIN";
@@ -1882,6 +1886,7 @@ mod tests {
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_E465));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_NATIVE_MINIMAL));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_PG_TRANSACTION));
+        assert!(approved_admission_bin(ADMISSION_BIN_SHA256_PG_PER_TABLE));
         const MARIA: &str = "7ee551ecadd2fb66e3dea5564dab7336cafcce0e6fb0dd57d5816a7685338474";
         assert!(driver_length_allowed(MARIA, 314_875_904));
         assert!(!driver_length_allowed(MARIA, 314_875_903));
