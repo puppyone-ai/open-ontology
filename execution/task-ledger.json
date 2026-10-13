@@ -7099,7 +7099,7 @@
       "resource_prefix": "oo-dl01w1-46",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "author_product_chain_pending_shared_T_recovery",
+      "status": "completed_author_preview",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-46-grok-longrun-complete-source.log",
       "review_timing": "independent review only after first full Goal loop and all ten complete source chains; author self-validation required",
@@ -7108,7 +7108,7 @@
       "resource_terminal": "all own4runtimecontainersremoved; actual CPU admitted, not externalinfra blocker",
       "author_commit": "89b8d9f6ce934c49500c0d3768fa4489ef8139ea",
       "evidence_commit": "d70bd5ff3",
-      "next_action": "产品作者链完成，原可靠性/shared T非齐代际和beforeCAS恢复实测待79/74，不冒充全部退出",
+      "next_action": "十源闭环统一独立审阅，保留正式门槛及operator ACK/维护流程",
       "whole_evidence_commit": "44480d008843dbec2bbc593b3b3937ae4fd47406",
       "cli_exit": 1,
       "whole_author_commit": "4dceeb495",
@@ -7174,7 +7174,8 @@
       "status_before_shared_hold": "native_waiting_dependency",
       "shared_reference_only": false,
       "latest_observed_at": "2026-10-12T23:45:29.047591+00:00",
-      "source_commit": "4a64ed0a9"
+      "source_commit": "4a64ed0a9",
+      "root_intake": "execution/reviews/native-model-switch-20261012/postgres-author-preview-intake-20261014.json"
     },
     {
       "task_id": "DL01-W1-47",
@@ -8254,7 +8255,7 @@
   "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 8,
+    "count": 9,
     "required": 10,
     "sources": [
       "mysql",
@@ -8264,14 +8265,16 @@
       "clickhouse",
       "mongodb",
       "doris",
-      "starrocks"
+      "starrocks",
+      "postgresql"
     ],
     "formal_signed_sources": 0,
     "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
     "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json",
     "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json",
     "doris_intake": "execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json",
-    "starrocks_intake": "execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json"
+    "starrocks_intake": "execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json",
+    "postgres_intake": "execution/reviews/native-model-switch-20261012/postgres-author-preview-intake-20261014.json"
   },
   "latest_runtime_convergence_receipt": {
     "as_of": "2026-10-14",
@@ -8295,7 +8298,7 @@
       "name": "/root/pg_runtime_finish",
       "model": "gpt-6.1-sol",
       "reasoning": "low",
-      "status": "running",
+      "status": "completed_author_preview",
       "write_paths": [
         "/tmp/oo-pg46-runtime-finish",
         "tools/job-worker/src/native_schedule.rs",
@@ -8304,7 +8307,11 @@
         "tools/postgres-preview/src/receipt.rs"
       ],
       "exit": "real multi-cycle owned-fixture CDC/recovery and public Gateway, fixed Linux ELF; no paid models",
-      "scope_reason": "Existing process_attempts CHECK must admit honest registry_vector first-observation receipt, preserving same-UUID replay input identity; no new table/migration."
+      "scope_reason": "Existing process_attempts CHECK must admit honest registry_vector first-observation receipt, preserving same-UUID replay input identity; no new table/migration.",
+      "source_shas": [
+        "5038a03b5",
+        "753dd2de4"
+      ]
     },
     {
       "name": "/root/star_runtime_finish",
@@ -8319,5 +8326,6 @@
       "source_sha": "20b6a4d11789a561d88fcf7d9c6f2cf970c94b29"
     }
   ],
-  "latest_starrocks_intake_note": "StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。"
+  "latest_starrocks_intake_note": "StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。",
+  "latest_postgres_intake_note": "PG完整作者预览收取：原4a64ed0a9真实S0–S10/维护Pack/Agent对话证据与新5038a03b5 worker、753dd2de4 capture、固定2ff Loader完整持续链并列。973项固定hash核验，真实两周期100053/100054行全量typed diff0、同UUID before-CAS恢复无第二COPY、变vector拒绝无副作用，CAS+diff后ACK/peek0；新官方Pack/ACL/Gateway六query逐行匹配独立source gold，deny/WAL齐。新增模型0。完整作者9/10，正式0/10，SQLServer真实原生amd64外部门槛待；未来ACK和Pack维护为显式owner流程、服务验后暂停、外部WALcollector未配及历史STALE_DATA保留，不冒自主发布/客户nightly。证据：execution/reviews/native-model-switch-20261012/postgres-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级未晋级；无整版签收，不切PRODUCT-LOOPS/Goal，前端无变更。"
 }

@@ -1,0 +1,107 @@
+{
+  "acceptance": "complete author preview, composed original immutable S0-S10/dialogue packet and new continuous owned-fixture product outlet; independent review deferred",
+  "original_product_source": "4a64ed0a9",
+  "worker_source": "5038a03b5",
+  "capture_source": "753dd2de4",
+  "verified_entries": 973,
+  "references": {
+    "continuous-receipt.json": {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/continuous-receipt.json",
+      "sha256": "d140bce9211176f188c2c30cbd19511643be22c1270e4c34575b07c848530495"
+    },
+    "SHA256SUMS": {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/SHA256SUMS",
+      "sha256": "a2dcee3f7426b868c1e3aeefeee3a1a9baf18fbafed34dd9f05bafc9434390a3"
+    },
+    "RUN.md": {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/RUN.md",
+      "sha256": "35cd119f9192ced87ca7d2f28d4bb4d0e9877ea7f72df70d5172af046a012804"
+    },
+    "SHA-VERIFY.txt": {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/SHA-VERIFY.txt",
+      "sha256": "7f954ef9102c82a44dff0889a409463b92e592944d3289666bb3c849760a8baf"
+    }
+  },
+  "observed_result": {
+    "protocol": "oo.pg46.continuous-fixture-receipt/v1",
+    "worker_commit": "5038a03b5",
+    "worker_sha256": "8f22c09bad5c24a9ca7229d7dc73729f7416e9e62c6320fef5db644ba31fb29d",
+    "source_commit": "753dd2de4",
+    "source_sha256": "1e567472e06ef81c7514dfb1554658ac9af258983fe28a2fafd11ffa2cb330af",
+    "loader_commit": "15ea6cb07",
+    "loader_sha256": "2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4",
+    "source_database": "pg46_finish_source",
+    "target_database": "pg46_finish_target_v2",
+    "publication": "pg46_finish_pub",
+    "slot": "pg46_finish_slot",
+    "binding": "b942d94a-1d31-40c6-8072-a987912af946",
+    "period_ms": 6000,
+    "cycles": [
+      {
+        "pin": 1,
+        "source_generation": 2,
+        "scope": {
+          "xid": 871,
+          "commit_lsn": "0/403B740",
+          "end_lsn": "0/403B770",
+          "complete": true
+        },
+        "rows": 100053,
+        "cells": 928343,
+        "difference_count_zero": true,
+        "registry_vector_sha256": "5613c8d35153759102f8a759506288e98454a7f5b04542cac3927653a738f9c0"
+      },
+      {
+        "pin": 2,
+        "source_generation": 3,
+        "scope": {
+          "xid": 872,
+          "commit_lsn": "0/404D778",
+          "end_lsn": "0/404D7A8",
+          "complete": true
+        },
+        "rows": 100054,
+        "cells": 928358,
+        "difference_count_zero": true,
+        "registry_vector_sha256": "b1078f87ae28bfe97d12d5c2417aa0f34df44b908a7f9e2671a2dbdca30a91e0"
+      }
+    ],
+    "recoveries": {
+      "cycle1": "same09705aca-89d1-4c6a-a7e1-75284483c1f4 UUID gen8 after retained producer refusals; repaired Arrow source capture of same factual transaction",
+      "cycle2": "sameae2db1c4-1a16-4a7c-a72c-cf6e4a503e99 UUID gen1 target commit before failed CAS, gen2 rejected altered vector without Loader/COPY/CAS, gen3 replay+CAS; four receipt entries identical"
+    },
+    "final": {
+      "source_control_generation": 3,
+      "target_consistency_grade": "T",
+      "cross_table_consistent": true,
+      "applied_pos": "67426216",
+      "slot_confirmed_lsn": "0/404D7A8",
+      "slot_peek_count": 0,
+      "runs": 12,
+      "apply_receipts": 12,
+      "queued_running": 0,
+      "active_source_fence": false,
+      "cas_fault_trigger_removed": true,
+      "service_state": "paused_after_two_observed_cycles",
+      "gateway_container": "oo-pg46-continuous-gateway",
+      "public_checks": 6,
+      "pack_knowledge_ok": true,
+      "public_deny_checks": 2,
+      "public_local_wal_pairs": 6,
+      "external_wal_collector": "unconfigured",
+      "freshness_historical_warning": "STALE_DATA"
+    },
+    "fixed_registration_file": "runtime-manifest-v2.json",
+    "reusable_recipe": "RUN.md",
+    "old_x803_slot_watermark_unchanged": true,
+    "paid_model_calls": 0,
+    "s5_or_dialogue_rerun": false,
+    "customer_release_or_signoff": false,
+    "remaining": [
+      "Future source ACK and Pack/vector maintenance remain explicit operator-owned steps; not autonomous publication",
+      "Actual customer/nightly/business/publication gates remain root-owned",
+      "Historical freshness warning and fixed parser limits retained"
+    ]
+  },
+  "formal_signed_delta": 0
+}
