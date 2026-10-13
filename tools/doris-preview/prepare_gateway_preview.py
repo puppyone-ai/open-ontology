@@ -37,6 +37,7 @@ def main():
     source = Path(sys.argv[1]); collection = json.loads(Path(sys.argv[2]).read_text()); out = Path(sys.argv[3])
     command = json.loads((source / "command.json").read_text())
     reviewed = json.loads((source / "reviewed.json").read_text())
+    effective = json.loads((source / "effective.json").read_text())
     visible = json.loads((source / "visibility.json").read_text())
     pack = json.loads((source / "role-pack.json").read_text())
     vector = collection["binding_vector"]
@@ -44,7 +45,14 @@ def main():
     allowed = {(x["dataset"], col) for x in visible["datasets"] for col in x["columns"]}
     approved = {(x["dataset"], x["column"]) for x in command["decisions"] if x["pii"] == "none"}
     assert allowed <= approved and len(allowed) == 18
-    assert approved - allowed == {("oo_dl01w1_43.part_day", "amount"), ("oo_dl01w1_43.uniq_acct", "balance")}
+    assert approved - allowed <= {("oo_dl01w1_43.part_day", "amount"), ("oo_dl01w1_43.uniq_acct", "balance")}
+    if effective["ontology_version"].endswith("unspecified-unit"):
+        columns = {(dataset["dataset"], column["name"]): column
+                   for dataset in effective["datasets"] for column in dataset["columns"]}
+        for key in (("oo_dl01w1_43.part_day", "amount"), ("oo_dl01w1_43.uniq_acct", "balance")):
+            column = columns[key]
+            if (column["semantic_type"], column["unit"], column["pii"], column["classification"]["state"]) != ("money", "unspecified", "unknown", "pending"):
+                raise ValueError(f"source money declaration lost in effective Ontology: {key}")
     assert {x["dataset"] for x in vector} == {x[0] for x in allowed}
     role = visible["role"]; login = "oo_43_target_ro"
     assert role == "oo_r_dorispreview"

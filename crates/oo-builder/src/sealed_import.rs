@@ -227,13 +227,18 @@ pub fn compile_sealed_import_collection(input: &str) -> Result<SealedImportDraft
         if *binding != expected {
             return Err(SealedImportError::draft("binding.vector", format!("/binding_vector/{index}"), "collection binding differs from the sealed entry"));
         }
-        if drafts.first().is_some_and(|first: &SealedImportDraft| first.source_id != draft.source_id || first.source_engine != draft.source_engine) {
-            return Err(SealedImportError::draft("binding.source", format!("/entries/{index}"), "collection source differs"));
+        if drafts.first().is_some_and(|first: &SealedImportDraft| first.source_engine != draft.source_engine) {
+            return Err(SealedImportError::draft("binding.source", format!("/entries/{index}"), "collection source engine differs"));
         }
         drafts.push(draft);
     }
     let partition_vectors = drafts.iter().filter_map(|draft| draft.partition_vector.as_ref().map(|vector| serde_json::json!({"dataset": draft.tables[0].dataset, "partition_vector": vector}))).collect::<Vec<_>>();
+    let source_ids = drafts.iter().map(|draft| draft.source_id.clone()).collect::<BTreeSet<_>>();
+    let multiple_sources = source_ids.len() > 1;
     let mut combined = drafts.remove(0);
+    if multiple_sources {
+        combined.source_id.clear();
+    }
     for draft in drafts {
         combined.source_generation = combined.source_generation.max(draft.source_generation);
         combined.target_generation = combined.target_generation.max(draft.target_generation);

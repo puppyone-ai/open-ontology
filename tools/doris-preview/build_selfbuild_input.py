@@ -54,6 +54,8 @@ def main():
     parser = argparse.ArgumentParser()
     for name in ("collection", "capture", "diff", "out"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--unknown-money-unit", action="store_true",
+                        help="seal amount and balance as money with source-unspecified unit; keep them out of the preview role")
     args = parser.parse_args()
     require(not args.out.exists(), "output already exists")
     collection_bytes = args.collection.read_bytes()
@@ -123,10 +125,19 @@ def main():
         if name == "uniq_acct":
             rules.append({"column": dataset + ".id", "semantic_type": "identifier",
                           "confidence": "high", "pii": "unknown"})
+            if args.unknown_money_unit:
+                rules.append({"column": dataset + ".balance", "semantic_type": "money",
+                              "unit": "unspecified", "confidence": "high", "pii": "unknown"})
         if name == "part_day":
             rules.append({"column": dataset + ".day", "semantic_type": "date",
                           "confidence": "high", "pii": "unknown"})
+            if args.unknown_money_unit:
+                rules.append({"column": dataset + ".amount", "semantic_type": "money",
+                              "unit": "unspecified", "confidence": "high", "pii": "unknown"})
     require(seen == set(TABLES) and len(roles) == len(set(roles)) == 20, "exact Doris coverage")
+    preview_roles = ([field for field in roles if field not in
+                      (SCHEMA + ".uniq_acct.balance", SCHEMA + ".part_day.amount")]
+                     if args.unknown_money_unit else roles)
     vector_sha = sha(canonical(bindings))
     collection_sha = sha(collection_bytes)
     high_source = max(item["source_generation"] for item in entries)
@@ -144,7 +155,8 @@ def main():
                  "quality": {"warnings": {name: grades[name]["quality"] for name in TABLES}}, **common}
     knowledge = {"id": "know-doris-dl01w1-43", "version": "1"}
     policy = {"id": "pol-doris-dl01w1-43", "version": "1"}
-    version = "ont-doris-dl01w1-43-native"
+    version = ("ont-doris-dl01w1-43-native-unspecified-unit" if args.unknown_money_unit
+               else "ont-doris-dl01w1-43-native")
     native_model = {"dataset": SCHEMA + ".dup_events",
                     "settings": {"catalog_version": "pending", "knowledge": knowledge,
                                  "ontology": {"classification": {"auto_accept": "rule_high_confidence"},
@@ -163,7 +175,8 @@ def main():
                                  "project": "doris"},
                     "visibility": {"catalog_version": "pending",
                                    "datasets": [{"dataset": item["dataset"],
-                                                 "columns": [field["name"] for field in item["columns"]],
+                                                 "columns": [field["name"] for field in item["columns"]
+                                                             if item["dataset"] + "." + field["name"] in preview_roles],
                                                  "global_stats": "denied", "row_security": "none"}
                                                 for item in profiles],
                                    "issued_for_compiler": "oo-builder/role-pack/v1",
@@ -173,6 +186,9 @@ def main():
                                    "ontology_version": version, "policy": policy,
                                    "principal": "fixture-admin", "project": "doris",
                                    "protocol": "oo.builder.role-visibility/v1", "role": ROLE}}
+    if args.unknown_money_unit:
+        native_model["declared_price"] = {"status": "declared_non_billing", "currency": "USD",
+                                          "per_total_token": "0.00001000"}
     args.out.mkdir(parents=True)
     (args.out / "catalog.json").write_bytes(collection_bytes)
     files = {"catalog.json": collection_sha}
@@ -184,7 +200,7 @@ def main():
         "suggestions.json": {"certified": False, "merged": False, "ready": False},
         "generation.json": {"llm_calls": 0, "outcome": "structural_draft"},
         "roles.json": {"contract": "oo.selfbuild-control-api/sealed-roles/v1",
-                       "roles": {ROLE: roles}},
+                       "roles": {ROLE: preview_roles}},
         "native-model.json": native_model,
     }
     for name, value in artifacts.items():
@@ -192,7 +208,7 @@ def main():
     save(args.out, "manifest.json", {"contract": "oo.selfbuild-control-api/sealed-bundle/v1",
                                      "files": files})
     print(json.dumps({"collection_sha256": collection_sha, "vector_sha256": vector_sha,
-                      "tables": len(profiles), "columns": len(roles),
+                      "tables": len(profiles), "columns": len(roles), "visible_columns": len(preview_roles),
                       "rows": sum(item["rows"] for item in profiles)}))
 
 

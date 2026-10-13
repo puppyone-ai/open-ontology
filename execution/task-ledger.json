@@ -6671,7 +6671,7 @@
       "resource_prefix": "oo-dl01w1-41",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "author_partial_dialogue_grounding_failed",
+      "status": "author_full_unpublished_preview",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-41-full-maintained-ontology-source.log",
       "exit_receipt_prefix": "DL01-W1-41-whole-source",
@@ -6683,7 +6683,7 @@
       "author_commit": "477e6f09eb77fc9fc6360bf8386761bd7f1c48e8",
       "evidence_commit": "e6b3bb04d1d79684a9a6f40d8d8a3653a2381b1f",
       "coordinator_hashes_verified": 463,
-      "next_action": "完整非模型链通过；单次Grok续跑错误证据绑定被拒，保留usage，不连续付费重试",
+      "next_action": "完整作者预览固定证据已收；集中完整审阅及正式门槛待，不再模型调用",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-41-current-complete-product-longrun.md",
       "supervisor_script": "/tmp/oo-dl01-wave1/DL01-W1-41-persistent-whole.sh",
       "native_fixed_review": "6279ab8ab0a368f73f05e6c3f1235d737e304857",
@@ -6766,7 +6766,7 @@
       "shared_reference_delivery": "2966545fc",
       "shared_reference_scope": "completed actual retained raw BSON replay14 approved rows/20 columns; no source or queue effects",
       "latest_observed_at": "2026-10-12T23:45:29.047591+00:00",
-      "source_commit": "b136d2592"
+      "source_commit": "28f27730c"
     },
     {
       "task_id": "DL01-W1-42",
@@ -6811,7 +6811,7 @@
       "resource_prefix": "oo-dl01w1-43",
       "rust_slots": 1,
       "database_memory_gib": 4,
-      "status": "native_running",
+      "status": "author_partial_source_rule_projection_pending",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-43-grok-longrun-complete-source.log",
       "resource_terminal": "FE/BE/reader removed; native3 auditfullcoverage measured; internalLoader dependency not externalinfra",
@@ -6821,7 +6821,7 @@
       "merged_consumer_task": "DL01-W1-49",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-43-current-complete-product-longrun.md",
       "author_commit": "3e3b081c7d342a88b71d7d322331a3eea94f9c18",
-      "next_action": "两次真实 C4 seal 准入；目标全局代际/真正控制 CAS ACK 未闭合。",
+      "next_action": "016190796失败保留，71修实际源权威投影，禁止继续付费猜单位",
       "evidence_commit": "523d24f567f581287242e3edd7cf7bf07a2d3ffa",
       "native_fixed_review": "6279ab8ab0a368f73f05e6c3f1235d737e304857",
       "prior_dispatch_failure": "root card Python syntax error; missing prompt CLI1, no worker started; corrected",
@@ -7026,7 +7026,7 @@
       "native_fixed_review": "6279ab8ab0a368f73f05e6c3f1235d737e304857",
       "prior_dispatch_failure": "root card Python syntax error; missing prompt CLI1, no worker started; corrected",
       "whole_author_commit": "e8a3e4c6085ff8871aaf7af845b26ccd913ae530",
-      "next_action": "五表 C5 g3 diff0；真实 C4 apply ACK 未通过，不能降级签收。",
+      "next_action": "新16角色S0–S10/Pack成功，a663固定Gateway继续真实完整CLI/对话",
       "cli_exit": 0,
       "previous_session_uuids": [
         "2c023948-0862-4dae-ae8f-6fc30241db62",
@@ -7097,7 +7097,7 @@
       "resource_prefix": "oo-dl01w1-46",
       "rust_slots": 1,
       "database_memory_gib": 2,
-      "status": "native_waiting_dependency",
+      "status": "author_product_chain_pending_shared_T_recovery",
       "tool_handle": null,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-46-grok-longrun-complete-source.log",
       "review_timing": "independent review only after first full Goal loop and all ten complete source chains; author self-validation required",
@@ -7106,7 +7106,7 @@
       "resource_terminal": "all own4runtimecontainersremoved; actual CPU admitted, not externalinfra blocker",
       "author_commit": "89b8d9f6ce934c49500c0d3768fa4489ef8139ea",
       "evidence_commit": "d70bd5ff3",
-      "next_action": "125f0f9d9 四表 snapshot 928311 cells diff0；同 LSN C1 多表和 delta catalog 共享拒绝。",
+      "next_action": "产品作者链完成，原可靠性/shared T非齐代际和beforeCAS恢复实测待79/74，不冒充全部退出",
       "whole_evidence_commit": "44480d008843dbec2bbc593b3b3937ae4fd47406",
       "cli_exit": 1,
       "whole_author_commit": "4dceeb495",
@@ -7171,7 +7171,8 @@
       "token_ratio_verified": false,
       "status_before_shared_hold": "native_waiting_dependency",
       "shared_reference_only": false,
-      "latest_observed_at": "2026-10-12T23:45:29.047591+00:00"
+      "latest_observed_at": "2026-10-12T23:45:29.047591+00:00",
+      "source_commit": "4a64ed0a9"
     },
     {
       "task_id": "DL01-W1-47",
@@ -7796,7 +7797,7 @@
         "a524f17c-94d1-46b7-8ebf-75bbd35fc51a"
       ],
       "previous_cli_exit": 0,
-      "next_action": "原多源身份保持与真实OIDC续签、Maria/Oracle独立API/strict no-model实际预检已交；sourceowner独占新S5。普通review deferred，非整源签收。",
+      "next_action": "Doris source-fact优先投影，真实模型原件保留，合法零新模型缓存恢复",
       "whole_product_shared_owners": {
         "native_loader": "DL01-W1-79"
       },
@@ -7917,7 +7918,7 @@
         "2f2a2659-9dfd-4387-9f8e-49b87cca7824",
         "f23755f0-543e-4a86-9f3e-a312d13bc372"
       ],
-      "next_action": "逐表代际固定ELF与七表18可见列gold通过；原C1门保持，整源签收仍待",
+      "next_action": "8d27已在PG运行/Seal解除；42501自有ACL定位交46，无新编译/模型",
       "whole_product_shared_owners": {
         "native_loader": "DL01-W1-79"
       },
@@ -7958,7 +7959,7 @@
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-74-current-complete-product-longrun.md",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-74-current-complete-product-longrun.md",
       "resource_prefix": "oo-dl01w1-74",
-      "status": "author_shared_worker_delivered",
+      "status": "native_running",
       "tool_handle": null,
       "cli_exit": 1,
       "log": "/tmp/oo-dl01-wave1/logs/DL01-W1-74-capture-jobs-schedule-lease.log",
@@ -7974,7 +7975,7 @@
       },
       "background_container": "oo-dl01w1-74-rust",
       "background_running_verified": true,
-      "next_action": "真实T/ACK固定交付；仅79恢复注入需要时同owner协作",
+      "next_action": "隔离T恢复fixture的sole worker/control/target owner",
       "previous_cli_exit": 0,
       "latest_author_delivery": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
       "fixed_git_hashes_verified": 556,
@@ -8145,7 +8146,7 @@
         "known_builders": "06-trust194/194b/194c/trustcli Exited0; no own06 compiler running",
         "retained_mysql_resources": "06-pg and06-mysql stay06;06-trustpg observation only, no takeover without receipt"
       },
-      "next_action": "真实T已成功，继续原before-CAS故障恢复退出，不重跑已完成链",
+      "next_action": "隔离T恢复fixture暴露global next=min(table)错误，sole最小修复/实测",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-79-current-complete-product-longrun.md",
       "previous_cli_exit": 0,
@@ -8176,7 +8177,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。",
+  "current_execution_note": "Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -8251,17 +8252,19 @@
   "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 5,
+    "count": 6,
     "required": 10,
     "sources": [
       "mysql",
       "opensearch",
       "mariadb",
       "oracle",
-      "clickhouse"
+      "clickhouse",
+      "mongodb"
     ],
     "formal_signed_sources": 0,
     "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
-    "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json"
+    "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json",
+    "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json"
   }
 }

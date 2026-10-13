@@ -1,5 +1,13 @@
 # Open Ontology v0.1 开发执行 Plan
 
+### 2026-10-13 Mongo完整作者链固定收取
+
+Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插入1、5成功QID完成WAL、Pack文档消费及真实纠正source-liveness过度结论；原错误/失败保留。完整作者预览6/10，正式0/10。PG4a64ed0a9完整产品链作者交付已到，共享T非齐代际/before-CAS恢复仍待实测放行；Star剩准确对话，Doris剩维护PII/classification源保真，SQLServer真实原生amd64条件仍缺。 收取凭据：`execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json`。原Plan分母、父项、集成/发行及支持等级不变；无整版交付，不切PRODUCT-LOOPS/Goal；前端无变更。
+
+### 2026-10-13 真实缺口与最小续接
+
+2026-10-13 按固定原任务续接：Star45受限角色新S0–S10/Pack成功并复用a663 Gateway；PG46四表T及38列S0–S10/Pack成功，复用8d27后仅自有只读ACL缺口待修。Doris43新S5真实4460tokens candidates_invalid：sealed单位规则未进入模型输入，71 sole source-authority projection修复中，旧模型失败不改。Mongo已严格核准前两轮真实事实及三独立变更查询，令牌到期后只续identity；不重跑成功轮。完整作者预览5/10、正式0/10，原分母/退出不变。 Token比例尚未实测；无整版交付，PRODUCT-LOOPS/Goal不切换，矩阵及前端不晋级。
+
 ## 2026-10-13 完整作者链收取与最小调用
 
 完整作者预览5/10（MySQL、OpenSearch、MariaDB、Oracle、ClickHouse），正式完整签收0/10。Oracle62+16及ClickHouse11本地SHA重新核验；ClickHouse四轮真实答案逐项对照查询，Oracle原失败与真实文档消费补证分开保留。共享四表T导入/单CAS/slotACK已真实通过，before-CAS故障恢复待实测；Doris七表18可见列全量gold通过，但两字段USD语义仍待纠正；Mongo精确事实验证拒绝错误对话，停止连续付费重试；PG S0–S8已通过、Star受限角色Pack继续。最小完整改动、固定制品复用；实际Token降至历史1/5尚未实测。 固定收取证据：`execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json`；对话验证器900d86899仅续跑已核准的未完成轮次，错误事实仍拒绝。开发、集成、发行和外部门槛分开；原Plan退出、分母、父项checkbox、支持等级不变。无整版交付，PRODUCT-LOOPS/Goal不切换；前端无变更。

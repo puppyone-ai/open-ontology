@@ -370,6 +370,7 @@ async fn invoke_native(spec: InvokeSpec) -> ModelResult {
     let parsed = serde_json::from_slice::<Value>(&bytes).unwrap_or(Value::Null);
     if parsed.get("outcome").and_then(Value::as_str) != Some("packed") { return ModelResult { kind: ModelKind::Failed { detail: "generate.failed" }, spawned: true }; }
     if std::fs::write(&spec.generation_path, &bytes).is_err() { return ModelResult { kind: ModelKind::Failed { detail: "generate.failed" }, spawned: true }; }
+    copy_matching_cache_evidence(spec.cache_path.to_str().unwrap_or(""), &PathBuf::from(&spec.model_cache_dir).join("pg-builder"), &evidence);
     ModelResult { kind: ModelKind::Validated { generation_sha256:crate::canonical::sha256_hex(&bytes), llm_calls:parsed.get("attempt").and_then(Value::as_u64).unwrap_or(0), cache_hit:parsed.get("cache").and_then(Value::as_str)==Some("hit") }, spawned:true }
 }
 

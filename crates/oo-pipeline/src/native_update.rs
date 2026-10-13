@@ -417,6 +417,7 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_empty_catalog(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_group_receipt(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_group_prior(&mut conn).await {
+        Ok(()) => match target_installer::install_native_pg_group_generation(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -432,7 +433,10 @@ async fn install_document(document: &Value) -> Value {
             ,"native_empty_catalog_digest": target_installer::compiled_native_empty_catalog_digest()
             ,"pg_group_receipt_digest": target_installer::compiled_native_pg_group_receipt_digest()
             ,"pg_group_prior_digest": target_installer::compiled_native_pg_group_prior_digest()
+            ,"pg_group_generation_digest": target_installer::compiled_native_pg_group_generation_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0021"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0020"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0019"}),
@@ -686,7 +690,7 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
     let (plans, scope, scope_digest, end_lsn) = transaction_plans(document)?;
     let first = &plans[0];
     let xid = scope["xid"].as_i64().ok_or("transaction_scope_required")?;
-    let group_generation = plans.iter().map(|plan| plan.source_generation).min().ok_or("transaction_scope_required")?;
+    let legacy_group_generation = plans.iter().map(|plan| plan.source_generation).min().ok_or("transaction_scope_required")?;
     let job = first.lease_id.as_deref().ok_or("lease_required")?;
     let job_generation = first.lease_generation.ok_or("lease_required")?;
     let mut conn = connect_target(&first.target).await?;
@@ -698,7 +702,7 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
             "SELECT _oo.native_transaction_read($1,$2,$3::text::numeric)::text"
         ).bind(&first.source_id).bind(xid).bind(end_lsn.to_string())
          .fetch_one(&mut *tx).await.map_err(sql_token)?;
-        let (state, entries, target_generation) = if let Some(raw) = attestation {
+        let (state, entries, target_generation, group_generation) = if let Some(raw) = attestation {
             let saved: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
             if saved["scope_digest"] != scope_digest || saved["job_task_id"] != job
                 || saved["source"] != first.source_id || saved["xid"] != xid
@@ -714,7 +718,11 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
                     || entry["run_id"] != existing.run_id || entry["physical_name"] != existing.physical_name
                     || entry["target_generation"] != existing.target_generation { return Err("OO010"); }
             }
-            ("replay", entries, saved["target_generation"].as_i64().ok_or("OO010")?)
+            let group_generation = match saved.get("source_generation") {
+                None | Some(Value::Null) => legacy_group_generation,
+                Some(value) => value.as_i64().filter(|generation| *generation > 0).ok_or("OO010")?,
+            };
+            ("replay", entries, saved["target_generation"].as_i64().ok_or("OO010")?, group_generation)
         } else {
             let adopted_generation: i64 = sqlx::query_scalar(
                 "SELECT _oo.adopt_target_generation($1,$2::uuid)"
@@ -727,7 +735,7 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
                 "SELECT _oo.native_pg_group_prior($1,$2::uuid,$3,$4)"
             ).bind(&first.shard).bind(&first.owner).bind(adopted_generation)
              .bind(&first.source_id).fetch_one(&mut *tx).await.map_err(sql_token)?;
-            if prior_generation.checked_add(1) != Some(group_generation) { return Err("stale_run"); }
+            let group_generation = prior_generation.checked_add(1).ok_or("stale_run")?;
             for plan in &plans {
                 if transaction_read_batch(&mut tx, plan).await?.is_some() { return Err("OO010"); }
             }
@@ -753,11 +761,11 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
             let generation = target_generation.ok_or("not_sealed")?;
             if generation != adopted_generation { return Err("OO010"); }
             let entries_text = serde_json::to_string(&entries).map_err(|_| "not_sealed")?;
-            sqlx::query("SELECT _oo.native_transaction_commit($1,$2::uuid,$3,$4,$5,$6::text::numeric,$7,$8::jsonb,$9::uuid)")
+            sqlx::query("SELECT _oo.native_transaction_commit_global($1,$2::uuid,$3,$4,$5,$6::text::numeric,$7,$8::jsonb,$9::uuid,$10)")
                 .bind(&first.shard).bind(&first.owner).bind(generation).bind(&first.source_id)
-                .bind(xid).bind(end_lsn.to_string()).bind(&scope_digest).bind(&entries_text).bind(job)
+                .bind(xid).bind(end_lsn.to_string()).bind(&scope_digest).bind(&entries_text).bind(job).bind(group_generation)
                 .execute(&mut *tx).await.map_err(sql_token)?;
-            ("awaiting_publish", entries, generation)
+            ("awaiting_publish", entries, generation, group_generation)
         };
         lease_hold(&mut tx, job, Some(job_generation)).await?;
         tx.commit().await.map_err(sql_token)?;

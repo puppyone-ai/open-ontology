@@ -111,18 +111,40 @@ fn money_units(rules: &Value) -> Result<BTreeMap<String, String>, ApiError> {
     Ok(units)
 }
 
-fn money_matches_rules(rows: &[Value], rules: &Value) -> Result<bool, ApiError> {
-    let expected = money_units(rules)?;
-    for (id, unit) in expected {
-        let matches = rows.iter().filter(|row| {
-            let dataset = row.get("dataset").and_then(Value::as_str).unwrap_or("");
-            let column = row.get("column").and_then(Value::as_str).unwrap_or("");
-            format!("{dataset}.{column}") == id
-        }).collect::<Vec<_>>();
-        if matches.len() != 1 || matches[0].get("semantic_type").and_then(Value::as_str) != Some("money")
-            || matches[0].get("unit").and_then(Value::as_str) != Some(unit.as_str()) { return Ok(false); }
+fn project_declared_money(rows: &mut [Value], rules: &Value) -> Result<Value, ApiError> {
+    let mut by_id = BTreeMap::new();
+    for (index, row) in rows.iter().enumerate() {
+        let dataset = row.get("dataset").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
+        let column = row.get("column").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
+        if by_id.insert(format!("{dataset}.{column}"), index).is_some() { return Err(ApiError::malformed()); }
     }
-    Ok(true)
+    let declared = rules.get("columns").and_then(Value::as_array).ok_or_else(ApiError::malformed)?;
+    let mut seen = std::collections::BTreeSet::new();
+    let mut money = std::collections::BTreeSet::new();
+    let mut corrections = Vec::new();
+    for rule in declared {
+        let id = rule.get("column").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
+        if !seen.insert(id) { return Err(ApiError::malformed()); }
+        let index = *by_id.get(id).ok_or_else(ApiError::malformed)?;
+        if rule.get("semantic_type").and_then(Value::as_str) != Some("money") { continue; }
+        money.insert(id);
+        let unit = rule.get("unit").and_then(Value::as_str).filter(|s| !s.is_empty()).ok_or_else(ApiError::malformed)?;
+        let pii = rule.get("pii").and_then(Value::as_str).filter(|s| matches!(*s, "unknown" | "none" | "personal" | "sensitive" | "restricted")).ok_or_else(ApiError::malformed)?;
+        let original = rows[index].clone();
+        rows[index]["semantic_type"] = json!("money");
+        rows[index]["unit"] = json!(unit);
+        rows[index]["pii"] = json!(pii);
+        if rows[index] != original {
+            corrections.push(json!({"column": id, "model_candidate": original, "source_declared": rows[index]}));
+        }
+    }
+    for row in rows.iter() {
+        let id = format!("{}.{}", row["dataset"].as_str().unwrap_or(""), row["column"].as_str().unwrap_or(""));
+        if row.get("semantic_type").and_then(Value::as_str) == Some("money") && !money.contains(id.as_str()) {
+            return Err(ApiError::malformed());
+        }
+    }
+    Ok(json!({"contract":"oo.selfbuild-control-api/source-money-projection/v1", "provenance":"sealed_source_rule", "corrections":corrections}))
 }
 
 pub fn all_roles(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Result<BTreeMap<String, Vec<String>>, ApiError> {
@@ -433,11 +455,13 @@ async fn s5_model(
         crate::builder_call::ModelKind::Validated { generation_sha256, llm_calls, cache_hit } => {
             if bundle.raw.get("catalog.json").and_then(|b| serde_json::from_slice::<Value>(b).ok()).and_then(|v| v.get("protocol").and_then(Value::as_str).map(str::to_owned)).as_deref().is_some_and(|protocol| matches!(protocol, "oo.pipeline.sealed-import-catalog/v1" | "oo.pipeline.sealed-import-collection/v1")) {
                 let rows = std::fs::read(dir.join("native-model-output/decisions.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
-                let Some(rows) = rows.and_then(|v| v.as_array().cloned()) else { return fail(client, job, "S5", "model.candidates_absent").await; };
-                if !money_matches_rules(&rows, &bundle.rules).unwrap_or(false) { return fail(client, job, "S5", "model.candidates_invalid").await; }
+                let Some(mut rows) = rows.and_then(|v| v.as_array().cloned()) else { return fail(client, job, "S5", "model.candidates_absent").await; };
+                let Ok(mut projection) = project_declared_money(&mut rows, &bundle.rules) else { return fail(client, job, "S5", "model.candidates_invalid").await; };
+                projection["model_decisions_sha256"] = json!(std::fs::read(dir.join("native-model-output/decisions.json")).ok().map(|bytes| sha256_hex(&bytes)).unwrap_or_default());
+                projection["source_rules_sha256"] = json!(bundle.file_sha.get("rules.json"));
                 let rules = json!({"columns":rows.iter().map(|v| json!({"column":format!("{}.{}",v.get("dataset").and_then(Value::as_str).unwrap_or(""),v.get("column").and_then(Value::as_str).unwrap_or("")),"semantic_type":v.get("semantic_type"),"pii":v.get("pii"),"unit":v.get("unit").and_then(Value::as_str).unwrap_or(""),"confidence":"high"})).collect::<Vec<_>>(),"relationships":bundle.rules.get("relationships").cloned().unwrap_or(json!([]))});
                 let Ok((_, yaml)) = generated_from_inputs(&bundle.typed_catalog, &rules, "none") else { return fail(client, job, "S5", "model.candidates_invalid").await; };
-                if overlay::insert_generated_model(client, &job.build_id, &yaml).await.is_err() || write_private(&dir.join("generated.yaml"), yaml.as_bytes()).is_err() { return fail(client, job, "S5", "overlay.write").await; }
+                if write_private(&dir.join("source-money-projection.json"), canonical_json(&projection).as_bytes()).is_err() || overlay::insert_generated_model(client, &job.build_id, &yaml).await.is_err() || write_private(&dir.join("generated.yaml"), yaml.as_bytes()).is_err() { return fail(client, job, "S5", "overlay.write").await; }
             }
             let request = json!({"bearer_present": true, "builder_spawned": true, "llm_calls": llm_calls, "stage": "S5"});
             let response = json!({
@@ -1011,17 +1035,23 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), ()> {
 
 #[cfg(test)]
 mod money_tests {
-    use super::money_matches_rules;
+    use super::project_declared_money;
     use serde_json::json;
 
     #[test]
-    fn declared_unknown_currency_cannot_become_usd() {
-        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","unit":"unspecified"}]});
-        let valid = json!({"dataset":"oo_w141.shipments","column":"price","semantic_type":"money","unit":"unspecified"});
-        assert!(money_matches_rules(&[valid.clone()], &rules).unwrap());
-        let mut unsupported = valid;
-        unsupported["unit"] = json!("USD");
-        assert!(!money_matches_rules(&[unsupported], &rules).unwrap());
-        assert!(!money_matches_rules(&[], &rules).unwrap());
+    fn declared_unknown_currency_overrides_model_without_changing_its_candidate() {
+        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","unit":"unspecified","pii":"unknown"}]});
+        let original = json!({"dataset":"oo_w141.shipments","column":"price","semantic_type":"money","unit":"USD","pii":"none"});
+        let mut rows = vec![original.clone()];
+        let receipt = project_declared_money(&mut rows, &rules).unwrap();
+        assert_eq!(rows[0]["unit"], "unspecified");
+        assert_eq!(rows[0]["pii"], "unknown");
+        assert_eq!(receipt["corrections"][0]["model_candidate"], original);
+        assert!(project_declared_money(&mut rows, &json!({"columns":[]})).is_err());
+        assert!(project_declared_money(&mut rows, &json!({"columns":[rules["columns"][0], rules["columns"][0]]})).is_err());
+        assert!(project_declared_money(&mut [], &rules).is_err());
+        let mut invalid = rules.clone();
+        invalid["columns"][0]["pii"] = json!("maybe");
+        assert!(project_declared_money(&mut rows, &invalid).is_err());
     }
 }
