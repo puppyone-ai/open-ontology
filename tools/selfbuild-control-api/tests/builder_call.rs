@@ -118,7 +118,8 @@ async fn script_double_parses_validated_and_imports_cache() {
     touch_inputs(&dir);
     let cache_root = dir.join("model-cache");
     fs::create_dir_all(cache_root.join("pg-builder")).expect("cache");
-    fs::write(cache_root.join("pg-builder/hit.json"), b"{\"outcome\":\"validated\",\"evidence_hash\":\"abc\"}\n").expect("hit");
+    let cache_key = "a".repeat(64);
+    fs::write(cache_root.join(format!("pg-builder/{cache_key}.json")), format!("{{\"outcome\":\"validated\",\"evidence_hash\":\"abc\",\"input_sha256\":\"{cache_key}\"}}\n")).expect("hit");
     let result = builder_call::invoke(spec(&dir, &binary.display().to_string(), &bearer.display().to_string())).await;
     match result.kind {
         ModelKind::Validated { llm_calls, cache_hit, .. } => {
@@ -128,7 +129,7 @@ async fn script_double_parses_validated_and_imports_cache() {
         other => panic!("expected validated, got {other:?}"),
     }
     assert!(result.spawned);
-    assert!(dir.join("cache/pg-builder/hit.json").is_file());
+    assert!(dir.join(format!("cache/pg-builder/{cache_key}.json")).is_file());
     let _ = fs::remove_dir_all(&dir);
 }
 

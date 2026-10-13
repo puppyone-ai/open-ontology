@@ -1272,7 +1272,7 @@
   "ordinary_event_wait_seconds": 1080,
   "sanitized_snapshot_policy": "Generated evidence/log/stdout/stderr/exit remain local ignored; small status and exact local SHA receipt tracked. Required source test fixtures tracked under data extensions; no force-add raw evidence.",
   "current_full_chain_author_previews": {
-    "count": 7,
+    "count": 8,
     "required": 10,
     "sources": [
       "mysql",
@@ -1281,13 +1281,15 @@
       "oracle",
       "clickhouse",
       "mongodb",
-      "doris"
+      "doris",
+      "starrocks"
     ],
     "formal_signed_sources": 0,
     "mariadb_intake": "execution/reviews/native-model-switch-20261012/mariadb-author-preview-intake-20261013.json",
     "oracle_clickhouse_intake": "execution/reviews/native-model-switch-20261012/oracle-clickhouse-author-preview-intake-20261013.json",
     "mongodb_intake": "execution/reviews/native-model-switch-20261012/mongodb-author-preview-intake-20261013.json",
-    "doris_intake": "execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json"
+    "doris_intake": "execution/reviews/native-model-switch-20261012/doris-author-preview-intake-20261013.json",
+    "starrocks_intake": "execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json"
   },
   "token_efficiency_receipt": {
     "skill": "ponytail 5.2.0",
@@ -1317,5 +1319,35 @@
       ],
       "exit": "actual continuous owned-fixture CDC to public Gateway; no customer writes or paid S5/dialogue"
     }
-  }
+  },
+  "current_runtime_closure_agents": [
+    {
+      "name": "/root/pg_runtime_finish",
+      "model": "gpt-6.1-sol",
+      "reasoning": "low",
+      "status": "running",
+      "write_paths": [
+        "/tmp/oo-pg46-runtime-finish",
+        "tools/job-worker/src/native_schedule.rs",
+        "tools/job-worker/NATIVE-SCHEDULE.md",
+        "tools/job-worker/native_schedule.sql",
+        "tools/postgres-preview/src/receipt.rs"
+      ],
+      "exit": "real multi-cycle owned-fixture CDC/recovery and public Gateway, fixed Linux ELF; no paid models",
+      "scope_reason": "Existing process_attempts CHECK must admit honest registry_vector first-observation receipt, preserving same-UUID replay input identity; no new table/migration."
+    },
+    {
+      "name": "/root/star_runtime_finish",
+      "model": "gpt-6.1-sol",
+      "reasoning": "low",
+      "status": "completed_author_preview",
+      "write_paths": [
+        "/tmp/oo-star-runtime-finish"
+      ],
+      "exit": "real multi-cycle C4/C5 freshness and original nine-gold dialogue merge; no paid models",
+      "scope_reason": "Real current source9 makes old Pack source3 SCHEMA_INVALID; existing maintenance reads immutable old catalog. Add strictly sealed schema-compatible rebind with immutable model evidence and receipt, no new S5.",
+      "source_sha": "20b6a4d11789a561d88fcf7d9c6f2cf970c94b29"
+    }
+  ],
+  "latest_starrocks_intake_note": "StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。"
 }

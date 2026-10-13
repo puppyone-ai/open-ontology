@@ -1,5 +1,9 @@
 ## 2026-10-13 完整作者链收取与最小调用
 
+## 2026-10-14 StarRocks完整作者链收取
+
+StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。
+
 ## 2026-10-14 最小持续链收口
 
 2026-10-14：StarRocks 135项固定源证据、最后真实对话三事实及实际sent/durable取消三WAL核验通过；四问合并和freshness not_ready/STALE_DATA处置仍待，不提前计完整作者。PG固定Loader/worker已官方安装注册，四表gold/拒绝策略及原状态不变；冻结x803 producer仍缺真正持续CDC，pg_runtime_finish（GPT-6.1 Sol low）独占/tmp/oo-pg46-runtime-finish接续新自有fixture持续链，无付费模型调用。完整作者7/10、正式0/10保持；原Plan/分母/父项、整版、矩阵、前端不晋级。证据见starrocks-final-dialogue-facts-intake-20261013.json及postgres-runtime-intake-20261014.json。
@@ -1351,3 +1355,7 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-13 MariaDB完整作者预览入账
 
 完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。 Gateway共享固定194个Git证据blob已核d706d879a清单SHA d566fdc7a405cda5af752f1510b9d62f3d96a744c4e70f19ddfae181332137d9。开发、集成、发行及等级分母不变；不勾父项、不切PRODUCT-LOOPS、不改整体Goal范围。净化远端snapshot39a9ebc79对应本地c2277974，非重写开发历史。
+
+2026-10-14：持续链收口由两位GPT-6.1 Sol low工程师并行，PG独占native_schedule.rs及对应NATIVE-SCHEDULE.md，修固定组vector不能随新pin更新的真实周期缺口并做Linux固定制品与两周期恢复；Star仅/tmp/oo-star-runtime-finish，补持续freshness及九gold离线合并。两者均禁止重跑付费S5/对话；完整作者仍7/10，正式0/10。
+
+2026-10-14 收口范围补充：PG真实纯DELETE周期产生0字节Arrow被原准入拒绝，源slot未ACK，46独占receipt.rs修合法零行IPC；Star真实source9旧Pack拒SCHEMA_INVALID，独占overlay.rs/sealed.rs/CONTRACT.md复用已验证封存bytes做严格同结构同语义维护绑定，HTTP无需改。失败保留，无模型调用；仍7/10作者、0/10正式。

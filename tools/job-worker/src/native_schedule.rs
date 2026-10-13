@@ -40,6 +40,26 @@ fn executable_check(e:&Executable)->Result<()> {
  if sha256_hex(&std::fs::read(&e.path).map_err(|_|Error::new("executable"))?)!=e.sha256 {return Err(Error::new("hash"))}
  Ok(())
 }
+// Template identity comes only from the immutable occurrence, never producer output.
+fn vector_path(path:&str,sha:Option<&str>,group:bool)->Result<()> {
+ if !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') {return Err(Error::new("registration"))}
+ let template=path.contains('{') || path.contains('}');
+ if template {
+  let residual=path.replace("{binding}","").replace("{pin}","");
+  if !group || sha.is_some() || !path.contains("{binding}") || !path.contains("{pin}") || residual.contains(['{','}']) {return Err(Error::new("registration"))}
+ } else if !sha.is_some_and(|s|s.len()==64 && s.bytes().all(|b|b.is_ascii_hexdigit())) {return Err(Error::new("registration"))}
+ Ok(())
+}
+fn vector_bytes_sha(bytes:&[u8],pinned:Option<&str>,prior:Option<&[u8]>)->Result<String> {
+ let sha=sha256_hex(bytes);
+ if bytes.len()>1024*1024 || pinned.is_some_and(|pinned|pinned!=sha) {return Err(Error::new("registration"))}
+ if prior.is_some_and(|prior|prior!=bytes) {return Err(Error::new("registration_changed"))}
+ Ok(sha)
+}
+fn resolve_vector_path(path:&str,binding:&str,pin:i64)->Result<String> {
+ if !crate::api::is_uuid(binding) || pin<1 {return Err(Error::new("registration"))}
+ Ok(path.replace("{binding}",binding).replace("{pin}",&pin.to_string()))
+}
 impl Manifest {
  fn shape(&self)->Result<()> {
   if self.protocol!="oo.jobs.native-schedule/v1" || !crate::api::is_uuid(&self.binding)
@@ -56,8 +76,9 @@ impl Manifest {
    let group=self.loader.args==["import-native-transaction"];
    let baseline=self.method=="C1" && self.loader.args==["import-native-update"] && r.transaction_registry_vector_path.is_some();
    if group || baseline {
-    let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256) else {return Err(Error::new("registration"))};
-    if r.registry_path.is_some() || !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0') || sha.len()!=64 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {return Err(Error::new("registration"))}
+    let path=r.transaction_registry_vector_path.as_deref().ok_or_else(||Error::new("registration"))?;
+    vector_path(path,r.transaction_registry_vector_sha256.as_deref(),group)?;
+    if r.registry_path.is_some() {return Err(Error::new("registration"))}
    } else if !r.registry_path.as_ref().is_some_and(|path|Path::new(path).is_absolute() && !path.contains("..") && !path.contains('\0'))
     || r.transaction_registry_vector_path.is_some() || r.transaction_registry_vector_sha256.is_some() {return Err(Error::new("registration"))}
    if r.control_target_path.is_some()!=r.control_target_sha256.is_some() {return Err(Error::new("registration"))}
@@ -343,10 +364,18 @@ async fn exec(config:&Config,e:&Executable,stage:&str,input:Vec<u8>,registration
    if bytes.len()>1024*1024 {return Err(Error::new("registration"))}
    command.env("OO_NATIVE_BINDING_REGISTRY",&registry).env("OO_NATIVE_BINDING_REGISTRY_SHA256",sha256_hex(&bytes));
   }
-  if let (Some(path),Some(sha))=(&r.transaction_registry_vector_path,&r.transaction_registry_vector_sha256) {
-   let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
-   if bytes.len()>1024*1024 || sha256_hex(&bytes)!=*sha {return Err(Error::new("registration"))}
-   command.env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR",path).env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256",sha);
+  if let Some(path)=&r.transaction_registry_vector_path {
+   let path=resolve_vector_path(path,binding,pin)?;
+   let bytes=std::fs::read(&path).map_err(|_|Error::new("registration"))?;
+   // Freeze the operator-selected vector across every attempt of this UUID.
+   let c=session::runtime(config).await?;
+   let prior=c.query_opt("SELECT stdout FROM jw_native.process_attempts WHERE task_id=$1::text::uuid AND stage='registry_vector' ORDER BY generation LIMIT 1",&[&task]).await.map_err(Error::sql)?;
+   let prior_bytes=prior.as_ref().map(|row|row.get::<_,Vec<u8>>(0));
+   let sha=vector_bytes_sha(&bytes,r.transaction_registry_vector_sha256.as_deref(),prior_bytes.as_deref())?;
+   let n=c.execute("INSERT INTO jw_native.process_attempts(task_id,generation,stage,executable_sha256,exit_code,stdout,stderr) SELECT id,generation,'registry_vector',$4,0,$5,''::bytea FROM jobs.tasks WHERE id=$1::text::uuid AND generation=$2 AND lease_owner=$3 AND state='running' AND lease_until>clock_timestamp() ON CONFLICT DO NOTHING",&[&task,&generation,&worker,&r.admission_sha256,&bytes]).await.map_err(Error::sql)?;
+   if n==0 && prior.is_none() {return Err(Error::new("lost_lease"))}
+   command.env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR",&path).env("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256",&sha);
+   println!("registry_vector_sha={sha} binding={binding} pin={pin} source_request_rewritten=false");
   }
   if let (Some(path),Some(sha))=(&r.control_target_path,&r.control_target_sha256) {
    let bytes=std::fs::read(path).map_err(|_|Error::new("registration"))?;
@@ -858,6 +887,28 @@ mod baseline_tests {
 #[cfg(test)]
 mod control_pin_tests {
  use super::*;
+ #[test]
+ fn vector_bytes_are_bounded_pinned_and_frozen_per_uuid() {
+  let first=b"sealed vector";
+  let hash=sha256_hex(first);
+  assert_eq!(vector_bytes_sha(first,Some(&hash),Some(first)).unwrap(),hash);
+  assert!(vector_bytes_sha(first,Some(&"a".repeat(64)),None).is_err());
+  assert!(vector_bytes_sha(b"different vector",None,Some(first)).is_err());
+  assert!(vector_bytes_sha(&vec![0;1024*1024+1],None,None).is_err());
+  assert!(vector_bytes_sha(b"next pin",None,None).is_ok());
+ }
+ #[test]
+ fn vector_template_is_operator_scoped_and_static_hashes_stay_required() {
+  assert!(vector_path("/owned/{binding}/{pin}/vector.json",None,true).is_ok());
+  for path in ["relative/{binding}/{pin}","/owned/../{binding}/{pin}","/owned/{binding}/{other}","/owned/{pin}","/owned/{binding}"] {assert!(vector_path(path,None,true).is_err())}
+  assert!(vector_path("/owned/{binding}/{pin}",Some(&"a".repeat(64)),true).is_err());
+  assert!(vector_path("/owned/{binding}/{pin}",None,false).is_err());
+  assert!(vector_path("/static",None,true).is_err());
+  assert!(vector_path("/static",Some(&"a".repeat(64)),true).is_ok());
+  assert!(resolve_vector_path("/owned/{binding}/{pin}","../escape",1).is_err());
+  assert!(resolve_vector_path("/owned/{binding}/{pin}","d101fd4a-3a89-41f6-b7fe-94b4001d5512",0).is_err());
+  assert_eq!(resolve_vector_path("/owned/{binding}/{pin}","d101fd4a-3a89-41f6-b7fe-94b4001d5512",2).unwrap(),"/owned/d101fd4a-3a89-41f6-b7fe-94b4001d5512/2");
+ }
  #[test]
  fn group_control_descriptor_is_operator_pinned_and_closed() {
   let mut manifest:Manifest=serde_json::from_value(json!({"protocol":"oo.jobs.native-schedule/v1","binding":"d101fd4a-3a89-41f6-b7fe-94b4001d5512","project_id":"00000000-0000-4000-8000-000000000074","source_id":"s","method":"C1","cycle":"pull","period_ms":1000,"producer":{"path":"/producer","sha256":"a".repeat(64),"args":[]},"loader":{"path":"/loader","sha256":"b".repeat(64),"args":["import-native-transaction"]},"registration":{"admission_binary":"/admission","admission_sha256":"c".repeat(64),"transaction_registry_vector_path":"/vector","transaction_registry_vector_sha256":"d".repeat(64),"control_target_path":"/private/control.json","control_target_sha256":"e".repeat(64)}})).unwrap();
