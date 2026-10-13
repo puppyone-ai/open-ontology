@@ -418,6 +418,7 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_pg_group_receipt(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_group_prior(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_group_generation(&mut conn).await {
+        Ok(()) => match target_installer::install_native_pg_single_transaction(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -434,7 +435,10 @@ async fn install_document(document: &Value) -> Value {
             ,"pg_group_receipt_digest": target_installer::compiled_native_pg_group_receipt_digest()
             ,"pg_group_prior_digest": target_installer::compiled_native_pg_group_prior_digest()
             ,"pg_group_generation_digest": target_installer::compiled_native_pg_group_generation_digest()
+            ,"pg_single_transaction_digest": target_installer::compiled_native_pg_single_transaction_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0022"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0021"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0020"}),
@@ -619,7 +623,7 @@ fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String
     let object = document.as_object().ok_or("closed")?;
     if object.len() != 2 || document["protocol"] != TRANSACTION_PROTOCOL
         || object.keys().any(|key| key != "protocol" && key != "entries") { return Err("closed"); }
-    let requests = document["entries"].as_array().filter(|items| (2..=32).contains(&items.len())).ok_or("closed")?;
+    let requests = document["entries"].as_array().filter(|items| (1..=32).contains(&items.len())).ok_or("closed")?;
     let vector_path = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR").map_err(|_| "nonadmitted")?;
     let vector_sha = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256").map_err(|_| "nonadmitted")?;
     let admission_bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
@@ -686,6 +690,28 @@ fn pg_lsn_value(value: &str) -> Result<u64, &'static str> {
         | u64::from(u32::from_str_radix(lo, 16).map_err(|_| "transaction_scope_required")?))
 }
 
+async fn completed_snapshot_vector(source: &str, target_database: &str) -> Result<Value, &'static str> {
+    let descriptor = pinned_ack_target("OO_NATIVE_CONTROL_TARGET", "OO_NATIVE_CONTROL_TARGET_SHA256")?;
+    let mut control = connect_target(&descriptor).await?;
+    let raw: Option<String> = sqlx::query_scalar(
+        "SELECT w.result::text FROM jw_native.source_progress p \
+         JOIN jw_native.watermarks w ON w.binding_id=p.binding_id AND w.task_id=p.task_id \
+         JOIN jobs.tasks t ON t.id=p.task_id \
+         WHERE p.source_id=$1 AND p.target_database=$2 AND p.source_generation=1 \
+         AND w.source_generation=1 AND w.pin=1 AND t.state='succeeded'"
+    ).bind(source).bind(target_database).fetch_optional(&mut control).await.map_err(sql_token)?;
+    let result: Value = serde_json::from_str(&raw.ok_or("OO030")?).map_err(|_| "OO030")?;
+    if result["protocol"] != "oo.jobs.native-baseline-result/v1"
+        || result["source_id"] != source || result["source_generation"] != 1
+        || result["consistency_grade"] != "S1" || result["cross_table_consistent"] != false
+        || result["load_state"] != "awaiting_publish" { return Err("OO030"); }
+    let entries = result["entries"].as_array().filter(|entries| (1..=32).contains(&entries.len())).ok_or("OO030")?;
+    if entries.iter().any(|entry| entry["source_id"] != source
+        || entry["source_generation"] != 1 || entry["source_bound"] != true
+        || entry["producer_trust"]["trusted"] != true) { return Err("OO030"); }
+    Ok(result["entries"].clone())
+}
+
 async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
     let (plans, scope, scope_digest, end_lsn) = transaction_plans(document)?;
     let first = &plans[0];
@@ -735,6 +761,21 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
                 "SELECT _oo.native_pg_group_prior($1,$2::uuid,$3,$4)"
             ).bind(&first.shard).bind(&first.owner).bind(adopted_generation)
              .bind(&first.source_id).fetch_one(&mut *tx).await.map_err(sql_token)?;
+            let snapshot_prior: bool = sqlx::query_scalar(
+                "SELECT _oo.native_pg_prior_is_snapshot($1,$2::uuid,$3,$4)"
+            ).bind(&first.shard).bind(&first.owner).bind(adopted_generation)
+             .bind(&first.source_id).fetch_one(&mut *tx).await.map_err(sql_token)?;
+            if snapshot_prior {
+                let database = text_field(&first.target, "database")?;
+                let entries = completed_snapshot_vector(&first.source_id, database).await?;
+                let complete: bool = sqlx::query_scalar(
+                    "SELECT _oo.native_pg_baseline_receipts($1,$2::uuid,$3,$4,$5,$6::jsonb)"
+                ).bind(&first.shard).bind(&first.owner).bind(adopted_generation)
+                 .bind(&first.source_id).bind(&first.config_digest)
+                 .bind(serde_json::to_string(&entries).map_err(|_| "OO030")?)
+                 .fetch_one(&mut *tx).await.map_err(sql_token)?;
+                if !complete { return Err("OO030"); }
+            }
             let group_generation = prior_generation.checked_add(1).ok_or("stale_run")?;
             for plan in &plans {
                 if transaction_read_batch(&mut tx, plan).await?.is_some() { return Err("OO010"); }

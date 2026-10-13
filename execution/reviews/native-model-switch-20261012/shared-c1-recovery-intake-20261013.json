@@ -1,0 +1,19 @@
+{
+  "event": "root fixed shared C1 complete-transaction and crash recovery intake; not independent review",
+  "loader_source": "15ea6cb07e04e9a7d5b3a91c112461579d04fda1",
+  "worker_source": "3d3f7ca84",
+  "worker_evidence": "279ff701e",
+  "control_manifest": {
+    "path": "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/c1-t-replay-20261013/CONTROL-SHA256SUMS",
+    "sha256": "6d1cf609d82288581a92722933f1ec6a3cd76a05a1067f42619eddbf5bd9568e",
+    "verified_files": 66
+  },
+  "source_manifest": {
+    "path": "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease/c1-t-replay-20261013/source/tgroup1/source-manifest.json",
+    "sha256": "64290b9e4080cd7726be77c0db3fd09d9bb5d7e8256553d40cc6b382339693e4",
+    "verified_files": 39
+  },
+  "scope": "isolated owned static S1 snapshot baseline, genuine singleton T and four-table T; source generations 2/3/2/2, global3; source xid2670 targetcommit before control CAS P0001; same UUID generation2 replay/no producer/no COPY/single CAS; independent typed diff0 and post-CAS factual slot ACK. Original PG46 xid803 untouched.",
+  "formal_counter_delta": 0,
+  "remaining": "PG46 future runtime registration/integration must bind corrected fixed code before full-source reliability release"
+}

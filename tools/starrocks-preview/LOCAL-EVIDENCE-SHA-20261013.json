@@ -619,7 +619,62 @@
       "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/postgres-42803.json",
       "bytes": 470,
       "sha256": "c1f98ea645dc539d0d3cb3666ddfc368c1aed04541bbfc26296e535b3fa7eb5d"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-merged-verification.json",
+      "bytes": 4219,
+      "sha256": "0d551d82e2369c6384af4ce61c0b413a8069d2750581d71e8522aec4f04b0d66"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-compact-run1/as-run-config.json",
+      "bytes": 5570,
+      "sha256": "ae620b0bb408c5fe4b6535a69c20a3b4d9bfa1000c03ee622ed8a3a8fb0e5fdb"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-compact-run1/as-run-script.py",
+      "bytes": 13193,
+      "sha256": "487e2271c4119afc9590cc9f86cdf82cadc48e3072277a815f82cc71c9c19878"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-compact-run1/attempt-report.json",
+      "bytes": 1206,
+      "sha256": "783c318665fe35f38e628a0596908a2b94095f27964e48a00e797629c0ee0c8f"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-compact-run1/transcript.json",
+      "bytes": 34054,
+      "sha256": "febf35bca6d61f94d61237aa06fc02c1f736be2db9d409fac6c68c9f888ea63b"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-final-question-run1/as-run-config.json",
+      "bytes": 5756,
+      "sha256": "44a94dc823e002f8b184c01a8f63c5c2d2e306067a798bd2db9bfb924425df36"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-final-question-run1/as-run-script.py",
+      "bytes": 14403,
+      "sha256": "0eeb0cdfc37a189eadded55459ffbe46a20d8c0e46b55dc638a3954e13847152"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-final-question-run1/attempt-report.json",
+      "bytes": 1189,
+      "sha256": "5fa14102a6a5496629a4507f785c9a1c2ef932fb2d360dffd68658d2f9aef9d3"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/dialogue-final-question-run1/transcript.json",
+      "bytes": 27955,
+      "sha256": "f70db511777ee05579168eb191ac1cc813a8ef0628f43c5c150c75e4bbed42c7"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/wal/q_ATOL9BkrP0GsBZ28hW0S2giAvp-admit.wal",
+      "bytes": 499,
+      "sha256": "08430dd7fce142533e8641c9dae02634b6c8e16cb3f9295e061437cd20d57236"
+    },
+    {
+      "path": "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product/raw/native-sync/c4-final-collection/gateway-preview/wal/q_ATOL9BkrP0GsBZ28hW0S2giAvp-complete.wal",
+      "bytes": 226,
+      "sha256": "36ecc443cbc77356c6bc651bc65319fea27bac956f0e5e6fe5c3ab27b2032872"
     }
   ],
-  "status": "c4_target_complete_final_priced_bundle_ready_selfbuild_pending"
+  "status": "starrocks_source_target_pack_gateway_verified_dialogue_g1_to_g7_only_g8_g9_failed_formal_pending"
 }

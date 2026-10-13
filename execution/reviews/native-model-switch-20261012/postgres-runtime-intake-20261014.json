@@ -1,0 +1,32 @@
+{
+  "receipt": {
+    "path": "/tmp/oo-pg46-runtime-finish/receipt.json",
+    "sha256": "7395f6fb6f2c97a41ff095e2734913e73d792c60425b7eb545abe0d6ecdbadad"
+  },
+  "result": {
+    "protocol": "oo.pg46.runtime-finish-receipt/v1",
+    "container": "oo-pg46-runtime-finish",
+    "worker_commit": "3d3f7ca84",
+    "worker_sha256": "e999022f12d6c6e0f63d50143025d8fc1ce09478d5e2f73bde7c2d7fded53520",
+    "loader_commit": "15ea6cb07",
+    "loader_sha256": "2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4",
+    "binding": "3dd3e1e9-4085-4b00-bc44-aed278a3cf1f",
+    "operator_manifest_sha": "41c6a2df4a7997007c84f608aab60a19960fe31c3ac10352067fcdb32039ed30",
+    "installation": "official install-native-update installed:true outcome:replay, 0022 exact",
+    "registration": "official native-loader-put exit0 and DB reread matches",
+    "completed_task": "5bbf9584-c293-4677-9979-3f7c15759423",
+    "completed_lease_generation": 4,
+    "original_state_unchanged": true,
+    "public_gold_checks": 4,
+    "authorization_checks": {
+      "catalog_read": "STATEMENT_NOT_ALLOWED",
+      "delete": "STATEMENT_NOT_ALLOWED"
+    },
+    "source_slot": "0/2D8FAF0",
+    "peek_changes": 0,
+    "models_called": 0,
+    "service_started": false,
+    "remaining": "Frozen x803 producer supports pin1 only; no new source transaction or future CDC capture adapter registered. Fixed worker container is installed and read-only native-state exercised, but intentionally idle. Historical STALE_DATA freshness warning retained. Customer formal gates remain root-owned."
+  },
+  "acceptance": "runtime installation/registration only; continuous CDC exit not reached"
+}
