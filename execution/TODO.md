@@ -62,7 +62,7 @@
 - DL01-W1-43 / doris-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-45 / starrocks-driver：source_product_development；completed_author_preview；Plan DBX-W12；固定依赖 577160c22de6。
-- DL01-W1-46 / postgres-product：source_product_development；author_product_chain_pending_shared_T_recovery；Plan SP03-W01；固定依赖 577160c22de6。
+- DL01-W1-46 / postgres-product：source_product_development；completed_author_preview；Plan SP03-W01；固定依赖 577160c22de6。
 - DL01-W1-47 / mariadb-product：source_product_development；merged_into_source_owner；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-48 / clickhouse-product：source_product_development；merged_into_source_owner；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-49 / doris-product：source_product_development；merged_into_source_owner；Plan DBX-W12；固定依赖 577160c22de6。

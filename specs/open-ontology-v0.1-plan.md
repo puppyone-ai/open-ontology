@@ -1,5 +1,9 @@
 # Open Ontology v0.1 开发执行 Plan
 
+## 2026-10-14 PG完整作者链收取
+
+PG完整作者预览收取：原4a64ed0a9真实S0–S10/维护Pack/Agent对话证据与新5038a03b5 worker、753dd2de4 capture、固定2ff Loader完整持续链并列。973项固定hash核验，真实两周期100053/100054行全量typed diff0、同UUID before-CAS恢复无第二COPY、变vector拒绝无副作用，CAS+diff后ACK/peek0；新官方Pack/ACL/Gateway六query逐行匹配独立source gold，deny/WAL齐。新增模型0。完整作者9/10，正式0/10，SQLServer真实原生amd64外部门槛待；未来ACK和Pack维护为显式owner流程、服务验后暂停、外部WALcollector未配及历史STALE_DATA保留，不冒自主发布/客户nightly。证据：execution/reviews/native-model-switch-20261012/postgres-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级未晋级；无整版签收，不切PRODUCT-LOOPS/Goal，前端无变更。
+
 ## 2026-10-14 StarRocks完整作者链收取
 
 StarRocks 20b6a4d11完整作者预览收取：1262项固定hash全部核验，g10/g11真实更新/插入/物理删除→capture/Loader/CAS→五表typed diff0→官方collection→维护Pack→当前Gateway/CLI九gold与20WAL；历史四问九gold原模型bytes未改，取消sent/durable/57014三WAL通过。新增模型调用0。完整作者8/10，正式签收0/10；C4/C5无源commit时钟，保留NULL/as_of省略、awaiting_publish/not_ready/STALE_DATA及原all-target clippy警告，不造源时间或提前发布。PG两周期/恢复已证、作者完整出口回执待收；SQLServer原生amd64外部门槛待。证据：execution/reviews/native-model-switch-20261012/starrocks-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级不变；无整版退出，PRODUCT-LOOPS/Goal不切，前端无变更。
