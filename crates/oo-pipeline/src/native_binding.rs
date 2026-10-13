@@ -854,7 +854,8 @@ fn parse_binding(binding: &serde_json::Value) -> Result<ParsedBinding, &'static 
     }
     let partition_scope = binding.get("partition_scope").cloned();
     if let Some(scope) = partition_scope.as_ref() {
-        if binding.get("source_engine").and_then(serde_json::Value::as_str) != Some("clickhouse") {
+        if !matches!(binding.get("source_engine").and_then(serde_json::Value::as_str),
+            Some("clickhouse" | "doris" | "starrocks")) {
             return Err("schema");
         }
         validate_partition_scope(scope, binding, &parsed_objects)?;
@@ -1350,6 +1351,14 @@ const APPROVED_DRIVER_RESOURCES: &[(&str, u64)] = &[
         "874d2588595d63b597139358b47e3097fcc5f45f772ffb5000ecd371e8e88b2e",
         116_863_584,
     ),
+    (
+        "683194dab7fd5ba58efb6da4009e82a8683ea3d07913153e8a7ac931a1caef4e",
+        113_981_880,
+    ),
+    (
+        "29fbbeb07880dccffbfe149262f99422e96b643c597b645bdaf43794b1c2734d",
+        116_576_104,
+    ),
 ];
 
 pub(crate) fn driver_length_allowed(digest: &str, len: u64) -> bool {
@@ -1817,7 +1826,7 @@ mod tests {
     #[test]
     fn c4_scope_rejects_partial_or_crossed_observation() {
         let digest = "ab".repeat(32);
-        let binding = serde_json::json!({"source_id":"clickhouse_268","source_generation":1,"schema_digest":digest,"type_digest":digest});
+        let binding = serde_json::json!({"source_engine":"clickhouse","source_id":"clickhouse_268","source_generation":1,"schema_digest":digest,"type_digest":digest});
         let objects = vec![BoundObject { logical_schema:"live".to_string(), logical_table:"readings".to_string(), row_count:2, arrow_sha256:digest.clone() }];
         let mut scope = serde_json::json!({
             "source_id":"clickhouse_268","source_generation":1,"logical_schema":"live","logical_table":"readings",
@@ -1859,6 +1868,13 @@ mod tests {
         assert!(driver_length_allowed(MARIA, 314_875_904));
         assert!(!driver_length_allowed(MARIA, 314_875_903));
         assert!(!driver_length_allowed(DIGEST, 314_875_904));
+        const STAR_C4: &str = "683194dab7fd5ba58efb6da4009e82a8683ea3d07913153e8a7ac931a1caef4e";
+        const DORIS_BASELINE: &str = "29fbbeb07880dccffbfe149262f99422e96b643c597b645bdaf43794b1c2734d";
+        assert!(driver_length_allowed(STAR_C4, 113_981_880));
+        assert!(!driver_length_allowed(STAR_C4, 113_981_879));
+        assert!(driver_length_allowed(DORIS_BASELINE, 116_576_104));
+        assert!(!driver_length_allowed(DORIS_BASELINE, 116_576_105));
+        assert!(!driver_length_allowed(DIGEST, 113_981_880));
     }
     const ARROW: &str = "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
     const ARROW_SCHEMA: &str = "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef";

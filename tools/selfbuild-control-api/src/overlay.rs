@@ -68,6 +68,9 @@ pub async fn maintenance(config: &AppConfig, row: &BuildRow, value: &Value, body
     }
     if trigger == "schema_changed" {
         apply_edit(&client, &row.build_id, &docs, edit.ok_or_else(ApiError::malformed)?).await?;
+    } else if trigger == "source_fact_corrected" {
+        let units = source_money_units(config, row)?;
+        apply_source_unit_correction(&client, &row.build_id, &docs, edit.ok_or_else(ApiError::malformed)?, &units).await?;
     }
     if trigger == "feedback" {
         let text = note.ok_or_else(ApiError::malformed)?;
@@ -237,6 +240,7 @@ pub async fn compile_role_pack(config: &AppConfig, row: &BuildRow, value: &Value
         .and_then(|item| item.source_protocol.as_ref());
     let columns = sealed::role_columns(bundle, protocol, &role)?;
     let docs = load_docs(&client, &row.build_id).await?;
+    ensure_source_money(&docs.effective, &sealed::declared_money_units(bundle, protocol)?)?;
     let pack = oosyaml::render_pack(&docs.effective, &role, &columns, &policy)?;
     let native_maintenance = compile_native_maintenance(config, row, &docs)?;
     let cache_key = canonical_sha256(&json!({
@@ -279,7 +283,19 @@ pub async fn read_role_pack(config: &AppConfig, row: &BuildRow, role: &str) -> R
     let Some(stored) = found else {
         return Err(ApiError::not_found());
     };
+    let bundle = bundle_dir(config, &row.project_id)?;
+    let protocol = config.projects.iter().find(|item| item.project_id == row.project_id).and_then(|item| item.source_protocol.as_ref());
+    let docs = load_docs(&client, &row.build_id).await?;
+    ensure_source_money(&docs.effective, &sealed::declared_money_units(bundle, protocol)?)?;
+    let columns = sealed::role_columns(bundle, protocol, role)?;
+    let current = oosyaml::render_pack(&docs.effective, role, &columns, "oos/v1")?;
     let pack_sha: String = stored.get(0);
+    if pack_sha != current.pack_sha256 { return Err(ApiError::pack_refused()); }
+    let stale: bool = client.query_one(
+        "SELECT EXISTS (SELECT 1 FROM oo_selfbuild_api.overlay_doc d WHERE d.build_id = $1 AND d.kind = 'generated' AND d.created_at > (SELECT MAX(created_at) FROM oo_selfbuild_api.role_pack WHERE build_id = $1 AND role_name = $2))",
+        &[&row.build_id, &role],
+    ).await.map_err(|_| ApiError::not_ready())?.get(0);
+    if stale { return Err(ApiError::pack_refused()); }
     let manifest_sha: String = stored.get(1);
     let manifest: String = stored.get(2);
     let files: String = stored.get(3);
@@ -296,6 +312,11 @@ pub async fn gates(config: &AppConfig, row: &BuildRow, value: &Value, body_sha: 
     }
     let docs = load_docs(&client, &row.build_id).await?;
     let mut report = gate_report(&docs.effective, &sealed_types(&docs.generated));
+    if ensure_source_money(&docs.effective, &source_money_units(config, row)?).is_err() {
+        report["gates"][0]["status"] = json!("block");
+        report["gates"][0]["evidence"] = json!("money unit differs from the sealed source rule");
+        report["gates"][1]["status"] = json!("block");
+    }
     report["operation"] = json!("postGates");
     report["build_id"] = json!(row.build_id);
     report["llm_calls"] = json!(0);
@@ -431,6 +452,45 @@ async fn apply_edit(client: &Client, build_id: &str, docs: &Docs, edit: Value) -
     insert_doc(client, build_id, "generated", &yaml, &sha256_hex(yaml.as_bytes())).await
 }
 
+fn source_money_units(config: &AppConfig, row: &BuildRow) -> Result<BTreeMap<String, String>, ApiError> {
+    let bundle = bundle_dir(config, &row.project_id)?;
+    let protocol = config.projects.iter().find(|item| item.project_id == row.project_id).and_then(|item| item.source_protocol.as_ref());
+    sealed::declared_money_units(bundle, protocol)
+}
+
+fn ensure_source_money(model: &oosyaml::Model, units: &BTreeMap<String, String>) -> Result<(), ApiError> {
+    for (id, unit) in units {
+        let (dataset, column) = id.rsplit_once('.').ok_or_else(ApiError::membership)?;
+        let item = model.datasets.get(dataset).and_then(|entry| entry.columns.get(column)).ok_or_else(ApiError::membership)?;
+        if item.semantic_type != "money" || &item.unit != unit { return Err(ApiError::pack_refused()); }
+    }
+    Ok(())
+}
+
+async fn apply_source_unit_correction(client: &Client, build_id: &str, docs: &Docs, edit: Value, units: &BTreeMap<String, String>) -> Result<(), ApiError> {
+    let object = edit.as_object().ok_or_else(ApiError::malformed)?;
+    if object.len() != 3 { return Err(ApiError::malformed()); }
+    let dataset = text(object, "dataset")?;
+    let column = text(object, "column")?;
+    let unit = text(object, "unit")?;
+    if !dataset_ok(&dataset) || !crate::ids::source_ident_ok(&column) { return Err(ApiError::malformed()); }
+    let id = format!("{dataset}.{column}");
+    if units.get(&id).map(String::as_str) != Some(unit.as_str()) { return Err(ApiError::membership()); }
+    let current = docs.generated.datasets.get(&dataset).and_then(|entry| entry.columns.get(&column)).ok_or_else(ApiError::membership)?;
+    if current.unit == unit && current.semantic_type == "money" { return Ok(()); }
+    let mut model = docs.generated.clone();
+    let item = model.datasets.get_mut(&dataset).and_then(|entry| entry.columns.get_mut(&column)).ok_or_else(ApiError::membership)?;
+    item.semantic_type = "money".to_owned();
+    item.unit = unit;
+    item.provenance = "declared".to_owned();
+    item.classification_state = "pending".to_owned();
+    let yaml = oosyaml::canonical_doc(&model_to_y(&model, "generated"))?;
+    // The review event is append-only and revokes the earlier confirmation even
+    // when the physical column fact hash is unchanged by a semantic correction.
+    insert_review(client, build_id, &id, "rejected", &current.fact_sha256).await?;
+    insert_doc(client, build_id, "generated", &yaml, &sha256_hex(yaml.as_bytes())).await
+}
+
 async fn confirm_one(client: &Client, build_id: &str, docs: &Docs, id: &str) -> Result<(), ApiError> {
     if !column_id(id) {
         return Err(ApiError::malformed());
@@ -486,13 +546,13 @@ fn maintenance_fields(value: &Value) -> Result<(&str, Option<Value>, Option<Stri
     let object = value.as_object().ok_or_else(ApiError::malformed)?;
     let trigger = object.get("trigger").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
     let keys: &[&str] = match trigger {
-        "schema_changed" => &["fact_edit", "identity_revision", "idempotency_key", "trigger"],
+        "schema_changed" | "source_fact_corrected" => &["fact_edit", "identity_revision", "idempotency_key", "trigger"],
         "feedback" => &["identity_revision", "idempotency_key", "note", "trigger"],
         "table_ready" | "scheduled" | "manual" => &["identity_revision", "idempotency_key", "trigger"],
         _ => return Err(ApiError::malformed()),
     };
     exact(value, keys)?;
-    let edit = if trigger == "schema_changed" {
+    let edit = if matches!(trigger, "schema_changed" | "source_fact_corrected") {
         Some(object.get("fact_edit").cloned().ok_or_else(ApiError::malformed)?)
     } else {
         None
@@ -519,7 +579,7 @@ fn maintenance_key(row: &BuildRow, trigger: &str, edit: Option<&Value>, note_sha
         "reviews_sha256": reviews_sha(&docs.reviews),
         "trigger": trigger
     });
-    if trigger == "schema_changed" {
+    if matches!(trigger, "schema_changed" | "source_fact_corrected") {
         body["fact_edit"] = edit.cloned().unwrap_or(Value::Null);
     } else {
         body["generated_sha256"] = json!(docs.generated_sha);
@@ -892,6 +952,8 @@ pub async fn insert_generated_model(client: &Client, build_id: &str, yaml: &str)
 // Reuse the reviewed native compiler after durable owner curation. The sealed
 // catalog and decisions are unchanged; only fact-bound descriptive labels pass.
 fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -> Result<Value, ApiError> {
+    let units = source_money_units(config, row)?;
+    ensure_source_money(&docs.effective, &units)?;
     let root = Path::new(&config.work_dir).join("builds").join(&row.build_id);
     let original = root.join("native-model-output");
     if !original.join("command.json").is_file() { return Ok(Value::Null); }
@@ -920,9 +982,30 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
     let mut effective = reviewed.get("effective_oos").cloned().ok_or_else(ApiError::pack_refused)?;
     let native_input = read(&root.join("native-model.json"))?;
     pg_builder::project_sealed_source_contract(&mut effective, &command["catalog"], native_input.get("source_contract")).map_err(|error| { eprintln!("native-maintenance source refused: {}", error.code); ApiError::pack_refused() })?;
+    let mut source_unit_corrections = Vec::new();
+    for (id, unit) in &units {
+        let datasets = effective.get_mut("datasets").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+        let mut found = 0;
+        for dataset in datasets {
+            let Some(name) = dataset.get("dataset").and_then(Value::as_str) else { return Err(ApiError::pack_refused()); };
+            let Some(column_name) = id.strip_prefix(&format!("{name}.")) else { continue; };
+            let columns = dataset.get_mut("columns").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+            for column in columns {
+                if column.get("name").and_then(Value::as_str) != Some(column_name) { continue; }
+                found += 1;
+                if column.get("semantic_type").and_then(Value::as_str) != Some("money") { return Err(ApiError::pack_refused()); }
+                let old = column.get("unit").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+                if old != unit {
+                    source_unit_corrections.push(json!({"column":id,"candidate_unit":old,"declared_unit":unit}));
+                    column["unit"] = json!(unit);
+                }
+            }
+        }
+        if found != 1 { return Err(ApiError::pack_refused()); }
+    }
     let visibility = read(&original.join("visibility.json"))?;
     let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
-    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0});
+    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0});
     let digest = canonical_sha256(&receipt);
     let dest = root.join("native-maintenance").join(&digest);
     let mut files = BTreeMap::new();
@@ -942,4 +1025,23 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs) -
     result["artifact_directory"] = json!(dest.to_string_lossy());
     result["artifact_revision"] = json!(digest);
     Ok(result)
+}
+
+#[cfg(test)]
+mod source_money_tests {
+    use super::ensure_source_money;
+    use crate::oosyaml::generated_from_inputs;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn role_pack_rejects_unsupported_model_currency() {
+        let catalog = json!({"tables":[{"schema":"oo_w141","table":"shipments","columns":[{"name":"price","data_type":"numeric"}]}]});
+        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","pii":"none","unit":"unspecified","confidence":"high"}],"relationships":[]});
+        let (mut model, _) = generated_from_inputs(&catalog, &rules, "none").unwrap();
+        let units = BTreeMap::from([("oo_w141.shipments.price".to_owned(), "unspecified".to_owned())]);
+        assert!(ensure_source_money(&model, &units).is_ok());
+        model.datasets.get_mut("oo_w141.shipments").unwrap().columns.get_mut("price").unwrap().unit = "USD".to_owned();
+        assert!(ensure_source_money(&model, &units).is_err());
+    }
 }

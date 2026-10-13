@@ -1324,20 +1324,23 @@ async fn mapped_name(
     table: &str,
     column: &str,
 ) -> Result<String, CatalogError> {
+    let namespace_keys = mapping_keys(namespace, bound.native_namespace);
+    let table_keys = mapping_keys(table, bound.native_namespace);
+    let column_keys = mapping_keys(column, bound.native_namespace);
     let count_row = tx
         .query_one(
             "SELECT count(*)::int8 FROM _oo.physical_mappings \
              WHERE source = $1 AND config_digest = $2 AND run_generation = $3 \
-               AND level = $4 AND logical_namespace = $5 AND logical_table = $6 \
-               AND logical_column = $7",
+               AND level = $4 AND logical_namespace = ANY($5::text[]) AND logical_table = ANY($6::text[]) \
+               AND logical_column = ANY($7::text[])",
             &[
                 &bound.source,
                 &bound.config_digest,
                 &bound.generation,
                 &level.letter,
-                &namespace,
-                &table,
-                &column,
+                &namespace_keys,
+                &table_keys,
+                &column_keys,
             ],
         )
         .await
@@ -1352,23 +1355,26 @@ async fn mapped_name(
     }
     let stored_row = tx
         .query_one(
-            "SELECT physical_name FROM _oo.physical_mappings \
+            "SELECT logical_namespace, logical_table, logical_column, physical_name FROM _oo.physical_mappings \
              WHERE source = $1 AND config_digest = $2 AND run_generation = $3 \
-               AND level = $4 AND logical_namespace = $5 AND logical_table = $6 \
-               AND logical_column = $7",
+               AND level = $4 AND logical_namespace = ANY($5::text[]) AND logical_table = ANY($6::text[]) \
+               AND logical_column = ANY($7::text[])",
             &[
                 &bound.source,
                 &bound.config_digest,
                 &bound.generation,
                 &level.letter,
-                &namespace,
-                &table,
-                &column,
+                &namespace_keys,
+                &table_keys,
+                &column_keys,
             ],
         )
         .await
         .map_err(db_error)?;
-    let stored: String = stored_row.get(0);
+    let stored_namespace: String = stored_row.get(0);
+    let stored_table: String = stored_row.get(1);
+    let stored_column: String = stored_row.get(2);
+    let stored: String = stored_row.get(3);
     let looked_row = tx
         .query_one(
             "SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)",
@@ -1377,9 +1383,9 @@ async fn mapped_name(
                 &bound.config_digest,
                 &bound.generation,
                 &level.word,
-                &namespace,
-                &table,
-                &column,
+                &stored_namespace,
+                &stored_table,
+                &stored_column,
             ],
         )
         .await
@@ -1389,6 +1395,26 @@ async fn mapped_name(
         return Err(CatalogError::AmbiguousMapping);
     }
     Ok(stored)
+}
+
+// pgident/v1 may register a quoted original under q_<lowercase UTF-8 hex>.
+// The trusted original still names the public catalog; a second stored key
+// is accepted only when it is exactly reversible and the lookup is unique.
+fn mapping_keys(original: &str, native: bool) -> Vec<String> {
+    let mut keys = vec![original.to_owned()];
+    if native && !original.is_empty() {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut encoded = String::with_capacity(2 + original.len() * 2);
+        encoded.push_str("q_");
+        for byte in original.bytes() {
+            encoded.push(HEX[(byte >> 4) as usize] as char);
+            encoded.push(HEX[(byte & 15) as usize] as char);
+        }
+        if encoded != original {
+            keys.push(encoded);
+        }
+    }
+    keys
 }
 
 fn physical_ok(value: &str, prefix: &str) -> bool {
@@ -1472,6 +1498,13 @@ mod tests {
         ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, compile_column_acl,
     };
     use super::*;
+
+    #[test]
+    fn native_mapping_key_preserves_original_and_reversible_quoted_name() {
+        assert_eq!(mapping_keys("whCode", true), ["whCode", "q_7768436f6465"]);
+        assert_eq!(mapping_keys("whCode", false), ["whCode"]);
+        assert_eq!(mapping_keys("", true), [""]);
+    }
 
     fn column(name: &str) -> ColumnSpec {
         ColumnSpec {

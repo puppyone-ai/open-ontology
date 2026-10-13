@@ -261,6 +261,19 @@ impl std::error::Error for PolicyError {}
 /// Pure compile. A row filter returns [`PolicyError::RowFilterRefused`] and
 /// does not need a connection.
 pub fn compile_column_acl(policy: &ColumnAclPolicy) -> Result<CompiledPolicy, PolicyError> {
+    compile_column_acl_with_native_identifiers(policy, false)
+}
+
+pub fn compile_column_acl_native(
+    policy: &ColumnAclPolicy,
+) -> Result<CompiledPolicy, PolicyError> {
+    compile_column_acl_with_native_identifiers(policy, true)
+}
+
+fn compile_column_acl_with_native_identifiers(
+    policy: &ColumnAclPolicy,
+    native: bool,
+) -> Result<CompiledPolicy, PolicyError> {
     if policy.row_filter.is_some() {
         return Err(PolicyError::RowFilterRefused);
     }
@@ -275,14 +288,14 @@ pub fn compile_column_acl(policy: &ColumnAclPolicy) -> Result<CompiledPolicy, Po
     let role = format!("oo_r_{role_slug}");
     let login = require_login(&policy.login, &role)?;
     let namespace = require_logical(&policy.table.namespace, "namespace")?;
-    let table = require_logical(&policy.table.name, "table")?;
+    let table = require_table_ident(&policy.table.name, "table", native)?;
     if policy.table.columns.is_empty() {
         return Err(PolicyError::EmptyAllowlist);
     }
     let mut seen = BTreeSet::new();
     let mut columns = Vec::with_capacity(policy.table.columns.len());
     for column in &policy.table.columns {
-        let name = require_logical(&column.name, "column")?;
+        let name = require_table_ident(&column.name, "column", native)?;
         if !seen.insert(name.clone()) {
             return Err(PolicyError::InvalidIdentifier { field: "column" });
         }
@@ -443,7 +456,7 @@ fn compile_set(policies: &[ColumnAclPolicy], native_vector: bool) -> Result<Comp
     }
     let mut compiled = Vec::with_capacity(policies.len());
     for policy in policies {
-        let one = compile_column_acl(policy)?;
+        let one = compile_column_acl_with_native_identifiers(policy, native_vector)?;
         if one.columns.len() > COLUMN_ACL_SET_MAX_COLUMNS {
             return Err(PolicyError::LimitExceeded);
         }
@@ -749,6 +762,27 @@ fn require_logical(value: &str, field: &'static str) -> Result<String, PolicyErr
         return Err(PolicyError::InvalidIdentifier { field });
     }
     Ok(value.to_string())
+}
+
+fn require_table_ident(
+    value: &str,
+    field: &'static str,
+    native: bool,
+) -> Result<String, PolicyError> {
+    if !(native && is_native_ident(value) || !native && is_plain_ident(value)) {
+        return Err(PolicyError::InvalidIdentifier { field });
+    }
+    Ok(value.to_string())
+}
+
+fn is_native_ident(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && (bytes[0] == b'_' || bytes[0].is_ascii_alphabetic())
+        && bytes[1..]
+            .iter()
+            .all(|byte| *byte == b'_' || byte.is_ascii_alphanumeric())
 }
 
 fn require_digest(value: &str) -> Result<String, PolicyError> {
@@ -1352,6 +1386,28 @@ mod tests {
             compile_column_acl(&input),
             Err(PolicyError::InvalidIdentifier { field: "column" })
         ));
+    }
+
+    #[test]
+    fn native_identifiers_preserve_case_without_accepting_sql_syntax() {
+        let mut input = policy(None, vec![column("whCode", PiiClass::None)]);
+        assert_eq!(
+            compile_column_acl_native(&input).unwrap().columns[0].name,
+            "whCode"
+        );
+        assert!(matches!(
+            compile_column_acl(&input),
+            Err(PolicyError::InvalidIdentifier { field: "column" })
+        ));
+        for bad in ["wh\"Code", "wh;Code", "wh\nCode", "éCode"] {
+            input.table.columns[0].name = bad.to_string();
+            assert!(matches!(
+                compile_column_acl_native(&input),
+                Err(PolicyError::InvalidIdentifier { field: "column" })
+            ));
+        }
+        input.table.columns[0].name = "x".repeat(64);
+        assert!(compile_column_acl_native(&input).is_err());
     }
 
     #[test]

@@ -4,3 +4,8 @@ b1eae406363d97ae8ddd6751f8cbdd50a66bb6d0eba41fb2d4d36d19385a1817  evidence/ad134
 de18b7ee5416293e8503c8ad0b7824405209ee05f366e301bcc641c8a145baea  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/SHA256-20261013.txt
 a0cc843746fa4e3f616cf1c216edecf0a99bad9ee2b9b5a15f07dc8af76108ec  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/oo-pipeline-a0cc8437
 d00c7d01f5fb27398352fed6d75760600c67588614c77148f65d3814a0326510  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/job-worker-d00c7d01
+c0be148663c2866c4eb38793424e83c3b2938e2c6bcaef1e9ce3077de138f57a  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/job-worker-c0be1486
+2597edb2674acc38bbe15162f8ce775f8f95991b5fbde225923ffdaeed3b6908  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/postgres-preview
+34b1ac71a6df6395dac9c5428963b3096ded75196bd3b7676235ee8294f30f44  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/postgres-preview-34b1ac71
+32186ba3189dffe43b2066836c2cea4b8cbdc2a58f69383981b1091da499177c  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/product/job-worker-32186ba3
+c5f7306b775753f9b1caad6a70ab602e81675e169da57a8a774e9a75da4375cc  evidence/ad13411e-d04e-4c91-8a20-49caf867aa23/DL01/postgres-product/linux/runner/out/native-full-20261013/independent-native-diff-current.json

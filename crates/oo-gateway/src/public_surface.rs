@@ -536,7 +536,11 @@ impl Plane {
     ) -> Result<crate::sql_guard::PolicyCatalog, ErrorCode> {
         let mut compiled = Vec::with_capacity(published.policies.len());
         for policy in &published.policies {
-            compiled.push(compile_column_acl(policy).map_err(|_| ErrorCode::SchemaInvalid)?);
+            compiled.push(if published.native_vector.is_some() {
+                crate::policy::compile_column_acl_native(policy)
+            } else {
+                compile_column_acl(policy)
+            }.map_err(|_| ErrorCode::SchemaInvalid)?);
         }
         let identity = PolicyIdentity {
             project: published.project.clone(),

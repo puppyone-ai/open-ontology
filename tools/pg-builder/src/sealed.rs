@@ -132,6 +132,24 @@ pub fn draft_only(catalog_json: &str) -> Result<Value, PgBuilderError> {
     }
 }
 
+pub fn draft_with_source_contract(catalog_json: &str, contract: Option<&Value>) -> Result<Value, PgBuilderError> {
+    let draft = match compile_input(catalog_json) {
+        Ok(draft) => draft,
+        Err(_) => return draft_only(catalog_json),
+    };
+    let catalog: Value = serde_json::from_str(catalog_json).map_err(|_| PgBuilderError::new("catalog.schema", "the catalog is not JSON"))?;
+    if let Err(err) = validate_source_contract(&draft, &catalog, contract) {
+        return Ok(json!({"code":err.code,"compiler":"project_sealed_source_contract","dependency_sha":DEPENDENCY_SHA,"message":err.message,"model":"not_called","outcome":"compiler_refused","pack":"not_produced","protocol":crate::SEAL_PROTOCOL,"publication":"not_published"}));
+    }
+    Ok(draft_document(&draft, "draft_compiled"))
+}
+
+fn validate_source_contract(draft: &SealedImportDraft, catalog: &Value, contract: Option<&Value>) -> Result<(), PgBuilderError> {
+    let names: std::collections::BTreeSet<&str> = draft.columns.iter().map(|column| column.dataset.as_str()).collect();
+    let mut effective = json!({"datasets": names.into_iter().map(|dataset| json!({"dataset":dataset})).collect::<Vec<_>>()});
+    crate::source_contract::project_sealed_source_contract(&mut effective, catalog, contract)
+}
+
 /// Run the sealed builder. A pack file is written only for a parsed completion
 /// with a declared price and both compilers accepting the bound decisions.
 pub fn sealed_build(input: &mut SealedBuild<'_>) -> Result<u8, PgBuilderError> {
@@ -162,6 +180,12 @@ pub fn sealed_build(input: &mut SealedBuild<'_>) -> Result<u8, PgBuilderError> {
     let visibility = bind_version(input.visibility, &draft.identity_hash, "visibility")?;
     let catalog_value: Value = serde_json::from_str(input.catalog_json)
         .map_err(|_| PgBuilderError::new("catalog.schema", "the catalog is not JSON"))?;
+    if let Err(err) = validate_source_contract(&draft, &catalog_value, input.source_contract) {
+        let document = json!({"code":err.code,"message":err.message,"model":"not_called","outcome":"compiler_refused","pack":"not_produced","protocol":RESULT_PROTOCOL,"publication":"not_published","ready":false});
+        write_json(&input.out_dir.join("result.json"), &document)?;
+        clear_pack(input.out_dir)?;
+        return Ok(1);
+    }
     let run_id = catalog_value
         .get("run_id")
         .and_then(Value::as_str)

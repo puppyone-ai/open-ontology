@@ -210,7 +210,11 @@ pub fn merge(generated: &Model, curated: &Model, reviews: &[Review]) -> Model {
             }
         }
     }
+    let mut latest_reviews = BTreeMap::new();
     for review in reviews {
+        latest_reviews.insert(&review.name, review);
+    }
+    for review in latest_reviews.values() {
         if review.decision != "confirmed" {
             continue;
         }
@@ -1048,7 +1052,7 @@ fn data_type_ok(value: &str) -> bool {
 
 #[cfg(test)]
 mod interval_tests {
-    use super::{generated_from_inputs, parse_model};
+    use super::{generated_from_inputs, merge, parse_model, Review};
     use serde_json::json;
 
     #[test]
@@ -1059,6 +1063,20 @@ mod interval_tests {
         let (_, yaml) = generated_from_inputs(&catalog, &rules, "none").expect("interval target type");
         let parsed = parse_model(&yaml, "generated").expect("generated YAML");
         assert_eq!(parsed.datasets["native_mysql_20261012.value_probe"].columns["clock_at"].sealed_data_type, "interval");
+    }
+
+    #[test]
+    fn later_rejection_revokes_earlier_confirmation_for_same_physical_fact() {
+        let catalog = json!({"tables":[{"schema":"oo_w141","table":"shipments","columns":[{"name":"price","data_type":"numeric"}]}]});
+        let rules = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","pii":"none","unit":"unspecified","confidence":"high"}],"relationships":[]});
+        let (generated, _) = generated_from_inputs(&catalog, &rules, "none").unwrap();
+        let fact = generated.datasets["oo_w141.shipments"].columns["price"].fact_sha256.clone();
+        let review = |decision: &str| Review { name:"oo_w141.shipments.price".to_owned(), decision:decision.to_owned(), binds_fact:fact.clone() };
+        let mut curated = generated.clone();
+        curated.datasets.clear();
+        assert_eq!(merge(&generated, &curated, &[review("confirmed")]).datasets["oo_w141.shipments"].columns["price"].classification_state, "confirmed");
+        assert_eq!(merge(&generated, &curated, &[review("confirmed"), review("rejected")]).datasets["oo_w141.shipments"].columns["price"].classification_state, "pending");
+        assert_eq!(merge(&generated, &curated, &[review("confirmed"), review("rejected"), review("confirmed")]).datasets["oo_w141.shipments"].columns["price"].classification_state, "confirmed");
     }
 }
 
