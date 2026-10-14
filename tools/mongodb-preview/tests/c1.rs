@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use mongodb_preview::c1::{
     BatchRef, Event, Store, apply_interface_gap, catalog_adapter, cluster_decimal, cmp_cluster,
-    cmp_watermark, expiry_record, may_pull, op_index, position_expired, producer_wire,
-    public_doc, question_bank, seal_delta, seal_initial, snapshot_before, source_gold,
-    token_cluster, CLUSTER_CODEC,
+    cmp_watermark, expiry_record, may_pull, position_expired, producer_wire, public_doc,
+    question_bank, resume_digest, seal_delta, seal_initial, snapshot_before, source_gold,
+    CLUSTER_CODEC,
 };
 use serde_json::json;
 
-fn event(op: &str, key: Option<&str>, doc: Option<serde_json::Value>, op_index: u32) -> Event {
+fn event(op: &str, key: Option<&str>, doc: Option<serde_json::Value>) -> Event {
     Event {
         op: op.to_string(),
         key: key.map(str::to_string),
@@ -17,7 +17,6 @@ fn event(op: &str, key: Option<&str>, doc: Option<serde_json::Value>, op_index: 
         cluster: 50,
         lsid: Some("sid".to_string()),
         txn: Some(7),
-        op_index,
     }
 }
 
@@ -25,8 +24,9 @@ fn event(op: &str, key: Option<&str>, doc: Option<serde_json::Value>, op_index: 
 fn cluster_time_orders_and_the_resume_token_is_only_hashed() {
     assert!(cmp_cluster(cluster_decimal(2, 0), cluster_decimal(1, 99)).is_gt());
     assert_eq!(cluster_decimal(1, 1).to_string(), "4294967297");
-    assert_eq!(token_cluster("826ACF682700000001").expect("token"), cluster_decimal(0x6ACF6827, 1));
-    assert!(token_cluster("00").is_err());
+    assert_eq!(resume_digest(b"resume-token").len(), 64);
+    assert_eq!(resume_digest(b"resume-token"), resume_digest(b"resume-token"));
+    assert_ne!(resume_digest(b"resume-token"), resume_digest(b"other-token"));
     assert!(position_expired(286));
     assert!(position_expired(136));
     assert!(!position_expired(280));
@@ -49,7 +49,6 @@ fn snapshot_does_not_resurrect_a_deleted_key() {
             cluster: 20,
             lsid: None,
             txn: None,
-            op_index: 1,
         })
         .expect("delete");
     let mut again = BTreeMap::new();
@@ -67,12 +66,12 @@ fn a_multi_document_commit_is_atomic_and_replay_does_not_duplicate() {
     let mut store = Store::new();
     store.load_snapshot(BTreeMap::new(), 1);
     store
-        .observe(event("update", Some("a"), Some(json!({"_id": "a", "memo": null, "secretNote": "hide-me"})), 1))
+        .observe(event("update", Some("a"), Some(json!({"_id": "a", "memo": null, "secretNote": "hide-me"}))))
         .expect("buffer");
     assert!(store.applied_json("abc")["rows"].as_array().expect("rows").is_empty());
     assert_eq!(store.grade(), "S0");
     store
-        .observe(event("update", Some("b"), Some(json!({"_id": "b"})), 2))
+        .observe(event("update", Some("b"), Some(json!({"_id": "b"}))))
         .expect("buffer");
     store
         .observe(Event {
@@ -83,14 +82,13 @@ fn a_multi_document_commit_is_atomic_and_replay_does_not_duplicate() {
             cluster: 60,
             lsid: Some("sid".to_string()),
             txn: Some(7),
-            op_index: 3,
         })
         .expect("commit");
     assert_eq!(store.grade(), "T");
     assert!(store.null_memo);
     assert!(store.hidden.contains("secretNote"));
     assert_eq!(store.applied_json("abc")["rows"].as_array().expect("rows").len(), 2);
-    let again = event("update", Some("a"), Some(json!({"_id": "a", "memo": null, "secretNote": "hide-me"})), 1);
+    let again = event("update", Some("a"), Some(json!({"_id": "a", "memo": null, "secretNote": "hide-me"})));
     store.replay(&[again]).expect("replay");
     assert_eq!(store.applied_json("abc")["rows"].as_array().expect("rows").len(), 2);
     assert_eq!(store.applied_json("abc")["applied_pos"], "60");
@@ -100,10 +98,10 @@ fn a_multi_document_commit_is_atomic_and_replay_does_not_duplicate() {
 fn a_group_without_a_commit_event_applies_atomically_at_s0() {
     let mut store = Store::new();
     store
-        .observe(event("update", Some("a"), Some(json!({"_id": "a", "memo": null})), 1))
+        .observe(event("update", Some("a"), Some(json!({"_id": "a", "memo": null}))))
         .expect("buffer");
     store
-        .observe(event("update", Some("b"), Some(json!({"_id": "b"})), 2))
+        .observe(event("update", Some("b"), Some(json!({"_id": "b"}))))
         .expect("buffer");
     assert!(store.applied_json("abc")["rows"].as_array().expect("rows").is_empty());
     store
@@ -115,7 +113,6 @@ fn a_group_without_a_commit_event_applies_atomically_at_s0() {
             cluster: 70,
             lsid: None,
             txn: None,
-            op_index: 3,
         })
         .expect("close");
     assert_eq!(store.grade(), "S0");
@@ -130,7 +127,7 @@ fn a_group_without_a_commit_event_applies_atomically_at_s0() {
 fn abort_drops_the_buffer_and_the_apply_gap_names_the_closed_codec() {
     let mut store = Store::new();
     store
-        .observe(event("insert", Some("a"), Some(json!({"_id": "a"})), 1))
+        .observe(event("insert", Some("a"), Some(json!({"_id": "a"}))))
         .expect("buffer");
     store
         .observe(Event {
@@ -141,7 +138,6 @@ fn abort_drops_the_buffer_and_the_apply_gap_names_the_closed_codec() {
             cluster: 40,
             lsid: Some("sid".to_string()),
             txn: Some(7),
-            op_index: 2,
         })
         .expect("abort");
     assert!(store.applied_json("abc")["rows"].as_array().expect("rows").is_empty());
@@ -159,13 +155,7 @@ fn abort_drops_the_buffer_and_the_apply_gap_names_the_closed_codec() {
 }
 
 #[test]
-fn same_cluster_time_uses_the_server_op_index() {
-    let first = "826ACF6FE3000000012B042C010029";
-    let second = "826ACF6FE3000000012B042C01002B02";
-    assert_eq!(token_cluster(first).expect("cluster"), token_cluster(second).expect("cluster"));
-    assert_eq!(op_index(first).expect("index"), 0);
-    assert_eq!(op_index(second).expect("index"), 1);
-    assert!(op_index("00").is_err());
+fn same_cluster_time_follows_delivery_and_idle_flushes_the_tail() {
     assert!(cmp_watermark("rs0", 1, 10, "rs0", 1, 11).expect("order").is_lt());
     assert!(cmp_watermark("rs0", 1, 10, "rs1", 1, 11).is_err());
     assert!(cmp_watermark("rs0", 1, 10, "rs0", 2, 11).is_err());
@@ -179,19 +169,6 @@ fn same_cluster_time_uses_the_server_op_index() {
     assert_eq!(expired["full_snapshot"], false);
     assert_eq!(expiry_record(280, "ChangeStreamFatalError", "bad", false)["status"], "not_expired");
 
-    let mut store = Store::new();
-    store.lineage = "rs0".to_string();
-    store.epoch = 1;
-    let newer = Event {
-        op: "update".to_string(),
-        key: Some("a".to_string()),
-        doc: Some(json!({"_id": "a", "memo": "newer"})),
-        pre: Some(json!({"_id": "a", "memo": "older"})),
-        cluster: 50,
-        lsid: Some("sid".to_string()),
-        txn: Some(7),
-        op_index: 1,
-    };
     let older = Event {
         op: "update".to_string(),
         key: Some("a".to_string()),
@@ -200,37 +177,58 @@ fn same_cluster_time_uses_the_server_op_index() {
         cluster: 50,
         lsid: Some("sid".to_string()),
         txn: Some(7),
-        op_index: 0,
     };
-    store.observe(newer.clone()).expect("buffer");
+    let newer = Event {
+        op: "update".to_string(),
+        key: Some("a".to_string()),
+        doc: Some(json!({"_id": "a", "memo": "newer"})),
+        pre: Some(json!({"_id": "a", "memo": "older"})),
+        cluster: 50,
+        lsid: Some("sid".to_string()),
+        txn: Some(7),
+    };
+    let mut store = Store::new();
+    store.lineage = "rs0".to_string();
+    store.epoch = 1;
     store.observe(older.clone()).expect("buffer");
-    store
-        .observe(Event {
-            op: "insert".to_string(),
-            key: Some("c".to_string()),
-            doc: Some(json!({"_id": "c"})),
-            pre: None,
-            cluster: 70,
-            lsid: None,
-            txn: None,
-            op_index: 0,
-        })
-        .expect("close");
+    store.observe(newer.clone()).expect("buffer");
+    assert!(store.applied_json("abc")["rows"].as_array().expect("rows").is_empty());
+    assert!(store.flush_idle().expect("idle"));
     let body = store.applied_json("abc");
     assert_eq!(body["grade"], "S0");
     assert_eq!(body["commit_event_seen"], false);
     assert_eq!(body["position_lineage"], "rs0");
     assert_eq!(body["source_epoch"], 1);
     assert_eq!(body["txn_groups"], 1);
-    let row = body["rows"]
-        .as_array()
-        .expect("rows")
-        .iter()
-        .find(|item| item["key"] == "a")
-        .expect("a");
-    assert_eq!(row["doc"]["memo"], "newer");
-    store.replay(&[newer, older]).expect("replay");
-    assert_eq!(store.applied_json("abc")["rows"].as_array().expect("rows").len(), 2);
+    assert_eq!(body["rows"][0]["doc"]["memo"], "newer");
+    store.replay(&[older.clone(), newer.clone()]).expect("replay");
+    assert_eq!(store.applied_json("abc")["rows"].as_array().expect("rows").len(), 1);
+
+    let mut reversed = Store::new();
+    reversed.lineage = "rs0".to_string();
+    reversed.epoch = 1;
+    reversed.observe(newer.clone()).expect("buffer");
+    reversed.observe(older.clone()).expect("buffer");
+    assert!(reversed.flush_idle().expect("idle"));
+    assert_eq!(reversed.applied_json("abc")["rows"][0]["doc"]["memo"], "older");
+
+    let mut again = Store::new();
+    again.lineage = "rs0".to_string();
+    again.epoch = 1;
+    let spool = [older.clone(), newer.clone()];
+    again.replay(&spool).expect("spool");
+    assert!(again.flush_idle().expect("idle"));
+    again.replay(&spool).expect("spool again");
+    assert!(!again.flush_idle().expect("idle again"));
+    assert_eq!(again.applied_json("abc")["rows"].as_array().expect("rows").len(), 1);
+    assert_eq!(again.applied_json("abc")["rows"][0]["doc"]["memo"], "newer");
+    assert_eq!(again.txn_groups, 1);
+    assert_eq!(again.commits, 0);
+
+    let mut current = BTreeMap::new();
+    current.insert("a".to_string(), json!({"_id": "a", "memo": "newer"}));
+    let initial = snapshot_before(&current, &spool).expect("snapshot");
+    assert_eq!(initial["a"]["memo"], "base");
 }
 
 #[test]
@@ -249,7 +247,6 @@ fn sealed_wire_stays_c1_s0_and_drops_secret_note() {
         cluster: 80,
         lsid: None,
         txn: None,
-        op_index: 0,
     }];
     let initial = snapshot_before(&current, &events).expect("snapshot");
     assert_eq!(initial["a"]["memo"], json!(null));
@@ -309,6 +306,15 @@ fn sealed_wire_stays_c1_s0_and_drops_secret_note() {
     assert_eq!(wire["initial"]["capture_method"], "c1_cdc");
     assert_eq!(wire["initial"]["delete_detection"], "native");
     assert_eq!(wire["initial"]["consistency_grade"], "S0");
+    let names: Vec<&str> = wire["delta"]["columns"]
+        .as_array()
+        .expect("columns")
+        .iter()
+        .filter_map(|column| column["name"].as_str())
+        .collect();
+    assert!(names.contains(&"cluster"));
+    assert!(!names.contains(&"op_identity"));
+    assert!(!names.contains(&"op_index"));
     assert_eq!(wire["initial"]["position_codec"], CLUSTER_CODEC);
     assert_eq!(wire["initial"]["full_snapshot"], false);
     assert_eq!(wire["delta"]["position_codec"], CLUSTER_CODEC);
