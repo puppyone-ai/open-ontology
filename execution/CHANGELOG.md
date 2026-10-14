@@ -1097,3 +1097,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 Grok首轮收取：infra实测Docker version/ps/exec恢复，磁盘67GiB；官方restart超时→官方force stop/start失败记录保留，OIDC18441/18443未serve，唯一infra原session接续合法identity恢复，不用synthetic或伪凭证。MariaDB fe07688d5两文件source capture/preparation作者交付，不能计完整一键；原session已terminal后恢复可信official全链。固定收取回执execution/reviews/grok-connection-resume-20261014/initial-intake.json。原一键0/10、历史作者9/10、正式0/10不变。Plan当前Gateway文档baseline drift未通过，shared入口host7tests有engine_mismatch1error（activewriter时实测），均未虚报绿。
 
 2026-10-14 共享入口固定69f9f3fc5已收取：root实际host7tests通过，先前activewriter时engine_mismatch失败保留；该交付仅门禁/recipe验证，零installedwhole/零六字段实测，不计十源。原session已terminal后接续真实源recipe/一键整链集成，pid6230。
+
+2026-10-14 六字段真实失败收取：shared-entry f58d543b9f实际运行a223a74bb93241f1b6ff5d771570eed2，source-ownedGateway退出/CA缺失导致child2，未调用productflow/dialogue，whole false；保留build只读GET403 objectscope需owner用真实正确project/session修，禁假身份。共享入口terminal交接等待源ownerTLS/whole recipe实际依赖，十源Grok继续，不空转加任务。零新的完整一键/正式计数。
