@@ -44,7 +44,7 @@
     "write_paths": [
       "tools/mariadb-preview"
     ],
-    "status": "same_owner_persistent_original_exits",
+    "status": "waiting_shared_local_model_budget_same_owner_reserved",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
@@ -209,7 +209,8 @@
       "tools/selfbuild-control-api/tests/native_import.rs",
       "tools/pg-builder/src/sealed.rs",
       "tools/pg-builder/CONTRACT.md",
-      "tools/pg-builder/tests/contract.rs"
+      "tools/pg-builder/tests/contract.rs",
+      "tools/selfbuild-control-api/src/stages.rs"
     ],
     "status": "same_owner_shared_product_dependency_long_run",
     "executor": "grok-4.7/xhigh",
