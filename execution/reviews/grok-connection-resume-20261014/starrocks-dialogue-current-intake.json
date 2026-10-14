@@ -1,0 +1,17 @@
+{
+  "source_commit": "55e455505b77d57514e2549a320ee33adf36444f",
+  "source_sha256": "2cb59bf623c7c6a90ad3e46a656946a7ac69ccdc86a8f23e8d7f9b04f1ec5699",
+  "source_path": "tools/starrocks-preview/scripts/connection_whole.py",
+  "private_copy": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks-staged-55e455505",
+  "receipt_sha256": "5fa0532c03a9061ee51a3db3576874bb5412b100e026e6282848ad2affa40299",
+  "verified_raw_hashes": {
+    "/tmp/oo-starrocks-connection-whole/dialogue-verify-3/dialogue/verdict.json": "f27fbaf7c4de73cc2fb231440672928ed0916646daf71f5ffb3521007d47c93b",
+    "/tmp/oo-starrocks-connection-whole/dialogue-verify-3/dialogue/transcript.json": "0838121a851a05f3f25bb25398e15be960442672c521ef2676b01c565e22a943",
+    "/tmp/oo-starrocks-connection-whole/typed-g13/cells/independent/conn-final/compare.json": "d0d9836d79597071b7307783b6e94811a88a0083bb9a431cb3a8dbdfeb0f950e"
+  },
+  "actual_current_dialogue": "verified 2turns",
+  "actual_unsampled_gold_all_equal": true,
+  "actual_wrapper_run": false,
+  "scope": "current mixed3/5/13 Pack+CLI/dialogue retained; C4 applicability not_run/disabled schedule/defaultordinarywhole and sustained future-maint exits incomplete; source wrapper fixed but not executed this stage",
+  "acceptance": "staged fixed implementation and real dialogue proof; no complete source/formal/native release promotion"
+}

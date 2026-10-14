@@ -1,0 +1,21 @@
+{
+  "receipt_sha256": "fcac3b98eb5a1a482098f2119cb1cd5929cb9d58cad8940c40743485aac2f6d9",
+  "private_immutable_copy": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-staged-r4-fcac3b98eb5a",
+  "original_run": "/Users/redux/.cache/oo-mysql-connection-whole/whole-run-8fa",
+  "raw_artifact_hashes": {
+    "journal.json": "fd91269667f5bd43ec55388bdd1fc819e9636729b7636c8530eb05e01bf8acbc",
+    "whole.json": "6d83acaf3dc10d37412c1b127d0c28586a935f4611f5ab456422cb901aea4d1f",
+    "product/product-receipt.json": "a9082eaecc0380247a6b3c98929c6ea80a26bdf908c0c54b61e00190114d5054",
+    "dialogue/verdict.json": "8ebb17eb9383f6c9401cd04ce4ae3d5e286be7c20a8cd28d54745d984cc221c9",
+    "dialogue/transcript.json": "d5390f0250655a4e69503d9c49e6e7a61535d4fd9c5bbd7ac2fbaee007a84eeb"
+  },
+  "actual_journal_state": "failed",
+  "actual_registry_binding_present": false,
+  "actual_build": "b_f234ec1c2d9e203e1e882b50a9875bce",
+  "actual_source_fresh_flag": true,
+  "actual_verdict_outcome": "verified",
+  "scope": "real corrected 2turn dialogue and same-identity completed product reuse verified; raw source_not_fresh failure caused retained producer versus current pinned invoker hash check; current API invocation0/no model S5 replay per author packet",
+  "remaining": "shared gate fix with actual retained provenance/current pinned invocation and unchanged source/config/artifacts; sustained future current Pack/Gateway linked upkeep still original source requirement",
+  "acceptance": "staged product and actual dialogue only; no full source/formal promotion",
+  "ordinary_default_entry": "unproven: registrySHA null indicates explicit recipe bootstrap; complete ordinary installed six-field entry remains source owner exit"
+}

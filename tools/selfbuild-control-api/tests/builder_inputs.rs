@@ -248,6 +248,61 @@ fn observed_csv(stamp: &str, statement: &str) -> String {
 }
 
 #[test]
+fn imported_sql_catalog_uses_the_sealed_compiler_and_not_a_postgres_seal() {
+    let catalog = sql_catalog(false);
+    let prepared = builder_inputs::prepare(&catalog, br#"{"sample_policy":"none","tables":[]}"#, None, 16);
+    assert!(prepared.seal.is_none());
+    assert!(prepared.cards.is_none());
+    let document = parse(&prepared.document);
+    assert_eq!(document["outcome"], "draft_compiled");
+    assert_eq!(document["catalog_protocol"], "oo.pipeline.sealed-import-catalog/v1");
+    assert_ne!(document["catalog_protocol"], PGSQL_PROTOCOL);
+    assert_eq!(document["seal_written"], false);
+    assert_eq!(document["cards_written"], false);
+    assert_eq!(document["ready"], false);
+    assert_eq!(document["published"], false);
+    assert_eq!(document["native_catalog_called"], false);
+    assert_eq!(document["model"], "not_called");
+    assert_eq!(document["producer"], "oo_builder::compile_sealed_import_catalog");
+    let text = String::from_utf8(prepared.document).unwrap();
+    assert!(!text.contains("\"outcome\":\"sealed\""));
+}
+
+#[test]
+fn unverified_sql_catalog_is_not_sealed_and_writes_nothing() {
+    let catalog = sql_catalog(true);
+    let prepared = builder_inputs::prepare(&catalog, br#"{"sample_policy":"none","tables":[]}"#, None, 16);
+    assert!(prepared.seal.is_none());
+    assert!(prepared.cards.is_none());
+    let document = parse(&prepared.document);
+    assert_eq!(document["outcome"], "compiler_refused");
+    assert_eq!(document["seal_written"], false);
+    assert_eq!(document["ready"], false);
+    assert_eq!(document["published"], false);
+    assert_ne!(document["outcome"], "sealed");
+    let dictionary = br#"{"protocol":"oo.source.sqlserver/v1","tables":[{"schema":"sales","name":"invoice","columns":[]}]}"#;
+    let observed = builder_inputs::prepare_observed(dictionary, br#"{"protocol":"oo.source.sqlserver.profile/v1"}"#, None, &[], &[], 16);
+    assert!(observed.seal.is_none());
+    assert!(observed.cards.is_none());
+    let observed_document = parse(&observed.document);
+    assert_eq!(observed_document["outcome"], "producer_refused");
+    assert_eq!(observed_document["catalog_protocol"], "oo.source.sqlserver/v1");
+    assert_eq!(observed_document["producer"], "not_called");
+    assert_eq!(observed_document["seal_written"], false);
+    assert_eq!(observed_document["ready"], false);
+    assert_eq!(observed_document["published"], false);
+}
+
+fn sql_catalog(break_schema: bool) -> Vec<u8> {
+    let digest = "a".repeat(64);
+    let shadow = "ab".repeat(30);
+    let schema_digest = if break_schema { "ab".repeat(32) } else { "8bd91cd86c99ef7ee8ed14e70137f7d860a16b04a3b700270b609ebda0266336".to_owned() };
+    format!(
+        r#"{{"capture":"sealed_import","config_digest":"{digest}","engine":"sqlserver","hook_checked":false,"input_digest":"{digest}","protocol":"oo.pipeline.sealed-import-catalog/v1","quality":{{"loss_concealed":false,"manifest_reject_count":0,"payload_includes_reject_lines":false,"stored_omits_manifest_rejects":false,"stored_rejected_rows":0,"stored_rows":[{{"accepted_rows":1,"attnum":null,"batch_id":"t0.b0","key_digest":null,"kind":"batch","physical_name":"pt_{shadow}","reason":null,"rejected_rows":0,"row_index":null,"value_len":null}}]}},"run_id":"de8276fc-8634-4543-994f-ce82a46a3c18","schema_digest":"{schema_digest}","shadows_queried":false,"source_generation":4,"source_id":"oo_sql","source_introspection":"not_used","state":"awaiting_publish","tables":[{{"accepted_rows":1,"canonical_digest":"{digest}","columns":[{{"caveat":null,"key":false,"logical_name":"amount","oid":23,"source_type":null,"stored_physical":"pc_{shadow}","typmod":-1}}],"logical_schema":"sales","logical_table":"invoice","rejects":[],"stored_namespace":"pn_{shadow}","stored_physical":"pt_{shadow}"}}],"target_generation":4,"tool_hook_digest":"{digest}","type_digest":"{digest}"}}"#
+    ).into_bytes()
+}
+
+#[test]
 fn extra_pgsql_field_does_not_write_seal() {
     let mut catalog: Value = parse(&repo_file(&format!("{FIXTURE}/catalog.json")));
     catalog["forged"] = Value::Bool(true);

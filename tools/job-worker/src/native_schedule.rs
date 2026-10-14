@@ -267,7 +267,7 @@ async fn adopt_claim(control:&tokio_postgres::Client,source:&str,database:&str,p
 }
 async fn release_terminal_native(config:&Config,project:&str)->Result<()> {
  let control=session::runtime(config).await?;
- let rows=control.query("SELECT p.source_id,p.target_database,p.active_task_id::text,o.request::text,b.method FROM jw_native.source_progress p JOIN jobs.tasks t ON t.id=p.active_task_id JOIN jw_native.occurrences o ON o.task_id=t.id JOIN jw_native.bindings b ON b.id=o.binding_id WHERE b.project_id=$1::text::uuid AND b.method IN ('C4','C5') AND t.state IN ('failed','cancelled') AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&project]).await.map_err(Error::sql)?;
+ let rows=control.query("SELECT p.source_id,p.target_database,p.active_task_id::text,o.request::text,b.method FROM jw_native.source_progress p JOIN jobs.tasks t ON t.id=p.active_task_id JOIN jw_native.occurrences o ON o.task_id=t.id JOIN jw_native.bindings b ON b.id=o.binding_id WHERE b.project_id=$1::text::uuid AND b.method IN ('C2','C4','C5') AND t.state IN ('failed','cancelled') AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&project]).await.map_err(Error::sql)?;
  for row in rows {
   let source:String=row.get(0);let database:String=row.get(1);let task:String=row.get(2);let stored:Option<String>=row.get(3);
   let method:String=row.get(4);
@@ -281,8 +281,17 @@ async fn release_terminal_native(config:&Config,project:&str)->Result<()> {
   let applied=match target.query_opt("SELECT source_generation FROM _oo.source_watermark WHERE source=$1",&[&source]).await {
    Ok(row)=>row.map(|r|r.get::<_,i64>(0)).unwrap_or(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
   };
-  let sealed:bool=match target.query_one("SELECT CASE WHEN $1='C4' THEN EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$2::text::uuid) ELSE EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$3 AND source_generation>$4) END",&[&method,&task,&source,&base]).await {
-   Ok(row)=>row.get(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
+  // Pipeline runtime cannot select full_import_run; 0006 exposes it only through
+  // security-definer functions. The operator admin already installs this database.
+  let sealed:bool=if method=="C4" {
+   match target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::text::uuid)",&[&task]).await {
+    Ok(row)=>row.get(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
+   }
+  } else {
+   let admin=match session::admin_db(config,&database).await {Ok(admin)=>admin,Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",e.kind);continue}};
+   match admin.query_one("SELECT EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$1 AND source_generation>$2)",&[&source,&base]).await {
+    Ok(row)=>row.get(0),Err(e)=>{eprintln!("terminal_release=refused task={task} reason={}",Error::sql(e).kind);continue}
+   }
   };
   if applied!=base || sealed {continue}
   let n=control.execute("UPDATE jw_native.source_progress p SET active_task_id=NULL WHERE p.source_id=$1 AND p.target_database=$2 AND p.active_task_id=$3::text::uuid AND EXISTS(SELECT 1 FROM jobs.tasks t WHERE t.id=p.active_task_id AND t.state IN ('failed','cancelled')) AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=$3::text::uuid)",&[&source,&database,&task]).await.map_err(Error::sql)?;
@@ -293,13 +302,18 @@ async fn release_terminal_native(config:&Config,project:&str)->Result<()> {
 pub async fn cancel_native(config:&Config,project:&str,task:&str,worker:&str,generation:i64)->Result<()> {
  if !crate::api::is_uuid(project) || !crate::api::is_uuid(task) || generation<0 {return Err(Error::new("input"))}
  let control=session::runtime(config).await?;
- let row=control.query_opt("SELECT b.source_id,b.target_database,o.request::text,b.method FROM jw_native.occurrences o JOIN jw_native.bindings b ON b.id=o.binding_id JOIN jobs.tasks t ON t.id=o.task_id JOIN jw_native.source_progress p ON p.source_id=b.source_id AND p.target_database=b.target_database AND p.active_task_id=t.id WHERE t.id=$1::text::uuid AND t.project_id=$2::text::uuid AND (b.method='C4' AND t.state IN ('queued','running') OR b.method='C5' AND t.state='queued') AND t.generation=$3 AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&task,&project,&generation]).await.map_err(Error::sql)?.ok_or_else(||Error::new("cancel_identity"))?;
+ let row=control.query_opt("SELECT b.source_id,b.target_database,o.request::text,b.method FROM jw_native.occurrences o JOIN jw_native.bindings b ON b.id=o.binding_id JOIN jobs.tasks t ON t.id=o.task_id JOIN jw_native.source_progress p ON p.source_id=b.source_id AND p.target_database=b.target_database AND p.active_task_id=t.id WHERE t.id=$1::text::uuid AND t.project_id=$2::text::uuid AND (b.method IN ('C2','C4') AND t.state IN ('queued','running') OR b.method='C5' AND t.state='queued') AND t.generation=$3 AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)",&[&task,&project,&generation]).await.map_err(Error::sql)?.ok_or_else(||Error::new("cancel_identity"))?;
  let source:String=row.get(0);let database:String=row.get(1);let stored:Option<String>=row.get(2);let method:String=row.get(3);
  if database!=target_database(config,&method)? {return Err(Error::new("target_database"))}
  let base=confirmed_generation(config,&control,&source,&database,task,&stored).await?;
  let target=target_owner(config,&database).await?;
  let applied=target.query_opt("SELECT source_generation FROM _oo.source_watermark WHERE source=$1",&[&source]).await.map_err(Error::sql)?.map(|r|r.get::<_,i64>(0)).unwrap_or(0);
- let sealed:bool=target.query_one("SELECT CASE WHEN $1='C4' THEN EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$2::text::uuid) ELSE EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$3 AND source_generation>$4) END",&[&method,&task,&source,&base]).await.map_err(Error::sql)?.get(0);
+ let sealed:bool=if method=="C4" {
+  target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::text::uuid)",&[&task]).await.map_err(Error::sql)?.get(0)
+ } else {
+  let admin=session::admin_db(config,&database).await?;
+  admin.query_one("SELECT EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$1 AND source_generation>$2)",&[&source,&base]).await.map_err(Error::sql)?.get(0)
+ };
  if applied!=base || sealed {return Err(Error::new("cancel_target"))}
  let cancelled=lease::cancel(&control,project,task,worker,generation).await?;
  if cancelled.status!=LeaseStatus::Cancelled {return Err(Error::new("cancel_lease"))}

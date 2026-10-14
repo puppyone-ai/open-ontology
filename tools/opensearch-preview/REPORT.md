@@ -28,16 +28,33 @@ Linux `rustc 1.94.0` in container `oo-dl01w1-74-rust` ran `cargo test --locked` 
 
 `/opt/homebrew/opt/python@3.14/bin/python3.14 tools/source-onboarding/onboard.py --input ~/.cache/oo-opensearch-connection-whole/connection.json --resume`
 
-That resume is not repeated. The current `engines.json` digest is `358c6c7502923ee9769d006f9906a917b2f0fd8cab943eefca4fe74ea7d037f5` because later unrelated engine registration changed the global file. The opensearch row is still `whole: true` with proof `4a5eb370…`. Shared onboard resume drift from that global hash is owned by root (`d28ca4bd`). This source does not edit `onboard.py`.
+That resume is not repeated. The `engines.json` digest is now `29ddf63d82d24b623683b980a722fa7cef8535769c8cfb920be4ea6274eaacd2`. It was `358c6c7502923ee9769d006f9906a917b2f0fd8cab943eefca4fe74ea7d037f5` at the previous receipt. The opensearch row is still `whole: true`, recipe `1e50d79629a113b7a94220879e033f3893d2e7f0ebc02ff26526722bf33c8615`, proof `4a5eb370…`. This source did not edit the registry or `onboard.py`. The old run was not resumed.
 
-## Live lease and source-after snapshot
+## Two owned I/U/D rounds
 
-Live `native-state` for binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55`: generation 6, `load_state` `awaiting_publish`, `applied` true, `applied_pos` 0, `enabled` false, `period_ms` 1000, method `C5`, cycle `reconcile`, codec `snapshot-zero/v1`, lineage `opensearch.c5.cycle`, task `71f9b4f6-4f76-4e92-acb4-c60d155b24ea`. No owned worker process is running.
+Binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55` was enabled and then stepped only after fixture DBA changes. Each capture used the pinned reader and `native-fire` / `native-step` / `native-state`. `reader_mutations` was 0 on all six captures. Verdict: `/tmp/oo-opensearch-connection-whole/iud-two-20261014/verdict.json`.
 
-One new read-only `connect.py --cycles 1` wrote `/tmp/oo-opensearch-connection-whole/source-after-current-20261014`. Arrow SHA-256 matches generation 6 (`bc7a18d9…`). `reader_mutations` 0, live count 5, tombstones empty, `fullchain_executed` false. The local cycle report's generation field is 1 because that command does not call the loader. `source_write_attempts` 0 remains the recovery fact for a read-only capture. It does not show a worker still pulling.
+| Label | Generation | Task | Live keys after the capture |
+| --- | --- | --- | --- |
+| r1 insert | 7 | `397e41dc-e895-41a3-8ab2-80b61beccbf8` | five stable keys plus `osconn14-644b5c6328c643fab933bc3b661ac463` |
+| r1 update | 8 | `de894565-7c8a-4e9c-aff2-bff12020f59b` | same six, owned id in `updated` |
+| r1 delete | 9 | `099467e1-76c9-43c1-b155-035bf2c54fe0` | five stable keys, owned id tombstoned |
+| r2 insert | 10 | `865bdd0c-38cc-4b50-adc5-cfe31b7a0564` | five stable keys plus `osconn14-bb5edc68f4a84c14a93cf8166dd52568` |
+| r2 update | 11 | `1b922f57-038f-41fd-b6b8-5804c562d3e5` | same six, owned id in `updated` |
+| r2 delete | 12 | `0e919da4-9fce-4e5d-8a96-b58bc3d4ac74` | five stable keys, owned id tombstoned |
 
-Fixture schedule `testing/dl01-driver-preflight/opensearch/fixtures/c5-schedule.json` declares `capture_method` C5, `consistency` B, `delete_detection` reconcile. The binding period is 1000 ms. The schedule row is disabled, so the period is configured and not executing.
+Canonical snapshot SHA-256 of the five live documents is `c8965e1755d8e0fff0cb38599eec48ca748caa833bbd517e1362033199a5bb95` at pins 6, 9, and 12. `_oo.pt_9de307c6323540063935bc9920722a23760107700d652c85db40d7f6ad4a` (generation 6) and `_oo.pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20` (generation 12) each contain 5 rows. Delete detection on these cycles was reconcile. The source documents were removed with the fixture DBA identity, not by the reader.
+
+## Continuous schedule
+
+The binding stays `enabled` true, `period_ms` 1000, method C5, cycle reconcile. `native-serve` would enqueue every due period and the producer always emits `acknowledged_source_generation + 1`, so an unchanged tick would open another physical generation. The owned observer `/tmp/oo-opensearch-connection-whole/c5-observe.py` copies the production shadow, runs `c5-cycle` against that copy, and calls `native-fire` / `native-step` only when the probe reports an insert, update, tombstone, or typed change. The production shadow is not written by the probe. A three-tick quiet proof and the following daemon both stayed on generation 12 with `fires` 0. Daemon pid 66510, `--seconds 28800`. At status read, ticks were 154, `last_action` quiet, `reader_mutations` 0, live count 5.
+
+## Live lease
+
+`native-state`: generation 12, `awaiting_publish`, applied true, `applied_pos` 0, enabled true, period 1000, pin 12, task `0e919da4-9fce-4e5d-8a96-b58bc3d4ac74`. `source_write_attempts` 0 remains the generation-6 recovery fact. It is not a claim that the public plane is current.
 
 ## Open exit
 
-A new loader generation needs a new physical table. `pg_default_acl` has no table default SELECT for `oo_r_ledger`. This turn did not GRANT. The per-table ACL compiler is a root/PG fix; its output is not reused here. Publication stays `not_ready`. Gateway freshness on the generation-6 gold query is `STALE_DATA`. There is no source commit clock to promote that warning. OpenSearch deletion on this fixture is reconcile, consistency B, `snapshot_token` false. It is not log CDC. S5 was not called again. Generation-6 CAS, cancel, and dialogue were not replayed.
+`_oo.physical_mappings` max `run_generation` for source `oo_dl01w1_44`, config digest `006876333fa1dcbe780111c763867398c585a53e6a56330b3485a83e7bb3bf5f`, and `ledger.ledger_rows` is 12. The running gateway catalog is still bound to generation 6 (`binding.json`, physical `pt_9de307c6…`). `ensure_generation` requires that maximum to equal the bound generation, so `catalog_for` now fails `StaleGeneration` and the public CLI returns `SCHEMA_INVALID` / `policy catalog is not available`. Seen query ids: `q_7eZbKDsfbIsqIvIeXfwGZQ3BxC`, `q_pkHbG7YWDiO5VC8xBVNl9XX2Z7`. Before these rounds the same gateway returned count 5, generation 6 bound, query `q_2sDVomlZpHbotjAzTUx4ZskwG6`.
+
+`oo_r_ledger` still has SELECT on 14 columns of the generation-6 table and on no column of `pt_673a7926…`. `pg_default_acl` has no table default SELECT for that role. This turn did not GRANT and did not rebind the gateway or the maintenance catalog. Generation-12 public gold, a new pack, and a new dialogue are not claimed. The generation-6 gold file is unchanged and is not a current-generation certificate. Publication stays unsigned. S5, the generation-6 CAS, the live cancel `q_JjCRmU3gOeVVrRxFkL39YtYryr`, and the three-turn dialogue were not replayed. Formal sign-off remains 0/10. The per-table ACL transition for generation 12 stays with PG pid 99653.
