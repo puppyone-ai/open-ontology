@@ -173,98 +173,69 @@ def once(marker, sink, user, sql, query_id):
     os.chmod(marker, 0o600)
 
 
-def cycle(run_dir):
-    receipt = run_dir / "cycle-receipt.json"
-    if receipt.exists():
-        return
-    markers = run_dir / "cycle-markers"
-    markers.mkdir(mode=0o700, exist_ok=True)
-    raw = run_dir / "cycle-raw"
-    current = rows()
-    if "104" not in current:
-        once(markers / "insert", raw / "insert", DBA,
-             "INSERT INTO oo_dl01w40.readings (reading_id, version, amount, note, code, code_or_null, ts, tags, labels, qty, label, wide_u64) "
-             "VALUES (104, 1, toDecimal256('4.0000000000', 10), 'inserted', 'beta', NULL, "
-             "toDateTime64('2024-02-02 00:00:00.000000000', 9, 'UTC'), [4], ['new'], 4, 'inserted', 1)",
-             "oo-ch-conn-whole-insert-104")
-    current = rows()
-    if "102" in current:
-        once(markers / "delete", raw / "delete", DBA,
-             "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=102 SETTINGS mutations_sync=2",
-             "oo-ch-conn-whole-delete-102")
-    current = rows()
-    if current.get("101") == ("2", "7"):
-        # version is the ReplacingMergeTree version column and cannot be ALTER UPDATE'd.
-        once(markers / "update", raw / "update-replace", DBA,
-             "INSERT INTO oo_dl01w40.readings (reading_id, version, amount, note, code, code_or_null, ts, tags, labels, qty, label, wide_u64) "
-             "SELECT reading_id, toUInt64(3), amount, note, code, code_or_null, ts, tags, labels, toInt64(8), label, wide_u64 "
-             "FROM oo_dl01w40.readings FINAL WHERE reading_id=101",
-             "oo-ch-conn-whole-update-101")
-    if not (markers / "reader-insert").exists():
-        denied = ch(READER,
-                    "INSERT INTO oo_dl01w40.readings (reading_id, version, amount, note, code, code_or_null, ts, tags, labels, qty, label, wide_u64) "
-                    "VALUES (999, 1, toDecimal256('1.0000000000', 10), 'x', 'x', NULL, "
-                    "toDateTime64('2024-02-02 00:00:00.000000000', 9, 'UTC'), [1], ['x'], 1, 'x', 1)",
-                    "oo-ch-conn-whole-reader-insert", raw / "reader-insert")
-        (markers / "reader-insert").write_text(f"{denied.returncode}\n")
-    else:
-        denied = subprocess.CompletedProcess([], int((markers / "reader-insert").read_text().strip()), b"", b"")
-    if denied.returncode == 0:
-        ch(DBA, "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=999 SETTINGS mutations_sync=2", "oo-ch-conn-whole-undo-999", raw / "undo")
-        raise RuntimeError("reader insert was accepted")
-    if not (markers / "pending").exists():
-        proc = ch(DBA, "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=999 SETTINGS mutations_sync=0", "oo-ch-conn-whole-pending", raw / "pending")
-        if proc.returncode:
-            raise RuntimeError("pending mutation refused")
-        seen = ch(DBA, "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND table='readings' AND is_done=0 FORMAT TSV", "oo-ch-conn-whole-pending-count", raw / "pending-count")
-        pending = int(seen.stdout.decode().strip() or "0")
-        deadline = time.time() + 40
-        while pending and time.time() < deadline:
-            time.sleep(1)
-            seen = ch(DBA, "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND table='readings' AND is_done=0 FORMAT TSV", "oo-ch-conn-whole-pending-wait", None)
-            pending = int(seen.stdout.decode().strip() or "0")
-        if pending:
-            raise RuntimeError("pending mutation did not finish")
-        (markers / "pending").write_text("1\n")
-        observed = int((raw / "pending-count" / "stdout").read_text().strip() or "0")
-    else:
-        observed = None
-    def parts(name):
-        proc = ch(DBA, "SELECT partition,name,rows,bytes_on_disk FROM system.parts WHERE database='oo_dl01w40' AND table='readings' AND active ORDER BY partition,name FORMAT JSONEachRow", "oo-ch-conn-whole-" + name, raw / name)
-        if proc.returncode:
-            raise RuntimeError("parts snapshot failed")
-        return [json.loads(line) for line in proc.stdout.decode().splitlines() if line.strip()]
-    if not (markers / "sleep3").exists():
-        time.sleep(3)
-        snap3 = parts("parts3")
-        write(raw / "parts3.json", snap3)
-        (markers / "sleep3").write_text("1\n")
-    else:
-        snap3 = json.loads((raw / "parts3.json").read_text()) if (raw / "parts3.json").exists() else []
-    if not (markers / "sleep7").exists():
-        time.sleep(7)
-        snap7 = parts("parts7")
-        write(raw / "parts7.json", snap7)
-        (markers / "sleep7").write_text("1\n")
-    else:
-        snap7 = json.loads((raw / "parts7.json").read_text()) if (raw / "parts7.json").exists() else []
-    final = rows()
-    if final.get("101") != ("3", "8") or "102" in final or final.get("104") != ("1", "4") or "103" not in final:
-        raise RuntimeError("cycle did not converge")
-    ch(DBA, "SYSTEM FLUSH LOGS", "oo-ch-conn-whole-flush", raw / "flush")
-    audit = ch(DBA, "SELECT count() FROM system.query_log WHERE user='oo_dl01w1_40_reader' AND type='QueryFinish' AND query_id LIKE 'oo-ch-conn-whole-%' AND (query_kind IN ('Insert','Alter') OR query ILIKE 'insert %' OR query ILIKE 'alter %') FORMAT TSV", "oo-ch-conn-whole-reader-audit", raw / "reader-audit")
-    reader_writes = int(audit.stdout.decode().strip() or "0")
-    if reader_writes:
-        raise RuntimeError("reader query log shows a finished write")
-    write(run_dir / "source-reader-audit.json", {"reader_query_finish_writes": reader_writes, "reader_insert_exit": denied.returncode})
-    write(receipt, {
-        "schedule_periods_tested_seconds": [3, 7],
-        "pending_mutations_observed": observed,
-        "pending_completed_too_fast": observed == 0,
-        "parts_after_3s": snap3, "parts_after_7s": snap7,
-        "recovery": {"insert_if_absent": True, "update_if_version_2": True, "delete_if_present": True},
-        "final_keys": sorted(final),
-    })
+def configured_periods(capture):
+    if capture.get("sync") != "partition_refresh":
+        raise RuntimeError("capture is not C4 partition_refresh")
+    if (capture.get("delete_detection") or {}).get("mode") != "partition_replace":
+        raise RuntimeError("C4 delete detection is not partition_replace")
+    periods = capture.get("periods")
+    if not isinstance(periods, list) or len(periods) != 2 or periods[0] == periods[1]:
+        raise RuntimeError("two distinct capture periods are required")
+    if capture.get("every") != periods[0]:
+        raise RuntimeError("capture.every is not the first period")
+    return periods
+
+
+def added_row(reading_id, qty, day):
+    label = "p" + reading_id
+    return {
+        "reading_id": reading_id, "version": "1", "amount": f"{qty}.0000000000", "note": label,
+        "code": "beta", "code_or_null": None, "ts": f"2024-03-{day} 00:00:00.000000000",
+        "tags": [str(qty)], "labels": [label], "qty": str(qty), "label": label, "wide_u64": str(qty),
+    }
+
+
+def insert_sql(row):
+    tags = ",".join(row["tags"])
+    labels = ",".join("'" + item + "'" for item in row["labels"])
+    return (
+        "INSERT INTO oo_dl01w40.readings (reading_id, version, amount, note, code, code_or_null, ts, tags, labels, qty, label, wide_u64) "
+        f"VALUES ({row['reading_id']}, 1, toDecimal256('{row['amount']}', 10), '{row['note']}', 'beta', NULL, "
+        f"toDateTime64('{row['ts']}', 9, 'UTC'), [{tags}], [{labels}], {row['qty']}, '{row['label']}', {row['wide_u64']})"
+    )
+
+
+def partition_state():
+    text = psql("SELECT source_generation::text||'|'||partition_id||'|'||acknowledged::text||'|'||coalesce(current_signature,'') "
+                "FROM _oo.native_partition_state WHERE source='clickhouse_connection_whole' ORDER BY source_generation")
+    found = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        generation, partition, acknowledged, signature = line.split("|", 3)
+        found.append({"source_generation": int(generation), "partition_id": partition,
+                      "acknowledged": acknowledged == "true", "signature": signature or None})
+    return found
+
+
+def lease_report(run_dir):
+    leases = int(psql("SELECT count(*) FROM jobs.leases").strip() or "0")
+    tasks = [line for line in psql("SELECT state||':'||count(*)::text FROM jobs.tasks GROUP BY state ORDER BY state").splitlines() if line.strip()]
+    report = {"open_leases": leases, "tasks": tasks, "baseline_rows": rows(), "partitions": partition_state()}
+    write(run_dir / "lease-report.json", report)
+    if leases:
+        raise RuntimeError("open job lease; no new enqueue")
+    generations = {item["source_generation"]: item for item in report["partitions"]}
+    started = (run_dir / "cycle-markers" / "insert-105").exists()
+    required = (4, 5) if started else (4, 5, 6)
+    if any(not generations.get(generation, {}).get("acknowledged") for generation in required):
+        raise RuntimeError("committed generations are not acknowledged")
+    if not started:
+        if report["baseline_rows"] != {"101": ("3", "8"), "103": ("1", "0"), "104": ("1", "4")}:
+            raise RuntimeError("source baseline is not the committed fixture")
+        if max(generations) != 6:
+            raise RuntimeError("target generation is not the committed high water")
+    return report
 
 
 def gold():
@@ -286,29 +257,7 @@ def gold():
     return [updated, kept, inserted]
 
 
-def capture_dir(run_dir):
-    for name in ("c4", "c4-retry", "c4-retry2"):
-        path = run_dir / name
-        if (path / "source-observation.json").exists():
-            return path
-        if not path.exists():
-            return path
-    raise RuntimeError("capture attempts retained; no observation")
-
-
-def data(config, run_dir):
-    if (run_dir / "data-manifest.json").exists():
-        return
-    for name in (SOURCE, TARGET, "oo-dl01w1-71-native-identity"):
-        ensure(name)
-    cycle(run_dir)
-    write(run_dir / "gold.json", gold())
-    cap = capture_dir(run_dir)
-    if not (cap / "source-observation.json").exists():
-        run([sys.executable, str(SCRIPTS / "capture_original_partitions.py"), "--output", str(cap),
-             "--connection-config", str(config), "--gold", str(run_dir / "gold.json"),
-             "--capture-partitions", "202401", "202402", "202403", "209912", "--generation-start", "4"],
-            run_dir / "calls" / "capture", timeout=600)
+def load_one(config, run_dir, capture, generation, replay):
     for name in ("loader-target.json", "ack-target.json"):
         target = run_dir / name
         if not target.exists():
@@ -316,15 +265,128 @@ def data(config, run_dir):
             os.chmod(target, 0o600)
     load_config = json.loads(Path(config).read_text())
     load_config.update(private_dir=str(TARGET_PRIVATE), loader_bin=str(LOADER), admission_bin=str(ADMISSION),
-                       replay_partition="202402", source_id="clickhouse_connection_whole",
+                       replay_partition="202403" if replay else "", source_id="clickhouse_connection_whole",
                        target_container=TARGET, target_database="oo_ch_connection")
-    write(run_dir / "load-config.json", load_config)
-    if not (cap / "load-manifest.json").exists():
-        run([sys.executable, str(SCRIPTS / "connection_load.py"), "--config", str(run_dir / "load-config.json"),
-             "--run", str(run_dir), "--capture", str(cap)], run_dir / "calls" / "load", timeout=1500)
+    path = run_dir / f"load-config-g{generation}.json"
+    write(path, load_config)
+    if not (capture / "load-manifest.json").exists():
+        run([sys.executable, str(SCRIPTS / "connection_load.py"), "--config", str(path),
+             "--run", str(run_dir), "--capture", str(capture), "--partitions", "202403"],
+            run_dir / "calls" / f"load-g{generation}", timeout=1500)
+
+
+def data(config, run_dir):
+    if (run_dir / "data-manifest.json").exists():
+        return
+    for name in (SOURCE, TARGET, "oo-dl01w1-71-native-identity"):
+        ensure(name)
+    document = json.loads(Path(config).read_text())
+    before = lease_report(run_dir)
+    from c4_capture import observe_period
+    periods = configured_periods(document["capture"])
+    first, second = added_row("105", 5, "16"), added_row("106", 6, "17")
+    base = gold()
+    declared = [base + [first, second], base + [first]]
+    plan = {
+        "method": "C4", "delete_detection": "partition_replace", "partition_id": "202403",
+        "consistency_grade": "S0", "cross_table": "B", "source_commit_clock": None,
+        "committed_generations_not_replayed": [4, 5, 6],
+        "periods": [
+            {"every": periods[0], "generation": 7, "change": "insert 105 and 106", "keys": ["101", "103", "104", "105", "106"]},
+            {"every": periods[1], "generation": 8, "change": "physical delete 106", "keys": ["101", "103", "104", "105"]},
+        ],
+    }
+    plan_path = run_dir / "period-plan.json"
+    if not plan_path.exists():
+        write(plan_path, plan)
+    elif json.loads(plan_path.read_text())["periods"] != plan["periods"]:
+        raise RuntimeError("period plan drifted")
+    markers = run_dir / "cycle-markers"
+    markers.mkdir(mode=0o700, exist_ok=True)
+    raw = run_dir / "cycle-raw"
+    if not (markers / "reader-insert").exists():
+        denied = ch(READER, insert_sql(added_row("998", 1, "18")), "oo-ch-default-reader-insert", raw / "reader-insert")
+        (markers / "reader-insert").write_text(f"{denied.returncode}\n")
+        os.chmod(markers / "reader-insert", 0o600)
+    else:
+        denied = subprocess.CompletedProcess([], int((markers / "reader-insert").read_text().strip()), b"", b"")
+    if denied.returncode == 0:
+        raise RuntimeError("reader insert was accepted")
+    done = []
+    for index, every in enumerate(periods):
+        item = plan["periods"][index]
+        gold_path = run_dir / f"gold-period-{index + 1}.json"
+        if not gold_path.exists():
+            write(gold_path, declared[index])
+        capture = run_dir / f"c4-p{index + 1}"
+        loaded = (capture / "load-manifest.json").exists()
+        if not loaded:
+            if index == 0:
+                once(markers / "insert-105", raw / "insert-105", DBA, insert_sql(first), "oo-ch-default-insert-105")
+                once(markers / "insert-106", raw / "insert-106", DBA, insert_sql(second), "oo-ch-default-insert-106")
+            else:
+                once(markers / "delete-106", raw / "delete-106", DBA,
+                     "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=106 SETTINGS mutations_sync=2",
+                     "oo-ch-default-delete-106")
+            observed = rows()
+            if sorted(observed) != item["keys"] or (index == 0 and (observed["105"] != ("1", "5") or observed["106"] != ("1", "6"))):
+                raise RuntimeError("source does not match the declared period plan")
+        sleep_marker = markers / f"slept-{index}"
+        if sleep_marker.exists():
+            elapsed = float(sleep_marker.read_text())
+        else:
+            elapsed = observe_period(every, time.sleep, time.monotonic)
+            sleep_marker.write_text(str(elapsed) + "\n")
+            os.chmod(sleep_marker, 0o600)
+        capture = run_dir / f"c4-p{index + 1}"
+        if not (capture / "source-observation.json").exists():
+            run([sys.executable, str(SCRIPTS / "capture_original_partitions.py"), "--output", str(capture),
+                 "--connection-config", str(config), "--gold", str(gold_path),
+                 "--capture-partitions", "202403", "--generation-start", str(item["generation"])],
+                run_dir / "calls" / f"capture-g{item['generation']}", timeout=600)
+        load_one(config, run_dir, capture, item["generation"], replay=index == 1)
+        done.append({"every": every, "slept_seconds": elapsed, "generation": item["generation"],
+                     "change": item["change"], "declared_keys": item["keys"], "capture": capture.name})
+    replay = json.loads((run_dir / "c4-p2" / "replay.json").read_text())
+    if type(replay.get("before")) is not int or replay.get("before") != replay.get("after"):
+        raise RuntimeError("this-run replay changed the physical count")
+    first_load = json.loads((run_dir / "target-raw" / "load-g8-202403.stdout").read_text())
+    replay_load = json.loads((run_dir / "target-raw" / "replay-g8-202403.stdout").read_text())
+    lease = replay_load["jobs_lease_receipt"]
+    if (replay_load.get("row_count") != replay["before"] or replay_load.get("watermark_state") != first_load.get("watermark_state")
+            or lease.get("id") != first_load["jobs_lease_receipt"].get("id") or lease.get("inserted") is not False
+            or replay_load.get("source_generation") != first_load.get("source_generation")):
+        raise RuntimeError("replay moved watermark or lease")
+    after = partition_state()
+    if len([item for item in after if item["source_generation"] in (4, 5) and item["acknowledged"]]) != 2:
+        raise RuntimeError("older acknowledged partitions were not retained")
+    freshness = psql("SELECT source_generation::text||'|'||state||'|'||mode||'|'||(source_committed_at IS NULL)::text FROM _oo.table_freshness WHERE source='clickhouse_connection_whole'")
+    watermark = psql("SELECT consistency_grade||'|'||state||'|'||position_codec||'|'||(source_committed_at IS NULL)::text||'|'||cross_table_consistent::text||'|'||source_generation::text FROM _oo.source_watermark WHERE source='clickhouse_connection_whole'")
+    ch(DBA, "SYSTEM FLUSH LOGS", "oo-ch-default-flush", raw / "flush")
+    audit = ch(DBA, "SELECT count() FROM system.query_log WHERE user='oo_dl01w1_40_reader' AND type='QueryFinish' AND query_id LIKE 'oo-ch-default-%' AND (query_kind IN ('Insert','Alter') OR query ILIKE 'insert %' OR query ILIKE 'alter %') FORMAT TSV", "oo-ch-default-reader-audit", raw / "reader-audit")
+    reader_writes = int(audit.stdout.decode().strip() or "0")
+    if reader_writes:
+        raise RuntimeError("reader query log shows a finished write")
+    write(run_dir / "source-reader-audit.json", {"reader_query_finish_writes": reader_writes, "reader_insert_exit": denied.returncode})
+    write(run_dir / "gold.json", declared[1])
+    grade, _wm_state, _codec, clock_missing, cross_consistent, _wm_gen = watermark.strip().split("|")
+    write(run_dir / "cycle-receipt.json", {
+        "method": "C4", "delete_detection": "partition_replace",
+        "source_commit_clock": None if clock_missing == "true" else watermark.strip(),
+        "consistency_grade": grade, "cross_table": "B" if cross_consistent == "false" else cross_consistent,
+        "periods": done, "final_keys": sorted(rows()),
+        "partitions_before": before["partitions"], "partitions_after": after,
+        "freshness": freshness.strip(), "watermark": watermark.strip(),
+        "recovery": {"scope": "this-run c4-p2 replay", "before": replay["before"], "after": replay["after"],
+                     "second_import": replay["second_import"], "replay_file": "c4-p2/replay.json",
+                     "watermark_state": replay_load["watermark_state"],
+                     "watermark_state_before_replay": first_load["watermark_state"],
+                     "lease_id": lease["id"], "lease_inserted": lease["inserted"],
+                     "source_generation": replay_load["source_generation"]},
+    })
     if not (run_dir / "materialize-manifest.json").exists():
-        run([sys.executable, str(SCRIPTS / "connection_materialize.py"), "--config", str(run_dir / "load-config.json"),
-             "--run", str(run_dir), "--capture", str(cap), "--gold", str(run_dir / "gold.json")],
+        run([sys.executable, str(SCRIPTS / "connection_materialize.py"), "--config", str(run_dir / "load-config-g8.json"),
+             "--run", str(run_dir), "--capture", str(run_dir / "c4-p2"), "--gold", str(run_dir / "gold.json")],
             run_dir / "calls" / "materialize", timeout=600)
     manifest = json.loads((run_dir / "materialize-manifest.json").read_text())
     if manifest.get("typed_diff_zero") is not True:
@@ -418,9 +480,22 @@ def runtime_doc(run_dir):
     }, commit
 
 
+def mounted_here(name, run_dir):
+    proc = subprocess.run(["docker", "inspect", "-f", "{{range .Mounts}}{{.Source}}\n{{end}}", name], capture_output=True, text=True, timeout=30)
+    return proc.returncode == 0 and str(run_dir) in proc.stdout.splitlines()
+
+
+def replace_if_other_mount(name, run_dir):
+    if state(name) == "absent":
+        return
+    if mounted_here(name, run_dir) and state(name) == "running":
+        return
+    run(["docker", "rm", "-f", name], None, timeout=60)
+
+
 def start_api(run_dir):
+    replace_if_other_mount(API, run_dir)
     if state(API) == "running":
-        run(["docker", "restart", API], run_dir / "calls" / "api-restart", timeout=90)
         return
     if state(API) == "exited":
         run(["docker", "start", API], run_dir / "calls" / "api-start", timeout=60)
@@ -526,8 +601,62 @@ def pack_identity(role_pack):
             "catalog_version": manifest["catalog_version"]}
 
 
+ACL_ELF = Path.home() / ".cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/install-column-acl"
+ACL_SHA = "aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05"
+DIGEST = "12b7cd95e01c621fc79e00007b95f1ae0acb3cbffe8ae0fab06b2b5d55811e43"
+
+
+def acl_document(generation):
+    return {
+        "protocol": "oo.gateway.install-native-vector-acl-cli/v1",
+        "endpoint": {"host": "127.0.0.1", "port": 5432, "database": "oo_ch_connection", "user": "postgres"},
+        "password_file": "/secret/admin.password", "ca_file": "/secret/ca.crt",
+        "policies": [{
+            "project": "clickhouse_connection_whole", "config_digest": DIGEST, "generation": generation,
+            "role": "reader", "login": "oo_ch_connection_login", "row_filter": None,
+            "table": {"namespace": "oo_dl01w40", "name": "readings",
+                      "columns": [{"name": name, "status": "confirmed", "semantic_type": "source", "pii": {"class": "none"}} for name in COLUMNS]},
+        }],
+    }
+
+
+def install_generation_acl(run_dir, generation):
+    if sha(ACL_ELF) != ACL_SHA:
+        raise RuntimeError("acl elf pin mismatch")
+    granted = sorted({int(line) for line in psql(
+        "SELECT DISTINCT m.run_generation::text FROM information_schema.column_privileges p "
+        "JOIN _oo.physical_mappings m ON m.physical_name=p.table_name AND m.level='t' "
+        "AND m.source='clickhouse_connection_whole' WHERE p.grantee='oo_r_reader'").splitlines() if line.strip()})
+    if granted == [generation]:
+        return
+    if granted != [6] or generation <= 6:
+        raise RuntimeError("acl grants are not the committed generation")
+    folder = run_dir / "acl"
+    folder.mkdir(mode=0o700, exist_ok=True)
+    previous = folder / "previous.json"
+    if not previous.exists():
+        write(previous, acl_document(6))
+    psql("REVOKE SELECT ON TABLE _oo.apply_receipts, _oo.full_import_quality, _oo.full_import_run, _oo.full_import_table, "
+         "_oo.physical_mappings, _oo.source_watermark, _oo.table_freshness, _oo.table_quality FROM oo_r_reader",
+         "oo_ch_connection", run_dir / "calls" / "acl-revoke-table")
+    proc = subprocess.run(["docker", "run", "--rm", "--pull", "never", "--platform", "linux/arm64",
+                           "--user", f"{os.getuid()}:{os.getgid()}", "--network", "container:" + TARGET,
+                           "--mount", f"type=bind,source={ACL_ELF},target=/acl/install-column-acl,readonly",
+                           "--mount", f"type=bind,source={TARGET_PRIVATE}/admin.password,target=/secret/admin.password,readonly",
+                           "--mount", f"type=bind,source={TARGET_PRIVATE}/tls/ca.crt,target=/secret/ca.crt,readonly",
+                           "--mount", f"type=bind,source={folder},target=/policies,readonly",
+                           "--entrypoint", "/acl/install-column-acl", IMAGE,
+                           "--previous-policy-file", "/policies/previous.json",
+                           "--previous-policy-sha256", sha(previous)],
+                          input=json.dumps(acl_document(generation)).encode(), capture_output=True, timeout=60)
+    kept(proc, run_dir / "calls" / "acl-transition")
+    if proc.returncode:
+        raise RuntimeError("acl transition refused")
+    write(run_dir / "acl-transition.json", json.loads(proc.stdout))
+
+
 def gateway(config, run_dir):
-    if (run_dir / "gateway-ready.json").exists() and state(GATEWAY) == "running":
+    if (run_dir / "gateway-ready.json").exists() and state(GATEWAY) == "running" and mounted_here(GATEWAY, run_dir):
         return
     pack = json.loads((run_dir / "product" / "product-receipt.json").read_text())["pack"]
     remote = Path(pack["native_maintenance"]["artifact_directory"])
@@ -544,20 +673,19 @@ def gateway(config, run_dir):
         raise RuntimeError("gateway binding refused")
     if any(not re.fullmatch(r"pc_[0-9a-f]{60}", cols[name]) for name in COLUMNS):
         raise RuntimeError("gateway column refused")
-    quoted = ", ".join('"%s"' % cols[name] for name in COLUMNS)
     login = "oo_ch_connection_login"
     secret(PRIVATE / "data.password")
     psql(role_sql(login, PRIVATE / "data.password", "NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION"), "postgres", run_dir / "calls" / "gw-login")
     psql("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='oo_r_reader') THEN CREATE ROLE oo_r_reader NOLOGIN NOINHERIT; END IF; END $$;\n"
          "GRANT CONNECT ON DATABASE oo_ch_connection TO oo_ch_connection_login;\n"
          "GRANT USAGE ON SCHEMA _oo TO oo_ch_connection_login, oo_r_reader;\n"
-         "GRANT SELECT (%s) ON _oo.\"%s\" TO oo_r_reader;\n"
          "GRANT EXECUTE ON FUNCTION _oo.lookup_physical_mapping(text, text, bigint, text, text, text, text) TO oo_ch_connection_login, oo_r_reader;\n"
          "GRANT oo_r_reader TO oo_ch_connection_login WITH INHERIT FALSE, SET TRUE;\n"
          "DO $$ DECLARE rel text; BEGIN FOREACH rel IN ARRAY ARRAY['physical_mappings','table_freshness','source_watermark','table_quality','apply_receipts','full_import_run','full_import_table','full_import_quality'] LOOP "
          "IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo' AND c.relname=rel) THEN "
-         "EXECUTE format('GRANT SELECT ON _oo.%%I TO oo_ch_connection_login, oo_r_reader', rel); END IF; END LOOP; END $$;\n" % (quoted, physical),
+         "EXECUTE format('GRANT SELECT ON _oo.%I TO oo_ch_connection_login', rel); END IF; END LOOP; END $$;\n",
          "oo_ch_connection", run_dir / "calls" / "gw-grant")
+    install_generation_acl(run_dir, max(item["source_generation"] for item in vector))
     folder = run_dir / "gateway"
     reviewed_dir = folder / "reviewed" / "reader"
     reviewed_dir.mkdir(parents=True, exist_ok=True)
@@ -599,6 +727,7 @@ def gateway(config, run_dir):
     os.chmod(run_dir / "gateway-mount.txt", 0o600)
     Path("/tmp/oo-clickhouse-connection-whole/gateway-mount.txt").write_text(str(run_dir) + "\n")
     os.chmod("/tmp/oo-clickhouse-connection-whole/gateway-mount.txt", 0o600)
+    replace_if_other_mount(GATEWAY, run_dir)
     if state(GATEWAY) == "absent":
         run(["docker", "run", "-d", "--name", GATEWAY, "--pull", "never", "--platform", "linux/arm64",
              "--user", f"{os.getuid()}:{os.getgid()}", "--network", "container:" + TARGET,
@@ -629,18 +758,20 @@ def gateway(config, run_dir):
         raise RuntimeError("gateway probe failed")
     body = json.loads(probed.stdout)
     got = [(row[0], row[1], row[2]) for row in body["rows"]]
-    if got != [("101", "3", "8"), ("103", "1", "0"), ("104", "1", "4")]:
+    expected = [(row["reading_id"], row["version"], row["qty"]) for row in json.loads((run_dir / "gold.json").read_text())]
+    expected.sort(key=lambda row: int(row[0]))
+    if got != expected:
         raise RuntimeError("gateway rows differ")
     cancel(run_dir, physical, common)
-    write(run_dir / "dialogue-truth.json", {"qty": {"expected_named_facts": {"qty": "8"}}, "inserted": {"expected_named_facts": {"reading_id": "104"}}})
+    write(run_dir / "dialogue-truth.json", {"qty": {"expected_named_facts": {"qty": "5"}}, "inserted": {"expected_named_facts": {"reading_id": "105"}}})
     write(run_dir / "dialogue-config.json", {
         "oo_cli": str(OO_CLI), "gateway": "http://" + listen, "transport": "local-development", "auth": "external",
         "gateway_token_file": str(token), "model_origin": "http://127.0.0.1:8317", "model": "grok-4.7",
         "model_bearer_file": str(BEARER), "independent_truth_file": str(run_dir / "dialogue-truth.json"),
         "independent_gateway_audit_file": str(folder / "wal"), "max_tool_rounds": 12,
         "questions": [
-            {"truth_key": "qty", "prompt": "Use knowledge_search with query readings, knowledge_cat on the returned Pack path, describe oo_dl01w40.readings, and freshness. Then query SELECT qty FROM oo_dl01w40.readings WHERE reading_id = 101."},
-            {"truth_key": "inserted", "prompt": "Query SELECT reading_id FROM oo_dl01w40.readings WHERE qty = 4. Return the observed reading_id."},
+            {"truth_key": "qty", "prompt": "Use knowledge_search with query readings, knowledge_cat on the returned Pack path, describe oo_dl01w40.readings, and freshness. Then query SELECT qty FROM oo_dl01w40.readings WHERE reading_id = 105."},
+            {"truth_key": "inserted", "prompt": "Query SELECT reading_id FROM oo_dl01w40.readings WHERE qty = 5. Return the observed reading_id."},
         ],
     })
     write(run_dir / "gateway-ready.json", {"listen": listen, "query_id": body["query_id"], "rows": got, "physical": physical})
@@ -688,14 +819,23 @@ def finish(config, run_dir):
     cycle_doc = json.loads((run_dir / "cycle-receipt.json").read_text())
     diff = json.loads((run_dir / "materialized" / "typed-diff.json").read_text())
     ready = json.loads((run_dir / "gateway-ready.json").read_text())
+    recovery = cycle_doc.get("recovery") or {}
+    periods = cycle_doc.get("periods") or []
+    period_ok = len(periods) == 2 and periods[0]["every"] != periods[1]["every"] and periods[1]["change"].startswith("physical delete")
+    wm = (cycle_doc.get("watermark") or "").split("|")
+    disclosed = len(wm) == 6 and wm[0] == "S0" and wm[3] == "true" and wm[4] == "false" and cycle_doc.get("source_commit_clock") is None
+    recovery_ok = (recovery.get("scope") == "this-run c4-p2 replay" and recovery.get("before") == recovery.get("after")
+                   and recovery.get("second_import") in {"accepted", "refused_count_unchanged"}
+                   and recovery.get("watermark_state") == recovery.get("watermark_state_before_replay")
+                   and recovery.get("lease_inserted") is False and bool(recovery.get("lease_id")))
     ok = (receipt.get("protocol") == "oo.source-onboarding.product/v1" and verdict.get("outcome") == "verified"
-          and diff.get("diff_zero") is True and cycle_doc.get("schedule_periods_tested_seconds") == [3, 7] and ready.get("query_id"))
+          and diff.get("diff_zero") is True and period_ok and recovery_ok and ready.get("query_id") and disclosed)
     if not ok:
         raise RuntimeError("whole proofs incomplete")
     write(run_dir / "whole.json", {
         "full_product_chain_complete": True,
-        "periodic_insert_update_delete_verified": True,
-        "recovery_verified": True,
+        "periodic_insert_update_delete_verified": period_ok,
+        "recovery_verified": recovery_ok,
         "product_receipt": "product/product-receipt.json",
         "dialogue_verdict": "dialogue/verdict.json",
         "published": False,
@@ -704,7 +844,20 @@ def finish(config, run_dir):
 
 def self_check():
     from connection_load import replay_ok
+    from c4_capture import observe_period
     assert replay_ok(1, 1) and not replay_ok(1, 2)
+    periods = configured_periods({"sync": "partition_refresh", "every": "3s", "periods": ["3s", "7s"], "delete_detection": {"mode": "partition_replace"}})
+    slept = []
+    observe_period(periods[0], slept.append, lambda: 0)
+    observe_period(periods[1], slept.append, lambda: 0)
+    assert slept == [3.0, 7.0]
+    if sha(ACL_ELF) != ACL_SHA:
+        raise RuntimeError("acl elf pin mismatch")
+    usage = subprocess.run(["docker", "run", "--rm", "--pull", "never", "--platform", "linux/arm64",
+                            "--mount", f"type=bind,source={ACL_ELF},target=/acl/install-column-acl,readonly",
+                            "--entrypoint", "/acl/install-column-acl", IMAGE, "--help"], capture_output=True, timeout=60)
+    if usage.returncode != 2 or b"usage" not in usage.stderr:
+        raise RuntimeError("linux acl elf did not refuse usage")
     index = json.loads(INDEX.read_text())
     for key in ("loader", "admission", "api", "pg_builder"):
         item = index["artifacts"][key]

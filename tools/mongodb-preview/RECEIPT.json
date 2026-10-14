@@ -1,0 +1,114 @@
+{
+  "source_id": "mongodb_connection_whole",
+  "project_id": "90539529-ccac-4134-b149-ec3d06934bca",
+  "control_project_id": "mongodb",
+  "binding_id": "f6d7e4e3-90f0-4d0a-b973-f1ddf59b82d5",
+  "complete": false,
+  "published": false,
+  "business_owner_signed": false,
+  "formal_acceptance": "0/10",
+  "source_acceptance": false,
+  "gateway_dialogue_outcome": "verified",
+  "product_receipt_gateway_dialogue_complete": false,
+  "missing": [
+    "owner ACK and publish",
+    "formal acceptance remains 0/10",
+    "source_acceptance remains false",
+    "load_state remains awaiting_publish",
+    "no crashed-loader retry was run"
+  ],
+  "pins": {
+    "2": {
+      "task": "dcaf7552-9643-403f-8942-756cf738ce88",
+      "run_id": "e6b219e8-b75b-4131-97e1-e8562242ca08",
+      "generation": 1,
+      "rows": 14,
+      "tombstone_count": 0,
+      "state": "awaiting_publish"
+    },
+    "3": {
+      "task": "302b2aab-d84c-4183-8fae-01e03719f177",
+      "generation": 2,
+      "rows": 14,
+      "tombstone_count": 0,
+      "state": "awaiting_publish"
+    },
+    "4": {
+      "task": "c8d70caa-1ddb-4828-9947-148a9299f3d9",
+      "run_id": "016082d8-8b2f-41b8-b8e4-1e1036ffaade",
+      "generation": 3,
+      "rows": 14,
+      "tombstone_count": 0,
+      "state": "awaiting_publish"
+    }
+  },
+  "typed_gold": {
+    "generation_2_cells": 280,
+    "generation_3_cells": 280,
+    "cells_differ": 0
+  },
+  "s5": {
+    "build_id": "b_b75b3a9cb45465e439ee99608c80e5e3",
+    "model": "grok-4.7-build",
+    "response_id": "6733d345-81eb-996f-8c6e-ae8b70d79af0",
+    "usage": {
+      "prompt_tokens": 2496,
+      "completion_tokens": 1883,
+      "total_tokens": 4379
+    },
+    "cache_hit": false,
+    "llm_calls": 1
+  },
+  "s5_failures_retained": [
+    "flow-pin2 origin 403",
+    "flow-pin2b forbidden 403",
+    "b_17274ce378af42863a925ca2b0b9140a gpt-6.1-sol HTTP 429"
+  ],
+  "generation_3_collection_sha256": "d1568c5187949208d0550260d2ac7e378f952cd978e70b44786a86d1ade0e0dd",
+  "role_pack_digest": "7e040e61aeb28ecd4ac0d8599dccdccc187a7e9da7b1755e8741dd22210089af",
+  "queries": {
+    "probe": "q_Y6yMUMEIPvpOyYkubj9fqGoJuM",
+    "recover": "q_Sjjbi16u1iS4JMognbieo32az4",
+    "cancel": "q_fNjm3vcXSHa6peF8kBUVHnCBxj",
+    "cancel_outcome": "sent",
+    "dialogue": [
+      "q_7RA3j7qCUNBwUzn9XgAR7YJ9eL",
+      "q_NG4FYlGG0tCWMzbt49tb7It0Ht"
+    ]
+  },
+  "dialogue_verified_usage": {
+    "prompt_tokens": 9301,
+    "completion_tokens": 1256,
+    "total_tokens": 10557,
+    "response_models": [
+      "grok-4.7",
+      "grok-4.7-build"
+    ]
+  },
+  "dialogue_first_attempt": {
+    "outcome": "missing knowledge_cat",
+    "tools": [
+      "describe",
+      "freshness",
+      "knowledge_search",
+      "query"
+    ],
+    "usage": {
+      "prompt_tokens": 9468,
+      "completion_tokens": 1748,
+      "total_tokens": 11216
+    }
+  },
+  "resources": {
+    "containers": [
+      "oo-mongodb-connection-whole-gateway",
+      "oo-mongodb-connection-whole-api",
+      "oo-mongodb-connection-whole-pg",
+      "oo-mongodb-connection-whole-runtime",
+      "oo-mongodb-connection-whole-source"
+    ],
+    "api_listen": "127.0.0.1:18463",
+    "gateway_listen": "127.0.0.1:19541",
+    "volume": "oo-mongodb-connection-whole-pgdata-v2"
+  }
+}
