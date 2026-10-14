@@ -73,20 +73,20 @@
     {
       "task": "mariadb",
       "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-      "pid": 54952,
+      "pid": 61786,
       "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
       "write_paths": [
         "tools/mariadb-preview"
       ],
-      "status": "same_owner_original_product_exits_fixed_dependencies",
+      "status": "same_owner_collect_inflight_corrected_s5_no_new_create",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 207,
       "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
       "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-      "prior_pid": 99646,
+      "prior_pid": 54952,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-fixed-local180-full.md",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-collect-running-s5.md",
       "max_turns": 1000
     },
     {
@@ -109,21 +109,21 @@
     {
       "task": "doris",
       "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-      "pid": 99651,
+      "pid": 66796,
       "prompt": "execution/batches/grok-connection-full-20261014/doris-compact-whole-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
       "write_paths": [
         "tools/doris-preview",
         "testing/dl01-driver-preflight/doris/reader"
       ],
-      "status": "same_owner_persistent_original_exits",
+      "status": "same_owner_current_default_and_continuous_exits_no_foreign_restore",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 218,
-      "prior_pid": 56747,
+      "prior_pid": 99651,
       "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
       "max_turns": 1000,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-original-exits.md"
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-owned-default-current.md"
     },
     {
       "task": "opensearch",
@@ -2114,5 +2114,7 @@
   "latest_shared_fixed_intake": "共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。",
   "latest_shared_entry_resume_intake": "共享8fa9968c3固定归档9/9 hosttests通过，保留首次archive遗漏operator依赖失败；selected entry resume、completed product同身份复用及local180生成源码落地。MySQL49893/ClickHouse49895/OpenSearch49897原UUID max1000接续完整普通入口/持续全链；非PG维护API与Maria新deadline ELF/真实请求仍待共享sole writer。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-entry-intake.json，仅联结开发不晋级完整/正式0/10。",
   "latest_shared_linux_dependency_intake": "共享8fa9968c3 LinuxRust1.94实际deadline测试raw与API f7fd0ffc SHA已核、不可变固定private复制；同owner Maria54952可安装自有API并只对原已确认失败请求一次必要修正S5。共享原d28ca4bd扩展overlay.rs/builder_inputs.rs/tests/builder_inputs.rs sole writer，同UUID54950推进Oracle/Mongo/SQL后代真实目录维护；Star原owner54954接回自有API/Gateway修binding ontology_version及原完整链，shared不再写Starfixture。未额外分割组件、模型cache/成功导入不重放，正式/完整0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-linux-intake.json。",
-  "latest_sql_c2_write_transfer": "SQL原source同UUID58938/max1000接收旧74 quiescent且clean的native_schedule.rs/NATIVE-SCHEDULE.md/tests/closed_loop.rs唯一写权，修真实C2取消active_task未释放；旧batch记录current_exclusive_writer_transfer，不增加新owner/功能分母。实际C2两周期gen6/7 CT4/5 gold0 enabled60000ms，当前Pack仍待nonPG共享维护；原g5 whole-run-3对话不冒g7。共享54950/Maria54952/Star54954按固定8fa Linux制品继续，原完整/正式0/10不晋级。"
+  "latest_sql_c2_write_transfer": "SQL原source同UUID58938/max1000接收旧74 quiescent且clean的native_schedule.rs/NATIVE-SCHEDULE.md/tests/closed_loop.rs唯一写权，修真实C2取消active_task未释放；旧batch记录current_exclusive_writer_transfer，不增加新owner/功能分母。实际C2两周期gen6/7 CT4/5 gold0 enabled60000ms，当前Pack仍待nonPG共享维护；原g5 whole-run-3对话不冒g7。共享54950/Maria54952/Star54954按固定8fa Linux制品继续，原完整/正式0/10不晋级。",
+  "latest_maria_inflight_collection": "Maria作者真实报告已在自有f7fd固定API启动唯一纠正b_08cd92f885d7366bb2253b5aef0d215c，S0–S4通过/S5在途、deadline180000；CLI54952已实际终态，后台S5非终态，不宣布完成或重复create。相同UUID2b95896a恢复61786/max1000专门收同build并继续原完整产品链，旧timeout/499及100006行金样保留。此为作者在途状态，完整源/正式0/10不晋级。",
+  "latest_doris_and_sql_fixed_staged_intake": "Doris8647f7446 staged完整S0–S10/currentg10/109typedcells0/2turnverified/recovery artifacts19SHA独立匹配；receipt owner5106与实际aa427不符且作者记录临时恢复全局registry/sharedproductflow旧pin，原证据保留，当前shared源码clean且product_flow=固定8fa，不晋级完整源。原Doris同UUID66796 max1000按现行官方身份续完整default持续链，明确禁止任何foreign restore/journal漂白；SQL0af固定2源码SHA及gen6/7手触发C2状态收取，native_serve=false/Pack仅g5仍缺自主持续与current代。证据execution/reviews/grok-connection-resume-20261014/{doris-staged-current-intake,sqlserver-staged-current-c2-intake}.json，完整/正式0/10原分母不变。"
 }
