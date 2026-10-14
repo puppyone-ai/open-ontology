@@ -71,5 +71,7 @@
     }
   },
   "no_source_acceptance_change": true,
-  "read_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md"
+  "read_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+  "authority_baseline_commit": "5bb915a6ad4917ed210411a02c38320da003c960",
+  "hash_scope": "fixed original contract text at this source commit, prior to the coordinator event append; not a live worktree checksum"
 }
