@@ -38,20 +38,20 @@
   {
     "task": "mariadb",
     "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-    "pid": 54952,
+    "pid": 61786,
     "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
     "write_paths": [
       "tools/mariadb-preview"
     ],
-    "status": "same_owner_original_product_exits_fixed_dependencies",
+    "status": "same_owner_collect_inflight_corrected_s5_no_new_create",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
     "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-    "prior_pid": 99646,
+    "prior_pid": 54952,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-fixed-local180-full.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-collect-running-s5.md",
     "max_turns": 1000
   },
   {
@@ -91,21 +91,21 @@
   {
     "task": "doris",
     "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-    "pid": 99651,
+    "pid": 66796,
     "prompt": "execution/batches/grok-connection-full-20261014/doris-compact-whole-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
     "write_paths": [
       "tools/doris-preview",
       "testing/dl01-driver-preflight/doris/reader"
     ],
-    "status": "same_owner_persistent_original_exits",
+    "status": "same_owner_current_default_and_continuous_exits_no_foreign_restore",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 218,
-    "prior_pid": 56747,
+    "prior_pid": 99651,
     "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-original-exits.md"
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-owned-default-current.md"
   },
   {
     "task": "opensearch",

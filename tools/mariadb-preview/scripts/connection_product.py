@@ -7,14 +7,14 @@ DIALOGUE = pathlib.Path('/Users/redux/puppy-one/open-ontology/tools/agent-produc
 ROOT = pathlib.Path('/Users/redux/puppy-one/open-ontology')
 CACHE = pathlib.Path('/Users/redux/.cache/oo-dl01w1-71')
 BEARER = pathlib.Path('/tmp/oo-product-model-20261012/bearer')
-API_ELF = pathlib.Path('/tmp/oo-pg46-runtime-finish/selfbuild-control-api-observation-fixed')
+API_ELF = pathlib.Path('/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-api-8fa9968c3/selfbuild-control-api-f7fd0ffc9ad4012e7cb2f0a422cd6ead321ae20df4f285d0293569bc5de637d0')
 PG_BUILDER = pathlib.Path('/tmp/oo-pg46-runtime-finish/continuous/pg-builder-current')
 PIPELINE = pathlib.Path('/tmp/oo-pg46-runtime-finish/oo-pipeline')
 GW_ELF = pathlib.Path('/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-gateway-51f007a8b3463086dc3fde8093689137ea8282327382a4cd245bf2d7cac8dcee')
 CLI_ELF = pathlib.Path('/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703')
 ISSUE = pathlib.Path('/tmp/oo-pg46-runtime-finish/issue-token')
 PINS = {
-    API_ELF: '025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae',
+    API_ELF: 'f7fd0ffc9ad4012e7cb2f0a422cd6ead321ae20df4f285d0293569bc5de637d0',
     PG_BUILDER: '58e5eed3d88f22c2b27c758b7fb064258188eb09ce379e74eac66c5af741a91d',
     PIPELINE: '2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4',
     GW_ELF: '51f007a8b3463086dc3fde8093689137ea8282327382a4cd245bf2d7cac8dcee',

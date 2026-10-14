@@ -1,0 +1,28 @@
+{
+  "source_commit": "0af4a27aafcf1f2488815efe9cd8d8bb94c62593",
+  "verified_source_hashes": [
+    {
+      "file": "tools/mssql-preview/scripts/native-producer.py",
+      "sha256": "00926fbb2dd0cb9602ee7449b406d29a09ad644810d463daf16173ebff82d5bf"
+    },
+    {
+      "file": "tools/mssql-preview/src/capture.rs",
+      "sha256": "0de6ecd89302aae3d8ce5ca215d3ee25e31146750024b911cac2ed4f8ba9601e"
+    }
+  ],
+  "receipt_sha256": "8f5313d1f365e1d1db1668f9ac609310e07a9a1a412b8c8c62c8afd1cb1c4bd6",
+  "private_immutable_copy": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver-staged-8f5313d1f365",
+  "complete_claim_at_copy": false,
+  "full_original_exit_at_copy": false,
+  "scope": "author staged C2 gen6/gen7 gold0 plus old gen5 whole-run-3 product; current gen7 Pack/Gateway/dialogue and C2 cancel clean-up still pending; run3 engine registry hash null explicit recipe means ordinary six-field execution unproven",
+  "acceptance": "no complete source/formal/nativeamd64 promotion",
+  "current_scope_flags": {
+    "schedule_enabled": true,
+    "period_ms": 60000,
+    "native_serve": false,
+    "manual_periods": 2,
+    "automatic_sustained_capture": "unproven",
+    "current_pack_generation": 5,
+    "applied_generation": 7
+  }
+}
