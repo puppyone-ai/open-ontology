@@ -8,13 +8,18 @@ dba_negative_window.py, which is a separate account and a separate client.
 
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
 
 BASE = Path("/tmp/oo-dl01w1-40-bind")
 CH = os.environ.get("OO_CUSTOMER_CH", "oo-dl01w1-40-clickhouse")
-READER = "oo_dl01w1_40_reader"
+READER = os.environ.get("OO_CUSTOMER_READER", "oo_dl01w1_40_reader")
+DATABASE = os.environ.get("OO_CUSTOMER_DATABASE", "oo_dl01w40")
+TABLE = os.environ.get("OO_CUSTOMER_TABLE", "readings")
+if not all(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", item) for item in (DATABASE, TABLE, READER)):
+    raise ValueError("source fixture identifier refused")
 DBA = "oo_dl01w1_40_dba"
 WRITE_KINDS = {
     "Insert",
@@ -64,6 +69,7 @@ def ch(
     timeout: int = 60,
     query_id: str = "",
 ) -> subprocess.CompletedProcess[str]:
+    sql = sql.replace("oo_dl01w40", DATABASE).replace("readings", TABLE)
     script = (
         "export CLICKHOUSE_PASSWORD=\"$(tr -d '[:space:]' < \"$1\")\"; "
         'args=(clickhouse-client --user "$2"); '
@@ -148,6 +154,7 @@ def main() -> None:
         "ORDER BY reading_id FORMAT ArrowStream\" "
         "> /tmp/customer-five.arrow"
     )
+    five_script = five_script.replace("oo_dl01w40", DATABASE).replace("readings", TABLE).replace("oo_dl01w1_40_reader", READER)
     five = run(["docker", "exec", CH, "bash", "-lc", five_script], timeout=60)
     save("customer-five-arrow", five)
     if five.returncode != 0:
@@ -164,6 +171,7 @@ def main() -> None:
         "--query \"SELECT payload FROM oo_dl01w40.byte_probe WHERE id = 1 FORMAT ArrowStream\" "
         "> /tmp/non-utf.arrow"
     )
+    arrow_script = arrow_script.replace("oo_dl01w40", DATABASE).replace("oo_dl01w1_40_reader", READER)
     arrow = run(["docker", "exec", CH, "bash", "-lc", arrow_script], timeout=60)
     save("non-utf-arrow", arrow)
     if arrow.returncode != 0:
@@ -178,8 +186,8 @@ def main() -> None:
     insert_attempts = ch(
         READER,
         "/etc/oo/reader.password",
-        "SELECT count() FROM system.query_log "
-        "WHERE user = 'oo_dl01w1_40_reader' AND query_kind = 'Insert'",
+        f"SELECT count() FROM system.query_log "
+        f"WHERE user = '{READER}' AND query_kind = 'Insert'",
         query_id="oo-dl01w1-40-ro-insert-count",
     )
     save("reader-insert-count", insert_attempts)
@@ -187,7 +195,7 @@ def main() -> None:
         READER,
         "/etc/oo/reader.password",
         "SELECT query_kind, type, count() FROM system.query_log "
-        "WHERE user = 'oo_dl01w1_40_reader' "
+        f"WHERE user = '{READER}' "
         "GROUP BY query_kind, type ORDER BY query_kind, type FORMAT JSONEachRow",
         query_id="oo-dl01w1-40-ro-kinds",
     )

@@ -1727,3 +1727,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 PG续接与提交阻断修复：PG只证明Macdebug ACL拒绝路径，未成功代际切换/回滚/Linux/一键全链，已terminal后新短Grok low上下文接续自有fresh baseline→nextgen正式ACL正例及产品出口；不重放旧事务。commit_owned.py最小跳过gitignored原始evidence，并同步旧committed task09/46获授权共享文件写域；真实临时Git验证ignored raw不入commit、只owned source提交、foreign staged逐字保持，非产品mock验收。原五版/Plan/分母不变，一键完整0/10、历史作者9/10、正式0/10。
 
 2026-10-14 调度核对：600秒等待/11个实际Grok CLI及SQL部署源码进度不构成开发、集成或发行签收；三源新一键失败保留，原冻结分母/开发计数与正式0/10不变。
+
+2026-10-14 ClickHouse staged-chain候选非新增冻结子单位：原ordinary入口/可配置持续维护退出待原owner补证，开发/集成/发行/外部门槛各计数不因16hash/11pin/实际对话局部通过晋级，正式十源0/10不变。

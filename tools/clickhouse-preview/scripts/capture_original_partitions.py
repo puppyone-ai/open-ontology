@@ -8,24 +8,39 @@ is an independent oracle for this unchanged baseline window only.
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
 
 import fresh_capture as f
+from connection_target import mount_path
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--connection-config", type=Path)
     p.add_argument("--gold", type=Path)
     p.add_argument("--capture-partitions", nargs="+")
     p.add_argument("--generation-start", type=int, default=1)
     a = p.parse_args()
-    out = a.output.resolve()
+    out = Path(mount_path(a.output.resolve()))
     out.mkdir(parents=True, exist_ok=False)
-    source = f.CH
-    (out / "reader.user").write_text("oo_dl01w1_40_reader\n")
+    config = json.loads(a.connection_config.read_text()) if a.connection_config else None
+    source = config["source"]["host"] if config else f.CH
+    source_id = config.get("source_id", "clickhouse_268") if config else "clickhouse_268"
+    network = config["network"] if config else f.NET
+    secret = Path(config["source"]["password_file"]) if config else f.SECRETS / "reader.password"
+    endpoint = f"http://{source}:{config["source"]["port"]}" if config else "http://" + source + ":8123"
+    reader = config["source"]["user"] if config else "oo_dl01w1_40_reader"
+    database = config['source']['database'] if config else 'oo_dl01w40'
+    table = config['source'].get('table', 'readings') if config else 'readings'
+    if not all(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name) for name in (database, table, reader, source_id)):
+        raise RuntimeError('approved source identifier refused')
+    if config and {'database':database,'table':table} not in config['approved_tables']:
+        raise RuntimeError('source table not approved')
+    (out / "reader.user").write_text(reader + "\n")
 
     def run(label, args):
         r = subprocess.run(args, capture_output=True)
@@ -34,47 +49,50 @@ def main():
         if r.returncode:
             raise RuntimeError(label + " failed; original output retained")
 
-    base = ["docker", "run", "--rm", "--pull", "never", "--network", f.NET,
+    base = ["docker", "run", "--rm", "--pull", "never", "--network", network,
         "--mount", "type=volume,source=oo-dl01w1-40-target,target=/target,readonly",
         "--mount", f"type=bind,source={out},target=/evidence",
-        "--mount", f"type=bind,source={f.SECRETS}/reader.password,target=/source-reader.password,readonly"]
-    columns = [json.loads(line)["name"] for line in (f.OUT / "native-columns.stdout").read_text().splitlines()]
+        "--mount", f"type=bind,source={secret},target=/source-reader.password,readonly"]
+    columns = None
     gold_path = a.gold or f.ROOT / "testing/dl01-driver-preflight/clickhouse/fixtures/gold-final.json"
     gold = json.loads(gold_path.read_text())
     def capture(label, sql, arrow=False):
         argv = base + ["--entrypoint", "/target/driver/debug/ch-reader", f.RUST_IMAGE, "arrow" if arrow else "read",
-            "--endpoint", "http://" + source + ":8123", "--user-file", "/evidence/reader.user",
+            "--endpoint", endpoint, "--user-file", "/evidence/reader.user",
             "--password-file", "/source-reader.password", "--sql", sql,
             "--row-cap", "100000", "--byte-cap", "20000000", "--timeout-ms", "8000",
             "--query-id", "oo-dl01w1-40-c4-full-baseline-" + label, "--out", "/evidence/" + label + ".json"]
         argv += ["--ipc-out", "/evidence/" + label + ".arrow"] if arrow else ["--body-out", "/evidence/" + label + ".body"]
         run(label, argv)
     metadata_sql = {
+        "grants": "SELECT access_type,database,table,column,is_partial_revoke,grant_option FROM system.grants WHERE user_name='" + reader + "' ORDER BY access_type,database,table,column FORMAT JSONEachRow",
+        "settings": "SELECT name,value FROM system.settings WHERE name IN ('readonly','max_execution_time') ORDER BY name FORMAT JSONEachRow",
+        "version": "SELECT version() FORMAT TSV",
         "parts": "SELECT partition,name,rows,bytes_on_disk,modification_time FROM system.parts WHERE database='oo_dl01w40' AND table='readings' AND active ORDER BY partition,name FORMAT JSONEachRow",
         "uuid": "SELECT toString(uuid) FROM system.tables WHERE database='oo_dl01w40' AND name='readings' FORMAT TSV",
         "mutations": "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND table='readings' AND is_done=0 FORMAT TSV",
         "columns": "SELECT name,type FROM system.columns WHERE database='oo_dl01w40' AND table='readings' ORDER BY position FORMAT JSONEachRow",
     }
+    metadata_sql = {name: sql.replace("oo_dl01w40", database).replace("readings", table) for name, sql in metadata_sql.items()}
     for label, sql in metadata_sql.items():
         capture(label, sql)
+    columns = [json.loads(line)["name"] for line in (out / "columns.body").read_text().splitlines()]
     if (out / "mutations.body").read_text().strip() != "0":
         raise RuntimeError("mutation_pending; no partition ACK")
     parts = [json.loads(line) for line in (out / "parts.body").read_text().splitlines()]
     partition_ids = sorted({str(item["partition"]) for item in parts})
-    capture_ids = a.capture_partitions or partition_ids + ["209912"]
-    known_ids = {"202401", "202402", "202403", "209912"}
-    if set(capture_ids) - known_ids or len(set(capture_ids)) != len(capture_ids):
-        raise RuntimeError("capture scope differs from the retained owned fixture")
-    if a.capture_partitions is None and partition_ids != ["202401", "202403"]:
-        raise RuntimeError("baseline fixture changed; independent static gold cannot validate this window")
-    if a.capture_partitions is not None and (not set(partition_ids) <= {"202401", "202402", "202403"}
-            or "202401" not in partition_ids):
-        raise RuntimeError("update/delete window source partitions differ")
+    capture_ids = a.capture_partitions or (partition_ids if config else partition_ids + ["209912"])
+    known_ids = set(partition_ids) | set(capture_ids) | set(config.get("known_partition_ids", []) if config else [])
+    if len(set(capture_ids)) != len(capture_ids) or any(not re.fullmatch(r'[0-9]{6}', item) for item in known_ids):
+        raise RuntimeError('partition scope is not the supported YYYYMM codec')
+    if config and not a.gold:
+        raise RuntimeError('configured source needs an independent current oracle')
     summaries = []
     for partition in capture_ids:
         expected = [row for row in gold if row["ts"].replace("-", "")[:6] == partition]
         (out / (partition + "-gold.json")).write_text(json.dumps(expected, indent=2) + "\n")
         sql = "SELECT " + ",".join(columns) + " FROM oo_dl01w40.readings FINAL WHERE _partition_id='" + partition + "' ORDER BY reading_id FORMAT ArrowStream"
+        sql = sql.replace("oo_dl01w40", database).replace("readings", table)
         capture(partition, sql, True)
         run(partition + "-allcells", base + ["--entrypoint", "/target/driver/debug/ch-decode", f.RUST_IMAGE,
             "compare", "--schema", "readings", "--ipc", "/evidence/" + partition + ".arrow",
@@ -110,8 +128,8 @@ def main():
             "current_signature": signature, "arrow_sha256": summary["arrow_sha256"],
             "row_count": summary["source_rows"], "previous_signature_source": "authoritative_target_ack_required"})
     (out / "source-observation.json").write_text(json.dumps({
-        "protocol": "oo.clickhouse.c4-source-observation/v1", "source_id": "clickhouse_268",
-        "logical_schema": "oo_dl01w40", "logical_table": "readings", "partitions": observed,
+        "protocol": "oo.clickhouse.c4-source-observation/v1", "source_id": source_id,
+        "logical_schema": database, "logical_table": table, "partitions": observed,
         "observation_only": True, "acknowledged": False}, indent=2) + "\n")
     # Materialize source-bound admission inputs. The prior ACK belongs to Loader.
     pin = f.OUT / "scheduled-capture/pin-1"
@@ -126,10 +144,17 @@ def main():
         folder.mkdir()
         shutil.copyfile(out / (partition + ".arrow"), folder / (partition + ".arrow"))
         for name in ("schema-preimage.json", "type-preimage.json", "config.json"):
-            shutil.copyfile(pin / name, folder / name)
+            body = json.loads((pin / name).read_text())
+            def registered_names(value):
+                if isinstance(value, dict):return {key:registered_names(item) for key,item in value.items()}
+                if isinstance(value, list):return [registered_names(item) for item in value]
+                if value == 'readings':return table
+                if value == 'oo_dl01w40':return database
+                return value
+            (folder / name).write_text(json.dumps(registered_names(body),indent=2)+'\n')
         # Control generations order partition applies; they are not source CDC offsets.
-        scope = {"source_id": "clickhouse_268", "source_generation": generation,
-            "logical_schema": "oo_dl01w40", "logical_table": "readings",
+        scope = {"source_id": source_id, "source_generation": generation,
+            "logical_schema": database, "logical_table": table,
             "partition_id": partition, "observed_partition_ids": sorted(known_ids),
             "complete": True, "table_epoch": part["table_epoch"],
             "schema_fingerprint": schema_fingerprint,
@@ -139,20 +164,20 @@ def main():
             "current_signature": part["current_signature"], "mutations_pending": False}
         snapshot = "oo-dl01w1-40-c4-observed-" + partition
         capturer = {"protocol": "oo.clickhouse.capture-tick/v1", "source_engine": "clickhouse",
-            "source_id": "clickhouse_268", "source_generation": generation,
+            "source_id": source_id, "source_generation": generation,
             "label": snapshot, "snapshot": {"kind": "token", "value": snapshot},
-            "database": "oo_dl01w40", "logical_schema": "oo_dl01w40",
-            "logical_table": "readings", "table_epoch": part["table_epoch"],
+            "database": database, "logical_schema": database,
+            "logical_table": table, "table_epoch": part["table_epoch"],
             "cross_table_consistency": "B", "product_reader_write_attempts": 0,
             "snapshot_token": False, "partition_scope": scope,
-            "tables": [{"name": "readings", "arrow": partition + ".arrow",
+            "tables": [{"name": table, "arrow": partition + ".arrow",
                 "cursor_safety": "no_cursor", "consistency": "S0", "route": "C4",
                 "delete_mode": "partition_replace", "tombstones": [],
                 "row_count": part["row_count"]}]}
         witness = {"protocol": "oo.source-admission.capture-witness/v1",
-            "source_engine": "clickhouse", "source_id": "clickhouse_268",
+            "source_engine": "clickhouse", "source_id": source_id,
             "source_generation": generation, "snapshot": capturer["snapshot"], "run_id": snapshot,
-            "logical_schema": "oo_dl01w40", "logical_table": "readings",
+            "logical_schema": database, "logical_table": table,
             "capturer_path": str(folder / "capturer.json"),
             "arrow_path": str(folder / (partition + ".arrow")),
             "driver_path": driver,
@@ -160,6 +185,27 @@ def main():
             "type_preimage_path": str(folder / "type-preimage.json")}
         report = json.loads((pin / "report.json").read_text())
         report["capture_witness"] = str(folder / "witness.json")
+        grants = [json.loads(line) for line in (out / "grants.body").read_text().splitlines()]
+        permissions=[]
+        for item in grants:
+            if item["is_partial_revoke"] or item["grant_option"]:
+                raise RuntimeError("reader grant exceeds approved read-only scope")
+            permission={"name":item["access_type"],"status":"known","granted":True}
+            scope={k:item[k] for k in ("database","table") if item[k]}
+            if scope:permission["scope"]=scope
+            if item["column"]:raise RuntimeError("column grant needs explicit admission scope")
+            permissions.append(permission)
+        report["permissions"]=permissions
+        report["source_id"]=source_id
+        report["secret_ref"]=config.get("secret_ref", report["secret_ref"]) if config else report["secret_ref"]
+        registration=json.loads((folder / "config.json").read_text())
+        registration["source_id"]=source_id
+        registration["secret_ref"]=report["secret_ref"]
+        registration["permissions"]=permissions
+        (folder / "config.json").write_text(json.dumps(registration,indent=2)+'\n')
+        settings={item["name"]:item["value"] for item in map(json.loads,(out / "settings.body").read_text().splitlines())}
+        if settings!={"readonly":"1","max_execution_time":"8"}:raise RuntimeError("actual source profile differs")
+        report["native"]["clickhouse"].update(settings)
         report["driver"]["digest"] = driver_sha
         for name, body in (("capturer", capturer), ("witness", witness), ("report", report)):
             (folder / (name + ".json")).write_text(json.dumps(body, indent=2) + "\n")

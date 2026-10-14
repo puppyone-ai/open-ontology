@@ -1,0 +1,62 @@
+{
+  "protocol": "oo.clickhouse.connection-whole.receipt/v1",
+  "published": false,
+  "formal_signoff": "0/10",
+  "run": "/tmp/oo-clickhouse-connection-whole/whole-run",
+  "onboard_state": "recipe_completed",
+  "whole": true,
+  "build_id": "b_0c74ce44242bba8197b7a265ec5418d7",
+  "generation": 6,
+  "physical": "pt_d677401b8f6f7f99f882273c41dd25860a0ec5b517cc9bc5127adea19b54",
+  "typed_diff_zero": true,
+  "s5": {
+    "outcome": "validated",
+    "llm_calls": 1,
+    "cache_hit": false,
+    "model": "grok-4.7-build",
+    "input_sha256": "ca90a463e50c549779b5dae620b180bc4fce8b504bd5eef3309961be21c6b1e3"
+  },
+  "dialogue": {
+    "outcome": "verified",
+    "model": "grok-4.7",
+    "response_models": ["grok-4.7", "grok-4.7-build"],
+    "turns": 2,
+    "query_ids": ["q_EfNTGEtDcs6pIIVX2tpYMnc9kM", "q_e3wP2V1yuux7lKH7k6pzC608ME"]
+  },
+  "cancel": {
+    "query_id": "q_wWNHTi9QqZaiEAdqZ27ulflDUN",
+    "outcome": "sent",
+    "audit": "durable",
+    "hint": "sqlstate 57014"
+  },
+  "probe_query_id": "q_GBVAQa0yqT0p9q2uqYclnlzg0k",
+  "sha256": {
+    "whole.json": "265c78ee7434da881fddf1139c93f40f408d543c63fcf931a959487bd32d2c05",
+    "data-manifest.json": "b348a8345c2e5441e1b429dcf0a1e4948de96ba59d65104ae1dc57e7336c82c0",
+    "cycle-receipt.json": "bbe3de558318fdf48cfd8e5766509c356b74003cdb69d619f5bad7c9573b275b",
+    "materialize-manifest.json": "f77f1094782eac34b54f92e8c3be62c24b5b44d30c6b7c9f7591a7a4ec169d29",
+    "product-receipt.json": "174e6f59a6f18307ae267ebd1990eca0679a6d160bfdad329271919f97b339e6",
+    "typed-diff.json": "bf7db134f45c6af8beed3ae69f173bc0af8fea8e56cc45015cc6d032a0bbca03",
+    "gold.json": "c44be5028d4c70f61cee49b45b2250a415ff48a2012184a5f2f0dba6d3da20a7",
+    "dialogue-verdict.json": "841948b0ff9e92364d7ebb16acc44082ad4597b11d21ac1ec649efe8a20c68aa",
+    "dialogue-transcript.json": "82458c410ae029cf7ecec0060114e5e168cfd43647c0bc674749745abc255363",
+    "gateway-ready.json": "42e3a02fa3a49836899dc50faf1eb01c7f84687b83c31a2917f002b1eb3893bd",
+    "cancel-receipt.json": "9bd98c1448c532e6ff37469d585f885dddd2c987b0490f0a5e7c569868f39978",
+    "ontology.yaml": "24c36e78b46e0aa6fb986221f18bbd2dc23beb2d22950c2f26eec8f52dd318ba",
+    "effective-oos.yaml": "3630adcc8b21627f35c78ab524ad106ca5e053b31a4017fc5dde9282052d6389",
+    "source.json": "b52acfb95939c156f5b6bda27420696114e36cdaf82742580fa6ee5db9ff9a32",
+    "effective.json": "579dd9cc7c1b1e5b1f719be76ca290f62eeb341751f901f61315730e6d0e5e16",
+    "role-pack.json": "2baa31dfb5757c29b89da388147f21e0b365cb84caba5586ff32985e210af70b"
+  },
+  "cargo_test": "not_run",
+  "gaps": [
+    "formal signoff 0/10",
+    "publication not_claimed",
+    "governance not updated",
+    "gpt-6.1-sol usage limit; one grok-4.7 fallback",
+    "dialogue timeout retained; one retry verified",
+    "version change is a ReplacingMergeTree insert",
+    "no metadata LIMIT 5 execution",
+    "no second six-field run"
+  ]
+}

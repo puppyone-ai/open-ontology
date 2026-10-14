@@ -15,6 +15,16 @@ SOURCE = "sr_w45_native"
 ROLE = "oo_r_w45_native"
 HIDDEN = {"oo_w45_sr.pk_accounts.account_id", "oo_w45_sr.pk_accounts.balance",
           "oo_w45_sr.pk_accounts.nickname"}
+# The fixture has no currency. These four numeric columns are money with unit
+# unspecified, matching the 2026-10-13 restricted effective ontology. score stays
+# quantity. ponytail: sealed bind_model still rejects money+null before
+# source-money-projection applies this rule; do not invent USD or CNY here.
+SOURCE_MONEY = {
+    "agg_metrics": (("revenue", "none"),),
+    "dup_events": (("amount", "none"),),
+    "dup_partition_sums": (("amount_sum", "none"),),
+    "pk_accounts": (("balance", "sensitive"),),
+}
 
 
 def sha(data):
@@ -124,7 +134,19 @@ def main():
             key = {"pk_accounts": "account_id", "uniq_dim": "dim_id", "dup_events": "event_id"}[name]
             rules.append({"column": dataset + "." + key, "semantic_type": "identifier",
                           "confidence": "high", "pii": "unknown"})
+        if actual:
+            for column_name, pii in SOURCE_MONEY.get(name, ()):
+                rules.append({"column": dataset + "." + column_name, "semantic_type": "money",
+                              "unit": "unspecified", "confidence": "high", "pii": pii})
     assert len(roles) == 19 and len(set(roles)) == 19
+    if actual:
+        money = {(rule["column"], rule["unit"], rule["pii"]) for rule in rules if rule["semantic_type"] == "money"}
+        assert money == {
+            ("oo_w45_sr.agg_metrics.revenue", "unspecified", "none"),
+            ("oo_w45_sr.dup_events.amount", "unspecified", "none"),
+            ("oo_w45_sr.dup_partition_sums.amount_sum", "unspecified", "none"),
+            ("oo_w45_sr.pk_accounts.balance", "unspecified", "sensitive"),
+        }
     visible_roles = [name for name in roles if name not in HIDDEN] if args.restricted_role or actual else roles
     assert len(visible_roles) == (16 if args.restricted_role or actual else 19)
     collection_sha = sha(raw)

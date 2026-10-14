@@ -11,9 +11,11 @@ import subprocess
 NAMES = ('reading_id','version','amount','note','code','code_or_null','ts','tags','labels','qty','label','wide_u64')
 BINARY = {'note','code','code_or_null','label'}
 ARRAY = {'tags','labels'}
+TARGET_CONTAINER='oo-dl01w1-40-gpt-fresh-pg'
+TARGET_DATABASE='oo_ch40'
 
 def query(sql):
-    r=subprocess.run(['docker','exec','oo-dl01w1-40-gpt-fresh-pg','psql','-U','postgres','-d','oo_ch40','-At','-v','ON_ERROR_STOP=1','-c',sql],capture_output=True,text=True)
+    r=subprocess.run(['docker','exec',TARGET_CONTAINER,'psql','-U','postgres','-d',TARGET_DATABASE,'-At','-v','ON_ERROR_STOP=1','-c',sql],capture_output=True,text=True)
     if r.returncode: raise RuntimeError(r.stderr)
     return r.stdout.strip()
 
@@ -22,12 +24,18 @@ def nanos(value):
     return str(calendar.timegm(datetime.strptime(main,'%Y-%m-%d %H:%M:%S').timetuple())*1_000_000_000+int(frac))
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--gold',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--generation',type=int,default=4);a=p.parse_args()
+    global TARGET_CONTAINER, TARGET_DATABASE
+    p=argparse.ArgumentParser();p.add_argument('--gold',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--generation',type=int,default=4);p.add_argument('--connection-config',type=Path);a=p.parse_args()
+    config=json.loads(a.connection_config.read_text()) if a.connection_config else {}
+    TARGET_CONTAINER=config.get('target_container',TARGET_CONTAINER);TARGET_DATABASE=config.get('target_database',TARGET_DATABASE)
+    source_id=config.get('source_id','clickhouse_268');table_name=config.get('source',{}).get('table','readings')
+    if not all(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',x) for x in (source_id,table_name,TARGET_DATABASE)):
+        raise RuntimeError('target identifier refused')
     if a.generation<1: raise RuntimeError('bad generation')
-    mappings=query(f"SELECT logical_column||'|'||physical_name FROM _oo.physical_mappings WHERE source='clickhouse_268' AND run_generation={a.generation} AND level='c'")
+    mappings=query(f"SELECT logical_column||'|'||physical_name FROM _oo.physical_mappings WHERE source='{source_id}' AND run_generation={a.generation} AND level='c'")
     found=dict(line.split('|',1) for line in mappings.splitlines())
     if set(found)!=set(NAMES): raise RuntimeError('incomplete target physical mapping')
-    table=query(f"SELECT physical_name FROM _oo.physical_mappings WHERE source='clickhouse_268' AND run_generation={a.generation} AND level='t' AND logical_table='readings'")
+    table=query(f"SELECT physical_name FROM _oo.physical_mappings WHERE source='{source_id}' AND run_generation={a.generation} AND level='t' AND logical_table='{table_name}'")
     if not re.fullmatch(r'pt_[0-9a-f]{60}',table): raise RuntimeError('bad physical table')
     args=[]
     for name in NAMES:
