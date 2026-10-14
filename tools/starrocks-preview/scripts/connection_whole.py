@@ -83,6 +83,9 @@ SCHEMA_FIELDS = ROOT / "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starr
 EXPECTED = {"host": "127.0.0.1", "port": 9030, "database": "oo_w45_sr", "user": "oo_w45_reader"}
 UPSERT = "INSERT INTO oo_w45_sr.uniq_dim VALUES (17,'conn_live',5.50),(9003,'conn_temp',1.25);"
 DELETE = "DELETE FROM oo_w45_sr.uniq_dim WHERE dim_id=9003;"
+RETAINED_GOLD = Path("/tmp/oo-starrocks-connection-whole/typed-g19/independent/conn-g19/compare.json")
+RETAINED_GOLD_SHA = "3e99cefba1c616fd695245bdd41c4121fa897bee73dd5692541a655f7151c059"
+REUSED_BUILD = Path("/tmp/oo-star-runtime-finish/work/builds/b_31ad89c06a4855921f66d5cb8555bb21")
 
 
 def sha(path):
@@ -687,49 +690,79 @@ def applicability(run_dir):
 
 
 def execute(config, out):
+    """Attach the six-field entry to the live serve, retained gold, and finished build.
+
+    Recovery delete, native-fire, the old API ELF, GRANT, a new S5, and dialogue
+    stay off this path. whole.json is not written.
+    """
     cfg = json.loads(Path(config).read_text())
     require_fixture(cfg)
     run_dir = Path(out)
-    for name in (PG, SYNC, W, API, GW, "oo-dl01w1-45-model-loopback"):
-        inspected = subprocess.run(["docker", "inspect", "-f", "{{.State.Status}}", name], capture_output=True, text=True, timeout=20)
-        if inspected.returncode or inspected.stdout.strip() != "running":
-            raise RuntimeError("named container is not running: " + name)
-    BASE.mkdir(mode=0o700, exist_ok=True)
-    os.chmod(BASE, 0o700)
-    (BASE / "state").mkdir(mode=0o700, exist_ok=True)
-    run("evidence-mkdir", ["docker", "exec", W, "mkdir", "-p", EVIDENCE], run_dir / "prep")
-    applicability(run_dir)
-    digest = producer_config(cfg)
-    prove_recovery(run_dir / "recovery-proof", digest)
-    ensure_binding(run_dir / "schedule", digest)
-    state = converge(run_dir / "schedule")
-    diff = typed_diff(run_dir)
-    collection = export_collection(run_dir / "schedule", state, diff)
-    bundle = bundle_from(run_dir / "schedule", collection, run_dir / "cells/independent/conn-final/compare.json")
-    commit = point_api(bundle)
-    wait_api()
-    product(run_dir, commit, sha(bundle / "catalog.json"))
-    install_cli()
-    refresh_gateway(run_dir)
-    dialogue(run_dir)
-    cancel_query(run_dir)
-    verdict = json.loads((run_dir / "dialogue/verdict.json").read_text())
-    receipt = json.loads((run_dir / "product/product-receipt.json").read_text())
-    body = {
-        "full_product_chain_complete": receipt.get("protocol") == "oo.source-onboarding.product/v1" and verdict.get("outcome") == "verified",
-        "periodic_insert_update_delete_verified": diff.get("all_equal") is True and state.get("period_ms") == PERIOD,
-        "recovery_verified": json.loads((run_dir / "recovery-proof/recovery.json").read_text())["recovery_verified"] is True,
-        "product_receipt": "product/product-receipt.json",
-        "dialogue_verdict": "dialogue/verdict.json",
-        "source_dml_repeated": False,
+    run_dir.mkdir(mode=0o700, exist_ok=False)
+    serve = subprocess.run(["docker", "exec", W, "ps", "-p", "136", "-o", "args="], capture_output=True, text=True, timeout=20)
+    if serve.returncode or "native-serve" not in serve.stdout or "star-conn-c5" not in serve.stdout:
+        raise RuntimeError("native-serve 136 is not the current worker")
+    source_text, target_text = psql("SELECT source_generation::text || ' ' || target_generation::text FROM _oo.source_watermark WHERE source='sr_w45_native'").split()
+    source_generation, target_generation = int(source_text), int(target_text)
+    if target_generation == source_generation:
+        raise RuntimeError("refusing to squash target generation onto source generation")
+    live = {}
+    for line in psql("SELECT logical_table || '=' || max(run_generation)::text FROM _oo.physical_mappings WHERE source='sr_w45_native' AND level='t' GROUP BY logical_table ORDER BY 1").splitlines():
+        table, generation = line.split("=")
+        live[table] = int(generation)
+    if sha(RETAINED_GOLD) != RETAINED_GOLD_SHA:
+        raise RuntimeError("retained typed gold mismatch")
+    gold = json.loads(RETAINED_GOLD.read_text())
+    tables = {name: int(entry["source_generation"]) for name, entry in gold["tables"].items()}
+    if tables != live or gold.get("all_equal") is not True or gold.get("sampled") is not False:
+        raise RuntimeError("retained gold is not the live mixed vector")
+    catalog = REUSED_BUILD / "catalog.json"
+    if not catalog.is_file() or catalog.is_symlink():
+        raise RuntimeError("confirmed build catalog is absent")
+    binding = json.loads((GW_DIR / "reviewed/w45_native/binding.json").read_text())
+    period = int(psql("SELECT period_ms::text FROM jw_native.bindings WHERE id='%s'" % BINDING))
+    if period != PERIOD:
+        raise RuntimeError("native-serve period changed")
+    lease = psql("SELECT o.pin::text || ' ' || t.state || ' ' || coalesce(t.last_error,'') FROM jw_native.occurrences o JOIN jobs.tasks t ON t.id=o.task_id WHERE o.binding_id='%s' ORDER BY o.pin DESC LIMIT 1" % BINDING)
+    callback = {
+        "protocol": "oo.starrocks.entry-callback/v1",
+        "whole": False,
         "published": False,
-        "c4_this_round": "not_run",
         "formal_signoff": False,
+        "source_generation": source_generation,
+        "target_generation": target_generation,
+        "tables": tables,
+        "typed_gold_sha256": RETAINED_GOLD_SHA,
+        "ontology_version": binding["ontology_version"],
+        "published_generation": binding["generation"],
+        "build_id": REUSED_BUILD.name,
+        "native_serve_pid": 136,
+        "period_ms": period,
+        "quiet_lease": lease,
+        "c4_this_round": "not_run",
+        "customer_writes": 0,
+        "blocked_on": {
+            "owner": "PG59827",
+            "path": "crates/oo-gateway/src/policy.rs",
+            "symbols": ["ensure_exact_grants", "transition_column_acl_native_vector_set"],
+            "reason": "published generation is not the live uniq_dim generation; legacy grants are not the previous policy",
+        },
+        "next_call": {
+            "installer": "official install-column-acl from the PG policy writer",
+            "maintenance_program": "tools/selfbuild-control-api/recipes/operator.py",
+            "maintenance_path": "/control/v1/builds/" + REUSED_BUILD.name + "/maintenance",
+            "maintenance_body_keys": ["catalog_sha256", "identity_revision", "idempotency_key", "trigger"],
+            "trigger": "source_generation_advanced",
+            "dialogue_program": "tools/agent-product-verifier/dialogue.py",
+            "dialogue_bank": "/tmp/oo-starrocks-connection-whole/random-dialogue/question-bank.json",
+        },
+        "not_run": ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "dialogue", "s5"],
     }
-    write(run_dir / "whole.json", body)
-    if body["full_product_chain_complete"] is not True:
-        raise RuntimeError("whole chain incomplete")
-    return body
+    if int(binding["generation"]) == tables["uniq_dim"]:
+        raise RuntimeError("generation match is not a whole claim")
+    write(run_dir / "entry-callback.json", callback)
+    write(BASE / "pg-mixed-vector.json", callback)
+    raise RuntimeError("official current column policy absent")
 
 
 def main():

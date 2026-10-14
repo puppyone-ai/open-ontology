@@ -3125,3 +3125,9 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 
 2026-10-14 Click两真实随机子出口root核验通过：找到实际oo-source-onboarding/runs/c2c83cdb.../random-dialogue原始目录；fixed948解析器回放两run每最终facts对actual CLI成功cell与源readerstdout/gold匹配，4成功QID独立admit/complete WAL均存在，seed/当前source11/rolePack及两semantic组不相交。前置知识覆盖提示期间model中间final存在，root首次假定仅一final失败保留逻辑解释后核真正末次，不改raw。仅新增随机测试source1/10，不计原完整source/正式源数，原自动两个新周期/default入口仍未验；原失败token/timeouts/tool耗尽保存，无独立review/整版签收。intakeexecution/reviews/grok-connection-resume-20261014/clickhouse-two-random-actual-intake.json。
+
+
+2026-10-14 Star93337终态23e585dbc六字段wrapper替换旧重放/fire/手GRANT，root核实际scripts/connection_whole.py SHA c261匹配；执行exit1 official current column policy absent/whole无，source19target31与native-serve136保留，同owner独占待PG59827官方ACL。shared86947更新合法recipepin，未知条件不wholetrue。bank6/currentrandom未跑，完整/正式0/10不晋级，不新paidcall/客户写。回调pg-mixed-vector.json已broker。
+
+
+2026-10-14 5f6c9d64 Star官方ACL fixed d340SHA/installraw exit0及精确current混合3/5/3/3/19收取，metadata从NOLOGIN撤且login权限保留，旧/隐私列拒；Star同c4 99651/57263实际接currentPack/default/random。PG同27ca836/69407消费970已真实sourcefacts版本Builder，API/子程序真实调用identity须核后一次必要corrected S5；原USD失败不改。MySQL同151e3066/13089 f4c五表C1spool虽gold0未apply/ACK，旧C5g10随机1过2shapefail不计主C1随机，待Maria/SQL公共txn。Mongo同617e1923/47151 faf2/e74真实replica-setC1+286失位失败保留；原profiles04明确C1T待验证否则S0/B，不造T/commitEvent、不以snapshotzero/C5冒C1，03自动C1T规则不改；exact显式profile gap交公共solewriters。Doris同aa4370/59097当前两random/IUD作者阶段待rootraw核，默认旧pin和回写label必须本source最小修，不能falsewhole。所有源正式/完整0/10保持，仅Clickexistingg11随机子出口1/10，不新增review/分母。intakeexecution/reviews/grok-connection-resume-20261014/star-g19-metadata-acl-fixed-intake.json。

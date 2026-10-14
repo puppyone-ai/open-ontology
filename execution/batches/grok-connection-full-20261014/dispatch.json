@@ -2,25 +2,25 @@
   {
     "task": "mysql",
     "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-    "pid": 49827,
+    "pid": 3066,
     "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "same_owner_c1_target_dependency_and_random_full_source",
+    "status": "same_owner_live_exact_original_full_source_remaining",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
-    "prior_pid": 88533,
+    "prior_pid": 49827,
     "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-c1-shared-gap-random-whole.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-C1-real-primary-pack-finish.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 binlog CDC",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 50311
+    "tool_handle": 13089
   },
   {
     "task": "oracle",
@@ -83,23 +83,24 @@
   {
     "task": "mongodb",
     "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-    "pid": 88537,
+    "pid": 1923,
     "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "same_owner_original_documented_rust_production_route",
+    "status": "same_owner_live_exact_original_full_source_remaining",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 99649,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-original-rust-change-stream.md",
+    "prior_pid": 88537,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-explicit-C1-profile-full.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 change stream on replica-set/sharded target",
     "rust_core_required": true,
-    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
+    "tool_handle": 47151
   },
   {
     "task": "clickhouse",
@@ -129,26 +130,26 @@
   {
     "task": "doris",
     "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-    "pid": 31458,
+    "pid": 4370,
     "prompt": "execution/batches/grok-connection-full-20261014/doris-compact-whole-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
     "write_paths": [
       "tools/doris-preview",
       "testing/dl01-driver-preflight/doris/reader"
     ],
-    "status": "same_owner_live_current_source_autonomous_and_random_exit",
+    "status": "same_owner_live_exact_original_full_source_remaining",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 218,
-    "prior_pid": 607,
+    "prior_pid": 31458,
     "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-current-source-random-full.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-current-random-default-final.md",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 49514
+    "tool_handle": 59097
   },
   {
     "task": "opensearch",
@@ -176,7 +177,7 @@
   {
     "task": "postgresql",
     "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-    "pid": 59827,
+    "pid": 836,
     "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
     "write_paths": [
@@ -185,45 +186,45 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "same_owner_live_actual_policy_and_random_full_source",
+    "status": "same_owner_live_exact_original_full_source_remaining",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
     "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
     "effort_handoff_previous_pid": 32956,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-star-policy-bound-full.md",
-    "prior_pid": 15837,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-fixed970-source-S5-full.md",
+    "prior_pid": 59827,
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 logical decoding",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 99540
+    "tool_handle": 69407
   },
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 93337,
+    "pid": 99651,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
       "tools/starrocks-preview"
     ],
-    "status": "same_owner_live_remaining_original_product_exits",
+    "status": "same_owner_live_exact_original_full_source_remaining",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 61000,
+    "prior_pid": 93337,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-current-g19-default-random-whole.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-g19-acl-ready-finish.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 67643
+    "tool_handle": 57263
   },
   {
     "task": "sqlserver",

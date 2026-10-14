@@ -134,11 +134,22 @@ pub fn apply_interface_gap() -> Value {
             "pg-commit-lsn/v1",
             "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
+            "mariadb-gtid/v1",
             "batch-cursor-us/v1",
             "snapshot-zero/v1",
             "partition-signature/v1"
         ],
         "error": "closed",
+        "policy_error": "c1_requires_t",
+        "policy_site": "tools/source-capture-policy/src/gate.rs:161",
+        "offset_codecs": [
+            "pg-commit-lsn/v1",
+            "mysql-binlog-pos/v1",
+            "batch-cursor-us/v1",
+            "snapshot-zero/v1",
+            "mariadb-gtid/v1"
+        ],
+        "schedule_codecs": ["pg-commit-lsn/v1", "snapshot-zero/v1"],
         "loader_invoked": false,
         "cdc_offset_codec_ok": false,
         "policy_codec_known": true
