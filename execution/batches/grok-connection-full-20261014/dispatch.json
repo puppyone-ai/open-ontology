@@ -207,25 +207,26 @@
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 39272,
+    "pid": 53251,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
-      "tools/starrocks-preview"
+      "tools/starrocks-preview",
+      "crates/oo-gateway/src/policy_catalog.rs"
     ],
-    "status": "same_owner_live_critical_foundation_then_original_full_source",
+    "status": "same_owner_live_minimal_date_signature_and_full_normal_source",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 99651,
+    "prior_pid": 39272,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-normal-run-dir-and-grain-finish.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-date-signature-current-normal-final.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 51347
+    "tool_handle": 18779
   },
   {
     "task": "sqlserver",
