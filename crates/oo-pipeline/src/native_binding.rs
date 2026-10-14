@@ -1652,13 +1652,14 @@ fn verify_r1_capture(config: &serde_json::Value, engine: &str, admission: &[u8],
     let captured: serde_json::Value = serde_json::from_slice(capturer).map_err(|_| "nonadmitted")?;
     let kinds: &[&str] = match engine {
         "postgresql" | "postgres" if receipt.get("capture_method").and_then(|v| v.as_str()) == Some("C1") => &["publication", "replication_slot"],
-        "sqlserver" if receipt.get("capture_method").and_then(|v| v.as_str()) == Some("C2") => &["change_tracking_database", "change_tracking_table"],
+        "sqlserver" if receipt.get("capture_method").and_then(|v| v.as_str()) == Some("C2") => &["ct_database", "ct_table"],
         _ => return Err("nonadmitted"),
     };
     if receipt.get("write_class").and_then(|v| v.as_str()) != Some("R1")
         || receipt.get("write_attempts").and_then(|v| v.as_u64()) != Some(0)
         || receipt.get("dba_objects") != captured.get("dba_objects") { return Err("nonadmitted"); }
     let objects = receipt.get("dba_objects").and_then(|v| v.as_array()).ok_or("nonadmitted")?;
+    let mut seen_sha: Option<String> = None;
     for kind in kinds {
         let matching: Vec<_> = objects.iter().filter(|v| v.get("kind").and_then(|v| v.as_str()) == Some(*kind)).collect();
         if matching.len() != 1 { return Err("nonadmitted"); }
@@ -1668,10 +1669,56 @@ fn verify_r1_capture(config: &serde_json::Value, engine: &str, admission: &[u8],
             || item.get("platform_created").and_then(|v| v.as_bool()) != Some(false)
             || item.get("platform_write_attempts").and_then(|v| v.as_u64()) != Some(0)
             || ["name", "risk", "rollback"].iter().any(|k| item.get(*k).and_then(|v| v.as_str()).is_none_or(str::is_empty)) { return Err("nonadmitted"); }
-        let bytes = read_hashed(&required_abs(item, "observation_path")?, &required_hex(item, "observation_sha256")?)?;
+        let sha = required_hex(item, "observation_sha256")?;
+        let bytes = read_hashed(&required_abs(item, "observation_path")?, &sha)?;
         if bytes.is_empty() { return Err("nonadmitted"); }
+        if engine == "sqlserver" {
+            if seen_sha.as_ref().is_some_and(|prior| prior != &sha) { return Err("nonadmitted"); }
+            seen_sha = Some(sha);
+            let facts: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
+            ct_anchor(kind, item, &facts, &captured)?;
+        }
     }
     Ok(())
+}
+
+fn ct_anchor(kind: &str, item: &serde_json::Value, facts: &serde_json::Value, captured: &serde_json::Value) -> Result<(), &'static str> {
+    if facts.get("tds_query_executed").and_then(|v| v.as_bool()) != Some(true) { return Err("nonadmitted"); }
+    let database = facts.get("database").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).ok_or("nonadmitted")?;
+    let schema = facts.get("schema").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).ok_or("nonadmitted")?;
+    let table = facts.get("table").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).ok_or("nonadmitted")?;
+    let guid = facts.get("database_guid").and_then(|v| v.as_str()).ok_or("nonadmitted")?;
+    let fork = facts.get("recovery_fork_guid").and_then(|v| v.as_str()).ok_or("nonadmitted")?;
+    if !uuid_text(guid) || !uuid_text(fork) { return Err("nonadmitted"); }
+    let object_id = facts.get("object_id").and_then(|v| v.as_i64()).filter(|n| *n > 0).ok_or("nonadmitted")?;
+    let current = facts.get("current_version").and_then(|v| v.as_i64()).filter(|n| *n >= 0).ok_or("nonadmitted")?;
+    let minimum = facts.get("min_valid_version").and_then(|v| v.as_i64()).filter(|n| *n >= 0).ok_or("nonadmitted")?;
+    if minimum > current { return Err("nonadmitted"); }
+    let name = item.get("name").and_then(|v| v.as_str()).ok_or("nonadmitted")?;
+    let expect = if kind == "ct_database" { database.to_string() } else { format!("{schema}.{table}") };
+    if name != expect { return Err("nonadmitted"); }
+    let candidate = captured.get("candidate_position").ok_or("nonadmitted")?;
+    if candidate.get("protocol").and_then(|v| v.as_str()) != Some("oo.mssql-preview.ct-position/v1")
+        || candidate.get("database").and_then(|v| v.as_str()) != Some(database)
+        || candidate.get("database_guid").and_then(|v| v.as_str()) != Some(guid)
+        || candidate.get("recovery_fork_guid").and_then(|v| v.as_str()) != Some(fork) {
+        return Err("nonadmitted");
+    }
+    let tables = candidate.get("tables").and_then(|v| v.as_array()).ok_or("nonadmitted")?;
+    let matching: Vec<_> = tables.iter().filter(|row| row.get("schema").and_then(|v| v.as_str()) == Some(schema) && row.get("name").and_then(|v| v.as_str()) == Some(table)).collect();
+    if matching.len() != 1 { return Err("nonadmitted"); }
+    if matching[0].get("object_id").and_then(|v| v.as_i64()) != Some(object_id) || matching[0].get("version").and_then(|v| v.as_i64()) != Some(current) {
+        return Err("nonadmitted");
+    }
+    Ok(())
+}
+
+fn uuid_text(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36 && bytes.iter().enumerate().all(|(index, byte)| match index {
+        8 | 13 | 18 | 23 => *byte == b'-',
+        _ => byte.is_ascii_hexdigit(),
+    })
 }
 
 fn contains_secret(value: &serde_json::Value) -> bool {
@@ -1820,6 +1867,46 @@ fn hex_bytes(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sqlserver_r1_uses_admission_ct_kinds_without_weakening_observation() {
+        let path = std::env::temp_dir().join(format!("oo-ct-binding-{}", std::process::id()));
+        let facts = serde_json::json!({"database":"oo_dl01w1_09","database_guid":"EB4FDD2C-55EB-4858-9620-390EF5387B84","recovery_fork_guid":"645E9A69-D84E-4D9C-AFC1-DC615B29E71A","schema":"dbo","table":"oracle_row","object_id":901578250,"current_version":1,"min_valid_version":0,"snapshot_isolation":true,"tds_query_executed":true});
+        let raw = serde_json::to_vec(&facts).unwrap();
+        std::fs::write(&path, &raw).unwrap();
+        let hash = hex_bytes(&Sha256::digest(&raw));
+        let objects: Vec<_> = [("ct_database","oo_dl01w1_09"),("ct_table","dbo.oracle_row")].into_iter().map(|(kind,name)|
+            serde_json::json!({"kind":kind,"created_by":"dba","observed":true,"platform_created":false,"platform_write_attempts":0,
+                "name":name,"risk":"finite retention","rollback":"DBA disable after pause",
+                "observation_path":&path,"observation_sha256":hash})).collect();
+        let candidate = serde_json::json!({"protocol":"oo.mssql-preview.ct-position/v1","database":"oo_dl01w1_09","database_guid":"EB4FDD2C-55EB-4858-9620-390EF5387B84","recovery_fork_guid":"645E9A69-D84E-4D9C-AFC1-DC615B29E71A","tables":[{"schema":"dbo","name":"oracle_row","object_id":901578250,"version":1}]});
+        let config=serde_json::json!({"requested_write_class":"R1"});
+        let receipt=serde_json::json!({"capture_method":"C2","write_class":"R1","write_attempts":0,"dba_objects":objects,"candidate_position":candidate});
+        let bytes=serde_json::to_vec(&receipt).unwrap();
+        assert_eq!(verify_r1_capture(&config,"sqlserver",&bytes,&bytes),Ok(()));
+        let mut missing=receipt.clone();missing["dba_objects"][0]["kind"]=serde_json::json!("anything");
+        assert_eq!(verify_r1_capture(&config,"sqlserver",&serde_json::to_vec(&missing).unwrap(),&serde_json::to_vec(&missing).unwrap()),Err("nonadmitted"));
+        missing=receipt.clone();missing["dba_objects"][0]["observation_sha256"]=serde_json::json!("00".repeat(32));
+        assert!(verify_r1_capture(&config,"sqlserver",&serde_json::to_vec(&missing).unwrap(),&serde_json::to_vec(&missing).unwrap()).is_err());
+        let junk = path.with_extension("junk");
+        std::fs::write(&junk, b"actual-test-observation").unwrap();
+        let junk_hash = hex_bytes(&Sha256::digest(b"actual-test-observation"));
+        missing=receipt.clone();
+        for index in 0..2 {
+            missing["dba_objects"][index]["observation_path"]=serde_json::json!(&junk);
+            missing["dba_objects"][index]["observation_sha256"]=serde_json::json!(&junk_hash);
+        }
+        assert_eq!(verify_r1_capture(&config,"sqlserver",&serde_json::to_vec(&missing).unwrap(),&serde_json::to_vec(&missing).unwrap()),Err("nonadmitted"));
+        let mut drifted = facts.clone();
+        drifted["current_version"]=serde_json::json!(9);
+        let drifted_raw = serde_json::to_vec(&drifted).unwrap();
+        std::fs::write(&path, &drifted_raw).unwrap();
+        let drifted_hash = hex_bytes(&Sha256::digest(&drifted_raw));
+        missing=receipt.clone();
+        for index in 0..2 { missing["dba_objects"][index]["observation_sha256"]=serde_json::json!(&drifted_hash); }
+        assert_eq!(verify_r1_capture(&config,"sqlserver",&serde_json::to_vec(&missing).unwrap(),&serde_json::to_vec(&missing).unwrap()),Err("nonadmitted"));
+        std::fs::remove_file(&path).unwrap();
+        std::fs::remove_file(junk).unwrap();
+    }
     use super::*;
 
     const DIGEST: &str = "abababababababababababababababababababababababababababababababab";

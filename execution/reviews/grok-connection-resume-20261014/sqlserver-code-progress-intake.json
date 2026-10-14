@@ -1,0 +1,13 @@
+{
+  "source": "7377ab66356f64403769ef7f85c6506eafa2b440",
+  "fixed_source_hashes_verified": 4,
+  "receipt": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-sqlserver-partial-receipt.json",
+    "sha256": "9e7a49ae985be70c95ad0aee118b5e313e58f87b01e21ae88f0000845c957d32"
+  },
+  "acceptance": "CT code/test component only; actual target installation and full E2E missing",
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0,
+  "source_architecture": "real official SQL2022 on x86_64 emulation, native certification pending",
+  "new_owner": "fresh compact Grok low, SQL source-admission only extension authorized"
+}

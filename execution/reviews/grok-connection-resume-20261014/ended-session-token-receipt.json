@@ -1,0 +1,43 @@
+{
+  "scope": "only two completed Grok executor sessions; neither ten-source total nor product model usage",
+  "sessions": [
+    {
+      "task": "infra",
+      "session_uuid": "d9d4b015-d0e0-4216-8762-204a9da052e9",
+      "input_tokens": 6438456,
+      "output_tokens": 82139,
+      "cached_read_tokens": 6182400,
+      "total_tokens": 6520595,
+      "model_calls": 55,
+      "noncached_input_plus_output": 338195,
+      "raw": {
+        "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/infra-usage.txt",
+        "sha256": "cf66845f82bac009075aa385d603dea205feee4d8c5bddd8424f354ecd268cb4"
+      }
+    },
+    {
+      "task": "shared-entry",
+      "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+      "input_tokens": 6790095,
+      "output_tokens": 84959,
+      "cached_read_tokens": 6446720,
+      "total_tokens": 6875054,
+      "model_calls": 50,
+      "noncached_input_plus_output": 428334,
+      "raw": {
+        "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry-usage.txt",
+        "sha256": "8d8078cc05729c5a50f57734553bba4daaa69b7e1a9e68ca0a5af6ca3d9aadb0"
+      }
+    }
+  ],
+  "totals": {
+    "input_tokens": 13228551,
+    "output_tokens": 167098,
+    "cached_read_tokens": 12629120,
+    "total_tokens": 13395649,
+    "model_calls": 105,
+    "noncached_input_plus_output": 766529
+  },
+  "prior_comparable_baseline": "not established; <=1/5 not verified",
+  "next_dispatch": "after genuine terminal, compact fixed evidence handoff to fresh Grok context; low reasoning for routine execution, preserve tests and exact whole exits; active xhigh sessions not interrupted"
+}

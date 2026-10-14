@@ -1148,3 +1148,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 共享入口固定69f9f3fc5已收取：root实际host7tests通过，先前activewriter时engine_mismatch失败保留；该交付仅门禁/recipe验证，零installedwhole/零六字段实测，不计十源。原session已terminal后接续真实源recipe/一键整链集成，pid6230。
 
 2026-10-14 六字段真实失败收取：shared-entry f58d543b9f实际运行a223a74bb93241f1b6ff5d771570eed2，source-ownedGateway退出/CA缺失导致child2，未调用productflow/dialogue，whole false；保留build只读GET403 objectscope需owner用真实正确project/session修，禁假身份。共享入口terminal交接等待源ownerTLS/whole recipe实际依赖，十源Grok继续，不空转加任务。零新的完整一键/正式计数。
+
+2026-10-14 成本与SQL真实缺口接续：grok usage实际收取两个结束会话总13,395,649tokens（cached12,629,120，非cached输入+输出766,529，105calls），仅此两会话不代表整批/产品模型，也不能证明历史1/5达标。后续真实terminal接续改短证据交接/newcontext/low reasoning，活动有效writer不中断。SQL7377ab663四固定源码hash已核，仅CT契约/3Linux单测组件；无target/lease/whole出口，用户自备前置授权下新短Grok会话创建独占PG/TLS，追加唯一tools/source-admission/src/capture.rs SQLC2语义解析写域。仿真SQL2022如实声明native认证pending。完整一键0/10、历史作者9/10、正式0/10不变。
