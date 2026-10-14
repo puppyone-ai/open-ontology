@@ -1,0 +1,56 @@
+{
+  "source": "doris",
+  "generation": 19,
+  "target_generation_author": 31,
+  "fixed_verifier": "9485942f83d3ff914830f88560e34b256129fd00",
+  "source_direct_read": {
+    "path": "/tmp/oo-root-doris-random-source-check/source-select.stdout",
+    "sha256": "fe500a4ec8811b7c4e9cf83fdce55d8089aae07d63f128aca0897f783ab1aeca",
+    "exit": 0,
+    "method": "four readonly SELECT statements on owned Doris FE independently ofGateway; existing fixtureDBA login, no DB mutation"
+  },
+  "gold_path": "/tmp/oo-doris-connection-whole/random-dialogue/gold.json",
+  "gold_sha256": "70ab5e918f8f7d63e752d068675f196c3d24e11d8e3dc0b38e5b81c91916915b",
+  "selected_four_source_facts_match": true,
+  "records": [
+    {
+      "path": "/tmp/oo-doris-connection-whole/random-dialogue/run-1",
+      "seed": 3624692854005718747,
+      "semantic_ids": [
+        "dup_events.population",
+        "part_day.day20260426.amount"
+      ],
+      "pack_sha256": "54381ced9567f68ff7cb426b6b1bfc9ae3ca50d614cd6f0981c5aae398dd85a6",
+      "QIDs_admit_complete_verified": [
+        "q_SNQojydR7BgXmW2dfF6xtFqL8h",
+        "q_mCoQ0sW0O9t3mmkVrb2HD8i8Cr"
+      ],
+      "hashes": {
+        "selection.json": "85a45bd04dd08042802e45d79326adcc195989655d5981515355c9dfdca7d357",
+        "verdict.json": "f7ac1aac79270f94f158ed7edf3603247348d309c910395d82df7cdff2d3e2e8",
+        "transcript.json": "63113e45d896bf6c6ba222633135b5968db95a1845aed993c0ede1f567e02f7c"
+      }
+    },
+    {
+      "path": "/tmp/oo-doris-connection-whole/random-dialogue/run-2",
+      "seed": 5270558163341922932,
+      "semantic_ids": [
+        "nz_obs.population",
+        "uniq_acct.id5.label"
+      ],
+      "pack_sha256": "54381ced9567f68ff7cb426b6b1bfc9ae3ca50d614cd6f0981c5aae398dd85a6",
+      "QIDs_admit_complete_verified": [
+        "q_Nm10n2cjfwM0R5T4gBDVnPsI9D",
+        "q_ziB7EbamtvmL2gGp92DR6z3xvb"
+      ],
+      "hashes": {
+        "selection.json": "e6bc6adc0dbe78de4865ad946b46338e47425cb5be60ac0dcb97f2833383440f",
+        "verdict.json": "fc658135ba2b8e69c2faa3aeb854ace4a89ea3e6a8e45e202d83ce1207a3f8e2",
+        "transcript.json": "b2d409f676fdb643f76000cd8379207d27bf1f9567aa953d09478149727799ab"
+      }
+    }
+  ],
+  "scope": "two fresh actual random 2turn queries with named facts+source truth+QIDadmitcomplete; only random subexit; normal recipe/fullsource still incomplete",
+  "full_source_count_delta": 0,
+  "formal_count_delta": 0
+}

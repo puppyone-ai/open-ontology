@@ -1227,3 +1227,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 Oracle92264/Doris4370/OS8281/Mongo1923 terminal收取：Oracle6692新recipe没repo directdialogue且原receiptpack≠currentfilehash，nativeproduceralive但next_run_at停12:03:50至12:52不能enabled冒auto；source同30182/12326补正确直接当前run联结/真周期。Doris已fixedwrapper52b6但旧e875cataloged7c仅历史，当前19catalog12cf合法sameS5/current维护关联不得product_resume_drift绕关，同31161/71455补sourcecard给shared18370登记，不复制historicalcomplete。Mongo331598初始14/current15/delta8与286作者prepare仅接口前置；fixedc1.rs解Opaque_id._data派生opindex并sort/dedup，与03§3.1“只续读”原契约未证，source同32231/91935优先官方事件/流序及真实spool重放源键，不改falseflag/造T/解析unsupportedtoken或本地计数当源位点。OS两random已root源读取事实通过，独立资料齐保留同owner等待SQLRustnochange，停止空采样/paid重跑。原客户0writes/失败raw成本、full/sourceformal0/10、random子出口2/10和分母/整版顺序不变。
+
+
+2026-10-14 Doris当前g19两真实随机子出口root通过：自有FE独立四SELECT/source stdout与冻结gold选中四事实逐项相等，日期金额link对应真实2026-04-26行不是任意同值row；固定948检查finalfacts/成功CLIcells、四QID独立admit/complete WAL，freshseed不同且semantic组不重叠。原run-a UNQUALIFIED_RELATION及所有token/费用保存。随机测试子出口3/10（Clickg11/OSg12/Dorisg19），Doris canonicalinstalledrecipe/sourceS5维护当前Pack关联/default未通过、原十源full/正式0/10不晋级，无独立review/新分母。intakeexecution/reviews/grok-connection-resume-20261014/doris-two-random-actual-intake.json，直接源raw仅private。
