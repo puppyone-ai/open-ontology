@@ -1,0 +1,52 @@
+{
+  "source": "starrocks",
+  "source_generation": 19,
+  "fixed_verifier": "2056b4c95",
+  "records": [
+    {
+      "folder": "/tmp/oo-starrocks-connection-whole/random-dialogue/run4-fresh",
+      "seed": 4523597027833245006,
+      "semantic_ids": [
+        "pk_account_rows",
+        "uniq_score_dim17"
+      ],
+      "pack_sha256": "5eae4feac5a26b894a325aef9fab62af02da559b2a47443623571415a98ebb76",
+      "QIDs_admit_complete": [
+        "q_FPTlHHFPmDY1vu2FkhL34gyKVN",
+        "q_RQr5G2l48EV0Mp55cAqJMevQnR"
+      ],
+      "source_read": "/tmp/oo-root-star-random-source-check/source.stdout",
+      "source_read_sha256": "2d71a87bd4a924043ae03d3ebc8a78911fe47f0888ffa5f2f9fe64bee91e2122",
+      "gold_sha256": "62e6f76897e6931a4c72123b7f29f22761a4f0663fb4bd89c7385e1dd668eb78",
+      "artifact_hashes": {
+        "selection.json": "8a0b0a0b599ba3c84e6fcc57080d04d739d268d88c3e406034f7b6f8d3a4d5ef",
+        "verdict.json": "fb2c5ba9d6d629237e689b965b19950d00b317d159ee61ca35ff0618b7b459fa",
+        "transcript.json": "2a01b7f48e4ead2b5c87731a96600462e384b27deb6941b53623fbafe375dd12"
+      }
+    },
+    {
+      "folder": "/tmp/oo-starrocks-connection-whole/entry-e0c2/dialogue",
+      "seed": 1479702423144710362,
+      "semantic_ids": [
+        "agg_revenue_taps",
+        "event_note_id24"
+      ],
+      "pack_sha256": "5eae4feac5a26b894a325aef9fab62af02da559b2a47443623571415a98ebb76",
+      "QIDs_admit_complete": [
+        "q_8W5hp5x4XyT7FwB3iOqiqXa5gj",
+        "q_eX7qv3bwuDSoteckJZDNG3H9VW"
+      ],
+      "source_read": "/tmp/oo-root-star-random-source-check/source-second.stdout",
+      "source_read_sha256": "e3d32f46831b3c3ed4b970af395e9057241613ede903f07d983c7cc05175d97f",
+      "gold_sha256": "9671ff65ae52a5448c4b6af27c3b77188401fb8ddd794570c178e755d361cfcc",
+      "artifact_hashes": {
+        "selection.json": "649a536d25adf2e39bf678dff5ce788ca77934b383cd765330da014111a15873",
+        "verdict.json": "90c82b8aae6a6e61c47325788c6ba20a09a875734ac75d4edc25b35a5f1ca098",
+        "transcript.json": "6741ebb3bdd64aac714d7676de8b53e6c57842ff2ebcd1f06efc46dae2012035"
+      }
+    }
+  ],
+  "scope": "two disjoint actual random 2turn runs, four independently source-read facts and QIDadmitcomplete; only random subexit, normal sixfields pin rejected",
+  "full_source_count_delta": 0,
+  "random_subexit_delta": 1
+}

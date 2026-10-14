@@ -200,7 +200,7 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "durable_same_full_owner_actual_remaining_product_exit",
+    "status": "terminal_reserved_actual_C1_failed_fence_repair_same_LSN_refused",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
@@ -234,7 +234,7 @@
       "crates/oo-gateway/tests/parser_worker.rs",
       "crates/oo-gateway/tests/sql_guard.rs"
     ],
-    "status": "durable_same_full_owner_actual_remaining_product_exit",
+    "status": "terminal_reserved_fixed8f_direct_whole_pending_shared_legal_pin_default",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
@@ -252,10 +252,10 @@
   },
   {
     "task": "sqlserver",
-    "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
-    "pid": 2205,
+    "session_uuid": "d32a1c31-e9bd-40c1-81ba-68acaca6783b",
+    "pid": 25811,
     "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
-    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver-fresh-7df88389-f286-4e98-96b8-52dd7028a731.log",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver-fresh-d32a1c31-e9bd-40c1-81ba-68acaca6783b.log",
     "write_paths": [
       "tools/mssql-preview",
       "testing/dl01-targets/mssql",
@@ -269,17 +269,18 @@
       "crates/oo-pipeline/src/native_catalog.rs",
       "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
       "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql",
-      "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql"
+      "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql",
+      "tools/source-admission/tests"
     ],
-    "status": "durable_same_full_owner_actual_remaining_product_exit",
+    "status": "durable_fresh_same_SQL_whole_actual_C1_admission_epoch_repair_consumers",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 0,
-    "prior_session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+    "prior_session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
     "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
     "effort_handoff_previous_pid": 32957,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-latest-actual-blocker-whole-resume.md",
-    "prior_pid": 86509,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-joint-real-C1-admission-epoch-repair-whole-fresh-context.md",
+    "prior_pid": 2205,
     "retirement_rule": "same full logicalengineer/source+foundationcapability preserved; freshafterformerterminal with complete code/resource evidence toreduce stalecontext",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
@@ -291,14 +292,14 @@
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
     "tool_handle": null,
     "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle",
-    "prior_log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log"
+    "prior_log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver-fresh-7df88389-f286-4e98-96b8-52dd7028a731.log"
   },
   {
     "task": "shared-entry",
-    "session_uuid": "f525e371-a2d0-4215-8965-5352d56dd298",
-    "pid": 89975,
+    "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
+    "pid": 21962,
     "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
-    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry-fresh-f525e371-a2d0-4215-8965-5352d56dd298.log",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry-fresh-3d13200e-95fc-4cea-b6f9-bf5134799170.log",
     "write_paths": [
       "tools/source-onboarding",
       "tools/selfbuild-control-api/src/sealed.rs",
@@ -316,21 +317,21 @@
       "tools/selfbuild-control-api/tests/builder_inputs.rs",
       "tools/selfbuild-control-api/tests/oracle-g3-g5"
     ],
-    "status": "terminal_reserved_fixed580_ad79_actual_Star_schema_consumption_wait_source_invocation",
+    "status": "durable_fresh_same_shared_complete_Star_normal_direct_invocation",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 120,
     "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
     "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-    "prior_pid": 68593,
-    "prior_session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+    "prior_pid": 89975,
+    "prior_session_uuid": "f525e371-a2d0-4215-8965-5352d56dd298",
     "retirement_rule": "same logical engineer task/full product boundary; fresh execution only after exact former terminal and preserved complete code/evidence/resource handoff when stale history materially wastes calls",
     "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-current-schema-and-builder-whole-resume.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-Star-fixed-default-direct-whole-fresh-context.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "tool_handle": null,
     "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle",
-    "prior_log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log"
+    "prior_log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry-fresh-f525e371-a2d0-4215-8965-5352d56dd298.log"
   },
   {
     "task": "infra",
