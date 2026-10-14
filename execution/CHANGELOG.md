@@ -1248,3 +1248,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 Star39272 terminal88708修合法onboard-owned run-dir/当前代记录，作者9test及实际wholefalse callback保留；b31缺可收养productreceipt/S9S10原response，不以maint200当S0–S10，需官方原成功record恢复或真实缺阶段补，不捏造/重复已成功S5。日期比较缺落policy_catalog COMPARISON_SIGNATURES(date/date)未有，root新增仅该文件唯一给c4 source53251/18779，在本完整源卡最小可信pg_catalog comparator修+Linuxactual两不同日期CLI/拒例，先核operator与function OID别混1093。sourcewrapper新d762待shared50376合法repin，privatebank分区底层事件数≠派生dataset1row粒度真实说明，oldQA top-rowcount缺facts失败保留不改gold刷过。source19/target31/semg13/fullgold与旧两autoIUD不重写/重LLM，完整/正式0/10、random4/10不晋级；no独立componentreview/no客户写。
+
+
+2026-10-14 lifecycle重核：原shared50376/Star53251/PG41304/SQL36251 OS均无且原exec handles missing，shared/Star无完成报告、PG/SQL有部分作者结果但公共源码未fixed，不能全任务完成；实际未发现hostcargo/rustc互写。保留所有dirty文件/容器/原资源，同UUID四owner持久Popen start_new_session/devnullstdin/privateappendlog恢复59418/59419/59420/59421，不新增writer；无exec handle改OS exactUUID+PID事件等待，最新600s。SQL0024未提交但实际已落盘，公共sourceepoch/GCID/controlSQL/nochange和sharedactualmaintenanceEmitter主critical不变，sourcecomplete/formal0/10、random4/10。
