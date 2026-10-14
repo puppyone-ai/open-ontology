@@ -69,16 +69,19 @@
   {
     "task": "clickhouse",
     "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-    "pid": 83392,
+    "pid": 80121,
     "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
     "write_paths": [
       "tools/clickhouse-preview"
     ],
-    "status": "pid_live_initial_observation",
+    "status": "same_owner_full_exit_convergence",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "prior_pid": 83392,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-same-owner-whole-exits.md",
+    "max_turns": 1000
   },
   {
     "task": "doris",

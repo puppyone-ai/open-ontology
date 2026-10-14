@@ -1,0 +1,133 @@
+{
+  "observed_at": "2026-10-14T07:27:40.833259+00:00",
+  "source_commit": "695834b76078b1a186bf705ccdb682c745e45b06",
+  "raw_files": [
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/whole.json",
+      "sha256": "265c78ee7434da881fddf1139c93f40f408d543c63fcf931a959487bd32d2c05"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/data-manifest.json",
+      "sha256": "b348a8345c2e5441e1b429dcf0a1e4948de96ba59d65104ae1dc57e7336c82c0"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/cycle-receipt.json",
+      "sha256": "bbe3de558318fdf48cfd8e5766509c356b74003cdb69d619f5bad7c9573b275b"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/materialize-manifest.json",
+      "sha256": "f77f1094782eac34b54f92e8c3be62c24b5b44d30c6b7c9f7591a7a4ec169d29"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/product-receipt.json",
+      "sha256": "174e6f59a6f18307ae267ebd1990eca0679a6d160bfdad329271919f97b339e6"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/materialized/typed-diff.json",
+      "sha256": "bf7db134f45c6af8beed3ae69f173bc0af8fea8e56cc45015cc6d032a0bbca03"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/gold.json",
+      "sha256": "c44be5028d4c70f61cee49b45b2250a415ff48a2012184a5f2f0dba6d3da20a7"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/dialogue/verdict.json",
+      "sha256": "841948b0ff9e92364d7ebb16acc44082ad4597b11d21ac1ec649efe8a20c68aa"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/dialogue/transcript.json",
+      "sha256": "82458c410ae029cf7ecec0060114e5e168cfd43647c0bc674749745abc255363"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/gateway-ready.json",
+      "sha256": "42e3a02fa3a49836899dc50faf1eb01c7f84687b83c31a2917f002b1eb3893bd"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/cancel/receipt.json",
+      "sha256": "9bd98c1448c532e6ff37469d585f885dddd2c987b0490f0a5e7c569868f39978"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/oos/ontology.yaml",
+      "sha256": "24c36e78b46e0aa6fb986221f18bbd2dc23beb2d22950c2f26eec8f52dd318ba"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/oos/effective-oos.yaml",
+      "sha256": "3630adcc8b21627f35c78ab524ad106ca5e053b31a4017fc5dde9282052d6389"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/oos/source.json",
+      "sha256": "b52acfb95939c156f5b6bda27420696114e36cdaf82742580fa6ee5db9ff9a32"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/effective.json",
+      "sha256": "579dd9cc7c1b1e5b1f719be76ca290f62eeb341751f901f61315730e6d0e5e16"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/product/role-pack.json",
+      "sha256": "2baa31dfb5757c29b89da388147f21e0b365cb84caba5586ff32985e210af70b"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/journal.json",
+      "sha256": "f9b220286ab7f25aa2473429fe5d176b0a2b44c103bd159401d6e160cadaea5a"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse-fixed-695834b76/materialized/collection.json",
+      "sha256": "619ea55193acb98e5a7cfb25dbbe78ff5ef606da26261d4ca79c18f47e69ebdb"
+    }
+  ],
+  "verified_program_pins": [
+    {
+      "path": "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "sha256": "f2bb9677ea7661fcf4703fa704c2049d7b7066dc4a1ffb0cfd1ceceed3b2a79c"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/source-onboarding/product_flow.py",
+      "sha256": "b20148b6a634819f8503d35dd019d64d19b71e1efdd280dbf846e3e40f93674b"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/agent-product-verifier/dialogue.py",
+      "sha256": "21aad540e1f8f68f642861ecd1f8ade57961a86e729a77b7cffe5b7c1d7a90ee"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/oo-pipeline",
+      "sha256": "2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/oo-source-admission",
+      "sha256": "07e7651a98b4ef76582f67666e1245065546db204a50899554981619efc05dbf"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/selfbuild-control-api-observation-fixed",
+      "sha256": "025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/pg-builder-current",
+      "sha256": "58e5eed3d88f22c2b27c758b7fb064258188eb09ce379e74eac66c5af741a91d"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/issue-token",
+      "sha256": "0554085cb2e872373ecfdb136821197e5c0aa30536aa6725855b5e9127e57052"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703",
+      "sha256": "fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-gateway-51f007a8b3463086dc3fde8093689137ea8282327382a4cd245bf2d7cac8dcee",
+      "sha256": "51f007a8b3463086dc3fde8093689137ea8282327382a4cd245bf2d7cac8dcee"
+    },
+    {
+      "path": "/tmp/oo-dl01w1-40-gpt-producer/ch-reader",
+      "sha256": "8b88485c0940e298a8edad500731f0a7688c61a135a943b217f9597e191c7f93"
+    }
+  ],
+  "verified": "16 mapped artifact SHA,11 fixed program SHA; S0-S10 statuses; genuine validated S5, standard YAML/current native collection; accurate two-turn CLI dialogue and cancellation author evidence",
+  "candidate_staged_chain": true,
+  "complete_ordinary_entry": false,
+  "original_missing_exits": [
+    "actual default six-field run (current input explicitly has recipe/out and journal engine_registry_sha256 null)",
+    "configurable actual repeated C4 detection/load periods (current sleeps 3/7 hardcoded), subsequent standard ontology/current role pack native maintenance"
+  ],
+  "independent_review": "deferred until complete first Goal loop plus all ten source chains per latest human",
+  "formal_source_accepted": false
+}

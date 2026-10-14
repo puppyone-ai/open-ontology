@@ -19,21 +19,26 @@ def write(path, value):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--collection', type=Path, required=True)
+    parser.add_argument('--profile',type=Path)
+    parser.add_argument('--connection-config',type=Path)
     parser.add_argument('--semantics', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    config=json.loads(args.connection_config.read_text()) if args.connection_config else {}
+    database=config.get('source',{}).get('database','oo_dl01w40');table_name=config.get('source',{}).get('table','readings')
+    dataset=database+'.'+table_name;project=config.get('project_id','clickhouse')
     collection = json.loads(args.collection.read_text())
     semantics = json.loads(args.semantics.read_text())
     if len(collection['entries']) != 1 or len(collection['binding_vector']) != 1:
         raise RuntimeError('approved ClickHouse scope must have one actual table')
     table = collection['entries'][0]['tables'][0]
-    if (table['logical_schema'] != 'oo_dl01w40' or table['logical_table'] != 'readings'
+    if (table['logical_schema'] != database or table['logical_table'] != table_name
             or {c['logical_name'] for c in table['columns']} != set(NAMES)):
         raise RuntimeError('full approved 12-column scope changed')
     if semantics['collection_sha256'] != hashlib.sha256(args.collection.read_bytes()).hexdigest():
         raise RuntimeError('source semantics are not bound to this exact collection')
     args.output.mkdir(parents=True, exist_ok=False)
-    for name, source in [('catalog.json', args.collection), ('profile.json', PROFILE), ('source_semantics.json', args.semantics)]:
+    for name, source in [('catalog.json', args.collection), ('profile.json', args.profile or PROFILE), ('source_semantics.json', args.semantics)]:
         shutil.copyfile(source, args.output / name)
     write(args.output / 'read_logic.json', {
         'contract': 'oo.selfbuild-control-api/read-logic/v1',
@@ -110,6 +115,15 @@ def main():
         'declared_price': {'currency': 'USD', 'per_total_token': '0.000001',
                            'status': 'declared_non_billing'},
     })
+    if config:
+        def rebind(value):
+            if isinstance(value,dict):return {rebind(key):(project if key=='project' else rebind(item)) for key,item in value.items()}
+            if isinstance(value,list):return [rebind(item) for item in value]
+            if isinstance(value,str):
+                return value.replace('oo_dl01w40.readings',dataset).replace('oo_dl01w40',database)
+            return value
+        for file in args.output.glob('*.json'):
+            if file.name not in {'catalog.json','profile.json','source_semantics.json'}:write(file,rebind(json.loads(file.read_text())))
     files = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
              for file in args.output.iterdir() if file.is_file()}
     write(args.output / 'manifest.json', {
