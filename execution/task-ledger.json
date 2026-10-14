@@ -8531,15 +8531,16 @@
       {
         "task": "mariadb",
         "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-        "pid": 83390,
+        "pid": 3051,
         "prompt": "execution/batches/grok-connection-full-20261014/mariadb.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
         "write_paths": [
           "tools/mariadb-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_after_verified_terminal",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 207
+        "initial_log_bytes": 207,
+        "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete"
       },
       {
         "task": "mongodb",
@@ -8657,22 +8658,24 @@
       {
         "task": "infra",
         "session_uuid": "d9d4b015-d0e0-4216-8762-204a9da052e9",
-        "pid": 95068,
+        "pid": 4280,
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/infra.log",
         "prompt": "execution/batches/grok-connection-full-20261014/infra.md",
         "write_paths": [
           "/Users/redux/.cache/oo-grok-connection-full-20261014/INFRA-STATE.json"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_infra_identity_recovery",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 13
+        "initial_log_bytes": 13,
+        "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete"
       }
     ],
-    "disk_observed_free_gib": 47,
-    "docker_health": "ps timed out, infra sole recovery owner",
+    "disk_observed_free_gib": 67,
+    "docker_health": "actual Docker API version/ps/exec responsive after official recovery; identity TLS endpoints refused, infra resumed",
     "full_one_command_accepted": 0,
     "historical_author_previews": 9,
     "formal_signed_sources": 0,
-    "last_actual_observation": "12 exact session UUID/PID commands confirmed live; infra receipt not yet present"
+    "last_actual_observation": "12 exact session UUID/PID commands confirmed live; infra receipt not yet present",
+    "initial_intake": "execution/reviews/grok-connection-resume-20261014/initial-intake.json"
   }
 }

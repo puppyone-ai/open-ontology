@@ -1,0 +1,19 @@
+{
+  "verified_progress": "Docker API version/ps/exec restored; disk67GiB, OIDC18441/18443 not serving; infra resumed exact session. MariaDB fe07688d5 source-only delivery, full chain incomplete and exact session resumed.",
+  "references": {
+    "infra": {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-first-infra.json",
+      "sha256": "1e0c45562f73afe9f5daf71e1bdbcfe05d1e4f791b6a11998904e5bdfdb3ced1"
+    },
+    "mariadb_terminal": {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-first-mariadb_terminal.log",
+      "sha256": "3803706a9ff645f7a1432cf8e783ad5d4f45977875bca1ef393b1aeba4028ce9"
+    }
+  },
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0,
+  "live_resumed_pids": {
+    "mariadb": 3051,
+    "infra": 4280
+  }
+}
