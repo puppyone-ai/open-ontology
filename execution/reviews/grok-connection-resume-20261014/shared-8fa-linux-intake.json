@@ -1,0 +1,21 @@
+{
+  "source_commit": "8fa9968c38a630ba40ae7d92f9bb5f524a3ffaf9",
+  "receipt_private": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-api-8fa9968c3/receipt.json",
+  "receipt_sha256": "f8cf36776108bfbfa0a0789da9f8d5d67da998b6885184ebd69528986d64ef3d",
+  "source_hashes": {
+    "tools/selfbuild-control-api/CONTRACT.md": "762c6d92d379c2caf6f700d50c23beea261be912ed31b9ccc8d077435a1d86ed",
+    "tools/selfbuild-control-api/src/stages.rs": "5627a0e486aed35aa9a536e1a5d6742df7ba57f960a72ca06c3fc592fd36a74f",
+    "tools/source-onboarding/CONTRACT.md": "574689e3cb851bdc112268e1dff534a3c7209abc03ad516cb156f2aaf53d0922",
+    "tools/source-onboarding/PRODUCT-FLOW.md": "892e2d144cd5ef8dde4dc290b6d1f0c8efb04920b9484debf8c31273645ff46f",
+    "tools/source-onboarding/onboard.py": "9616aa117a208d3ed592cee05fb21dc351dca2df7d8e563e42562a8f20f5e769",
+    "tools/source-onboarding/product_flow.py": "22ac3d0a774c2a6c2d7adf8a7d53e363699f25c971a124c4c4db3b13d1df253d",
+    "tools/source-onboarding/test_onboard.py": "51c3081c6d51f88bf8d084a5c7978023e425d9c3104999cbee70f3ab03a5a75b"
+  },
+  "api_fixed_path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-api-8fa9968c3/selfbuild-control-api-f7fd0ffc9ad4012e7cb2f0a422cd6ead321ae20df4f285d0293569bc5de637d0",
+  "api_sha256": "f7fd0ffc9ad4012e7cb2f0a422cd6ead321ae20df4f285d0293569bc5de637d0",
+  "linux_test_raw": "/Users/redux/.grok/sessions/%2FUsers%2Fredux%2Fpuppy-one%2Fopen-ontology/d28ca4bd-fd30-4f4e-9672-9492cb9db031/terminal/call-7539ecde-b545-4ca5-8b83-2430898aa153-78.log",
+  "linux_test_raw_sha256": "cdbfe5c083b74cdf6f0bf5049989df07977c5620d9b36dd4c77100a8f424073d",
+  "linux_test_observation": true,
+  "fixed_api_installed_by_root": false,
+  "acceptance": "allows Maria same owner install/corrected terminal-only S5; nonPG maintenance not fixed and no full source promotion"
+}

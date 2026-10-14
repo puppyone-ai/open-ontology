@@ -3195,7 +3195,18 @@
       "fixed_shared_dependency": "c4e601bae0379bfcc70f85c94e9c43ce4fac56c1",
       "fixed_shared_binary_sha256": "ae17f5fc3dc8a8a2474d249c313e28a0d5e25a5750e0d68879208c3caf9f7d43",
       "latest_author_evidence": "473db486921d0ec6413478fb799361d7e79fbc52",
-      "latest_observed_at": "2026-10-13T08:35:05.602536+00:00"
+      "latest_observed_at": "2026-10-13T08:35:05.602536+00:00",
+      "current_exclusive_writer_transfer": {
+        "paths": [
+          "tools/job-worker/src/native_schedule.rs",
+          "tools/job-worker/NATIVE-SCHEDULE.md",
+          "tools/job-worker/tests/closed_loop.rs"
+        ],
+        "source_owner": "sqlserver",
+        "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+        "pid": 58938,
+        "basis": "actual native agent inventory root-only; old named background no cargo/rustc; job-worker source clean; same-owner original C2 product exits"
+      }
     },
     {
       "task_id": "DL01-W1-75",

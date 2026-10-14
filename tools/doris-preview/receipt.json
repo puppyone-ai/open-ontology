@@ -1,0 +1,60 @@
+{
+  "protocol": "oo.doris.connection-whole.receipt/v1",
+  "task": "grok-connection-full-20261014/doris",
+  "owner": "5106fed0-5bcd-4aaf-8df7-838c95a7d7e2",
+  "run_id": "e875c8b248464b3f90acafcae65ac52d",
+  "state": "recipe_completed",
+  "published": false,
+  "whole_json_sha256": "dfc4ddd8490a4e579b50eb6840e99af560706f6f96f790be6d5beca741873ea4",
+  "product_receipt_sha256": "ddb24406bba0e834a51d30b42e2361f5e81f81470611fd66442ee74b3527283f",
+  "dialogue_verdict_sha256": "9cb5d12cbe5f14b19b41a076a3b5656e5a3d93dfa1424f3733067c1f80389550",
+  "dialogue_transcript_sha256": "ace68d7acfcf03cd983aa4ca8bec6b112424bc08f3d86c0821631258217886d8",
+  "gold_sha256": "43276de2b6275c9378d7acc565738ad76d09d565f10825d703cf1fdee93825da",
+  "recovery_sha256": "c8dbb97031ac0e14bbd955dc4a031f94a124b63009cdb7ff702282b690479d1e",
+  "input_sha256": "464df0fb1c4d328a9622c21b43c0aa2825dffe220e222cc34e988d36328ee61a",
+  "recipe_sha256": "f35765f0f3d6822a19918cf7d302ae33ef9cf84b172f97fde74cc9ba06e726f8",
+  "whole_py_sha256": "36fec9341bf59c4ef1541939b3196a20a923f93cc05f1576f465fdfbb2dae6d0",
+  "registry_sha256": "b0fa635c68d652dcfa30cab016ff82100421ec0d8e03abf786df3bf2d5fe747b",
+  "build_id": "b_1e205c67e1ad4861ca2b9438db5a0c44",
+  "s5": {
+    "cache_hit": true,
+    "llm_calls": 0,
+    "model": "grok-4.7",
+    "evidence_hash": "ed7c4168a49851d802e7aade1a03401618c38627cfa281c0b925d40576a65d52"
+  },
+  "dialogue": {
+    "outcome": "verified",
+    "turns": 2,
+    "model": "grok-4.7",
+    "reasoning_effort": "low",
+    "query_ids": [
+      "q_hOFRHyio6wLmOnHauumYObEQ2J",
+      "q_tsCLibEJFW2qbuuak26e1qTo01"
+    ]
+  },
+  "gold": {
+    "all_equal": true,
+    "typed_cells": 109,
+    "typed_cell_diff": 0
+  },
+  "recovery": {
+    "cancel_status": "cancelled|cancelled",
+    "load_state": "not_sealed",
+    "loader_invoked": false,
+    "recovery_verified": true
+  },
+  "gateway_binding_generation": 10,
+  "gateway_catalog_version": "e37b34fe0e315dce71d85f9360821f9b64fd15b1b95f5e0b7c626928e3d47de5",
+  "elf": {
+    "reader": "b874654f023e4beb16b4376161f04a4fb33113ad337591ec05dc68bb8b592aba",
+    "loader": "2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4",
+    "admission": "07e7651a98b4ef76582f67666e1245065546db204a50899554981619efc05dbf"
+  },
+  "retained_failed_runs": [
+    "whole-3",
+    "whole-4",
+    "f9a9dffe2caf41f493321641a64fb03a"
+  ],
+  "external_review": "owner_pending",
+  "decisive_exit": "onboard.py --resume exit 0, journal recipe_completed, whole true"
+}

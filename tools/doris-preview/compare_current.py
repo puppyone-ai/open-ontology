@@ -12,9 +12,9 @@ TABLES = {"dup_events", "agg_qty", "uniq_acct", "dec_exact", "part_day", "str_ke
 IDENT = re.compile(r"[a-z][a-z0-9_]*\Z")
 
 
-def psql(sql, database):
+def psql(sql, database, container="oo-dl01w1-43-native-pg", user="oo_admin"):
     result = subprocess.run(
-        ["docker", "exec", "-i", "oo-dl01w1-43-native-pg", "psql", "-X", "-U", "oo_admin",
+        ["docker", "exec", "-i", container, "psql", "-X", "-U", user,
          "-d", database, "-v", "ON_ERROR_STOP=1", "-At"],
         input=sql, text=True, capture_output=True, timeout=60)
     if result.returncode:
@@ -37,6 +37,8 @@ def main():
     parser.add_argument("--collection", type=Path, required=True)
     parser.add_argument("--capture", type=Path, required=True)
     parser.add_argument("--database", required=True)
+    parser.add_argument("--container", default="oo-dl01w1-43-native-pg")
+    parser.add_argument("--user", default="oo_admin")
     parser.add_argument("--table", choices=sorted(TABLES), action="append")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -70,7 +72,7 @@ def main():
         if len(stored) != len(set(stored)) or not stored:
             raise ValueError("catalog columns")
         projected = ",".join(column + "::text" for column in stored)
-        rows = psql(f"SELECT coalesce(jsonb_agg(jsonb_build_array({projected})), '[]'::jsonb)::text FROM _oo.{physical};", args.database)
+        rows = psql(f"SELECT coalesce(jsonb_agg(jsonb_build_array({projected})), '[]'::jsonb)::text FROM _oo.{physical};", args.database, args.container, args.user)
         expected = [[None if cell == r"\N" else cell for cell in row.split("\x1f")]
                     for row in sources[name]["rows"]]
         if any(len(row) != len(columns) for row in expected):
@@ -78,13 +80,13 @@ def main():
         db_types = psql("SELECT coalesce(jsonb_object_agg(a.attname, jsonb_build_array(a.atttypid::int,a.atttypmod)), '{}'::jsonb)::text "
                         "FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid "
                         "JOIN pg_namespace n ON n.oid=c.relnamespace "
-                        f"WHERE n.nspname='_oo' AND c.relname='{physical}' AND a.attnum>0 AND NOT a.attisdropped;", args.database)
+                        f"WHERE n.nspname='_oo' AND c.relname='{physical}' AND a.attnum>0 AND NOT a.attisdropped;", args.database, args.container, args.user)
         type_checks = {item["logical_name"]: db_types.get(item["stored_physical"]) == [item["oid"], item["typmod"]]
                        for item in columns}
         freshness = psql("SELECT coalesce(jsonb_agg(jsonb_build_object('source_generation',source_generation,"
                          "'target_generation',target_generation,'physical_name',physical_name)), '[]'::jsonb)::text "
                          "FROM _oo.table_freshness WHERE source='dorispreview' "
-                         f"AND schema_name='oo_dl01w1_43' AND table_name='{name}';", args.database)
+                         f"AND schema_name='oo_dl01w1_43' AND table_name='{name}';", args.database, args.container, args.user)
         binding_current = len(freshness) == 1 and freshness[0] == {
             "source_generation": entry["source_generation"],
             "target_generation": entry["target_generation"],

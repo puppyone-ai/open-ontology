@@ -71,6 +71,25 @@
       "max_turns": 1000
     },
     {
+      "task": "mariadb",
+      "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+      "pid": 54952,
+      "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
+      "write_paths": [
+        "tools/mariadb-preview"
+      ],
+      "status": "same_owner_original_product_exits_fixed_dependencies",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 207,
+      "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
+      "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+      "prior_pid": 99646,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-fixed-local180-full.md",
+      "max_turns": 1000
+    },
+    {
       "task": "clickhouse",
       "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
       "pid": 49895,
@@ -149,9 +168,27 @@
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
+      "task": "starrocks",
+      "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+      "pid": 54954,
+      "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
+      "write_paths": [
+        "tools/starrocks-preview"
+      ],
+      "status": "same_owner_original_product_exits_fixed_dependencies",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 130,
+      "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+      "prior_pid": 69464,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-shared-money-linked-exits.md",
+      "max_turns": 1000
+    },
+    {
       "task": "sqlserver",
       "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-      "pid": 42235,
+      "pid": 58938,
       "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
       "write_paths": [
@@ -161,24 +198,27 @@
         "crates/oo-pipeline/src/native_binding.rs",
         "crates/oo-pipeline/src/target_installer.rs",
         "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
-        "tools/source-admission/src/capture.rs"
+        "tools/source-admission/src/capture.rs",
+        "tools/job-worker/src/native_schedule.rs",
+        "tools/job-worker/NATIVE-SCHEDULE.md",
+        "tools/job-worker/tests/closed_loop.rs"
       ],
-      "status": "same_owner_original_continuous_c2_exits_after_docker",
+      "status": "same_owner_original_c2_cancel_and_current_pack_exits",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 0,
       "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
       "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
       "effort_handoff_previous_pid": 32957,
       "effort_handoff_was_live": true,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-original-after-docker.md",
-      "prior_pid": 51920,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-c2-worker-owned.md",
+      "prior_pid": 42235,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "max_turns": 1000
     },
     {
       "task": "shared-entry",
       "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-      "pid": 36457,
+      "pid": 54950,
       "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
       "write_paths": [
@@ -192,18 +232,21 @@
         "tools/pg-builder/src/sealed.rs",
         "tools/pg-builder/CONTRACT.md",
         "tools/pg-builder/tests/contract.rs",
-        "tools/selfbuild-control-api/src/stages.rs"
+        "tools/selfbuild-control-api/src/stages.rs",
+        "tools/selfbuild-control-api/src/overlay.rs",
+        "tools/selfbuild-control-api/src/builder_inputs.rs",
+        "tools/selfbuild-control-api/tests/builder_inputs.rs"
       ],
-      "status": "same_owner_shared_original_exits_after_docker",
+      "status": "same_owner_original_product_exits_fixed_dependencies",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 120,
       "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
       "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-      "prior_pid": 85996,
+      "prior_pid": 36457,
       "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-after-docker.md",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-native-maintenance.md",
       "max_turns": 1000
     }
   ],
@@ -2069,5 +2112,7 @@
     "policy": "same owner max1000 Grok4.7/xhigh; Oracle/Mongo actual future-generation pack refusal, registry drift, local180sec and retained product stage idempotence remain full product dependencies; no full count promotion"
   },
   "latest_shared_fixed_intake": "共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。",
-  "latest_shared_entry_resume_intake": "共享8fa9968c3固定归档9/9 hosttests通过，保留首次archive遗漏operator依赖失败；selected entry resume、completed product同身份复用及local180生成源码落地。MySQL49893/ClickHouse49895/OpenSearch49897原UUID max1000接续完整普通入口/持续全链；非PG维护API与Maria新deadline ELF/真实请求仍待共享sole writer。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-entry-intake.json，仅联结开发不晋级完整/正式0/10。"
+  "latest_shared_entry_resume_intake": "共享8fa9968c3固定归档9/9 hosttests通过，保留首次archive遗漏operator依赖失败；selected entry resume、completed product同身份复用及local180生成源码落地。MySQL49893/ClickHouse49895/OpenSearch49897原UUID max1000接续完整普通入口/持续全链；非PG维护API与Maria新deadline ELF/真实请求仍待共享sole writer。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-entry-intake.json，仅联结开发不晋级完整/正式0/10。",
+  "latest_shared_linux_dependency_intake": "共享8fa9968c3 LinuxRust1.94实际deadline测试raw与API f7fd0ffc SHA已核、不可变固定private复制；同owner Maria54952可安装自有API并只对原已确认失败请求一次必要修正S5。共享原d28ca4bd扩展overlay.rs/builder_inputs.rs/tests/builder_inputs.rs sole writer，同UUID54950推进Oracle/Mongo/SQL后代真实目录维护；Star原owner54954接回自有API/Gateway修binding ontology_version及原完整链，shared不再写Starfixture。未额外分割组件、模型cache/成功导入不重放，正式/完整0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-linux-intake.json。",
+  "latest_sql_c2_write_transfer": "SQL原source同UUID58938/max1000接收旧74 quiescent且clean的native_schedule.rs/NATIVE-SCHEDULE.md/tests/closed_loop.rs唯一写权，修真实C2取消active_task未释放；旧batch记录current_exclusive_writer_transfer，不增加新owner/功能分母。实际C2两周期gen6/7 CT4/5 gold0 enabled60000ms，当前Pack仍待nonPG共享维护；原g5 whole-run-3对话不冒g7。共享54950/Maria54952/Star54954按固定8fa Linux制品继续，原完整/正式0/10不晋级。"
 }

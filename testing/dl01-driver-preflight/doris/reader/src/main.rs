@@ -12,6 +12,8 @@ fn main() -> ExitCode {
         Some("dba-setup") if args.len() == 9 => run_dba(&args),
         Some("reader-gate") if args.len() == 6 => run_gate(&args),
         Some("capture-tick") if args.len() == 7 => run_capture_tick(&args),
+        Some("capture-connection") if args.len() == 10 => run_connection(&args, false),
+        Some("capture-connection-partition") if args.len() == 11 => run_connection(&args, true),
         Some("capture-tick-budget") if args.len() == 8 => run_capture_tick_budget(&args),
         Some("capture-full-baseline-budget") if args.len() == 8 => run_capture_full_baseline_budget(&args),
         Some("capture-partition-budget") if args.len() == 9 => run_capture_partition_budget(&args),
@@ -22,6 +24,8 @@ fn main() -> ExitCode {
             );
             eprintln!("       doris-reader reader-gate <evidence> <secrets> <host> <port> <db>");
             eprintln!("       doris-reader capture-tick <evidence> <secrets> <host> <port> <every_ms> <label>");
+            eprintln!("       doris-reader capture-connection <evidence> <secrets> <host> <port> <database> <user> <every_ms> <label> <max_rows_per_table>");
+            eprintln!("       doris-reader capture-connection-partition <evidence> <secrets> <host> <port> <database> <user> <every_ms> <label> <max_rows> <partition>");
             eprintln!("       doris-reader capture-tick-budget <evidence> <secrets> <host> <port> <every_ms> <label> <max_rows_per_table>");
             eprintln!("       doris-reader capture-full-baseline-budget <evidence> <secrets> <host> <port> <every_ms> <label> <max_rows_per_table>");
             eprintln!("       doris-reader capture-partition-budget <evidence> <secrets> <host> <port> <every_ms> <label> <partition> <max_rows>");
@@ -94,6 +98,7 @@ fn capture_endpoint(host: &str, port: &str) -> Result<Endpoint, Fail> {
         host: host.to_string(),
         port,
         db: "oo_dl01w1_43".to_string(),
+        reader_user: "oo_reader".to_string(),
     })
 }
 
@@ -131,6 +136,7 @@ fn endpoint(host: &str, port: &str, db: &str) -> Result<Endpoint, Fail> {
         host: host.to_string(),
         port,
         db: db.to_string(),
+        reader_user: "oo_reader".to_string(),
     })
 }
 
@@ -140,4 +146,40 @@ fn runtime() -> Result<tokio::runtime::Runtime, Fail> {
         .enable_all()
         .build()
         .map_err(|err| Fail::new("runtime", err.to_string()))
+}
+
+
+fn connection_endpoint(host: &str, port: &str, db: &str, user: &str) -> Result<Endpoint, Fail> {
+    ipv4(host)?;
+    ident(db)?;
+    ident(user)?;
+    let port: u16 = port.parse().map_err(|_| Fail::new("port", "query"))?;
+    if port == 0 { return Err(Fail::new("port", "zero")); }
+    Ok(Endpoint { host: host.to_string(), port, db: db.to_string(), reader_user: user.to_string() })
+}
+
+fn run_connection(args: &[String], partition: bool) -> Result<(), Fail> {
+    let evidence = evidence_dir(&args[1])?;
+    let endpoint = connection_endpoint(&args[3], &args[4], &args[5], &args[6])?;
+    let period = args[7].parse().map_err(|_| Fail::new("schedule", "every_ms"))?;
+    let max_rows = args[9].parse().map_err(|_| Fail::new("budget", "max_rows"))?;
+    let runtime = runtime()?;
+    if partition {
+        runtime.block_on(capture::capture_partition_budget(evidence, &args[2], endpoint, period, &args[8], &args[10], max_rows))
+    } else {
+        runtime.block_on(capture::capture_full_baseline_budget(evidence, &args[2], endpoint, period, &args[8], max_rows))
+    }
+}
+
+#[cfg(test)]
+mod connection_tests {
+    use super::connection_endpoint;
+    #[test]
+    fn configured_identity_and_unsafe_names() {
+        let e = connection_endpoint("172.16.143.10", "9030", "customer_db", "customer_reader").unwrap();
+        assert_eq!(e.db, "customer_db");
+        assert_eq!(e.reader_user, "customer_reader");
+        assert!(connection_endpoint("127.0.0.1", "0", "db", "reader").is_err());
+        assert!(connection_endpoint("127.0.0.1", "9030", "db';DROP", "reader").is_err());
+    }
 }
