@@ -84,6 +84,8 @@ def main():
     producer_sha=sha(producer)
     docker=c['docker']; pg=prep['pg']; runtime=prep['runtime']; target=dict(prep['target'])
     logs=root/'cycle-logs'; logs.mkdir(mode=0o700, exist_ok=True); count=0
+    for path in logs.glob('[0-9][0-9][0-9]-*'):
+        count=max(count, int(path.name[:3]))
     def call(argv, name, stdin=None, timeout=180):
         nonlocal count; count+=1; stem=logs/f'{count:03d}-{name}'
         result=subprocess.run(argv, input=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
@@ -182,7 +184,7 @@ def main():
         for name, physical in columns.items():
             kind=kind_of(next(column for column in spec['columns'] if column[0]==name))
             if kind!='timestamp_micros': continue
-            types[name]=psql('SELECT data_type FROM information_schema.columns WHERE table_schema=\''+namespace+'\' AND table_name=\''+table+'\' AND column_name=\''+physical+'\';', 'type-'+item['source_id']+'-'+name).strip()
+            types[name]=psql('SELECT data_type FROM information_schema.columns WHERE table_schema=\'_oo\' AND table_name=\''+table+'\' AND column_name=\''+physical+'\';', 'type-'+item['source_id']+'-'+name).strip()
         def source_expr(column):
             name, kind=column[0], kind_of(column)
             if kind=='binary': return "IF(`"+name+"` IS NULL, NULL, LOWER(HEX(`"+name+"`)))"
@@ -196,7 +198,7 @@ def main():
                 return 'CASE WHEN '+physical+' IS NULL THEN NULL ELSE to_char('+expr+", 'YYYY-MM-DD HH24:MI:SS.US') END"
             return 'CASE WHEN '+physical+' IS NULL THEN NULL ELSE '+physical+'::text END'
         source_sql='SELECT JSON_ARRAY('+','.join(source_expr(column) for column in spec['columns'])+') FROM `'+spec['schema']+'`.`'+spec['table']+'` ORDER BY `'+spec['pk']+'`'
-        target_sql='SELECT json_build_array('+','.join(target_expr(column) for column in spec['columns'])+') FROM "'+namespace+'"."'+table+'" ORDER BY "'+columns[spec['pk']]+'"'
+        target_sql='SELECT json_build_array('+','.join(target_expr(column) for column in spec['columns'])+') FROM "_oo"."'+table+'" ORDER BY "'+columns[spec['pk']]+'"'
         left=[json.loads(line) for line in maria(source_sql+';\n', 'gold-source-'+item['source_id'], timeout=300).splitlines() if line]
         right=[json.loads(line) for line in psql(target_sql+'\n', 'gold-target-'+item['source_id'], timeout=300).splitlines() if line]
         assert len(left)==len(right), item['source_id']+' row count'
@@ -216,7 +218,10 @@ def norm(value, column):
     if value is None: return None
     kind=kind_of(column)
     if kind in ('int64','int32','uint64'): return str(int(value))
-    if kind=='decimal128': return format(decimal.Decimal(value).quantize(decimal.Decimal(1).scaleb(-scale_of(column))), 'f')
+    if kind=='decimal128':
+        with decimal.localcontext() as ctx:
+            ctx.prec=50  # decimal128 holds 38 digits; the default context rejects them
+            return format(decimal.Decimal(value).quantize(decimal.Decimal(1).scaleb(-scale_of(column))), 'f')
     return str(value)
 
 if __name__=='__main__':

@@ -1,0 +1,29 @@
+{
+  "observed_at": "2026-10-14T07:06:17.899445+00:00",
+  "source": "0a087267770ffbf7fc01f67ab8882af63ece23fb",
+  "raw_files": [
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks-fixed-0a087267/REPORT.md",
+      "sha256": "7ca0002a725256f3caf9f05d80d4fab7166ced697e09f99a616cd718f79d0854"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks-fixed-0a087267/FINDINGS.md",
+      "sha256": "9d835266880002322a08800e356d0b58d0e9ec99e77b2e717dc6bc5e2df0e66f"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks-fixed-0a087267/HANDOFF.md",
+      "sha256": "e0096e3ae403c068aae3cc93e1d01878bb0994d7fbca0c40bc6b9d11b46f3cea"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks-fixed-0a087267/receipt.json",
+      "sha256": "1c5d70744d24c4c6320b4fd048b3f775f555c340bebdf75dcf2c223b5814fccf"
+    }
+  ],
+  "whole_source": false,
+  "actual_failure": "grok4.7 generated money semantics with null unit; builder rejected money_unit. GPT original model429 preserved.",
+  "same_owner_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+  "continued_pid": 69464,
+  "owner_retired": false,
+  "remaining": "all remaining original product exits; preserve unknown currency safely by original schema and real factual inputs, no invented unit/validation bypass/identical paid loop",
+  "independent_review": false
+}

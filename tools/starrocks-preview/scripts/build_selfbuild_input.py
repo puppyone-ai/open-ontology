@@ -36,15 +36,26 @@ def main():
     parser.add_argument("--generation", type=int, choices=(2, 3, 5), default=3)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--restricted-role", action="store_true")
+    parser.add_argument("--collection", type=Path)
+    parser.add_argument("--diff", type=Path)
+    parser.add_argument("--decoded", type=Path)
+    parser.add_argument("--uniq-period-ms", type=int, default=20000)
     args = parser.parse_args()
-    if args.restricted_role and args.generation != 5:
+    actual = args.collection is not None
+    if args.restricted_role and args.generation != 5 and not actual:
         parser.error("restricted role requires the reviewed generation-5 classification")
+    if actual and (args.diff is None or args.decoded is None or args.out is None):
+        parser.error("actual collection requires --diff --decoded --out")
     generation_number = args.generation
-    collection_path = (EVIDENCE / "native-sync/c4-final-collection/collection.json" if generation_number == 5
-                       else EVIDENCE / f"native-sync/collection-gen{generation_number}.json")
-    diff_path = EVIDENCE / ("native-sync/independent/catchup-gen2-20261013/compare.json" if generation_number == 2
-                           else "native-sync/independent/c4-g5-20261013/compare.json" if generation_number == 5
-                           else "native-sync/independent/legal-batch-gen3-20261013/compare.json")
+    if actual:
+        collection_path = args.collection
+        diff_path = args.diff
+    else:
+        collection_path = (EVIDENCE / "native-sync/c4-final-collection/collection.json" if generation_number == 5
+                           else EVIDENCE / f"native-sync/collection-gen{generation_number}.json")
+        diff_path = EVIDENCE / ("native-sync/independent/catchup-gen2-20261013/compare.json" if generation_number == 2
+                               else "native-sync/independent/c4-g5-20261013/compare.json" if generation_number == 5
+                               else "native-sync/independent/legal-batch-gen3-20261013/compare.json")
     out = (OUT if generation_number == 2 else EVIDENCE / "native-batch-repair-20261013/selfbuild-input"
            if generation_number == 3 else EVIDENCE / "native-sync/c4-final-collection/selfbuild-input")
     if args.out is not None:
@@ -53,6 +64,8 @@ def main():
     raw = collection_path.read_bytes()
     collection = json.loads(raw)
     diff = json.loads(diff_path.read_text())
+    if actual:
+        generation_number = max(entry["source_generation"] for entry in collection["entries"])
     assert diff["sampled"] is False and diff["all_equal"] is True
     assert collection["protocol"] == "oo.pipeline.sealed-import-collection/v1"
     assert len(collection["entries"]) == len(collection["binding_vector"]) == 5
@@ -68,8 +81,12 @@ def main():
         dataset = "oo_w45_sr." + name
         assert binding["dataset"] == dataset and entry["source_id"] == SOURCE
         generation[dataset] = {key: entry[key] for key in ("source_generation", "target_generation", "run_id")}
-        assert entry["source_generation"] == (5 if name == "dup_events" and generation_number == 5 else min(generation_number, 3))
-        if generation_number == 5 and name == "dup_events":
+        if not actual:
+            assert entry["source_generation"] == (5 if name == "dup_events" and generation_number == 5 else min(generation_number, 3))
+        if actual:
+            decoded = json.loads((args.decoded / f"{name}.json").read_text())
+            rows = decoded["rows"]
+        elif generation_number == 5 and name == "dup_events":
             partitions = [json.loads((EVIDENCE / f"native-c4-current-20261013/{part}-decoded/dup_events.json").read_text())
                           for part in ("p202605", "p202606")]
             assert partitions[0]["fields"] == partitions[1]["fields"]
@@ -108,8 +125,8 @@ def main():
             rules.append({"column": dataset + "." + key, "semantic_type": "identifier",
                           "confidence": "high", "pii": "unknown"})
     assert len(roles) == 19 and len(set(roles)) == 19
-    visible_roles = [name for name in roles if name not in HIDDEN] if args.restricted_role else roles
-    assert len(visible_roles) == (16 if args.restricted_role else 19)
+    visible_roles = [name for name in roles if name not in HIDDEN] if args.restricted_role or actual else roles
+    assert len(visible_roles) == (16 if args.restricted_role or actual else 19)
     collection_sha = sha(raw)
     common = {"source_id": SOURCE, "source_generation": generation_number,
               "target_generation": max(item["target_generation"] for item in generation.values()),
@@ -124,7 +141,7 @@ def main():
                  "quality": {"agg_metrics": ["DELETES_UNDETECTED"],
                              "dup_partition_sums": ["DELETES_UNDETECTED"],
                              "other_tables": ["DELETES_LAGGED"]},
-                 "schedule_period_ms": {"uniq_dim": 20000, "other_tables": 6000},
+                 "schedule_period_ms": {"uniq_dim": args.uniq_period_ms, "other_tables": 6000},
                  "source_full_typed_cell_diff": 0, **common}
     if generation_number == 5:
         semantics["quality"]["dup_events"] = ["OUT_OF_PARTITION_DELETE_NOT_EXTRAPOLATED"]

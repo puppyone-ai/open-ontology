@@ -1,0 +1,13 @@
+[package]
+name = "starrocks-connection-probe"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+license = "Apache-2.0"
+[workspace]
+[dependencies]
+starrocks-probe = { path = "../../../testing/dl01-driver-preflight/starrocks/probe" }
+mysql_async = { version = "=0.36.1", default-features = false, features = ["minimal", "rustls-tls", "ring"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", default-features = false, features = ["macros", "net", "rt-multi-thread", "time"] }
+zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }

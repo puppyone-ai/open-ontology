@@ -3041,3 +3041,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 2026-10-14 PG退出即验：固定50fd9d462共享ACL已实测LinuxELF aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05，root逐bytes核hash及自有库当前同role第2代列权限，原server日志有旧列REVOKE/新列GRANT/故障ROLLBACK；私有固定ELF已供各源复用，回执postgres-acl-fixed-intake.json。不计PG全链或独立批准；合法postgres项目200/verified/0build、错误项目403由PG唯一新短owner继续，禁止不确定modelcreate重复。Doris新whole-3 resume仍refused，不计完成，新唯一owner保持immutable-run约束补全。当前任务仍十源+共享入口、Grok4.7/xhigh、clock600秒；全链/签收计数不晋级。
 
 2026-10-14 最新直接用户纠正：每位负责人必须持续长跑到其原完整闭环才宣布完成/退场，不再短交接或替换上下文；已运行任务不中断。CLI提前停止不等于任务完成，先收实际背景、以原UUID/同owner继续原全部出口，后续Grok续跑max-turns1000；Oracle原18ce4925同会话已续。真实外部阻断保持pending/owner保留，不能伪造完成；共享入口原d28ca4bd保留待实际source依赖，不做空模型loop。所有开发Grok4.7/xhigh、普通clock等待600秒/退出事件即收、独占/实际资源/原Plan全出口保持。原一键完整0/10、历史作者9/10、正式0/10，不新增分母。
+
+2026-10-14 clock等待被真实StarRocks退出事件打断，立即收取0a087267770网络修复和真实S5 money_unit失败；固定四原报告/hash留私有，不计whole。按最新人类长跑要求原c4eceff6同UUID继续、max-turns1000，不新负责人/短上下文交接；未知币种须按原标准真实未确认语义/事实输入处理，不捏造货币、不放宽校验、不盲重同request。原全部产品出口/计数不变。
