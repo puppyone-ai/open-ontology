@@ -178,7 +178,7 @@
   {
     "task": "postgresql",
     "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-    "pid": 41304,
+    "pid": 59420,
     "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
     "write_paths": [
@@ -187,7 +187,7 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "same_owner_live_critical_foundation_then_original_full_source",
+    "status": "same_owner_durable_resume_after_previous_handle_missing",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
@@ -195,30 +195,31 @@
     "effort_handoff_previous_pid": 32956,
     "effort_handoff_was_live": true,
     "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-corrective-product-normal-C1-finish.md",
-    "prior_pid": 836,
+    "prior_pid": 41304,
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 logical decoding",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 39186
+    "tool_handle": null,
+    "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle"
   },
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 53251,
+    "pid": 59419,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
       "tools/starrocks-preview",
       "crates/oo-gateway/src/policy_catalog.rs"
     ],
-    "status": "same_owner_live_minimal_date_signature_and_full_normal_source",
+    "status": "same_owner_durable_resume_after_previous_handle_missing",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 39272,
+    "prior_pid": 53251,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-date-signature-current-normal-final.md",
     "max_turns": 1000,
@@ -226,12 +227,13 @@
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 18779
+    "tool_handle": null,
+    "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle"
   },
   {
     "task": "sqlserver",
     "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-    "pid": 36251,
+    "pid": 59421,
     "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
     "write_paths": [
@@ -248,7 +250,7 @@
       "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
       "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql"
     ],
-    "status": "same_owner_live_critical_foundation_then_original_full_source",
+    "status": "same_owner_durable_resume_after_previous_handle_missing",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 0,
     "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
@@ -256,7 +258,7 @@
     "effort_handoff_previous_pid": 32957,
     "effort_handoff_was_live": true,
     "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-critical-shared-foundation-and-full.md",
-    "prior_pid": 22730,
+    "prior_pid": 36251,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
@@ -266,12 +268,13 @@
       "crates/oo-pipeline/src/native_update.rs"
     ],
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 35731
+    "tool_handle": null,
+    "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle"
   },
   {
     "task": "shared-entry",
     "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-    "pid": 50376,
+    "pid": 59418,
     "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
     "write_paths": [
@@ -291,19 +294,20 @@
       "tools/selfbuild-control-api/tests/builder_inputs.rs",
       "tools/selfbuild-control-api/tests/oracle-g3-g5"
     ],
-    "status": "same_owner_live_official_maintenance_emitter_actual_consumer",
+    "status": "same_owner_durable_resume_after_previous_handle_missing",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 120,
     "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
     "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-    "prior_pid": 38240,
+    "prior_pid": 50376,
     "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
     "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-official-maintenance-emitter-finish.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
-    "tool_handle": 62244
+    "tool_handle": null,
+    "lifecycle": "detached process session with private stdout; exact PID+resume UUID verified and OS exit watcher, no exec handle"
   },
   {
     "task": "infra",

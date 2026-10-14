@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-14T20:37:00.973883+08:00",
+  "as_of": "2026-10-14T22:54:37.785100+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -53,85 +53,40 @@
   },
   "managed_live_grok_handles": [
     {
-      "task": "oracle",
-      "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-      "pid": 92264,
-      "tool_handle": 10212,
-      "prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-current-g7-random-default-whole.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
-    },
-    {
-      "task": "mongodb",
-      "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-      "pid": 1923,
-      "tool_handle": 47151,
-      "prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-explicit-C1-profile-full.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
-    },
-    {
-      "task": "clickhouse",
-      "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-      "pid": 89435,
-      "tool_handle": 30151,
-      "prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-random-raw-current-autonomous-full.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
-    },
-    {
-      "task": "doris",
-      "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-      "pid": 4370,
-      "tool_handle": 59097,
-      "prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-current-random-default-final.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
-    },
-    {
-      "task": "opensearch",
-      "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-      "pid": 8281,
-      "tool_handle": 64262,
-      "prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-Rust-nochange-current-whole.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
-    },
-    {
       "task": "postgresql",
       "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-      "pid": 836,
-      "tool_handle": 69407,
-      "prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-fixed970-source-S5-full.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
+      "pid": 59420,
+      "tool_handle": null,
+      "prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-corrective-product-normal-C1-finish.md",
+      "state": "OS exact PID+UUID verifiedlive",
+      "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00"
     },
     {
       "task": "starrocks",
       "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-      "pid": 99651,
-      "tool_handle": 57263,
-      "prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-g19-acl-ready-finish.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
+      "pid": 59419,
+      "tool_handle": null,
+      "prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-date-signature-current-normal-final.md",
+      "state": "OS exact PID+UUID verifiedlive",
+      "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00"
     },
     {
       "task": "sqlserver",
       "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-      "pid": 22730,
+      "pid": 59421,
       "tool_handle": null,
-      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-rust-actual-delta-export.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
+      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-critical-shared-foundation-and-full.md",
+      "state": "OS exact PID+UUID verifiedlive",
+      "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00"
     },
     {
       "task": "shared-entry",
       "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-      "pid": 86947,
-      "tool_handle": 42237,
-      "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-real-registration-source-facts-whole.md",
-      "confirmed_as_of": "2026-10-14T20:37:00.973883+08:00",
-      "state": "OS pid + exact resume UUID verified live at snapshot"
+      "pid": 59418,
+      "tool_handle": null,
+      "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-official-maintenance-emitter-finish.md",
+      "state": "OS exact PID+UUID verifiedlive",
+      "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00"
     }
   ],
   "process_observation": {
@@ -2206,5 +2161,15 @@
     "pid": 53251,
     "handle": 18779,
     "new_exclusive_path": "crates/oo-gateway/src/policy_catalog.rs"
+  },
+  "latest_durable_managed_cli_reconciliation": {
+    "note": "2026-10-14 lifecycle重核：原shared50376/Star53251/PG41304/SQL36251 OS均无且原exec handles missing，shared/Star无完成报告、PG/SQL有部分作者结果但公共源码未fixed，不能全任务完成；实际未发现hostcargo/rustc互写。保留所有dirty文件/容器/原资源，同UUID四owner持久Popen start_new_session/devnullstdin/privateappendlog恢复59418/59419/59420/59421，不新增writer；无exec handle改OS exactUUID+PID事件等待，最新600s。SQL0024未提交但实际已落盘，公共sourceepoch/GCID/controlSQL/nochange和sharedactualmaintenanceEmitter主critical不变，sourcecomplete/formal0/10、random4/10。",
+    "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00",
+    "active_tasks": [
+      "postgresql",
+      "starrocks",
+      "sqlserver",
+      "shared-entry"
+    ]
   }
 }

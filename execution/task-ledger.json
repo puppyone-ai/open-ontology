@@ -9095,5 +9095,15 @@
     "pid": 53251,
     "handle": 18779,
     "new_exclusive_path": "crates/oo-gateway/src/policy_catalog.rs"
+  },
+  "latest_durable_managed_cli_reconciliation": {
+    "note": "2026-10-14 lifecycle重核：原shared50376/Star53251/PG41304/SQL36251 OS均无且原exec handles missing，shared/Star无完成报告、PG/SQL有部分作者结果但公共源码未fixed，不能全任务完成；实际未发现hostcargo/rustc互写。保留所有dirty文件/容器/原资源，同UUID四owner持久Popen start_new_session/devnullstdin/privateappendlog恢复59418/59419/59420/59421，不新增writer；无exec handle改OS exactUUID+PID事件等待，最新600s。SQL0024未提交但实际已落盘，公共sourceepoch/GCID/controlSQL/nochange和sharedactualmaintenanceEmitter主critical不变，sourcecomplete/formal0/10、random4/10。",
+    "confirmed_as_of": "2026-10-14T22:54:37.785100+08:00",
+    "active_tasks": [
+      "postgresql",
+      "starrocks",
+      "sqlserver",
+      "shared-entry"
+    ]
   }
 }
