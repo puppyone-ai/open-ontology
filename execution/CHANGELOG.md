@@ -1287,3 +1287,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-15 共享ad79真实消费/root13tests及GTID483固定基础ready后，Click64845/Doris31161/Mongo32231原OS terminal/full未完，对应同完整工程师compactfresh c420eabd PID7630/edc3dd87 PID7632/3005fbfd PID10014恢复normal默认当前Pack/directFlow/Repo真实随机全链；原所有sourceUUID/原S5/cost/失败/源数据/资源保留，非拆组件/新分母/empty review。Click17和Doris19原两random源facts/QIDWAL可同identity复用，normal本次调用不能复制历史；Mongo主rs0 C1真实弱S0/B按原grade，非强T/standaloneC5。十源各唯一自主owner同时长跑，shared原sole注册terminalready待精确fixedwrapper/recipe合法repin不paididle。原正式/full0/10、random测试4/10，验收/Plan/Goal/PRODUCT_LOOPS/支持级检查原exit未齐均不晋；最新600sec退出工具等待、CPU无固定上限/独占文件/客户0writes/Token20%达标未知。
+
+
+2026-10-15 600s事件窗口被MySQL98647退出打断即收：author真实officialinstaller5452只到0023/noGTIDdigest、target四GTID funcs缺，root用ownedoo_admin只读to_regprocedure四NULL核（首次wrongpostgres roleexit2原留），源码install_documentcaller缺归Maria8436；captureMaterial/registry只有PGtransaction_scope无gtid_scope、原9a739 admission不支持，唯一SQL7df scope补精确两内部production接口，不fake admitted/epoch/手SQL。source原spool017GTID unchanged，lease不占/customer源0写；原ownerterminalreserveactual依赖停止paididle，broker及SQL当前card写明缺口供phase读取非live RPC，未宣称已消费。其他当前exactmanagedlive9继续longwhole；source0/10/random4/10/Plan计数Goal整版支持级无变化。intake mysql483-actual-installer-admission-block-intake.json。
