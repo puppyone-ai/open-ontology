@@ -1,0 +1,2 @@
+已收你恢复合法PG TLS，旧卷与slot保持；这只是前置。现在立刻自建隔离fresh target/control（已授权）并官方部署→baseline原精确ACL→实际下代同角色transition/回滚正例→Linuxfixedtest/release→真正六字段S0–S10/同步维护Pack/Gateway/准确对话。前轮完整compact卡各scope/真实规则仍有效；无需再改已恢复TLS或重测拒绝一次就final。任务仍是不可分割整个PG产品闭环，提交工具授权写域/ignored目录问题已bf577dfb2实际修好，可用commit_owned --taskDL01-W1-46；原sharedsourceACL自己唯一writer。强系统接续规则要求中间完成后直接做下一必要阶段，不要只列not_done。
+读取同一已提交execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md中的原不可缩减出口/approved scope，不重读全历史日志。当前官方OIDC TLS身份恢复，详情ROOT-OBSERVATIONS.json/INFRA-STATE.json；客户不写、秘密不输出、原失败原证据保留，no subagents。
