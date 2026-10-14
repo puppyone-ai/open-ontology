@@ -88,6 +88,8 @@ def resume_identity_ok(journal, identity, config_path, recipe, password_file):
 
 PRODUCT_FLOW = Path(__file__).resolve().with_name('product_flow.py')
 DIALOGUE = Path(__file__).resolve().parents[1]/'agent-product-verifier'/'dialogue.py'
+OPERATOR = Path(__file__).resolve().parents[1]/'selfbuild-control-api'/'recipes'/'operator.py'
+CONSUMPTION = 'oo.source-onboarding.maintenance-consumption/v1'
 S5_MODELS = {'gpt-6.1-sol','grok-4.7','grok-4.7-build'}
 DIALOGUE_MODELS = {'gpt-6.1-sol','grok-4.7'}
 
@@ -120,7 +122,7 @@ def observe_children(pgid):
         line = raw.strip()
         if not line.startswith(prefix): continue
         cmd = line[len(prefix):]
-        for program in (PRODUCT_FLOW, DIALOGUE):
+        for program in (PRODUCT_FLOW, DIALOGUE, OPERATOR):
             path = str(program)
             if path in cmd and path not in found: found.append(path)
     return found
@@ -135,6 +137,50 @@ def direct_step(out, recipe, journal, program, rel):
         if live and any(a['path'] == rel and a['sha256'] == digest(out/rel) for a in rec['artifacts']):
             return
     raise Refused('historical_completion_attached')
+
+def hex64(value):
+    return isinstance(value, str) and re.fullmatch(r'[a-f0-9]{64}', value) is not None
+
+def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, command, visibility, role_envelope):
+    """Bind one immutable S5 receipt to the current official maintenance pack. Three pack ids stay distinct."""
+    require(isinstance(role_envelope, dict) and role_envelope.get('status') == 200, 'maintenance_not_invoked')
+    role = role_envelope.get('response')
+    native = role.get('native_maintenance') if isinstance(role, dict) else None
+    require(isinstance(role, dict) and role.get('contract') == 'oo.selfbuild-control-api/role-pack/v1' and isinstance(native, dict), 'maintenance_not_invoked')
+    require(native.get('protocol') == 'oo.selfbuild-control-api/native-maintenance/v1', 'maintenance_not_invoked')
+    require(type(native.get('llm_calls')) is int and native['llm_calls'] == 0 and type(role.get('llm_calls')) is int and role['llm_calls'] == 0, 'maintenance_not_invoked')
+    require(native.get('publication') == 'not_published', 'maintenance_not_invoked')
+    build = product.get('build_id')
+    require(isinstance(build, str) and build and role.get('build_id') == build == native.get('build_id'), 'maintenance_not_invoked')
+    require(hex64(receipt_sha) and hex64(s5_pack_sha) and s5_pack_sha == product.get('native_role_pack_sha256'), 'maintenance_not_invoked')
+    try:
+        pack = json.loads(pack_bytes.decode(), object_pairs_hook=pairs)
+    except (UnicodeError, json.JSONDecodeError):
+        raise Refused('role_pack_not_current')
+    file_sha256 = hashlib.sha256(pack_bytes).hexdigest()
+    digest_value = pack.get('pack_digest') if isinstance(pack, dict) else None
+    require(isinstance(pack, dict) and pack.get('protocol') == 'oo.builder.role-pack/v1' and hex64(digest_value) and digest_value == native.get('pack_digest'), 'role_pack_not_current')
+    http_pack = role.get('pack_sha256')
+    require(hex64(http_pack), 'role_pack_not_current')
+    catalog = command.get('catalog') if isinstance(command, dict) else None
+    require(isinstance(catalog, dict) and hex64(catalog.get('schema_digest')), 'maintenance_schema')
+    source, generation = catalog.get('source_id'), catalog.get('source_generation')
+    require(isinstance(source, str) and source and type(generation) is int and generation >= 0, 'maintenance_source')
+    role_name = role.get('role')
+    require(isinstance(visibility, dict) and isinstance(role_name, str) and role_name and visibility.get('role') == role_name and role.get('policy_version') == 'oos/v1', 'role_pack_not_current')
+    identity = visibility.get('catalog_version')
+    rebind = native.get('source_rebind')
+    revision = native.get('artifact_revision')
+    require(hex64(identity) and isinstance(rebind, dict) and hex64(rebind.get('catalog_sha256')) and hex64(revision), 'maintenance_not_invoked')
+    return {'protocol':CONSUMPTION,'product_receipt_sha256':receipt_sha,'build_id':build,'s5_role_pack_sha256':s5_pack_sha,'role_pack_file_sha256':file_sha256,'pack_digest':digest_value,'http_pack_sha256':http_pack,'source_id':source,'source_generation':generation,'schema_digest':catalog['schema_digest'],'catalog_sha256':rebind['catalog_sha256'],'catalog_version':identity,'role':role_name,'policy_version':'oos/v1','artifact_revision':revision,'maintenance_llm_calls':0,'publication':'not_published'}
+
+def step_saw(out, recipe, journal, program, rel):
+    program = str(Path(program).resolve())
+    for step in recipe['steps']:
+        rec = next((s for s in journal['steps'] if s['name'] == step['name'] and s['state'] == 'succeeded'), None)
+        if not rec or not any(a['path'] == rel and a['sha256'] == digest(out/rel) for a in rec.get('artifacts', [])): continue
+        return launched_program(step['argv']) == program or program in rec.get('observed_programs', [])
+    return False
 
 def prove_whole(out, recipe, journal):
     """Whole means this run's pinned product_flow and dialogue outputs, not a boolean."""
@@ -188,7 +234,24 @@ def prove_whole(out, recipe, journal):
     require(isinstance(identity, dict) and type(identity.get('source_generation')) is int and identity['source_generation'] >= 0, 'role_pack_not_current')
     pack = identity.get('pack_sha256')
     require(isinstance(pack, str) and re.fullmatch(r'[a-f0-9]{64}', pack) is not None, 'role_pack_not_current')
-    require(pack == product.get('native_role_pack_sha256') == file_sha(base/'role-pack.json', 'role_pack_not_current'), 'role_pack_not_current')
+    # S5 provenance stays on the original role-pack file. Current random binds the maintenance file, not that hash.
+    require(product.get('native_role_pack_sha256') == file_sha(base/'role-pack.json', 'role_pack_not_current'), 'role_pack_not_current')
+    parent_rel = Path(product_rel).parent
+    cons_rel = 'maintenance-consumption.json' if parent_rel == Path('.') else str(parent_rel/'maintenance-consumption.json')
+    direct_step(out, recipe, journal, PRODUCT_FLOW, cons_rel)
+    require(step_saw(out, recipe, journal, OPERATOR, cons_rel), 'maintenance_not_invoked')
+    current_pack = base/'current-role-pack.json'
+    require(current_pack.is_file() and not current_pack.is_symlink(), 'role_pack_not_current')
+    for name in ('current-command.json','current-visibility.json','current-role-response.json'):
+        require((base/name).is_file() and not (base/name).is_symlink(), 'maintenance_not_invoked')
+    fresh = maintenance_consumption(product, digest(base/'product-receipt.json'), product['native_role_pack_sha256'], current_pack.read_bytes(), load(base/'current-command.json'), load(base/'current-visibility.json'), load(base/'current-role-response.json'))
+    stored = load(rel_ok(out, cons_rel))
+    require(stored.get('schema_digest') == fresh['schema_digest'], 'maintenance_schema')
+    require(stored.get('source_id') == fresh['source_id'] and stored.get('source_generation') == fresh['source_generation'], 'maintenance_source')
+    require(all(stored.get(k) == fresh[k] for k in ('role_pack_file_sha256','pack_digest','http_pack_sha256','role','policy_version')), 'role_pack_not_current')
+    require(stored == fresh, 'maintenance_not_invoked')
+    require(identity.get('source_id') == fresh['source_id'] and identity.get('source_generation') == fresh['source_generation'], 'maintenance_source')
+    require(identity.get('role') == fresh['role'] and pack == fresh['role_pack_file_sha256'], 'role_pack_not_current')
     return complete
 
 def install_engine(engine, recipe_path, secret_registry, metadata_recipe=None, whole_run=None):
@@ -361,6 +424,14 @@ def run(input_path, resume=False):
                         sha = digest(artifact)
                         require('sha256' not in item or item['sha256'] == sha, 'artifact_mismatch')
                         record['artifacts'].append({'path':str(p),'sha256':sha})
+                    if launched_program(argv) == str(PRODUCT_FLOW) or str(PRODUCT_FLOW) in seen:
+                        have = {a['path'] for a in record['artifacts']}
+                        for path in list(have):
+                            if not path.endswith('product-receipt.json'): continue
+                            sib = str(Path(path).with_name('maintenance-consumption.json'))
+                            artifact = out/sib
+                            if sib not in have and artifact.is_file() and not artifact.is_symlink() and artifact.resolve().is_relative_to(out.resolve()):
+                                record['artifacts'].append({'path':sib,'sha256':digest(artifact)})
                     require(record['artifacts'], 'no_fresh_artifacts')
                     record['state']='succeeded'
                 except (Refused, subprocess.TimeoutExpired, OSError):

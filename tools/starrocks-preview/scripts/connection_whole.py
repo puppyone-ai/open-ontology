@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -674,6 +675,225 @@ def cancel_query(run_dir):
             query.terminate()
 
 
+MANIFEST_NAMES = {"journal.json", "driver-config.json", "lock"}
+STEP_LOG = re.compile(r"^[0-9]+\.(stdout|stderr)$")
+ROLE_PACK = REUSED_BUILD / "native-maintenance/a62b017d99e97c7b29f28f90291148605a79b4b5e49cc7d24dc277704d1e9e22/role-pack.json"
+GRAIN_DIALOGUE = BASE / "random-dialogue/run3-grain"
+GRAIN_GOLD = BASE / "random-dialogue/independent-gold-grain.json"
+DIALOGUE_PROGRAM = ROOT / "tools/agent-product-verifier/dialogue.py"
+POLICY_CATALOG = ROOT / "crates/oo-gateway/src/policy_catalog.rs"
+
+
+def open_run_dir(path, config):
+    """Accept a missing path, an owner-private empty directory, or this run's manifest.
+
+    Onboard creates {run} before the child. exist_ok=True is not reuse: any other
+    existing name, a foreign owner, or a journal that is not this config is refused.
+    """
+    path = Path(path)
+    if path.is_symlink():
+        raise RuntimeError("run directory is a symlink")
+    if not path.exists():
+        path.mkdir(mode=0o700, exist_ok=False)
+        # umask would leave the new directory group-readable; onboard requires 0700.
+        if path.stat().st_mode & 0o077:
+            os.chmod(path, 0o700)
+        return path
+    if not path.is_dir():
+        raise RuntimeError("run path is not a directory")
+    info = path.stat()
+    if info.st_uid != os.getuid() or info.st_mode & 0o077:
+        raise RuntimeError("run directory is not owner-private")
+    names = set(os.listdir(path))
+    if not names:
+        return path
+    if any((path / name).is_symlink() for name in names):
+        raise RuntimeError("run manifest contains a symlink")
+    if any(name not in MANIFEST_NAMES and STEP_LOG.fullmatch(name) is None for name in names):
+        raise RuntimeError("run directory is not an onboard manifest")
+    if not MANIFEST_NAMES <= names:
+        raise RuntimeError("run manifest is incomplete")
+    driver = path / "driver-config.json"
+    journal = json.loads((path / "journal.json").read_text())
+    if journal.get("protocol") != "oo.source-onboarding.run/v1":
+        raise RuntimeError("run journal protocol mismatch")
+    if journal.get("state") != "running":
+        raise RuntimeError("run journal is not running")
+    if not isinstance(journal.get("identity"), dict):
+        raise RuntimeError("run identity is incomplete")
+    if journal.get("config_sha256") != sha(driver):
+        raise RuntimeError("run config sha mismatch")
+    if Path(config).resolve() != driver.resolve():
+        raise RuntimeError("run config path mismatch")
+    return path
+
+
+def query_ids_of(value):
+    found = set()
+    if isinstance(value, dict):
+        if isinstance(value.get("query_id"), str):
+            found.add(value["query_id"])
+        for item in value.values():
+            found.update(query_ids_of(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.update(query_ids_of(item))
+    return found
+
+
+def load_json(path):
+    path = Path(path)
+    if not path.is_file() or path.is_symlink():
+        return None
+    return json.loads(path.read_text())
+
+
+def exit_checks(binding, tables, source_generation, target_generation):
+    """Read the existing product, role, gateway, gold, dialogue, WAL, cancel, and recovery evidence.
+
+    Generation equality is current_generation_bound. It does not set whole.
+    """
+    gaps = []
+    role = load_json(ROLE_PACK)
+    role_sha = sha(ROLE_PACK) if role is not None else None
+    api = load_json(BASE / "maint-g19/role-pack.response.json")
+    api_body = (api or {}).get("response") if isinstance(api, dict) else None
+    maint = load_json(BASE / "maint-g19/maintenance-b.response.json")
+    maint_body = (maint or {}).get("response") if isinstance(maint, dict) else None
+    catalog = load_json(REUSED_BUILD / "catalog.json")
+    identities = {
+        "native_role_file_sha256": role_sha,
+        "pack_digest": None if not isinstance(role, dict) else role.get("pack_digest"),
+        "manifest_sha256": None if not isinstance(role, dict) else role.get("manifest_sha256"),
+        "api_pack_sha256": None if not isinstance(api_body, dict) else api_body.get("pack_sha256"),
+        "binding_artifact_sha256": binding.get("artifact_sha256"),
+        "binding_schema_hash": binding.get("schema_hash"),
+        "catalog_file_sha256": sha(REUSED_BUILD / "catalog.json") if catalog is not None else None,
+        "catalog_collection_sha256": None if not isinstance(catalog, dict) else catalog.get("collection_sha256"),
+        "dialogue_program_sha256": sha(DIALOGUE_PROGRAM) if DIALOGUE_PROGRAM.is_file() else None,
+    }
+    distinct = [identities["native_role_file_sha256"], identities["pack_digest"], identities["api_pack_sha256"], identities["binding_schema_hash"]]
+    if any(not isinstance(item, str) or len(item) != 64 for item in distinct) or len(set(distinct)) < 4:
+        gaps.append("native role file sha, pack digest, api pack id, and binding schema hash are not four distinct digests")
+    if not isinstance(maint, dict) or maint.get("status") != 200 or not isinstance(maint_body, dict) or maint_body.get("operation") != "postMaintenance" or maint_body.get("llm_calls") != 0:
+        gaps.append("official current maintenance response is not the succeeded postMaintenance")
+    elif not isinstance(api, dict) or api.get("status") != 200 or not isinstance(api_body, dict) or api_body.get("operation") != "compileRolePack" or api_body.get("published") is not False:
+        gaps.append("official current role pack response is not the unpublished compileRolePack")
+    if (REUSED_BUILD / "product-receipt.json").exists():
+        gaps.append("product receipt appeared at the reused build; this entry does not adopt or rewrite it")
+    else:
+        gaps.append("product adopt interface missing: Flow.completed requires product-receipt.json in the same out and does not adopt build " + REUSED_BUILD.name + " without POST /review, /confirm, or /role-pack")
+    stage_files = {}
+    for index in range(11):
+        body = load_json(REUSED_BUILD / ("S%d.response.json" % index))
+        stage_files["S%d" % index] = None if body is None else body.get("outcome") or body.get("stage")
+    if stage_files.get("S9") is None or stage_files.get("S10") is None:
+        gaps.append("build directory has no S9/S10 response; S0-S10 provenance stays on the maintenance response and is not a product receipt")
+    if int(binding.get("generation", -1)) != tables.get("uniq_dim") or binding.get("ontology_version") != "ont-starrocks-native-c5-g13":
+        gaps.append("gateway binding is not the live uniq_dim generation with ontology ont-starrocks-native-c5-g13")
+    if sha(RETAINED_GOLD) != RETAINED_GOLD_SHA:
+        gaps.append("retained typed gold mismatch")
+    dialogue_verdict = None
+    verdict = load_json(GRAIN_DIALOGUE / "verdict.json")
+    selection = load_json(GRAIN_DIALOGUE / "selection.json")
+    prior = load_json(BASE / "random-dialogue/run2/selection.json")
+    gold_sha = sha(GRAIN_GOLD) if GRAIN_GOLD.is_file() else None
+    prior_ids = set(prior.get("semantic_ids") or []) if isinstance(prior, dict) else set()
+    selected = selection.get("semantic_ids") if isinstance(selection, dict) else None
+    identity = selection.get("identity") if isinstance(selection, dict) else None
+    tools = set(verdict.get("tools") or []) if isinstance(verdict, dict) else set()
+    dialogue_ok = (
+        isinstance(verdict, dict) and verdict.get("outcome") == "verified" and type(verdict.get("turns")) is int and verdict["turns"] >= 2
+        and verdict.get("selection") == "random" and verdict.get("counts_as_random") is True
+        and {"query", "freshness", "describe", "knowledge_cat"} <= tools
+        and isinstance(selected, list) and len(selected) >= 2 and not prior_ids.intersection(selected)
+        and any(isinstance(item, str) and item.startswith("part_event_rows_") for item in selected)
+        and isinstance(identity, dict) and identity.get("pack_sha256") == role_sha and identity.get("source_generation") == source_generation
+        and gold_sha is not None and verdict.get("gold_sha256") == gold_sha and verdict.get("truth_sha256") == gold_sha
+        and identities["dialogue_program_sha256"] == "0aefc0b5b283abbf4c4845269cd99fe444de76ae1c273f456bebc49bfbb9096a"
+    )
+    if dialogue_ok:
+        dialogue_verdict = "random-dialogue/run3-grain/verdict.json"
+    else:
+        gaps.append("repo dialogue 80aec7764 grain run is not a verified random exit")
+    wal = GW_DIR / "wal"
+    complete = sorted(wal.glob("*-complete.wal")) if wal.is_dir() else []
+    if not complete:
+        gaps.append("gateway completion wal is absent")
+    elif dialogue_ok:
+        seen = set()
+        for path in complete:
+            for line in path.read_bytes().splitlines():
+                if line:
+                    try:
+                        seen.update(query_ids_of(json.loads(line)))
+                    except json.JSONDecodeError:
+                        continue
+        if not set(verdict.get("query_ids") or []) <= seen:
+            gaps.append("dialogue query ids are not in the gateway completion wal")
+    cancel = load_json(BASE / "cancel-verify-3/cancel/receipt.json")
+    recovery = subprocess.run(["docker", "exec", W, "ls", "-1", EVIDENCE + "/" + RECOVERY_BINDING], capture_output=True, text=True, timeout=20)
+    recovery_verified = isinstance(cancel, dict) and cancel.get("hint") == "sqlstate 57014" and cancel.get("query_code") == "TIMEOUT" and recovery.returncode == 0 and "1" in recovery.stdout.split()
+    if not recovery_verified:
+        gaps.append("original cancel 57014 or recovery directory is not intact")
+    operators = {}
+    for line in psql("SELECT o.oid::text || ' ' || tl.typname || '=' || tr.typname || ' ' || p.proname FROM pg_operator o JOIN pg_type tl ON tl.oid=o.oprleft JOIN pg_type tr ON tr.oid=o.oprright JOIN pg_proc p ON p.oid=o.oprcode WHERE o.oprname='=' AND tl.typname IN ('text','date') AND tr.typname=tl.typname ORDER BY 1").splitlines():
+        oid, signature, function = line.split()
+        operators[oid] = (signature, function)
+    policy = POLICY_CATALOG.read_text()
+    date_refused = '("date", "date")' not in policy and '("text", "text")' in policy and operators.get("1093") == ("date=date", "date_eq") and operators.get("98") == ("text=text", "texteq")
+    refusals = []
+    folder = BASE / "cli-g19-now"
+    if folder.is_dir():
+        for path in sorted(folder.glob("*.json")):
+            body = load_json(path)
+            if isinstance(body, dict) and body.get("code") in {"FUNCTION_NOT_ALLOWED", "STATEMENT_NOT_ALLOWED"}:
+                refusals.append({"file": path.name, "code": body.get("code"), "message": body.get("message")})
+    date_gap = {
+        "function": "date_eq",
+        "oid": 1093,
+        "signature": "date=date",
+        "varchar_function": "texteq",
+        "varchar_oid": 98,
+        "varchar_signature": "text=text",
+        "loader": "crates/oo-gateway/src/policy_catalog.rs COMPARISON_SIGNATURES",
+        "refusals": refusals,
+        "shared_path": True,
+    }
+    if date_refused:
+        gaps.append("shared sql_guard has no date=date signature: function date_eq oid 1093; varchar uses texteq oid 98")
+    else:
+        gaps.append("date comparison root cause drifted from date_eq oid 1093 versus texteq oid 98")
+    serve = subprocess.run(["docker", "exec", GW, "sha256sum", "/oo-gateway"], capture_output=True, text=True, timeout=120)
+    gateway_sha = serve.stdout.split()[0] if serve.returncode == 0 and serve.stdout else None
+    elf_names = sorted(path.name for path in Path("/Users/redux/.cache/oo-dl01w1-73/fixed-elf").glob("oo-gateway*"))
+    iud_verified = source_generation == 19 and target_generation != source_generation and tables.get("uniq_dim") == 19 and int(binding.get("generation", -1)) == 19
+    whole = not gaps
+    return {
+        "current_generation_bound": int(binding.get("generation", -1)) == tables.get("uniq_dim"),
+        "whole": whole,
+        "full_product_chain_complete": False,
+        "periodic_insert_update_delete_verified": iud_verified,
+        "recovery_verified": recovery_verified,
+        "product_receipt": None,
+        "dialogue_verdict": dialogue_verdict,
+        "gaps": gaps,
+        "identities": identities,
+        "stage_files": stage_files,
+        "maintenance_status": None if not isinstance(maint, dict) else maint.get("status"),
+        "maintenance_llm_calls": None if not isinstance(maint_body, dict) else maint_body.get("llm_calls"),
+        "date_comparison": date_gap,
+        "gateway_elf_sha256": gateway_sha,
+        "gateway_elf_names": elf_names,
+        "gateway_elf_3a_present": any(name.startswith("oo-gateway-3a") for name in elf_names),
+        "c4_this_round": "not_run",
+        "wal_complete": len(complete),
+        "acl_installed_by_this_entry": False,
+        "customer_writes": 0,
+        "pack_grain": "generated.yaml dataset oo_w45_sr.dup_partition_sums has no grain field; row_count is quantity with empty notes. Source has no view. d28 provenance stays with root; g13 bytes are not rewritten.",
+    }
+
+
 def applicability(run_dir):
     sys.path.insert(0, str(ROOT / "tools/starrocks-preview/scripts"))
     import capture_schedule
@@ -692,13 +912,13 @@ def applicability(run_dir):
 def execute(config, out):
     """Attach the six-field entry to the live serve, retained gold, and finished build.
 
-    Recovery delete, native-fire, the old API ELF, GRANT, a new S5, and dialogue
-    stay off this path. whole.json is not written.
+    Recovery delete, native-fire, the old API ELF, GRANT, and a new S5 stay off
+    this path. whole.json is written only when every original exit gap is empty.
+    A generation match is not that result.
     """
     cfg = json.loads(Path(config).read_text())
     require_fixture(cfg)
-    run_dir = Path(out)
-    run_dir.mkdir(mode=0o700, exist_ok=False)
+    run_dir = open_run_dir(out, config)
     serve = subprocess.run(["docker", "exec", W, "ps", "-p", "136", "-o", "args="], capture_output=True, text=True, timeout=20)
     if serve.returncode or "native-serve" not in serve.stdout or "star-conn-c5" not in serve.stdout:
         raise RuntimeError("native-serve 136 is not the current worker")
@@ -741,28 +961,29 @@ def execute(config, out):
         "quiet_lease": lease,
         "c4_this_round": "not_run",
         "customer_writes": 0,
-        "blocked_on": {
-            "owner": "PG59827",
-            "path": "crates/oo-gateway/src/policy.rs",
-            "symbols": ["ensure_exact_grants", "transition_column_acl_native_vector_set"],
-            "reason": "published generation is not the live uniq_dim generation; legacy grants are not the previous policy",
-        },
-        "next_call": {
-            "installer": "official install-column-acl from the PG policy writer",
-            "maintenance_program": "tools/selfbuild-control-api/recipes/operator.py",
-            "maintenance_path": "/control/v1/builds/" + REUSED_BUILD.name + "/maintenance",
-            "maintenance_body_keys": ["catalog_sha256", "identity_revision", "idempotency_key", "trigger"],
-            "trigger": "source_generation_advanced",
-            "dialogue_program": "tools/agent-product-verifier/dialogue.py",
-            "dialogue_bank": "/tmp/oo-starrocks-connection-whole/random-dialogue/question-bank.json",
-        },
-        "not_run": ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "dialogue", "s5"],
     }
-    if int(binding["generation"]) == tables["uniq_dim"]:
-        raise RuntimeError("generation match is not a whole claim")
+    checked = exit_checks(binding, tables, source_generation, target_generation)
+    callback.update(checked)
+    callback["blocked_on"] = {
+        "owner": "shared",
+        "gaps": checked["gaps"],
+        "identities": checked["identities"],
+        "date_comparison": checked["date_comparison"],
+        "provenance": "d28 current-pack maintenance provenance stays with root. This entry does not rewrite the product receipt or the shared registry.",
+    }
+    callback["not_invoked"] = ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "Flow.run", "new_s5", "sql_guard_whitelist"]
     write(run_dir / "entry-callback.json", callback)
     write(BASE / "pg-mixed-vector.json", callback)
-    raise RuntimeError("official current column policy absent")
+    if checked["whole"]:
+        write(run_dir / "whole.json", {
+            "full_product_chain_complete": True,
+            "periodic_insert_update_delete_verified": checked["periodic_insert_update_delete_verified"],
+            "recovery_verified": checked["recovery_verified"],
+            "product_receipt": checked["product_receipt"],
+            "dialogue_verdict": checked["dialogue_verdict"],
+        })
+        return callback
+    raise RuntimeError("; ".join(checked["gaps"]))
 
 
 def main():

@@ -13,16 +13,40 @@ class RunnerTests(unittest.TestCase):
     def write(self,p,value):
         p.write_text(json.dumps(value));p.chmod(0o600);return str(p)
     def current_random(self, product, dialogue, receipt):
-        (product/'role-pack.json').write_bytes(b'{"policy_version":"oos/v1"}\n')
-        pack_sha=m.digest(product/'role-pack.json')
-        receipt['native_role_pack_sha256']=pack_sha
+        if 'build_id' not in receipt: receipt['build_id']='b_fixture'
+        s5=json.dumps({'protocol':'oo.builder.role-pack/v1','pack_digest':'11'*32}).encode()
+        current=json.dumps({'protocol':'oo.builder.role-pack/v1','pack_digest':'22'*32}).encode()
+        (product/'role-pack.json').write_bytes(s5)
+        (product/'current-role-pack.json').write_bytes(current)
+        s5_sha=m.digest(product/'role-pack.json')
+        file_sha=m.digest(product/'current-role-pack.json')
+        http_sha='33'*32
+        self.assertNotEqual(s5_sha, file_sha)
+        self.assertNotEqual(file_sha, http_sha)
+        self.assertNotEqual(file_sha, '22'*32)
+        receipt['native_role_pack_sha256']=s5_sha
         (product/'product-receipt.json').write_text(json.dumps(receipt))
+        command={'catalog':{'schema_digest':'44'*32,'source_id':'fixture','source_generation':5}}
+        visibility={'role':'oo_r_reader','catalog_version':'55'*32,'policy':{'id':'pol','version':'1'}}
+        native={'protocol':'oo.selfbuild-control-api/native-maintenance/v1','build_id':receipt['build_id'],'pack_digest':'22'*32,'llm_calls':0,'publication':'not_published','artifact_revision':'66'*32,'source_rebind':{'catalog_sha256':'77'*32}}
+        role={'status':200,'response':{'contract':'oo.selfbuild-control-api/role-pack/v1','build_id':receipt['build_id'],'role':'oo_r_reader','policy_version':'oos/v1','pack_sha256':http_sha,'llm_calls':0,'native_maintenance':native}}
+        (product/'current-command.json').write_text(json.dumps(command))
+        (product/'current-visibility.json').write_text(json.dumps(visibility))
+        (product/'current-role-response.json').write_text(json.dumps(role))
+        consumption=m.maintenance_consumption(receipt, m.digest(product/'product-receipt.json'), s5_sha, current, command, visibility, role)
+        (product/'maintenance-consumption.json').write_text(json.dumps(consumption))
+        self.assertNotEqual(consumption['s5_role_pack_sha256'], consumption['role_pack_file_sha256'])
+        self.assertNotEqual(consumption['http_pack_sha256'], consumption['role_pack_file_sha256'])
+        self.assertNotEqual(consumption['pack_digest'], consumption['role_pack_file_sha256'])
+        self.assertNotEqual(consumption['catalog_sha256'], receipt['catalog_sha256'])
+        self.assertEqual(consumption['schema_digest'], '44'*32)
+        self.assertNotEqual(consumption['catalog_version'], consumption['schema_digest'])
         ids=['aggregate.sum','filter.qty']
-        (dialogue/'selection.json').write_text(json.dumps({'mode':'random','counts_as_random':True,'seed':7,'semantic_ids':ids,'gold_sha256':'ef'*32,'identity':{'source_id':'fixture','source_generation':5,'pack_sha256':pack_sha,'role':'oo_r_reader'}}))
+        (dialogue/'selection.json').write_text(json.dumps({'mode':'random','counts_as_random':True,'seed':7,'semantic_ids':ids,'gold_sha256':'ef'*32,'identity':{'source_id':'fixture','source_generation':5,'pack_sha256':file_sha,'role':'oo_r_reader'}}))
         verdict=json.loads((dialogue/'verdict.json').read_text())
         verdict.update(selection='random',counts_as_random=True,seed=7,semantic_ids=ids,gold_sha256='ef'*32)
         (dialogue/'verdict.json').write_text(json.dumps(verdict))
-        return pack_sha
+        return file_sha
     def test_real_process_resume_drift_and_secret_boundary(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); secret=root/'secret';secret.write_text('DO_NOT_PRINT');secret.chmod(0o600)
@@ -109,8 +133,8 @@ class RunnerTests(unittest.TestCase):
             pins=[dict(path=p,sha256=m.digest(p)) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
             recipe=dict(protocol='oo.source-onboarding.recipe/v1',engine='mysql',owned_fixture=True,mode='whole_source',completion_artifact='whole.json',config_template=template,connection_map={f'/{k}':k for k in ('host','port','database','user','password_file')},pins=pins,steps=[dict(name='product',argv=[sys.executable,str(m.PRODUCT_FLOW)]),dict(name='dialogue',argv=[sys.executable,str(m.DIALOGUE)])])
             rp=self.write(root/'recipe',recipe);reg=self.write(root/'registry',{'secret://test':str(secret)})
-            artifacts={'product/product-receipt.json':m.digest(product/'product-receipt.json'),'dialogue/verdict.json':m.digest(dialogue/'verdict.json'),'dialogue/transcript.json':m.digest(dialogue/'transcript.json'),'dialogue/selection.json':m.digest(dialogue/'selection.json')}
-            journal={'state':'recipe_completed','identity':{'recipe_sha256':m.digest(rp)},'steps':[{'name':'product','state':'succeeded','artifacts':[{'path':'product/product-receipt.json','sha256':artifacts['product/product-receipt.json']}]},{'name':'dialogue','state':'succeeded','artifacts':[{'path':'dialogue/verdict.json','sha256':artifacts['dialogue/verdict.json']},{'path':'dialogue/transcript.json','sha256':artifacts['dialogue/transcript.json']},{'path':'dialogue/selection.json','sha256':artifacts['dialogue/selection.json']}]}]}
+            artifacts={'product/product-receipt.json':m.digest(product/'product-receipt.json'),'product/maintenance-consumption.json':m.digest(product/'maintenance-consumption.json'),'dialogue/verdict.json':m.digest(dialogue/'verdict.json'),'dialogue/transcript.json':m.digest(dialogue/'transcript.json'),'dialogue/selection.json':m.digest(dialogue/'selection.json')}
+            journal={'state':'recipe_completed','identity':{'recipe_sha256':m.digest(rp)},'steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.OPERATOR)],'artifacts':[{'path':'product/product-receipt.json','sha256':artifacts['product/product-receipt.json']},{'path':'product/maintenance-consumption.json','sha256':artifacts['product/maintenance-consumption.json']}]},{'name':'dialogue','state':'succeeded','artifacts':[{'path':'dialogue/verdict.json','sha256':artifacts['dialogue/verdict.json']},{'path':'dialogue/transcript.json','sha256':artifacts['dialogue/transcript.json']},{'path':'dialogue/selection.json','sha256':artifacts['dialogue/selection.json']}]}]}
             self.write(run/'journal.json',journal)
             self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
             kept_verdict=(dialogue/'verdict.json').read_text();kept_selection=(dialogue/'selection.json').read_text()
@@ -148,8 +172,37 @@ class RunnerTests(unittest.TestCase):
             (dialogue/'selection.json').write_text(kept_selection)
             journal['steps'][1]['artifacts'][0]['sha256']=artifacts['dialogue/verdict.json']
             journal['steps'][1]['artifacts'][2]['sha256']=artifacts['dialogue/selection.json']
+            self.write(run/'journal.json', journal)
+            command_path=product/'current-command.json'; command_raw=command_path.read_text()
+            wrong_schema=json.loads(command_raw); wrong_schema['catalog']['schema_digest']='88'*32
+            command_path.write_text(json.dumps(wrong_schema))
+            with self.assertRaisesRegex(m.Refused,'maintenance_schema'):m.prove_whole(run,recipe,journal)
+            m.INSTALL_ROOT=side
+            try:
+                with self.assertRaisesRegex(m.Refused,'maintenance_schema'):m.install_engine('mysql',rp,reg,whole_run=str(run))
+                self.assertFalse((side/'engines.json').exists())
+            finally:m.INSTALL_ROOT=held
+            wrong_source=json.loads(command_raw); wrong_source['catalog']['source_id']='other-source'
+            command_path.write_text(json.dumps(wrong_source))
+            with self.assertRaisesRegex(m.Refused,'maintenance_source'):m.prove_whole(run,recipe,journal)
+            m.INSTALL_ROOT=side
+            try:
+                with self.assertRaisesRegex(m.Refused,'maintenance_source'):m.install_engine('mysql',rp,reg,whole_run=str(run))
+                self.assertFalse((side/'engines.json').exists())
+            finally:m.INSTALL_ROOT=held
+            command_path.write_text(command_raw)
+            journal['steps'][0]['observed_programs']=[]
+            self.write(run/'journal.json', journal)
+            with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.prove_whole(run,recipe,journal)
+            m.INSTALL_ROOT=side
+            try:
+                with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.install_engine('mysql',rp,reg,whole_run=str(run))
+                self.assertFalse((side/'engines.json').exists())
+            finally:m.INSTALL_ROOT=held
+            journal['steps'][0]['observed_programs']=[str(m.OPERATOR)]
+            self.write(run/'journal.json', journal)
             observed=json.loads(json.dumps(journal))
-            observed['steps'][0]['observed_programs']=[str(m.PRODUCT_FLOW)]
+            observed['steps'][0]['observed_programs']=[str(m.PRODUCT_FLOW), str(m.OPERATOR)]
             observed['steps'][1]['observed_programs']=[str(m.DIALOGUE)]
             wrapped=json.loads(json.dumps(recipe))
             wrapped['steps'][0]['argv']=[sys.executable,str(root/'driver.py')]
@@ -272,7 +325,7 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
             pins=[dict(path=p,sha256=m.digest(p)) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
             recipe=dict(protocol='oo.source-onboarding.recipe/v1',engine='mysql',owned_fixture=True,mode='whole_source',completion_artifact='whole.json',pins=pins,steps=[dict(name='product',argv=[sys.executable,str(root/'reuse.py')]),dict(name='dialogue',argv=[sys.executable,str(m.DIALOGUE)])])
-            journal={'state':'failed','steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.PRODUCT_FLOW)],'artifacts':[{'path':'product/product-receipt.json','sha256':m.digest(product/'product-receipt.json')}]},{'name':'dialogue','state':'succeeded','observed_programs':[str(m.DIALOGUE)],'artifacts':[{'path':'dialogue/verdict.json','sha256':m.digest(dialogue/'verdict.json')},{'path':'dialogue/transcript.json','sha256':m.digest(dialogue/'transcript.json')},{'path':'dialogue/selection.json','sha256':m.digest(dialogue/'selection.json')}]}]}
+            journal={'state':'failed','steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.PRODUCT_FLOW),str(m.OPERATOR)],'artifacts':[{'path':'product/product-receipt.json','sha256':m.digest(product/'product-receipt.json')},{'path':'product/maintenance-consumption.json','sha256':m.digest(product/'maintenance-consumption.json')}]},{'name':'dialogue','state':'succeeded','observed_programs':[str(m.DIALOGUE)],'artifacts':[{'path':'dialogue/verdict.json','sha256':m.digest(dialogue/'verdict.json')},{'path':'dialogue/transcript.json','sha256':m.digest(dialogue/'transcript.json')},{'path':'dialogue/selection.json','sha256':m.digest(dialogue/'selection.json')}]}]}
             self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
             self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
             bad_pins=json.loads(json.dumps(recipe));bad_pins['pins']=[dict(path=p,sha256='00'*32) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
