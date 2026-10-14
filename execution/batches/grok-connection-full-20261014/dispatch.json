@@ -180,7 +180,7 @@
   {
     "task": "postgresql",
     "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
-    "pid": 81737,
+    "pid": 93768,
     "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql-fresh-7510a5c4-87b9-4064-8504-ef80c9797217.log",
     "write_paths": [
@@ -189,15 +189,15 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "same_PG_fresh_owner_durable_correct_approved_publication_whole",
+    "status": "durable_same_PG_owner_after_session_actor_failure_current_full_c1",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
     "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
     "effort_handoff_previous_pid": 32956,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-native-approved-publication-current-finish.md",
-    "prior_pid": 72778,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-approved-current-publication-continuous-full-resume.md",
+    "prior_pid": 81737,
     "max_turns": 1000,
     "retirement_rule": "full logicalengineer/sourcecapability preserved; fresh execution after exact formerterminal when historical repeatedcontext waste; original artifacts/sourceidentities retained",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
