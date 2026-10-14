@@ -146,6 +146,12 @@ fn abort_drops_the_buffer_and_the_apply_gap_names_the_closed_codec() {
     assert_eq!(store.grade(), "S0");
     let gap = apply_interface_gap();
     assert_eq!(gap["error"], "closed");
+    assert_eq!(gap["policy_error"], "c1_requires_t");
     assert_eq!(gap["position_codec"], CLUSTER_CODEC);
+    assert!(gap["closed_allow"]
+        .as_array()
+        .expect("allow")
+        .iter()
+        .all(|item| item != "mongo-cluster-time/v1"));
     assert_eq!(gap["loader_invoked"], false);
 }
