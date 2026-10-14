@@ -14,6 +14,30 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# Source comments name no currency, so the unit is unspecified.
+# The money-facts parser rejects pii unknown; these columns have no personal marker.
+MONEY = (
+    "customer_east.delivery_notes.amount",
+    "public.shipments.cost_amount",
+)
+
+
+def column_rules(ids):
+    rows = [{"column": name, "confidence": "high", "pii": "unknown", "semantic_type": "identifier"} for name in ids]
+    rows += [{"column": name, "confidence": "high", "pii": "none", "semantic_type": "money", "unit": "unspecified"} for name in MONEY]
+    return {"columns": rows, "relationships": []}
+
+
+def _check_rules():
+    cols = column_rules(["customer_east.delivery_notes.note_id"])["columns"]
+    assert cols[0]["semantic_type"] == "identifier" and cols[0]["pii"] == "unknown" and "unit" not in cols[0]
+    money = [c for c in cols if c["semantic_type"] == "money"]
+    assert [c["column"] for c in money] == list(MONEY)
+    assert all(c["unit"] == "unspecified" and c["pii"] == "none" for c in money)
+    text = json.dumps(cols)
+    assert "USD" not in text and "CNY" not in text and "latitude" not in text
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--collection", type=Path, required=True)
@@ -43,8 +67,8 @@ def main():
     all_columns = [d + "." + c["logical_name"] for d, t in zip(datasets, tables) for c in t["columns"]]
     put(out / "roles.json", {"contract": "oo.selfbuild-control-api/sealed-roles/v1", "roles": {"oo_r_pg46_full": all_columns}})
     ids = [name for name in all_columns if name.rsplit(".", 1)[-1].endswith("_id")]
-    put(out / "rules.json", {"columns": [{"column": name, "confidence": "high", "pii": "unknown", "semantic_type": "identifier"} for name in ids],
-        "relationships": []})
+    assert set(MONEY) <= set(all_columns)
+    put(out / "rules.json", column_rules(ids))
     project = "postgres"
     ontology_version = "ont-pg46-t-803"
     policy = {"id": "pol-pg46-preview", "version": "1"}
@@ -67,4 +91,5 @@ def main():
 
 
 if __name__ == "__main__":
+    _check_rules()
     main()

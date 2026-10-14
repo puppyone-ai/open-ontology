@@ -26,6 +26,9 @@ fn main() -> ExitCode {
         "scale-audit" => scale_audit(&mut args),
         "scale-target" => scale_target(&mut args),
         "scale-guard" => scale_guard(&mut args),
+        "c1-dba" => c1_dba(&mut args),
+        "c1-prove" => c1_prove(&mut args),
+        "c1-expire" => c1_expire(&mut args),
         _ => {
             eprintln!("mysql-preview: usage");
             ExitCode::from(2)
@@ -242,4 +245,38 @@ fn exit_code(code: &str) -> u8 {
 fn capture_cmd(args: &mut impl Iterator<Item = String>) -> ExitCode {
     let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
     block_on(capture_native(&config, &out))
+}
+
+fn c1_dba(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
+    block_on(mysql_preview::configure_dba(&config, &out))
+}
+
+fn c1_prove(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
+    block_on(mysql_preview::prove_c1(&config, &out))
+}
+
+fn c1_expire(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(from), Some(out)) = c1_expire_args(args) else { return ExitCode::from(2); };
+    block_on(mysql_preview::expire_c1(&from.0, &from.1, &out))
+}
+
+fn c1_expire_args(args: &mut impl Iterator<Item = String>) -> (Option<(PathBuf, PathBuf)>, Option<PathBuf>) {
+    let mut config = None;
+    let mut from = None;
+    let mut out = None;
+    while let Some(flag) = args.next() {
+        let value = args.next();
+        match (flag.as_str(), value) {
+            ("--config", Some(path)) => config = Some(PathBuf::from(path)),
+            ("--from", Some(path)) => from = Some(PathBuf::from(path)),
+            ("--out", Some(path)) => out = Some(PathBuf::from(path)),
+            _ => return (None, None),
+        }
+    }
+    match (config, from) {
+        (Some(config), Some(from)) => (Some((config, from)), out),
+        _ => (None, None),
+    }
 }
