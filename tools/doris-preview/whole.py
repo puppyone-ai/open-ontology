@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """One onboard step for the Doris owned fixture.
 
-Captures with the pinned reader on the configured period. Two later ticks
-each observe one new insert, update, and physical delete. A load past the
-installed binding waits for an official pack of that collection.
-Spawns product_flow.py and dialogue.py when the private product config exists.
+The six-field entry attaches to the serving pack and the finished cycles.
+It does not replay fixture DML, import, GRANT, or a new product chain.
 A copied historical receipt is not a result. C1 stays the reader's
 refused_unpublished binlog.
 """
@@ -823,107 +821,298 @@ def official_current_pack():
     return pack_follows(live_collection(), set(archived_pack_catalogs()))
 
 
+API_CONTAINER = 'oo-doris-connection-whole-api'
+API_SHA = '5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d'
+COLLECTION = '12cfb998ab05aef8cd92e55106b4c251240ded5a3c0d52eaece4c31fe1fad54c'
+# ponytail: reuse is pinned to the finished 19/31 cycles. A later legal advance needs a new retained proof; this path does not replay apply_cycle.
+SERVED = {
+    'part_day': (16, 28), 'dup_events': (17, 29), 'uniq_acct': (18, 30), 'nz_obs': (19, 31),
+    'agg_qty': (1, 2), 'dec_exact': (1, 4), 'str_key': (1, 6),
+}
+NOT_RUN = (
+    'mutate_present', 'mutate_delete', 'apply_cycle', 'import_diverged', 'finish_c4',
+    'grant_ack_execute', 'product_chain', 'capture_all', 'capture_partition',
+)
+RETAINED = (
+    'cycles-aa427/period0.json', 'cycles-aa427/period1.json', 'cycles-aa427/period2.json',
+    'random-dialogue/gold.json', 'random-dialogue/bank.json', 'random-dialogue/history.json',
+    'random-dialogue/run-1/selection.json', 'random-dialogue/run-1/transcript.json', 'random-dialogue/run-1/verdict.json',
+    'random-dialogue/run-2/selection.json', 'random-dialogue/run-2/transcript.json', 'random-dialogue/run-2/verdict.json',
+    'random-dialogue/run-a/selection.json', 'random-dialogue/run-a/transcript.json',
+    'cancel-aa427/recovery.json',
+    'current-unloaded-aa427/import/c4/part_day/load.json',
+    'cycles-aa427/import/period2/dup_events/load.json',
+    'cycles-aa427/import/period2/uniq_acct/load.json',
+    'cycles-aa427/import/period2/nz_obs/load.json',
+    'filter-aa427/uniq_id5.stdout', 'filter-aa427/uniq_id5.exit',
+    'filter-aa427/dup_event22.stdout', 'filter-aa427/dup_event22.exit',
+    'filter-aa427/part_20260426.stdout', 'filter-aa427/part_20260426.exit',
+    'filter-aa427/part_region_cycle7.stdout', 'filter-aa427/part_region_cycle7.exit',
+    'filter-aa427/dec_id3.stdout', 'filter-aa427/dec_id3.exit',
+    'filter-aa427/nz_9301.stdout', 'filter-aa427/nz_9301.exit',
+    'gateway/packs/dorispreview.json', 'api-run/bundle/catalog.json',
+    'api-run/bundle/profile.json', 'api-run/bundle/source_semantics.json', 'api-run/bundle/manifest.json',
+)
+TOKEN_FILES = (
+    'gateway/client.token', 'gateway/client.token.expired', 'gateway/client.token.g12',
+    'gateway/client.token.prev-e875', 'gateway/client.token.aa427-read',
+)
+CANCEL_QID = 'q_Jefy6KjLM1pPyl6DeDfxGMBdNW'
+ABSENT_WAL = ('q_869YLE0RUHGZYVHJxdzsq3lKgC', 'q_lohn0ZGv75Eo0dkkDm5QQSjThs')
+DIALOGUE_AT_RUNS = 'bc1e7489c60d96a8e1e8b331bb8341ae130de8f25a6daa3656afcae7633ad5ad'
+
+
+def entry_refusal(claim_retained, pins_match):
+    if claim_retained:
+        return 'whole_claim_retained'
+    if not pins_match:
+        return 'installed_recipe_pins_stale'
+    return 'prove_whole_unsatisfied'
+
+
+def file_meta(path):
+    path = Path(path)
+    if not path.is_file() or path.is_symlink():
+        raise RuntimeError('retained_stage_missing')
+    mode = path.stat().st_mode
+    return {'path': str(path), 'sha256': sha256(path), 'mode': oct(mode & 0o777), 'size': path.stat().st_size, 'uid': path.stat().st_uid}
+
+
+def load_facts(path):
+    body = json.loads(Path(path).read_text())
+    receipt = body.get('partition_target_receipt')
+    scope = receipt.get('partition_scope') if isinstance(receipt, dict) else None
+    return {
+        'logical_table': body.get('logical_table'),
+        'source_generation': body.get('source_generation'),
+        'target_generation': body.get('target_generation'),
+        'loader_invoked': body.get('loader_invoked') is True,
+        'load_state': body.get('load_state'),
+        'row_count': body.get('row_count'),
+        'partition_id': scope.get('partition_id') if isinstance(scope, dict) else None,
+        'partition_receipt': isinstance(receipt, dict),
+    }
+
+
+def wal_for(qid):
+    found = {}
+    for kind in ('admit', 'cancel', 'complete'):
+        path = BASE / 'gateway/wal' / f'{qid}-{kind}.wal'
+        found[kind] = file_meta(path) if path.is_file() and not path.is_symlink() else None
+    return found
+
+
+def installed_card():
+    registry = json.loads((Path.home() / '.cache/oo-source-onboarding/engines.json').read_text())
+    row = registry['engines']['doris']
+    recipe_path = Path(row['recipe'])
+    recipe = json.loads(recipe_path.read_text())
+    pins = []
+    for pin in recipe['pins']:
+        target = Path(pin['path'])
+        live = sha256(target) if target.is_file() and not target.is_symlink() else None
+        pins.append({'path': pin['path'], 'expected_sha256': pin['sha256'], 'live_sha256': live, 'match': live == pin['sha256']})
+    return {
+        'recipe': str(recipe_path),
+        'recipe_sha256': sha256(recipe_path),
+        'registry_recipe_sha256': row.get('recipe_sha256'),
+        'registry_whole': row.get('whole') is True,
+        'registry_whole_proof_sha256': row.get('whole_proof_sha256'),
+        'pins': pins,
+    }
+
+
 def execute(config_path, run):
+    """Attach this entry to the serving pack and the finished stages.
+
+    whole.json is not written. Old DML, import, GRANT, and a new product stay off.
+    """
     if SOCK.exists() and not os.environ.get('DOCKER_HOST'):
         os.environ['DOCKER_HOST'] = 'unix://' + str(SOCK)
     cfg = json.loads(Path(config_path).read_text())
     require_connection(cfg)
     run = Path(run)
-    journal = run / 'lifecycle.json'
-    state = json.loads(journal.read_text()) if journal.exists() else {'phases': {}}
-    before = run / 'before'
-    if 'before' not in state['phases']:
-        capture_all(config_path, before)
-        state['phases']['before'] = sha256(before / 'capture/current.json')
-        write(journal, state)
-    if 'import_before' not in state['phases']:
-        write(run / 'baseline.json', {
-            'protocol': 'oo.doris.baseline/v1', 'loaded': False,
-            'generations': {table: generation(table) for table in TABLES}})
-        state['phases']['import_before'] = 'baseline'
-        write(journal, state)
-    if 'present' not in state['phases']:
-        mutate_present()
-        state['phases']['present'] = True
-        write(journal, state)
-    mid = run / 'mid'
-    if 'mid' not in state['phases']:
-        capture_all(config_path, mid)
-        state['phases']['mid'] = sha256(mid / 'capture/current.json')
-        write(journal, state)
-    if 'import_mid' not in state['phases']:
-        import_diverged(run, 'mid', before / 'capture/current.json', mid / 'capture/current.json', C5_CHANGED)
-        state['phases']['import_mid'] = True
-        write(journal, state)
-    if 'delete' not in state['phases']:
-        mutate_delete()
-        state['phases']['delete'] = True
-        write(journal, state)
-    after = run / 'after'
-    if 'after' not in state['phases']:
-        capture_all(config_path, after)
-        state['phases']['after'] = sha256(after / 'capture/current.json')
-        write(journal, state)
-    finals = {}
-    if 'import_after' not in state['phases']:
-        finals = import_diverged(run, 'after', mid / 'capture/current.json', after / 'capture/current.json', C5_CHANGED)
-        state['phases']['import_after'] = True
-        write(journal, state)
-    if 'period' not in state['phases']:
-        proof = run_period(run, cfg)
-        write(run / 'period.json', proof)
-        state['phases']['period'] = True
-        write(journal, state)
-    else:
-        proof = json.loads((run / 'period.json').read_text())
-    if proof.get('cycles_verified') is not True or proof.get('period_ms') != cfg['period_ms']:
-        raise RuntimeError('period_unverified')
-    # A load past the bound generation waits until that generation's pack is serving.
+    claim = (run / 'whole.json').is_file()
+    mismatches = []
+    source_s, target_s, state = one(psql(
+        "SELECT source_generation::text || ' ' || target_generation::text || ' ' || state "
+        "FROM _oo.source_watermark WHERE source='dorispreview'"), 'watermark').split()
+    source_generation, target_generation = int(source_s), int(target_s)
+    label = one(mysql("SELECT label FROM uniq_acct WHERE id=5"), 'uniq5')
+    if (source_generation, target_generation, state, label) != (19, 31, 'lagging', 'aa427c2'):
+        mismatches.append('served_identity')
+    if 'aa427c2' not in (BASE / 'cycles-aa427/period2.json').read_text():
+        mismatches.append('retained_period')
+    catalog = json.loads((BASE / 'api-run/bundle/catalog.json').read_text())
+    tables, physical = [], []
+    for entry in catalog['entries']:
+        table = entry['tables'][0]
+        name = table['logical_table']
+        stored = table['stored_physical']
+        if not isinstance(stored, str) or not stored.startswith('pt_') or any(c not in '0123456789abcdef' for c in stored[3:]):
+            raise RuntimeError('physical_name')
+        physical.append(stored)
+        tables.append({
+            'logical_table': name, 'source_generation': entry['source_generation'],
+            'target_generation': entry['target_generation'], 'run_id': entry['run_id'],
+            'input_digest': entry['input_digest'], 'stored_physical': stored, 'state': entry['state'],
+        })
+        if SERVED.get(name) != (entry['source_generation'], entry['target_generation']) or entry['state'] != 'awaiting_publish':
+            mismatches.append('table:' + str(name))
+    if [item['logical_table'] for item in tables] != list(SERVED):
+        mismatches.append('table_order')
+    if catalog.get('collection_sha256') != COLLECTION:
+        mismatches.append('collection')
+    profile = json.loads((BASE / 'api-run/bundle/profile.json').read_text())
+    if profile.get('generation_semantics') != 'high_watermark' or (profile.get('source_generation'), profile.get('target_generation')) != (19, 31):
+        mismatches.append('profile_watermark')
+    for name, pair in SERVED.items():
+        row = profile['table_generations']['oo_dl01w1_43.' + name]
+        if (row.get('source_generation'), row.get('target_generation')) != pair:
+            mismatches.append('profile_table:' + name)
+    semantics = json.loads((BASE / 'api-run/bundle/source_semantics.json').read_text())
+    if (semantics.get('source_generation'), semantics.get('target_generation')) != (19, 31):
+        mismatches.append('semantics_watermark')
+    if semantics.get('reader_write_attempts') != 0 or semantics.get('source_full_typed_cell_diff') != 0:
+        mismatches.append('semantics_reads')
+    binding = json.loads((BASE / 'gateway/reviewed/dorispreview/binding.json').read_text())
+    if binding.get('generation') != 19 or binding.get('catalog_version') != COLLECTION or binding.get('role') != 'dorispreview':
+        mismatches.append('binding')
     if not official_current_pack():
-        proof['load_withheld'] = 'current_generation_pack_missing'
-        write(run / 'period.json', proof)
-        raise RuntimeError('current_generation_pack_missing')
-    part = run / 'c4'
-    if 'c4' not in state['phases']:
-        c4_tick = capture_partition(cfg, part, 'p202604')
-        state['phases']['c4'] = sha256(c4_tick)
-        write(journal, state)
-    if 'import_c4' not in state['phases']:
-        finals['part_day'] = finish_c4(run, cfg)
-        state['phases']['import_c4'] = True
-        write(journal, state)
-    for table in TABLES:
-        if table not in finals:
-            finals[table] = catalog_for(run, table)
-    if 'gold' not in state['phases']:
-        report = gold(run, after / 'capture/current.json', finals)
-        state['phases']['gold'] = report.get('all_equal') is True
-        write(journal, state)
-    if 'recovery' not in state['phases']:
-        recovered = recovery(run)
-        state['phases']['recovery'] = recovered['recovery_verified'] is True
-        write(journal, state)
-    tick = json.loads((after / 'capture/current.json').read_text())
-    product, dialogue = product_chain(run)
-    stages = {item['stage'] for item in product.get('stages', []) if item.get('status') == 'succeeded'}
-    periodic = proof.get('cycles_verified') is True and proof.get('period_ms') == cfg['period_ms']
-    verified = (periodic and state['phases'].get('recovery') is True
-                and product.get('protocol') == 'oo.source-onboarding.product/v1'
-                and stages >= {f'S{i}' for i in range(11)}
-                and dialogue.get('outcome') == 'verified' and dialogue.get('turns', 0) >= 2)
-    body = {'protocol': 'oo.doris.connection-whole/v1',
-            'full_product_chain_complete': verified,
-            'periodic_insert_update_delete_verified': periodic,
-            'recovery_verified': state['phases'].get('recovery') is True,
-            'product_receipt': 'product/product-receipt.json',
-            'dialogue_verdict': 'dialogue/verdict.json',
-            'binlog': tick.get('binlog'), 'equal_cursor': tick.get('equal_cursor'),
-            'reader_write_attempts': tick.get('product_reader_write_attempts'),
-            'published': False}
-    write(run / 'whole.json', body)
-    if verified is not True:
-        raise RuntimeError('whole_incomplete')
-    return body
+        mismatches.append('official_current_pack')
+    api_sha = one(subprocess.run(
+        ['docker', 'exec', API_CONTAINER, 'sha256sum', '/api'], capture_output=True, timeout=30), 'api').split()[0]
+    if api_sha != API_SHA:
+        mismatches.append('api_elf')
+    missing = one(psql(
+        "SELECT COALESCE(string_agg(c.relname || '|' || a.attname, ',' ORDER BY c.relname, a.attname), '') "
+        "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "JOIN pg_attribute a ON a.attrelid = c.oid "
+        "WHERE n.nspname = '_oo' AND c.relname IN (" + ','.join("'" + name + "'" for name in physical) + ") "
+        "AND a.attnum > 0 AND NOT a.attisdropped "
+        "AND NOT has_column_privilege('oo_r_dorispreview', c.oid, a.attnum, 'SELECT')"), 'column_acl')
+    observed_missing = sorted(part for part in missing.split(',') if part)
+    if observed_missing != sorted(name + '|_oo_pos' for name in physical):
+        mismatches.append('column_acl')
+    loads = {
+        'c4_part_day': load_facts(BASE / 'current-unloaded-aa427/import/c4/part_day/load.json'),
+        'c5_dup_events': load_facts(BASE / 'cycles-aa427/import/period2/dup_events/load.json'),
+        'c5_uniq_acct': load_facts(BASE / 'cycles-aa427/import/period2/uniq_acct/load.json'),
+        'c5_nz_obs': load_facts(BASE / 'cycles-aa427/import/period2/nz_obs/load.json'),
+    }
+    part = loads['c4_part_day']
+    if not (part['partition_receipt'] and part['partition_id'] == 'p202604' and part['loader_invoked']
+            and (part['source_generation'], part['target_generation']) == (16, 28)):
+        mismatches.append('c4_part_day')
+    for key, expected in (('c5_dup_events', (17, 29, 16)), ('c5_uniq_acct', (18, 30, 4)), ('c5_nz_obs', (19, 31, 0))):
+        row = loads[key]
+        if row['partition_receipt'] or not row['loader_invoked'] or (row['source_generation'], row['target_generation'], row['row_count']) != expected:
+            mismatches.append(key)
+    verdicts = {}
+    gold_sha = sha256(BASE / 'random-dialogue/gold.json')
+    for name in ('run-1', 'run-2'):
+        body = json.loads((BASE / 'random-dialogue' / name / 'verdict.json').read_text())
+        verdicts[name] = {key: body.get(key) for key in (
+            'outcome', 'turns', 'counts_as_random', 'selection', 'model', 'semantic_ids', 'query_ids', 'gold_sha256', 'seed')}
+        tools = set(body.get('tools') or [])
+        if not (body.get('outcome') == 'verified' and type(body.get('turns')) is int and body['turns'] >= 2
+                and body.get('counts_as_random') is True and body.get('selection') == 'random'
+                and body.get('model') == 'grok-4.7' and body.get('reasoning_effort') == 'low'
+                and {'query', 'freshness', 'describe', 'knowledge_cat'} <= tools and body.get('gold_sha256') == gold_sha):
+            mismatches.append('verdict:' + name)
+    ids = [verdicts[name].get('semantic_ids') for name in ('run-1', 'run-2')]
+    if not all(isinstance(item, list) for item in ids) or set(ids[0]) & set(ids[1]):
+        mismatches.append('dialogue_overlap')
+    evidence = [file_meta(BASE / rel) for rel in RETAINED]
+    tokens = [file_meta(BASE / rel) for rel in TOKEN_FILES]
+    qids = [CANCEL_QID, *ABSENT_WAL]
+    for name in ('run-1', 'run-2'):
+        qids.extend(verdicts[name].get('query_ids') or [])
+    filters = []
+    for rel in RETAINED:
+        if not (rel.startswith('filter-aa427/') and rel.endswith('.stdout')):
+            continue
+        payload = json.loads((BASE / rel).read_text())
+        qid = payload.get('query_id')
+        if isinstance(qid, str):
+            qids.append(qid)
+        filters.append({
+            'file': str(BASE / rel), 'exit': int((BASE / rel.replace('.stdout', '.exit')).read_text().strip()),
+            'query_id': qid, 'code': payload.get('code'), 'rows': payload.get('rows'), 'columns': payload.get('columns'),
+        })
+    card = installed_card()
+    pins_match = bool(card['pins']) and all(pin['match'] for pin in card['pins']) and card['recipe_sha256'] == card['registry_recipe_sha256']
+    if card['recipe_sha256'] != card['registry_recipe_sha256']:
+        default_refusal = 'installed_recipe_drift'
+    elif not pins_match:
+        default_refusal = 'pin_drift'
+    else:
+        default_refusal = 'pins_current_prove_whole_unsatisfied'
+    pointer = json.loads((BASE / 'six-field.json.run.json').read_text())
+    pointer_out = Path(pointer['out'])
+    receipt_path = pointer_out / 'product/product-receipt.json'
+    receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
+    e875_whole = pointer_out / 'whole.json'
+    grant = json.loads((BASE / 'gateway/grant.json').read_text())
+    role = {key: grant.get(key) for key in ('role', 'kind', 'project_id', 'principal_id', 'policy_version', 'knowledge_version')}
+    if role.get('role') != 'oo_r_dorispreview':
+        mismatches.append('client_role')
+    pid = subprocess.run(['ps', '-p', '31458', '-o', 'pid='], capture_output=True, text=True)
+    refusal = 'whole_claim_retained' if claim else ('served_source_moved' if mismatches else entry_refusal(False, pins_match))
+    callback = {
+        'protocol': 'oo.doris.entry-callback/v1',
+        'whole': False, 'published': False, 'formal_signoff': False, 'full_product_chain_complete': False,
+        'customer_writes': 0, 'refusal': refusal, 'default_entry_refusal': default_refusal,
+        'session': 'aa427924-9c4b-4a5e-ae15-9a2aef414d44', 'manuscript_owner': OWNER,
+        'shared_registry_owner': '86947', 'dialogue_verifier_writer': '26ae6875-cfaf-457a-b566-ab548bdc6989',
+        'source_generation': source_generation, 'target_generation': target_generation, 'state': state,
+        'uniq_id5_label': label, 'generation_semantics': profile.get('generation_semantics'),
+        'tables': tables, 'collection_sha256': catalog.get('collection_sha256'),
+        'binding': {key: binding.get(key) for key in ('generation', 'catalog_version', 'schema_hash', 'role', 'source_id', 'login', 'ontology_version')},
+        'client_role': role, 'column_acl_without_select': observed_missing,
+        'semantics_capture_methods': semantics.get('capture_methods'),
+        'c4_is_partition_load': part['partition_id'] == 'p202604',
+        'c5_not_substituted_for_c4': part['partition_receipt'] and all(not loads[key]['partition_receipt'] for key in ('c5_dup_events', 'c5_uniq_acct', 'c5_nz_obs')),
+        'c3': 'not_used', 'loads': loads, 'api_sha256': api_sha,
+        'whole_py_sha256': sha256(Path(__file__)), 'product_flow_sha256': sha256(PRODUCT_FLOW),
+        'dialogue_py_sha256': sha256(DIALOGUE), 'dialogue_py_sha256_at_random_runs': DIALOGUE_AT_RUNS,
+        'pack_sha256': sha256(BASE / 'gateway/packs/dorispreview.json'),
+        'verdicts': verdicts, 'filters': filters, 'evidence': evidence, 'tokens': tokens,
+        'wal': {qid: wal_for(qid) for qid in qids}, 'recovery': file_meta(BASE / 'cancel-aa427/recovery.json'),
+        'e875': {
+            'attached': False, 'out': str(pointer_out), 'pointer_sha256': sha256(BASE / 'six-field.json.run.json'),
+            'input_sha256': pointer.get('input_sha256'),
+            'whole_sha256': sha256(e875_whole) if e875_whole.is_file() else None,
+            'producer': receipt.get('producer'), 'producer_sha256': receipt.get('producer_sha256'),
+            'source_fresh_on_receipt': receipt.get('source_fresh'), 'receipt_catalog_sha256': receipt.get('catalog_sha256'),
+            'trust': 'original producer retained; generation 19 catalog is not that receipt',
+        },
+        'installed_card': card, 'mismatches': mismatches,
+        'pid_31458_absent': pid.returncode != 0 and not pid.stdout.strip(),
+        'not_run': list(NOT_RUN),
+        'blocked_on': {
+            'owner': '86947', 'path': 'tools/source-onboarding/onboard.py',
+            'symbols': ['prove_whole', 'direct_step', 'resume_identity_ok'], 'commit': '53eb5c115',
+            'tokens': ['pin_drift', 'source_not_fresh', 'historical_completion_attached', 'product_resume_drift'],
+            'reason': 'The installed card pins whole.py, product_flow.py, and dialogue.py to older bytes, so the default six-field entry raises pin_drift before it creates a run directory. e875 keeps producer b20148b6. That receipt is source_fresh only for catalog ed7c4168. Attaching it to collection 12cfb998 would be source_not_fresh. Copying the receipt without launching product_flow and dialogue in this step is historical_completion_attached. A catalog from another build is product_resume_drift. The foreign product_flow pin is not restored.',
+        },
+        'next_call': 'register_engine by owner 86947 only after the pins match the committed bytes and the recipe can satisfy prove_whole. This entry does not write the registry and does not launch a new product.',
+    }
+    if cancel_wal_missing(callback):
+        mismatches.append('cancel_wal')
+        callback['mismatches'] = mismatches
+        if not claim and not mismatches[:-1]:
+            callback['refusal'] = 'served_source_moved'
+            refusal = 'served_source_moved'
+    if not claim:
+        write(run / 'entry-callback.json', callback)
+    write(BASE / 'entry-callback.json', callback)
+    raise RuntimeError(refusal)
+
+
+def cancel_wal_missing(callback):
+    cancel = callback['wal'][CANCEL_QID]
+    return cancel['admit'] is None or cancel['cancel'] is None or cancel['complete'] is None
 
 
 def demo():
@@ -960,6 +1149,14 @@ def demo():
     assert cycle1_targets(True, 'cycle7') == {'nz_9101': False, 'label_cycle6': False}
     assert cycle1_targets(False, 'cycle7') == {'nz_9101': False, 'label_cycle6': False}
     assert cycle1_targets(False, 'native_full') == {'nz_9101': True, 'label_cycle6': True}
+    import inspect
+    body = inspect.getsource(execute)
+    for name in NOT_RUN:
+        assert name + '(' not in body
+    assert 'whole.json' in body and "write(run / 'whole.json'" not in body
+    assert entry_refusal(True, False) == 'whole_claim_retained'
+    assert entry_refusal(False, False) == 'installed_recipe_pins_stale'
+    assert entry_refusal(False, True) == 'prove_whole_unsatisfied'
 
 
 def main():
@@ -974,7 +1171,7 @@ def main():
         print(json.dumps(execute(sys.argv[1], sys.argv[2])))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError, StopIteration) as exc:
-        print('doris-whole: ' + type(exc).__name__, file=sys.stderr)
+        print('doris-whole: ' + type(exc).__name__ + ': ' + str(exc), file=sys.stderr)
         return 2
 
 

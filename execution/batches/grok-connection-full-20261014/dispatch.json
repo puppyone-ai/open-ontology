@@ -105,7 +105,7 @@
   {
     "task": "clickhouse",
     "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-    "pid": 89435,
+    "pid": 17346,
     "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
     "write_paths": [
@@ -114,18 +114,18 @@
       "tools/agent-product-verifier/tests/test_dialogue.py",
       "tools/agent-product-verifier/CONTRACT.md"
     ],
-    "status": "same_owner_live_random_raw_and_current_auto_full_source",
+    "status": "same_owner_live_current_maintenance_and_true_default_entry",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 29571,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-random-raw-current-autonomous-full.md",
+    "prior_pid": 89435,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-current13-maint-before-model.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 parts/partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 30151
+    "tool_handle": 17118
   },
   {
     "task": "doris",
@@ -267,7 +267,7 @@
   {
     "task": "shared-entry",
     "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-    "pid": 86947,
+    "pid": 18370,
     "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
     "write_paths": [
@@ -287,19 +287,19 @@
       "tools/selfbuild-control-api/tests/builder_inputs.rs",
       "tools/selfbuild-control-api/tests/oracle-g3-g5"
     ],
-    "status": "same_owner_live_actual_random_default_registration_product",
+    "status": "same_owner_live_current_maintenance_and_true_default_entry",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 120,
     "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
     "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-    "prior_pid": 53810,
+    "prior_pid": 86947,
     "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-real-registration-source-facts-whole.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-real-source-default-final.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
-    "tool_handle": 42237
+    "tool_handle": 60416
   },
   {
     "task": "infra",

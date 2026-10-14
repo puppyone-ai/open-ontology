@@ -47,6 +47,9 @@ fn main() -> ExitCode {
     if env::args().nth(1).as_deref() == Some("--c1-run") {
         return c1_run();
     }
+    if env::args().nth(1).as_deref() == Some("--c1-prepare") {
+        return c1_prepare();
+    }
     let mut source_id = None;
     let mut secret_ref = None;
     let mut driver_digest = None;
@@ -299,6 +302,31 @@ fn emit_native() -> ExitCode {
         return ExitCode::from(1);
     }
     ExitCode::from(0)
+}
+
+fn c1_prepare() -> ExitCode {
+    let mut config = None;
+    let mut spool = None;
+    let mut out = None;
+    let mut args = env::args().skip(2);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--config" => config = args.next(),
+            "--spool" => spool = args.next(),
+            "--out" => out = args.next(),
+            _ => return usage(),
+        }
+    }
+    let (Some(config), Some(spool), Some(out)) = (config, spool, out) else {
+        return usage();
+    };
+    match mongodb_preview::c1::prepare(&config, &spool, &out) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(detail) => {
+            eprintln!("mongodb-preview: c1 prepare {detail}");
+            ExitCode::from(1)
+        }
+    }
 }
 
 fn c1_run() -> ExitCode {
@@ -878,7 +906,7 @@ fn write_json(path: &str, value: &serde_json::Value) -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "mongodb-preview --customer FILE --source-id ID --secret-ref secret://NAME --driver-digest HEX --permission ROLE --budget-unit UNIT --budget-limit N --out decision.json --gap-out gap.json [--read-object NAME] [--pg-builder BIN --work-dir DIR --arrow FILE --census FILE]\nmongodb-preview --plan-sync --request FILE --out FILE\nmongodb-preview --diff-sync --request FILE --out FILE\nmongodb-preview --decode-docs --hex FILE --out FILE\nmongodb-preview --seal-docs --request FILE --out FILE\nmongodb-preview --mutate-set --request FILE --out FILE\nmongodb-preview --profile-doc --catalog FILE --envelope FILE --out FILE\nmongodb-preview --importer-request --request FILE --out FILE\nmongodb-preview --bind-pack --seal FILE --audit FILE --generation N --out-dir DIR --arrow-path FILE --receipt-path FILE --registry-path FILE --catalog-path FILE --driver FILE --password-file FILE --database NAME --port N --shard NAME --owner UUID [--parent N] [--full-snapshot] [--unclassified FILE]\nmongodb-preview --c1-run --config FILE"
+        "mongodb-preview --customer FILE --source-id ID --secret-ref secret://NAME --driver-digest HEX --permission ROLE --budget-unit UNIT --budget-limit N --out decision.json --gap-out gap.json [--read-object NAME] [--pg-builder BIN --work-dir DIR --arrow FILE --census FILE]\nmongodb-preview --plan-sync --request FILE --out FILE\nmongodb-preview --diff-sync --request FILE --out FILE\nmongodb-preview --decode-docs --hex FILE --out FILE\nmongodb-preview --seal-docs --request FILE --out FILE\nmongodb-preview --mutate-set --request FILE --out FILE\nmongodb-preview --profile-doc --catalog FILE --envelope FILE --out FILE\nmongodb-preview --importer-request --request FILE --out FILE\nmongodb-preview --bind-pack --seal FILE --audit FILE --generation N --out-dir DIR --arrow-path FILE --receipt-path FILE --registry-path FILE --catalog-path FILE --driver FILE --password-file FILE --database NAME --port N --shard NAME --owner UUID [--parent N] [--full-snapshot] [--unclassified FILE]\nmongodb-preview --c1-run --config FILE\nmongodb-preview --c1-prepare --config FILE --spool FILE --out DIR"
     );
     ExitCode::from(2)
 }
