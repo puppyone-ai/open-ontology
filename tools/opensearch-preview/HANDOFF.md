@@ -1,14 +1,15 @@
 # Handoff
 
-Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, dialogue, gateway, and governance sources were not edited. Customer fixture stayed read-only. No push.
+Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The C5 period is configured at 1000 ms and the schedule is disabled. No persistent worker is in process. A further generation waits on root's per-table ACL compiler. This source will not GRANT and will not edit `onboard.py`.
+
+Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, dialogue, gateway, pipeline, and governance sources were not edited. Customer fixture stayed read-only. No push.
 
 ## Current proof
 
 - Run directory: `/Users/redux/.cache/oo-source-onboarding/runs/4458418024444808b4bf3731b53b6cb7` mode 0700.
 - Onboard stdout: `{"state":"recipe_completed","mode":"whole_source","whole":true,"published":false}`.
 - Registry: opensearch `whole` true, `whole_proof_sha256` `4a5eb3700ed5faf4b3f2d2c7689e0dd79e8b43d17bf895c048d8a4e194389f03`, recipe `1e50d79629a113b7a94220879e033f3893d2e7f0ebc02ff26526722bf33c8615`. File mode 0600. Journal identity still records the resume-time registry hash `51308e7ae6a032d4085f35f1648d4fe056e3a67fb6723d6aeef43342b84f59f9`. Do not resume this run; a later registry write changes that hash.
-- Working `whole.py` pin used by the run: `a50e5fa2d905cc571b95a5199ba7677042b4c902c78a67ea93ba3d3532fd2a42`.
-- Pre-commit HEAD content of `whole.py`: `db834d1aa2e7244ebc77ba4cf0ea5f29e89a2ad34d7f9e8642fa9f14a5e3487a`.
+- `whole.py` content pin, matching the run and commit `a7909d5c4929f61e20905a3921a3db035a4f4603`: `a50e5fa2d905cc571b95a5199ba7677042b4c902c78a67ea93ba3d3532fd2a42`.
 
 ## Resources left running
 
@@ -31,4 +32,12 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 
 ## Do not repeat
 
-Recovery CAS, native-step, the live cancel, and the paid dialogue. S5 for this build is the existing file above. A new onboard input would be a different run; this watermark is already 6.
+Recovery CAS, the generation-6 `native-step`, the live cancel, and the paid dialogue. S5 for this build is the existing file above. Do not `--resume` this run: the global registry digest is no longer `51308e7a…`. Do not rewrite the journal to match it.
+
+## Root case
+
+Per-table ACL compile for a generation after 6. `oo_r_ledger` has no default table SELECT. Shared resume drift when another engine rewrites `engines.json` stays with root `d28ca4bd`.
+
+## Source after current
+
+`/tmp/oo-opensearch-connection-whole/source-after-current-20261014` Arrow `bc7a18d90b521bd71d25ea05e853819e7a74af0e8f071b7c8af2d78ad8d7bed5`, same as generation 6, reader mutations 0. Machine receipt `/tmp/oo-opensearch-connection-whole/WHOLE-RECEIPT.json` records `goal_complete` false.

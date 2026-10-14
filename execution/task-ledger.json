@@ -8594,7 +8594,7 @@
         "write_paths": [
           "tools/mariadb-preview"
         ],
-        "status": "same_owner_persistent_original_exits",
+        "status": "waiting_shared_local_model_budget_same_owner_reserved",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 207,
         "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
@@ -8759,7 +8759,8 @@
           "tools/selfbuild-control-api/tests/native_import.rs",
           "tools/pg-builder/src/sealed.rs",
           "tools/pg-builder/CONTRACT.md",
-          "tools/pg-builder/tests/contract.rs"
+          "tools/pg-builder/tests/contract.rs",
+          "tools/selfbuild-control-api/src/stages.rs"
         ],
         "status": "same_owner_shared_product_dependency_long_run",
         "executor": "grok-4.7/xhigh",
@@ -8839,14 +8840,21 @@
       "tools/selfbuild-control-api/tests/native_import.rs",
       "tools/pg-builder/src/sealed.rs",
       "tools/pg-builder/CONTRACT.md",
-      "tools/pg-builder/tests/contract.rs"
+      "tools/pg-builder/tests/contract.rs",
+      "tools/selfbuild-control-api/src/stages.rs"
     ],
     "current_pending_link_cases": [
       "shared source-money-projection before validation",
       "selected engine stable identity for unrelated registry registration",
       "PG mixed current per-table vector3/5/13",
       "ordinary default entry and actual sustained current ontology/Pack"
-    ]
+    ],
+    "mariadb_local_budget_case": {
+      "api_runtime": 90000,
+      "existing_local_generate_limit": 180000,
+      "owner": "shared-entry/d28ca4bd",
+      "source_owner": "mariadb/2b95896a"
+    }
   },
   "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。",
   "ordinary_event_wait_seconds": 600,
