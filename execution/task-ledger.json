@@ -8685,10 +8685,11 @@
         "write_paths": [
           "tools/source-onboarding"
         ],
-        "status": "resumed_complete_entry_integration",
+        "status": "terminal_dependency_handoff",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 120,
-        "prior_delivery": "69f9f3fc5 gate/test only; zero installed whole source recipe"
+        "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
+        "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive"
       },
       {
         "task": "infra",
@@ -8714,11 +8715,11 @@
     "last_actual_observation": "12 exact session UUID/PID commands confirmed live; infra receipt not yet present",
     "initial_intake": "execution/reviews/grok-connection-resume-20261014/initial-intake.json",
     "shared_entry_intake": {
-      "source": "69f9f3fc5b6f20d0f49a729c67291c243dc4bf75",
-      "root_host_tests": "7/7 passed after prior active-writer failure",
-      "complete_six_field_whole_runs": 0,
-      "resume_pid": 6230,
-      "acceptance": "component only, full one-command chains incomplete"
+      "source": "f58d543b9f1947bdd30f90fd04ffa80eba9c1f6f",
+      "actual_six_field_run": "a223a74bb93241f1b6ff5d771570eed2",
+      "result": "failed at exited source-owned Gateway/TLS before product_flow or dialogue, no whole acceptance",
+      "dependency": "OpenSearch owner TLS/legitimate project scope; other source whole recipes",
+      "status": "terminal handoff, resume when actual source dependency ready"
     },
     "latest_partial_intakes": [
       "execution/reviews/grok-connection-resume-20261014/oracle-source-progress-intake.json",

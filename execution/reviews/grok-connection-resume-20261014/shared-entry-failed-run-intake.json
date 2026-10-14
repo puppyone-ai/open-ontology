@@ -1,0 +1,10 @@
+{
+  "source": "f58d543b9f1947bdd30f90fd04ffa80eba9c1f6f",
+  "actual_run": "/Users/redux/.cache/oo-source-onboarding/runs/a223a74bb93241f1b6ff5d771570eed2",
+  "journal_sha256": "d8a1dd3d32023126c78611f2f8e642a96ca2258006ca6f39d2f4106b9f01fa4b",
+  "state": "failed",
+  "acceptance": "failed one-command run retained, not complete product",
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0,
+  "next_owner": "OpenSearch owns TLS/gateway/source fixes; shared entry stopped at genuine dependency"
+}

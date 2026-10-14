@@ -149,10 +149,11 @@
     "write_paths": [
       "tools/source-onboarding"
     ],
-    "status": "resumed_complete_entry_integration",
+    "status": "terminal_dependency_handoff",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 120,
-    "prior_delivery": "69f9f3fc5 gate/test only; zero installed whole source recipe"
+    "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
+    "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive"
   },
   {
     "task": "infra",
