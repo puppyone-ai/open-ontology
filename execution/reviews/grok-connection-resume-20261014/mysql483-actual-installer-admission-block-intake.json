@@ -1,0 +1,20 @@
+{
+  "source": "mysql",
+  "author_receipt": "/Users/redux/.cache/oo-mysql-connection-whole/c1/handoff/installer-abi.json",
+  "fixed_pipeline": "4839969eb",
+  "binary_sha256": "5452bc01e70775a8d3b900e60c06ec488c6b44e59f41bfb47085be2b16a5ccb9",
+  "root_owned_target_readonly_check": {
+    "path": "/tmp/oo-root-mysql-gtid-install-check/functions-admin.stdout",
+    "sha256": "d0ce41c6fbcb47871ce122945a85804c0c729beec3c958f3f63831c801e4a3b5",
+    "exit": 0,
+    "result": "all four GTID functions absent"
+  },
+  "first_root_probe": "wrong assumed postgres role; exit2, preserved raw; corrected actual Docker POSTGRES_USER=oo_admin",
+  "two_internal_blockers": {
+    "official_installer_caller": "Maria sole native_update.rs install_document still stops0023",
+    "actual_admission": "SQL sole tools/source-admission/src/capture.rs binds only PG transaction_scope, no GTIDscope"
+  },
+  "lease_held_author": false,
+  "source_customer_write_attempts_author": 0,
+  "no_acceptance_change": true
+}

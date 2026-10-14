@@ -9464,5 +9464,76 @@
     "accepted_full_sources": 0,
     "random_verified_subexits": 4,
     "shared_entry": "fixed_ready_reserved_registered_recipe_handoff"
+  },
+  "latest_mysql_actual_installer_and_admission_gap": {
+    "at": "2026-10-15T00:42:22.273870+08:00",
+    "note": "2026-10-15 600s事件窗口被MySQL98647退出打断即收：author真实officialinstaller5452只到0023/noGTIDdigest、target四GTID funcs缺，root用ownedoo_admin只读to_regprocedure四NULL核（首次wrongpostgres roleexit2原留），源码install_documentcaller缺归Maria8436；captureMaterial/registry只有PGtransaction_scope无gtid_scope、原9a739 admission不支持，唯一SQL7df scope补精确两内部production接口，不fake admitted/epoch/手SQL。source原spool017GTID unchanged，lease不占/customer源0写；原ownerterminalreserveactual依赖停止paididle，broker及SQL当前card写明缺口供phase读取非live RPC，未宣称已消费。其他当前exactmanagedlive9继续longwhole；source0/10/random4/10/Plan计数Goal整版支持级无变化。intake mysql483-actual-installer-admission-block-intake.json。",
+    "managed_live": [
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 98649,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mongodb",
+        "pid": 10014,
+        "session_uuid": "3005fbfd-413f-49ba-81dc-3649a8304ef1",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "doris",
+        "pid": 7632,
+        "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 2203,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 2201,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 2205,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+        "tool_handle": null
+      }
+    ],
+    "full_accepted": 0,
+    "random_verified": 4
   }
 }

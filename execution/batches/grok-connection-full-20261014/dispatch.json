@@ -8,7 +8,7 @@
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "durable_fresh_same_whole_source_actual_gtid483_consumer",
+    "status": "terminal_reserved_actual_installer_caller_and_admission_Gtid_scope",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
     "prior_pid": 3066,
