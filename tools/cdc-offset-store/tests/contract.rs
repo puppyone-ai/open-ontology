@@ -487,6 +487,65 @@ fn mariadb_gtid_does_not_max_a_set_or_another_domain() {
     );
 }
 
+#[test]
+fn mongo_cluster_time_does_not_checkpoint_a_weak_or_cross_table_receipt() {
+    let mut weak = receipt("items", "txn-1", "11", 4, false, false, true);
+    weak.position_codec = "mongo-cluster-time/v1".to_owned();
+    weak.position_lineage = "rs0".to_owned();
+    let first = binding(None, &["items"], "txn-1", "11", "txn-2", "12");
+    assert_eq!(
+        checkpoint(&weak, std::slice::from_ref(&weak), None, &first).unwrap(),
+        Checkpoint::Skip("cross_table_inconsistent")
+    );
+
+    let mut crossed = weak.clone();
+    crossed.cross_table_consistent = true;
+    assert_eq!(
+        checkpoint(&crossed, std::slice::from_ref(&crossed), None, &first),
+        Err("receipt_rule")
+    );
+
+    let mut token = weak.clone();
+    token.position_codec = "mongo-resume-token/v1".to_owned();
+    token.applied_pos = "11".to_owned();
+    assert_eq!(
+        checkpoint(&token, std::slice::from_ref(&token), None, &first),
+        Err("receipt_rule")
+    );
+
+    let mut other = weak.clone();
+    other.txn_or_batch_id = "txn-2".to_owned();
+    other.applied_pos = "12".to_owned();
+    other.position_lineage = "rs1".to_owned();
+    let stored = Watermark {
+        position_codec: "mongo-cluster-time/v1".to_owned(),
+        position_lineage: "rs0".to_owned(),
+        source_epoch: 4,
+        applied_pos: "11".to_owned(),
+        applied_txn_id: "txn-1".to_owned(),
+        declared_next_txn: "txn-2".to_owned(),
+        declared_next_pos: "12".to_owned(),
+    };
+    let next = binding(
+        Some(CheckpointRef {
+            position_codec: "mongo-cluster-time/v1".to_owned(),
+            position_lineage: "rs0".to_owned(),
+            source_epoch: 4,
+            applied_pos: "11".to_owned(),
+            txn_or_batch_id: "txn-1".to_owned(),
+        }),
+        &["items"],
+        "txn-2",
+        "12",
+        "txn-3",
+        "13",
+    );
+    assert_eq!(
+        checkpoint(&other, std::slice::from_ref(&other), Some(&stored), &next).unwrap(),
+        Checkpoint::Skip("cross_table_inconsistent")
+    );
+}
+
 fn sample_endpoint(database: &str) -> serde_json::Value {
     serde_json::json!({
         "host": "db.example",

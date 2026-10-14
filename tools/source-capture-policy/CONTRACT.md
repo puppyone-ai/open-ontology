@@ -82,6 +82,16 @@ not implemented, and MariaDB domain-server rules are not applied to it.
 `mysql-binlog-pos/v1` is comparable only for the same MySQL instance and is
 expired after failover.
 
+Explicit MongoDB C1 uses `mongo-cluster-time/v1` at grade S0 or B. Grade T
+and a transaction boundary are `mongo_t_unverified`. Auto selection still
+requires T, so this profile is not promoted. A resume token
+(`mongo-resume-token/v1`) is opaque and is not a position. `history_lost`
+(change-stream 286 or 136) expires the position and does not continue the
+token. A weak table does not become transactional. PostgreSQL, MySQL, and
+MariaDB C1 still require grade T. `MethodInput.source_epoch` is the
+registered baseline for that lineage. A capture row with no epoch field
+does not fill it. `history_lost` defaults to false.
+
 When an offset block is present, each planned table is bound on its own.
 Its generation must be the selected generation or listed in
 `required_table_generations`, and a receipt row for that generation must

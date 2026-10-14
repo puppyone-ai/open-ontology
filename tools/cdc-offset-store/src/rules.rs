@@ -21,12 +21,13 @@ pub const PREFLIGHT_SHA256: &str =
 pub const HISTORICAL_V2_SHA256: &str =
     "59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512";
 
-const CODECS: [&str; 5] = [
+const CODECS: [&str; 6] = [
     "pg-commit-lsn/v1",
     "mysql-binlog-pos/v1",
     "batch-cursor-us/v1",
     "snapshot-zero/v1",
     "mariadb-gtid/v1",
+    "mongo-cluster-time/v1",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -132,7 +133,14 @@ fn position_closed(codec: &str, lineage: &str, pos: &str) -> bool {
     if codec == "mariadb-gtid/v1" {
         return maria_stored(lineage, pos);
     }
+    if codec == "mongo-cluster-time/v1" {
+        return token_lineage(lineage) && mongo_pos(pos);
+    }
     codec_ok(codec) && token_lineage(lineage) && pos_ok(pos)
+}
+
+fn mongo_pos(pos: &str) -> bool {
+    pos_ok(pos) && pos != "0"
 }
 
 fn trim_zero(value: &str) -> &str {
@@ -158,6 +166,7 @@ pub fn receipt_closed(receipt: &Receipt) -> bool {
             &receipt.applied_pos,
         )
         && receipt.source_epoch >= 0
+        && mongo_not_cross_table(receipt)
         && completion_ok(receipt)
         && segment_shape(receipt)
         && token_lineage(&receipt.fence_shard)
@@ -345,6 +354,13 @@ fn hold_reason(receipt: &Receipt, siblings: &[Receipt], binding: &OrderBinding) 
         }
     }
     None
+}
+
+/// A weak MongoDB clusterTime cannot carry the cross-table flag. The
+/// watermark still moves only when that flag is true, so this receipt cannot
+/// checkpoint.
+fn mongo_not_cross_table(receipt: &Receipt) -> bool {
+    receipt.position_codec != "mongo-cluster-time/v1" || !receipt.cross_table_consistent
 }
 
 fn completion_ok(receipt: &Receipt) -> bool {

@@ -65,7 +65,7 @@
       "crates/oo-gateway/src/query_executor.rs",
       "tools/source-capture-policy/src/model.rs"
     ],
-    "status": "same_owner_live_critical_foundation_then_original_full_source",
+    "status": "terminal_reserved_fixed60_SQL_instance_epoch_install_dependency",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",

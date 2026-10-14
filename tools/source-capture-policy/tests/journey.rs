@@ -87,6 +87,7 @@ fn pg_method(position: &str, lag: u64, window: u64) -> MethodInput {
             lag_seconds: lag,
         }),
         as_of: None,
+        history_lost: false,
     }
 }
 
@@ -1039,4 +1040,85 @@ fn mariadb_gtid_compares_one_domain_and_mysql_uuid_does_not() {
         .unwrap()
         .iter()
         .any(|item| item == "POSITION_EXPIRED"));
+}
+
+fn mongo_method(grade: Grade) -> MethodInput {
+    let mut method = pg_method("11", 1, 864000);
+    method.family = "mongodb".to_owned();
+    method.position_codec = "mongo-cluster-time/v1".to_owned();
+    method.position_lineage = "rs0".to_owned();
+    method.consistency_ceiling = grade;
+    method.transaction_boundary = false;
+    method.same_source_uuid = false;
+    method.source_epoch = 4;
+    method.window_low = None;
+    method.window_high = None;
+    method
+}
+
+#[test]
+fn explicit_mongo_c1_stays_weak_and_auto_does_not_promote() {
+    let auto = request(
+        vec![table("shop.items", "items_g1", mongo_method(Grade::S0))],
+        vec![],
+    );
+    let (code, body) = run(&auto);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "no_eligible_method");
+    assert!(body["tables"][0]["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "c1_requires_t"));
+    assert_eq!(body["transactional_allowed"], false);
+
+    let mut plan = request(
+        vec![table("shop.items", "items_g1", mongo_method(Grade::S0))],
+        vec![],
+    );
+    plan.sync = SyncMode::Explicit;
+    plan.tables[0].explicit_method = Some(CaptureMethod::C1);
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], Value::Null);
+    assert_eq!(body["tables"][0]["capture_method"], "C1");
+    assert_eq!(body["tables"][0]["consistency_grade"], "S0");
+    assert_eq!(body["transactional_allowed"], false);
+    assert_eq!(body["tables"][0]["resume_opaque"], false);
+
+    plan.tables[0].methods[0].consistency_ceiling = Grade::T;
+    plan.tables[0].methods[0].transaction_boundary = true;
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "mongo_t_unverified");
+    assert_eq!(body["transactional_allowed"], false);
+
+    plan.tables[0].methods[0] = mongo_method(Grade::S0);
+    plan.tables[0].methods[0].history_lost = true;
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["consistency_grade"], "S0");
+    assert_eq!(body["tables"][0]["advance_capture_position"], false);
+    assert_eq!(body["tables"][0]["continue_from_latest"], false);
+    assert_eq!(body["tables"][0]["resume_opaque"], false);
+    assert_eq!(body["transactional_allowed"], false);
+    assert!(body["tables"][0]["statuses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "POSITION_EXPIRED"));
+    assert!(body["tables"][0]["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "history_lost"));
+
+    let mut token = mongo_method(Grade::S0);
+    token.position_codec = "mongo-resume-token/v1".to_owned();
+    token.token_order = TokenOrder::Opaque;
+    token.applied_pos = None;
+    plan.tables[0].methods[0] = token;
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "resume_token_not_ordered");
 }

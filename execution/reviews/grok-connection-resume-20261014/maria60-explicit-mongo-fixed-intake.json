@@ -1,0 +1,10 @@
+{
+  "source_commit": "60a99c24f07504662a1cd969090c609b0274f7a3",
+  "native_update_source_sha256": "66d202de69b6fe0b656f95b27e5fb684cd6db3a51f6065d1181aaca5c12e15bf",
+  "raw_logs": {
+    "/Users/redux/.cache/oo-mariadb-connection-whole/linux-194-mongo/test.log": "2095ee0032341b7ef007fa0fd24fe042e6e7924ba094d23670a1084548279465",
+    "/Users/redux/.cache/oo-mariadb-connection-whole/linux-194-mongo/test-pipeline.log": "2042e2714fb306a5596a1344d1513330821c8febe87c74997f9f3487fa51a2ad"
+  },
+  "scope": "author Linux194 logs show named filter passes; no standalone productionELF/liveapply/ACK/install proven; no doubled count for repeated log test summaries",
+  "remaining": "SQL0024/binding/real source epoch/controloffset migration and native schedule actualconsumption"
+}
