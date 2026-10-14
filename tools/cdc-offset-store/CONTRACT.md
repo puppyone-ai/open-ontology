@@ -22,7 +22,7 @@ The target session is a least-privileged reader: `SELECT` on `_oo.schema_migrati
 
 ## Target read
 
-Read `schema_migrations`, then the required receipts for this source and transaction. The selected table must be present. Closed receipt rules are checked again in this crate, including config/v1, type-policy/v1, batch/v1, the four codecs, completion triples, and segment shape. A missing selected row is `target_receipt_absent`. A rule failure on the selected row or a sibling is `receipt_rule` and writes nothing. Migration mismatch is `migration_drift` and writes nothing.
+Read `schema_migrations`, then the required receipts for this source and transaction. The selected table must be present. Closed receipt rules are checked again in this crate, including config/v1, type-policy/v1, batch/v1, the closed codecs, completion triples, and segment shape. A missing selected row is `target_receipt_absent`. A rule failure on the selected row or a sibling is `receipt_rule` and writes nothing. Migration mismatch is `migration_drift` and writes nothing.
 
 The receipt hash is SHA-256 of the `cdc-offset-receipt/v1` document: one `key=value` line per typed column, including the canonical UTC `target_commit_at`. An existing control row with the same identity and a different hash is `receipt_hash_conflict`. A unique violation on insert is reported as that same fault; this proof is single-writer and does not re-read a concurrent same-hash insert.
 
@@ -43,6 +43,10 @@ Partial segments, incomplete required tables, a source gap, an epoch or lineage 
 ## Commit uncertainty
 
 A lost control `COMMIT` reply is looked up before another attempt. The same hash is `replay`. Absence retries once on a normal connection. A second loss, or `CDC_OFFSET_RECONCILE=down`, is `commit_unknown` and does not retry. A crash after the target commit and before the mirror is a later mirror of the same target row.
+
+## MariaDB GTID
+
+`mariadb-gtid/v1` stores one domain-server-sequence. `position_lineage` is `d{domain}.s{server}` and `applied_pos` is that sequence, a checked integer of at most 20 digits. Domain is a canonical u32. Server is a canonical u32 other than 0. A comma-separated set is `receipt_rule`. Another domain or server is `lineage_barrier` and is not ordered by sequence. A skipped sequence is `source_gap` unless this receipt is the caller-declared next. The same transaction and sequence is `already_checkpoint`. Another epoch is `epoch_barrier`. `mysql-binlog-pos/v1` is not this codec. `mysql-gtid/v1` is not accepted: same-source UUID GTID set order is not implemented. `ack_allowed` stays false.
 
 ## Outside this crate
 

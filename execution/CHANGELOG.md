@@ -1191,3 +1191,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 随机对话验收器93ab055de固定archives独立复跑11tests全部通过，原工具7接口/任意合法query、facts成功QID及独立WAL不降低；bank4..8/两类不同gold、freshseed随机、prior_manifest排除上一题、replay不计新随机、resume冻结gold/identity/题目一致、非法配置call前拒与legacy标记已可消费。此是依赖测试收取非独立review/真实源随机对话通过；每源两次新随机两轮实际模型/CLI/currentgold出口仍pending，完整/正式0/10。intake：execution/reviews/grok-connection-resume-20261014/random93-fixed-intake.json。
+
+
+2026-10-14 OpenSearch15835终态3625f8b75作者currentg12/public70cells0/3turn固定对话/WAL/cancel已报告，headless待后台600sec终止不据oldtick宣live。原失败WHERE等号FUNCTION_NOT_ALLOWED后改无过滤规避不等于随机CLI可用；同66a原owner84533/78851核trusted operator/type配置、实际合法过滤gold及拒绝，准备fixed93随机题库并完成Rust原C5自动/默认入口全链，不私有Python算法代Rust生产或fixed问答代随机。MySQLfixedc985 binary/receipt及l0/cursor/prove/expire四rawhash匹配，但targetapply/ACKfalse仍缺，全源/正式0/10保持。

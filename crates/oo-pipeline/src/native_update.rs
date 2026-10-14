@@ -1012,6 +1012,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
             "pg-commit-lsn/v1",
             "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
+            "mariadb-gtid/v1",
             "batch-cursor-us/v1",
             "snapshot-zero/v1",
             "partition-signature/v1",
@@ -1022,6 +1023,20 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         return Err("partition_scope_required");
     }
     let applied_pos_request = if partition_mode { "0".to_string() } else { digits(document, "applied_pos")? };
+    if position_codec == "mariadb-gtid/v1" {
+        if source_engine != "mariadb" {
+            return Err("gtid_family");
+        }
+        if capture_method != "c1_cdc"
+            || consistency_grade != "T"
+            || !maria_stored(&position_lineage, &applied_pos_request)
+        {
+            return Err("gtid_identity");
+        }
+    }
+    if source_engine == "mariadb" && position_codec == "mysql-binlog-pos/v1" {
+        return Err("binlog_pos_not_durable");
+    }
     let batch_id = batch_token(document)?;
     let schema = mapped_name(text_field(document, "logical_schema")?)?;
     let table = mapped_name(text_field(document, "logical_table")?)?;
@@ -2224,6 +2239,52 @@ fn optional_lease_generation(document: &Value) -> Result<Option<i64>, &'static s
             Ok(Some(generation))
         }
     }
+}
+
+fn maria_stored(lineage: &str, pos: &str) -> bool {
+    maria_lineage(lineage).is_some() && maria_seq(pos)
+}
+
+fn maria_lineage(lineage: &str) -> Option<(u32, u32)> {
+    let rest = lineage.strip_prefix('d')?;
+    let (domain, server) = rest.split_once(".s")?;
+    let domain = canonical_u32(domain)?;
+    let server = canonical_u32(server)?;
+    if server == 0 {
+        return None;
+    }
+    Some((domain, server))
+}
+
+fn maria_seq(pos: &str) -> bool {
+    let bytes = pos.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 20
+        && bytes.iter().all(|byte| byte.is_ascii_digit())
+        && (bytes.len() == 1 || bytes[0] != b'0')
+        && pos.parse::<u64>().is_ok()
+}
+
+fn canonical_u32(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty()
+        || bytes.len() > 10
+        || !bytes.iter().all(|byte| byte.is_ascii_digit())
+        || (bytes.len() > 1 && bytes[0] == b'0')
+    {
+        return None;
+    }
+    text.parse().ok()
+}
+
+fn maria_order(left_lineage: &str, left_pos: &str, right_lineage: &str, right_pos: &str) -> Result<std::cmp::Ordering, &'static str> {
+    if !maria_stored(left_lineage, left_pos) || !maria_stored(right_lineage, right_pos) {
+        return Err("gtid_identity");
+    }
+    if left_lineage != right_lineage {
+        return Err("incomparable");
+    }
+    decimal_cmp(left_pos, right_pos)
 }
 
 fn decimal_add(text: &str, addend: u64) -> Result<String, &'static str> {
@@ -3534,6 +3595,22 @@ async fn position_ahead(
         let ordering = decimal_cmp(&plan.applied_pos_request, &position)?;
         let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0 && plan.tombstones.is_empty();
         return if ordering == std::cmp::Ordering::Greater || ordering == std::cmp::Ordering::Equal && empty { Ok(()) } else { Err("expired") };
+    }
+    if plan.position_codec == "mariadb-gtid/v1" {
+        let stored: Option<(String, String, String)> = sqlx::query_as(
+            "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
+        ).bind(&plan.source_id).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+        let Some((position, codec, lineage)) = stored else {
+            return Ok(());
+        };
+        if codec != plan.position_codec || lineage != plan.position_lineage {
+            return Err("incomparable");
+        }
+        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater {
+            Ok(())
+        } else {
+            Err("expired")
+        };
     }
     if plan.source_engine == "postgresql" || plan.source_engine == "postgres" {
         if plan.position_codec != "pg-commit-lsn/v1" { return Err("expired"); }
@@ -5180,6 +5257,50 @@ mod tests {
         assert_eq!(decimal_add("9", 1).unwrap(), "10");
         assert_eq!(decimal_add("1", 0).unwrap(), "1");
         assert!(decimal_add(&"9".repeat(38), 1).is_err());
+    }
+
+    #[test]
+    fn mariadb_gtid_is_one_domain_server_sequence() {
+        assert!(maria_stored("d0.s1", "6"));
+        assert!(!maria_stored("d0.s1", "0-1-6"));
+        assert!(!maria_stored("0-1-6", "6"));
+        assert!(!maria_stored("d0.s1,d1.s1", "6"));
+        assert!(!maria_stored("d0.s0", "6"));
+        assert!(!maria_stored("d0.s1", "06"));
+        assert!(!maria_stored("d00.s1", "6"));
+        assert_eq!(maria_order("d0.s1", "6", "d0.s1", "7").unwrap(), std::cmp::Ordering::Less);
+        assert_eq!(maria_order("d0.s1", "10", "d0.s1", "6").unwrap(), std::cmp::Ordering::Greater);
+        assert_eq!(maria_order("d0.s1", "6", "d1.s1", "100"), Err("incomparable"));
+        assert_eq!(maria_order("d0.s1", "6", "d0.s2", "7"), Err("incomparable"));
+        assert_eq!(maria_order("d0.s1", "0-1-6", "d0.s1", "7"), Err("gtid_identity"));
+
+        let mut request = base_request();
+        request["source_engine"] = json!("mariadb");
+        request["position_codec"] = json!("mysql-binlog-pos/v1");
+        request["applied_pos"] = json!("328");
+        assert_eq!(classify(&request).err(), Some("binlog_pos_not_durable"));
+
+        request["position_codec"] = json!("mariadb-gtid/v1");
+        request["position_lineage"] = json!("0-1-6");
+        request["applied_pos"] = json!("6");
+        request["capture_method"] = json!("c1_cdc");
+        request["delete_detection"] = json!("native");
+        request["consistency_grade"] = json!("T");
+        request["cross_table_consistent"] = json!(true);
+        assert_eq!(classify(&request).err(), Some("gtid_identity"));
+
+        request["source_engine"] = json!("mysql");
+        request["position_lineage"] = json!("d0.s1");
+        assert_eq!(classify(&request).err(), Some("gtid_family"));
+
+        request["source_engine"] = json!("mariadb");
+        request["source_generation"] = json!(2);
+        request["parent_source_generation"] = json!(1);
+        assert_eq!(classify(&request).err(), Some("consistency"));
+
+        let mut batch = base_request();
+        batch["source_engine"] = json!("mariadb");
+        assert_eq!(classify(&batch).err(), Some("empty"));
     }
 
     #[test]

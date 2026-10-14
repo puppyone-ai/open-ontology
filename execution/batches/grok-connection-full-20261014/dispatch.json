@@ -153,24 +153,25 @@
   {
     "task": "opensearch",
     "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-    "pid": 15835,
+    "pid": 84533,
     "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
     "write_paths": [
       "tools/opensearch-preview"
     ],
-    "status": "same_owner_original_full_rust_route_fixed_consumer_interfaces",
+    "status": "same_owner_live_actual_filter_and_random_full_source",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268,
     "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-    "prior_pid": 49897,
+    "prior_pid": 15835,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-fixed-exact-g12-rust-loop.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-random-filter-actual-full.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C5 reconcile or C3 with explicit delete reconciliation",
     "rust_core_required": true,
-    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
+    "tool_handle": 78851
   },
   {
     "task": "postgresql",

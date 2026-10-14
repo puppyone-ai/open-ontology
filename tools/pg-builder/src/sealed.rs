@@ -41,7 +41,11 @@ Do not add, drop, or rename a column. \
 Each object uses exactly the keys dataset, column, pii, semantic_type, and unit. \
 pii is none, personal, sensitive, or restricted. \
 semantic_type is identifier, foreign_key, entity_name, code, status_code, category, boolean_flag, money, quantity, ratio, event_time, date, audit_time, geo, address, phone, email, person_name, free_text, json, or system. \
-unit is a JSON string when semantic_type is money, and JSON null otherwise. \
+When source_money_facts names the column, copy that fact's pii, semantic_type, and unit. \
+Do not change that fact's pii. \
+The only approved money unit is unspecified. \
+Do not invent a currency. \
+unit is JSON null when semantic_type is not money. \
 The string unknown is not a unit. \
 Do not wrap the object in markdown. \
 Do not include SQL, samples, row values, grants, or a reviewer. \
@@ -200,7 +204,7 @@ pub fn sealed_build(input: &mut SealedBuild<'_>) -> Result<u8, PgBuilderError> {
         .unwrap_or("")
         .to_owned();
     let evidence_hash = sha256_hex(input.catalog_json.as_bytes());
-    let user = decision_request(&draft);
+    let user = decision_request(&draft, input.source_contract);
     let user_text = canonical_json(&user);
     if contains_secret(user_text.as_bytes(), input.token) {
         return Err(PgBuilderError::new("config.secret", "the bearer is present outside its file"));
@@ -1081,7 +1085,7 @@ fn bind_model(
     Ok(BoundModel { decisions, corrections })
 }
 
-fn decision_request(draft: &SealedImportDraft) -> Value {
+fn decision_request(draft: &SealedImportDraft, source_contract: Option<&Value>) -> Value {
     let mut columns = Vec::new();
     for column in &draft.columns {
         columns.push(json!({
@@ -1094,13 +1098,19 @@ fn decision_request(draft: &SealedImportDraft) -> Value {
             "target_type": column.target_type
         }));
     }
-    json!({
+    let mut request = json!({
         "columns": columns,
         "protocol": "oo.pg-builder.sealed-decision-request/v1",
         "source_engine": draft.source_engine,
         "source_id": source_id_value(draft),
         "source_ids": source_ids(draft)
-    })
+    });
+    if let Some(facts) = source_contract.filter(|value| {
+        value.get("protocol").and_then(Value::as_str) == Some(MONEY_FACTS_PROTOCOL)
+    }) {
+        request["source_money_facts"] = facts.clone();
+    }
+    request
 }
 
 fn source_id_value(draft: &SealedImportDraft) -> Value {
@@ -1659,7 +1669,7 @@ mod tests {
         fs::write(cache.join("pg-builder").join(format!("{old_key}.json")), canonical_json(&old_cache)).unwrap();
         if retained {
             let draft = compile_input(&catalog).unwrap();
-            let model_input_sha = sha256_hex(canonical_json(&decision_request(&draft)).as_bytes());
+            let model_input_sha = sha256_hex(canonical_json(&decision_request(&draft, contract.as_ref())).as_bytes());
             let envelope: &[u8] = if bad_envelope { b"not-the-envelope" } else { br#"{"id":"chatcmpl-kept"}"# };
             let envelope_sha = if bad_envelope { "c".repeat(64) } else { sha256_hex(envelope) };
             let kept = json!({
@@ -1779,6 +1789,7 @@ mod tests {
                 facts
             }, "oo.pg-builder/v1/money_facts.drift"),
             (money_facts("logistics.shipments.cost_amount", "none", "USD"), "oo.pg-builder/v1/money_facts.unit"),
+            (money_facts("logistics.shipments.cost_amount", "unknown", "unspecified"), "oo.pg-builder/v1/money_facts.pii"),
             ({
                 let mut facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
                 facts["default_unit"] = json!("USD");
@@ -1858,5 +1869,64 @@ mod tests {
         assert_eq!(drifted.result["pack"], "not_produced");
         let _ = fs::remove_dir_all(&held.out);
         let _ = fs::remove_dir_all(&drifted.out);
+    }
+
+    #[test]
+    fn approved_money_facts_enter_the_decision_request_and_change_its_hash() {
+        assert!(!PROMPT.contains("USD"));
+        assert!(PROMPT.contains("only approved money unit is unspecified"));
+        assert!(PROMPT.contains("Do not invent a currency"));
+        assert!(PROMPT.contains("Do not change that fact's pii"));
+        let facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
+        let draft = compile_input(&catalog()).unwrap();
+        let bare = canonical_json(&decision_request(&draft, None));
+        let with_facts = canonical_json(&decision_request(&draft, Some(&facts)));
+        assert!(!bare.contains("source_money_facts"));
+        assert_ne!(sha256_hex(bare.as_bytes()), sha256_hex(with_facts.as_bytes()));
+        let request: Value = serde_json::from_str(&with_facts).unwrap();
+        assert_eq!(request["source_money_facts"]["protocol"], "oo.pg-builder.source-money-facts/v1");
+        assert_eq!(request["source_money_facts"]["source_rules_sha256"], "ab".repeat(32));
+        assert_eq!(request["source_money_facts"]["columns"][0]["pii"], "none");
+        assert_eq!(request["source_money_facts"]["columns"][0]["unit"], "unspecified");
+        let cfg = config(declared_price());
+        let settings = settings();
+        let visibility = visibility();
+        let catalog = catalog();
+        let out = std::env::temp_dir().join(format!("oo-money-request-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&out);
+        let cache = out.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        let mut transport = ScriptedTransport {
+            http_status: 200,
+            content: decisions(false),
+            finish_reason: "stop".to_owned(),
+            usage: Some((10, 20, 30)),
+            calls: 0,
+            refusal: None,
+            bodies: Vec::new(),
+        };
+        let mut build = SealedBuild {
+            config: &cfg,
+            token: "token-not-logged",
+            catalog_json: &catalog,
+            settings: &settings,
+            visibility: &visibility,
+            source_contract: Some(&facts),
+            reviewer_by: "ada.owner",
+            reviewer_at: "2026-10-10",
+            dataset: "logistics.shipments",
+            cache_dir: &cache,
+            out_dir: &out,
+            target: None,
+            transport: &mut transport,
+        };
+        assert_eq!(sealed_build(&mut build).unwrap(), 0);
+        assert_eq!(transport.calls, 1);
+        assert_eq!(fs::read_to_string(out.join("model-input.json")).unwrap(), with_facts);
+        let body: Value = serde_json::from_slice(&transport.bodies[0]).unwrap();
+        assert_eq!(body["messages"][0]["content"].as_str().unwrap(), PROMPT);
+        assert_eq!(body["messages"][1]["content"].as_str().unwrap(), with_facts);
+        assert!(!body["messages"][0]["content"].as_str().unwrap().contains("USD"));
+        let _ = fs::remove_dir_all(&out);
     }
 }
