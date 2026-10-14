@@ -1,0 +1,29 @@
+{
+  "source_commit": "47c2c99ed692781ec8c9a2931ac99aec63be12bb",
+  "source_hashes": {
+    "tools/selfbuild-control-api/CONTRACT.md": "495aef4bbf1322a5378ed015733e380f7a8ef2b29b73de8db28f182b69c41037",
+    "tools/selfbuild-control-api/src/builder_inputs.rs": "203e3a06b44ad55d14d5359b432aae20331dd199c32a8fe259b15f7f053a6f0f",
+    "tools/selfbuild-control-api/src/overlay.rs": "3e1e20644122c82fdd46b0dbdee459471ba9f896ffb443833741a591c7bbf71d",
+    "tools/selfbuild-control-api/src/stages.rs": "5627a0e486aed35aa9a536e1a5d6742df7ba57f960a72ca06c3fc592fd36a74f",
+    "tools/selfbuild-control-api/tests/builder_inputs.rs": "5c0ec555e7d6cbd76b33d2383df4a860cde2250aa1d4909c93df864df46558f2",
+    "tools/source-onboarding/onboard.py": "9616aa117a208d3ed592cee05fb21dc351dca2df7d8e563e42562a8f20f5e769",
+    "tools/source-onboarding/product_flow.py": "22ac3d0a774c2a6c2d7adf8a7d53e363699f25c971a124c4c4db3b13d1df253d"
+  },
+  "fixed_api": {
+    "arch": "aarch64",
+    "build_id": "c847a664b649d21c020bca110ddbfac274ea58b7",
+    "bytes": 13158816,
+    "cache_path": "/Users/redux/.cache/oo-shared-entry-connection-whole/selfbuild-control-api-5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d",
+    "mode": "0755",
+    "path": "/tmp/oo-shared-entry-connection-whole/selfbuild-control-api-5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d",
+    "rustc": "1.94.0 (4a4ef493e 2026-03-02)",
+    "sha256": "5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d",
+    "stripped": false
+  },
+  "private_receipt": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-api-47c2c99ed/receipt.json",
+  "receipt_sha256": "a19fc5d5ee4b5d40a2b4198711f501aaca4b292bd596a48629167ae9b98c0ad6",
+  "verified_by_root": "four fixed source blobs and actual Linux API SHA matched; private immutable receipt/binary/MAINTENANCE-CONTRACT copied before source installation",
+  "actual_live_maintenance": "pending source authors; shared read only Oracle401/currentg3 and Mongo/SQL stage data not current full product pass",
+  "production_scope": "documented batch/import maintenance, not C5 substitute for MySQL/Maria/PG C1 or Mongo main changeStream; no row-by-row ontology/model rebuild",
+  "acceptance": "fixed shared author dependency only, full source/formal counts unchanged"
+}

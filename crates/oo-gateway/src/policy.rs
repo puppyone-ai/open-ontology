@@ -593,8 +593,10 @@ async fn transition_set_in_transaction(
     ensure_login(tx, &first.login).await?;
     if !role_exists(tx, &first.role).await? { return Err(PolicyError::RoleMismatch); }
     ensure_role_shape(tx, &first.role).await?;
-    ensure_membership(tx, &first.role, &first.login).await?;
+    ensure_members_preserved(tx, &first.role, &first.login).await?;
     ensure_schema_usage(tx, &first.role).await?;
+    ensure_no_future_select(tx, &first.role).await?;
+    revoke_older_same_table_grants(tx, &first.role, before).await?;
     let effect = match ensure_exact_grants(tx, &first.role, &new).await {
         Ok(()) => InstallEffect::Replay,
         Err(PolicyError::GrantMismatch) => {
@@ -1293,6 +1295,117 @@ async fn ensure_membership(
     } else {
         Err(PolicyError::MembershipMismatch)
     }
+}
+
+async fn ensure_members_preserved(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    login: &str,
+) -> Result<(), PolicyError> {
+    let rows = tx
+        .query(
+            "SELECT member_role.rolname::text, membership.inherit_option, \
+                    membership.set_option, membership.admin_option \
+             FROM pg_catalog.pg_auth_members AS membership \
+             JOIN pg_catalog.pg_roles AS granted ON granted.oid = membership.roleid \
+             JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = membership.member \
+             WHERE granted.rolname = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    if rows.is_empty() {
+        return Err(PolicyError::MembershipMismatch);
+    }
+    let mut saw_login = false;
+    for row in rows {
+        let name: String = row.get(0);
+        let inherit: bool = row.get(1);
+        let set_option: bool = row.get(2);
+        let admin_option: bool = row.get(3);
+        if inherit || !set_option || admin_option {
+            return Err(PolicyError::MembershipMismatch);
+        }
+        saw_login |= name == login;
+    }
+    if saw_login {
+        Ok(())
+    } else {
+        Err(PolicyError::MembershipMismatch)
+    }
+}
+
+async fn ensure_no_future_select(tx: &mut Transaction<'_>, role: &str) -> Result<(), PolicyError> {
+    let row = tx
+        .query_one(
+            "SELECT count(*)::int8 \
+             FROM pg_catalog.pg_default_acl AS d \
+             LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = d.defaclnamespace \
+             CROSS JOIN LATERAL pg_catalog.aclexplode(d.defaclacl) AS a \
+             JOIN pg_catalog.pg_roles AS r ON r.oid = a.grantee \
+             WHERE r.rolname = $1 AND a.privilege_type = 'SELECT' \
+               AND d.defaclobjtype = 'r' \
+               AND (n.nspname = '_oo' OR d.defaclnamespace = 0)",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let count: i64 = row.get(0);
+    if count == 0 {
+        Ok(())
+    } else {
+        Err(PolicyError::GrantMismatch)
+    }
+}
+
+async fn revoke_older_same_table_grants(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    before: &CompiledPolicySet,
+) -> Result<(), PolicyError> {
+    let quoted_role = quote_ident(role)?;
+    for policy in &before.policies {
+        let rows = tx
+            .query(
+                "SELECT DISTINCT m.physical_name::text \
+                 FROM _oo.physical_mappings AS m \
+                 JOIN information_schema.column_privileges AS p \
+                   ON p.table_schema = '_oo' AND p.table_name = m.physical_name \
+                  AND p.grantee = $1 AND p.privilege_type = 'SELECT' \
+                 WHERE m.source = $2 AND m.config_digest = $3 AND m.level = 't' \
+                   AND m.logical_namespace = $4 AND m.logical_table = $5 \
+                   AND m.run_generation < $6",
+                &[
+                    &role,
+                    &policy.project,
+                    &policy.config_digest,
+                    &policy.namespace,
+                    &policy.table,
+                    &policy.generation,
+                ],
+            )
+            .await
+            .map_err(db_error)?;
+        for row in rows {
+            let table: String = row.get(0);
+            let table_name = require_physical(&table, "pt_")?;
+            let columns = granted_columns(tx, role, &table).await?;
+            if columns.is_empty() {
+                continue;
+            }
+            let mut quoted = Vec::with_capacity(columns.len());
+            for column in &columns {
+                quoted.push(require_physical(column, "pc_")?);
+            }
+            let list = quoted.join(", ");
+            tx.batch_execute(&format!(
+                "REVOKE SELECT ({list}) ON TABLE \"_oo\".{table_name} FROM {quoted_role}"
+            ))
+            .await
+            .map_err(db_error)?;
+        }
+    }
+    Ok(())
 }
 
 async fn ensure_exact_grants(
