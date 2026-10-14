@@ -13,10 +13,10 @@
     "source_commit": "12cfdc48260636032429449d4e66253d54c1e3cd"
   },
   "executor_policy": {
-    "new_grok_dispatch": "paused: current human instruction uses native engineers",
-    "default": "native gpt-6.1-sol/low; temporary explicitly authorized gpt-6-sol/low on capacity failure",
-    "authorized_exception": "human authorized gpt-6-sol/low engineers and Grok-4.7 product fallback",
-    "grok_development_cap": 20,
+    "new_grok_dispatch": "authorized by latest human; native subagents temporarily disabled",
+    "default": "Grok CLI grok-4.7/xhigh, no executor subagents",
+    "authorized_exception": "product GPT6.1 Sol low default; Grok4.7 S5/dialogue fallback allowed, same private URL/key",
+    "grok_development_cap": 15,
     "independent_review_exempt_from_dev_cap": true,
     "frontend_fixed_sessions": [
       "a351",
@@ -51,7 +51,163 @@
     "compiler_jobs": "Cargo default available parallelism; remove forced CARGO_BUILD_JOBS=1 for next builds",
     "fixed_cpu_reservation_cap": null
   },
-  "managed_live_grok_handles": [],
+  "managed_live_grok_handles": [
+    {
+      "task": "mysql",
+      "session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+      "pid": 83388,
+      "prompt": "execution/batches/grok-connection-full-20261014/mysql.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
+      "write_paths": [
+        "tools/mysql-preview"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 105
+    },
+    {
+      "task": "oracle",
+      "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
+      "pid": 10751,
+      "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
+      "write_paths": [
+        "tools/oracle-preview"
+      ],
+      "status": "resumed_s0_s10_pack_gateway_dialogue",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 395,
+      "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete"
+    },
+    {
+      "task": "mariadb",
+      "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+      "pid": 3051,
+      "prompt": "execution/batches/grok-connection-full-20261014/mariadb.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
+      "write_paths": [
+        "tools/mariadb-preview"
+      ],
+      "status": "resumed_after_verified_terminal",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 207,
+      "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete"
+    },
+    {
+      "task": "mongodb",
+      "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
+      "pid": 12715,
+      "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
+      "write_paths": [
+        "tools/mongodb-preview"
+      ],
+      "status": "resumed_self_provisioned_complete_product_chain",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 327
+    },
+    {
+      "task": "clickhouse",
+      "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
+      "pid": 83392,
+      "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
+      "write_paths": [
+        "tools/clickhouse-preview"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 142
+    },
+    {
+      "task": "doris",
+      "session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
+      "pid": 83393,
+      "prompt": "execution/batches/grok-connection-full-20261014/doris.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
+      "write_paths": [
+        "tools/doris-preview",
+        "testing/dl01-driver-preflight/doris/reader"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 218
+    },
+    {
+      "task": "opensearch",
+      "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+      "pid": 12716,
+      "prompt": "execution/batches/grok-connection-full-20261014/opensearch.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
+      "write_paths": [
+        "tools/opensearch-preview"
+      ],
+      "status": "resumed_self_provisioned_complete_product_chain",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 268
+    },
+    {
+      "task": "postgresql",
+      "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+      "pid": 83395,
+      "prompt": "execution/batches/grok-connection-full-20261014/postgresql.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
+      "write_paths": [
+        "tools/postgres-preview",
+        "crates/oo-gateway/src/policy.rs",
+        "crates/oo-gateway/src/bin/install-column-acl.rs",
+        "docs/07-gateway.md"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 285
+    },
+    {
+      "task": "starrocks",
+      "session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+      "pid": 83396,
+      "prompt": "execution/batches/grok-connection-full-20261014/starrocks.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
+      "write_paths": [
+        "tools/starrocks-preview"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 130
+    },
+    {
+      "task": "sqlserver",
+      "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+      "pid": 83397,
+      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
+      "write_paths": [
+        "tools/mssql-preview",
+        "testing/dl01-targets/mssql",
+        "crates/oo-pipeline/src/native_update.rs",
+        "crates/oo-pipeline/src/native_binding.rs",
+        "crates/oo-pipeline/src/target_installer.rs",
+        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql"
+      ],
+      "status": "pid_live_initial_observation",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 0
+    },
+    {
+      "task": "shared-entry",
+      "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+      "pid": 6230,
+      "prompt": "execution/batches/grok-connection-full-20261014/shared-entry.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
+      "write_paths": [
+        "tools/source-onboarding"
+      ],
+      "status": "resumed_complete_entry_integration",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 120,
+      "prior_delivery": "69f9f3fc5 gate/test only; zero installed whole source recipe"
+    }
+  ],
   "process_observation": {
     "grok_os_count": 17,
     "association": "unknown; not counted as productive tasks; no kill or resume",
@@ -1092,122 +1248,19 @@
       "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
     ]
   },
-  "managed_live_native_agents": [
-    {
-      "task": "DL01-W1-40",
-      "native_agent_name": "/root/closure_clickhouse_40",
-      "status": "completed_author_preview",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "testing/dl01-driver-preflight/clickhouse",
-        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
-        "tools/clickhouse-preview",
-        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product"
-      ]
-    },
-    {
-      "task": "DL01-W1-41",
-      "native_agent_name": "/root/closure_mongodb_41",
-      "status": "completed_author_handoff",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "testing/dl01-driver-preflight/mongodb",
-        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight",
-        "tools/mongodb-preview",
-        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product"
-      ]
-    },
-    {
-      "task": "DL01-W1-43",
-      "native_agent_name": "/root/closure_doris_43",
-      "status": "completed_author_handoff",
-      "executor": "native gpt-6.1-sol/low",
-      "write_paths": [
-        "testing/dl01-driver-preflight/doris",
-        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
-        "tools/doris-preview",
-        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
-      ]
-    },
-    {
-      "task": "DL01-W1-45",
-      "native_agent_name": "/root/closure_starrocks_45",
-      "status": "native_running",
-      "executor": "native gpt-6.1-sol/low",
-      "write_paths": [
-        "testing/dl01-driver-preflight/starrocks",
-        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight",
-        "tools/starrocks-preview",
-        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product"
-      ]
-    },
-    {
-      "task": "DL01-W1-71",
-      "native_agent_name": "/root/shared_selfbuild_continuation",
-      "status": "completed_author_handoff",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "tools/selfbuild-control-api",
-        "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full",
-        "crates/oo-core",
-        "crates/oo-builder",
-        "contracts/schema/oos-v1.json",
-        "tools/agent-product-verifier",
-        "tools/control-identity",
-        "tools/identity-binding-api",
-        "tools/pg-builder"
-      ]
-    },
-    {
-      "task": "DL01-W1-73",
-      "native_agent_name": "/root/sol_recovery_publish",
-      "status": "author_shared_gateway_delivered",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "tools/release-control-api",
-        "tools/release-coordinator",
-        "evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance",
-        "crates/oo-gateway"
-      ]
-    },
-    {
-      "task": "DL01-W1-74",
-      "native_agent_name": "/root/sol_recovery_capture_jobs",
-      "status": "native_running",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "tools/job-worker",
-        "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
-      ]
-    },
-    {
-      "task": "DL01-W1-79",
-      "native_agent_name": "/root/sol_recovery_loader",
-      "status": "native_running",
-      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
-      "write_paths": [
-        "crates/oo-pipeline",
-        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
-        "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
-        "crates/oo-connectors",
-        "crates/oo-jobs",
-        "Cargo.toml",
-        "Cargo.lock",
-        "tools/source-admission/src/capture.rs"
-      ]
-    }
-  ],
+  "managed_live_native_agents": [],
   "execution_policy": {
-    "kind": "native_codex_subagents",
-    "model": "gpt-6.1-sol",
-    "reasoning_effort": "low",
+    "kind": "grok_cli",
+    "model": "grok-4.7",
+    "reasoning_effort": "xhigh",
     "max_reliable_active": 15,
-    "grok_authorized": false,
-    "ordinary_wait_seconds": 900,
+    "grok_authorized": true,
+    "ordinary_wait_seconds": 1080,
     "review_dispatch": "only after first complete Goal loop and all ten-source chains ready, no standalone component reviewers",
     "dialogue_model": "gpt-6.1-sol",
     "dialogue_reasoning_effort": "low",
-    "dialogue_proxy_url_and_key": "unchanged active proxy client key reused privately; authenticated exact model completion200"
+    "dialogue_proxy_url_and_key": "unchanged active proxy client key reused privately; authenticated exact model completion200",
+    "native_subagents_authorized": false
   },
   "native_handoff_receipt": "execution/batches/native-full-source-20261012/grok-terminal-handoff.json",
   "product_model_runtime": {
@@ -1366,147 +1419,180 @@
     "source_agents": [
       {
         "source": "mysql",
-        "agent": "/root/mysql_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/mysql-preview",
           "/tmp/oo-mysql-connection-whole",
           "/Users/redux/.cache/oo-mysql-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/mysql_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+        "pid": 83388
       },
       {
         "source": "oracle",
-        "agent": "/root/oracle_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "resumed_s0_s10_pack_gateway_dialogue",
         "write_paths": [
           "tools/oracle-preview",
           "/tmp/oo-oracle-connection-whole",
           "/Users/redux/.cache/oo-oracle-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/oracle_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
+        "pid": 10751
       },
       {
         "source": "mariadb",
-        "agent": "/root/mariadb_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "resumed_after_verified_terminal",
         "write_paths": [
           "tools/mariadb-preview",
           "/tmp/oo-mariadb-connection-whole",
           "/Users/redux/.cache/oo-mariadb-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/mariadb_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+        "pid": 3051
       },
       {
         "source": "mongodb",
-        "agent": "/root/mongodb_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "resumed_self_provisioned_complete_product_chain",
         "write_paths": [
           "tools/mongodb-preview",
           "/tmp/oo-mongodb-connection-whole",
           "/Users/redux/.cache/oo-mongodb-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/mongodb_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
+        "pid": 12715
       },
       {
         "source": "clickhouse",
-        "agent": "/root/clickhouse_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/clickhouse-preview",
           "/tmp/oo-clickhouse-connection-whole",
           "/Users/redux/.cache/oo-clickhouse-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/clickhouse_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
+        "pid": 83392
       },
       {
         "source": "doris",
-        "agent": "/root/doris_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/doris-preview",
           "/tmp/oo-doris-connection-whole",
           "/Users/redux/.cache/oo-doris-connection-whole",
           "testing/dl01-driver-preflight/doris/reader"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/doris_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
+        "pid": 83393
       },
       {
         "source": "opensearch",
-        "agent": "/root/opensearch_connection_whole",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "resumed_self_provisioned_complete_product_chain",
         "write_paths": [
           "tools/opensearch-preview",
           "/tmp/oo-opensearch-connection-whole",
           "/Users/redux/.cache/oo-opensearch-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/opensearch_connection_whole",
+        "executor": "grok_cli",
+        "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+        "pid": 12716
       },
       {
         "source": "postgresql",
-        "agent": "/root/pg_runtime_finish",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/postgres-preview",
           "/tmp/oo-postgresql-connection-whole",
           "/Users/redux/.cache/oo-postgresql-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/pg_runtime_finish",
+        "executor": "grok_cli",
+        "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+        "pid": 83395
       },
       {
         "source": "starrocks",
-        "agent": "/root/star_runtime_finish",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/starrocks-preview",
           "/tmp/oo-starrocks-connection-whole",
           "/Users/redux/.cache/oo-starrocks-connection-whole"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/star_runtime_finish",
+        "executor": "grok_cli",
+        "session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+        "pid": 83396
       },
       {
         "source": "sqlserver",
-        "agent": "/root/sqlserver_whole_closure",
-        "model": "gpt-6.1-sol",
-        "reasoning": "low",
-        "status": "running_complete_connection_chain",
+        "model": "grok-4.7",
+        "reasoning": "xhigh",
+        "status": "pid_live_initial_observation",
         "write_paths": [
           "tools/mssql-preview",
           "/tmp/oo-sqlserver-connection-whole",
           "/Users/redux/.cache/oo-sqlserver-connection-whole",
           "testing/dl01-targets/mssql"
         ],
-        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence"
+        "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
+        "prior_native_agent": "/root/sqlserver_whole_closure",
+        "executor": "grok_cli",
+        "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+        "pid": 83397
       }
     ],
     "shared_entry": {
-      "agent": "/root/connection_onboarding_closure",
-      "model": "gpt-6.1-sol",
-      "reasoning": "low",
+      "model": "grok-4.7",
+      "reasoning": "xhigh",
       "write_paths": [
         "tools/source-onboarding"
       ],
       "exit": "one actual connection-config entry orchestrates each source complete fixed product chain, not merely historical recipe execution",
       "foundation_commit": "3a8950483",
-      "verified": "3 host tests and syntax; author Linux 3 tests; actual OIDC current; full source product chains pending"
+      "verified": "3 host tests and syntax; author Linux 3 tests; actual OIDC current; full source product chains pending",
+      "prior_native_agent": "/root/connection_onboarding_closure",
+      "executor": "grok_cli",
+      "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+      "pid": 6230
     },
     "note": "2026-10-14 用户重申本轮须完成十源从连接信息到本地一键、完整S0–S10、同步维护Pack、实际Gateway/CLI及准确对话；九源作者历史预览不等于本入口完成。用户明确所有E2E前置由源作者自行准备，不再索取测试数据/数据库端点。十源各唯一工程师+共享入口工程师长跑，native GPT6.1Sol low，独占源码，固定前置制品复用，必要新S5一次真实调用而非跨源伪cache。SQLServer本机可做官方SQL2022真实仿真E2E须明确架构，原生amd64认证门槛单列不假通过。统一独立审阅仍在十源完整链后；原完整退出、五版次序、正式签收0/10不变。",
     "shared_api_owner": {
@@ -1547,15 +1633,16 @@
       {
         "task": "oracle",
         "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-        "pid": 83389,
+        "pid": 10751,
         "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
         "write_paths": [
           "tools/oracle-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_s0_s10_pack_gateway_dialogue",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 395
+        "initial_log_bytes": 395,
+        "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete"
       },
       {
         "task": "mariadb",
@@ -1574,13 +1661,13 @@
       {
         "task": "mongodb",
         "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-        "pid": 83391,
+        "pid": 12715,
         "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
         "write_paths": [
           "tools/mongodb-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_self_provisioned_complete_product_chain",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 327
       },
@@ -1614,13 +1701,13 @@
       {
         "task": "opensearch",
         "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-        "pid": 83394,
+        "pid": 12716,
         "prompt": "execution/batches/grok-connection-full-20261014/opensearch.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
         "write_paths": [
           "tools/opensearch-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_self_provisioned_complete_product_chain",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 268
       },
@@ -1674,15 +1761,16 @@
       {
         "task": "shared-entry",
         "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
-        "pid": 83398,
+        "pid": 6230,
         "prompt": "execution/batches/grok-connection-full-20261014/shared-entry.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
         "write_paths": [
           "tools/source-onboarding"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "resumed_complete_entry_integration",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 120
+        "initial_log_bytes": 120,
+        "prior_delivery": "69f9f3fc5 gate/test only; zero installed whole source recipe"
       },
       {
         "task": "infra",
@@ -1693,10 +1781,11 @@
         "write_paths": [
           "/Users/redux/.cache/oo-grok-connection-full-20261014/INFRA-STATE.json"
         ],
-        "status": "resumed_infra_identity_recovery",
+        "status": "completed_verified_identity_prerequisite",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 13,
-        "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete"
+        "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete",
+        "receipt": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json"
       }
     ],
     "disk_observed_free_gib": 67,
@@ -1705,6 +1794,125 @@
     "historical_author_previews": 9,
     "formal_signed_sources": 0,
     "last_actual_observation": "12 exact session UUID/PID commands confirmed live; infra receipt not yet present",
-    "initial_intake": "execution/reviews/grok-connection-resume-20261014/initial-intake.json"
-  }
+    "initial_intake": "execution/reviews/grok-connection-resume-20261014/initial-intake.json",
+    "shared_entry_intake": {
+      "source": "69f9f3fc5b6f20d0f49a729c67291c243dc4bf75",
+      "root_host_tests": "7/7 passed after prior active-writer failure",
+      "complete_six_field_whole_runs": 0,
+      "resume_pid": 6230,
+      "acceptance": "component only, full one-command chains incomplete"
+    },
+    "latest_partial_intakes": [
+      "execution/reviews/grok-connection-resume-20261014/oracle-source-progress-intake.json",
+      "execution/reviews/grok-connection-resume-20261014/mongodb-progress-intake.json",
+      "execution/reviews/grok-connection-resume-20261014/opensearch-progress-intake.json"
+    ],
+    "identity_health": "root verified TLS/OIDC anonymous401 and fixture admin200, original config binding preserved",
+    "identity_intake": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json"
+  },
+  "archived_native_agent_status": [
+    {
+      "task": "DL01-W1-40",
+      "native_agent_name": "/root/closure_clickhouse_40",
+      "status": "completed_author_preview",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "testing/dl01-driver-preflight/clickhouse",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight",
+        "tools/clickhouse-preview",
+        "evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-41",
+      "native_agent_name": "/root/closure_mongodb_41",
+      "status": "completed_author_handoff",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "testing/dl01-driver-preflight/mongodb",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-driver-preflight",
+        "tools/mongodb-preview",
+        "evidence/23df6145-4592-4dc0-82df-fd226dd020fd/DL01/mongodb-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-43",
+      "native_agent_name": "/root/closure_doris_43",
+      "status": "completed_author_handoff",
+      "executor": "native gpt-6.1-sol/low",
+      "write_paths": [
+        "testing/dl01-driver-preflight/doris",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
+        "tools/doris-preview",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-45",
+      "native_agent_name": "/root/closure_starrocks_45",
+      "status": "native_running",
+      "executor": "native gpt-6.1-sol/low",
+      "write_paths": [
+        "testing/dl01-driver-preflight/starrocks",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight",
+        "tools/starrocks-preview",
+        "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-product"
+      ]
+    },
+    {
+      "task": "DL01-W1-71",
+      "native_agent_name": "/root/shared_selfbuild_continuation",
+      "status": "completed_author_handoff",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/selfbuild-control-api",
+        "evidence/bbfc11fc-adb5-47a6-836e-526054fd791f/DL01/selfbuild-full",
+        "crates/oo-core",
+        "crates/oo-builder",
+        "contracts/schema/oos-v1.json",
+        "tools/agent-product-verifier",
+        "tools/control-identity",
+        "tools/identity-binding-api",
+        "tools/pg-builder"
+      ]
+    },
+    {
+      "task": "DL01-W1-73",
+      "native_agent_name": "/root/sol_recovery_publish",
+      "status": "author_shared_gateway_delivered",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/release-control-api",
+        "tools/release-coordinator",
+        "evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance",
+        "crates/oo-gateway"
+      ]
+    },
+    {
+      "task": "DL01-W1-74",
+      "native_agent_name": "/root/sol_recovery_capture_jobs",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "tools/job-worker",
+        "evidence/d101fd4a-3a89-41f6-b7fe-94b4001d5512/DL01/capture-jobs-schedule-lease"
+      ]
+    },
+    {
+      "task": "DL01-W1-79",
+      "native_agent_name": "/root/sol_recovery_loader",
+      "status": "native_running",
+      "executor": "native gpt-6-sol/low (temporary explicit human fallback)",
+      "write_paths": [
+        "crates/oo-pipeline",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import",
+        "evidence/939f621d-12d2-414f-a355-47be5a34ff71/DL01/native-source-product-loader",
+        "crates/oo-connectors",
+        "crates/oo-jobs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "tools/source-admission/src/capture.rs"
+      ]
+    }
+  ]
 }

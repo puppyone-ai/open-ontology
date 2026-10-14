@@ -1,5 +1,15 @@
 ## 2026-10-13 完整作者链收取与最小调用
 
+## 2026-10-14 真实身份前置恢复核验
+
+2026-10-14 共享运行前置已核：infra复用官方control-identity并续签过期自有TLS，保留原identity/config_commit/bindings/DB；root实际verified TLS current匿名401、fixture-admin200/initialized/management_session/revision1/data_grants none。证据execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json。OIDC18441/18443恢复，不再全局重启；其余具名sourceTLS/挂载由对应owner自备。infra已实际terminal收取，十源和共享入口长跑继续。身份前置恢复不是产品通过，完整一键0/10、历史作者9/10、正式0/10不变。
+
+## 2026-10-14 当前Grok长跑接续
+
+2026-10-14 当前唯一执行者政策：用户暂时禁用原生子智能体，恢复Grok CLI。受管理十二个完整长跑owner（十源、共享入口、infra），最新UUID/PID及独占域见grok-connection-full-20261014/dispatch.json。原生活动0，不以旧交互Grok或旧native字段计并发；普通等待1080秒，clock.sleep按工具上限分段，OS退出事件到达即收取。CPU/编译固定限额解除，独占和实际资源余量保持。完整一键0/10、历史作者9/10、正式签收0/10；统一独立复审仍在十源全链后。
+
+Oracle669c3ccd6固定9hash核验：新C5第三代物理删除、10typedcells差0，仅source/import层；Mongo d0cbf5666物理导入通过但全链未验，OpenSearch7574503a1一键/对话/恢复未跑，自有TLS缺失继续owner自备。三原会话已terminal后恢复，回执见execution/reviews/grok-connection-resume-20261014/*progress-intake.json。原Plan/分母/父项/整版与支持等级不晋级。
+
 ## 2026-10-14 连接信息一键完整链与自备E2E前置
 
 2026-10-14 用户重申本轮须完成十源从连接信息到本地一键、完整S0–S10、同步维护Pack、实际Gateway/CLI及准确对话；九源作者历史预览不等于本入口完成。用户明确所有E2E前置由源作者自行准备，不再索取测试数据/数据库端点。十源各唯一工程师+共享入口工程师长跑，native GPT6.1Sol low，独占源码，固定前置制品复用，必要新S5一次真实调用而非跨源伪cache。SQLServer本机可做官方SQL2022真实仿真E2E须明确架构，原生amd64认证门槛单列不假通过。统一独立审阅仍在十源完整链后；原完整退出、五版次序、正式签收0/10不变。
@@ -1373,3 +1383,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 最新人类执行者切换：原生子智能体临时禁用，活动列表实测仅root，恢复GrokCLI十二个完整长跑任务（十源+共享一键入口+唯一infra恢复）。dispatch位于batches/grok-connection-full-20261014/dispatch.json；现有dirty源码/失败/固定制品/DB卷保留，未知交互Grok不kill不计管理并发。磁盘实测47GiB可用但Dockerps超时，infra唯一受控恢复owner；不增加数据库/重复build。原一键完整0/10、历史作者9/10、正式0/10不变，统一十源审阅及原退出保留。
 
 2026-10-14 Grok首轮收取：infra实测Docker version/ps/exec恢复，磁盘67GiB；官方restart超时→官方force stop/start失败记录保留，OIDC18441/18443未serve，唯一infra原session接续合法identity恢复，不用synthetic或伪凭证。MariaDB fe07688d5两文件source capture/preparation作者交付，不能计完整一键；原session已terminal后恢复可信official全链。固定收取回执execution/reviews/grok-connection-resume-20261014/initial-intake.json。原一键0/10、历史作者9/10、正式0/10不变。Plan当前Gateway文档baseline drift未通过，shared入口host7tests有engine_mismatch1error（activewriter时实测），均未虚报绿。
+
+2026-10-14 共享入口固定69f9f3fc5已收取：root实际host7tests通过，先前activewriter时engine_mismatch失败保留；该交付仅门禁/recipe验证，零installedwhole/零六字段实测，不计十源。原session已terminal后接续真实源recipe/一键整链集成，pid6230。

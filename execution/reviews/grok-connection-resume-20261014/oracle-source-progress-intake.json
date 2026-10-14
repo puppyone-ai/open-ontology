@@ -1,0 +1,21 @@
+{
+  "source": "669c3ccd6f24f68bddb6235f4a82082d3c6ff49f",
+  "verified_hash_entries": 9,
+  "receipt": {
+    "path": "/tmp/oo-oracle-connection-whole/exit/receipt.json",
+    "sha256": "0ec77b6f86ce5b9f59ef5af63aceb898c0f7cabad8a967aa7c1ef1199363fab7"
+  },
+  "acceptance": "configured C5 generation3 source/import component only; not complete source",
+  "unproven": [
+    "shared onboard.py one-command whole_source recipe",
+    "S0-S10 for oracle_oneclick_orders",
+    "standard YAML and ontology maintenance",
+    "same-version role pack",
+    "native gateway and public OO CLI query IDs, WAL, cancel",
+    "multi-turn agent dialogue",
+    "publication"
+  ],
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0,
+  "next_owner": "oracle same Grok UUID resumed at PID10751"
+}

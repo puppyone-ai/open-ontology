@@ -185,7 +185,8 @@ def _name_type(buf: bytes, type_byte: int, table: int | None) -> dict:
         if table is None:
             raise ValueError("schema")
         precision = _i32(buf, _field_slot(buf, table, 0))
-        scale = _i32(buf, _field_slot(buf, table, 1))
+        scale_slot = _field_slot(buf, table, 1)
+        scale = 0 if scale_slot is None else _i32(buf, scale_slot)
         bits_slot = _field_slot(buf, table, 2)
         bits = 128 if bits_slot is None else _i32(buf, bits_slot)
         if bits == 128:

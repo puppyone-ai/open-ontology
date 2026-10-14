@@ -1,0 +1,10 @@
+{
+  "source": "7574503a1",
+  "receipt": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-opensearch-progress.json",
+    "sha256": "af2dcb20243c4386c408097d54cb041829a8269c638cda7670b7ba3080910ff5"
+  },
+  "acceptance": "partial progress receipt only, not complete source; owner resumed",
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0
+}
