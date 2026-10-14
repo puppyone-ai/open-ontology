@@ -17,11 +17,13 @@ pub struct Endpoint {
     pub host: String,
     pub port: u16,
     pub db: String,
+    pub reader_user: String,
 }
 
 pub struct Link {
     pub conn: Conn,
     pub user: String,
+    pub database: String,
     pub id: u32,
 }
 
@@ -107,6 +109,7 @@ pub async fn connect_once(endpoint: &Endpoint, user: &str, password: &str, audit
     Ok(Link {
         conn,
         user: user.to_string(),
+        database: endpoint.db.clone(),
         id,
     })
 }

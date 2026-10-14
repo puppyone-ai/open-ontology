@@ -15,7 +15,6 @@ use crate::ipc::{self, Column as ArrowColumn};
 use crate::session::{self, Endpoint, Link};
 use crate::sqltext;
 
-const DB: &str = "oo_dl01w1_43";
 
 pub struct ObjectRoute {
     pub name: &'static str,
@@ -212,12 +211,16 @@ fn counts(lines: &[String]) -> BTreeMap<String, usize> {
 }
 
 pub fn count_reader_writes(audit_text: &str) -> usize {
+    count_user_writes(audit_text, "oo_reader")
+}
+
+fn count_user_writes(audit_text: &str, user: &str) -> usize {
     let mut writes = 0;
     for line in audit_text.lines() {
         let Ok(body) = serde_json::from_str::<Json>(line) else {
             continue;
         };
-        if body.get("user").and_then(Json::as_str) != Some("oo_reader") {
+        if body.get("user").and_then(Json::as_str) != Some(user) {
             continue;
         }
         let Some(sql) = body.get("sql").and_then(Json::as_str) else {
@@ -315,14 +318,14 @@ pub async fn capture_partition_budget(
     let audit_path = evidence.join(format!("reader-audit-{label}.jsonl"));
     let audit = Audit::create(&audit_path, vec![password.to_string()])?;
     let mut link = session::connect_retry(
-        &endpoint, "oo_reader", password.as_str(), &audit, 12,
+        &endpoint, &endpoint.reader_user, password.as_str(), &audit, 12,
         &evidence.join(format!("reader-connect-{label}.log")),
     ).await?;
     let result = read_partition(&mut link, &audit, partition, max_rows).await;
     link.close(&audit).await;
     let (mut body, arrow) = result?;
     let audit_text = std::fs::read_to_string(&audit_path).map_err(|err| Fail::new("audit", err.to_string()))?;
-    if count_reader_writes(&audit_text) != 0 {
+    if count_user_writes(&audit_text, &endpoint.reader_user) != 0 {
         return Err(Fail::new("reader_write", "partition reader audit"));
     }
     let arrow_name = format!("{label}-part_day-{partition}.arrow");
@@ -344,7 +347,7 @@ async fn read_partition(
 ) -> Result<(Json, Vec<u8>), Fail> {
     let create_before = named_query(link, audit, "SHOW CREATE TABLE part_day").await?;
     let status_before = named_query(link, audit, "SHOW TABLE STATUS LIKE 'part_day'").await?;
-    let identity_before = named_query(link, audit, "SELECT CATALOG_ID, DATABASE_ID, TABLE_ID FROM information_schema.metadata_name_ids WHERE DATABASE_NAME = 'oo_dl01w1_43' AND TABLE_NAME = 'part_day'").await?;
+    let identity_before = named_query(link, audit, &format!("SELECT CATALOG_ID, DATABASE_ID, TABLE_ID FROM information_schema.metadata_name_ids WHERE DATABASE_NAME = '{}' AND TABLE_NAME = 'part_day'", link.database)).await?;
     let jobs_before = partition_jobs(link, audit).await?;
     let parts_before = named_query(link, audit, "SHOW PARTITIONS FROM part_day").await?;
     let selected = select_partition(&parts_before, partition)?;
@@ -364,7 +367,7 @@ async fn read_partition(
     }
     let parts_after = named_query(link, audit, "SHOW PARTITIONS FROM part_day").await?;
     let jobs_after = partition_jobs(link, audit).await?;
-    let identity_after = named_query(link, audit, "SELECT CATALOG_ID, DATABASE_ID, TABLE_ID FROM information_schema.metadata_name_ids WHERE DATABASE_NAME = 'oo_dl01w1_43' AND TABLE_NAME = 'part_day'").await?;
+    let identity_after = named_query(link, audit, &format!("SELECT CATALOG_ID, DATABASE_ID, TABLE_ID FROM information_schema.metadata_name_ids WHERE DATABASE_NAME = '{}' AND TABLE_NAME = 'part_day'", link.database)).await?;
     let status_after = named_query(link, audit, "SHOW TABLE STATUS LIKE 'part_day'").await?;
     let create_after = named_query(link, audit, "SHOW CREATE TABLE part_day").await?;
     if parts_before != parts_after || status_before != status_after || create_before != create_after
@@ -415,7 +418,7 @@ async fn read_partition(
     let arrow = ipc::write_file(&arrow_columns(spec), &cells, arrow_metadata(spec.name, "DUPLICATE", &sql))?;
     Ok((json!({
         "protocol":"oo.doris.capture-tick/v1",
-        "database":DB,
+        "database":link.database,
         "source_engine":"doris",
         "cross_table_consistency":"B",
         "snapshot_token":false,
@@ -449,14 +452,14 @@ async fn read_partition(
 
 async fn partition_jobs(link: &mut Link, audit: &Audit) -> Result<Json, Fail> {
     let statements = [
-        "SHOW DELETE FROM oo_dl01w1_43",
-        "SHOW ALTER TABLE COLUMN FROM oo_dl01w1_43",
-        "SHOW ALTER TABLE ROLLUP FROM oo_dl01w1_43",
-        "SHOW LOAD FROM oo_dl01w1_43",
+        format!("SHOW DELETE FROM {}", link.database),
+        format!("SHOW ALTER TABLE COLUMN FROM {}", link.database),
+        format!("SHOW ALTER TABLE ROLLUP FROM {}", link.database),
+        format!("SHOW LOAD FROM {}", link.database),
     ];
     let mut observed = serde_json::Map::new();
     for sql in statements {
-        let rows = named_query(link, audit, sql).await?;
+        let rows = named_query(link, audit, &sql).await?;
         for row in &rows {
             let table = row.get("TableName").and_then(Json::as_str);
             if table.is_some_and(|name| name != "part_day") { continue; }
@@ -551,7 +554,7 @@ async fn capture_tick_impl(
     )?;
     let mut link = session::connect_retry(
         &endpoint,
-        "oo_reader",
+        &endpoint.reader_user,
         password.as_str(),
         &audit,
         12,
@@ -575,7 +578,7 @@ async fn capture_tick_impl(
     let finished = unix_ms()?;
     let audit_text = std::fs::read_to_string(evidence.join(format!("reader-audit-{label}.jsonl")))
         .map_err(|err| Fail::new("audit", err.to_string()))?;
-    let writes = count_reader_writes(&audit_text);
+    let writes = count_user_writes(&audit_text, &endpoint.reader_user);
     if writes != 0 {
         return Err(Fail::new("reader_write", format!("{writes}")));
     }
@@ -711,7 +714,7 @@ async fn read_snapshot(link: &mut Link, audit: &Audit, max_rows: Option<usize>, 
             "binlog": "refused_unpublished",
             "change_stream": false,
             "cross_table_consistency": "B",
-            "database": DB,
+            "database": link.database,
             "equal_cursor": "not_applicable_no_cursor",
             "long_transaction": "not_observable_no_snapshot_token",
             "partitions": partitions,
