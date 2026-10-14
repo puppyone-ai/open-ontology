@@ -1,5 +1,11 @@
 ## 2026-10-13 当前接续与净化快照
 
+## 2026-10-14 当前Grok长跑接续
+
+2026-10-14 当前唯一执行者政策：用户暂时禁用原生子智能体，恢复Grok CLI。受管理十二个完整长跑owner（十源、共享入口、infra），最新UUID/PID及独占域见grok-connection-full-20261014/dispatch.json。原生活动0，不以旧交互Grok或旧native字段计并发；普通等待1080秒，clock.sleep按工具上限分段，OS退出事件到达即收取。CPU/编译固定限额解除，独占和实际资源余量保持。完整一键0/10、历史作者9/10、正式签收0/10；统一独立复审仍在十源全链后。
+
+Oracle669c3ccd6固定9hash核验：新C5第三代物理删除、10typedcells差0，仅source/import层；Mongo d0cbf5666物理导入通过但全链未验，OpenSearch7574503a1一键/对话/恢复未跑，自有TLS缺失继续owner自备。三原会话已terminal后恢复，回执见execution/reviews/grok-connection-resume-20261014/*progress-intake.json。原Plan/分母/父项/整版与支持等级不晋级。
+
 ## 2026-10-14 连接信息一键完整链与自备E2E前置
 
 2026-10-14 用户重申本轮须完成十源从连接信息到本地一键、完整S0–S10、同步维护Pack、实际Gateway/CLI及准确对话；九源作者历史预览不等于本入口完成。用户明确所有E2E前置由源作者自行准备，不再索取测试数据/数据库端点。十源各唯一工程师+共享入口工程师长跑，native GPT6.1Sol low，独占源码，固定前置制品复用，必要新S5一次真实调用而非跨源伪cache。SQLServer本机可做官方SQL2022真实仿真E2E须明确架构，原生amd64认证门槛单列不假通过。统一独立审阅仍在十源完整链后；原完整退出、五版次序、正式签收0/10不变。

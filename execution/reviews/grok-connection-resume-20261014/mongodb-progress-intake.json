@@ -1,0 +1,10 @@
+{
+  "source": "d0cbf5666",
+  "receipt": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-mongodb-progress.json",
+    "sha256": "86f10e1bfe2d5fd0e208f52971cfb1c9b8ca72f2c3bb0f2cf939448f0580ea2e"
+  },
+  "acceptance": "partial progress receipt only, not complete source; owner resumed",
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0
+}

@@ -11,6 +11,7 @@ import signal
 import stat
 import subprocess
 import sys
+import time
 import uuid
 
 ENGINES = {'postgresql', 'mysql', 'oracle', 'mariadb', 'sqlserver', 'clickhouse', 'doris', 'starrocks', 'mongodb', 'opensearch'}
@@ -90,13 +91,31 @@ def launched_program(argv):
         return str(Path(argv[1]).resolve())
     return str(Path(argv[0]).resolve())
 
+def observe_children(pgid):
+    """Record pinned whole programs actually spawned in this step. A copied receipt has no live command."""
+    found = []
+    try:
+        proc = subprocess.run(['ps', '-ax', '-o', 'pgid=,command='], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return found
+    prefix = str(pgid) + ' '
+    for raw in proc.stdout.splitlines():
+        line = raw.strip()
+        if not line.startswith(prefix): continue
+        cmd = line[len(prefix):]
+        for program in (PRODUCT_FLOW, DIALOGUE):
+            path = str(program)
+            if path in cmd and path not in found: found.append(path)
+    return found
+
 def direct_step(out, recipe, journal, program, rel):
     program = str(Path(program).resolve())
     require(any(p['path'] == program and p['sha256'] == digest(program) for p in recipe['pins']), 'shared_program_unpinned')
     for step in recipe['steps']:
-        if launched_program(step['argv']) != program: continue
         rec = next((s for s in journal['steps'] if s['name'] == step['name'] and s['state'] == 'succeeded'), None)
-        if rec and any(a['path'] == rel and a['sha256'] == digest(out/rel) for a in rec['artifacts']):
+        if not rec: continue
+        live = launched_program(step['argv']) == program or program in rec.get('observed_programs', [])
+        if live and any(a['path'] == rel and a['sha256'] == digest(out/rel) for a in rec['artifacts']):
             return
     raise Refused('historical_completion_attached')
 
@@ -147,15 +166,19 @@ def install_engine(engine, recipe_path, secret_registry, metadata_recipe=None, w
     for pin in r['pins']: require(digest(pin['path']) == pin['sha256'], 'pin_drift')
     mode = r.get('mode', 'whole_source')
     if mode == 'whole_source':
-        require(r.get('completion_artifact') and whole_run, 'actual_whole_required')
-        run_dir = Path(whole_run)
-        st = run_dir.stat()
-        require(run_dir.is_dir() and not run_dir.is_symlink() and st.st_uid == os.getuid() and not st.st_mode & 0o077, 'whole_run_permissions')
-        journal = load(private(run_dir/'journal.json'))
-        require(journal.get('state') == 'recipe_completed', 'whole_run_not_complete')
-        require(journal.get('identity', {}).get('recipe_sha256') == digest(recipe), 'whole_run_recipe_drift')
-        prove_whole(run_dir, r, journal)
-        record = {'recipe':str(recipe),'recipe_sha256':digest(recipe),'secret_registry':str(registry),'whole':True,'whole_proof_sha256':digest(run_dir/r['completion_artifact'])}
+        require(r.get('completion_artifact'), 'whole_completion_required')
+        for program in (PRODUCT_FLOW, DIALOGUE):
+            require(any(p['path'] == str(program) and p['sha256'] == digest(program) for p in r['pins']), 'shared_program_unpinned')
+        record = {'recipe':str(recipe),'recipe_sha256':digest(recipe),'secret_registry':str(registry),'whole':False,'awaiting_run':True}
+        if whole_run:
+            run_dir = Path(whole_run)
+            st = run_dir.stat()
+            require(run_dir.is_dir() and not run_dir.is_symlink() and st.st_uid == os.getuid() and not st.st_mode & 0o077, 'whole_run_permissions')
+            journal = load(private(run_dir/'journal.json'))
+            require(journal.get('state') == 'recipe_completed', 'whole_run_not_complete')
+            require(journal.get('identity', {}).get('recipe_sha256') == digest(recipe), 'whole_run_recipe_drift')
+            prove_whole(run_dir, r, journal)
+            record = {'recipe':str(recipe),'recipe_sha256':digest(recipe),'secret_registry':str(registry),'whole':True,'whole_proof_sha256':digest(run_dir/r['completion_artifact'])}
     elif mode == 'metadata_sample':
         require(whole_run is None and r.get('read_only') is True and type(r.get('max_rows')) is int and 1 <= r['max_rows'] <= 5, 'metadata_cannot_claim_whole')
         record = {'recipe':str(recipe),'recipe_sha256':digest(recipe),'secret_registry':str(registry),'whole':False}
@@ -280,11 +303,21 @@ def run(input_path, resume=False):
                     deadline = step.get('deadline_seconds',1800)
                     require(type(deadline) is int and 1 <= deadline <= 86400, 'deadline')
                     child = subprocess.Popen(argv, stdout=stdout, stderr=stderr, cwd=out, start_new_session=True)
-                    record['pid'] = child.pid; save(journal_path,journal)
+                    record['pid'] = child.pid; record['observed_programs']=[]; save(journal_path,journal)
+                    seen=[]; limit=time.monotonic()+deadline
                     try:
-                        code = child.wait(timeout=deadline)
+                        while True:
+                            for path in observe_children(child.pid):
+                                if path not in seen: seen.append(path); record['observed_programs']=seen; save(journal_path,journal)
+                            remaining=limit-time.monotonic()
+                            if remaining<=0:
+                                os.killpg(child.pid, signal.SIGKILL); child.wait(); raise subprocess.TimeoutExpired(argv, deadline)
+                            try:
+                                code=child.wait(timeout=min(0.5, remaining)); break
+                            except subprocess.TimeoutExpired:
+                                continue
                     except subprocess.TimeoutExpired:
-                        os.killpg(child.pid, signal.SIGKILL); child.wait(); raise
+                        raise
                     record['exit_code']=code
                     require(code == 0, 'child_failed')
                     for item in step['artifacts']:

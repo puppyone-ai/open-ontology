@@ -1,0 +1,22 @@
+{
+  "actual_root_checks": {
+    "anonymous": {
+      "status": 401
+    },
+    "fixture_admin": {
+      "status": 200,
+      "install_state": "initialized",
+      "authority": "management_session",
+      "config_commit": "afcdf77a6cecdb121268802b0978ab86aaa65cf55dbec6fa7f3a9280f5508d51",
+      "revision": 1,
+      "data_grants": "none"
+    }
+  },
+  "infra_receipt": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/root-fixed-identity-restored.json",
+    "sha256": "8cbe3688ba0d51fa85d9bb3abcd136b531a77b2d72571df9e56e9c90ac4216f7"
+  },
+  "acceptance": "shared actual identity prerequisite restored; not ten-source product acceptance",
+  "full_one_command_delta": 0,
+  "formal_signed_delta": 0
+}

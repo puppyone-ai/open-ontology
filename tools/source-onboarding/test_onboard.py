@@ -101,6 +101,15 @@ class RunnerTests(unittest.TestCase):
             journal={'state':'recipe_completed','identity':{'recipe_sha256':m.digest(rp)},'steps':[{'name':'product','state':'succeeded','artifacts':[{'path':'product/product-receipt.json','sha256':artifacts['product/product-receipt.json']}]},{'name':'dialogue','state':'succeeded','artifacts':[{'path':'dialogue/verdict.json','sha256':artifacts['dialogue/verdict.json']},{'path':'dialogue/transcript.json','sha256':artifacts['dialogue/transcript.json']}]}]}
             self.write(run/'journal.json',journal)
             self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            observed=json.loads(json.dumps(journal))
+            observed['steps'][0]['observed_programs']=[str(m.PRODUCT_FLOW)]
+            observed['steps'][1]['observed_programs']=[str(m.DIALOGUE)]
+            wrapped=json.loads(json.dumps(recipe))
+            wrapped['steps'][0]['argv']=[sys.executable,str(root/'driver.py')]
+            wrapped['steps'][1]['argv']=[sys.executable,str(root/'driver.py')]
+            self.assertTrue(m.prove_whole(run,wrapped,observed)['full_product_chain_complete'])
+            observed['steps'][0]['observed_programs']=[]
+            with self.assertRaisesRegex(m.Refused,'historical_completion_attached'):m.prove_whole(run,wrapped,observed)
             receipt['s5']['structural_draft']=True;(product/'product-receipt.json').write_text(json.dumps(receipt))
             journal['steps'][0]['artifacts'][0]['sha256']=m.digest(product/'product-receipt.json');self.write(run/'journal.json',journal)
             with self.assertRaisesRegex(m.Refused,'not_real_s5'):m.prove_whole(run,json.loads(Path(rp).read_text()),journal)
@@ -113,7 +122,8 @@ class RunnerTests(unittest.TestCase):
                 meta=dict(recipe,engine='postgresql',mode='metadata_sample',owned_fixture=False,read_only=True,max_rows=5);meta.pop('completion_artifact')
                 mp=self.write(root/'meta',meta)
                 self.assertFalse(m.install_engine('postgresql',mp,reg)['whole'])
-                with self.assertRaisesRegex(m.Refused,'actual_whole_required'):m.install_engine('mysql',rp,reg)
+                pending=m.install_engine('mysql',rp,reg)
+                self.assertFalse(pending['whole']);self.assertTrue(pending['awaiting_run'])
             finally:m.INSTALL_ROOT=old
     def test_duplicate_keys(self):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)

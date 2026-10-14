@@ -15,15 +15,16 @@
   {
     "task": "oracle",
     "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-    "pid": 83389,
+    "pid": 10751,
     "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
     "write_paths": [
       "tools/oracle-preview"
     ],
-    "status": "pid_live_initial_observation",
+    "status": "resumed_s0_s10_pack_gateway_dialogue",
     "executor": "grok-4.7/xhigh",
-    "initial_log_bytes": 395
+    "initial_log_bytes": 395,
+    "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete"
   },
   {
     "task": "mariadb",
@@ -42,13 +43,13 @@
   {
     "task": "mongodb",
     "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-    "pid": 83391,
+    "pid": 12715,
     "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "pid_live_initial_observation",
+    "status": "resumed_self_provisioned_complete_product_chain",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327
   },
@@ -82,13 +83,13 @@
   {
     "task": "opensearch",
     "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-    "pid": 83394,
+    "pid": 12716,
     "prompt": "execution/batches/grok-connection-full-20261014/opensearch.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
     "write_paths": [
       "tools/opensearch-preview"
     ],
-    "status": "pid_live_initial_observation",
+    "status": "resumed_self_provisioned_complete_product_chain",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268
   },
@@ -142,15 +143,16 @@
   {
     "task": "shared-entry",
     "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
-    "pid": 83398,
+    "pid": 6230,
     "prompt": "execution/batches/grok-connection-full-20261014/shared-entry.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
     "write_paths": [
       "tools/source-onboarding"
     ],
-    "status": "pid_live_initial_observation",
+    "status": "resumed_complete_entry_integration",
     "executor": "grok-4.7/xhigh",
-    "initial_log_bytes": 120
+    "initial_log_bytes": 120,
+    "prior_delivery": "69f9f3fc5 gate/test only; zero installed whole source recipe"
   },
   {
     "task": "infra",
@@ -161,9 +163,10 @@
     "write_paths": [
       "/Users/redux/.cache/oo-grok-connection-full-20261014/INFRA-STATE.json"
     ],
-    "status": "resumed_infra_identity_recovery",
+    "status": "completed_verified_identity_prerequisite",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 13,
-    "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete"
+    "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete",
+    "receipt": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json"
   }
 ]
