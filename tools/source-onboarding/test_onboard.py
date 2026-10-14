@@ -144,6 +144,25 @@ class RunnerTests(unittest.TestCase):
             journal={'state':'recipe_completed','identity':{'recipe_sha256':m.digest(rp)},'steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.OPERATOR)],'artifacts':[{'path':'product/product-receipt.json','sha256':artifacts['product/product-receipt.json']},{'path':'product/maintenance-consumption.json','sha256':artifacts['product/maintenance-consumption.json']}]},{'name':'dialogue','state':'succeeded','artifacts':[{'path':'dialogue/verdict.json','sha256':artifacts['dialogue/verdict.json']},{'path':'dialogue/transcript.json','sha256':artifacts['dialogue/transcript.json']},{'path':'dialogue/selection.json','sha256':artifacts['dialogue/selection.json']}]}]}
             self.write(run/'journal.json',journal)
             self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            # Exercise the whole-proof close with the real collection shape: it has
+            # schema_digests, never a collapsed schema_digest.
+            paths=[product/name for name in ('current-command.json','current-visibility.json','current-role-response.json','current-maintenance-response.json','maintenance-consumption.json')]
+            saved=[path.read_bytes() for path in paths]; saved_journal=json.loads(json.dumps(journal))
+            rows=[{'dataset':'fixture.a','source_id':'fixture','source_generation':5,'schema_digest':'44'*32},{'dataset':'fixture.b','source_id':'fixture','source_generation':5,'schema_digest':'55'*32}]
+            command=json.loads(saved[0]); command['catalog']={'protocol':m.COLLECTION,'collection_sha256':'88'*32,'binding_vector':rows,'entries':[{'schema_digest':row['schema_digest']} for row in rows]}
+            visibility=json.loads(saved[1]); visibility['catalog_version']='88'*32
+            for path,raw in zip(paths[:2],[json.dumps(command).encode(),json.dumps(visibility).encode()]):path.write_bytes(raw)
+            for path in paths[2:4]:
+                envelope=json.loads(path.read_bytes()); envelope['response']['native_maintenance']['source_rebind']['binding_vector']=rows
+                path.write_text(json.dumps(envelope))
+            consumption=m.maintenance_consumption(receipt,m.digest(product/'product-receipt.json'),receipt['native_role_pack_sha256'],(product/'current-role-pack.json').read_bytes(),json.loads(paths[0].read_bytes()),json.loads(paths[1].read_bytes()),paths[2].read_bytes(),paths[3].read_bytes(),0,0,(product/'current-prepared-overlay.json').read_bytes())
+            paths[4].write_text(json.dumps(consumption))
+            journal['steps'][0]['artifacts'][1]['sha256']=m.digest(paths[4]); self.write(run/'journal.json',journal)
+            self.assertNotIn('schema_digest',consumption)
+            self.assertEqual(consumption['schema_digests'],['44'*32,'55'*32])
+            self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            for path,raw in zip(paths,saved):path.write_bytes(raw)
+            journal=saved_journal; self.write(run/'journal.json',journal)
             kept_verdict=(dialogue/'verdict.json').read_text();kept_selection=(dialogue/'selection.json').read_text()
             legacy=json.loads(kept_verdict);legacy.pop('selection');legacy.pop('counts_as_random')
             (dialogue/'verdict.json').write_text(json.dumps(legacy))

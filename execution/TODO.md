@@ -1,6 +1,6 @@
 # 完整产品 TODO 与派发入口
 
-更新：2026-10-13。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
+更新：2026-10-15。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
 
 本清单勾选表示**整个父项正式退出**，不是开发组件是否存在。未勾项可能已交付多个组件；状态“待签收对账”不能解释为尚未开发或开发完成率为零。开发子项与证据见[验收计数](../specs/open-ontology-acceptance-counting.md)，历史交付见[总台账](../specs/open-ontology-development-ledger.md)。87个SP、14个DBX与8个DBP分别统计，不合并分母。
 
@@ -16,7 +16,7 @@
 
 ## 当前冻结批次
 
-- [execution/batches/dl01-wave1-20261009/dispatch.json](batches/dl01-wave1-20261009/dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
+- [execution/batches/native-luna-full-source-20261015/dispatch.json](batches/native-luna-full-source-20261015/dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-Doris a26327a63固定整源作者预览已收：七表20列源语义/维护保真，18角色Pack与真实8轮消费字节一致，独立gold及取消三WAL核验；原模型USD与维护PII错误保留。完整作者预览7/10（含MySQL/Oracle），正式完整签收0/10。PG作者产品链等待共享T恢复放行，Star准确对话未通过，SQLServer真实原生amd64外部条件仍待。
+Latest human authorizes native GPT6 Luna low; eleven unique complete-capability owners, ten sources plus shared default. Original acceptance unchanged; see execution/batches/native-luna-full-source-20261015/dispatch.json

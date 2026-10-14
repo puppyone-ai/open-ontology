@@ -294,7 +294,7 @@ def prove_whole(out, recipe, journal):
     require(isinstance(role_exit, dict) and isinstance(maintenance_exit, dict), 'maintenance_not_invoked')
     fresh = maintenance_consumption(product, digest(base/'product-receipt.json'), product['native_role_pack_sha256'], current_pack.read_bytes(), load(base/'current-command.json'), load(base/'current-visibility.json'), (base/'current-role-response.json').read_bytes(), (base/'current-maintenance-response.json').read_bytes(), role_exit.get('exit'), maintenance_exit.get('exit'), (base/'current-prepared-overlay.json').read_bytes())
     stored = load(rel_ok(out, cons_rel))
-    require(stored.get('schema_digest') == fresh['schema_digest'] and stored.get('schema_digests') == fresh.get('schema_digests'), 'maintenance_schema')
+    require(stored.get('schema_digest') == fresh.get('schema_digest') and stored.get('schema_digests') == fresh.get('schema_digests'), 'maintenance_schema')
     require(stored.get('source_id') == fresh['source_id'] and stored.get('source_generation') == fresh['source_generation'], 'maintenance_source')
     require(all(stored.get(k) == fresh[k] for k in ('role_pack_file_sha256','pack_digest','http_pack_sha256','role','policy_version')), 'role_pack_not_current')
     require(stored == fresh, 'maintenance_not_invoked')
