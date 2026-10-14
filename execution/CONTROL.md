@@ -1321,3 +1321,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-15 SQL原e888 terminal后同完整职责fresh7df88389 PID86509持久运行已OS核；0024实际owned控制库安装/5452 pipeline ELF只是基础作者证据未fixed完整consumer，原源0/10不签收。Staradb70995终态实际3abd date目录/b922 LinuxELF、8ed product-3关联但DATE字面量guard拒及maintenance_schema缺digest；新run4两真实随机QID只是作者子证待核。同adb89973接原完整链，唯一新增sql_guard.rs最小date literal+真实日期sourcegold/拒例，不通用cast。Sharedf52568593终态1fa retained普通Oracle已positive阶段，同f52589975接builder64→66及Star真实schema消费合同，不能删校验/虚填digest/新S5。PG751081737/Oracle5bd83403仍exactOS live，不tail。最新wait600seconds/退出事件即收，原全部长跑退出不改；统一审阅待十源全链。
+
+
+2026-10-15 PG81737 OS退出事件收取：session actor DeadFailed，非整任务完成；作者官方full_current publication440072/旧seal3534保持、公开计数及cancel57014正证待fixed收取，C1仍未完整。runtime-finish仅sleep/no同步mutator root查，原7510同工程师93768持久恢复收原后台/固定ownsource后继续原C1两周期+normal当前approvedPack随机全部退出，不重复S5/成功ACL/旧IUD。random4/10/full0/10，Plan/计数/Goal/整版/支持级无完成变化。

@@ -1,0 +1,33 @@
+{
+  "source": "starrocks",
+  "generation": 19,
+  "fixed_verifier": "2056b4c95",
+  "one_current_actual_random_run": {
+    "path": "/tmp/oo-starrocks-connection-whole/random-dialogue/run4-fresh",
+    "seed": 4523597027833245006,
+    "semantic_ids": [
+      "pk_account_rows",
+      "uniq_score_dim17"
+    ],
+    "pack_sha256": "5eae4feac5a26b894a325aef9fab62af02da559b2a47443623571415a98ebb76",
+    "query_ids_admit_complete": [
+      "q_FPTlHHFPmDY1vu2FkhL34gyKVN",
+      "q_RQr5G2l48EV0Mp55cAqJMevQnR"
+    ],
+    "hashes": {
+      "selection.json": "8a0b0a0b599ba3c84e6fcc57080d04d739d268d88c3e406034f7b6f8d3a4d5ef",
+      "verdict.json": "fb2c5ba9d6d629237e689b965b19950d00b317d159ee61ca35ff0618b7b459fa",
+      "transcript.json": "2a01b7f48e4ead2b5c87731a96600462e384b27deb6941b53623fbafe375dd12"
+    }
+  },
+  "independent_source_read": {
+    "path": "/tmp/oo-root-star-random-source-check/source.stdout",
+    "sha256": "2d71a87bd4a924043ae03d3ebc8a78911fe47f0888ffa5f2f9fe64bee91e2122",
+    "exit": 0,
+    "method": "two source readonly SELECT via existing reader; zero writes"
+  },
+  "gold_sha256": "62e6f76897e6931a4c72123b7f29f22761a4f0663fb4bd89c7385e1dd668eb78",
+  "limitations": "old run2 uses a different pack and role; not two same-current-pack random runs. Date/current normal product gaps remain. No random source or full source count increment.",
+  "full_source_count_delta": 0,
+  "random_source_count_delta": 0
+}
