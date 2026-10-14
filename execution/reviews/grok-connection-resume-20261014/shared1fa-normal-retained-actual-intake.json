@@ -1,0 +1,17 @@
+{
+  "fixed_shared_commit": "1fa8732fe340caaa41dd708ee8193ea8c2ce19c5",
+  "archive": "/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-retained1fa-fixed-igegnjo8",
+  "root_tests": {
+    "exit": 0,
+    "stderr": "............\n----------------------------------------------------------------------\nRan 12 tests in 0.655s\n\nOK\n"
+  },
+  "actual_normal_oracle_run": {
+    "path": "/Users/redux/.cache/oo-source-onboarding/runs/4779b334a4694cb59a344bfa4a6a682b",
+    "retained_original_receipt_sha256": "6fa2ff6f2e8211155f9ef42e8f295a096907395aacdd775fc9a655983e3008e5",
+    "current_maintenance_consumption_sha256": "9cc99dd05fd7a9d6ca7e5d7b50df32b84ae7b4d91659e2ccacfe710676f18051",
+    "no_create_marker": true,
+    "journal_sha256": "743ad630188f76e93444d99fc807649b852cf55b5c7a3358ed8b1590c7915b32",
+    "actual_remaining": "cancel_table UNAUTHENTICATED then dialoguenotrun, Rustauto worker absent; no whole"
+  },
+  "scope": "actual ordinaryrun S0..S10retained provenance/currentofficialmaintenance positive substage; notsourcefull orreview"
+}
