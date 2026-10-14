@@ -139,18 +139,20 @@
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 46694,
+    "pid": 69464,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
       "tools/starrocks-preview"
     ],
-    "status": "fresh_compact_whole_continuation",
+    "status": "same_owner_long_run",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 83396,
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "prior_pid": 46694,
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-same-owner-long-run.md",
+    "max_turns": 1000
   },
   {
     "task": "sqlserver",

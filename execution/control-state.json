@@ -192,18 +192,20 @@
     {
       "task": "starrocks",
       "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-      "pid": 46694,
+      "pid": 69464,
       "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
       "write_paths": [
         "tools/starrocks-preview"
       ],
-      "status": "fresh_compact_whole_continuation",
+      "status": "same_owner_long_run",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 130,
       "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-      "prior_pid": 83396,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+      "prior_pid": 46694,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-same-owner-long-run.md",
+      "max_turns": 1000
     },
     {
       "task": "sqlserver",
@@ -1584,7 +1586,7 @@
         "source": "starrocks",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "fresh_compact_whole_continuation",
+        "status": "same_owner_long_run",
         "write_paths": [
           "tools/starrocks-preview",
           "/tmp/oo-starrocks-connection-whole",
@@ -1594,7 +1596,7 @@
         "prior_native_agent": "/root/star_runtime_finish",
         "executor": "grok_cli",
         "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-        "pid": 46694,
+        "pid": 69464,
         "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
@@ -1793,18 +1795,20 @@
       {
         "task": "starrocks",
         "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-        "pid": 46694,
+        "pid": 69464,
         "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
         "write_paths": [
           "tools/starrocks-preview"
         ],
-        "status": "fresh_compact_whole_continuation",
+        "status": "same_owner_long_run",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 130,
         "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-        "prior_pid": 83396,
-        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+        "prior_pid": 46694,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+        "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-same-owner-long-run.md",
+        "max_turns": 1000
       },
       {
         "task": "sqlserver",
@@ -1901,7 +1905,8 @@
     "ordinary_wait_seconds": 600,
     "latest_concurrency_handoff": "execution/reviews/grok-connection-resume-20261014/concurrency-fast-handoff.json",
     "postgres_acl_fixed_intake": "execution/reviews/grok-connection-resume-20261014/postgres-acl-fixed-intake.json",
-    "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
+    "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops",
+    "starrocks_same_owner_intake": "execution/reviews/grok-connection-resume-20261014/starrocks-same-owner-intake.json"
   },
   "archived_native_agent_status": [
     {
@@ -2011,5 +2016,6 @@
   "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。",
   "latest_human_wait_and_concurrency": "2026-10-14 最新用户将固定clock等待改600秒，OS真实退出事件立即收取，不短轮询。11个Grok4.7/xhigh任务已派发（活动数以逐PID观察为准）：十源唯一完整owner+共享一键入口；Maria/OpenSearch/Star旧CLI及hostwriter终态后新短完整上下文续接，SQL source f73094b92及自有官方PG/snapshot仅组件进度保留，新owner继续lease/CAS/CT和全部产品出口，共享entry接真实run契约阻断并只写自己域。真实OpenSearch新run44584180失败在current policy catalog/cancel、Star678cdbda失败在APIHTTPError，不计完成。CPU/编译固定上限解除，以实际资源/独占依赖控制，不为凑15派重复源writer或空任务。完整一键0/10、历史作者9/10、正式0/10及原Plan/整版退出不变。",
   "latest_product_dependencies": "2026-10-14 PG退出即验：固定50fd9d462共享ACL已实测LinuxELF aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05，root逐bytes核hash及自有库当前同role第2代列权限，原server日志有旧列REVOKE/新列GRANT/故障ROLLBACK；私有固定ELF已供各源复用，回执postgres-acl-fixed-intake.json。不计PG全链或独立批准；合法postgres项目200/verified/0build、错误项目403由PG唯一新短owner继续，禁止不确定modelcreate重复。Doris新whole-3 resume仍refused，不计完成，新唯一owner保持immutable-run约束补全。当前任务仍十源+共享入口、Grok4.7/xhigh、clock600秒；全链/签收计数不晋级。",
-  "latest_long_run_instruction": "2026-10-14 最新直接用户纠正：每位负责人必须持续长跑到其原完整闭环才宣布完成/退场，不再短交接或替换上下文；已运行任务不中断。CLI提前停止不等于任务完成，先收实际背景、以原UUID/同owner继续原全部出口，后续Grok续跑max-turns1000；Oracle原18ce4925同会话已续。真实外部阻断保持pending/owner保留，不能伪造完成；共享入口原d28ca4bd保留待实际source依赖，不做空模型loop。所有开发Grok4.7/xhigh、普通clock等待600秒/退出事件即收、独占/实际资源/原Plan全出口保持。原一键完整0/10、历史作者9/10、正式0/10，不新增分母。"
+  "latest_long_run_instruction": "2026-10-14 最新直接用户纠正：每位负责人必须持续长跑到其原完整闭环才宣布完成/退场，不再短交接或替换上下文；已运行任务不中断。CLI提前停止不等于任务完成，先收实际背景、以原UUID/同owner继续原全部出口，后续Grok续跑max-turns1000；Oracle原18ce4925同会话已续。真实外部阻断保持pending/owner保留，不能伪造完成；共享入口原d28ca4bd保留待实际source依赖，不做空模型loop。所有开发Grok4.7/xhigh、普通clock等待600秒/退出事件即收、独占/实际资源/原Plan全出口保持。原一键完整0/10、历史作者9/10、正式0/10，不新增分母。",
+  "latest_long_run_exit_intake": "2026-10-14 clock等待被真实StarRocks退出事件打断，立即收取0a087267770网络修复和真实S5 money_unit失败；固定四原报告/hash留私有，不计whole。按最新人类长跑要求原c4eceff6同UUID继续、max-turns1000，不新负责人/短上下文交接；未知币种须按原标准真实未确认语义/事实输入处理，不捏造货币、不放宽校验、不盲重同request。原全部产品出口/计数不变。"
 }
