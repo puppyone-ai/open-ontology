@@ -1,0 +1,104 @@
+{
+  "source": "opensearch",
+  "source_generation": 12,
+  "fixed_verifier_commit": "9485942f83d3ff914830f88560e34b256129fd00",
+  "source_live_read": {
+    "raw_path": "/tmp/oo-root-os-random-source-check/source-search-doc-key.json",
+    "sha256": "8d15cc9708fd1b91e6f4e5510931c5c5da733499848d02cb3ad8d697ea2b8564",
+    "TLS_verified": true,
+    "source_identity": "oo-dl01w1-44-ledger direct _search using existing readonly credential; no Gateway-derived gold",
+    "document_count": 5
+  },
+  "gold_path": "/tmp/oo-opensearch-connection-whole/random-bank/gold.json",
+  "gold_sha256": "d78ec2223a52d7769a9d9af9419fd32a5cd9599e4b99154f18084cf986a003d3",
+  "independent_source_all_six_facts_match": true,
+  "runs": [
+    {
+      "path": "/tmp/oo-opensearch-connection-whole/random-run1",
+      "verdict": {
+        "model": "grok-4.7",
+        "response_models": [
+          "grok-4.7",
+          "grok-4.7-build"
+        ],
+        "reasoning_effort": "low",
+        "turns": 2,
+        "tools": [
+          "describe",
+          "freshness",
+          "knowledge_cat",
+          "knowledge_search",
+          "query",
+          "tables"
+        ],
+        "query_ids": [
+          "q_4hrCG3ceG6rEtxXuEHoa1CXUwh",
+          "q_huCGvWMx75Eye6CF3eIWbwkDpI"
+        ],
+        "audit_sha256": "82cad594837e7970b5641c707f3dcd7eff4c2491af44870d1979527150f2ae70",
+        "truth_sha256": "d78ec2223a52d7769a9d9af9419fd32a5cd9599e4b99154f18084cf986a003d3",
+        "outcome": "verified",
+        "selection": "random",
+        "counts_as_random": true,
+        "seed": 7976273201388725356,
+        "semantic_ids": [
+          "doc_for_void_note",
+          "count_flag_false"
+        ],
+        "gold_sha256": "d78ec2223a52d7769a9d9af9419fd32a5cd9599e4b99154f18084cf986a003d3"
+      },
+      "selection_sha256": "c5100cea8542bbfc488931e9651f49106180b7bb64d3e9caddf4ddd43eccecc0",
+      "verdict_sha256": "013c25241c9f56104afe5fc362a810a0bf46f27c43b9435fa8becdd260ab86d4",
+      "transcript_sha256": "253874900df313a6ea4af0f4019837158dffc82b7d220c09c1ced02cdfa86a01",
+      "qid_admit_complete_verified": [
+        "q_4hrCG3ceG6rEtxXuEHoa1CXUwh",
+        "q_huCGvWMx75Eye6CF3eIWbwkDpI"
+      ]
+    },
+    {
+      "path": "/tmp/oo-opensearch-connection-whole/random-run2",
+      "verdict": {
+        "model": "grok-4.7",
+        "response_models": [
+          "grok-4.7",
+          "grok-4.7-build"
+        ],
+        "reasoning_effort": "low",
+        "turns": 2,
+        "tools": [
+          "describe",
+          "freshness",
+          "knowledge_cat",
+          "knowledge_search",
+          "query",
+          "tables"
+        ],
+        "query_ids": [
+          "q_H2f5J0V4wQBeMz5JBYJQwP3e5u",
+          "q_iJjXmfVw5vf19VIWUn1sgcpuM2"
+        ],
+        "audit_sha256": "2e54e5afeae88595dc0fb51d6b9f882cd6f3fef6c85ae5d497dfcbb7f45e9667",
+        "truth_sha256": "d78ec2223a52d7769a9d9af9419fd32a5cd9599e4b99154f18084cf986a003d3",
+        "outcome": "verified",
+        "selection": "random",
+        "counts_as_random": true,
+        "seed": 9200481081767820264,
+        "semantic_ids": [
+          "doc_for_seq_22",
+          "count_rows"
+        ],
+        "gold_sha256": "d78ec2223a52d7769a9d9af9419fd32a5cd9599e4b99154f18084cf986a003d3"
+      },
+      "selection_sha256": "ca6cc4b5b97f1301608780cd068c8867285adfd1736bf513ddb48da2bc8be2e4",
+      "verdict_sha256": "6c53018a28002b1fea2a14fcde51ed805465ebdbb6873c86dcbd2f2e420c5c16",
+      "transcript_sha256": "38e26e497c2c303160578c1f5b91e7e2168e638ef798f697cbbc152fd826eb16",
+      "qid_admit_complete_verified": [
+        "q_H2f5J0V4wQBeMz5JBYJQwP3e5u",
+        "q_iJjXmfVw5vf19VIWUn1sgcpuM2"
+      ]
+    }
+  ],
+  "scope": "two actual fresh random 2turn CLI/model query facts + four QID admit/complete WAL verified; test sub-exit only. Rust C5 autonomous/currentdefault/recovery full source remains pending",
+  "full_source_count_delta": 0,
+  "formal_count_delta": 0
+}
