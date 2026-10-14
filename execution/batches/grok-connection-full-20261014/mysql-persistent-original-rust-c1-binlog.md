@@ -3,3 +3,5 @@
 你的原完整输入/独占仍tools/mysql-preview，未分配的commonRust路径必须给exact签名/真实失败向root依赖，别越界改shared/rootCargo。已有可以复用Rust core/插件/P11 Debezium协议就复用上游，docs17允许Debezium JVM但平台核心Rust，不重写整套。六字段产品入口不只临时recipe fixture脚本，优先既有OOCLI/ControlRust路径；薄fixture/测试/已有编排胶水保留避免大改。
 共享MySQL completed-receipt provenance source_not_fresh矛盾已在CURRENT-DEPENDENCIES，49?共享原UUID将接续修，不改receiptproducer或temporaryrestore globalfiles。同身份原S5/rolePack语义及verified对话不用盲重调，原包真实语义可按正式维护接到C1初始基线/稳定映射；新当前query仍对独立真实sourcegold。
 按原完整小闭环直到C1连续同步→准确受权Yaml/Pack→publicGateway/OOCLI真实多轮工具消费/审计/取消完整。RustLinux1.94先smoke/必要测试，固定提交+二进制/原输入/全退出/失败/资源回执齐才完成。真实有后台在跑先收同具体handle，不短交接；无需组件review，正式0/10不改、不推送/改治理。
+
+最新直接用户测试补充：读execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md；各源真实对话需新随机语义题+独立gold冻结+任意实际CLI，两次不同新序列。共享验收器由Click原owner唯一写，其他源只读fixed SHA，准备自己私有题库/config；旧固定对话保留但不能代新增退出。不要为等验收器重复S5/import或伪随机措辞。

@@ -1216,3 +1216,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 新增fixed公共Rust依赖：eff6b994b5 per-table Linux1.94 ELF a44d4469+afaa67da5安全保留既有members/撤旧列权限ELF78bfdc62两SHA及绑定source blobs已核，真实3/5/13pubgold一致、OS g12精确14列pubcount5/oldhidden拒/无futuredefaultSELECT可消费。OpenSearch同UUID15835接续currentPack/Gateway/default全源，PG同UUID15837收原S5money_unit事实并继续原C1；shared15833收MySQL10tests合法旧producer复用dirty最小修复与Oracle单catalog schema_digest/identity错误（source5bc装好但admin409，不能重写decision.schemahash成identity）。原Oracle403role边界正确、g3→g5/currenttypedgap保留。Star同UUID20132被明确授权自有fixture必要全新自动IUD，不重复原DML/ACK/noLLM；原g13same-semanticmaintenance200/publishedfalse不代全自动退出。SQL同UUID22730新增唯一native_catalog.rs写域，修实际C2delta2batchrows与6appliedrows的PG-only exportguard，native_update仍Maria只读分界。fixture/batch/原C1路线不混、source/正式0/10不晋级，不独立组件审阅。证据execution/reviews/grok-connection-resume-20261014/postgres-mixed-and-os12-fixed-intake.json。
+
+
+2026-10-14 用户新增真实随机CLI+Agent测试：每源两次新随机两轮、不同语义问题序列；模型自主任意合法OOCLI，首次调用前冻结seed/选题/source与Pack身份/独立源侧gold，成功QID绑定独立WAL，resume同题/同gold、seed回放不计新随机。旧固定问题和负例证据保留，不代新增出口。唯一共享验收器writer为原ClickHouse26ae6875，同UUID29571/handle75145长跑完成真实本源示范及原全链；十源作者只读固定接口并准备自有私有题库。当前实现及真实随机验收pending，完整/正式0/10不晋级、功能分母不增加、无新独立组件审阅。卡：execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md。

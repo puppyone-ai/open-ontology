@@ -190,3 +190,6 @@ Grok额度不足，后续开发切换Codex原生子智能体，统一gpt-6.1-sol
 2026-10-14 最新用户将固定clock等待改600秒，OS真实退出事件立即收取，不短轮询。11个Grok4.7/xhigh任务已派发（活动数以逐PID观察为准）：十源唯一完整owner+共享一键入口；Maria/OpenSearch/Star旧CLI及hostwriter终态后新短完整上下文续接，SQL source f73094b92及自有官方PG/snapshot仅组件进度保留，新owner继续lease/CAS/CT和全部产品出口，共享entry接真实run契约阻断并只写自己域。真实OpenSearch新run44584180失败在current policy catalog/cancel、Star678cdbda失败在APIHTTPError，不计完成。CPU/编译固定上限解除，以实际资源/独占依赖控制，不为凑15派重复源writer或空任务。完整一键0/10、历史作者9/10、正式0/10及原Plan/整版退出不变。
 
 2026-10-14 最新直接用户纠正：每位负责人必须持续长跑到其原完整闭环才宣布完成/退场，不再短交接或替换上下文；已运行任务不中断。CLI提前停止不等于任务完成，先收实际背景、以原UUID/同owner继续原全部出口，后续Grok续跑max-turns1000；Oracle原18ce4925同会话已续。真实外部阻断保持pending/owner保留，不能伪造完成；共享入口原d28ca4bd保留待实际source依赖，不做空模型loop。所有开发Grok4.7/xhigh、普通clock等待600秒/退出事件即收、独占/实际资源/原Plan全出口保持。原一键完整0/10、历史作者9/10、正式0/10，不新增分母。
+
+
+2026-10-14 用户新增真实随机CLI+Agent测试：每源两次新随机两轮、不同语义问题序列；模型自主任意合法OOCLI，首次调用前冻结seed/选题/source与Pack身份/独立源侧gold，成功QID绑定独立WAL，resume同题/同gold、seed回放不计新随机。旧固定问题和负例证据保留，不代新增出口。唯一共享验收器writer为原ClickHouse26ae6875，同UUID29571/handle75145长跑完成真实本源示范及原全链；十源作者只读固定接口并准备自有私有题库。当前实现及真实随机验收pending，完整/正式0/10不晋级、功能分母不增加、无新独立组件审阅。卡：execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md。

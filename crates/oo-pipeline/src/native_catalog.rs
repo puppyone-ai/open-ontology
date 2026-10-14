@@ -172,7 +172,7 @@ async fn execute() -> Result<Vec<u8>, Stop> {
         }
         Some(vector)
     } else { None };
-    let pg_delta_bound = if matches!(captured.source_engine.as_str(), "postgres" | "postgresql")
+    let pg_delta_bound = if catalog_delta_engine(captured.source_engine.as_str())
         && captured.objects.len() == 1 && facts.tables.len() == 1
     {
         let object = &captured.objects[0];
@@ -277,6 +277,12 @@ async fn read_facts(conn: &mut sqlx::PgConnection, request: &NativeRequest) -> R
         return Err(Stop::Fixed("sealed import digest"));
     }
     Ok(facts)
+}
+
+/// Postgres C1 and SQL Server C2 incremental batches are smaller than the
+/// materialized table. Other engines stay on the full-table row check.
+fn catalog_delta_engine(engine: &str) -> bool {
+    matches!(engine, "postgres" | "postgresql" | "sqlserver")
 }
 
 fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector: Option<Value>, pg_delta_bound: bool) -> Result<Vec<u8>, Stop> {
@@ -1159,6 +1165,135 @@ mod tests {
         assert!(column_storage(&field, 17, -1).is_err());
         field.bson_type = Some(BsonType { variant: "05".to_string(), subtype: Some("00".to_string()) });
         assert_eq!(column_storage(&field, 17, -1).unwrap().source_type, "fixedsizebinary_16");
+    }
+
+    fn hex(byte: &str, n: usize) -> String {
+        byte.repeat(n)
+    }
+
+    fn c2_capture(rows: u64) -> ResolvedCapture {
+        let digest = hex("ab", 32);
+        ResolvedCapture {
+            decision_sha256: digest.clone(),
+            source_id: "oo_sqlserver_whole".to_string(),
+            batches: vec![digest.clone()],
+            registry_sha256: digest.clone(),
+            driver_digest: digest.clone(),
+            objects: vec![crate::native_binding::BoundObject {
+                logical_schema: "dbo".to_string(),
+                logical_table: "oracle_row".to_string(),
+                row_count: rows,
+                arrow_sha256: digest.clone(),
+            }],
+            fields: vec![field("int64", None, None)],
+            source_engine: "sqlserver".to_string(),
+            source_bound: true,
+            receipt_sha256: digest.clone(),
+            schema_digest: digest.clone(),
+            arrow_schema_sha256: digest,
+            partition_scope: None,
+            transaction_scope: None,
+        }
+    }
+
+    fn c2_facts(applied: i64, columns: Vec<ColumnFact>) -> NativeFacts {
+        let digest = hex("cd", 32);
+        let physical = format!("pt_{}", hex("12", 30));
+        NativeFacts {
+            state: "awaiting_publish".to_string(),
+            run_id: "ba06f416-7843-481d-9aa2-d51cfc754d7c".to_string(),
+            source_id: "oo_sqlserver_whole".to_string(),
+            source_generation: 7,
+            target_generation: 7,
+            config_digest: digest.clone(),
+            type_digest: digest.clone(),
+            input_digest: digest.clone(),
+            schema_digest: digest.clone(),
+            tool_hook_digest: hook_digest(),
+            owner: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d".to_string(),
+            tables: vec![TableFact {
+                table_index: 0,
+                schema_ident: "dbo".to_string(),
+                table_ident: "oracle_row".to_string(),
+                applied_rows: applied,
+                canonical_digest: digest,
+                physical_name: physical.clone(),
+                stored_namespace: format!("pn_{}", hex("34", 30)),
+                columns,
+            }],
+            quality: vec![QualityFact {
+                physical_name: physical,
+                batch_id: "batch-1".to_string(),
+                kind: "batch".to_string(),
+                reason: None,
+                value_len: None,
+                attnum: None,
+                row_index: None,
+                key_digest: None,
+                accepted_rows: Some(applied),
+                rejected_rows: Some(0),
+            }],
+        }
+    }
+
+    fn id_column() -> ColumnFact {
+        ColumnFact {
+            attnum: 1,
+            atttypid: 20,
+            atttypmod: -1,
+            logical_column: "col".to_string(),
+            physical_name: format!("pc_{}", hex("56", 30)),
+        }
+    }
+
+    fn fixed_reason(result: Result<Vec<u8>, Stop>) -> &'static str {
+        match result {
+            Ok(_) => "ok",
+            Err(Stop::Fixed(message)) => message,
+            Err(Stop::Source { kind, .. }) => kind,
+            Err(Stop::Noted(_)) => "noted",
+        }
+    }
+
+    #[test]
+    fn sqlserver_c2_delta_keeps_batch_rows_and_applied_table_rows() {
+        assert!(catalog_delta_engine("sqlserver"));
+        assert!(catalog_delta_engine("postgres"));
+        assert!(catalog_delta_engine("postgresql"));
+        for engine in ["mysql", "oracle", "mongodb", "mariadb", "clickhouse", "doris"] {
+            assert!(!catalog_delta_engine(engine), "{engine}");
+        }
+        let bytes = bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, true)
+            .unwrap_or_else(|_| panic!("applied delta"));
+        let document: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(document["engine"], "sqlserver");
+        assert_eq!(document["protocol"], RESULT_PROTOCOL);
+        assert_eq!(document["source_generation"], 7);
+        assert_eq!(document["target_generation"], 7);
+        assert_eq!(document["tables"][0]["accepted_rows"], 6);
+        assert_eq!(document["tables"][0]["logical_table"], "oracle_row");
+        assert!(document["tables"][0]["stored_physical"].as_str().unwrap().starts_with("pt_"));
+        assert!(document.get("binding_vector").is_none());
+        assert!(!bytes.windows(18).any(|window| window == b"oo.source.pgsql/v1"));
+        assert_eq!(
+            fixed_reason(bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, false)),
+            "schema"
+        );
+        let mut drifted = c2_facts(6, vec![id_column()]);
+        drifted.tables[0].columns.push(ColumnFact {
+            attnum: 2,
+            atttypid: 20,
+            atttypmod: -1,
+            logical_column: "other".to_string(),
+            physical_name: format!("pc_{}", hex("78", 30)),
+        });
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &drifted, None, true)), "physical mapping is absent");
+        let mut renamed = c2_facts(6, vec![id_column()]);
+        renamed.tables[0].table_ident = "other_row".to_string();
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &renamed, None, true)), "schema");
+        let mut unapplied = c2_facts(-1, vec![id_column()]);
+        unapplied.quality[0].accepted_rows = Some(-1);
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &unapplied, None, true)), "schema");
     }
 
     #[test]
