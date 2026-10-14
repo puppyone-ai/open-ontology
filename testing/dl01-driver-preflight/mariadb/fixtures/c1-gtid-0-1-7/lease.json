@@ -1,0 +1,9 @@
+{
+  "protocol": "oo.pipeline.native-gtid-lease-input/v1",
+  "source_id": "logistics",
+  "txn_id": "0-1-7",
+  "lease_id": null,
+  "lease_generation": null,
+  "ack_allowed": false,
+  "reason": "no jobs.claim for 0-1-7; seal stays lease_required"
+}

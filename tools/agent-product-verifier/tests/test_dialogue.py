@@ -197,6 +197,17 @@ class SelectionFreeze(unittest.TestCase):
         self.assertFalse(dialogue.tool_error_returned("query", body))
         self.assertFalse(dialogue.tool_error_returned("knowledge_cat", {"class": "gateway", "code": "UNAUTHENTICATED", "message": "authentication failed"}))
 
+    def test_empty_search_returns_the_cli_usage_and_facts_stay_strict(self):
+        body = {"class": "usage", "message": "search text is missing", "retryable": False}
+        self.assertTrue(dialogue.tool_error_returned("knowledge_search", body))
+        self.assertFalse(dialogue.tool_error_returned("knowledge_search", {"class": "usage", "message": "other"}))
+        self.assertFalse(dialogue.tool_error_returned("query", body))
+        search = next(item["function"] for item in dialogue.tool_schema() if item["function"]["name"] == "knowledge_search")
+        self.assertEqual(search["parameters"]["properties"]["query"]["minLength"], 1)
+        self.assertIn("non-empty", search["description"])
+        with self.assertRaisesRegex(ValueError, "only facts and evidence"):
+            dialogue.verify_named_facts(json.dumps({"evidence": {}, "payload": {}}), {"qty": "1"}, {})
+
     def test_coverage_nudge_stops_after_the_tools_exist(self):
         self.assertEqual(dialogue.coverage_nudge(set(), 0, 4), ["describe", "freshness", "knowledge_cat", "query"])
         self.assertEqual(dialogue.coverage_nudge({"query", "freshness", "describe", "knowledge_cat"}, 1, 4), [])

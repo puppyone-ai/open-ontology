@@ -71,7 +71,7 @@ pub async fn import_native_update() -> Result<(), u8> {
     }
 }
 
-/// Apply every source-bound table of one PostgreSQL transaction in one target transaction.
+/// Apply every source-bound table of one PostgreSQL or GTID transaction in one target transaction.
 pub async fn import_native_transaction() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
@@ -626,7 +626,7 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
     ))
 }
 
-fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String, u64), &'static str> {
+fn admitted_plans(document: &Value) -> Result<Vec<UpdatePlan>, &'static str> {
     let object = document.as_object().ok_or("closed")?;
     if object.len() != 2 || document["protocol"] != TRANSACTION_PROTOCOL
         || object.keys().any(|key| key != "protocol" && key != "entries") { return Err("closed"); }
@@ -653,6 +653,11 @@ fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String
         }, || classify(request))?;
         plans.push(plan);
     }
+    Ok(plans)
+}
+
+fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String, u64), &'static str> {
+    let plans = admitted_plans(document)?;
     let first = plans.first().ok_or("closed")?;
     let scope = first.transaction_scope.as_ref().ok_or("transaction_scope_required")?.clone();
     let scope_tables = scope["tables"].as_array().filter(|items| items.len() == plans.len()).ok_or("transaction_scope_required")?;
@@ -720,6 +725,9 @@ async fn completed_snapshot_vector(source: &str, target_database: &str) -> Resul
 }
 
 async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
+    if gtid_entries(document) {
+        return execute_gtid_transaction(document).await;
+    }
     let (plans, scope, scope_digest, end_lsn) = transaction_plans(document)?;
     let first = &plans[0];
     let xid = scope["xid"].as_i64().ok_or("transaction_scope_required")?;
@@ -826,6 +834,176 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
             "jobs_lease_receipt":lease_receipt,"source_bound":true
         }))
     }.await;
+    let _ = release(&mut conn, &shard).await;
+    result
+}
+
+fn gtid_entries(document: &Value) -> bool {
+    document.get("entries").and_then(Value::as_array).is_some_and(|entries| {
+        entries.iter().any(|entry| {
+            matches!(
+                entry.get("position_codec").and_then(Value::as_str),
+                Some("mariadb-gtid/v1" | "mysql-gtid/v1")
+            )
+        })
+    })
+}
+
+async fn execute_gtid_transaction(document: &Value) -> Result<Value, &'static str> {
+    let identity = one_gtid(document)?;
+    let plans = admitted_plans(document)?;
+    gtid_plans_match(&plans, &identity)?;
+    let first = &plans[0];
+    let scope_digest = gtid_scope_digest(&first.source_id, &identity);
+    let group_generation = plans
+        .iter()
+        .map(|plan| plan.source_generation)
+        .min()
+        .ok_or("transaction_scope_required")?;
+    let job = first.lease_id.as_deref().ok_or("lease_required")?;
+    let job_generation = first.lease_generation.ok_or("lease_required")?;
+    let mut conn = connect_target(&first.target).await?;
+    let shard = first.shard.clone();
+    let result = async {
+        let mut tx = conn.begin().await.map_err(sql_token)?;
+        let (lease_receipt, _) = lease_hold(&mut tx, job, Some(job_generation)).await?;
+        let attestation: Option<String> = sqlx::query_scalar(
+            "SELECT _oo.native_gtid_transaction_read($1,$2,$3,$4,$5::text::numeric)::text",
+        )
+        .bind(&first.source_id)
+        .bind(&identity.codec)
+        .bind(&identity.lineage)
+        .bind(identity.epoch)
+        .bind(&identity.applied_pos)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        let (state, entries, target_generation) = if let Some(raw) = attestation {
+            let saved: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
+            let saved_pos = match &saved["applied_pos"] {
+                Value::String(text) => text.clone(),
+                Value::Number(number) => number.to_string(),
+                _ => return Err("OO010"),
+            };
+            if saved["scope_digest"] != scope_digest
+                || saved["job_task_id"] != job
+                || saved["source"] != first.source_id
+                || saved["position_codec"] != identity.codec
+                || saved["position_lineage"] != identity.lineage
+                || saved["source_epoch"].as_i64() != Some(i64::from(identity.epoch))
+                || saved_pos != identity.applied_pos
+                || saved["txn_id"] != identity.txn_id
+            {
+                return Err("OO010");
+            }
+            let entries = saved["entries"]
+                .as_array()
+                .filter(|rows| rows.len() == plans.len())
+                .ok_or("OO010")?
+                .clone();
+            for (plan, entry) in plans.iter().zip(&entries) {
+                let existing = transaction_read_batch(&mut tx, plan).await?.ok_or("OO010")?;
+                if entry["logical_schema"] != plan.schema
+                    || entry["logical_table"] != plan.table
+                    || entry["source_generation"] != plan.source_generation
+                    || entry["batch_id"] != plan.batch_id
+                    || entry["payload_digest"] != plan.payload_digest
+                    || entry["run_id"] != existing.run_id
+                    || entry["physical_name"] != existing.physical_name
+                    || entry["target_generation"] != existing.target_generation
+                {
+                    return Err("OO010");
+                }
+            }
+            (
+                "replay",
+                entries,
+                saved["target_generation"].as_i64().ok_or("OO010")?,
+            )
+        } else {
+            let adopted_generation: i64 = sqlx::query_scalar(
+                "SELECT _oo.adopt_target_generation($1,$2::uuid)",
+            )
+            .bind(&first.shard)
+            .bind(&first.owner)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+            sqlx::query("SELECT _oo.full_import_bind_session($1,$2::uuid,$3)")
+                .bind(&first.shard)
+                .bind(&first.owner)
+                .bind(adopted_generation)
+                .execute(&mut *tx)
+                .await
+                .map_err(sql_token)?;
+            for plan in &plans {
+                if transaction_read_batch(&mut tx, plan).await?.is_some() {
+                    return Err("OO010");
+                }
+            }
+            let mut order: Vec<usize> = (0..plans.len()).collect();
+            order.sort_by_key(|index| std::cmp::Reverse(plans[*index].source_generation));
+            let mut entries = vec![Value::Null; plans.len()];
+            let mut target_generation = None;
+            for index in order {
+                let plan = &plans[index];
+                position_ahead(&mut tx, plan).await?;
+                let applied = apply_tx(&mut tx, plan).await?;
+                if target_generation.is_some_and(|generation| generation != applied.target_generation) {
+                    return Err("OO010");
+                }
+                target_generation = Some(applied.target_generation);
+                entries[index] = json!({
+                    "logical_schema":plan.schema,"logical_table":plan.table,
+                    "source_generation":plan.source_generation,"target_generation":applied.target_generation,
+                    "physical_name":applied.physical_name,"batch_id":plan.batch_id,
+                    "payload_digest":plan.payload_digest,"run_id":applied.run_id
+                });
+            }
+            let generation = target_generation.ok_or("not_sealed")?;
+            if generation != adopted_generation {
+                return Err("OO010");
+            }
+            let entries_text = serde_json::to_string(&entries).map_err(|_| "not_sealed")?;
+            sqlx::query(
+                "SELECT _oo.native_gtid_transaction_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::text::numeric,$9,$10,$11::jsonb,$12::uuid,$13)",
+            )
+            .bind(&first.shard)
+            .bind(&first.owner)
+            .bind(generation)
+            .bind(&first.source_id)
+            .bind(&identity.codec)
+            .bind(&identity.lineage)
+            .bind(identity.epoch)
+            .bind(&identity.applied_pos)
+            .bind(&identity.txn_id)
+            .bind(&scope_digest)
+            .bind(&entries_text)
+            .bind(job)
+            .bind(group_generation)
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+            ("awaiting_publish", entries, generation)
+        };
+        lease_hold(&mut tx, job, Some(job_generation)).await?;
+        tx.commit().await.map_err(sql_token)?;
+        let head = &document["entries"][0];
+        Ok(json!({
+            "protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":state,"reason":null,
+            "source_id":first.source_id,
+            "position_codec":identity.codec,"position_lineage":identity.lineage,
+            "source_epoch":identity.epoch,"applied_pos":identity.applied_pos,"txn_id":identity.txn_id,
+            "source_generation":group_generation,
+            "scope_digest":scope_digest,"job_task_id":job,"job_generation":job_generation,
+            "target_generation":target_generation,"entries":entries,
+            "jobs_lease_receipt":lease_receipt,"source_bound":true,
+            "ack_allowed":false,
+            "resume_file":head.get("resume_file").and_then(Value::as_str),
+            "resume_pos":head.get("resume_pos").and_then(Value::as_str)
+        }))
+    }
+    .await;
     let _ = release(&mut conn, &shard).await;
     result
 }
@@ -1012,6 +1190,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
             "pg-commit-lsn/v1",
             "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
+            "mysql-gtid/v1",
             "mariadb-gtid/v1",
             "batch-cursor-us/v1",
             "snapshot-zero/v1",
@@ -1030,6 +1209,18 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         if capture_method != "c1_cdc"
             || consistency_grade != "T"
             || !maria_stored(&position_lineage, &applied_pos_request)
+        {
+            return Err("gtid_identity");
+        }
+    }
+    if position_codec == "mysql-gtid/v1" {
+        if source_engine != "mysql" {
+            return Err("gtid_family");
+        }
+        if capture_method != "c1_cdc"
+            || consistency_grade != "T"
+            || mysql_lineage(&position_lineage).is_none()
+            || !mysql_gno(&applied_pos_request)
         {
             return Err("gtid_identity");
         }
@@ -2285,6 +2476,210 @@ fn maria_order(left_lineage: &str, left_pos: &str, right_lineage: &str, right_po
         return Err("incomparable");
     }
     decimal_cmp(left_pos, right_pos)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GtidCommit {
+    codec: String,
+    lineage: String,
+    epoch: i32,
+    applied_pos: String,
+    txn_id: String,
+}
+
+fn one_gtid(document: &Value) -> Result<GtidCommit, &'static str> {
+    let object = document.as_object().ok_or("closed")?;
+    if object.len() != 2
+        || document["protocol"] != TRANSACTION_PROTOCOL
+        || object.keys().any(|key| key != "protocol" && key != "entries")
+    {
+        return Err("closed");
+    }
+    let requests = document["entries"]
+        .as_array()
+        .filter(|items| (1..=32).contains(&items.len()))
+        .ok_or("closed")?;
+    let mut identity = None;
+    for request in requests {
+        let parsed = gtid_commit_identity(request)?;
+        if let Some(prior) = &identity {
+            if prior != &parsed {
+                gtid_order(prior, &parsed)?;
+                return Err("gtid_identity");
+            }
+        } else {
+            identity = Some(parsed);
+        }
+    }
+    identity.ok_or("closed")
+}
+
+fn gtid_plans_match(plans: &[UpdatePlan], identity: &GtidCommit) -> Result<(), &'static str> {
+    let first = plans.first().ok_or("closed")?;
+    if first.transaction_scope.is_some() {
+        return Err("gtid_identity");
+    }
+    let mut prior = None;
+    for plan in plans {
+        let key = (&plan.schema, &plan.table);
+        if prior.is_some_and(|old| old >= key) {
+            return Err("transaction_scope_required");
+        }
+        prior = Some(key);
+        let engine_ok = match identity.codec.as_str() {
+            "mariadb-gtid/v1" => plan.source_engine == "mariadb",
+            "mysql-gtid/v1" => plan.source_engine == "mysql",
+            _ => false,
+        };
+        if !engine_ok
+            || plan.capture_method != "c1_cdc"
+            || plan.delete_detection != "native"
+            || plan.consistency_grade != "T"
+            || !plan.cross_table
+            || plan.position_codec != identity.codec
+            || plan.position_lineage != identity.lineage
+            || plan.applied_pos_request != identity.applied_pos
+            || plan.mode != "incremental"
+            || plan.partition_scope.is_some()
+            || plan.mirror
+            || !plan.source_bound
+            || plan.lease_id.is_none()
+            || plan.lease_generation.is_none()
+            || plan.source_id != first.source_id
+            || plan.target != first.target
+            || plan.shard != first.shard
+            || plan.owner != first.owner
+            || plan.lease_id != first.lease_id
+            || plan.lease_generation != first.lease_generation
+            || plan.config_digest != first.config_digest
+        {
+            return Err("transaction_scope_required");
+        }
+    }
+    Ok(())
+}
+
+fn gtid_scope_digest(source: &str, identity: &GtidCommit) -> String {
+    let canon = format!(
+        "{source}\n{}\n{}\n{}\n{}\n{}",
+        identity.codec, identity.lineage, identity.epoch, identity.applied_pos, identity.txn_id
+    );
+    hex_bytes(&Sha256::digest(canon.as_bytes()))
+}
+
+fn gtid_order(left: &GtidCommit, right: &GtidCommit) -> Result<std::cmp::Ordering, &'static str> {
+    if left.codec != right.codec || left.lineage != right.lineage || left.epoch != right.epoch {
+        return Err("incomparable");
+    }
+    decimal_cmp(&left.applied_pos, &right.applied_pos)
+}
+
+fn gtid_commit_identity(entry: &Value) -> Result<GtidCommit, &'static str> {
+    let engine = entry.get("source_engine").and_then(Value::as_str).ok_or("gtid_family")?;
+    let codec = entry.get("position_codec").and_then(Value::as_str).ok_or("gtid_identity")?;
+    let lineage = entry.get("position_lineage").and_then(Value::as_str).ok_or("gtid_identity")?;
+    let applied_pos = entry.get("applied_pos").and_then(Value::as_str).ok_or("gtid_identity")?;
+    let txn_id = entry.get("txn_id").and_then(Value::as_str).ok_or("gtid_identity")?;
+    if codec.contains(',') || lineage.contains(',') || applied_pos.contains(',') || txn_id.contains(',') {
+        return Err("gtid_identity");
+    }
+    let epoch = match entry.get("source_epoch") {
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .and_then(|value| i32::try_from(value).ok())
+            .filter(|value| *value >= 0)
+            .ok_or("gtid_identity")?,
+        _ => return Err("gtid_identity"),
+    };
+    let (codec, lineage, applied_pos, txn_id) = match (engine, codec) {
+        ("mariadb", "mariadb-gtid/v1") => {
+            let (domain, server) = maria_lineage(lineage).ok_or("gtid_identity")?;
+            if !maria_seq(applied_pos) {
+                return Err("gtid_identity");
+            }
+            let expected = format!("{domain}-{server}-{applied_pos}");
+            if txn_id != expected {
+                return Err("gtid_identity");
+            }
+            (
+                "mariadb-gtid/v1".to_string(),
+                lineage.to_string(),
+                applied_pos.to_string(),
+                txn_id.to_string(),
+            )
+        }
+        ("mysql", "mysql-gtid/v1") => {
+            let uuid = mysql_lineage(lineage).ok_or("gtid_identity")?;
+            if !mysql_gno(applied_pos) {
+                return Err("gtid_identity");
+            }
+            let expected = format!("{uuid}:{applied_pos}");
+            if txn_id != expected {
+                return Err("gtid_identity");
+            }
+            (
+                "mysql-gtid/v1".to_string(),
+                lineage.to_string(),
+                applied_pos.to_string(),
+                txn_id.to_string(),
+            )
+        }
+        ("mariadb", "mysql-gtid/v1") | ("mysql", "mariadb-gtid/v1") => return Err("gtid_family"),
+        _ => return Err("gtid_identity"),
+    };
+    assist_not_identity(entry, &txn_id, &applied_pos)?;
+    Ok(GtidCommit {
+        codec,
+        lineage,
+        epoch,
+        applied_pos,
+        txn_id,
+    })
+}
+
+fn assist_not_identity(entry: &Value, txn_id: &str, applied_pos: &str) -> Result<(), &'static str> {
+    let file = match entry.get("resume_file") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(text)) if !text.is_empty() && text.len() <= 128 && !text.contains(',') => Some(text.as_str()),
+        _ => return Err("gtid_identity"),
+    };
+    let pos = match entry.get("resume_pos") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(text)) if maria_seq(text) => Some(text.as_str()),
+        _ => return Err("gtid_identity"),
+    };
+    if file.is_some() != pos.is_some() {
+        return Err("gtid_identity");
+    }
+    if let Some(file) = file
+        && (txn_id == file || applied_pos == file || txn_id.contains(file))
+    {
+        return Err("gtid_identity");
+    }
+    if txn_id.contains('/') || applied_pos.contains('/') || applied_pos.contains(':') {
+        return Err("gtid_identity");
+    }
+    Ok(())
+}
+
+fn mysql_lineage(lineage: &str) -> Option<&str> {
+    let uuid = lineage.strip_prefix("mysql.")?;
+    if mysql_uuid(uuid) { Some(uuid) } else { None }
+}
+
+fn mysql_uuid(text: &str) -> bool {
+    let mut parts = text.split('-');
+    for width in [8, 4, 4, 4, 12] {
+        let Some(part) = parts.next() else { return false };
+        if part.len() != width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+            return false;
+        }
+    }
+    parts.next().is_none()
+}
+
+fn mysql_gno(pos: &str) -> bool {
+    maria_seq(pos) && pos != "0"
 }
 
 fn decimal_add(text: &str, addend: u64) -> Result<String, &'static str> {
@@ -3596,7 +3991,7 @@ async fn position_ahead(
         let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0 && plan.tombstones.is_empty();
         return if ordering == std::cmp::Ordering::Greater || ordering == std::cmp::Ordering::Equal && empty { Ok(()) } else { Err("expired") };
     }
-    if plan.position_codec == "mariadb-gtid/v1" {
+    if plan.position_codec == "mariadb-gtid/v1" || plan.position_codec == "mysql-gtid/v1" {
         let stored: Option<(String, String, String)> = sqlx::query_as(
             "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
         ).bind(&plan.source_id).fetch_optional(&mut **tx).await.map_err(sql_token)?;
@@ -5301,6 +5696,110 @@ mod tests {
         let mut batch = base_request();
         batch["source_engine"] = json!("mariadb");
         assert_eq!(classify(&batch).err(), Some("empty"));
+    }
+
+    #[test]
+    fn mysql_gtid_grammar_is_one_uuid_and_gno() {
+        let mut request = base_request();
+        request["source_engine"] = json!("mysql");
+        request["position_codec"] = json!("mysql-gtid/v1");
+        request["position_lineage"] = json!("mysql.not-a-uuid");
+        request["applied_pos"] = json!("7");
+        request["capture_method"] = json!("c1_cdc");
+        request["delete_detection"] = json!("native");
+        request["consistency_grade"] = json!("T");
+        request["cross_table_consistent"] = json!(true);
+        assert_eq!(classify(&request).err(), Some("gtid_identity"));
+        request["position_lineage"] = json!("mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        request["source_generation"] = json!(2);
+        request["parent_source_generation"] = json!(1);
+        assert_eq!(classify(&request).err(), Some("consistency"));
+        request["source_engine"] = json!("mariadb");
+        assert_eq!(classify(&request).err(), Some("gtid_family"));
+    }
+
+    #[test]
+    fn gtid_commit_identity_uses_the_captured_spool_and_refuses_sets() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../testing/dl01-driver-preflight/mariadb/fixtures/c1-gtid-0-1-7");
+        let spool_bytes = fs::read(dir.join("spool.ndjson")).expect("spool");
+        let signature: Value = serde_json::from_slice(&fs::read(dir.join("signature.json")).expect("signature")).unwrap();
+        assert_eq!(signature["spool_sha256"], hex_bytes(&Sha256::digest(&spool_bytes)));
+        assert_eq!(signature["ack_allowed"], false);
+        let lines: Vec<Value> = std::str::from_utf8(&spool_bytes)
+            .unwrap()
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let ops: Vec<&str> = lines.iter().filter_map(|line| line["op"].as_str()).collect();
+        assert_eq!(ops, ["c", "u", "d"]);
+        assert_eq!(lines.last().unwrap()["txn_id"], "0-1-7");
+        assert!(lines.last().unwrap().get("source_epoch").is_none());
+        assert_eq!(gtid_commit_identity(lines.last().unwrap()).err(), Some("gtid_identity"));
+        let positive: Value = serde_json::from_slice(&fs::read(dir.join("positive-maria.json")).unwrap()).unwrap();
+        let parsed = gtid_commit_identity(&positive).expect("maria");
+        assert_eq!(parsed.codec, "mariadb-gtid/v1");
+        assert_eq!(parsed.lineage, "d0.s1");
+        assert_eq!(parsed.applied_pos, "7");
+        assert_eq!(parsed.txn_id, "0-1-7");
+        assert_eq!(parsed.epoch, 1);
+        assert_ne!(parsed.txn_id, positive["resume_file"]);
+        assert_ne!(parsed.applied_pos, positive["resume_pos"]);
+        let mut without_resume = positive.clone();
+        without_resume.as_object_mut().unwrap().remove("resume_file");
+        without_resume.as_object_mut().unwrap().remove("resume_pos");
+        assert_eq!(gtid_commit_identity(&without_resume).unwrap(), parsed);
+        assert_eq!(
+            gtid_scope_digest("logistics", &parsed),
+            gtid_scope_digest("logistics", &gtid_commit_identity(&without_resume).unwrap())
+        );
+        let mysql: Value = serde_json::from_slice(&fs::read(dir.join("positive-mysql.json")).unwrap()).unwrap();
+        let mysql_id = gtid_commit_identity(&mysql).expect("mysql");
+        assert_eq!(mysql_id.codec, "mysql-gtid/v1");
+        assert_eq!(mysql_id.applied_pos, "7");
+        assert!(mysql_id.txn_id.ends_with(":7"));
+        assert!(!mysql_id.txn_id.contains("binlog"));
+        assert_ne!(mysql_id.applied_pos, mysql["resume_pos"]);
+        let mut other_epoch = mysql.clone();
+        other_epoch["source_epoch"] = json!(2);
+        let other = gtid_commit_identity(&other_epoch).unwrap();
+        assert_eq!(gtid_order(&mysql_id, &other), Err("incomparable"));
+        let negatives: Vec<Value> = serde_json::from_slice(&fs::read(dir.join("negative.json")).unwrap()).unwrap();
+        assert!(negatives.len() >= 8);
+        for case in &negatives {
+            assert_eq!(
+                gtid_commit_identity(&case["entry"]).err().map(str::to_string),
+                case["error"].as_str().map(str::to_string),
+                "{}",
+                case["name"]
+            );
+        }
+        let lease: Value = serde_json::from_slice(&fs::read(dir.join("lease.json")).unwrap()).unwrap();
+        assert_eq!(lease["ack_allowed"], false);
+        assert!(lease["lease_id"].is_null());
+        let rules: Value = serde_json::from_slice(&fs::read(dir.join("source-rules.json")).unwrap()).unwrap();
+        let gold: Value = serde_json::from_slice(&fs::read(dir.join("source-money-gold.json")).unwrap()).unwrap();
+        let mut money = Vec::new();
+        for column in rules["columns"].as_array().unwrap() {
+            if column["semantic_type"] == "identifier" {
+                assert_eq!(column["pii"], "unknown");
+            }
+            if column["semantic_type"] == "money" {
+                assert_eq!(column["unit"], "unspecified");
+                assert_eq!(column["pii"], "unknown");
+                assert_ne!(column["unit"], "USD");
+                money.push(column["column"].as_str().unwrap().to_string());
+            }
+        }
+        money.sort();
+        assert_eq!(
+            money,
+            vec!["cust_east.k_note.money".to_string(), "logistics.shipments.cost_amount".to_string()]
+        );
+        assert_eq!(gold["observed"]["currency_columns"], 0);
+        assert_eq!(gold["observed"]["hub_9000000000001"], 0);
+        assert_eq!(gold["s5"], "not_called");
     }
 
     #[test]
