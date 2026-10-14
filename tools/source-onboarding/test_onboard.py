@@ -29,11 +29,18 @@ class RunnerTests(unittest.TestCase):
         command={'catalog':{'schema_digest':'44'*32,'source_id':'fixture','source_generation':5}}
         visibility={'role':'oo_r_reader','catalog_version':'55'*32,'policy':{'id':'pol','version':'1'}}
         native={'protocol':'oo.selfbuild-control-api/native-maintenance/v1','build_id':receipt['build_id'],'pack_digest':'22'*32,'llm_calls':0,'publication':'not_published','artifact_revision':'66'*32,'source_rebind':{'catalog_sha256':'77'*32}}
-        role={'status':200,'response':{'contract':'oo.selfbuild-control-api/role-pack/v1','build_id':receipt['build_id'],'role':'oo_r_reader','policy_version':'oos/v1','pack_sha256':http_sha,'llm_calls':0,'native_maintenance':native}}
+        role={'status':200,'request':{'policy_version':'oos/v1','role':'oo_r_reader','identity_revision':'rev','idempotency_key':'idem-r'},'response':{'contract':'oo.selfbuild-control-api/role-pack/v1','operation':'compileRolePack','build_id':receipt['build_id'],'role':'oo_r_reader','policy_version':'oos/v1','pack_sha256':http_sha,'llm_calls':0,'native_maintenance':native}}
+        maintained={'status':200,'request':{'catalog_sha256':'77'*32,'trigger':'source_generation_advanced','identity_revision':'rev','idempotency_key':'idem-m'},'response':{'operation':'postMaintenance','trigger':'source_generation_advanced','build_id':receipt['build_id'],'llm_calls':0,'native_maintenance':native}}
+        overlay={'contract':'oo.selfbuild-control-api/overlay/v1','operation':'getOverlay','build_id':receipt['build_id'],'llm_calls':0}
         (product/'current-command.json').write_text(json.dumps(command))
         (product/'current-visibility.json').write_text(json.dumps(visibility))
-        (product/'current-role-response.json').write_text(json.dumps(role))
-        consumption=m.maintenance_consumption(receipt, m.digest(product/'product-receipt.json'), s5_sha, current, command, visibility, role)
+        role_bytes=json.dumps(role).encode();maint_bytes=json.dumps(maintained).encode();overlay_bytes=json.dumps(overlay).encode()
+        (product/'current-role-response.json').write_bytes(role_bytes)
+        (product/'current-maintenance-response.json').write_bytes(maint_bytes)
+        (product/'current-prepared-overlay.json').write_bytes(overlay_bytes)
+        (product/'current-role-exit.json').write_text(json.dumps({'exit':0}))
+        (product/'current-maintenance-exit.json').write_text(json.dumps({'exit':0}))
+        consumption=m.maintenance_consumption(receipt, m.digest(product/'product-receipt.json'), s5_sha, current, command, visibility, role_bytes, maint_bytes, 0, 0, overlay_bytes)
         (product/'maintenance-consumption.json').write_text(json.dumps(consumption))
         self.assertNotEqual(consumption['s5_role_pack_sha256'], consumption['role_pack_file_sha256'])
         self.assertNotEqual(consumption['http_pack_sha256'], consumption['role_pack_file_sha256'])
@@ -191,16 +198,34 @@ class RunnerTests(unittest.TestCase):
                 self.assertFalse((side/'engines.json').exists())
             finally:m.INSTALL_ROOT=held
             command_path.write_text(command_raw)
-            journal['steps'][0]['observed_programs']=[]
-            self.write(run/'journal.json', journal)
+            exit_path=product/'current-role-exit.json';exit_raw=exit_path.read_text()
+            exit_path.write_text(json.dumps({'exit':1}))
             with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.prove_whole(run,recipe,journal)
             m.INSTALL_ROOT=side
             try:
                 with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.install_engine('mysql',rp,reg,whole_run=str(run))
                 self.assertFalse((side/'engines.json').exists())
             finally:m.INSTALL_ROOT=held
-            journal['steps'][0]['observed_programs']=[str(m.OPERATOR)]
-            self.write(run/'journal.json', journal)
+            exit_path.write_text(exit_raw)
+            maint_path=product/'current-maintenance-response.json';maint_raw=maint_path.read_bytes()
+            foreign=json.loads(maint_raw);foreign['response']['build_id']='b_foreign'
+            maint_path.write_bytes(json.dumps(foreign).encode())
+            with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.prove_whole(run,recipe,journal)
+            m.INSTALL_ROOT=side
+            try:
+                with self.assertRaisesRegex(m.Refused,'maintenance_not_invoked'):m.install_engine('mysql',rp,reg,whole_run=str(run))
+                self.assertFalse((side/'engines.json').exists())
+            finally:m.INSTALL_ROOT=held
+            maint_path.write_bytes(maint_raw)
+            wrong_gen=json.loads(command_raw);wrong_gen['catalog']['source_generation']=9
+            command_path.write_text(json.dumps(wrong_gen))
+            with self.assertRaisesRegex(m.Refused,'maintenance_source'):m.prove_whole(run,recipe,journal)
+            command_path.write_text(command_raw)
+            vis_path=product/'current-visibility.json';vis_raw=vis_path.read_text()
+            wrong_role=json.loads(vis_raw);wrong_role['role']='oo_r_other'
+            vis_path.write_text(json.dumps(wrong_role))
+            with self.assertRaisesRegex(m.Refused,'role_pack_not_current'):m.prove_whole(run,recipe,journal)
+            vis_path.write_text(vis_raw)
             observed=json.loads(json.dumps(journal))
             observed['steps'][0]['observed_programs']=[str(m.PRODUCT_FLOW), str(m.OPERATOR)]
             observed['steps'][1]['observed_programs']=[str(m.DIALOGUE)]
@@ -286,7 +311,9 @@ class RunnerTests(unittest.TestCase):
             flow=pf.Flow(c,out);build='b_same'
             m.save(out/'build.json',{'build_id':build,'config_sha256':c['_sha256']})
             m.save(out/'product-receipt.json',{'protocol':'oo.source-onboarding.product/v1','build_id':build,'catalog_sha256':catalog,'fixture_review':True})
-            result=flow.run();self.assertTrue(result['reused_completed']);self.assertEqual(result['build_id'],build)
+            before=(out/'product-receipt.json').read_bytes()
+            with self.assertRaisesRegex(pf.Refused,'maintenance_not_invoked'):flow.run()
+            self.assertEqual((out/'product-receipt.json').read_bytes(),before)
             self.assertEqual(list(out.glob('*.response.json')),[])
             receipt=json.loads((out/'product-receipt.json').read_text());receipt['build_id']='b_other';(out/'product-receipt.json').write_text(json.dumps(receipt))
             with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):flow.run()
@@ -320,8 +347,7 @@ class RunnerTests(unittest.TestCase):
             cp=root/'config.json';cp.write_text(json.dumps(config));cp.chmod(0o600)
             c=m.load(cp);c['_sha256']=m.digest(cp)
             m.save(product/'build.json',{'build_id':'b_same','config_sha256':c['_sha256']})
-            reused=pf.Flow(c,product).run()
-            self.assertTrue(reused['reused_completed']);self.assertEqual(reused['build_id'],'b_same')
+            with self.assertRaisesRegex(pf.Refused,'maintenance_not_invoked'):pf.Flow(c,product).run()
             self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
             pins=[dict(path=p,sha256=m.digest(p)) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
             recipe=dict(protocol='oo.source-onboarding.recipe/v1',engine='mysql',owned_fixture=True,mode='whole_source',completion_artifact='whole.json',pins=pins,steps=[dict(name='product',argv=[sys.executable,str(root/'reuse.py')]),dict(name='dialogue',argv=[sys.executable,str(m.DIALOGUE)])])

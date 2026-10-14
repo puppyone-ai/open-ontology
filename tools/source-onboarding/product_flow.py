@@ -10,7 +10,7 @@ import sys
 import time
 import urllib.request
 import uuid
-from onboard import private, load, save, require, digest, Refused
+from onboard import private, load, save, require, digest, Refused, maintenance_consumption, pairs
 
 ROOT = Path(__file__).resolve().parents[2]
 OPERATOR = ROOT/'tools/selfbuild-control-api/recipes/operator.py'
@@ -30,6 +30,7 @@ class Flow:
     def call(self, role, path, body=None, name='read'):
         self.counter+=1
         prefix=self.out/f'{self.counter:04d}-{name}'
+        self.last_prefix=prefix
         argv=[sys.executable,str(OPERATOR),'--endpoint',self.c['endpoint'],'--origin',self.c['origin'],'--ca',self.c['ca'],'--cookie-file',self.c['cookies'][role],'--identity-origin',self.c['identity_origin'],'--identity-ca',self.c['identity_ca'],'--path',path,'--out',str(prefix.with_suffix('.response.json'))]
         if body is not None:
             body=dict(body,identity_revision=self.current(role),idempotency_key=uuid.uuid4().hex)
@@ -48,7 +49,7 @@ class Flow:
         require(c.get('fixture_authorized') is True, 'fixture_authority_required')
         require(digest(OPERATOR) == c['operator_sha256'], 'operator_drift')
         reused=self.completed()
-        if reused is not None: return reused
+        if reused is not None: return self.bind_current(reused)
         build_file=self.out/'build.json'
         if build_file.exists():
             saved=load(build_file);require(saved['config_sha256'] == c['_sha256'], 'product_resume_drift');build=saved['build_id']
@@ -146,6 +147,93 @@ class Flow:
         receipt=load(receipt_path)
         require(receipt.get('protocol') == 'oo.source-onboarding.product/v1' and receipt.get('build_id') == saved.get('build_id') and receipt.get('catalog_sha256') == self.c['catalog_sha256'], 'product_resume_drift')
         return {'build_id':saved['build_id'],'s0_s10':'succeeded','fixture_review':receipt.get('fixture_review') is True,'published':False,'reused_completed':True}
+    def bind_current(self, reused):
+        receipt_path=self.out/'product-receipt.json'
+        before=receipt_path.read_bytes()
+        s5_path=self.out/'role-pack.json'
+        s5_before=s5_path.read_bytes() if s5_path.is_file() and not s5_path.is_symlink() else None
+        try:
+            self.maintain()
+        finally:
+            require(receipt_path.read_bytes()==before, 'product_resume_drift')
+        require(s5_before is not None and s5_path.read_bytes()==s5_before, 'role_pack_not_current')
+        done=dict(reused)
+        done['maintenance_consumption_sha256']=digest(self.out/'maintenance-consumption.json')
+        return done
+    def caller_ready(self):
+        c=self.c
+        for key in ('endpoint','origin','ca','identity_origin','identity_ca','work_dir_host','work_dir_container'):
+            require(isinstance(c.get(key), str) and c[key], 'maintenance_not_invoked')
+        cookies=c.get('cookies')
+        require(isinstance(cookies, dict) and isinstance(cookies.get('admin'), str) and cookies['admin'], 'maintenance_not_invoked')
+        private(cookies['admin'])
+    def sealed_catalog_sha(self):
+        root=Path(self.c['work_dir_host']).parent
+        catalog=root/'bundle'/'catalog.json'
+        manifest_path=root/'bundle'/'manifest.json'
+        require(catalog.is_file() and not catalog.is_symlink() and manifest_path.is_file() and not manifest_path.is_symlink(), 'maintenance_not_invoked')
+        require(catalog.resolve().is_relative_to(root.resolve()), 'maintenance_not_invoked')
+        sha=digest(catalog)
+        manifest=load(manifest_path)
+        files=manifest.get('files') if isinstance(manifest, dict) else None
+        require(isinstance(files, dict) and files.get('catalog.json')==sha, 'maintenance_not_invoked')
+        return sha
+    def maintain(self):
+        """Same build: official maintenance and compileRolePack. The S5 receipt bytes stay."""
+        self.caller_ready()
+        receipt=load(self.out/'product-receipt.json')
+        s5_path=self.out/'role-pack.json'
+        require(s5_path.is_file() and not s5_path.is_symlink() and digest(s5_path)==receipt.get('native_role_pack_sha256'), 'role_pack_not_current')
+        pack_doc=receipt.get('pack')
+        role_name=pack_doc.get('role') if isinstance(pack_doc, dict) else None
+        require(isinstance(role_name, str) and role_name, 'role_pack_not_current')
+        catalog_sha=self.sealed_catalog_sha()
+        build=receipt['build_id']
+        path='/control/v1/builds/'+build
+        self.call('admin', path+'/maintenance', {'catalog_sha256':catalog_sha,'trigger':'source_generation_advanced'}, 'current-maintenance')
+        maint_prefix=self.last_prefix
+        role_body=self.call('admin', path+'/role-pack', {'policy_version':'oos/v1','role':role_name}, 'current-role-pack')
+        role_prefix=self.last_prefix
+        overlay=self.call('admin', path+'/overlay', name='current-overlay')
+        native=role_body.get('native_maintenance') if isinstance(role_body, dict) else None
+        require(isinstance(native, dict) and isinstance(native.get('artifact_directory'), str) and isinstance(native.get('artifact_revision'), str), 'maintenance_not_invoked')
+        try:
+            relative=Path(native['artifact_directory']).relative_to(Path(self.c['work_dir_container']))
+        except ValueError:
+            raise Refused('maintenance_not_invoked')
+        artifact=Path(self.c['work_dir_host'])/relative
+        require(artifact.is_dir() and not artifact.is_symlink() and artifact.name==native['artifact_revision'] and artifact.resolve().is_relative_to(Path(self.c['work_dir_host']).resolve()), 'maintenance_not_invoked')
+        def regular(name, token):
+            found=artifact/name
+            require(found.is_file() and not found.is_symlink(), token)
+            return found.read_bytes()
+        pack_bytes=regular('role-pack.json', 'role_pack_not_current')
+        command_bytes=regular('command.json', 'maintenance_not_invoked')
+        visibility_bytes=regular('visibility.json', 'maintenance_not_invoked')
+        try:
+            command=json.loads(command_bytes.decode(), object_pairs_hook=pairs)
+            visibility=json.loads(visibility_bytes.decode(), object_pairs_hook=pairs)
+        except (UnicodeError, json.JSONDecodeError):
+            raise Refused('maintenance_not_invoked')
+        role_bytes=role_prefix.with_suffix('.response.json').read_bytes()
+        maint_bytes=maint_prefix.with_suffix('.response.json').read_bytes()
+        role_exit=load(role_prefix.with_suffix('.exit.json'))
+        maint_exit=load(maint_prefix.with_suffix('.exit.json'))
+        require(isinstance(role_exit, dict) and isinstance(maint_exit, dict), 'maintenance_not_invoked')
+        overlay_bytes=(json.dumps(overlay, indent=2)+'\n').encode()
+        fresh=maintenance_consumption(receipt, digest(self.out/'product-receipt.json'), receipt['native_role_pack_sha256'], pack_bytes, command, visibility, role_bytes, maint_bytes, role_exit.get('exit'), maint_exit.get('exit'), overlay_bytes)
+        def put(name, data):
+            target=self.out/name
+            target.write_bytes(data); target.chmod(0o600)
+        put('current-role-pack.json', pack_bytes)
+        put('current-command.json', command_bytes)
+        put('current-visibility.json', visibility_bytes)
+        put('current-role-response.json', role_bytes)
+        put('current-maintenance-response.json', maint_bytes)
+        put('current-role-exit.json', role_prefix.with_suffix('.exit.json').read_bytes())
+        put('current-maintenance-exit.json', maint_prefix.with_suffix('.exit.json').read_bytes())
+        put('current-prepared-overlay.json', overlay_bytes)
+        save(self.out/'maintenance-consumption.json', fresh)
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');a=parser.parse_args()

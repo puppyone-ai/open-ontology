@@ -2,7 +2,7 @@
 
 `python3 tools/source-onboarding/product_flow.py --config /private/product.json --out /private/new-run/product`
 
-The caller deploys its own actual fixed Selfbuild API project against **this run's** sealed bundle. This helper calls existing `recipes/operator.py` unchanged: actual OIDC identity/current, current CSRF, real role cookies, TLS verification, real HTTP responses. It never uses closed_loop's synthetic identity fixture, hardcoded cards or canned bundle. New source identity requires a real S5; do not copy a provider response/cache or an old build. If `product-receipt.json` already records this config sha256, the same `build_id` and the same `catalog_sha256`, the helper returns that completion and does not call confirm, S5 or import again. A different config, pin or catalog is `product_resume_drift`. The receipt stays.
+The caller deploys its own actual fixed Selfbuild API project against **this run's** sealed bundle. This helper calls existing `recipes/operator.py` unchanged: actual OIDC identity/current, current CSRF, real role cookies, TLS verification, real HTTP responses. It never uses closed_loop's synthetic identity fixture, hardcoded cards or canned bundle. New source identity requires a real S5; do not copy a provider response/cache or an old build. If `product-receipt.json` already records this config sha256, the same `build_id` and the same `catalog_sha256`, the helper does not call confirm, S5, create, or import again. It calls the official same-build maintenance route `source_generation_advanced` and `compileRolePack` through `operator.py`, and writes `maintenance-consumption.json` beside the unchanged receipt. A different config, pin or catalog is `product_resume_drift`. The receipt stays.
 
 Private `product.json` fields:
 
