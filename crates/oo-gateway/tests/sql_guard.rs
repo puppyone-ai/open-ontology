@@ -331,6 +331,114 @@ fn varchar_equality_uses_only_the_catalogued_text_operator() {
 }
 
 #[test]
+fn date_literal_binds_only_the_catalogued_date_comparison() {
+    const DATE_OID: u32 = 1082;
+    const DATE_EQ: u32 = 701;
+    const DATE_EQ_PROC: u32 = 702;
+    const DATE_LT: u32 = 703;
+    const DATE_LT_PROC: u32 = 704;
+    let mut relations = vec![shipment(10)];
+    relations[0]
+        .columns
+        .push(col("bucket", "pc_bucket", DATE_OID));
+    let mut catalog = catalog(relations);
+    catalog.operators.push(ResolvedOperator {
+        oid: DATE_EQ,
+        procedure_oid: DATE_EQ_PROC,
+        schema: "pg_catalog".to_string(),
+        name: "=".to_string(),
+        left_type_oid: DATE_OID,
+        right_type_oid: DATE_OID,
+    });
+    catalog.operators.push(ResolvedOperator {
+        oid: DATE_LT,
+        procedure_oid: DATE_LT_PROC,
+        schema: "pg_catalog".to_string(),
+        name: "<".to_string(),
+        left_type_oid: DATE_OID,
+        right_type_oid: DATE_OID,
+    });
+    catalog.operators.push(ResolvedOperator {
+        oid: 1701,
+        procedure_oid: 1702,
+        schema: "pg_catalog".to_string(),
+        name: "=".to_string(),
+        left_type_oid: 1700,
+        right_type_oid: 1700,
+    });
+    let plan = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = DATE '2026-05-06'",
+    );
+    assert_eq!(plan.bindings.operators.len(), 1);
+    assert_eq!(plan.bindings.operators[0].oid, DATE_EQ);
+    assert_eq!(plan.bindings.operators[0].procedure_oid, DATE_EQ_PROC);
+    assert_ne!(DATE_EQ, DATE_EQ_PROC);
+    assert!(plan.executed_sql.contains("pc_bucket"), "{}", plan.executed_sql);
+    assert!(plan.executed_sql.contains("2026-05-06"), "{}", plan.executed_sql);
+    assert!(!plan.executed_sql.contains('$'), "{}", plan.executed_sql);
+    let earlier = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket < DATE '2024-02-29'",
+    );
+    assert_eq!(earlier.bindings.operators[0].oid, DATE_LT);
+    assert_eq!(earlier.bindings.operators[0].procedure_oid, DATE_LT_PROC);
+    let cast_form = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-01'::pg_catalog.date",
+    );
+    assert_eq!(cast_form.bindings.operators[0].oid, DATE_EQ);
+    assert_eq!(
+        admit(&catalog, "SELECT DATE '2026-05-01'").bindings.outputs,
+        vec![OutputItem::Literal(LiteralKind::Date)]
+    );
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = DATE '2026-02-31'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = DATE '2026-02-29'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = DATE '0000-01-01'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = DATE '2026-05-06 00:00:00'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'::timestamp",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket::date = DATE '2026-05-06'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE CAST(lower(bucket) AS date) = DATE '2026-05-06'",
+    ] {
+        assert_eq!(
+            refuse(&catalog, sql),
+            GuardError::Unsupported { construct: "cast" },
+            "{sql}"
+        );
+    }
+    assert!(matches!(
+        refuse(
+            &catalog,
+            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'"
+        ),
+        GuardError::FunctionNotAllowed
+    ));
+    assert!(matches!(
+        refuse(
+            &catalog,
+            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = 1"
+        ),
+        GuardError::FunctionNotAllowed
+    ));
+    assert_eq!(
+        refuse(&catalog, "SELECT lower(bucket) FROM logistics.shipment"),
+        GuardError::FunctionNotAllowed
+    );
+    assert!(matches!(
+        refuse(&catalog, "SELECT hidden_balance FROM logistics.shipment"),
+        GuardError::ColumnNotAllowed { .. }
+    ));
+    assert!(matches!(
+        refuse(
+            &catalog,
+            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket IN (DATE '2026-05-06')"
+        ),
+        GuardError::Unsupported { construct: "cast" }
+    ));
+}
+
+#[test]
 fn alias_hides_the_table_name() {
     let plan = admit(&small(), "SELECT s.order_id FROM logistics.shipment AS s");
     assert_eq!(plan.bindings.relations[0].alias.as_deref(), Some("s"));

@@ -492,10 +492,13 @@ fn compile_set(policies: &[ColumnAclPolicy], native_vector: bool) -> Result<Comp
 /// Compile, mapping, type, generation, PII, and row-filter checks finish
 /// before `CREATE ROLE` or any `GRANT`. A new role is created once. An
 /// existing role is replayed only when its membership and its full column
-/// grant set already equal this list. A partial list, a foreign table, or a
-/// changed column is [`PolicyError::GrantMismatch`] and does not revoke or
-/// add grants. Any error rolls the transaction back, including a role created
-/// in that transaction.
+/// grant set already equal this list. Column grants belong to the connected
+/// database. When that role already has the policy membership and has no
+/// column or table grant in this database, the same transaction grants this
+/// list here and does not revoke grants in any other database. A partial
+/// list, a foreign table, or a changed column is [`PolicyError::GrantMismatch`]
+/// and does not revoke or add grants. Any error rolls the transaction back,
+/// including a role created in that transaction.
 pub async fn install_column_acl_set(
     client: &mut Client,
     policies: &[ColumnAclPolicy],
@@ -684,10 +687,31 @@ async fn install_set_in_transaction(
     let resolved = resolve_set(tx, compiled, true).await?;
     ensure_login(tx, &first.login).await?;
     let existed = role_exists(tx, &first.role).await?;
+    let mut filled_this_database = false;
     if existed {
         ensure_role_shape(tx, &first.role).await?;
         ensure_membership(tx, &first.role, &first.login).await?;
-        ensure_exact_grants(tx, &first.role, &resolved).await?;
+        match ensure_exact_grants(tx, &first.role, &resolved).await {
+            Ok(()) => {}
+            Err(PolicyError::GrantMismatch) => {
+                let (columns, tables) = connected_database_grant_counts(tx, &first.role).await?;
+                if !empty_database_fill(columns, tables) {
+                    return Err(PolicyError::GrantMismatch);
+                }
+                for table in &resolved {
+                    grant_usage_and_columns(
+                        tx,
+                        &first.role,
+                        &table.physical_table,
+                        &table.physical_columns,
+                    )
+                    .await?;
+                }
+                ensure_exact_grants(tx, &first.role, &resolved).await?;
+                filled_this_database = true;
+            }
+            Err(error) => return Err(error),
+        }
         ensure_schema_usage(tx, &first.role).await?;
     }
     if !existed {
@@ -710,10 +734,10 @@ async fn install_set_in_transaction(
         ensure_schema_usage(tx, &first.role).await?;
     }
     Ok(SetInstallOutcome {
-        effect: if existed {
-            InstallEffect::Replay
-        } else {
+        effect: if filled_this_database || !existed {
             InstallEffect::Installed
+        } else {
+            InstallEffect::Replay
         },
         role: first.role.clone(),
         grantor,
@@ -1411,6 +1435,33 @@ async fn revoke_older_same_table_grants(
     Ok(())
 }
 
+fn empty_database_fill(column_grants: i64, table_grants: i64) -> bool {
+    column_grants == 0 && table_grants == 0
+}
+
+async fn connected_database_grant_counts(
+    tx: &mut Transaction<'_>,
+    role: &str,
+) -> Result<(i64, i64), PolicyError> {
+    let columns: i64 = tx
+        .query_one(
+            "SELECT count(*)::int8 FROM information_schema.column_privileges WHERE grantee = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?
+        .get(0);
+    let tables: i64 = tx
+        .query_one(
+            "SELECT count(*)::int8 FROM information_schema.table_privileges WHERE grantee = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?
+        .get(0);
+    Ok((columns, tables))
+}
+
 async fn ensure_exact_grants(
     tx: &mut Transaction<'_>,
     role: &str,
@@ -1946,5 +1997,13 @@ mod tests {
         assert!(plan_metadata_detach(&only_tables, &only_tables, &grantable, &login_routines).is_err());
         let held = BTreeSet::from([lookup_routine(false)]);
         assert!(plan_metadata_detach(&only_tables, &only_tables, &held, &routines).is_err());
+    }
+
+    #[test]
+    fn empty_connected_database_does_not_authorize_another_role() {
+        assert!(empty_database_fill(0, 0));
+        assert!(!empty_database_fill(38, 0));
+        assert!(!empty_database_fill(0, 1));
+        assert!(!empty_database_fill(1, 0));
     }
 }

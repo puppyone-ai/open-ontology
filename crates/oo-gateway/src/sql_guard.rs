@@ -289,6 +289,8 @@ pub enum LiteralKind {
     Text,
     /// Boolean constant.
     Boolean,
+    /// `DATE 'YYYY-MM-DD'` constant. Not a cast of a column or a function.
+    Date,
     /// `NULL`.
     Null,
 }
@@ -1155,7 +1157,7 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         Some(pb::node::Node::AExpr(_)) => admit_op(node, ctx),
         Some(pb::node::Node::BoolExpr(_)) => admit_bool(node, ctx),
         Some(pb::node::Node::NullTest(_)) => admit_null(node, ctx),
-        Some(pb::node::Node::TypeCast(_)) => admit_bool_cast(node),
+        Some(pb::node::Node::TypeCast(_)) => admit_literal_cast(node),
         Some(pb::node::Node::ParamRef(_)) => Err(GuardError::Unsupported {
             construct: "parameter",
         }),
@@ -1373,7 +1375,7 @@ fn bool_literal(value: bool) -> ExprKind {
     }
 }
 
-fn admit_bool_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
+fn admit_literal_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
     let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref() else {
         return Err(GuardError::Unsupported { construct: "cast" });
     };
@@ -1381,17 +1383,87 @@ fn admit_bool_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
         .type_name
         .as_ref()
         .ok_or(GuardError::Unsupported { construct: "cast" })?;
-    if !plain_bool_type(type_name) {
-        return Err(GuardError::Unsupported { construct: "cast" });
-    }
     let arg = cast
         .arg
         .as_deref()
         .ok_or(GuardError::Unsupported { construct: "cast" })?;
-    match bool_string(arg) {
-        Some(value) => Ok(bool_literal(value)),
-        None => Err(GuardError::Unsupported { construct: "cast" }),
+    if plain_bool_type(type_name) {
+        return match bool_string(arg) {
+            Some(value) => Ok(bool_literal(value)),
+            None => Err(GuardError::Unsupported { construct: "cast" }),
+        };
     }
+    if plain_date_type(type_name)
+        && let Some(text) = const_string(arg)
+        && civil_date(text)
+    {
+        return Ok(ExprKind::Literal {
+            kind: LiteralKind::Date,
+            fold: Fold::Other,
+        });
+    }
+    Err(GuardError::Unsupported { construct: "cast" })
+}
+
+fn plain_date_type(type_name: &pb::TypeName) -> bool {
+    if type_name.setof
+        || type_name.pct_type
+        || !type_name.typmods.is_empty()
+        || !type_name.array_bounds.is_empty()
+    {
+        return false;
+    }
+    let Ok(names) = string_fields(&type_name.names) else {
+        return false;
+    };
+    match names.as_slice() {
+        [name] => name == "date",
+        [schema, name] => schema == "pg_catalog" && name == "date",
+        _ => false,
+    }
+}
+
+fn const_string(node: &pb::Node) -> Option<&str> {
+    let pb::node::Node::AConst(value) = node.node.as_ref()? else {
+        return None;
+    };
+    if value.isnull {
+        return None;
+    }
+    match &value.val {
+        Some(pb::a_const::Val::Sval(text)) => Some(text.sval.as_str()),
+        _ => None,
+    }
+}
+
+/// Gregorian `YYYY-MM-DD` with year `0001..=9999`. No time, zone, or typmod.
+fn civil_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    if !bytes[..4]
+        .iter()
+        .chain(&bytes[5..7])
+        .chain(&bytes[8..])
+        .all(u8::is_ascii_digit)
+    {
+        return false;
+    }
+    let year: u16 = text[..4].parse().unwrap_or(0);
+    let month: u8 = text[5..7].parse().unwrap_or(0);
+    let day: u8 = text[8..].parse().unwrap_or(0);
+    if year < 1 {
+        return false;
+    }
+    let last = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=last).contains(&day)
 }
 
 fn plain_bool_type(type_name: &pb::TypeName) -> bool {
@@ -1725,6 +1797,7 @@ fn literal_type_oid(kind: LiteralKind, types: LiteralTypes) -> Option<u32> {
         LiteralKind::Integer => types.integer,
         LiteralKind::Text => types.text,
         LiteralKind::Boolean => types.boolean,
+        LiteralKind::Date => Some(Type::DATE.oid()),
         LiteralKind::Null => None,
     }
 }
@@ -2023,6 +2096,10 @@ fn infer_type(kind: &ExprKind, catalog: &PolicyCatalog) -> Option<u32> {
         | ExprKind::Bool(_)
         | ExprKind::Operator
         | ExprKind::NullTest => catalog.literal_types.boolean,
+        ExprKind::Literal {
+            kind: LiteralKind::Date,
+            ..
+        } => Some(Type::DATE.oid()),
         ExprKind::Literal {
             kind: LiteralKind::Null,
             ..

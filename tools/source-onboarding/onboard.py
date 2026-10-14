@@ -148,6 +148,32 @@ def json_bytes(raw, token):
         raise Refused(token)
     return value
 
+COLLECTION='oo.pipeline.sealed-import-collection/v1'
+
+def bound_schema(catalog, rebind, identity):
+    """Singleton catalogs carry one schema_digest. A collection carries the producer vector, not a collapsed digest."""
+    if catalog.get('protocol')==COLLECTION:
+        rows, entries, echoed=catalog.get('binding_vector'), catalog.get('entries'), rebind.get('binding_vector')
+        require(isinstance(rows, list) and rows and isinstance(entries, list) and isinstance(echoed, list) and len(rows)==len(entries)==len(echoed), 'maintenance_schema')
+        require('schema_digest' not in catalog and hex64(catalog.get('collection_sha256')) and catalog.get('collection_sha256')==identity, 'maintenance_schema')
+        source=generation=None
+        digests=[]
+        for row, entry, other in zip(rows, entries, echoed):
+            require(isinstance(row, dict) and isinstance(entry, dict) and isinstance(other, dict), 'maintenance_schema')
+            digest=row.get('schema_digest')
+            require(hex64(digest) and entry.get('schema_digest')==digest==other.get('schema_digest'), 'maintenance_schema')
+            require(isinstance(row.get('dataset'), str) and row['dataset'] and row.get('dataset')==other.get('dataset'), 'maintenance_schema')
+            sid, gen=row.get('source_id'), row.get('source_generation')
+            require(isinstance(sid, str) and sid and type(gen) is int and gen>=0 and other.get('source_id')==sid and other.get('source_generation')==gen, 'maintenance_source')
+            require(source in (None, sid), 'maintenance_source')
+            source, generation=sid, gen if generation is None else max(generation, gen)
+            digests.append(digest)
+        return source, generation, digests
+    require(hex64(catalog.get('schema_digest')) and 'binding_vector' not in catalog and rebind.get('binding_vector') is None, 'maintenance_schema')
+    source, generation=catalog.get('source_id'), catalog.get('source_generation')
+    require(isinstance(source, str) and source and type(generation) is int and generation>=0, 'maintenance_source')
+    return source, generation, None
+
 def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, command, visibility, role_response_bytes, maintenance_response_bytes, role_exit, maintenance_exit, overlay_bytes):
     """Bind one immutable S5 receipt to this call's maintenance and role-pack responses. Three pack ids stay distinct."""
     require(role_exit == 0 and maintenance_exit == 0, 'maintenance_not_invoked')
@@ -178,14 +204,13 @@ def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, comma
     role_request = role_envelope.get('request')
     require(isinstance(role_request, dict) and role_request.get('role') == role_name and role_request.get('policy_version') == 'oos/v1', 'role_pack_not_current')
     catalog = command.get('catalog') if isinstance(command, dict) else None
-    require(isinstance(catalog, dict) and hex64(catalog.get('schema_digest')), 'maintenance_schema')
-    source, generation = catalog.get('source_id'), catalog.get('source_generation')
-    require(isinstance(source, str) and source and type(generation) is int and generation >= 0, 'maintenance_source')
+    require(isinstance(catalog, dict), 'maintenance_schema')
     require(isinstance(visibility, dict) and isinstance(role_name, str) and role_name and visibility.get('role') == role_name and role.get('policy_version') == 'oos/v1', 'role_pack_not_current')
     identity = visibility.get('catalog_version')
     rebind = native.get('source_rebind')
     revision = native.get('artifact_revision')
     require(hex64(identity) and isinstance(rebind, dict) and hex64(rebind.get('catalog_sha256')) and hex64(revision), 'maintenance_not_invoked')
+    source, generation, digests = bound_schema(catalog, rebind, identity)
     require(isinstance(maintenance_envelope, dict) and maintenance_envelope.get('status') == 200, 'maintenance_not_invoked')
     maintained = maintenance_envelope.get('response')
     maintained_native = maintained.get('native_maintenance') if isinstance(maintained, dict) else None
@@ -200,7 +225,8 @@ def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, comma
     require(isinstance(maintained_request, dict) and maintained_request.get('trigger') == 'source_generation_advanced' and maintained_request.get('catalog_sha256') == rebind['catalog_sha256'], 'maintenance_not_invoked')
     require(isinstance(overlay, dict) and overlay.get('contract') == 'oo.selfbuild-control-api/overlay/v1' and overlay.get('operation') == 'getOverlay' and overlay.get('build_id') == build, 'maintenance_not_invoked')
     require(type(overlay.get('llm_calls')) is int and overlay['llm_calls'] == 0, 'maintenance_not_invoked')
-    return {'protocol':CONSUMPTION,'product_receipt_sha256':receipt_sha,'product_producer':product['producer'],'product_producer_sha256':product['producer_sha256'],'build_id':build,'s5_role_pack_sha256':s5_pack_sha,'role_pack_file_sha256':file_sha256,'pack_digest':digest_value,'http_pack_sha256':http_pack,'source_id':source,'source_generation':generation,'schema_digest':catalog['schema_digest'],'catalog_sha256':rebind['catalog_sha256'],'catalog_version':identity,'role':role_name,'policy_version':'oos/v1','artifact_revision':revision,'maintenance_llm_calls':0,'publication':'not_published','role_exit':0,'maintenance_exit':0,'role_response_sha256':hashlib.sha256(role_response_bytes).hexdigest(),'maintenance_response_sha256':hashlib.sha256(maintenance_response_bytes).hexdigest(),'prepared_overlay_sha256':hashlib.sha256(overlay_bytes).hexdigest()}
+    schema={'schema_digests':digests} if digests is not None else {'schema_digest':catalog['schema_digest']}
+    return {'protocol':CONSUMPTION,'product_receipt_sha256':receipt_sha,'product_producer':product['producer'],'product_producer_sha256':product['producer_sha256'],'build_id':build,'s5_role_pack_sha256':s5_pack_sha,'role_pack_file_sha256':file_sha256,'pack_digest':digest_value,'http_pack_sha256':http_pack,'source_id':source,'source_generation':generation,**schema,'catalog_sha256':rebind['catalog_sha256'],'catalog_version':identity,'role':role_name,'policy_version':'oos/v1','artifact_revision':revision,'maintenance_llm_calls':0,'publication':'not_published','role_exit':0,'maintenance_exit':0,'role_response_sha256':hashlib.sha256(role_response_bytes).hexdigest(),'maintenance_response_sha256':hashlib.sha256(maintenance_response_bytes).hexdigest(),'prepared_overlay_sha256':hashlib.sha256(overlay_bytes).hexdigest()}
 
 def prove_whole(out, recipe, journal):
     """Whole means this run's pinned product_flow and dialogue outputs, not a boolean."""
@@ -268,7 +294,7 @@ def prove_whole(out, recipe, journal):
     require(isinstance(role_exit, dict) and isinstance(maintenance_exit, dict), 'maintenance_not_invoked')
     fresh = maintenance_consumption(product, digest(base/'product-receipt.json'), product['native_role_pack_sha256'], current_pack.read_bytes(), load(base/'current-command.json'), load(base/'current-visibility.json'), (base/'current-role-response.json').read_bytes(), (base/'current-maintenance-response.json').read_bytes(), role_exit.get('exit'), maintenance_exit.get('exit'), (base/'current-prepared-overlay.json').read_bytes())
     stored = load(rel_ok(out, cons_rel))
-    require(stored.get('schema_digest') == fresh['schema_digest'], 'maintenance_schema')
+    require(stored.get('schema_digest') == fresh['schema_digest'] and stored.get('schema_digests') == fresh.get('schema_digests'), 'maintenance_schema')
     require(stored.get('source_id') == fresh['source_id'] and stored.get('source_generation') == fresh['source_generation'], 'maintenance_source')
     require(all(stored.get(k) == fresh[k] for k in ('role_pack_file_sha256','pack_digest','http_pack_sha256','role','policy_version')), 'role_pack_not_current')
     require(stored == fresh, 'maintenance_not_invoked')

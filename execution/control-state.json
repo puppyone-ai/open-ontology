@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T00:13:08.974455+08:00",
+  "as_of": "2026-10-15T00:31:45.983296+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -2263,38 +2263,52 @@
   },
   "managed_live_processes": [
     {
+      "task": "mysql",
+      "pid": 98647,
+      "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "tool_handle": null
+    },
+    {
       "task": "oracle",
       "pid": 83403,
       "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
-      "confirmed_as_of": "2026-10-15T00:13:08.974455+08:00",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "mariadb",
+      "pid": 98649,
+      "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "opensearch",
+      "pid": 5834,
+      "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
       "tool_handle": null
     },
     {
       "task": "postgresql",
-      "pid": 93768,
+      "pid": 2203,
       "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
-      "confirmed_as_of": "2026-10-15T00:13:08.974455+08:00",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
       "tool_handle": null
     },
     {
       "task": "starrocks",
-      "pid": 89973,
+      "pid": 2201,
       "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
-      "confirmed_as_of": "2026-10-15T00:13:08.974455+08:00",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
       "tool_handle": null
     },
     {
       "task": "sqlserver",
-      "pid": 86509,
+      "pid": 2205,
       "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
-      "confirmed_as_of": "2026-10-15T00:13:08.974455+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "shared-entry",
-      "pid": 89975,
-      "session_uuid": "f525e371-a2d0-4215-8965-5352d56dd298",
-      "confirmed_as_of": "2026-10-15T00:13:08.974455+08:00",
+      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
       "tool_handle": null
     }
   ],
@@ -2342,5 +2356,138 @@
         "tool_handle": null
       }
     ]
+  },
+  "latest_600s_event_window": {
+    "at": "2026-10-15T00:23:42.804096+08:00",
+    "duration_seconds": 600,
+    "event": "timeout, no exits",
+    "managed_live": [
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:23:42.804096+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 93768,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:23:42.804096+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 89973,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:23:42.804096+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 86509,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:23:42.804096+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "shared-entry",
+        "pid": 89975,
+        "session_uuid": "f525e371-a2d0-4215-8965-5352d56dd298",
+        "confirmed_as_of": "2026-10-15T00:23:42.804096+08:00",
+        "tool_handle": null
+      }
+    ],
+    "method": "kqueue exactPID exit watcher + clock.sleep; no live log tail or short process polling",
+    "acceptance_delta": 0
+  },
+  "latest_fixed483_whole_c1_consumers_resumed": {
+    "at": "2026-10-15T00:26:02.156592+08:00",
+    "note": "2026-10-15 SQL4839969eb到达：root七关键输入（含Maria native_update）与src980 archived source逐字节match，生产Pipeline5452 hash核；正式source0。MySQL原151/3066、Maria原2b/42287 OSterminal后同完整工程师职责以compactfresh9d6759b1 PID98647/8436f928 PID98649恢复真实GTID registry/admission/sourceepoch program登记/跨表applySealACK原C1全链，旧sourceUUID/GTIDspool/失败/资源保留；非新功能分母、非组件派发/审阅。Star344b23e79最小DATE literal必要Rustparser caller及对应tests同源唯一writer范围补明，真实Linux/dateCLI待作者，非放宽通用casts。PG6cebb固定fullpublication/ACLfill原consumer及normal随机全退出尚待。currentmanaged7，latest600s/独占/客户0写/80%token目标未测保持。intake gtid483-fixed-production-input-intake.json。",
+    "managed_live": [
+      {
+        "task": "mysql",
+        "pid": 98647,
+        "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
+        "confirmed_as_of": "2026-10-15T00:26:02.156592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:26:02.156592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 98649,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:26:02.156592+08:00",
+        "tool_handle": null
+      }
+    ],
+    "full_source_accepted": 0,
+    "random_verified": 4,
+    "Plan_counting_Goal_delivery_matrix": "unchanged; no original parent or source exit achieved",
+    "review": "deferred complete integration"
+  },
+  "latest_actual_terminal_delivery_and_full_consumers": {
+    "at": "2026-10-15T00:31:45.983296+08:00",
+    "note": "2026-10-15 四owner终态收取：PG6cebb原pin6仅notes事务被producer错误全scope等长拒/8producerfail，无loaderACK；同7510/2203继续合法实际subset向量与repair原完整源，不能重复IUD或重置slot。Star344b DATEguard固定、Linux1.94 oo-star-date-lit-194背景构建未收，同adb2201负责原构建收+实际date2/1+normaldirectproduct/新当前Pack两random，旧run2 Pack不同不能凑。SQL483两实际C2自主cycle源10/11CT8/9当前8rows/gold作者已交，尚未currentPack/random/reuse入口，同7df2205继续原全链。Shared580 max66/ad79集合逐表schema正规消费：root固定archives13tests0；actualStar sameb31 current19三official200/exit0/LLM0 receipt7e3d不变/新消费2d98/五schema核，normal只历史callbacknot_invoked不得whole，sharedterminalreserveawait精确sourcecard新directsteps。OS原66a8281terminal后同完整C5职责fresh8a3aa30c PID5834自备Rustemptydiff/protocol483/真实native-serve/两个IUD+quietstable/default全链，reader现dirty保留纳唯一scope不foreignrestore/noPythonobserver。GTIDregister实际9参数，原卡10笔误已按SQL纠正；Maria sole install_document还需接GTIDinstaller，broker真实最小caller缺口明确，不手SQL冒officialinstaller。原sourcefull0/10/random4/10，Plan/计数/Goal/整版/支持级检查未达原exit均不晋。",
+    "managed_live": [
+      {
+        "task": "mysql",
+        "pid": 98647,
+        "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 98649,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 2203,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 2201,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 2205,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+        "tool_handle": null
+      }
+    ],
+    "full_source_accepted": 0,
+    "random_verified": 4,
+    "intake": "execution/reviews/grok-connection-resume-20261014/shared-ad79-actual-collection-consumption-intake.json"
   }
 }

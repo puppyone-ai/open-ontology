@@ -158,6 +158,7 @@ pub const TAG_LITERAL_INTEGER: u8 = 1;
 pub const TAG_LITERAL_TEXT: u8 = 2;
 pub const TAG_LITERAL_BOOLEAN: u8 = 3;
 pub const TAG_LITERAL_NULL: u8 = 4;
+pub const TAG_LITERAL_DATE: u8 = 5;
 
 /// `GuardError::CatalogInvalid` labels this guard can emit.
 pub const CATALOG_REASONS: &[&str] = &[
@@ -1641,6 +1642,7 @@ fn literal_tag(kind: LiteralKind) -> u8 {
         LiteralKind::Text => TAG_LITERAL_TEXT,
         LiteralKind::Boolean => TAG_LITERAL_BOOLEAN,
         LiteralKind::Null => TAG_LITERAL_NULL,
+        LiteralKind::Date => TAG_LITERAL_DATE,
     }
 }
 
@@ -1650,6 +1652,7 @@ fn literal_kind(tag: u8) -> Result<LiteralKind, CodecError> {
         TAG_LITERAL_TEXT => Ok(LiteralKind::Text),
         TAG_LITERAL_BOOLEAN => Ok(LiteralKind::Boolean),
         TAG_LITERAL_NULL => Ok(LiteralKind::Null),
+        TAG_LITERAL_DATE => Ok(LiteralKind::Date),
         _ => Err(CodecError::Tag),
     }
 }

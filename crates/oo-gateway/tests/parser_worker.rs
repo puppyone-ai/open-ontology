@@ -525,6 +525,7 @@ fn sample_plan() -> GuardedPlan {
                 OutputItem::Literal(LiteralKind::Text),
                 OutputItem::Literal(LiteralKind::Boolean),
                 OutputItem::Literal(LiteralKind::Null),
+                OutputItem::Literal(LiteralKind::Date),
                 OutputItem::Compound,
             ],
             functions: vec![BoundFunction {

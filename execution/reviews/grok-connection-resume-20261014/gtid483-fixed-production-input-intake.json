@@ -1,0 +1,45 @@
+{
+  "fixed_source": "4839969eb",
+  "archive": "/tmp/oo-sqlserver-whole/linux194/src980",
+  "root_verified_files": [
+    {
+      "path": "crates/oo-pipeline/src/native_binding.rs",
+      "sha256": "3eec7e4c81440868714deb7c232d24eabff903c5a21228936fb0545e111caeb4",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "crates/oo-pipeline/src/native_catalog.rs",
+      "sha256": "019d50351d2e4ce8705de3534c8e8705166139e22fbfe27e43c805f20881c8ea",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "crates/oo-pipeline/src/target_installer.rs",
+      "sha256": "30a4d8d7960a3f85f398c5e7cb6c2c14d6a5bba76d81c22b6582355038806b7f",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "crates/oo-pipeline/src/native_update.rs",
+      "sha256": "66d202de69b6fe0b656f95b27e5fb684cd6db3a51f6065d1181aaca5c12e15bf",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
+      "sha256": "5122cd1e2117a273ffc37c2117e9bb0c5b382bfa0a1ed1d003f9c7bd68e99ef7",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "tools/job-worker/src/native_schedule.rs",
+      "sha256": "4bce793617bc228aff1bf2a0aba2058a6afd467460c36c347688dfe8f117b237",
+      "archive_equals_commit": true
+    },
+    {
+      "path": "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql",
+      "sha256": "732c49f11d57356acd0168b5d8c6b24caf076949b96539265de71e3a2d04a7db",
+      "archive_equals_commit": true
+    }
+  ],
+  "pipeline_sha256": "5452bc01e70775a8d3b900e60c06ec488c6b44e59f41bfb47085be2b16a5ccb9",
+  "scope": "fixed production input handoff for real source consumers; SQL-owned installation/negative raw author results remain independently pending decisive consumer verification",
+  "full_source_count_delta": 0,
+  "required_remaining": "source-side actual signed admission registry vector, source-instance/lineage epoch registration receipt, transaction apply/seal/ACK/recovery + all original source exits"
+}

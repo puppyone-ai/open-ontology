@@ -57,11 +57,27 @@ CREATE TABLE oo_cdc_offset.mirrored_receipt (
     CONSTRAINT mirrored_receipt_schema_digest_check CHECK (schema_digest ~ '^[0-9a-f]{64}$'),
     CONSTRAINT mirrored_receipt_payload_digest_check CHECK (payload_digest ~ '^[0-9a-f]{64}$'),
     CONSTRAINT mirrored_receipt_codec_check CHECK (
-        position_codec IN (
-            'pg-commit-lsn/v1',
-            'mysql-binlog-pos/v1',
-            'batch-cursor-us/v1',
-            'snapshot-zero/v1'
+        (
+            position_codec IN (
+                'pg-commit-lsn/v1',
+                'mysql-binlog-pos/v1',
+                'batch-cursor-us/v1',
+                'snapshot-zero/v1'
+            )
+        )
+        OR (
+            position_codec = 'mariadb-gtid/v1'
+            AND position_lineage ~ '^d(0|[1-9][0-9]{0,9})\.s([1-9][0-9]{0,9})$'
+            AND substring(position_lineage from '^d([0-9]+)')::numeric <= 4294967295
+            AND substring(position_lineage from '\.s([0-9]+)$')::numeric BETWEEN 1 AND 4294967295
+            AND regexp_replace(applied_pos::text, '\.0+$', '') ~ '^(0|[1-9][0-9]{0,19})$'
+        )
+        OR (
+            position_codec = 'mongo-cluster-time/v1'
+            AND NOT cross_table_consistent
+            AND position_lineage ~ '^[a-z][a-z0-9_.:-]{0,127}$'
+            AND position(',' in position_lineage) = 0
+            AND regexp_replace(applied_pos::text, '\.0+$', '') ~ '^[1-9][0-9]{0,37}$'
         )
     ),
     CONSTRAINT mirrored_receipt_lineage_check CHECK (position_lineage ~ '^[a-z][a-z0-9_.:-]{0,127}$'),
@@ -115,11 +131,26 @@ CREATE TABLE oo_cdc_offset.watermark (
     CONSTRAINT watermark_pk PRIMARY KEY (source, position_codec, position_lineage, source_epoch),
     CONSTRAINT watermark_source_check CHECK (source ~ '^[a-z][a-z0-9_]{0,62}$'),
     CONSTRAINT watermark_codec_check CHECK (
-        position_codec IN (
-            'pg-commit-lsn/v1',
-            'mysql-binlog-pos/v1',
-            'batch-cursor-us/v1',
-            'snapshot-zero/v1'
+        (
+            position_codec IN (
+                'pg-commit-lsn/v1',
+                'mysql-binlog-pos/v1',
+                'batch-cursor-us/v1',
+                'snapshot-zero/v1'
+            )
+        )
+        OR (
+            position_codec = 'mariadb-gtid/v1'
+            AND position_lineage ~ '^d(0|[1-9][0-9]{0,9})\.s([1-9][0-9]{0,9})$'
+            AND substring(position_lineage from '^d([0-9]+)')::numeric <= 4294967295
+            AND substring(position_lineage from '\.s([0-9]+)$')::numeric BETWEEN 1 AND 4294967295
+            AND regexp_replace(applied_pos::text, '\.0+$', '') ~ '^(0|[1-9][0-9]{0,19})$'
+        )
+        OR (
+            position_codec = 'mongo-cluster-time/v1'
+            AND position_lineage ~ '^[a-z][a-z0-9_.:-]{0,127}$'
+            AND position(',' in position_lineage) = 0
+            AND regexp_replace(applied_pos::text, '\.0+$', '') ~ '^[1-9][0-9]{0,37}$'
         )
     ),
     CONSTRAINT watermark_lineage_check CHECK (position_lineage ~ '^[a-z][a-z0-9_.:-]{0,127}$'),
