@@ -38,6 +38,8 @@ LOADER = Path("/tmp/oo-pg46-runtime-finish/oo-pipeline")
 ADMISSION = Path("/tmp/oo-pg46-runtime-finish/continuous/oo-source-admission")
 PG_BUILDER = Path("/tmp/oo-pg46-runtime-finish/continuous/pg-builder-current")
 API_ELF = Path("/tmp/oo-pg46-runtime-finish/selfbuild-control-api-observation-fixed")
+MAINT_API = Path("/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-api-47c2c99ed/selfbuild-control-api-5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d")
+MAINT_API_SHA = "5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d"
 OO_CLI = SCRIPTS / "oo_cli.py"
 DBA = "oo_dl01w1_40_dba"
 READER = "oo_dl01w1_40_reader"
@@ -388,11 +390,9 @@ def data(config, run_dir):
             or lease.get("id") != first_load["jobs_lease_receipt"].get("id") or lease.get("inserted") is not False
             or replay_load.get("source_generation") != first_load.get("source_generation")):
         raise RuntimeError("replay moved watermark or lease")
-    after = partition_state()
-    if len([item for item in after if item["source_generation"] in (4, 5) and item["acknowledged"]]) != 2:
+    after_periods = partition_state()
+    if len([item for item in after_periods if item["source_generation"] in (4, 5) and item["acknowledged"]]) != 2:
         raise RuntimeError("older acknowledged partitions were not retained")
-    freshness = psql("SELECT source_generation::text||'|'||state||'|'||mode||'|'||(source_committed_at IS NULL)::text FROM _oo.table_freshness WHERE source='clickhouse_connection_whole'")
-    watermark = psql("SELECT consistency_grade||'|'||state||'|'||position_codec||'|'||(source_committed_at IS NULL)::text||'|'||cross_table_consistent::text||'|'||source_generation::text FROM _oo.source_watermark WHERE source='clickhouse_connection_whole'")
     ch(DBA, "SYSTEM FLUSH LOGS", "oo-ch-default-flush", raw / "flush")
     audit = ch(DBA, "SELECT count() FROM system.query_log WHERE user='oo_dl01w1_40_reader' AND type='QueryFinish' AND query_id LIKE 'oo-ch-default-%' AND (query_kind IN ('Insert','Alter') OR query ILIKE 'insert %' OR query ILIKE 'alter %') FORMAT TSV", "oo-ch-default-reader-audit", raw / "reader-audit")
     reader_writes = int(audit.stdout.decode().strip() or "0")
@@ -400,21 +400,6 @@ def data(config, run_dir):
         raise RuntimeError("reader query log shows a finished write")
     write(run_dir / "source-reader-audit.json", {"reader_query_finish_writes": reader_writes, "reader_insert_exit": denied.returncode})
     write(run_dir / "gold.json", declared[1])
-    grade, _wm_state, _codec, clock_missing, cross_consistent, _wm_gen = watermark.strip().split("|")
-    write(run_dir / "cycle-receipt.json", {
-        "method": "C4", "delete_detection": "partition_replace",
-        "source_commit_clock": None if clock_missing == "true" else watermark.strip(),
-        "consistency_grade": grade, "cross_table": "B" if cross_consistent == "false" else cross_consistent,
-        "periods": done, "final_keys": sorted(rows()),
-        "partitions_before": before["partitions"], "partitions_after": after,
-        "freshness": freshness.strip(), "watermark": watermark.strip(),
-        "recovery": {"scope": "this-run c4-p2 replay", "before": replay["before"], "after": replay["after"],
-                     "second_import": replay["second_import"], "replay_file": "c4-p2/replay.json",
-                     "watermark_state": replay_load["watermark_state"],
-                     "watermark_state_before_replay": first_load["watermark_state"],
-                     "lease_id": lease["id"], "lease_inserted": lease["inserted"],
-                     "source_generation": replay_load["source_generation"]},
-    })
     catalog_capture = run_dir / "c4-p2"
     scope_ids = json.loads((catalog_capture / "admission-202403" / "sealed" / "registry.json").read_text())["bindings"][0]["partition_scope"]["observed_partition_ids"]
     if "209912" not in scope_ids:
@@ -434,6 +419,26 @@ def data(config, run_dir):
     manifest = json.loads((run_dir / "materialize-manifest.json").read_text())
     if manifest.get("typed_diff_zero") is not True:
         raise RuntimeError("typed diff is not zero")
+    after = partition_state()
+    freshness = psql("SELECT source_generation::text||'|'||state||'|'||mode||'|'||(source_committed_at IS NULL)::text FROM _oo.table_freshness WHERE source='clickhouse_connection_whole'")
+    watermark = psql("SELECT consistency_grade||'|'||state||'|'||position_codec||'|'||(source_committed_at IS NULL)::text||'|'||cross_table_consistent::text||'|'||source_generation::text FROM _oo.source_watermark WHERE source='clickhouse_connection_whole'")
+    grade, _wm_state, _codec, clock_missing, cross_consistent, wm_gen = watermark.strip().split("|")
+    if int(wm_gen) != int(manifest["generation"]):
+        raise RuntimeError("period watermark does not cover the loaded generation")
+    write(run_dir / "cycle-receipt.json", {
+        "method": "C4", "delete_detection": "partition_replace",
+        "source_commit_clock": None if clock_missing == "true" else watermark.strip(),
+        "consistency_grade": grade, "cross_table": "B" if cross_consistent == "false" else cross_consistent,
+        "periods": done, "final_keys": sorted(rows()),
+        "partitions_before": before["partitions"], "partitions_after": after,
+        "freshness": freshness.strip(), "watermark": watermark.strip(),
+        "recovery": {"scope": "this-run c4-p2 replay", "before": replay["before"], "after": replay["after"],
+                     "second_import": replay["second_import"], "replay_file": "c4-p2/replay.json",
+                     "watermark_state": replay_load["watermark_state"],
+                     "watermark_state_before_replay": first_load["watermark_state"],
+                     "lease_id": lease["id"], "lease_inserted": lease["inserted"],
+                     "source_generation": replay_load["source_generation"]},
+    })
     write(run_dir / "data-manifest.json", {"generation": manifest["generation"], "typed_diff_zero": True,
                                            "bundle_manifest_sha256": manifest["bundle_manifest_sha256"],
                                            "cycle": "cycle-receipt.json"})
@@ -536,13 +541,19 @@ def replace_if_other_mount(name, run_dir):
     run(["docker", "rm", "-f", name], None, timeout=60)
 
 
+def api_mount_source():
+    proc = subprocess.run(["docker", "inspect", "-f", '{{range .Mounts}}{{if eq .Destination "/api"}}{{.Source}}{{end}}{{end}}', API], capture_output=True, text=True, timeout=30)
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
 def start_api(run_dir):
+    if sha(MAINT_API) != MAINT_API_SHA:
+        raise RuntimeError("maintenance api elf pin mismatch")
     replace_if_other_mount(API, run_dir)
-    if state(API) == "running":
+    if state(API) == "running" and api_mount_source() == str(MAINT_API):
         return
-    if state(API) == "exited":
-        run(["docker", "start", API], run_dir / "calls" / "api-start", timeout=60)
-        return
+    if state(API) != "absent":
+        run(["docker", "rm", "-f", API], run_dir / "calls" / "api-replace-maint", timeout=60)
     private = run_dir / "api-private"
     private.mkdir(mode=0o700, exist_ok=True)
     (private / "forward.py").write_text(FORWARD)
@@ -562,7 +573,7 @@ def start_api(run_dir):
          "--user", f"{os.getuid()}:{os.getgid()}", "--network", NET, "--add-host", "host.docker.internal:host-gateway",
          "-p", "127.0.0.1:18470:18470", "--label", "oo.owner=oo-clickhouse-connection-whole", "--label", "oo.kind=owned-api",
          "--mount", f"type=bind,source={run_dir},target=/owned",
-         "--mount", f"type=bind,source={API_ELF},target=/api,readonly",
+         "--mount", f"type=bind,source={MAINT_API},target=/api,readonly",
          "--mount", f"type=bind,source={PG_BUILDER},target=/bin/pg-builder,readonly",
          "--mount", f"type=bind,source={LOADER},target=/bin/oo-pipeline,readonly",
          "--mount", f"type=bind,source={CACHE},target=/cache,readonly",
@@ -885,10 +896,149 @@ def finish(config, run_dir):
     })
 
 
+def progress_row(catalog):
+    if catalog.get("protocol") != "oo.pipeline.sealed-import-collection/v1":
+        raise RuntimeError("catalog is not the sealed collection")
+    if "source_generation_high_watermark" in catalog or "target_generation_high_watermark" in catalog:
+        raise RuntimeError("high watermark is not the progress record")
+    entry, table = catalog["entries"][0], catalog["entries"][0]["tables"][0]
+    row = {"dataset": table["logical_schema"] + "." + table["logical_table"], "source_id": entry["source_id"],
+           "source_generation": entry["source_generation"], "target_generation": entry["target_generation"],
+           "run_id": entry["run_id"], "input_digest": entry["input_digest"], "stored_physical": table["stored_physical"],
+           "schema_digest": entry["schema_digest"], "type_digest": entry["type_digest"], "engine": entry["engine"]}
+    vector = catalog["binding_vector"]
+    if len(vector) != 1 or any(vector[0].get(key) != row[key] for key in ("dataset", "source_id", "source_generation", "target_generation", "run_id", "input_digest")):
+        raise RuntimeError("binding vector does not match the table row")
+    return row
+
+
+def schema_drift(previous, current):
+    drift = {}
+    for key in ("schema_digest", "type_digest", "source_id", "engine"):
+        if previous[key] != current[key]:
+            drift[key] = [previous[key], current[key]]
+    return drift
+
+
+def cover_current(config, run_dir):
+    """One configured period over the loaded generation, then equal-generation rebind. No new DML or model call."""
+    import ssl
+    import urllib.error
+    import urllib.request
+    if sha(MAINT_API) != MAINT_API_SHA:
+        raise RuntimeError("maintenance api elf pin mismatch")
+    smoke = subprocess.run(["docker", "run", "--rm", "--pull", "never", "--platform", "linux/arm64",
+                            "--mount", f"type=bind,source={MAINT_API},target=/api,readonly",
+                            "--entrypoint", "/api", IMAGE], capture_output=True, timeout=60)
+    if smoke.returncode != 1:
+        raise RuntimeError("linux maintenance api did not refuse empty argv")
+    catalog = json.loads((run_dir / "bundle" / "catalog.json").read_text())
+    command = json.loads((run_dir / "work" / "builds" / "b_e40e75018cac19da2b3f7b29fcc03cc7" / "native-model-output" / "command.json").read_text())
+    current, original = progress_row(catalog), progress_row(command["catalog"])
+    live = psql("SELECT run_id||'|'||source_generation::text||'|'||target_generation::text||'|'||input_digest||'|'||physical_name "
+                "FROM _oo.full_import_run r JOIN _oo.physical_mappings m ON m.source=r.source_id AND m.level='t' AND m.run_generation=r.target_generation "
+                "WHERE r.run_id='%s'" % current["run_id"]).strip()
+    expect = "|".join(str(current[key]) for key in ("run_id", "source_generation", "target_generation", "input_digest", "stored_physical"))
+    if live != expect:
+        raise RuntimeError("live import row is not the sealed catalog")
+    drift = schema_drift(original, current)
+    cover = run_dir / "maintenance-cover"
+    cover.mkdir(mode=0o700, exist_ok=True)
+    if drift:
+        write(cover / "schema-block.json", {"blocked": True, "drift": drift, "llm_calls": 0})
+        raise RuntimeError("schema or semantic identity changed; maintenance refused")
+    from c4_capture import observe_period
+    every = json.loads((run_dir / "period-plan.json").read_text())["periods"][0]["every"]
+    slept = observe_period(every, time.sleep, time.monotonic)
+    watermark = psql("SELECT consistency_grade||'|'||state||'|'||position_codec||'|'||(source_committed_at IS NULL)::text||'|'||cross_table_consistent::text||'|'||source_generation::text FROM _oo.source_watermark WHERE source='clickhouse_connection_whole'").strip()
+    pending = int(ch(DBA, "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND is_done=0 FORMAT TSV", "oo-ch-cover-mutations", None).stdout.decode().strip() or "0")
+    if pending:
+        write(cover / "pending-resource.json", {"pending_mutations": pending, "marker": "retained", "completed": False})
+        raise RuntimeError("source mutation still pending")
+    marker = Path("/tmp/oo-clickhouse-connection-whole/whole-run/cycle-markers/pending")
+    if not watermark.endswith("|" + str(current["source_generation"])):
+        raise RuntimeError("live watermark does not cover the sealed generation")
+    product_config_doc = json.loads((run_dir / "product-config.json").read_text())
+    operator = ROOT / "tools/selfbuild-control-api/recipes/operator.py"
+    if sha(operator) != product_config_doc["operator_sha256"]:
+        raise RuntimeError("operator pin drifted")
+    start_api(run_dir)
+    wait_api()
+    context = ssl.create_default_context(cafile=product_config_doc["identity_ca"])
+    try:
+        urllib.request.urlopen(urllib.request.Request(product_config_doc["identity_origin"].rstrip("/") + "/control/v1/identity/current"), context=context, timeout=30)
+        anonymous = 200
+    except urllib.error.HTTPError as error:
+        anonymous = error.code
+    if anonymous != 401:
+        raise RuntimeError("anonymous identity was not refused")
+    cookie = Path(product_config_doc["cookies"]["admin"]).read_text().strip()
+    identity_req = urllib.request.Request(product_config_doc["identity_origin"].rstrip("/") + "/control/v1/identity/current", headers={"Cookie": "__Host-oo-session=" + cookie})
+    with urllib.request.urlopen(identity_req, context=context, timeout=30) as response:
+        identity = json.loads(response.read().decode())
+    if identity.get("install_state") != "initialized" or not any(item.get("project_id") == "clickhouse" and item.get("role") == "admin" for item in identity.get("projects") or []):
+        raise RuntimeError("admin session is not the clickhouse project")
+    revision = int(identity["revision"])
+
+    def control(name, path, body):
+        target = cover / f"{name}.response.json"
+        if target.exists():
+            raise RuntimeError("refusing to overwrite " + name)
+        payload = dict(body, identity_revision=revision, idempotency_key=secrets.token_hex(16))
+        body_path = cover / f"{name}.body.json"
+        write(body_path, payload)
+        proc = subprocess.run([sys.executable, str(operator), "--endpoint", product_config_doc["endpoint"], "--origin", product_config_doc["origin"],
+                               "--ca", product_config_doc["ca"], "--cookie-file", product_config_doc["cookies"]["admin"],
+                               "--identity-origin", product_config_doc["identity_origin"], "--identity-ca", product_config_doc["identity_ca"],
+                               "--path", path, "--body-file", str(body_path), "--out", str(target)], capture_output=True, timeout=70)
+        kept(proc, cover / name)
+        saved = json.loads(target.read_text())
+        if saved.get("status", 500) >= 400:
+            code = saved.get("response", {}).get("error") or saved.get("response", {}).get("detail_code") or saved["status"]
+            raise RuntimeError("maintenance api refused " + str(code))
+        return saved["response"]
+
+    catalog_sha = sha(run_dir / "bundle" / "catalog.json")
+    maintained = control("maintenance", "/control/v1/builds/b_e40e75018cac19da2b3f7b29fcc03cc7/maintenance",
+                         {"catalog_sha256": catalog_sha, "trigger": "source_generation_advanced"})
+    packed = control("role-pack", "/control/v1/builds/b_e40e75018cac19da2b3f7b29fcc03cc7/role-pack",
+                     {"policy_version": "oos/v1", "role": "oo_r_reader"})
+    native = maintained.get("native_maintenance") or {}
+    if native.get("llm_calls") != 0 or native.get("publication") != "not_published":
+        raise RuntimeError("maintenance was not a zero-model unpublished rebind")
+    install_generation_acl(run_dir, int(current["source_generation"]))
+    folder = run_dir / "gateway"
+    listen = (folder / "listen.addr").read_text().strip()
+    common = ["--json", "--gateway", "http://" + listen, "--transport", "local-development", "--auth", "external", "--token-file", str(folder / "client.token")]
+    probed = subprocess.run([str(OO_CLI), "query", "SELECT reading_id, version, qty FROM oo_dl01w40.readings ORDER BY reading_id", "--max-rows", "5", "--timeout-ms", "8000", *common], capture_output=True, timeout=40)
+    kept(probed, cover / "gateway-probe")
+    if probed.returncode:
+        raise RuntimeError("gateway probe failed")
+    body = json.loads(probed.stdout)
+    got = [(row[0], row[1], row[2]) for row in body["rows"]]
+    expected = sorted(((row["reading_id"], row["version"], row["qty"]) for row in json.loads((run_dir / "gold.json").read_text())), key=lambda row: int(row[0]))
+    if got != expected:
+        raise RuntimeError("gateway rows differ")
+    write(cover / "receipt.json", {
+        "method": "C4", "every": every, "slept_seconds": slept, "watermark": watermark, "pending_mutations": pending,
+        "historical_pending_marker": marker.read_text() if marker.is_file() else None, "historical_pending_marker_retained": marker.is_file(),
+        "progress": {key: current[key] for key in ("dataset", "source_generation", "target_generation", "run_id", "input_digest", "stored_physical")},
+        "catalog_sha256": catalog_sha, "maintenance_llm_calls": native["llm_calls"], "publication": native["publication"],
+        "role_pack_status": packed.get("operation") or packed.get("protocol"), "query_id": body["query_id"], "rows": got,
+        "api_elf_sha256": MAINT_API_SHA, "producer_sha256": sha(ROOT / "tools/source-onboarding/product_flow.py"),
+        "producer_gate": "onboard.py prove_whole source_not_fresh compares product.producer_sha256 to product_flow.py",
+    })
+
+
 def self_check():
     from connection_load import replay_ok
     from c4_capture import observe_period
     assert replay_ok(1, 1) and not replay_ok(1, 2)
+    sample = {"protocol": "oo.pipeline.sealed-import-collection/v1", "entries": [{"source_id": "s", "source_generation": 11, "target_generation": 11, "run_id": "r", "input_digest": "d", "schema_digest": "a", "type_digest": "t", "engine": "clickhouse", "tables": [{"logical_schema": "n", "logical_table": "readings", "stored_physical": "p"}]}], "binding_vector": [{"dataset": "n.readings", "source_id": "s", "source_generation": 11, "target_generation": 11, "run_id": "r", "input_digest": "d"}]}
+    assert progress_row(sample)["stored_physical"] == "p" and schema_drift(progress_row(sample), progress_row(sample)) == {}
+    changed = json.loads(json.dumps(sample))
+    changed["entries"][0]["schema_digest"] = "b"
+    assert schema_drift(progress_row(sample), progress_row(changed)) == {"schema_digest": ["a", "b"]}
     periods = configured_periods({"sync": "partition_refresh", "every": "3s", "periods": ["3s", "7s"], "delete_detection": {"mode": "partition_replace"}})
     fresh = period_plan(True, periods)[1]["periods"]
     assert [item["every"] for item in fresh] == ["3s", "7s"] and fresh[0]["generation"] == 9 and fresh[1]["change"] == "physical delete 107"
@@ -920,7 +1070,7 @@ def self_check():
 
 def main():
     command, config, run_dir = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish}[command](config, run_dir)
+    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish, "cover": cover_current}[command](config, run_dir)
 
 
 if __name__ == "__main__":
