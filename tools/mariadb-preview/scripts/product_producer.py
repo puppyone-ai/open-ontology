@@ -47,7 +47,8 @@ def main():
         previous=json.loads((root/'state.json').read_text()) if (root/'state.json').exists() else None
         acknowledged=occurrence.get('acknowledged_source_generation') if occurrence else None
         if occurrence:
-            if acknowledged is not None and (not isinstance(acknowledged,int) or acknowledged<1):
+            # The worker base is 0 when the target has no watermark. Generation is base+1.
+            if acknowledged is not None and (not isinstance(acknowledged,int) or isinstance(acknowledged,bool) or acknowledged<0):
                 raise RuntimeError('acknowledged generation invalid')
             if previous and previous['generation'] != acknowledged:
                 raise RuntimeError('previous source capture has no matching worker ACK')

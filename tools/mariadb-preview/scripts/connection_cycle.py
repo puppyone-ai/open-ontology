@@ -125,13 +125,13 @@ def main():
             item['put']=True; save(binding_path, bindings)
     got=maria(';\n'.join(MARKER)+';\n', 'marker').split()
     assert len(got)==len(MARKER_EXPECT)
+    before=maria("SELECT COUNT(*) FROM logistics.hubs; SELECT COUNT(*) FROM logistics.shipments; SELECT COUNT(*) FROM logistics.tracking_events; SELECT COUNT(*) FROM cust_east.k_note; SELECT COUNT(*) FROM cust_west.k_meter; SELECT COUNT(*) FROM logistics.hubs WHERE hub_id=2099;", 'rollback-before')
+    maria("START TRANSACTION; INSERT INTO logistics.hubs SELECT 2099,'HUB-2099','rollback-probe',region_code,latitude,longitude,capacity_grams,opened_at,badge,'rollback probe' FROM logistics.hubs WHERE hub_id=8; ROLLBACK;", 'rollback')
+    after=maria("SELECT COUNT(*) FROM logistics.hubs; SELECT COUNT(*) FROM logistics.shipments; SELECT COUNT(*) FROM logistics.tracking_events; SELECT COUNT(*) FROM cust_east.k_note; SELECT COUNT(*) FROM cust_west.k_meter; SELECT COUNT(*) FROM logistics.hubs WHERE hub_id=2099;", 'rollback-after')
+    assert before==after and after.strip().split()[-1]=='0', 'rollback changed the source'
     if got!=MARKER_EXPECT:
         if (root/'dml-started.json').exists() or any(left!='0' for left, right in zip(got, MARKER_EXPECT) if right=='1'):
             raise RuntimeError('uncertain source transaction; retained')
-        before=maria("SELECT COUNT(*) FROM logistics.hubs; SELECT COUNT(*) FROM logistics.shipments; SELECT COUNT(*) FROM logistics.tracking_events; SELECT COUNT(*) FROM cust_east.k_note; SELECT COUNT(*) FROM cust_west.k_meter; SELECT COUNT(*) FROM logistics.hubs WHERE hub_id=2099;", 'rollback-before')
-        maria("START TRANSACTION; INSERT INTO logistics.hubs SELECT 2099,'HUB-2099','rollback-probe',region_code,latitude,longitude,capacity_grams,opened_at,badge,'rollback probe' FROM logistics.hubs WHERE hub_id=8; ROLLBACK;", 'rollback')
-        after=maria("SELECT COUNT(*) FROM logistics.hubs; SELECT COUNT(*) FROM logistics.shipments; SELECT COUNT(*) FROM logistics.tracking_events; SELECT COUNT(*) FROM cust_east.k_note; SELECT COUNT(*) FROM cust_west.k_meter; SELECT COUNT(*) FROM logistics.hubs WHERE hub_id=2099;", 'rollback-after')
-        assert before==after and after.strip().split()[-1]=='0', 'rollback changed the source'
         save(root/'dml-started.json', {'owned_fixture':True,'markers':['hub:2002','shipment:8002','event:90002','k_note:5','k_meter:5']})
         maria(COMMIT_SQL, 'commit-window', timeout=300)
         got=maria(';\n'.join(MARKER)+';\n', 'marker-after').split()
