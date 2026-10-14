@@ -17,3 +17,5 @@ Oracle：原S5 b_739b3a14... source schema f002 catalog5c948/receiptpack731226�
 Star source88708 wrapperd762合法run-dir已fix，currentg19维护/schema回调粒度问题由c4原owner修日期/题面；PG当前productc929已S0..S10，原Pack7557 vscontinuous0fc只有角色不同但approved-role正确授权问题由PG原owner修，勿复制另一role代原原whole。Clickcurrent17原Pack144 vs当前846/两QA尚一slot失败由原26ae。原源callbacks详情私有CURRENT-DEPENDENCIES.json，读相关key即可。
 
 退出：fixed源码/关键测试/原raw失败保存/actual officialcall+retainedProduct绑定本次run、原S5保持、标准Yaml/原curated语义same、currentrole/data identity真实、Repo随机对话结果逐factgold/QIDWAL、normal六字段无需private recipe/out至少一次原source具备的真实完整journey。未满足source全部原条件不得whole/parentaccepted；无mock/flag/未跑条件。卡是不可分割共享真实产品能力，长跑开发→测试→实际消费证据→合法注册收束，不unit10tests后短停。遇确切外部依赖原保留owner，交资源/ABI/root待恢复；不硬填调用量80%节约（目前未知）。
+
+精确关联根因新增：broker.date_signature_budget_consistency。原Star唯一policy_catalog加date/date使requiredoperators66，现pg-builder sealed.rs734仍输出64会全部加载拒；该文件你原已持scope，仅同步这个默认资源budget66及实际生成settings证据，保持日期可信allowlist/其它原拒不扩大权限。不要大重排/跨Star源码，source最终默认currentquery必须fixed66而非unit66runtime64。

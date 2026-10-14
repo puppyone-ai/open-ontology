@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Autonomous model uses only the actual OO CLI. Credentials stay in private files."""
-import argparse, hashlib, itertools, json, os, pathlib, random, re, secrets, stat, subprocess, urllib.request
+import argparse, hashlib, itertools, json, os, pathlib, random, re, secrets, stat, subprocess, urllib.error, urllib.request
 
 TOOLS = {
     'tables': {}, 'describe': {'table':'string'}, 'knowledge_cat': {'path':'string'},
@@ -81,6 +81,20 @@ def verify_named_facts(answer, expected, results):
         if str(body['rows'][row][names.index(link['column'])]) != str(value):
             raise ValueError('fact is not grounded in successful query result')
 
+
+# Proxy probe e47c3ac5 returned HTTP 200 for this strict shape, not a 4xx. The body was not retained.
+FINAL_FORMAT = 'json_schema'
+SYSTEM = (
+    'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. '
+    'Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. '
+    'You cannot use direct DB or source credentials. '
+    'When a question is finished, return one JSON object and no other text. '
+    'The only keys are facts and evidence. '
+    'facts maps each requested fact name to the exact cell text, or to an object whose value field is that text. '
+    'evidence maps the same names to objects whose only keys are query_id, column, and row. '
+    'row is the zero-based integer row in that successful query. '
+    'Do not put query_id, column, or row inside facts. Do not add a top-level qty, count, or any other key.'
+)
 
 LEGAL_ID = re.compile(r'^[a-z][a-z0-9_.-]{0,63}$')
 CANDIDATE_KEYS = ('semantic_id', 'query_class', 'prompt', 'truth_key')
@@ -269,6 +283,55 @@ def freeze_selection(cfg, gold, gold_bytes):
     return manifest, questions
 
 
+def fact_names(facts):
+    if not isinstance(facts, dict) or not facts:
+        raise ValueError('fact names are missing')
+    names = list(facts)
+    if any(type(name) is not str or not name or name.strip() != name for name in names) or len(set(names)) != len(names):
+        raise ValueError('fact names are missing')
+    return names
+
+
+def named_fact_format(facts, kind=None):
+    """Final response_format. Keys only: gold values, SQL, and credentials never enter the schema."""
+    names = fact_names(facts)
+    kind = FINAL_FORMAT if kind is None else kind
+    if kind == 'json_object':
+        return {'type': 'json_object'}
+    if kind != 'json_schema':
+        raise ValueError('final format is unsupported')
+    evidence = {'type': 'object', 'additionalProperties': False, 'required': ['query_id', 'column', 'row'],
+                'properties': {'query_id': {'type': 'string'}, 'column': {'type': 'string'}, 'row': {'type': 'integer'}}}
+    return {'type': 'json_schema', 'json_schema': {'name': 'named_facts', 'strict': True, 'schema': {
+        'type': 'object', 'additionalProperties': False, 'required': ['facts', 'evidence'],
+        'properties': {
+            'facts': {'type': 'object', 'additionalProperties': False, 'required': names,
+                      'properties': {name: {'type': 'string'} for name in names}},
+            'evidence': {'type': 'object', 'additionalProperties': False, 'required': names,
+                         'properties': {name: evidence for name in names}},
+        },
+    }}}
+
+
+def question_prompt(question, expected):
+    prompt = question['prompt']
+    if 'expected_named_facts' in expected:
+        prompt += ('\nReturn the final JSON object from the system protocol. facts keys: '
+                   + ', '.join(fact_names(expected['expected_named_facts']))
+                   + '. Each evidence value has query_id, column, and row. Use the exact cell text. No Markdown fences.')
+    return prompt
+
+
+def completion_body(model_name, messages, tools, choice, facts=None, final=False):
+    body = {'model': model_name, 'reasoning_effort': 'low', 'messages': messages}
+    if final:
+        body['response_format'] = named_fact_format(facts)
+    else:
+        body['tools'] = tools
+        body['tool_choice'] = choice
+    return body
+
+
 def tool_spec(value):
     return {'type': value} if isinstance(value, str) else dict(value)
 
@@ -326,7 +389,7 @@ def main():
     common=['--json','--gateway',cfg['gateway'],'--transport',cfg['transport'],'--auth',cfg['auth'],'--token-file',cfg['gateway_token_file']]
     if cfg.get('ca_file'): common += ['--ca-file',cfg['ca_file']]
     tools=tool_schema()
-    messages=[{'role':'system','content':'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. Include query_id in factual answers. You cannot use direct DB or source credentials.'}]
+    messages=[{'role':'system','content':SYSTEM}]
     transcript=[]; query_ids=set(); used=set(); answers=[]; turn_history=[]
     if cfg.get('resume_transcript'):
         data=pathlib.Path(cfg['resume_transcript']).read_bytes()
@@ -359,26 +422,35 @@ def main():
     for turn, question in enumerate(questions):
         if turn < len(answers): continue
         expected = gold[question['truth_key']]
-        prompt = question['prompt']
-        if 'expected_named_facts' in expected:
-            prompt += '\nReturn JSON with facts and evidence only (these facts are your answer). facts keys: ' + ', '.join(expected['expected_named_facts']) + '. evidence must be an object keyed by fact name, with each value containing query_id, column and zero-based row from an actual successful query. Use bare JSON, no Markdown fences; exact string values or objects containing value and type/freshness metadata.'
-        messages.append({'role':'user','content':prompt})
+        facts = expected.get('expected_named_facts') if isinstance(expected, dict) else None
+        messages.append({'role':'user','content':question_prompt(question, expected)})
         turn_results = {}
-        for step in range(cfg.get('max_tool_rounds',20)):
+        limit = cfg.get('max_tool_rounds', 20)
+        for step in range(limit):
             choice = 'required' if step == 0 else 'auto'
-            if 'expected_named_facts' in expected and step > 0 and not turn_results:
+            if facts and step > 0 and not turn_results:
                 choice = {'type': 'function', 'function': {'name': 'query'}}
-            payload={'model':model_name,'reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':choice}
+            final = bool(facts) and bool(turn_results) and not coverage_nudge(used, step, limit)
+            payload = completion_body(model_name, messages, tools, choice, facts, final)
             req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})
-            with urllib.request.urlopen(req,timeout=180) as response: model=json.load(response)
-            msg=model['choices'][0]['message']; messages.append(msg); transcript.append({'turn':turn,'step':step,'model':model})
+            try:
+                with urllib.request.urlopen(req,timeout=180) as response: model=json.load(response)
+            except urllib.error.HTTPError as exc:
+                transcript.append({'turn':turn,'step':step,'http_status':exc.code,'response_format':FINAL_FORMAT if final else None,
+                                   'error':exc.read().decode(errors='replace')[:2000]})
+                (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
+                raise
+            msg=model['choices'][0]['message']; messages.append(msg)
+            event={'turn':turn,'step':step,'model':model}
+            if final: event['response_format']=FINAL_FORMAT
+            transcript.append(event)
             (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
             calls=msg.get('tool_calls',[])
             if not calls:
                 if step == 0: raise ValueError('model answered without actual tools in this turn')
                 missing = coverage_nudge(used, step, cfg.get('max_tool_rounds', 20))
                 if missing:
-                    messages.append({'role': 'user', 'content': 'Required public tools are not in the transcript yet: ' + ', '.join(missing) + '. Call those tools, then return the factual JSON.'})
+                    messages.append({'role': 'user', 'content': 'Required public tools are not in the transcript yet: ' + ', '.join(missing) + '. Call those tools, then return the facts and evidence object.'})
                     continue
                 answer=msg.get('content') or ''; answers.append(answer)
                 if 'expected_named_facts' in expected:

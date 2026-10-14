@@ -1866,22 +1866,58 @@ def random_dialogue(config, run_dir, folder="random-dialogue", token_name=None):
             return one(name, frozen=frozen)
         return one(source, prior=prior)
 
-    errors, first, second = [], None, None
-    try:
-        first = slot("run-1", "run-1-auth")
-    except Exception as exc:
-        errors.append(str(exc))
-    prior = root / "run-1" / "selection.json"
-    if prior.exists():
+    errors, first, second, third = [], None, None, None
+    repaired = (
+        folder == "random-dialogue-final"
+        and (root / "run-1-auth" / "transcript.json").exists()
+        and not (root / "run-1-auth" / "verdict.json").exists()
+        and (root / "run-2" / "verdict.json").exists()
+    )
+    if repaired:
+        # The kept facts failure stays. A frozen retry would repeat that selection.
+        kept_copy = root / "receipt-g17-kept.json"
+        if (root / "receipt.json").exists() and not kept_copy.exists():
+            kept_copy.write_bytes((root / "receipt.json").read_bytes())
+            os.chmod(kept_copy, 0o600)
+        if sha(run_dir / "gateway" / "packs" / "reader.json") != identity["pack_sha256"]:
+            raise RuntimeError("current pack does not match the frozen identity")
+        binding = json.loads((run_dir / "gateway" / "reviewed" / "reader" / "binding.json").read_text())
+        if binding.get("generation") != identity["source_generation"]:
+            raise RuntimeError("gateway binding generation does not match the frozen identity")
+        frozen_gold = json.loads(gold_path.read_text())
+        for _sid, _kind, key, column, sql, _prompt in RANDOM_BANK:
+            got = source_scalar(sql, "oo-ch-random-gold-recheck-" + key, root / "calls" / "gold-before-run-3" / key)
+            if got != frozen_gold[key]["expected_named_facts"][column]:
+                raise RuntimeError("frozen gold differs from current source")
+        cli = public_gold(run_dir, root / "calls" / "cli-before-run-3")
+        if cli.get("match") is not True:
+            raise RuntimeError("public cli does not match source gold")
+        second = json.loads((root / "run-2" / "verdict.json").read_text())
+        if (root / "run-3").exists():
+            errors.append("run-3 already kept")
+        else:
+            try:
+                third = one("run-3", prior=root / "run-2" / "selection.json")
+            except Exception as exc:
+                errors.append(str(exc))
+        if third and set(third.get("semantic_ids") or []) & set(second.get("semantic_ids") or []):
+            errors.append("random runs reused a semantic id")
+    else:
         try:
-            second = slot("run-2", "run-2-auth", prior)
+            first = slot("run-1", "run-1-auth")
         except Exception as exc:
             errors.append(str(exc))
-    else:
-        errors.append("run-1 did not freeze a selection")
-    if first and second and set(first["semantic_ids"]) & set(second["semantic_ids"]):
-        errors.append("random runs reused a semantic id")
-    write(root / "receipt.json", {
+        prior = root / "run-1" / "selection.json"
+        if prior.exists():
+            try:
+                second = slot("run-2", "run-2-auth", prior)
+            except Exception as exc:
+                errors.append(str(exc))
+        else:
+            errors.append("run-1 did not freeze a selection")
+        if first and second and set(first["semantic_ids"]) & set(second["semantic_ids"]):
+            errors.append("random runs reused a semantic id")
+    receipt = {
         "protocol": "oo.clickhouse.random-dialogue/v1", "formal_signoff": "0/10", "published": False,
         "legacy_dialogue_untouched": True, "errors": errors,
         "kept_failures": sorted(path.name for path in root.iterdir() if path.is_dir() and (path / "transcript.json").exists() and not (path / "verdict.json").exists()),
@@ -1890,7 +1926,11 @@ def random_dialogue(config, run_dir, folder="random-dialogue", token_name=None):
         "pack_sha256": identity["pack_sha256"], "role": identity["role"], "gold_sha256": sha(gold_path),
         "run_1": None if first is None else {key: first.get(key) for key in keys},
         "run_2": None if second is None else {key: second.get(key) for key in keys},
-    })
+    }
+    if repaired:
+        receipt["run_3"] = None if third is None else {key: third.get(key) for key in keys}
+        receipt["kept_receipt"] = str(root / "receipt-g17-kept.json")
+    write(root / "receipt.json", receipt)
     if errors:
         raise RuntimeError("; ".join(errors))
 

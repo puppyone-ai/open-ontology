@@ -1,0 +1,17 @@
+接续同StarRocks完整工程师任务，不新增功能分母；原c4eceff执行59419已OS终态、74-rust内无cargo/rustc，pending编译结果应收，不重开同计算。旧会话反复80%压缩，把已固定事实带入新executionUUID精简上下文；原来源UUID/代码/失败/资源/客户零写保留。Grok4.7/xhigh/max1000/no子派/ponytail，完整源出口才宣布完成，不日期组件后短退。
+
+唯一写域：tools/starrocks-preview；crates/oo-gateway/src/policy_catalog.rs；新增crates/oo-gateway/src/bin/query-pg.rs只对应默认/测试操作符预算。PGpolicy/installer、Mariaquery_executor、SQLscheduler/native_binding、sharedproduct_flow/verifier/Cargo根均只读。新code exactfilecommit不foreignadd/reset。source原自有fixture必要测试已授权，不客户DB写，不重复原DML/S5/确认/ACL。
+
+当前事实：source19/target31，混合表agg3/dup5/partition3/pk3/uniq19，semOntology仍ont-starrocks-native-c5-g13，自动两IUD已原native-serve136证明，fulltypedgold3e99保持，sourceonlypart counts真实4/3，派生数据集row_count是底层事件数量而每partition一分组行，题面已纠正。Currentofficialmaintenance/rolePack200/LLM0、Gateway19可用；新rolefile5eae4fea/digest54cb2d/APIidde674严格区分，不原productreceipt强改；原b31 build API显示S0–S10 succeeded，真实S5receipt在/tmp/oo-star-money-product/product-3/product-receipt.json，S9/S10输出hash246858同match，保留3394tokens。不要为缺另目录文件再确认原S5或捏S9/S10。
+
+日期工作区只加(date,date)并更新相关测试。源实时pg_operator '=' oid1093、date_eq proc1086；六个日期比较均trustedinternal/immutable/pg_catalog/bool/无扩展依赖，不硬码OID。要求Linux1.94固定归档--locked源码+真实非零测试/productionGW ELF，实际装本源Gateway：两个不同date过滤独立源真值0、lower和隐藏列仍拒、原非datequery正确。第一次1.98自动下载构建失败原留。Build资源74-rust现在无compiler，原结果可从旧执行私有terminal只取必要路径/hash/exit，不读全数小时log。
+
+关键预算：policy_catalog.required_operator_count()=66，validate_limits拒maxoperators<66；原pg-builder sealed.rs仍max64会所有catalog拒。你query-pg.rs对应64测试/默认同步66；sharedf525已持pg-builder/sealed.rs精确一默认64→66，broker.date_signature_budget_consistency协同，源privatecurrentsettings66实际绑定不可只test66运行64。不要扩timestamp/任意user-functions/自定义operator；资源cap调整不是权限全放。旧runtimeguard8d27已varchar对比修，但不含date，需真新ELF固定sourceSHA。现date纯unit和libintegration测试在policy_catalog同文件，保持tooSmall拒和operator/function不同OID断言。
+
+普通入口两个bug已88708修：合法onboard-created私有空/明确running journal同config目录允许，其他既有/符号链接/failed/complete拒；9tests过，currentgenerationmatch仅记证据不自动whole。wrapperSHA d762，installedcard仍c261需sharedf525合法repin新sourceSHA，不你写registry/禁pin。自身execute必须走真正existing product/S0–S10保留复用、当前samebuild maintenance/rolePack、sourcegold、Repo真实随机/directstep、WAL/cancel/recovery/full退出组合，不callback永久exit充实现。
+
+Shared基础已98032e611 actualOracle emitter，当前正常新run留存产品引用问题由f525完整工程师处理，broker current_shared_exclusive_engineer；维护消费分旧S5bytehash+currentrolebytehash+digest/APIid，原receipt immutable。这接口到后源可以明确引用本真实product-3原receipt/context不复制裸historicalComplete。正常六字段type/db/host/port/user/secret_ref无私有recipe/out，registry正确选源卡到完整本源wholeproof；新run不再开成功S5，错误call/错source/角色/Pack拒保持。
+
+随机已run2-current19两turn verified，run1旧粒度模糊错事实/rootcount3not1不改gold，run3correctedbank模型给顶层row_count缺facts失败保存。使用仓库verifier最新fixed（原Click64845在收structured terminal支持）只在CLI/currentPack/sourcegold正常后验证一次剩余新fresh2turn，不交已用题prior；模型自主任意SQL，strict事实/QID/WAL，不能包装模型raw/预给答案。后台truegrade/源时钟不造；原取消57014与恢复可复用相同身份正证，根所有输出固定SHA/rawusage/resources齐。只剩shared真实性接口且独立代码/证据完可reserve停止无意义采样，不报full。
+
+读本批production-route-rust-original-docs.md/random-dialogue-acceptance.md、主Plan对应DBX/SP04/SP09/SP13原退出与execution/UPDATE-PROTOCOL/currentcontrol；原C4/C3/C5正确生产/Rust核心保留。source正式/full0/10、random4/10仅子出口，无独立组件review或新分母，80%节省尚未测不宣称。源码+真实query+正常入口联结到完整退出的同一长跑能力，最小代码/证据准确、不要另造框架。
