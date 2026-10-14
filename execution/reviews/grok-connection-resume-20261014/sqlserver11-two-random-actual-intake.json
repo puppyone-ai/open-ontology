@@ -1,0 +1,59 @@
+{
+  "source": "sqlserver",
+  "fixed_verifier": "2056b4c95",
+  "source_ct_version_author": 9,
+  "source_generation": 11,
+  "source_direct_check": {
+    "path": "/tmp/oo-root-sql11-random-source-check/source.stdout",
+    "sha256": "f32fd37f48d00ed1887777bb1520bbb0338914934672443886167a73d4f0dad8",
+    "exit": 0,
+    "method": "four actual SQL Server readonly SELECTs, existing reader with CA validation; credential private file not argv"
+  },
+  "gold_sha256": "84bcccb3c1406a7fe12bb01f791b48be90a007cd65ecec436af38a0a437019b0",
+  "records": [
+    {
+      "path": "/tmp/oo-sqlserver-whole/private/dialogue-g11/run-1",
+      "seed": 3595735217043634433,
+      "semantic_ids": [
+        "detail.note_91003",
+        "aggregate.null_amt"
+      ],
+      "source_generation": 11,
+      "pack_sha256": "06db387120c829dba004c67b8be09036057a2841dab7dd1ee0081ea649c57670",
+      "QIDs_admit_complete": [
+        "q_QzUfTLqQAK6Do9mYZJ5sUtIqqJ",
+        "q_moxWwc1KMjc1JNtV4013jrZIGy"
+      ],
+      "hashes": {
+        "selection.json": "54d85b5ace838ae20b7fdb7f639153b495bea7191faf4c4e8781496b85594b8f",
+        "verdict.json": "5bb4851ba3036bf5283fc07d97c6430a50561c6564a0302b98b43de85c61cd9e",
+        "transcript.json": "c8f4695ee45150914137d02f11cddf95f5e0348361b15de6d87953d2a45ad26f"
+      }
+    },
+    {
+      "path": "/tmp/oo-sqlserver-whole/private/dialogue-g11/run-2",
+      "seed": 9133800511296438581,
+      "semantic_ids": [
+        "detail.amt_91001",
+        "aggregate.ids_above_10000"
+      ],
+      "source_generation": 11,
+      "pack_sha256": "06db387120c829dba004c67b8be09036057a2841dab7dd1ee0081ea649c57670",
+      "QIDs_admit_complete": [
+        "q_629JnZMhqm1LCDVpgvsPogMehT",
+        "q_op67jx1KKxv3w4Yk115qB6Fpb4"
+      ],
+      "hashes": {
+        "selection.json": "c75bbd5f0e5e1e67e4da23d9bdaf23996de48068063a4a006b5f4626e8ba350d",
+        "verdict.json": "5b101c1f2cce5b01e14f74e341aa2a7473980c7bfefbccc6d13601defcf68930",
+        "transcript.json": "fefe3ad55092d7febde988e10516308c53ac0b02e35829ecb8ff8a25619f4f63"
+      }
+    }
+  ],
+  "scope": "actual SQL2022 on emulatedx86/aarch64host, random test evidence only; normal sixfields/nativeamd64cert incomplete",
+  "config_provenance_limit": "run-1.config.json absent; run-a/current-run2 configs retained. Fresh sampling mode based on frozen manifests and fixed verifier verdict, not independent argv reconstruction. No claim original product role/default invocation complete.",
+  "failed_run_a": "shortened QID retained not counted",
+  "verification_first_attempt": "missing assumed run1config, retained failed command; corrected verification usesactualWAL path and frozen selection/transcript",
+  "random_test_evidence": true,
+  "full_source_delta": 0
+}
