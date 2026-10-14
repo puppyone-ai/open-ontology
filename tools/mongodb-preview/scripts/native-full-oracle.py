@@ -4,15 +4,17 @@ import argparse,json,pathlib,re,subprocess
 from decimal import Decimal
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--decoded',required=True);p.add_argument('--out',required=True);p.add_argument('--container',required=True);p.add_argument('--database',required=True);p.add_argument('--source',required=True);a=p.parse_args()
-    if not a.container.startswith('oo-dl01w1-41-') or not re.fullmatch('[a-zA-Z0-9_]+',a.source):raise ValueError('owned fixture identity')
+    p=argparse.ArgumentParser();p.add_argument('--decoded',required=True);p.add_argument('--out',required=True);p.add_argument('--container',required=True);p.add_argument('--database',required=True);p.add_argument('--source',required=True);p.add_argument('--source-generation',type=int);a=p.parse_args()
+    if not (a.container.startswith('oo-dl01w1-41-') or a.container.startswith('oo-mongodb-connection-whole-')) or not re.fullmatch('[a-zA-Z0-9_]+',a.source):raise ValueError('owned fixture identity')
     out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=False)
     def sql(query,name):
         r=subprocess.run(['docker','exec','-i',a.container,'psql','-U','postgres','-d',a.database,'-At','-v','ON_ERROR_STOP=1'],input=query.encode(),capture_output=True)
         (out/(name+'.stdout')).write_bytes(r.stdout);(out/(name+'.stderr')).write_bytes(r.stderr);(out/(name+'.exit')).write_text(str(r.returncode)+'\n')
         if r.returncode:raise RuntimeError('target SELECT failed')
         return [json.loads(line) for line in r.stdout.splitlines()]
-    batch=sql("select row_to_json(t)::text from _oo.update_batch t where source='"+a.source+"' order by source_generation desc limit 1",'batch')[0]
+    if a.source_generation is not None and a.source_generation<1:raise ValueError('source generation')
+    generation_filter='' if a.source_generation is None else ' and source_generation='+str(a.source_generation)
+    batch=sql("select row_to_json(t)::text from _oo.update_batch t where source='"+a.source+"'"+generation_filter+" order by source_generation desc limit 1",'batch')[0]
     generation=batch['target_generation'];table=batch['physical_name']
     mappings=sql("select row_to_json(m)::text from _oo.physical_mappings m where source='"+a.source+"' and run_generation="+str(generation)+" and level='c' and logical_table='shipments'",'mapping')
     columns={}

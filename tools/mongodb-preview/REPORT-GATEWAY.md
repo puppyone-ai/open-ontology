@@ -1,0 +1,11 @@
+# Gateway, query, cancel, dialogue
+
+Owned gateway container `oo-mongodb-connection-whole-gateway` on `oo-mongodb-connection-whole-net`. ELF sha256 `51f007a8b3463086dc3fde8093689137ea8282327382a4cd245bf2d7cac8dcee`. CLI ELF sha256 `fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703`. Listen inside the container is `127.0.0.1:19541`. The public CLI is `/tmp/oo-mongodb-connection-whole/oo_cli.py`, which execs the CLI in that container. Token database `oo_w141_token` is on the owned Postgres. TLS server name is `oo-mongodb-connection-whole-pg`. Data login `oo_w141_gw_login`, role `oo_r_read`, grants only on generation-3 physical columns plus the mapping and freshness relations.
+
+Public probe `q_Y6yMUMEIPvpOyYkubj9fqGoJuM` returned `CONNECTION-CYCLE4` for `_id` `c141d04141eef04100000008`. After the cancel lock was released, `q_Sjjbi16u1iS4JMognbieo32az4` returned `CONNECTION-CYCLE4-NEW` for `_id` `c141d04141eef041000000a4`. `knowledge search shipments`, `describe oo_w141.shipments`, and `freshness` succeeded. Freshness publication is `not_ready` and capture method is `c5_diff`.
+
+Cancel held `ACCESS EXCLUSIVE` on `pt_f367b2f66a214283fdac52b817df957734aebac0212ba2cfd3abf8ea9d1a`, admitted `q_fNjm3vcXSHa6peF8kBUVHnCBxj`, and the cancel outcome was `sent`. WAL phases are admit, cancel `sent`, and complete `failed`. The client observed gateway `TIMEOUT` with sqlstate `57014`.
+
+`dialogue.py` first run used `grok-4.7` and `grok-4.7-build`, called search, describe, freshness, and query, and missed `knowledge_cat`. That transcript stays in `dialogue/`. The second run called `knowledge_search`, `knowledge_cat`, `describe`, `freshness`, and `query`. Verdict outcome `verified`. Response models `grok-4.7` and `grok-4.7-build`. Query ids `q_7RA3j7qCUNBwUzn9XgAR7YJ9eL` and `q_NG4FYlGG0tCWMzbt49tb7It0Ht`. Audit sha256 `2b53b0d0423ead3f74ec562fd5acada3e22613e834641c85f5aa6e86386034c8`. Truth sha256 `d01c3c1935a7f7215fbccaf330f22d4ca3e7612c975e4ac104d1d0ac767d1433`. Second-run usage prompt 9301, completion 1256, total 10557. No response was written by hand.
+
+`published` stays false. Formal acceptance stays 0/10. `complete` stays false. Owner ACK and publication were not performed.

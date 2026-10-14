@@ -153,6 +153,7 @@ fn admission_pair(driver_digest: &str, input: &CustomerInput) -> (TargetReport, 
         },
         r1w: None,
         native: None,
+        capture_witness: None,
     };
     let config = SourceConfig {
         protocol: CONFIG_PROTOCOL.to_string(),
@@ -242,6 +243,7 @@ fn capture() -> CaptureMethod {
         cursor: None,
         feed: None,
         cdc: None,
+        delete_detection: None,
     }
 }
 

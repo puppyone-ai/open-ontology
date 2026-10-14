@@ -39,16 +39,18 @@ passes that gate.
 `04fd9d5f` remains `failed` generation 8. One new official fire created pin 2
 task `dcaf7552`. Its producer and `pipeline-2ff` loader both exited 0:
 `source_bound=true`, 14 rows, 0 tombstones, run `e6b219e8` `awaiting_publish`,
-watermark `B`/`lagging`/`applied_pos=0`. Not a C1–C5 maintenance proof, not
-typed-gold, not Pack/Gateway/OOCLI/dialogue, and S5 was not called. Shared API
-still has no writer; that stays with root. This is not a complete-chain recipe.
+watermark `B`/`lagging`/`applied_pos=0`. That pin-2 import is the first physical
+load only. Later same-schema cycles, the paid S5, and the generation-3 gateway
+are in `REPORT-SOURCE.md`, `REPORT-PRODUCT.md`, `REPORT-GATEWAY.md`, and
+`RECEIPT.json`. No shared API change was required.
 
 Small private evidence is durably copied and hashed in
 `/Users/redux/.cache/oo-mongodb-connection-whole/EVIDENCE-SHA256.json`.
-The actual source/target containers are `oo-mongodb-connection-whole-source` and
-`oo-mongodb-connection-whole-pg`; the idle operator container is
-`oo-mongodb-connection-whole-runtime`. Current process status must be rechecked
-when Docker responds. The old source-target binding was officially disabled;
-its attempted cancellation returned usage. The new target binding
-`f6d7e4e3-90f0-4d0a-b973-f1ddf59b82d5` still requires official disable/cancel and
-recovery before any terminal-success claim. Preserve owned database volumes.
+Owned containers are `oo-mongodb-connection-whole-source`,
+`oo-mongodb-connection-whole-pg`, `oo-mongodb-connection-whole-runtime`,
+`oo-mongodb-connection-whole-api` (`127.0.0.1:18463`), and
+`oo-mongodb-connection-whole-gateway` (loopback `127.0.0.1:19541` inside that
+container). The old binding `76e387e4` stays disabled. Binding
+`f6d7e4e3-90f0-4d0a-b973-f1ddf59b82d5` is the live C5 binding; pins 2, 3, and 4
+completed and were not re-stepped. Preserve owned database volumes. Publication,
+owner signature, and formal acceptance remain open. `complete` stays false.
