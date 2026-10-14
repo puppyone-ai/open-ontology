@@ -1,0 +1,56 @@
+{
+  "source": "postgresql",
+  "generation": "latestbound5, pertable actual4/5 vector retained",
+  "verifier_replayed": "80aec776414aaed9064daf3600cf3df21fc21eb5",
+  "source_direct_read": {
+    "path": "/tmp/oo-root-pg-random-source-check/source-select.stdout",
+    "sha256": "1732153f7a7374b81e75945979536563ef1454d385b0e170baaccf7f07ed4ac8",
+    "exit": 0,
+    "method": "six readonly RR transaction counts through existing source reader identity, notGateway-derived"
+  },
+  "gold_path": "/Users/redux/.cache/oo-postgresql-connection-whole/random-dialogue/gold.json",
+  "gold_sha256": "ae1043e3e93ac704c1bdb1706f60d086ef2b25a68efb88cb16be25e63751a37d",
+  "all_six_independent_source_facts_match": true,
+  "records": [
+    {
+      "path": "/Users/redux/.cache/oo-postgresql-connection-whole/random-dialogue/run-1",
+      "seed": 3126389077395385559,
+      "semantic_ids": [
+        "public.hubs.count",
+        "hubs.region_code.east.count"
+      ],
+      "pack_sha256": "0fc4d62c995f2a5c39ed94a59a6c6a3a7d6eb3b31310d8cea30e7fa9cad48e73",
+      "QIDs_admit_complete_verified": [
+        "q_IoSsUcgiRe3pjSQOBU0FVsLfD6",
+        "q_Usc1dexeAFO2CFH5MF4aFfAk7y"
+      ],
+      "hashes": {
+        "selection.json": "28e0f2c16d300c8cd39f20f3334d1128f327842519e91467442b7e39231c8400",
+        "verdict.json": "fe70ff1e35d3c8e049ce38de9427a23bb6da2040924ece1daebe70d715f13a64",
+        "transcript.json": "1c6b72b45c9d73621a5ac1904ebff3332fbf4e3647fd2621cec069fde8fec507"
+      }
+    },
+    {
+      "path": "/Users/redux/.cache/oo-postgresql-connection-whole/random-dialogue/run-2",
+      "seed": 6652735000678369637,
+      "semantic_ids": [
+        "customer_east.delivery_notes.count",
+        "shipments.transport_mode.sea.count"
+      ],
+      "pack_sha256": "0fc4d62c995f2a5c39ed94a59a6c6a3a7d6eb3b31310d8cea30e7fa9cad48e73",
+      "QIDs_admit_complete_verified": [
+        "q_D27EyrPd0LEeeVnqkn8bB9mdvY",
+        "q_pV417ifn8PjMaXYEzPTbCQ7XUn"
+      ],
+      "hashes": {
+        "selection.json": "6b721abd408f72c3b72e2e403528f2446f41ef4f23123052dce64224b3a939ab",
+        "verdict.json": "e75158b79a12d37fa9af89cdbe9f1f702eff3b7dbbc90388ab224dc8c2862005",
+        "transcript.json": "0c5e1c5d11d2c0e920f355a66b900bb3ec7aa6d8fd123b06ab4a25fa40494bfa"
+      }
+    }
+  ],
+  "scope": "current continuous fixture rolePack two random2turn actual CLI/model+source gold+four QIDaudit test subexit only; product7557 vscurrent0fc normalwhole provenance still unresolved",
+  "full_source_count_delta": 0,
+  "formal_count_delta": 0,
+  "stale_historical_provenance_note": "provenance.json saysnot_sent frombeforefixture ready; raw actualtranscripts/verdicts verified independently; notused aspositiveevidence"
+}

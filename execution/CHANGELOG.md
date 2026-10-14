@@ -1239,3 +1239,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 Maria42287 terminal60a99c24f fixed显式Mongo原S0/B及286historylost围栏，root核两个原Linux日志hash/1.94及2+1过滤结果（重复摘要不重复计数），不产品ELF/liveapply/ACK；原0-1-7 spool无epoch原样，样例1/observedfalse不能注册proof。未知PII钱字段保持hidden/unknown，不fake ownerapproval或modelnone；S5b08 notobject/4417保留。原2b writer/后台tests资源reserved，只剩SQL36251真实0024/controlSQL/nativebinding/实例登记与正式scheduler消费，不同旧组件重复采样。MySQL/Mongo consumer同等待actualfixed接口才恢复，scope全C1/完整formal0/10、random3/10不晋级。intakeexecution/reviews/grok-connection-resume-20261014/maria60-explicit-mongo-fixed-intake.json。
+
+
+2026-10-14 PG当前continuousfixture两fresh随机子出口root通过：原source reader同RR只读事务六count与冻结gold逐项吻合，两个不同seed/不重题2turn，four finalfacts(actualCLIcell)/四QID独立admitcomplete WAL已核；latestbound5但实际table4/5vector保留非整体盖5。Role当前oo_r_pg46_continuous_fixture/0fc对应官方同effectiveOOS派生，但原product7557到current0fc的normalwhole真实关联仍shared/source未完，所以只random4/10（PG/Click11/OS12/Doris19），完整/正式0/10不晋级。preparation旧provenance.json notsent只历史不用positiveproof，raw真实模型Grok与grokbuild已transcript verified，无付费复跑。intakeexecution/reviews/grok-connection-resume-20261014/postgresql-two-random-actual-intake.json；源raw私有。
