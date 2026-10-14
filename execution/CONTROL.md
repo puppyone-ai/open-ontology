@@ -1181,3 +1181,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。
+
+2026-10-14 SQLServer原owner e888a4b4同UUID恢复PID42235/max1000/Grok4.7xhigh，保留0af4a27aa/whole-run-3阶段性成功，继续原完整周期C2取消恢复/当前维护Pack/Gateway准确对话；原生amd64认证单列pending，原完整源0/10不变。完整卡batches/grok-connection-full-20261014/sqlserver-persistent-original-after-docker.md。

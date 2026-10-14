@@ -47,8 +47,8 @@ class Flow:
         c=self.c
         require(c.get('fixture_authorized') is True, 'fixture_authority_required')
         require(digest(OPERATOR) == c['operator_sha256'], 'operator_drift')
-        receipt=self.out/'product-receipt.json'
-        require(not receipt.exists(), 'completed_run_exists')
+        reused=self.completed()
+        if reused is not None: return reused
         build_file=self.out/'build.json'
         if build_file.exists():
             saved=load(build_file);require(saved['config_sha256'] == c['_sha256'], 'product_resume_drift');build=saved['build_id']
@@ -133,8 +133,19 @@ class Flow:
         standard={name:digest(self.out/'oos'/name) for name in oos_names}
         require(load(self.out/'oos'/'source.json').get('actual_core_effective_sha256')==digest(self.out/'effective.json'),'oos_source_binding')
         s5_proof={'outcome':s5['outcome'],'builder_spawned':s5['builder_spawned'],'structural_draft':s5['structural_draft'],'cache_hit':s5['cache_hit'],'llm_calls':s5['llm_calls'],'model':identity['model'],'input_sha256':generation['input_sha256'],'evidence_hash':generation['evidence_hash']}
+        receipt=self.out/'product-receipt.json'
         save(receipt,{'protocol':'oo.source-onboarding.product/v1','build_id':build,'stages':list(stages.values()),'pack':pack,'pack_artifact_sha256':digest(self.out/'pack.json'),'effective_oos_sha256':digest(self.out/'effective.json'),'native_role_pack_sha256':digest(self.out/'role-pack.json'),'native_artifact_revision':native['artifact_revision'],'overlay_sha256':digest(self.out/'overlay.json'),'catalog_sha256':c['catalog_sha256'],'source_fresh':True,'s5':s5_proof,'standard_oos':standard,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':digest(Path(__file__).resolve()),'fixture_review':True,'business_owner_signed':False,'published':False,'gateway_dialogue_complete':False})
         return {'build_id':build,'s0_s10':'succeeded','fixture_review':True,'published':False}
+    def completed(self):
+        receipt_path=self.out/'product-receipt.json'
+        if not receipt_path.exists(): return None
+        build_file=self.out/'build.json'
+        require(build_file.is_file(), 'product_resume_drift')
+        saved=load(build_file)
+        require(saved.get('config_sha256') == self.c['_sha256'], 'product_resume_drift')
+        receipt=load(receipt_path)
+        require(receipt.get('protocol') == 'oo.source-onboarding.product/v1' and receipt.get('build_id') == saved.get('build_id') and receipt.get('catalog_sha256') == self.c['catalog_sha256'], 'product_resume_drift')
+        return {'build_id':saved['build_id'],'s0_s10':'succeeded','fixture_review':receipt.get('fixture_review') is True,'published':False,'reused_completed':True}
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');a=parser.parse_args()
