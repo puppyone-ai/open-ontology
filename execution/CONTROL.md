@@ -1176,3 +1176,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ## 2026-10-14 Docker恢复实测
 
 用户授权重启；官方普通restart停止超时后force-stop/start恢复Docker29.4.1。仅启动本次停机时仍运行的88个既有容器，最终88/88 running、MySQL API exec true=0；正确CA/路由/project验证身份18441及控制API18443匿名401、fixture-admin200。原数据卷与任务状态保留，无recreate/prune/DML重放；7个已核原UUID负责人仍live，其余保留原owner等待依赖。基础设施恢复不增加完整源/正式签收/整版计数。原始回执私有 /Users/redux/.cache/oo-grok-connection-full-20261014/DOCKER-RESTART-RECEIPT.json，SHA256 dd97683138ffede789adf4eb46f8058d148cfbf1dd500930511d835abe1effe5。后续先收原durable jobs再判断重试。
+
+2026-10-14 Docker恢复后真实终态收取：共享20e84f8a7已实际Star S0–S10/currentPack/CLI、对话未verified；Oracle真实gen5与Mongo持续gen6+已导入但维护Pack仍旧代，非pgsql catalog兼容是实际共享阻断。共享原UUID d28ca4bd同owner恢复PID36457/max1000，完整任务见batches/grok-connection-full-20261014/shared-entry-persistent-after-docker.md；PG/Doris原运行保持，不抢写。SQL报告recipe_completed仍缺持续调度/非pgsql维护与原生amd64证据，不晋级整源。MySQL当前CLI差0但对话/普通入口待。原失败与后台supervisor保留，正式0/10不变。

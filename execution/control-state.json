@@ -53,59 +53,6 @@
   },
   "managed_live_grok_handles": [
     {
-      "task": "mysql",
-      "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-      "pid": 72621,
-      "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
-      "write_paths": [
-        "tools/mysql-preview"
-      ],
-      "status": "same_owner_long_run",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 105,
-      "prior_pid": 54848,
-      "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-same-owner-long-run.md",
-      "max_turns": 1000
-    },
-    {
-      "task": "oracle",
-      "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-      "pid": 90781,
-      "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
-      "write_paths": [
-        "tools/oracle-preview"
-      ],
-      "status": "same_owner_full_exit_convergence",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 395,
-      "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
-      "prior_pid": 62932,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-same-owner-final-original-exits.md",
-      "max_turns": 1000,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
-    },
-    {
-      "task": "mongodb",
-      "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-      "pid": 99649,
-      "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
-      "write_paths": [
-        "tools/mongodb-preview"
-      ],
-      "status": "same_owner_persistent_original_exits",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 327,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "prior_pid": 12715,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-original-exits.md",
-      "max_turns": 1000
-    },
-    {
       "task": "doris",
       "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
       "pid": 99651,
@@ -123,24 +70,6 @@
       "max_turns": 1000,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-original-exits.md"
-    },
-    {
-      "task": "opensearch",
-      "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-      "pid": 6094,
-      "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
-      "write_paths": [
-        "tools/opensearch-preview"
-      ],
-      "status": "same_owner_persistent_original_exits",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 268,
-      "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-      "prior_pid": 46692,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-original-exits.md",
-      "max_turns": 1000
     },
     {
       "task": "postgresql",
@@ -167,35 +96,9 @@
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
-      "task": "sqlserver",
-      "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-      "pid": 51920,
-      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
-      "write_paths": [
-        "tools/mssql-preview",
-        "testing/dl01-targets/mssql",
-        "crates/oo-pipeline/src/native_update.rs",
-        "crates/oo-pipeline/src/native_binding.rs",
-        "crates/oo-pipeline/src/target_installer.rs",
-        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
-        "tools/source-admission/src/capture.rs"
-      ],
-      "status": "complete_fast_handoff",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 0,
-      "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-      "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
-      "effort_handoff_previous_pid": 32957,
-      "effort_handoff_was_live": true,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md",
-      "prior_pid": 37472,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
-    },
-    {
       "task": "shared-entry",
       "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-      "pid": 85996,
+      "pid": 36457,
       "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
       "write_paths": [
@@ -208,18 +111,19 @@
         "tools/selfbuild-control-api/tests/native_import.rs",
         "tools/pg-builder/src/sealed.rs",
         "tools/pg-builder/CONTRACT.md",
-        "tools/pg-builder/tests/contract.rs"
+        "tools/pg-builder/tests/contract.rs",
+        "tools/selfbuild-control-api/src/stages.rs"
       ],
-      "status": "same_owner_shared_product_dependency_long_run",
+      "status": "same_owner_shared_original_exits_after_docker",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 120,
       "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
       "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-      "prior_pid": 51922,
+      "prior_pid": 85996,
       "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-source-money-loop.md",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-after-docker.md",
       "max_turns": 1000
     }
   ],
@@ -2078,5 +1982,10 @@
     "identity_and_api": "TLS verified anonymous401/admin200 on current identity and postgres listBuilds",
     "acceptance": "infrastructure recovery only; original complete source and formal acceptance counts unchanged",
     "next": "same owner collects durable jobs before any bounded retry; no recreate/DML replay"
+  },
+  "latest_same_owner_after_recovery": {
+    "shared_entry_pid": 36457,
+    "shared_entry_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+    "policy": "same owner max1000 Grok4.7/xhigh; Oracle/Mongo actual future-generation pack refusal, registry drift, local180sec and retained product stage idempotence remain full product dependencies; no full count promotion"
   }
 }
