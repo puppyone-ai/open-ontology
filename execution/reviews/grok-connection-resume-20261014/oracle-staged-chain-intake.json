@@ -1,0 +1,114 @@
+{
+  "observed_at": "2026-10-14T08:04:15.926512+00:00",
+  "source_commit": "b9431b946d4a62b3f3426590cbcc09ccf5a5ea2b",
+  "verified_sha_count": 23,
+  "raw_files": [
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/whole.json",
+      "sha256": "b51c544048892881eace9d3958547651dd53264b00b71d75ac40e4f30ad26f7f"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/product-receipt.json",
+      "sha256": "6fa2ff6f2e8211155f9ef42e8f295a096907395aacdd775fc9a655983e3008e5"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/actual-s5.json",
+      "sha256": "b551cb713ee7cf2768b57f1862346916dda13703293eb37be5d1df9862772dd3"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/catalog.json",
+      "sha256": "5c94877dc45b51d3606c47b4ca4965df6363b6d07809ad1eb453b4bbe9ebaf4a"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/role-pack.json",
+      "sha256": "731226cc65be31acfd1920548bf94075f90f8574d9d5916c31bba2ba2ac49e45"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/dialogue-verdict.json",
+      "sha256": "5d28fad30c3d6648dabe21297133aa5ef52a596c5bba59ff6f0a7ee3aaa42365"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/typed-gold.json",
+      "sha256": "14271c220b80e7d98c5a40869c438dcbfa2d7a13ab1822ff5b7e338a3f82cacb"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/waits.json",
+      "sha256": "1aa25f8642431e95787cb03875ce5dc63752cf2cc1ca87c3ff5926c02b5a3690"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/schedule.json",
+      "sha256": "d03300635abddf68153a25056928e02f4d33eef492add018d53ecd88cf1f04ad"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/source.json",
+      "sha256": "0d6def716c296819915ab4d4294e7781b9d1d1402428c1e1851cdc4bfc17aebd"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/ontology.yaml",
+      "sha256": "4b6d01e37f6988ff549bb2020b8d70e5bfb0f921b2c6f2b2348d654a5ab9cb80"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/effective-oos.yaml",
+      "sha256": "4949a18498b829a3eaf54ef1a840c8cd7655f070b67d06cdd7ed9925ddcb6e5e"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/g3-cycle-receipt.json",
+      "sha256": "906580838f0de788f2d340fb2fed7356106314a30b7dbe71f9ceb0985ecbadcf"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/g3-exit-receipt.json",
+      "sha256": "0ec77b6f86ce5b9f59ef5af63aceb898c0f7cabad8a967aa7c1ef1199363fab7"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/whole-recipe.json",
+      "sha256": "96c62fbb5788780b5a3a4f09a140019568f2d4fb72c7e17bd6dea2eea05ce56d"
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/selfbuild-control-api-observation-fixed",
+      "sha256": "025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae",
+      "verified_binary_not_duplicated": true
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/gateway/issue-token",
+      "sha256": "0554085cb2e872373ecfdb136821197e5c0aa30536aa6725855b5e9127e57052",
+      "verified_binary_not_duplicated": true
+    },
+    {
+      "path": "/tmp/oo-pg46-runtime-finish/continuous/gateway/oo-cli",
+      "sha256": "b641f7bd9f2505e9e97bec3a9692aca8d66fcc73c5522ddace00f87d5eb14db0",
+      "verified_binary_not_duplicated": true
+    },
+    {
+      "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-gateway-8d27abf3564bf3d05790be72632f1026376880e0c148e60455b4b1a2bb2cefb1",
+      "sha256": "8d27abf3564bf3d05790be72632f1026376880e0c148e60455b4b1a2bb2cefb1",
+      "verified_binary_not_duplicated": true
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/install-column-acl",
+      "sha256": "aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05",
+      "verified_binary_not_duplicated": true
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/whole_run.py",
+      "sha256": "0f49d7faf08d3423c769f454e510fedd26e7429e98ef84cf6f76c4e4110e90ba"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/sealed_bundle.py",
+      "sha256": "b455cafd0b525bbfc1b371d42e411e6c41d009b9b017cd7fef290b650b42fa31"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle-fixed-b9431b946/cancel.wal",
+      "sha256": "a0bea229560265fe3e6b84c0d93456498cf468991e36358fe2ad7ad145d26a66"
+    }
+  ],
+  "receipt_sha256": "b998c5f371aab1352ea12024fa5db388cec6d7d4310efd61e76b88effe64af70",
+  "verified": "23 resolved manifest digests from actual run paths/binaries/fixed source blobs; genuine S5 usage3660, standardOOS/currentPack, typedCLI10 cells/zero diff, 2turn real dialogue and cancel WAL",
+  "staged_chain_candidate": true,
+  "complete_ordinary_entry": false,
+  "missing": [
+    "default six-field entry: current input explicit recipe/out, registry SHA null",
+    "actual source import and new mutation-period convergence/current ontology-pack maintenance: DML0/schedule disabled/lifecycle based historic g3"
+  ],
+  "formal_signoff": false,
+  "independent_review": "deferred per latest human"
+}
