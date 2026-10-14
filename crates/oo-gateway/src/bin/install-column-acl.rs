@@ -15,7 +15,7 @@ use std::process::ExitCode;
 
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
-use oo_gateway::policy::{compile_column_acl_set, install_column_acl_set, compile_column_acl_native_vector_set, install_column_acl_native_vector_set};
+use oo_gateway::policy::{compile_column_acl_set, install_column_acl_set, compile_column_acl_native_vector_set, install_column_acl_native_vector_set, compile_column_acl_native_transition, transition_column_acl_native_vector_set};
 use oo_gateway::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
     RowFilter, TlsEndpoint, connect_require_tls,
@@ -23,6 +23,7 @@ use oo_gateway::{
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 const PROTOCOL: &str = "oo.gateway.install-column-acl-cli/v1";
 const NATIVE_VECTOR_PROTOCOL: &str = "oo.gateway.install-native-vector-acl-cli/v1";
@@ -46,14 +47,17 @@ fn main() -> ExitCode {
 }
 
 fn run() -> ExitCode {
-    if std::env::args().nth(1).is_some() {
-        return Fail::Usage.emit();
-    }
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let previous = match args.as_slice() {
+        [] => None,
+        [flag, path, hash_flag, hash] if flag == "--previous-policy-file" && hash_flag == "--previous-policy-sha256" => Some((path.as_str(), hash.as_str())),
+        _ => return Fail::Usage.emit(),
+    };
     let text = match read_stdin() {
         Ok(text) => text,
         Err(fail) => return fail.emit(),
     };
-    let prepared = match prepare(&text) {
+    let prepared = match prepare(&text, previous) {
         Ok(prepared) => prepared,
         Err(fail) => return fail.emit(),
     };
@@ -98,9 +102,10 @@ struct Prepared {
     password: String,
     ca: Vec<u8>,
     native_vector: bool,
+    previous: Option<Vec<ColumnAclPolicy>>,
 }
 
-fn prepare(text: &str) -> Result<Prepared, Fail> {
+fn prepare(text: &str, previous: Option<(&str, &str)>) -> Result<Prepared, Fail> {
     let value = parse_json_value(text, PROTOCOL).map_err(|_| Fail::Scan)?;
     reject_null(&value)?;
     let request: RequestDoc = serde_json::from_value(value).map_err(|_| Fail::Request)?;
@@ -108,12 +113,25 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
         return Err(Fail::Request);
     }
     let native_vector = request.protocol == NATIVE_VECTOR_PROTOCOL;
+    let endpoint_doc = request.endpoint.clone();
     let endpoint = endpoint_from(request.endpoint)?;
     let mut policies = Vec::with_capacity(request.policies.len());
     for policy in &request.policies {
         policies.push(policy.to_acl()?);
     }
     if native_vector { compile_column_acl_native_vector_set(&policies) } else { compile_column_acl_set(&policies) }.map_err(from_policy)?;
+    let previous = if let Some((path, expected)) = previous {
+        if !native_vector || !Path::new(path).is_absolute() || expected.len() != 64 || !expected.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) { return Err(Fail::Request); }
+        let raw = read_regular(Path::new(path), DOCUMENT_MAX_BYTES)?;
+        if format!("{:x}", Sha256::digest(&raw)) != expected { return Err(Fail::Request); }
+        let old_value = parse_json_value(std::str::from_utf8(&raw).map_err(|_| Fail::Scan)?, PROTOCOL).map_err(|_| Fail::Scan)?;
+        reject_null(&old_value)?;
+        let old: RequestDoc = serde_json::from_value(old_value).map_err(|_| Fail::Request)?;
+        if old.protocol != NATIVE_VECTOR_PROTOCOL || old.endpoint != endpoint_doc { return Err(Fail::Request); }
+        let old_policies = old.policies.iter().map(PolicyDoc::to_acl).collect::<Result<Vec<_>,_>>()?;
+        compile_column_acl_native_transition(&old_policies, &policies).map_err(from_policy)?;
+        Some(old_policies)
+    } else { None };
     let password = read_password(Path::new(&request.password_file))?;
     if contains_bytes(text.as_bytes(), password.as_bytes()) {
         return Err(Fail::Request);
@@ -125,6 +143,7 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
         password,
         ca,
         native_vector,
+        previous,
     })
 }
 
@@ -152,7 +171,9 @@ async fn install(prepared: Prepared) -> Result<String, Fail> {
     let driver = tokio::spawn(async move {
         let _ = connection.await;
     });
-    let result = if prepared.native_vector {
+    let result = if let Some(previous) = &prepared.previous {
+        transition_column_acl_native_vector_set(&mut client, previous, &prepared.policies).await
+    } else if prepared.native_vector {
         install_column_acl_native_vector_set(&mut client, &prepared.policies).await
     } else {
         install_column_acl_set(&mut client, &prepared.policies).await
@@ -324,7 +345,7 @@ struct RequestDoc {
     ca_file: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct EndpointDoc {
     host: String,

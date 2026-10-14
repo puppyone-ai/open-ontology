@@ -9,6 +9,7 @@ import subprocess
 
 SOURCE_CONTAINER = "oo-dl01w1-46-src"
 READER = "oo_dl01w1_46_reader"
+DATABASE = "src"
 
 
 def digest(data):
@@ -17,7 +18,7 @@ def digest(data):
 
 def query(sql):
     return subprocess.check_output([
-        "docker", "exec", SOURCE_CONTAINER, "psql", "-U", READER, "-d", "src", "-X", "-A", "-t", "-F", "|", "-c", sql,
+        "docker", "exec", SOURCE_CONTAINER, "psql", "-U", READER, "-d", DATABASE, "-X", "-A", "-t", "-F", "|", "-c", sql,
     ], text=True).strip().splitlines()
 
 
@@ -29,12 +30,16 @@ def quote(name):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--source-container", default=SOURCE_CONTAINER)
+    parser.add_argument("--database", default=DATABASE)
+    parser.add_argument("--reader", default=READER)
     parser.add_argument("--collection", required=True, type=Path)
     parser.add_argument("--typed-diff", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--consistency", choices=["S1", "T"], required=True)
     parser.add_argument("--end-lsn", required=True)
     args = parser.parse_args()
+    globals().update(SOURCE_CONTAINER=args.source_container, DATABASE=args.database, READER=args.reader)
     raw = args.collection.read_bytes()
     collection = json.loads(raw)
     bindings = collection["binding_vector"]

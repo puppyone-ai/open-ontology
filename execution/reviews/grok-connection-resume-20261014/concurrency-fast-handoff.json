@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-10-14T06:42:20.339850+00:00",
+  "ordinary_wait_seconds": 600,
+  "events": [
+    {
+      "task": "sqlserver",
+      "prior_pid": 37472,
+      "pid": 51920,
+      "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+      "scope": [
+        "tools/mssql-preview",
+        "testing/dl01-targets/mssql",
+        "crates/oo-pipeline/src/native_update.rs",
+        "crates/oo-pipeline/src/native_binding.rs",
+        "crates/oo-pipeline/src/target_installer.rs",
+        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
+        "tools/source-admission/src/capture.rs"
+      ]
+    },
+    {
+      "task": "shared-entry",
+      "prior_pid": 6230,
+      "pid": 51922,
+      "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+      "scope": [
+        "tools/source-onboarding"
+      ]
+    }
+  ],
+  "acceptance_changed": false
+}

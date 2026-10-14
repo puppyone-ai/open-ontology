@@ -12,7 +12,7 @@ use crate::tds::{SqlClient, connect, shutdown, build_config, Cleanup, describe_o
 use crate::sql::{require_ident, SERVER_SQL};
 use crate::types::cell_from_column;
 
-const BEGIN: &str = "SET TRANSACTION ISOLATION LEVEL SNAPSHOT; BEGIN TRANSACTION";
+const BEGIN: &str = "SET IMPLICIT_TRANSACTIONS OFF; SET TRANSACTION ISOLATION LEVEL SNAPSHOT; BEGIN TRANSACTION";
 const COMMIT: &str = "COMMIT TRANSACTION";
 const IDENTITY: &str = "SELECT CONVERT(nvarchar(36), r.database_guid) AS database_guid, CONVERT(nvarchar(36), r.recovery_fork_guid) AS recovery_fork_guid, d.snapshot_isolation_state AS snapshot_isolation_state FROM sys.databases AS d INNER JOIN sys.database_recovery_status AS r ON r.database_id = d.database_id WHERE d.database_id = DB_ID()";
 const ANCHOR: &str = "SELECT CHANGE_TRACKING_CURRENT_VERSION() AS current_version, CHANGE_TRACKING_MIN_VALID_VERSION(OBJECT_ID(@P1)) AS min_valid_version, OBJECT_ID(@P1) AS object_id, HAS_PERMS_BY_NAME(@P1, N'OBJECT', N'VIEW CHANGE TRACKING') AS can_view_ct";
@@ -315,6 +315,7 @@ mod tests{
  use super::*;
  fn table()->Table{Table{object:ObjectName{schema:"dbo".into(),name:"orders".into()},specs:vec![ColumnSpec{name:"id".into(),kind:SqlKind::Nvarchar,nullable:false,precision:0,scale:0,collation:Some("Latin1_General_CI_AS".into()),is_identity:false,sql_type_name:"nvarchar".into(),max_length:Some(40)}],keys:vec![0],next:TablePosition{schema:"dbo".into(),name:"orders".into(),object_id:7,schema_sha256:"x".into(),keys:vec!["id".into()],version:20},prior:None,min_valid:0}}
  #[test]fn retention_and_regression_fail_closed(){assert!(validate_version(10,10,20).is_ok());assert_eq!(validate_version(9,10,20).unwrap_err().code,"ct_position_expired");assert_eq!(validate_version(21,10,20).unwrap_err().code,"ct_position_future");assert!(validate_version(-1,0,20).is_err());}
+ #[test]fn snapshot_batch_clears_login_implicit_transactions(){assert!(BEGIN.starts_with("SET IMPLICIT_TRANSACTIONS OFF;"));}
  #[test]fn full_order_and_delete_preserving_sql(){let mut t=table();let s=data_sql(&t,10,5).unwrap().0;assert!(s.contains("COLLATE Latin1_General_100_BIN2 OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY"));t.prior=Some(12);let s=data_sql(&t,0,5).unwrap().0;assert!(s.contains("CHANGETABLE(CHANGES [dbo].[orders], @P1) AS ct LEFT JOIN"));assert!(s.contains("ct.[id], t.[id]"));t.object.name="bad]; DELETE".into();assert!(data_sql(&t,0,5).is_err());}
  #[test]fn schema_change_invalidates_position(){let t=table();let a=schema_hash(&t.specs,&t.next.keys).unwrap();let mut changed=t.specs.clone();changed[0].scale=7;assert_ne!(a,schema_hash(&changed,&t.next.keys).unwrap());changed=t.specs.clone();changed[0].max_length=Some(80);assert_ne!(a,schema_hash(&changed,&t.next.keys).unwrap());}
  #[tokio::test]async fn unapproved_ct_stops_before_socket(){let customer=crate::parse_customer(br#"{"protocol":"oo.mssql-preview.customer/v1","source_id":"s","secret_ref":"/missing","endpoint":{"host":"203.0.113.1","port":1433,"database":"d","username":"u"},"encrypt":"required","trust_server_certificate":false,"approved_objects":[{"schema":"dbo","name":"t"}],"budget":{"unit":"Rows","hard_limit":10,"confidence":"declared"},"permissions_expected":["SELECT"],"connect_deadline_unix_ms":1}"#).unwrap();assert_eq!(run_capture(&customer,2,None,10,Path::new("/not-created")).await.unwrap_err().code,"deadline_exceeded");}

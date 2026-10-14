@@ -143,6 +143,10 @@ pub const ADMISSION_BIN_SHA256_PG_TRANSACTION: &str =
 /// Exact S1 per-table PostgreSQL capture alias validator, Linux Rust 1.94.
 pub const ADMISSION_BIN_SHA256_PG_PER_TABLE: &str =
     "07e7651a98b4ef76582f67666e1245065546db204a50899554981619efc05dbf";
+/// Linux Rust 1.94 `oo-source-admission` that parses SQL Server C2 CT facts.
+/// Measured from `/tmp/oo-sqlserver-linux-target/release/oo-source-admission`.
+pub const ADMISSION_BIN_SHA256_SQLSERVER_CT: &str =
+    "9a739ca803f0d6e5b1ff5e466903d0d459f6ed176215f471da11dfe43c103b24";
 
 /// Trusted runtime allowlist. A manifest field cannot add a program.
 pub fn approved_admission_bin(digest: &str) -> bool {
@@ -160,6 +164,7 @@ pub fn approved_admission_bin(digest: &str) -> bool {
         || digest == ADMISSION_BIN_SHA256_OLAP_C4
         || digest == ADMISSION_BIN_SHA256_PG_TRANSACTION
         || digest == ADMISSION_BIN_SHA256_PG_PER_TABLE
+        || digest == ADMISSION_BIN_SHA256_SQLSERVER_CT
 }
 
 const ENV_BIN: &str = "OO_NATIVE_ADMISSION_BIN";
@@ -1974,6 +1979,7 @@ mod tests {
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_NATIVE_MINIMAL));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_PG_TRANSACTION));
         assert!(approved_admission_bin(ADMISSION_BIN_SHA256_PG_PER_TABLE));
+        assert!(approved_admission_bin(ADMISSION_BIN_SHA256_SQLSERVER_CT));
         const MARIA: &str = "7ee551ecadd2fb66e3dea5564dab7336cafcce0e6fb0dd57d5816a7685338474";
         assert!(driver_length_allowed(MARIA, 314_875_904));
         assert!(!driver_length_allowed(MARIA, 314_875_903));
