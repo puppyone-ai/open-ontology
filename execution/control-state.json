@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T01:18:42.882070+08:00",
+  "as_of": "2026-10-15T01:31:26.281653+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -28,7 +28,8 @@
     "rust_admission_policy": "latest direct human authorization: no fixed compiler slots/task jobs or CPU quota; use actual available hardware, preserve exclusive paths and source read budgets",
     "wait_tool": "clock.sleep",
     "task_delivery_boundary": "complete source product loop after shared readiness; shared reference-only handoffs do not release sources",
-    "source_parallel_release": "execution/shared-readiness-gate.json root pass required"
+    "source_parallel_release": "execution/shared-readiness-gate.json root pass required",
+    "current_dispatch_status": "no new Grok dispatch after verified402; native disabled by latest user pending direct new authorization"
   },
   "platform_goal": {
     "status_last_observed": "active",
@@ -2273,43 +2274,7 @@
       "failures": "preserved raw/date/schema/auth failures"
     }
   },
-  "managed_live_processes": [
-    {
-      "task": "mariadb",
-      "pid": 17188,
-      "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
-      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "clickhouse",
-      "pid": 7630,
-      "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
-      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "opensearch",
-      "pid": 5834,
-      "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
-      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "sqlserver",
-      "pid": 25811,
-      "session_uuid": "d32a1c31-e9bd-40c1-81ba-68acaca6783b",
-      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "shared-entry",
-      "pid": 21962,
-      "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
-      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
-      "tool_handle": null
-    }
-  ],
+  "managed_live_processes": [],
   "latest_star_one_current_random_source_check": {
     "note": "2026-10-15 Star current19 run4-fresh独立源readonly2SELECT/两个facts与QIDadmitcomplete root核通过；旧run2是不同Pack00fd/rolew45，而新5eae/oo_r_w45，所以不计两次samecurrentPack随机出口，random仍4/10。source完整0/10、日期/正常消费未齐；intake execution/reviews/grok-connection-resume-20261014/star-current19-one-random-source-intake.json。原Plan/计数/Goal/整版/支持级检查不变，未达原退出。",
     "count_delta": 0
@@ -2866,5 +2831,14 @@
     ],
     "formal_full_source": 0,
     "random_subexit_verified": 5
+  },
+  "latest_grok402_executor_policy_pending": {
+    "at": "2026-10-15T01:31:26.281653+08:00",
+    "note": "2026-10-15 Grok4.7 CLI实际402 PaymentRequired/Grok Build usage balance exhausted：Maria17188、Click7630、SQL25811已OSterminal/raw402 retained；共享21962已terminal合法Star repin58e29/awaitingrun，只readonly预检未model调用，发现entry两题未入history/pool重复风险故normal未跑，原sourcegoldderivedpart需真正源推导不能用publishedlogical替代。Root正式随机5/10/full0/10不虚签；Oracle83403作者两个真实GPT6.1当前7source问答已交/20call usage保留，但auto未做/57014实证缺仍completion_refused，Doris7632实际Flow+新问答close ad79 schema单字段KeyError/wholefalse保持，来源未root验newgold不晋。User最新禁用native所以停止新增Grok/不恢复GPT子执行器，已async询问恢复额度或重新授权GPT6.1Sol low，需直接人类执行者政策而非技能追加确认。所有原source/code/untracked/私有keys/失败和具名background资源保留；独占trackedWIP patch私有SHA快照非产品交付/非远端证据。Goal active未complete，外部quota本轮首次阻断不擅paused/blocked；Plan计数整版支持级原完整退出均不变。",
+    "intake": "execution/reviews/grok-connection-resume-20261014/quota402-managed-intake.json",
+    "managed_live": [],
+    "full_source": 0,
+    "random_subexit": 5,
+    "first_quota_blocking_goal_turn": true
   }
 }

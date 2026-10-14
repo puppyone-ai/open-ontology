@@ -1,0 +1,93 @@
+{
+  "at": "2026-10-15T01:31:26.281653+08:00",
+  "managed_live": [],
+  "terminal_observations": [
+    {
+      "task": "mysql",
+      "pid": 98647,
+      "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "oracle",
+      "pid": 83403,
+      "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "mariadb",
+      "pid": 17188,
+      "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+      "terminal": true,
+      "402_quota_exhausted": true
+    },
+    {
+      "task": "mongodb",
+      "pid": 10014,
+      "session_uuid": "3005fbfd-413f-49ba-81dc-3649a8304ef1",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "clickhouse",
+      "pid": 7630,
+      "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+      "terminal": true,
+      "402_quota_exhausted": true
+    },
+    {
+      "task": "doris",
+      "pid": 7632,
+      "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "opensearch",
+      "pid": 5834,
+      "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+      "terminal": true,
+      "402_quota_exhausted": true
+    },
+    {
+      "task": "postgresql",
+      "pid": 2203,
+      "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "starrocks",
+      "pid": 2201,
+      "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+      "terminal": true,
+      "402_quota_exhausted": false
+    },
+    {
+      "task": "sqlserver",
+      "pid": 25811,
+      "session_uuid": "d32a1c31-e9bd-40c1-81ba-68acaca6783b",
+      "terminal": true,
+      "402_quota_exhausted": true
+    },
+    {
+      "task": "shared-entry",
+      "pid": 21962,
+      "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
+      "terminal": true,
+      "402_quota_exhausted": false
+    }
+  ],
+  "new_dispatch": "none: 402 quota confirmed; native subagents disabled by latest user, awaiting directexecutorpolicy answer",
+  "source_code_snapshot": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/quota-20261015/tracked-owner-work.patch",
+    "sha256": "0c8fee31be642289122a156d86a0d07e16e880008896e2956a88575f479448c6",
+    "scope": "tracked source diffs only owned task paths, not product verified/committed; untracked/userforeign files untouched"
+  },
+  "full_source_accepted": 0,
+  "random_verified_subexits": 5,
+  "resource_policy": "containers and named background computes retained; terminal CLI not assumed background stopped",
+  "not_goal_complete": true
+}
