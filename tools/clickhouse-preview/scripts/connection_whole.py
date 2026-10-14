@@ -1047,6 +1047,9 @@ def self_check():
     observe_period(periods[0], slept.append, lambda: 0)
     observe_period(periods[1], slept.append, lambda: 0)
     assert slept == [3.0, 7.0]
+    assert len(RANDOM_BANK) >= 4 and len({item[0] for item in RANDOM_BANK}) == len(RANDOM_BANK)
+    assert len({item[1] for item in RANDOM_BANK}) >= 2 and len({item[2] for item in RANDOM_BANK}) == len(RANDOM_BANK)
+    assert all("SELECT" not in item[5] for item in RANDOM_BANK)
     if sha(ACL_ELF) != ACL_SHA:
         raise RuntimeError("acl elf pin mismatch")
     usage = subprocess.run(["docker", "run", "--rm", "--pull", "never", "--platform", "linux/arm64",
@@ -1068,9 +1071,152 @@ def self_check():
     print(json.dumps({"elf": "pinned", "replay_guard": True, "cargo_test": "not_run_no_rebuild", "containers": {name: state(name) for name in (SOURCE, TARGET)}}))
 
 
+DIALOGUE = ROOT / "tools" / "agent-product-verifier" / "dialogue.py"
+RANDOM_BANK = (
+    ("filter.reading_105_qty", "filter", "qty_105", "qty",
+     "SELECT toString(qty) FROM oo_dl01w40.readings FINAL WHERE reading_id = 105",
+     "What is the current qty for reading_id 105 in oo_dl01w40.readings? Return it as one column named qty."),
+    ("aggregate.sum_qty", "aggregate", "sum_qty", "sum_qty",
+     "SELECT toString(sum(qty)) FROM oo_dl01w40.readings FINAL",
+     "What is the sum of qty over the current rows of oo_dl01w40.readings? Return it as one column named sum_qty."),
+    ("detail.qty_4_reading", "detail", "id_qty_4", "reading_id",
+     "SELECT toString(reading_id) FROM oo_dl01w40.readings FINAL WHERE qty = 4",
+     "Which reading_id currently has qty 4 in oo_dl01w40.readings? Return it as one column named reading_id."),
+    ("filter.positive_qty_rows", "filter", "positive_rows", "positive_rows",
+     "SELECT toString(count()) FROM oo_dl01w40.readings FINAL WHERE qty > 0",
+     "How many current rows of oo_dl01w40.readings have qty greater than zero? Return the count as one column named positive_rows."),
+    ("aggregate.row_count", "aggregate", "row_count", "row_count",
+     "SELECT toString(count()) FROM oo_dl01w40.readings FINAL",
+     "How many current rows are in oo_dl01w40.readings? Return the count as one column named row_count."),
+)
+
+
+def source_scalar(sql, query_id, sink):
+    proc = ch(READER, sql + " FORMAT TSV", query_id, sink)
+    if proc.returncode:
+        raise RuntimeError(query_id + " refused")
+    lines = [line for line in proc.stdout.decode().splitlines() if line != ""]
+    if len(lines) != 1 or "\t" in lines[0] or lines[0] == r"\N":
+        raise RuntimeError(query_id + " is not one source value")
+    return lines[0]
+
+
+def random_dialogue(config, run_dir):
+    """Two new random dialogues on the current fixture. No S5, import, or old DML."""
+    for name in (SOURCE, TARGET, GATEWAY):
+        if state(name) == "absent":
+            raise RuntimeError("named container absent: " + name)
+        ensure(name)
+    root = run_dir / "random-dialogue"
+    root.mkdir(mode=0o700, exist_ok=True)
+    gold_path, bank_path = root / "gold.json", root / "bank.json"
+    if not gold_path.exists():
+        gold, bank = {}, []
+        for sid, kind, key, column, sql, prompt in RANDOM_BANK:
+            gold[key] = {"expected_named_facts": {column: source_scalar(sql, "oo-ch-random-gold-" + key, root / "source" / key)}}
+            bank.append({"semantic_id": sid, "query_class": kind, "truth_key": key,
+                         "prompt": prompt + " Inspect the installed pack, schema, and freshness with the public OO tools, then choose the SQL yourself."})
+        write(gold_path, gold)
+        write(bank_path, bank)
+        row = progress_row(json.loads((run_dir / "bundle" / "catalog.json").read_text()))
+        pack = run_dir / "gateway" / "packs" / "reader.json"
+        write(root / "identity.json", {"source_id": row["source_id"], "source_generation": row["source_generation"],
+                                        "pack_sha256": sha(pack), "role": "oo_r_reader"})
+    identity = json.loads((root / "identity.json").read_text())
+    base = json.loads((run_dir / "dialogue-config.json").read_text())
+    token = run_dir / "gateway" / "random-client.token"
+    if not token.exists():
+        run(["docker", "exec", "-w", "/run-current/gateway", GATEWAY, "/fixed/issue-token", "issue",
+             "endpoint.json", "runtime.pass", "ca.crt", "grant.json", "random-client.token"], root / "calls" / "issue-token", timeout=60)
+        os.chmod(token, 0o600)
+    probe = subprocess.run([base["oo_cli"], "tables", "--json", "--gateway", base["gateway"], "--transport", base["transport"],
+                            "--auth", base["auth"], "--token-file", str(token)], capture_output=True, timeout=40)
+    kept(probe, root / "calls" / "tables-probe")
+    if probe.returncode:
+        code = ""
+        try:
+            code = json.loads(probe.stdout.decode()).get("code", "")
+        except json.JSONDecodeError:
+            code = "unparsed"
+        raise RuntimeError("gateway tables refused: " + str(code))
+    keys = ("selection", "counts_as_random", "seed", "semantic_ids", "query_ids", "turns", "audit_sha256", "gold_sha256", "response_models", "outcome")
+
+    def one(name, prior=None, frozen=None):
+        out = root / name
+        verdict_path = out / "verdict.json"
+        if verdict_path.exists():
+            verdict = json.loads(verdict_path.read_text())
+            if verdict.get("outcome") == "verified" and verdict.get("counts_as_random") is True and verdict.get("turns", 0) >= 2:
+                return verdict
+            raise RuntimeError(name + " is not a verified random dialogue")
+        if out.exists():
+            raise RuntimeError(name + " exists without a verified verdict")
+        cfg = {"oo_cli": base["oo_cli"], "gateway": base["gateway"], "transport": base["transport"], "auth": base["auth"],
+               "gateway_token_file": str(token), "model_origin": base["model_origin"], "model": "grok-4.7",
+               "model_bearer_file": base["model_bearer_file"], "independent_truth_file": str(gold_path),
+               "independent_gateway_audit_file": base["independent_gateway_audit_file"], "max_tool_rounds": 12,
+               "question_bank": str(bank_path), "identity": identity, "sample_size": 2}
+        if frozen is not None:
+            cfg["frozen_manifest"] = str(frozen)
+        elif prior is not None:
+            cfg["prior_manifest"] = str(prior)
+        write(root / (name + "-config.json"), cfg)
+        proc = subprocess.run([sys.executable, str(DIALOGUE), "--config", str(root / (name + "-config.json")), "--out", str(out)], capture_output=True, timeout=1800)
+        kept(proc, root / (name + "-call"))
+        if proc.returncode or not verdict_path.exists():
+            detail = proc.stderr.decode(errors="replace").strip().splitlines()
+            raise RuntimeError(name + " dialogue failed" + (": " + detail[-1] if detail else ""))
+        verdict = json.loads(verdict_path.read_text())
+        if verdict.get("outcome") != "verified" or verdict.get("counts_as_random") is not True or verdict.get("turns", 0) < 2:
+            raise RuntimeError(name + " dialogue is not a new random verification")
+        return verdict
+
+    def slot(source, retry, prior=None):
+        if (root / source / "verdict.json").exists():
+            return one(source)
+        frozen = root / source / "selection.json"
+        if frozen.exists():
+            name = retry
+            while (root / name).exists() and not (root / name / "verdict.json").exists():
+                suffix = 2 if name == retry else int(name.rsplit("-", 1)[-1]) + 1
+                if suffix > 3:
+                    raise RuntimeError(name + " already kept")
+                name = retry + "-" + str(suffix)
+            return one(name, frozen=frozen)
+        return one(source, prior=prior)
+
+    errors, first, second = [], None, None
+    try:
+        first = slot("run-1", "run-1-auth")
+    except Exception as exc:
+        errors.append(str(exc))
+    prior = root / "run-1" / "selection.json"
+    if prior.exists():
+        try:
+            second = slot("run-2", "run-2-auth", prior)
+        except Exception as exc:
+            errors.append(str(exc))
+    else:
+        errors.append("run-1 did not freeze a selection")
+    if first and second and set(first["semantic_ids"]) & set(second["semantic_ids"]):
+        errors.append("random runs reused a semantic id")
+    write(root / "receipt.json", {
+        "protocol": "oo.clickhouse.random-dialogue/v1", "formal_signoff": "0/10", "published": False,
+        "legacy_dialogue_untouched": True, "errors": errors,
+        "kept_failures": sorted(path.name for path in root.iterdir() if path.is_dir() and (path / "transcript.json").exists() and not (path / "verdict.json").exists()),
+        "dialogue_sha256": sha(DIALOGUE), "oo_cli_elf_sha256": sha(CLI), "gateway_elf_sha256": sha(GW_ELF),
+        "source_id": identity["source_id"], "source_generation": identity["source_generation"],
+        "pack_sha256": identity["pack_sha256"], "role": identity["role"], "gold_sha256": sha(gold_path),
+        "run_1": None if first is None else {key: first.get(key) for key in keys},
+        "run_2": None if second is None else {key: second.get(key) for key in keys},
+    })
+    if errors:
+        raise RuntimeError("; ".join(errors))
+
+
 def main():
     command, config, run_dir = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish, "cover": cover_current}[command](config, run_dir)
+    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish, "cover": cover_current, "random-dialogue": random_dialogue}[command](config, run_dir)
 
 
 if __name__ == "__main__":

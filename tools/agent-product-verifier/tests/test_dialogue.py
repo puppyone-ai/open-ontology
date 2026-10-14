@@ -186,6 +186,17 @@ class SelectionFreeze(unittest.TestCase):
                 {"question_bank": edited, "identity": IDENTITY, "frozen_manifest": str(frozen)},
                 gold(), raw)
 
+    def test_empty_pack_search_tells_the_model_to_narrow(self):
+        view = dialogue.model_view("knowledge_search", {"hits": [], "knowledge_version": "1"})
+        self.assertIn("short word", view["hint"])
+        self.assertNotIn("hint", dialogue.model_view("knowledge_search", {"hits": [{"path": "INDEX.md"}]}))
+
+    def test_unknown_knowledge_path_returns_to_the_model(self):
+        body = {"class": "gateway", "code": "SCHEMA_INVALID", "message": "knowledge path is not in this pack"}
+        self.assertTrue(dialogue.tool_error_returned("knowledge_cat", body))
+        self.assertFalse(dialogue.tool_error_returned("query", body))
+        self.assertFalse(dialogue.tool_error_returned("knowledge_cat", {"class": "gateway", "code": "UNAUTHENTICATED", "message": "authentication failed"}))
+
     def test_coverage_nudge_stops_after_the_tools_exist(self):
         self.assertEqual(dialogue.coverage_nudge(set(), 0, 4), ["describe", "freshness", "knowledge_cat", "query"])
         self.assertEqual(dialogue.coverage_nudge({"query", "freshness", "describe", "knowledge_cat"}, 1, 4), [])

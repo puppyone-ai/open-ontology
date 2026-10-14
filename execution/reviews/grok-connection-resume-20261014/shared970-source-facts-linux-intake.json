@@ -1,0 +1,36 @@
+{
+  "source_commits": [
+    "fd63ff722e9ead71e21eb547b23476a9af01a3b2",
+    "9709e5fe30d5caed7fbc7f16e65a88ae5eebadbc"
+  ],
+  "raw_hashes": {
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/binary-binding-pre.txt": "d80813908fd37e54ece01230ef6976ca8a4368e2c11de34ac39609cec0e61082",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/stdout.txt": "175e83b1271f09bffb4d3e029d0f813313c1438ccb7be6be3c1af7b7143e9ddd",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/stderr.txt": "64ee02e962c1a593425878f07885d41537babd83deac10d118043fe5063a5733",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/binding.txt": "87b760893bf93fec3784987c1543175f7c8982048460825b75c3977fa045a76b",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/rustc.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/rustc.txt": "6806abbfd02ed3fa68718758a7edcfff45e1d205ca093d24492bbf4a20309e28",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/source-binding.txt": "e2fd9f61c53fb639ac326fb03df579694829b912a292dfd3fbacdce1cfe008cb",
+    "/tmp/oo-shared-entry-connection-whole/linux194-source-money-8/exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/stdout.txt": "535ba07dd373b98ba687f414f2aaa0e4297d17b4e8e94ac943c03d171840dc35",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/build-stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/build-exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/stderr.txt": "132eddeeec76bdbf1790c1791b28224d6250c27bdfca80c86c76178e5f57bde6",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/binding.txt": "057f3681d54d8d3cc31b3a8b4c43d2574b34a4742d7c6303c4fb4b6ffef143be",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/rustc.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/rustc.txt": "6806abbfd02ed3fa68718758a7edcfff45e1d205ca093d24492bbf4a20309e28",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/build-stderr.txt": "9e247e76c2ecb691697667c93b7c626439029e3ff71b773e05ca10a8d13fe51a",
+    "/tmp/oo-shared-entry-connection-whole/linux194-pg-money-request/exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "linux194_author_raw_verified": "8 compiler tests / 32 builder tests / build exits 0; raw hashes and fixed overlay source checked",
+  "release_binary": {
+    "path": "/tmp/oo-pg-money-linux-target/release/pg-builder",
+    "sha256": "0519f9fb95afbc9000143631edf9031f8f44404f47b821916db90741b9c66fdf"
+  },
+  "oracle_broker": {
+    "path": "/tmp/oo-oracle-connection-whole/maint-c44/BROKER.json",
+    "sha256": "3721b57184eda2fb36d30451e1fefb9aaf10623ea898625429becd240e9bd6cd",
+    "maintenance_200_and_gold0": "author receipt; actual full chain false; random1 failed two models/no second run"
+  },
+  "acceptance": "fixed shared dependency; not full source or independent review"
+}

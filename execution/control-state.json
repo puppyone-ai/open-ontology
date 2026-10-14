@@ -2228,5 +2228,12 @@
     "pid": 84533,
     "tool_handle": 78851,
     "author_only": true
+  },
+  "latest_shared_versioned_facts_actual_link": {
+    "note": "2026-10-14 共享53810终态9709e5fe3已批准source-money-facts入真实versioned模型请求，root核Linux1.94原始8/32tests退出0与release0519SHA/旧fd63sourceblob，交原PG消费一次必要corrected不同请求，旧USD/裸array/raw成本不变。Oracle c44当前g5作者admin200/rolePack200/15typedcells0回执，但两个模型随机1失败/无第二、默认入口及新自动IUD未跑，不能full；broker交验收器原Click核真实emptysearch工具与输出shape问题。共享同d28ca86947/42237继续实际公共registered六字段默认入口+新random/currentsource对齐证明，不组件32tests后停止。验收scope依赖原count0/10，不独立review、不新功能分母。证据execution/reviews/grok-connection-resume-20261014/shared970-source-facts-linux-intake.json。",
+    "source_commit": "9709e5fe30d5caed7fbc7f16e65a88ae5eebadbc",
+    "pid": 86947,
+    "handle": 42237,
+    "source_exit": "not complete"
   }
 }
