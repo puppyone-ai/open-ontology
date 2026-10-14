@@ -1,6 +1,6 @@
 # Handoff
 
-Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The same binding is now generation 12, enabled, period 1000 ms, C5 reconcile. Observer pid 66510 steps only when a shadow-copy probe sees a row diff. Quiet ticks have not advanced past 12. The public gateway is stale because its catalog is still generation 6 while `max(run_generation)` is 12. Generation 12's physical table has no `oo_r_ledger` column SELECT. This source will not GRANT, will not rebind that catalog, and will not edit `onboard.py`.
+Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The same binding is generation 12, enabled, period 1000 ms, C5 reconcile. Observer pid 56377 steps only when a shadow-copy probe sees a row diff. Quiet ticks have not advanced past 12. The public gateway catalog is generation 12. `oo_r_ledger` has SELECT on the 14 business columns of `pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20`. This source did not GRANT and did not edit `onboard.py`. Formal sign-off remains 0/10.
 
 Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, dialogue, gateway, pipeline, and governance sources were not edited. Customer fixture stayed read-only. No push.
 
@@ -15,11 +15,11 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 
 - `oo-dl01w1-44-native-fresh-pg`, `oo-dl01w1-44-native-fresh-source`, `oo-opensearch-connection-api`, `oo-opensearch-connection-gateway-g5`.
 - Listeners on 127.0.0.1: 18441 identity, 18443 API list, 18462 product API, 19462 gateway.
-- API process `/api serve` is ELF `025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae`.
+- API process `/api serve` is ELF `5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d`, container `cf19ad67f251`. The previous file `025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae` remains on disk.
 - Gateway process image is ELF `e253d0c0ed6283288418cb9a1566ba7b9d1f7e8011c9b0a78a24727fa80cf5dc`.
 - Lease: generation 12, binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55`, task `0e919da4-9fce-4e5d-8a96-b58bc3d4ac74`, enabled true, period 1000, load `awaiting_publish`.
-- Observer pid 66510 runs `c5-observe.py --seconds 28800`. It is not `native-serve`. A quiet source does not enqueue a pin.
-- Other sessions' processes were left alone, including shared pid 54950 (`d28ca4bd`) and PG pid 99653.
+- Observer pid 56377 runs `c5-observe.py --seconds 28800`. Pid 66510 exited earlier on a Docker socket error. The script retries that error. It is not `native-serve`. A quiet source does not enqueue a pin. Receipt snapshot: ticks 255, fires 0.
+- Other sessions' processes were left alone. PG pid 99653 is not running. The column ACL receipt is the fixed installer result, not a wait on that pid.
 - CA and cookie material stays path-referenced under `~/.cache/oo-dl01w1-71/native-identity-private`. Nothing from those files was printed or committed.
 - Git lock `/tmp/oo-dl01-wave1-git.lock` is the shared flock. Foreign staged paths were not reset.
 
@@ -33,11 +33,19 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 
 ## Do not repeat
 
-Recovery CAS, the paid dialogue, and the live cancel `q_JjCRmU3gOeVVrRxFkL39YtYryr`. S5 for this build is the existing file above. Do not `--resume` this run. The global registry digest is now `29ddf63d82d24b623683b980a722fa7cef8535769c8cfb920be4ea6274eaacd2`; the opensearch row is still whole. Do not rewrite the journal. Do not hand-GRANT generation 12 and do not install the generation-6 pack or catalog onto it.
+Recovery CAS, S5 for build `b_e9653e459c33efde8b5ddd8cacd44365`, the earlier verified dialogue, and cancel `q_JjCRmU3gOeVVrRxFkL39YtYryr`. Do not `--resume` run 445. The global registry digest recorded in the receipt is `29ddf63d82d24b623683b980a722fa7cef8535769c8cfb920be4ea6274eaacd2`; the opensearch row was still whole. Do not rewrite the journal. Do not hand-GRANT. Do not present the generation-6 catalog as generation 12.
+
+## Current public proof
+
+- Gold `q_J2xS9Y546NOQVNqWIg4qkpLzZv`, 70 cells, 0 differences, verdict SHA-256 `b9a73e3f02efb7fc2e3385e0f3684fac3b599fa20a6a6f36667417ac02723f9a`. `STALE_DATA` is not a certificate.
+- Dialogue verdict SHA-256 `a06fcc97e4c5a383659fffc484803610fe6b35ad3bde48af5b597e916c80011c`, transcript `5a587d6d10379440f2fa98199b0f9662afc6b011533fd9da0fea2f2e3bf37495`, queries `q_WmJg2c15AP4hrifaxSGi4jgz2A`, `q_cMhrZwR4R4t72sXrUbmA51KBtp`, `q_tvPHkytegb3Rb36bU1vybRLDIy`.
+- Cancel `q_LL4oGbozXAKiNlMLQcXUsTKqnv`, sqlstate 57014, rollback true, verdict SHA-256 `c7320e4d7e01adb82f9960ec4ffedfcf7719f237f28f71271afa52173fdfa9ed`.
+- Failures kept: `dialogue-g12` model timeout, `dialogue-g12b` missing knowledge tools, the two smoke commands that never reached the crate tests.
+- Maintenance `llm_calls` 0. Publication `not_published`. Formal sign-off 0/10.
 
 ## Root case
 
-Per-table column ACL for `_oo.pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20`, then a maintenance rebind whose bound generation equals `max(run_generation)`. `oo_r_ledger` has no default table SELECT. The public error after these rounds is `StaleGeneration` surfaced as `policy catalog is not available`. Shared resume drift stays with `d28ca4bd`.
+The per-table column ACL is installed. The generation-12 maintenance artifact is the running gateway catalog. Shared resume drift stays with `d28ca4bd`. A single-catalog schemaDigest 409, if it appears, stays with the Oracle owner of that case. This collection maintenance returned 200.
 
 ## Source after current
 

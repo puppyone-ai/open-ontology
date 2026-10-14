@@ -8897,7 +8897,7 @@
   "latest_current_rust_fixed_interfaces_intake": "新增fixed公共Rust依赖：eff6b994b5 per-table Linux1.94 ELF a44d4469+afaa67da5安全保留既有members/撤旧列权限ELF78bfdc62两SHA及绑定source blobs已核，真实3/5/13pubgold一致、OS g12精确14列pubcount5/oldhidden拒/无futuredefaultSELECT可消费。OpenSearch同UUID15835接续currentPack/Gateway/default全源，PG同UUID15837收原S5money_unit事实并继续原C1；shared15833收MySQL10tests合法旧producer复用dirty最小修复与Oracle单catalog schema_digest/identity错误（source5bc装好但admin409，不能重写decision.schemahash成identity）。原Oracle403role边界正确、g3→g5/currenttypedgap保留。Star同UUID20132被明确授权自有fixture必要全新自动IUD，不重复原DML/ACK/noLLM；原g13same-semanticmaintenance200/publishedfalse不代全自动退出。SQL同UUID22730新增唯一native_catalog.rs写域，修实际C2delta2batchrows与6appliedrows的PG-only exportguard，native_update仍Maria只读分界。fixture/batch/原C1路线不混、source/正式0/10不晋级，不独立组件审阅。证据execution/reviews/grok-connection-resume-20261014/postgres-mixed-and-os12-fixed-intake.json。",
   "random_dialogue_acceptance": {
     "card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "status": "pending implementation and real per-source validation",
+    "status": "fixed verifier tests passed; actual per-source random dialogue pending",
     "writer": {
       "task": "clickhouse",
       "uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
@@ -8913,7 +8913,9 @@
     "source_passes": 0,
     "source_total": 10,
     "acceptance_count_delta": 0,
-    "legacy_dialogue_preserved": true
+    "legacy_dialogue_preserved": true,
+    "fixed_verifier_commit": "93ab055de",
+    "fixed_tests_passed": 11
   },
   "latest_random_dialogue_requirement": "2026-10-14 用户新增真实随机CLI+Agent测试：每源两次新随机两轮、不同语义问题序列；模型自主任意合法OOCLI，首次调用前冻结seed/选题/source与Pack身份/独立源侧gold，成功QID绑定独立WAL，resume同题/同gold、seed回放不计新随机。旧固定问题和负例证据保留，不代新增出口。唯一共享验收器writer为原ClickHouse26ae6875，同UUID29571/handle75145长跑完成真实本源示范及原全链；十源作者只读固定接口并准备自有私有题库。当前实现及真实随机验收pending，完整/正式0/10不晋级、功能分母不增加、无新独立组件审阅。卡：execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md。",
   "latest_doris_current_source_continuation": {
@@ -8946,5 +8948,13 @@
     "postgresql_pid": 59827,
     "starrocks_pid": 61000,
     "author_only": true
-  }
+  },
+  "latest_mariadb_actual_c1_continuation": {
+    "note": "2026-10-14 Maria12033终态后同2b95896a63283/handle3078长跑接续：作者实际Debezium0-1-7 BEGIN/IUD/END仅捕获，目标apply/ACK缺；旧DL01-W1-39 commitmanifest已同步现公共独占，修helper no_changes漏域。新增唯一query_executor.rs给Maria（现PG只policy/installer），native_schedule仍SQL独占，两C1实际GTID/txn绑定/目标原子CAS/ACK核心native_update Maria单writer，禁止PG LSN伪造或旗标冒完成。两Linux精简ELF与5tests作者阶段未root完整核、S5旧裸array成本/raw保留，共享版本事实输入继续；原十源随机要求及0/10完整/正式保持。",
+    "pid": 63283,
+    "tool_handle": 3078,
+    "new_exclusive_path": "crates/oo-gateway/src/query_executor.rs",
+    "author_only": true
+  },
+  "latest_random_verifier_fixed_intake": "2026-10-14 随机对话验收器93ab055de固定archives独立复跑11tests全部通过，原工具7接口/任意合法query、facts成功QID及独立WAL不降低；bank4..8/两类不同gold、freshseed随机、prior_manifest排除上一题、replay不计新随机、resume冻结gold/identity/题目一致、非法配置call前拒与legacy标记已可消费。此是依赖测试收取非独立review/真实源随机对话通过；每源两次新随机两轮实际模型/CLI/currentgold出口仍pending，完整/正式0/10。intake：execution/reviews/grok-connection-resume-20261014/random93-fixed-intake.json。"
 }

@@ -48,7 +48,7 @@
   {
     "task": "mariadb",
     "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-    "pid": 12033,
+    "pid": 63283,
     "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
     "write_paths": [
@@ -61,22 +61,24 @@
       "tools/source-capture-policy/tests/journey.rs",
       "tools/source-capture-policy/tests/repair.rs",
       "tools/cdc-offset-store/CONTRACT.md",
-      "tools/source-capture-policy/CONTRACT.md"
+      "tools/source-capture-policy/CONTRACT.md",
+      "crates/oo-gateway/src/query_executor.rs"
     ],
-    "status": "same_owner_original_c1_rust_gtid_common_and_full_source",
+    "status": "same_owner_live_true_c1_apply_and_random_full_source",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
     "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-    "prior_pid": 88535,
+    "prior_pid": 12033,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-rust-gtid-owned-loop.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-real-transaction-and-random-whole.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 MariaDB binlog",
     "rust_core_required": true,
     "shared_c1_codec_boundary": "sole shared GTID acceptance/compare/checkpoint/native_update writer; source MySQL/Mongo/SQL consumers use fixed contract, no shared writes",
-    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
+    "tool_handle": 3078
   },
   {
     "task": "mongodb",
