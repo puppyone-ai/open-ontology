@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Owned MariaDB product close. One build, then Gateway, dialogue, and cancel."""
-import hashlib, json, os, pathlib, shutil, socket, ssl, subprocess, sys, time, urllib.request
+import hashlib, json, os, pathlib, shutil, socket, ssl, subprocess, sys, time, urllib.error, urllib.request
 
 FLOW = pathlib.Path('/Users/redux/puppy-one/open-ontology/tools/source-onboarding/product_flow.py')
 DIALOGUE = pathlib.Path('/Users/redux/puppy-one/open-ontology/tools/agent-product-verifier/dialogue.py')
@@ -157,12 +157,21 @@ def runtime_doc(root, pg, bundle, columns):
     return doc, commit
 
 def api_accepts(port, cafile):
+    # listBuilds is /control/v1/builds?project_id=. A bare GET is malformed 400 and is not a down server.
     context = ssl.create_default_context(cafile=cafile)
+    request = urllib.request.Request('https://127.0.0.1:%s/control/v1/builds?project_id=mariadb' % port)
+    cookie = CACHE / 'native-identity-private/fixture-admin.cookie'
+    if cookie.is_file():
+        token = cookie.read_text().strip()
+        if token:
+            request.add_header('Cookie', '__Host-oo-session=' + token)
     try:
-        urllib.request.urlopen('https://127.0.0.1:%s/control/v1/builds' % port, context=context, timeout=5)
-        return True
-    except Exception as exc:
-        return bool(getattr(exc, 'code', None))
+        with urllib.request.urlopen(request, context=context, timeout=5) as response:
+            return response.status == 200
+    except urllib.error.HTTPError as exc:
+        return exc.code == 401
+    except Exception:
+        return False
 
 def ensure_api(cfg, root, pg, runtime, bundle, columns):
     private = root / 'api-private'

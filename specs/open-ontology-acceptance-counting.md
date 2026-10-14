@@ -1755,3 +1755,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 最新用户纠正已先重读原DBX capture/profiles03/04、docs17Rust、原Plan SP03/SP04/DBX和原需求审计：MySQL/MariaDB/PG原C1日志，Mongo主replica-set C1changeStream，SQLC1/C2，Oracle batchC3/C5+LogMiner单ADR默认OFF，OLAP C4/C3/C5、OS C5/C3。MySQL native C5代码与此前快照成功只按batch证据保留，不能代C1；不统一降级，data行DML不逐行重建ontology/LLM/人工刷新Pack才恢复query。Rust平台核心/现有上游DebeziumJVM协议复用，Python/shell仅最小fixture测试/胶水，不另扩产品算法。十源原owner卡及机器contract重申原路线，未削目标/分母/退出；三C1源同UUID88533/88535/88537及shared88539实际接续长跑，Oracle93896/SQL93898接入已固定47c currentcatalogAPI，4个既有live正确路线作者卡追加原文约束。完整/正式0/10不晋级。卡execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md，机器production-route-contract.json含6原文SHA。
+
+
+2026-10-14 原文Rust生产路线再接续：Click49895/Doris66796/Star76215实际终态后同UUID609/607/7077 max1000恢复，收到原C4/C3/C5 docs提醒与47c固定API合同。Doris原误载source12/target24/旧bound9保留，禁止OO014元数据删除/重放；Click当前g11/FINAL4row48cells0/对话保留，真正周期与普通default仍原退出；Star原native-serve136/C5每6000ms无差不涨源13实际在跑，quiet重试记录不冒完成。47c4源码+API5bc实际哈希已核，private immutable收据合同交给原source当前安全维护，尚未live full chain，不代C1。证据execution/reviews/grok-connection-resume-20261014/shared-47c-current-maintenance-intake.json。最新用户Rust核心/原逐源方法固定、C5证据不计C1签收，完整/正式0/10与五版退出保持。
