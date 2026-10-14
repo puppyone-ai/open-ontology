@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-14T06:50:48.330282+00:00",
+  "source": "50fd9d462",
+  "elf": {
+    "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/install-column-acl",
+    "sha256": "aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05"
+  },
+  "raw_files": [
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/g2.json",
+      "sha256": "f8b98c33f8610d41263c606cd3b4145fe0e1d0bc384389c8c13f4ed824f99177"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/current-role-acl.stdout",
+      "sha256": "8e61bb0e54f10aafbded8df65b6c42f34623e668edba6a42b70fa3e456ae8b68"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/rollback.err",
+      "sha256": "1406c24d35e877bb2bcca3bf517feb185f29c0cb75cf44d7d16434e2a6dcd841"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/elf.sha",
+      "sha256": "c809dc0f741a7492916e955a5030d2fea759b33c63d01ed07ca03c9294dbe42c"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/server-statements.log",
+      "sha256": "b19b60a950fb98dd3285212aefc333a0b31599e4fb69776d311ce34979f83f7b"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/g1.json",
+      "sha256": "c4c24af0e1bf2d1a1a1cf51c56363347a06b68336d6947ee262812e45e6c9afd"
+    }
+  ],
+  "root_intake": "real target current same-role generation2 column ACL; original server logs contain previous-column REVOKE/new-column GRANT and failure ROLLBACK; author Linux1.94 unit evidence in fixed HANDOFF. Not independent review and not complete source.",
+  "remaining": "PG project scope/input-safe S0-S10 and ordinary six-field whole/Pack/Gateway/dialogue"
+}
