@@ -1,16 +1,20 @@
 # mysql-preview
 
 Experimental MySQL 8 batch snapshot into the existing PostgreSQL full-import
-target. This is not a verified or certified connector, not CDC, and not MariaDB,
-RDS, Aurora, or TiDB.
+target. `run` is that snapshot and is not CDC. `c1-prove` reads a ROW/GTID
+binlog on an owned MySQL 8 fixture through `mysql_async` and the public
+`cdc-transaction` / `cdc-spool` crates. It does not apply the PostgreSQL
+loader and does not ACK. This is not a verified or certified connector, and
+not MariaDB, RDS, Aurora, or TiDB.
 
 The tool is a separate workspace. It calls `oo_pipeline::target_installer`,
 `plan_physical_mapping`, `CopyEncoder`, and the `_oo.full_import_*` functions
 already implemented for PostgreSQL. It does not rename the PostgreSQL mirror.
 
-Source sessions are one read-only business connection. The platform does not
-`SET` the source and does not trial-write. Fixture DDL belongs to a separate
-DBA identity on a new synthetic instance.
+Snapshot sessions are one read-only business connection. The snapshot path
+does not `SET` the source and does not trial-write. `c1-dba` may `SET` binlog
+prerequisites only when the config fixture is `owned-mysql-8` and the server
+version is 8.x. Customer RDS 5.7 is not a target of that command.
 
 JSON is stored as PostgreSQL `json` (oid 114) text because `copy-encoder/v1`
 rejects `jsonb`. MySQL `TIME` is a signed microsecond duration, stored as PostgreSQL

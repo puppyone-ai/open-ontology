@@ -1123,6 +1123,22 @@ async fn accepted_native_rebind(config: &AppConfig, client: &Client, row: &Build
     native_source_rebind(config, row, sha).map(Some)
 }
 
+/// A collection's decision schema hash is the collection identity. A single catalog's is the schema digest.
+fn bind_rebound_catalog(command: &mut Value, compiled: &oo_builder::SealedImportDraft) -> Result<(), ApiError> {
+    let collection = command.get("catalog").and_then(|catalog| catalog.get("protocol")).and_then(Value::as_str) == Some(oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL);
+    let previous = command["settings"]["catalog_version"].clone();
+    for decision in command["decisions"].as_array_mut().ok_or_else(ApiError::pack_refused)? {
+        if collection {
+            if decision["schema_hash"] != previous { return Err(ApiError::pack_refused()); }
+            decision["schema_hash"] = json!(compiled.identity_hash);
+        } else if decision["schema_hash"] != json!(compiled.schema_digest) {
+            return Err(ApiError::pack_refused());
+        }
+    }
+    command["settings"]["catalog_version"] = json!(compiled.identity_hash);
+    Ok(())
+}
+
 // Reuse the reviewed native compiler after durable owner curation. The sealed
 // catalog and decisions are unchanged; only fact-bound descriptive labels pass.
 fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, rebound: Option<&Value>) -> Result<Value, ApiError> {
@@ -1143,14 +1159,7 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     } else {
         oo_builder::compile_sealed_import_catalog(&catalog_text)
     }.map_err(|_| ApiError::pack_refused())?;
-    if rebound.is_some() {
-        let previous = command["settings"]["catalog_version"].clone();
-        for decision in command["decisions"].as_array_mut().ok_or_else(ApiError::pack_refused)? {
-            if decision["schema_hash"] != previous { return Err(ApiError::pack_refused()); }
-            decision["schema_hash"] = json!(compiled.identity_hash);
-        }
-        command["settings"]["catalog_version"] = json!(compiled.identity_hash);
-    }
+    if rebound.is_some() { bind_rebound_catalog(&mut command, &compiled)?; }
     let mut labels = Vec::new();
     for (dataset, entry) in &docs.effective.datasets {
         for (name, column) in &entry.columns {
@@ -1469,6 +1478,138 @@ mod source_money_tests {
             }],
             ledger: endpoint, principals: vec![],
         }
+    }
+
+    fn oracle_bytes(name: &str) -> &'static [u8] {
+        match name {
+            "g3" => include_bytes!("../tests/oracle-g3-g5/catalog-g3.json"),
+            "g5" => include_bytes!("../tests/oracle-g3-g5/catalog-g5.json"),
+            "command" => include_bytes!("../tests/oracle-g3-g5/command.json"),
+            "visibility" => include_bytes!("../tests/oracle-g3-g5/visibility.json"),
+            "roles" => include_bytes!("../tests/oracle-g3-g5/roles.json"),
+            _ => panic!("fixture"),
+        }
+    }
+
+    fn oracle_value(name: &str) -> Value {
+        serde_json::from_slice(oracle_bytes(name)).unwrap()
+    }
+
+    #[test]
+    fn oracle_g5_keeps_schema_digest_and_advances_identity() {
+        const SCHEMA: &str = "f002b65dac929bfd96866a1936003e92ed366a186e4dc624fb978ef4af2cc425";
+        const OLD_IDENTITY: &str = "415359c3aed4f8e887c8e130ea5dbe60cd53bbbf02b9e66d62d18fcc3f7cc0a2";
+        const NEW_IDENTITY: &str = "010ffb76bd60822f69ea5bcdeed7ad215c7c4707efc0ddc55c99191223010dca";
+        assert_eq!(crate::canonical::sha256_hex(oracle_bytes("g3")), "5c94877dc45b51d3606c47b4ca4965df6363b6d07809ad1eb453b4bbe9ebaf4a");
+        assert_eq!(crate::canonical::sha256_hex(oracle_bytes("g5")), "c0134177172947521de65e2b9c31cf80adfb16790a5ebc15d261dc1127a10588");
+        let g3 = oracle_value("g3");
+        let g5 = oracle_value("g5");
+        let command = oracle_value("command");
+        assert_eq!(command["catalog"], g3);
+        assert_eq!(command["settings"]["catalog_version"], OLD_IDENTITY);
+        assert!(command["decisions"].as_array().unwrap().iter().all(|decision| decision["schema_hash"] == SCHEMA));
+        let progress = super::rebind_sealed_catalogs(&g3, &g5).expect("g3 to g5");
+        assert!(g5.get("binding_vector").is_none());
+        assert_eq!(progress[0]["source_generation"], 5);
+        assert_eq!(progress[0]["target_generation"], 5);
+        let mut schema_changed = g5.clone();
+        schema_changed["tables"][0]["columns"][0]["oid"] = json!(9999);
+        assert!(super::rebind_sealed_catalogs(&g3, &schema_changed).is_err());
+        let mut digest_changed = g5.clone();
+        digest_changed["schema_digest"] = json!("ab".repeat(32));
+        assert!(super::rebind_sealed_catalogs(&g3, &digest_changed).is_err());
+        assert!(super::rebind_sealed_catalogs(&g5, &g3).is_err());
+
+        let compiled = oo_builder::compile_sealed_import_catalog(&crate::canonical::canonical_json(&g5)).unwrap();
+        assert_eq!(compiled.schema_digest, SCHEMA);
+        assert_eq!(compiled.identity_hash, NEW_IDENTITY);
+        let mut rebound_command = command.clone();
+        rebound_command["catalog"] = g5.clone();
+        let decisions_before = crate::canonical::canonical_sha256(&rebound_command["decisions"]);
+        super::bind_rebound_catalog(&mut rebound_command, &compiled).unwrap();
+        assert_eq!(crate::canonical::canonical_sha256(&rebound_command["decisions"]), decisions_before);
+        assert!(rebound_command["decisions"].as_array().unwrap().iter().all(|decision| decision["schema_hash"] == SCHEMA));
+        assert_eq!(rebound_command["settings"]["catalog_version"], NEW_IDENTITY);
+        let reviewed: Value = serde_json::from_str(&oo_builder::compile_reviewed_sealed_import(&crate::canonical::canonical_json(&rebound_command)).unwrap()).unwrap();
+        assert!(reviewed["hidden"].as_array().unwrap().iter().all(|item| item["reason"] != "decision.stale_schema"));
+        assert!(reviewed["hidden"].as_array().unwrap().is_empty());
+        let mut wrong_pin = rebound_command.clone();
+        wrong_pin["decisions"][0]["schema_hash"] = json!(OLD_IDENTITY);
+        wrong_pin["settings"]["catalog_version"] = json!(OLD_IDENTITY);
+        assert!(super::bind_rebound_catalog(&mut wrong_pin, &compiled).is_err());
+        let mut stale_fact = rebound_command.clone();
+        stale_fact["decisions"][0]["fact_fingerprint"] = json!("ab".repeat(32));
+        let hidden: Value = serde_json::from_str(&oo_builder::compile_reviewed_sealed_import(&crate::canonical::canonical_json(&stale_fact)).unwrap()).unwrap();
+        assert_eq!(hidden["hidden"][0]["reason"], "decision.stale_fact");
+        assert!(hidden["hidden"].as_array().unwrap().iter().all(|item| item["reason"] != "decision.stale_schema"));
+
+        let old = collection_of(vec![one_catalog("mongodb", "oo_mongo", "shop", "orders", &[("id", 23)], 3, 3, "de8276fc-8634-4543-994f-ce82a46a3c18", &"a".repeat(64), "e1")]);
+        let new = collection_of(vec![one_catalog("mongodb", "oo_mongo", "shop", "orders", &[("id", 23)], 5, 5, "beecbbc7-8dda-4779-81ba-6ff0383f72ec", &"b".repeat(64), "e1")]);
+        let old_compiled = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&old)).unwrap();
+        let new_compiled = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&new)).unwrap();
+        assert_ne!(old_compiled.identity_hash, new_compiled.identity_hash);
+        let mut collection_command = json!({
+            "protocol": command["protocol"], "catalog": new, "settings": command["settings"],
+            "decisions": new_compiled.columns.iter().map(|column| json!({"column": column.name, "dataset": column.dataset, "fact_fingerprint": column.fact_fingerprint, "pii": "none", "reviewer": command["decisions"][0]["reviewer"], "schema_hash": old_compiled.identity_hash, "semantic_type": "quantity"})).collect::<Vec<_>>()
+        });
+        collection_command["settings"]["catalog_version"] = json!(old_compiled.identity_hash);
+        collection_command["settings"]["ontology"]["include_schemas"] = json!(["shop"]);
+        super::bind_rebound_catalog(&mut collection_command, &new_compiled).unwrap();
+        assert!(collection_command["decisions"].as_array().unwrap().iter().all(|decision| decision["schema_hash"] == new_compiled.identity_hash));
+        let collection_reviewed: Value = serde_json::from_str(&oo_builder::compile_reviewed_sealed_import(&crate::canonical::canonical_json(&collection_command)).unwrap()).unwrap();
+        assert!(collection_reviewed["hidden"].as_array().unwrap().iter().all(|item| item["reason"] != "decision.stale_schema"));
+
+        let root = std::env::temp_dir().join(format!("oo-oracle-g5-{}-{}", std::process::id(), "identity"));
+        let _ = std::fs::remove_dir_all(&root);
+        let bundle = root.join("bundle");
+        let work = root.join("work");
+        write_oracle_bundle(&bundle, &g5, &[]);
+        std::fs::write(bundle.join("catalog.json"), oracle_bytes("g5")).unwrap();
+        std::fs::write(bundle.join("roles.json"), oracle_bytes("roles")).unwrap();
+        let mut model: Value = serde_json::from_slice(&std::fs::read(bundle.join("native-model.json")).unwrap()).unwrap();
+        model["visibility"]["role"] = json!("oo_r_oracle_orders");
+        model["visibility"]["datasets"] = json!([{"columns":["q_4b45595f4944","q_414d4f554e54","q_4f43435552524544","q_4c4142454c","q_5041594c4f4144"],"dataset":"q_4f4f30345f464958.q_4f4e424f4152445f4f5244455253"}]);
+        std::fs::write(bundle.join("native-model.json"), serde_json::to_vec(&model).unwrap()).unwrap();
+        let mut semantics: Value = serde_json::from_slice(&std::fs::read(bundle.join("source_semantics.json")).unwrap()).unwrap();
+        semantics["source_id"] = json!("oracle_oneclick_orders");
+        std::fs::write(bundle.join("source_semantics.json"), serde_json::to_vec(&semantics).unwrap()).unwrap();
+        crate::sealed::write_manifest(&bundle).unwrap();
+        let rules = std::fs::read(bundle.join("rules.json")).unwrap();
+        let semantics = std::fs::read(bundle.join("source_semantics.json")).unwrap();
+        let model_bytes = std::fs::read(bundle.join("native-model.json")).unwrap();
+        write_oracle_build(&work, &g3, &crate::canonical::sha256_hex(&rules), &semantics, &model_bytes);
+        let build = work.join("builds").join("b_739b3a14d1167f50b5f48ae22a8317e2");
+        let command_path = build.join("native-model-output").join("command.json");
+        std::fs::write(&command_path, oracle_bytes("command")).unwrap();
+        std::fs::write(build.join("native-model-output").join("visibility.json"), oracle_bytes("visibility")).unwrap();
+        let config = oracle_config(&work, &bundle);
+        let row = oracle_row();
+        let sha = crate::canonical::sha256_hex(&std::fs::read(bundle.join("catalog.json")).unwrap());
+        let rebound = super::native_source_rebind(&config, &row, &sha).expect("real bundle advance");
+        let docs = super::Docs {
+            generated_sha: "11".repeat(32), generated: super::empty_model(), curated_sha: String::new(), reviews: Vec::new(),
+            effective: super::empty_model(), effective_yaml: String::new(), effective_sha: "22".repeat(32), feedback: Vec::new(),
+            curated_revisions: 0, generated_revisions: 0,
+        };
+        let maintained = super::compile_native_maintenance(&config, &row, &docs, Some(&rebound)).expect("maintenance");
+        assert_eq!(maintained["llm_calls"], 0);
+        assert_eq!(maintained["source_rebind"]["original_decisions_sha256"], maintained["source_rebind"]["rebound_decisions_sha256"]);
+        assert!(maintained["source_rebind"]["binding_vector"].is_null());
+        let artifact = std::path::PathBuf::from(maintained["artifact_directory"].as_str().unwrap());
+        let kept: Value = serde_json::from_slice(&std::fs::read(artifact.join("command.json")).unwrap()).unwrap();
+        assert!(kept["decisions"].as_array().unwrap().iter().all(|decision| decision["schema_hash"] == SCHEMA));
+        assert_eq!(kept["settings"]["catalog_version"], NEW_IDENTITY);
+        let visibility: Value = serde_json::from_slice(&std::fs::read(artifact.join("visibility.json")).unwrap()).unwrap();
+        assert_eq!(visibility["catalog_version"], NEW_IDENTITY);
+        let reviewed_file: Value = serde_json::from_slice(&std::fs::read(artifact.join("reviewed.json")).unwrap()).unwrap();
+        assert!(reviewed_file["hidden"].as_array().unwrap().is_empty());
+        assert_eq!(std::fs::read(&command_path).unwrap(), oracle_bytes("command"));
+        let mut roles: Value = serde_json::from_slice(oracle_bytes("roles")).unwrap();
+        roles["roles"]["oo_r_oracle_orders"] = json!(["q_4f4f30345f464958.q_4f4e424f4152445f4f5244455253.q_4b45595f4944"]);
+        std::fs::write(bundle.join("roles.json"), serde_json::to_vec(&roles).unwrap()).unwrap();
+        crate::sealed::write_manifest(&bundle).unwrap();
+        assert!(super::native_source_rebind(&config, &row, &sha).is_err());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     fn dir_bytes(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {

@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.94.0"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Experimental MySQL 8 snapshot preview into the existing PostgreSQL full-import target. Not verified or certified."
+description = "Experimental MySQL 8 snapshot preview and owned-fixture binlog reader. Not verified or certified."
 
 [workspace]
 resolver = "3"
@@ -15,7 +15,10 @@ arrow-ipc = { version = "=60.0.0", default-features = false }
 oo-connectors = { path = "../../crates/oo-connectors" }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }
-mysql_async = { version = "=0.36.1", default-features = false, features = ["minimal", "rustls-tls", "ring"] }
+cdc-spool = { path = "../cdc-spool" }
+cdc-transaction = { path = "../cdc-transaction" }
+futures-util = { version = "=0.3.34", default-features = false, features = ["alloc", "std"] }
+mysql_async = { version = "=0.36.1", default-features = false, features = ["binlog", "minimal", "rustls-tls", "ring"] }
 serde_json = "=1.0.151"
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
 sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
