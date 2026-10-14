@@ -94,7 +94,7 @@
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "durable_fresh_same_Mongo_primaryC1_weak_quality_whole_source",
+    "status": "terminal_reserved_real_0024_install_Mongo_epoch_seal_interface",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
@@ -268,7 +268,8 @@
       "tools/job-worker/tests/closed_loop.rs",
       "crates/oo-pipeline/src/native_catalog.rs",
       "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
-      "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql"
+      "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql",
+      "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql"
     ],
     "status": "durable_same_full_owner_actual_remaining_product_exit",
     "executor": "grok-4.7/xhigh",
