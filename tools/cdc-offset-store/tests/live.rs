@@ -18,7 +18,10 @@ use tokio_postgres::Config;
 use tokio_postgres::Transaction;
 use tokio_postgres_rustls::MakeRustlsConnect;
 
-use cdc_offset_store::{hex, sha256, BOOTSTRAP_SHA256, FENCE_SHA256, PREFLIGHT_SHA256, PROVENANCE};
+use cdc_offset_store::{
+    checkpoint, hex, sha256, Checkpoint, OrderBinding, Receipt, Watermark, BOOTSTRAP_SHA256,
+    FENCE_SHA256, PREFLIGHT_SHA256, PROVENANCE,
+};
 
 const OWNER: &str = "11111111-1111-4111-8111-111111111111";
 const SOURCE: &str = "billing";
@@ -55,6 +58,103 @@ struct RowSpec {
     count: Option<i32>,
     bitmap: &'static [u8],
     payload: &'static str,
+}
+
+fn maria_receipt(lineage: &str, pos: &str) -> Receipt {
+    Receipt {
+        source: "logistics".to_owned(),
+        table_generation: "orders".to_owned(),
+        txn_or_batch_id: "txn-1".to_owned(),
+        config_version: "config/v1".to_owned(),
+        config_digest: "ab".repeat(32),
+        type_policy_version: "type-policy/v1".to_owned(),
+        type_digest: "ab".repeat(32),
+        hook_digest: "ab".repeat(32),
+        schema_digest: "ab".repeat(32),
+        payload_digest: "ab".repeat(32),
+        protocol_version: "batch/v1".to_owned(),
+        position_codec: "mariadb-gtid/v1".to_owned(),
+        position_lineage: lineage.to_owned(),
+        source_epoch: 1,
+        applied_pos: pos.to_owned(),
+        partial_txn: false,
+        cross_table_consistent: true,
+        txn_complete: true,
+        segment_index: None,
+        segment_count: None,
+        segment_bitmap: Vec::new(),
+        fence_shard: "logistics".to_owned(),
+        fence_generation: 1,
+        target_commit_at: "2026-10-14T00:00:00.000000Z".to_owned(),
+    }
+}
+
+fn maria_binding(pos: &str, next: &str) -> OrderBinding {
+    serde_json::from_value(serde_json::json!({
+        "provenance": PROVENANCE,
+        "expected_previous": null,
+        "declared_transaction": {
+            "txn_or_batch_id": "txn-1",
+            "applied_pos": pos,
+            "required_table_generations": ["orders"]
+        },
+        "declared_next": {"txn_or_batch_id": "txn-2", "applied_pos": next},
+        "source_gap": false,
+        "epoch_barrier": false
+    }))
+    .unwrap()
+}
+
+#[test]
+fn mariadb_gtid_refuses_a_set_without_a_database() {
+    let row = maria_receipt("d0.s1", "6");
+    let binding = maria_binding("6", "7");
+    assert_eq!(
+        checkpoint(&row, std::slice::from_ref(&row), None, &binding).unwrap(),
+        Checkpoint::InsertFirst
+    );
+    let mut set = row.clone();
+    set.position_lineage = "d0.s1,d1.s1".to_owned();
+    assert_eq!(checkpoint(&set, std::slice::from_ref(&set), None, &binding), Err("receipt_rule"));
+    let mut raw = row.clone();
+    raw.applied_pos = "0-1-6".to_owned();
+    assert_eq!(checkpoint(&raw, std::slice::from_ref(&raw), None, &binding), Err("receipt_rule"));
+    let stored = Watermark {
+        position_codec: "mariadb-gtid/v1".to_owned(),
+        position_lineage: "d0.s1".to_owned(),
+        source_epoch: 1,
+        applied_pos: "6".to_owned(),
+        applied_txn_id: "txn-1".to_owned(),
+        declared_next_txn: "txn-2".to_owned(),
+        declared_next_pos: "7".to_owned(),
+    };
+    let mut other = row.clone();
+    other.txn_or_batch_id = "txn-9".to_owned();
+    other.position_lineage = "d1.s1".to_owned();
+    other.applied_pos = "100".to_owned();
+    let crossed = serde_json::from_value(serde_json::json!({
+        "provenance": PROVENANCE,
+        "expected_previous": {
+            "position_codec": "mariadb-gtid/v1",
+            "position_lineage": "d0.s1",
+            "source_epoch": 1,
+            "applied_pos": "6",
+            "txn_or_batch_id": "txn-1"
+        },
+        "declared_transaction": {
+            "txn_or_batch_id": "txn-9",
+            "applied_pos": "100",
+            "required_table_generations": ["orders"]
+        },
+        "declared_next": {"txn_or_batch_id": "txn-10", "applied_pos": "101"},
+        "source_gap": false,
+        "epoch_barrier": false
+    }))
+    .unwrap();
+    assert_eq!(
+        checkpoint(&other, std::slice::from_ref(&other), Some(&stored), &crossed).unwrap(),
+        Checkpoint::Skip("lineage_barrier")
+    );
 }
 
 #[test]

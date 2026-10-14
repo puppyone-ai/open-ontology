@@ -598,3 +598,72 @@ fn source_id_mismatch_fails_closed_after_insert_first() {
     assert!(has_reason(&body, 1, "receipt_source_mismatch"));
     assert_source_closed(&body);
 }
+
+#[test]
+fn mariadb_gtid_receipt_repairs_only_the_stored_sequence() {
+    let mut item = method("6", 1);
+    item.family = "mariadb".to_owned();
+    item.position_codec = "mariadb-gtid/v1".to_owned();
+    item.position_lineage = "d0.s1".to_owned();
+    item.same_source_uuid = false;
+    item.window_high = Some("6".to_owned());
+    let mut row = ledger_row("6");
+    row.table_generation = "shipments_g1".to_owned();
+    row.source = "finance".to_owned();
+    row.position_codec = "mariadb-gtid/v1".to_owned();
+    row.position_lineage = "d0.s1".to_owned();
+    let offset = OffsetInput {
+        receipts: vec![row.clone()],
+        selected_generation: "shipments_g1".to_owned(),
+        watermark: None,
+        binding: OffsetBinding {
+            provenance: PROVENANCE.to_owned(),
+            expected_previous: None,
+            declared_transaction: OffsetDeclared {
+                txn_or_batch_id: "fin17".to_owned(),
+                applied_pos: "6".to_owned(),
+                required_table_generations: vec!["shipments_g1".to_owned()],
+            },
+            declared_next: OffsetNext {
+                txn_or_batch_id: "fin18".to_owned(),
+                applied_pos: "7".to_owned(),
+            },
+            source_gap: false,
+            epoch_barrier: false,
+        },
+    };
+    assert_eq!(store_result(&offset), Ok(Checkpoint::InsertFirst));
+    let plan = PlanRequest {
+        contract: CONTRACT.to_owned(),
+        profile: Profile::Production,
+        sync: SyncMode::Auto,
+        requested_consistency: Some(RequestedConsistency::Transactional),
+        source_id: "finance".to_owned(),
+        volume_limit_rows: 1_000_000,
+        repair_requested: true,
+        spool_dir: None,
+        offset: Some(offset),
+        tables: vec![table("finance.shipments", "shipments_g1", item)],
+        joins: vec![],
+    };
+    let (code, body) = run_named("maria-gtid", &plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["offset"]["checkpoint"], "insert_first");
+    assert_eq!(body["tables"][0]["repair_allowed"], true);
+    assert_eq!(body["tables"][0]["freshness"]["position"], "6");
+    assert_eq!(body["offset"]["ack_allowed"], false);
+
+    let mut raw = row;
+    raw.applied_pos = "0-1-6".to_owned();
+    let mut refused = plan;
+    let mut bad = refused.offset.take().unwrap();
+    bad.receipts = vec![raw];
+    bad.binding.declared_transaction.applied_pos = "0-1-6".to_owned();
+    refused.offset = Some(bad);
+    refused.tables[0].methods[0].applied_pos = Some("0-1-6".to_owned());
+    let (code, body) = run_named("maria-gtid-raw", &refused);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["offset"]["checkpoint"], "refused");
+    assert_eq!(body["tables"][0]["repair_allowed"], false);
+    assert_eq!(body["offset"]["ack_allowed"], false);
+}

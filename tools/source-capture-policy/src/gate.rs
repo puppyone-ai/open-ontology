@@ -101,9 +101,7 @@ fn consider(
     if spec.method == CaptureMethod::C5 && table.source_changing_without_token {
         reasons.push("source_changed_during_read");
     }
-    if matches!(spec.position_codec.as_str(), "mysql-gtid/v1" | "mariadb-gtid/v1")
-        && retention != RetentionAction::Expired
-    {
+    if spec.position_codec == "mysql-gtid/v1" && retention != RetentionAction::Expired {
         reasons.push("position_compare_unimplemented");
     }
     let grade = if spec.method == CaptureMethod::C5 && table.source_changing_without_token {
@@ -180,9 +178,22 @@ fn method_shape(spec: &MethodInput) -> Result<(), &'static str> {
     if spec.position_codec == "mysql-binlog-pos/v1" && !spec.same_instance {
         return Err("binlog_pos_instance");
     }
-    if matches!(spec.position_codec.as_str(), "mysql-gtid/v1" | "mariadb-gtid/v1") && !spec.same_source_uuid
-    {
+    if spec.family == "mariadb" && spec.position_codec == "mysql-binlog-pos/v1" {
+        return Err("binlog_pos_not_durable");
+    }
+    if spec.position_codec == "mysql-gtid/v1" && !spec.same_source_uuid {
         return Err("gtid_source");
+    }
+    if spec.position_codec == "mariadb-gtid/v1" {
+        if spec.method != CaptureMethod::C1 {
+            return Err("gtid_identity");
+        }
+        let Some(pos) = spec.applied_pos.as_deref() else {
+            return Err("gtid_identity");
+        };
+        if !maria_stored(&spec.position_lineage, pos) {
+            return Err("gtid_identity");
+        }
     }
     Ok(())
 }
@@ -384,8 +395,14 @@ fn comparable_position(spec: &MethodInput, retention: RetentionAction) -> bool {
     {
         return false;
     }
-    if matches!(spec.position_codec.as_str(), "mysql-gtid/v1" | "mariadb-gtid/v1") {
+    if spec.position_codec == "mysql-gtid/v1" {
         return false;
+    }
+    if spec.position_codec == "mariadb-gtid/v1" {
+        let Some(pos) = spec.applied_pos.as_deref() else {
+            return false;
+        };
+        return maria_stored(&spec.position_lineage, pos) && spec.transaction_boundary;
     }
     matches!(
         &spec.applied_pos,
@@ -466,6 +483,7 @@ fn decimal_codec(codec: &str) -> bool {
             | "oracle-scn/v1"
             | "sqlserver-lsn/v1"
             | "mysql-binlog-pos/v1"
+            | "mariadb-gtid/v1"
             | "delta-version/v1"
             | "iceberg-sequence/v1"
             | "mongo-cluster-time/v1"
@@ -480,6 +498,37 @@ fn over_half(lag: u64, window: u64) -> bool {
 
 fn over_eighty(lag: u64, window: u64) -> bool {
     u128::from(lag) * 5 > u128::from(window) * 4
+}
+
+fn maria_stored(lineage: &str, pos: &str) -> bool {
+    maria_lineage(lineage).is_some() && maria_seq(pos)
+}
+
+fn maria_lineage(lineage: &str) -> Option<(u32, u32)> {
+    let rest = lineage.strip_prefix('d')?;
+    let (domain, server) = rest.split_once(".s")?;
+    let domain = canonical_u32(domain)?;
+    let server = canonical_u32(server)?;
+    if server == 0 {
+        return None;
+    }
+    Some((domain, server))
+}
+
+fn maria_seq(pos: &str) -> bool {
+    pos_ok(pos) && pos.len() <= 20 && pos.parse::<u64>().is_ok()
+}
+
+fn canonical_u32(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty()
+        || bytes.len() > 10
+        || !bytes.iter().all(|byte| byte.is_ascii_digit())
+        || (bytes.len() > 1 && bytes[0] == b'0')
+    {
+        return None;
+    }
+    text.parse().ok()
 }
 
 fn push_reason(reasons: &mut Vec<&'static str>, code: &'static str) {

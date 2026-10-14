@@ -1,0 +1,104 @@
+{
+  "author_commit": "dfe7c0cd732199d1e32b89cbed3979770f028d66",
+  "binary_path": "/Users/redux/.cache/oo-mysql-connection-whole/c1-cargo-linux/debug/mysql-preview",
+  "binary_sha256_verified": "c9856e9b2a495be84991469444e93a83cd37dae9963697e00f2ea8b5a90f11f8",
+  "receipt_path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/resource-final-c1.json",
+  "receipt_sha256": "191945012a2fa9eda010408f9c59fb6ff00b02dfd6d42a390e583852054dcc79",
+  "author_result": {
+    "protocol": "oo.mysql.c1-resource/v1",
+    "session": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
+    "commit": "dfe7c0cd732199d1e32b89cbed3979770f028d66",
+    "pushed": false,
+    "complete": false,
+    "formal_signoff": "0/10",
+    "target_applied": false,
+    "ack_allowed": false,
+    "customer_rds_touched": false,
+    "c5_database_touched": false,
+    "rustc": "1.94.0 (4a4ef493e 2026-03-02)",
+    "target": "aarch64-unknown-linux-gnu",
+    "unit_tests": {
+      "filter": "c1::tests",
+      "passed": 3,
+      "failed": 0
+    },
+    "binary": {
+      "path": "c1-cargo-linux/debug/mysql-preview",
+      "sha256": "c9856e9b2a495be84991469444e93a83cd37dae9963697e00f2ea8b5a90f11f8",
+      "build_id": "2f4f57dba112f290b3c5d99c82aa2927d6cabf4c",
+      "profile": "dev"
+    },
+    "exits": {
+      "c1-dba": 0,
+      "c1-prove": 0,
+      "c1-expire": 0
+    },
+    "source_gold_diff": 0,
+    "rollback_row_absent": "810002",
+    "resume_row": "810004",
+    "gap_row": "810099",
+    "position_expired_code": 1236,
+    "recovered_keys": 7,
+    "spooled_source_diff": 0,
+    "cdc_write_attempts": 0,
+    "health_ticks": 4,
+    "reconcile_ticks": 1,
+    "reconcile_table_reads": 2,
+    "loader_probe": {
+      "binary_sha256": "cb483866516dd783a2f75277ea9b0b2bc148418f2d6c5d9e27d305e4a9443e45",
+      "argv": "import-native-transaction",
+      "exit": 2,
+      "stderr": "oo-pipeline: usage",
+      "missing_signature": "pub async fn apply_mysql_binlog_transaction(document: &serde_json::Value) -> Result<serde_json::Value, &'static str>"
+    },
+    "files": {
+      "config": {
+        "bytes": 438,
+        "sha256": "4bac815c7151ae03b2c0e340c75ddb2a982e1e8a16e7063a01faa11278c40348"
+      },
+      "dba": {
+        "bytes": 561,
+        "sha256": "a65c1cd565b75b12accf3a2d7759802ce558ea4cd041a31e0e7940f722394268"
+      },
+      "l0": {
+        "bytes": 190,
+        "sha256": "b69c69d4310a47f7ec39790335847a448893d31511756ab43616735791fec38e"
+      },
+      "cursor": {
+        "bytes": 216,
+        "sha256": "6e2eb8fffd9f8e03c2f812c5fcd7c3e7969fb1cf2ac554bd213f49eaedbce7df"
+      },
+      "prove": {
+        "bytes": 1550,
+        "sha256": "2fc4d1d6f800a50190e92a96386264a56dd720ab3f5b8c3a279b700ae0c17ab8"
+      },
+      "expire": {
+        "bytes": 984,
+        "sha256": "3a0409e2172d74e0549a4587ee004ad6d808eb4d6079a59ae7c1fa5f368d122c"
+      }
+    }
+  },
+  "root_acceptance": "binary, receipt, l0/cursor/prove/expire raw hash verified; target apply/ACK false prevents full source acceptance",
+  "source_raw_hash_checks": {
+    "l0": {
+      "path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/prove-out/l0.json",
+      "sha256": "b69c69d4310a47f7ec39790335847a448893d31511756ab43616735791fec38e",
+      "matches_receipt": true
+    },
+    "cursor": {
+      "path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/prove-out/cursor.json",
+      "sha256": "6e2eb8fffd9f8e03c2f812c5fcd7c3e7969fb1cf2ac554bd213f49eaedbce7df",
+      "matches_receipt": true
+    },
+    "prove": {
+      "path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/prove-out/prove.json",
+      "sha256": "2fc4d1d6f800a50190e92a96386264a56dd720ab3f5b8c3a279b700ae0c17ab8",
+      "matches_receipt": true
+    },
+    "expire": {
+      "path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/expire-out/expire.json",
+      "sha256": "3a0409e2172d74e0549a4587ee004ad6d808eb4d6079a59ae7c1fa5f368d122c",
+      "matches_receipt": true
+    }
+  }
+}

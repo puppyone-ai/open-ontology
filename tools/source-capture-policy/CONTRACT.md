@@ -69,14 +69,18 @@ C4 full-partition replay.
 its position is comparable. It is denied for S1, S0, and B. The planner
 does not rewrite that request as `per_table`.
 
-Repair and a consistency claim require token order Total, a decimal
-position the offset codec can compare, a position inside the window, and,
-when an offset receipt is present, a real `insert_first` or
-`compare_and_swap` from `cdc-offset-store`. `PerPartition`, `Opaque`, and
-`None` cannot be repaired. MySQL and MariaDB GTID strings are not compared
-by this crate; repair stays denied and the reason is
-`position_compare_unimplemented`. `mysql-binlog-pos/v1` is comparable only
-for the same instance and is expired after failover.
+Repair and a consistency claim require token order Total, a position inside
+the window, and, when an offset receipt is present, a real `insert_first`
+or `compare_and_swap` from `cdc-offset-store`. `PerPartition`, `Opaque`,
+and `None` cannot be repaired. `mariadb-gtid/v1` is comparable for family
+`mariadb`, method C1, a known transaction boundary, and one stored identity
+`d{domain}.s{server}` plus that sequence. A set, another domain, another
+server, or a binlog file position is not that identity. Family `mariadb`
+with `mysql-binlog-pos/v1` is `binlog_pos_not_durable`. `mysql-gtid/v1`
+stays `position_compare_unimplemented`: same-source UUID GTID set order is
+not implemented, and MariaDB domain-server rules are not applied to it.
+`mysql-binlog-pos/v1` is comparable only for the same MySQL instance and is
+expired after failover.
 
 When an offset block is present, each planned table is bound on its own.
 Its generation must be the selected generation or listed in

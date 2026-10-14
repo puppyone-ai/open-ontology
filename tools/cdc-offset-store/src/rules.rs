@@ -21,11 +21,12 @@ pub const PREFLIGHT_SHA256: &str =
 pub const HISTORICAL_V2_SHA256: &str =
     "59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512";
 
-const CODECS: [&str; 4] = [
+const CODECS: [&str; 5] = [
     "pg-commit-lsn/v1",
     "mysql-binlog-pos/v1",
     "batch-cursor-us/v1",
     "snapshot-zero/v1",
+    "mariadb-gtid/v1",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,6 +92,49 @@ pub fn cmp_pos(left: &str, right: &str) -> Ordering {
     left.len().cmp(&right.len()).then(left.cmp(right))
 }
 
+/// One MariaDB GTID stored as lineage `d{domain}.s{server}` and sequence
+/// `applied_pos`. A set, a file position, and a MySQL `UUID:seq` are rejected.
+fn maria_stored(lineage: &str, pos: &str) -> bool {
+    maria_lineage(lineage).is_some() && maria_seq(pos).is_some()
+}
+
+fn maria_lineage(lineage: &str) -> Option<(u32, u32)> {
+    let rest = lineage.strip_prefix('d')?;
+    let (domain, server) = rest.split_once(".s")?;
+    let domain = canonical_u32(domain)?;
+    let server = canonical_u32(server)?;
+    if server == 0 {
+        return None;
+    }
+    Some((domain, server))
+}
+
+fn maria_seq(pos: &str) -> Option<u64> {
+    if !pos_ok(pos) || pos.len() > 20 {
+        return None;
+    }
+    pos.parse().ok()
+}
+
+fn canonical_u32(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty()
+        || bytes.len() > 10
+        || !bytes.iter().all(|byte| byte.is_ascii_digit())
+        || (bytes.len() > 1 && bytes[0] == b'0')
+    {
+        return None;
+    }
+    text.parse().ok()
+}
+
+fn position_closed(codec: &str, lineage: &str, pos: &str) -> bool {
+    if codec == "mariadb-gtid/v1" {
+        return maria_stored(lineage, pos);
+    }
+    codec_ok(codec) && token_lineage(lineage) && pos_ok(pos)
+}
+
 fn trim_zero(value: &str) -> &str {
     let trimmed = value.trim_start_matches('0');
     if trimmed.is_empty() { "0" } else { trimmed }
@@ -108,10 +152,12 @@ pub fn receipt_closed(receipt: &Receipt) -> bool {
         && hex64(&receipt.hook_digest)
         && hex64(&receipt.schema_digest)
         && hex64(&receipt.payload_digest)
-        && codec_ok(&receipt.position_codec)
-        && token_lineage(&receipt.position_lineage)
+        && position_closed(
+            &receipt.position_codec,
+            &receipt.position_lineage,
+            &receipt.applied_pos,
+        )
         && receipt.source_epoch >= 0
-        && pos_ok(&receipt.applied_pos)
         && completion_ok(receipt)
         && segment_shape(receipt)
         && token_lineage(&receipt.fence_shard)

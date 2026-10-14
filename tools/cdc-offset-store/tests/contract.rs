@@ -343,6 +343,150 @@ fn sample_request() -> serde_json::Value {
     })
 }
 
+fn maria(table: &str, txn: &str, lineage: &str, pos: &str, epoch: i32) -> Receipt {
+    let mut row = receipt(table, txn, pos, epoch, false, true, true);
+    row.position_codec = "mariadb-gtid/v1".to_owned();
+    row.position_lineage = lineage.to_owned();
+    row
+}
+
+fn maria_previous(txn: &str, lineage: &str, pos: &str, epoch: i32) -> CheckpointRef {
+    let mut row = previous(txn, pos, epoch);
+    row.position_codec = "mariadb-gtid/v1".to_owned();
+    row.position_lineage = lineage.to_owned();
+    row
+}
+
+fn maria_mark(lineage: &str, pos: &str, txn: &str, next_txn: &str, next_pos: &str) -> Watermark {
+    let mut row = mark(pos, txn, next_txn, next_pos);
+    row.position_codec = "mariadb-gtid/v1".to_owned();
+    row.position_lineage = lineage.to_owned();
+    row
+}
+
+#[test]
+fn mariadb_gtid_does_not_max_a_set_or_another_domain() {
+    let row = maria("orders", "txn-1", "d0.s1", "6", 1);
+    let first = binding(None, &["orders"], "txn-1", "6", "txn-2", "7");
+    assert_eq!(
+        checkpoint(&row, std::slice::from_ref(&row), None, &first).unwrap(),
+        Checkpoint::InsertFirst
+    );
+
+    let stored = maria_mark("d0.s1", "6", "txn-1", "txn-2", "7");
+    let next = maria("orders", "txn-2", "d0.s1", "7", 1);
+    let cas = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-2",
+        "7",
+        "txn-3",
+        "8",
+    );
+    assert_eq!(
+        checkpoint(&next, std::slice::from_ref(&next), Some(&stored), &cas).unwrap(),
+        Checkpoint::CompareAndSwap
+    );
+
+    let hole = maria("orders", "txn-8", "d0.s1", "8", 1);
+    let skipped = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-8",
+        "8",
+        "txn-9",
+        "9",
+    );
+    assert_eq!(
+        checkpoint(&hole, std::slice::from_ref(&hole), Some(&stored), &skipped).unwrap(),
+        Checkpoint::Skip("source_gap")
+    );
+
+    let other_domain = maria("orders", "txn-9", "d1.s1", "100", 1);
+    let crossed = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-9",
+        "100",
+        "txn-10",
+        "101",
+    );
+    assert_eq!(
+        checkpoint(&other_domain, std::slice::from_ref(&other_domain), Some(&stored), &crossed).unwrap(),
+        Checkpoint::Skip("lineage_barrier")
+    );
+
+    let other_server = maria("orders", "txn-9", "d0.s2", "7", 1);
+    let server_cross = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-9",
+        "7",
+        "txn-10",
+        "8",
+    );
+    assert_eq!(
+        checkpoint(&other_server, std::slice::from_ref(&other_server), Some(&stored), &server_cross).unwrap(),
+        Checkpoint::Skip("lineage_barrier")
+    );
+
+    let replay = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-1",
+        "6",
+        "txn-2",
+        "7",
+    );
+    assert_eq!(
+        checkpoint(&row, std::slice::from_ref(&row), Some(&stored), &replay).unwrap(),
+        Checkpoint::Skip("already_checkpoint")
+    );
+
+    let epoch = maria("orders", "txn-e", "d0.s1", "7", 2);
+    let failover = binding(
+        Some(maria_previous("txn-1", "d0.s1", "6", 1)),
+        &["orders"],
+        "txn-e",
+        "7",
+        "txn-f",
+        "8",
+    );
+    assert_eq!(
+        checkpoint(&epoch, std::slice::from_ref(&epoch), Some(&stored), &failover).unwrap(),
+        Checkpoint::Skip("epoch_barrier")
+    );
+
+    let mut raw = row.clone();
+    raw.applied_pos = "0-1-6".to_owned();
+    assert_eq!(
+        checkpoint(&raw, std::slice::from_ref(&raw), None, &first),
+        Err("receipt_rule")
+    );
+    let mut set = row.clone();
+    set.position_lineage = "d0.s1,d1.s1".to_owned();
+    assert_eq!(
+        checkpoint(&set, std::slice::from_ref(&set), None, &first),
+        Err("receipt_rule")
+    );
+    let mut file_pos = row.clone();
+    file_pos.position_codec = "mysql-binlog-pos/v1".to_owned();
+    file_pos.position_lineage = "alineage".to_owned();
+    file_pos.applied_pos = "mariadb-bin.000001".to_owned();
+    assert_eq!(
+        checkpoint(&file_pos, std::slice::from_ref(&file_pos), None, &first),
+        Err("receipt_rule")
+    );
+    let mut mysql = row.clone();
+    mysql.position_codec = "mysql-gtid/v1".to_owned();
+    mysql.position_lineage = "src.3e11fa47-71ca-11e1-9e33-c80aa9429562".to_owned();
+    mysql.applied_pos = "23".to_owned();
+    assert_eq!(
+        checkpoint(&mysql, std::slice::from_ref(&mysql), None, &first),
+        Err("receipt_rule")
+    );
+}
+
 fn sample_endpoint(database: &str) -> serde_json::Value {
     serde_json::json!({
         "host": "db.example",

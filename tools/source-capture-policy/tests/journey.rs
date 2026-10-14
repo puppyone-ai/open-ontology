@@ -945,3 +945,98 @@ fn two_total_tables_have_no_skew() {
     assert_eq!(body["same_instant_claim_allowed"], true);
     assert_eq!(body["operator_action"], "continue");
 }
+
+fn maria_method(lineage: &str, pos: &str) -> MethodInput {
+    let mut method = pg_method(pos, 1, 864000);
+    method.family = "mariadb".to_owned();
+    method.position_codec = "mariadb-gtid/v1".to_owned();
+    method.position_lineage = lineage.to_owned();
+    method.same_source_uuid = false;
+    method.window_low = Some("2".to_owned());
+    method.window_high = Some("10".to_owned());
+    method
+}
+
+#[test]
+fn mariadb_gtid_compares_one_domain_and_mysql_uuid_does_not() {
+    let plan = request(
+        vec![table("logistics.shipments", "shipments_g1", maria_method("d0.s1", "10"))],
+        vec![],
+    );
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["capture_method"], "C1");
+    assert_eq!(body["tables"][0]["consistency_grade"], "T");
+    assert_eq!(body["transactional_allowed"], true);
+    assert!(!body["tables"][0]["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "position_compare_unimplemented"));
+    assert!(!body["tables"][0]["statuses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "POSITION_EXPIRED"));
+
+    let mut raw = maria_method("d0.s1", "6");
+    raw.applied_pos = Some("0-1-6".to_owned());
+    let mut plan = request(vec![table("logistics.shipments", "shipments_g1", raw)], vec![]);
+    plan.sync = SyncMode::Explicit;
+    plan.tables[0].explicit_method = Some(CaptureMethod::C1);
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "gtid_identity");
+    assert_eq!(body["transactional_allowed"], false);
+
+    let mut boundary = maria_method("d0.s1", "6");
+    boundary.transaction_boundary = false;
+    plan.tables[0].methods[0] = boundary;
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "transaction_boundary_required");
+    assert_eq!(body["transactional_allowed"], false);
+
+    let mut file_pos = maria_method("d0.s1", "6");
+    file_pos.position_codec = "mysql-binlog-pos/v1".to_owned();
+    file_pos.position_lineage = "same-instance".to_owned();
+    file_pos.applied_pos = Some("328".to_owned());
+    file_pos.window_low = None;
+    file_pos.window_high = None;
+    plan.tables[0].methods[0] = file_pos;
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["fault"], "binlog_pos_not_durable");
+
+    let mut mysql = pg_method("23", 1, 1000);
+    mysql.family = "mysql".to_owned();
+    mysql.position_codec = "mysql-gtid/v1".to_owned();
+    mysql.position_lineage = "src.3e11fa47-71ca-11e1-9e33-c80aa9429562".to_owned();
+    mysql.same_source_uuid = true;
+    mysql.window_low = None;
+    mysql.window_high = None;
+    let plan = request(vec![table("shop.orders", "orders_g1", mysql)], vec![]);
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert!(body["tables"][0]["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "position_compare_unimplemented"));
+    assert_eq!(body["transactional_allowed"], false);
+    assert_eq!(body["repair_allowed"], false);
+
+    let mut expired = maria_method("d0.s1", "6");
+    expired.failover_observed = true;
+    expired.failover_position_retained = None;
+    let plan = request(vec![table("logistics.shipments", "shipments_g1", expired)], vec![]);
+    let (code, body) = run(&plan);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["tables"][0]["operator_action"], "resnapshot");
+    assert_eq!(body["repair_allowed"], false);
+    assert!(body["tables"][0]["statuses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "POSITION_EXPIRED"));
+}
