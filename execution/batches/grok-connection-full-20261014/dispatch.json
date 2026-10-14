@@ -2,18 +2,20 @@
   {
     "task": "mysql",
     "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-    "pid": 54848,
+    "pid": 72621,
     "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "whole_fallback_handoff",
+    "status": "same_owner_long_run",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
-    "prior_pid": 83388,
+    "prior_pid": 54848,
     "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-same-owner-long-run.md",
+    "max_turns": 1000
   },
   {
     "task": "oracle",
