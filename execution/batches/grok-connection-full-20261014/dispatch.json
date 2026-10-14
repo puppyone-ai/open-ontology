@@ -181,7 +181,7 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "same_owner_original_full_rust_route_fixed_consumer_interfaces",
+    "status": "terminal_reserved_exact_shared_model_input_dependency",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
