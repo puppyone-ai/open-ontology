@@ -23,3 +23,9 @@ Catalog generation 10 stderr `oo-pipeline: target database`. Prepare build `b_24
 ## Fixed ELF
 
 Host rustc is 1.98.1 and did not rebuild these. Each pinned ELF contains `1.94.0` and is Linux ARM aarch64. `oo-pipeline` sha256 `2ff14f824c6d4391e6487de6dd133e190966039ec77ce2345aad9cae1b1188e4` printed `oo-pipeline: usage` inside `linux/arm64` (exit 2). ACL ELF sha256 `aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05`.
+
+## Generation 11 cover
+
+The period receipt above still ends at generation 10. That file was not rewritten. A later configured 3.0037175421603024s observation recorded live watermark `S0|lagging|partition-signature/v1|true|false|11`. Pending `system.mutations` is 0. Operator marker `/tmp/oo-clickhouse-connection-whole/whole-run/cycle-markers/pending` remains `1\n`.
+
+Own API now serves ELF `5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d`. Empty argv on `linux/arm64` exited 1. Anonymous identity is 401. Admin session is project `clickhouse`, revision 1, install_state `initialized`. Maintenance `source_generation_advanced` returned 200, `llm_calls` 0, `publication` `not_published`. Progress row is dataset `oo_dl01w40.readings`, source and target generation 11, run `ec5f4d0c-0965-4f37-8518-0e8615f56ac3`, input digest `80d03da333eae3221854c88ef4c503f5e9e9fc2e6d741d650fe928e03af49c29`, physical `pt_f5932f235084598d8f6338962a3a4a619644d9a0f0311b00bd8f5b5cec88`. Catalog sha256 `9934c774a9355a5466fd8d341a8b9f3ec81ad612e0534ec02804237cf4251033`. Role pack `oo_r_reader` compiled `not_published`, `llm_calls` 0. Column grants remain generation 11. Gateway query `q_PFsvl65ucmMMZuOrqRqITX2g6c` returned the same four FINAL rows. `producer_sha256` still `22ac3d0a774c2a6c2d7adf8a7d53e363699f25c971a124c4c4db3b13d1df253d`, so `onboard.py` `source_not_fresh` currently holds. Formal signoff stays 0/10.

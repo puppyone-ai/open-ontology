@@ -1758,3 +1758,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 原文Rust生产路线再接续：Click49895/Doris66796/Star76215实际终态后同UUID609/607/7077 max1000恢复，收到原C4/C3/C5 docs提醒与47c固定API合同。Doris原误载source12/target24/旧bound9保留，禁止OO014元数据删除/重放；Click当前g11/FINAL4row48cells0/对话保留，真正周期与普通default仍原退出；Star原native-serve136/C5每6000ms无差不涨源13实际在跑，quiet重试记录不冒完成。47c4源码+API5bc实际哈希已核，private immutable收据合同交给原source当前安全维护，尚未live full chain，不代C1。证据execution/reviews/grok-connection-resume-20261014/shared-47c-current-maintenance-intake.json。最新用户Rust核心/原逐源方法固定、C5证据不计C1签收，完整/正式0/10与五版退出保持。
+
+
+2026-10-14 用户原生产C1路线实际Rust缺口收取：Maria原fixture R1 DBA已启ROW/FULL/strictGTID/10天retention、0-1-6及最小复制账户拒INSERT1142，旧C5数据不计C1。现mariadb-gtid/v1在native_update/offsetstore/capture-policy未实现，不能字符串绕门/文件位点冒持久GTID。为单writer仅SIGINTSQL93898 CLI并OS exit核实、native_update clean，DB/后台未停；将该一个文件及旧03已退出accepted的offset/gate精确路径移交原Maria2b95896a PID12033完整C1能力，SQL同UUID12034保留其他域继续C2当前catalog delta/runtime，shared88539继续编译器/receipt合法复用。无组件拆派/功能分母增加，Rust语义/lineage/Total与incomparable/去重/事务applied/ACK/恢复原退出保持，完整/正式0/10不晋级。

@@ -165,7 +165,20 @@
       "cli_exit": 0,
       "accepted_source": "280bc35da56b1d7d018c54e79b136a1f99c7e1ab",
       "fixed_review": "6cc24699bbf5566ae45f9ec4ea363da8b747b867",
-      "accepted_scope": "original planner child only, actual receipt tablebinding; parentliveLoader/scheduler/GTIDpending"
+      "accepted_scope": "original planner child only, actual receipt tablebinding; parentliveLoader/scheduler/GTIDpending",
+      "current_exclusive_writer_transfer": {
+        "paths": [
+          "tools/cdc-offset-store/src/rules.rs",
+          "tools/cdc-offset-store/tests/contract.rs",
+          "tools/cdc-offset-store/tests/live.rs",
+          "tools/source-capture-policy/src/gate.rs",
+          "tools/source-capture-policy/tests/journey.rs",
+          "tools/source-capture-policy/tests/repair.rs"
+        ],
+        "owner": "same MariaDB complete C1 source engineer",
+        "uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+        "basis": "legacy task accepted/no native workers; exact current Rust C1 blockers; no new component or unit count"
+      }
     },
     {
       "task_id": "DL01-W1-04",
