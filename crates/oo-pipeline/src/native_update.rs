@@ -1192,6 +1192,8 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
             "mysql-binlog-pos/v1",
             "mysql-gtid/v1",
             "mariadb-gtid/v1",
+            "mongo-cluster-time/v1",
+            "mongo-resume-token/v1",
             "batch-cursor-us/v1",
             "snapshot-zero/v1",
             "partition-signature/v1",
@@ -1227,6 +1229,20 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
     }
     if source_engine == "mariadb" && position_codec == "mysql-binlog-pos/v1" {
         return Err("binlog_pos_not_durable");
+    }
+    if position_codec == "mongo-resume-token/v1" {
+        return Err("resume_token_not_ordered");
+    }
+    if position_codec == "mongo-cluster-time/v1" || (source_engine == "mongodb" && capture_method == "c1_cdc") {
+        if source_engine != "mongodb" || capture_method != "c1_cdc" || position_codec != "mongo-cluster-time/v1" {
+            return Err("mongo_identity");
+        }
+        if consistency_grade == "T" || cross_table || !matches!(consistency_grade.as_str(), "S0" | "B") {
+            return Err("mongo_t_unverified");
+        }
+        if !mongo_lineage(&position_lineage) || !mongo_pos(&applied_pos_request) || mongo_epoch(document).is_none() {
+            return Err("mongo_identity");
+        }
     }
     let batch_id = batch_token(document)?;
     let schema = mapped_name(text_field(document, "logical_schema")?)?;
@@ -3991,6 +4007,24 @@ async fn position_ahead(
         let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0 && plan.tombstones.is_empty();
         return if ordering == std::cmp::Ordering::Greater || ordering == std::cmp::Ordering::Equal && empty { Ok(()) } else { Err("expired") };
     }
+    if plan.position_codec == "mongo-cluster-time/v1" {
+        // Same replica-set lineage only. source_epoch is not a column on this
+        // watermark, so this is not an epoch binding.
+        let stored: Option<(String, String, String)> = sqlx::query_as(
+            "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
+        ).bind(&plan.source_id).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+        let Some((position, codec, lineage)) = stored else {
+            return Ok(());
+        };
+        if codec != plan.position_codec || lineage != plan.position_lineage {
+            return Err("incomparable");
+        }
+        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater {
+            Ok(())
+        } else {
+            Err("expired")
+        };
+    }
     if plan.position_codec == "mariadb-gtid/v1" || plan.position_codec == "mysql-gtid/v1" {
         let stored: Option<(String, String, String)> = sqlx::query_as(
             "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
@@ -4487,6 +4521,34 @@ fn digits(document: &Value, name: &str) -> Result<String, &'static str> {
         Ok(text.to_string())
     } else {
         Err("closed")
+    }
+}
+
+fn mongo_lineage(lineage: &str) -> bool {
+    let bytes = lineage.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 128
+        && bytes[0].is_ascii_lowercase()
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'.' | b':' | b'-')
+        })
+}
+
+fn mongo_pos(pos: &str) -> bool {
+    let bytes = pos.as_bytes();
+    (1..=38).contains(&bytes.len())
+        && bytes.iter().all(|byte| byte.is_ascii_digit())
+        && (bytes.len() == 1 || bytes[0] != b'0')
+        && pos != "0"
+}
+
+fn mongo_epoch(document: &Value) -> Option<i32> {
+    match document.get("source_epoch") {
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .and_then(|value| i32::try_from(value).ok())
+            .filter(|value| *value >= 0),
+        _ => None,
     }
 }
 
@@ -5719,9 +5781,68 @@ mod tests {
     }
 
     #[test]
+    fn mongo_cluster_time_is_weak_and_a_resume_token_is_not_ordered() {
+        let mut request = base_request();
+        request["source_engine"] = json!("mongodb");
+        request["position_codec"] = json!("mongo-cluster-time/v1");
+        request["position_lineage"] = json!("rs0");
+        request["applied_pos"] = json!("11");
+        request["capture_method"] = json!("c1_cdc");
+        request["delete_detection"] = json!("native");
+        request["consistency_grade"] = json!("T");
+        request["cross_table_consistent"] = json!(true);
+        assert_eq!(classify(&request).err(), Some("mongo_t_unverified"));
+
+        request["consistency_grade"] = json!("S0");
+        assert_eq!(classify(&request).err(), Some("consistency"));
+        request["cross_table_consistent"] = json!(false);
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+        request["source_epoch"] = json!(-1);
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+        request["source_epoch"] = json!("4");
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+        request["source_epoch"] = json!(4);
+        request["position_lineage"] = json!("RS0");
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+        request["position_lineage"] = json!("rs0");
+        request["applied_pos"] = json!("0");
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+
+        request["applied_pos"] = json!("11");
+        request["position_codec"] = json!("mongo-resume-token/v1");
+        assert_eq!(classify(&request).err(), Some("resume_token_not_ordered"));
+        request["position_codec"] = json!("snapshot-zero/v1");
+        request["applied_pos"] = json!("0");
+        assert_eq!(classify(&request).err(), Some("mongo_identity"));
+    }
+
+    #[tokio::test]
+    async fn mongo_weak_plan_still_requires_a_lease_before_connect() {
+        let mut request = base_request();
+        with_parent(&mut request);
+        request["source_engine"] = json!("mongodb");
+        request["position_codec"] = json!("mongo-cluster-time/v1");
+        request["position_lineage"] = json!("rs0");
+        request["applied_pos"] = json!("11");
+        request["capture_method"] = json!("c1_cdc");
+        request["delete_detection"] = json!("native");
+        request["consistency_grade"] = json!("S0");
+        request["cross_table_consistent"] = json!(false);
+        request["source_epoch"] = json!(4);
+        let plan = classify(&request).expect("weak mongo plan");
+        assert_eq!(plan.consistency_grade, "S0");
+        assert!(!plan.cross_table);
+        assert!(plan.lease_id.is_none());
+        let result = execute(&request).await.expect("refusal");
+        assert_eq!(result["load_state"], json!("not_sealed"));
+        assert_eq!(result["reason"], json!("lease_required"));
+        assert_eq!(result["jobs_observation"]["target_fence_certified"], json!(false));
+    }
+
+    #[test]
     fn gtid_commit_identity_uses_the_captured_spool_and_refuses_sets() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../testing/dl01-driver-preflight/mariadb/fixtures/c1-gtid-0-1-7");
+            .join("../../tools/mariadb-preview/tests/fixtures/c1-gtid-0-1-7");
         let spool_bytes = fs::read(dir.join("spool.ndjson")).expect("spool");
         let signature: Value = serde_json::from_slice(&fs::read(dir.join("signature.json")).expect("signature")).unwrap();
         assert_eq!(signature["spool_sha256"], hex_bytes(&Sha256::digest(&spool_bytes)));

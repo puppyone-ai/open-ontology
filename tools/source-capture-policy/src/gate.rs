@@ -90,7 +90,7 @@ fn consider(
     if rank(spec.consistency_ceiling) > rank(max_grade(spec.method)) {
         return Err("ceiling_exceeds_method");
     }
-    method_shape(spec)?;
+    method_shape(spec, explicit)?;
     key_ok(request, table, spec)?;
     delete_ok(spec)?;
     cursor_ok(spec, explicit)?;
@@ -157,7 +157,10 @@ fn write_ok(spec: &MethodInput, explicit: bool) -> Result<(), &'static str> {
     }
 }
 
-fn method_shape(spec: &MethodInput) -> Result<(), &'static str> {
+fn method_shape(spec: &MethodInput, explicit: bool) -> Result<(), &'static str> {
+    if spec.method == CaptureMethod::C1 && spec.family == "mongodb" {
+        return mongo_c1(spec, explicit);
+    }
     if spec.method == CaptureMethod::C1 {
         if spec.consistency_ceiling != Grade::T {
             return Err("c1_requires_t");
@@ -196,6 +199,46 @@ fn method_shape(spec: &MethodInput) -> Result<(), &'static str> {
         }
     }
     Ok(())
+}
+
+/// Explicit MongoDB C1 is S0 or B. Grade T stays unverified. Auto still requires T.
+fn mongo_c1(spec: &MethodInput, explicit: bool) -> Result<(), &'static str> {
+    if spec.consistency_ceiling == Grade::T || spec.transaction_boundary {
+        return Err("mongo_t_unverified");
+    }
+    if !explicit {
+        return Err("c1_requires_t");
+    }
+    if !matches!(spec.consistency_ceiling, Grade::S0 | Grade::B) {
+        return Err("c1_requires_t");
+    }
+    if spec.position_codec == "mongo-resume-token/v1" || spec.token_order != TokenOrder::Total {
+        return Err("resume_token_not_ordered");
+    }
+    if spec.position_codec != "mongo-cluster-time/v1" {
+        return Err("mongo_identity");
+    }
+    let Some(pos) = spec.applied_pos.as_deref() else {
+        return Err("mongo_identity");
+    };
+    if spec.source_epoch < 0 || !mongo_lineage(&spec.position_lineage) || !mongo_pos(pos) {
+        return Err("mongo_identity");
+    }
+    Ok(())
+}
+
+fn mongo_lineage(lineage: &str) -> bool {
+    let bytes = lineage.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 128
+        && bytes[0].is_ascii_lowercase()
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'.' | b':' | b'-')
+        })
+}
+
+fn mongo_pos(pos: &str) -> bool {
+    pos_ok(pos) && pos != "0"
 }
 
 fn key_ok(request: &PlanRequest, table: &TableInput, spec: &MethodInput) -> Result<(), &'static str> {
@@ -369,6 +412,10 @@ fn retention_of(spec: &MethodInput) -> Result<(RetentionAction, Vec<&'static str
         action = RetentionAction::Expired;
         reasons.push("failover_unretained");
     }
+    if spec.family == "mongodb" && spec.history_lost {
+        action = RetentionAction::Expired;
+        reasons.push("history_lost");
+    }
     Ok((action, reasons))
 }
 
@@ -403,6 +450,18 @@ fn comparable_position(spec: &MethodInput, retention: RetentionAction) -> bool {
             return false;
         };
         return maria_stored(&spec.position_lineage, pos) && spec.transaction_boundary;
+    }
+    if spec.position_codec == "mongo-cluster-time/v1" {
+        let Some(pos) = spec.applied_pos.as_deref() else {
+            return false;
+        };
+        return spec.family == "mongodb"
+            && spec.source_epoch >= 0
+            && mongo_lineage(&spec.position_lineage)
+            && mongo_pos(pos);
+    }
+    if spec.position_codec == "mongo-resume-token/v1" {
+        return false;
     }
     matches!(
         &spec.applied_pos,
@@ -460,12 +519,13 @@ fn codec_order(codec: &str, family: &str) -> Result<TokenOrder, &'static str> {
         "pg-commit-lsn/v1"
         | "oracle-scn/v1"
         | "sqlserver-lsn/v1"
-        | "mongo-cluster-time/v1"
         | "snowflake-timestamp/v1"
         | "bigquery-timestamp/v1"
         | "delta-version/v1"
         | "iceberg-sequence/v1"
         | "mysql-binlog-pos/v1" => Ok(TokenOrder::Total),
+        "mongo-cluster-time/v1" if family == "mongodb" => Ok(TokenOrder::Total),
+        "mongo-cluster-time/v1" => Err("mongo_family"),
         "mysql-gtid/v1" if family == "mysql" => Ok(TokenOrder::Total),
         "mariadb-gtid/v1" if family == "mariadb" => Ok(TokenOrder::Total),
         "mysql-gtid/v1" | "mariadb-gtid/v1" => Err("gtid_family"),

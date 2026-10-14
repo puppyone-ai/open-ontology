@@ -103,6 +103,7 @@ fn method(position: &str, epoch: i32) -> MethodInput {
             lag_seconds: 1,
         }),
         as_of: None,
+        history_lost: false,
     }
 }
 

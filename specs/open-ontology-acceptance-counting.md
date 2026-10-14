@@ -1827,3 +1827,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 三source终态后真实reserve：Mongo32231 b52697bec fixed删OpaqueKeyString解析，作者Linux7c1test/原spool14snapshot8delta15currentgold0/hello rs0term2、S0idle末组无barrier写入，debug09d9 SHA/raw尚待rootintake不代applyACK；仅sharedproducer依赖，不再同阶段采样。Oracle30182当前四类Pack身份（file/semantic/HTTPid/旧S5receipt）不同正确保留，callback交shared38240正式derivedPackchain；g7 latest13:50依旧next_at12:03:50/pin7无自动worker，produceralive不满足period。Doris31161新native卡wholefalse awaitingrun可装但实际wrappercallbackexit2，current原同build维护修订dad79609/current54381Pack/catalog12cfb必须合法联结旧ed7c S5；period2真实43rows125cells8empty并非旧109，root记录限定scope修正不抹历史。三owner/资源/独占保留等真实shared接口，源码与失败永久；原完整/正式0/10、random3/10、分母/集中审阅不变。
+
+
+2026-10-14 Maria42287 terminal60a99c24f fixed显式Mongo原S0/B及286historylost围栏，root核两个原Linux日志hash/1.94及2+1过滤结果（重复摘要不重复计数），不产品ELF/liveapply/ACK；原0-1-7 spool无epoch原样，样例1/observedfalse不能注册proof。未知PII钱字段保持hidden/unknown，不fake ownerapproval或modelnone；S5b08 notobject/4417保留。原2b writer/后台tests资源reserved，只剩SQL36251真实0024/controlSQL/nativebinding/实例登记与正式scheduler消费，不同旧组件重复采样。MySQL/Mongo consumer同等待actualfixed接口才恢复，scope全C1/完整formal0/10、random3/10不晋级。intakeexecution/reviews/grok-connection-resume-20261014/maria60-explicit-mongo-fixed-intake.json。

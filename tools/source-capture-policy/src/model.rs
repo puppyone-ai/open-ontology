@@ -158,6 +158,9 @@ pub struct MethodInput {
     pub cursor: Option<CursorInput>,
     pub retention: Option<RetentionInput>,
     pub as_of: Option<AsOfInput>,
+    /// MongoDB change-stream code 286 or 136. Not an epoch and not a grade.
+    #[serde(default)]
+    pub history_lost: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
