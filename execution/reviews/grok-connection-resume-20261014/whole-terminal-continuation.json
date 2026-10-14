@@ -1,0 +1,30 @@
+{
+  "as_of": "2026-10-14T06:39:52.055729+00:00",
+  "events": [
+    {
+      "task": "mariadb",
+      "previous_pid": 3051,
+      "previous_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+      "new_pid": 46690,
+      "new_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+      "facts": "前CLI3051真实退出，host无mariadb-preview/onboard writer；最后log official-import 后终止，没有可信完整HANDOFF。先收取自有container/官方部署/actual jobs lease/run/watermarks；旧schema-only readiness仍UNTRUSTED不可复用，新official-import缺loader_hold/runtime membership曾修，检查真实结果。/tmp/oo-mariadb-connection-whole和~/.cache/oo-mariadb-connection-whole保留。"
+    },
+    {
+      "task": "opensearch",
+      "previous_pid": 12716,
+      "previous_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+      "new_pid": 46692,
+      "new_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
+      "facts": "前CLI12716真实退出，无hostwriter；最新六字段run4458418024444808b4bf3731b53b6cb7真实failed。product_flow已observed，进入cancel时CLI exit2 SCHEMA_INVALID policy catalog is not available，operations=[]，未dialogue。原sourceTLS已更新新trustepoch；owner修API DB网络名后S0–S10可GET200。收取本run/recovery g6是否CAS已commit，不重放，按当前native mappings/rolePack安装真实current Gateway catalog再做cancel/dialogue和whole；不能将旧g5Pack强贴新g6，不能fake live cancel或换gold。"
+    },
+    {
+      "task": "starrocks",
+      "previous_pid": 83396,
+      "previous_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+      "new_pid": 46694,
+      "new_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+      "facts": "前CLI83396已退出，无hostwriter；最新普通六字段run678cdbdae13a4e20a016e97a58892828真实failed，capture/typed cells已落地但wait_api HTTPError，不是完成。读该run的journal及0.stderr，实际已提交insert/delete/schedule不得重放。源各generation见actual DB，不从old11推测。核合法当前API项目/OIDC/PG新SAN网络，修实际原因后完成whole。"
+    }
+  ],
+  "acceptance_changed": false
+}

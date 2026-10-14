@@ -530,22 +530,104 @@ pub async fn install_column_acl_native_vector_set(
     }
 }
 
+/// Validate an operator-authorized previous native policy set. Only generations may advance.
+pub fn compile_column_acl_native_transition(
+    previous: &[ColumnAclPolicy], current: &[ColumnAclPolicy],
+) -> Result<(), PolicyError> {
+    let before = compile_column_acl_native_vector_set(previous)?;
+    let after = compile_column_acl_native_vector_set(current)?;
+    if before.policies.len() != after.policies.len() { return Err(PolicyError::MixedIdentity); }
+    let mut advanced = false;
+    for old in &before.policies {
+        let new = after.policies.iter().find(|p| p.namespace == old.namespace && p.table == old.table)
+            .ok_or(PolicyError::MixedIdentity)?;
+        let mut equal = new.clone(); equal.generation = old.generation;
+        if equal != *old || new.generation < old.generation { return Err(PolicyError::MixedIdentity); }
+        advanced |= new.generation > old.generation;
+    }
+    if !advanced { return Err(PolicyError::MixedIdentity); }
+    Ok(())
+}
+
+/// Atomically replace the exact previous grants with the latest generation's grants.
+/// The previous policy bytes must be independently pinned by the operator caller.
+/// Default installers retain their strict full-set replay contract.
+pub async fn transition_column_acl_native_vector_set(
+    client: &mut Client, previous: &[ColumnAclPolicy], current: &[ColumnAclPolicy],
+) -> Result<SetInstallOutcome, PolicyError> {
+    compile_column_acl_native_transition(previous, current)?;
+    let before = compile_column_acl_native_vector_set(previous)?;
+    let after = compile_column_acl_native_vector_set(current)?;
+    require_tls_session(client).await?;
+    let mut tx = client.transaction().await.map_err(db_error)?;
+    match transition_set_in_transaction(&mut tx, &before, &after).await {
+        Ok(outcome) => {
+            tx.commit().await.map_err(db_error)?;
+            Ok(outcome)
+        }
+        Err(err) => {
+            let _ = tx.rollback().await;
+            Err(err)
+        }
+    }
+}
+
+async fn transition_set_in_transaction(
+    tx: &mut Transaction<'_>, before: &CompiledPolicySet, after: &CompiledPolicySet,
+) -> Result<SetInstallOutcome, PolicyError> {
+    let grantor = require_grantor(tx).await?;
+    let first = &after.policies[0];
+    tx.query_one("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&first.role]).await.map_err(db_error)?;
+    let old = resolve_set(tx, before, false).await?;
+    let new = resolve_set(tx, after, true).await?;
+    // Physical source types must match too; a policy label cannot conceal a type change.
+    for (index, policy) in after.policies.iter().enumerate() {
+        let old_index = before.policies.iter().position(|p| p.namespace == policy.namespace && p.table == policy.table).ok_or(PolicyError::MixedIdentity)?;
+        for (column_index, column) in policy.columns.iter().enumerate() {
+            let (old_table, old_column) = (&old[old_index].physical_table, &old[old_index].physical_columns[column_index]);
+            let (new_table, new_column) = (&new[index].physical_table, &new[index].physical_columns[column_index]);
+            let same: bool = tx.query_one("SELECT (SELECT ROW(a.atttypid,a.atttypmod,a.attcollation)::text FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid=a.attrelid WHERE c.relnamespace='_oo'::regnamespace AND c.relname=$1 AND a.attname=$2 AND NOT a.attisdropped) IS NOT DISTINCT FROM (SELECT ROW(a.atttypid,a.atttypmod,a.attcollation)::text FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid=a.attrelid WHERE c.relnamespace='_oo'::regnamespace AND c.relname=$3 AND a.attname=$4 AND NOT a.attisdropped)", &[old_table, old_column, new_table, new_column]).await.map_err(db_error)?.get(0);
+            if !same { return Err(PolicyError::TypeRefused { column: column.name.clone() }); }
+        }
+    }
+    ensure_login(tx, &first.login).await?;
+    if !role_exists(tx, &first.role).await? { return Err(PolicyError::RoleMismatch); }
+    ensure_role_shape(tx, &first.role).await?;
+    ensure_membership(tx, &first.role, &first.login).await?;
+    ensure_schema_usage(tx, &first.role).await?;
+    let effect = match ensure_exact_grants(tx, &first.role, &new).await {
+        Ok(()) => InstallEffect::Replay,
+        Err(PolicyError::GrantMismatch) => {
+            ensure_exact_grants(tx, &first.role, &old).await?;
+            let role = quote_ident(&first.role)?;
+            for table in &old {
+                let table_name = require_physical(&table.physical_table, "pt_")?;
+                let columns = table.physical_columns.iter().map(|c| require_physical(c, "pc_")).collect::<Result<Vec<_>,_>>()?.join(", ");
+                tx.batch_execute(&format!("REVOKE SELECT ({columns}) ON TABLE \"_oo\".{table_name} FROM {role}")).await.map_err(db_error)?;
+            }
+            for table in &new { grant_usage_and_columns(tx, &first.role, &table.physical_table, &table.physical_columns).await?; }
+            ensure_exact_grants(tx, &first.role, &new).await?;
+            InstallEffect::Installed
+        }
+        Err(error) => return Err(error),
+    };
+    Ok(SetInstallOutcome { effect, role: first.role.clone(), grantor,
+        tables: new.into_iter().map(|t| SetTableGrant { physical_table:t.physical_table, physical_columns:t.physical_columns }).collect() })
+}
+
 struct ResolvedTable {
     physical_table: String,
     physical_columns: Vec<String>,
 }
 
-async fn install_set_in_transaction(
-    tx: &mut Transaction<'_>,
-    compiled: &CompiledPolicySet,
-) -> Result<SetInstallOutcome, PolicyError> {
-    let grantor = require_grantor(tx).await?;
-    let first = &compiled.policies[0];
+async fn resolve_set(
+    tx: &mut Transaction<'_>, compiled: &CompiledPolicySet, require_current: bool,
+) -> Result<Vec<ResolvedTable>, PolicyError> {
     let mut resolved = Vec::with_capacity(compiled.policies.len());
     let mut physical_tables = BTreeSet::new();
     for policy in &compiled.policies {
         let current = current_generation(tx, &policy.project, &policy.config_digest).await?;
-        if current != Some(policy.generation) {
+        if require_current && current != Some(policy.generation) {
             return Err(PolicyError::StaleGeneration { policy: policy.generation, current });
         }
         let physical_table = lookup_relation(
@@ -585,6 +667,16 @@ async fn install_set_in_transaction(
             physical_columns,
         });
     }
+    Ok(resolved)
+}
+
+async fn install_set_in_transaction(
+    tx: &mut Transaction<'_>,
+    compiled: &CompiledPolicySet,
+) -> Result<SetInstallOutcome, PolicyError> {
+    let grantor = require_grantor(tx).await?;
+    let first = &compiled.policies[0];
+    let resolved = resolve_set(tx, compiled, true).await?;
     ensure_login(tx, &first.login).await?;
     let existed = role_exists(tx, &first.role).await?;
     if existed {
@@ -1417,6 +1509,32 @@ mod tests {
             compile_column_acl(&input).unwrap_err(),
             PolicyError::EmptyAllowlist
         );
+    }
+
+    #[test]
+    fn native_transition_only_advances_generations_with_identical_authority() {
+        let old = policy(None, vec![column("order_id", PiiClass::None)]);
+        let mut next = old.clone(); next.generation += 1;
+        assert!(compile_column_acl_native_transition(&[old.clone()], &[next.clone()]).is_ok());
+        let mut third = next.clone(); third.generation += 1;
+        assert!(compile_column_acl_native_transition(&[next.clone()], &[third]).is_ok());
+        assert!(compile_column_acl_native_transition(&[old.clone()], &[old.clone()]).is_err());
+        assert!(compile_column_acl_native_transition(&[next.clone()], &[old.clone()]).is_err());
+        for field in 0..8 {
+            let mut bad = next.clone();
+            match field {
+                0 => bad.project = "other".into(),
+                1 => bad.config_digest = "b".repeat(64),
+                2 => bad.role = "other".into(),
+                3 => bad.login = "other".into(),
+                4 => bad.table.namespace = "other".into(),
+                5 => bad.table.columns[0].name = "other".into(),
+                6 => bad.table.columns[0].semantic_type = "other".into(),
+                _ => bad.table.columns[0].pii = PiiClass::Declared { explicit_allow:true },
+            }
+            assert!(compile_column_acl_native_transition(&[old.clone()], &[bad]).is_err());
+        }
+        assert!(compile_column_acl_native_transition(&[old], &[]).is_err());
     }
 
     #[test]

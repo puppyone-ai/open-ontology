@@ -8339,7 +8339,7 @@
         "source": "mysql",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "pid_live_initial_observation",
+        "status": "whole_fallback_handoff",
         "write_paths": [
           "tools/mysql-preview",
           "/tmp/oo-mysql-connection-whole",
@@ -8348,8 +8348,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/mysql_connection_whole",
         "executor": "grok_cli",
-        "session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
-        "pid": 83388
+        "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
+        "pid": 54848
       },
       {
         "source": "oracle",
@@ -8371,7 +8371,7 @@
         "source": "mariadb",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "resumed_after_verified_terminal",
+        "status": "fresh_compact_whole_continuation",
         "write_paths": [
           "tools/mariadb-preview",
           "/tmp/oo-mariadb-connection-whole",
@@ -8380,8 +8380,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/mariadb_connection_whole",
         "executor": "grok_cli",
-        "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-        "pid": 3051
+        "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+        "pid": 46690
       },
       {
         "source": "mongodb",
@@ -8419,7 +8419,7 @@
         "source": "doris",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "pid_live_initial_observation",
+        "status": "fresh_compact_whole_continuation",
         "write_paths": [
           "tools/doris-preview",
           "/tmp/oo-doris-connection-whole",
@@ -8429,14 +8429,14 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/doris_connection_whole",
         "executor": "grok_cli",
-        "session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
-        "pid": 83393
+        "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
+        "pid": 56747
       },
       {
         "source": "opensearch",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "resumed_self_provisioned_complete_product_chain",
+        "status": "fresh_compact_whole_continuation",
         "write_paths": [
           "tools/opensearch-preview",
           "/tmp/oo-opensearch-connection-whole",
@@ -8445,8 +8445,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/opensearch_connection_whole",
         "executor": "grok_cli",
-        "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-        "pid": 12716
+        "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
+        "pid": 46692
       },
       {
         "source": "postgresql",
@@ -8468,7 +8468,7 @@
         "source": "starrocks",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "pid_live_initial_observation",
+        "status": "fresh_compact_whole_continuation",
         "write_paths": [
           "tools/starrocks-preview",
           "/tmp/oo-starrocks-connection-whole",
@@ -8477,14 +8477,14 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/star_runtime_finish",
         "executor": "grok_cli",
-        "session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-        "pid": 83396
+        "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+        "pid": 46694
       },
       {
         "source": "sqlserver",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "resumed_xhigh_latest_human",
+        "status": "complete_fast_handoff",
         "write_paths": [
           "tools/mssql-preview",
           "/tmp/oo-sqlserver-connection-whole",
@@ -8494,8 +8494,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/sqlserver_whole_closure",
         "executor": "grok_cli",
-        "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-        "pid": 37472
+        "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+        "pid": 51920
       }
     ],
     "shared_entry": {
@@ -8537,16 +8537,18 @@
     "sessions": [
       {
         "task": "mysql",
-        "session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
-        "pid": 83388,
-        "prompt": "execution/batches/grok-connection-full-20261014/mysql.md",
+        "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
+        "pid": 54848,
+        "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
         "write_paths": [
           "tools/mysql-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "whole_fallback_handoff",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 105
+        "initial_log_bytes": 105,
+        "prior_pid": 83388,
+        "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad"
       },
       {
         "task": "oracle",
@@ -8564,17 +8566,19 @@
       },
       {
         "task": "mariadb",
-        "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-        "pid": 3051,
-        "prompt": "execution/batches/grok-connection-full-20261014/mariadb.md",
+        "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+        "pid": 46690,
+        "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
         "write_paths": [
           "tools/mariadb-preview"
         ],
-        "status": "resumed_after_verified_terminal",
+        "status": "fresh_compact_whole_continuation",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 207,
-        "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete"
+        "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
+        "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+        "prior_pid": 3051
       },
       {
         "task": "mongodb",
@@ -8604,30 +8608,35 @@
       },
       {
         "task": "doris",
-        "session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
-        "pid": 83393,
-        "prompt": "execution/batches/grok-connection-full-20261014/doris.md",
+        "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
+        "pid": 56747,
+        "prompt": "execution/batches/grok-connection-full-20261014/doris-compact-whole-handoff.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
         "write_paths": [
           "tools/doris-preview",
           "testing/dl01-driver-preflight/doris/reader"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "fresh_compact_whole_continuation",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 218
+        "initial_log_bytes": 218,
+        "prior_pid": 83393,
+        "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
+        "max_turns": 200
       },
       {
         "task": "opensearch",
-        "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-        "pid": 12716,
-        "prompt": "execution/batches/grok-connection-full-20261014/opensearch.md",
+        "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
+        "pid": 46692,
+        "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
         "write_paths": [
           "tools/opensearch-preview"
         ],
-        "status": "resumed_self_provisioned_complete_product_chain",
+        "status": "fresh_compact_whole_continuation",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 268
+        "initial_log_bytes": 268,
+        "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+        "prior_pid": 12716
       },
       {
         "task": "postgresql",
@@ -8652,22 +8661,24 @@
       },
       {
         "task": "starrocks",
-        "session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-        "pid": 83396,
-        "prompt": "execution/batches/grok-connection-full-20261014/starrocks.md",
+        "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+        "pid": 46694,
+        "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
         "write_paths": [
           "tools/starrocks-preview"
         ],
-        "status": "pid_live_initial_observation",
+        "status": "fresh_compact_whole_continuation",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 130
+        "initial_log_bytes": 130,
+        "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+        "prior_pid": 83396
       },
       {
         "task": "sqlserver",
-        "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-        "pid": 37472,
-        "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-compact-complete.md",
+        "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+        "pid": 51920,
+        "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
         "write_paths": [
           "tools/mssql-preview",
@@ -8678,29 +8689,32 @@
           "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
           "tools/source-admission/src/capture.rs"
         ],
-        "status": "resumed_xhigh_latest_human",
+        "status": "complete_fast_handoff",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 0,
-        "prior_session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+        "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
         "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
         "effort_handoff_previous_pid": 32957,
         "effort_handoff_was_live": true,
-        "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md"
+        "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md",
+        "prior_pid": 37472
       },
       {
         "task": "shared-entry",
-        "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
-        "pid": 6230,
-        "prompt": "execution/batches/grok-connection-full-20261014/shared-entry.md",
+        "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+        "pid": 51922,
+        "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
         "write_paths": [
           "tools/source-onboarding"
         ],
-        "status": "terminal_dependency_handoff",
+        "status": "complete_fast_handoff",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 120,
         "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
-        "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive"
+        "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
+        "prior_pid": 6230,
+        "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2"
       },
       {
         "task": "infra",
@@ -8747,7 +8761,11 @@
       "exclusive_path": "tools/source-admission/src/capture.rs",
       "scope": "SQL C2 CT semantics/hash binding only and corresponding tests; no weakening other sources"
     },
-    "latest_effort_handoff": "execution/reviews/grok-connection-resume-20261014/xhigh-handoff-receipt.json"
+    "latest_effort_handoff": "execution/reviews/grok-connection-resume-20261014/xhigh-handoff-receipt.json",
+    "ordinary_wait_seconds": 600,
+    "latest_concurrency_handoff": "execution/reviews/grok-connection-resume-20261014/concurrency-fast-handoff.json"
   },
-  "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。"
+  "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。",
+  "ordinary_event_wait_seconds": 600,
+  "latest_human_wait_and_concurrency": "2026-10-14 最新用户将固定clock等待改600秒，OS真实退出事件立即收取，不短轮询。11个Grok4.7/xhigh任务已派发（活动数以逐PID观察为准）：十源唯一完整owner+共享一键入口；Maria/OpenSearch/Star旧CLI及hostwriter终态后新短完整上下文续接，SQL source f73094b92及自有官方PG/snapshot仅组件进度保留，新owner继续lease/CAS/CT和全部产品出口，共享entry接真实run契约阻断并只写自己域。真实OpenSearch新run44584180失败在current policy catalog/cancel、Star678cdbda失败在APIHTTPError，不计完成。CPU/编译固定上限解除，以实际资源/独占依赖控制，不为凑15派重复源writer或空任务。完整一键0/10、历史作者9/10、正式0/10及原Plan/整版退出不变。"
 }
