@@ -3104,3 +3104,9 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 
 
 2026-10-14 Star20132终态作者收取：native-serve136/6000ms未重启自动g14插/g15Unique同键replace/g16物理删/g17下一插，第二轮替换在途；无manualfire，原g13binding/current旧ACL导致fixed78bfd official installer policy mismatch回滚，不能手GRANT。PG同27ca owner59827/99540只原公共ACL路径先核actuallegacyg3/9/10/11及metadata角色previouspolicy，优先合法trusted配置/精确官方事务非任意放宽，Star同c4 owner61000/90217收原计算并完成剩余自动delete/gold/currentPack/普通入口/新随机两次两轮全链。原共享sourcefacts与Click验收器并行独占；作者阶段未root核全SHA、完整/正式0/10不晋级。
+
+
+2026-10-14 Maria12033终态后同2b95896a63283/handle3078长跑接续：作者实际Debezium0-1-7 BEGIN/IUD/END仅捕获，目标apply/ACK缺；旧DL01-W1-39 commitmanifest已同步现公共独占，修helper no_changes漏域。新增唯一query_executor.rs给Maria（现PG只policy/installer），native_schedule仍SQL独占，两C1实际GTID/txn绑定/目标原子CAS/ACK核心native_update Maria单writer，禁止PG LSN伪造或旗标冒完成。两Linux精简ELF与5tests作者阶段未root完整核、S5旧裸array成本/raw保留，共享版本事实输入继续；原十源随机要求及0/10完整/正式保持。
+
+
+2026-10-14 随机对话验收器93ab055de固定archives独立复跑11tests全部通过，原工具7接口/任意合法query、facts成功QID及独立WAL不降低；bank4..8/两类不同gold、freshseed随机、prior_manifest排除上一题、replay不计新随机、resume冻结gold/identity/题目一致、非法配置call前拒与legacy标记已可消费。此是依赖测试收取非独立review/真实源随机对话通过；每源两次新随机两轮实际模型/CLI/currentgold出口仍pending，完整/正式0/10。intake：execution/reviews/grok-connection-resume-20261014/random93-fixed-intake.json。

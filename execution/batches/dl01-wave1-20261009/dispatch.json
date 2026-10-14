@@ -1647,7 +1647,17 @@
         "testing/dl01-driver-preflight/mariadb",
         "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-driver-preflight",
         "tools/mariadb-preview",
-        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product"
+        "evidence/0d8d559a-7e46-4859-838e-21ffccd62772/DL01/mariadb-product",
+        "crates/oo-pipeline/src/native_update.rs",
+        "tools/cdc-offset-store/src/rules.rs",
+        "tools/cdc-offset-store/tests/contract.rs",
+        "tools/cdc-offset-store/tests/live.rs",
+        "tools/source-capture-policy/src/gate.rs",
+        "tools/source-capture-policy/tests/journey.rs",
+        "tools/source-capture-policy/tests/repair.rs",
+        "tools/cdc-offset-store/CONTRACT.md",
+        "tools/source-capture-policy/CONTRACT.md",
+        "crates/oo-gateway/src/query_executor.rs"
       ],
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-39-current-complete-product-longrun.md",
       "resource_prefix": "oo-dl01w1-39",
@@ -1742,7 +1752,12 @@
       "status_before_shared_hold": "native_running",
       "shared_reference_only": false,
       "latest_observed_at": "2026-10-13T08:35:05.602529+00:00",
-      "source_commit": "6cc58d0c7300594bca8adc5a54d2082d17d13de1"
+      "source_commit": "6cc58d0c7300594bca8adc5a54d2082d17d13de1",
+      "current_exclusive_writer_transfer": {
+        "uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
+        "authority": "execution/batches/grok-connection-full-20261014/dispatch.json",
+        "common_paths": "root explicitly transferred sole ownership; commit exact owned source, ignored raw evidence excluded"
+      }
     },
     {
       "task_id": "DL01-W1-40",
