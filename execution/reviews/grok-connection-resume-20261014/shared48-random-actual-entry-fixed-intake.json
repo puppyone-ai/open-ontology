@@ -1,0 +1,19 @@
+{
+  "fixed_source_commit": "48c62d1853da4e660e4ff47af28f51cd54bc09c2",
+  "verifier_dependency": "80aec776414aaed9064daf3600cf3df21fc21eb5",
+  "archive": "/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-random-entry48-fixed-qknjo3kj",
+  "root_tests": [
+    {
+      "tag": "onboard",
+      "exit": 0,
+      "raw_stderr": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.900s\n\nOK\n"
+    },
+    {
+      "tag": "verifier",
+      "exit": 0,
+      "raw_stderr": "..............\n----------------------------------------------------------------------\nRan 14 tests in 0.002s\n\nOK\n"
+    }
+  ],
+  "scope": "actual fixed dependency tests only; no source default-entry product pass. Existing historical random subtests retain their previous implementationSHA",
+  "full_source_counts_unchanged": true
+}
