@@ -2194,5 +2194,11 @@
     "author_only": true,
     "pid": 49827,
     "tool_handle": 50311
+  },
+  "latest_pg_source_money_input_gap": {
+    "note": "2026-10-14 PG15837实际terminal，作者6cbc44ef fixture金额unspecified规则已固定，原S5 USD raw/无retained/旧input不改；新rules未进真实model请求，inputSHA相同，禁止盲重试付费及把未知PII改none。原PG writer/reservation保留待共享d28ca正确源事实输入版本依赖，新随机题库/实际对话仍pending，原完整/正式0/10不变。broker保存确切接口证据，旧ACL不复测。",
+    "author_commit": "6cbc44efebfa2ba0b062fde392424badd12c776a",
+    "status": "terminal_reserved_dependency",
+    "author_only": true
   }
 }
