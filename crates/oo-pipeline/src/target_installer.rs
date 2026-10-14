@@ -72,6 +72,7 @@ pub const VERSION_NATIVE_EMPTY_CATALOG: &str = "native-empty-sealed-catalog/v1";
 pub const VERSION_NATIVE_PG_GROUP_RECEIPT: &str = "native-pg-group-receipt/v1";
 pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
 pub const VERSION_NATIVE_PG_GROUP_GENERATION: &str = "native-pg-group-generation/v1";
+pub const VERSION_NATIVE_SQLSERVER_CT: &str = "native-sqlserver-ct/v1";
 pub const VERSION_NATIVE_PG_SINGLE_TRANSACTION: &str = "native-pg-single-transaction/v1";
 
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
@@ -102,6 +103,7 @@ const FILE_NATIVE_EMPTY_CATALOG: &str = "0018_native_empty_sealed_catalog.sql";
 const FILE_NATIVE_PG_GROUP_RECEIPT: &str = "0019_native_pg_group_receipt.sql";
 const FILE_NATIVE_PG_GROUP_PRIOR: &str = "0020_native_pg_group_prior.sql";
 const FILE_NATIVE_PG_GROUP_GENERATION: &str = "0021_native_pg_group_generation.sql";
+const FILE_NATIVE_SQLSERVER_CT: &str = "0023_native_sqlserver_ct.sql";
 const FILE_NATIVE_PG_SINGLE_TRANSACTION: &str = "0022_native_pg_single_transaction.sql";
 const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
@@ -130,6 +132,7 @@ const SCRIPT_NATIVE_EMPTY_CATALOG: &str = include_str!("../migrations/0018_nativ
 const SCRIPT_NATIVE_PG_GROUP_RECEIPT: &str = include_str!("../migrations/0019_native_pg_group_receipt.sql");
 const SCRIPT_NATIVE_PG_GROUP_PRIOR: &str = include_str!("../migrations/0020_native_pg_group_prior.sql");
 const SCRIPT_NATIVE_PG_GROUP_GENERATION: &str = include_str!("../migrations/0021_native_pg_group_generation.sql");
+const SCRIPT_NATIVE_SQLSERVER_CT: &str = include_str!("../migrations/0023_native_sqlserver_ct.sql");
 const SCRIPT_NATIVE_PG_SINGLE_TRANSACTION: &str = include_str!("../migrations/0022_native_pg_single_transaction.sql");
 const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
@@ -258,6 +261,8 @@ pub fn compiled_native_pg_group_prior_digest() -> String {
 pub fn compiled_native_pg_group_generation_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_PG_GROUP_GENERATION.as_bytes())
 }
+
+pub fn compiled_native_sqlserver_ct_digest() -> String { sha256_hex(SCRIPT_NATIVE_SQLSERVER_CT.as_bytes()) }
 
 pub fn compiled_native_pg_single_transaction_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_PG_SINGLE_TRANSACTION.as_bytes())
@@ -1427,6 +1432,64 @@ pub async fn install_native_pg_single_transaction(conn: &mut PgConnection) -> Re
         exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
         exec_script(&mut tx, SCRIPT_NATIVE_PG_SINGLE_TRANSACTION).await?;
         insert_markers(&mut tx, &[marker(VERSION_NATIVE_PG_SINGLE_TRANSACTION, &digest, FILE_NATIVE_PG_SINGLE_TRANSACTION)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Fresh installs create base catalog functions before their empty-stream successor.
+/// A legacy target missing base markers must not downgrade the already installed successor.
+pub async fn install_catalog_before_empty(conn: &mut PgConnection) -> Result<(), InstallError> {
+    // Keep the predecessor/successor decision stable across the installers' transactions.
+    sqlx::query("SELECT pg_catalog.pg_advisory_lock(6404202605)").execute(&mut *conn).await.map_err(database_error)?;
+    let result = async {
+        let rows = read_rows(conn).await?;
+        if find_row(&rows, VERSION_NATIVE_EMPTY_CATALOG).is_some()
+            && !matches!(find_row(&rows, VERSION_NATIVE_CATALOG), Some(row)
+                if row_exact(row, VERSION_NATIVE_CATALOG, &compiled_native_catalog_digest(), FILE_NATIVE_CATALOG)) {
+            return Err(InstallError::Refused { message: "empty catalog successor lacks exact base catalog; refusing downgrade".to_string() });
+        }
+        install_sealed_catalog(conn).await?;
+        install_native_sealed_catalog(conn).await?;
+        Ok(())
+    }.await;
+    sqlx::query("SELECT pg_catalog.pg_advisory_unlock(6404202605)").execute(&mut *conn).await.map_err(database_error)?;
+    result
+}
+
+/// Install SQLServer-only CT anchor paths; prior migrations stay immutable.
+pub async fn install_native_sqlserver_ct(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_pg_single_transaction_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PG_SINGLE_TRANSACTION), Some(row)
+        if row_exact(row, VERSION_NATIVE_PG_SINGLE_TRANSACTION, &prior, FILE_NATIVE_PG_SINGLE_TRANSACTION)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "single transaction requires exact prior schema".to_string() });
+    }
+    let digest = compiled_native_sqlserver_ct_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_SQLSERVER_CT) {
+        if !row_exact(row, VERSION_NATIVE_SQLSERVER_CT, &digest, FILE_NATIVE_SQLSERVER_CT) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_SQLSERVER_CT.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_SQLSERVER_CT).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_SQLSERVER_CT, &digest, FILE_NATIVE_SQLSERVER_CT)]).await?;
         Ok::<(), InstallError>(())
     }.await;
     if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
@@ -2631,6 +2694,22 @@ fn readiness_from_install(err: InstallError) -> ReadinessError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sqlserver_ct_keeps_installed_partition_codec() {
+        assert!(SCRIPT_NATIVE_SQLSERVER_CT.contains("'partition-signature/v1'"));
+        assert!(SCRIPT_NATIVE_SQLSERVER_CT.contains("'mssql-ct-version/v1'"));
+        assert!(SCRIPT_NATIVE_SQLSERVER_CT.contains("native_sqlserver_ct_copy_forward"));
+        assert!(install_order_calls_catalog_before_empty());
+    }
+
+    fn install_order_calls_catalog_before_empty() -> bool {
+        let source = include_str!("native_update.rs");
+        let catalog = source.find("install_catalog_before_empty").unwrap_or(usize::MAX);
+        let empty = source.find("install_native_empty_catalog").unwrap_or(0);
+        let ct = source.find("install_native_sqlserver_ct").unwrap_or(0);
+        catalog < empty && empty < ct
+    }
 
     #[test]
     fn compiled_digests_match_the_frozen_files() {

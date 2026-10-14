@@ -177,9 +177,9 @@
     },
     {
       "task": "sqlserver",
-      "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
-      "pid": 83397,
-      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver.md",
+      "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
+      "pid": 24020,
+      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-compact-complete.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
       "write_paths": [
         "tools/mssql-preview",
@@ -187,11 +187,14 @@
         "crates/oo-pipeline/src/native_update.rs",
         "crates/oo-pipeline/src/native_binding.rs",
         "crates/oo-pipeline/src/target_installer.rs",
-        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql"
+        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
+        "tools/source-admission/src/capture.rs"
       ],
-      "status": "pid_live_initial_observation",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 0
+      "status": "fresh_compact_sqlserver_whole_closure",
+      "executor": "grok-4.7/low",
+      "initial_log_bytes": 0,
+      "prior_session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+      "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete"
     }
   ],
   "process_observation": {
@@ -1728,9 +1731,9 @@
       },
       {
         "task": "sqlserver",
-        "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
-        "pid": 83397,
-        "prompt": "execution/batches/grok-connection-full-20261014/sqlserver.md",
+        "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
+        "pid": 24020,
+        "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-compact-complete.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
         "write_paths": [
           "tools/mssql-preview",
@@ -1738,11 +1741,14 @@
           "crates/oo-pipeline/src/native_update.rs",
           "crates/oo-pipeline/src/native_binding.rs",
           "crates/oo-pipeline/src/target_installer.rs",
-          "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql"
+          "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
+          "tools/source-admission/src/capture.rs"
         ],
-        "status": "pid_live_initial_observation",
-        "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 0
+        "status": "fresh_compact_sqlserver_whole_closure",
+        "executor": "grok-4.7/low",
+        "initial_log_bytes": 0,
+        "prior_session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+        "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete"
       },
       {
         "task": "shared-entry",
@@ -1795,7 +1801,15 @@
       "execution/reviews/grok-connection-resume-20261014/opensearch-progress-intake.json"
     ],
     "identity_health": "root verified TLS/OIDC anonymous401 and fixture admin200, original config binding preserved",
-    "identity_intake": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json"
+    "identity_intake": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json",
+    "token_receipt": "execution/reviews/grok-connection-resume-20261014/ended-session-token-receipt.json",
+    "next_terminal_handoff_policy": "fresh compact context, no full previous transcript; low reasoning on routine execution; do not kill active useful writers or weaken whole acceptance",
+    "sqlserver_partial_intake": "execution/reviews/grok-connection-resume-20261014/sqlserver-code-progress-intake.json",
+    "source_admission_owner": {
+      "task": "sqlserver",
+      "exclusive_path": "tools/source-admission/src/capture.rs",
+      "scope": "SQL C2 CT semantics/hash binding only and corresponding tests; no weakening other sources"
+    }
   },
   "archived_native_agent_status": [
     {

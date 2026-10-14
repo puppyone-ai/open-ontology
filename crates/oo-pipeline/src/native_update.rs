@@ -405,6 +405,9 @@ async fn install_document(document: &Value) -> Value {
     if let Err(err) = target_installer::install_full_import(&mut conn).await {
         return json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": "install_failed", "detail": err.to_string()});
     }
+    if let Err(err) = target_installer::install_catalog_before_empty(&mut conn).await {
+        return json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0006-0008"});
+    }
     if let Err(err) = target_installer::install_jsonb_document(&mut conn).await {
         return json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0009"});
     }
@@ -419,6 +422,7 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_pg_group_prior(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_group_generation(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_single_transaction(&mut conn).await {
+        Ok(()) => match target_installer::install_native_sqlserver_ct(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -436,7 +440,10 @@ async fn install_document(document: &Value) -> Value {
             ,"pg_group_prior_digest": target_installer::compiled_native_pg_group_prior_digest()
             ,"pg_group_generation_digest": target_installer::compiled_native_pg_group_generation_digest()
             ,"pg_single_transaction_digest": target_installer::compiled_native_pg_single_transaction_digest()
+            ,"sqlserver_ct_digest": target_installer::compiled_native_sqlserver_ct_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0023"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0022"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0021"}),
@@ -874,6 +881,7 @@ struct UpdatePlan {
     position_codec: String,
     position_lineage: String,
     applied_pos_request: String,
+    ct_prior_position: Option<String>,
     config_digest: String,
     schema_digest: String,
     type_digest: String,
@@ -1002,6 +1010,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         "position_codec",
         &[
             "pg-commit-lsn/v1",
+            "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
             "batch-cursor-us/v1",
             "snapshot-zero/v1",
@@ -1035,6 +1044,15 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         refuse_bare_document_double(&arrow, &columns)?;
     }
     let admission = bind_admission(document, &arrow)?;
+    if source_engine == "sqlserver" || position_codec == "mssql-ct-version/v1" {
+        if !admission.source_bound { return Err("nonadmitted"); }
+        let registry: Value = serde_json::from_slice(&read_registry(document)?).map_err(|_| "nonadmitted")?;
+        let binding = registry.pointer("/bindings/0").ok_or("nonadmitted")?;
+        let capture_bytes = read_capped(Path::new(text_field(binding, "capture_receipt_path")?)).map_err(|_| "nonadmitted")?;
+        if hex_bytes(&Sha256::digest(&capture_bytes)) != text_field(binding, "capture_receipt_sha256")? { return Err("digest_mismatch"); }
+        let capture: Value = serde_json::from_slice(&capture_bytes).map_err(|_| "nonadmitted")?;
+        validate_mssql_capture(document, &capture, &arrow)?;
+    }
     let partition_scope = if partition_mode {
         let scope = admission.partition_scope.clone().ok_or("partition_scope_required")?;
         if scope["source_id"] != source_id || scope["source_generation"] != source_generation
@@ -1154,8 +1172,12 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         delete_detection,
         consistency_grade,
         cross_table,
-        position_codec,
+        position_codec: position_codec.clone(),
         position_lineage,
+        ct_prior_position: if position_codec == "mssql-ct-version/v1" && mode == "incremental" {
+            document["sqlserver_prior_position"]["tables"].as_array().and_then(|tables| tables.iter().find(|t| t["schema"] == document["logical_schema"] && t["name"] == document["logical_table"]))
+                .and_then(|table| table["version"].as_i64()).map(|version| version.to_string())
+        } else { None },
         applied_pos_request,
         config_digest,
         schema_digest,
@@ -1221,6 +1243,7 @@ fn classify_mirror(document: &Value) -> Result<UpdatePlan, &'static str> {
         position_codec: String::new(),
         position_lineage: String::new(),
         applied_pos_request: String::new(),
+        ct_prior_position: None,
         config_digest: String::new(),
         schema_digest: String::new(),
         type_digest: String::new(),
@@ -1835,6 +1858,83 @@ fn open_registration(
     opened.partition_scope = authorized.partition_scope;
     opened.transaction_scope = authorized.transaction_scope;
     Ok(opened)
+}
+
+fn canonical_ct_key(text: &str) -> bool {
+    if text.is_empty() { return false; }
+    if text.contains('\u{001f}') { return text.split('\u{001f}').all(canonical_ct_part); }
+    canonical_ct_single(text)
+}
+
+fn canonical_ct_single(text: &str) -> bool {
+    if let Some(hex) = text.strip_prefix("\\x") {
+        return hex.len() % 2 == 0 && hex.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase());
+    }
+    canonical_i64(text) || !text.chars().any(|c| c.is_control())
+}
+
+fn canonical_ct_part(text: &str) -> bool {
+    let Some((len, body)) = text.split_once(':') else { return false; };
+    !len.is_empty() && len.bytes().all(|byte| byte.is_ascii_digit()) && !len.starts_with('0')
+        && len == body.len().to_string() && canonical_ct_single(body)
+}
+
+// The operator registry already pins these captured bytes; caller CT fields cannot rebind them.
+fn validate_mssql_capture(document: &Value, capture: &Value, arrow: &[u8]) -> Result<(), &'static str> {
+    if document["source_engine"] != "sqlserver" || document["position_codec"] != "mssql-ct-version/v1"
+        || document["capture_method"] != "c2_change_feed" || document["delete_detection"] != "native"
+        || document["consistency_grade"] != "S1" || document["cross_table_consistent"] != false
+        || capture["protocol"] != "oo.mssql-preview.capture/v1" || capture["tds_query_executed"] != true
+        || capture["source_id"] != document["source_id"] || capture["source_generation"] != document["source_generation"]
+        || capture["logical_schema"] != document["logical_schema"] || capture["logical_table"] != document["logical_table"]
+        || capture["candidate_position"] != document["sqlserver_candidate_position"]
+        || capture["prior_position"] != document["sqlserver_prior_position"]
+        || capture["snapshot"] != document["snapshot"] || capture["tombstones"] != document["tombstones"]
+        || capture["primary_key"] != document["key_columns"] {
+        return Err("ct_scope");
+    }
+    let candidate = &capture["candidate_position"];
+    if candidate["protocol"] != "oo.mssql-preview.ct-position/v1" || candidate["source_id"] != document["source_id"] {
+        return Err("ct_scope");
+    }
+    let guid = text_field(candidate, "database_guid")?;
+    let fork = text_field(candidate, "recovery_fork_guid")?;
+    if !is_uuid(guid) || !is_uuid(fork) || document["position_lineage"] != format!("mssql.{guid}.{fork}") { return Err("ct_scope"); }
+    let selected = |position: &Value| -> Result<Value, &'static str> {
+        let rows = position["tables"].as_array().ok_or("ct_scope")?;
+        let matching: Vec<_> = rows.iter().filter(|row| row["schema"] == document["logical_schema"] && row["name"] == document["logical_table"]).collect();
+        if matching.len() != 1 { return Err("ct_scope"); }
+        Ok(matching[0].clone())
+    };
+    let current = selected(candidate)?;
+    let version = current["version"].as_i64().filter(|n| *n >= 0).ok_or("ct_scope")?;
+    if current["object_id"] != capture["object_id"] || current["keys"] != capture["primary_key"]
+        || current["object_id"].as_i64().is_none_or(|n| n <= 0)
+        || !current["schema_sha256"].as_str().is_some_and(hex64)
+        || document["snapshot"]["kind"] != "mssql_ct_version" || document["snapshot"]["value"] != version.to_string()
+        || document["applied_pos"] != version.to_string() { return Err("ct_scope"); }
+    let tombs = document["tombstones"].as_array().ok_or("ct_scope")?;
+    for item in tombs {
+        if !item.as_str().is_some_and(canonical_ct_key) { return Err("ct_scope"); }
+    }
+    let rows = decode_arrow_stream(arrow).map_err(arrow_token)?.rows;
+    if capture["upserts"].as_u64() != Some(rows as u64) { return Err("ct_scope"); }
+    let snapshot = capture["mode"] == "snapshot";
+    if document["full_snapshot"] != snapshot { return Err("ct_scope"); }
+    if !snapshot {
+        let prior = &capture["prior_position"];
+        for key in ["protocol", "source_id", "database_guid", "recovery_fork_guid", "database"] {
+            if prior[key] != candidate[key] { return Err("ct_scope"); }
+        }
+        let old = selected(prior)?;
+        for key in ["object_id", "schema_sha256", "keys"] { if old[key] != current[key] { return Err("ct_scope"); } }
+        let before = old["version"].as_i64().ok_or("ct_scope")?;
+        let minimum = capture["min_valid_version"].as_i64().ok_or("ct_scope")?;
+        if before < minimum || before > version || (before == version && (rows != 0 || !document["tombstones"].as_array().is_some_and(Vec::is_empty))) {
+            return Err("expired");
+        }
+    }
+    Ok(())
 }
 
 fn registration_admission(opened: native_binding::ServerRegistration) -> Admission {
@@ -2924,6 +3024,8 @@ async fn apply_tx(
             .transpose().map_err(|_| "partition_scope_required")?;
         let statement = if plan.previous_ack_auto {
             "SELECT _oo.native_olap_copy_forward($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[], $13::text[], $14::jsonb)"
+        } else if plan.position_codec == "mssql-ct-version/v1" {
+            "SELECT _oo.native_sqlserver_ct_copy_forward($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[], $13::text[])"
         } else {
             "SELECT _oo.native_update_copy_forward($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[], $13::text[])"
         };
@@ -3053,9 +3155,12 @@ async fn apply_tx(
         .execute(&mut **tx)
         .await
         .map_err(sql_token)?;
-    sqlx::query(
-        "SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)",
-    )
+    let seal = if plan.position_codec == "mssql-ct-version/v1" {
+        sqlx::query("SELECT _oo.native_sqlserver_ct_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+    } else {
+        sqlx::query("SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+    };
+    seal
     .bind(&plan.shard)
     .bind(&plan.owner)
     .bind(target_generation)
@@ -3419,6 +3524,16 @@ async fn position_ahead(
 ) -> Result<(), &'static str> {
     if plan.parent_source_generation.is_none() || plan.shape == "snapshot" {
         return Ok(());
+    }
+    if plan.position_codec == "mssql-ct-version/v1" {
+        let stored: Option<(String, String, String)> = sqlx::query_as(
+            "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
+        ).bind(&plan.source_id).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+        let (position, codec, lineage) = stored.ok_or("expired")?;
+        if codec != plan.position_codec || lineage != plan.position_lineage || plan.ct_prior_position.as_deref() != Some(position.as_str()) { return Err("expired"); }
+        let ordering = decimal_cmp(&plan.applied_pos_request, &position)?;
+        let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0 && plan.tombstones.is_empty();
+        return if ordering == std::cmp::Ordering::Greater || ordering == std::cmp::Ordering::Equal && empty { Ok(()) } else { Err("expired") };
     }
     if plan.source_engine == "postgresql" || plan.source_engine == "postgres" {
         if plan.position_codec != "pg-commit-lsn/v1" { return Err("expired"); }
@@ -4399,6 +4514,57 @@ impl std::fmt::Display for target_installer::NativeUpdateInstallOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ct_batch_anchor_no_change_and_scope_are_checked() {
+        let columns = [FixtureColumn { name: "id".into(), nullable: false, kind: FixtureKind::Int64 }];
+        let none: &[Vec<FixtureCell>] = &[];
+        let body = encode_body(&columns, none).unwrap();
+        let empty = wrap_file(&schema_meta(&columns).unwrap(), &batch_meta(&columns, none, body.len()).unwrap(), &body);
+        assert_eq!(decode_arrow_stream(&empty).map(|decoded| decoded.rows), Ok(0));
+        let one = encode_fixture_arrow(&columns, &[vec![FixtureCell::Int(1)]]).unwrap();
+        let candidate = json!({"protocol":"oo.mssql-preview.ct-position/v1","source_id":"sql1","database":"fixture",
+            "database_guid":"11111111-1111-4111-8111-111111111111","recovery_fork_guid":"22222222-2222-4222-8222-222222222222",
+            "tables":[{"schema":"dbo","name":"t","object_id":7,"keys":["id"],"schema_sha256":"ab".repeat(32),"version":5}]});
+        let capture = json!({"protocol":"oo.mssql-preview.capture/v1","tds_query_executed":true,"source_id":"sql1","source_generation":2,
+            "logical_schema":"dbo","logical_table":"t","candidate_position":candidate,"prior_position":candidate,
+            "snapshot":{"kind":"mssql_ct_version","value":"5"},"tombstones":[],"primary_key":["id"],"object_id":7,
+            "mode":"changes","upserts":0,"min_valid_version":1});
+        let request = json!({"source_engine":"sqlserver","position_codec":"mssql-ct-version/v1","capture_method":"c2_change_feed",
+            "delete_detection":"native","consistency_grade":"S1","cross_table_consistent":false,"source_id":"sql1","source_generation":2,
+            "logical_schema":"dbo","logical_table":"t","sqlserver_candidate_position":candidate,"sqlserver_prior_position":candidate,
+            "snapshot":capture["snapshot"],"tombstones":[],"key_columns":["id"],"full_snapshot":false,"applied_pos":"5",
+            "position_lineage":"mssql.11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222"});
+        assert_eq!(validate_mssql_capture(&request, &capture, &empty), Ok(()));
+        let mut wrong=request.clone();wrong["applied_pos"]=json!("6");
+        assert_eq!(validate_mssql_capture(&wrong,&capture,&empty),Err("ct_scope"));
+        wrong=request.clone();wrong["tombstones"]=json!(["1"]);
+        assert_eq!(validate_mssql_capture(&wrong,&capture,&empty),Err("ct_scope"));
+        let echoed = "\\x000000FF";
+        wrong=request.clone();wrong["tombstones"]=json!([echoed]);wrong["applied_pos"]=json!("6");
+        wrong["sqlserver_candidate_position"]["tables"][0]["version"]=json!(6);
+        wrong["snapshot"]=json!({"kind":"mssql_ct_version","value":"6"});
+        let mut echoed_capture=capture.clone();
+        echoed_capture["tombstones"]=json!([echoed]);
+        echoed_capture["candidate_position"]=wrong["sqlserver_candidate_position"].clone();
+        echoed_capture["snapshot"]=wrong["snapshot"].clone();
+        assert_eq!(validate_mssql_capture(&wrong,&echoed_capture,&empty),Err("ct_scope"));
+        let key = cell_key_text(&NativeCell::Binary(vec![0,0,0,255])).unwrap();
+        assert_eq!(key, "\\x000000ff");
+        wrong["tombstones"]=json!([key]);
+        echoed_capture["tombstones"]=wrong["tombstones"].clone();
+        assert_eq!(validate_mssql_capture(&wrong,&echoed_capture,&empty),Ok(()));
+        let mut changed=capture.clone();changed["upserts"]=json!(1);changed["candidate_position"]["tables"][0]["version"]=json!(6);
+        let mut advanced=request.clone();advanced["applied_pos"]=json!("6");
+        advanced["sqlserver_candidate_position"]=changed["candidate_position"].clone();
+        advanced["snapshot"]=json!({"kind":"mssql_ct_version","value":"6"});
+        changed["snapshot"]=advanced["snapshot"].clone();
+        assert_eq!(validate_mssql_capture(&advanced,&changed,&empty),Err("ct_scope"));
+        changed["upserts"]=json!(1);
+        assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("ct_scope"));
+        changed=capture.clone();changed["upserts"]=json!(1);
+        assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("expired"));
+    }
 
     fn digests() -> Value {
         let digest = "ab".repeat(32);

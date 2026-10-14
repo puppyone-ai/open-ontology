@@ -15,7 +15,7 @@ def main():
     for name in ['pg-admin-password','runtime-password']:
         p=private/name;p.write_text(secrets.token_hex(32)+'\n');p.chmod(0o600)
     count=0
-    def call(argv, name, stdin=None, timeout=180):
+    def call(argv, name, stdin=None, timeout=900):
         nonlocal count;count+=1;stem=root/f'{count:03d}-{name}'
         with pathlib.Path(str(stem)+'.stdout').open('wb') as out,pathlib.Path(str(stem)+'.stderr').open('wb') as err:
             result=subprocess.run(argv,input=stdin,stdout=out,stderr=err,timeout=timeout)
@@ -30,16 +30,17 @@ def main():
     for p in private.iterdir():p.chmod(0o600)
     # Keys are copied into container-private storage before the official entrypoint drops privileges.
     entry=root/'pg-entry.sh';entry.write_text('#!/bin/sh\nset -eu\nmkdir -p /tls\ncp /bootstrap/server.crt /tls/server.crt\ncp /bootstrap/server.key /tls/server.key\nchown postgres:postgres /tls/server.crt /tls/server.key\nchmod 600 /tls/server.key\nexec /usr/local/bin/docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tls/server.crt -c ssl_key_file=/tls/server.key\n');entry.chmod(0o700)
-    docker=c['docker'];call([docker,'network','create',network],'network-create')
-    call([docker,'run','-d','--name',pg,'--network',network,'-p','127.0.0.1:'+str(c['api_port'])+':18454','--mount','type=volume,src='+volume+',dst=/var/lib/postgresql/data','--mount','type=bind,src='+str(private)+',dst=/bootstrap,readonly','--mount','type=bind,src='+str(entry)+',dst=/entry.sh,readonly','-e','POSTGRES_PASSWORD_FILE=/bootstrap/pg-admin-password','--entrypoint','/entry.sh',c['pg_image']], 'pg-start')
-    for net in [c['source_network'],c['identity_network']]:call([docker,'network','connect',net,pg],'network-connect')
+    docker=c['docker']
+    # Default Docker address pools are exhausted. Join the owned fixture network instead of allocating another subnet.
+    call([docker,'run','-d','--name',pg,'--network',c['source_network'],'-p','127.0.0.1:'+str(c['api_port'])+':18454','--mount','type=volume,src='+volume+',dst=/var/lib/postgresql/data','--mount','type=bind,src='+str(private)+',dst=/bootstrap,readonly','--mount','type=bind,src='+str(entry)+',dst=/entry.sh,readonly','-e','POSTGRES_PASSWORD_FILE=/bootstrap/pg-admin-password','--entrypoint','/entry.sh',c['pg_image']], 'pg-start')
+    call([docker,'network','connect',c['identity_network'],pg],'network-connect')
     for attempt in range(30):
         ready=subprocess.run([docker,'exec',pg,'pg_isready','-U','postgres'],capture_output=True,timeout=10)
         if ready.returncode==0:break
         time.sleep(1)
     assert ready.returncode==0, 'postgres readiness'
     argv=[docker,'run','-d','--name',runtime,'--network','container:'+pg,'--mount','type=bind,src='+str(root)+',dst='+str(root),'--mount','type=bind,src='+c['repo']+',dst='+c['repo']+',readonly']
-    paths={p['path'] for p in c['prepare_pins']}|{c['reader_user_file'],c['password_file']}
+    paths={p['path'] for p in c['prepare_pins'] if p['path']!=c['openssl']}|{c['reader_user_file'],c['password_file']}
     for path in sorted(paths):argv+=['--mount','type=bind,src='+path+',dst='+path+',readonly']
     call(argv+[c['runtime_image'],'sleep','86400'],'runtime-start')
     conf={'host':pg,'port':5432,'database':'oo_a390_control','runtime_user':'oo_a390_runtime_login','runtime_password_file':str(private/'runtime-password'),'admin_user':'postgres','admin_password_file':str(private/'pg-admin-password'),'ca_file':str(private/'ca.crt'),'migrations':c['repo']+'/crates/oo-jobs/migrations'}
@@ -59,5 +60,5 @@ def main():
         call([docker,'exec','-i',runtime,binary['path'],command],'official-'+command,json.dumps(install).encode())
     call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-v','ON_ERROR_STOP=1','-c','GRANT USAGE,CREATE ON SCHEMA _oo TO oo_a390_runtime_login; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA _oo TO oo_a390_runtime_login; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA _oo TO oo_a390_runtime_login'], 'target-loader-acl')
     call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-At','-c',"SELECT version,checksum,phase,filename FROM jobs.schema_migrations ORDER BY version; SELECT rolname,rolsuper,rolcreatedb,rolcreaterole,rolbypassrls FROM pg_roles WHERE rolname='oo_a390_runtime_login'; SELECT count(*) FROM jobs.tasks; SELECT count(*) FROM _oo.source_watermark;"], 'independent-installer-readiness')
-    save(root/'preparation.json',{'protocol':'oo.mariadb.official-preparation/v1','pg':pg,'runtime':runtime,'network':network,'volume':volume,'worker_config':str(config),'target':target,'official_installers':True,'manual_ready_markers':False,'source_rows_copied':0,'complete_chain':False})
+    save(root/'preparation.json',{'protocol':'oo.mariadb.official-preparation/v1','pg':pg,'runtime':runtime,'network':c['source_network'],'volume':volume,'worker_config':str(config),'target':target,'official_installers':True,'manual_ready_markers':False,'source_rows_copied':0,'complete_chain':False})
 if __name__=='__main__':main()
