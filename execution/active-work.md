@@ -1411,3 +1411,7 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 原owner长跑续接：Maria原b9f2 S5实际后台先收、Mongo cf3e0eb9b当前CLI/对话真实成功但仍需官方S9/S10/默认持续入口、Doris/PG max-turns200终态不算完成，原各UUID升级1000继续，Doris修actualrecovery127/mount/终态dedupe，PG唯一修Star混合当前3/5/13 table向量并继续本源。OpenSearch a7909d5c492报告默认run44584180/新代6维护/OOS/70cells0差/3turn对话与WAL已具，原owner继续核原持续可配置维护退出，不重做成功；Click默认run c815因其他engine登记引发全registrySHA resume_drift，源owner保留等待，真实case已交唯一shared-entry同时修money-before-validation。所有source测试DML仅ownedfixture，可由测试driver模拟外部变更，普通readonly接入不因测试获得写权；入口/实际worker自动capture/import/维护必须真证，旧receipt+flag不算。原核心原退出/五版/计数不变，无独立组件review。
 
 2026-10-14 Maria同owner真实S5预算阻断：已识别b9f2/grok upstream request499客户端90s取消/无返回body/cache；shared unique d28ca4bd新增stages.rs写域，仅复用现有pg-builder本地generate允许180s路径，保留外部30s上限/取消/单activejob，不因rootclock600s扩大genericbudget。修复前原owner保留pending，修复后核原失败/请求终态/无响应与cache才一次必要授权校正重试，不能将llm_calls0当无upstreamattempt，不盲loop。其他原退出/计数不变。
+
+## 2026-10-14 Docker恢复实测
+
+用户授权重启；官方普通restart停止超时后force-stop/start恢复Docker29.4.1。仅启动本次停机时仍运行的88个既有容器，最终88/88 running、MySQL API exec true=0；正确CA/路由/project验证身份18441及控制API18443匿名401、fixture-admin200。原数据卷与任务状态保留，无recreate/prune/DML重放；7个已核原UUID负责人仍live，其余保留原owner等待依赖。基础设施恢复不增加完整源/正式签收/整版计数。原始回执私有 /Users/redux/.cache/oo-grok-connection-full-20261014/DOCKER-RESTART-RECEIPT.json，SHA256 dd97683138ffede789adf4eb46f8058d148cfbf1dd500930511d835abe1effe5。后续先收原durable jobs再判断重试。

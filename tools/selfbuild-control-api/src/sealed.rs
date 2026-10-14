@@ -120,6 +120,30 @@ fn money_units(rules: &Value) -> Result<BTreeMap<String, String>, ApiError> {
     Ok(units)
 }
 
+pub(crate) fn source_money_facts(rules: &Value, rules_sha: &str) -> Option<Value> {
+    let declared = rules.get("columns")?.as_array()?;
+    let mut columns = Vec::new();
+    for rule in declared {
+        if rule.get("semantic_type").and_then(Value::as_str) != Some("money") {
+            continue;
+        }
+        let column = rule.get("column")?.as_str()?;
+        let unit = rule.get("unit").and_then(Value::as_str).unwrap_or("");
+        let pii = rule.get("pii").and_then(Value::as_str).unwrap_or("");
+        columns.push(json!({"column": column, "pii": pii, "semantic_type": "money", "unit": unit}));
+    }
+    if columns.is_empty() {
+        return None;
+    }
+    let columns = Value::Array(columns);
+    Some(json!({
+        "columns": columns,
+        "columns_sha256": sha256_hex(canonical_json(&columns).as_bytes()),
+        "protocol": "oo.pg-builder.source-money-facts/v1",
+        "source_rules_sha256": rules_sha
+    }))
+}
+
 fn project_declared_money(rows: &mut [Value], rules: &Value) -> Result<Value, ApiError> {
     let mut by_id = BTreeMap::new();
     for (index, row) in rows.iter().enumerate() {
@@ -402,6 +426,17 @@ async fn s5_model(
         return store::set_stage(client, &job.build_id, "S5", "awaiting", &job.input_sha256, Some(&hash), Some("model.blocked"))
             .await
             .unwrap_or(false);
+    }
+    let native_has_contract = bundle.raw.get("native-model.json")
+        .and_then(|bytes| serde_json::from_slice::<Value>(bytes).ok())
+        .and_then(|input| input.get("source_contract").cloned())
+        .is_some();
+    if !native_has_contract {
+        if let Some(facts) = bundle.file_sha.get("rules.json").and_then(|sha| source_money_facts(&bundle.rules, sha)) {
+            if write_private(&dir.join("source-money-facts.json"), canonical_json(&facts).as_bytes()).is_err() {
+                return fail(client, job, "S5", "config.write").await;
+            }
+        }
     }
     let spec = crate::builder_call::InvokeSpec {
         binary: model.pg_builder.to_owned(),
@@ -1044,7 +1079,7 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), ()> {
 
 #[cfg(test)]
 mod money_tests {
-    use super::project_declared_money;
+    use super::{project_declared_money, source_money_facts};
     use serde_json::json;
 
     #[test]
@@ -1056,6 +1091,15 @@ mod money_tests {
         assert_eq!(rows[0]["unit"], "unspecified");
         assert_eq!(rows[0]["pii"], "unknown");
         assert_eq!(receipt["corrections"][0]["model_candidate"], original);
+        let facts = source_money_facts(&rules, &"ab".repeat(32)).unwrap();
+        assert_eq!(facts["protocol"], "oo.pg-builder.source-money-facts/v1");
+        assert_eq!(facts["columns"][0]["unit"], "unspecified");
+        assert_eq!(facts["source_rules_sha256"], "ab".repeat(32));
+        let mixed = json!({"columns":[{"column":"oo_w141.shipments.id","semantic_type":"identifier","pii":"none"}, rules["columns"][0].clone()]});
+        assert_eq!(source_money_facts(&mixed, "ab".repeat(32).as_str()).unwrap()["columns"].as_array().unwrap().len(), 1);
+        let priced = json!({"columns":[{"column":"oo_w141.shipments.price","semantic_type":"money","unit":"USD","pii":"none"}]});
+        assert_eq!(source_money_facts(&priced, "ab".repeat(32).as_str()).unwrap()["columns"][0]["unit"], "USD");
+        assert!(source_money_facts(&json!({"columns":[{"column":"oo_w141.shipments.id","semantic_type":"identifier","pii":"none"}]}), "ab").is_none());
         assert!(project_declared_money(&mut rows, &json!({"columns":[]})).is_err());
         assert!(project_declared_money(&mut rows, &json!({"columns":[rules["columns"][0], rules["columns"][0]]})).is_err());
         assert!(project_declared_money(&mut [], &rules).is_err());

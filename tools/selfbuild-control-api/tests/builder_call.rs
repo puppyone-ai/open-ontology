@@ -200,3 +200,62 @@ async fn aggregate_transport_calls_are_counted() {
     }
     let _ = fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+async fn sealed_money_facts_are_forwarded_and_only_a_matching_retained_completion_is_copied() {
+    let dir = scratch("money-facts");
+    let bearer = dir.join("bearer");
+    fs::write(&bearer, b"unit-bearer-token\n").unwrap();
+    let binary = dir.join("builder");
+    write_exe(&binary, r#"#!/bin/sh
+set -eu
+out=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--out" ]; then out=$arg; fi
+  prev=$arg
+done
+printf '%s\n' "$@" > "$(dirname "$out")/argv.txt"
+mkdir -p "$out"
+printf '%s' '{"outcome":"packed","attempt":1,"cache":"miss"}' > "$out/result.json"
+exit 0
+"#);
+    touch_inputs(&dir);
+    let catalog = br#"{"protocol":"oo.pipeline.sealed-import-catalog/v1"}"#;
+    fs::write(dir.join("catalog.json"), catalog).unwrap();
+    let native = br#"{"dataset":"logistics.shipments","settings":{},"visibility":{}}"#;
+    fs::write(dir.join("native-model.json"), native).unwrap();
+    fs::write(dir.join("source-money-facts.json"), b"{\"protocol\":\"oo.pg-builder.source-money-facts/v1\"}\n").unwrap();
+    let evidence = selfbuild_control_api::canonical::sha256_hex(catalog);
+    let cache_root = dir.join("model-cache/pg-builder");
+    fs::create_dir_all(&cache_root).unwrap();
+    let retained = format!("{{\"protocol\":\"oo.pg-builder.retained-completion/v1\",\"evidence_hash\":\"{evidence}\",\"model_content\":\"raw\"}}");
+    fs::write(cache_root.join("retained-completion.json"), &retained).unwrap();
+    fs::write(cache_root.join("retained-envelope.private.json"), b"envelope-bytes").unwrap();
+    let result = builder_call::invoke(spec(&dir, &binary.display().to_string(), &bearer.display().to_string())).await;
+    assert!(matches!(result.kind, ModelKind::Validated { .. }));
+    let argv = fs::read_to_string(dir.join("argv.txt")).unwrap();
+    assert!(argv.contains("--source-contract"));
+    assert!(argv.contains("source-money-facts.json"));
+    assert!(!argv.contains("native-source-contract.json"));
+    assert_eq!(fs::read(dir.join("native-model.json")).unwrap(), native);
+    assert_eq!(fs::read(dir.join("cache/pg-builder/retained-completion.json")).unwrap(), retained.as_bytes());
+    assert_eq!(fs::read(dir.join("cache/pg-builder/retained-envelope.private.json")).unwrap(), b"envelope-bytes");
+    let blocked = scratch("money-validated");
+    let bearer = blocked.join("bearer");
+    fs::write(&bearer, b"unit-bearer-token\n").unwrap();
+    let binary = blocked.join("builder");
+    write_exe(&binary, "#!/bin/sh\nexit 0\n");
+    touch_inputs(&blocked);
+    fs::write(blocked.join("catalog.json"), catalog).unwrap();
+    fs::write(blocked.join("native-model.json"), native).unwrap();
+    let root = blocked.join("model-cache/pg-builder");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("retained-completion.json"), format!("{{\"protocol\":\"oo.pg-builder.retained-completion/v1\",\"outcome\":\"validated\",\"evidence_hash\":\"{evidence}\"}}")).unwrap();
+    fs::write(root.join("retained-envelope.private.json"), b"envelope-bytes").unwrap();
+    let _ = builder_call::invoke(spec(&blocked, &binary.display().to_string(), &bearer.display().to_string())).await;
+    assert!(!blocked.join("cache/pg-builder/retained-completion.json").exists());
+    assert!(!blocked.join("cache/pg-builder/retained-envelope.private.json").exists());
+    let _ = fs::remove_dir_all(&dir);
+    let _ = fs::remove_dir_all(&blocked);
+}

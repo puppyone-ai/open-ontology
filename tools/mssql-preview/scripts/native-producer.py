@@ -80,11 +80,18 @@ def classify_audit(raw, reader, application):
     for event in events:
         if event.get("reader") != reader or event.get("application_name") != application:
             raise ValueError("audit_cross_reader")
-        # Failed write attempts count too. Unknown audit actions fail closed.
-        if event.get("action_id", "").strip() != "SL":
-            forbidden += 1
-        elif event.get("succeeded") is True:
+        action = event.get("action_id", "").strip()
+        statement = (event.get("statement") or "").lstrip().upper()
+        # Login and a denied HAS_PERMS_BY_NAME probe are not writes. A failed
+        # INSERT/UPDATE/DELETE, or any other action, still fails closed.
+        if action == "SL" and event.get("succeeded") is True:
             reads += 1
+        elif action == "LGIS" and event.get("succeeded") is True:
+            continue
+        elif statement.startswith("SELECT HAS_PERMS_BY_NAME") and event.get("succeeded") is False:
+            continue
+        else:
+            forbidden += 1
     if forbidden or not reads:
         raise ValueError("audit_write_or_unobserved")
     return {"reader_statements": len(events), "successful_selects": reads,
@@ -113,10 +120,13 @@ def assemble(context, source, capture, directory, raw_audit_path, generation, pa
     audit = classify_audit(raw, source["endpoint"]["username"], capture["audit_application_name"])
     audit["raw_sha256"] = sha(raw_audit_path)
     audit_path = write(directory / "audit-summary.json", audit)
+    keys = item.get("primary_key")
+    if not isinstance(keys, list) or not keys or any(not isinstance(key, str) or not key for key in keys):
+        raise ValueError("ct_keys")
     ct_facts = {"database": capture["candidate_position"]["database"], "database_guid": capture["candidate_position"]["database_guid"],
                 "recovery_fork_guid": capture["candidate_position"]["recovery_fork_guid"], "table": table, "schema": schema,
                 "object_id": item["object_id"], "current_version": item["current_version"], "min_valid_version": item["min_valid_version"],
-                "snapshot_isolation": capture["snapshot_isolation"], "tds_query_executed": True}
+                "snapshot_isolation": capture["snapshot_isolation"], "tds_query_executed": True, "keys": keys}
     ct_path = write(directory / "ct-facts.json", ct_facts)
     provenance = read(context["dba_provenance_file"])
     if provenance.get("protocol") != "oo.mssql-preview.dba-provenance/v1" or provenance.get("database") != source["endpoint"]["database"] or provenance.get("object") != context["object"] or provenance.get("created_by") != "dba":
@@ -161,7 +171,7 @@ def assemble(context, source, capture, directory, raw_audit_path, generation, pa
         "cost_model": {"unit": "Rows", "confidence": "known", "estimate": "snapshot_count_big"}, "r1w": None,
         "capture_witness": witness_path}
     for name in ("Catalog", "BatchFull", "ChangeFeed", "DeleteNative", "Budget"):
-        report["capabilities"].append({"name": name, "cursor": None, "feed": "ChangeTracking" if name == "ChangeFeed" else None,
+        report["capabilities"].append({"name": name, "cursor": None, "feed": "ChangeTracking" if name in ("ChangeFeed", "DeleteNative") else None,
             "cdc": None, "token_order": "None", "budget_unit": "Rows" if name == "Budget" else None,
             "level": "experimental", "write_class": "R1" if name in ("ChangeFeed", "DeleteNative") else "R0", "consistency": "S1"})
     config = {"protocol": "oo.source-admission.config/v1", "target_id": "sqlserver-selfmanaged", "source_id": source["source_id"],
@@ -239,7 +249,21 @@ def produce(context, job):
     interval = int(context.get("reconcile_every", 100))
     if interval < 1:
         raise ValueError("reconcile_every")
-    if parent is not None and generation % interval:
+    # ponytail: one operator path reuses the already-read snap-1 only when no generation is applied. Later pins always live-read.
+    initial = context.get("initial_capture")
+    if parent is None and initial:
+        src = Path(initial)
+        if not src.is_absolute() or not (src / "manifest.json").is_file():
+            raise ValueError("initial_capture")
+        dest = directory / "capture"
+        dest.mkdir(mode=0o700)
+        for child in sorted(src.iterdir()):
+            if not child.is_file():
+                raise ValueError("initial_capture")
+            fd = os.open(dest / child.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as out:
+                out.write(child.read_bytes())
+    elif parent is not None and generation % interval:
         prior = state.get("sqlserver_candidate_position")
         if not isinstance(prior, dict):
             raise ValueError("applied_position_absent")

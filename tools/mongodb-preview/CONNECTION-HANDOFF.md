@@ -52,5 +52,10 @@ Owned containers are `oo-mongodb-connection-whole-source`,
 `oo-mongodb-connection-whole-gateway` (loopback `127.0.0.1:19541` inside that
 container). The old binding `76e387e4` stays disabled. Binding
 `f6d7e4e3-90f0-4d0a-b973-f1ddf59b82d5` is the live C5 binding; pins 2, 3, and 4
-completed and were not re-stepped. Preserve owned database volumes. Publication,
-owner signature, and formal acceptance remain open. `complete` stays false.
+completed and were not re-stepped. Pins 6, 7, and 8 then loaded source
+generations 4, 5, and 6. Pin 5 stays failed. Preserve owned database volumes.
+Publication, owner signature, and formal acceptance remain open and are not a
+reason to stop the preview. The current stop is the pinned API ELF: it returns
+malformed for `source_generation_advanced`, so generation 6 has no official
+maintenance receipt and the gateway still serves generation 3. `complete` stays
+false.
