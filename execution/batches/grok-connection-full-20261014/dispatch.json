@@ -95,9 +95,9 @@
   },
   {
     "task": "postgresql",
-    "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
-    "pid": 83395,
-    "prompt": "execution/batches/grok-connection-full-20261014/postgresql.md",
+    "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+    "pid": 27492,
+    "prompt": "execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
     "write_paths": [
       "tools/postgres-preview",
@@ -105,9 +105,11 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "pid_live_initial_observation",
-    "executor": "grok-4.7/xhigh",
-    "initial_log_bytes": 285
+    "status": "fresh_compact_postgresql_actual_transition_whole",
+    "executor": "grok-4.7/low",
+    "initial_log_bytes": 285,
+    "prior_session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+    "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof"
   },
   {
     "task": "starrocks",

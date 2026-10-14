@@ -43,7 +43,10 @@ def main():
         with tempfile.TemporaryDirectory(prefix="oo-owned-index-") as tmp:
             private = dict(env, GIT_INDEX_FILE=str(Path(tmp) / "index"))
             subprocess.run(["git", "read-tree", "HEAD"], env=private, check=True)
-            present = [p for p in paths if Path(p).exists() or git("ls-files", "--", p, env=private).strip()]
+            # Ignored raw evidence stays local under the current sanitized-snapshot policy.
+            present = [p for p in paths
+                       if (Path(p).exists() or git("ls-files", "--", p, env=private).strip())
+                       and subprocess.run(["git", "check-ignore", "-q", "--", p], env=private).returncode != 0]
             if present:
                 subprocess.run(["git", "add", "-A", "--", *present], env=private, check=True)
             changed = [p.decode("utf-8", "surrogateescape") for p in git("diff", "--cached", "--name-only", "-z", env=private).split(b"\0") if p]

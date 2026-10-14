@@ -148,9 +148,9 @@
     },
     {
       "task": "postgresql",
-      "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
-      "pid": 83395,
-      "prompt": "execution/batches/grok-connection-full-20261014/postgresql.md",
+      "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+      "pid": 27492,
+      "prompt": "execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
       "write_paths": [
         "tools/postgres-preview",
@@ -158,9 +158,11 @@
         "crates/oo-gateway/src/bin/install-column-acl.rs",
         "docs/07-gateway.md"
       ],
-      "status": "pid_live_initial_observation",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 285
+      "status": "fresh_compact_postgresql_actual_transition_whole",
+      "executor": "grok-4.7/low",
+      "initial_log_bytes": 285,
+      "prior_session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+      "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof"
     },
     {
       "task": "starrocks",
@@ -1522,8 +1524,8 @@
       {
         "source": "postgresql",
         "model": "grok-4.7",
-        "reasoning": "xhigh",
-        "status": "pid_live_initial_observation",
+        "reasoning": "low",
+        "status": "fresh_compact_postgresql_actual_transition_whole",
         "write_paths": [
           "tools/postgres-preview",
           "/tmp/oo-postgresql-connection-whole",
@@ -1532,8 +1534,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/pg_runtime_finish",
         "executor": "grok_cli",
-        "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
-        "pid": 83395
+        "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+        "pid": 27492
       },
       {
         "source": "starrocks",
@@ -1554,8 +1556,8 @@
       {
         "source": "sqlserver",
         "model": "grok-4.7",
-        "reasoning": "xhigh",
-        "status": "pid_live_initial_observation",
+        "reasoning": "low",
+        "status": "fresh_compact_sqlserver_whole_closure",
         "write_paths": [
           "tools/mssql-preview",
           "/tmp/oo-sqlserver-connection-whole",
@@ -1565,8 +1567,8 @@
         "exit": "fresh connection configuration → real capture/import → S0–S10 → configured update/delete periods → maintained Ontology/Pack → current Gateway/CLI → truthful accurate dialogue, fixed evidence",
         "prior_native_agent": "/root/sqlserver_whole_closure",
         "executor": "grok_cli",
-        "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
-        "pid": 83397
+        "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
+        "pid": 24020
       }
     ],
     "shared_entry": {
@@ -1702,9 +1704,9 @@
       },
       {
         "task": "postgresql",
-        "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
-        "pid": 83395,
-        "prompt": "execution/batches/grok-connection-full-20261014/postgresql.md",
+        "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+        "pid": 27492,
+        "prompt": "execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
         "write_paths": [
           "tools/postgres-preview",
@@ -1712,9 +1714,11 @@
           "crates/oo-gateway/src/bin/install-column-acl.rs",
           "docs/07-gateway.md"
         ],
-        "status": "pid_live_initial_observation",
-        "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 285
+        "status": "fresh_compact_postgresql_actual_transition_whole",
+        "executor": "grok-4.7/low",
+        "initial_log_bytes": 285,
+        "prior_session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+        "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof"
       },
       {
         "task": "starrocks",

@@ -986,8 +986,77 @@ fn r1_objects(capturer: &Value, witness: &Witness) -> Option<Value> {
             || ["name", "risk", "rollback"].iter().any(|key| object.get(*key).and_then(Value::as_str).is_none_or(|text| text.trim().is_empty())) {
             return None;
         }
+        if required[0] == "ct_database" && !mssql_ct_facts_bind(kind, object, &observation, capturer) {
+            return None;
+        }
     }
     Some(Value::Array(objects.clone()))
+}
+
+fn json_i64(value: &Value) -> Option<i64> {
+    value.as_i64().or_else(|| value.as_u64().and_then(|n| i64::try_from(n).ok()))
+}
+
+fn mssql_uuid(value: &str) -> bool {
+    let parts: Vec<_> = value.split('-').map(str::len).collect();
+    parts == [8, 4, 4, 4, 12] && value.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
+}
+
+/// SQL Server C2 only. The hash check stays. The observation must name the same
+/// database, fork, object, key, CT version, retention floor and snapshot the capturer claims.
+fn mssql_ct_facts_bind(kind: &str, object: &Value, observation: &[u8], capturer: &Value) -> bool {
+    let Ok(facts) = serde_json::from_slice::<Value>(observation) else { return false };
+    if facts.get("tds_query_executed").and_then(Value::as_bool) != Some(true) { return false; }
+    if facts.get("snapshot_isolation").and_then(Value::as_bool) != Some(true) { return false; }
+    if capturer.get("snapshot_isolation").and_then(Value::as_bool) != Some(true) { return false; }
+    let database = facts.get("database").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let schema = facts.get("schema").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let table = facts.get("table").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let (Some(database), Some(schema), Some(table)) = (database, schema, table) else { return false };
+    let guid = facts.get("database_guid").and_then(Value::as_str).filter(|s| mssql_uuid(s));
+    let fork = facts.get("recovery_fork_guid").and_then(Value::as_str).filter(|s| mssql_uuid(s));
+    let (Some(guid), Some(fork)) = (guid, fork) else { return false };
+    let Some(object_id) = facts.get("object_id").and_then(json_i64).filter(|n| *n > 0) else { return false };
+    let Some(current) = facts.get("current_version").and_then(json_i64).filter(|n| *n >= 0) else { return false };
+    let Some(minimum) = facts.get("min_valid_version").and_then(json_i64).filter(|n| *n >= 0 && *n <= current) else { return false };
+    let Some(keys) = facts.get("keys").and_then(Value::as_array) else { return false };
+    if keys.is_empty() || keys.iter().any(|key| key.as_str().is_none_or(|s| s.is_empty())) { return false; }
+    let name = object.get("name").and_then(Value::as_str).unwrap_or("");
+    let expect = if kind == "ct_database" { database.to_string() } else { format!("{schema}.{table}") };
+    if name != expect { return false; }
+    let Some(candidate) = capturer.get("candidate_position") else { return false };
+    if candidate.get("protocol").and_then(Value::as_str) != Some("oo.mssql-preview.ct-position/v1")
+        || candidate.get("database").and_then(Value::as_str) != Some(database)
+        || candidate.get("database_guid").and_then(Value::as_str) != Some(guid)
+        || candidate.get("recovery_fork_guid").and_then(Value::as_str) != Some(fork) {
+        return false;
+    }
+    let Some(rows) = candidate.get("tables").and_then(Value::as_array) else { return false };
+    let matching: Vec<_> = rows.iter().filter(|row| {
+        row.get("schema").and_then(Value::as_str) == Some(schema) && row.get("name").and_then(Value::as_str) == Some(table)
+    }).collect();
+    let [selected] = matching.as_slice() else { return false };
+    if selected.get("object_id").and_then(json_i64) != Some(object_id) || selected.get("version").and_then(json_i64) != Some(current) {
+        return false;
+    }
+    if selected.get("keys") != Some(&Value::Array(keys.clone())) { return false; }
+    if let Some(manifests) = capturer.get("tables").and_then(Value::as_array) {
+        let found: Vec<_> = manifests.iter().filter(|row| {
+            row.get("schema").and_then(Value::as_str) == Some(schema) && row.get("name").and_then(Value::as_str) == Some(table)
+        }).collect();
+        let [manifest] = found.as_slice() else { return false };
+        if manifest.get("min_valid_version").and_then(json_i64) != Some(minimum)
+            || manifest.get("current_version").and_then(json_i64) != Some(current)
+            || manifest.get("object_id").and_then(json_i64) != Some(object_id)
+            || manifest.get("primary_key") != Some(&Value::Array(keys.clone())) {
+            return false;
+        }
+    }
+    match capturer.get("snapshot") {
+        Some(snapshot) => snapshot.get("kind").and_then(Value::as_str) == Some("mssql_ct_version")
+            && snapshot.get("value").and_then(Value::as_str) == Some(current.to_string().as_str()),
+        None => true,
+    }
 }
 
 fn pg_cursor(table: &Value) -> Option<(String, &str)> {
@@ -2760,6 +2829,48 @@ mod native_type_tests {
         capture["dba_objects"][0]["observation_sha256"] = serde_json::json!("0".repeat(64));
         assert!(r1_objects(&capture, &witness).is_none());
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn sqlserver_c2_observation_binds_ct_facts_not_only_the_hash() {
+        let facts = serde_json::json!({
+            "database":"oo_dl01w1_09","database_guid":"EB4FDD2C-55EB-4858-9620-390EF5387B84",
+            "recovery_fork_guid":"645E9A69-D84E-4D9C-AFC1-DC615B29E71A","schema":"dbo","table":"oracle_row",
+            "object_id":901578250,"current_version":1,"min_valid_version":0,"snapshot_isolation":true,
+            "tds_query_executed":true,"keys":["id"]
+        });
+        let raw = serde_json::to_vec(&facts).unwrap();
+        let path = std::env::temp_dir().join(format!("oo-ct-admit-{}", std::process::id()));
+        std::fs::write(&path, &raw).unwrap();
+        let digest = sha256_hex(&raw);
+        let witness: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"sqlserver","source_id":"sql_test","source_generation":1,
+            "snapshot":{"kind":"mssql_ct_version","value":"1"},"run_id":"test","logical_schema":"dbo","logical_table":"oracle_row",
+            "capturer_path":"/test","arrow_path":"/test","driver_path":"/test","schema_preimage_path":"/test","type_preimage_path":"/test"})).unwrap();
+        let object = |kind: &str, name: &str| serde_json::json!({"kind":kind,"name":name,"created_by":"dba","observed":true,
+            "platform_created":false,"platform_write_attempts":0,"risk":"finite retention","rollback":"DBA disable after pause",
+            "observation_path":path.to_str().unwrap(),"observation_sha256":digest});
+        let capture = serde_json::json!({
+            "protocol":"oo.mssql-preview.capture/v1","capture_method":"C2","snapshot_isolation":true,
+            "snapshot":{"kind":"mssql_ct_version","value":"1"},
+            "candidate_position":{"protocol":"oo.mssql-preview.ct-position/v1","database":"oo_dl01w1_09",
+                "database_guid":"EB4FDD2C-55EB-4858-9620-390EF5387B84","recovery_fork_guid":"645E9A69-D84E-4D9C-AFC1-DC615B29E71A",
+                "tables":[{"schema":"dbo","name":"oracle_row","object_id":901578250,"version":1,"keys":["id"]}]},
+            "tables":[{"schema":"dbo","name":"oracle_row","object_id":901578250,"current_version":1,"min_valid_version":0,"primary_key":["id"]}],
+            "dba_objects":[object("ct_database","oo_dl01w1_09"), object("ct_table","dbo.oracle_row")]
+        });
+        assert!(r1_objects(&capture, &witness).is_some());
+        let mut drifted = capture.clone();
+        let mut other = facts.clone();
+        other["database_guid"] = serde_json::json!("00000000-0000-0000-0000-000000000001");
+        let other_raw = serde_json::to_vec(&other).unwrap();
+        let other_path = std::env::temp_dir().join(format!("oo-ct-admit-drift-{}", std::process::id()));
+        std::fs::write(&other_path, &other_raw).unwrap();
+        drifted["dba_objects"][0]["observation_path"] = serde_json::json!(other_path.to_str().unwrap());
+        drifted["dba_objects"][0]["observation_sha256"] = serde_json::json!(sha256_hex(&other_raw));
+        assert!(r1_objects(&drifted, &witness).is_none());
+        std::fs::remove_file(&path).unwrap();
+        std::fs::remove_file(&other_path).unwrap();
     }
 
     #[test]
